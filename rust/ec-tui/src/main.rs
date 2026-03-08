@@ -16,11 +16,11 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Wrap};
 use ratatui::{DefaultTerminal, Frame};
 
-const EC_BLUE: Color = Color::Rgb(10, 32, 122);
-const EC_BLUE_DARK: Color = Color::Rgb(7, 22, 84);
-const EC_GOLD: Color = Color::Rgb(245, 208, 76);
-const EC_CREAM: Color = Color::Rgb(243, 234, 206);
-const EC_BLACK: Color = Color::Rgb(10, 10, 14);
+const EC_BLUE: Color = Color::Rgb(122, 162, 247);
+const EC_BLUE_DARK: Color = Color::Rgb(22, 24, 33);
+const EC_GOLD: Color = Color::Rgb(224, 175, 104);
+const EC_CREAM: Color = Color::Rgb(192, 202, 245);
+const EC_BLACK: Color = Color::Rgb(26, 27, 38);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum AppMode {
@@ -77,8 +77,8 @@ impl App {
             (AppMode::Player, FocusPane::Overview) => "Overview",
             (AppMode::Player, FocusPane::Players) => "Players",
             (AppMode::Player, FocusPane::Fleets) => "Fleets",
-            (AppMode::Util, FocusPane::Overview) => "Dashboard",
-            (AppMode::Util, FocusPane::Players) => "Empire Control",
+            (AppMode::Util, FocusPane::Overview) => "Maintenance & New Game",
+            (AppMode::Util, FocusPane::Players) => "Empire Ownership",
             (AppMode::Util, FocusPane::Fleets) => "Program & Port Setup",
         }
     }
@@ -208,8 +208,9 @@ fn header(app: &App) -> Paragraph<'static> {
     .block(
         Block::default()
             .borders(Borders::ALL)
+            .border_style(Style::default().fg(EC_BLUE))
             .title(Span::styled(" ec-tui ", Style::default().fg(EC_GOLD)))
-            .style(Style::default().bg(EC_BLUE).fg(EC_CREAM)),
+            .style(Style::default().bg(EC_BLACK).fg(EC_CREAM)),
     )
 }
 
@@ -342,15 +343,25 @@ fn util_dashboard_panel(app: &App) -> Paragraph<'static> {
     let conquest = &app.data.conquest;
     let lines = vec![
         Line::from(Span::styled(
-            "Campaign Clock",
+            "Maintenance Cycle",
             Style::default().fg(EC_GOLD).add_modifier(Modifier::BOLD),
         )),
         Line::from(format!(
-            "  Year {}  |  Players {}  |  Schedule {:02x?}",
+            "  Year {}  |  Players {}",
             conquest.game_year(),
             conquest.player_count(),
+        )),
+        Line::from(format!(
+            "  Maintenance days: {:02x?}",
             conquest.maintenance_schedule_bytes()
         )),
+        Line::from(""),
+        Line::from(Span::styled(
+            "New Game Snapshot",
+            Style::default().fg(EC_GOLD).add_modifier(Modifier::BOLD),
+        )),
+        Line::from("  Running from the preserved initialized/post-maint fixture set."),
+        Line::from("  Next: wire direct init + maintenance actions into this screen."),
         Line::from(""),
         Line::from(Span::styled(
             "Program Rules",
@@ -413,7 +424,7 @@ fn players_panel(app: &App) -> List<'static> {
                     Style::default().fg(EC_GOLD).add_modifier(Modifier::BOLD),
                 )),
                 Line::from(format!("  {}", record.ownership_summary())),
-                Line::from(format!("  tax={} owner_mode={}", record.tax_rate(), record.owner_mode_raw())),
+                Line::from(format!("  tax={}", record.tax_rate())),
             ])
         })
         .collect::<Vec<_>>();
@@ -531,7 +542,7 @@ fn util_programs_panel(app: &App) -> Paragraph<'static> {
         )),
         Line::from(""),
         Line::from(Span::styled(
-            "Next: make these panels editable directly in the TUI.",
+            "Next: make these settings editable directly here.",
             Style::default().fg(EC_CREAM),
         )),
     ];
@@ -581,7 +592,7 @@ fn resolve_game_dir(options: CliOptions) -> CliOptions {
         return options;
     }
 
-    let repo_default = repo_root().join("original/v1.5");
+    let repo_default = repo_root().join("fixtures/ecmaint-post/v1.5");
     if looks_like_game_dir(&repo_default) {
         CliOptions {
             mode: options.mode,
@@ -665,12 +676,12 @@ mod tests {
     }
 
     #[test]
-    fn resolve_game_dir_falls_back_to_repo_original_snapshot() {
+    fn resolve_game_dir_falls_back_to_repo_post_maint_snapshot() {
         let options = CliOptions {
             mode: AppMode::Util,
             dir: PathBuf::from("/tmp/not-a-game-dir"),
         };
         let resolved = resolve_game_dir(options);
-        assert!(resolved.dir.ends_with("original/v1.5"));
+        assert!(resolved.dir.ends_with("fixtures/ecmaint-post/v1.5"));
     }
 }

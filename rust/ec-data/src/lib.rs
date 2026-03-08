@@ -120,19 +120,22 @@ impl PlayerRecord {
     }
 
     pub fn ownership_summary(&self) -> String {
+        let legacy = self.legacy_status_name_summary();
+        let handle = self.assigned_player_handle_summary();
+        let empire = self.controlled_empire_name_summary();
+
         if self.owner_mode_raw() == 0xff {
-            format!("rogue label='{}'", self.legacy_status_name_summary())
-        } else if self.assigned_player_flag_raw() != 0
-            || !self.assigned_player_handle_summary().is_empty()
-            || !self.controlled_empire_name_summary().is_empty()
-        {
+            format!("rogue label='{legacy}'")
+        } else if legacy.starts_with("In Civil Disorder") || legacy == "Unowned" {
+            format!("unowned label='{legacy}'")
+        } else if self.assigned_player_flag_raw() != 0 || !handle.is_empty() || !empire.is_empty() {
             format!(
                 "player handle='{}' empire='{}'",
-                self.assigned_player_handle_summary(),
-                self.controlled_empire_name_summary()
+                handle,
+                empire
             )
         } else {
-            format!("unowned label='{}'", self.legacy_status_name_summary())
+            format!("unowned label='{legacy}'")
         }
     }
 

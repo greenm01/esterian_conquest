@@ -912,6 +912,7 @@ Current `ec-tui` shape:
 - `ec-tui` defaults to player mode in the current working directory
 - `ec-tui util` opens the utility/admin mode in the current working directory
 - optional directory override is still supported as the first positional path
+- when the current directory is not a valid game directory, `ec-tui` now falls back to the preserved `fixtures/ecmaint-post/v1.5` snapshot instead of the noisier shipped sample
 - utility mode now uses a modern EC-classic presentation instead of trying to mimic the original DOS utility screen-for-screen
 - no function-key dependency in the new shell; section switching is handled with `1/2/3`, `Tab`, and `q`
 
