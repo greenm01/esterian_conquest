@@ -893,9 +893,10 @@ Rust preservation impact:
   - `set_com_hardware_flow_control_enabled()`
 - `ec-cli` now exposes:
   - `port-setup [dir]`
+  - `com-irq <dir> <com1|com2|com3|com4> [0..7]`
   - `flow-control <dir> <com1|com2|com3|com4> [on|off]`
 
-The CLI currently covers the verified flow-control part of `F5` directly and prints the raw IRQ values conservatively without claiming write support for the IRQ editor yet.
+The CLI now covers the verified `F5` flow-control toggles directly and exposes the raw IRQ editor bytes with the same observed `0..7` value range as the original utility.
 
 Confirmed `SETUP.DAT` offsets from the live `F4` diffs:
 

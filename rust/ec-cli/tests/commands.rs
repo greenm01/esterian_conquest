@@ -278,3 +278,31 @@ fn flow_control_off_rewrites_setup_flag() {
 
     let _ = fs::remove_dir_all(&target);
 }
+
+#[test]
+fn com_irq_rewrites_setup_value() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-irq-{unique}"));
+    fs::create_dir_all(&target).unwrap();
+
+    let fixture = repo_root().join("original/v1.5");
+    fs::copy(fixture.join("SETUP.DAT"), target.join("SETUP.DAT")).unwrap();
+
+    let stdout = run_ec_cli_in_dir(
+        &["com-irq", target.to_str().unwrap(), "com1", "7"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("COM 1 IRQ: 7"));
+
+    let stdout = run_ec_cli_in_dir(
+        &["port-setup", target.to_str().unwrap()],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("COM 1 IRQ: 7"));
+    assert!(stdout.contains("COM 2 IRQ: 3"));
+
+    let _ = fs::remove_dir_all(&target);
+}

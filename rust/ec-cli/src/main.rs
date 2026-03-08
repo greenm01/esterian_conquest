@@ -122,6 +122,23 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 _ => print_usage(),
             }
         }
+        "com-irq" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            let Some(port_name) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            match args.next() {
+                None => print_com_irq(&dir, &port_name)?,
+                Some(irq) => {
+                    let irq = irq.parse::<u8>()?;
+                    set_com_irq(&dir, &port_name, irq)?;
+                }
+            }
+        }
         "snoop" => {
             let dir = args
                 .next()
@@ -513,6 +530,33 @@ fn set_flow_control(
     setup.set_com_hardware_flow_control_enabled(com_index, enabled);
     fs::write(&setup_path, setup.to_bytes())?;
     print_flow_control(dir, port_name)?;
+    Ok(())
+}
+
+fn print_com_irq(dir: &Path, port_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    let com_index = com_index(port_name)
+        .ok_or_else(|| format!("unknown COM port: {port_name}"))?;
+    println!("Directory: {}", dir.display());
+    println!(
+        "COM {} IRQ: {}",
+        com_index + 1,
+        setup.com_irq_raw(com_index).unwrap_or_default()
+    );
+    Ok(())
+}
+
+fn set_com_irq(dir: &Path, port_name: &str, irq: u8) -> Result<(), Box<dyn std::error::Error>> {
+    if irq > 7 {
+        return Err(format!("IRQ must be in 0..=7, got {irq}").into());
+    }
+    let com_index = com_index(port_name)
+        .ok_or_else(|| format!("unknown COM port: {port_name}"))?;
+    let setup_path = dir.join("SETUP.DAT");
+    let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
+    setup.set_com_irq_raw(com_index, irq);
+    fs::write(&setup_path, setup.to_bytes())?;
+    print_com_irq(dir, port_name)?;
     Ok(())
 }
 
