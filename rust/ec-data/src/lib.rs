@@ -307,6 +307,23 @@ impl FleetRecord {
     pub fn etac_count(&self) -> u8 {
         self.raw[0x30]
     }
+
+    pub fn ship_composition_summary(&self) -> String {
+        let parts = [
+            ("CA", self.cruiser_count()),
+            ("DD", self.destroyer_count()),
+            ("ET", self.etac_count()),
+        ]
+        .into_iter()
+        .filter_map(|(label, count)| (count > 0).then(|| format!("{label}={count}")))
+        .collect::<Vec<_>>();
+
+        if parts.is_empty() {
+            "none".to_string()
+        } else {
+            parts.join(" ")
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -525,6 +542,7 @@ mod tests {
             parsed.records[0].standing_order_summary(),
             "Guard/blockade world in System (16,13)"
         );
+        assert_eq!(parsed.records[0].ship_composition_summary(), "CA=1 ET=1");
 
         assert_eq!(parsed.records[2].fleet_id(), 3);
         assert_eq!(parsed.records[2].local_slot(), 3);
@@ -545,6 +563,7 @@ mod tests {
             parsed.records[2].standing_order_summary(),
             "Guard/blockade world in System (16,13)"
         );
+        assert_eq!(parsed.records[2].ship_composition_summary(), "DD=1");
     }
 
     #[test]
