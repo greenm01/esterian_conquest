@@ -898,6 +898,27 @@ Rust preservation impact:
 
 The CLI now covers the verified `F5` flow-control toggles directly and exposes the raw IRQ editor bytes with the same observed `0..7` value range as the original utility.
 
+## Modern TUI Direction
+
+Current preservation split:
+
+- `ec-data` stays focused on binary formats and decoded fields
+- `ec-cli` stays std-only and scriptable for RE work
+- `ec-tui` is the new interactive terminal frontend
+
+Current `ec-tui` shape:
+
+- one shared TUI crate, not separate apps for utility and player modes
+- `ec-tui` defaults to player mode in the current working directory
+- `ec-tui util` opens the utility/admin mode in the current working directory
+- optional directory override is still supported as the first positional path
+
+The first `ec-tui` scaffold is intentionally a shell, not a faithful DOS clone:
+
+- player mode is the default user-facing entry point
+- utility mode surfaces the already-decoded setup and fleet/player summaries
+- the historical `v1.5` UI is preserved via screenshots and notes rather than by reproducing every original panel verbatim
+
 Confirmed `SETUP.DAT` offsets from the live `F4` diffs:
 
 - `SETUP[512]` `snoop_enabled`
