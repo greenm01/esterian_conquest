@@ -168,3 +168,16 @@ fn purge_after_rewrites_setup_raw_value() {
 
     let _ = fs::remove_dir_all(&target);
 }
+
+#[test]
+fn setup_programs_prints_mapped_f4_values() {
+    let stdout = run_ec_cli(&["setup-programs", "original/v1.5"]);
+    assert!(stdout.contains("ECUTIL F4 Modify Program Options"));
+    assert!(stdout.contains("A Purge messages & reports after: 0 turn(s)"));
+    assert!(stdout.contains("B Autopilot any empires inactive for: 0 turn(s)"));
+    assert!(stdout.contains("C Snoop Enabled: Yes"));
+    assert!(stdout.contains("D Enable timeout for local users: No"));
+    assert!(stdout.contains("E Enable timeout for remote users: Yes"));
+    assert!(stdout.contains("F Maximum time between key strokes: 10 minute(s)"));
+    assert!(stdout.contains("G Minimum time granted: 0 minute(s)"));
+}

@@ -124,6 +124,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
+        "setup-programs" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            print_setup_programs(&dir)?;
+        }
         _ => print_usage(),
     }
 
@@ -359,6 +366,41 @@ fn print_purge_after(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn print_setup_programs(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    println!("Directory: {}", dir.display());
+    println!("ECUTIL F4 Modify Program Options");
+    println!(
+        "  A Purge messages & reports after: {} turn(s)",
+        setup.purge_after_turns_raw()
+    );
+    println!(
+        "  B Autopilot any empires inactive for: {} turn(s)",
+        setup.autopilot_inactive_turns_raw()
+    );
+    println!(
+        "  C Snoop Enabled: {}",
+        yes_no(setup.snoop_enabled())
+    );
+    println!(
+        "  D Enable timeout for local users: {}",
+        yes_no(setup.local_timeout_enabled())
+    );
+    println!(
+        "  E Enable timeout for remote users: {}",
+        yes_no(setup.remote_timeout_enabled())
+    );
+    println!(
+        "  F Maximum time between key strokes: {} minute(s)",
+        setup.max_time_between_keys_minutes_raw()
+    );
+    println!(
+        "  G Minimum time granted: {} minute(s)",
+        setup.minimum_time_granted_minutes_raw()
+    );
+    Ok(())
+}
+
 fn set_purge_after(dir: &Path, turns: u8) -> Result<(), Box<dyn std::error::Error>> {
     let setup_path = dir.join("SETUP.DAT");
     let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
@@ -387,6 +429,10 @@ fn set_maintenance_days(dir: &Path, day_names: &[String]) -> Result<(), Box<dyn 
 
 fn weekday_labels() -> [&'static str; 7] {
     ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
+}
+
+fn yes_no(value: bool) -> &'static str {
+    if value { "Yes" } else { "No" }
 }
 
 fn weekday_index(day_name: &str) -> Option<usize> {

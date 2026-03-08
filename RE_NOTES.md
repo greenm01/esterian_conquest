@@ -788,7 +788,8 @@ Footer text from the preserved screenshot:
 Practical implication for the Rust port:
 
 - the preserved `ec-cli init` command corresponds directly to `F1`
-- the next highest-value `ECUTIL` replacement targets are `F2` and `F4`
+- the preserved `ec-cli maintenance-days` command corresponds directly to `F2`
+- the preserved `ec-cli setup-programs` command now mirrors the decoded `F4` screen wording
 - the screenshot gives exact wording for a future faithful text-mode compatibility frontend
 
 Confirmed `ECUTIL` F4 Setup The Programs menu from `captures/v1.5-dosboxx/ecutil_002.png`:
@@ -801,6 +802,22 @@ Confirmed `ECUTIL` F4 Setup The Programs menu from `captures/v1.5-dosboxx/ecutil
 - `F` Maximum time between key strokes
 - `G` Minimum time granted
 - `X` Exit Setup
+
+Current Rust CLI coverage for the decoded `F4` fields:
+
+- `ec-cli setup-programs [dir]`
+- `ec-cli snoop [dir] <on|off>`
+- `ec-cli purge-after [dir] <turns>`
+
+Confirmed `SETUP.DAT` offsets from the live `F4` diffs:
+
+- `SETUP[512]` `snoop_enabled`
+- `SETUP[513]` `max_time_between_keys_minutes_raw`
+- `SETUP[515]` `remote_timeout_enabled`
+- `SETUP[516]` `local_timeout_enabled`
+- `SETUP[517]` `minimum_time_granted_minutes_raw`
+- `SETUP[518]` `purge_after_turns_raw`
+- `SETUP[520]` `autopilot_inactive_turns_raw`
 
 ## Fleet Command Surface
 
