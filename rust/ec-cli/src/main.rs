@@ -282,7 +282,27 @@ fn dump_headers(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("SETUP.version={}", String::from_utf8_lossy(setup.version_tag()));
     println!("SETUP.option_prefix={:02x?}", setup.option_prefix());
     println!("SETUP.snoop_enabled={}", setup.snoop_enabled());
+    println!(
+        "SETUP.local_timeout_enabled={}",
+        setup.local_timeout_enabled()
+    );
+    println!(
+        "SETUP.remote_timeout_enabled={}",
+        setup.remote_timeout_enabled()
+    );
+    println!(
+        "SETUP.max_time_between_keys_minutes_raw={}",
+        setup.max_time_between_keys_minutes_raw()
+    );
+    println!(
+        "SETUP.minimum_time_granted_minutes_raw={}",
+        setup.minimum_time_granted_minutes_raw()
+    );
     println!("SETUP.purge_after_turns_raw={}", setup.purge_after_turns_raw());
+    println!(
+        "SETUP.autopilot_inactive_turns_raw={}",
+        setup.autopilot_inactive_turns_raw()
+    );
     println!("CONQUEST.game_year={}", conquest.game_year());
     println!("CONQUEST.player_count={}", conquest.player_count());
     println!("CONQUEST.player_config_word={:04x}", conquest.player_config_word());
@@ -386,7 +406,27 @@ fn print_header_summary(setup: &SetupDat, conquest: &ConquestDat) {
     println!("SETUP version: {}", String::from_utf8_lossy(setup.version_tag()));
     println!("SETUP option prefix: {:02x?}", setup.option_prefix());
     println!("SETUP snoop enabled: {}", if setup.snoop_enabled() { "yes" } else { "no" });
+    println!(
+        "SETUP local timeout enabled: {}",
+        if setup.local_timeout_enabled() { "yes" } else { "no" }
+    );
+    println!(
+        "SETUP remote timeout enabled: {}",
+        if setup.remote_timeout_enabled() { "yes" } else { "no" }
+    );
+    println!(
+        "SETUP max time between keys (raw minutes): {}",
+        setup.max_time_between_keys_minutes_raw()
+    );
+    println!(
+        "SETUP minimum time granted (raw minutes): {}",
+        setup.minimum_time_granted_minutes_raw()
+    );
     println!("SETUP purge after turns (raw): {}", setup.purge_after_turns_raw());
+    println!(
+        "SETUP autopilot inactive turns (raw): {}",
+        setup.autopilot_inactive_turns_raw()
+    );
     println!("CONQUEST game year: {}", conquest.game_year());
     println!("CONQUEST player count: {}", conquest.player_count());
     println!(

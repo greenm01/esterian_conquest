@@ -429,12 +429,52 @@ impl SetupDat {
         self.raw[512] = u8::from(enabled);
     }
 
+    pub fn max_time_between_keys_minutes_raw(&self) -> u8 {
+        self.raw[513]
+    }
+
+    pub fn set_max_time_between_keys_minutes_raw(&mut self, minutes: u8) {
+        self.raw[513] = minutes;
+    }
+
+    pub fn remote_timeout_enabled(&self) -> bool {
+        self.raw[515] != 0
+    }
+
+    pub fn set_remote_timeout_enabled(&mut self, enabled: bool) {
+        self.raw[515] = u8::from(enabled);
+    }
+
+    pub fn local_timeout_enabled(&self) -> bool {
+        self.raw[516] != 0
+    }
+
+    pub fn set_local_timeout_enabled(&mut self, enabled: bool) {
+        self.raw[516] = u8::from(enabled);
+    }
+
+    pub fn minimum_time_granted_minutes_raw(&self) -> u8 {
+        self.raw[517]
+    }
+
+    pub fn set_minimum_time_granted_minutes_raw(&mut self, minutes: u8) {
+        self.raw[517] = minutes;
+    }
+
     pub fn purge_after_turns_raw(&self) -> u8 {
         self.raw[518]
     }
 
     pub fn set_purge_after_turns_raw(&mut self, turns: u8) {
         self.raw[518] = turns;
+    }
+
+    pub fn autopilot_inactive_turns_raw(&self) -> u8 {
+        self.raw[520]
+    }
+
+    pub fn set_autopilot_inactive_turns_raw(&mut self, turns: u8) {
+        self.raw[520] = turns;
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -584,7 +624,12 @@ mod tests {
         assert_eq!(parsed.version_tag(), b"EC151");
         assert_eq!(parsed.option_prefix(), &[4, 3, 4, 3, 1, 1, 1, 1]);
         assert!(parsed.snoop_enabled());
+        assert_eq!(parsed.max_time_between_keys_minutes_raw(), 10);
+        assert!(parsed.remote_timeout_enabled());
+        assert!(!parsed.local_timeout_enabled());
+        assert_eq!(parsed.minimum_time_granted_minutes_raw(), 0);
         assert_eq!(parsed.purge_after_turns_raw(), 0);
+        assert_eq!(parsed.autopilot_inactive_turns_raw(), 0);
     }
 
     #[test]
@@ -738,6 +783,24 @@ mod tests {
         setup.set_snoop_enabled(false);
         assert!(!setup.snoop_enabled());
         assert_eq!(setup.raw[512], 0);
+    }
+
+    #[test]
+    fn can_set_other_setup_program_fields() {
+        let mut setup = SetupDat::parse(&read_fixture("SETUP.DAT")).unwrap();
+        setup.set_max_time_between_keys_minutes_raw(15);
+        setup.set_remote_timeout_enabled(false);
+        setup.set_local_timeout_enabled(true);
+        setup.set_minimum_time_granted_minutes_raw(69);
+        setup.set_purge_after_turns_raw(10);
+        setup.set_autopilot_inactive_turns_raw(3);
+
+        assert_eq!(setup.max_time_between_keys_minutes_raw(), 15);
+        assert!(!setup.remote_timeout_enabled());
+        assert!(setup.local_timeout_enabled());
+        assert_eq!(setup.minimum_time_granted_minutes_raw(), 69);
+        assert_eq!(setup.purge_after_turns_raw(), 10);
+        assert_eq!(setup.autopilot_inactive_turns_raw(), 3);
     }
 
     #[test]

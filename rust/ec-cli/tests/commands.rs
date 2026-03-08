@@ -45,6 +45,13 @@ fn headers_prints_known_setup_and_conquest_values() {
     let stdout = run_ec_cli(&["headers", "original/v1.5"]);
     assert!(stdout.contains("SETUP.version=EC151"));
     assert!(stdout.contains("SETUP.option_prefix=[04, 03, 04, 03, 01, 01, 01, 01]"));
+    assert!(stdout.contains("SETUP.snoop_enabled=true"));
+    assert!(stdout.contains("SETUP.local_timeout_enabled=false"));
+    assert!(stdout.contains("SETUP.remote_timeout_enabled=true"));
+    assert!(stdout.contains("SETUP.max_time_between_keys_minutes_raw=10"));
+    assert!(stdout.contains("SETUP.minimum_time_granted_minutes_raw=0"));
+    assert!(stdout.contains("SETUP.purge_after_turns_raw=0"));
+    assert!(stdout.contains("SETUP.autopilot_inactive_turns_raw=0"));
     assert!(stdout.contains("CONQUEST.game_year=3022"));
     assert!(stdout.contains("CONQUEST.player_count=4"));
     assert!(stdout.contains("CONQUEST.player_config_word=0104"));
