@@ -1,4 +1,3 @@
 [workspace]
-members = ["ec-data"]
+members = ["ec-data", "ec-cli"]
 resolver = "2"
-

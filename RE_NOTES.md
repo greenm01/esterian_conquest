@@ -581,7 +581,8 @@ Current scaffold status:
   - `SETUP.DAT`: `522`
   - `CONQUEST.DAT`: `2085`
 - unknown regions are intentionally preserved as raw byte arrays
-- current test status: `cargo test` passes
+- current test status: `cargo test` passes in the original archive workspace and now also in the GitHub-tracked preservation repo
+- `ec-cli` now provides a first inspection command against `original/v1.5`
 
 ## Screenshot Archive
 

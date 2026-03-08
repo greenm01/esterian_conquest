@@ -3,5 +3,12 @@
 version = 4
 
 [[package]]
+name = "ec-cli"
+version = "0.1.0"
+dependencies = [
+ "ec-data",
+]
+
+[[package]]
 name = "ec-data"
 version = "0.1.0"
