@@ -270,12 +270,22 @@ mod tests {
             .join(name)
     }
 
+    fn post_maint_fixture_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/ecmaint-post/v1.5")
+            .join(name)
+    }
+
     fn read_fixture(name: &str) -> Vec<u8> {
         fs::read(fixture_path(name)).expect("fixture should exist")
     }
 
     fn read_initialized_fixture(name: &str) -> Vec<u8> {
         fs::read(initialized_fixture_path(name)).expect("initialized fixture should exist")
+    }
+
+    fn read_post_maint_fixture(name: &str) -> Vec<u8> {
+        fs::read(post_maint_fixture_path(name)).expect("post-maint fixture should exist")
     }
 
     #[test]
@@ -336,5 +346,34 @@ mod tests {
         let bytes = read_initialized_fixture("FLEETS.DAT");
         let parsed = FleetDat::parse(&bytes).unwrap();
         assert_eq!(parsed.to_bytes(), bytes);
+    }
+
+    #[test]
+    fn post_maintenance_matches_init_for_core_state_but_not_global_summaries() {
+        assert_eq!(
+            read_initialized_fixture("PLAYER.DAT"),
+            read_post_maint_fixture("PLAYER.DAT")
+        );
+        assert_eq!(
+            read_initialized_fixture("PLANETS.DAT"),
+            read_post_maint_fixture("PLANETS.DAT")
+        );
+        assert_eq!(
+            read_initialized_fixture("FLEETS.DAT"),
+            read_post_maint_fixture("FLEETS.DAT")
+        );
+        assert_eq!(
+            read_initialized_fixture("SETUP.DAT"),
+            read_post_maint_fixture("SETUP.DAT")
+        );
+
+        assert_ne!(
+            read_initialized_fixture("CONQUEST.DAT"),
+            read_post_maint_fixture("CONQUEST.DAT")
+        );
+        assert_ne!(
+            read_initialized_fixture("DATABASE.DAT"),
+            read_post_maint_fixture("DATABASE.DAT")
+        );
     }
 }
