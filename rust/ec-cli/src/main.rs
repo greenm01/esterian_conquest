@@ -178,6 +178,29 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
                     );
                 }
                 println!("  ... {} total fleet records", fleets.records.len());
+
+                println!();
+                println!("Fleet Groups:");
+                for (group_idx, group) in fleets.records.chunks_exact(4).enumerate() {
+                    let home = group[0].home_system_coords_raw();
+                    println!(
+                        "  empire block {}: home_raw={:02x?} target_raw={:02x?}",
+                        group_idx + 1,
+                        home,
+                        group[0].standing_order_target_coords_raw()
+                    );
+                    for record in group {
+                        println!(
+                            "    id={} slot={} ships={} max_spd={} order={} summary='{}'",
+                            record.fleet_id(),
+                            record.local_slot(),
+                            record.ship_composition_summary(),
+                            record.max_speed(),
+                            record.standing_order_kind().as_str(),
+                            record.standing_order_summary()
+                        );
+                    }
+                }
             }
             Err(err) => {
                 println!();
