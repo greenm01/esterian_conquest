@@ -111,6 +111,19 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 _ => print_usage(),
             }
         }
+        "purge-after" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            match args.next() {
+                None => print_purge_after(&dir)?,
+                Some(turns) => {
+                    let turns = turns.parse::<u8>()?;
+                    set_purge_after(&dir, turns)?;
+                }
+            }
+        }
         _ => print_usage(),
     }
 
@@ -269,6 +282,7 @@ fn dump_headers(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("SETUP.version={}", String::from_utf8_lossy(setup.version_tag()));
     println!("SETUP.option_prefix={:02x?}", setup.option_prefix());
     println!("SETUP.snoop_enabled={}", setup.snoop_enabled());
+    println!("SETUP.purge_after_turns_raw={}", setup.purge_after_turns_raw());
     println!("CONQUEST.game_year={}", conquest.game_year());
     println!("CONQUEST.player_count={}", conquest.player_count());
     println!("CONQUEST.player_config_word={:04x}", conquest.player_config_word());
@@ -318,6 +332,22 @@ fn set_snoop(dir: &Path, enabled: bool) -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
+fn print_purge_after(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    println!("Directory: {}", dir.display());
+    println!("Purge after turns (raw): {}", setup.purge_after_turns_raw());
+    Ok(())
+}
+
+fn set_purge_after(dir: &Path, turns: u8) -> Result<(), Box<dyn std::error::Error>> {
+    let setup_path = dir.join("SETUP.DAT");
+    let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
+    setup.set_purge_after_turns_raw(turns);
+    fs::write(&setup_path, setup.to_bytes())?;
+    print_purge_after(dir)?;
+    Ok(())
+}
+
 fn set_maintenance_days(dir: &Path, day_names: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     let mut enabled = [false; 7];
     for day_name in day_names {
@@ -356,6 +386,7 @@ fn print_header_summary(setup: &SetupDat, conquest: &ConquestDat) {
     println!("SETUP version: {}", String::from_utf8_lossy(setup.version_tag()));
     println!("SETUP option prefix: {:02x?}", setup.option_prefix());
     println!("SETUP snoop enabled: {}", if setup.snoop_enabled() { "yes" } else { "no" });
+    println!("SETUP purge after turns (raw): {}", setup.purge_after_turns_raw());
     println!("CONQUEST game year: {}", conquest.game_year());
     println!("CONQUEST player count: {}", conquest.player_count());
     println!(
@@ -565,6 +596,8 @@ fn print_usage() {
     println!("  ec-cli maintenance-days <dir> set <sun|mon|tue|wed|thu|fri|sat>...");
     println!("  ec-cli snoop [dir]");
     println!("  ec-cli snoop <dir> <on|off>");
+    println!("  ec-cli purge-after [dir]");
+    println!("  ec-cli purge-after <dir> <turns>");
     println!("  ec-cli match [dir]");
     println!("  ec-cli compare <left_dir> <right_dir>");
     println!("  ec-cli init [source_dir] <target_dir>");

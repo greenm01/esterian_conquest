@@ -134,3 +134,30 @@ fn snoop_off_rewrites_setup_flag() {
 
     let _ = fs::remove_dir_all(&target);
 }
+
+#[test]
+fn purge_after_rewrites_setup_raw_value() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-purge-{unique}"));
+    fs::create_dir_all(&target).unwrap();
+
+    let fixture = repo_root().join("original/v1.5");
+    fs::copy(fixture.join("SETUP.DAT"), target.join("SETUP.DAT")).unwrap();
+
+    let stdout = run_ec_cli_in_dir(
+        &["purge-after", target.to_str().unwrap(), "1"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Purge after turns (raw): 1"));
+
+    let stdout = run_ec_cli_in_dir(
+        &["purge-after", target.to_str().unwrap()],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Purge after turns (raw): 1"));
+
+    let _ = fs::remove_dir_all(&target);
+}

@@ -429,6 +429,14 @@ impl SetupDat {
         self.raw[512] = u8::from(enabled);
     }
 
+    pub fn purge_after_turns_raw(&self) -> u8 {
+        self.raw[518]
+    }
+
+    pub fn set_purge_after_turns_raw(&mut self, turns: u8) {
+        self.raw[518] = turns;
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         self.raw.to_vec()
     }
@@ -576,6 +584,7 @@ mod tests {
         assert_eq!(parsed.version_tag(), b"EC151");
         assert_eq!(parsed.option_prefix(), &[4, 3, 4, 3, 1, 1, 1, 1]);
         assert!(parsed.snoop_enabled());
+        assert_eq!(parsed.purge_after_turns_raw(), 0);
     }
 
     #[test]
@@ -729,5 +738,14 @@ mod tests {
         setup.set_snoop_enabled(false);
         assert!(!setup.snoop_enabled());
         assert_eq!(setup.raw[512], 0);
+    }
+
+    #[test]
+    fn can_set_purge_after_turns_raw() {
+        let mut setup = SetupDat::parse(&read_fixture("SETUP.DAT")).unwrap();
+        assert_eq!(setup.purge_after_turns_raw(), 0);
+        setup.set_purge_after_turns_raw(1);
+        assert_eq!(setup.purge_after_turns_raw(), 1);
+        assert_eq!(setup.raw[518], 1);
     }
 }
