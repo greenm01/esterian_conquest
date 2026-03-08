@@ -99,6 +99,29 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 _ => print_usage(),
             }
         }
+        "port-setup" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            print_port_setup(&dir)?;
+        }
+        "flow-control" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            let Some(port_name) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            match args.next().as_deref() {
+                None => print_flow_control(&dir, &port_name)?,
+                Some("on") => set_flow_control(&dir, &port_name, true)?,
+                Some("off") => set_flow_control(&dir, &port_name, false)?,
+                _ => print_usage(),
+            }
+        }
         "snoop" => {
             let dir = args
                 .next()
@@ -351,6 +374,20 @@ fn dump_headers(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("Directory: {}", dir.display());
     println!("SETUP.version={}", String::from_utf8_lossy(setup.version_tag()));
     println!("SETUP.option_prefix={:02x?}", setup.option_prefix());
+    println!(
+        "SETUP.com_irqs=[{}, {}, {}, {}]",
+        setup.com_irq_raw(0).unwrap_or_default(),
+        setup.com_irq_raw(1).unwrap_or_default(),
+        setup.com_irq_raw(2).unwrap_or_default(),
+        setup.com_irq_raw(3).unwrap_or_default()
+    );
+    println!(
+        "SETUP.com_flow_control=[{}, {}, {}, {}]",
+        setup.com_hardware_flow_control_enabled(0).unwrap_or(false),
+        setup.com_hardware_flow_control_enabled(1).unwrap_or(false),
+        setup.com_hardware_flow_control_enabled(2).unwrap_or(false),
+        setup.com_hardware_flow_control_enabled(3).unwrap_or(false)
+    );
     println!("SETUP.snoop_enabled={}", setup.snoop_enabled());
     println!(
         "SETUP.local_timeout_enabled={}",
@@ -406,6 +443,31 @@ fn print_maintenance_days(dir: &Path) -> Result<(), Box<dyn std::error::Error>> 
     Ok(())
 }
 
+fn print_port_setup(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    println!("Directory: {}", dir.display());
+    println!("ECUTIL F5 Modem / Com Port Setup");
+    for com_index in 0..4 {
+        println!(
+            "  COM {} IRQ: {}",
+            com_index + 1,
+            setup.com_irq_raw(com_index).unwrap_or_default()
+        );
+    }
+    for com_index in 0..4 {
+        println!(
+            "  COM {} Hardware Flow Control: {}",
+            com_index + 1,
+            yes_no(
+                setup
+                    .com_hardware_flow_control_enabled(com_index)
+                    .unwrap_or(false)
+            )
+        );
+    }
+    Ok(())
+}
+
 fn print_snoop(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
     println!("Directory: {}", dir.display());
@@ -419,6 +481,38 @@ fn set_snoop(dir: &Path, enabled: bool) -> Result<(), Box<dyn std::error::Error>
     setup.set_snoop_enabled(enabled);
     fs::write(&setup_path, setup.to_bytes())?;
     print_snoop(dir)?;
+    Ok(())
+}
+
+fn print_flow_control(dir: &Path, port_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    let com_index = com_index(port_name)
+        .ok_or_else(|| format!("unknown COM port: {port_name}"))?;
+    println!("Directory: {}", dir.display());
+    println!(
+        "COM {} Hardware Flow Control: {}",
+        com_index + 1,
+        yes_no(
+            setup
+                .com_hardware_flow_control_enabled(com_index)
+                .unwrap_or(false)
+        )
+    );
+    Ok(())
+}
+
+fn set_flow_control(
+    dir: &Path,
+    port_name: &str,
+    enabled: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let com_index = com_index(port_name)
+        .ok_or_else(|| format!("unknown COM port: {port_name}"))?;
+    let setup_path = dir.join("SETUP.DAT");
+    let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
+    setup.set_com_hardware_flow_control_enabled(com_index, enabled);
+    fs::write(&setup_path, setup.to_bytes())?;
+    print_flow_control(dir, port_name)?;
     Ok(())
 }
 
@@ -589,6 +683,16 @@ fn weekday_labels() -> [&'static str; 7] {
     ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
 }
 
+fn com_index(port_name: &str) -> Option<usize> {
+    match port_name.to_ascii_lowercase().as_str() {
+        "com1" | "1" => Some(0),
+        "com2" | "2" => Some(1),
+        "com3" | "3" => Some(2),
+        "com4" | "4" => Some(3),
+        _ => None,
+    }
+}
+
 fn yes_no(value: bool) -> &'static str {
     if value { "Yes" } else { "No" }
 }
@@ -609,6 +713,20 @@ fn weekday_index(day_name: &str) -> Option<usize> {
 fn print_header_summary(setup: &SetupDat, conquest: &ConquestDat) {
     println!("SETUP version: {}", String::from_utf8_lossy(setup.version_tag()));
     println!("SETUP option prefix: {:02x?}", setup.option_prefix());
+    println!(
+        "SETUP COM IRQs: [{}, {}, {}, {}]",
+        setup.com_irq_raw(0).unwrap_or_default(),
+        setup.com_irq_raw(1).unwrap_or_default(),
+        setup.com_irq_raw(2).unwrap_or_default(),
+        setup.com_irq_raw(3).unwrap_or_default()
+    );
+    println!(
+        "SETUP COM flow control: [{}, {}, {}, {}]",
+        yes_no(setup.com_hardware_flow_control_enabled(0).unwrap_or(false)),
+        yes_no(setup.com_hardware_flow_control_enabled(1).unwrap_or(false)),
+        yes_no(setup.com_hardware_flow_control_enabled(2).unwrap_or(false)),
+        yes_no(setup.com_hardware_flow_control_enabled(3).unwrap_or(false))
+    );
     println!("SETUP snoop enabled: {}", if setup.snoop_enabled() { "yes" } else { "no" });
     println!(
         "SETUP local timeout enabled: {}",

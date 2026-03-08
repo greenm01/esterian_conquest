@@ -479,6 +479,36 @@ impl SetupDat {
         &self.raw[5..13]
     }
 
+    pub fn com_irq_raw(&self, com_index: usize) -> Option<u8> {
+        (com_index < 4).then(|| self.raw[5 + com_index])
+    }
+
+    pub fn set_com_irq_raw(&mut self, com_index: usize, irq: u8) -> bool {
+        if com_index < 4 {
+            self.raw[5 + com_index] = irq;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn com_hardware_flow_control_enabled(&self, com_index: usize) -> Option<bool> {
+        (com_index < 4).then(|| self.raw[9 + com_index] != 0)
+    }
+
+    pub fn set_com_hardware_flow_control_enabled(
+        &mut self,
+        com_index: usize,
+        enabled: bool,
+    ) -> bool {
+        if com_index < 4 {
+            self.raw[9 + com_index] = u8::from(enabled);
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn snoop_enabled(&self) -> bool {
         self.raw[512] != 0
     }
@@ -691,6 +721,14 @@ mod tests {
         assert_eq!(parsed.to_bytes(), bytes);
         assert_eq!(parsed.version_tag(), b"EC151");
         assert_eq!(parsed.option_prefix(), &[4, 3, 4, 3, 1, 1, 1, 1]);
+        assert_eq!(parsed.com_irq_raw(0), Some(4));
+        assert_eq!(parsed.com_irq_raw(1), Some(3));
+        assert_eq!(parsed.com_irq_raw(2), Some(4));
+        assert_eq!(parsed.com_irq_raw(3), Some(3));
+        assert_eq!(parsed.com_hardware_flow_control_enabled(0), Some(true));
+        assert_eq!(parsed.com_hardware_flow_control_enabled(1), Some(true));
+        assert_eq!(parsed.com_hardware_flow_control_enabled(2), Some(true));
+        assert_eq!(parsed.com_hardware_flow_control_enabled(3), Some(true));
         assert!(parsed.snoop_enabled());
         assert_eq!(parsed.max_time_between_keys_minutes_raw(), 10);
         assert!(parsed.remote_timeout_enabled());
@@ -876,6 +914,10 @@ mod tests {
     #[test]
     fn can_set_other_setup_program_fields() {
         let mut setup = SetupDat::parse(&read_fixture("SETUP.DAT")).unwrap();
+        assert!(setup.set_com_hardware_flow_control_enabled(0, false));
+        assert!(setup.set_com_hardware_flow_control_enabled(1, false));
+        assert!(setup.set_com_hardware_flow_control_enabled(2, false));
+        assert!(setup.set_com_hardware_flow_control_enabled(3, false));
         setup.set_max_time_between_keys_minutes_raw(15);
         setup.set_remote_timeout_enabled(false);
         setup.set_local_timeout_enabled(true);
@@ -889,6 +931,10 @@ mod tests {
         assert_eq!(setup.minimum_time_granted_minutes_raw(), 69);
         assert_eq!(setup.purge_after_turns_raw(), 10);
         assert_eq!(setup.autopilot_inactive_turns_raw(), 3);
+        assert_eq!(setup.com_hardware_flow_control_enabled(0), Some(false));
+        assert_eq!(setup.com_hardware_flow_control_enabled(1), Some(false));
+        assert_eq!(setup.com_hardware_flow_control_enabled(2), Some(false));
+        assert_eq!(setup.com_hardware_flow_control_enabled(3), Some(false));
     }
 
     #[test]

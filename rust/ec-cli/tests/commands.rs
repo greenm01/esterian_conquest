@@ -45,6 +45,8 @@ fn headers_prints_known_setup_and_conquest_values() {
     let stdout = run_ec_cli(&["headers", "original/v1.5"]);
     assert!(stdout.contains("SETUP.version=EC151"));
     assert!(stdout.contains("SETUP.option_prefix=[04, 03, 04, 03, 01, 01, 01, 01]"));
+    assert!(stdout.contains("SETUP.com_irqs=[4, 3, 4, 3]"));
+    assert!(stdout.contains("SETUP.com_flow_control=[true, true, true, true]"));
     assert!(stdout.contains("SETUP.snoop_enabled=true"));
     assert!(stdout.contains("SETUP.local_timeout_enabled=false"));
     assert!(stdout.contains("SETUP.remote_timeout_enabled=true"));
@@ -233,6 +235,46 @@ fn remaining_f4_commands_rewrite_setup_fields() {
     assert!(stdout.contains("F Maximum time between key strokes: 15 minute(s)"));
     assert!(stdout.contains("G Minimum time granted: 69 minute(s)"));
     assert!(stdout.contains("B Autopilot any empires inactive for: 3 turn(s)"));
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn port_setup_prints_known_f5_values() {
+    let stdout = run_ec_cli(&["port-setup", "original/v1.5"]);
+    assert!(stdout.contains("ECUTIL F5 Modem / Com Port Setup"));
+    assert!(stdout.contains("COM 1 IRQ: 4"));
+    assert!(stdout.contains("COM 2 IRQ: 3"));
+    assert!(stdout.contains("COM 3 IRQ: 4"));
+    assert!(stdout.contains("COM 4 IRQ: 3"));
+    assert!(stdout.contains("COM 1 Hardware Flow Control: Yes"));
+    assert!(stdout.contains("COM 4 Hardware Flow Control: Yes"));
+}
+
+#[test]
+fn flow_control_off_rewrites_setup_flag() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-flow-{unique}"));
+    fs::create_dir_all(&target).unwrap();
+
+    let fixture = repo_root().join("original/v1.5");
+    fs::copy(fixture.join("SETUP.DAT"), target.join("SETUP.DAT")).unwrap();
+
+    let stdout = run_ec_cli_in_dir(
+        &["flow-control", target.to_str().unwrap(), "com1", "off"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("COM 1 Hardware Flow Control: No"));
+
+    let stdout = run_ec_cli_in_dir(
+        &["port-setup", target.to_str().unwrap()],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("COM 1 Hardware Flow Control: No"));
+    assert!(stdout.contains("COM 2 Hardware Flow Control: Yes"));
 
     let _ = fs::remove_dir_all(&target);
 }

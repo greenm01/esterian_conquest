@@ -856,6 +856,47 @@ Rust preservation impact:
   - `ownership_summary()`
 - This is intentionally narrower than a full player-record decode; it only covers the ownership fields that `ECUTIL F3` demonstrably touched.
 
+Confirmed `ECUTIL` `F5 Modem / Com Port Setup` flow from:
+
+- `captures/v1.5-dosboxx/ecutil_009.png`
+- `captures/v1.5-dosboxx/ecutil_010.png`
+- `captures/v1.5-dosboxx/ecutil_011.png`
+
+Preserved `F5` surface:
+
+- `A` `COM 1 Interrupt Request Number`
+- `B` `COM 2 Interrupt Request Number`
+- `C` `COM 3 Interrupt Request Number`
+- `D` `COM 4 Interrupt Request Number`
+- `E` `Restore Default IRQ Numbers for COM1 to COM4`
+- `F` `COM 1 Hardware Flow Control`
+- `G` `COM 2 Hardware Flow Control`
+- `H` `COM 3 Hardware Flow Control`
+- `I` `COM 4 Hardware Flow Control`
+- `X` Exit Setup
+
+Confirmed from the preserved `v1.5` screenshots and live diff:
+
+- the IRQ editor prompt accepts direct numeric input in the range `0..7`
+- `SETUP.DAT[5..8]` store the raw COM IRQ values for `COM1..COM4`
+- the shipped fixture values are `[4, 3, 4, 3]`, matching the preserved `F5` screen
+- `SETUP.DAT[9..12]` store `COM1..COM4` hardware flow control flags
+- disabling all four flow-control options in `ECUTIL F5` changed those bytes from `[1, 1, 1, 1]` to `[0, 0, 0, 0]`
+- `CONQUEST.DAT` did not change during the observed `F5` test
+
+Rust preservation impact:
+
+- `ec-data` now exposes:
+  - `com_irq_raw()`
+  - `set_com_irq_raw()`
+  - `com_hardware_flow_control_enabled()`
+  - `set_com_hardware_flow_control_enabled()`
+- `ec-cli` now exposes:
+  - `port-setup [dir]`
+  - `flow-control <dir> <com1|com2|com3|com4> [on|off]`
+
+The CLI currently covers the verified flow-control part of `F5` directly and prints the raw IRQ values conservatively without claiming write support for the IRQ editor yet.
+
 Confirmed `SETUP.DAT` offsets from the live `F4` diffs:
 
 - `SETUP[512]` `snoop_enabled`
