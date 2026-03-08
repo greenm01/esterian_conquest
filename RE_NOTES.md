@@ -656,13 +656,70 @@ Useful but still conservatively named:
     - fleets `9..12`: `[6, 5]`
     - fleets `13..16`: `[13, 5]`
 - `record[0x1F..0x21]`: mission parameter bytes
-  - known to change when ordering fleets
-  - not yet decoded into coordinates or mission semantics
+  - best current interpretation from preserved fleet-order screenshots:
+    - `record[0x1F]`: standing-order mission code
+    - `record[0x20]`: target X coordinate
+    - `record[0x21]`: target Y coordinate
+  - preserved `v1.11` screenshot menu codes show:
+    - `0` none / hold position
+    - `1` move fleet only
+    - `2` seek home
+    - `3` patrol a sector
+    - `5` guard/blockade a world
+    - `6` bombard a world
+    - `9` view a world
+    - `12` colonize a world
+    - `13` join another fleet
+  - in the initialized fixture, all four-fleet empire blocks store `[5, X, Y]` where `X,Y`
+    match the block's home-system raw pair, which strongly suggests the initial standing orders
+    are `Guard/Blockade` at the empire's home system
 
 Practical implication for the Rust port:
 
 - `ec-data` can now expose a small but real typed fleet model for initialized states
 - the next useful fleet target is to decode current location, destination, ETA, and mission type
+
+Confirmed initialized fleet-table structure:
+
+- the initialized `16 x 54` table is the full 4-player starting roster, not just the current
+  player's fleets
+- records are grouped as four 4-fleet empire blocks:
+  - group 1: fleet IDs `1..4`
+  - group 2: fleet IDs `5..8`
+  - group 3: fleet IDs `9..12`
+  - group 4: fleet IDs `13..16`
+- within each 4-fleet block:
+  - `local_slot` cycles `1,2,3,4`
+  - `previous_fleet_id` and `next_fleet_id` form a local chain ending in `0`
+  - ship loadout is always:
+    - slots `1` and `2`: `CA=1 ET=1`
+    - slots `3` and `4`: `DD=1`
+  - `max_speed` is always:
+    - slots `1` and `2`: `3`
+    - slots `3` and `4`: `6`
+  - `home_system_coords_raw` is constant within the block
+  - `mission_param_bytes` is also constant within the block
+
+Observed initialized block home-system raw pairs:
+
+- IDs `1..4`: `[16, 13]`
+- IDs `5..8`: `[4, 13]`
+- IDs `9..12`: `[6, 5]`
+- IDs `13..16`: `[13, 5]`
+
+Observed initialized block mission-param triples:
+
+- IDs `1..4`: `[5, 16, 13]`
+- IDs `5..8`: `[5, 4, 13]`
+- IDs `9..12`: `[5, 6, 5]`
+- IDs `13..16`: `[5, 13, 5]`
+
+Practical implication:
+
+- bytes `0x0B..0x0C` and `0x1F..0x21` likely contain per-empire home/destination-style data in
+  initialized states rather than per-fleet differentiated mission orders
+- the next likely per-fleet order-state bytes are around the still-unnamed early header values such
+  as speed/ETA/current-location fields
 
 ## ECUTIL Surface
 

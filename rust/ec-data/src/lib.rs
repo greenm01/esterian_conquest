@@ -193,6 +193,14 @@ impl FleetRecord {
         &self.raw[0x1F..=0x21]
     }
 
+    pub fn standing_order_code_raw(&self) -> u8 {
+        self.raw[0x1F]
+    }
+
+    pub fn standing_order_target_coords_raw(&self) -> [u8; 2] {
+        [self.raw[0x20], self.raw[0x21]]
+    }
+
     pub fn rules_of_engagement(&self) -> u8 {
         self.raw[0x25]
     }
@@ -416,6 +424,8 @@ mod tests {
         assert_eq!(parsed.records[0].cruiser_count(), 1);
         assert_eq!(parsed.records[0].destroyer_count(), 0);
         assert_eq!(parsed.records[0].etac_count(), 1);
+        assert_eq!(parsed.records[0].standing_order_code_raw(), 5);
+        assert_eq!(parsed.records[0].standing_order_target_coords_raw(), [16, 13]);
 
         assert_eq!(parsed.records[2].fleet_id(), 3);
         assert_eq!(parsed.records[2].local_slot(), 3);
@@ -426,6 +436,8 @@ mod tests {
         assert_eq!(parsed.records[2].cruiser_count(), 0);
         assert_eq!(parsed.records[2].destroyer_count(), 1);
         assert_eq!(parsed.records[2].etac_count(), 0);
+        assert_eq!(parsed.records[2].standing_order_code_raw(), 5);
+        assert_eq!(parsed.records[2].standing_order_target_coords_raw(), [16, 13]);
     }
 
     #[test]
