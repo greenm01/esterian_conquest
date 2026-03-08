@@ -912,11 +912,16 @@ Current `ec-tui` shape:
 - `ec-tui` defaults to player mode in the current working directory
 - `ec-tui util` opens the utility/admin mode in the current working directory
 - optional directory override is still supported as the first positional path
+- utility mode now uses a modern EC-classic presentation instead of trying to mimic the original DOS utility screen-for-screen
+- no function-key dependency in the new shell; section switching is handled with `1/2/3`, `Tab`, and `q`
 
 The first `ec-tui` scaffold is intentionally a shell, not a faithful DOS clone:
 
 - player mode is the default user-facing entry point
-- utility mode surfaces the already-decoded setup and fleet/player summaries
+- utility mode surfaces the already-decoded setup, ownership, and port data in cleaner sectioned panels:
+  - `Dashboard`
+  - `Empire Control`
+  - `Program & Port Setup`
 - the historical `v1.5` UI is preserved via screenshots and notes rather than by reproducing every original panel verbatim
 
 Confirmed `SETUP.DAT` offsets from the live `F4` diffs:
