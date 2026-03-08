@@ -14,6 +14,7 @@ pub const FLEETS_DAT_SIZE: usize = FLEET_RECORD_SIZE * FLEET_RECORD_COUNT;
 
 pub const SETUP_DAT_SIZE: usize = 522;
 pub const CONQUEST_DAT_SIZE: usize = 2085;
+pub const MAINTENANCE_DAY_ENABLED_CODES: [u8; 7] = [0x01, 0x01, 0xCA, 0x01, 0x0A, 0x01, 0x26];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseError {
@@ -460,6 +461,20 @@ impl ConquestDat {
             .expect("maintenance schedule should be 7 bytes")
     }
 
+    pub fn maintenance_schedule_enabled(&self) -> [bool; 7] {
+        self.maintenance_schedule_bytes().map(|byte| byte != 0)
+    }
+
+    pub fn set_maintenance_schedule_enabled(&mut self, enabled: [bool; 7]) {
+        for (idx, enabled) in enabled.into_iter().enumerate() {
+            self.raw[3 + idx] = if enabled {
+                MAINTENANCE_DAY_ENABLED_CODES[idx]
+            } else {
+                0
+            };
+        }
+    }
+
     pub fn header_words(&self) -> Vec<u16> {
         self.control_header()
             .chunks_exact(2)
@@ -682,5 +697,19 @@ mod tests {
     fn post_maintenance_fixture_exposes_known_schedule_bytes() {
         let post_maint = ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap();
         assert_eq!(post_maint.maintenance_schedule_bytes(), [0x01; 7]);
+    }
+
+    #[test]
+    fn can_set_maintenance_schedule_from_enabled_days() {
+        let mut post_maint = ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap();
+        post_maint.set_maintenance_schedule_enabled([true, false, true, false, true, false, true]);
+        assert_eq!(
+            post_maint.maintenance_schedule_bytes(),
+            [0x01, 0x00, 0xCA, 0x00, 0x0A, 0x00, 0x26]
+        );
+        assert_eq!(
+            post_maint.maintenance_schedule_enabled(),
+            [true, false, true, false, true, false, true]
+        );
     }
 }

@@ -85,6 +85,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             };
             initialize_dir(&source, &target)?;
         }
+        "maintenance-days" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            match args.next().as_deref() {
+                None => print_maintenance_days(&dir)?,
+                Some("set") => {
+                    let days = args.collect::<Vec<_>>();
+                    set_maintenance_days(&dir, &days)?;
+                }
+                _ => print_usage(),
+            }
+        }
         _ => print_usage(),
     }
 
@@ -253,6 +267,60 @@ fn dump_headers(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("CONQUEST.header_words={:04x?}", conquest.header_words());
 
     Ok(())
+}
+
+fn print_maintenance_days(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let conquest = ConquestDat::parse(&fs::read(dir.join("CONQUEST.DAT"))?)?;
+    let enabled = conquest.maintenance_schedule_enabled();
+    println!("Directory: {}", dir.display());
+    println!(
+        "Maintenance days: {}",
+        weekday_labels()
+            .into_iter()
+            .zip(enabled)
+            .map(|(label, enabled)| format!("{label}={}", if enabled { "yes" } else { "no" }))
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
+    println!(
+        "Maintenance raw: {:02x?}",
+        conquest.maintenance_schedule_bytes()
+    );
+    Ok(())
+}
+
+fn set_maintenance_days(dir: &Path, day_names: &[String]) -> Result<(), Box<dyn std::error::Error>> {
+    let mut enabled = [false; 7];
+    for day_name in day_names {
+        let idx = weekday_index(day_name)
+            .ok_or_else(|| format!("unknown weekday: {day_name}"))?;
+        enabled[idx] = true;
+    }
+
+    let conquest_path = dir.join("CONQUEST.DAT");
+    let mut conquest = ConquestDat::parse(&fs::read(&conquest_path)?)?;
+    conquest.set_maintenance_schedule_enabled(enabled);
+    fs::write(&conquest_path, conquest.to_bytes())?;
+
+    print_maintenance_days(dir)?;
+    Ok(())
+}
+
+fn weekday_labels() -> [&'static str; 7] {
+    ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
+}
+
+fn weekday_index(day_name: &str) -> Option<usize> {
+    match day_name.to_ascii_lowercase().as_str() {
+        "sun" | "sunday" => Some(0),
+        "mon" | "monday" => Some(1),
+        "tue" | "tues" | "tuesday" => Some(2),
+        "wed" | "wednesday" => Some(3),
+        "thu" | "thur" | "thurs" | "thursday" => Some(4),
+        "fri" | "friday" => Some(5),
+        "sat" | "saturday" => Some(6),
+        _ => None,
+    }
 }
 
 fn print_header_summary(setup: &SetupDat, conquest: &ConquestDat) {
@@ -463,6 +531,8 @@ fn print_usage() {
     println!("Usage:");
     println!("  ec-cli inspect [dir]");
     println!("  ec-cli headers [dir]");
+    println!("  ec-cli maintenance-days [dir]");
+    println!("  ec-cli maintenance-days <dir> set <sun|mon|tue|wed|thu|fri|sat>...");
     println!("  ec-cli match [dir]");
     println!("  ec-cli compare <left_dir> <right_dir>");
     println!("  ec-cli init [source_dir] <target_dir>");

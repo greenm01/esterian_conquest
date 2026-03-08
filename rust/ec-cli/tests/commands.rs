@@ -1,5 +1,7 @@
+use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -69,4 +71,39 @@ fn compare_reports_expected_initialized_to_post_maint_shape() {
     assert!(stdout.contains("CONQUEST.DAT: size 2085 vs 2085, differing bytes 51"));
     assert!(stdout.contains("DATABASE.DAT: size 8000 vs 8000, differing bytes 80"));
     assert!(stdout.contains("FLEETS.DAT: size 864 vs 864, differing bytes 0"));
+}
+
+#[test]
+fn maintenance_days_set_rewrites_conquest_schedule() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-maint-{unique}"));
+    fs::create_dir_all(&target).unwrap();
+
+    let fixture = repo_root().join("fixtures/ecmaint-post/v1.5");
+    for name in [
+        "BASES.DAT",
+        "CONQUEST.DAT",
+        "DATABASE.DAT",
+        "FLEETS.DAT",
+        "IPBM.DAT",
+        "MESSAGES.DAT",
+        "PLANETS.DAT",
+        "PLAYER.DAT",
+        "RESULTS.DAT",
+        "SETUP.DAT",
+    ] {
+        fs::copy(fixture.join(name), target.join(name)).unwrap();
+    }
+
+    let stdout = run_ec_cli_in_dir(
+        &["maintenance-days", target.to_str().unwrap(), "set", "sun", "tue", "thu", "sat"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("sun=yes mon=no tue=yes wed=no thu=yes fri=no sat=yes"));
+    assert!(stdout.contains("Maintenance raw: [01, 00, ca, 00, 0a, 00, 26]"));
+
+    let _ = fs::remove_dir_all(&target);
 }
