@@ -592,6 +592,10 @@ Current scaffold status:
 - the post-maint fixture set captures another confirmed RE result:
   - `PLAYER.DAT`, `PLANETS.DAT`, `FLEETS.DAT`, and `SETUP.DAT` match the initialized baseline after maintenance
   - `CONQUEST.DAT` and `DATABASE.DAT` preserve the global maintenance/output differences
+- `ec-cli` now also provides:
+  - `headers` to dump the currently known `SETUP.DAT` option prefix and `CONQUEST.DAT` header words
+  - `match` to identify whether a directory matches the preserved shipped, initialized, or post-maint fixture states
+  - `compare` with integration coverage for the key fixture-state transitions
 
 ## Screenshot Archive
 

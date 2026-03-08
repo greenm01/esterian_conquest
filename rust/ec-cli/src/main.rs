@@ -17,6 +17,16 @@ const INIT_FILES: &[&str] = &[
     "SETUP.DAT",
 ];
 
+const ORIGINAL_FILES: &[&str] = &[
+    "BASES.DAT",
+    "CONQUEST.DAT",
+    "DATABASE.DAT",
+    "FLEETS.DAT",
+    "PLANETS.DAT",
+    "PLAYER.DAT",
+    "SETUP.DAT",
+];
+
 fn main() {
     if let Err(err) = run() {
         eprintln!("error: {err}");
@@ -38,6 +48,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .map(|arg| resolve_repo_path(&arg))
                 .unwrap_or_else(default_fixture_dir);
             inspect_dir(&dir)?;
+        }
+        "headers" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            dump_headers(&dir)?;
+        }
+        "match" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            match_fixture_set(&dir)?;
         }
         "compare" => {
             let Some(left) = args.next().map(|arg| resolve_repo_path(&arg)) else {
@@ -75,6 +99,10 @@ fn init_fixture_dir() -> PathBuf {
     repo_root().join("fixtures/ecutil-init/v1.5")
 }
 
+fn post_maint_fixture_dir() -> PathBuf {
+    repo_root().join("fixtures/ecmaint-post/v1.5")
+}
+
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
@@ -95,13 +123,7 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let conquest = ConquestDat::parse(&fs::read(dir.join("CONQUEST.DAT"))?)?;
 
     println!("Directory: {}", dir.display());
-    println!("SETUP version: {}", String::from_utf8_lossy(setup.version_tag()));
-    println!("SETUP option prefix: {:02x?}", setup.option_prefix());
-    println!("CONQUEST header bytes: {}", conquest.control_header().len());
-    println!(
-        "CONQUEST first header words: {:04x?}",
-        &conquest.header_words()[..8]
-    );
+    print_header_summary(&setup, &conquest);
     println!();
 
     println!("Players:");
@@ -156,6 +178,29 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn dump_headers(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    let conquest = ConquestDat::parse(&fs::read(dir.join("CONQUEST.DAT"))?)?;
+
+    println!("Directory: {}", dir.display());
+    println!("SETUP.version={}", String::from_utf8_lossy(setup.version_tag()));
+    println!("SETUP.option_prefix={:02x?}", setup.option_prefix());
+    println!("CONQUEST.header_len={}", conquest.control_header().len());
+    println!("CONQUEST.header_words={:04x?}", conquest.header_words());
+
+    Ok(())
+}
+
+fn print_header_summary(setup: &SetupDat, conquest: &ConquestDat) {
+    println!("SETUP version: {}", String::from_utf8_lossy(setup.version_tag()));
+    println!("SETUP option prefix: {:02x?}", setup.option_prefix());
+    println!("CONQUEST header bytes: {}", conquest.control_header().len());
+    println!(
+        "CONQUEST first header words: {:04x?}",
+        &conquest.header_words()[..8]
+    );
+}
+
 fn initialize_dir(source: &Path, target: &Path) -> Result<(), Box<dyn std::error::Error>> {
     copy_top_level_files(source, target)?;
 
@@ -188,6 +233,41 @@ fn compare_dirs(left: &Path, right: &Path) -> Result<(), Box<dyn std::error::Err
     compare_fleets(left, right)?;
 
     Ok(())
+}
+
+fn match_fixture_set(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let candidates = [
+        ("original/v1.5", default_fixture_dir(), ORIGINAL_FILES),
+        ("fixtures/ecutil-init/v1.5", init_fixture_dir(), INIT_FILES),
+        ("fixtures/ecmaint-post/v1.5", post_maint_fixture_dir(), INIT_FILES),
+    ];
+
+    println!("Directory: {}", dir.display());
+    let mut matched_any = false;
+    for (label, candidate, files) in candidates {
+        if dir_matches(dir, &candidate, files)? {
+            println!("MATCH {label}");
+            matched_any = true;
+        }
+    }
+    if !matched_any {
+        println!("MATCH none");
+    }
+
+    Ok(())
+}
+
+fn dir_matches(
+    dir: &Path,
+    candidate: &Path,
+    files: &[&str],
+) -> Result<bool, Box<dyn std::error::Error>> {
+    for name in files {
+        if fs::read(dir.join(name))? != fs::read(candidate.join(name))? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 fn compare_raw_file(
@@ -312,6 +392,8 @@ fn diff_count(left: &[u8], right: &[u8]) -> usize {
 fn print_usage() {
     println!("Usage:");
     println!("  ec-cli inspect [dir]");
+    println!("  ec-cli headers [dir]");
+    println!("  ec-cli match [dir]");
     println!("  ec-cli compare <left_dir> <right_dir>");
     println!("  ec-cli init [source_dir] <target_dir>");
 }
