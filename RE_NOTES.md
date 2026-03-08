@@ -572,8 +572,9 @@ Practical note:
 
 Current scaffold status:
 
-- a Rust workspace now exists under [`rust`](/home/niltempus/Documents/esterian-conquest/v1.5/rust)
-- first crate: [`ec-data`](/home/niltempus/Documents/esterian-conquest/v1.5/rust/ec-data)
+- a Rust workspace now exists under [`rust`](/home/niltempus/dev/esterian_conquest/rust)
+- first crate: [`ec-data`](/home/niltempus/dev/esterian_conquest/rust/ec-data)
+- first executable tool: [`ec-cli`](/home/niltempus/dev/esterian_conquest/rust/ec-cli)
 - current code covers only confirmed fixed-size boundaries:
   - `PLAYER.DAT`: `5 x 88`
   - `PLANETS.DAT`: `20 x 97`
@@ -583,6 +584,7 @@ Current scaffold status:
 - unknown regions are intentionally preserved as raw byte arrays
 - current test status: `cargo test` passes in the original archive workspace and now also in the GitHub-tracked preservation repo
 - `ec-cli` now provides a first inspection command against `original/v1.5`
+- `ec-cli init` now reproduces the known `ECUTIL` new-game initialization result by overlaying the preserved initialized fixture set onto a target directory
 
 ## Screenshot Archive
 

@@ -4,6 +4,19 @@ use std::path::{Path, PathBuf};
 
 use ec_data::{ConquestDat, FleetDat, PlanetDat, PlayerDat, SetupDat};
 
+const INIT_FILES: &[&str] = &[
+    "BASES.DAT",
+    "CONQUEST.DAT",
+    "DATABASE.DAT",
+    "FLEETS.DAT",
+    "IPBM.DAT",
+    "MESSAGES.DAT",
+    "PLANETS.DAT",
+    "PLAYER.DAT",
+    "RESULTS.DAT",
+    "SETUP.DAT",
+];
+
 fn main() {
     if let Err(err) = run() {
         eprintln!("error: {err}");
@@ -22,9 +35,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         "inspect" => {
             let dir = args
                 .next()
-                .map(PathBuf::from)
+                .map(|arg| resolve_repo_path(&arg))
                 .unwrap_or_else(default_fixture_dir);
             inspect_dir(&dir)?;
+        }
+        "init" => {
+            let source = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            let Some(target) = args.next().map(PathBuf::from) else {
+                print_usage();
+                return Ok(());
+            };
+            initialize_dir(&source, &target)?;
         }
         _ => print_usage(),
     }
@@ -33,8 +57,24 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn default_fixture_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../original/v1.5")
+    repo_root().join("original/v1.5")
+}
+
+fn init_fixture_dir() -> PathBuf {
+    repo_root().join("fixtures/ecutil-init/v1.5")
+}
+
+fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+fn resolve_repo_path(arg: &str) -> PathBuf {
+    let path = PathBuf::from(arg);
+    if path.is_absolute() {
+        path
+    } else {
+        repo_root().join(path)
+    }
 }
 
 fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -100,6 +140,42 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn initialize_dir(source: &Path, target: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    copy_top_level_files(source, target)?;
+
+    let init_dir = init_fixture_dir();
+    for name in INIT_FILES {
+        fs::copy(init_dir.join(name), target.join(name))?;
+    }
+
+    println!("Initialized game directory: {}", target.display());
+    println!("  source snapshot: {}", source.display());
+    println!("  init fixture set: {}", init_dir.display());
+    println!("  overlaid files:");
+    for name in INIT_FILES {
+        println!("    {name}");
+    }
+
+    Ok(())
+}
+
+fn copy_top_level_files(source: &Path, target: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(target)?;
+
+    for entry in fs::read_dir(source)? {
+        let entry = entry?;
+        let path = entry.path();
+        if !entry.file_type()?.is_file() {
+            continue;
+        }
+
+        let file_name = entry.file_name();
+        fs::copy(&path, target.join(file_name))?;
+    }
+
+    Ok(())
+}
+
 fn ascii_trim(bytes: &[u8]) -> String {
     let text = bytes
         .iter()
@@ -109,5 +185,7 @@ fn ascii_trim(bytes: &[u8]) -> String {
 }
 
 fn print_usage() {
-    println!("Usage: ec-cli inspect [dir]");
+    println!("Usage:");
+    println!("  ec-cli inspect [dir]");
+    println!("  ec-cli init [source_dir] <target_dir>");
 }

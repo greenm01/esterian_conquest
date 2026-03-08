@@ -253,8 +253,18 @@ mod tests {
             .join(name)
     }
 
+    fn initialized_fixture_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/ecutil-init/v1.5")
+            .join(name)
+    }
+
     fn read_fixture(name: &str) -> Vec<u8> {
         fs::read(fixture_path(name)).expect("fixture should exist")
+    }
+
+    fn read_initialized_fixture(name: &str) -> Vec<u8> {
+        fs::read(initialized_fixture_path(name)).expect("initialized fixture should exist")
     }
 
     #[test]
@@ -306,5 +316,12 @@ mod tests {
                 actual: 702,
             }
         );
+    }
+
+    #[test]
+    fn round_trip_initialized_fleets_dat() {
+        let bytes = read_initialized_fixture("FLEETS.DAT");
+        let parsed = FleetDat::parse(&bytes).unwrap();
+        assert_eq!(parsed.to_bytes(), bytes);
     }
 }
