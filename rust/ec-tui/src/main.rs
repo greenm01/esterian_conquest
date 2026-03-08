@@ -108,6 +108,7 @@ fn main() {
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let options = parse_args(env::args().skip(1), env::current_dir()?)?;
+    let options = resolve_game_dir(options);
     let data = load_app_data(&options.dir)?;
 
     enable_raw_mode()?;
@@ -575,6 +576,32 @@ fn load_app_data(dir: &Path) -> Result<AppData, Box<dyn std::error::Error>> {
     })
 }
 
+fn resolve_game_dir(options: CliOptions) -> CliOptions {
+    if looks_like_game_dir(&options.dir) {
+        return options;
+    }
+
+    let repo_default = repo_root().join("original/v1.5");
+    if looks_like_game_dir(&repo_default) {
+        CliOptions {
+            mode: options.mode,
+            dir: repo_default,
+        }
+    } else {
+        options
+    }
+}
+
+fn looks_like_game_dir(dir: &Path) -> bool {
+    ["PLAYER.DAT", "PLANETS.DAT", "SETUP.DAT", "CONQUEST.DAT"]
+        .into_iter()
+        .all(|name| dir.join(name).is_file())
+}
+
+fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
 fn parse_args(
     mut args: impl Iterator<Item = String>,
     current_dir: PathBuf,
@@ -635,5 +662,15 @@ mod tests {
                 dir: PathBuf::from("/tmp/ecutil"),
             }
         );
+    }
+
+    #[test]
+    fn resolve_game_dir_falls_back_to_repo_original_snapshot() {
+        let options = CliOptions {
+            mode: AppMode::Util,
+            dir: PathBuf::from("/tmp/not-a-game-dir"),
+        };
+        let resolved = resolve_game_dir(options);
+        assert!(resolved.dir.ends_with("original/v1.5"));
     }
 }
