@@ -204,6 +204,21 @@ impl FleetStandingOrderKind {
             Self::Unknown(_) => "unknown",
         }
     }
+
+    pub fn display_label(self) -> &'static str {
+        match self {
+            Self::HoldPosition => "Hold position",
+            Self::MoveOnly => "Move fleet",
+            Self::SeekHome => "Seek home",
+            Self::PatrolSector => "Patrol sector",
+            Self::GuardBlockadeWorld => "Guard/blockade world",
+            Self::BombardWorld => "Bombard world",
+            Self::ViewWorld => "View world",
+            Self::ColonizeWorld => "Colonize world",
+            Self::JoinAnotherFleet => "Join another fleet",
+            Self::Unknown(_) => "Unknown order",
+        }
+    }
 }
 
 impl FleetRecord {
@@ -249,6 +264,32 @@ impl FleetRecord {
 
     pub fn standing_order_target_coords_raw(&self) -> [u8; 2] {
         [self.raw[0x20], self.raw[0x21]]
+    }
+
+    pub fn standing_order_summary(&self) -> String {
+        let [x, y] = self.standing_order_target_coords_raw();
+        match self.standing_order_kind() {
+            FleetStandingOrderKind::HoldPosition => "Hold position".to_string(),
+            FleetStandingOrderKind::MoveOnly => format!("Move fleet to Sector ({x},{y})"),
+            FleetStandingOrderKind::SeekHome => "Seek home".to_string(),
+            FleetStandingOrderKind::PatrolSector => format!("Patrol Sector ({x},{y})"),
+            FleetStandingOrderKind::GuardBlockadeWorld => {
+                format!("Guard/blockade world in System ({x},{y})")
+            }
+            FleetStandingOrderKind::BombardWorld => {
+                format!("Bombard world in System ({x},{y})")
+            }
+            FleetStandingOrderKind::ViewWorld => format!("View world in System ({x},{y})"),
+            FleetStandingOrderKind::ColonizeWorld => {
+                format!("Colonize world in System ({x},{y})")
+            }
+            FleetStandingOrderKind::JoinAnotherFleet => {
+                format!("Join another fleet at raw target ({x},{y})")
+            }
+            FleetStandingOrderKind::Unknown(code) => {
+                format!("Unknown order {code} target ({x},{y})")
+            }
+        }
     }
 
     pub fn rules_of_engagement(&self) -> u8 {
@@ -480,6 +521,10 @@ mod tests {
             FleetStandingOrderKind::GuardBlockadeWorld
         );
         assert_eq!(parsed.records[0].standing_order_target_coords_raw(), [16, 13]);
+        assert_eq!(
+            parsed.records[0].standing_order_summary(),
+            "Guard/blockade world in System (16,13)"
+        );
 
         assert_eq!(parsed.records[2].fleet_id(), 3);
         assert_eq!(parsed.records[2].local_slot(), 3);
@@ -496,6 +541,10 @@ mod tests {
             FleetStandingOrderKind::GuardBlockadeWorld
         );
         assert_eq!(parsed.records[2].standing_order_target_coords_raw(), [16, 13]);
+        assert_eq!(
+            parsed.records[2].standing_order_summary(),
+            "Guard/blockade world in System (16,13)"
+        );
     }
 
     #[test]
