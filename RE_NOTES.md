@@ -752,6 +752,22 @@ Preserved DOSBox-X screenshot:
 
 - `/home/niltempus/Pictures/ecv1.5/ecutil_000.raw1.png`
 
+Versioned screenshot/archive policy:
+
+- `original/v1.5/EC-Screenshots-v1.11/` is a bundled historical reference set from `v1.11`
+- `captures/v1.5-dosboxx/` is the preserved local runtime evidence set for this project's
+  `v1.5` reverse engineering work
+- when `v1.11` and `v1.5` screenshots differ, prefer the `v1.5` capture set for preservation
+  notes and Rust compatibility work
+
+Current preserved `v1.5` capture set:
+
+- `captures/v1.5-dosboxx/ecgame_000.png` through `captures/v1.5-dosboxx/ecgame_030.png`
+- `captures/v1.5-dosboxx/ecutil_000.png`
+- `captures/v1.5-dosboxx/ecutil_000.raw1.png`
+- `captures/v1.5-dosboxx/ecutil_001.png`
+- `captures/v1.5-dosboxx/ecutil_002.png`
+
 Confirmed `ECUTIL` main menu text:
 
 - `Esterian Conquest Sysop's Utility`
@@ -774,6 +790,17 @@ Practical implication for the Rust port:
 - the preserved `ec-cli init` command corresponds directly to `F1`
 - the next highest-value `ECUTIL` replacement targets are `F2` and `F4`
 - the screenshot gives exact wording for a future faithful text-mode compatibility frontend
+
+Confirmed `ECUTIL` F4 Setup The Programs menu from `captures/v1.5-dosboxx/ecutil_002.png`:
+
+- `A` Purge messages & reports after
+- `B` Autopilot any empires inactive for
+- `C` Snoop Enabled
+- `D` Enable timeout for local users
+- `E` Enable timeout for remote users
+- `F` Maximum time between key strokes
+- `G` Minimum time granted
+- `X` Exit Setup
 
 ## Fleet Command Surface
 
