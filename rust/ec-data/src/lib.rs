@@ -161,12 +161,52 @@ pub struct FleetRecord {
 }
 
 impl FleetRecord {
+    pub fn local_slot(&self) -> u8 {
+        self.raw[0x00]
+    }
+
+    pub fn next_fleet_id(&self) -> u8 {
+        self.raw[0x03]
+    }
+
+    pub fn fleet_id(&self) -> u8 {
+        self.raw[0x05]
+    }
+
+    pub fn previous_fleet_id(&self) -> u8 {
+        self.raw[0x07]
+    }
+
+    pub fn max_speed(&self) -> u8 {
+        self.raw[0x09]
+    }
+
     pub fn mission_code(&self) -> u8 {
         self.raw[0x0A]
     }
 
+    pub fn home_system_coords_raw(&self) -> [u8; 2] {
+        [self.raw[0x0B], self.raw[0x0C]]
+    }
+
     pub fn mission_param_bytes(&self) -> &[u8] {
         &self.raw[0x1F..=0x21]
+    }
+
+    pub fn rules_of_engagement(&self) -> u8 {
+        self.raw[0x25]
+    }
+
+    pub fn cruiser_count(&self) -> u8 {
+        self.raw[0x28]
+    }
+
+    pub fn destroyer_count(&self) -> u8 {
+        self.raw[0x2A]
+    }
+
+    pub fn etac_count(&self) -> u8 {
+        self.raw[0x30]
     }
 }
 
@@ -367,6 +407,25 @@ mod tests {
         let bytes = read_initialized_fixture("FLEETS.DAT");
         let parsed = FleetDat::parse(&bytes).unwrap();
         assert_eq!(parsed.to_bytes(), bytes);
+        assert_eq!(parsed.records[0].fleet_id(), 1);
+        assert_eq!(parsed.records[0].local_slot(), 1);
+        assert_eq!(parsed.records[0].next_fleet_id(), 2);
+        assert_eq!(parsed.records[0].previous_fleet_id(), 0);
+        assert_eq!(parsed.records[0].max_speed(), 3);
+        assert_eq!(parsed.records[0].rules_of_engagement(), 6);
+        assert_eq!(parsed.records[0].cruiser_count(), 1);
+        assert_eq!(parsed.records[0].destroyer_count(), 0);
+        assert_eq!(parsed.records[0].etac_count(), 1);
+
+        assert_eq!(parsed.records[2].fleet_id(), 3);
+        assert_eq!(parsed.records[2].local_slot(), 3);
+        assert_eq!(parsed.records[2].next_fleet_id(), 4);
+        assert_eq!(parsed.records[2].previous_fleet_id(), 2);
+        assert_eq!(parsed.records[2].max_speed(), 6);
+        assert_eq!(parsed.records[2].rules_of_engagement(), 6);
+        assert_eq!(parsed.records[2].cruiser_count(), 0);
+        assert_eq!(parsed.records[2].destroyer_count(), 1);
+        assert_eq!(parsed.records[2].etac_count(), 0);
     }
 
     #[test]

@@ -626,6 +626,44 @@ Practical implication:
 - they are also a useful conformance target for a future Rust `inspect` view that decodes fleet
   location, mission, ROE, speed, ETA, and ship composition
 
+Confirmed `FLEETS.DAT` fields from the initialized `16 x 54` layout:
+
+- `record[0x05]` (`u8`): global fleet ID
+  - records `1..16` store IDs `1..16`
+- `record[0x00]` (`u8`): local fleet slot within the owning empire's four-fleet starting block
+  - cycles `1,2,3,4` across the initialized table
+- `record[0x03]` (`u8`): next fleet ID in the local linked order
+  - fleet `1 -> 2`, `2 -> 3`, `3 -> 4`, `4 -> 0`
+- `record[0x07]` (`u8`): previous fleet ID in the local linked order
+  - fleet `1 <- 0`, `2 <- 1`, `3 <- 2`, `4 <- 3`
+- `record[0x09]` (`u8`): maximum speed
+  - matches the preserved starting fleet listing: `3, 3, 6, 6`
+- `record[0x25]` (`u8`): rules of engagement
+  - matches the preserved starting fleet listing: all `6`
+- `record[0x28]` (`u8`): cruiser count
+  - starting fleets `1` and `2` have `CA=1`
+- `record[0x2A]` (`u8`): destroyer count
+  - starting fleets `3` and `4` have `DD=1`
+- `record[0x30]` (`u8`): ETAC count
+  - starting fleets `1` and `2` have `ET=1`
+
+Useful but still conservatively named:
+
+- `record[0x0B..0x0C]`: repeated two-byte `home_system_coords_raw` pair
+  - empire-group values in the initialized fixture are:
+    - fleets `1..4`: `[16, 13]`
+    - fleets `5..8`: `[4, 13]`
+    - fleets `9..12`: `[6, 5]`
+    - fleets `13..16`: `[13, 5]`
+- `record[0x1F..0x21]`: mission parameter bytes
+  - known to change when ordering fleets
+  - not yet decoded into coordinates or mission semantics
+
+Practical implication for the Rust port:
+
+- `ec-data` can now expose a small but real typed fleet model for initialized states
+- the next useful fleet target is to decode current location, destination, ETA, and mission type
+
 ## ECUTIL Surface
 
 Preserved DOSBox-X screenshot:
