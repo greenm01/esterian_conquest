@@ -60,6 +60,11 @@ fn copy_array<const N: usize>(data: &[u8]) -> [u8; N] {
     out
 }
 
+fn trim_ascii_field(bytes: &[u8]) -> String {
+    let text = String::from_utf8_lossy(bytes);
+    text.trim_matches(char::from(0)).trim().to_string()
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlayerRecord {
     pub raw: [u8; PLAYER_RECORD_SIZE],
@@ -70,12 +75,65 @@ impl PlayerRecord {
         self.raw[0]
     }
 
+    pub fn owner_mode_raw(&self) -> u8 {
+        self.raw[0]
+    }
+
     pub fn handle_bytes(&self) -> &[u8] {
         &self.raw[1..=0x1A]
     }
 
     pub fn empire_name_bytes(&self) -> &[u8] {
         &self.raw[0x1C..=0x2E]
+    }
+
+    pub fn assigned_player_flag_raw(&self) -> u8 {
+        self.raw[22]
+    }
+
+    pub fn legacy_status_name_max_len_raw(&self) -> u8 {
+        self.raw[26]
+    }
+
+    pub fn legacy_status_name_len_raw(&self) -> u8 {
+        self.raw[27]
+    }
+
+    pub fn legacy_status_name_summary(&self) -> String {
+        let len = self.legacy_status_name_len_raw() as usize;
+        let end = (28 + len).min(self.raw.len());
+        trim_ascii_field(&self.raw[28..end])
+    }
+
+    pub fn assigned_player_handle_summary(&self) -> String {
+        trim_ascii_field(&self.raw[23..48])
+    }
+
+    pub fn controlled_empire_name_len_raw(&self) -> u8 {
+        self.raw[49]
+    }
+
+    pub fn controlled_empire_name_summary(&self) -> String {
+        let len = self.controlled_empire_name_len_raw() as usize;
+        let end = (50 + len).min(self.raw.len());
+        trim_ascii_field(&self.raw[50..end])
+    }
+
+    pub fn ownership_summary(&self) -> String {
+        if self.owner_mode_raw() == 0xff {
+            format!("rogue label='{}'", self.legacy_status_name_summary())
+        } else if self.assigned_player_flag_raw() != 0
+            || !self.assigned_player_handle_summary().is_empty()
+            || !self.controlled_empire_name_summary().is_empty()
+        {
+            format!(
+                "player handle='{}' empire='{}'",
+                self.assigned_player_handle_summary(),
+                self.controlled_empire_name_summary()
+            )
+        } else {
+            format!("unowned label='{}'", self.legacy_status_name_summary())
+        }
     }
 
     pub fn tax_rate(&self) -> u8 {
@@ -567,6 +625,12 @@ mod tests {
             .join(name)
     }
 
+    fn f3_owner_fixture_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/ecutil-f3-owner/v1.5")
+            .join(name)
+    }
+
     fn read_fixture(name: &str) -> Vec<u8> {
         fs::read(fixture_path(name)).expect("fixture should exist")
     }
@@ -577,6 +641,10 @@ mod tests {
 
     fn read_post_maint_fixture(name: &str) -> Vec<u8> {
         fs::read(post_maint_fixture_path(name)).expect("post-maint fixture should exist")
+    }
+
+    fn read_f3_owner_fixture(name: &str) -> Vec<u8> {
+        fs::read(f3_owner_fixture_path(name)).expect("f3 owner fixture should exist")
     }
 
     #[test]
@@ -649,6 +717,26 @@ mod tests {
         let bytes = read_fixture("PLAYER.DAT");
         let parsed = PlayerDat::parse(&bytes).unwrap();
         assert_eq!(parsed.records[0].tax_rate(), 65);
+    }
+
+    #[test]
+    fn f3_owner_fixture_exposes_rogue_and_player_controlled_empire_summaries() {
+        let bytes = read_f3_owner_fixture("PLAYER.DAT");
+        let parsed = PlayerDat::parse(&bytes).unwrap();
+
+        assert_eq!(parsed.records[0].owner_mode_raw(), 0xff);
+        assert_eq!(parsed.records[0].legacy_status_name_len_raw(), 6);
+        assert_eq!(parsed.records[0].legacy_status_name_summary(), "Rogues");
+        assert_eq!(parsed.records[0].ownership_summary(), "rogue label='Rogues'");
+
+        assert_eq!(parsed.records[1].assigned_player_flag_raw(), 1);
+        assert_eq!(parsed.records[1].assigned_player_handle_summary(), "FOO");
+        assert_eq!(parsed.records[1].controlled_empire_name_len_raw(), 3);
+        assert_eq!(parsed.records[1].controlled_empire_name_summary(), "foo");
+        assert_eq!(
+            parsed.records[1].ownership_summary(),
+            "player handle='FOO' empire='foo'"
+        );
     }
 
     #[test]

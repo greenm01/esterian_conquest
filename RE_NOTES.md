@@ -816,6 +816,46 @@ Current Rust CLI coverage for the decoded `F4` fields:
 
 This means the decoded `F4 Modify Program Options` surface is now fully represented in the std-only Rust CLI, even though the command names are intentionally more Unix-like than the original single-letter menu.
 
+Confirmed `ECUTIL` `F3 Change Empire Ownership` flow from:
+
+- `captures/v1.5-dosboxx/ecutil_004.png`
+- `captures/v1.5-dosboxx/ecutil_005.png`
+- `captures/v1.5-dosboxx/ecutil_006.png`
+- `captures/v1.5-dosboxx/ecutil_007.png`
+- `captures/v1.5-dosboxx/ecutil_008.png`
+
+Preserved option surface:
+
+- `P` Assign empire to a new `PLAYER`
+- `R` Make empire a `ROGUE` empire
+- `U` Make empire `UNOWNED` (`Civil Disorder`)
+- `N` No change
+
+Conservative `PLAYER.DAT` ownership findings from the preserved `F3` fixture `fixtures/ecutil-f3-owner/v1.5/PLAYER.DAT`:
+
+- `F3` touched `PLAYER.DAT` only in the observed test; `PLANETS.DAT` did not change.
+- Record 0, byte `0x00`, changed `0x00 -> 0xff` when empire `#1` was made rogue.
+- Record 0, bytes `0x1B..`, form a Pascal-style status/label field:
+  - max length byte at `0x1A` remained `0x18`
+  - current length at `0x1B` changed `0x11 -> 0x06`
+  - text at `0x1C..` became `Rogues`
+- Record 1, byte `0x16`, changed `0x00 -> 0x01` when empire `#2` was assigned to a player.
+- Record 1, bytes `0x17..0x2F`, now contain the uppercased player handle `FOO` in a fixed-width field.
+- Record 1, bytes `0x31..`, form a second Pascal-style name field:
+  - current length at `0x31` became `0x03`
+  - text at `0x32..` became `foo`
+
+Rust preservation impact:
+
+- `ec-data` now exposes conservative player ownership summaries:
+  - `owner_mode_raw()`
+  - `assigned_player_flag_raw()`
+  - `legacy_status_name_summary()`
+  - `assigned_player_handle_summary()`
+  - `controlled_empire_name_summary()`
+  - `ownership_summary()`
+- This is intentionally narrower than a full player-record decode; it only covers the ownership fields that `ECUTIL F3` demonstrably touched.
+
 Confirmed `SETUP.DAT` offsets from the live `F4` diffs:
 
 - `SETUP[512]` `snoop_enabled`
