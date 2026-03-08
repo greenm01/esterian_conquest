@@ -1,0 +1,4539 @@
+
+
+
+
+
+
+
+
+
+
+
+                                **************
+                                *            *
+                                * Jump Start *
+                                *            *
+                                **************
+ 
+ 
+                                 ************
+                                 *          *
+                                 * PRESENTS *
+                                 *          *
+                                 ************
+ 
+ 
+  o     #######   ###### ########  #######  ######    ##    #####    ###  ##
+    .  ##       ##         ##     ##       ##   ##   ##   ##   ##   #### ##
+      ####      #####     ##     ####     ######    ##   #######   ## ####   .
+     ##            ##    ##     ##       ## ##     ##   ##   ##   ##  ###
+ .  #######  ######     ##     #######  ##   ##   ##   ##   ##   ##   ##
+
+   *   ######   #####    ###  ##   #####   ##   ##  #######   ###### ########
+     ##       ##   ##   #### ##  ##   ##  ##   ##  ##       ##         ##  .
+  . ##       ##   ##   ## ####  ##   ##  ##   ##  ####      #####     ##
+   ##       ##   ##   ##  ###  ## # ##  ##   ##  ##            ##    ##      .
+   ######   #####    ##   ##   ######   #####   #######  ######     ##
+                                 ##
+                       .                       Ver 1.50 
+        .                                                   .      .
+
+Compliments of your Sysop, Ray Kvalheim.
+Registration # 110039
+
+(Press Return) 
+
+
+Welcome back to Esterian Conquest, Ver 1.50
+-------------------------------------------------------------------------------
+Use Ctrl-S throughout the game to pause and resume output.
+Use Ctrl-X or Ctrl-K to abort most listings.
+
+View Introduction? Y/[N] -> 
+
+
+
+
+, you are "zzzzrrr", (Empire #1)
+
+The year is: 3022 A.D.
+
+Last year on: 3021 A.D.
+
+You have 238 minutes left to play.
+
+Autopilot is off.
+
+(Press Return) 
+
+
+
+
+
+
+You have undeleted reports. View them? [Y]es, <N>o, <NS> (non-stop) -> 
+
+
+Reports: Current game year is 3022 A.D.
+
+
+ -> From your 11th Fleet, located in System(27,8)           Stardate: 1/3021
+ -> Scouting mission report: We are in extended orbit around planet "33" 
+ -> and have compiled the following data:
+ ->   Owned by: "Melody Lake", (Empire #2)
+ ->   Potential production: 33 points
+ ->   Estimated present production: 15 points
+ ->   Estimated amount of stored goods: 10 points
+ ->   Number of armies: 1
+ ->   Number of ground batteries: 0
+ -> Scanning the planet's stardock, we detected 1 destroyer. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From planet "you're my bitch" in System(23,5):          Stardate: 1/3021
+ -> We have been invaded and conquored by the 27th Fleet of empire "Melody 
+ -> Lake", (Empire #2). The invading fleet initially contained 1 
+ -> battleship, 10 cruisers, 5 destroyers and 16 troop transports carrying 
+ -> 16 armies. We failed to inflict any alien casualties. Our defensive 
+ -> force consisted of 1 army. When we realized that the battle was lost, 
+ -> we tried to destroy anything we thought the aliens could use. We 
+ -> estimate that the production of the world is down to 6 point(s) out of 
+ -> a possible 115. Unfortunately, the aliens managed to capture 1 
+ -> production point(s) worth of goods. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 6th Fleet, located in System(25,22)           Stardate: 1/3021
+ -> Scouting mission report: We are in extended orbit around planet "Fran" 
+ -> and have compiled the following data:
+ ->   Owned by: "Melody Lake", (Empire #2)
+ ->   Potential production: 100 points
+ ->   Estimated present production: 100 points
+ ->   Estimated amount of stored goods: 51 points
+ ->   Number of armies: 15
+ ->   Number of ground batteries: 9
+ -> Scanning the planet's stardock, we detected 2 cruisers. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From planet "buzz" in System(23,4):                    Stardate: 27/3021
+ -> We have been bombarded by the 30th Fleet of empire "Melody Lake", 
+ -> (Empire #2). The bombarding fleet initially contained 1 destroyer. The 
+ -> attackers were totally destroyed. Our defensive force consisted of 2 
+ -> ground batteries and 7 armies. In the attack, we lost none of the 
+ -> factories and no stored goods worth mentioning. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 7th Fleet, located in System(25,12)          Stardate: 40/3021
+ -> Guard/Blockade World mission report: Sensor contact shows an alien 
+ -> fleet in System(25,12) traveling at a translight speed of 5. Closing to 
+ -> check it out...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 7th Fleet, located in System(25,12)          Stardate: 40/3021
+ -> Guard/Blockade World mission report: We have located and identified the 
+ -> alien fleet in System(25,12). It is the 7th Fleet of "Melody Lake", 
+ -> (Empire #2). Their fleet contains 18 medium and 20 small vessel(s) of 
+ -> unknown type. The alien fleet seems to be preparing to invade our 
+ -> planet "90". Accelerating to intercept alien fleet...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your Fleet Command Center:                        Stardate: 40/3021
+ -> We lost all contact with the 7th Fleet shortly after it intercepted the 
+ -> 7th Fleet of "Melody Lake", (Empire #2) in System(25,12). Records show 
+ -> the 7th Fleet was composed of 1 battleship, 3 cruisers, 2 destroyers 
+ -> and 10 troop transport ships carrying 7 armies. According to a burnt 
+ -> flight recorder we recovered, the alien force initially contained 13 
+ -> cruisers, 20 destroyers and 5 troop transport ships. The flight 
+ -> recorder recorded alien ship casualties of 1 cruiser and 5 destroyers. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 4th Fleet, located in Sector(17,13)          Stardate: 40/3021
+ -> Join mission report: In light of the destruction of the 7th Fleet, we 
+ -> are holding our current position in Sector(17,13) and are awaiting new 
+ -> orders.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 10th Fleet, located in Sector(19,12)         Stardate: 40/3021
+ -> Join mission report: In light of the destruction of the 7th Fleet, we 
+ -> are holding our current position in Sector(19,12) and are awaiting new 
+ -> orders.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 9th Fleet, located in System(11,23)          Stardate: 41/3021
+ -> Scouting mission report: We are in extended orbit around planet 
+ -> "Rectum" and have compiled the following data:
+ ->   Owned by: "Romulus", (Empire #3)
+ ->   Potential production: 117 points
+ ->   Estimated present production: 101 points
+ ->   Estimated amount of stored goods: 49 points
+ ->   Number of armies: 71
+ ->   Number of ground batteries: 7
+ ->   The planet's stardock appears to be empty.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 12th Fleet, located in Sector(16,14)         Stardate: 41/3021
+ -> Join mission report: In light of the destruction of the 7th Fleet, we 
+ -> are holding our current position in Sector(16,14) and are awaiting new 
+ -> orders.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 20th Fleet, located in Sector(19,16)         Stardate: 41/3021
+ -> Join mission report: In light of the destruction of the 7th Fleet, we 
+ -> are holding our current position in Sector(19,16) and are awaiting new 
+ -> orders.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 9th Fleet, located in System(11,23)          Stardate: 44/3021
+ -> Scouting mission report: Sensor contact shows an alien fleet in 
+ -> System(11,23) traveling at sublight speed. Closing to check it out...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 9th Fleet, located in System(11,23)          Stardate: 44/3021
+ -> Scouting mission report: We have located and identified the alien fleet 
+ -> in System(11,23). It is the 11th Fleet of "Romulus", (Empire #3). Their 
+ -> fleet contains 1 medium and 6 small vessel(s) of unknown type. Ignoring 
+ -> alien fleet...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From planet "90" in System(25,12):                     Stardate: 45/3021
+ -> We have been invaded and conquored by the 7th Fleet of empire "Melody 
+ -> Lake", (Empire #2). The invading fleet initially contained 12 cruisers, 
+ -> 15 destroyers and 5 troop transports carrying 5 armies. We failed to 
+ -> inflict any alien casualties. We had no defensive forces at the time of 
+ -> the attack. When we realized that the battle was lost, we tried to 
+ -> destroy anything we thought the aliens could use. We estimate that the 
+ -> production of the world is down to 1 point(s) out of a possible 90. 
+ -> Unfortunately, the aliens managed to capture 1 production point(s) 
+ -> worth of goods. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+Results deleted.
+
+All reports seen.
+
+
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> 
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> f
+
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    0   0    0    5   6  Planet(4,18)  Guard/blockade world in System (4,18)
+2    5   4    2    2   0  Sector(23,5)  Rendezvous at Sector (24,21)
+3    5   4    2    2   0  Sector(14,5)  Rendezvous at Sector (24,21)
+4    0   0    0   23   6  Sector(17,13) No standing orders
+5    5   4    1    1   0  Sector(13,6)  Rendezvous at Sector (24,21)
+6    0   0    0    1   0  Planet(25,22) Scout System (25,22)
+8    5   3    3    3   0  Sector(23,8)  Rendezvous at Sector (24,21)
+9    0   0    0    1   0  Planet(11,23) Scout System (11,23)
+10   0   0    0   22   6  Sector(19,12) No standing orders
+11   0   0    0    1   0  Planet(27,8)  Scout System (27,8)
+12   0   0    0   17   6  Sector(16,14) No standing orders
+13   0   0    0    5   6  Planet(12,2)  Guard/blockade world in System (12,2)
+14   5   4    2    2   0  Sector(12,8)  Rendezvous at Sector (24,21)
+15   0   0    0    7   6  Planet(23,1)  Guard/blockade world in System (23,1)
+More? [Y]es, <N>o, <NS> (non-stop) -> y
+
+16   5   3    2    2   0  Sector(20,9)  Rendezvous at Sector (24,21)
+17   5   3    0   16   6  Sector(16,10) Rendezvous at Sector (24,21)
+18   0   0    0    8   6  Planet(19,5)  Guard/blockade world in System (19,5)
+19   0   0    0    3   6  Planet(11,3)  Guard/blockade world in System (11,3)
+20   0   0    0   12   6  Sector(19,16) No standing orders
+21   5   3    4    4   0  Sector(16,10) Rendezvous at Sector (24,21)
+22   5   4    3    3   0  Sector(6,14)  Rendezvous at Sector (24,21)
+23   0   0    0    9   6  Planet(2,20)  Guard/blockade world in System (2,20)
+24   0   0    0    3   6  Planet(9,5)   Guard/blockade world in System (9,5)
+25   5   4    2    2   0  Sector(7,14)  Rendezvous at Sector (24,21)
+26   0   0    0    1   6  Planet(4,18)  Guard/blockade world in System (4,18)
+27   0   0    0    3   6  Planet(2,12)  Guard/blockade world in System (2,12)
+28   0   0    0    5   6  Planet(3,13)  Guard/blockade world in System (3,13)
+29   5   2    8    8   0  Sector(18,16) Rendezvous at Sector (24,21)
+30   0   0    0    1   6  Planet(3,13)  Guard/blockade world in System (3,13)
+31   5   2    4    4   0  Sector(17,17) Rendezvous at Sector (24,21)
+32   5   3    6    6   0  Sector(11,17) Rendezvous at Sector (24,21)
+33   5   4    1    1   0  Sector(8,19)  Rendezvous at Sector (24,21)
+34   5   1    2    2   0  Sector(21,20) Rendezvous at Sector (24,21)
+35   5   4    4    4   0  Sector(6,20)  Rendezvous at Sector (24,21)
+-------------------------------------------------------------------------------
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> ogg 
+
+Enter numbers of the fleets to receive orders.  Type an "M" to
+indicate the end of the list of fleets.  For example: 3,5,12,17,20,M
+or type an "A" at any time to abort orders
+
+Fleet #'s, <M>ission, <A>bort ->4,10,12,20.m
+
+
+
+
+Note: All missions also include movement (if required).
+Possible missions for the 4 selected fleets:
+
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <3> Patrol a Sector                <13> Join Another Fleet             
+      <4> Guard a Starbase               <14> Rendezvous at Sector           
+      <5> Guard/Blockade a World         <15> Salvage Fleet                  
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 14
+
+Enter rendezvous point: X coordinate or <A>bort: [17] -> 26
+
+Enter rendezvous point: Y coordinate or <A>bort: [13] -> 
+
+
+Select Rules of Engagement (ROE) to be used when encountering hostile fleets:
+-------------------------------------------------------------------------------
+ <0> Avoid all hostile fleets.
+ <1> Engage hostile fleets only if they are defenseless.
+ <2> Engage hostile fleets only if advantage is 4:1 or better.
+ <3> Engage hostile fleets only if advantage is 3:1 or better.
+ <4> Engage hostile fleets only if advantage is 2:1 or better.
+ <5> Engage hostile fleets only if advantage is 3:2 or better.
+ <6> Engage hostile fleets of equal or inferior strength.
+ <7> Engage hostile fleets even if outgunned 3:2.
+ <8> Engage hostile fleets even if outgunned 2:1.
+ <9> Engage hostile fleets even if outgunned 3:1.
+<10> Engage hostile fleets regardless of their size.
+-------------------------------------------------------------------------------
+
+Enter the number that indicates the ROE for this fleet (0 - 10): [6] -> 
+
+
+Group orders for 4 Fleets.
+NEW ORDERS:  Rendezvous at Sector (26,13)
+Proceed with orders? [Y]/N -> y
+Fleet   4...Orders Received.
+Fleet  10...Orders Received.
+Fleet  12...Orders Received.
+Fleet  20...Orders Received.
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    0   0    0    5   6  Planet(4,18)  Guard/blockade world in System (4,18)
+2    5   4    2    2   0  Sector(23,5)  Rendezvous at Sector (24,21)
+3    5   4    2    2   0  Sector(14,5)  Rendezvous at Sector (24,21)
+4    4   3    0   23   6  Sector(17,13) Rendezvous at Sector (26,13)
+5    5   4    1    1   0  Sector(13,6)  Rendezvous at Sector (24,21)
+6    0   0    0    1   0  Planet(25,22) Scout System (25,22)
+8    5   3    3    3   0  Sector(23,8)  Rendezvous at Sector (24,21)
+9    0   0    0    1   0  Planet(11,23) Scout System (11,23)
+10   5   2    0   22   6  Sector(19,12) Rendezvous at Sector (26,13)
+11   0   0    0    1   0  Planet(27,8)  Scout System (27,8)
+12   5   2    0   17   6  Sector(16,14) Rendezvous at Sector (26,13)
+13   0   0    0    5   6  Planet(12,2)  Guard/blockade world in System (12,2)
+14   5   4    2    2   0  Sector(12,8)  Rendezvous at Sector (24,21)
+15   0   0    0    7   6  Planet(23,1)  Guard/blockade world in System (23,1)
+More? [Y]es, <N>o, <NS> (non-stop) -> y
+
+16   5   3    2    2   0  Sector(20,9)  Rendezvous at Sector (24,21)
+17   5   3    0   16   6  Sector(16,10) Rendezvous at Sector (24,21)
+18   0   0    0    8   6  Planet(19,5)  Guard/blockade world in System (19,5)
+19   0   0    0    3   6  Planet(11,3)  Guard/blockade world in System (11,3)
+20   5   2    0   12   6  Sector(19,16) Rendezvous at Sector (26,13)
+21   5   3    4    4   0  Sector(16,10) Rendezvous at Sector (24,21)
+22   5   4    3    3   0  Sector(6,14)  Rendezvous at Sector (24,21)
+23   0   0    0    9   6  Planet(2,20)  Guard/blockade world in System (2,20)
+24   0   0    0    3   6  Planet(9,5)   Guard/blockade world in System (9,5)
+25   5   4    2    2   0  Sector(7,14)  Rendezvous at Sector (24,21)
+26   0   0    0    1   6  Planet(4,18)  Guard/blockade world in System (4,18)
+27   0   0    0    3   6  Planet(2,12)  Guard/blockade world in System (2,12)
+28   0   0    0    5   6  Planet(3,13)  Guard/blockade world in System (3,13)
+29   5   2    8    8   0  Sector(18,16) Rendezvous at Sector (24,21)
+30   0   0    0    1   6  Planet(3,13)  Guard/blockade world in System (3,13)
+31   5   2    4    4   0  Sector(17,17) Rendezvous at Sector (24,21)
+32   5   3    6    6   0  Sector(11,17) Rendezvous at Sector (24,21)
+33   5   4    1    1   0  Sector(8,19)  Rendezvous at Sector (24,21)
+34   5   1    2    2   0  Sector(21,20) Rendezvous at Sector (24,21)
+35   5   4    4    4   0  Sector(6,20)  Rendezvous at Sector (24,21)
+-------------------------------------------------------------------------------
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> p
+
+
+ 
+PLANET COMMANDS:    V>iew Partial Map                       T>ax rate: Empire
+  H>elp on Options  C>OMMISSION MENU   D>etail Planet List  S>corch planets
+  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet: Brief List  L>oad TTs w/Armies
+  X>pert mode       B>UILD MENU...     I>nfo about Planet   U>nload TT Armies
+
+PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U-> a
+
+AUTO-COMMISSION fleets and starbases from all your planets
+
+Perform the Auto-Commission?  [Y]/N -> 
+
+PLANET "dinky" at (11,1):
+Commissioning the 7th Fleet... 1-DD
+
+PLANET "bananagrams" at (23,1):
+Commissioning the 36th Fleet... 1-CA
+
+PLANET "SyncTERM" at (12,2):
+Commissioning the 37th Fleet... 1-DD 1-CA
+
+PLANET "beaker" at (11,3):
+Commissioning the 38th Fleet... 2-DDs
+
+PLANET "pint" at (3,4):
+Commissioning the 39th Fleet... 1-DD
+
+PLANET "vibrator" at (14,7):
+Commissioning the 40th Fleet... 2-DDs
+
+PLANET "zzzzrrr" at (15,13):
+Commissioning the 41st Fleet... 1-BB
+
+PLANET "anus" at (13,15):
+Commissioning the 42nd Fleet... 1-CA
+
+PLANET "hector" at (7,16):
+Commissioning the 43rd Fleet... 1-BB
+
+PLANET "corn hole" at (4,18):
+Commissioning the 44th Fleet... 2-DDs
+
+PLANET "k'34dc'#" at (17,18):
+Commissioning the 45th Fleet... 1-CA
+
+PLANET "helix" at (2,20):
+Commissioning the 46th Fleet... 1-CA
+
+PLANET "joke's on me" at (2,21):
+Commissioning the 47th Fleet... 1-DD
+
+All of your stardocks are empty.
+Auto-Commission completed.
+
+
+(Press Return) 
+
+ 
+PLANET COMMANDS:    V>iew Partial Map                       T>ax rate: Empire
+  H>elp on Options  C>OMMISSION MENU   D>etail Planet List  S>corch planets
+  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet: Brief List  L>oad TTs w/Armies
+  X>pert mode       B>UILD MENU...     I>nfo about Planet   U>nload TT Armies
+
+PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> f
+
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 7
+
+
+
+Note: All missions also include movement (if required).
+7th Fleet's current mission : No standing orders
+7th Fleet's current location: Solar System at (11,1)
+
+Possible missions for the 7th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 13
+
+Enter the ID number of the host fleet: (1 - 47) or <A>bort? [13]  -> 
+
+
+Destination is System (12,2). At maximum speed, travel
+time would be 1 year. ETA would be year 3023 A.D.
+
+The 7th Fleet's maximum speed is 6.
+
+Enter current speed for this fleet (1 - 6): [6] -> 
+
+
+NEW ORDERS:  Join 13th Fleet now in System (12,2)
+Proceed with orders? [Y]/N -> n
+Orders aborted.
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 7
+
+
+
+Note: All missions also include movement (if required).
+7th Fleet's current mission : No standing orders
+7th Fleet's current location: Solar System at (11,1)
+
+Possible missions for the 7th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 5
+
+
+Enter coordinates of the solar system to guard/blockade:
+
+Enter X coordinate or <A>bort: [11] -> 
+
+Enter Y coordinate or <A>bort: [1] -> 
+
+
+The 7th Fleet will accomplish its mission this year.
+
+
+NEW ORDERS:  Guard/blockade world in System (11,1)
+Proceed with orders? [Y]/N -> 
+Orders Received.
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 36
+
+
+
+Note: All missions also include movement (if required).
+36th Fleet's current mission : No standing orders
+36th Fleet's current location: Solar System at (23,1)
+
+Possible missions for the 36th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 13
+
+Enter the ID number of the host fleet: (1 - 47) or <A>bort? [15]  -> 
+
+These two fleets are already together.
+Do you wish to merge them now? [Y]/N -> 
+
+Deleting the 36th Fleet...
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 37
+
+
+
+Note: All missions also include movement (if required).
+37th Fleet's current mission : No standing orders
+37th Fleet's current location: Solar System at (12,2)
+
+Possible missions for the 37th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 13
+
+Enter the ID number of the host fleet: (1 - 47) or <A>bort? [13]  -> 
+
+These two fleets are already together.
+Do you wish to merge them now? [Y]/N -> 
+
+Deleting the 37th Fleet...
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 38
+
+
+
+Note: All missions also include movement (if required).
+38th Fleet's current mission : No standing orders
+38th Fleet's current location: Solar System at (11,3)
+
+Possible missions for the 38th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 13
+
+Enter the ID number of the host fleet: (1 - 47) or <A>bort? [19]  -> 
+
+These two fleets are already together.
+Do you wish to merge them now? [Y]/N -> 
+
+Deleting the 38th Fleet...
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 39
+
+
+
+Note: All missions also include movement (if required).
+39th Fleet's current mission : No standing orders
+39th Fleet's current location: Solar System at (3,4)
+
+Possible missions for the 39th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 13
+
+Enter the ID number of the host fleet: (1 - 47) or <A>bort? [24]  -> 
+
+
+Destination is System (9,5). At maximum speed, travel
+time would be 2 years. ETA would be year 3024 A.D.
+
+The 39th Fleet's maximum speed is 6.
+
+Enter current speed for this fleet (1 - 6): [6] -> 
+
+
+NEW ORDERS:  Join 24th Fleet now in System (9,5)
+Proceed with orders? [Y]/N -> n
+Orders aborted.
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 39
+
+
+
+Note: All missions also include movement (if required).
+39th Fleet's current mission : No standing orders
+39th Fleet's current location: Solar System at (3,4)
+
+Possible missions for the 39th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 5
+
+
+Enter coordinates of the solar system to guard/blockade:
+
+Enter X coordinate or <A>bort: [3] -> 
+
+Enter Y coordinate or <A>bort: [4] -> 
+
+
+The 39th Fleet will accomplish its mission this year.
+
+
+NEW ORDERS:  Guard/blockade world in System (3,4)
+Proceed with orders? [Y]/N -> 
+Orders Received.
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 40
+
+
+
+Note: All missions also include movement (if required).
+40th Fleet's current mission : No standing orders
+40th Fleet's current location: Solar System at (14,7)
+
+Possible missions for the 40th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 13
+
+Enter the ID number of the host fleet: (1 - 47) or <A>bort? [5]  -> 
+
+
+Destination is Sector (13,6). At maximum speed, travel
+time would be 1 year. ETA would be year 3023 A.D.
+
+The 40th Fleet's maximum speed is 6.
+
+Enter current speed for this fleet (1 - 6): [6] -> 
+
+
+NEW ORDERS:  Join 5th Fleet now in Sector (13,6)
+Proceed with orders? [Y]/N -> n
+Orders aborted.
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 40
+
+
+
+Note: All missions also include movement (if required).
+40th Fleet's current mission : No standing orders
+40th Fleet's current location: Solar System at (14,7)
+
+Possible missions for the 40th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 5
+
+
+Enter coordinates of the solar system to guard/blockade:
+
+Enter X coordinate or <A>bort: [14] -> 
+
+Enter Y coordinate or <A>bort: [7] -> 
+
+
+The 40th Fleet will accomplish its mission this year.
+
+
+NEW ORDERS:  Guard/blockade world in System (14,7)
+Proceed with orders? [Y]/N -> 
+Orders Received.
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 41
+
+
+
+Note: All missions also include movement (if required).
+41st Fleet's current mission : No standing orders
+41st Fleet's current location: Solar System at (15,13)
+
+Possible missions for the 41st Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 13
+
+Enter the ID number of the host fleet: (1 - 47) or <A>bort? [12]  -> 
+
+
+Destination is Sector (16,14). At maximum speed, travel
+time would be 1 year. ETA would be year 3023 A.D.
+
+The 41st Fleet's maximum speed is 4.
+
+Enter current speed for this fleet (1 - 4): [4] -> 
+
+
+NEW ORDERS:  Join 12th Fleet now in Sector (16,14)
+Proceed with orders? [Y]/N -> n
+Orders aborted.
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 41
+
+
+
+Note: All missions also include movement (if required).
+41st Fleet's current mission : No standing orders
+41st Fleet's current location: Solar System at (15,13)
+
+Possible missions for the 41st Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 135
+
+
+Enter coordinates of the solar system to guard/blockade:
+
+Enter X coordinate or <A>bort: [15] -> 
+
+Enter Y coordinate or <A>bort: [13] -> 
+
+
+The 41st Fleet will accomplish its mission this year.
+
+
+NEW ORDERS:  Guard/blockade world in System (15,13)
+Proceed with orders? [Y]/N -> 
+Orders Received.
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 42
+
+
+
+Note: All missions also include movement (if required).
+42nd Fleet's current mission : No standing orders
+42nd Fleet's current location: Solar System at (13,15)
+
+Possible missions for the 42nd Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 13
+
+Enter the ID number of the host fleet: (1 - 47) or <A>bort? [12]  -> 
+
+
+Destination is Sector (16,14). At maximum speed, travel
+time would be 1 year. ETA would be year 3023 A.D.
+
+The 42nd Fleet's maximum speed is 5.
+
+Enter current speed for this fleet (1 - 5): [5] -> 
+
+
+NEW ORDERS:  Join 12th Fleet now in Sector (16,14)
+Proceed with orders? [Y]/N -> n
+Orders aborted.
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 42
+
+
+
+Note: All missions also include movement (if required).
+42nd Fleet's current mission : No standing orders
+42nd Fleet's current location: Solar System at (13,15)
+
+Possible missions for the 42nd Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 5
+
+
+Enter coordinates of the solar system to guard/blockade:
+
+Enter X coordinate or <A>bort: [13] -> 
+
+Enter Y coordinate or <A>bort: [15] -> 
+
+
+The 42nd Fleet will accomplish its mission this year.
+
+
+NEW ORDERS:  Guard/blockade world in System (13,15)
+Proceed with orders? [Y]/N -> 
+Orders Received.
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 43
+
+
+
+Note: All missions also include movement (if required).
+43rd Fleet's current mission : No standing orders
+43rd Fleet's current location: Solar System at (7,16)
+
+Possible missions for the 43rd Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 13
+
+Enter the ID number of the host fleet: (1 - 47) or <A>bort? [25]  -> 
+
+
+Destination is Sector (7,14). At maximum speed, travel
+time would be 1 year. ETA would be year 3023 A.D.
+
+The 43rd Fleet's maximum speed is 4.
+
+Enter current speed for this fleet (1 - 4): [4] -> 
+
+
+NEW ORDERS:  Join 25th Fleet now in Sector (7,14)
+Proceed with orders? [Y]/N -> n
+Orders aborted.
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 43
+
+
+
+Note: All missions also include movement (if required).
+43rd Fleet's current mission : No standing orders
+43rd Fleet's current location: Solar System at (7,16)
+
+Possible missions for the 43rd Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 5
+
+
+Enter coordinates of the solar system to guard/blockade:
+
+Enter X coordinate or <A>bort: [7] -> 
+
+Enter Y coordinate or <A>bort: [16] -> 
+
+
+The 43rd Fleet will accomplish its mission this year.
+
+
+NEW ORDERS:  Guard/blockade world in System (7,16)
+Proceed with orders? [Y]/N -> 
+Orders Received.
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 44
+
+
+
+Note: All missions also include movement (if required).
+44th Fleet's current mission : No standing orders
+44th Fleet's current location: Solar System at (4,18)
+
+Possible missions for the 44th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 13
+
+Enter the ID number of the host fleet: (1 - 47) or <A>bort? [1]  -> 
+
+These two fleets are already together.
+Do you wish to merge them now? [Y]/N -> 
+
+Deleting the 44th Fleet...
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 45
+
+
+
+Note: All missions also include movement (if required).
+45th Fleet's current mission : No standing orders
+45th Fleet's current location: Solar System at (17,18)
+
+Possible missions for the 45th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 13
+
+Enter the ID number of the host fleet: (1 - 47) or <A>bort? [31]  -> 
+
+
+Destination is Sector (17,17). At maximum speed, travel
+time would be 1 year. ETA would be year 3023 A.D.
+
+The 45th Fleet's maximum speed is 5.
+
+Enter current speed for this fleet (1 - 5): [5] -> 
+
+
+NEW ORDERS:  Join 31st Fleet now in Sector (17,17)
+Proceed with orders? [Y]/N -> n
+Orders aborted.
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 45
+
+
+
+Note: All missions also include movement (if required).
+45th Fleet's current mission : No standing orders
+45th Fleet's current location: Solar System at (17,18)
+
+Possible missions for the 45th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 5
+
+
+Enter coordinates of the solar system to guard/blockade:
+
+Enter X coordinate or <A>bort: [17] -> 
+
+Enter Y coordinate or <A>bort: [18] -> 
+
+
+The 45th Fleet will accomplish its mission this year.
+
+
+NEW ORDERS:  Guard/blockade world in System (17,18)
+Proceed with orders? [Y]/N -> 
+Orders Received.
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 46
+
+
+
+Note: All missions also include movement (if required).
+46th Fleet's current mission : No standing orders
+46th Fleet's current location: Solar System at (2,20)
+
+Possible missions for the 46th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 13
+
+Enter the ID number of the host fleet: (1 - 47) or <A>bort? [23]  -> 
+
+These two fleets are already together.
+Do you wish to merge them now? [Y]/N -> 
+
+Deleting the 46th Fleet...
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 7
+
+
+
+Note: All missions also include movement (if required).
+7th Fleet's current mission : Guard/blockade world in System (11,1)
+7th Fleet's current location: Solar System at (11,1)
+
+Possible missions for the 7th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 
+Orders aborted.
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 47
+
+
+
+Note: All missions also include movement (if required).
+47th Fleet's current mission : No standing orders
+47th Fleet's current location: Solar System at (2,21)
+
+Possible missions for the 47th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 13
+
+Enter the ID number of the host fleet: (1 - 47) or <A>bort? [23]  -> 
+
+
+Destination is System (2,20). At maximum speed, travel
+time would be 1 year. ETA would be year 3023 A.D.
+
+The 47th Fleet's maximum speed is 6.
+
+Enter current speed for this fleet (1 - 6): [6] -> 
+
+
+NEW ORDERS:  Join 23rd Fleet now in System (2,20)
+Proceed with orders? [Y]/N -> n
+Orders aborted.
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 47
+
+
+
+Note: All missions also include movement (if required).
+47th Fleet's current mission : No standing orders
+47th Fleet's current location: Solar System at (2,21)
+
+Possible missions for the 47th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 5
+
+
+Enter coordinates of the solar system to guard/blockade:
+
+Enter X coordinate or <A>bort: [2] -> 
+
+Enter Y coordinate or <A>bort: [21] -> 
+
+
+The 47th Fleet will accomplish its mission this year.
+
+
+NEW ORDERS:  Guard/blockade world in System (2,21)
+Proceed with orders? [Y]/N -> 
+Orders Received.
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    0   0    0    7   6  Planet(4,18)  Guard/blockade world in System (4,18)
+2    5   4    2    2   0  Sector(23,5)  Rendezvous at Sector (24,21)
+3    5   4    2    2   0  Sector(14,5)  Rendezvous at Sector (24,21)
+4    4   3    0   23   6  Sector(17,13) Rendezvous at Sector (26,13)
+5    5   4    1    1   0  Sector(13,6)  Rendezvous at Sector (24,21)
+6    0   0    0    1   0  Planet(25,22) Scout System (25,22)
+7    6   0    0    1   6  Planet(11,1)  Guard/blockade world in System (11,1)
+8    5   3    3    3   0  Sector(23,8)  Rendezvous at Sector (24,21)
+9    0   0    0    1   0  Planet(11,23) Scout System (11,23)
+10   5   2    0   22   6  Sector(19,12) Rendezvous at Sector (26,13)
+11   0   0    0    1   0  Planet(27,8)  Scout System (27,8)
+12   5   2    0   17   6  Sector(16,14) Rendezvous at Sector (26,13)
+13   0   0    0    7   6  Planet(12,2)  Guard/blockade world in System (12,2)
+14   5   4    2    2   0  Sector(12,8)  Rendezvous at Sector (24,21)
+More? [Y]es, <N>o, <NS> (non-stop) -> 
+
+15   0   0    0    8   6  Planet(23,1)  Guard/blockade world in System (23,1)
+16   5   3    2    2   0  Sector(20,9)  Rendezvous at Sector (24,21)
+17   5   3    0   16   6  Sector(16,10) Rendezvous at Sector (24,21)
+18   0   0    0    8   6  Planet(19,5)  Guard/blockade world in System (19,5)
+19   0   0    0    5   6  Planet(11,3)  Guard/blockade world in System (11,3)
+20   5   2    0   12   6  Sector(19,16) Rendezvous at Sector (26,13)
+21   5   3    4    4   0  Sector(16,10) Rendezvous at Sector (24,21)
+22   5   4    3    3   0  Sector(6,14)  Rendezvous at Sector (24,21)
+23   0   0    0   10   6  Planet(2,20)  Guard/blockade world in System (2,20)
+24   0   0    0    3   6  Planet(9,5)   Guard/blockade world in System (9,5)
+25   5   4    2    2   0  Sector(7,14)  Rendezvous at Sector (24,21)
+26   0   0    0    1   6  Planet(4,18)  Guard/blockade world in System (4,18)
+27   0   0    0    3   6  Planet(2,12)  Guard/blockade world in System (2,12)
+28   0   0    0    5   6  Planet(3,13)  Guard/blockade world in System (3,13)
+29   5   2    8    8   0  Sector(18,16) Rendezvous at Sector (24,21)
+30   0   0    0    1   6  Planet(3,13)  Guard/blockade world in System (3,13)
+31   5   2    4    4   0  Sector(17,17) Rendezvous at Sector (24,21)
+32   5   3    6    6   0  Sector(11,17) Rendezvous at Sector (24,21)
+33   5   4    1    1   0  Sector(8,19)  Rendezvous at Sector (24,21)
+34   5   1    2    2   0  Sector(21,20) Rendezvous at Sector (24,21)
+35   5   4    4    4   0  Sector(6,20)  Rendezvous at Sector (24,21)
+39   6   0    0    1   6  Planet(3,4)   Guard/blockade world in System (3,4)
+More? [Y]es, <N>o, <NS> (non-stop) -> 
+
+40   6   0    0    2   6  Planet(14,7)  Guard/blockade world in System (14,7)
+41   4   0    0    1   6  Planet(15,13) Guard/blockade world in System (15,13)
+42   5   0    0    1   6  Planet(13,15) Guard/blockade world in System (13,15)
+43   4   0    0    1   6  Planet(7,16)  Guard/blockade world in System (7,16)
+45   5   0    0    1   6  Planet(17,18) Guard/blockade world in System (17,18)
+47   6   0    0    1   6  Planet(2,21)  Guard/blockade world in System (2,21)
+-------------------------------------------------------------------------------
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> f
+
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> p
+
+
+ 
+PLANET COMMANDS:    V>iew Partial Map                       T>ax rate: Empire
+  H>elp on Options  C>OMMISSION MENU   D>etail Planet List  S>corch planets
+  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet: Brief List  L>oad TTs w/Armies
+  X>pert mode       B>UILD MENU...     I>nfo about Planet   U>nload TT Armies
+
+PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U-> b
+
+
+Build units:
+
+Enter the planet's X coordinate or <A>bort: [7] -> 
+
+Enter the planet's Y coordinate or <A>bort: [1] -> 
+
+
+There are no starbases orbiting planet "pinky".
+Standard building restrictions apply.
+You have spent 0 out of 4 points.  You have 4 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "pinky" IN SYSTEM (7,1): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : pinky                Current Production  : 5
+Location          : (7,1)                Maximum Production  : 43
+Maximum Armies    : 49                   Points Spent        : 0
+Maximum Batteries : 4                    Points Available    : 4
+
+Surface Forces:    2 armies              Space Forces:       None
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      11.115%
+
+Expected revenue (60.0% tax rate): 2 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "pinky" IN SYSTEM (7,1): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 4 points.  You have 4 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                         Troop transports    5    (0)
+     Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 9
+
+How many new armies do you wish to build  (0 - 2): [2] -> 
+ 
+BUILD ON CURRENT PLANET: "pinky" IN SYSTEM (7,1): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "dinky".
+Standard building restrictions apply.
+You have spent 0 out of 5 points.  You have 5 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "dinky" IN SYSTEM (11,1): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> sr
+
+
+
+Planet Name       : dinky                Current Production  : 8
+Location          : (11,1)               Maximum Production  : 28
+Maximum Armies    : 80                   Points Spent        : 0
+Maximum Batteries : 8                    Points Available    : 5
+
+Surface Forces:    5 armies              Space Forces:      1 fleet
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      28.286%
+
+Expected revenue (60.0% tax rate): 4 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "dinky" IN SYSTEM (11,1): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 5 points.  You have 5 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 1
+
+How many new destroyers do you wish to build  (0 - 1): [1] -> 
+ 
+BUILD ON CURRENT PLANET: "dinky" IN SYSTEM (11,1): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "bananagrams".
+Standard building restrictions apply.
+You have spent 0 out of 20 points.  You have 20 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "bananagrams" IN SYSTEM (23,1): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : bananagrams          Current Production  : 33
+Location          : (23,1)               Maximum Production  : 72
+Maximum Armies    : 327                  Points Spent        : 0
+Maximum Batteries : 32                   Points Available    : 20
+
+Surface Forces:    6 armies              Space Forces:      1 fleet
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      45.455%
+
+Expected revenue (60.0% tax rate): 19 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "bananagrams" IN SYSTEM (23,1): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 20 points.  You have 20 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)             <6> ETACs              20    (0)
+ <2> Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)            <10> Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 10): [0] -> 10
+
+How many new ground batteries do you wish to build  (0 - 1): [1] -> 
+ 
+BUILD ON CURRENT PLANET: "bananagrams" IN SYSTEM (23,1): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "haha".
+Standard building restrictions apply.
+You have spent 0 out of 5 points.  You have 5 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "haha" IN SYSTEM (6,2): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : haha                 Current Production  : 5
+Location          : (6,2)                Maximum Production  : 119
+Maximum Armies    : 54                   Points Spent        : 0
+Maximum Batteries : 5                    Points Available    : 21
+
+Surface Forces:    2 armies              Space Forces:       None
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      4.46%
+
+Expected revenue (60.0% tax rate): 3 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "haha" IN SYSTEM (6,2): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 5 points.  You have 5 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 9
+
+How many new armies do you wish to build  (0 - 2): [2] -> 
+ 
+BUILD ON CURRENT PLANET: "haha" IN SYSTEM (6,2): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "SyncTERM".
+Standard building restrictions apply.
+You have spent 0 out of 22 points.  You have 22 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "SyncTERM" IN SYSTEM (12,2): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : SyncTERM             Current Production  : 35
+Location          : (12,2)               Maximum Production  : 80
+Maximum Armies    : 354                  Points Spent        : 0
+Maximum Batteries : 35                   Points Available    : 22
+
+Surface Forces:    4 armies              Space Forces:      1 fleet
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      44.443%
+
+Expected revenue (60.0% tax rate): 21 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "SyncTERM" IN SYSTEM (12,2): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 22 points.  You have 22 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)             <6> ETACs              20    (0)
+ <2> Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)            <10> Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 10): [0] -> 10
+
+How many new ground batteries do you wish to build  (0 - 1): [1] -> 
+
+
+You have spent 20 out of 22 points.  You have 2 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                         Troop transports    5    (0)
+     Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (1)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 9
+
+How many new armies do you wish to build  (0 - 1): [1] -> 
+ 
+BUILD ON CURRENT PLANET: "SyncTERM" IN SYSTEM (12,2): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "89, bitch!".
+Standard building restrictions apply.
+You have spent 0 out of 3 points.  You have 3 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "89, bitch!" IN SYSTEM (5,3): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 3 points.  You have 3 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                         Troop transports    5    (0)
+     Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 9
+
+How many new armies do you wish to build  (0 - 1): [1] -> 
+ 
+BUILD ON CURRENT PLANET: "89, bitch!" IN SYSTEM (5,3): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "beaker".
+Standard building restrictions apply.
+You have spent 0 out of 11 points.  You have 11 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "beaker" IN SYSTEM (11,3): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : beaker               Current Production  : 17
+Location          : (11,3)               Maximum Production  : 46
+Maximum Armies    : 172                  Points Spent        : 0
+Maximum Batteries : 17                   Points Available    : 11
+
+Surface Forces:    2 armies              Space Forces:      1 fleet
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      37.375%
+
+Expected revenue (60.0% tax rate): 10 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "beaker" IN SYSTEM (11,3): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 11 points.  You have 11 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 1
+
+How many new destroyers do you wish to build  (0 - 2): [2] -> 
+ 
+BUILD ON CURRENT PLANET: "beaker" IN SYSTEM (11,3): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> bn
+
+
+There are no starbases orbiting planet "pint".
+Standard building restrictions apply.
+You have spent 0 out of 11 points.  You have 11 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "pint" IN SYSTEM (3,4): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : pint                 Current Production  : 11
+Location          : (3,4)                Maximum Production  : 64
+Maximum Armies    : 113                  Points Spent        : 0
+Maximum Batteries : 11                   Points Available    : 17
+
+Surface Forces:    5 armies              Space Forces:      1 fleet
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      17.177%
+
+Expected revenue (60.0% tax rate): 6 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "pint" IN SYSTEM (3,4): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 11 points.  You have 11 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 1
+
+How many new destroyers do you wish to build  (0 - 2): [2] -> 
+ 
+BUILD ON CURRENT PLANET: "pint" IN SYSTEM (3,4): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "buzz".
+Standard building restrictions apply.
+You have spent 0 out of 25 points.  You have 25 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "buzz" IN SYSTEM (23,4): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 25 points.  You have 25 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)             <6> ETACs              20    (0)
+ <2> Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)            <10> Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 10): [0] -> 10
+
+How many new ground batteries do you wish to build  (0 - 1): [1] -> 
+
+
+You have spent 20 out of 25 points.  You have 5 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (1)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 9
+
+How many new armies do you wish to build  (0 - 2): [2] -> 
+ 
+BUILD ON CURRENT PLANET: "buzz" IN SYSTEM (23,4): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : buzz                 Current Production  : 43
+Location          : (23,4)               Maximum Production  : 61
+Maximum Armies    : 427                  Points Spent        : 24
+Maximum Batteries : 42                   Points Available    : 1
+
+Surface Forces:    7 armies              Space Forces:       None
+                   2 ground batteries    
+
+Building:          2 armies              Docked:             Nothing
+                   1 ground battery                      
+
+Efficiency:      70.701%
+
+Expected revenue (60.0% tax rate): 25 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "buzz" IN SYSTEM (23,4): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "nice".
+Standard building restrictions apply.
+You have spent 0 out of 20 points.  You have 20 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "nice" IN SYSTEM (9,5): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 20 points.  You have 20 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)             <6> ETACs              20    (0)
+ <2> Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)            <10> Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 10): [0] -> 
+ 
+BUILD ON CURRENT PLANET: "nice" IN SYSTEM (9,5): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : nice                 Current Production  : 34
+Location          : (9,5)                Maximum Production  : 120
+Maximum Armies    : 343                  Points Spent        : 0
+Maximum Batteries : 34                   Points Available    : 20
+
+Surface Forces:    3 armies              Space Forces:      1 fleet
+                   1 ground battery      
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      28.287%
+
+Expected revenue (60.0% tax rate): 20 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "nice" IN SYSTEM (9,5): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 20 points.  You have 20 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)             <6> ETACs              20    (0)
+ <2> Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)            <10> Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 10): [0] -> 2
+
+How many new cruisers do you wish to build  (0 - 1): [1] -> 
+
+
+You have spent 15 out of 20 points.  You have 5 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (1)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 1
+
+How many new destroyers do you wish to build  (0 - 1): [1] -> 
+ 
+BUILD ON CURRENT PLANET: "nice" IN SYSTEM (9,5): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "humble".
+Standard building restrictions apply.
+You have spent 0 out of 23 points.  You have 23 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "humble" IN SYSTEM (19,5): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : humble               Current Production  : 38
+Location          : (19,5)               Maximum Production  : 62
+Maximum Armies    : 384                  Points Spent        : 0
+Maximum Batteries : 38                   Points Available    : 23
+
+Surface Forces:   12 armies              Space Forces:      1 fleet
+                   1 ground battery      
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      62.620%
+
+Expected revenue (60.0% tax rate): 23 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "humble" IN SYSTEM (19,5): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 23 points.  You have 23 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)             <6> ETACs              20    (0)
+ <2> Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)            <10> Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 10): [0] -> 2
+
+How many new cruisers do you wish to build  (0 - 1): [1] -> 
+
+
+You have spent 15 out of 23 points.  You have 8 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (1)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 91
+
+How many new destroyers do you wish to build  (0 - 1): [1] -> 
+
+
+You have spent 20 out of 23 points.  You have 3 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                         Troop transports    5    (0)
+     Destroyers          5    (1)                 ETACs              20    (0)
+     Cruisers           15    (1)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 
+ 
+BUILD ON CURRENT PLANET: "humble" IN SYSTEM (19,5): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> a
+
+
+Confirm: Do you wish to abort the build orders for this planet? Y/[N] -> 
+
+Build orders unchanged.
+
+(Press Return) a
+
+ 
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> a
+
+
+Confirm: Do you wish to abort the build orders for this planet? Y/[N] -> ay
+
+Build orders aborted.
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "humble" IN SYSTEM (19,5): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 23 points.  You have 23 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)             <6> ETACs              20    (0)
+ <2> Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)            <10> Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 10): [0] -> 5
+
+How many new troop transports do you wish to build  (0 - 4): [4] -> 
+
+
+You have spent 20 out of 23 points.  You have 3 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                         Troop transports    5    (4)
+     Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 9
+
+How many new armies do you wish to build  (0 - 1): [1] -> 
+ 
+BUILD ON CURRENT PLANET: "humble" IN SYSTEM (19,5): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "vibrator".
+Standard building restrictions apply.
+You have spent 0 out of 32 points.  You have 32 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "vibrator" IN SYSTEM (14,7): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : vibrator             Current Production  : 52
+Location          : (14,7)               Maximum Production  : 83
+Maximum Armies    : 516                  Points Spent        : 0
+Maximum Batteries : 51                   Points Available    : 32
+
+Surface Forces:    7 armies              Space Forces:      1 fleet
+                   2 ground batteries    
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      62.623%
+
+Expected revenue (60.0% tax rate): 31 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "vibrator" IN SYSTEM (14,7): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 32 points.  You have 32 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)             <6> ETACs              20    (0)
+ <2> Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)            <10> Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 10): [0] -> 5
+
+How many new troop transports do you wish to build  (0 - 6): [6] -> 
+
+
+You have spent 30 out of 32 points.  You have 2 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                         Troop transports    5    (6)
+     Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 9
+
+How many new armies do you wish to build  (0 - 1): [1] -> 
+ 
+BUILD ON CURRENT PLANET: "vibrator" IN SYSTEM (14,7): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "bertha".
+Standard building restrictions apply.
+You have spent 0 out of 28 points.  You have 28 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "bertha" IN SYSTEM (2,12): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : bertha               Current Production  : 47
+Location          : (2,12)               Maximum Production  : 131
+Maximum Armies    : 465                  Points Spent        : 0
+Maximum Batteries : 46                   Points Available    : 28
+
+Surface Forces:   11 armies              Space Forces:      1 fleet
+                   2 ground batteries    
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      35.355%
+
+Expected revenue (60.0% tax rate): 27 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "bertha" IN SYSTEM (2,12): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 28 points.  You have 28 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)             <6> ETACs              20    (0)
+ <2> Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)            <10> Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 10): [0] -> 2
+
+How many new cruisers do you wish to build  (0 - 1): [1] -> 
+
+
+You have spent 15 out of 28 points.  You have 13 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (1)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 1
+
+How many new destroyers do you wish to build  (0 - 2): [2] -> 
+
+
+You have spent 25 out of 28 points.  You have 3 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                         Troop transports    5    (0)
+     Destroyers          5    (2)                 ETACs              20    (0)
+     Cruisers           15    (1)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 9
+
+How many new armies do you wish to build  (0 - 1): [1] -> 
+ 
+BUILD ON CURRENT PLANET: "bertha" IN SYSTEM (2,12): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : bertha               Current Production  : 47
+Location          : (2,12)               Maximum Production  : 131
+Maximum Armies    : 465                  Points Spent        : 27
+Maximum Batteries : 46                   Points Available    : 1
+
+Surface Forces:   11 armies              Space Forces:      1 fleet
+                   2 ground batteries    
+
+Building:          2 destroyers          Docked:             Nothing
+                   1 cruiser                             
+                   1 army                                
+
+Efficiency:      35.355%
+
+Expected revenue (60.0% tax rate): 27 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "bertha" IN SYSTEM (2,12): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "exciter".
+Standard building restrictions apply.
+You have spent 0 out of 23 points.  You have 23 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "exciter" IN SYSTEM (3,13): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : exciter              Current Production  : 38
+Location          : (3,13)               Maximum Production  : 90
+Maximum Armies    : 379                  Points Spent        : 0
+Maximum Batteries : 37                   Points Available    : 23
+
+Surface Forces:    5 armies              Space Forces:      2 fleets
+                   1 ground battery      
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      42.422%
+
+Expected revenue (60.0% tax rate): 22 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "exciter" IN SYSTEM (3,13): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : exciter              Current Production  : 38
+Location          : (3,13)               Maximum Production  : 90
+Maximum Armies    : 379                  Points Spent        : 0
+Maximum Batteries : 37                   Points Available    : 23
+
+Surface Forces:    5 armies              Space Forces:      2 fleets
+                   1 ground battery      
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      42.422%
+
+Expected revenue (60.0% tax rate): 22 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "exciter" IN SYSTEM (3,13): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 23 points.  You have 23 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)             <6> ETACs              20    (0)
+ <2> Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)            <10> Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 10): [0] -> 2
+
+How many new cruisers do you wish to build  (0 - 1): [1] -> 
+
+
+You have spent 15 out of 23 points.  You have 8 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (1)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 1
+
+How many new destroyers do you wish to build  (0 - 1): [1] -> 
+
+
+You have spent 20 out of 23 points.  You have 3 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                         Troop transports    5    (0)
+     Destroyers          5    (1)                 ETACs              20    (0)
+     Cruisers           15    (1)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 9
+
+How many new armies do you wish to build  (0 - 1): [1] -> 
+ 
+BUILD ON CURRENT PLANET: "exciter" IN SYSTEM (3,13): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There is a starbase orbiting planet "zzzzrrr".
+Standard building restrictions do not apply.
+You have spent 0 out of 60 points.  You have 60 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "zzzzrrr" IN SYSTEM (15,13): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : zzzzrrr              Current Production  : 100
+Location          : (15,13)              Maximum Production  : 100
+Maximum Armies    : 1000                 Points Spent        : 0
+Maximum Batteries : 100                  Points Available    : 60
+
+Surface Forces:   17 armies              Space Forces:      1 starbase
+                   6 ground batteries                       1 fleet
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      100.0%
+
+Expected revenue (60.0% tax rate): 60 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "zzzzrrr" IN SYSTEM (15,13): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 60 points.  You have 60 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)             <6> ETACs              20    (0)
+ <2> Cruisers           15    (0)             <7> Starbases          50    (0)
+ <3> Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)            <10> Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 10): [0] -> 3
+
+How many new battleships do you wish to build  (0 - 1): [1] -> 
+
+
+You have spent 45 out of 60 points.  You have 15 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+ <2> Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (1)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 2
+
+How many new cruisers do you wish to build  (0 - 1): [1] -> 
+ 
+BUILD ON CURRENT PLANET: "zzzzrrr" IN SYSTEM (15,13): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "anus".
+Standard building restrictions apply.
+You have spent 0 out of 35 points.  You have 35 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "anus" IN SYSTEM (13,15): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : anus                 Current Production  : 59
+Location          : (13,15)              Maximum Production  : 81
+Maximum Armies    : 588                  Points Spent        : 0
+Maximum Batteries : 58                   Points Available    : 35
+
+Surface Forces:   17 armies              Space Forces:      1 fleet
+                   2 ground batteries    
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      72.726%
+
+Expected revenue (60.0% tax rate): 35 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "anus" IN SYSTEM (13,15): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 35 points.  You have 35 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)             <6> ETACs              20    (0)
+ <2> Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)            <10> Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 10): [0] -> 32
+
+How many new cruisers do you wish to build  (0 - 2): [2] -> 
+
+
+You have spent 30 out of 35 points.  You have 5 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (2)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 1
+
+How many new destroyers do you wish to build  (0 - 1): [1] -> 
+ 
+BUILD ON CURRENT PLANET: "anus" IN SYSTEM (13,15): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : anus                 Current Production  : 59
+Location          : (13,15)              Maximum Production  : 81
+Maximum Armies    : 588                  Points Spent        : 35
+Maximum Batteries : 58                   Points Available    : 0
+
+Surface Forces:   17 armies              Space Forces:      1 fleet
+                   2 ground batteries    
+
+Building:          1 destroyer           Docked:             Nothing
+                   2 cruisers                            
+
+Efficiency:      72.726%
+
+Expected revenue (60.0% tax rate): 35 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "anus" IN SYSTEM (13,15): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "hector".
+Standard building restrictions apply.
+You have spent 0 out of 52 points.  You have 52 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "hector" IN SYSTEM (7,16): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : hector               Current Production  : 86
+Location          : (7,16)               Maximum Production  : 129
+Maximum Armies    : 859                  Points Spent        : 0
+Maximum Batteries : 85                   Points Available    : 52
+
+Surface Forces:    8 armies              Space Forces:      1 fleet
+                   4 ground batteries    
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      66.667%
+
+Expected revenue (60.0% tax rate): 51 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "hector" IN SYSTEM (7,16): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 52 points.  You have 52 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)             <6> ETACs              20    (0)
+ <2> Cruisers           15    (0)             <7> Starbases          50    (0)
+ <3> Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)            <10> Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 10): [0] -> 3
+
+How many new battleships do you wish to build  (0 - 1): [1] -> 
+
+
+You have spent 45 out of 52 points.  You have 7 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (1)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 1
+
+How many new destroyers do you wish to build  (0 - 1): [1] -> 
+
+
+You have spent 50 out of 52 points.  You have 2 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                         Troop transports    5    (0)
+     Destroyers          5    (1)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (1)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 9
+
+How many new armies do you wish to build  (0 - 1): [1] -> 
+ 
+BUILD ON CURRENT PLANET: "hector" IN SYSTEM (7,16): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "corn hole".
+Standard building restrictions apply.
+You have spent 0 out of 11 points.  You have 11 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "corn hole" IN SYSTEM (4,18): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 11 points.  You have 11 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 1
+
+How many new destroyers do you wish to build  (0 - 2): [2] -> 
+ 
+BUILD ON CURRENT PLANET: "corn hole" IN SYSTEM (4,18): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : corn hole            Current Production  : 19
+Location          : (4,18)               Maximum Production  : 33
+Maximum Armies    : 192                  Points Spent        : 10
+Maximum Batteries : 19                   Points Available    : 1
+
+Surface Forces:   15 armies              Space Forces:      2 fleets
+
+Building:          2 destroyers          Docked:             Nothing
+
+Efficiency:      58.584%
+
+Expected revenue (60.0% tax rate): 11 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "corn hole" IN SYSTEM (4,18): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+Planet "corn hole" cannot afford to build anything else at this time.
+You can <A>bort your build orders and start over...
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "corn hole" IN SYSTEM (4,18): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "k'34dc'#".
+Standard building restrictions apply.
+You have spent 0 out of 18 points.  You have 18 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "k'34dc'#" IN SYSTEM (17,18): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : k'34dc'#             Current Production  : 31
+Location          : (17,18)              Maximum Production  : 45
+Maximum Armies    : 306                  Points Spent        : 0
+Maximum Batteries : 30                   Points Available    : 18
+
+Surface Forces:   11 armies              Space Forces:      1 fleet
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      68.680%
+
+Expected revenue (60.0% tax rate): 18 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "k'34dc'#" IN SYSTEM (17,18): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 18 points.  You have 18 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+ <2> Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 2
+
+How many new cruisers do you wish to build  (0 - 1): [1] -> 
+
+
+You have spent 15 out of 18 points.  You have 3 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                         Troop transports    5    (0)
+     Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (1)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 9
+
+How many new armies do you wish to build  (0 - 1): [1] -> 
+ 
+BUILD ON CURRENT PLANET: "k'34dc'#" IN SYSTEM (17,18): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "helix".
+Standard building restrictions apply.
+You have spent 0 out of 35 points.  You have 35 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "helix" IN SYSTEM (2,20): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : helix                Current Production  : 60
+Location          : (2,20)               Maximum Production  : 109
+Maximum Armies    : 595                  Points Spent        : 0
+Maximum Batteries : 59                   Points Available    : 35
+
+Surface Forces:    8 armies              Space Forces:      1 fleet
+                   3 ground batteries    
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      54.546%
+
+Expected revenue (60.0% tax rate): 35 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "helix" IN SYSTEM (2,20): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 35 points.  You have 35 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)             <6> ETACs              20    (0)
+ <2> Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)            <10> Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 10): [0] -> 2
+
+How many new cruisers do you wish to build  (0 - 2): [2] -> 
+
+
+You have spent 30 out of 35 points.  You have 5 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (2)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 1
+
+How many new destroyers do you wish to build  (0 - 1): [1] -> 
+ 
+BUILD ON CURRENT PLANET: "helix" IN SYSTEM (2,20): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "joke's on me".
+Standard building restrictions apply.
+You have spent 0 out of 4 points.  You have 4 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "joke's on me" IN SYSTEM (2,21): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> sr
+
+
+
+Planet Name       : joke's on me         Current Production  : 7
+Location          : (2,21)               Maximum Production  : 12
+Maximum Armies    : 69                   Points Spent        : 0
+Maximum Batteries : 6                    Points Available    : 4
+
+Surface Forces:    9 armies              Space Forces:      1 fleet
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      57.580%
+
+Expected revenue (60.0% tax rate): 4 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "joke's on me" IN SYSTEM (2,21): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 4 points.  You have 4 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                         Troop transports    5    (0)
+     Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 9
+
+How many new armies do you wish to build  (0 - 2): [2] -> 
+ 
+BUILD ON CURRENT PLANET: "joke's on me" IN SYSTEM (2,21): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "pinky".
+Standard building restrictions apply.
+You have spent 4 out of 4 points.  You have 0 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "pinky" IN SYSTEM (7,1): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [2] -> 20
+
+Enter Y coordinate or <A>bort: [11] -> 11
+
+
+                       -> LAST REPORTED STATUS: ENEMY <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (posted 3007: 15 yrs ago)   SCOUT INFO (posted 3007: 15 yrs ago)
+-------------------------------------   ------------------------------------
+Name      : vino                        Maximum Production            : 35
+Location  : (20,11)                     Current Production (year 3007): 1
+Owner     : Melody Lake (#2)            Production Points Stored      : 1
+Owned for : 15 Years
+Prev Owner: zzzzrrr (#1)                Armies           : 5
+                                        Ground Batteries : NONE
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "pinky" IN SYSTEM (7,1): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [20] -> 27
+
+Enter Y coordinate or <A>bort: [8] -> 12
+
+
+                       -> LAST REPORTED STATUS: ENEMY <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (posted 3018: 4 yrs ago)    SCOUT INFO (posted 3018: 4 yrs ago)
+-------------------------------------   ------------------------------------
+Name      : 126                         Maximum Production            : 126
+Location  : (27,12)                     Current Production (year 3018): 59
+Owner     : Melody Lake (#2)            Production Points Stored      : 30
+Owned for : N/A
+Prev Owner: UNKNOWN                     Armies           : 15
+                                        Ground Batteries : 6
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "pinky" IN SYSTEM (7,1): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [27] -> 23
+
+Enter Y coordinate or <A>bort: [1] -> 5
+
+
+                       -> LAST REPORTED STATUS: ENEMY <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (posted 3021: 1 yrs ago)    SCOUT INFO (posted 3021: 1 yrs ago)
+-------------------------------------   ------------------------------------
+Name      : you're my bitch             Maximum Production            : 115
+Location  : (23,5)                      Current Production (year 3021): 6
+Owner     : Melody Lake (#2)            Production Points Stored      : 1
+Owned for : 1 Year
+Prev Owner: zzzzrrr (#1)                Armies           : 16
+                                        Ground Batteries : NONE
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "pinky" IN SYSTEM (7,1): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [23] -> 21
+
+Enter Y coordinate or <A>bort: [6] -> 6
+
+
+                      -> LAST REPORTED STATUS: NEUTRAL <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (posted 3008: 14 yrs ago)   NEVER SCOUTED
+-------------------------------------   ------------------------------------
+Name      : Not Named Yet               Maximum Production            : 100
+Location  : (21,6)                      Current Production            : UNKNOWN
+Owner     : Rogues (#7)                 Production Points Stored      : UNKNOWN
+Owned for : N/A
+Prev Owner: UNKNOWN                     Armies           : UNKNOWN
+                                        Ground Batteries : UNKNOWN
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "pinky" IN SYSTEM (7,1): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [21] -> 25
+
+Enter Y coordinate or <A>bort: [12] -> 12
+
+
+                       -> LAST REPORTED STATUS: ENEMY <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (posted 3021: 1 yrs ago)    SCOUT INFO (posted 3021: 1 yrs ago)
+-------------------------------------   ------------------------------------
+Name      : 90                          Maximum Production            : 90
+Location  : (25,12)                     Current Production (year 3021): 1
+Owner     : Melody Lake (#2)            Production Points Stored      : 1
+Owned for : 1 Year
+Prev Owner: zzzzrrr (#1)                Armies           : 5
+                                        Ground Batteries : NONE
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) i
+
+ 
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [25] -> 24
+
+Enter Y coordinate or <A>bort: [14] -> 13
+
+There is no planet at (24,13) - aborting...
+
+(Press Return) i
+
+ 
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [25] -> 24
+
+Enter Y coordinate or <A>bort: [14] -> 
+
+
+                       -> LAST REPORTED STATUS: ENEMY <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (posted 3020: 2 yrs ago)    SCOUT INFO (posted 3020: 2 yrs ago)
+-------------------------------------   ------------------------------------
+Name      : TP DecSector            Maximum Production            : 52
+Location  : (24,14)                     Current Production (year 3020): 1
+Owner     : Melody Lake (#2)            Production Points Stored      : 1
+Owned for : 2 Years
+Prev Owner: zzzzrrr (#1)                Armies           : 6
+                                        Ground Batteries : NONE
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) i
+
+ 
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [24] -> 21
+
+Enter Y coordinate or <A>bort: [6] -> 14
+
+
+                      -> LAST REPORTED STATUS: NEUTRAL <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (posted 3009: 13 yrs ago)   SCOUT INFO (posted 3009: 13 yrs ago)
+-------------------------------------   ------------------------------------
+Name      : Not Named Yet               Maximum Production            : 100
+Location  : (21,14)                     Current Production (year 3009): 100
+Owner     : Rogues (#5)                 Production Points Stored      : 35
+Owned for : N/A
+Prev Owner: UNKNOWN                     Armies           : 10
+                                        Ground Batteries : 4
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) i
+
+ 
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [21] -> 24
+
+Enter Y coordinate or <A>bort: [14] -> 16
+
+
+                       -> LAST REPORTED STATUS: ENEMY <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (posted 3011: 11 yrs ago)   SCOUT INFO (posted 3011: 11 yrs ago)
+-------------------------------------   ------------------------------------
+Name      : Micro                       Maximum Production            : 21
+Location  : (24,16)                     Current Production (year 3011): 10
+Owner     : Melody Lake (#2)            Production Points Stored      : 5
+Owned for : N/A
+Prev Owner: UNKNOWN                     Armies           : 8
+                                        Ground Batteries : NONE
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) i
+
+ 
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [24] -> 23
+
+Enter Y coordinate or <A>bort: [1] -> 17
+
+
+                       -> LAST REPORTED STATUS: ENEMY <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (posted 3013: 9 yrs ago)    SCOUT INFO (posted 3013: 9 yrs ago)
+-------------------------------------   ------------------------------------
+Name      : Perch                       Maximum Production            : 58
+Location  : (23,17)                     Current Production (year 3013): 15
+Owner     : Melody Lake (#2)            Production Points Stored      : 0
+Owned for : N/A
+Prev Owner: UNKNOWN                     Armies           : 1
+                                        Ground Batteries : NONE
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) i
+
+ 
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [23] -> 23
+
+Enter Y coordinate or <A>bort: [17] -> 22
+
+
+                       -> LAST REPORTED STATUS: ENEMY <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (posted 3006: 16 yrs ago)   SCOUT INFO (posted 3006: 16 yrs ago)
+-------------------------------------   ------------------------------------
+Name      : Forshee                     Maximum Production            : 57
+Location  : (23,22)                     Current Production (year 3006): 13
+Owner     : Melody Lake (#2)            Production Points Stored      : 10
+Owned for : N/A
+Prev Owner: UNKNOWN                     Armies           : 4
+                                        Ground Batteries : NONE
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) i
+
+ 
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [23] -> 26
+
+Enter Y coordinate or <A>bort: [26] -> 26
+
+
+                      -> NO INFORMATION ON THIS PLANET <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (NEVER SEEN)                NEVER SCOUTED
+-------------------------------------   ------------------------------------
+Name      : UNKNOWN                     Maximum Production            : UNKNOWN
+Location  : (26,26)                     Current Production            : UNKNOWN
+Owner     : UNKNOWN                     Production Points Stored      : UNKNOWN
+Owned for : UNKNOWN
+Prev Owner: UNKNOWN                     Armies           : UNKNOWN
+                                        Ground Batteries : UNKNOWN
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "pinky" IN SYSTEM (7,1): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> qi
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [26] -> 14
+
+Enter Y coordinate or <A>bort: [7] -> 14
+
+There is no planet at (14,14) - aborting...
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "pinky" IN SYSTEM (7,1): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [26] -> 14
+
+Enter Y coordinate or <A>bort: [7] -> 21
+
+
+                      -> LAST REPORTED STATUS: NEUTRAL <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (posted 3005: 17 yrs ago)   NEVER SCOUTED
+-------------------------------------   ------------------------------------
+Name      : Cesspool                    Maximum Production            : 35
+Location  : (14,21)                     Current Production            : UNKNOWN
+Owner     : Romulus (#3)                Production Points Stored      : UNKNOWN
+Owned for : N/A
+Prev Owner: UNKNOWN                     Armies           : UNKNOWN
+                                        Ground Batteries : UNKNOWN
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) i
+
+ 
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [14] -> 15
+
+Enter Y coordinate or <A>bort: [13] -> 22
+
+
+                      -> LAST REPORTED STATUS: NEUTRAL <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (posted 3006: 16 yrs ago)   NEVER SCOUTED
+-------------------------------------   ------------------------------------
+Name      : Latium                      Maximum Production            : 100
+Location  : (15,22)                     Current Production            : UNKNOWN
+Owner     : Romulus (#3)                Production Points Stored      : UNKNOWN
+Owned for : N/A
+Prev Owner: UNKNOWN                     Armies           : UNKNOWN
+                                        Ground Batteries : UNKNOWN
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) i
+
+ 
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [15] -> 12
+
+Enter Y coordinate or <A>bort: [2] -> 24
+
+
+                      -> LAST REPORTED STATUS: NEUTRAL <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (posted 3006: 16 yrs ago)   SCOUT INFO (posted 3006: 16 yrs ago)
+-------------------------------------   ------------------------------------
+Name      : Pu Pu Planet                Maximum Production            : 87
+Location  : (12,24)                     Current Production (year 3006): 16
+Owner     : Romulus (#3)                Production Points Stored      : 25
+Owned for : N/A
+Prev Owner: UNKNOWN                     Armies           : 1
+                                        Ground Batteries : NONE
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) i
+
+ 
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [12] -> 4
+
+Enter Y coordinate or <A>bort: [18] -> 24
+
+
+                      -> LAST REPORTED STATUS: NEUTRAL <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (posted 3012: 10 yrs ago)   NEVER SCOUTED
+-------------------------------------   ------------------------------------
+Name      : Not Named Yet               Maximum Production            : 100
+Location  : (4,24)                      Current Production            : UNKNOWN
+Owner     : In Civil Disorder (#8)      Production Points Stored      : UNKNOWN
+Owned for : N/A
+Prev Owner: UNKNOWN                     Armies           : UNKNOWN
+                                        Ground Batteries : UNKNOWN
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) i
+
+ 
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [4] -> 5
+
+Enter Y coordinate or <A>bort: [3] -> 22
+
+
+                      -> LAST REPORTED STATUS: NEUTRAL <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (posted 3009: 13 yrs ago)   SCOUT INFO (posted 3009: 13 yrs ago)
+-------------------------------------   ------------------------------------
+Name      : Novellus                    Maximum Production            : 77
+Location  : (5,22)                      Current Production (year 3009): 16
+Owner     : Romulus (#3)                Production Points Stored      : 12
+Owned for : N/A
+Prev Owner: UNKNOWN                     Armies           : 1
+                                        Ground Batteries : NONE
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) i
+
+ 
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [5] -> 3
+
+Enter Y coordinate or <A>bort: [4] -> 22
+
+
+                      -> LAST REPORTED STATUS: NEUTRAL <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (posted 3010: 12 yrs ago)   NEVER SCOUTED
+-------------------------------------   ------------------------------------
+Name      : Intercourse                 Maximum Production            : 63
+Location  : (3,22)                      Current Production            : UNKNOWN
+Owner     : Romulus (#3)                Production Points Stored      : UNKNOWN
+Owned for : N/A
+Prev Owner: UNKNOWN                     Armies           : UNKNOWN
+                                        Ground Batteries : UNKNOWN
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) i
+
+ 
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [3] -> 5
+
+Enter Y coordinate or <A>bort: [3] -> 4
+
+
+                      -> LAST REPORTED STATUS: NEUTRAL <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (posted 3018: 4 yrs ago)    NEVER SCOUTED
+-------------------------------------   ------------------------------------
+Name      : Not Named Yet               Maximum Production            : 104
+Location  : (5,4)                       Current Production            : UNKNOWN
+Owner     : Romulus (#3)                Production Points Stored      : UNKNOWN
+Owned for : N/A
+Prev Owner: UNKNOWN                     Armies           : UNKNOWN
+                                        Ground Batteries : UNKNOWN
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) i
+
+ 
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [5] -> 6
+
+Enter Y coordinate or <A>bort: [2] -> 3
+
+
+                      -> LAST REPORTED STATUS: NEUTRAL <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (posted 3006: 16 yrs ago)   SCOUT INFO (posted 3006: 16 yrs ago)
+-------------------------------------   ------------------------------------
+Name      : Not Named Yet               Maximum Production            : 100
+Location  : (6,3)                       Current Production (year 3006): 100
+Owner     : In Civil Disorder (#9)      Production Points Stored      : 35
+Owned for : N/A
+Prev Owner: UNKNOWN                     Armies           : 10
+                                        Ground Batteries : 4
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "pinky" IN SYSTEM (7,1): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> q
+ 
+PLANET COMMANDS:    V>iew Partial Map                       T>ax rate: Empire
+  H>elp on Options  C>OMMISSION MENU   D>etail Planet List  S>corch planets
+  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet: Brief List  L>oad TTs w/Armies
+  X>pert mode       B>UILD MENU...     I>nfo about Planet   U>nload TT Armies
+
+PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> f
+
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    0   0    0    7   6  Planet(4,18)  Guard/blockade world in System (4,18)
+2    5   4    2    2   0  Sector(23,5)  Rendezvous at Sector (24,21)
+3    5   4    2    2   0  Sector(14,5)  Rendezvous at Sector (24,21)
+4    4   3    0   23   6  Sector(17,13) Rendezvous at Sector (26,13)
+5    5   4    1    1   0  Sector(13,6)  Rendezvous at Sector (24,21)
+6    0   0    0    1   0  Planet(25,22) Scout System (25,22)
+7    6   0    0    1   6  Planet(11,1)  Guard/blockade world in System (11,1)
+8    5   3    3    3   0  Sector(23,8)  Rendezvous at Sector (24,21)
+9    0   0    0    1   0  Planet(11,23) Scout System (11,23)
+10   5   2    0   22   6  Sector(19,12) Rendezvous at Sector (26,13)
+11   0   0    0    1   0  Planet(27,8)  Scout System (27,8)
+12   5   2    0   17   6  Sector(16,14) Rendezvous at Sector (26,13)
+13   0   0    0    7   6  Planet(12,2)  Guard/blockade world in System (12,2)
+14   5   4    2    2   0  Sector(12,8)  Rendezvous at Sector (24,21)
+More? [Y]es, <N>o, <NS> (non-stop) -> 
+
+15   0   0    0    8   6  Planet(23,1)  Guard/blockade world in System (23,1)
+16   5   3    2    2   0  Sector(20,9)  Rendezvous at Sector (24,21)
+17   5   3    0   16   6  Sector(16,10) Rendezvous at Sector (24,21)
+18   0   0    0    8   6  Planet(19,5)  Guard/blockade world in System (19,5)
+19   0   0    0    5   6  Planet(11,3)  Guard/blockade world in System (11,3)
+20   5   2    0   12   6  Sector(19,16) Rendezvous at Sector (26,13)
+21   5   3    4    4   0  Sector(16,10) Rendezvous at Sector (24,21)
+22   5   4    3    3   0  Sector(6,14)  Rendezvous at Sector (24,21)
+23   0   0    0   10   6  Planet(2,20)  Guard/blockade world in System (2,20)
+24   0   0    0    3   6  Planet(9,5)   Guard/blockade world in System (9,5)
+25   5   4    2    2   0  Sector(7,14)  Rendezvous at Sector (24,21)
+26   0   0    0    1   6  Planet(4,18)  Guard/blockade world in System (4,18)
+27   0   0    0    3   6  Planet(2,12)  Guard/blockade world in System (2,12)
+28   0   0    0    5   6  Planet(3,13)  Guard/blockade world in System (3,13)
+29   5   2    8    8   0  Sector(18,16) Rendezvous at Sector (24,21)
+30   0   0    0    1   6  Planet(3,13)  Guard/blockade world in System (3,13)
+31   5   2    4    4   0  Sector(17,17) Rendezvous at Sector (24,21)
+32   5   3    6    6   0  Sector(11,17) Rendezvous at Sector (24,21)
+33   5   4    1    1   0  Sector(8,19)  Rendezvous at Sector (24,21)
+34   5   1    2    2   0  Sector(21,20) Rendezvous at Sector (24,21)
+35   5   4    4    4   0  Sector(6,20)  Rendezvous at Sector (24,21)
+39   6   0    0    1   6  Planet(3,4)   Guard/blockade world in System (3,4)
+More? [Y]es, <N>o, <NS> (non-stop) -> 
+
+40   6   0    0    2   6  Planet(14,7)  Guard/blockade world in System (14,7)
+41   4   0    0    1   6  Planet(15,13) Guard/blockade world in System (15,13)
+42   5   0    0    1   6  Planet(13,15) Guard/blockade world in System (13,15)
+43   4   0    0    1   6  Planet(7,16)  Guard/blockade world in System (7,16)
+45   5   0    0    1   6  Planet(17,18) Guard/blockade world in System (17,18)
+47   6   0    0    1   6  Planet(2,21)  Guard/blockade world in System (2,21)
+-------------------------------------------------------------------------------
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 11
+
+
+
+Note: All missions also include movement (if required).
+11th Fleet's current mission : Scout System (27,8)
+11th Fleet's current location: Solar System at (27,8)
+
+Possible missions for the 11th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)           <11> Scout a Star System            
+      <1> Move Fleet (only)              <13> Join Another Fleet             
+      <2> Seek Home                      <14> Rendezvous at Sector           
+      <9> View a World                   <15> Salvage Fleet                  
+     <10> Scout a Sector                      
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 11
+
+
+Enter coordinates of the solar system to scout:
+
+Enter X coordinate or <A>bort: [26] -> 
+
+Enter Y coordinate or <A>bort: [26] -> 
+
+
+Destination is System (26,26). At maximum speed, travel
+time would be 4 years. ETA would be year 3026 A.D.
+
+The 11th Fleet's maximum speed is 6.
+
+Enter current speed for this fleet (1 - 6): [6] -> 
+
+
+NEW ORDERS:  Scout System (26,26)
+Proceed with orders? [Y]/N -> 
+Orders Received.
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 11
+
+
+
+Note: All missions also include movement (if required).
+11th Fleet's current mission : Scout System (26,26)
+11th Fleet's current location: Solar System at (27,8)
+
+Possible missions for the 11th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)           <11> Scout a Star System            
+      <1> Move Fleet (only)              <13> Join Another Fleet             
+      <2> Seek Home                      <14> Rendezvous at Sector           
+      <9> View a World                   <15> Salvage Fleet                  
+     <10> Scout a Sector                      
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 11
+
+
+Enter coordinates of the solar system to scout:
+
+Enter X coordinate or <A>bort: [26] -> 27
+
+Enter Y coordinate or <A>bort: [12] -> 12
+
+
+Destination is System (27,12). At maximum speed, travel
+time would be 1 year. ETA would be year 3023 A.D.
+
+The 11th Fleet's maximum speed is 6.
+
+Enter current speed for this fleet (1 - 6): [6] -> 
+
+
+NEW ORDERS:  Scout System (27,12)
+Proceed with orders? [Y]/N -> 
+Orders Received.
+
+(Press Return) b
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    0   0    0    7   6  Planet(4,18)  Guard/blockade world in System (4,18)
+2    5   4    2    2   0  Sector(23,5)  Rendezvous at Sector (24,21)
+3    5   4    2    2   0  Sector(14,5)  Rendezvous at Sector (24,21)
+4    4   3    0   23   6  Sector(17,13) Rendezvous at Sector (26,13)
+5    5   4    1    1   0  Sector(13,6)  Rendezvous at Sector (24,21)
+6    0   0    0    1   0  Planet(25,22) Scout System (25,22)
+7    6   0    0    1   6  Planet(11,1)  Guard/blockade world in System (11,1)
+8    5   3    3    3   0  Sector(23,8)  Rendezvous at Sector (24,21)
+9    0   0    0    1   0  Planet(11,23) Scout System (11,23)
+10   5   2    0   22   6  Sector(19,12) Rendezvous at Sector (26,13)
+11   6   1    0    1   0  Planet(27,8)  Scout System (27,12)
+12   5   2    0   17   6  Sector(16,14) Rendezvous at Sector (26,13)
+13   0   0    0    7   6  Planet(12,2)  Guard/blockade world in System (12,2)
+14   5   4    2    2   0  Sector(12,8)  Rendezvous at Sector (24,21)
+More? [Y]es, <N>o, <NS> (non-stop) -> n
+-------------------------------------------------------------------------------
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 47) or [A]bort?  -> 6
+
+
+
+Note: All missions also include movement (if required).
+6th Fleet's current mission : Scout System (25,22)
+6th Fleet's current location: Solar System at (25,22)
+
+Possible missions for the 6th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)           <11> Scout a Star System            
+      <1> Move Fleet (only)              <13> Join Another Fleet             
+      <2> Seek Home                      <14> Rendezvous at Sector           
+      <9> View a World                   <15> Salvage Fleet                  
+     <10> Scout a Sector                      
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 11
+
+
+Enter coordinates of the solar system to scout:
+
+Enter X coordinate or <A>bort: [26] -> 
+
+Enter Y coordinate or <A>bort: [26] -> 
+
+
+Destination is System (26,26). At maximum speed, travel
+time would be 2 years. ETA would be year 3024 A.D.
+
+The 6th Fleet's maximum speed is 6.
+
+Enter current speed for this fleet (1 - 6): [6] -> 
+
+
+NEW ORDERS:  Scout System (26,26)
+Proceed with orders? [Y]/N -> 
+Orders Received.
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    0   0    0    7   6  Planet(4,18)  Guard/blockade world in System (4,18)
+2    5   4    2    2   0  Sector(23,5)  Rendezvous at Sector (24,21)
+3    5   4    2    2   0  Sector(14,5)  Rendezvous at Sector (24,21)
+4    4   3    0   23   6  Sector(17,13) Rendezvous at Sector (26,13)
+5    5   4    1    1   0  Sector(13,6)  Rendezvous at Sector (24,21)
+6    6   2    0    1   0  Planet(25,22) Scout System (26,26)
+7    6   0    0    1   6  Planet(11,1)  Guard/blockade world in System (11,1)
+8    5   3    3    3   0  Sector(23,8)  Rendezvous at Sector (24,21)
+9    0   0    0    1   0  Planet(11,23) Scout System (11,23)
+10   5   2    0   22   6  Sector(19,12) Rendezvous at Sector (26,13)
+11   6   1    0    1   0  Planet(27,8)  Scout System (27,12)
+12   5   2    0   17   6  Sector(16,14) Rendezvous at Sector (26,13)
+13   0   0    0    7   6  Planet(12,2)  Guard/blockade world in System (12,2)
+14   5   4    2    2   0  Sector(12,8)  Rendezvous at Sector (24,21)
+More? [Y]es, <N>o, <NS> (non-stop) -> 
+
+15   0   0    0    8   6  Planet(23,1)  Guard/blockade world in System (23,1)
+16   5   3    2    2   0  Sector(20,9)  Rendezvous at Sector (24,21)
+17   5   3    0   16   6  Sector(16,10) Rendezvous at Sector (24,21)
+18   0   0    0    8   6  Planet(19,5)  Guard/blockade world in System (19,5)
+19   0   0    0    5   6  Planet(11,3)  Guard/blockade world in System (11,3)
+20   5   2    0   12   6  Sector(19,16) Rendezvous at Sector (26,13)
+21   5   3    4    4   0  Sector(16,10) Rendezvous at Sector (24,21)
+22   5   4    3    3   0  Sector(6,14)  Rendezvous at Sector (24,21)
+23   0   0    0   10   6  Planet(2,20)  Guard/blockade world in System (2,20)
+24   0   0    0    3   6  Planet(9,5)   Guard/blockade world in System (9,5)
+25   5   4    2    2   0  Sector(7,14)  Rendezvous at Sector (24,21)
+26   0   0    0    1   6  Planet(4,18)  Guard/blockade world in System (4,18)
+27   0   0    0    3   6  Planet(2,12)  Guard/blockade world in System (2,12)
+28   0   0    0    5   6  Planet(3,13)  Guard/blockade world in System (3,13)
+29   5   2    8    8   0  Sector(18,16) Rendezvous at Sector (24,21)
+30   0   0    0    1   6  Planet(3,13)  Guard/blockade world in System (3,13)
+31   5   2    4    4   0  Sector(17,17) Rendezvous at Sector (24,21)
+32   5   3    6    6   0  Sector(11,17) Rendezvous at Sector (24,21)
+33   5   4    1    1   0  Sector(8,19)  Rendezvous at Sector (24,21)
+34   5   1    2    2   0  Sector(21,20) Rendezvous at Sector (24,21)
+35   5   4    4    4   0  Sector(6,20)  Rendezvous at Sector (24,21)
+39   6   0    0    1   6  Planet(3,4)   Guard/blockade world in System (3,4)
+More? [Y]es, <N>o, <NS> (non-stop) -> 
+
+40   6   0    0    2   6  Planet(14,7)  Guard/blockade world in System (14,7)
+41   4   0    0    1   6  Planet(15,13) Guard/blockade world in System (15,13)
+42   5   0    0    1   6  Planet(13,15) Guard/blockade world in System (13,15)
+43   4   0    0    1   6  Planet(7,16)  Guard/blockade world in System (7,16)
+45   5   0    0    1   6  Planet(17,18) Guard/blockade world in System (17,18)
+47   6   0    0    1   6  Planet(2,21)  Guard/blockade world in System (2,21)
+-------------------------------------------------------------------------------
+
+(Press Return) q
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> q
+
+Are you sure you want to quit? Y/[N] -> n
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> g
+
+
+ 
+GENERAL COMMAND CENTER:   I>nfo about a Planet     C>ommunicate (send message)
+  H>elp with commands     A>utopilot ON/OFF        R>eview messages/results
+  Q>uit to main menu      S>tatus, your            D>elete ALL messages/results
+  X>pert mode ON/OFF      P>rofile of your empire  O>ther empires (rankings)
+  V>iew Partial Starmap   M>ap of the galaxy       E>nemies, declare or list
+
+GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E-> o
+
+Rank empires by <I>D, <P>roduction, <N>umber of planets or <A>bort? [I] -> 
+
+NOTE: Previous Year's Information is Parenthesized.
+-------------------------------------------------------------------------------
+Empire Name             ID     Planets Owned     Current Production     Status
+-------------------------------------------------------------------------------
+zzzzrrr                  1       21  (  0)           731  (    0)         *
+Melody Lake              2       13  (  0)           555  (    0)       ENEMY
+Romulus                  3        7  (  0)           447  (    0)       Neutral
+Taa'r                    4        1  (  0)           100  (    0)       Neutral
+rebel alliance           6        1  (  0)           100  (    0)       Neutral
+-------------------------------------------------------------------------------
+
+(Press Return) 
+
+ 
+GENERAL COMMAND CENTER:   I>nfo about a Planet     C>ommunicate (send message)
+  H>elp with commands     A>utopilot ON/OFF        R>eview messages/results
+  Q>uit to main menu      S>tatus, your            D>elete ALL messages/results
+  X>pert mode ON/OFF      P>rofile of your empire  O>ther empires (rankings)
+  V>iew Partial Starmap   M>ap of the galaxy       E>nemies, declare or list
+
+GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [6] -> 12
+
+Enter Y coordinate or <A>bort: [2] -> 3
+
+
+                      -> LAST REPORTED STATUS: NEUTRAL <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (posted 3011: 11 yrs ago)   NEVER SCOUTED
+-------------------------------------   ------------------------------------
+Name      : Not Named Yet               Maximum Production            : 100
+Location  : (12,3)                      Current Production            : UNKNOWN
+Owner     : Taa'r (#4)                  Production Points Stored      : UNKNOWN
+Owned for : N/A
+Prev Owner: UNKNOWN                     Armies           : UNKNOWN
+                                        Ground Batteries : UNKNOWN
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+GENERAL COMMAND CENTER:   I>nfo about a Planet     C>ommunicate (send message)
+  H>elp with commands     A>utopilot ON/OFF        R>eview messages/results
+  Q>uit to main menu      S>tatus, your            D>elete ALL messages/results
+  X>pert mode ON/OFF      P>rofile of your empire  O>ther empires (rankings)
+  V>iew Partial Starmap   M>ap of the galaxy       E>nemies, declare or list
+
+GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> q
+
+Are you sure you want to quit? Y/[N] -> y
+
+
+Returning you back to Jump Start...
+Games External Programs:
+
+Num ³ Name                                Num ³ Name                           
+ÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ           ÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ      
+  1 ³ Ambroshia v4.5                       11 ³ Vsysop                         
+  2 ³ Operation Overkill II                12 ³ The Pit                        
+  3 ³ ArrowBridge II                       13 ³ Esterian Conquest              
+  4 ³ TradeWars 2002 Gold                  14 ³ Yahtzee                        
+  5 ³ King of the Board                    15 ³ Triangle Solitaire             
+  6 ³ LORD                                 16 ³ Usurper v0.20b                 
+  7 ³ T&J Poker                            17 ³ Star Fight                     
+  8 ³ Melee                                18 ³ Land Of the Barons             
+  9 ³ Land of Devastation                  19 ³ Svalvards                      
+ 10 ³ Ambroshia                      
+
+Which or Quit: 
+Select External Program Section:
+
+  1: Main
+  2: Global War
+  3: Games
+  4: SRgames BRE, FE, TAL (InterBBS)
+  5: Sunrisedoors 
+  6: Other Synchronet Systems
+  7: Synchronet Default Games
+
+Which, Quit or [1]: Q
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ( MAIN MENU )ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+
+[T] .............. Files Menu[X] .................. Games
+[G] ...... Text files section[O] ....... Goodbye & Logoff
+[E] ........... Email/NetMail[C] .............. Chat Menu
+[Q] ..... QWK packet transfer[D] .......... Your settings
+[P] .......... Post a message[&] ...... Your msg settings
+[N] ........ New message scan[U] ..... System Information
+[R] ..... Read message prompt[M] ............ Minute Bank
+[Z] ..... Continuous new scan[^K] ......... CTRL-Key Menu
+[B] ......... Browse new scan[^U] .......... Who's Online
+[J] .... Jump to new msg area[^P] .. Send private message
+[*] ......... List sub-boards[/*] ........... List groups
+[{] ......... Back sub-boards[}]  ... Forwards sub-boards
+[CTRL-C] Abort command/text scroll
+ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+212 Mins Remaining
+
+                            
+þ Main þ 3:32:43 [1] Fidonet [135] DOORGAMES: 
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ( MAIN MENU )ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+
+[T] .............. Files Menu[X] .................. Games
+[G] ...... Text files section[O] ....... Goodbye & Logoff
+[E] ........... Email/NetMail[C] .............. Chat Menu
+[Q] ..... QWK packet transfer[D] .......... Your settings
+[P] .......... Post a message[&] ...... Your msg settings
+[N] ........ New message scan[U] ..... System Information
+[R] ..... Read message prompt[M] ............ Minute Bank
+[Z] ..... Continuous new scan[^K] ......... CTRL-Key Menu
+[B] ......... Browse new scan[^U] .......... Who's Online
+[J] .... Jump to new msg area[^P] .. Send private message
+[*] ......... List sub-boards[/*] ........... List groups
+[{] ......... Back sub-boards[}]  ... Forwards sub-boards
+[CTRL-C] Abort command/text scroll
+ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+212 Mins Remaining
+
+                            
+þ Main þ 3:32:43 [1] Fidonet [135] DOORGAMES: Q
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³  QWK Offline Reader Menu  ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙÜÜÜÜÜÜÜ
+ÛÛ
+Û C Change Packet Configuration    Û
+Û S Select Message Areas to Scan   Û
+Û P Modify New-message Pointers    Û
+Û U Upload REP reply packetÛ
+Û D Download QWK message packet    Û
+Û B Bidirectional REP/QWK transfer Û
+ÛÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÛ
+Û Q Quit back to Main menuÛ
+ÛÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÛ
+
+QWK: Q
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ( MAIN MENU )ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+
+[T] .............. Files Menu[X] .................. Games
+[G] ...... Text files section[O] ....... Goodbye & Logoff
+[E] ........... Email/NetMail[C] .............. Chat Menu
+[Q] ..... QWK packet transfer[D] .......... Your settings
+[P] .......... Post a message[&] ...... Your msg settings
+[N] ........ New message scan[U] ..... System Information
+[R] ..... Read message prompt[M] ............ Minute Bank
+[Z] ..... Continuous new scan[^K] ......... CTRL-Key Menu
+[B] ......... Browse new scan[^U] .......... Who's Online
+[J] .... Jump to new msg area[^P] .. Send private message
+[*] ......... List sub-boards[/*] ........... List groups
+[{] ......... Back sub-boards[}]  ... Forwards sub-boards
+[CTRL-C] Abort command/text scroll
+ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+212 Mins Remaining
+
+                            
+þ Main þ 3:32:41 [1] Fidonet [135] DOORGAMES: O
+
+[û] Log off? [No] Yes Yes
+
+Log off requested on 09/15/11 at 10:08 am
+
+Time used: 0:27:21
+
+Thank you for calling JumpStart, another fine Synchronet BBS...
+
+
+     Quote of the day:
+
+
+  O Lord, help me to be pure, but not yet.  ÄÄ St. Augustine (A.D. 354-430)
+
+
+
+For a list of active Synchronet systems, see http://synchro.net/sbbslist.html
+
+

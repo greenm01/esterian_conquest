@@ -1,0 +1,909 @@
+13
+
+
+
+
+Display ANSI Colors & IBM Graphic Characters Y/[N] -> 
+
+
+
+
+
+
+
+
+
+
+                                **************
+                                *            *
+                                * Jump Start *
+                                *            *
+                                **************
+ 
+ 
+                                 ************
+                                 *          *
+                                 * PRESENTS *
+                                 *          *
+                                 ************
+ 
+ 
+  o     #######   ###### ########  #######  ######    ##    #####    ###  ##
+    .  ##       ##         ##     ##       ##   ##   ##   ##   ##   #### ##
+      ####      #####     ##     ####     ######    ##   #######   ## ####   .
+     ##            ##    ##     ##       ## ##     ##   ##   ##   ##  ###
+ .  #######  ######     ##     #######  ##   ##   ##   ##   ##   ##   ##
+
+   *   ######   #####    ###  ##   #####   ##   ##  #######   ###### ########
+     ##       ##   ##   #### ##  ##   ##  ##   ##  ##       ##         ##  .
+  . ##       ##   ##   ## ####  ##   ##  ##   ##  ####      #####     ##
+   ##       ##   ##   ##  ###  ## # ##  ##   ##  ##            ##    ##      .
+   ######   #####    ##   ##   ######   #####   #######  ######     ##
+                                 ##
+                       .                       Ver 1.50 
+        .                                                   .      .
+
+Compliments of your Sysop, Ray Kvalheim.
+Registration # 110039
+
+(Press Return) 
+
+
+Welcome back to Esterian Conquest, Ver 1.50
+-------------------------------------------------------------------------------
+Use Ctrl-S throughout the game to pause and resume output.
+Use Ctrl-X or Ctrl-K to abort most listings.
+
+View Introduction? Y/[N] -> 
+
+
+
+
+, you are "zzzzrrr", (Empire #1)
+
+The year is: 3001 A.D.
+
+Last year on: 3000 A.D.
+
+You have 228 minutes left to play.
+
+Autopilot is off.
+
+(Press Return) 
+
+
+
+
+
+
+
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> fb
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    3   1    0    2   6  Sector(14,14) Colonize world in System (13,15)
+2    3   2    0    2   6  Sector(17,12) Colonize world in System (20,11)
+3    6   2    0    1   6  Sector(19,9)  View world in System (23,5)
+4    0   0    0    1   6  Planet(15,13) Guard/blockade world in System (15,13)
+-------------------------------------------------------------------------------
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> f
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (detailed)
+
+BB -> Battleships       CA -> Cruisers  DD -> Destroyers    AR -> Armies
+TT -> Troop Transports  SC -> Scouts    ET -> ETACs (Colony ships)
+-------------------------------------------------------------------------------
+1st Fleet;  Sector (14,14);  Speed: 3;  Maximum Speed: 3;  ROE: 6
+   Contents:  CA=1  ET=1  
+   Colonize world in System (13,15);  Travel Time: 1 year
+-------------------------------------------------------------------------------
+2nd Fleet;  Sector (17,12);  Speed: 3;  Maximum Speed: 3;  ROE: 6
+   Contents:  CA=1  ET=1  
+   Colonize world in System (20,11);  Travel Time: 2 years
+-------------------------------------------------------------------------------
+More? [Y]es, <N>o, <NS> (non-stop) -> 
+
+3rd Fleet;  Sector (19,9);  Speed: 6;  Maximum Speed: 6;  ROE: 6
+   Contents:  DD=1  
+   View world in System (23,5);  Travel Time: 2 years
+-------------------------------------------------------------------------------
+4th Fleet;  Solar System at (15,13);  Speed: 0;  Maximum Speed: 6;  ROE: 6
+   Contents:  DD=1  
+   Guard/blockade world in System (15,13);  Travel Time: None
+-------------------------------------------------------------------------------
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [7] -> 
+
+Enter Y coordinate or <A>bort: [1] -> 
+
+
+                      -> NO INFORMATION ON THIS PLANET <-
+-------------------------------------------------------------------------------
+
+PLANET INFO (NEVER SEEN)                NEVER SCOUTED
+-------------------------------------   ------------------------------------
+Name      : UNKNOWN                     Maximum Production            : UNKNOWN
+Location  : (7,1)                       Current Production            : UNKNOWN
+Owner     : UNKNOWN                     Production Points Stored      : UNKNOWN
+Owned for : UNKNOWN
+Prev Owner: UNKNOWN                     Armies           : UNKNOWN
+                                        Ground Batteries : UNKNOWN
+
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> p
+
+
+ 
+PLANET COMMANDS:    V>iew Partial Map                       T>ax rate: Empire
+  H>elp on Options  C>OMMISSION MENU   D>etail Planet List  S>corch planets
+  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet: Brief List  L>oad TTs w/Armies
+  X>pert mode       B>UILD MENU...     I>nfo about Planet   U>nload TT Armies
+
+PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U-> c
+
+ 
+COMMISSION FROM CURRENT PLANET: "zzzzrrr" IN SYSTEM (15,13): 
+  H>elp with commands     P>lanets, List your       B>ases (none to commission)
+  Q>uit to Planet Menu    R>eview current planet    F>leet, commission
+  X>pert mode toggle      C>hange current planet    L>ist stardock contents
+  V>iew partial starmap   N>ext planet              I>nfo about a Planet
+
+COMMISSION COMMAND <-H,Q,X,V,P,R,C,N,F,L-> p
+
+ 
+COMMISSION FROM CURRENT PLANET: "zzzzrrr" IN SYSTEM (15,13): 
+  H>elp with commands     P>lanets, List your       B>ases (none to commission)
+  Q>uit to Planet Menu    R>eview current planet    F>leet, commission
+  X>pert mode toggle      C>hange current planet    L>ist stardock contents
+  V>iew partial starmap   N>ext planet              I>nfo about a Planet
+
+COMMISSION COMMAND <-H,Q,X,V,P,R,C,N,F,L-> p
+
+List by <C>urrent Production, <L>ocation, <P>otential or <A>bort? [C] -> 
+
+Listing planets by current production:
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+
+Planet's Name         Location  Produx(Current/Max)  Stored Pts   Armies   GBs
+-------------------------------------------------------------------------------
+zzzzrrr               (15,13)       100 of 100           65         10       4
+-------------------------------------------------------------------------------
+
+(Press Return) 
+
+
+ 
+COMMISSION FROM CURRENT PLANET: "zzzzrrr" IN SYSTEM (15,13): 
+  H>elp with commands     P>lanets, List your       B>ases (none to commission)
+  Q>uit to Planet Menu    R>eview current planet    F>leet, commission
+  X>pert mode toggle      C>hange current planet    L>ist stardock contents
+  V>iew partial starmap   N>ext planet              I>nfo about a Planet
+
+COMMISSION COMMAND <-H,Q,X,V,P,R,C,N,F,L-> r
+
+
+
+Planet Name       : zzzzrrr              Current Production  : 100
+Location          : (15,13)              Maximum Production  : 100
+Maximum Armies    : 1000                 Points Spent        : 0
+Maximum Batteries : 100                  Points Available    : 65
+
+Surface Forces:   10 armies              Space Forces:      1 fleet
+                   4 ground batteries    
+
+Building:          Nothing               Docked:            1 scout
+                                                            1 ETAC
+
+Efficiency:      100.0%
+
+Expected revenue (65.0% tax rate): 65 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+
+ 
+COMMISSION FROM CURRENT PLANET: "zzzzrrr" IN SYSTEM (15,13): 
+  H>elp with commands     P>lanets, List your       B>ases (none to commission)
+  Q>uit to Planet Menu    R>eview current planet    F>leet, commission
+  X>pert mode toggle      C>hange current planet    L>ist stardock contents
+  V>iew partial starmap   N>ext planet              I>nfo about a Planet
+
+COMMISSION COMMAND <-H,Q,X,V,P,R,C,N,F,L-> f
+
+
+Commissioning starships:
+      <0>   DONE
+      <4>   Scouts              (1 in storage)
+      <6>   ETACs               (1 in storage)
+ 
+Enter # of Ship Type, <A>LL ships in stardock,  or [0] if done -> 4
+
+How many new scouts do wish to order commissioned  (0 - 1): [1] -> 
+
+
+Commissioning starships:
+      <0>   DONE
+      <6>   ETACs               (1 in storage)
+ 
+Enter # of Ship Type, <A>LL ships in stardock,  or [0] if done -> a
+
+Commissioning the 5th Fleet...
+
+(Press Return) 
+
+
+All of your stardocks are empty.
+ 
+PLANET COMMANDS:    V>iew Partial Map                       T>ax rate: Empire
+  H>elp on Options  C>OMMISSION MENU   D>etail Planet List  S>corch planets
+  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet: Brief List  L>oad TTs w/Armies
+  X>pert mode       B>UILD MENU...     I>nfo about Planet   U>nload TT Armies
+
+PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U-> a
+
+AUTO-COMMISSION fleets and starbases from all your planets
+
+Perform the Auto-Commission?  [Y]/N -> 
+
+All of your stardocks are empty.
+Auto-commission aborted.
+
+
+(Press Return) 
+
+ 
+PLANET COMMANDS:    V>iew Partial Map                       T>ax rate: Empire
+  H>elp on Options  C>OMMISSION MENU   D>etail Planet List  S>corch planets
+  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet: Brief List  L>oad TTs w/Armies
+  X>pert mode       B>UILD MENU...     I>nfo about Planet   U>nload TT Armies
+
+PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U-> b
+
+
+There are no starbases orbiting planet "zzzzrrr".
+Standard building restrictions apply.
+You have spent 0 out of 65 points.  You have 65 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "zzzzrrr" IN SYSTEM (15,13): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 65 points.  You have 65 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)             <6> ETACs              20    (0)
+ <2> Cruisers           15    (0)             <7> Starbases          50    (0)
+ <3> Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)            <10> Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 10): [0] -> 7
+
+How many new starbases do you wish to build  (0 - 1): [1] -> 
+
+
+You have spent 50 out of 65 points.  You have 15 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+ <2> Cruisers           15    (0)                 Starbases          50    (1)
+     Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 2
+
+How many new cruisers do you wish to build  (0 - 1): [1] -> 
+ 
+BUILD ON CURRENT PLANET: "zzzzrrr" IN SYSTEM (15,13): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> l
+
+
+Build orders for planet "zzzzrrr":
+    1    cruiser
+    1    starbase
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "zzzzrrr" IN SYSTEM (15,13): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+You do not control any more planets that can build units.
+ 
+BUILD ON CURRENT PLANET: "zzzzrrr" IN SYSTEM (15,13): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> r
+
+
+
+Planet Name       : zzzzrrr              Current Production  : 100
+Location          : (15,13)              Maximum Production  : 100
+Maximum Armies    : 1000                 Points Spent        : 65
+Maximum Batteries : 100                  Points Available    : 0
+
+Surface Forces:   10 armies              Space Forces:      2 fleets
+                   4 ground batteries    
+
+Building:          1 cruiser             Docked:             Nothing
+                   1 starbase                            
+
+Efficiency:      100.0%
+
+Expected revenue (65.0% tax rate): 65 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "zzzzrrr" IN SYSTEM (15,13): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> v
+
+Enter X coordinate for center of partial map or <A>bort: [15] -> 
+
+Enter Y coordinate for center of partial map or <A>bort: [13] -> 
+
+ Map Center at Sector (15,13)
+    +-----------------------------------------------------+
+21 -|  .  .  .  .  .  .  .  ?  |  .  .  .  .  .  .  .  .  | "."= Empty Sector  
+20 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  | "*"= Unowned Planet
+19 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  | "#"= Owned by Emp #
+18 -|  .  .  .  .  .  .  .  .  |  .  ?  .  .  .  .  .  .  | "O"= Planet You Own
+17 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  ?  | "?"= Unexplored    
+16 -|  ?  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  |
+15 -|  .  .  .  .  .  .  ?  .  |  .  .  .  .  .  .  .  .  |  STARMAP MENU  
+14 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  ?  .  .  |   7 8 9  Enter
+13 -| ------------------------ O ------------------------ |   4   6  number to
+12 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  |   1 2 3  move map.
+11 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  ?  .  .  .  | 5=show max produx
+10 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  |
+ 9 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  |
+ 8 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  |
+ 7 -|  .  .  .  .  .  .  .  ?  |  .  .  .  .  .  .  .  .  |
+ 6 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  ?  .  .  |
+ 5 -|  .  .  ?  .  .  .  .  .  |  .  .  .  ?  .  .  .  ?  |
+    +-----------------------------------------------------+
+       7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23
+
+Map Command:(1 2 3 4 5 6 7 8 9) [Enter]=quit -> 8
+ Map Center at Sector (15,19)
+    +-----------------------------------------------------+
+27 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  | "."= Empty Sector  
+26 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  | "*"= Unowned Planet
+25 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  | "#"= Owned by Emp #
+24 -|  .  .  .  .  .  ?  .  .  |  .  .  .  .  .  .  .  .  | "O"= Planet You Own
+23 -|  .  .  .  .  ?  .  .  .  |  .  .  .  .  .  .  .  .  | "?"= Unexplored    
+22 -|  .  .  .  .  .  .  .  .  ?  .  .  .  .  .  .  .  ?  |
+21 -|  .  .  .  .  .  .  .  ?  |  .  .  .  .  .  .  .  .  |  STARMAP MENU  
+20 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  |   7 8 9  Enter
+19 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  |   4   6  number to
+18 -|  .  .  .  .  .  .  .  .  |  .  ?  .  .  .  .  .  .  |   1 2 3  move map.
+17 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  ?  | 5=show max produx
+16 -|  ?  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  |
+15 -|  .  .  .  .  .  .  ?  .  |  .  .  .  .  .  .  .  .  |
+14 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  ?  .  .  |
+13 -| ------------------------ O ------------------------ |
+12 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  |
+11 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  ?  .  .  .  |
+    +-----------------------------------------------------+
+       7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23
+
+Map Command:(1 2 3 4 5 6 7 8 9) [Enter]=quit -> 2
+ Map Center at Sector (15,11)
+    +-----------------------------------------------------+
+19 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  | "."= Empty Sector  
+18 -|  .  .  .  .  .  .  .  .  |  .  ?  .  .  .  .  .  .  | "*"= Unowned Planet
+17 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  ?  | "#"= Owned by Emp #
+16 -|  ?  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  | "O"= Planet You Own
+15 -|  .  .  .  .  .  .  ?  .  |  .  .  .  .  .  .  .  .  | "?"= Unexplored    
+14 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  ?  .  .  |
+13 -| ------------------------ O ------------------------ |  STARMAP MENU  
+12 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  |   7 8 9  Enter
+11 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  ?  .  .  .  |   4   6  number to
+10 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  |   1 2 3  move map.
+ 9 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  | 5=show max produx
+ 8 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  .  |
+ 7 -|  .  .  .  .  .  .  .  ?  |  .  .  .  .  .  .  .  .  |
+ 6 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  ?  .  .  |
+ 5 -|  .  .  ?  .  .  .  .  .  |  .  .  .  ?  .  .  .  ?  |
+ 4 -|  .  .  .  .  .  .  .  .  |  .  .  .  .  .  .  .  ?  |
+ 3 -|  .  .  .  .  ?  ?  .  .  |  .  .  .  .  .  .  .  .  |
+    +-----------------------------------------------------+
+       7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23
+
+Map Command:(1 2 3 4 5 6 7 8 9) [Enter]=quit -> 
+ 
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> 
+ 
+BUILD ON CURRENT PLANET: "zzzzrrr" IN SYSTEM (15,13): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> q
+ 
+PLANET COMMANDS:    V>iew Partial Map                       T>ax rate: Empire
+  H>elp on Options  C>OMMISSION MENU   D>etail Planet List  S>corch planets
+  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet: Brief List  L>oad TTs w/Armies
+  X>pert mode       B>UILD MENU...     I>nfo about Planet   U>nload TT Armies
+
+PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> f
+
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    3   1    0    2   6  Sector(14,14) Colonize world in System (13,15)
+2    3   2    0    2   6  Sector(17,12) Colonize world in System (20,11)
+3    6   2    0    1   6  Sector(19,9)  View world in System (23,5)
+4    0   0    0    1   6  Planet(15,13) Guard/blockade world in System (15,13)
+5    0   0    0    2   0  Planet(15,13) No standing orders
+-------------------------------------------------------------------------------
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 5) or [A]bort?  -> 5
+
+
+
+Note: All missions also include movement (if required).
+5th Fleet's current mission : No standing orders
+5th Fleet's current location: Solar System at (15,13)
+
+Possible missions for the 5th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)           <11> Scout a Star System            
+      <1> Move Fleet (only)              <12> Colonize a World               
+      <2> Seek Home                      <13> Join Another Fleet             
+      <9> View a World                   <14> Rendezvous at Sector           
+     <10> Scout a Sector                 <15> Salvage Fleet                  
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 12
+
+
+Enter coordinates of the world to colonize:
+
+Enter X coordinate or <A>bort: [17] -> 
+
+Enter Y coordinate or <A>bort: [18] -> 
+
+
+Destination is System (17,18). At maximum speed, travel
+time would be 3 years. ETA would be year 3004 A.D.
+
+The 5th Fleet's maximum speed is 3.
+
+Enter current speed for this fleet (1 - 3): [3] -> 
+
+
+NEW ORDERS:  Colonize world in System (17,18)
+Proceed with orders? [Y]/N -> 
+Orders Received.
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    3   1    0    2   6  Sector(14,14) Colonize world in System (13,15)
+2    3   2    0    2   6  Sector(17,12) Colonize world in System (20,11)
+3    6   2    0    1   6  Sector(19,9)  View world in System (23,5)
+4    0   0    0    1   6  Planet(15,13) Guard/blockade world in System (15,13)
+5    3   3    0    2   0  Planet(15,13) Colonize world in System (17,18)
+-------------------------------------------------------------------------------
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> p
+
+
+ 
+PLANET COMMANDS:    V>iew Partial Map                       T>ax rate: Empire
+  H>elp on Options  C>OMMISSION MENU   D>etail Planet List  S>corch planets
+  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet: Brief List  L>oad TTs w/Armies
+  X>pert mode       B>UILD MENU...     I>nfo about Planet   U>nload TT Armies
+
+PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> g
+
+
+ 
+GENERAL COMMAND CENTER:   I>nfo about a Planet     C>ommunicate (send message)
+  H>elp with commands     A>utopilot ON/OFF        R>eview messages/results
+  Q>uit to main menu      S>tatus, your            D>elete ALL messages/results
+  X>pert mode ON/OFF      P>rofile of your empire  O>ther empires (rankings)
+  V>iew Partial Starmap   M>ap of the galaxy       E>nemies, declare or list
+
+GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E-> m
+
+This function sends the entire map of the galaxy to you non-stop.
+It is intended to allow you to capture the map to a text file.
+
+Confirm: Display map? Y/[N] -> 
+
+Aborted.
+
+(Press Return) 
+
+ 
+GENERAL COMMAND CENTER:   I>nfo about a Planet     C>ommunicate (send message)
+  H>elp with commands     A>utopilot ON/OFF        R>eview messages/results
+  Q>uit to main menu      S>tatus, your            D>elete ALL messages/results
+  X>pert mode ON/OFF      P>rofile of your empire  O>ther empires (rankings)
+  V>iew Partial Starmap   M>ap of the galaxy       E>nemies, declare or list
+
+GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E-> m
+
+This function sends the entire map of the galaxy to you non-stop.
+It is intended to allow you to capture the map to a text file.
+
+Confirm: Display map? Y/[N] -> y
+
+Show DataBase Knowledge (MaxProd & Owner) on the map? Y/[N] -> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+
+
+
+     1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  
+  -|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|-
+27 |                                                                       | 27
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+26 |                                                                       | 26
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+25 |                                                                       | 25
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+24 |             *                               *                         | 24
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+23 |                                         *                             | 23
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+22 |         *       *                                       *             | 22
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+21 |     *                                               *                 | 21
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+20 |     *                                                                 | 20
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+19 |                                                                       | 19
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+18 |             *                                                   *     | 18
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+17 |                                                                       | 17
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+16 |                         *                                             | 16
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+15 |                                                 *                     | 15
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+14 |                                                                       | 14
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+13 |         *                                               *             | 13
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+12 |     *           *                                                     | 12
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+11 |                                                                       | 11
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+10 |                                                                       | 10
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+ 9 |                                                                       |  9
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+ 8 |                                                                       |  8
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+ 7 |                                                     *                 |  7
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+ 6 |                                                                       |  6
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+ 5 |                                 *                                     |  5
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+ 4 |         *       *                                                     |  4
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+ 3 |                 *   *                   *   *                         |  3
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+ 2 |                     *                       *                         |  2
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+ 1 |                         *               *                             |  1
+  -|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+     1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  
+
+    19  20  21  22  23  24  25  26  27  
+  -|---|---|---|---|---|---|---|---|---|-
+27 |                                   | 27
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+26 |                             *     | 26
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+25 |                                   | 25
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+24 |                                   | 24
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+23 |                                   | 23
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+22 |                 *       *         | 22
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+21 |                                   | 21
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+20 |                                   | 20
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+19 |                                   | 19
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+18 |                                   | 18
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+17 |                 *                 | 17
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+16 |                     *             | 16
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+15 |                                   | 15
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+14 |         *           *             | 14
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+13 |                                   | 13
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+12 |                         *       * | 12
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+11 |     *                             | 11
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+10 |                                   | 10
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+ 9 |                                   |  9
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+ 8 |                                 * |  8
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+ 7 |                                   |  7
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+ 6 |         *                         |  6
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+ 5 | *               *                 |  5
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+ 4 |                 *                 |  4
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+ 3 |                                   |  3
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+ 2 |                                   |  2
+  -|- -|- -|- -|- -|- -|- -|- -|- -|- -|-
+ 1 |                 *                 |  1
+  -|---|---|---|---|---|---|---|---|---|
+    19  20  21  22  23  24  25  26  27  
+
+
+(Press Return) 
+
+ 
+GENERAL COMMAND CENTER:   I>nfo about a Planet     C>ommunicate (send message)
+  H>elp with commands     A>utopilot ON/OFF        R>eview messages/results
+  Q>uit to main menu      S>tatus, your            D>elete ALL messages/results
+  X>pert mode ON/OFF      P>rofile of your empire  O>ther empires (rankings)
+  V>iew Partial Starmap   M>ap of the galaxy       E>nemies, declare or list
+
+GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E-> qs
+
+
+
+
+, you are "zzzzrrr", (Empire #1)
+
+The year is: 3001 A.D.
+
+Last year on: 3001 A.D.
+
+You have 216 minutes left to play.
+
+Autopilot is off.
+
+(Press Return) 
+
+
+
+
+
+ 
+GENERAL COMMAND CENTER:   I>nfo about a Planet     C>ommunicate (send message)
+  H>elp with commands     A>utopilot ON/OFF        R>eview messages/results
+  Q>uit to main menu      S>tatus, your            D>elete ALL messages/results
+  X>pert mode ON/OFF      P>rofile of your empire  O>ther empires (rankings)
+  V>iew Partial Starmap   M>ap of the galaxy       E>nemies, declare or list
+
+GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> q
+
+Are you sure you want to quit? Y/[N] -> 

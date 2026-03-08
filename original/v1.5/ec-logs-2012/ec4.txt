@@ -1,0 +1,173 @@
+
+
+
+
+
+
+
+You have undeleted reports. View them? [Y]es, <N>o, <NS> (non-stop) -> 
+
+
+Reports: Current game year is 3006 A.D.
+
+
+ -> From your 9th Fleet, located in System(21,14)          Stardate: 28/3005
+ -> Colonization mission report: We have entered System(21,14) and have 
+ -> determined that aliens are already living on the world found within! We 
+ -> have gone ahead and performed a long range viewing analysis and have 
+ -> determined that the world is owned by "In Civil Disorder", (Empire #5) 
+ -> and has a potential of 100 points. We are aborting our mission and are 
+ -> leaving the alien solar system.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 9th Fleet, located in System(21,14)          Stardate: 29/3005
+ -> Move mission report: We were attacked by the 1st Fleet of "In Civil 
+ -> Disorder", (Empire #5) in System(21,14). Our force contained 1 
+ -> destroyer and 1 ETAC ship. Alien force contained 1 cruiser and 1 ETAC 
+ -> ship. To avoid the total destruction of our fleet, we were forced to 
+ -> scatter. No alien ships were destroyed. We lost 1 destroyer. After 
+ -> reassembling our fleet, we've decided to abort our mission and to seek 
+ -> the safety of a friendly controlled solar system at maximum speed. 
+ -> Until ordered otherwise, we are going to avoid contact with alien 
+ -> crafts. Our new destination is planet "vino", located in System(20,11). 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 7th Fleet, located in System(6,3)            Stardate: 29/3005
+ -> Scouting mission report: Sensor contact shows an alien fleet in 
+ -> System(6,3) traveling at sublight speed. Closing to check it out...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 7th Fleet, located in System(6,3)            Stardate: 29/3005
+ -> Scouting mission report: We have located and identified the alien fleet 
+ -> in System(6,3). It is the 4th Fleet of "In Civil Disorder", (Empire 
+ -> #9). Their fleet contains 1 small vessel(s) of unknown type. Ignoring 
+ -> alien fleet...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your Fleet Command Center:                        Stardate: 29/3005
+ -> We lost all contact with the 9th Fleet shortly after it was attacked by 
+ -> the 4th Fleet of "In Civil Disorder", (Empire #5) in System(21,14). 
+ -> Records show the 9th Fleet was composed of 1 ETAC ship. According to a 
+ -> burnt flight recorder we recovered, the alien force initially contained 
+ -> 1 destroyer. The flight recorder had no record of alien ships 
+ -> destroyed. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 7th Fleet, located in System(6,3)            Stardate: 30/3005
+ -> Scouting mission report: We are in extended orbit around planet "Not 
+ -> Named Yet" and have compiled the following data:
+ ->   Owned by: "In Civil Disorder", (Empire #9)
+ ->   Potential production: 100 points
+ ->   Estimated present production: 100 points
+ ->   Estimated amount of stored goods: 35 points
+ ->   Number of armies: 10
+ ->   Number of ground batteries: 4
+ ->   The planet's stardock appears to be empty.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 7th Fleet, located in System(6,3)            Stardate: 35/3005
+ -> Scouting mission report: Sensor contact shows an alien fleet in 
+ -> System(6,3) traveling at sublight speed. Closing to check it out...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 7th Fleet, located in System(6,3)            Stardate: 35/3005
+ -> Scouting mission report: We have located and identified the alien fleet 
+ -> in System(6,3). It is the 1st Fleet of "In Civil Disorder", (Empire 
+ -> #9). Their fleet contains 1 large and 1 medium vessel(s) of unknown 
+ -> type. Ignoring alien fleet...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 8th Fleet, located in System(14,7)           Stardate: 37/3005
+ -> Colonization mission report: We have arrived at our target world, 
+ -> successfully terraformed it, and have started a new colony. We await 
+ -> new orders...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 2nd Fleet, located in System(23,5)           Stardate: 47/3005
+ -> Colonization mission report: We have arrived at our target world, 
+ -> successfully terraformed it, and have started a new colony. We await 
+ -> new orders...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 5th Fleet, located in System(14,21)          Stardate: 48/3005
+ -> Colonization mission report: We have entered System(14,21) and have 
+ -> determined that aliens are already living on the world found within! We 
+ -> have gone ahead and performed a long range viewing analysis and have 
+ -> determined that the world , named "Cesspool", is owned by "Romulus", 
+ -> (Empire #3) and has a potential of 35 points. We are aborting our 
+ -> mission and are leaving the alien solar system.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+Results deleted.
+
+All reports seen.
+
+You have a world in the solar system at X=23, Y=5. Its current production 
+
+level is 1 out of a possible 115 points, (1% efficiency).
+
+Name this world (20 characters or less) -> you're my bitch
+
+"you're my bitch" <- Is this correct? Y/[N] -> y
+
+
+
+
+
+You have a world in the solar system at X=14, Y=7. Its current production 
+
+level is 1 out of a possible 83 points, (1% efficiency).
+
+Name this world (20 characters or less) -> huI'm hungrybeer      
+
+"beer" <- Is this correct? Y/[N] -> ynn 
+
+Name this world (20 characters or less) -> vibrator
+
+"vibrator" <- Is this correct? Y/[N] -> y
+
+
+
+
+
+
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> 

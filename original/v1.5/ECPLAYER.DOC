@@ -1,0 +1,1676 @@
+
+
+
+
+
+
+         ÛßßßÛ ÛßßßÛ ßßÛßß ÛßßßÛ ÛßßßÛ Û ÛßßßÛ ÛßßßÛ
+         ÛÜÜ   ÛÜÜÜÜ   Û   ÛÜÜ   ÛÜÜÜÛ Û Û   Û Û   Û
+         Û         Û   Û   Û     Û  Û  Û ÛßßßÛ Û   Û
+         ÛÜÜÜÛ ÛÜÜÜÛ   Û   ÛÜÜÜÛ Û  ÛÜ Û Û   Û Û   Û
+
+         ÛßßßÛ ÛßßßÛ ÛßßßÛ ÛßßßÛ Û   Û ÛßßßÛ ÛßßßÛ ßßÛßß TM
+         Û     Û   Û Û   Û Û   Û Û   Û ÛÜÜ   ÛÜÜÜÜ   Û
+         Û     Û   Û Û   Û Û   Û Û   Û Û         Û   Û
+         ÛÜÜÜÛ ÛÜÜÜÛ Û   Û ÛÜÛÜÛ ÛÜÜÜÛ ÛÜÜÜÛ ÛÜÜÜÛ   Û
+                             ÛÜ
+                                           Version 1.5
+
+
+
+
+
+
+         ÛßÛ Û   ÛßÛ Û Û Ûßß ÛßÛ Ûßß    Ûßß Û Û Û ÛßÜ Ûßß
+         Ûßß Û   ÛßÛ ßÛß Ûß  ÛÛß ßßÛ    Û Ü Û Û Û Û Û Ûß
+         ß   ßßß ß ß  ß  ßßß ß ß ßßß    ßßß ßßß ß ßßß ßßß
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            ßÛß     Copyright (c) 1990-1992 by Bentley C. Griffith.
+          ÛßßÛßßß   All rights reserved worldwide.
+          Û  Û ßÛ   Esterian Conquest is a Trademark of Griffith
+          ÛÜÜÛÜÜÛ     International.
+            ÜÛÜ     Player's Guide written by Joel B. Cohen, Ph.D.
+                    Fourth Edition, July, 1992.
+
+         Published by: Griffith International, P.O. Box 530703,
+                       Birmingham, AL 35253
+
+
+
+
+
+                 THE ESTERIAN CONQUEST(tm) WEALTH OF FEATURES.
+
+
+         Welcome to Galactic Battle in the fast lane.  Command the
+         forces of a planetary empire, plan your campaign, colonize
+         new worlds and defeat your enemies.  Your goal is simple:
+         Conquer and rule the universe.  We think you'll agree that
+         the combination of sophistication and ease of use makes
+         ESTERIAN CONQUEST unique among on-line games:
+
+
+         MULTI-PLAYER CAPABILITIES: Up to 25 players can enter their
+            moves simultaneously.  Call as often as you like and alter
+            your moves if you change your mind.
+
+         REALISTIC ACTION: Sophisticated simulations of battle,
+            planetary growth, and espionage make you feel like you are
+            really there.  Command 7 types of ships.  Order your
+            fleets on 15 possible missions.  Take total control of
+            your planets: direct their production, set tax levels, and
+            build defenses.
+
+         ADVANCED, YET EASY TO USE: Enter commands through well-
+            structured menus.  Optional ANSI graphics are available
+            for all menus and charts.  Issue multiple commands on one
+            line -- the program will remember and process them.  Use
+            expert mode for speed.  Get on-line help for any menu.
+
+         EXTRAS THAT GO THE FULL NINE YARDS: Send messages to other
+            players with the built-in text editor.  Access the
+            information database about any planet you've encountered.
+            Use autopilot mode to care for your empire while you are
+            away.  See the results of your missions in word-wrapped,
+            realistic messages.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                       ii
+
+
+
+
+             ESTERIAN CONQUEST(tm) PLAYERS GUIDE (TEST DRIVE v1.5)
+
+
+                                TABLE OF CONTENTS
+
+
+         PROGRAM FEATURES . . . . . . . . . . . . . . . . . . . . ii
+
+         INTRODUCTION . . . . . . . . . . . . . . . . . . . . . .  1
+
+         BACKGROUND . . . . . . . . . . . . . . . . . . . . . . .  1
+
+         THE GAME . . . . . . . . . . . . . . . . . . . . . . . .  2
+            Number of players
+            Object of the game
+            How to achieve your goal
+            The playing field (Galaxy)
+
+         THE PLAY . . . . . . . . . . . . . . . . . . . . . . . .  2
+            Starting the game
+            Game Time - The Round
+            What you can do in a round
+            Winning
+            Losing
+            Marginal existence
+
+         BASIC FEATURES . . . . . . . . . . . . . . . . . . . . .  4
+            The forces at your command
+            Combat
+            The possible fleet missions
+            Some strategy hints for the beginning of the game
+            Some Middle to Endgame strategy hints
+
+         REFERENCE  . . . . . . . . . . . . . . . . . . . . . . . 10
+            The program menus
+            Planning your moves off-line
+            How to colonize a raw (unoccupied) planet
+            How to defend your planet from attack
+            Building and commissioning fleets.
+            Spying on your opponents
+            Conquering an enemy's planet
+
+         CONCLUSIONS  . . . . . . . . . . . . . . . . . . . . . . 17
+
+         APPENDICES . . . . . . . . . . . . . . . . . . . . . . . 18
+            A. Quick reference sheet
+            B. ROE (rules of engagement) settings
+            C. Esterian Conquest(tm) Menus
+            D. Feedback/suggestions sheet
+            E. Registration of Esterian Conquest(tm)
+            F. Esterian Conquest(tm) order form
+
+
+
+
+
+
+
+
+
+             ESTERIAN CONQUEST(tm) PLAYERS GUIDE (TEST DRIVE v1.5)
+
+
+
+         =============================================================
+                                 INTRODUCTION
+         =============================================================
+
+         Esterian Conquest has become the most popular door game on
+         almost every BBS on which it is available.  To our knowledge,
+         it is the most sophisticated on-line game for multiple
+         players and yet remains easy to play.  This manual covers the
+         basics of playing Esterian Conquest and has reference
+         sections for those who wish more in-depth material.  The
+         rules for play are learned quickly, but you must discover the
+         best strategies for winning on your own.
+
+         NOTE: For those wishing only "Quick Start" information, read
+         the "ECQSTART.DOC" file that came with this manual.
+
+
+
+         =============================================================
+                                  BACKGROUND
+         =============================================================
+
+         The year is 3000.  The powerful Esterians ruled the galaxy
+         for five centuries but then disappeared suddenly and
+         mysteriously.  Their unexpected absence led to the collapse
+         of interplanetary government.  Over the last hundred years,
+         the great Esterian empire decayed into a collection of one-
+         planet "mudpie" kingdoms.
+
+         Recently, the mood in the galaxy has shifted: The people
+         desire the greatness they once had.  They seek a leader who
+         can bring them from civil disorder to power.  But no one can
+         agree on whom this leader should be.
+
+         The planetary kingdoms held a galactic conference where each
+         brought their own candidate for emperor.  The conference
+         failed completely and ended with declarations of war.  Only
+         the one who can tame the galaxy could become emperor.
+
+         In this game, you are the leader of a planetary kingdom.
+         Your people are ready to follow you to victory (through your
+         great charisma or your iron fist).  The odds are against you
+         (there are up to 25 competitors for galactic rule), but if
+         you survive, and plan your strategies well, you may indeed
+         attain the emperor's crown and achieve the Esterian Conquest.
+
+
+
+
+
+                                       1
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              2
+
+         =============================================================
+                                   THE GAME
+         =============================================================
+
+         NUMBER OF PLAYERS:
+         -------------------------------------------------------------
+            The game can be played with 4, 9, 16, or 25 players.
+
+
+         OBJECT OF THE GAME:
+         -------------------------------------------------------------
+            Become ruler of the new Empire by one of two methods:
+
+            1. Have all the other players surrender & acknowledge you
+               as Emperor.
+
+            2. Fight to the "bitter end" by wiping out all other
+               serious contenders and forcing the remaining empires to
+               surrender.
+
+
+         HOW TO ACHIEVE YOUR GOAL:
+         -------------------------------------------------------------
+            Own enough planets through conquest or colonization to be
+            recognized as emperor.  Defeat opposing space fleets and
+            conquer their planets.
+
+
+         THE PLAYING FIELD (GALAXY):
+         -------------------------------------------------------------
+            The galaxy is a square grid whose size depends on the
+            number of players (4-player game grids are 18 x 18, 9-
+            player grids are 27 x 27, 16-player grids are 36 x 36 and
+            25-player grids are 45 x 45).  Each box (or SECTOR) is 1
+            square light year and is either empty or contains a solar
+            system.  The computer randomly generates the positions of
+            the solar systems at the start of each game.  Every solar
+            system has one planet which can be colonized.  The total
+            number of solar systems is 5 times the number of players.
+
+            The planets provide the raw materials used to build your
+            fleets and armies.  Each planet has a different amount of
+            available resources for production (measured in PRODUCTION
+            POINTS that can be generated in a year).  The planets
+            range in potential production from 10 to 150 points.
+
+
+         =============================================================
+                                   THE PLAY
+         =============================================================
+
+         STARTING THE GAME:
+         -------------------------------------------------------------
+            You begin with 1 planet having a current production level
+            of 100 points per year.  You start with four fleets: two
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              3
+
+            having a colonizing ship (ETAC) and a cruiser and two
+            containing one destroyer.
+
+            Set a tax rate (up to 65% is recommended) to generate
+            production points.  Spend these points to build ships,
+            armies, ground forces, and starbases.  As you colonize new
+            planets, you will want to lower your tax rate to help
+            the new planets develop their current production up
+            towards their maximum production levels.
+
+
+         GAME TIME - THE ROUND:
+         -------------------------------------------------------------
+            Each round equals one year of game time.  The players
+            enter their orders for the year.  The game stores these
+            orders and processes them simultaneously during its
+            maintenance period at the end of the round.  Rounds may
+            occur as often as once a day.  The Sysop determines the
+            time of day and schedule of maintenance.
+
+            You can enter and change your moves up until the end of
+            the round.  There is no advantage to entering moves
+            earlier or later so long as they get entered before the
+            round maintenance occurs.
+
+            During maintenance, the game carefully plots all fleets'
+            movements and battles.  In battles, it plays the movement
+            of each army or ship in a fleet individually.  It tallies
+            the results and displays them as messages for the players
+            on the following round.
+
+
+         WHAT YOU CAN DO IN A ROUND:
+         -------------------------------------------------------------
+            1. Manage your planets: order what the planet will build,
+               commission fleets, set production levels for the year.
+
+            2. Order your fleets: colonize raw (uninhabited) planets,
+               merge or detach ships from your fleets, fight enemy
+               fleets, spy on opponents, or conquer inhabited planets.
+
+            3. Communicate with other players: Negotiate alliances or
+               non-aggression pacts with other players to get help or
+               gang up on other contenders.  Diplomacy (some call it
+               lying) can win you enough time to recall a fleet to
+               protect a vulnerable world or put opponents off-guard
+               when you attack.
+
+            4. Access the Information Database (the "I" command from
+               most menus) to recall what you have learned about any
+               planet your fleets have encountered.  You can also view
+               a starmap (the "V" command from most menus) that shows
+               planet ownership and maximum production of any planets
+               you have seen.
+
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              4
+
+            5. Turn on AUTOPILOT from the GENERAL MENU and the
+               computer makes moves for you.  All fleets or planets
+               with orders will continue until they are fulfilled.
+               Those without standing orders take defensive positions.
+
+
+
+         WINNING:
+         -------------------------------------------------------------
+            You win by getting the other players to recognize you as
+            Emperor through your masterful diplomacy (or your foot on
+            their throats).
+
+
+         LOSING:
+         -------------------------------------------------------------
+            You lose if all your armies, fleets, and planets are
+            conquered.  If you lose all your planets your fleets will
+            start to defect unless you can recapture another planet.
+
+
+         MARGINAL EXISTENCE:
+         -------------------------------------------------------------
+            Owning planets is the key to building your empire.  If you
+            lose all your planets but you own fleets capable of
+            capturing new planets, you can rebuild your empire.
+
+            Similarly, if your armies and fleets are destroyed, but
+            you own planets, you can build more armies and fleets.
+            However, you are very vulnerable to attack.  This is why
+            building planetary defenses is important.
+
+
+
+         =============================================================
+                                BASIC FEATURES
+         =============================================================
+
+         THE FORCES AT YOUR COMMAND:
+         -------------------------------------------------------------
+            You control five major types of objects: Planets, Ships,
+            Starbases, Armies, and Ground Batteries.
+
+         PLANETS provide the resources for building ships, starbases
+            ground batteries and armies.  MAXIMUM PRODUCTION is the
+            maximum number of production points that your planet could
+            generate per turn if your factories were at full
+            efficiency and they were taxed at 100%.
+
+            CURRENT PRODUCTION is the number of production points that
+            your factories can generate at their present efficiency
+            level if taxed at 100%.
+
+            You impose taxes on your empire to generate production
+            points for military building (ships, bases, troops, etc.).
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              5
+
+            For example, setting your planet-wide tax rate to 60%
+            would generate 30 points for building next round on a
+            planet with a current production level of 50 points (60%
+            of 50 points).
+
+
+         SHIPS are organized into fleets and serve a variety of
+            functions.  A fleet can be as small as one ship and as
+            large as 3,000 ships of mixed types.  A fleet moves as
+            fast as its SLOWEST member.  For example, A Fleet of 10
+            destroyers (speed of 6) and 1 ETAC (speed of 3) has a
+            maximum speed of 3.
+
+            There are 6 types of starships -- 3 combat types and 3
+            specialized types.  Smaller ships are faster as a rule.
+            Below is a list of the different ship types, their size
+            (S,M,L), maximum speed (sectors/round), cost to build (in
+            production points), and suggested uses.
+
+            DESTROYER: A small, fast (speed=6), inexpensive (5 points)
+               combat ship.  It is best for attacks on unarmed ships
+               where it can overtake them.  Its speed also gives it a
+               chance to escape from more heavily armed fleets.
+
+            CRUISER: A medium size combat ship.  About 3 times more
+               powerful than a destroyer, they costs more (15 points)
+               and are a bit slower (speed=5).  The cruiser is a good
+               compromise between speed and power.  It's powerful
+               enough to hit what it can't outrun (destroyers) and
+               fast enough to outrun what it cannot outgun
+               (battleships).
+
+            BATTLESHIP: This large combat ship is the anchor of any
+               serious star fleet.  Three times more powerful than a
+               cruiser, it is expensive (45 points) and slow
+               (speed=4).
+
+            SCOUT: A good spy ship.  It is small and fast (speed=6)
+               with excellent sensors and stealth capabilities.  It is
+               expensive (15 points), but useful for reconnaissance
+               and difficult to detect by enemy fleets.
+
+            TROOP TRANSPORT: This ship is required for capturing
+               planets.  A medium size, intermediate speed ship
+               (speed=5).  It is inexpensive (5 points) and used
+               to move an army from one planet to another.  It holds
+               one army and is not armed.  This ship will drop an army
+               on a planet during an INVADE or BLITZ.
+
+            ETAC (Environmental Transformation And Colonization): A
+               large, slow (speed=3), expensive (20 points) ship used
+               to terraform and colonize uninhabited planets.
+
+
+
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              6
+
+         STARBASES are large space fortresses that play special roles.
+            Within a solar system, starbases protect and enhance the
+            planet.  A planet with a starbase orbiting can withstand
+            tax burdens better.  The starbase also enables a planet to
+            spend up to 5 times its current production level building
+            units (if you have that many production points stored on
+            the planet).  A starbase helps a planet increase its
+            current production level faster if the planet is not yet
+            producing at its maximum.
+
+            Outside the solar system, a starbase gives surveillance
+            reports on any alien fleets it finds.  It cannot attack
+            since it moves very slowly (1 sector per round), but
+            it can defend itself.  A starbase has slightly more fire
+            power than a battleship and can withstand more hits.
+            Starbases cost 50 production points to build.
+
+
+         ARMIES have two duties: (1) defend your planets from enemy
+            invasions and blitzes and (2) invade or blitz enemy
+            planets.  The only way to capture a planet owned by
+            another player is to land armies on its surface and defeat
+            his armies with yours.  Armies cost 2 production points to
+            build.
+
+
+         GROUND BATTERIES are land-based cannons that defend planets
+            against hostile starships.  Even though they cost 20
+            production points, they offer more "firepower per dollar"
+            than any starship.  Their firepower is roughly equal to
+            that of a battleship at less than half the cost.  Their
+            major disadvantage is that they cannot move and therefore
+            are easier to hit.
+
+
+         COMBAT:
+         ------------------------------------------------------------
+            A fleet with one or more combat ships (destroyer, cruiser,
+            or battleship) can engage in battle.  You specify the
+            aggressiveness of your fleet by assigning its ROE (Rules
+            of Engagement).  An ROE of zero means the fleet will avoid
+            everything at all cost.  An ROE of ten means the fleet
+            will attack anything, even if it is greatly outnumbered.
+            Appendix B lists all of the ROE levels.  Usually, the
+            stronger fleet wins, but sometimes a weaker fleet may
+            do more damage to the stronger fleet than it takes.
+
+            Your fleets may attack if they encounter the fleet of a
+            player you've declared to be an enemy.  However, your
+            fleets will always fight back if attacked.  Your fleets
+            will also attack if another player's fleets enter one of
+            your solar systems, or if they try to enter or leave a
+            planet that your fleet is blockading.
+
+
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              7
+
+         THE POSSIBLE FLEET MISSIONS:
+         -------------------------------------------------------------
+            You can order a fleet on one of 15 missions.  Some
+            missions require certain types of vessels.  After each
+            mission name, the required vessels follow in parentheses.
+
+         NONE (All ship types):  Hold position and do nothing.
+
+         MOVE FLEET (All ship types):  Move to the specified sector.
+
+         SEEK HOME (All ship types):  Move to the nearest planet you
+            own.  Should that planet be taken over by an enemy, the
+            fleet will move to the next closest planet you own.
+
+         PATROL A SECTOR (All ship types):  Move around a sector (but
+            not within a solar system even if the sector has a one)
+            and try to intercept any ENEMIES traveling through.  If
+            your fleet sees anything, it sends a report to you.
+
+         GUARD A STARBASE (combat ships):  Move to and escort a
+            specified starbase.  Help the starbase in a fight.  This
+            is useful if the starbase is guarding a planet so that the
+            combat ships work in coordination with the base.  A fleet
+            guarding a starbase may leave it if they have a high ROE
+            and an enemy fleet comes close to their solar system.
+
+         GUARD/BLOCKADE A WORLD (combat ships):  Prevent alien contact
+            with the planet you guard, including its owners if the
+            planet does not belong to you.  This mission is primarily
+            used to guard your planets from attack by other fleets.
+            However, blockading a planet that belongs to another
+            player is a way to intercept that player's ships which are
+            launching from or approaching his/her planet.
+
+         BOMBARD A WORLD (combat ships):  Pound the world, destroy its
+            production and anything orbiting the world, including
+            recently built ships stored in stardock.
+
+         INVADE A WORLD (combat ships and troop transports with
+            armies):  This is a three stage battle: (1) destroy all
+            the world's ground batteries (cannons), (2) pound the
+            population centers a little to soften resistance and take
+            out enemy armies, then (3) send in troop transports to
+            drop off your armies, but ONLY AFTER all ground batteries
+            have been destroyed.  This damages the planet and gives
+            them time to sabotage their industry before you take over,
+            but gives your armies a better chance of taking the
+            planet.  You succeed if you destroy all ground batteries
+            and then your armies defeat their armies.
+
+         BLITZ A WORLD (troop transports with armies -- combat ships
+            recommended).  Try to infiltrate your armies onto the
+            planet by dodging their ground batteries or distracting
+            them.  You succeed if your armies defeat their armies.
+            Since this form of attack is so quick, there is less
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              8
+
+            damage to the planet since the enemy does not have time to
+            sabotage their factories and since your combat ships do
+            not pound the surface very much.  However, you put your
+            armies at greater risk so you need many (twice as many as
+            the enemy or better) to insure success.
+
+         VIEW A WORLD (all ship types):  Go to the edge of a solar
+            system and do a long-range scan of the planet to find out
+            its potential production and who owns it.  Then back off
+            into the deep space area of the sector.
+
+         SCOUT A SECTOR (requires at least one scout ship):  Go into
+            deep space of a sector (and not inside any solar systems)
+            and look for alien fleets.  It will not engage enemy
+            fleets.  This is less effective than the PATROL SECTOR
+            order, but the scout ship is less likely to be noticed due
+            to its stealth, especially if you use a fleet made of only
+            one scout ship.
+
+         SCOUT A SOLAR SYSTEM (requires at least one scout ship):  Use
+            the scout's stealth equipment to get close to a world and:
+            (1) count ground batteries and armies, (2) Estimate
+            planet's current production and stardocks for currently
+            built ships, and (3) Scan the solar system for fleets.  A
+            fleet made of only one scout ship is least likely to be
+            detected because of the scout's stealth capability.
+
+         COLONIZE A WORLD (requires at least one ETAC):  Terraform and
+            colonize a raw (unowned) planet.  If the world is already
+            owned when you get there, report its owner and potential
+            production and then leave the solar system to await new
+            orders.
+
+         JOIN ANOTHER FLEET (all ship types):  Seek out the specified
+            host fleet and merge with it when they meet.  If the host
+            fleet is destroyed, all joining fleets will abandon their
+            mission.
+
+         RENDEZVOUS (all ship types):  Move to the specified sector
+            and merge with any other fleets ordered to rendezvous
+            there.  The fleet with the lowest ID Number becomes the
+            host fleet.  This order is useful for assembling large
+            fleets near enemy planets for later attack.
+
+         SALVAGE (all ship types):  Go to the specified planet and
+            scrap the ships there for approximately half the purchase
+            price in production points.
+
+         The fleet missions are summarized and arranged by mission
+         number in Appendix A of this Player's Guide.
+
+
+
+
+
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              9
+
+         SOME STRATEGY HINTS FOR THE BEGINNING OF THE GAME:
+         -------------------------------------------------------------
+         PRINT OUT A STARMAP.  From the GENERAL MENU, the game will
+            display the entire galaxy map on the screen.  You can use
+            your modem program to capture the display and then print
+            the map.  Your Information Database remembers all you
+            learn about each planet and you have the option to print
+            your map with planets' Maximum Production and Owners on
+            them.  This greatly aids your ability to plan your actions
+            and plot the actions of the other players.  Since your
+            information database keeps learning more as the game
+            progresses, you might want to print a new starmap somewhat
+            regularly.
+
+         BUILD ETACS.  Everyone starts with only one planet.  Since
+            there are 5 times as many planets in the galaxy as there
+            are players, there are many uncolonized planets.  Early
+            moves should focus on building the Colonizing ships
+            (ETACs) which terraform uninhabited planets and build
+            factories on the new planets for later production.  Your
+            ETACs will also tell you if they discover that a planet
+            has already been colonized by another empire.  The
+            information database records that information on your map
+            for later attacks.
+
+         SET THE TAX RATE FOR YOUR EMPIRE.  You build equipment by
+            spending the tax revenue production points you get on your
+            planets.  All your planets are assigned the same tax rate
+            (to avoid jealousies in your unstable empire).  You can
+            set a tax rate from 0 to 100%, but we don't recommended
+            setting it higher than 65% as some of your planets'
+            production may suffer.  If your planet has a starbase, it
+            may endure a tax rate of 67% to 70%, but there is no
+            guarantee.
+
+            There is a trade-off in setting your tax rate.  High taxes
+            give you more points to spend on equipment.  However,
+            newly colonized planets start with CURRENT PRODUCTION
+            much lower than the planet's MAXIMUM PRODUCTION.  These
+            current production levels grow much faster when taxes are
+            low.  Thus, you have to choose between getting immediate
+            revenue by setting taxes high, or greater long term
+            production by keeping tax rates low.
+
+         BUILD PLANETARY DEFENSES (Ground Batteries, combat ships,
+            Starbases and armies).  Spend a good number of production
+            points on defending your planets.  After the first few
+            rounds, your neighbors may discover your planets.  Later,
+            they may send their fleets to attack you.
+
+         BUILD COMBAT FLEETS.  Use some resources to build fleets
+            containing combat ships.  These fleets can initially guard
+            your planets and later conquer your opponents' planets.
+
+
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              10
+
+         BUILD STARBASES.  Starbases give your planets the ability
+            to spend production points beyond their current 
+            production levels, increases their defense and
+            accelerates their growth rates.
+
+         BUILD EXPLORATION FLEETS.  Fleets made up of a single
+            destroyer are fast and relatively inexpensive (5 points).
+            Ordering these fleets to view neighboring planets will
+            build up your Information Database and give you the data
+            to pick which planets you want to take.
+
+
+         SOME MIDDLE TO ENDGAME STRATEGY HINTS:
+         -------------------------------------------------------------
+         GET TOUGH.  Now the game takes an unfriendly turn.  There are
+            no raw planets available for colonization.  The only way
+            to get more planets is to take them away from other
+            players.  Naturally, they are looking to do the same to
+            you.  Develop both offensive and defensive forces.  Some
+            diplomacy can be very helpful in neutralizing threats, but
+            beware of possible betrayals.
+
+         DEVELOP PLANETARY DEFENSES.  Defending your planets becomes
+            much more important now.  Keep a number of armies on your
+            planet or your opponents will BLITZ and overrun your
+            armies.  GROUND BATTERIES (cannons) will fire on invading
+            ships.  The ground batteries also shoot at enemy TROOP
+            TRANSPORTs when they try to land armies on your planet.
+
+         BUILD OFFENSIVE FLEETS.  Use these fleets to take planets
+            away from your opponents.  Remember to build many troop
+            transport ships loaded with armies to capture planets.
+
+            If you are using the BLITZ attack, your armies should
+            outnumber the enemy's armies on the planet (a 2 to 1 ratio
+            is recommended).  See the section on capturing a planet
+            for full instructions.
+
+         BUILD SCOUT SHIPS TO SPY ON PLANETS.  The scout ship observes
+            enemy forces while hidden.  It sends a detailed report on
+            the planet's strength so you can know in advance whether
+            your invading fleet is strong enough to win against the
+            enemy (This is better than finding out the hard way!).
+
+
+
+         =============================================================
+                                   REFERENCE
+         =============================================================
+
+         THE PROGRAM MENUS:
+         -------------------------------------------------------------
+         You issue commands by selecting options from menus.  To
+            pick an option, type the option letter and press [ENTER].
+            A list of all menus and options appears in Appendix C.
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              11
+
+         OPTIONS COMMON TO ALL MENUS:
+            Five options available to all menus are: QUIT; HELP;
+            XPERT MODE ON/OFF; VIEW PARTIAL STARMAP; and INFORMATION
+            DATABASE.
+
+            QUIT ("Q"): usually returns you to a previous menu.  From
+               the main menu, the quit option leaves the game and
+               returns you back to the BBS.
+
+            HELP ("H"): gives a brief description of what each of the
+               options do for the current menu.
+
+            XPERT ON/OFF ("X"): Toggles expert mode on and off.
+               Normally, menus present a list of options and then
+               prompt you to pick the letter of an option.  Expert
+               mode saves you time by skipping the option list and
+               displaying only the prompt for a letter.  If you forget
+               the options while in expert mode, typing "X" and
+               [ENTER] will turn expert mode off and show you the full
+               menus again.
+
+            VIEW PARTIAL STARMAP ("V"): Displays a 17 x 17 portion of
+               the Galaxy map centered around your specified
+               coordinates.  Information Database knowledge of
+               planetary Ownership and Maximum Production are also
+               shown on the map.  You can slide the map by pressing a
+               number key plus [ENTER] as displayed on the screen.
+               Pressing the "5" plus [ENTER] will toggle the display
+               of maximum production.
+
+            INFORMATION DATABASE ("I"): will display whatever your
+               fleets have discovered about any planet.
+
+
+
+         MENU STRUCTURE: Esterian Conquest has four central menus.
+            These are: MAIN MENU, GENERAL COMMAND, PLANET COMMAND, and
+            FLEET COMMAND.
+
+
+
+         MAIN MENU:  The main menu transfers you to one of the other
+            three central menus ("G" for GENERAL COMMAND; "P" for
+            PLANET COMMAND; or "F" for FLEET COMMAND).  You can toggle
+            the ANSI graphics mode using the "A" command.  ANSI
+            graphics look better and can make information easier to
+            read.
+
+            Two summaries are available of your empire's production,
+            fleets, planets, and starbases: "D" gives a Detailed
+            Summary and "B" gives Brief Listings.
+
+            The "T" (Total Database) command gives a comprehensive
+            list of your Planetary Database.  It first asks you which
+            planets you want to view (All, Enemy owned, Neutral Owned,
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              12
+
+            Specific Empire, Unowned, or Unexplored Worlds).  Then it
+            offers options on how to sort the information (Location,
+            Range from a specified coordinate, Empire, or Maximum
+            Production).
+
+
+
+         GENERAL COMMAND: This menu offers four types of functions:
+
+            1. Turn autopilot mode on or off ("A").  If you will be
+               away or unable to submit orders, autopilot mode causes
+               the computer to play your empire for you (mostly
+               building your planetary defenses).  You can turn off
+               autopilot when you return.
+
+            2. Offer summary information: list of empires ("O"), a
+               profile of your empire ("P"), a review of undeleted
+               fleet reports or messages from other players ("R") and
+               the option to delete all messages or reports ("D").
+
+            3. Declare the other players to be neutral or enemies
+               ("E").  If you declare a player to be an enemy, your
+               fleets will automatically attack his/her fleets when
+               they are encountered.
+
+            4. Go to the MESSAGE COMMAND CENTER ("C").
+
+
+            MESSAGE COMMAND: Esterian Conquest has a message editor
+               for communicating with other players within the game.
+               To start a new message, type "N" (for Number of
+               Empire).  Enter the number and begin your message.
+               Finish your message by entering a blank line.  Send
+               your message with the "S" command.
+
+               The editor lets you to change, insert, delete, or move
+               lines.  It also allows you to send copies of your
+               message to multiple players.
+
+
+
+         PLANET COMMAND: list planets you own ("P" for brief, "F" for
+            Full); set the planetary tax rate for your empire ("T");
+            order planets to scorch their surface ("S") to prevent an
+            opponent from taking your factories; and loads ("L") or
+            unloads ("U") armies to or from troop transports.  Planet
+            Command also has two important sub-menus: ("B") BUILD ON
+            PLANET and ("C") COMMISSION SHIPS.  With the "A" (AUTO-
+            COMMISSION) command, you commission all newly built ships
+            as fleets for all planets.
+
+
+            BUILD ON PLANET: specify what to build with your revenue
+               production points to be ready next round.  You work on
+               one planet at a time.  Type "R" to review information
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              13
+
+               about the current planet.  The "S" (Specify builds)
+               option gives you summary of how many tax revenue points
+               you can spend; a list of objects you can build (see
+               appendix A) and their cost.  When you are done, choose
+               the "N" (Next Planet) option to go to the next of your
+               planet with points to spend, or choose "C" (Change
+               planet) if you want to work with a specific planet.
+
+
+            COMMISSION A FLEET: assigns a fleet number to any newly
+               built ships and lifts them out of stardock.  Starbases
+               are also commissioned.  You commission from one planet
+               at a time and can select the NEXT PLANET option to work
+               with the another planet that has vessels in stardock.
+
+
+
+         FLEET COMMAND: gives you lists of fleets ("B" for brief, "F"
+            for full list); review ("R") an individual fleet;
+            calculate Estimated Time of Arrival (ETA) for a fleet to
+            any sector ("E"); change their aggressiveness, ID, or
+            speed ("C"); detach ("D") or transfer ("T") ships from a
+            fleet; order a fleet on a mission ("O"); give a group of
+            fleets a common mission ("G"); merge two fleets ("M"); or
+            load ("L") / unload ("U") armies onto troop transports.
+            Fleet command has a submenu called STARBASE COMMAND, which
+            allows you to review or move a starbase.
+
+
+            STARBASE COMMAND: lets you see a list of starbases ("S");
+               review a particular starbase ("R"); or Move/Halt a
+               Starbase ("M").
+
+
+
+         ENTERING MULTIPLE COMMANDS: As you become more familiar with
+            the menus, you will know in advance what information needs
+            to be entered.  Esterian Conquest accepts multiple
+            commands in one line if they are separated by a space,
+            semi-colon, or comma.  For example, from the main menu,
+            entering: "P;B" + ENTER will move through the PLANET
+            COMMAND menu and then down to the BUILD ON PLANET menu.
+
+
+         PLANNING YOUR MOVES OFF-LINE.
+         -------------------------------------------------------------
+            Planning your moves when not connected to your BBS can
+            save on-line time.  This is especially important if you
+            have limited time on your BBS.  The best tool available
+            for your strategy is a printout of the galaxy map
+            (available from the GENERAL COMMAND MENU).  It enables you
+            to locate nearby stars and mark the planets which belong
+            to your opponents.  To get the galaxy map, capture the map
+            through your telecommunications program as it displays on
+            the screen and print the captured map.
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              14
+
+
+            Obtain an empire summary from the GENERAL COMMAND MENU.
+            Activate the capture mode option of your modem program and
+            save the empire summary that appears on the screen.  It
+            provides a thorough report of the status of your planets
+            and fleets.  That way, you can get a complete summary in a
+            few minutes and then log off to plan your moves.
+
+
+         HOW TO COLONIZE A RAW (UNOCCUPIED) PLANET.
+         ------------------------------------------------------------
+         REQUIREMENTS: You need a fleet that contains at least one
+            ETAC (Environmental Transformation And Colonization ship).
+
+         PROCEDURE: From the Fleet Menu, order the fleet on mission
+            number 12 (colonize a planet).  Specify the X and Y
+            coordinates of the planet you want to colonize and the
+            fleet will proceed.  ETACs can be used unlimited times to
+            colonize planets since they get their raw materials from
+            the planets themselves.  When the ETAC fleet reaches the
+            planet, it will send you a report.  It will terraform an
+            unowned planet.  If the planet is owned, ETACs will report
+            the owner and the planet's potential production.
+
+
+         HOW TO DEFEND YOUR PLANET FROM ATTACK.
+         ------------------------------------------------------------
+            There are many ways you can defend your planet: (1) build
+            armies to prevent it from being invaded; (2) construct
+            ground batteries (land cannons) to shoot at any invading
+            ships or troop transports, (3) build fleets to guard and
+            blockade other ships in space, (4) construct starbases to
+            reinforce and defend the planet (if you have a fleet and a
+            starbase around a planet, order the fleet to guard the
+            starbase), and (5) eliminate your enemies before they get
+            to you (the best defense is a good offense).
+
+            Each method has its own strengths and weaknesses.  Using
+            fleets and starbases to guard your planet from space keeps
+            enemy ships away and, if successful, prevents enemy ships
+            from firing on the planet and damaging production.  Some
+            enemy fleets (especially those with fast ships) might slip
+            past your defenses and gain access to the planet.
+
+            Ground defenses (armies and ground batteries) protect the
+            planet directly from attack.  However, they are your last
+            lines of defense.  Enemy combat ships kill your armies and
+            ground batteries when they fire on the planet.  When enemy
+            armies land on your planet, they fight your armies.  The
+            ownership of the planet goes to the victorious army.
+
+            Obviously, it is best to combine land-based and space
+            defenses.  Be certain to build armies on your planet.  If
+            an enemy uses the BLITZ attack, the enemy armies will
+            dodge your combat defenses and land to oppose your armies.
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              15
+
+
+            When you know an enemy is approaching your planet with an
+            unstoppable fleet, you can use the SCORCH EARTH option
+            of the Planet Command Menu.  This causes your planet to
+            destroy its factories and make them useless to your enemy.
+
+
+         BUILDING AND COMMISSIONING FLEETS.
+         ------------------------------------------------------------
+            Use taxed revenue production points from your planets to
+            build ships.  From the PLANET COMMAND menu, select the
+            BUILD COMMAND menu, specify build orders, and spend the
+            production points necessary (see Appendix A) for the type
+            of ship.  All equipment takes one turn to build.
+
+            Newly built ships are stored in your planet's stardock,
+            and are ready for use.  Activate them by COMMISSIONING
+            them, which means you assign them to fleets.  From the
+            PLANET COMMAND menu, you can commission all ships from all
+            planets at once with the AUTO-COMMISSION option, or
+            tailor your fleet commissions by selecting the COMMISSION
+            COMMAND option.
+
+            IMPORTANT NOTE: Troop transports are empty when you
+            commission them.  You must load armies onto them from your
+            planets.  Use the "L" option from either the PLANET
+            COMMAND or FLEET COMMAND menus.  Troop transports must be
+            loaded with armies in order to capture planets.  Build
+            extra armies on your planets for loading onto troop
+            transports.
+
+            Commissioned fleets are assigned a number.  Occasionally,
+            you will want to add newly constructed ships to existing
+            fleets.  If the merging fleets are in the same sector,
+            issue the MERGE command from the FLEET COMMAND menu.
+            Otherwise, order the newly formed fleet to join the other
+            fleet.
+
+            When you commission fleets containing combat ships, you
+            control how aggressive they are by assigning them a Rules
+            Of Engagement value (ROE -- see Appendix B for the
+            list of possible ROE values).  As the ROE gets higher,
+            your fleet will be more aggressive and fight with enemy
+            fleets of greater strength relative to your own.  With low
+            ROE scores, your fleets will attempt to flee more easily.
+            Setting low ROE values does not guarantee safety for your
+            fleet, since the enemy has an opportunity to fire on them
+            while they flee.
+
+            Match the types of ships built with the mission you want
+            your fleets to accomplish.  Simple missions might require
+            one type of ship such as colonizing a planet (requires at
+            least one ETAC), scouting a planet (requires at least one
+            scout ship), or blockading a planet (requires combat ships
+            with firepower).  Some missions require combinations of
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              16
+
+            ships.  For example, invading a planet requires combat
+            ships and troop transports loaded with armies.
+
+            Some players prefer to build general purpose fleets which
+            can accomplish many types of missions.  An advantage of
+            mixed fleets is that combat ships can protect non-combat
+            ships.  In addition, a mixture of combat ship types
+            (destroyers, cruisers, and battleships) do better in
+            battle since they can employ tactics not available to
+            fleets of one ship type.
+
+            Disadvantages of larger mixed fleets are that the speed of
+            the fleet is limited to that of its slowest member.  Also,
+            with fewer large fleets, you cannot cover as much ground
+            as you can with many moderate sized fleets.  Many players
+            seem to prefer having one or two huge fleets which act on
+            the information of smaller scouting or defensive fleets.
+
+
+         SPYING ON YOUR OPPONENTS.
+         ------------------------------------------------------------
+            Once all the uninhabited planets have been colonized, you
+            must capture inhabited planets by force.  Gathering
+            intelligence is a necessity.  Any ship can view a planet
+            and report on its owner and production potential.  Through
+            this intelligence, you can map the empires of other
+            players and decide which planets are worth capturing.
+
+            Scout ships give more detailed reports, including the
+            planetary defenses (ground batteries and armies), contents
+            of the planet's stardock, and information on any fleets or
+            starbases which might be orbiting the planet.
+
+
+         CONQUERING AND ATTACKING AN ENEMY'S PLANET.
+         ------------------------------------------------------------
+            There are three methods of assaulting a planet: the BLITZ
+            mission, the INVADE mission, and the BOMBARD mission.  The
+            blitz and invade missions attempt to capture the planet,
+            while the bombard mission pummels planets in order to make
+            them useless to the owners.  Once you conquer a planet,
+            remember to guard it from recapture.  Planets need two
+            turns before factories are fully converted and start
+            producing tax revenue points for you.
+
+         THE BLITZ: (Requires Loaded troop transports in much greater
+            number than the armies on the planet.  Combat ships are
+            recommended for escort and cover fire).  Your fleets will
+            attempt to distract the planet's ground batteries and
+            deposit your armies.  Then your armies will battle the
+            armies of the planet.  The winner earns ownership of the
+            planet.  The planet will often not be very damaged because
+            the speed of your attack prevents attempts at sabotage and
+            because your combat ships do not fire very much on the
+            planet.  For the blitz, you need an overwhelming number of
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              17
+
+            armies compared to those of the planet (they have an
+            advantage of familiarity with their terrain).
+
+         THE INVADE: (Requires Sufficient combat ships to disable the
+            ground batteries and then enough loaded troop transports
+            to defeat the remaining armies on the planet surface).
+            Your combat ships fight the planet's ground batteries.
+            After all the ground batteries are destroyed, you land the
+            armies with your transport to fight the remaining surface
+            armies.  The winner takes control.  Invaded planets take
+            damage because of your bombardment of the planet and time
+            in which the planet's forces can sabotage factories.  The
+            advantage of invading is that your bombardments also
+            reduce the number of armies on the surface and give your
+            armies better odds of winning the planet.
+
+         THE BOMBARD attack: (requires sufficient combat ships to
+            damage a planet's resources).  The goal of the bombard
+            mission is to reduce a planet's production and make it
+            unusable to its owner.  Use this mission if you do not
+            have enough armies to capture a planet, or wish to cut
+            down your enemy's production.
+
+
+
+         =============================================================
+                                  CONCLUSIONS
+         =============================================================
+
+         This manual is a basic guide to get you started with some
+         basic strategies to consider at the beginning of the game.
+         As in chess, you can learn how to move the pieces in a short
+         time, but learning to master the game may take a lifetime.
+         After reading this guide, you are now familiar with the
+         capabilities and possible actions of your forces.  The task
+         of coordinating your forces remains up to you.  Very
+         elaborate campaigns, bluffs, and betrayals are possible.
+
+         A FINAL NOTE:  We want your feedback and suggestions.  This
+         game is the result of consultations with many experienced
+         gamers and sysops.  We are always looking for new ways to
+         enrich the play or add a wrinkle to Esterian Conquest.
+         Appendix D is a feedback sheet set up for this purpose.
+
+
+
+
+         NOW STOP READING AND PLAY!  THERE'S A GALAXY TO CONQUER.
+
+
+
+
+
+
+
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              18
+
+         =============================================================
+                       APPENDIX A.  QUICK REFERENCE SHEET
+         =============================================================
+
+
+         MACHINERY YOU CAN BUILD:
+         -------------------------------------------------------------
+                            BUILD        MAX.
+         ITEM               COST   SIZE  SPEED   PURPOSE
+         -------------------------------------------------------------
+         DESTROYER            5      S     6     Combat / Defense
+         CRUISER             15      M     5     Combat / Defense
+         BATTLESHIP          45      L     4     Combat / Defense
+
+         SCOUT               15      S     6     Spy on Planet/Sector
+         TROOP TRANSPORT      5      M     5     Land armies on Planet
+         ETAC                20      L     3     Colonize a Raw Planet
+
+         GROUND BATTERY      20      L    n/a    Defend Planet
+         ARMY                 2      S    n/a    Defend Planet Surface
+
+         STARBASE            50      L     1     Enhance / Defend
+         -------------------------------------------------------------
+
+
+
+         POSSIBLE MISSIONS FOR FLEETS LISTED BY THEIR MISSION NUMBERS:
+         -------------------------------------------------------------
+          No.  MISSION                    REQUIREMENTS (if any)
+         -------------------------------------------------------------
+           0   None (hold position)       None. All ships can do this.
+           1   Move Fleet (only)          None. All ships can do this.
+           2   Seek Home                  None. All ships can do this.
+           3   Patrol a Sector            None. All ships can do this.
+           4   Guard a Starbase           Combat ship(s).
+           5   Guard/Blockade a World     Combat ship(s).
+           6   Bombard a World            Combat ship(s).
+           7   Invade a World             Combat ship(s) & Loaded
+                                            Troop Transports.
+           8   Blitz a World              Loaded Troop Transports.
+           9   View a World               None. All ships can do this.
+          10   Scout a Sector             At least one scout ship.
+          11   Scout a Solar System       At least one scout ship.
+          12   Colonize a World           At least one ETAC.
+          13   Join another fleet         None. All ships can do this.
+          14   Rendezvous at Sector       None. All ships can do this.
+          15   Salvage                    None. All ships can do this.
+         -------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              19
+
+         =============================================================
+                APPENDIX B.  ROE (RULES OF ENGAGEMENT) SETTINGS
+         =============================================================
+
+
+            You only assign ROE for Fleets that contain Combat ships.
+         Any fleet with only non-combat ships automatically gets an
+         ROE of zero to avoid being destroyed by armed enemy fleets.
+
+
+         POSSIBLE ROE (RULES OF ENGAGEMENT):
+         -------------------------------------------------------------
+          ROE   CONDITIONS TO ENGAGE HOSTILE FLEETS IN BATTLE
+         -------------------------------------------------------------
+           0    Avoid all hostile fleets.  (Non-combat Fleets)
+           1    Engage fleets only if they are defenseless.
+           2    Engage fleets only if your advantage is 4:1 or better.
+           3    Engage fleets only if your advantage is 3:1 or better.
+           4    Engage fleets only if your advantage is 2:1 or better.
+           5    Engage fleets only if your advantage is 3:2 or better.
+           6    Engage hostile fleets of equal or inferior strength.
+           7    Engage hostile fleets even if outgunned 3:2.
+           8    Engage hostile fleets even if outgunned 2:1.
+           9    Engage hostile fleets even if outgunned 3:1.
+          10    Engage hostile fleets regardless of their size.
+         ------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              20
+
+         =============================================================
+                    APPENDIX C. ESTERIAN CONQUEST(tm) MENUS
+         =============================================================
+
+
+         OPTIONS AVAILABLE TO ALL MENUS:
+         ------------------------------------------------------------
+           H>elp with commands         V>iew Partial Starmap
+           Q>uit to previous Menu      I>nfo about a Planet
+           X>pert mode ON/OFF
+         ------------------------------------------------------------
+
+
+         MAIN MENU COMMANDS:
+         ------------------------------------------------------------
+           A>nsi color ON/OFF          T>otal Planet Database
+           G>ENERAL COMMAND MENU...    I>nfo about a Planet
+           P>LANET COMMAND MENU...     B>rief Empire Report
+           F>LEET COMMAND MENU...      D>etailed Empire Report
+         ------------------------------------------------------------
+
+
+         GENERAL COMMAND CENTER:
+         ------------------------------------------------------------
+           A>utopilot ON/OFF            R>eview messages/results
+           S>tatus, your                D>elete ALL messages/results
+           P>rofile of your empire      O>ther empires (rankings)
+           M>ap of the galaxy           E>nemies, declare or list
+           C>ommunicate (send message)
+         ------------------------------------------------------------
+
+
+         MESSAGE COMMAND CENTER:
+         ------------------------------------------------------------
+           L>ist message                    I>nsert a line
+           C>ontinue message                D>elete a line
+           S>end (transmit) message         M>ove a line
+           N>ew addressee for message       E>dit a line
+           R>emove message from memory
+         ------------------------------------------------------------
+
+
+         PLANET COMMAND CENTER:
+         ------------------------------------------------------------
+           C>OMMISSION MENU            T>ax rate: Empire
+           A>UTO-COMMISSION            S>corch planets
+           B>UILD MENU...              L>oad TTs w/Armies
+           D>etail Planet List         U>nload TT Armies
+           P>lanet: Brief List
+         ------------------------------------------------------------
+
+
+         (Continued)
+
+
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              21
+
+              APPENDIX C. ESTERIAN CONQUEST(tm) MENUS  (Continued)
+
+
+         BUILD ON CURRENT PLANET: "Planet Name" IN SYSTEM (15,32):
+         ------------------------------------------------------------
+           P>lanets, List your         S>pecify Build Orders
+           R>eview current planet      A>bort planet's builds
+           C>hange current planet      L>ist builds
+           N>ext planet
+         ------------------------------------------------------------
+
+
+         COMMISSION FROM PLANET: "Planet Name" IN SYSTEM (15,32):
+         ------------------------------------------------------------
+           P>lanets, List your         B>ases, commission
+           R>eview current planet      F>leet, commission
+           C>hange current planet      L>ist stardock contents
+           N>ext planet                I>nfo about a planet
+         ------------------------------------------------------------
+
+
+         PLANET COMMAND CENTER:
+         ------------------------------------------------------------
+           S>TARBASE MENU...           D>etach Ships
+           B>rief Fleet List           T>ransfer Ships
+           F>ull Fleet List            O>rder a Fleet
+           R>eview a Fleet             G>ROUP FLEET ORDER
+           E>TA Calculation            M>erge a Fleet
+           C>hange ROE,ID,Speed        L>oad TTs w/Armies
+                                       U>nload TT Armies
+         ------------------------------------------------------------
+
+
+         STARBASE COMMAND:
+         ------------------------------------------------------------
+           S>tarbases-List
+           R>eview a Starbase
+           M>ove/Halt Starbase
+         ------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              22
+
+         =============================================================
+                    APPENDIX D.  FEEDBACK/SUGGESTION SHEET
+         =============================================================
+
+         Please Mail Suggestions or Comments to:
+
+         ATTN: ESTERIAN CONQUEST(tm)
+         Griffith International
+         P.O. Box 530703
+         Birmingham, AL 35253
+
+
+         YOUR NAME: _________________________________________________
+
+         STREET...: _________________________________________________
+
+         CITY, STATE  ZIP: __________________________________________
+
+
+         FEEDBACK/SUGGESTIONS ON ESTERIAN CONQUEST
+
+         VERSION NUMBER (Appears when you log in): __________________
+
+         BBS YOU PLAY ON: ___________________________________________
+
+         BBS PHONE NUMBER: (______) ______ - ____________
+
+
+         COMMENTS:
+
+         ____________________________________________________________
+
+         ____________________________________________________________
+
+         ____________________________________________________________
+
+         ____________________________________________________________
+
+         ____________________________________________________________
+
+         ____________________________________________________________
+
+         ____________________________________________________________
+
+         ____________________________________________________________
+
+         ____________________________________________________________
+
+         ____________________________________________________________
+
+         ____________________________________________________________
+
+
+
+
+
+
+
+      ESTERIAN CONQUEST(tm) PLAYERS GUIDE (VERSION 1.5)              23
+
+         =============================================================
+             APPENDIX E. REGISTRATION OF ESTERIAN CONQUEST(tm)
+         =============================================================
+
+         You can register your version of ESTERIAN CONQUEST(tm) for
+         your BBS.  Currently ESTERIAN CONQUEST(tm) runs on any IBM
+         PC,XT,AT,PS/2 or compatible having the following:
+
+            MS-DOS version 2.11 or later.
+
+            512K of internal memory (640K recommended).
+
+            A hard disk with at least 1 MB free disk space.
+
+            BBS software that can generate any of the following door
+            file formats:
+
+               PCBOARD.SYS  . . . . (PCBoard v14+)
+               DOOR.SYS . . . . . . (as suggested by GAP software)
+               DORINFOx.DEF . . . . (QBBS, RBBS, RA, FoReM, etc.)
+               CALLINFO.BBS . . . . (Wildcat!)
+               SFDOORS.DAT. . . . . (Spitfire)
+               CHAIN.TXT  . . . . . (WWIV)
+               INFO.BBS . . . . . . (Phoenix software)
+
+
+         ADVANTAGES OF REGISTERING YOUR ESTERIAN CONQUEST(tm) PROGRAM:
+         -------------------------------------------------------------
+            A campaign will run for unlimited time (the Shareware
+            version stops each game after 30 rounds).
+
+            Discounts for minor revisions and upgrades:
+
+               All minor revisions are free.
+               
+               Upgrades (major revisions) are available for a
+               substantial discount.
+
+            Your name and BBS name will be encrypted into the program
+            and will appear to all who use the game.  Registration
+            messages appearing at the beginning of the game are
+            removed.
+
+            A professionally printed manual containing both the
+            SYSOP's guide and the PLAYER's guide.
+
+            BBS support for questions.
+
+            VOICE support for bug information.  We correct program
+            bugs and send you the corrected version absolutely free.
+
+
+
+
+
+
+
+
+                    ESTERIAN CONQUEST(tm) REGISTRATION FORM
+
+    Make checks or money                 Send your order to:
+    orders payable in                      ATTN: ESTERIAN CONQUEST(tm)
+    U.S. Currency to:                      Griffith International
+      GRIFFITH INTERNATIONAL               P.O. Box 530703
+                                           Birmingham, AL 35253
+
+    PAYMENT INFORMATION:
+       Description                                    Each      Total
+       --------------------------------------------   ------    -----------
+
+       ESTERIAN CONQUEST(tm) DOOR GAME             US $35.00    US $35.00
+       Check One:  [] 5.25" Disk    [] 3.5" Disk
+
+
+       SHIPPING AND HANDLING:        Inside U.S.   US  $4.00    ___________
+       (Required on all orders)
+                                     Canada        US  $5.00    ___________
+
+                         Outside U.S. and Canada   US $10.00    ___________
+
+
+                                           TOTAL ENCLOSED:   US $__________
+
+
+    ENTER NAMES AS YOU WANT THEM TO APPEAR ON THE GAME SCREEN:
+
+       Sysop Name(s): ____________________________________________________
+
+       BBS Name: _________________________________________________________
+
+
+    SHIP TO:
+       Name: _____________________________________________________________
+
+       Address: __________________________________________________________
+
+                __________________________________________________________
+
+    PHONE:
+       Voice: (______)_________________    BBS: (______)__________________
+
+    TYPE OF BBS SOFTWARE: ________________________   VERSION: ____________
+
+    HOW DID YOU HEAR OF THE GAME? (Check Main Sources):
+       [] Download from Support BBS (Salt Air, WildCat, etc.): ___________
+       [] Download from a local BBS
+       [] User(s) Requested/Uploaded Game to BBS
+       [] Played on another BBS
+       [] ECHO Conference(s): ____________________________________________
+       [] Sysop or friend told you about Esterian Conquest
+       [] Other: _________________________________________________________
+
+    DID YOUR USERS PAY FOR THIS REGISTRATION?:   [] All   [] Part   [] None
+
+
+
+
+
+    __________________________________                            +-------+
+                                                                  | Place |
+    __________________________________                            | Stamp |
+                                                                  | Here  |
+    __________________________________                            +-------+
+
+
+
+
+                             ATTN: ESTERIAN CONQUEST(tm)
+                             Griffith International
+                             P.O. Box 530703
+                             Birmingham, AL 35253
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    Place Feedback Form or Order Form inside this page.  Fold into thirds.
+    Insert any checks or money orders.  Tape on bottom and sides.
+
+
+

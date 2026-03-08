@@ -1,0 +1,178 @@
+
+    =======================================================================
+                     ESTERIAN CONQUEST HISTORY OF REVISIONS
+    =======================================================================
+
+    Edited:  07/29/1992
+    Current EC Version: 1.50: Multi-node galactic battle game that supports
+        7 major BBS door file formats and is tested on configurations using
+        NOVELL(tm), Lantastic(tm), and Desqview(tm).
+
+    NEW: Two new Fleet missions; an intelligence database that remembers
+        and displays planet information that players encounter; features to
+        speed up order entry such as auto-commission from all planets,
+        ability to order a group of fleets at a time, and enhanced fleet
+        reports; Registration Key file that allows sysops to convert
+        revised test-drive versions to registered versions on their BBSs;
+        and much more...
+
+    We kept on listening to our users and found out what they wanted most.
+    The result is a much improved and more playable version of Esterian
+    Conquest.  Users will enjoy the new missions, the intelligence
+    database, and the new fleet views to help plan their missions.  Sysops
+    will appreciate our new key file system.  With your key file, you can
+    "unlock" the registered features of any test drive version 1.x so that
+    you simply download a new test drive and have it behave as a registered
+    version (no more postage & handling fees for any future 1.x versions).
+
+    VERSION 1.50 will be sent to all registered users for a shipping &
+    handling fee of $4.00.
+
+
+    -----------------------------------------------------------------------
+    VERSION 1.50 (Released 07/29/92):
+    -----------------------------------------------------------------------
+
+    USER INTERFACE (ECGAME):
+       1. Two New Missions: (a) RENDEZVOUS - fleets move to and merge at a
+             specified sector.  (b) SALVAGE - fleets move to a planet and
+             are salvaged as production points at half their value.
+       2. GROUP ORDERS: order up to 500 fleets on the same mission at the
+             same time.  Save time over ordering them individually.
+       3. INTELLIGENCE DATABASE: See the status of any planet you viewed or
+             scouted.
+       4. AUTO-COMMISSION: Commission Fleets and starbases in all stardocks
+             with one command.  Scouts are commissioned into individual
+             fleets.
+       5. FLEET VIEW ENHANCEMENTS: You can now view fleets in order of
+             increasing distance from a specified sector.  When viewing by
+             ID or Mission, you can now specify a starting value.
+       6. MESSAGE AND RESULT ENHANCEMENTS: View all messages and results
+             nonstop.  Delete all messages or all results in one step.
+       7. DETACH AND TRANSFER IMPROVEMENTS: Detach or transfer ships from a
+             fleet without aborting the original mission.  The original
+             mission aborts only if the original fleet cannot continue it.
+       8. CHANGE FLEET SPEED as well as ROE and ID.
+       9. EMPIRE LISTS now show previous year's Planets owned & production.
+
+
+
+                                            WHAT'S NEW FOR EC v1.20   - 2 -
+
+    VERSION 1.50 (Changes Continued):
+    -----------------------------------------------------------------------
+
+    MAINTENANCE (ECMAINT)
+       1. IMPROVED MEMORY MANAGEMENT - ECMAINT requires less memory.
+       2. NEW COMBAT SIMULATIONS - damage from fleet-to-fleet or fleet-to-
+             planet combat is more realistic.  Large fleets no longer
+             demolish small fleets without taking some damage of their own.
+             Similarly, planets are better able to defend themselves from
+             invading fleets.
+       3. ECMAINT /C option now works to close files and force unclaimed
+             empires to become rogues.
+
+
+    -----------------------------------------------------------------------
+    VERSION 1.11 (Released 05/25/91):
+    -----------------------------------------------------------------------
+
+    KNOWN BUGS THAT WERE EXTERMINATED:
+       1. Fleets occasionally refused to attack planets.
+       2. On rare occasions, fleets with orders to join a host fleet
+             mistakenly thought their host was destroyed.
+       3. Some planets with all armies destroyed suddenly gained a very
+             large number of armies.
+       4. Starbases were incorrectly listing fleets as escorts even after
+             the fleets left them.
+       5. Planets were allowed to have blank names.
+       6. Snoop could not be turned off.
+
+    NEW FEATURES:
+       1. Fleets can now be listed by destination.  Fleets with the same
+             destination are sorted by ETA so you can tell the order in
+             which they will arrive.
+       2. Brief fleet reports now show the fleets' ROE and ETA.
+       3. The stardate now appears in the Rankings file.
+       4. Sysops can now assign interrupt request (IRQ) numbers and
+             hardware flow control to COM1, COM2, COM3, and COM4.
+
+    NEW ECFIX UTILITY:
+       We have added the ECFIX utility to restore game files in the
+       unlikely event that they become corrupted.  In some cases, messages
+       and recent orders may be lost.  However, our tests show that
+       restored games are very close to the undamaged ones.
+
+
+
+    -----------------------------------------------------------------------
+    VERSION 1.10 (Released 03/01/91):
+    -----------------------------------------------------------------------
+
+       1. Now supports these BBS Software packages: PCBOARD, GAP, RBBS,
+       QBBS, RA, FoReM, WILDCAT, SPITFIRE, WWIV, PHOENIX, and any BBS
+       package that can generate one of the following door files:
+       PCBOARD.SYS, DOOR.SYS (GAP standard), DORINFOx.DEF, SFDOORS.DAT,
+       CALLINFO.BBS, INFO.BBS, or CHAIN.TXT.
+
+
+
+                                            WHAT'S NEW FOR EC v1.20   - 3 -
+
+    VERSION 1.10 (Continued)
+    -----------------------------------------------------------------------
+       2. When running ECGAME, you can specify the door file name or just
+          the path and it will hunt for a valid door file.
+             Ex:  PCGAME \BBS\DOOR.SYS  (specific file name)
+                  PCGAME \BBS           (search for file in BBS directory)
+
+       3. More stable interrupt-handling routines to prevent some rare
+          clashes with other interrupt-driven software such as
+          Lantastic(tm).
+
+       4. Esterian Conquest is now Desqview(tm) aware.
+
+       5. A new FIRST-TIME menu for users to browse a game before joining.
+    -----------------------------------------------------------------------
+
+
+    -----------------------------------------------------------------------
+    VERSION 1.02 (Released 01/07/91):
+    ----------------------------------------------------------------------
+       1. Corrected minor bug which occasionally would not let users into
+          the game at late hours.
+
+       2. Beep alarms for the users no longer echo on the sysop side.
+
+       3. Streamlined and modularized internal programming (the files are
+          smaller and run more efficiently).
+    -----------------------------------------------------------------------
+
+
+    -----------------------------------------------------------------------
+    VERSION 1.01 (Released 01/02/91):
+    -----------------------------------------------------------------------
+       1. Corrected PO box address which was wrong in earlier
+       documentation.
+    -----------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

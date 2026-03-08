@@ -1,0 +1,178 @@
+
+                ESTERIAN CONQUEST(tm) README FILE (Version 1.5)
+
+    This document offers quick installation information for Esterian
+    Conquest.  If your BBS is like most, Esterian Conquest will become one
+    of the most requested and used door programs you own.  Our goal is to
+    create the best and most used BBS door game in existence.
+
+
+    FEATURES THAT SYSOP'S LIKE ABOUT ESTERIAN CONQUEST:
+    -----------------------------------------------------------------------
+
+    LOW-MAINTENANCE.  Esterian Conquest is easy to install and is self-
+       reliant.  Simply install the program, initialize one or more games,
+       and forget about it.  This is a very well behaved program that runs
+       reliably and returns to your BBS software correctly when done.
+
+    SELF-CORRECTING.  Esterian Conquest automatically backs up the previous
+       state of a game before processing moves.  It also checks the
+       integrity of the data files before using them.  If any errors exist,
+       it restores the previous backup so only one turn is lost at most.
+
+    BULLETPROOF.  Esterian Conquest handles the serial communications
+       hardware and interrupts.  It does not get disrupted by line noise or
+       phone disconnection, nor does it miss characters typed by players.
+
+    MULTI-NODE.  Esterian Conquest will support simultaneous multi-node
+       play regardless of your BBS configuration.
+
+    CUSTOMIZED OPERATION.  You can control many aspects of Esterian
+       Conquest.  Set the maximum number of players, reserve empires for
+       particular users, specify the days of the week moves are processed
+       and much more (see the Sysop's Guide about the ECUTIL program).
+
+
+    FEATURES THAT YOUR USERS WILL LOVE:
+    -----------------------------------------------------------------------
+
+    REALISTIC ACTION: Sophisticated simulations of battle, planetary
+       growth, and espionage make them feel like they're really there.
+       They command 7 types of ships.  They order fleets on 15 possible
+       missions and they have total control of their planets: directing
+       production, setting tax levels, and building defenses.
+
+    ADVANCED, YET EASY TO USE: Well-structured menus accept commands.
+       Optional ANSI graphics are available for all menus and charts.
+       Multiple commands can be issued on one line -- the program will
+       remember and process them.  Expert mode speeds up the game and on-
+       line help is available for any menu.
+
+    EXTRAS THAT GO THE FULL NINE YARDS:  They can send messages to other
+       players with the built-in text editor.  Autopilot mode will care for
+       empires if they are away for a while.  All results of their missions
+       are reported in word-wrapped, realistic messages.
+
+
+
+
+
+        ESTERIAN CONQUEST README FILE (Version 1.5)                    2
+
+
+    SYSTEM REQUIREMENTS FOR ESTERIAN CONQUEST
+    -----------------------------------------------------------------------
+       Esterian Conquest will run on any IBM PC,XT,PS/2, or compatible
+       machine with the following capacities:
+
+          MS-DOS version 2.11 or later.
+
+          512K of internal memory (640K is recommended for larger games
+          involving 25 players).
+
+          A hard disk with at least 1MB available disk space.
+
+          BBS software that can generate any of the following door file
+          formats:
+
+             PCBOARD.SYS  . . . . (PCBoard v14+)
+             DOOR.SYS   . . . . . (as suggested by GAP software)
+             DORINFOx.DEF . . . . (QBBS, RBBS, RA, FoReM, etc.)
+             CALLINFO.BBS . . . . (Wildcat!)
+             SFDOORS.DAT. . . . . (Spitfire)
+             CHAIN.TXT  . . . . . (WWIV)
+             INFO.BBS . . . . . . (Phoenix software)
+
+
+    FILES ON THE PROGRAM DISKETTE
+    -----------------------------------------------------------------------
+       ECUTIL.EXE ..... Esterian Conquest Sysop Utility.
+       ECGAME.EXE ..... The User Interface.
+       ECMAINT.EXE .... The Maintenance Program.
+
+       WHATSNEW.DOC ... Changes or updates to Esterian Conquest.
+       ECREADME.DOC ... This brief installation document for sysops.
+       ECSYSOP.DOC  ... Esterian Conquest Sysops Guide.
+       ECQSTART.DOC ... Quick start document for players.
+       ECPLAYER.DOC ... Esterian Conquest players' Guide.
+
+
+    INSTALLING ESTERIAN CONQUEST
+    -----------------------------------------------------------------------
+       Esterian Conquest is easily installed in four steps: (1) Copy
+       program files into a directory, (2) Create a door-game batch file to
+       run the Esterian Conquest game when requested by users, (3) Add
+       commands to run the Maintenance Program (ECMAINT) to your BBS daily
+       event batch file, and (4) copy the player files ECPLAYER.DOC and
+       ECQSTART.DOC to a directory for users to download.
+
+    COPY THE PROGRAM FILES.  Create a directory on your hard disk to hold
+       the program files (We recommend calling it \EC).  Copy the three
+       program files (ECUTIL.EXE, ECGAME.EXE, and ECMAINT.EXE) into this
+       directory.  Create a separate directory for the game files (call it
+       \GAME01).  If you wish to run multiple player games simultaneously,
+       create a separate directory for each game (\GAME01, \GAME02, etc.).
+
+
+
+
+
+        ESTERIAN CONQUEST README FILE (Version 1.5)                    3
+
+    DOOR-GAME BATCH FILE.  Create a door-game batch file that will run the
+       ECGAME.EXE program.  Switch to the directory that stores the player
+       game data files (\GAME01) before running ECGAME.  The command to run
+       ECGAME must be include the path which contains the doorgame file.
+
+       EXAMPLE OF DOOR BATCH COMMANDS:
+       COMMAND:                 EXPLANATION:
+       -------------------------------------------------------------------
+       C:                       (switch to drive C:)
+       CD\GAME01                (go to game directory \GAME01)
+       C:\EC\ECGAME C:\DOOR     (from c:\ec, run ECGAME followed by
+                                  directory \DOOR which contains the door
+                                  file such as PCBOARD.SYS, DOOR.SYS, etc.)
+       --------------------------------------------------------------------
+
+    ADD THE MAINTENANCE PROGRAM TO YOUR BBS EVENT BATCH FILE.  Switch to
+       the directory that stores the player game data files (\GAME01)
+       before running ECMAINT.
+
+       NOTE: Adding the ECMAINT program to the event batch file will start
+       the game.  You should advertise the start of a game and wait several
+       days to allow users to sign up for empires before adding this
+       command to your event batch file.
+
+       COMMANDS TO ADD TO THE BBS DAILY EVENT BATCH FILE:
+       COMMAND:                 EXPLANATION:
+       -------------------------------------------------------------------
+       C:                       (switch to drive C:)
+       CD\GAME01                (go to game directory \GAME01)
+       C:\EC\ECMAINT /R         (from c:\ec, run ECMAINT and generate
+                                   rankings file)
+       COPY RANKINGS.TXT \BULLETINS
+                                (copy the player rankings to your
+                                   bulletins directory)
+       --------------------------------------------------------------------
+
+
+    PLAYER DOCUMENTATION FILES.  Make the player documentation files
+       (ECPLAYER.DOC, ECQSTART.DOC) available to your users.  You may wish
+       to compress these files with programs such as PKZIP.
+
+       Esterian Conquest is now ready to be initialized.  Use the
+       ECUTIL.EXE program to initialize a game (see the Sysop's Guide for
+       information on running the ECUTIL program).
+
+
+
+
+
+
+
+
+
+
+
+
+

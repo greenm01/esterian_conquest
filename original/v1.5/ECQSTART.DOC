@@ -1,0 +1,179 @@
+
+         ESTERIAN CONQUEST(tm) QUICK START PLAYERS GUIDE (VERSION 1.5)
+
+    NOTE:
+    -----------------------------------------------------------------------
+       This quick start sketches the information you need to start.  We
+       highly recommend that you read the ESTERIAN CONQUEST PLAYERS GUIDE
+       to really learn how to use the forces available to you in the game.
+
+
+    OBJECT OF THE GAME:
+    -----------------------------------------------------------------------
+       Become ruler of the galaxy by having all the other players surrender
+       & acknowledge you as Emperor.  Hold enough planets through conquest
+       or colonization to be recognized as emperor.  Defeat the space
+       fleets and conquer the planets of any players who oppose you.
+
+
+    THE PLAY:
+    -----------------------------------------------------------------------
+       You start owning 1 planet and four fleets: two consisting of a
+       colonizing ship (ETAC) and a cruiser and two having only a
+       destroyer.  Set your tax rate (try 65%) so your planet will generate
+       production points.  Spend these points to build ships, armies,
+       ground forces, and starbases.  When you colonize new planets, lower
+       your tax rate to help the new planets develop resources faster.
+
+
+    GAME TIME - THE ROUND:
+    -----------------------------------------------------------------------
+       Each round is equivalent to one year of game time.  Enter your
+       orders for the year using the menus.  During the BBS maintenance,
+       the program will calculate the results of the moves of all players.
+
+
+    WHAT YOU CAN DO IN A ROUND:
+    -----------------------------------------------------------------------
+       1. Planets: build units, commission fleets from built ships, or set
+          tax and production levels for the year.
+
+       2. Fleets: colonize uninhabited planets, merge / detach ships, fight
+          enemy fleets, spy on opponents, or conquer inhabited planets.
+
+       3. Communications: set up alliances, non-aggression pacts,
+          diplomatic negotiations or betrayals with other players.
+
+       4. Access your Information Database to recall what you've learned
+          about any planet.  View a starmap showing your Database info.
+
+       5. Turn AUTOPILOT on or off from the GENERAL MENU and the computer
+          will make moves for you.
+
+
+    THE FORCES AT YOUR COMMAND:
+    -----------------------------------------------------------------------
+       You control five major types of objects: Planets, Ships, Starbases,
+       Armies, and Ground Batteries.
+
+
+    ESTERIAN CONQUEST(tm) QUICK START PLAYERS GUIDE (VERSION 1.5)  2
+
+
+       There are 6 types of starships -- 3 combat types (Battleships,
+       Cruisers, and Destroyers) and 3 specialized types (Scouts for
+       spying, troop transports for carrying planet-conquering armies, and
+       ETACs which will colonize unoccupied (raw) planets).
+
+       Starbases enhance planetary defense and growth.  Armies protect or
+       conquer planets.  Ground Batteries are planet-based cannons.
+
+
+    STRATEGY HINTS FOR BEGINNING THE GAME:
+    -----------------------------------------------------------------------
+    PRINT OUT A STARMAP.  Have the game display the entire galaxy map on
+       the screen.  Use your modem program to capture the display and then
+       print the map.  This greatly helps your plan your actions and plot
+       the actions of the other players.
+
+    ORDER ETAC SHIPS TO COLONIZE NEARBY PLANETS.  Increase the number of
+       planets you own to be able to build more fleets to attack opponents.
+
+    SET THE TAX RATE FOR YOUR EMPIRE.  You build equipment by spending the
+       production points you get through taxes on your planets.  Do not set
+       tax rates higher than 65% or your planets' production may suffer.
+
+    BUILD PLANETARY DEFENSES (Ground Batteries, combat ships, and armies).
+       Spend a good number of production points on defending your planets
+       against attack by other players.
+
+    BUILD COMBAT FLEETS (combat ships and troop transports).  These will be
+       needed for conquering opponents' planets or beating their fleets.
+
+    BUILD STARBASES.  Starbases enhance your planets' the ability to build
+       units, defend themselves and increase growth rates.
+
+    OBTAIN EMPIRE SUMMARIES FROM THE GENERAL COMMAND MENU.  This provides a
+       thorough report of the status of your planets and fleets.  Capture
+       this summary and then log off to plan your moves.
+
+    CONQUER / ATTACK ENEMIES' PLANETS.  This weakens their resources and
+       builds your capacities.  There are three ways to assault a planet:
+
+       1. The BLITZ: troop transports drop armies onto the enemy planet.
+          If your armies defeat the enemy armies, you win the planet.
+
+       2. The INVADE: Combat ships fight the planet's ground batteries and
+          armies.  Then your troop transports deliver armies onto the
+          planet and if they beat remaining enemy armies, the planet is
+          yours.
+
+       3. The BOMBARD: Combat ships pummel an enemy planet so it is useless
+          to your opponent.
+
+
+
+
+
+
+
+    ESTERIAN CONQUEST(tm) QUICK START PLAYERS GUIDE (VERSION 1.5)  3
+
+                                REFERENCE CHARTS
+
+
+    MACHINERY YOU CAN BUILD:
+    -----------------------------------------------------------------------
+    ITEM             BUILD COST   SIZE  MAX. SPEED   PURPOSE
+    -----------------------------------------------------------------------
+    DESTROYER            5         S        6        Combat / Defense
+    CRUISER             15         M        5        Combat / Defense
+    BATTLESHIP          45         L        4        Combat / Defense
+
+    SCOUT               15         S        6        Spy on Planet/Sector
+    TROOP TRANSPORT      5         M        5        Land armies on Planet
+    ETAC                15         L        3        Colonize a Raw Planet
+
+    GROUND BATTERY      20         L       n/a       Defend Planet
+    ARMY                 2         S       n/a       Defend Planet Surface
+
+    STARBASE            50         L        1        Enhance / Defend
+    -----------------------------------------------------------------------
+
+
+
+
+    POSSIBLE MISSIONS FOR FLEETS LISTED BY THEIR MISSION NUMBERS:
+    -----------------------------------------------------------------------
+     No.  MISSION                    REQUIREMENTS (if any)
+    -----------------------------------------------------------------------
+      0   None (hold position)       None. All ships can do this.
+      1   Move Fleet (only)          None. All ships can do this.
+      2   Seek Home                  None. All ships can do this.
+      3   Patrol a Sector            None. All ships can do this.
+      4   Guard a Starbase           Combat ship(s).
+      5   Guard/Blockade a World     Combat ship(s).
+      6   Bombard a World            Combat ship(s).
+      7   Invade a World             Combat ship(s) & Loaded Troop Transp.
+      8   Blitz a World              Loaded Troop Transports.
+      9   View a World               None. All ships can do this.
+     10   Scout a Sector             At least one scout ship.
+     11   Scout a Solar System       At least one scout ship.
+     12   Colonize a World           At least one ETAC.
+     13   Join another fleet         None. All ships can do this.
+     14   Rendezvous at a sector     None. All ships can do this.
+     15   Salvage                    None. All ships can do this.
+    -----------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+

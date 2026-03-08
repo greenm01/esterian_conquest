@@ -1,0 +1,468 @@
+
+
+
+
+Display ANSI Colors & IBM Graphic Characters Y/[N] -> 
+
+
+
+
+
+
+
+
+
+
+                                **************
+                                *            *
+                                * Jump Start *
+                                *            *
+                                **************
+ 
+ 
+                                 ************
+                                 *          *
+                                 * PRESENTS *
+                                 *          *
+                                 ************
+ 
+ 
+  o     #######   ###### ########  #######  ######    ##    #####    ###  ##
+    .  ##       ##         ##     ##       ##   ##   ##   ##   ##   #### ##
+      ####      #####     ##     ####     ######    ##   #######   ## ####   .
+     ##            ##    ##     ##       ## ##     ##   ##   ##   ##  ###
+ .  #######  ######     ##     #######  ##   ##   ##   ##   ##   ##   ##
+
+   *   ######   #####    ###  ##   #####   ##   ##  #######   ###### ########
+     ##       ##   ##   #### ##  ##   ##  ##   ##  ##       ##         ##  .
+  . ##       ##   ##   ## ####  ##   ##  ##   ##  ####      #####     ##
+   ##       ##   ##   ##  ###  ## # ##  ##   ##  ##            ##    ##      .
+   ######   #####    ##   ##   ######   #####   #######  ######     ##
+                                 ##
+                       .                       Ver 1.50 
+        .                                                   .      .
+
+Compliments of your Sysop, Ray Kvalheim.
+Registration # 110039
+
+(Press Return) 
+
+
+Welcome back to Esterian Conquest, Ver 1.50
+-------------------------------------------------------------------------------
+Use Ctrl-S throughout the game to pause and resume output.
+Use Ctrl-X or Ctrl-K to abort most listings.
+
+View Introduction? Y/[N] -> 
+
+
+
+
+, you are "zzzzrrr", (Empire #1)
+
+The year is: 3039 A.D.
+
+Last year on: 3037 A.D.
+
+You have 239 minutes left to play.
+
+Autopilot is off.
+
+(Press Return) 
+
+
+
+
+
+
+You have undeleted reports. View them? [Y]es, <N>o, <NS> (non-stop) -> 
+
+
+Reports: Current game year is 3039 A.D.
+
+
+ -> From your 66th Fleet, located in System(7,16)           Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet "hector" 
+ -> in Sector(7,16) and are beginning our guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 52nd Fleet, located in System(6,2)            Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet "haha" 
+ -> in Sector(6,2) and are beginning our guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 72nd Fleet, located in System(2,21)           Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet "joke's 
+ -> on me" in Sector(2,21) and are beginning our guarding/blockading 
+ -> assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 58th Fleet, located in System(14,7)           Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet 
+ -> "vibrator" in Sector(14,7) and are beginning our guarding/blockading 
+ -> assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 55th Fleet, located in System(11,3)           Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet "beaker" 
+ -> in Sector(11,3) and are beginning our guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 60th Fleet, located in System(25,12)          Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet "90" in 
+ -> Sector(25,12) and are beginning our guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 57th Fleet, located in System(9,5)            Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet "nice" 
+ -> in Sector(9,5) and are beginning our guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 49th Fleet, located in System(21,6)           Stardate: 1/3037
+ -> Rendezvous mission report: Sensor contact shows an alien fleet in 
+ -> System(21,6) traveling at a translight speed of 4. Closing to check it 
+ -> out...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 49th Fleet, located in System(21,6)           Stardate: 1/3037
+ -> Rendezvous mission report: We have located and identified the alien 
+ -> fleet in System(21,6). It is the 8th Fleet of "Melody Lake", (Empire 
+ -> #2). Their fleet contains 2 large, 15 medium, and 16 small vessel(s) of 
+ -> unknown type. Accelerating to engage the enemy...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your Fleet Command Center:                         Stardate: 1/3037
+ -> We lost all contact with the 49th Fleet shortly after it intercepted 
+ -> the 8th Fleet of "Melody Lake", (Empire #2) in System(21,6). Records 
+ -> show the 49th Fleet was composed of 1 destroyer. According to a burnt 
+ -> flight recorder we recovered, the alien force initially contained 2 
+ -> battleships, 13 cruisers, 16 destroyers and 2 troop transport ships. 
+ -> The flight recorder had no record of alien ships destroyed. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 61st Fleet, located in System(27,12)          Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet "126" in 
+ -> Sector(27,12) and are beginning our guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 65th Fleet, located in System(13,15)          Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet "anus" 
+ -> in Sector(13,15) and are beginning our guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 56th Fleet, located in System(3,4)            Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet "pint" 
+ -> in Sector(3,4) and are beginning our guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 68th Fleet, located in System(23,17)          Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet "Perch" 
+ -> in Sector(23,17) and are beginning our guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 6th Fleet, located in System(21,14)           Stardate: 1/3037
+ -> Scouting mission report: We are in extended orbit around planet "Civil 
+ -> Disorder" and have compiled the following data:
+ ->   Owned by: "Melody Lake", (Empire #2)
+ ->   Potential production: 100 points
+ ->   Estimated present production: 100 points
+ ->   Estimated amount of stored goods: 70 points
+ ->   Number of armies: 40
+ ->   Number of ground batteries: 24
+ ->   The planet's stardock appears to be empty.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 63rd Fleet, located in System(15,13)          Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet 
+ -> "zzzzrrr" in Sector(15,13) and are beginning our guarding/blockading 
+ -> assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 70th Fleet, located in System(17,18)          Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet 
+ -> "k'34dc'#" in Sector(17,18) and are beginning our guarding/blockading 
+ -> assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 22nd Fleet, located in System(21,6)           Stardate: 1/3037
+ -> Scouting mission report: We are in extended orbit around planet "Civl 
+ -> il Disorder" and have compiled the following data:
+ ->   Owned by: "Melody Lake", (Empire #2)
+ ->   Potential production: 100 points
+ ->   Estimated present production: 100 points
+ ->   Estimated amount of stored goods: 76 points
+ ->   Number of armies: 25
+ ->   Number of ground batteries: 15
+ ->   The planet's stardock appears to be empty.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 53rd Fleet, located in System(12,2)           Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet 
+ -> "SyncTERM" in Sector(12,2) and are beginning our guarding/blockading 
+ -> assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 67th Fleet, located in System(24,16)          Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet "Micro" 
+ -> in Sector(24,16) and are beginning our guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 54th Fleet, located in System(5,3)            Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet "89, 
+ -> bitch!" in Sector(5,3) and are beginning our guarding/blockading 
+ -> assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 69th Fleet, located in System(4,18)           Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet "corn 
+ -> hole" in Sector(4,18) and are beginning our guarding/blockading 
+ -> assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 59th Fleet, located in System(2,12)           Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet "bertha" 
+ -> in Sector(2,12) and are beginning our guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 51st Fleet, located in System(11,1)           Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet "dinky" 
+ -> in Sector(11,1) and are beginning our guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 62nd Fleet, located in System(3,13)           Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet 
+ -> "exciter" in Sector(3,13) and are beginning our guarding/blockading 
+ -> assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 64th Fleet, located in System(24,14)          Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet "TP 
+ -> DecSector" in Sector(24,14) and are beginning our 
+ -> guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 71st Fleet, located in System(2,20)           Stardate: 1/3037
+ -> Guard/Blockade World mission report: We have arrived at planet "helix" 
+ -> in Sector(2,20) and are beginning our guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 6th Fleet, located in System(21,14)           Stardate: 3/3037
+ -> Scouting mission report: Sensor contact shows an alien fleet in 
+ -> System(21,14) traveling at a translight speed of 5. Closing to check it 
+ -> out...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 6th Fleet, located in System(21,14)           Stardate: 3/3037
+ -> Scouting mission report: We have located and identified the alien fleet 
+ -> in System(21,14). It is the 12th Fleet of "Melody Lake", (Empire #2). 
+ -> Their fleet contains 3 medium vessel(s) of unknown type. In accordance 
+ -> to our ROE, we are avoiding this enemy fleet...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 40th Fleet, located in Sector(20,7)           Stardate: 7/3037
+ -> From your 43rd Fleet, located in Sector(24,15)          Stardate: 7/3037
+ -> Rendezvous mission report: We have arrived at the our rendezvous point 
+ -> and are merging with the 34th Fleet.Join mission report: Since the 40th 
+ -> Fleet has merged with the 34th Fleet, we are now attempting to join the 
+ -> 34th Fleet.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 22nd Fleet, located in System(21,6)          Stardate: 11/3037
+ -> Scouting mission report: Sensor contact shows an alien fleet in 
+ -> System(21,6) traveling at sublight speed. Closing to check it out...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 22nd Fleet, located in System(21,6)          Stardate: 11/3037
+ -> Scouting mission report: We have located and identified the alien fleet 
+ -> in System(21,6). It is the 21st Fleet of "Melody Lake", (Empire #2). 
+ -> Their fleet contains 2 small vessel(s) of unknown type. In accordance 
+ -> to our ROE, we are avoiding this enemy fleet...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 18th Fleet, located in Sector(20,7)          Stardate: 16/3037
+ -> From your 43rd Fleet, located in Sector(24,14)         Stardate: 16/3037
+ -> Rendezvous mission report: We have arrived at the our rendezvous point 
+ -> and are absorbing the 34th Fleet.Join mission report: Since the 34th 
+ -> Fleet has merged with the 18th Fleet, we are now attempting to join the 
+ -> 18th Fleet.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 27th Fleet, located in Sector(20,7)          Stardate: 16/3037
+ -> Rendezvous mission report: We have arrived at the our rendezvous point 
+ -> and are merging with the 18th Fleet.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 12th Fleet, located in Sector(20,7)          Stardate: 23/3037
+ -> From your 43rd Fleet, located in Sector(23,14)         Stardate: 23/3037
+ -> Rendezvous mission report: We have arrived at the our rendezvous point 
+ -> and are absorbing the 18th Fleet.Join mission report: Since the 18th 
+ -> Fleet has merged with the 12th Fleet, we are now attempting to join the 
+ -> 12th Fleet.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> y
+ -> From your 60th Fleet, located in System(25,12)         Stardate: 24/3037
+ -> Guard/Blockade World mission report: Sensor contact shows an alien 
+ -> fleet in System(25,12) traveling at a translight speed of 4. Closing to 
+ -> check it out...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> y
+ -> From your 60th Fleet, located in System(25,12)         Stardate: 24/3037
+ -> Guard/Blockade World mission report: We have located and identified the 
+ -> alien fleet in System(25,12). It is the 18th Fleet of "Melody Lake", 
+ -> (Empire #2). Their fleet contains 1 large, 12 medium, and 5 small 
+ -> vessel(s) of unknown type. The alien fleet seems to be preparing to 
+ -> invade our planet "90". Accelerating to intercept alien fleet...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your Fleet Command Center:                        Stardate: 24/3037
+ -> We lost all contact with the 60th Fleet shortly after it intercepted 
+ -> the 18th Fleet of "Melody Lake", (Empire #2) in System(25,12). Records 
+ -> show the 60th Fleet was composed of 2 destroyers. According to a burnt 
+ -> flight recorder we recovered, the alien force initially contained 1 
+ -> battleship, 2 cruisers, 5 destroyers and 10 troop transport ships. The 
+ -> flight recorder had no record of alien ships destroyed. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+Communication Timeout!  Perhaps some other timGames External Programs:
+
+Num ³ Name                                Num ³ Name                           
+ÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ           ÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ      
+  1 ³ Ambroshia v4.5                       11 ³ Vsysop                         
+  2 ³ Operation Overkill II                12 ³ The Pit                        
+  3 ³ ArrowBridge II                       13 ³ Esterian Conquest              
+  4 ³ TradeWars 2002 Gold                  14 ³ Yahtzee                        
+  5 ³ King of the Board                    15 ³ Triangle Solitaire             
+  6 ³ LORD                                 16 ³ Usurper v0.20b                 
+  7 ³ T&J Poker                            17 ³ Star Fight                     
+  8 ³ Melee                                18 ³ Land Of the Barons             
+  9 ³ Land of Devastation                  19 ³ Svalvards                      
+ 10 ³ Ambroshia                      
+
+Which or Quit: 13

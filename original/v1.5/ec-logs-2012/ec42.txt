@@ -1,0 +1,442 @@
+
+
+
+
+Display ANSI Colors & IBM Graphic Characters Y/[N] -> 
+
+
+
+
+
+
+
+
+
+
+                                **************
+                                *            *
+                                * Jump Start *
+                                *            *
+                                **************
+ 
+ 
+                                 ************
+                                 *          *
+                                 * PRESENTS *
+                                 *          *
+                                 ************
+ 
+ 
+  o     #######   ###### ########  #######  ######    ##    #####    ###  ##
+    .  ##       ##         ##     ##       ##   ##   ##   ##   ##   #### ##
+      ####      #####     ##     ####     ######    ##   #######   ## ####   .
+     ##            ##    ##     ##       ## ##     ##   ##   ##   ##  ###
+ .  #######  ######     ##     #######  ##   ##   ##   ##   ##   ##   ##
+
+   *   ######   #####    ###  ##   #####   ##   ##  #######   ###### ########
+     ##       ##   ##   #### ##  ##   ##  ##   ##  ##       ##         ##  .
+  . ##       ##   ##   ## ####  ##   ##  ##   ##  ####      #####     ##
+   ##       ##   ##   ##  ###  ## # ##  ##   ##  ##            ##    ##      .
+   ######   #####    ##   ##   ######   #####   #######  ######     ##
+                                 ##
+                       .                       Ver 1.50 
+        .                                                   .      .
+
+Compliments of your Sysop, Ray Kvalheim.
+Registration # 110039
+
+(Press Return) 
+
+
+Welcome back to Esterian Conquest, Ver 1.50
+-------------------------------------------------------------------------------
+Use Ctrl-S throughout the game to pause and resume output.
+Use Ctrl-X or Ctrl-K to abort most listings.
+
+View Introduction? Y/[N] -> 
+
+
+
+
+, you are "zzzzrrr", (Empire #1)
+
+The year is: 3044 A.D.
+
+Last year on: 3043 A.D.
+
+You have 238 minutes left to play.
+
+Autopilot is off.
+
+(Press Return) 
+
+
+
+
+
+
+You have undeleted reports. View them? [Y]es, <N>o, <NS> (non-stop) -> 
+
+
+Reports: Current game year is 3044 A.D.
+
+
+ -> From your 6th Fleet, located in System(21,14)           Stardate: 1/3043
+ -> Scouting mission report: We are in extended orbit around planet "Civil 
+ -> Disorder" and have compiled the following data:
+ ->   Owned by: "Melody Lake", (Empire #2)
+ ->   Potential production: 100 points
+ ->   Estimated present production: 5 points
+ ->   Estimated amount of stored goods: 3 points
+ ->   Number of armies: 0
+ ->   Number of ground batteries: 5
+ ->   The planet's stardock appears to be empty.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From planet "beaker" in System(11,3):                   Stardate: 1/3043
+ -> We have been bombarded by the 47th Fleet of empire "Melody Lake", 
+ -> (Empire #2). The bombarding fleet initially contained 2 cruisers and 4 
+ -> destroyers. We failed to inflict any alien casualties. Our defensive 
+ -> force consisted of 1 army. In the attack, we lost the army, 61% of the 
+ -> factories and 100% of the stored goods (production points). 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 22nd Fleet, located in System(12,3)           Stardate: 1/3043
+ -> Scouting mission report: We have located and identified the alien 
+ -> starbase in System(12,3). It is Starbase 1 of "Taa'r", (Empire #4). 
+ -> Ignoring alien base.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 22nd Fleet, located in System(12,3)           Stardate: 1/3043
+ -> Scouting mission report: Sensor contact shows an alien fleet in 
+ -> System(12,3) traveling at sublight speed. Closing to check it out...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 22nd Fleet, located in System(12,3)           Stardate: 1/3043
+ -> Scouting mission report: We have located and identified the alien fleet 
+ -> in System(12,3). It is the 1st Fleet of "Taa'r", (Empire #4). Their 
+ -> fleet contains 26 large, 26 medium, and 28 small vessel(s) of unknown 
+ -> type. Ignoring alien fleet...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 22nd Fleet, located in System(12,3)           Stardate: 1/3043
+ -> Scouting mission report: We are in extended orbit around planet "Not 
+ -> Named Yet" and have compiled the following data:
+ ->   Owned by: "Taa'r", (Empire #4)
+ ->   Potential production: 100 points
+ ->   Estimated present production: 100 points
+ ->   Estimated amount of stored goods: 68 points
+ ->   Number of armies: 311
+ ->   Number of ground batteries: 31
+ -> Scanning the planet's stardock, we detected 1 destroyer, 1 cruiser and 
+ -> 1 battleship. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 66th Fleet, located in System(7,16)           Stardate: 1/3043
+ -> Guard/Blockade World mission report: Sensor contact shows an alien 
+ -> fleet in System(7,16) traveling at sublight speed. Closing to check it 
+ -> out...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 66th Fleet, located in System(7,16)           Stardate: 1/3043
+ -> Guard/Blockade World mission report: We have located and identified the 
+ -> alien fleet in System(7,16). It is the 38th Fleet of "Melody Lake", 
+ -> (Empire #2). Their fleet contains 1 large, 7 medium, and 5 small 
+ -> vessel(s) of unknown type. The alien fleet seems to be preparing to 
+ -> bombard our planet "hector". Accelerating to intercept alien fleet...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 66th Fleet, located in System(7,16)           Stardate: 1/3043
+ -> Guard/Blockade World mission report: We successfully intercepted the 
+ -> 38th Fleet of "Melody Lake", (Empire #2). We had 5 battleships, 9 
+ -> cruisers and 1 destroyer. Alien force contained 1 battleship, 7 
+ -> cruisers and 5 destroyers. Though part of the alien fleet scattered, we 
+ -> were still able to destroy 1 battleship, 7 cruisers and 4 destroyers. 
+ -> We lost 1 battleship, 6 cruisers and 1 destroyer. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your Fleet Command Center:                         Stardate: 1/3043
+ -> We lost all contact with the 66th Fleet shortly after it was attacked 
+ -> by the 25th Fleet of "Melody Lake", (Empire #2) in System(7,16). 
+ -> Records show the 66th Fleet was composed of 4 battleships and 3 
+ -> cruisers. According to a burnt flight recorder we recovered, the alien 
+ -> force initially contained 4 battleships, 14 cruisers and 38 destroyers. 
+ -> The flight recorder recorded alien ship casualties of 3 battleships, 2 
+ -> cruisers and 10 destroyers. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 26th Fleet, located in System(4,18)           Stardate: 1/3043
+ -> Join mission report: In light of the destruction of the 66th Fleet, we 
+ -> are holding our current position in System(4,18) and are awaiting new 
+ -> orders.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 2nd Fleet, located in System(21,14)           Stardate: 1/3043
+ -> Blitz mission report: We have successfully blitzed and taken planet 
+ -> "Civil Disorder" from "Melody Lake", (Empire #2). The target world was 
+ -> defended by 5 ground batteries. In the attack, we managed to capture 2 
+ -> production point(s) worth of goods and 3 ground batteries . Our force 
+ -> initially contained 1 battleship, 1 cruiser, 2 destroyers and 27 troop 
+ -> transports carrying 27 armies. In the raid, we lost 1 battleship, 1 
+ -> cruiser, 1 destroyer, 21 troop transports and 13 armies, all of which 
+ -> were killed while still on board their transports. After the smoke 
+ -> cleared, we had 14 armies enforcing control on the planet. We are 
+ -> holding our position and are awaiting new orders.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 6th Fleet, located in System(21,14)           Stardate: 2/3043
+ -> Scouting mission report: Since we now control System(21,14), we are 
+ -> aborting our scouting mission. Until ordered otherwise, we will be 
+ -> simply holding our posistion and awaiting new orders.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your Fleet Command Center:                        Stardate: 10/3043
+ -> We lost all contact with the 22nd Fleet shortly after it was attacked 
+ -> by the 1st Fleet of "Taa'r", (Empire #4) in System(12,3). Records show 
+ -> the 22nd Fleet was composed of 1 scout. According to a burnt flight 
+ -> recorder we recovered, the alien force initially contained 24 
+ -> battleships, 26 cruisers, 28 destroyers and 2 ETAC ships. The flight 
+ -> recorder had no record of alien ships destroyed. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 55th Fleet, located in System(12,2)          Stardate: 16/3043
+ -> Seek-Home mission report: We have arrived at our destination and are 
+ -> awaiting new orders.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 62nd Fleet, located in System(3,13)          Stardate: 27/3043
+ -> Guard/Blockade World mission report: Sensor contact shows an alien 
+ -> fleet in System(3,13) traveling at a translight speed of 6. Closing to 
+ -> check it out...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 62nd Fleet, located in System(3,13)          Stardate: 27/3043
+ -> Guard/Blockade World mission report: We have located and identified the 
+ -> alien fleet in System(3,13). It is the 46th Fleet of "Melody Lake", 
+ -> (Empire #2). Their fleet contains 1 small vessel(s) of unknown type. 
+ -> Accelerating to engage the enemy...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 62nd Fleet, located in System(3,13)          Stardate: 27/3043
+ -> Guard/Blockade World mission report: We successfully intercepted the 
+ -> 46th Fleet of "Melody Lake", (Empire #2). We had 4 cruisers and 1 
+ -> destroyer. Alien force contained 1 destroyer. The aliens fled before 
+ -> us. No alien ships were destroyed. Luckily, we suffered no losses. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From planet "you're my bitch" in System(23,5):         Stardate: 38/3043
+ -> We have been invaded and conquored by the 26th Fleet of empire "Melody 
+ -> Lake", (Empire #2). The invading fleet initially contained 2 troop 
+ -> transports carrying 2 armies. We failed to inflict any alien 
+ -> casualties. We had no defensive forces at the time of the attack. When 
+ -> we realized that the battle was lost, we tried to destroy anything we 
+ -> thought the aliens could use. We estimate that the production of the 
+ -> world is down to 1 point(s) out of a possible 115. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 55th Fleet, located in System(12,2)          Stardate: 38/3043
+ -> Sensor contact shows an alien fleet in System(12,2) traveling at a 
+ -> translight speed of 4. Closing to check it out...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 55th Fleet, located in System(12,2)          Stardate: 38/3043
+ -> We have located and identified the alien fleet in System(12,2). It is 
+ -> the 23rd Fleet of "Melody Lake", (Empire #2). Their fleet contains 1 
+ -> large, 2 medium, and 5 small vessel(s) of unknown type. Accelerating to 
+ -> engage the enemy...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 55th Fleet, located in System(12,2)          Stardate: 38/3043
+ -> We successfully intercepted the 23rd Fleet of "Melody Lake", (Empire 
+ -> #2). We had 1 destroyer. Alien force contained 1 battleship, 2 cruisers 
+ -> and 5 destroyers. After reviewing our ROE and the combat situation, we 
+ -> fled and were unable to inflict any alien losses. Luckily, we suffered 
+ -> no losses. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 30th Fleet, located in System(5,4)           Stardate: 42/3043
+ -> Guard/Blockade World mission report: We have arrived at planet "104" in 
+ -> Sector(5,4) and are beginning our guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From planet "SyncTERM" in System(12,2):                Stardate: 45/3043
+ -> We have been bombarded by the 23rd Fleet of empire "Melody Lake", 
+ -> (Empire #2). The bombarding fleet initially contained 1 battleship, 2 
+ -> cruisers and 5 destroyers. We failed to inflict any alien casualties. 
+ -> Our defensive force consisted of 9 armies. In the attack, we lost 8 
+ -> armies, 89% of the factories, 100% of the stored goods (production 
+ -> points), and all of the ship(s) in stardock including 1 destroyer. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From planet "Civl il Disorder" in System(21,6):      Stardate: 45/3043
+ -> We have been bombarded by the 28th Fleet of empire "Melody Lake", 
+ -> (Empire #2). The bombarding fleet initially contained 13 cruisers, 24 
+ -> destroyers and 6 troop transports carrying 6 armies. We managed to 
+ -> destroy 7 cruisers and 11 destroyers. Our defensive force consisted of 
+ -> 6 ground batteries and 8 armies. In the attack, we lost all of the 
+ -> ground batteries, 7 armies, 19% of the factories and 100% of the stored 
+ -> goods (production points). 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From planet "beaker" in System(11,3):                  Stardate: 51/3043
+ -> We have been invaded and conquored by the 37th Fleet of empire "Melody 
+ -> Lake", (Empire #2). The invading fleet initially contained 1 destroyer 
+ -> and 2 troop transports carrying 2 armies. We failed to inflict any 
+ -> alien casualties. We had no defensive forces at the time of the attack. 
+ -> When we realized that the battle was lost, we tried to destroy anything 
+ -> we thought the aliens could use. We estimate that the production of the 
+ -> world is down to 1 point(s) out of a possible 46. Unfortunately, the 
+ -> aliens managed to capture 1 production point(s) worth of goods. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 59th Fleet, located in System(9,5)           Stardate: 51/3043
+ -> Bombardment mission report: We have just concluded a bombing run 
+ -> against planet "nice", currently owned by "Melody Lake", (Empire #2). 
+ -> The target world was defended by 1 ground battery and 25 armies. We 
+ -> managed to destroy the ground battery, 15 armies, 55% of the factories, 
+ -> 100% of the stored goods (production points), and all of the ship(s) in 
+ -> stardock including 2 cruisers. Our force initially contained 4 
+ -> battleships, 4 cruisers and 4 destroyers. We suffered no losses. We are 
+ -> holding our position and are awaiting new orders.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+Results deleted.
+
+All reports seen.
+
+
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> g
+
+
+ 
+GENERAL COMMAND CENTER:   I>nfo about a Planet     C>ommunicate (send message)
+  H>elp with commands     A>utopilot ON/OFF        R>eview messages/results
+  Q>uit to main menu      S>tatus, your            D>elete ALL messages/results
+  X>pert mode ON/OFF      P>rofile of your empire  O>ther empires (rankings)
+  V>iew Partial Starmap   M>ap of the galaxy       E>nemies, declare or list
+
+GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E-> o
+
+Rank empires by <I>D, <P>roduction, <N>umber of planets or <A>bort? [I] -> 
+
+NOTE: Previous Year's Information is Parenthesized.
+-------------------------------------------------------------------------------
+Empire Name             ID     Planets Owned     Current Production     Status
+-------------------------------------------------------------------------------
+zzzzrrr                  1       19  (  0)           871  (    0)         *
+Melody Lake              2       17  (  0)           417  (    0)       ENEMY
+Romulus                  3        6  (  0)           478  (    0)       Neutral
+Taa'r                    4        1  (  0)           100  (    0)       Neutral
+rebel alliance           6        1  (  0)           100  (    0)       Neutral
+-------------------------------------------------------------------------------
+
+(Press Return) 
+
+ 
+GENERAL COMMAND CENTER:   I>nfo about a Planet     C>ommunicate (send message)
+  H>elp with commands     A>utopilot ON/OFF        R>eview messages/results
+  Q>uit to main menu      S>tatus, your            D>elete ALL messages/results
+  X>pert mode ON/OFF      P>rofile of your empire  O>ther empires (rankings)
+  V>iew Partial Starmap   M>ap of the galaxy       E>nemies, declare or list
+
+GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> q
+
+Are you sure you want to quit? Y/[N] -> y
+
+
+Returning you back to Jump Start...

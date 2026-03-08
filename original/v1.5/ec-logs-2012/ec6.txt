@@ -1,0 +1,2165 @@
+
+
+
+Welcome back to Esterian Conquest, Ver 1.50
+-------------------------------------------------------------------------------
+Use Ctrl-S throughout the game to pause and resume output.
+Use Ctrl-X or Ctrl-K to abort most listings.
+
+View Introduction? Y/[N] -> 
+
+
+
+
+, you are "zzzzrrr", (Empire #1)
+
+The year is: 3008 A.D.
+
+Last year on: 3007 A.D.
+
+You have 238 minutes left to play.
+
+Autopilot is off.
+
+(Press Return) 
+
+
+
+
+
+
+You have undeleted reports. View them? [Y]es, <N>o, <NS> (non-stop) -> y
+
+
+Reports: Current game year is 3008 A.D.
+
+
+ -> From your 12th Fleet, located in System(13,15)          Stardate: 1/3007
+ -> Guard/Blockade World mission report: We have arrived at planet "anus" 
+ -> in Sector(13,15) and are beginning our guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> y
+ -> From planet "vino" in System(20,11):                    Stardate: 2/3007
+ -> We have been invaded and conquored by the 12th Fleet of empire "Melody 
+ -> Lake", (Empire #2). The invading fleet initially contained 5 cruisers 
+ -> and 6 troop transports carrying 6 armies. Before surrendering, we 
+ -> managed to destroy 1 army. Our defensive force consisted of 3 armies. 
+ -> When we realized that the battle was lost, we tried to destroy anything 
+ -> we thought the aliens could use. We estimate that the production of the 
+ -> world is down to 1 point(s) out of a possible 35. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 10th Fleet, located in System(7,16)           Stardate: 6/3007
+ -> Guard/Blockade World mission report: We have arrived at planet "hector" 
+ -> in Sector(7,16) and are beginning our guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> y
+ -> From your 6th Fleet, located in Sector(25,22)          Stardate: 22/3007
+ -> Scouting mission report: We have arrived at our destination and are 
+ -> beginning to scout this sector.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 9th Fleet, located in System(11,23)          Stardate: 30/3007
+ -> Scouting mission report: We are in extended orbit around planet 
+ -> "Rectum" and have compiled the following data:
+ ->   Owned by: "Romulus", (Empire #3)
+ ->   Potential production: 117 points
+ ->   Estimated present production: 23 points
+ ->   Estimated amount of stored goods: 35 points
+ ->   Number of armies: 1
+ ->   Number of ground batteries: 0
+ ->   The planet's stardock appears to be empty.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 11th Fleet, located in System(23,5)          Stardate: 36/3007
+ -> Join mission report: We have joined the 3rd Fleet and are now merging 
+ -> with them.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+Results deleted.
+
+All reports seen.
+
+
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> f
+
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    3   1    0    2   6  Sector(3,19)  Colonize world in System (2,20)
+2    3   1    0    2   6  Sector(22,5)  Colonize world in System (21,6)
+3    0   0    0    2   6  Planet(23,5)  Guard/blockade world in System (23,5)
+4    0   0    0    5   6  Planet(15,13) Guard Starbase 1 now in System (15,13)
+5    3   5    0    1   0  Sector(13,20) Colonize world in System (5,12)
+6    0   0    0    1   0  Sector(25,22) Scout Sector (25,22)
+7    4   3    0    2   6  Sector(17,11) Guard/blockade world in System (23,5)
+8    3   1    0    2   6  Sector(19,5)  Colonize world in System (19,5)
+9    0   0    0    1   0  Planet(11,23) Scout System (11,23)
+10   0   0    0    4   6  Planet(7,16)  Guard/blockade world in System (7,16)
+12   0   0    0    1   6  Planet(13,15) Guard/blockade world in System (13,15)
+-------------------------------------------------------------------------------
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 12) or [A]bort?  -> 9
+
+
+
+Note: All missions also include movement (if required).
+9th Fleet's current mission : Scout System (11,23)
+9th Fleet's current location: Solar System at (11,23)
+
+Possible missions for the 9th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)           <11> Scout a Star System            
+      <1> Move Fleet (only)              <13> Join Another Fleet             
+      <2> Seek Home                      <14> Rendezvous at Sector           
+      <9> View a World                   <15> Salvage Fleet                  
+     <10> Scout a Sector                      
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 11
+
+
+Enter coordinates of the solar system to scout:
+
+Enter X coordinate or <A>bort: [5] -> 5
+
+Enter Y coordinate or <A>bort: [22] -> 
+
+
+Destination is System (5,22). At maximum speed, travel
+time would be 2 years. ETA would be year 3010 A.D.
+
+The 9th Fleet's maximum speed is 6.
+
+Enter current speed for this fleet (1 - 6): [6] -> 
+
+
+NEW ORDERS:  Scout System (5,22)
+Proceed with orders? [Y]/N -> 
+Orders Received.
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    3   1    0    2   6  Sector(3,19)  Colonize world in System (2,20)
+2    3   1    0    2   6  Sector(22,5)  Colonize world in System (21,6)
+3    0   0    0    2   6  Planet(23,5)  Guard/blockade world in System (23,5)
+4    0   0    0    5   6  Planet(15,13) Guard Starbase 1 now in System (15,13)
+5    3   5    0    1   0  Sector(13,20) Colonize world in System (5,12)
+6    0   0    0    1   0  Sector(25,22) Scout Sector (25,22)
+7    4   3    0    2   6  Sector(17,11) Guard/blockade world in System (23,5)
+8    3   1    0    2   6  Sector(19,5)  Colonize world in System (19,5)
+9    6   2    0    1   0  Planet(11,23) Scout System (5,22)
+10   0   0    0    4   6  Planet(7,16)  Guard/blockade world in System (7,16)
+12   0   0    0    1   6  Planet(13,15) Guard/blockade world in System (13,15)
+-------------------------------------------------------------------------------
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    3   1    0    2   6  Sector(3,19)  Colonize world in System (2,20)
+2    3   1    0    2   6  Sector(22,5)  Colonize world in System (21,6)
+3    0   0    0    2   6  Planet(23,5)  Guard/blockade world in System (23,5)
+4    0   0    0    5   6  Planet(15,13) Guard Starbase 1 now in System (15,13)
+5    3   5    0    1   0  Sector(13,20) Colonize world in System (5,12)
+6    0   0    0    1   0  Sector(25,22) Scout Sector (25,22)
+7    4   3    0    2   6  Sector(17,11) Guard/blockade world in System (23,5)
+8    3   1    0    2   6  Sector(19,5)  Colonize world in System (19,5)
+9    6   2    0    1   0  Planet(11,23) Scout System (5,22)
+10   0   0    0    4   6  Planet(7,16)  Guard/blockade world in System (7,16)
+12   0   0    0    1   6  Planet(13,15) Guard/blockade world in System (13,15)
+-------------------------------------------------------------------------------
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> p
+
+
+ 
+PLANET COMMANDS:    V>iew Partial Map                       T>ax rate: Empire
+  H>elp on Options  C>OMMISSION MENU   D>etail Planet List  S>corch planets
+  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet: Brief List  L>oad TTs w/Armies
+  X>pert mode       B>UILD MENU...     I>nfo about Planet   U>nload TT Armies
+
+PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U-> a
+
+AUTO-COMMISSION fleets and starbases from all your planets
+
+Perform the Auto-Commission?  [Y]/N -> 
+
+PLANET "zzzzrrr" at (15,13):
+Commissioning the 11th Fleet... 1 Scout
+Commissioning the 13th Fleet... 1-DD 2-CAs
+
+PLANET "anus" at (13,15):
+Commissioning the 14th Fleet... 1-DD
+
+PLANET "hector" at (7,16):
+Commissioning the 15th Fleet... 1-DD
+
+All of your stardocks are empty.
+Auto-Commission completed.
+
+
+(Press Return) 
+
+ 
+PLANET COMMANDS:    V>iew Partial Map                       T>ax rate: Empire
+  H>elp on Options  C>OMMISSION MENU   D>etail Planet List  S>corch planets
+  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet: Brief List  L>oad TTs w/Armies
+  X>pert mode       B>UILD MENU...     I>nfo about Planet   U>nload TT Armies
+
+PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U-> o
+
+
+"o" is not an option
+
+(Press Return) 11
+
+ 
+PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U-> 11
+
+Illegal stacked commands. Try <H> for help with commands.
+
+(Press Return) 
+
+ 
+PLANET COMMANDS:    V>iew Partial Map                       T>ax rate: Empire
+  H>elp on Options  C>OMMISSION MENU   D>etail Planet List  S>corch planets
+  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet: Brief List  L>oad TTs w/Armies
+  X>pert mode       B>UILD MENU...     I>nfo about Planet   U>nload TT Armies
+
+PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> f
+
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 15) or [A]bort?  -> 11
+
+
+
+Note: All missions also include movement (if required).
+11th Fleet's current mission : No standing orders
+11th Fleet's current location: Solar System at (15,13)
+
+Possible missions for the 11th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)           <11> Scout a Star System            
+      <1> Move Fleet (only)              <13> Join Another Fleet             
+      <2> Seek Home                      <14> Rendezvous at Sector           
+      <9> View a World                   <15> Salvage Fleet                  
+     <10> Scout a Sector                      
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 11
+
+
+Enter coordinates of the solar system to scout:
+
+Enter X coordinate or <A>bort: [19] -> 21
+
+Enter Y coordinate or <A>bort: [6] -> 14
+
+
+Destination is System (21,14). At maximum speed, travel
+time would be 2 years. ETA would be year 3010 A.D.
+
+The 11th Fleet's maximum speed is 6.
+
+Enter current speed for this fleet (1 - 6): [6] -> 
+
+
+NEW ORDERS:  Scout System (21,14)
+Proceed with orders? [Y]/N -> 
+Orders Received.
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    3   1    0    2   6  Sector(3,19)  Colonize world in System (2,20)
+2    3   1    0    2   6  Sector(22,5)  Colonize world in System (21,6)
+3    0   0    0    2   6  Planet(23,5)  Guard/blockade world in System (23,5)
+4    0   0    0    5   6  Planet(15,13) Guard Starbase 1 now in System (15,13)
+5    3   5    0    1   0  Sector(13,20) Colonize world in System (5,12)
+6    0   0    0    1   0  Sector(25,22) Scout Sector (25,22)
+7    4   3    0    2   6  Sector(17,11) Guard/blockade world in System (23,5)
+8    3   1    0    2   6  Sector(19,5)  Colonize world in System (19,5)
+9    6   2    0    1   0  Planet(11,23) Scout System (5,22)
+10   0   0    0    4   6  Planet(7,16)  Guard/blockade world in System (7,16)
+11   6   2    0    1   0  Planet(15,13) Scout System (21,14)
+12   0   0    0    1   6  Planet(13,15) Guard/blockade world in System (13,15)
+13   0   0    0    3   6  Planet(15,13) No standing orders
+14   0   0    0    1   6  Planet(13,15) No standing orders
+More? [Y]es, <N>o, <NS> (non-stop) -> r
+Invalid Response
+More? [Y]es, <N>o, <NS> (non-stop) -> 
+
+15   0   0    0    1   6  Planet(7,16)  No standing orders
+-------------------------------------------------------------------------------
+
+(Press Return) r
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> r
+
+Review which fleet (1 - 15) or [A]bort?  -> 13
+
+Fleet ID:      13th Fleet
+Maximum Speed: 5
+Composition:   2 Cruisers
+               1 Destroyer
+Location:      Solar System at (15,13)  
+Mission:       No standing orders
+ETA:           N/A
+ROE:           <6> Engage hostile fleets of equal or inferior strength.
+-------------------------------------------------------------------------------
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 15) or [A]bort?  -> 13
+
+
+
+Note: All missions also include movement (if required).
+13th Fleet's current mission : No standing orders
+13th Fleet's current location: Solar System at (15,13)
+
+Possible missions for the 13th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 13
+
+Enter the ID number of the host fleet: (1 - 15) or <A>bort? [4]  -> 
+
+These two fleets are already together.
+Do you wish to merge them now? [Y]/N -> 
+
+Deleting the 13th Fleet...
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> r
+
+Review which fleet (1 - 15) or [A]bort?  -> 4
+
+Fleet ID:      4th Fleet
+Maximum Speed: 4
+Composition:   1 Battleship
+               4 Cruisers
+               3 Destroyers
+               * Starbase 1
+Location:      Solar System at (15,13)  
+Mission:       Guard Starbase 1 now in System (15,13)
+ETA:           Fleet has already begun mission.
+ROE:           <6> Engage hostile fleets of equal or inferior strength.
+-------------------------------------------------------------------------------
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> qb
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    3   1    0    2   6  Sector(3,19)  Colonize world in System (2,20)
+2    3   1    0    2   6  Sector(22,5)  Colonize world in System (21,6)
+3    0   0    0    2   6  Planet(23,5)  Guard/blockade world in System (23,5)
+4    0   0    0    8   6  Planet(15,13) Guard Starbase 1 now in System (15,13)
+5    3   5    0    1   0  Sector(13,20) Colonize world in System (5,12)
+6    0   0    0    1   0  Sector(25,22) Scout Sector (25,22)
+7    4   3    0    2   6  Sector(17,11) Guard/blockade world in System (23,5)
+8    3   1    0    2   6  Sector(19,5)  Colonize world in System (19,5)
+9    6   2    0    1   0  Planet(11,23) Scout System (5,22)
+10   0   0    0    4   6  Planet(7,16)  Guard/blockade world in System (7,16)
+11   6   2    0    1   0  Planet(15,13) Scout System (21,14)
+12   0   0    0    1   6  Planet(13,15) Guard/blockade world in System (13,15)
+14   0   0    0    1   6  Planet(13,15) No standing orders
+15   0   0    0    1   6  Planet(7,16)  No standing orders
+-------------------------------------------------------------------------------
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 15) or [A]bort?  -> 14
+
+
+
+Note: All missions also include movement (if required).
+14th Fleet's current mission : No standing orders
+14th Fleet's current location: Solar System at (13,15)
+
+Possible missions for the 14th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 13
+
+Enter the ID number of the host fleet: (1 - 15) or <A>bort? [12]  -> 
+
+These two fleets are already together.
+Do you wish to merge them now? [Y]/N -> y
+
+Deleting the 14th Fleet...
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    3   1    0    2   6  Sector(3,19)  Colonize world in System (2,20)
+2    3   1    0    2   6  Sector(22,5)  Colonize world in System (21,6)
+3    0   0    0    2   6  Planet(23,5)  Guard/blockade world in System (23,5)
+4    0   0    0    8   6  Planet(15,13) Guard Starbase 1 now in System (15,13)
+5    3   5    0    1   0  Sector(13,20) Colonize world in System (5,12)
+6    0   0    0    1   0  Sector(25,22) Scout Sector (25,22)
+7    4   3    0    2   6  Sector(17,11) Guard/blockade world in System (23,5)
+8    3   1    0    2   6  Sector(19,5)  Colonize world in System (19,5)
+9    6   2    0    1   0  Planet(11,23) Scout System (5,22)
+10   0   0    0    4   6  Planet(7,16)  Guard/blockade world in System (7,16)
+11   6   2    0    1   0  Planet(15,13) Scout System (21,14)
+12   0   0    0    2   6  Planet(13,15) Guard/blockade world in System (13,15)
+15   0   0    0    1   6  Planet(7,16)  No standing orders
+-------------------------------------------------------------------------------
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 15) or [A]bort?  -> 7
+
+
+
+Note: All missions also include movement (if required).
+7th Fleet's current mission : Guard/blockade world in System (23,5)
+7th Fleet's current location: Sector (17,11)
+
+Possible missions for the 7th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 5
+
+
+Enter coordinates of the solar system to guard/blockade:
+
+Enter X coordinate or <A>bort: [15] -> 
+
+Enter Y coordinate or <A>bort: [13] -> 
+
+
+Destination is System (15,13). At maximum speed, travel
+time would be 2 years. ETA would be year 3010 A.D.
+
+The 7th Fleet's maximum speed is 4.
+
+Enter current speed for this fleet (1 - 4): [4] -> 
+
+
+NEW ORDERS:  Guard/blockade world in System (15,13)
+Proceed with orders? [Y]/N -> n
+Orders aborted.
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    3   1    0    2   6  Sector(3,19)  Colonize world in System (2,20)
+2    3   1    0    2   6  Sector(22,5)  Colonize world in System (21,6)
+3    0   0    0    2   6  Planet(23,5)  Guard/blockade world in System (23,5)
+4    0   0    0    8   6  Planet(15,13) Guard Starbase 1 now in System (15,13)
+5    3   5    0    1   0  Sector(13,20) Colonize world in System (5,12)
+6    0   0    0    1   0  Sector(25,22) Scout Sector (25,22)
+7    4   3    0    2   6  Sector(17,11) Guard/blockade world in System (23,5)
+8    3   1    0    2   6  Sector(19,5)  Colonize world in System (19,5)
+9    6   2    0    1   0  Planet(11,23) Scout System (5,22)
+10   0   0    0    4   6  Planet(7,16)  Guard/blockade world in System (7,16)
+11   6   2    0    1   0  Planet(15,13) Scout System (21,14)
+12   0   0    0    2   6  Planet(13,15) Guard/blockade world in System (13,15)
+15   0   0    0    1   6  Planet(7,16)  No standing orders
+-------------------------------------------------------------------------------
+
+(Press Return) r
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> r
+
+Review which fleet (1 - 15) or [A]bort?  -> 15
+
+Fleet ID:      15th Fleet
+Maximum Speed: 6
+Composition:   1 Destroyer
+Location:      Solar System at (7,16)   
+Mission:       No standing orders
+ETA:           N/A
+ROE:           <6> Engage hostile fleets of equal or inferior strength.
+-------------------------------------------------------------------------------
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> i
+
+
+Information Database on a Planet:
+
+Enter X coordinate or <A>bort: [15] -> 7
+
+Enter Y coordinate or <A>bort: [1] -> 16
+
+
+
+Planet Name       : hector               Current Production  : 15
+Location          : (7,16)               Maximum Production  : 129
+Maximum Armies    : 147                  Points Spent        : 0
+Maximum Batteries : 14                   Points Available    : 8
+
+Surface Forces:    2 armies              Space Forces:      2 fleets
+
+Building:          Nothing               Docked:             Nothing
+
+Efficiency:      11.114%
+
+Expected revenue (50.0% tax rate): 7 points
+
+Status: Regular planet - factories fully functional
+-------------------------------------------------------------------------------
+
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 15) or [A]bort?  -> 15
+
+
+
+Note: All missions also include movement (if required).
+15th Fleet's current mission : No standing orders
+15th Fleet's current location: Solar System at (7,16)
+
+Possible missions for the 15th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 5
+
+
+Enter coordinates of the solar system to guard/blockade:
+
+Enter X coordinate or <A>bort: [7] -> 
+
+Enter Y coordinate or <A>bort: [16] -> 
+
+
+The 15th Fleet will accomplish its mission this year.
+
+
+NEW ORDERS:  Guard/blockade world in System (7,16)
+Proceed with orders? [Y]/N -> 
+Orders Received.
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    3   1    0    2   6  Sector(3,19)  Colonize world in System (2,20)
+2    3   1    0    2   6  Sector(22,5)  Colonize world in System (21,6)
+3    0   0    0    2   6  Planet(23,5)  Guard/blockade world in System (23,5)
+4    0   0    0    8   6  Planet(15,13) Guard Starbase 1 now in System (15,13)
+5    3   5    0    1   0  Sector(13,20) Colonize world in System (5,12)
+6    0   0    0    1   0  Sector(25,22) Scout Sector (25,22)
+7    4   3    0    2   6  Sector(17,11) Guard/blockade world in System (23,5)
+8    3   1    0    2   6  Sector(19,5)  Colonize world in System (19,5)
+9    6   2    0    1   0  Planet(11,23) Scout System (5,22)
+10   0   0    0    4   6  Planet(7,16)  Guard/blockade world in System (7,16)
+11   6   2    0    1   0  Planet(15,13) Scout System (21,14)
+12   0   0    0    2   6  Planet(13,15) Guard/blockade world in System (13,15)
+15   6   0    0    1   6  Planet(7,16)  Guard/blockade world in System (7,16)
+-------------------------------------------------------------------------------
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> p
+
+
+ 
+PLANET COMMANDS:    V>iew Partial Map                       T>ax rate: Empire
+  H>elp on Options  C>OMMISSION MENU   D>etail Planet List  S>corch planets
+  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet: Brief List  L>oad TTs w/Armies
+  X>pert mode       B>UILD MENU...     I>nfo about Planet   U>nload TT Armies
+
+PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U-> b
+
+
+Build units:
+
+Enter the planet's X coordinate or <A>bort: [23] -> 
+
+Enter the planet's Y coordinate or <A>bort: [5] -> 
+
+
+There are no starbases orbiting planet "you're my bitch".
+Standard building restrictions apply.
+You have spent 0 out of 9 points.  You have 9 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "you're my bitch" IN SYSTEM (23,5): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 9 points.  You have 9 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 1
+
+How many new destroyers do you wish to build  (0 - 1): [1] -> 
+
+
+You have spent 5 out of 9 points.  You have 4 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                         Troop transports    5    (0)
+     Destroyers          5    (1)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 9
+
+How many new armies do you wish to build  (0 - 2): [2] -> 
+ 
+BUILD ON CURRENT PLANET: "you're my bitch" IN SYSTEM (23,5): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "vibrator".
+Standard building restrictions apply.
+You have spent 0 out of 5 points.  You have 5 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "vibrator" IN SYSTEM (14,7): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 5 points.  You have 5 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 1
+
+How many new destroyers do you wish to build  (0 - 1): [1] -> 
+ 
+BUILD ON CURRENT PLANET: "vibrator" IN SYSTEM (14,7): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There is a starbase orbiting planet "zzzzrrr".
+Standard building restrictions do not apply.
+You have spent 0 out of 51 points.  You have 51 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "zzzzrrr" IN SYSTEM (15,13): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 51 points.  You have 51 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)             <6> ETACs              20    (0)
+ <2> Cruisers           15    (0)             <7> Starbases          50    (0)
+ <3> Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)            <10> Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 10): [0] -> 5
+
+How many new troop transports do you wish to build  (0 - 10): [10] -> 
+ 
+BUILD ON CURRENT PLANET: "zzzzrrr" IN SYSTEM (15,13): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "anus".
+Standard building restrictions apply.
+You have spent 0 out of 9 points.  You have 9 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "anus" IN SYSTEM (13,15): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 9 points.  You have 9 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 1
+
+How many new destroyers do you wish to build  (0 - 1): [1] -> 
+
+
+You have spent 5 out of 9 points.  You have 4 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                         Troop transports    5    (0)
+     Destroyers          5    (1)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 9
+
+How many new armies do you wish to build  (0 - 2): [2] -> 
+ 
+BUILD ON CURRENT PLANET: "anus" IN SYSTEM (13,15): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> b 
+
+
+"b" is not an option
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "anus" IN SYSTEM (13,15): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "hector".
+Standard building restrictions apply.
+You have spent 0 out of 8 points.  You have 8 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "hector" IN SYSTEM (7,16): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 8 points.  You have 8 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 1
+
+How many new destroyers do you wish to build  (0 - 1): [1] -> 
+
+
+You have spent 5 out of 8 points.  You have 3 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                         Troop transports    5    (0)
+     Destroyers          5    (1)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 9
+
+How many new armies do you wish to build  (0 - 1): [1] -> 
+ 
+BUILD ON CURRENT PLANET: "hector" IN SYSTEM (7,16): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "k'34dc'#".
+Standard building restrictions apply.
+You have spent 0 out of 7 points.  You have 7 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "k'34dc'#" IN SYSTEM (17,18): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 7 points.  You have 7 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 1
+
+How many new destroyers do you wish to build  (0 - 1): [1] -> 
+
+
+You have spent 5 out of 7 points.  You have 2 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                         Troop transports    5    (0)
+     Destroyers          5    (1)                 ETACs              20    (0)
+     Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 9
+
+How many new armies do you wish to build  (0 - 1): [1] -> 
+ 
+BUILD ON CURRENT PLANET: "k'34dc'#" IN SYSTEM (17,18): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "you're my bitch".
+Standard building restrictions apply.
+You have spent 9 out of 9 points.  You have 0 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "you're my bitch" IN SYSTEM (23,5): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "vibrator".
+Standard building restrictions apply.
+You have spent 5 out of 5 points.  You have 0 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "vibrator" IN SYSTEM (14,7): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> qn
+
+
+There is a starbase orbiting planet "zzzzrrr".
+Standard building restrictions do not apply.
+You have spent 50 out of 51 points.  You have 1 point left to spend.
+ 
+BUILD ON CURRENT PLANET: "zzzzrrr" IN SYSTEM (15,13): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "anus".
+Standard building restrictions apply.
+You have spent 9 out of 9 points.  You have 0 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "anus" IN SYSTEM (13,15): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> p
+
+List by <C>urrent Production, <L>ocation, <P>otential or <A>bort? [C] -> a
+
+Aborted.
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "anus" IN SYSTEM (13,15): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> c
+
+
+Build units:
+
+Enter the planet's X coordinate or <A>bort: [7] -> 13
+
+Enter the planet's Y coordinate or <A>bort: [15] -> 
+
+
+There are no starbases orbiting planet "anus".
+Standard building restrictions apply.
+You have spent 9 out of 9 points.  You have 0 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "anus" IN SYSTEM (13,15): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "hector".
+Standard building restrictions apply.
+You have spent 7 out of 8 points.  You have 1 point left to spend.
+ 
+BUILD ON CURRENT PLANET: "hector" IN SYSTEM (7,16): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "k'34dc'#".
+Standard building restrictions apply.
+You have spent 7 out of 7 points.  You have 0 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "k'34dc'#" IN SYSTEM (17,18): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "you're my bitch".
+Standard building restrictions apply.
+You have spent 9 out of 9 points.  You have 0 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "you're my bitch" IN SYSTEM (23,5): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There are no starbases orbiting planet "vibrator".
+Standard building restrictions apply.
+You have spent 5 out of 5 points.  You have 0 points left to spend.
+ 
+BUILD ON CURRENT PLANET: "vibrator" IN SYSTEM (14,7): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> n
+
+
+There is a starbase orbiting planet "zzzzrrr".
+Standard building restrictions do not apply.
+You have spent 50 out of 51 points.  You have 1 point left to spend.
+ 
+BUILD ON CURRENT PLANET: "zzzzrrr" IN SYSTEM (15,13): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> a
+
+
+Confirm: Do you wish to abort the build orders for this planet? Y/[N] -> y
+
+Build orders aborted.
+
+(Press Return) 
+
+ 
+BUILD ON CURRENT PLANET: "zzzzrrr" IN SYSTEM (15,13): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> s
+
+
+You have spent 0 out of 51 points.  You have 51 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (0)
+ <1> Destroyers          5    (0)             <6> ETACs              20    (0)
+ <2> Cruisers           15    (0)             <7> Starbases          50    (0)
+ <3> Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)            <10> Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 10): [0] -> 5
+
+How many new troop transports do you wish to build  (0 - 10): [10] -> 5
+
+
+You have spent 25 out of 51 points.  You have 26 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (5)
+ <1> Destroyers          5    (0)             <6> ETACs              20    (0)
+ <2> Cruisers           15    (0)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+ <4> Scouts             15    (0)            <10> Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 10): [0] -> 2
+
+How many new cruisers do you wish to build  (0 - 1): [1] -> 
+
+
+You have spent 40 out of 51 points.  You have 11 points left to spend.
+
+ NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.
+-------------------------------------------------------------------------------
+ <0> DONE                                     <5> Troop transports    5    (5)
+ <1> Destroyers          5    (0)                 ETACs              20    (0)
+     Cruisers           15    (1)                 Starbases          50    (0)
+     Battleships        45    (0)             <9> Armies              2    (0)
+     Scouts             15    (0)                 Ground batteries   20    (0)
+-------------------------------------------------------------------------------
+
+Enter the unit's number or "0" if done (0 - 9): [0] -> 1
+
+How many new destroyers do you wish to build  (0 - 2): [2] -> 
+ 
+BUILD ON CURRENT PLANET: "zzzzrrr" IN SYSTEM (15,13): 
+  H>elp with commands        P>lanets, List your         S>pecify Build Orders
+  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds
+  X>pert mode ON/OFF         C>hange current planet      L>ist builds
+  V>iew partial star map     N>ext planet                I>nfo about a Planet
+
+BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I-> q
+ 
+PLANET COMMANDS:    V>iew Partial Map                       T>ax rate: Empire
+  H>elp on Options  C>OMMISSION MENU   D>etail Planet List  S>corch planets
+  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet: Brief List  L>oad TTs w/Armies
+  X>pert mode       B>UILD MENU...     I>nfo about Planet   U>nload TT Armies
+
+PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> f
+
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    3   1    0    2   6  Sector(3,19)  Colonize world in System (2,20)
+2    3   1    0    2   6  Sector(22,5)  Colonize world in System (21,6)
+3    0   0    0    2   6  Planet(23,5)  Guard/blockade world in System (23,5)
+4    0   0    0    8   6  Planet(15,13) Guard Starbase 1 now in System (15,13)
+5    3   5    0    1   0  Sector(13,20) Colonize world in System (5,12)
+6    0   0    0    1   0  Sector(25,22) Scout Sector (25,22)
+7    4   3    0    2   6  Sector(17,11) Guard/blockade world in System (23,5)
+8    3   1    0    2   6  Sector(19,5)  Colonize world in System (19,5)
+9    6   2    0    1   0  Planet(11,23) Scout System (5,22)
+10   0   0    0    4   6  Planet(7,16)  Guard/blockade world in System (7,16)
+11   6   2    0    1   0  Planet(15,13) Scout System (21,14)
+12   0   0    0    2   6  Planet(13,15) Guard/blockade world in System (13,15)
+15   6   0    0    1   6  Planet(7,16)  Guard/blockade world in System (7,16)
+-------------------------------------------------------------------------------
+
+(Press Return) r
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> r
+
+Review which fleet (1 - 15) or [A]bort?  -> 4
+
+Fleet ID:      4th Fleet
+Maximum Speed: 4
+Composition:   1 Battleship
+               4 Cruisers
+               3 Destroyers
+               * Starbase 1
+Location:      Solar System at (15,13)  
+Mission:       Guard Starbase 1 now in System (15,13)
+ETA:           Fleet has already begun mission.
+ROE:           <6> Engage hostile fleets of equal or inferior strength.
+-------------------------------------------------------------------------------
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> d
+
+Detach ships from which fleet? (1 - 15) or [A]bort?  -> 4
+
+Enter the number of battleships to be detached  (0 - 1): [0] -> 1
+
+Enter the number of cruisers to be detached  (0 - 4): [0] -> 3
+
+Enter the number of destroyers to be detached  (0 - 3): [0] -> 
+
+ 
+ 
+Creating the 13th Fleet:
+
+Select Rules of Engagement (ROE) to be used when encountering hostile fleets:
+-------------------------------------------------------------------------------
+ <0> Avoid all hostile fleets.
+ <1> Engage hostile fleets only if they are defenseless.
+ <2> Engage hostile fleets only if advantage is 4:1 or better.
+ <3> Engage hostile fleets only if advantage is 3:1 or better.
+ <4> Engage hostile fleets only if advantage is 2:1 or better.
+ <5> Engage hostile fleets only if advantage is 3:2 or better.
+ <6> Engage hostile fleets of equal or inferior strength.
+ <7> Engage hostile fleets even if outgunned 3:2.
+ <8> Engage hostile fleets even if outgunned 2:1.
+ <9> Engage hostile fleets even if outgunned 3:1.
+<10> Engage hostile fleets regardless of their size.
+-------------------------------------------------------------------------------
+
+Enter the number that indicates the ROE for this fleet (0 - 10): [6] -> 
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    3   1    0    2   6  Sector(3,19)  Colonize world in System (2,20)
+2    3   1    0    2   6  Sector(22,5)  Colonize world in System (21,6)
+3    0   0    0    2   6  Planet(23,5)  Guard/blockade world in System (23,5)
+4    0   0    0    4   6  Planet(15,13) Guard Starbase 1 now in System (15,13)
+5    3   5    0    1   0  Sector(13,20) Colonize world in System (5,12)
+6    0   0    0    1   0  Sector(25,22) Scout Sector (25,22)
+7    4   3    0    2   6  Sector(17,11) Guard/blockade world in System (23,5)
+8    3   1    0    2   6  Sector(19,5)  Colonize world in System (19,5)
+9    6   2    0    1   0  Planet(11,23) Scout System (5,22)
+10   0   0    0    4   6  Planet(7,16)  Guard/blockade world in System (7,16)
+11   6   2    0    1   0  Planet(15,13) Scout System (21,14)
+12   0   0    0    2   6  Planet(13,15) Guard/blockade world in System (13,15)
+13   0   0    0    4   6  Planet(15,13) No standing orders
+15   6   0    0    1   6  Planet(7,16)  Guard/blockade world in System (7,16)
+-------------------------------------------------------------------------------
+
+(Press Return) r
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> r
+
+Review which fleet (1 - 15) or [A]bort?  -> 13
+
+Fleet ID:      13th Fleet
+Maximum Speed: 4
+Composition:   1 Battleship
+               3 Cruisers
+Location:      Solar System at (15,13)  
+Mission:       No standing orders
+ETA:           N/A
+ROE:           <6> Engage hostile fleets of equal or inferior strength.
+-------------------------------------------------------------------------------
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 15) or [A]bort?  -> 13
+
+
+
+Note: All missions also include movement (if required).
+13th Fleet's current mission : No standing orders
+13th Fleet's current location: Solar System at (15,13)
+
+Possible missions for the 13th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 3
+
+Enter sector to patrol: X coordinate or <A>bort: [15] -> 23
+
+Enter sector to patrol: Y coordinate or <A>bort: [13] -> 14
+
+
+Destination is Sector (23,14). At maximum speed, travel
+time would be 3 years. ETA would be year 3011 A.D.
+
+The 13th Fleet's maximum speed is 4.
+
+Enter current speed for this fleet (1 - 4): [4] -> 
+
+
+NEW ORDERS:  Patrol Sector (23,14)
+Proceed with orders? [Y]/N -> 
+Orders Received.
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    3   1    0    2   6  Sector(3,19)  Colonize world in System (2,20)
+2    3   1    0    2   6  Sector(22,5)  Colonize world in System (21,6)
+3    0   0    0    2   6  Planet(23,5)  Guard/blockade world in System (23,5)
+4    0   0    0    4   6  Planet(15,13) Guard Starbase 1 now in System (15,13)
+5    3   5    0    1   0  Sector(13,20) Colonize world in System (5,12)
+6    0   0    0    1   0  Sector(25,22) Scout Sector (25,22)
+7    4   3    0    2   6  Sector(17,11) Guard/blockade world in System (23,5)
+8    3   1    0    2   6  Sector(19,5)  Colonize world in System (19,5)
+9    6   2    0    1   0  Planet(11,23) Scout System (5,22)
+10   0   0    0    4   6  Planet(7,16)  Guard/blockade world in System (7,16)
+11   6   2    0    1   0  Planet(15,13) Scout System (21,14)
+12   0   0    0    2   6  Planet(13,15) Guard/blockade world in System (13,15)
+13   4   3    0    4   6  Planet(15,13) Patrol Sector (23,14)
+15   6   0    0    1   6  Planet(7,16)  Guard/blockade world in System (7,16)
+-------------------------------------------------------------------------------
+
+(Press Return) r
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> r
+
+Review which fleet (1 - 15) or [A]bort?  -> 3
+
+Fleet ID:      3rd Fleet
+Maximum Speed: 6
+Composition:   2 Destroyers
+Location:      Solar System at (23,5)   
+Mission:       Guard/blockade world in System (23,5)
+ETA:           Fleet has already begun mission.
+ROE:           <6> Engage hostile fleets of equal or inferior strength.
+-------------------------------------------------------------------------------
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    3   1    0    2   6  Sector(3,19)  Colonize world in System (2,20)
+2    3   1    0    2   6  Sector(22,5)  Colonize world in System (21,6)
+3    0   0    0    2   6  Planet(23,5)  Guard/blockade world in System (23,5)
+4    0   0    0    4   6  Planet(15,13) Guard Starbase 1 now in System (15,13)
+5    3   5    0    1   0  Sector(13,20) Colonize world in System (5,12)
+6    0   0    0    1   0  Sector(25,22) Scout Sector (25,22)
+7    4   3    0    2   6  Sector(17,11) Guard/blockade world in System (23,5)
+8    3   1    0    2   6  Sector(19,5)  Colonize world in System (19,5)
+9    6   2    0    1   0  Planet(11,23) Scout System (5,22)
+10   0   0    0    4   6  Planet(7,16)  Guard/blockade world in System (7,16)
+11   6   2    0    1   0  Planet(15,13) Scout System (21,14)
+12   0   0    0    2   6  Planet(13,15) Guard/blockade world in System (13,15)
+13   4   3    0    4   6  Planet(15,13) Patrol Sector (23,14)
+15   6   0    0    1   6  Planet(7,16)  Guard/blockade world in System (7,16)
+-------------------------------------------------------------------------------
+
+(Press Return) r
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> r
+
+Review which fleet (1 - 15) or [A]bort?  -> 7
+
+Fleet ID:      7th Fleet
+Maximum Speed: 4
+Composition:   1 Battleship
+               1 Destroyer
+Location:      Sector (17,11)  
+Mission:       Guard/blockade world in System (23,5)
+ETA:           Year 3011 A.D.  (3 years from now)
+ROE:           <6> Engage hostile fleets of equal or inferior strength.
+-------------------------------------------------------------------------------
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 15) or [A]bort?  -> 7
+
+
+
+Note: All missions also include movement (if required).
+7th Fleet's current mission : Guard/blockade world in System (23,5)
+7th Fleet's current location: Sector (17,11)
+
+Possible missions for the 7th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 13
+
+Enter the ID number of the host fleet: (1 - 15) or <A>bort? [4]  -> 2
+
+
+Destination is Sector (22,5). At maximum speed, travel
+time would be 2 years. ETA would be year 3010 A.D.
+
+The 7th Fleet's maximum speed is 4.
+
+Enter current speed for this fleet (1 - 4): [4] -> 
+
+
+NEW ORDERS:  Join 2nd Fleet now in Sector (22,5)
+Proceed with orders? [Y]/N -> n
+Orders aborted.
+
+(Press Return) b
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    3   1    0    2   6  Sector(3,19)  Colonize world in System (2,20)
+2    3   1    0    2   6  Sector(22,5)  Colonize world in System (21,6)
+3    0   0    0    2   6  Planet(23,5)  Guard/blockade world in System (23,5)
+4    0   0    0    4   6  Planet(15,13) Guard Starbase 1 now in System (15,13)
+5    3   5    0    1   0  Sector(13,20) Colonize world in System (5,12)
+6    0   0    0    1   0  Sector(25,22) Scout Sector (25,22)
+7    4   3    0    2   6  Sector(17,11) Guard/blockade world in System (23,5)
+8    3   1    0    2   6  Sector(19,5)  Colonize world in System (19,5)
+9    6   2    0    1   0  Planet(11,23) Scout System (5,22)
+10   0   0    0    4   6  Planet(7,16)  Guard/blockade world in System (7,16)
+11   6   2    0    1   0  Planet(15,13) Scout System (21,14)
+12   0   0    0    2   6  Planet(13,15) Guard/blockade world in System (13,15)
+13   4   3    0    4   6  Planet(15,13) Patrol Sector (23,14)
+15   6   0    0    1   6  Planet(7,16)  Guard/blockade world in System (7,16)
+-------------------------------------------------------------------------------
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 15) or [A]bort?  -> 7
+
+
+
+Note: All missions also include movement (if required).
+7th Fleet's current mission : Guard/blockade world in System (23,5)
+7th Fleet's current location: Sector (17,11)
+
+Possible missions for the 7th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 13
+
+Enter the ID number of the host fleet: (1 - 15) or <A>bort? [4]  -> 3
+
+
+Destination is System (23,5). At maximum speed, travel
+time would be 3 years. ETA would be year 3011 A.D.
+
+The 7th Fleet's maximum speed is 4.
+
+Enter current speed for this fleet (1 - 4): [4] -> 
+
+
+NEW ORDERS:  Join 3rd Fleet now in System (23,5)
+Proceed with orders? [Y]/N -> n
+Orders aborted.
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> b
+
+List fleets by:
+    <I>D, <L>ocation, <D>estination, <M>ission,
+    <R>ange from a specified Sector or <A>bort? [I] -> 
+
+
+Listing fleets by ID: 
+   Start with which Fleet ID Number [Enter=1] --> 
+
+Ctrl-S will pause and resume output.
+Ctrl-X or Ctrl-K will abort.
+
+ (brief)
+
+ID  Spd ETA Army Ship ROE  Location     Mission
+-------------------------------------------------------------------------------
+1    3   1    0    2   6  Sector(3,19)  Colonize world in System (2,20)
+2    3   1    0    2   6  Sector(22,5)  Colonize world in System (21,6)
+3    0   0    0    2   6  Planet(23,5)  Guard/blockade world in System (23,5)
+4    0   0    0    4   6  Planet(15,13) Guard Starbase 1 now in System (15,13)
+5    3   5    0    1   0  Sector(13,20) Colonize world in System (5,12)
+6    0   0    0    1   0  Sector(25,22) Scout Sector (25,22)
+7    4   3    0    2   6  Sector(17,11) Guard/blockade world in System (23,5)
+8    3   1    0    2   6  Sector(19,5)  Colonize world in System (19,5)
+9    6   2    0    1   0  Planet(11,23) Scout System (5,22)
+10   0   0    0    4   6  Planet(7,16)  Guard/blockade world in System (7,16)
+11   6   2    0    1   0  Planet(15,13) Scout System (21,14)
+12   0   0    0    2   6  Planet(13,15) Guard/blockade world in System (13,15)
+13   4   3    0    4   6  Planet(15,13) Patrol Sector (23,14)
+15   6   0    0    1   6  Planet(7,16)  Guard/blockade world in System (7,16)
+-------------------------------------------------------------------------------
+
+(Press Return) o
+
+ 
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> o
+
+Give orders to which fleet (1 - 15) or [A]bort?  -> 7
+
+
+
+Note: All missions also include movement (if required).
+7th Fleet's current mission : Guard/blockade world in System (23,5)
+7th Fleet's current location: Sector (17,11)
+
+Possible missions for the 7th Fleet:
+-------------------------------------------------------------------------------
+      <0> None (hold position)            <6> Bombard a World                
+      <1> Move Fleet (only)               <9> View a World                   
+      <2> Seek Home                      <13> Join Another Fleet             
+      <3> Patrol a Sector                <14> Rendezvous at Sector           
+      <4> Guard a Starbase               <15> Salvage Fleet                  
+      <5> Guard/Blockade a World              
+-------------------------------------------------------------------------------
+
+Enter the number corresponding to the mission or [A]bort. -> 13
+
+Enter the ID number of the host fleet: (1 - 15) or <A>bort? [4]  -> 3
+
+
+Destination is System (23,5). At maximum speed, travel
+time would be 3 years. ETA would be year 3011 A.D.
+
+The 7th Fleet's maximum speed is 4.
+
+Enter current speed for this fleet (1 - 4): [4] -> 
+
+
+NEW ORDERS:  Join 3rd Fleet now in System (23,5)
+Proceed with orders? [Y]/N -> 
+Orders Received.
+
+(Press Return) 
+
+ 
+FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet
+  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER
+  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet
+  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies
+  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies
+
+FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> qg
+
+
+ 
+GENERAL COMMAND CENTER:   I>nfo about a Planet     C>ommunicate (send message)
+  H>elp with commands     A>utopilot ON/OFF        R>eview messages/results
+  Q>uit to main menu      S>tatus, your            D>elete ALL messages/results
+  X>pert mode ON/OFF      P>rofile of your empire  O>ther empires (rankings)
+  V>iew Partial Starmap   M>ap of the galaxy       E>nemies, declare or list
+
+GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E-> o
+
+Rank empires by <I>D, <P>roduction, <N>umber of planets or <A>bort? [I] -> 
+
+NOTE: Previous Year's Information is Parenthesized.
+-------------------------------------------------------------------------------
+Empire Name             ID     Planets Owned     Current Production     Status
+-------------------------------------------------------------------------------
+zzzzrrr                  1        8  (  0)           164  (    0)         *
+Melody Lake              2        8  (  0)           156  (    0)       Neutral
+Romulus                  3        6  (  0)           156  (    0)       Neutral
+Taa'r                    4        1  (  0)           100  (    0)       Neutral
+-------------------------------------------------------------------------------
+
+(Press Return) 
+
+ 
+GENERAL COMMAND CENTER:   I>nfo about a Planet     C>ommunicate (send message)
+  H>elp with commands     A>utopilot ON/OFF        R>eview messages/results
+  Q>uit to main menu      S>tatus, your            D>elete ALL messages/results
+  X>pert mode ON/OFF      P>rofile of your empire  O>ther empires (rankings)
+  V>iew Partial Starmap   M>ap of the galaxy       E>nemies, declare or list
+
+GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E-> e
+
+Declare an empire <E>nemy, <N>eutral, <L>ist enemies, or [A]bort? -> e
+
+Enter the ID number of the empire that you
+wish to declare an ENEMY or "0" to abort.
+
+Empire ID or <L>? [0] -> 2
+
+Your fleets will now consider "Melody Lake", (Empire #2) your ENEMY.
+
+(Press Return) 
+
+ 
+GENERAL COMMAND CENTER:   I>nfo about a Planet     C>ommunicate (send message)
+  H>elp with commands     A>utopilot ON/OFF        R>eview messages/results
+  Q>uit to main menu      S>tatus, your            D>elete ALL messages/results
+  X>pert mode ON/OFF      P>rofile of your empire  O>ther empires (rankings)
+  V>iew Partial Starmap   M>ap of the galaxy       E>nemies, declare or list
+
+GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E-> c
+
+
+Enter an Empire's ID Number to send it a message, or type "L" to
+see a list of empires, or "0" to abort.
+
+Empire ID or <L>? [0] -> 2
+
+Message is addressed to Melody Lake.
+
+    (----------------------------------------------------------------------)
+ 1->now you will be punished for your insolance
+ 2->
+
+
+ 
+MESSAGE COMMAND CENTER: 
+  H>elp with commands      C>ontinue message                I>nsert a line
+  Q>uit to Main Menu       S>end (transmit) message         D>elete a line
+  X>pert mode toggle       N>ew addressee for message       M>ove a line
+  L>ist message            R>emove message from memory      E>dit a line
+
+MESSAGE COMMAND <-H,Q,X,L,C,S,N,R,I,D,M,E-> l
+
+List Message - Starting line number? [1] -> 
+
+Message is addressed to Melody Lake.
+
+    (----------------------------------------------------------------------)
+ 1->now you will be punished for your insolance
+
+(Press Return) 
+
+ 
+MESSAGE COMMAND CENTER: 
+  H>elp with commands      C>ontinue message                I>nsert a line
+  Q>uit to Main Menu       S>end (transmit) message         D>elete a line
+  X>pert mode toggle       N>ew addressee for message       M>ove a line
+  L>ist message            R>emove message from memory      E>dit a line
+
+MESSAGE COMMAND <-H,Q,X,L,C,S,N,R,I,D,M,E-> s
+
+Transmit message to Melody Lake? Y/[N] -> y
+
+Transmission sent.
+
+(Press Return) 
+
+ 
+MESSAGE COMMAND CENTER: 
+  H>elp with commands      C>ontinue message                I>nsert a line
+  Q>uit to Main Menu       S>end (transmit) message         D>elete a line
+  X>pert mode toggle       N>ew addressee for message       M>ove a line
+  L>ist message            R>emove message from memory      E>dit a line
+
+MESSAGE COMMAND <-H,Q,X,L,C,S,N,R,I,D,M,E-> q
+
+Leave message in memory for further editing later? [Y]/N -> n
+ 
+GENERAL COMMAND CENTER:   I>nfo about a Planet     C>ommunicate (send message)
+  H>elp with commands     A>utopilot ON/OFF        R>eview messages/results
+  Q>uit to main menu      S>tatus, your            D>elete ALL messages/results
+  X>pert mode ON/OFF      P>rofile of your empire  O>ther empires (rankings)
+  V>iew Partial Starmap   M>ap of the galaxy       E>nemies, declare or list
+
+GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> q
+
+Are you sure you want to quit? Y/[N] -> y
+
+
+Returning you back to Jump Start...
+Games External Programs:
+
+Num ³ Name                                Num ³ Name                           
+ÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ           ÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ      
+  1 ³ Ambroshia v4.5                       11 ³ Vsysop                         
+  2 ³ Operation Overkill II                12 ³ The Pit                        
+  3 ³ ArrowBridge II                       13 ³ Esterian Conquest              
+  4 ³ TradeWars 2002 Gold                  14 ³ Yahtzee                        
+  5 ³ King of the Board                    15 ³ Triangle Solitaire             
+  6 ³ LORD                                 16 ³ Usurper v0.20b                 
+  7 ³ T&J Poker                            17 ³ Star Fight                     
+  8 ³ Melee                                18 ³ Land Of the Barons             
+  9 ³ Land of Devastation                  19 ³ Svalvards                      
+ 10 ³ Ambroshia                      
+
+Which or Quit: Q
+Select External Program Section:
+
+  1: Main
+  2: Global War
+  3: Games
+  4: SRgames BRE, FE, TAL (InterBBS)
+  5: Sunrisedoors 
+  6: Other Synchronet Systems
+  7: Synchronet Default Games
+
+Which, Quit or [1]: Q
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ( MAIN MENU )ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+
+[T] .............. Files Menu[X] .................. Games
+[G] ...... Text files section[O] ....... Goodbye & Logoff
+[E] ........... Email/NetMail[C] .............. Chat Menu
+[Q] ..... QWK packet transfer[D] .......... Your settings
+[P] .......... Post a message[&] ...... Your msg settings
+[N] ........ New message scan[U] ..... System Information
+[R] ..... Read message prompt[M] ............ Minute Bank
+[Z] ..... Continuous new scan[^K] ......... CTRL-Key Menu
+[B] ......... Browse new scan[^U] .......... Who's Online
+[J] .... Jump to new msg area[^P] .. Send private message
+[*] ......... List sub-boards[/*] ........... List groups
+[{] ......... Back sub-boards[}]  ... Forwards sub-boards
+[CTRL-C] Abort command/text scroll
+ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+221 Mins Remaining
+
+                            
+þ Main þ 3:41:08 [1] Fidonet [135] DOORGAMES: O
+
+[û] Log off? [No] Yes Yes
+
+Log off requested on 09/01/11 at 02:10 pm
+
+Time used: 0:18:56
+
+Thank you for calling JumpStart, another fine Synchronet BBS...
+
+
+     Quote of the day:
+
+
+    Seriousness is the only refuge of the shallow.  ÄÄ Oscar Wilde
+
+
+
+For a list of active Synchronet systems, see http://synchro.net/sbbslist.html
+
+

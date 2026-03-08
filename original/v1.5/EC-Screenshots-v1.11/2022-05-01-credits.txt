@@ -1,0 +1,21 @@
+Esterian Conquest Ver 1.11
+───────────────────────────────────────────────────────────────────────────────
+ Copyright (C) 1990, 1991 by Bentley C. Griffith.  All rights reserved.
+ Original Beta testing done on The MATRIX BBS - Birmingham, Alabama.
+
+ Currently supporting: PCBoard, GAP, RBBS, QBBS, FoReM, RA, Wildcat!,
+ SpitFire, and WWIV.  Soon to support OPUS BBS software.
+
+ If you have any questions or suggestions concerning Esterian Conquest,
+ feel free to write to:
+                        ATTN: ESTERIAN CONQUEST(tm)
+                        Griffith International
+                        P.O. Box 530703
+                        Birmingham, AL 35253
+
+ or leave electronic mail on The MATRIX, 24 hours/7 days. Numbers are:
+ area code (205): 323-2016, 323-1828, 323-2031, 323-2032 and 251-2344
+
+ A special thanks to the following people (in aphabetical order):
+          Joel Cohen      Blake Miller       Todd Simmons
+          Tom Egan        Rocky Rawlins      William Smith 

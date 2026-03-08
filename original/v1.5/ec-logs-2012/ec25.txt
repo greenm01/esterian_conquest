@@ -1,0 +1,370 @@
+
+
+
+
+Display ANSI Colors & IBM Graphic Characters Y/[N] -> 
+
+
+
+
+
+
+
+
+
+
+                                **************
+                                *            *
+                                * Jump Start *
+                                *            *
+                                **************
+ 
+ 
+                                 ************
+                                 *          *
+                                 * PRESENTS *
+                                 *          *
+                                 ************
+ 
+ 
+  o     #######   ###### ########  #######  ######    ##    #####    ###  ##
+    .  ##       ##         ##     ##       ##   ##   ##   ##   ##   #### ##
+      ####      #####     ##     ####     ######    ##   #######   ## ####   .
+     ##            ##    ##     ##       ## ##     ##   ##   ##   ##  ###
+ .  #######  ######     ##     #######  ##   ##   ##   ##   ##   ##   ##
+
+   *   ######   #####    ###  ##   #####   ##   ##  #######   ###### ########
+     ##       ##   ##   #### ##  ##   ##  ##   ##  ##       ##         ##  .
+  . ##       ##   ##   ## ####  ##   ##  ##   ##  ####      #####     ##
+   ##       ##   ##   ##  ###  ## # ##  ##   ##  ##            ##    ##      .
+   ######   #####    ##   ##   ######   #####   #######  ######     ##
+                                 ##
+                       .                       Ver 1.50 
+        .                                                   .      .
+
+Compliments of your Sysop, Ray Kvalheim.
+Registration # 110039
+
+(Press Return) 
+
+
+Welcome back to Esterian Conquest, Ver 1.50
+-------------------------------------------------------------------------------
+Use Ctrl-S throughout the game to pause and resume output.
+Use Ctrl-X or Ctrl-K to abort most listings.
+
+View Introduction? Y/[N] -> 
+
+
+
+
+, you are "zzzzrrr", (Empire #1)
+
+The year is: 3027 A.D.
+
+Last year on: 3026 A.D.
+
+You have 239 minutes left to play.
+
+Autopilot is off.
+
+(Press Return) 
+
+
+
+
+
+
+You have undeleted reports. View them? [Y]es, <N>o, <NS> (non-stop) -> 
+
+
+Reports: Current game year is 3027 A.D.
+
+
+ -> From your 34th Fleet, located in System(2,20)           Stardate: 1/3026
+ -> Guard/Blockade World mission report: We have arrived at planet "helix" 
+ -> in Sector(2,20) and are beginning our guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> n
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 11th Fleet, located in System(27,12)          Stardate: 1/3026
+ -> Scouting mission report: We are in extended orbit around planet "126" 
+ -> and have compiled the following data:
+ ->   Owned by: "Melody Lake", (Empire #2)
+ ->   Potential production: 126 points
+ ->   Estimated present production: 27 points
+ ->   Estimated amount of stored goods: 13 points
+ ->   Number of armies: 1
+ ->   Number of ground batteries: 2
+ ->   The planet's stardock appears to be empty.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> n
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From planet "humble" in System(19,5):                   Stardate: 1/3026
+ -> We have been invaded and conquored by the 3rd Fleet of empire "Melody 
+ -> Lake", (Empire #2). The invading fleet initially contained 2 cruisers 
+ -> and 7 troop transports carrying 7 armies. We failed to inflict any 
+ -> alien casualties. We had no defensive forces at the time of the attack. 
+ -> When we realized that the battle was lost, we tried to destroy anything 
+ -> we thought the aliens could use. We estimate that the production of the 
+ -> world is down to 1 point(s) out of a possible 62. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> n
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 1st Fleet, located in System(7,1)             Stardate: 1/3026
+ -> Guard/Blockade World mission report: We have arrived at planet "pinky" 
+ -> in Sector(7,1) and are beginning our guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+Report deleted.
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 4th Fleet, located in System(27,12)           Stardate: 1/3026
+ -> Bombardment mission report: We were attacked by the 15th Fleet of 
+ -> "Melody Lake", (Empire #2) in System(27,12). Our force contained 4 
+ -> battleships, 17 cruisers and 26 destroyers. Alien force contained 1 
+ -> cruiser and 2 destroyers. The aliens fled before us. No alien ships 
+ -> were destroyed. Luckily, we suffered no losses. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> n
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 20th Fleet, located in System(14,7)           Stardate: 1/3026
+ -> Guard/Blockade World mission report: We have arrived at planet 
+ -> "vibrator" in Sector(14,7) and are beginning our guarding/blockading 
+ -> assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+Report deleted.
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 25th Fleet, located in System(15,13)          Stardate: 1/3026
+ -> Guard Starbase mission report: We have arrived at Starbase 1 and are 
+ -> beginning our guard/escort mission.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+Report deleted.
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 4th Fleet, located in System(27,12)           Stardate: 1/3026
+ -> Bombardment mission report: We have just concluded a bombing run 
+ -> against planet "126", currently owned by "Melody Lake", (Empire #2). 
+ -> The target world was defended by 2 ground batteries and 1 army. We 
+ -> managed to destroy all of the ground batteries, the army, 96% of the 
+ -> factories and 100% of the stored goods (production points). Our force 
+ -> initially contained 4 battleships, 17 cruisers and 26 destroyers. In 
+ -> the raid, we lost 2 cruisers. We are holding our position and are 
+ -> awaiting new orders.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> yn
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 29th Fleet, located in System(13,15)          Stardate: 1/3026
+ -> Guard/Blockade World mission report: We have arrived at planet "anus" 
+ -> in Sector(13,15) and are beginning our guarding/blockading assignment.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+Report deleted.
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 11th Fleet, located in System(27,12)          Stardate: 2/3026
+ -> Scouting mission report: We have an update concerning the world in 
+ -> System(27,12). The world has been bombarded. We have compiled the 
+ -> following new data concerning this world:
+ ->   Owned by: "Melody Lake", (Empire #2)
+ ->   Potential production: 126 points
+ ->   Estimated present production: 1 points
+ ->   Estimated amount of stored goods: 0 points
+ ->   Number of armies: 0
+ ->   Number of ground batteries: 0
+ ->   The planet's stardock appears to be empty.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> n
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From Starbase 1, located in System(15,13)              Stardate: 17/3026
+ -> We have located and identified an alien fleet in System(15,13). It is 
+ -> the 9th Fleet of "Melody Lake", (Empire #2). Their fleet contains 1 
+ -> small vessel(s) of unknown type. We are alerting all fleets in the 
+ -> area.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> n
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 25th Fleet, located in System(15,13)         Stardate: 21/3026
+ -> Guard Starbase mission report: We successfully intercepted the 9th 
+ -> Fleet of "Melody Lake", (Empire #2). We had 1 battleship and 1 
+ -> destroyer. Alien force contained 1 scout. The aliens were completely 
+ -> destroyed. Luckily, we suffered no losses. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+Report deleted.
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 2nd Fleet, located in System(25,22)          Stardate: 29/3026
+ -> Blitz mission report: We have successfully blitzed and taken planet 
+ -> "Fran" from "Melody Lake", (Empire #2). The target world was defended 
+ -> by 10 ground batteries and 15 armies. In the attack, we managed to 
+ -> capture 44 production point(s) worth of goods, 6 ground batteries , 2 
+ -> destroyers and 1 cruiser. Our force initially contained 2 cruisers, 14 
+ -> destroyers and 46 troop transports carrying 46 armies. In the raid, we 
+ -> lost 11 destroyers, 32 troop transports and 20 armies, 17 of which were 
+ -> killed inside their transports. After the smoke cleared, we had 26 
+ -> armies enforcing control on the planet. We are holding our position and 
+ -> are awaiting new orders.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> n
+
+All reports seen.
+
+Would you like to delete ALL of your reports(s)? Y/[N] -> 
+
+(Press Return) 
+
+
+
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> g
+
+
+ 
+GENERAL COMMAND CENTER:   I>nfo about a Planet     C>ommunicate (send message)
+  H>elp with commands     A>utopilot ON/OFF        R>eview messages/results
+  Q>uit to main menu      S>tatus, your            D>elete ALL messages/results
+  X>pert mode ON/OFF      P>rofile of your empire  O>ther empires (rankings)
+  V>iew Partial Starmap   M>ap of the galaxy       E>nemies, declare or list
+
+GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E-> o
+
+Rank empires by <I>D, <P>roduction, <N>umber of planets or <A>bort? [I] -> 
+
+NOTE: Previous Year's Information is Parenthesized.
+-------------------------------------------------------------------------------
+Empire Name             ID     Planets Owned     Current Production     Status
+-------------------------------------------------------------------------------
+zzzzrrr                  1       19  (  0)           898  (    0)         *
+Melody Lake              2       15  (  0)           464  (    0)       ENEMY
+Romulus                  3        7  (  0)           498  (    0)       Neutral
+Taa'r                    4        1  (  0)           100  (    0)       Neutral
+rebel alliance           6        1  (  0)           100  (    0)       Neutral
+-------------------------------------------------------------------------------
+
+(Press Return) 
+
+ 
+GENERAL COMMAND CENTER:   I>nfo about a Planet     C>ommunicate (send message)
+  H>elp with commands     A>utopilot ON/OFF        R>eview messages/results
+  Q>uit to main menu      S>tatus, your            D>elete ALL messages/results
+  X>pert mode ON/OFF      P>rofile of your empire  O>ther empires (rankings)
+  V>iew Partial Starmap   M>ap of the galaxy       E>nemies, declare or list
+
+GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E-> q
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> q
+
+Are you sure you want to quit? Y/[N] -> y
+
+
+Returning you back to Jump Start...
+Games External Programs:
+
+Num ³ Name                                Num ³ Name                           
+ÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ           ÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ      
+  1 ³ Ambroshia v4.5                       11 ³ Vsysop                         
+  2 ³ Operation Overkill II                12 ³ The Pit                        
+  3 ³ ArrowBridge II                       13 ³ Esterian Conquest              
+  4 ³ TradeWars 2002 Gold                  14 ³ Yahtzee                        
+  5 ³ King of the Board                    15 ³ Triangle Solitaire             
+  6 ³ LORD                                 16 ³ Usurper v0.20b                 
+  7 ³ T&J Poker                            17 ³ Star Fight                     
+  8 ³ Melee                                18 ³ Land Of the Barons             
+  9 ³ Land of Devastation                  19 ³ Svalvards                      
+ 10 ³ Ambroshia                      
+
+Which or Quit: Q
+Select External Program Section:
+
+  1: Main
+  2: Global War
+  3: Games
+  4: SRgames BRE, FE, TAL (InterBBS)
+  5: Sunrisedoors 
+  6: Other Synchronet Systems
+  7: Synchronet Default Games
+
+Which, Quit or [1]: Q
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ( MAIN MENU )ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+
+[T] .............. Files Menu[X] .................. Games
+[G] ...... Text files section[O] ....... Goodbye & Logoff
+[E] ........... Email/NetMail[C] .............. Chat Menu
+[Q] ..... QWK packet transfer[D] .......... Your settings
+[P] .......... Post a message[&] ...... Your msg settings
+[N] ........ New message scan[U] ..... System Information
+[R] ..... Read message prompt[M] ............ Minute Bank
+[Z] ..... Continuous new scan[^K] ......... CTRL-Key Menu
+[B] ......... Browse new scan[^U] .......... Who's Online
+[J] .... Jump to new msg area[^P] .. Send private message
+[*] ......... List sub-boards[/*] ........... List groups
+[{] ......... Back sub-boards[}]  ... Forwards sub-boards
+[CTRL-C] Abort command/text scroll
+ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+237 Mins Remaining
+
+                            
+ş Main ş 3:57:16 [1] Fidonet [135] DOORGAMES: O
+
+[û] Log off? [No] Yes Yes
+
+Log off requested on 09/20/11 at 04:36 am
+
+Time used: 0:02:46
+
+Thank you for calling JumpStart, another fine Synchronet BBS...
+
+
+     Quote of the day:
+
+
+    Diplomacy is using your head without anyone suspecting it.
+
+
+
+For a list of active Synchronet systems, see http://synchro.net/sbbslist.html
+
+
