@@ -518,6 +518,38 @@ Practical inference:
 - the dense post-maintenance writes at `0x40..0x54` look like derived summary totals or timing/state fields produced during turn processing
 - this file is a prime candidate for the core campaign clock and global statistics model in a port
 
+Confirmed field:
+
+- `CONQUEST.DAT[0x00..0x01]` (`u16`, little-endian): game year
+  - shipped sample: `3022`
+  - fresh `ECUTIL` init fixture: `3000`
+  - post-maintenance fixture: `3001`
+
+Confirmed field:
+
+- `CONQUEST.DAT[0x02]` (`u8`): player count
+  - shipped sample: `4`
+  - fresh `ECUTIL` init fixture: `4`
+  - post-maintenance fixture: `4`
+
+Why this is high confidence:
+
+- `ECPLAYER.DOC` states “The year is 3000.”
+- `ECPLAYER.DOC` and `ECQSTART.DOC` both state that each round equals one year of game time
+- the initialized-to-post-maint transition increments this field by exactly `1`
+
+Why this is high confidence:
+
+- `ECREADME.DOC` states that `ECUTIL` sets the maximum number of players.
+- `ECPLAYER.DOC` states that the number of solar systems is `5` times the number of players.
+- the preserved initialized fixture has `20` planet records and `20 / 5 = 4`.
+- the low byte of the `0x0104` control word is `4` in all preserved states.
+
+Practical caution:
+
+- `CONQUEST.DAT[0x02..0x03]` is still exposed in the Rust code as a combined `player_config_word`.
+- only the low byte is currently named with confidence.
+
 ## Most Useful Next Diffs
 
 To label fields efficiently, the best actions are:

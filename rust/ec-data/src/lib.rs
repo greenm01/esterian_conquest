@@ -240,6 +240,18 @@ impl ConquestDat {
         &self.raw[..0x55]
     }
 
+    pub fn game_year(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0], self.raw[1]])
+    }
+
+    pub fn player_count(&self) -> u8 {
+        self.raw[2]
+    }
+
+    pub fn player_config_word(&self) -> u16 {
+        u16::from_le_bytes([self.raw[2], self.raw[3]])
+    }
+
     pub fn header_words(&self) -> Vec<u16> {
         self.control_header()
             .chunks_exact(2)
@@ -318,6 +330,9 @@ mod tests {
         assert_eq!(parsed.to_bytes(), bytes);
         assert_eq!(parsed.control_header().len(), 0x55);
         assert_eq!(parsed.header_words()[0], 0x0bce);
+        assert_eq!(parsed.game_year(), 3022);
+        assert_eq!(parsed.player_count(), 4);
+        assert_eq!(parsed.player_config_word(), 0x0104);
     }
 
     #[test]
@@ -375,5 +390,19 @@ mod tests {
             read_initialized_fixture("DATABASE.DAT"),
             read_post_maint_fixture("DATABASE.DAT")
         );
+    }
+
+    #[test]
+    fn preserved_conquest_year_progression_matches_docs() {
+        let original = ConquestDat::parse(&read_fixture("CONQUEST.DAT")).unwrap();
+        let initialized = ConquestDat::parse(&read_initialized_fixture("CONQUEST.DAT")).unwrap();
+        let post_maint = ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap();
+
+        assert_eq!(initialized.game_year(), 3000);
+        assert_eq!(post_maint.game_year(), 3001);
+        assert_eq!(original.game_year(), 3022);
+        assert_eq!(initialized.player_count(), 4);
+        assert_eq!(post_maint.player_count(), 4);
+        assert_eq!(original.player_count(), 4);
     }
 }

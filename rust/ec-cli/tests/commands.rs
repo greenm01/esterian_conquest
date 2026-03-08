@@ -39,6 +39,9 @@ fn headers_prints_known_setup_and_conquest_values() {
     let stdout = run_ec_cli(&["headers", "original/v1.5"]);
     assert!(stdout.contains("SETUP.version=EC151"));
     assert!(stdout.contains("SETUP.option_prefix=[04, 03, 04, 03, 01, 01, 01, 01]"));
+    assert!(stdout.contains("CONQUEST.game_year=3022"));
+    assert!(stdout.contains("CONQUEST.player_count=4"));
+    assert!(stdout.contains("CONQUEST.player_config_word=0104"));
     assert!(stdout.contains("CONQUEST.header_len=85"));
     assert!(stdout.contains("0bce"));
 }

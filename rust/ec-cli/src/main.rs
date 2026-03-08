@@ -185,6 +185,9 @@ fn dump_headers(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("Directory: {}", dir.display());
     println!("SETUP.version={}", String::from_utf8_lossy(setup.version_tag()));
     println!("SETUP.option_prefix={:02x?}", setup.option_prefix());
+    println!("CONQUEST.game_year={}", conquest.game_year());
+    println!("CONQUEST.player_count={}", conquest.player_count());
+    println!("CONQUEST.player_config_word={:04x}", conquest.player_config_word());
     println!("CONQUEST.header_len={}", conquest.control_header().len());
     println!("CONQUEST.header_words={:04x?}", conquest.header_words());
 
@@ -194,6 +197,8 @@ fn dump_headers(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
 fn print_header_summary(setup: &SetupDat, conquest: &ConquestDat) {
     println!("SETUP version: {}", String::from_utf8_lossy(setup.version_tag()));
     println!("SETUP option prefix: {:02x?}", setup.option_prefix());
+    println!("CONQUEST game year: {}", conquest.game_year());
+    println!("CONQUEST player count: {}", conquest.player_count());
     println!("CONQUEST header bytes: {}", conquest.control_header().len());
     println!(
         "CONQUEST first header words: {:04x?}",
