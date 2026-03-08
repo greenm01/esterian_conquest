@@ -107,3 +107,30 @@ fn maintenance_days_set_rewrites_conquest_schedule() {
 
     let _ = fs::remove_dir_all(&target);
 }
+
+#[test]
+fn snoop_off_rewrites_setup_flag() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-snoop-{unique}"));
+    fs::create_dir_all(&target).unwrap();
+
+    let fixture = repo_root().join("original/v1.5");
+    fs::copy(fixture.join("SETUP.DAT"), target.join("SETUP.DAT")).unwrap();
+
+    let stdout = run_ec_cli_in_dir(
+        &["snoop", target.to_str().unwrap(), "off"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Snoop enabled: no"));
+
+    let stdout = run_ec_cli_in_dir(
+        &["snoop", target.to_str().unwrap()],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Snoop enabled: no"));
+
+    let _ = fs::remove_dir_all(&target);
+}

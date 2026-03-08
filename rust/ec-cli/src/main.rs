@@ -99,6 +99,18 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 _ => print_usage(),
             }
         }
+        "snoop" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            match args.next().as_deref() {
+                None => print_snoop(&dir)?,
+                Some("on") => set_snoop(&dir, true)?,
+                Some("off") => set_snoop(&dir, false)?,
+                _ => print_usage(),
+            }
+        }
         _ => print_usage(),
     }
 
@@ -256,6 +268,7 @@ fn dump_headers(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("Directory: {}", dir.display());
     println!("SETUP.version={}", String::from_utf8_lossy(setup.version_tag()));
     println!("SETUP.option_prefix={:02x?}", setup.option_prefix());
+    println!("SETUP.snoop_enabled={}", setup.snoop_enabled());
     println!("CONQUEST.game_year={}", conquest.game_year());
     println!("CONQUEST.player_count={}", conquest.player_count());
     println!("CONQUEST.player_config_word={:04x}", conquest.player_config_word());
@@ -286,6 +299,22 @@ fn print_maintenance_days(dir: &Path) -> Result<(), Box<dyn std::error::Error>> 
         "Maintenance raw: {:02x?}",
         conquest.maintenance_schedule_bytes()
     );
+    Ok(())
+}
+
+fn print_snoop(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    println!("Directory: {}", dir.display());
+    println!("Snoop enabled: {}", if setup.snoop_enabled() { "yes" } else { "no" });
+    Ok(())
+}
+
+fn set_snoop(dir: &Path, enabled: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let setup_path = dir.join("SETUP.DAT");
+    let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
+    setup.set_snoop_enabled(enabled);
+    fs::write(&setup_path, setup.to_bytes())?;
+    print_snoop(dir)?;
     Ok(())
 }
 
@@ -326,6 +355,7 @@ fn weekday_index(day_name: &str) -> Option<usize> {
 fn print_header_summary(setup: &SetupDat, conquest: &ConquestDat) {
     println!("SETUP version: {}", String::from_utf8_lossy(setup.version_tag()));
     println!("SETUP option prefix: {:02x?}", setup.option_prefix());
+    println!("SETUP snoop enabled: {}", if setup.snoop_enabled() { "yes" } else { "no" });
     println!("CONQUEST game year: {}", conquest.game_year());
     println!("CONQUEST player count: {}", conquest.player_count());
     println!(
@@ -533,6 +563,8 @@ fn print_usage() {
     println!("  ec-cli headers [dir]");
     println!("  ec-cli maintenance-days [dir]");
     println!("  ec-cli maintenance-days <dir> set <sun|mon|tue|wed|thu|fri|sat>...");
+    println!("  ec-cli snoop [dir]");
+    println!("  ec-cli snoop <dir> <on|off>");
     println!("  ec-cli match [dir]");
     println!("  ec-cli compare <left_dir> <right_dir>");
     println!("  ec-cli init [source_dir] <target_dir>");

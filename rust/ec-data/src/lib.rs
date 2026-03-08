@@ -421,6 +421,14 @@ impl SetupDat {
         &self.raw[5..13]
     }
 
+    pub fn snoop_enabled(&self) -> bool {
+        self.raw[512] != 0
+    }
+
+    pub fn set_snoop_enabled(&mut self, enabled: bool) {
+        self.raw[512] = u8::from(enabled);
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         self.raw.to_vec()
     }
@@ -567,6 +575,7 @@ mod tests {
         assert_eq!(parsed.to_bytes(), bytes);
         assert_eq!(parsed.version_tag(), b"EC151");
         assert_eq!(parsed.option_prefix(), &[4, 3, 4, 3, 1, 1, 1, 1]);
+        assert!(parsed.snoop_enabled());
     }
 
     #[test]
@@ -711,5 +720,14 @@ mod tests {
             post_maint.maintenance_schedule_enabled(),
             [true, false, true, false, true, false, true]
         );
+    }
+
+    #[test]
+    fn can_toggle_snoop_enabled() {
+        let mut setup = SetupDat::parse(&read_fixture("SETUP.DAT")).unwrap();
+        assert!(setup.snoop_enabled());
+        setup.set_snoop_enabled(false);
+        assert!(!setup.snoop_enabled());
+        assert_eq!(setup.raw[512], 0);
     }
 }
