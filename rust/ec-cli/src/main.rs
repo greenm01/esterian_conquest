@@ -39,6 +39,17 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or_else(default_fixture_dir);
             inspect_dir(&dir)?;
         }
+        "compare" => {
+            let Some(left) = args.next().map(|arg| resolve_repo_path(&arg)) else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(right) = args.next().map(|arg| resolve_repo_path(&arg)) else {
+                print_usage();
+                return Ok(());
+            };
+            compare_dirs(&left, &right)?;
+        }
         "init" => {
             let source = args
                 .next()
@@ -85,7 +96,12 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Directory: {}", dir.display());
     println!("SETUP version: {}", String::from_utf8_lossy(setup.version_tag()));
+    println!("SETUP option prefix: {:02x?}", setup.option_prefix());
     println!("CONQUEST header bytes: {}", conquest.control_header().len());
+    println!(
+        "CONQUEST first header words: {:04x?}",
+        &conquest.header_words()[..8]
+    );
     println!();
 
     println!("Players:");
@@ -159,6 +175,109 @@ fn initialize_dir(source: &Path, target: &Path) -> Result<(), Box<dyn std::error
     Ok(())
 }
 
+fn compare_dirs(left: &Path, right: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    println!("Left:  {}", left.display());
+    println!("Right: {}", right.display());
+    println!();
+
+    compare_raw_file(left, right, "SETUP.DAT")?;
+    compare_raw_file(left, right, "CONQUEST.DAT")?;
+    compare_player(left, right)?;
+    compare_planets(left, right)?;
+    compare_fleets(left, right)?;
+
+    Ok(())
+}
+
+fn compare_raw_file(
+    left_dir: &Path,
+    right_dir: &Path,
+    name: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let left = fs::read(left_dir.join(name))?;
+    let right = fs::read(right_dir.join(name))?;
+    println!(
+        "{name}: size {} vs {}, differing bytes {}",
+        left.len(),
+        right.len(),
+        diff_count(&left, &right)
+    );
+    Ok(())
+}
+
+fn compare_player(left_dir: &Path, right_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let left = PlayerDat::parse(&fs::read(left_dir.join("PLAYER.DAT"))?)?;
+    let right = PlayerDat::parse(&fs::read(right_dir.join("PLAYER.DAT"))?)?;
+    println!("PLAYER.DAT:");
+    for (idx, (a, b)) in left.records.iter().zip(right.records.iter()).enumerate() {
+        let count = diff_count(&a.raw, &b.raw);
+        if count == 0 {
+            continue;
+        }
+        println!(
+            "  record {}: {} differing bytes, tax {} -> {}",
+            idx + 1,
+            count,
+            a.tax_rate(),
+            b.tax_rate()
+        );
+    }
+    Ok(())
+}
+
+fn compare_planets(left_dir: &Path, right_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let left = PlanetDat::parse(&fs::read(left_dir.join("PLANETS.DAT"))?)?;
+    let right = PlanetDat::parse(&fs::read(right_dir.join("PLANETS.DAT"))?)?;
+    println!("PLANETS.DAT:");
+    for (idx, (a, b)) in left.records.iter().zip(right.records.iter()).enumerate() {
+        let count = diff_count(&a.raw, &b.raw);
+        if count == 0 {
+            continue;
+        }
+        println!(
+            "  record {:02}: {} differing bytes, text '{}' -> '{}'",
+            idx + 1,
+            count,
+            ascii_trim(a.status_or_name_bytes()),
+            ascii_trim(b.status_or_name_bytes())
+        );
+    }
+    Ok(())
+}
+
+fn compare_fleets(left_dir: &Path, right_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let left_bytes = fs::read(left_dir.join("FLEETS.DAT"))?;
+    let right_bytes = fs::read(right_dir.join("FLEETS.DAT"))?;
+    println!(
+        "FLEETS.DAT: size {} vs {}, differing bytes {}",
+        left_bytes.len(),
+        right_bytes.len(),
+        diff_count(&left_bytes, &right_bytes)
+    );
+
+    let left = FleetDat::parse(&left_bytes);
+    let right = FleetDat::parse(&right_bytes);
+    if let (Ok(left), Ok(right)) = (left, right) {
+        for (idx, (a, b)) in left.records.iter().zip(right.records.iter()).enumerate() {
+            let count = diff_count(&a.raw, &b.raw);
+            if count == 0 {
+                continue;
+            }
+            println!(
+                "  record {:02}: {} differing bytes, mission {} -> {}, params {:02x?} -> {:02x?}",
+                idx + 1,
+                count,
+                a.mission_code(),
+                b.mission_code(),
+                a.mission_param_bytes(),
+                b.mission_param_bytes()
+            );
+        }
+    }
+
+    Ok(())
+}
+
 fn copy_top_level_files(source: &Path, target: &Path) -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all(target)?;
 
@@ -184,8 +303,14 @@ fn ascii_trim(bytes: &[u8]) -> String {
     text.trim().to_string()
 }
 
+fn diff_count(left: &[u8], right: &[u8]) -> usize {
+    let shared = left.iter().zip(right.iter()).filter(|(a, b)| a != b).count();
+    shared + left.len().abs_diff(right.len())
+}
+
 fn print_usage() {
     println!("Usage:");
     println!("  ec-cli inspect [dir]");
+    println!("  ec-cli compare <left_dir> <right_dir>");
     println!("  ec-cli init [source_dir] <target_dir>");
 }

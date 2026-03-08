@@ -214,6 +214,10 @@ impl SetupDat {
         &self.raw[..5]
     }
 
+    pub fn option_prefix(&self) -> &[u8] {
+        &self.raw[5..13]
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         self.raw.to_vec()
     }
@@ -234,6 +238,13 @@ impl ConquestDat {
 
     pub fn control_header(&self) -> &[u8] {
         &self.raw[..0x55]
+    }
+
+    pub fn header_words(&self) -> Vec<u16> {
+        self.control_header()
+            .chunks_exact(2)
+            .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+            .collect()
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -287,6 +298,7 @@ mod tests {
         let parsed = SetupDat::parse(&bytes).unwrap();
         assert_eq!(parsed.to_bytes(), bytes);
         assert_eq!(parsed.version_tag(), b"EC151");
+        assert_eq!(parsed.option_prefix(), &[4, 3, 4, 3, 1, 1, 1, 1]);
     }
 
     #[test]
@@ -295,6 +307,7 @@ mod tests {
         let parsed = ConquestDat::parse(&bytes).unwrap();
         assert_eq!(parsed.to_bytes(), bytes);
         assert_eq!(parsed.control_header().len(), 0x55);
+        assert_eq!(parsed.header_words()[0], 0x0bce);
     }
 
     #[test]
