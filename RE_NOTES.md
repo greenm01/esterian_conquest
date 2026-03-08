@@ -550,6 +550,43 @@ Practical caution:
 - `CONQUEST.DAT[0x02..0x03]` is still exposed in the Rust code as a combined `player_config_word`.
 - only the low byte is currently named with confidence.
 
+Confirmed field block:
+
+- `CONQUEST.DAT[0x03..0x09]` (`7 x u8`): maintenance schedule, ordered:
+  - `[0x03]` Sunday
+  - `[0x04]` Monday
+  - `[0x05]` Tuesday
+  - `[0x06]` Wednesday
+  - `[0x07]` Thursday
+  - `[0x08]` Friday
+  - `[0x09]` Saturday
+
+Confirmed encoding:
+
+- `0x00` means the day is disabled for maintenance
+- enabled days store a nonzero day-specific code, not a plain boolean
+
+Observed values from controlled `ECUTIL` `F2 Change Maintenance Days` edits:
+
+- Sunday `Yes` = `0x01`
+- Monday `Yes` = `0x01`
+- Tuesday `Yes` = `0xCA`
+- Wednesday `Yes` = `0x01`
+- Thursday `Yes` = `0x0A`
+- Friday `Yes` = `0x01`
+- Saturday `Yes` = `0x26`
+
+High-confidence baseline:
+
+- the preserved post-maintenance fixture stores `[01, 01, 01, 01, 01, 01, 01]`
+- the live `ECUTIL` experiments proved that zeroing a day changes the corresponding byte to `0x00`
+
+Practical implication for the Rust port:
+
+- preserve the schedule as raw bytes first
+- interpret `0x00` as disabled
+- do not collapse the nonzero values to booleans until the original encoding scheme is better understood
+
 Useful structural clue from initialized fixtures:
 
 - in the preserved `4`-player initialized state, `FLEETS.DAT` contains `16` populated `54`-byte records
@@ -560,6 +597,63 @@ Practical implication:
 
 - the preserved initialized `FLEETS.DAT` layout is consistent with a fixed fleet-record table sized to the current player count times the starting fleet allotment
 - this is useful for port design, but not enough yet to name individual fleet fields
+
+Preserved initialized fleet baseline:
+
+From `original/v1.5/ec-logs-2012/ec.txt`, the first empire's four starting fleets in the
+post-maintenance `3001 A.D.` state are:
+
+- Fleet `1`: Speed `3`, ETA `1`, Ships `2`, ROE `6`, `Sector(14,14)`,
+  `Colonize world in System (13,15)`
+- Fleet `2`: Speed `3`, ETA `2`, Ships `2`, ROE `6`, `Sector(17,12)`,
+  `Colonize world in System (20,11)`
+- Fleet `3`: Speed `6`, ETA `2`, Ships `1`, ROE `6`, `Sector(19,9)`,
+  `View world in System (23,5)`
+- Fleet `4`: Speed `0`, ETA `0`, Ships `1`, ROE `6`, `Planet(15,13)`,
+  `Guard/blockade world in System (15,13)`
+
+The same log gives the detailed ship contents:
+
+- Fleet `1`: `CA=1 ET=1`
+- Fleet `2`: `CA=1 ET=1`
+- Fleet `3`: `DD=1`
+- Fleet `4`: `DD=1`
+
+Practical implication:
+
+- these preserved runtime values are the best current ground truth for naming the early fields in
+  the initialized `FLEETS.DAT` records
+- they are also a useful conformance target for a future Rust `inspect` view that decodes fleet
+  location, mission, ROE, speed, ETA, and ship composition
+
+## ECUTIL Surface
+
+Preserved DOSBox-X screenshot:
+
+- `/home/niltempus/Pictures/ecv1.5/ecutil_000.raw1.png`
+
+Confirmed `ECUTIL` main menu text:
+
+- `Esterian Conquest Sysop's Utility`
+- `MAIN MENU`
+- `F1  Initialize a New Game`
+- `F2  Change Maintenance Days`
+- `F3  Change Empire Ownership`
+- `F4  Modify Program Options`
+- `F5  Change Modem/Com Port Configuration`
+- `F10 Exit to DOS`
+
+Footer text from the preserved screenshot:
+
+- `Esterian Conquest Sysop's Utility - Test Drive Version 1.51`
+- `Copyright (C) 1990-1992 by Bentley C. Griffith.`
+- `All rights reserved worldwide.`
+
+Practical implication for the Rust port:
+
+- the preserved `ec-cli init` command corresponds directly to `F1`
+- the next highest-value `ECUTIL` replacement targets are `F2` and `F4`
+- the screenshot gives exact wording for a future faithful text-mode compatibility frontend
 
 ## Most Useful Next Diffs
 

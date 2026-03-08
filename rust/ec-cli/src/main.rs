@@ -190,6 +190,10 @@ fn dump_headers(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("CONQUEST.game_year={}", conquest.game_year());
     println!("CONQUEST.player_count={}", conquest.player_count());
     println!("CONQUEST.player_config_word={:04x}", conquest.player_config_word());
+    println!(
+        "CONQUEST.maintenance_schedule={:02x?}",
+        conquest.maintenance_schedule_bytes()
+    );
     println!("CONQUEST.header_len={}", conquest.control_header().len());
     println!("CONQUEST.header_words={:04x?}", conquest.header_words());
 
@@ -201,6 +205,10 @@ fn print_header_summary(setup: &SetupDat, conquest: &ConquestDat) {
     println!("SETUP option prefix: {:02x?}", setup.option_prefix());
     println!("CONQUEST game year: {}", conquest.game_year());
     println!("CONQUEST player count: {}", conquest.player_count());
+    println!(
+        "CONQUEST maintenance schedule: {:02x?}",
+        conquest.maintenance_schedule_bytes()
+    );
     println!("CONQUEST header bytes: {}", conquest.control_header().len());
     println!(
         "CONQUEST first header words: {:04x?}",

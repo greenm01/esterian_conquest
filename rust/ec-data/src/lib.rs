@@ -252,6 +252,12 @@ impl ConquestDat {
         u16::from_le_bytes([self.raw[2], self.raw[3]])
     }
 
+    pub fn maintenance_schedule_bytes(&self) -> [u8; 7] {
+        self.raw[3..10]
+            .try_into()
+            .expect("maintenance schedule should be 7 bytes")
+    }
+
     pub fn header_words(&self) -> Vec<u16> {
         self.control_header()
             .chunks_exact(2)
@@ -404,5 +410,11 @@ mod tests {
         assert_eq!(initialized.player_count(), 4);
         assert_eq!(post_maint.player_count(), 4);
         assert_eq!(original.player_count(), 4);
+    }
+
+    #[test]
+    fn post_maintenance_fixture_exposes_known_schedule_bytes() {
+        let post_maint = ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap();
+        assert_eq!(post_maint.maintenance_schedule_bytes(), [0x01; 7]);
     }
 }

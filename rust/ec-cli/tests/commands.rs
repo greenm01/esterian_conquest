@@ -46,6 +46,7 @@ fn headers_prints_known_setup_and_conquest_values() {
     assert!(stdout.contains("CONQUEST.game_year=3022"));
     assert!(stdout.contains("CONQUEST.player_count=4"));
     assert!(stdout.contains("CONQUEST.player_config_word=0104"));
+    assert!(stdout.contains("CONQUEST.maintenance_schedule=[01, 01, 01, 01, 01, 01, 01]"));
     assert!(stdout.contains("CONQUEST.header_len=85"));
     assert!(stdout.contains("0bce"));
 }
