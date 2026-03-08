@@ -182,6 +182,7 @@ fn compare_dirs(left: &Path, right: &Path) -> Result<(), Box<dyn std::error::Err
 
     compare_raw_file(left, right, "SETUP.DAT")?;
     compare_raw_file(left, right, "CONQUEST.DAT")?;
+    compare_raw_file(left, right, "DATABASE.DAT")?;
     compare_player(left, right)?;
     compare_planets(left, right)?;
     compare_fleets(left, right)?;
