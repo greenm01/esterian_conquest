@@ -160,6 +160,52 @@ pub struct FleetRecord {
     pub raw: [u8; FLEET_RECORD_SIZE],
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetStandingOrderKind {
+    HoldPosition,
+    MoveOnly,
+    SeekHome,
+    PatrolSector,
+    GuardBlockadeWorld,
+    BombardWorld,
+    ViewWorld,
+    ColonizeWorld,
+    JoinAnotherFleet,
+    Unknown(u8),
+}
+
+impl FleetStandingOrderKind {
+    pub fn from_raw(raw: u8) -> Self {
+        match raw {
+            0 => Self::HoldPosition,
+            1 => Self::MoveOnly,
+            2 => Self::SeekHome,
+            3 => Self::PatrolSector,
+            5 => Self::GuardBlockadeWorld,
+            6 => Self::BombardWorld,
+            9 => Self::ViewWorld,
+            12 => Self::ColonizeWorld,
+            13 => Self::JoinAnotherFleet,
+            other => Self::Unknown(other),
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::HoldPosition => "hold",
+            Self::MoveOnly => "move",
+            Self::SeekHome => "seek_home",
+            Self::PatrolSector => "patrol",
+            Self::GuardBlockadeWorld => "guard_blockade",
+            Self::BombardWorld => "bombard",
+            Self::ViewWorld => "view",
+            Self::ColonizeWorld => "colonize",
+            Self::JoinAnotherFleet => "join_fleet",
+            Self::Unknown(_) => "unknown",
+        }
+    }
+}
+
 impl FleetRecord {
     pub fn local_slot(&self) -> u8 {
         self.raw[0x00]
@@ -195,6 +241,10 @@ impl FleetRecord {
 
     pub fn standing_order_code_raw(&self) -> u8 {
         self.raw[0x1F]
+    }
+
+    pub fn standing_order_kind(&self) -> FleetStandingOrderKind {
+        FleetStandingOrderKind::from_raw(self.standing_order_code_raw())
     }
 
     pub fn standing_order_target_coords_raw(&self) -> [u8; 2] {
@@ -425,6 +475,10 @@ mod tests {
         assert_eq!(parsed.records[0].destroyer_count(), 0);
         assert_eq!(parsed.records[0].etac_count(), 1);
         assert_eq!(parsed.records[0].standing_order_code_raw(), 5);
+        assert_eq!(
+            parsed.records[0].standing_order_kind(),
+            FleetStandingOrderKind::GuardBlockadeWorld
+        );
         assert_eq!(parsed.records[0].standing_order_target_coords_raw(), [16, 13]);
 
         assert_eq!(parsed.records[2].fleet_id(), 3);
@@ -437,6 +491,10 @@ mod tests {
         assert_eq!(parsed.records[2].destroyer_count(), 1);
         assert_eq!(parsed.records[2].etac_count(), 0);
         assert_eq!(parsed.records[2].standing_order_code_raw(), 5);
+        assert_eq!(
+            parsed.records[2].standing_order_kind(),
+            FleetStandingOrderKind::GuardBlockadeWorld
+        );
         assert_eq!(parsed.records[2].standing_order_target_coords_raw(), [16, 13]);
     }
 

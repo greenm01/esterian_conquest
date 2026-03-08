@@ -721,6 +721,31 @@ Practical implication:
 - the next likely per-fleet order-state bytes are around the still-unnamed early header values such
   as speed/ETA/current-location fields
 
+Negative result from the initialized first-four-fleet scan:
+
+- across fleets `1..4`, the only byte positions that vary are:
+  - `0x00` local slot
+  - `0x03` next fleet ID
+  - `0x05` fleet ID
+  - `0x07` previous fleet ID
+  - `0x09` max speed
+  - `0x28` cruiser count
+  - `0x2A` destroyer count
+  - `0x30` ETAC count
+- no other single byte in the initialized records matches the preserved brief-list `ETA`,
+  current location, or displayed ship-total columns directly
+
+Practical implication:
+
+- the displayed `ETA` and current location for initialized fleets are probably derived from a
+  combination of:
+  - standing order code / target
+  - home-system raw pair
+  - local slot / fleet composition
+  - game-wide movement rules
+- or they are encoded in multi-byte/stateful forms that do not appear as simple scalar per-fleet
+  fields in the initialized snapshot
+
 ## ECUTIL Surface
 
 Preserved DOSBox-X screenshot:
@@ -749,6 +774,63 @@ Practical implication for the Rust port:
 - the preserved `ec-cli init` command corresponds directly to `F1`
 - the next highest-value `ECUTIL` replacement targets are `F2` and `F4`
 - the screenshot gives exact wording for a future faithful text-mode compatibility frontend
+
+## Fleet Command Surface
+
+Preserved screenshot references:
+
+- `original/v1.5/EC-Screenshots-v1.11/fleet-command-menu.png`
+- `original/v1.5/EC-Screenshots-v1.11/fleet-command-h.png`
+- `original/v1.5/EC-Screenshots-v1.11/fleet-command-o.png`
+- `original/v1.5/EC-Screenshots-v1.11/fleet-command-o-5.png`
+- `original/v1.5/EC-Screenshots-v1.11/fleet-command-o-12.png`
+
+Confirmed Fleet Command Center options:
+
+- `H` Help with commands
+- `Q` Quit to main menu
+- `X` Xpert mode ON/OFF
+- `S` STARBASE MENU...
+- `V` View partial Starmap
+- `B` Brief List of Fleets
+- `F` Fleets/Detailed List
+- `R` Review a Fleet
+- `O` Order fleet on mission
+- `C` Change a fleet's ROE
+- `A` Alter a fleet's ID
+- `E` ETA calculation
+- `D` Detach a Fleet
+- `M` Merge a Fleet
+- `T` Transfer (reassign) ships
+- `L` Load Armies to Transports
+- `U` Unload Armies from Transport
+
+Confirmed mission code menu under `O` Order fleet on mission:
+
+- `0` None (hold position)
+- `1` Move Fleet (only)
+- `2` Seek Home
+- `3` Patrol a Sector
+- `5` Guard/Blockade a World
+- `6` Bombard a World
+- `9` View a World
+- `12` Colonize a World
+- `13` Join another fleet
+
+Confirmed order-entry prompt shape:
+
+- the game asks for X/Y destination coordinates for at least:
+  - `5` Guard/Blockade a World
+  - `12` Colonize a World
+- it then prints travel time and resulting ETA year
+- it prompts for current speed up to the fleet's maximum speed
+- all missions may implicitly include movement if required
+
+Practical implication for the Rust port:
+
+- the preserved screenshots are now enough to build a first faithful text-mode Fleet Command menu
+- known raw order codes in `FLEETS.DAT` can be displayed as named mission kinds instead of plain
+  numbers
 
 ## Most Useful Next Diffs
 

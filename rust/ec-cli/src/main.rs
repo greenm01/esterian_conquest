@@ -160,7 +160,7 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
                 println!("Fleets:");
                 for (idx, record) in fleets.records.iter().enumerate().take(4) {
                     println!(
-                        "  fleet {:02}: id={} slot={} prev={} next={} max_spd={} roe={} ships(CA/DD/ET)={}/{}/{} home_raw={:02x?} order_raw={} target_raw={:02x?} mission={}",
+                        "  fleet {:02}: id={} slot={} prev={} next={} max_spd={} roe={} ships(CA/DD/ET)={}/{}/{} home_raw={:02x?} order={}({}) target_raw={:02x?} mission={}",
                         idx + 1,
                         record.fleet_id(),
                         record.local_slot(),
@@ -172,6 +172,7 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
                         record.destroyer_count(),
                         record.etac_count(),
                         record.home_system_coords_raw(),
+                        record.standing_order_kind().as_str(),
                         record.standing_order_code_raw(),
                         record.standing_order_target_coords_raw(),
                         record.mission_code()
