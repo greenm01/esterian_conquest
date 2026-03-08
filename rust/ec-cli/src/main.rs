@@ -144,14 +144,35 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("Planets:");
     for (idx, record) in planets.records.iter().enumerate().take(5) {
         println!(
-            "  planet {:02}: hdr={:02x?} len={} text='{}'",
+            "  planet {:02}: coords={:02x?} hdr={:02x?} len={} text='{}' summary='{}'",
             idx + 1,
+            record.coords_raw(),
             record.header_bytes(),
             record.string_len(),
-            ascii_trim(record.status_or_name_bytes())
+            ascii_trim(record.status_or_name_bytes()),
+            record.derived_summary()
         );
     }
     println!("  ... {} total planet records", planets.records.len());
+
+    let homeworld_like = planets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(_, record)| record.is_named_homeworld_seed())
+        .collect::<Vec<_>>();
+    if !homeworld_like.is_empty() {
+        println!();
+        println!("Planet Seeds:");
+        for (idx, record) in homeworld_like {
+            println!(
+                "  planet {:02}: summary='{}' header_value_raw={:02x}",
+                idx + 1,
+                record.derived_summary(),
+                record.header_value_raw()
+            );
+        }
+    }
 
     match fs::read(dir.join("FLEETS.DAT")) {
         Ok(bytes) => match FleetDat::parse(&bytes) {

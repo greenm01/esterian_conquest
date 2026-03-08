@@ -119,12 +119,58 @@ impl PlanetRecord {
         &self.raw[..3]
     }
 
+    pub fn coords_raw(&self) -> [u8; 2] {
+        [self.raw[0], self.raw[1]]
+    }
+
+    pub fn header_value_raw(&self) -> u8 {
+        self.raw[2]
+    }
+
     pub fn string_len(&self) -> u8 {
         self.raw[0x0F]
     }
 
     pub fn status_or_name_bytes(&self) -> &[u8] {
         &self.raw[0x10..=0x1C]
+    }
+
+    pub fn build_slot_raw(&self) -> u8 {
+        self.raw[0x24]
+    }
+
+    pub fn build_kind_raw(&self) -> u8 {
+        self.raw[0x2E]
+    }
+
+    pub fn status_or_name_summary(&self) -> String {
+        let len = self.string_len() as usize;
+        let text = &self.status_or_name_bytes()[..len.min(self.status_or_name_bytes().len())];
+        String::from_utf8_lossy(text)
+            .trim_matches(char::from(0))
+            .trim()
+            .to_string()
+    }
+
+    pub fn is_named_homeworld_seed(&self) -> bool {
+        self.status_or_name_summary() == "Not Named Yet"
+    }
+
+    pub fn derived_summary(&self) -> String {
+        let [x, y] = self.coords_raw();
+        let text = self.status_or_name_summary();
+        let mut parts = vec![format!("({},{}): {}", x, y, text)];
+        if self.is_named_homeworld_seed() {
+            parts.push("likely_homeworld_seed".to_string());
+        }
+        if self.build_slot_raw() != 0 || self.build_kind_raw() != 0 {
+            parts.push(format!(
+                "build_raw={:02x}/{:02x}",
+                self.build_slot_raw(),
+                self.build_kind_raw()
+            ));
+        }
+        parts.join(" | ")
     }
 }
 
@@ -474,6 +520,29 @@ mod tests {
         let bytes = read_fixture("PLANETS.DAT");
         let parsed = PlanetDat::parse(&bytes).unwrap();
         assert_eq!(parsed.to_bytes(), bytes);
+    }
+
+    #[test]
+    fn initialized_planets_expose_named_homeworld_seeds() {
+        let bytes = read_initialized_fixture("PLANETS.DAT");
+        let parsed = PlanetDat::parse(&bytes).unwrap();
+        let seeds = parsed
+            .records
+            .iter()
+            .enumerate()
+            .filter(|(_, record)| record.is_named_homeworld_seed())
+            .map(|(idx, record)| (idx + 1, record.coords_raw(), record.header_value_raw()))
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            seeds,
+            vec![
+                (5, [6, 5], 100),
+                (6, [13, 5], 100),
+                (13, [4, 13], 100),
+                (15, [16, 13], 100),
+            ]
+        );
     }
 
     #[test]
