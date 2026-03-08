@@ -807,7 +807,14 @@ Current Rust CLI coverage for the decoded `F4` fields:
 
 - `ec-cli setup-programs [dir]`
 - `ec-cli snoop [dir] <on|off>`
+- `ec-cli local-timeout [dir] <on|off>`
+- `ec-cli remote-timeout [dir] <on|off>`
+- `ec-cli max-key-gap [dir] <minutes>`
+- `ec-cli minimum-time [dir] <minutes>`
 - `ec-cli purge-after [dir] <turns>`
+- `ec-cli autopilot-after [dir] <turns>`
+
+This means the decoded `F4 Modify Program Options` surface is now fully represented in the std-only Rust CLI, even though the command names are intentionally more Unix-like than the original single-letter menu.
 
 Confirmed `SETUP.DAT` offsets from the live `F4` diffs:
 

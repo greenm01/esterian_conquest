@@ -111,6 +111,69 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 _ => print_usage(),
             }
         }
+        "local-timeout" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            match args.next().as_deref() {
+                None => print_local_timeout(&dir)?,
+                Some("on") => set_local_timeout(&dir, true)?,
+                Some("off") => set_local_timeout(&dir, false)?,
+                _ => print_usage(),
+            }
+        }
+        "remote-timeout" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            match args.next().as_deref() {
+                None => print_remote_timeout(&dir)?,
+                Some("on") => set_remote_timeout(&dir, true)?,
+                Some("off") => set_remote_timeout(&dir, false)?,
+                _ => print_usage(),
+            }
+        }
+        "max-key-gap" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            match args.next() {
+                None => print_max_key_gap(&dir)?,
+                Some(minutes) => {
+                    let minutes = minutes.parse::<u8>()?;
+                    set_max_key_gap(&dir, minutes)?;
+                }
+            }
+        }
+        "minimum-time" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            match args.next() {
+                None => print_minimum_time(&dir)?,
+                Some(minutes) => {
+                    let minutes = minutes.parse::<u8>()?;
+                    set_minimum_time(&dir, minutes)?;
+                }
+            }
+        }
+        "autopilot-after" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            match args.next() {
+                None => print_autopilot_after(&dir)?,
+                Some(turns) => {
+                    let turns = turns.parse::<u8>()?;
+                    set_autopilot_after(&dir, turns)?;
+                }
+            }
+        }
         "purge-after" => {
             let dir = args
                 .next()
@@ -359,6 +422,82 @@ fn set_snoop(dir: &Path, enabled: bool) -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
+fn print_local_timeout(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    println!("Directory: {}", dir.display());
+    println!(
+        "Local timeout enabled: {}",
+        if setup.local_timeout_enabled() { "yes" } else { "no" }
+    );
+    Ok(())
+}
+
+fn set_local_timeout(dir: &Path, enabled: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let setup_path = dir.join("SETUP.DAT");
+    let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
+    setup.set_local_timeout_enabled(enabled);
+    fs::write(&setup_path, setup.to_bytes())?;
+    print_local_timeout(dir)?;
+    Ok(())
+}
+
+fn print_remote_timeout(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    println!("Directory: {}", dir.display());
+    println!(
+        "Remote timeout enabled: {}",
+        if setup.remote_timeout_enabled() { "yes" } else { "no" }
+    );
+    Ok(())
+}
+
+fn set_remote_timeout(dir: &Path, enabled: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let setup_path = dir.join("SETUP.DAT");
+    let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
+    setup.set_remote_timeout_enabled(enabled);
+    fs::write(&setup_path, setup.to_bytes())?;
+    print_remote_timeout(dir)?;
+    Ok(())
+}
+
+fn print_max_key_gap(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    println!("Directory: {}", dir.display());
+    println!(
+        "Maximum time between key strokes (minutes): {}",
+        setup.max_time_between_keys_minutes_raw()
+    );
+    Ok(())
+}
+
+fn set_max_key_gap(dir: &Path, minutes: u8) -> Result<(), Box<dyn std::error::Error>> {
+    let setup_path = dir.join("SETUP.DAT");
+    let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
+    setup.set_max_time_between_keys_minutes_raw(minutes);
+    fs::write(&setup_path, setup.to_bytes())?;
+    print_max_key_gap(dir)?;
+    Ok(())
+}
+
+fn print_minimum_time(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    println!("Directory: {}", dir.display());
+    println!(
+        "Minimum time granted (minutes): {}",
+        setup.minimum_time_granted_minutes_raw()
+    );
+    Ok(())
+}
+
+fn set_minimum_time(dir: &Path, minutes: u8) -> Result<(), Box<dyn std::error::Error>> {
+    let setup_path = dir.join("SETUP.DAT");
+    let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
+    setup.set_minimum_time_granted_minutes_raw(minutes);
+    fs::write(&setup_path, setup.to_bytes())?;
+    print_minimum_time(dir)?;
+    Ok(())
+}
+
 fn print_purge_after(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
     println!("Directory: {}", dir.display());
@@ -407,6 +546,25 @@ fn set_purge_after(dir: &Path, turns: u8) -> Result<(), Box<dyn std::error::Erro
     setup.set_purge_after_turns_raw(turns);
     fs::write(&setup_path, setup.to_bytes())?;
     print_purge_after(dir)?;
+    Ok(())
+}
+
+fn print_autopilot_after(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    println!("Directory: {}", dir.display());
+    println!(
+        "Autopilot inactive turns (raw): {}",
+        setup.autopilot_inactive_turns_raw()
+    );
+    Ok(())
+}
+
+fn set_autopilot_after(dir: &Path, turns: u8) -> Result<(), Box<dyn std::error::Error>> {
+    let setup_path = dir.join("SETUP.DAT");
+    let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
+    setup.set_autopilot_inactive_turns_raw(turns);
+    fs::write(&setup_path, setup.to_bytes())?;
+    print_autopilot_after(dir)?;
     Ok(())
 }
 

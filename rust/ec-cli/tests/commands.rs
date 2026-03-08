@@ -181,3 +181,58 @@ fn setup_programs_prints_mapped_f4_values() {
     assert!(stdout.contains("F Maximum time between key strokes: 10 minute(s)"));
     assert!(stdout.contains("G Minimum time granted: 0 minute(s)"));
 }
+
+#[test]
+fn remaining_f4_commands_rewrite_setup_fields() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-f4-{unique}"));
+    fs::create_dir_all(&target).unwrap();
+
+    let fixture = repo_root().join("original/v1.5");
+    fs::copy(fixture.join("SETUP.DAT"), target.join("SETUP.DAT")).unwrap();
+
+    let stdout = run_ec_cli_in_dir(
+        &["local-timeout", target.to_str().unwrap(), "on"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Local timeout enabled: yes"));
+
+    let stdout = run_ec_cli_in_dir(
+        &["remote-timeout", target.to_str().unwrap(), "off"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Remote timeout enabled: no"));
+
+    let stdout = run_ec_cli_in_dir(
+        &["max-key-gap", target.to_str().unwrap(), "15"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Maximum time between key strokes (minutes): 15"));
+
+    let stdout = run_ec_cli_in_dir(
+        &["minimum-time", target.to_str().unwrap(), "69"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Minimum time granted (minutes): 69"));
+
+    let stdout = run_ec_cli_in_dir(
+        &["autopilot-after", target.to_str().unwrap(), "3"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Autopilot inactive turns (raw): 3"));
+
+    let stdout = run_ec_cli_in_dir(
+        &["setup-programs", target.to_str().unwrap()],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("D Enable timeout for local users: Yes"));
+    assert!(stdout.contains("E Enable timeout for remote users: No"));
+    assert!(stdout.contains("F Maximum time between key strokes: 15 minute(s)"));
+    assert!(stdout.contains("G Minimum time granted: 69 minute(s)"));
+    assert!(stdout.contains("B Autopilot any empires inactive for: 3 turn(s)"));
+
+    let _ = fs::remove_dir_all(&target);
+}
