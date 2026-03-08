@@ -550,6 +550,17 @@ Practical caution:
 - `CONQUEST.DAT[0x02..0x03]` is still exposed in the Rust code as a combined `player_config_word`.
 - only the low byte is currently named with confidence.
 
+Useful structural clue from initialized fixtures:
+
+- in the preserved `4`-player initialized state, `FLEETS.DAT` contains `16` populated `54`-byte records
+- `ECPLAYER.DOC` states that each empire starts with `4` fleets
+- `4 players x 4 starting fleets = 16`, which matches the initialized fixture exactly
+
+Practical implication:
+
+- the preserved initialized `FLEETS.DAT` layout is consistent with a fixed fleet-record table sized to the current player count times the starting fleet allotment
+- this is useful for port design, but not enough yet to name individual fleet fields
+
 ## Most Useful Next Diffs
 
 To label fields efficiently, the best actions are:

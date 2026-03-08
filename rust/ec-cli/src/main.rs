@@ -111,6 +111,8 @@ fn resolve_repo_path(arg: &str) -> PathBuf {
     let path = PathBuf::from(arg);
     if path.is_absolute() {
         path
+    } else if path.exists() {
+        path
     } else {
         repo_root().join(path)
     }

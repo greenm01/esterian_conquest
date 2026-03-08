@@ -5,9 +5,9 @@ fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn run_ec_cli(args: &[&str]) -> String {
+fn run_ec_cli_in_dir(args: &[&str], current_dir: PathBuf) -> String {
     let output = Command::new(env!("CARGO_BIN_EXE_ec-cli"))
-        .current_dir(repo_root().join("rust"))
+        .current_dir(current_dir)
         .args(args)
         .output()
         .expect("ec-cli should run");
@@ -20,6 +20,10 @@ fn run_ec_cli(args: &[&str]) -> String {
     );
 
     String::from_utf8(output.stdout).expect("stdout should be utf-8")
+}
+
+fn run_ec_cli(args: &[&str]) -> String {
+    run_ec_cli_in_dir(args, repo_root().join("rust"))
 }
 
 #[test]
@@ -44,6 +48,13 @@ fn headers_prints_known_setup_and_conquest_values() {
     assert!(stdout.contains("CONQUEST.player_config_word=0104"));
     assert!(stdout.contains("CONQUEST.header_len=85"));
     assert!(stdout.contains("0bce"));
+}
+
+#[test]
+fn headers_accepts_relative_fixture_paths_from_rust_workspace() {
+    let stdout = run_ec_cli(&["headers", "../fixtures/ecutil-init/v1.5"]);
+    assert!(stdout.contains("CONQUEST.game_year=3000"));
+    assert!(stdout.contains("CONQUEST.player_count=4"));
 }
 
 #[test]
