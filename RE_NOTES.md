@@ -1674,10 +1674,20 @@ Interpretation:
   - plain `army1+dev0`: `CA 3 -> 2`, `DD 5 -> 4`
   - `army1+dev0+0x08=0x00`: `CA 3 -> 1`, `DD 5 -> 3`
 - current best model for the dense `0x04..0x0E` world block is now:
-  - `0x08` contributes to defender strength or damage absorption
-  - `0x0E` contributes to defender strength
-  - `0x58` modulates both world damage and part of attacker losses
-  - `0x5A` acts like a graded army/defender count field
+  - `0x04..0x09` is a single 48-bit Borland Pascal `Real` representing `present` capacity.
+  - Modifying `0x08` or `0x09` individually in previous experiments altered the MSB and exponent of this `Real`, drastically changing the planet's effective development and thus the bombardment loss calculation.
+  - Setting invalid floating-point bytes in `0x04` causes `ECMAINT` to crash with a runtime error during the movement/combat phase.
+  - `0x0E` contributes to defender strength.
+  - `0x58` modulates both world damage and part of attacker losses.
+  - `0x5A` acts like a graded army/defender count field.
+
+Eighth controlled field-isolation result (Byte `0x04`):
+
+- attempted to isolate `PLANETS.DAT[0x04]` by changing it to `0x01` in the `army1-dev0-pre` baseline.
+- `ECMAINT` crashed on the first run during the movement phase, leaving behind `.TOK` and `.SAV` files.
+- on the second run, it detected the crash, output errors to `ERRORS.TXT`, and restored the game from the `.SAV` backups.
+- this confirms that `0x04..0x09` acts as a monolithic structured field (a `Real`), and isolated byte edits cause floating-point exceptions (e.g., Runtime error 207) within the original Pascal FPU logic.
+- decoded baseline value `00 00 00 00 48 87` = `100.0`, matching the scouting reports for `present` capacity perfectly.
 
 Preservation value:
 

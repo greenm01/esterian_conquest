@@ -234,6 +234,29 @@ Why it matters:
 - that makes the dense `0x04..0x0E` block the highest-value next decoding
   target inside `PLANETS.DAT`
 
+Seventh field-isolation follow-up:
+
+- keeping `0x58 = 0`, `0x5A = 1`, `0x0E = 0x04`, and `0x08 = 0x48`, but changing
+  byte `0x09` from `0x87` to `0x00`, produced another distinct bombardment result
+- the order was still consumed and the fleet still ended at the target
+- attacker losses shifted and increased for cruisers:
+  - plain `army1+dev0`: `CA 3 -> 2`, `DD 5 -> 4`
+  - `army1+dev0+0x09=0x00`: `CA 3 -> 1`, `DD 5 -> 5`
+- the world-damage window changed again:
+  - bytes `0x04..0x07`: `00 00 00 00 -> 17 50 a7 b5`
+  - bytes `0x08..0x09`: `48 00 -> 37 00`
+  - byte `0x0E`: `04 -> 35`
+  - byte `0x58`: stayed `0`
+  - byte `0x5A`: `0x01 -> 0`
+
+Why it matters:
+
+- `PLANETS.DAT[0x09]` is also significant and part of the same defense cluster
+- it appears to influence the distribution of losses across ship types in
+  addition to scaling total defender strength
+- the `0x08..0x09` pair now looks like it might act as a single 16-bit field
+  or two closely related defense contributors
+
 ## Reference 2: Follow-on Invasion Travel
 
 Files:
