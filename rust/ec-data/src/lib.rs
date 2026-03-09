@@ -706,6 +706,24 @@ mod tests {
             .join(name)
     }
 
+    fn ecmaint_bombard_pre_fixture_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/ecmaint-bombard-pre/v1.5")
+            .join(name)
+    }
+
+    fn ecmaint_bombard_arrive_fixture_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/ecmaint-bombard-arrive/v1.5")
+            .join(name)
+    }
+
+    fn ecmaint_bombard_post_fixture_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/ecmaint-bombard-post/v1.5")
+            .join(name)
+    }
+
     fn read_fixture(name: &str) -> Vec<u8> {
         fs::read(fixture_path(name)).expect("fixture should exist")
     }
@@ -736,6 +754,18 @@ mod tests {
 
     fn read_ecmaint_fleet_post_fixture(name: &str) -> Vec<u8> {
         fs::read(ecmaint_fleet_post_fixture_path(name)).expect("ecmaint fleet-post fixture should exist")
+    }
+
+    fn read_ecmaint_bombard_pre_fixture(name: &str) -> Vec<u8> {
+        fs::read(ecmaint_bombard_pre_fixture_path(name)).expect("ecmaint bombard-pre fixture should exist")
+    }
+
+    fn read_ecmaint_bombard_arrive_fixture(name: &str) -> Vec<u8> {
+        fs::read(ecmaint_bombard_arrive_fixture_path(name)).expect("ecmaint bombard-arrive fixture should exist")
+    }
+
+    fn read_ecmaint_bombard_post_fixture(name: &str) -> Vec<u8> {
+        fs::read(ecmaint_bombard_post_fixture_path(name)).expect("ecmaint bombard-post fixture should exist")
     }
 
     #[test]
@@ -1045,5 +1075,47 @@ mod tests {
         assert_eq!(post_planet.raw[0x58], 0x01);
         assert_eq!(post_planet.raw[0x5c], 0x02);
         assert_eq!(post_planet.raw[0x5d], 0x01);
+    }
+
+    #[test]
+    fn ecmaint_bombard_scenario_arrival_preserves_attack_order() {
+        let pre = FleetDat::parse(&read_ecmaint_bombard_pre_fixture("FLEETS.DAT")).unwrap();
+        let arrive = FleetDat::parse(&read_ecmaint_bombard_arrive_fixture("FLEETS.DAT")).unwrap();
+
+        let pre_fleet = &pre.records[2];
+        let arrive_fleet = &arrive.records[2];
+
+        assert_eq!(pre_fleet.current_speed(), 0x03);
+        assert_eq!(pre_fleet.standing_order_code_raw(), 0x06);
+        assert_eq!(pre_fleet.standing_order_target_coords_raw(), [0x0f, 0x0d]);
+
+        assert_eq!(arrive_fleet.current_speed(), 0x03);
+        assert_eq!(arrive_fleet.current_location_coords_raw(), [0x0f, 0x0d]);
+        assert_eq!(arrive_fleet.standing_order_code_raw(), 0x06);
+        assert_eq!(arrive_fleet.standing_order_target_coords_raw(), [0x0f, 0x0d]);
+    }
+
+    #[test]
+    fn ecmaint_bombard_scenario_second_pass_consumes_order_and_kills_attackers() {
+        let arrive = FleetDat::parse(&read_ecmaint_bombard_arrive_fixture("FLEETS.DAT")).unwrap();
+        let post = FleetDat::parse(&read_ecmaint_bombard_post_fixture("FLEETS.DAT")).unwrap();
+
+        let arrive_fleet = &arrive.records[2];
+        let post_fleet = &post.records[2];
+
+        assert_eq!(arrive_fleet.current_speed(), 0x03);
+        assert_eq!(arrive_fleet.standing_order_code_raw(), 0x06);
+        assert_eq!(arrive_fleet.cruiser_count(), 0x03);
+        assert_eq!(arrive_fleet.destroyer_count(), 0x05);
+
+        assert_eq!(post_fleet.current_speed(), 0x00);
+        assert_eq!(post_fleet.standing_order_code_raw(), 0x00);
+        assert_eq!(post_fleet.current_location_coords_raw(), [0x0f, 0x0d]);
+        assert_eq!(post_fleet.cruiser_count(), 0x02);
+        assert_eq!(post_fleet.destroyer_count(), 0x01);
+
+        let arrive_planets = PlanetDat::parse(&read_ecmaint_bombard_arrive_fixture("PLANETS.DAT")).unwrap();
+        let post_planets = PlanetDat::parse(&read_ecmaint_bombard_post_fixture("PLANETS.DAT")).unwrap();
+        assert_eq!(arrive_planets.records[13].raw, post_planets.records[13].raw);
     }
 }

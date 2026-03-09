@@ -1205,6 +1205,121 @@ Interpretation:
   `ECMAINT` work than the initialized fixtures, once enough planet/player-side
   context is decoded
 
+## Mature `.SAV` Sidecars In `original/v1.5`
+
+The mature `original/v1.5` snapshot includes:
+
+- `BASES.SAV`
+- `DATABASE.SAV`
+- `FLEETS.SAV`
+- `PLANETS.SAV`
+- `PLAYER.SAV`
+
+Observed differences relative to the matching `.DAT` files:
+
+- `BASES.SAV` identical to `BASES.DAT`
+- `FLEETS.SAV` identical to `FLEETS.DAT`
+- `PLAYER.SAV` differs by `1` byte
+- `PLANETS.SAV` differs by `3` bytes
+- `DATABASE.SAV` differs by `15` bytes
+
+Important detail:
+
+- the changed words repeatedly include:
+  - `0x0BCE -> 0x0BCB` in `PLAYER`
+  - `0x0BCD -> 0x0BCC` in several `DATABASE` record regions
+
+Best current interpretation:
+
+- these `.SAV` sidecars are not a full clean pre/post-maint snapshot pair
+- they look more like partial side backups or stale mirrored views than an
+  immediately reusable engine-transition fixture
+- they are still worth preserving as evidence, but they should not be treated
+  as a ready-made combat scenario source
+
+## Synthetic ECMAINT Bombardment Sequence
+
+Preserved fixtures:
+
+- `fixtures/ecmaint-bombard-pre/v1.5/`
+- `fixtures/ecmaint-bombard-arrive/v1.5/`
+- `fixtures/ecmaint-bombard-post/v1.5/`
+
+Scenario design:
+
+- baseline: `fixtures/ecutil-init/v1.5/`
+- target planet: record `13` (zero-based), coordinates `(15,13)`
+- target world was rewritten from `Unowned` into a cloned seeded-colony-style record using the
+  bytes from record `12` `(4,13)`, while preserving target coordinates `(15,13)`
+- attacking fleet: record `2` (zero-based), fleet `3`
+- attacking order:
+  - `current_speed = 3`
+  - `standing_order = 6` (`Bombard world`)
+  - `target = (15,13)`
+- attacking ship loadout was increased to force a meaningful combat-style test:
+  - `CA=3`
+  - `DD=5`
+  - `ET=0`
+
+### First maintenance pass: arrival only
+
+Relative to the synthetic pre-maint state:
+
+- `FLEETS.DAT` changed only in fleet `3`
+- fleet changes:
+  - `current_location.x`: `16 -> 15`
+  - standing order stayed `6` (`bombard`)
+  - target stayed `(15,13)`
+  - current speed stayed `3`
+- `PLANETS.DAT` did not change at all
+- `MESSAGES.DAT` and `RESULTS.DAT` remained empty
+- `DATABASE.DAT` changed
+- `CONQUEST.DAT` advanced through normal maintenance/year movement
+
+Interpretation:
+
+- in this synthetic case, arrival at the target and the bombardment attack itself are not resolved
+  in the same maintenance pass
+- `ECMAINT` moved the fleet onto the target world and preserved the bombard standing order
+
+### Second maintenance pass: combat-style resolution
+
+Relative to the arrival state:
+
+- `FLEETS.DAT` changed only in fleet `3`
+- order was consumed:
+  - `current_speed`: `3 -> 0`
+  - `standing_order`: `6 -> 0`
+- location remained `(15,13)`
+- attacker losses:
+  - `CA`: `3 -> 2`
+  - `DD`: `5 -> 1`
+- internal fleet-state bytes at `0x19..0x1E` were also reset/rewritten
+- `PLANETS.DAT` still did not change at all
+- `MESSAGES.DAT` and `RESULTS.DAT` remained empty
+- `DATABASE.DAT` changed by `27` bytes
+- `CONQUEST.DAT` changed by `3` bytes:
+  - year increment
+  - one additional small header counter/field
+
+Interpretation:
+
+- this synthetic target encoding is sufficient to trigger fleet-side combat losses
+- it is not sufficient to produce visible planet-side damage or player-facing message/report output
+- best current inference:
+  - either the cloned target world is still missing ownership/defense state from some other file or
+    header field
+  - or bombardment against this synthetic target resolves as hostile defensive attrition without
+    entering the full report-producing planet-damage path
+
+Preservation value:
+
+- this is the first fixture-backed sequence showing a two-step attack lifecycle:
+  - year 1: move into bombard position
+  - year 2: consume bombard order and inflict/receive ship losses
+- even though planet damage was not achieved, the sequence still exposes useful `ECMAINT`
+  behavior for later faithful combat modeling
+
 Confirmed `SETUP.DAT` offsets from the live `F4` diffs:
 
 - `SETUP[512]` `snoop_enabled`
