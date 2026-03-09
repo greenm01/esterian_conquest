@@ -1641,6 +1641,44 @@ Interpretation:
   - `0x58` modulates both world damage and some attacker-loss behavior
   - `0x0E` likely contributes an additional world-defense factor
 
+Sixth controlled bombardment field-isolation result:
+
+- preserving the `army1+dev0` target but changing byte `0x08` from `0x48` to
+  `0x00` produced another distinct combat result
+- preserved fixture pair:
+  - `fixtures/ecmaint-bombard-army1-dev0-b08-pre/v1.5/`
+  - `fixtures/ecmaint-bombard-army1-dev0-b08-post/v1.5/`
+
+Observed outcome relative to the `army1+dev0+0x08=0x00` pre-state:
+
+- after two maintenance passes:
+  - bombard order was consumed
+  - fleet ended at target
+  - attacker losses became heavier than the plain `army1+dev0` case:
+    - `CA`: `3 -> 1`
+    - `DD`: `5 -> 3`
+- target planet changed:
+  - bytes `0x04..0x07`: `00 00 00 00 -> c3 34 8c c2`
+  - bytes `0x08..0x09`: `00 87 -> 1f 86`
+  - bytes `0x0A..0x0D`: `00 00 00 00 -> 06 ea 29 25`
+  - byte `0x0E`: `04 -> 7f`
+  - byte `0x58`: stayed `0`
+  - byte `0x5A`: `0x01 -> 0x00`
+- `MESSAGES.DAT` and `RESULTS.DAT` still remained empty
+
+Interpretation:
+
+- byte `0x08` is now another strong candidate for a defense/resource field
+- with `0x58 = 0`, `0x5A = 1`, and `0x0E = 0x04` held constant, changing only
+  `0x08` substantially increased attacker losses:
+  - plain `army1+dev0`: `CA 3 -> 2`, `DD 5 -> 4`
+  - `army1+dev0+0x08=0x00`: `CA 3 -> 1`, `DD 5 -> 3`
+- current best model for the dense `0x04..0x0E` world block is now:
+  - `0x08` contributes to defender strength or damage absorption
+  - `0x0E` contributes to defender strength
+  - `0x58` modulates both world damage and part of attacker losses
+  - `0x5A` acts like a graded army/defender count field
+
 Preservation value:
 
 - this is the first fixture-backed sequence showing a two-step attack lifecycle:

@@ -209,6 +209,31 @@ Why it matters:
 - that makes `PLANETS.DAT[0x0E]` a strong candidate for another defense-side
   field, possibly something like ground batteries or a related installation
 
+Sixth field-isolation follow-up:
+
+- keeping `0x58 = 0`, `0x5A = 1`, and `0x0E = 0x04`, but changing byte `0x08`
+  from `0x48` to `0x00`, also produced a distinct bombardment result
+- the order was still consumed and the fleet still ended at the target
+- attacker losses became heavier than the plain `army1+dev0` case:
+  - `CA 3 -> 1`
+  - `DD 5 -> 3`
+- the world-damage window changed again:
+  - `0x04..0x07`: `00 00 00 00 -> c3 34 8c c2`
+  - `0x08..0x09`: `00 87 -> 1f 86`
+  - `0x0A..0x0D`: `00 00 00 00 -> 06 ea 29 25`
+  - `0x0E`: `04 -> 7f`
+  - `0x58`: stayed `0`
+  - `0x5A`: `0x01 -> 0`
+
+Why it matters:
+
+- `PLANETS.DAT[0x08]` is now implicated in the same defense/resource cluster as
+  `0x0E`
+- with the other major candidates held constant, it still materially changes
+  the attacker-loss profile
+- that makes the dense `0x04..0x0E` block the highest-value next decoding
+  target inside `PLANETS.DAT`
+
 ## Reference 2: Follow-on Invasion Travel
 
 Files:
