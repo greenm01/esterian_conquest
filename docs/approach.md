@@ -40,6 +40,13 @@ The goal is:
 - post-maintenance state
 - targeted scenario snapshots for specific features
 
+6. Prefer engine outputs over UI playback
+
+- `ECMAINT` writes the underlying state and generated report data
+- `ECGAME` is still useful, but mainly as a viewer/validation layer for those outputs
+- when possible, decode changes in `.DAT` files first and use live report viewing second
+- historical text captures are reference evidence when live playback is unavailable or flaky
+
 ## What Counts As Success
 
 Short term:
@@ -70,3 +77,17 @@ Why:
   - database and report generation
 
 That makes `ECMAINT` the highest-value target for recovering the actual rules of the game.
+
+## ECMAINT Investigation Model
+
+The current `ECMAINT` workflow is:
+
+1. create one controlled pre-maint scenario
+2. run original `ECMAINT`
+3. diff the resulting `.DAT` files
+4. preserve pre/post fixtures
+5. encode the confirmed transform in Rust tests
+6. optionally read the generated reports through `ECGAME` as a validation step
+
+This keeps the preservation work grounded in deterministic engine behavior rather
+than in UI rendering.

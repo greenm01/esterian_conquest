@@ -59,7 +59,18 @@ Avoid:
 - identify changed offsets or records
 - turn confirmed fields into Rust accessors/setters/tests
 
-5. Add tests
+5. Validate through generated reports when useful
+
+- if `ECGAME` can read the post-maint state cleanly, use it to view the reports
+- treat report viewing as a secondary confirmation step, not the primary source of truth
+- the primary evidence remains:
+  - the pre/post fixture pair
+  - the raw file diffs
+  - the decoded state transitions
+- preserved historical text captures are useful for interpreting `MESSAGES.DAT` and
+  `RESULTS.DAT` when live playback is unavailable
+
+6. Add tests
 
 - parser tests for new fields
 - CLI/TUI tests when behavior is exposed there

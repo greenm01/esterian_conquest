@@ -1044,6 +1044,119 @@ Rust preservation impact:
 - `ec-data` now has a second fixture-backed `ECMAINT` transform test covering fleet-side order consumption
 - the preservation workflow now covers both a planet build queue case and a fleet order resolution case
 
+## Historical Combat References From Later Text Captures
+
+External reference set:
+
+- `/home/niltempus/Documents/esterian-conquest/ec-logs-2022/`
+
+These are not yet copied into the repo snapshot, but they are useful as
+reference evidence for `ECMAINT` combat behavior because they preserve
+player-issued orders and the next-year maintenance reports.
+
+### Bombardment sequence: `ec9.txt -> ec10.txt`
+
+In `ec9.txt`, fleet `13` is given a bombard mission:
+
+- current location: `Sector(23,14)`
+- mission chosen: `6` bombard a world
+- target: `System(24,14)`
+- travel time shown by the game: `1 year`
+- resulting fleet list entry:
+  - `13   4   1    0    4   6  Sector(23,14) Bombard world in System (24,14)`
+
+In `ec10.txt`, the next-year report shows the resolved bombardment:
+
+- report source: `13th Fleet`, located in `System(24,14)`
+- planet owner: `Melody Lake` (`Empire #2`)
+- defenses reported in the bombardment report:
+  - `6 armies`
+- bombardment results reported:
+  - destroyed `5 armies`
+  - destroyed `92%` of factories
+  - destroyed `100%` of stored goods
+  - destroyed all ships in stardock, including `1 troop transport`
+- attacker losses:
+  - none
+- post-report fleet status:
+  - “We are holding our position and are awaiting new orders.”
+- matching fleet-list state in `ec10.txt`:
+  - `13   0   0    0    4   6  Planet(24,14) No standing orders`
+
+Interpretation:
+
+- a successful bombardment consumes the standing order
+- the fleet remains at the target world
+- the fleet transitions to a no-standing-orders/hold state after the attack
+- `ECMAINT` can directly alter:
+  - planet armies
+  - factories
+  - stored production
+  - stardock contents
+
+### Follow-on invade sequence: `ec10.txt -> ec11.txt -> ec12.txt`
+
+In `ec10.txt`, fleet `7` is reordered to invade the same world:
+
+- new orders:
+  - `Invade world in System (24,14)`
+- fleet-list state after order entry:
+  - `7    5   3   10   16   0  Planet(15,13) Invade world in System (24,14)`
+
+In `ec11.txt`, the fleet is still traveling:
+
+- fleet-list state:
+  - `7    5   2   10   16   0  Sector(19,13) Invade world in System (24,14)`
+
+In `ec12.txt`, the fleet is one year away:
+
+- fleet-list state:
+  - `7    5   1   10   16   0  Sector(24,14) Invade world in System (24,14)`
+
+Interpretation:
+
+- the `brief fleet list` preserves a useful observable movement model:
+  - location
+  - speed
+  - ETA
+  - army count
+  - ship count
+  - ROE
+  - standing order text
+- this is likely enough to build a future multi-turn invasion fixture once we
+  have a compatible pre-maint state generator for mature games
+
+### Fleet-vs-fleet combat reference: `ec11.txt`
+
+Also in `ec11.txt`, fleet `1` reports a move-mission interception:
+
+- `We were attacked by the 3rd Fleet of "In Civil Disorder", (Empire #8)`
+- friendly force:
+  - `1 cruiser`
+  - `1 ETAC ship`
+- alien force:
+  - `1 destroyer`
+- result:
+  - enemy fled
+  - no enemy ships destroyed
+  - no friendly losses
+
+Interpretation:
+
+- `ECMAINT` emits explicit fleet-vs-fleet combat reports even on movement missions
+- ROE and fleet composition probably govern:
+  - whether interception happens
+  - whether one side flees
+  - whether losses are exchanged
+
+Practical value for preservation:
+
+- these text captures give us a real expected-output model for bombardment,
+  invasion travel, and fleet-vs-fleet interception
+- the next combat-oriented black-box fixture should be designed to reproduce a
+  simplified bombardment outcome first, because that sequence is the clearest
+  and the easiest to validate against observed report language
+
 Confirmed `SETUP.DAT` offsets from the live `F4` diffs:
 
 - `SETUP[512]` `snoop_enabled`
