@@ -925,6 +925,58 @@ The first `ec-tui` scaffold is intentionally a shell, not a faithful DOS clone:
   - `Program & Port Setup`
 - the historical `v1.5` UI is preserved via screenshots and notes rather than by reproducing every original panel verbatim
 
+## First ECMAINT Phase-1 Build Scenario
+
+Preserved fixtures:
+
+- `fixtures/ecmaint-build-pre/v1.5/`
+- `fixtures/ecmaint-build-post/v1.5/`
+
+This first maintenance scenario used a direct file edit, not a clean one-click player action.
+
+Why:
+
+- we had prior observed evidence that a build-order-like state landed in `PLANETS.DAT` record `14` (zero-based)
+- the exact single-order encoding was still unclear
+- so the first black-box maintenance cycle was driven by the smallest previously observed planet-side build queue bytes
+
+Pre-maint setup:
+
+- baseline: `fixtures/ecutil-init/v1.5/`
+- modified file: `PLANETS.DAT`
+- modified record: record `14` (zero-based), the `(16,13)` homeworld-style record
+- modified bytes:
+  - `0x24`: `0x00 -> 0x03`
+  - `0x2E`: `0x00 -> 0x01`
+
+Post-maint result:
+
+- `SETUP.DAT` unchanged
+- `CONQUEST.DAT` matched the clean `ecmaint-post` fixture exactly
+- `FLEETS.DAT` matched the clean `ecmaint-post` fixture exactly
+- `PLANETS.DAT` differed from clean `ecmaint-post` only in record `14`
+- `DATABASE.DAT` differed from clean `ecmaint-post` by `1` byte
+
+Observed planet transition in record `14`:
+
+- queued build bytes were cleared:
+  - `0x24`: `0x03 -> 0x00`
+  - `0x2E`: `0x01 -> 0x00`
+- new post-maint state appeared at:
+  - `0x38`: `0x00 -> 0x03`
+  - `0x4C`: `0x00 -> 0x01`
+
+Interpretation:
+
+- `ECMAINT` consumed the synthetic build-queue-like bytes instead of leaving them in place
+- it did not materialize a new fleet in `FLEETS.DAT` in this first scenario
+- it did create a persistent planet-state transition and a tiny derived `DATABASE.DAT` change
+
+Rust preservation impact:
+
+- `ec-data` now has a fixture-backed test that locks in this first maintenance transform
+- this is enough to prove the phase-1 workflow works, even though the exact semantics of the new `0x38` and `0x4C` planet bytes are not named yet
+
 Confirmed `SETUP.DAT` offsets from the live `F4` diffs:
 
 - `SETUP[512]` `snoop_enabled`

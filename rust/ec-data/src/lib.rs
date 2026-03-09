@@ -664,6 +664,18 @@ mod tests {
             .join(name)
     }
 
+    fn ecmaint_build_pre_fixture_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/ecmaint-build-pre/v1.5")
+            .join(name)
+    }
+
+    fn ecmaint_build_post_fixture_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/ecmaint-build-post/v1.5")
+            .join(name)
+    }
+
     fn read_fixture(name: &str) -> Vec<u8> {
         fs::read(fixture_path(name)).expect("fixture should exist")
     }
@@ -678,6 +690,14 @@ mod tests {
 
     fn read_f3_owner_fixture(name: &str) -> Vec<u8> {
         fs::read(f3_owner_fixture_path(name)).expect("f3 owner fixture should exist")
+    }
+
+    fn read_ecmaint_build_pre_fixture(name: &str) -> Vec<u8> {
+        fs::read(ecmaint_build_pre_fixture_path(name)).expect("ecmaint build-pre fixture should exist")
+    }
+
+    fn read_ecmaint_build_post_fixture(name: &str) -> Vec<u8> {
+        fs::read(ecmaint_build_post_fixture_path(name)).expect("ecmaint build-post fixture should exist")
     }
 
     #[test]
@@ -947,5 +967,22 @@ mod tests {
         setup.set_purge_after_turns_raw(1);
         assert_eq!(setup.purge_after_turns_raw(), 1);
         assert_eq!(setup.raw[518], 1);
+    }
+
+    #[test]
+    fn ecmaint_build_scenario_consumes_queue_and_changes_planet_state() {
+        let pre = PlanetDat::parse(&read_ecmaint_build_pre_fixture("PLANETS.DAT")).unwrap();
+        let post = PlanetDat::parse(&read_ecmaint_build_post_fixture("PLANETS.DAT")).unwrap();
+
+        let pre_record = &pre.records[14];
+        let post_record = &post.records[14];
+
+        assert_eq!(pre_record.raw[0x24], 0x03);
+        assert_eq!(pre_record.raw[0x2e], 0x01);
+
+        assert_eq!(post_record.raw[0x24], 0x00);
+        assert_eq!(post_record.raw[0x2e], 0x00);
+        assert_eq!(post_record.raw[0x38], 0x03);
+        assert_eq!(post_record.raw[0x4c], 0x01);
     }
 }
