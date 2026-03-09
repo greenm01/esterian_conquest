@@ -18,3 +18,5 @@ Docs:
 - `docs/approach.md`: preservation and porting strategy
 - `docs/fixtures.md`: fixture creation and usage workflow
 - `docs/ecmaint-plan.md`: current plan for reverse engineering the maintenance engine
+- `docs/ecmaint-combat-reference.md`: combat-oriented historical validation references
+- `docs/planet-report-reference.md`: coordinate-linked scouting/world stat references

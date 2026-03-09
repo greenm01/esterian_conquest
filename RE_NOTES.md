@@ -1462,6 +1462,11 @@ Why this matters:
 - they are the best available reference set for naming additional `PLANETS.DAT`
   fields before we have exact matching historical snapshots in repo
 
+Stable companion reference:
+
+- see `docs/planet-report-reference.md` for the coordinate-linked condensed
+  version of these report-side target profiles
+
 Preservation value:
 
 - this is the first fixture-backed sequence showing a two-step attack lifecycle:
