@@ -91,3 +91,15 @@ The current `ECMAINT` workflow is:
 
 This keeps the preservation work grounded in deterministic engine behavior rather
 than in UI rendering.
+
+## Session Handoff
+
+When pausing work, keep the immediate restart point in:
+
+- `docs/next-session.md`
+
+That file should be updated with:
+
+- the latest high-confidence combat model
+- the most recent commits worth resuming from
+- the exact next controlled experiment

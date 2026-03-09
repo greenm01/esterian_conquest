@@ -20,3 +20,4 @@ Docs:
 - `docs/ecmaint-plan.md`: current plan for reverse engineering the maintenance engine
 - `docs/ecmaint-combat-reference.md`: combat-oriented historical validation references
 - `docs/planet-report-reference.md`: coordinate-linked scouting/world stat references
+- `docs/next-session.md`: exact restart point for the next ECMAINT experiment
