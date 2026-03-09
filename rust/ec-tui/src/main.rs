@@ -447,7 +447,7 @@ fn fleets_panel(app: &App) -> Paragraph<'static> {
                     format!(
                         "Empire Block {}  home={:?}",
                         group_idx + 1,
-                        group[0].home_system_coords_raw()
+                        group[0].current_location_coords_raw()
                     ),
                     Style::default().fg(EC_GOLD).add_modifier(Modifier::BOLD),
                 ))];

@@ -330,7 +330,7 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
                 println!("Fleets:");
                 for (idx, record) in fleets.records.iter().enumerate().take(4) {
                     println!(
-                        "  fleet {:02}: id={} slot={} prev={} next={} cur_spd={} max_spd={} roe={} ships={} home_raw={:02x?} order={}({}) target_raw={:02x?} summary='{}'",
+                        "  fleet {:02}: id={} slot={} prev={} next={} cur_spd={} max_spd={} roe={} ships={} loc_raw={:02x?} order={}({}) target_raw={:02x?} summary='{}'",
                         idx + 1,
                         record.fleet_id(),
                         record.local_slot(),
@@ -340,7 +340,7 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
                         record.max_speed(),
                         record.rules_of_engagement(),
                         record.ship_composition_summary(),
-                        record.home_system_coords_raw(),
+                        record.current_location_coords_raw(),
                         record.standing_order_kind().as_str(),
                         record.standing_order_code_raw(),
                         record.standing_order_target_coords_raw(),
@@ -352,9 +352,9 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
                 println!();
                 println!("Fleet Groups:");
                 for (group_idx, group) in fleets.records.chunks_exact(4).enumerate() {
-                    let home = group[0].home_system_coords_raw();
+                    let home = group[0].current_location_coords_raw();
                     println!(
-                        "  empire block {}: home_raw={:02x?} target_raw={:02x?}",
+                        "  empire block {}: loc_raw={:02x?} target_raw={:02x?}",
                         group_idx + 1,
                         home,
                         group[0].standing_order_target_coords_raw()

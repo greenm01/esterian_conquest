@@ -655,7 +655,9 @@ Confirmed `FLEETS.DAT` fields from the initialized `16 x 54` layout:
 
 Useful but still conservatively named:
 
-- `record[0x0B..0x0C]`: repeated two-byte `home_system_coords_raw` pair
+- `record[0x0B..0x0C]`: current-location coordinate pair
+  - in the initialized fixture this looked like a shared home-system pair because every starting fleet
+    begins at home
   - empire-group values in the initialized fixture are:
     - fleets `1..4`: `[16, 13]`
     - fleets `5..8`: `[4, 13]`
@@ -677,7 +679,7 @@ Useful but still conservatively named:
     - `12` colonize a world
     - `13` join another fleet
   - in the initialized fixture, all four-fleet empire blocks store `[5, X, Y]` where `X,Y`
-    match the block's home-system raw pair, which strongly suggests the initial standing orders
+    match the block's initial current-location pair, which strongly suggests the initial standing orders
     are `Guard/Blockade` at the empire's home system
 
 Practical implication for the Rust port:
@@ -703,10 +705,10 @@ Confirmed initialized fleet-table structure:
   - `max_speed` is always:
     - slots `1` and `2`: `3`
     - slots `3` and `4`: `6`
-  - `home_system_coords_raw` is constant within the block
+  - `current_location_coords_raw` is constant within the block
   - `mission_param_bytes` is also constant within the block
 
-Observed initialized block home-system raw pairs:
+Observed initialized block current-location pairs:
 
 - IDs `1..4`: `[16, 13]`
 - IDs `5..8`: `[4, 13]`
@@ -722,8 +724,8 @@ Observed initialized block mission-param triples:
 
 Practical implication:
 
-- bytes `0x0B..0x0C` and `0x1F..0x21` likely contain per-empire home/destination-style data in
-  initialized states rather than per-fleet differentiated mission orders
+- bytes `0x0B..0x0C` and `0x1F..0x21` look identical across an initialized empire block because all
+  starting fleets begin at their home location with the same guard/blockade standing order
 - the next likely per-fleet order-state bytes are around the still-unnamed early header values such
   as speed/ETA/current-location fields
 
@@ -746,7 +748,7 @@ Practical implication:
 - the displayed `ETA` and current location for initialized fleets are probably derived from a
   combination of:
   - standing order code / target
-  - home-system raw pair
+  - current-location raw pair
   - local slot / fleet composition
   - game-wide movement rules
 - or they are encoded in multi-byte/stateful forms that do not appear as simple scalar per-fleet
@@ -1029,7 +1031,8 @@ Observed fleet transition in record `0`:
 Derived interpretation:
 
 - fleet `1` moved from a guard/blockade home-world standing order into a hold-style post-maint state
-- both the fleet's home/target pair and its first-empire fleet block now anchor on `(15,13)` instead of `(16,13)`
+- its current-location pair at `0x0B..0x0C` moved from `(16,13)` to `(15,13)`
+- the fleet's target pair at `0x20..0x21` also ended at `(15,13)`
 - this is the first controlled scenario showing `ECMAINT` consume a fleet order and rewrite persistent fleet state directly
 
 Observed planet transition in record `13` (zero-based, `(15,13)`):

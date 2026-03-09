@@ -354,7 +354,7 @@ impl FleetRecord {
         self.raw[0x0A]
     }
 
-    pub fn home_system_coords_raw(&self) -> [u8; 2] {
+    pub fn current_location_coords_raw(&self) -> [u8; 2] {
         [self.raw[0x0B], self.raw[0x0C]]
     }
 
