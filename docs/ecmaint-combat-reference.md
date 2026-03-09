@@ -61,6 +61,35 @@ Implications:
   - stored production
   - stardock contents
 
+Synthetic-fixture correction from the current repo work:
+
+- the first synthetic bombardment fixture used a target cloned from an
+  initialized seeded colony shell
+- that was enough to trigger a two-pass attack lifecycle and attacker losses
+- it was not enough to produce planet-side damage or player-facing reports
+- comparison against the shipped mature world `Dust Bowl` at `(16,13)` shows
+  that a developed colony has a different tail/state block than the seeded
+  shell used in the synthetic target
+
+Practical consequence:
+
+- the next bombardment fixture should be built around a mature colony-style
+  target record, not another initialized homeworld seed clone
+- any follow-up fixture should compare at least:
+  - the mature planet record in `PLANETS.DAT`
+  - the corresponding `DATABASE.DAT` state
+  - any empire/ownership linkage needed to make the target world fully valid
+
+Additional correction from the throwaway `Dust Bowl` clone test:
+
+- cloning a mature colony record by itself is not sufficient if the target is
+  effectively friendly to the attacker
+- when the shipped mature colony `Dust Bowl` was cloned onto the synthetic
+  target coordinates, `ECMAINT` converted the attacker's standing order from
+  `bombard` to `guard/blockade` on arrival and never produced world-side damage
+- the next combat fixture therefore needs a mature enemy colony, not merely a
+  mature colony
+
 ## Reference 2: Follow-on Invasion Travel
 
 Files:

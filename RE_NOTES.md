@@ -1312,6 +1312,57 @@ Interpretation:
   - or bombardment against this synthetic target resolves as hostile defensive attrition without
     entering the full report-producing planet-damage path
 
+Follow-up comparison against the shipped mature snapshot makes the likely gap
+clearer:
+
+- the synthetic target at `(15,13)` was cloned from an initialized seeded world
+  shell, not from a mature defended colony
+- the initialized seeded shell and the synthetic target both share the same
+  compact tail block at `0x58..0x60`:
+  - `0a 00 04 00 02 02 00 00 00`
+- a mature colony in the shipped snapshot, `Dust Bowl` at `(16,13)`, has a
+  materially different tail block:
+  - `8e 00 0f 00 02 01 00 00 00`
+- that mature-world delta is currently the strongest explanation for why the
+  synthetic bombardment produced attacker losses but no planet damage or
+  player-facing bombardment report
+
+Best current combat-target inference:
+
+- our synthetic target was only a hostile seeded-colony shell
+- a fully valid defended enemy world likely requires additional developed-world
+  state beyond the visible coordinates/order bytes we copied
+- likely candidates include:
+  - matured planetary defense/resource fields inside `PLANETS.DAT`
+  - ownership/state consistency with another file such as `DATABASE.DAT` and/or
+    empire-linked state outside the single planet record
+
+Next bombardment experiment should therefore clone a mature colony-style target,
+not another initialized seed shell.
+
+Additional mature-target throwaway test:
+
+- a second synthetic bombardment scenario cloned the shipped mature colony
+  `Dust Bowl` onto `(15,13)` instead of cloning an initialized seed shell
+- that target used the mature tail/state block:
+  - `8e 00 0f 00 02 01 00 00 00`
+- first maintenance pass on that mature target produced:
+  - fleet arrival at `(15,13)`
+  - standing order rewritten from `6` (`bombard`) to `5` (`guard/blockade`)
+  - no `PLANETS.DAT` change
+  - no `MESSAGES.DAT` or `RESULTS.DAT` output
+- second maintenance pass only zeroed the fleet's current speed while leaving
+  the `guard/blockade` standing order in place
+
+Interpretation:
+
+- `Dust Bowl` behaves like a valid mature colony, but not like a hostile target
+  for the attacking fleet
+- best current inference:
+  - the cloned mature planet was treated as friendly or same-empire state
+  - so the next bombardment fixture needs a mature enemy colony, not just any
+    mature colony record
+
 Preservation value:
 
 - this is the first fixture-backed sequence showing a two-step attack lifecycle:
