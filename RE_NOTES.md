@@ -1568,6 +1568,42 @@ Interpretation:
 - this is the strongest current black-box evidence that `0x5A` is tied to
   army/defender strength and that bombardment resolution scales with it
 
+Fourth controlled bombardment field-isolation result:
+
+- preserving the `army1` target but also forcing `PLANETS.DAT[0x58] = 0`
+  changed the fleet-loss profile and the world-damage window again
+- preserved fixture pair:
+  - `fixtures/ecmaint-bombard-army1-dev0-pre/v1.5/`
+  - `fixtures/ecmaint-bombard-army1-dev0-post/v1.5/`
+
+Observed outcome relative to the `army1+dev0` pre-state:
+
+- after two maintenance passes:
+  - bombard order was consumed
+  - fleet ended at target
+  - attacker losses were lighter than the plain `army1` case:
+    - `CA`: `3 -> 2`
+    - `DD`: `5 -> 4`
+- target planet changed:
+  - bytes `0x04..0x07`: `00 00 00 00 -> 4f 4c 55 ba`
+  - bytes `0x08..0x09`: `48 87 -> 3a 86`
+  - bytes `0x0A..0x0D`: `00 00 00 00 -> 06 ea 29 25`
+  - byte `0x0E`: `04 -> 35`
+  - byte `0x58`: stayed `0`
+  - byte `0x5A`: `0x01 -> 0x00`
+- `MESSAGES.DAT` and `RESULTS.DAT` still remained empty
+
+Interpretation:
+
+- `0x58` does more than shape planet-side damage once the attacker survives
+- at `0x5A = 1`, forcing `0x58 = 0` also changes the fleet-loss profile:
+  - plain `army1`: `DD 5 -> 2`
+  - `army1+dev0`: `DD 5 -> 4`
+- current best bombardment model is therefore:
+  - `0x5A` scales defender strength
+  - `0x58` modulates both the world-damage pattern and at least part of the
+    attacker-loss calculation
+
 Preservation value:
 
 - this is the first fixture-backed sequence showing a two-step attack lifecycle:

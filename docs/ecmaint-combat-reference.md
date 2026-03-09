@@ -160,6 +160,32 @@ Why it matters:
 - that is the clearest current evidence that `PLANETS.DAT[0x5A]` acts like a
   graded defense or army-strength field, not just a binary presence flag
 
+Fourth field-isolation follow-up:
+
+- keeping the same `army1` target but also forcing `PLANETS.DAT[0x58] = 0`
+  produced yet another distinct bombardment outcome
+- the order was still consumed and the fleet still ended at the target
+- attacker losses became lighter than the plain `army1` case:
+  - `CA 3 -> 2`
+  - `DD 5 -> 4`
+- the target world's changing bytes also shifted again:
+  - `0x04..0x07`: `00 00 00 00 -> 4f 4c 55 ba`
+  - `0x08..0x09`: `48 87 -> 3a 86`
+  - `0x0A..0x0D`: `00 00 00 00 -> 06 ea 29 25`
+  - `0x0E`: `04 -> 35`
+  - `0x58`: stayed `0`
+  - `0x5A`: `01 -> 0`
+
+Why it matters:
+
+- `0x58` is now implicated in more than just post-hit world-state encoding
+- on the `army1` target, zeroing `0x58` also reduced the destroyer losses
+  from `5 -> 2` down to `5 -> 4`
+- current best black-box model is:
+  - `0x5A` scales defender resistance
+  - `0x58` modulates both world-side damage and at least part of the
+    attacker-loss calculation
+
 ## Reference 2: Follow-on Invasion Travel
 
 Files:
