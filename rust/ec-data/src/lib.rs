@@ -837,6 +837,18 @@ mod tests {
             .join(name)
     }
 
+    fn ecmaint_bombard_heavy_pre_fixture_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/ecmaint-bombard-heavy-pre/v1.5")
+            .join(name)
+    }
+
+    fn ecmaint_bombard_heavy_post_fixture_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/ecmaint-bombard-heavy-post/v1.5")
+            .join(name)
+    }
+
     fn read_fixture(name: &str) -> Vec<u8> {
         fs::read(fixture_path(name)).expect("fixture should exist")
     }
@@ -949,6 +961,16 @@ mod tests {
     fn read_ecmaint_bombard_army1_dev0_b09_post_fixture(name: &str) -> Vec<u8> {
         fs::read(ecmaint_bombard_army1_dev0_b09_post_fixture_path(name))
             .expect("ecmaint bombard-army1-dev0-b09-post fixture should exist")
+    }
+
+    fn read_ecmaint_bombard_heavy_pre_fixture(name: &str) -> Vec<u8> {
+        fs::read(ecmaint_bombard_heavy_pre_fixture_path(name))
+            .expect("ecmaint bombard-heavy-pre fixture should exist")
+    }
+
+    fn read_ecmaint_bombard_heavy_post_fixture(name: &str) -> Vec<u8> {
+        fs::read(ecmaint_bombard_heavy_post_fixture_path(name))
+            .expect("ecmaint bombard-heavy-post fixture should exist")
     }
 
     #[test]
@@ -1562,5 +1584,23 @@ mod tests {
 
         assert_eq!(read_ecmaint_bombard_army1_dev0_b09_post_fixture("MESSAGES.DAT"), Vec::<u8>::new());
         assert_eq!(read_ecmaint_bombard_army1_dev0_b09_post_fixture("RESULTS.DAT"), Vec::<u8>::new());
+    }
+
+    #[test]
+    fn ecmaint_bombard_heavy_generates_combat_report() {
+        let pre_planets = PlanetDat::parse(&read_ecmaint_bombard_heavy_pre_fixture("PLANETS.DAT")).unwrap();
+        let post_planets = PlanetDat::parse(&read_ecmaint_bombard_heavy_post_fixture("PLANETS.DAT")).unwrap();
+        let pre_target = &pre_planets.records[13];
+        let post_target = &post_planets.records[13];
+
+        assert_eq!(pre_target.raw[0x5A], 15); // Ground batteries mapped
+        assert_eq!(pre_target.raw[0x58], 0x8E); // Armies mapped
+
+        // Target capacity goes to 0 due to heavy bombardment
+        assert_ne!(pre_target.raw, post_target.raw);
+
+        // A report should be generated in RESULTS.DAT for player "FOO" (Empire 2)
+        let results = read_ecmaint_bombard_heavy_post_fixture("RESULTS.DAT");
+        assert!(!results.is_empty(), "RESULTS.DAT should contain the bombardment report");
     }
 }

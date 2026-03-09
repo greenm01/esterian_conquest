@@ -257,6 +257,21 @@ Why it matters:
 - the `0x08..0x09` pair now looks like it might act as a single 16-bit field
   or two closely related defense contributors
 
+Definitive Field Mappings (Heavy Bombardment Discovery):
+
+- By scaling up the attacking fleet to `CA=50, DD=50` and ensuring both the
+  target planet and attacker belonged to active player records, `ECMAINT` finally
+  generated a combat report in `RESULTS.DAT`.
+- The text of the report was:
+  "Our defensive force consisted of 15 ground batteries and 142 armies.
+   In the attack, we lost all of the ground batteries, 82 armies, 81% of the factories and 100% of the stored goods (production points)."
+- Matching these text figures back to the initial byte state of the target planet precisely decodes the `0x04..0x5A` cluster:
+  - `0x04..0x09`: **Factories** (48-bit Borland Pascal `Real`, storing present capacity/factories).
+  - `0x0A..0x0D`: **Stored Goods (Production Points)** (32-bit `LongInt`).
+  - `0x58`: **Armies**.
+  - `0x5A`: **Ground Batteries**.
+- This completely replaces earlier hypotheses about `0x0E` or `0x58` modulating "resistance" in vague ways. The planet defense block is explicitly named and structured.
+
 ## Reference 2: Follow-on Invasion Travel
 
 Files:

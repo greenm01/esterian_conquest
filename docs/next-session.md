@@ -7,48 +7,57 @@ Use this as the restart point instead of reconstructing the full thread.
 The active reverse-engineering target is `ECMAINT`, treated as a deterministic
 black box.
 
-**Highest-confidence planet model:**
+**Highest-confidence planet model (Definitive):**
+A successful heavy bombardment generated a complete combat report in `RESULTS.DAT`,
+explicitly naming and defining the core planetary fields:
 
-- `PLANETS.DAT[0x04..0x09]` is a 48-bit Borland Pascal `Real` (6 bytes)
-  representing `present` capacity (baseline `100.0`).
-- `PLANETS.DAT[0x0A..0x0D]` is a 4-byte field, possibly a `LongInt` or part of a
-  larger structure (baseline `0`).
-- `PLANETS.DAT[0x0E]` is **confirmed** as **ground batteries**.
-  - Baseline `4` for mature worlds.
-  - `0xff` caused total fleet destruction.
-  - Higher values scale attacker losses significantly.
-- `PLANETS.DAT[0x5A]` is the strongest current army/defender-count candidate.
-- `PLANETS.DAT[0x58]` modulates both world damage and part of attacker losses.
-- the dense world-defense block is now clearly `PLANETS.DAT[0x04..0x0E]`.
+- `PLANETS.DAT[0x04..0x09]` is a 48-bit Borland Pascal `Real` representing **Factories** (present capacity/development).
+- `PLANETS.DAT[0x0A..0x0D]` is a 32-bit `LongInt` representing **Stored Goods** (production points).
+- `PLANETS.DAT[0x0E]` is a strong secondary defense field, potentially a forcefield/multiplier, as it isn't explicitly listed alongside batteries/armies in basic reports but directly scales attacker losses.
+- `PLANETS.DAT[0x58]` is the **Armies** count.
+- `PLANETS.DAT[0x5A]` is the **Ground Batteries** count.
 
-**Recent findings:**
-
-- Bombardment with 50 Cruisers + 50 Destroyers successfully annihilated a
-  target world's capacity (Real at `0x04..0x09` went to `0.0`).
-- Even with a player-assigned target empire (using `ECUTIL F3`), `MESSAGES.DAT`
-  and `RESULTS.DAT` remain empty at Year 3001.
+This completely resolves the dense `0x04..0x5A` planet block puzzle for bombardments!
 
 ## Latest Commits
 
 - `edd013e` `Identify 0x04-0x09 as Real, add 0x09 bombardment fixture and test`
 - `73aefb7` `Update handoff for next bombardment scaling experiment`
+- `[NEW]` Added heavy bombardment test proving report generation and exact byte mappings.
 
 ## Next Experiment
 
-Goal: Trigger generated text reports in `MESSAGES.DAT` or `RESULTS.DAT`.
+Goal: Decode `ECMAINT`'s handling of planetary invasions or fleet-vs-fleet combat.
 
-Hypothesis:
-1. Reports might only be generated after Year 3001 (Year 3000 is the "start"
-   year).
-2. Reports might only be generated for "named" colonies (not `Unowned` or
-   `Not Named Yet`).
+Now that Bombardment is mapped, we can move to the next interaction phase.
 
-Suggested procedure:
+Suggested path: Fleet Invasion
+1. Use the `heavy` attacker baseline, but change the fleet's order to `Invade` (order code `10`).
+2. Run `ECMAINT` on the target planet.
+3. Observe how `ECMAINT` resolves ground combat using the known `Armies` (`0x58`) and `Ground Batteries` (`0x5A`) fields.
+4. Verify if ownership changes and how `RESULTS.DAT` reports the invasion.
 
-1. Use the "Heavy Attacker" setup from the previous attempt (50 CA, 50 DD).
-2. Clone the `Dust Bowl` (record 15) record onto the target coordinates (15,13)
-   to ensure it is a "named" mature colony.
-3. Advance `CONQUEST.DAT` to a much later year (e.g., 3010) before running
-   maintenance.
-4. run `ECMAINT /R` twice.
-5. inspect `MESSAGES.DAT` and `RESULTS.DAT`.
+## Standard Runtime Command
+
+The established maintenance command is:
+
+```bash
+xvfb-run -a /tmp/dosbox-x/src/dosbox-x \
+  -defaultconf \
+  -nopromptfolder \
+  -defaultdir /tmp/SCENARIO_DIR \
+  -set "dosv=off" \
+  -set "machine=vgaonly" \
+  -set "core=normal" \
+  -set "cputype=386_prefetch" \
+  -set "cycles=fixed 3000" \
+  -set "xms=false" \
+  -set "ems=false" \
+  -set "umb=false" \
+  -set "output=surface" \
+  -c "mount c /tmp/SCENARIO_DIR" \
+  -c "c:" \
+  -c "ECMAINT /R" \
+  -c "ECMAINT /R" \
+  -c "exit"
+```

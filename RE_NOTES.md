@@ -1674,12 +1674,13 @@ Interpretation:
   - plain `army1+dev0`: `CA 3 -> 2`, `DD 5 -> 4`
   - `army1+dev0+0x08=0x00`: `CA 3 -> 1`, `DD 5 -> 3`
 - current best model for the dense `0x04..0x0E` world block is now:
-  - `0x04..0x09` is a single 48-bit Borland Pascal `Real` representing `present` capacity.
+- `0x04..0x09` is a single 48-bit Borland Pascal `Real` representing `factories` (present capacity).
   - Modifying `0x08` or `0x09` individually in previous experiments altered the MSB and exponent of this `Real`, drastically changing the planet's effective development and thus the bombardment loss calculation.
   - Setting invalid floating-point bytes in `0x04` causes `ECMAINT` to crash with a runtime error during the movement/combat phase.
-  - `0x0E` contributes to defender strength.
-  - `0x58` modulates both world damage and part of attacker losses.
-  - `0x5A` acts like a graded army/defender count field.
+  - `0x0A..0x0D` is likely `stored goods (production points)`.
+  - `0x0E` contributes to defender strength (possibly a forcefield or defense multiplier, as it is not explicitly named in the basic report).
+  - `0x58` is **armies**. The generated combat report explicitly matches this byte to the number of armies.
+  - `0x5A` is **ground batteries**. The generated combat report explicitly matches this byte to the number of ground batteries.
 
 Eighth controlled field-isolation result (Byte `0x04`):
 
