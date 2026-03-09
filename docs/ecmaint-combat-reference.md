@@ -135,6 +135,31 @@ Why it matters:
   - `0x58` strongly affects the world-side damage pattern once resistance is
     low enough that the attacker survives intact
 
+Third field-isolation follow-up:
+
+- setting the same target's candidate army byte to `1` instead of `0`
+  produced an intermediate bombardment outcome
+- the bombard order was still consumed on the second pass
+- the fleet reached the target, but now took partial losses:
+  - `CA 3 -> 2`
+  - `DD 5 -> 2`
+- the target planet also changed in a richer way than either zero-army case:
+  - `0x04..0x07`: `00 00 00 00 -> 3d 3d cc 03`
+  - `0x08..0x09`: `48 87 -> 3d 85`
+  - `0x0A..0x0D`: `00 00 00 00 -> 44 3e bc ac`
+  - `0x0E`: `04 -> 46`
+  - `0x58`: `8e -> 8d`
+  - `0x5A`: `01 -> 00`
+
+Why it matters:
+
+- this gives a three-point progression for the same hostile mature target:
+  - `0x5A = 0`: no attacker losses
+  - `0x5A = 1`: partial attacker losses
+  - stronger baseline target: heavier attacker losses
+- that is the clearest current evidence that `PLANETS.DAT[0x5A]` acts like a
+  graded defense or army-strength field, not just a binary presence flag
+
 ## Reference 2: Follow-on Invasion Travel
 
 Files:

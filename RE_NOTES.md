@@ -1532,6 +1532,42 @@ Interpretation:
   - `0x58` strongly affects how the target planet record is degraded when the
     attacker does *not* take those losses
 
+Third controlled bombardment field-isolation result:
+
+- starting from the same hostile mature target, setting
+  `PLANETS.DAT[0x5A] = 1` produced a clean intermediate outcome between the
+  zero-army case and the heavier-loss hostile mature target
+- preserved fixture pair:
+  - `fixtures/ecmaint-bombard-army1-pre/v1.5/`
+  - `fixtures/ecmaint-bombard-army1-post/v1.5/`
+
+Observed outcome relative to the `army1` pre-state:
+
+- after two maintenance passes:
+  - bombard order was consumed
+  - fleet ended at target with partial losses
+  - `CA`: `3 -> 2`
+  - `DD`: `5 -> 2`
+- target planet changed:
+  - bytes `0x04..0x07`: `00 00 00 00 -> 3d 3d cc 03`
+  - bytes `0x08..0x09`: `48 87 -> 3d 85`
+  - bytes `0x0A..0x0D`: `00 00 00 00 -> 44 3e bc ac`
+  - byte `0x0E`: `04 -> 46`
+  - byte `0x58`: `0x8e -> 0x8d`
+  - byte `0x5A`: `0x01 -> 0x00`
+- `MESSAGES.DAT` and `RESULTS.DAT` still remained empty
+
+Interpretation:
+
+- `0x5A` now behaves like a graded defense-strength field rather than a simple
+  on/off marker
+- current bombardment progression from the controlled fixtures is:
+  - `0x5A = 0`: no attacker losses
+  - `0x5A = 1`: partial attacker losses
+  - stronger hostile mature target: heavier attacker losses
+- this is the strongest current black-box evidence that `0x5A` is tied to
+  army/defender strength and that bombardment resolution scales with it
+
 Preservation value:
 
 - this is the first fixture-backed sequence showing a two-step attack lifecycle:
