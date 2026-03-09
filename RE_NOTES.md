@@ -1363,6 +1363,47 @@ Interpretation:
   - so the next bombardment fixture needs a mature enemy colony, not just any
     mature colony record
 
+Hybrid mature-enemy throwaway test:
+
+- a follow-up synthetic target used the mature `Dust Bowl` colony as the base,
+  but replaced the likely empire-linked bytes with those from the initialized
+  empire-2 seed shell
+- resulting target block highlights:
+  - `0x20..0x22`: `11 25 1c`
+  - `0x58..0x60`: `8e 00 0f 00 02 02 00 00 00`
+- first maintenance pass:
+  - fleet arrived at `(15,13)`
+  - bombard order stayed active (`6`)
+  - no `PLANETS.DAT` change
+- second maintenance pass:
+  - bombard order was consumed (`6 -> 0`)
+  - attacker losses:
+    - `CA 3 -> 1`
+    - `DD 5 -> 1`
+  - no `PLANETS.DAT` change
+  - no `MESSAGES.DAT` or `RESULTS.DAT` output
+
+Interpretation:
+
+- hostile ownership markers are sufficient to keep the bombard mission active
+  through arrival and to trigger attack resolution
+- even with mature-world tail bytes, that is still not enough to produce
+  visible planet damage or generated combat reports
+- the remaining missing state is therefore likely in other `PLANETS.DAT`
+  fields that encode a developed enemy colony's defenses/resources, not merely
+  in `DATABASE.DAT`
+
+`DATABASE.DAT` structure note:
+
+- file size is `8000` bytes
+- it divides cleanly into `80` subrecords of `100` bytes each
+- repeated `UNKNOWN` blocks appear every `100` bytes in sparse/empty cases
+- `ECPLAYER.DOC` describes this file as the player's planet information
+  database, which matches the observed repeated intel-style entries
+- best current inference:
+  - `DATABASE.DAT` is a derived intel cache, not the authoritative source of
+    planet combat state
+
 Preservation value:
 
 - this is the first fixture-backed sequence showing a two-step attack lifecycle:

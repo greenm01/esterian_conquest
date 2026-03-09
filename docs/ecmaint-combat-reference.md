@@ -90,6 +90,20 @@ Additional correction from the throwaway `Dust Bowl` clone test:
 - the next combat fixture therefore needs a mature enemy colony, not merely a
   mature colony
 
+Further correction from the hybrid mature-enemy throwaway test:
+
+- replacing the likely empire-linked bytes with those from an enemy seed shell
+  was enough to preserve the `bombard` order through arrival and then resolve
+  an attack on the second pass
+- however, even that hybrid target still produced no `PLANETS.DAT` damage and
+  no `MESSAGES.DAT` / `RESULTS.DAT` output
+
+Current interpretation:
+
+- ownership hostility is necessary, but not sufficient
+- the remaining missing state is most likely inside other developed-world
+  fields in `PLANETS.DAT` rather than in the derived `DATABASE.DAT` intel cache
+
 ## Reference 2: Follow-on Invasion Travel
 
 Files:
