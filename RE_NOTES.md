@@ -977,6 +977,73 @@ Rust preservation impact:
 - `ec-data` now has a fixture-backed test that locks in this first maintenance transform
 - this is enough to prove the phase-1 workflow works, even though the exact semantics of the new `0x38` and `0x4C` planet bytes are not named yet
 
+## Second ECMAINT Scenario: Single Fleet Order
+
+Preserved fixtures:
+
+- `fixtures/ecmaint-fleet-pre/v1.5/`
+- `fixtures/ecmaint-fleet-post/v1.5/`
+
+This second maintenance scenario used the smallest previously observed fleet-order mutation from the live game notes.
+
+Pre-maint setup:
+
+- baseline: `fixtures/ecutil-init/v1.5/`
+- modified file: `FLEETS.DAT`
+- modified record: record `0` (zero-based), fleet `1`
+- modified bytes:
+  - `0x0A`: `0x00 -> 0x03`
+  - `0x1F`: `0x05 -> 0x0C`
+  - `0x20`: `0x10 -> 0x0F`
+
+Post-maint result relative to clean `fixtures/ecmaint-post/v1.5/`:
+
+- `SETUP.DAT` unchanged
+- `CONQUEST.DAT` unchanged
+- `MESSAGES.DAT` unchanged
+- `RESULTS.DAT` unchanged
+- `DATABASE.DAT` differed by `29` bytes
+- `FLEETS.DAT` differed by `9` bytes in fleet record `1`
+- `PLANETS.DAT` differed by `18` bytes in planet record `14` (one-based display)
+
+Observed fleet transition in record `0`:
+
+- the queued order bytes were consumed:
+  - `0x1F`: `0x0C -> 0x00`
+- the fleet was rewritten into a held-at-target style state:
+  - `0x0B`: `0x10 -> 0x0F`
+  - `0x19`: `0x81 -> 0x80`
+  - `0x1A`: `0x00 -> 0xB9`
+  - `0x1B`: `0x00 -> 0xFF`
+  - `0x1C`: `0x00 -> 0xFF`
+  - `0x1D`: `0x00 -> 0xFF`
+  - `0x1E`: `0x00 -> 0x7F`
+  - `0x20`: `0x10 -> 0x0F`
+
+Derived interpretation:
+
+- fleet `1` moved from a guard/blockade home-world standing order into a hold-style post-maint state
+- both the fleet's home/target pair and its first-empire fleet block now anchor on `(15,13)` instead of `(16,13)`
+- this is the first controlled scenario showing `ECMAINT` consume a fleet order and rewrite persistent fleet state directly
+
+Observed planet transition in record `13` (zero-based, `(15,13)`):
+
+- `0x58`: `0x00 -> 0x01`
+- `0x5C`: `0x00 -> 0x02`
+- `0x5D`: `0x00 -> 0x01`
+
+Interpretation:
+
+- `ECMAINT` touched the target world as part of resolving the fleet order
+- no new `FLEETS.DAT` records were created
+- no global year/schedule change occurred
+- the follow-on work should determine whether the `(15,13)` planet-side bytes represent colonization progress, occupation state, or another local status transition
+
+Rust preservation impact:
+
+- `ec-data` now has a second fixture-backed `ECMAINT` transform test covering fleet-side order consumption
+- the preservation workflow now covers both a planet build queue case and a fleet order resolution case
+
 Confirmed `SETUP.DAT` offsets from the live `F4` diffs:
 
 - `SETUP[512]` `snoop_enabled`

@@ -676,6 +676,18 @@ mod tests {
             .join(name)
     }
 
+    fn ecmaint_fleet_pre_fixture_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/ecmaint-fleet-pre/v1.5")
+            .join(name)
+    }
+
+    fn ecmaint_fleet_post_fixture_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/ecmaint-fleet-post/v1.5")
+            .join(name)
+    }
+
     fn read_fixture(name: &str) -> Vec<u8> {
         fs::read(fixture_path(name)).expect("fixture should exist")
     }
@@ -698,6 +710,14 @@ mod tests {
 
     fn read_ecmaint_build_post_fixture(name: &str) -> Vec<u8> {
         fs::read(ecmaint_build_post_fixture_path(name)).expect("ecmaint build-post fixture should exist")
+    }
+
+    fn read_ecmaint_fleet_pre_fixture(name: &str) -> Vec<u8> {
+        fs::read(ecmaint_fleet_pre_fixture_path(name)).expect("ecmaint fleet-pre fixture should exist")
+    }
+
+    fn read_ecmaint_fleet_post_fixture(name: &str) -> Vec<u8> {
+        fs::read(ecmaint_fleet_post_fixture_path(name)).expect("ecmaint fleet-post fixture should exist")
     }
 
     #[test]
@@ -984,5 +1004,34 @@ mod tests {
         assert_eq!(post_record.raw[0x2e], 0x00);
         assert_eq!(post_record.raw[0x38], 0x03);
         assert_eq!(post_record.raw[0x4c], 0x01);
+    }
+
+    #[test]
+    fn ecmaint_fleet_scenario_consumes_order_and_updates_fleet_and_planet_state() {
+        let pre_fleets = FleetDat::parse(&read_ecmaint_fleet_pre_fixture("FLEETS.DAT")).unwrap();
+        let post_fleets = FleetDat::parse(&read_ecmaint_fleet_post_fixture("FLEETS.DAT")).unwrap();
+        let post_planets = PlanetDat::parse(&read_ecmaint_fleet_post_fixture("PLANETS.DAT")).unwrap();
+
+        let pre_fleet = &pre_fleets.records[0];
+        let post_fleet = &post_fleets.records[0];
+
+        assert_eq!(pre_fleet.raw[0x0a], 0x03);
+        assert_eq!(pre_fleet.raw[0x1f], 0x0c);
+        assert_eq!(pre_fleet.raw[0x20], 0x0f);
+
+        assert_eq!(post_fleet.raw[0x0b], 0x0f);
+        assert_eq!(post_fleet.raw[0x19], 0x80);
+        assert_eq!(post_fleet.raw[0x1a], 0xb9);
+        assert_eq!(post_fleet.raw[0x1b], 0xff);
+        assert_eq!(post_fleet.raw[0x1c], 0xff);
+        assert_eq!(post_fleet.raw[0x1d], 0xff);
+        assert_eq!(post_fleet.raw[0x1e], 0x7f);
+        assert_eq!(post_fleet.raw[0x1f], 0x00);
+        assert_eq!(post_fleet.raw[0x20], 0x0f);
+
+        let post_planet = &post_planets.records[13];
+        assert_eq!(post_planet.raw[0x58], 0x01);
+        assert_eq!(post_planet.raw[0x5c], 0x02);
+        assert_eq!(post_planet.raw[0x5d], 0x01);
     }
 }
