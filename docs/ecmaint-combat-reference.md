@@ -120,6 +120,21 @@ Why it matters:
 - it also confirms that bombardment world-side damage lives in `PLANETS.DAT`,
   not only in fleet-side attrition or derived database output
 
+Second field-isolation follow-up:
+
+- keeping the zero-army target but also forcing `PLANETS.DAT[0x58] = 0`
+  preserved the same no-loss fleet outcome
+- however, it changed the planet-side damage pattern again
+
+Why it matters:
+
+- `0x58` now looks like an active bombardment damage/development field rather
+  than a passive maturity byte
+- current best black-box model is:
+  - `0x5A` strongly affects defender resistance and attacker losses
+  - `0x58` strongly affects the world-side damage pattern once resistance is
+    low enough that the attacker survives intact
+
 ## Reference 2: Follow-on Invasion Travel
 
 Files:

@@ -1498,6 +1498,40 @@ Interpretation:
 - `PLANETS.DAT` now clearly participates in the bombardment damage path through
   bytes outside the already-known tail owner fields
 
+Second controlled bombardment field-isolation result:
+
+- preserving the zero-army target but also setting `PLANETS.DAT[0x58] = 0`
+  changed the planet-side damage pattern again
+- preserved fixture pair:
+  - `fixtures/ecmaint-bombard-army0-dev0-pre/v1.5/`
+  - `fixtures/ecmaint-bombard-army0-dev0-post/v1.5/`
+
+Observed outcome relative to the `army0+dev0` pre-state:
+
+- fleet outcome stayed the same as the `army0` case:
+  - bombard order consumed
+  - fleet ended at target
+  - no attacker ship losses
+- planet damage pattern changed:
+  - bytes `0x04..0x07`: `00 00 00 00 -> 03 00 00 00`
+  - bytes `0x08..0x09`: `48 87 -> 3a 84`
+  - byte `0x0E`: `04 -> 60`
+  - byte `0x58`: stayed `0`
+- compared directly to the `army0` post-state:
+  - `0x04..0x07`: `36 33 33 33 -> 03 00 00 00`
+  - `0x08..0x09`: `3b 85 -> 3a 84`
+  - `0x0E`: `08 -> 60`
+  - `0x58`: `8a -> 00`
+
+Interpretation:
+
+- `0x58` is not just a passive maturity marker
+- it participates in the shape or magnitude of world-side bombardment damage
+- current best model:
+  - `0x5A` strongly affects whether the attacker takes fleet losses
+  - `0x58` strongly affects how the target planet record is degraded when the
+    attacker does *not* take those losses
+
 Preservation value:
 
 - this is the first fixture-backed sequence showing a two-step attack lifecycle:
