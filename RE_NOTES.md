@@ -1428,6 +1428,40 @@ These candidates are now exposed conservatively in the Rust parser and CLI as:
 - `likely_army_count_raw()`
 - `developed_value_raw()`
 
+Historical scouting-report reference set:
+
+- the 2012 log bundle contains many repeated scouting reports for the same
+  worlds, which gives us planet-side reference values even when we do not have
+  matching `.DAT` snapshots for those exact turns
+- useful repeated examples include:
+  - `Fran` (`Melody Lake`, Empire #2)
+    - `ec11.txt`: potential `100`, present `100`, stored `51`, armies `15`,
+      ground batteries `5`, stardock `2 cruisers`
+    - `ec12.txt`: same except ground batteries `6`
+    - `ec13.txt`: same except stored `36`, ground batteries `7`
+    - `ec15.txt`: same except ground batteries `8`
+  - `33` (`Melody Lake`, Empire #2)
+    - `ec17.txt`: potential `33`, present `11`, stored `6`, armies `0`,
+      ground batteries `0`, stardock `2 destroyers`
+    - `ec18.txt`: present `13`, stored `7`, stardock `1 destroyer`
+    - `ec19.txt`: present `14`, stored `9`, stardock `1 destroyer`
+  - `90` (`Melody Lake`, Empire #2)
+    - `ec13.txt`: potential `90`, present `35`, stored `27`, armies `4`,
+      ground batteries `0`
+    - `ec14.txt`: present `38`, stored `26`, armies `4`,
+      ground batteries `1`
+
+Why this matters:
+
+- these repeated profiles give us expected movement over time for:
+  - current production
+  - stored goods
+  - armies
+  - ground batteries
+  - docked ships
+- they are the best available reference set for naming additional `PLANETS.DAT`
+  fields before we have exact matching historical snapshots in repo
+
 Preservation value:
 
 - this is the first fixture-backed sequence showing a two-step attack lifecycle:
