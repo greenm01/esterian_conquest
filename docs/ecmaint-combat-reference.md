@@ -186,6 +186,29 @@ Why it matters:
   - `0x58` modulates both world-side damage and at least part of the
     attacker-loss calculation
 
+Fifth field-isolation follow-up:
+
+- keeping `0x58 = 0` and `0x5A = 1`, but changing the target's byte `0x0E`
+  from `0x04` to `0x0c`, produced another distinct bombardment result
+- the order was still consumed and the fleet still ended at the target
+- attacker losses became much heavier:
+  - `CA 3 -> 3`
+  - `DD 5 -> 1`
+- the world-damage window changed again:
+  - `0x04..0x07`: `00 00 00 00 -> 8b 15 60 b5`
+  - `0x08..0x09`: `48 87 -> 3e 86`
+  - `0x0A..0x0D`: `00 00 00 00 -> d8 c6 49 e3`
+  - `0x0E`: `0x0c -> 0x54`
+  - `0x58`: stayed `0`
+  - `0x5A`: `0x01 -> 0`
+
+Why it matters:
+
+- with `0x58` and `0x5A` held constant, `0x0E` alone now clearly changes the
+  attacker-loss profile
+- that makes `PLANETS.DAT[0x0E]` a strong candidate for another defense-side
+  field, possibly something like ground batteries or a related installation
+
 ## Reference 2: Follow-on Invasion Travel
 
 Files:
