@@ -104,6 +104,22 @@ Current interpretation:
 - the remaining missing state is most likely inside other developed-world
   fields in `PLANETS.DAT` rather than in the derived `DATABASE.DAT` intel cache
 
+Field-isolation follow-up:
+
+- a later synthetic variant set the target world's candidate army byte
+  (`PLANETS.DAT[0x5A]`) to `0` while keeping the hostile mature target shape
+- that variant still consumed the bombard order, but it no longer inflicted any
+  attacker ship losses
+- instead, the target planet record itself changed in several bytes, including
+  a decrement at `0x58`
+
+Why it matters:
+
+- this is the strongest current evidence that `PLANETS.DAT[0x5A]` is tied to
+  planetary defensive strength, likely armies
+- it also confirms that bombardment world-side damage lives in `PLANETS.DAT`,
+  not only in fleet-side attrition or derived database output
+
 ## Reference 2: Follow-on Invasion Travel
 
 Files:

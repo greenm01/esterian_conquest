@@ -1467,6 +1467,37 @@ Stable companion reference:
 - see `docs/planet-report-reference.md` for the coordinate-linked condensed
   version of these report-side target profiles
 
+Controlled bombardment field-isolation result:
+
+- starting from the mature hostile hybrid target, setting `PLANETS.DAT[0x5A]`
+  to `0` on the target world changed the two-pass bombardment outcome
+- preserved fixture pair:
+  - `fixtures/ecmaint-bombard-army0-pre/v1.5/`
+  - `fixtures/ecmaint-bombard-army0-post/v1.5/`
+
+Observed outcome relative to the army-zero pre-state:
+
+- fleet arrived and completed the bombard sequence over two maintenance passes
+- bombard order was consumed
+- attacking fleet took no ship losses
+  - `CA` stayed `3`
+  - `DD` stayed `5`
+- target planet changed:
+  - bytes `0x04..0x07`: `00 00 00 00 -> 36 33 33 33`
+  - bytes `0x08..0x09`: `48 87 -> 3b 85`
+  - byte `0x0E`: `04 -> 08`
+  - byte `0x58`: `0x8e -> 0x8a`
+- `MESSAGES.DAT` and `RESULTS.DAT` still remained empty
+
+Interpretation:
+
+- `0x5A` is now a much stronger candidate for army count, not just a loose
+  guess
+- changing that single byte was enough to eliminate the attacker losses that
+  appeared in the otherwise-similar hostile mature target
+- `PLANETS.DAT` now clearly participates in the bombardment damage path through
+  bytes outside the already-known tail owner fields
+
 Preservation value:
 
 - this is the first fixture-backed sequence showing a two-step attack lifecycle:
