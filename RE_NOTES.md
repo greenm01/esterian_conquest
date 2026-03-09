@@ -1166,6 +1166,45 @@ Practical value for preservation:
   simplified bombardment outcome first, because that sequence is the clearest
   and the easiest to validate against observed report language
 
+## Variable-Length Mature Fleet Tables
+
+The repo's `original/v1.5/FLEETS.DAT` is not an invalid file. It is a valid
+fleet table with a different record count:
+
+- file size: `702` bytes
+- record size: `54` bytes
+- inferred record count: `13`
+
+Preservation impact:
+
+- `FLEETS.DAT` is not fixed to the initialized `16 x 54` roster
+- the Rust parser now accepts any file length that is an exact multiple of
+  `54` bytes
+- this allows the mature `original/v1.5` snapshot to be inspected without
+  special-case tooling
+
+Observed mature-snapshot fleet shape:
+
+- fleets `2..13` still decode coherently with the current field model
+- the first record appears to be a much larger combined combat fleet:
+  - `CA=9`
+  - `DD=9`
+  - `ET=2`
+  - standing-order byte `0x1F = 0x04` (still unnamed)
+- records `2..5`, `6..9`, and `10..13` still look like linked four-fleet home
+  blocks with IDs ending in `0` at the tail, but the first empire block has
+  been materially transformed by gameplay
+
+Interpretation:
+
+- the initialized 16-record layout is a starting-state template, not a universal
+  fleet-table shape
+- real games can collapse, merge, or otherwise restructure those starting
+  blocks over time
+- this makes the mature snapshot a better future source for combat-oriented
+  `ECMAINT` work than the initialized fixtures, once enough planet/player-side
+  context is decoded
+
 Confirmed `SETUP.DAT` offsets from the live `F4` diffs:
 
 - `SETUP[512]` `snoop_enabled`

@@ -9,8 +9,8 @@ pub const PLANET_RECORD_COUNT: usize = 20;
 pub const PLANETS_DAT_SIZE: usize = PLANET_RECORD_SIZE * PLANET_RECORD_COUNT;
 
 pub const FLEET_RECORD_SIZE: usize = 54;
-pub const FLEET_RECORD_COUNT: usize = 16;
-pub const FLEETS_DAT_SIZE: usize = FLEET_RECORD_SIZE * FLEET_RECORD_COUNT;
+pub const INITIALIZED_FLEET_RECORD_COUNT: usize = 16;
+pub const INITIALIZED_FLEETS_DAT_SIZE: usize = FLEET_RECORD_SIZE * INITIALIZED_FLEET_RECORD_COUNT;
 
 pub const SETUP_DAT_SIZE: usize = 522;
 pub const CONQUEST_DAT_SIZE: usize = 2085;
@@ -21,6 +21,11 @@ pub enum ParseError {
     WrongSize {
         file_type: &'static str,
         expected: usize,
+        actual: usize,
+    },
+    WrongRecordMultiple {
+        file_type: &'static str,
+        record_size: usize,
         actual: usize,
     },
 }
@@ -35,6 +40,14 @@ impl fmt::Display for ParseError {
             } => write!(
                 f,
                 "{file_type} had wrong size: expected {expected} bytes, got {actual}"
+            ),
+            Self::WrongRecordMultiple {
+                file_type,
+                record_size,
+                actual,
+            } => write!(
+                f,
+                "{file_type} had wrong size: expected a multiple of {record_size} bytes, got {actual}"
             ),
         }
     }
@@ -436,20 +449,25 @@ impl FleetRecord {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FleetDat {
-    pub records: [FleetRecord; FLEET_RECORD_COUNT],
+    pub records: Vec<FleetRecord>,
 }
 
 impl FleetDat {
     pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
-        expect_size(data, FLEETS_DAT_SIZE, "FLEETS.DAT")?;
+        if data.len() % FLEET_RECORD_SIZE != 0 {
+            return Err(ParseError::WrongRecordMultiple {
+                file_type: "FLEETS.DAT",
+                record_size: FLEET_RECORD_SIZE,
+                actual: data.len(),
+            });
+        }
         Ok(Self {
-            records: std::array::from_fn(|idx| {
-                let start = idx * FLEET_RECORD_SIZE;
-                let end = start + FLEET_RECORD_SIZE;
-                FleetRecord {
-                    raw: copy_array(&data[start..end]),
-                }
-            }),
+            records: data
+                .chunks_exact(FLEET_RECORD_SIZE)
+                .map(|chunk| FleetRecord {
+                    raw: copy_array(chunk),
+                })
+                .collect(),
         })
     }
 
@@ -821,17 +839,10 @@ mod tests {
     }
 
     #[test]
-    fn shipped_fleets_dat_is_not_the_initialized_layout() {
+    fn shipped_fleets_dat_uses_a_variable_record_count() {
         let bytes = read_fixture("FLEETS.DAT");
-        let err = FleetDat::parse(&bytes).unwrap_err();
-        assert_eq!(
-            err,
-            ParseError::WrongSize {
-                file_type: "FLEETS.DAT",
-                expected: FLEETS_DAT_SIZE,
-                actual: 702,
-            }
-        );
+        let parsed = FleetDat::parse(&bytes).unwrap();
+        assert_eq!(parsed.records.len(), 13);
     }
 
     #[test]
@@ -839,6 +850,7 @@ mod tests {
         let bytes = read_initialized_fixture("FLEETS.DAT");
         let parsed = FleetDat::parse(&bytes).unwrap();
         assert_eq!(parsed.to_bytes(), bytes);
+        assert_eq!(parsed.records.len(), INITIALIZED_FLEET_RECORD_COUNT);
         assert_eq!(parsed.records[0].fleet_id(), 1);
         assert_eq!(parsed.records[0].local_slot(), 1);
         assert_eq!(parsed.records[0].next_fleet_id(), 2);

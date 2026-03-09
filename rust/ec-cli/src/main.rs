@@ -328,7 +328,8 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
             Ok(fleets) => {
                 println!();
                 println!("Fleets:");
-                for (idx, record) in fleets.records.iter().enumerate().take(4) {
+                let fleet_display_count = fleets.records.len().min(16);
+                for (idx, record) in fleets.records.iter().enumerate().take(fleet_display_count) {
                     println!(
                         "  fleet {:02}: id={} slot={} prev={} next={} cur_spd={} max_spd={} roe={} ships={} loc_raw={:02x?} order={}({}) target_raw={:02x?} summary='{}'",
                         idx + 1,
@@ -347,28 +348,39 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
                         record.standing_order_summary()
                     );
                 }
-                println!("  ... {} total fleet records", fleets.records.len());
+                if fleets.records.len() > fleet_display_count {
+                    println!("  ... {} total fleet records", fleets.records.len());
+                }
 
-                println!();
-                println!("Fleet Groups:");
-                for (group_idx, group) in fleets.records.chunks_exact(4).enumerate() {
-                    let home = group[0].current_location_coords_raw();
-                    println!(
-                        "  empire block {}: loc_raw={:02x?} target_raw={:02x?}",
-                        group_idx + 1,
-                        home,
-                        group[0].standing_order_target_coords_raw()
-                    );
-                    for record in group {
+                let looks_like_initialized_blocks = !fleets.records.is_empty()
+                    && fleets.records.len() % 4 == 0
+                    && fleets
+                        .records
+                        .chunks_exact(4)
+                        .all(|group| group.iter().map(|r| r.local_slot()).eq([1, 2, 3, 4]));
+
+                if looks_like_initialized_blocks {
+                    println!();
+                    println!("Fleet Groups:");
+                    for (group_idx, group) in fleets.records.chunks_exact(4).enumerate() {
+                        let home = group[0].current_location_coords_raw();
                         println!(
-                            "    id={} slot={} ships={} max_spd={} order={} summary='{}'",
-                            record.fleet_id(),
-                            record.local_slot(),
-                            record.ship_composition_summary(),
-                            record.max_speed(),
-                            record.standing_order_kind().as_str(),
-                            record.standing_order_summary()
+                            "  empire block {}: loc_raw={:02x?} target_raw={:02x?}",
+                            group_idx + 1,
+                            home,
+                            group[0].standing_order_target_coords_raw()
                         );
+                        for record in group {
+                            println!(
+                                "    id={} slot={} ships={} max_spd={} order={} summary='{}'",
+                                record.fleet_id(),
+                                record.local_slot(),
+                                record.ship_composition_summary(),
+                                record.max_speed(),
+                                record.standing_order_kind().as_str(),
+                                record.standing_order_summary()
+                            );
+                        }
                     }
                 }
             }
