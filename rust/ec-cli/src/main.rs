@@ -293,12 +293,13 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("Planets:");
     for (idx, record) in planets.records.iter().enumerate().take(5) {
         println!(
-            "  planet {:02}: coords={:02x?} hdr={:02x?} len={} text='{}' summary='{}'",
+            "  planet {:02}: coords={:02x?} hdr={:02x?} len={} text='{}' tail58={:02x?} summary='{}'",
             idx + 1,
             record.coords_raw(),
             record.header_bytes(),
             record.string_len(),
             ascii_trim(record.status_or_name_bytes()),
+            &record.raw[0x58..=0x60],
             record.derived_summary()
         );
     }

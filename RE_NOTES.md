@@ -1404,6 +1404,30 @@ Interpretation:
   - `DATABASE.DAT` is a derived intel cache, not the authoritative source of
     planet combat state
 
+Conservative `PLANETS.DAT` tail-field candidates:
+
+- `0x5D` is very likely the owning empire slot
+  - initialized seed worlds use `1..4` in exactly the expected four-empires
+    pattern
+  - the colonized world from the fleet-order fixture ends with owner slot `1`
+- `0x5C` is likely an ownership/state marker
+  - observed as `0x02` on owned colony-style records
+- `0x5A` is a strong candidate for army count
+  - initialized seed worlds: `4`
+  - colonized world from the fleet-order fixture: `0`
+  - mature `Dust Bowl` world: `15`
+- `0x58` is a developed-world quantity that matters, but it is still unnamed
+  - initialized seed worlds: `10`
+  - colonized world from the fleet-order fixture: `1`
+  - mature `Dust Bowl` world: `142`
+
+These candidates are now exposed conservatively in the Rust parser and CLI as:
+
+- `owner_empire_slot_raw()`
+- `ownership_status_raw()`
+- `likely_army_count_raw()`
+- `developed_value_raw()`
+
 Preservation value:
 
 - this is the first fixture-backed sequence showing a two-step attack lifecycle:

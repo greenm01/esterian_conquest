@@ -218,6 +218,22 @@ impl PlanetRecord {
         self.raw[0x2E]
     }
 
+    pub fn developed_value_raw(&self) -> u8 {
+        self.raw[0x58]
+    }
+
+    pub fn likely_army_count_raw(&self) -> u8 {
+        self.raw[0x5A]
+    }
+
+    pub fn ownership_status_raw(&self) -> u8 {
+        self.raw[0x5C]
+    }
+
+    pub fn owner_empire_slot_raw(&self) -> u8 {
+        self.raw[0x5D]
+    }
+
     pub fn status_or_name_summary(&self) -> String {
         let len = self.string_len() as usize;
         let text = &self.status_or_name_bytes()[..len.min(self.status_or_name_bytes().len())];
@@ -244,6 +260,19 @@ impl PlanetRecord {
                 self.build_slot_raw(),
                 self.build_kind_raw()
             ));
+        }
+        if self.owner_empire_slot_raw() != 0 {
+            parts.push(format!(
+                "owner_slot={} owner_status={:02x}",
+                self.owner_empire_slot_raw(),
+                self.ownership_status_raw()
+            ));
+        }
+        if self.likely_army_count_raw() != 0 {
+            parts.push(format!("likely_armies={}", self.likely_army_count_raw()));
+        }
+        if self.developed_value_raw() != 0 {
+            parts.push(format!("dev58={}", self.developed_value_raw()));
         }
         parts.join(" | ")
     }
@@ -803,6 +832,23 @@ mod tests {
                 (15, [16, 13], 100),
             ]
         );
+    }
+
+    #[test]
+    fn planet_tail_fields_expose_owner_slot_and_likely_armies() {
+        let init = PlanetDat::parse(&read_initialized_fixture("PLANETS.DAT")).unwrap();
+        assert_eq!(init.records[12].owner_empire_slot_raw(), 2);
+        assert_eq!(init.records[12].ownership_status_raw(), 2);
+        assert_eq!(init.records[12].likely_army_count_raw(), 4);
+
+        assert_eq!(init.records[14].owner_empire_slot_raw(), 1);
+        assert_eq!(init.records[14].ownership_status_raw(), 2);
+        assert_eq!(init.records[14].likely_army_count_raw(), 4);
+
+        let fleet_post = PlanetDat::parse(&read_ecmaint_fleet_post_fixture("PLANETS.DAT")).unwrap();
+        assert_eq!(fleet_post.records[13].owner_empire_slot_raw(), 1);
+        assert_eq!(fleet_post.records[13].ownership_status_raw(), 2);
+        assert_eq!(fleet_post.records[13].likely_army_count_raw(), 0);
     }
 
     #[test]
