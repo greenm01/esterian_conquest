@@ -458,7 +458,7 @@ Observed mission-order changes:
 
 Practical inference:
 
-- `0x0A` is likely a mission type / order code
+- `0x0A` is likely the chosen current speed for the order
 - `0x1F..0x21` likely encode mission parameters such as destination coordinates, target slot, or route endpoint
 - most of each fleet record remains unchanged by orders, which supports the idea that fleet identity/capacity lives in fixed header fields and only a compact mission block mutates during command entry
 
@@ -638,6 +638,12 @@ Confirmed `FLEETS.DAT` fields from the initialized `16 x 54` layout:
   - fleet `1 <- 0`, `2 <- 1`, `3 <- 2`, `4 <- 3`
 - `record[0x09]` (`u8`): maximum speed
   - matches the preserved starting fleet listing: `3, 3, 6, 6`
+- `record[0x0A]` (`u8`): current speed
+  - matches preserved live order-entry behavior:
+    - fleets `1` and `2` were ordered with current speed `3`, and `0x0A` became `0x03`
+    - fleets `3` and `4` were ordered with current speed `6`, and `0x0A` became `0x06`
+  - later combat-era logs also show the fleet brief list carrying this chosen travel speed separately
+    from maximum speed
 - `record[0x25]` (`u8`): rules of engagement
   - matches the preserved starting fleet listing: all `6`
 - `record[0x28]` (`u8`): cruiser count

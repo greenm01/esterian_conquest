@@ -330,12 +330,13 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
                 println!("Fleets:");
                 for (idx, record) in fleets.records.iter().enumerate().take(4) {
                     println!(
-                        "  fleet {:02}: id={} slot={} prev={} next={} max_spd={} roe={} ships={} home_raw={:02x?} order={}({}) target_raw={:02x?} mission={} summary='{}'",
+                        "  fleet {:02}: id={} slot={} prev={} next={} cur_spd={} max_spd={} roe={} ships={} home_raw={:02x?} order={}({}) target_raw={:02x?} summary='{}'",
                         idx + 1,
                         record.fleet_id(),
                         record.local_slot(),
                         record.previous_fleet_id(),
                         record.next_fleet_id(),
+                        record.current_speed(),
                         record.max_speed(),
                         record.rules_of_engagement(),
                         record.ship_composition_summary(),
@@ -343,7 +344,6 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
                         record.standing_order_kind().as_str(),
                         record.standing_order_code_raw(),
                         record.standing_order_target_coords_raw(),
-                        record.mission_code(),
                         record.standing_order_summary()
                     );
                 }
@@ -950,11 +950,11 @@ fn compare_fleets(left_dir: &Path, right_dir: &Path) -> Result<(), Box<dyn std::
                 continue;
             }
             println!(
-                "  record {:02}: {} differing bytes, mission {} -> {}, params {:02x?} -> {:02x?}",
+                "  record {:02}: {} differing bytes, current speed {} -> {}, params {:02x?} -> {:02x?}",
                 idx + 1,
                 count,
-                a.mission_code(),
-                b.mission_code(),
+                a.current_speed(),
+                b.current_speed(),
                 a.mission_param_bytes(),
                 b.mission_param_bytes()
             );

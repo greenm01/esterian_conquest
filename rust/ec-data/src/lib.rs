@@ -350,7 +350,7 @@ impl FleetRecord {
         self.raw[0x09]
     }
 
-    pub fn mission_code(&self) -> u8 {
+    pub fn current_speed(&self) -> u8 {
         self.raw[0x0A]
     }
 
