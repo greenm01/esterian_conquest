@@ -1,116 +1,184 @@
-# ECMAINT Reverse-Engineering Plan
+# ECMAINT Phase-1 Investigation Plan
 
-`ECMAINT` is the highest-value target for recovering the actual game engine.
+`ECMAINT` is the highest-value target for recovering the actual game engine, but this document is intentionally limited to the first controlled investigation cycle.
 
-The bundled documentation says that maintenance resolves:
+The goal of phase 1 is not to decode all of maintenance. The goal is to establish a repeatable black-box workflow, centered on one build-queue scenario, that produces:
 
-- fleet movement
-- battles
-- planetary attacks
-- yearly updates
-- player messaging/report output
+- one preserved pre-maint fixture
+- one preserved post-maint fixture
+- one file-diff summary tied to a known gameplay change
+- at least one new confirmed maintenance-driven field or transition
+- at least one new fixture-backed Rust test
 
-## Working Hypothesis
+## First Scenario
 
-`ECMAINT` is a deterministic transform from:
+Center phase 1 on a single planet build queue transition.
+
+Why this scenario comes first:
+
+- build queues were already observed to land in `PLANETS.DAT`
+- build completion is likely easier to observe than combat resolution
+- it should expose whether maintenance materializes queued production into fleets, planet-state updates, or both
+- it is a more controlled first transform than a battle-producing setup
+
+The first scenario should introduce exactly one known build order on one known homeworld-style planet and nothing else.
+
+## Working Model
+
+Treat `ECMAINT` as a deterministic transform from:
 
 - `PLAYER.DAT`
 - `PLANETS.DAT`
 - `FLEETS.DAT`
 - `CONQUEST.DAT`
-- related support files
+- support files in the game directory
 
 into:
 
-- updated game-state files
-- regenerated database/report/message files
+- updated core state
+- derived database/report outputs
+- player-visible message/result files
 
-That means we can study it even without a faithful player UI, as long as we can produce valid pre-maintenance states.
+For phase 1, treat the binary as a black box. Static binary mapping is explicitly out of scope until the first transform is captured cleanly.
 
-## Immediate Goals
+## Phase-1 Procedure
 
-1. Identify the observable maintenance phases
+### 1. Choose the baseline fixture
 
-- input validation
-- movement resolution
-- combat resolution
-- build completion
-- derived database/report generation
+Start from the cleanest pre-maint state that already matches the current Rust assumptions.
 
-2. Build targeted scenario fixtures
+Default choice:
 
-- one order change, then maintenance
-- one build queue, then maintenance
-- one battle-producing setup, then maintenance
+- `fixtures/ecutil-init/v1.5/`
 
-3. Correlate changed bytes with documented mechanics
+Use `fixtures/ecmaint-post/v1.5/` only if the scenario requires a post-maint-derived file to exist first, and record that exception explicitly in `RE_NOTES.md`.
 
-- movement and ETA
-- bombardment
-- invasion
-- ownership changes
-- losses and surviving fleets
+### 2. Create one controlled pre-maint change
 
-## Practical Method
+Introduce exactly one build queue change:
 
-### Phase 1: Controlled File-Transform Analysis
+- one planet
+- one build order
+- no other player, fleet, maintenance-day, or ownership changes
 
-Treat `ECMAINT` as a black-box transformer.
+Before running maintenance, record:
 
-Workflow:
+- which planet was changed
+- what was ordered
+- which file offsets changed in the pre-maint state
 
-1. choose a clean baseline fixture
-2. introduce one known state change
-3. run `ECMAINT`
-4. diff every changed file
-5. record offsets, records, and messages produced
+### 3. Preserve the pre-maint fixture
 
-Files of particular interest:
+Create:
 
-- `PLAYER.DAT`
+- `fixtures/ecmaint-build-pre/v1.5/`
+
+Copy the full scenario directory there, not only the changed files.
+
+The fixture note in `RE_NOTES.md` must include:
+
+- baseline fixture used
+- exact planet/build order
+- whether the scenario was generated through original DOS tools or direct file editing
+
+### 4. Run ECMAINT
+
+Run the original `ECMAINT` against the pre-maint scenario directory and preserve the exact post-run state.
+
+Create:
+
+- `fixtures/ecmaint-build-post/v1.5/`
+
+Again, copy the full directory, not only changed files.
+
+### 5. Diff the full output set
+
+Diff these files first:
+
 - `PLANETS.DAT`
 - `FLEETS.DAT`
-- `CONQUEST.DAT`
 - `DATABASE.DAT`
 - `MESSAGES.DAT`
 - `RESULTS.DAT`
+- `CONQUEST.DAT`
 
-### Phase 2: Static Binary Mapping
+Also check:
 
-For each observed phase:
+- `PLAYER.DAT`
 
-- identify the file I/O callers
-- separate runtime/helper code from application code
-- label likely maintenance pass routines
+For each changed file, classify it as one of:
 
-### Phase 3: Rust Conformance Model
+- core persistent state
+- derived/indexed state
+- report/message output
 
-As each rule becomes clear:
+The phase-1 expectation is:
 
-- encode the relevant fields in `ec-data`
-- add scenario fixtures
-- add tests that assert observed outcomes
-- eventually move the behavior into `ec-core`
+- `PLANETS.DAT` should show the queue consuming or changing state
+- `FLEETS.DAT` may show newly materialized fleets
+- `DATABASE.DAT` should reflect derived player-facing database output
+- `MESSAGES.DAT` and `RESULTS.DAT` should expose player-visible maintenance consequences
+- `CONQUEST.DAT` should show global turn/year/summary movement
 
-## What We Need To Learn
+### 6. Record one concrete maintenance outcome
 
-High priority:
+Phase 1 is only successful if at least one specific post-maint transition is named and grounded.
 
-- movement order resolution
-- combat resolution order
-- damage/loss formulas
-- build completion timing
-- rogue empire behavior
-- database/message generation rules
+Examples of acceptable outcomes:
 
-Medium priority:
+- a build queue byte cleared in `PLANETS.DAT`
+- a new fleet record created in `FLEETS.DAT`
+- a production/result message generated in `MESSAGES.DAT`
+- a global counter advanced in `CONQUEST.DAT`
 
-- summary counters in `CONQUEST.DAT`
-- exact message formatting triggers
-- ranking/report generation
+Do not promote fields based on guesswork. Record raw bytes if semantics are still unclear.
 
-## Why This Matters
+### 7. Feed the result back into Rust
 
-If we understand `ECMAINT`, we understand the real rules of the game.
+After the diff is understood enough to be actionable:
 
-That is the core requirement for a faithful preservation-oriented Rust reimplementation.
+- add or refine the corresponding accessors in `rust/ec-data`
+- preserve the new fixtures in repo
+- add at least one fixture-backed test in `ec-data` or `ec-cli`
+
+If the result is still too ambiguous for a named field, add a conservative raw accessor instead of inventing semantics.
+
+## Files and Repo Artifacts To Use
+
+This phase should explicitly use:
+
+- `fixtures/ecutil-init/v1.5/`
+- `fixtures/ecmaint-post/v1.5/`
+- `docs/fixtures.md`
+- `RE_NOTES.md`
+- `rust/ec-data`
+- `rust/ec-cli`
+
+New phase-1 fixture names are fixed:
+
+- `fixtures/ecmaint-build-pre/v1.5/`
+- `fixtures/ecmaint-build-post/v1.5/`
+
+## Acceptance Criteria
+
+Phase 1 is complete only when all of the following exist:
+
+1. a preserved pre-maint build fixture
+2. a preserved post-maint build fixture
+3. a diff summary recorded in `RE_NOTES.md`
+4. at least one confirmed maintenance-driven field or record transition
+5. at least one new fixture-backed Rust test
+
+If a run produces only noisy derived outputs and no interpretable core-state change, the scenario is not complete and should be repeated with a simpler or clearer build order.
+
+## What Comes Next
+
+Do not expand this document into a full engine roadmap.
+
+Once the build-queue transform is understood, the next candidate scenarios are:
+
+- fleet movement resolution
+- battle-producing setup
+- rogue/AI empire behavior
+
+Those later scenarios should be planned only after the first build-driven maintenance cycle is preserved and understood.
