@@ -316,11 +316,18 @@ pub enum FleetStandingOrderKind {
     MoveOnly,
     SeekHome,
     PatrolSector,
+    GuardStarbase,
     GuardBlockadeWorld,
     BombardWorld,
+    InvadeWorld,
+    BlitzWorld,
     ViewWorld,
+    ScoutSector,
+    ScoutSolarSystem,
     ColonizeWorld,
     JoinAnotherFleet,
+    RendezvousSector,
+    Salvage,
     Unknown(u8),
 }
 
@@ -331,11 +338,18 @@ impl FleetStandingOrderKind {
             1 => Self::MoveOnly,
             2 => Self::SeekHome,
             3 => Self::PatrolSector,
+            4 => Self::GuardStarbase,
             5 => Self::GuardBlockadeWorld,
             6 => Self::BombardWorld,
+            7 => Self::InvadeWorld,
+            8 => Self::BlitzWorld,
             9 => Self::ViewWorld,
+            10 => Self::ScoutSector,
+            11 => Self::ScoutSolarSystem,
             12 => Self::ColonizeWorld,
             13 => Self::JoinAnotherFleet,
+            14 => Self::RendezvousSector,
+            15 => Self::Salvage,
             other => Self::Unknown(other),
         }
     }
@@ -346,11 +360,18 @@ impl FleetStandingOrderKind {
             Self::MoveOnly => "move",
             Self::SeekHome => "seek_home",
             Self::PatrolSector => "patrol",
+            Self::GuardStarbase => "guard_starbase",
             Self::GuardBlockadeWorld => "guard_blockade",
             Self::BombardWorld => "bombard",
+            Self::InvadeWorld => "invade",
+            Self::BlitzWorld => "blitz",
             Self::ViewWorld => "view",
+            Self::ScoutSector => "scout_sector",
+            Self::ScoutSolarSystem => "scout_system",
             Self::ColonizeWorld => "colonize",
             Self::JoinAnotherFleet => "join_fleet",
+            Self::RendezvousSector => "rendezvous",
+            Self::Salvage => "salvage",
             Self::Unknown(_) => "unknown",
         }
     }
@@ -361,11 +382,18 @@ impl FleetStandingOrderKind {
             Self::MoveOnly => "Move fleet",
             Self::SeekHome => "Seek home",
             Self::PatrolSector => "Patrol sector",
+            Self::GuardStarbase => "Guard starbase",
             Self::GuardBlockadeWorld => "Guard/blockade world",
             Self::BombardWorld => "Bombard world",
+            Self::InvadeWorld => "Invade world",
+            Self::BlitzWorld => "Blitz world",
             Self::ViewWorld => "View world",
+            Self::ScoutSector => "Scout sector",
+            Self::ScoutSolarSystem => "Scout solar system",
             Self::ColonizeWorld => "Colonize world",
             Self::JoinAnotherFleet => "Join another fleet",
+            Self::RendezvousSector => "Rendezvous at sector",
+            Self::Salvage => "Salvage",
             Self::Unknown(_) => "Unknown order",
         }
     }
@@ -423,18 +451,35 @@ impl FleetRecord {
             FleetStandingOrderKind::MoveOnly => format!("Move fleet to Sector ({x},{y})"),
             FleetStandingOrderKind::SeekHome => "Seek home".to_string(),
             FleetStandingOrderKind::PatrolSector => format!("Patrol Sector ({x},{y})"),
+            FleetStandingOrderKind::GuardStarbase => {
+                format!("Guard starbase at Sector ({x},{y})")
+            }
             FleetStandingOrderKind::GuardBlockadeWorld => {
                 format!("Guard/blockade world in System ({x},{y})")
             }
             FleetStandingOrderKind::BombardWorld => {
                 format!("Bombard world in System ({x},{y})")
             }
+            FleetStandingOrderKind::InvadeWorld => {
+                format!("Invade world in System ({x},{y})")
+            }
+            FleetStandingOrderKind::BlitzWorld => {
+                format!("Blitz world in System ({x},{y})")
+            }
             FleetStandingOrderKind::ViewWorld => format!("View world in System ({x},{y})"),
+            FleetStandingOrderKind::ScoutSector => format!("Scout Sector ({x},{y})"),
+            FleetStandingOrderKind::ScoutSolarSystem => format!("Scout solar system ({x},{y})"),
             FleetStandingOrderKind::ColonizeWorld => {
                 format!("Colonize world in System ({x},{y})")
             }
             FleetStandingOrderKind::JoinAnotherFleet => {
                 format!("Join another fleet at raw target ({x},{y})")
+            }
+            FleetStandingOrderKind::RendezvousSector => {
+                format!("Rendezvous at Sector ({x},{y})")
+            }
+            FleetStandingOrderKind::Salvage => {
+                format!("Salvage at Sector ({x},{y})")
             }
             FleetStandingOrderKind::Unknown(code) => {
                 format!("Unknown order {code} target ({x},{y})")
@@ -442,26 +487,46 @@ impl FleetRecord {
         }
     }
 
+    pub fn scout_count(&self) -> u8 {
+        self.raw[0x24]
+    }
+
     pub fn rules_of_engagement(&self) -> u8 {
         self.raw[0x25]
     }
 
-    pub fn cruiser_count(&self) -> u8 {
-        self.raw[0x28]
+    pub fn battleship_count(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x26], self.raw[0x27]])
     }
 
-    pub fn destroyer_count(&self) -> u8 {
-        self.raw[0x2A]
+    pub fn cruiser_count(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x28], self.raw[0x29]])
     }
 
-    pub fn etac_count(&self) -> u8 {
-        self.raw[0x30]
+    pub fn destroyer_count(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x2A], self.raw[0x2B]])
+    }
+
+    pub fn troop_transport_count(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x2C], self.raw[0x2D]])
+    }
+
+    pub fn army_count(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x2E], self.raw[0x2F]])
+    }
+
+    pub fn etac_count(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x30], self.raw[0x31]])
     }
 
     pub fn ship_composition_summary(&self) -> String {
         let parts = [
+            ("SC", self.scout_count() as u16),
+            ("BB", self.battleship_count()),
             ("CA", self.cruiser_count()),
             ("DD", self.destroyer_count()),
+            ("TT", self.troop_transport_count()),
+            ("ARMY", self.army_count()),
             ("ET", self.etac_count()),
         ]
         .into_iter()

@@ -1849,3 +1849,26 @@ Current scaffold status:
 Captured gameplay screenshots were copied to:
 
 - [ecv1.5](/home/niltempus/Pictures/ecv1.5)
+
+## 2026-03-10: Fleet Ship Capacities and Planetary Invasions
+
+A successful planetary invasion scenario completely decoded the `FLEETS.DAT` combat ship and troop counts block.
+
+Previous assumptions were that `0x28` (Cruisers) and `0x2A` (Destroyers) were simple 8-bit counts. However, it was discovered that all main ship and troop values are actually stored as **16-bit (little-endian) integers**.
+
+The exact byte mappings in `FLEETS.DAT` (starting at offset `0x24`) are:
+- `0x24`: **Scouts** (`u8`)
+- `0x26..0x27`: **Battleships** (`u16`)
+- `0x28..0x29`: **Cruisers** (`u16`)
+- `0x2A..0x2B`: **Destroyers** (`u16`)
+- `0x2C..0x2D`: **Troop Transports** (`u16`)
+- `0x2E..0x2F`: **Armies** loaded onto transports (`u16`)
+- `0x30..0x31`: **ETACs** (Colonization ships) (`u16`)
+
+Fleet Orders were also confirmed based on manual references and game engine reactions. Important order codes:
+- `6`: **Bombard a World**
+- `7`: **Invade a World**
+- `8`: **Blitz a World**
+
+### The Invasion Experiment
+By creating a "heavy attacker" AI fleet with Battleships, Cruisers, Destroyers, Troop Transports, and Armies, then ordering them to "Invade" (`7`) the mature colony at `(15,13)`, `ECMAINT` generated a robust casualty report (`RESULTS.DAT`) and changed the planet's ownership. The surviving troop transport armies successfully populated the captured planet's `0x58` field (Armies).

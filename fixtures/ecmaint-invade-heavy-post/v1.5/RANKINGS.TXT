@@ -1,0 +1,29 @@
+Esterian Conquest: Player Rankings
+
+Creation Date: 03-10-2026, 03:02 PM
+
+Stardate: 3012 A.D.
+
+
+by ID:  (Previous Year's Information in Parentheses)
+-------------------------------------------------------------------------------
+Empire Name             ID     Planets Owned     Current Production     Status
+-------------------------------------------------------------------------------
+foo                      2        1  (  2)           100  (  200)        Alive
+-------------------------------------------------------------------------------
+
+
+by Current Production:  (Previous Year's Information in Parentheses)
+-------------------------------------------------------------------------------
+Empire Name             ID     Planets Owned     Current Production     Status
+-------------------------------------------------------------------------------
+foo                      2        1  (  2)           100  (  200)        Alive
+-------------------------------------------------------------------------------
+
+
+by Planets Owned:  (Previous Year's Information in Parentheses)
+-------------------------------------------------------------------------------
+Empire Name             ID     Planets Owned     Current Production     Status
+-------------------------------------------------------------------------------
+foo                      2        1  (  2)           100  (  200)        Alive
+-------------------------------------------------------------------------------

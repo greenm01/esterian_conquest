@@ -17,25 +17,36 @@ explicitly naming and defining the core planetary fields:
 - `PLANETS.DAT[0x58]` is the **Armies** count.
 - `PLANETS.DAT[0x5A]` is the **Ground Batteries** count.
 
-This completely resolves the dense `0x04..0x5A` planet block puzzle for bombardments!
+**Highest-confidence fleet model (Definitive):**
+A successful planetary invasion generated a casualty report confirming that the game engine stores ship and troop counts as **16-bit (little-endian) integers** starting at `0x24` in `FLEETS.DAT`:
+
+- `FLEETS.DAT[0x1F]` is the standing order (e.g., `6` = Bombard, `7` = Invade, `8` = Blitz).
+- `FLEETS.DAT[0x24]` is the **Scouts** count (8-bit).
+- `FLEETS.DAT[0x26..0x27]` is the **Battleships** count (`u16`).
+- `FLEETS.DAT[0x28..0x29]` is the **Cruisers** count (`u16`).
+- `FLEETS.DAT[0x2A..0x2B]` is the **Destroyers** count (`u16`).
+- `FLEETS.DAT[0x2C..0x2D]` is the **Troop Transports** count (`u16`).
+- `FLEETS.DAT[0x2E..0x2F]` is the **Armies** loaded on transports (`u16`).
+- `FLEETS.DAT[0x30..0x31]` is the **ETACs** (Colonization ships) count (`u16`).
 
 ## Latest Commits
 
 - `edd013e` `Identify 0x04-0x09 as Real, add 0x09 bombardment fixture and test`
 - `73aefb7` `Update handoff for next bombardment scaling experiment`
 - `[NEW]` Added heavy bombardment test proving report generation and exact byte mappings.
+- `[NEW]` Mapped 16-bit fleet ship capacities and Invasion orders via ECMAINT black-box testing.
 
 ## Next Experiment
 
-Goal: Decode `ECMAINT`'s handling of planetary invasions or fleet-vs-fleet combat.
+Goal: Decode `ECMAINT`'s handling of fleet-vs-fleet combat or AI empire behavior.
 
-Now that Bombardment is mapped, we can move to the next interaction phase.
+Now that planet-side combat (Bombardment, Invasion) is mapped, the next phase should focus on space combat and empire management.
 
-Suggested path: Fleet Invasion
-1. Use the `heavy` attacker baseline, but change the fleet's order to `Invade` (order code `10`).
-2. Run `ECMAINT` on the target planet.
-3. Observe how `ECMAINT` resolves ground combat using the known `Armies` (`0x58`) and `Ground Batteries` (`0x5A`) fields.
-4. Verify if ownership changes and how `RESULTS.DAT` reports the invasion.
+Suggested path: Fleet-vs-Fleet Interception
+1. Set up a pre-maint scenario with two hostile fleets in the same deep-space sector (or moving through the same sector).
+2. Ensure both have high combat strength (Cruisers, Destroyers, Battleships) to guarantee a decisive engagement.
+3. Observe how `ECMAINT` resolves the encounter, noting losses and generation of interception reports in `MESSAGES.DAT` or `RESULTS.DAT`.
+4. Validate how Rules of Engagement (`0x25`) impacts the flee/fight mechanics.
 
 ## Standard Runtime Command
 
