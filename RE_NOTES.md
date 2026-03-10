@@ -1885,3 +1885,25 @@ Through targeted scenarios in `ECMAINT`, the mechanics of fleet-vs-fleet combat 
 - AI Empires (e.g., "In Civil Disorder") actively defend their planets and intercept approaching player fleets.
 
 This perfectly corroborates the 16-bit ship capacity offsets discovered during the planetary bombardment testing, as the fleet-vs-fleet combat reports correctly enumerated the exact same 16-bit fields for Battleships, Cruisers, Destroyers, and ETACs.
+
+### Planetary Economics and Production
+
+Through black-box simulation of `ECMAINT`, the planetary economic block was decoded. It relies heavily on Borland Pascal 48-bit `Real` values for large numbers (population, factories) and 32-bit `LongInt` for production points.
+
+Confirmed `PLANETS.DAT` fields:
+- `0x02..0x03`: **Potential Production / Resource Rating** (2-byte Real prefix: [Mantissa high] [Exponent]).
+- `0x04..0x09`: **Factories** (6-byte Borland Pascal Real).
+- `0x0A..0x0D`: **Stored Goods (Production Points)** (4-byte LongInt).
+- `0x0E`: **Planet Tax Rate** (8-bit, appears to be synced from Player settings during maintenance).
+- `0x52..0x57`: **Population** (6-byte Borland Pascal Real).
+- `0x58`: **Armies** (8-bit).
+- `0x5A`: **Ground Batteries** (8-bit).
+
+Economic Mechanics:
+- **Income Generation:** Treasury increases based on planetary Population. 
+- **Production:** Factories generate `Stored Goods` (Production Points) which are consumed by the Build Queue (`0x24..0x2E`).
+- **Build Completion:** When a build order finishes (e.g., ship or factory), the points are deducted from `Stored Goods` and the build kind byte (`0x2E`) is cleared.
+
+Confirmed `PLAYER.DAT` fields:
+- `0x4E..0x4F`: **Last Run Year** (16-bit little-endian year offset/word).
+- `0x52..0x55`: **Treasury** (32-bit LongInt).

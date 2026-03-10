@@ -35,18 +35,24 @@ A successful planetary invasion generated a casualty report confirming that the 
 - `73aefb7` `Update handoff for next bombardment scaling experiment`
 - `[NEW]` Added heavy bombardment test proving report generation and exact byte mappings.
 - `[NEW]` Mapped 16-bit fleet ship capacities and Invasion orders via ECMAINT black-box testing.
+- `[NEW]` Decoded Planetary Economics: Population, Factories, Stored Goods, and Treasury.
 
 ## Next Experiment
 
-Goal: Decode `ECMAINT`'s handling of planet economy/production, or Starbase mechanics.
+Goal: Decode `ECMAINT`'s handling of Starbases or Deep Space movement formulas.
 
-Now that planet-side combat (Bombardment, Invasion) and space combat (Fleet Interception) are mapped, the next phase should focus on the economic engine or static defenses.
+Now that the core state (Combat, Economics, Production) is mapped, the remaining unknowns are the stationary defenses and the exact math behind movement.
 
-Suggested path: Economy and Production
-1. Set up a pre-maint scenario with a known planet (e.g., `Planet(15,13)`) that has a specific tax rate, population, and factories.
-2. Observe how `ECMAINT` increments the player's Treasury/Tax in `PLAYER.DAT`.
-3. Check how planetary build queues (`0x10..0x1C`) consume production points (`0x0A..0x0D`) to spawn new fleets.
-4. Try to reverse-engineer the formula for `Stored Goods` generation based on `Factories` (`0x04..0x09`).
+Suggested path: Starbases
+1. Set up a pre-maint scenario with a Starbase in a sector (`BASES.DAT`).
+2. Order a fleet to `Guard Starbase` (order `4`).
+3. Check how Starbases contribute to fleet defense or storage.
+4. Try to reverse-engineer the `BASES.DAT` format (likely similar to planets but simpler).
+
+Alternative path: Movement Math
+1. Set a fleet to `Move Only` (order `1`) with a known speed (`0x09`) and current speed (`0x0A`).
+2. Observe the coordinate delta over multiple maintenance runs.
+3. Determine if movement is strictly linear or if there is a "sublight" vs "translight" transition.
 
 ## Standard Runtime Command
 
