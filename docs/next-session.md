@@ -38,15 +38,15 @@ A successful planetary invasion generated a casualty report confirming that the 
 
 ## Next Experiment
 
-Goal: Decode `ECMAINT`'s handling of fleet-vs-fleet combat or AI empire behavior.
+Goal: Decode `ECMAINT`'s handling of planet economy/production, or Starbase mechanics.
 
-Now that planet-side combat (Bombardment, Invasion) is mapped, the next phase should focus on space combat and empire management.
+Now that planet-side combat (Bombardment, Invasion) and space combat (Fleet Interception) are mapped, the next phase should focus on the economic engine or static defenses.
 
-Suggested path: Fleet-vs-Fleet Interception
-1. Set up a pre-maint scenario with two hostile fleets in the same deep-space sector (or moving through the same sector).
-2. Ensure both have high combat strength (Cruisers, Destroyers, Battleships) to guarantee a decisive engagement.
-3. Observe how `ECMAINT` resolves the encounter, noting losses and generation of interception reports in `MESSAGES.DAT` or `RESULTS.DAT`.
-4. Validate how Rules of Engagement (`0x25`) impacts the flee/fight mechanics.
+Suggested path: Economy and Production
+1. Set up a pre-maint scenario with a known planet (e.g., `Planet(15,13)`) that has a specific tax rate, population, and factories.
+2. Observe how `ECMAINT` increments the player's Treasury/Tax in `PLAYER.DAT`.
+3. Check how planetary build queues (`0x10..0x1C`) consume production points (`0x0A..0x0D`) to spawn new fleets.
+4. Try to reverse-engineer the formula for `Stored Goods` generation based on `Factories` (`0x04..0x09`).
 
 ## Standard Runtime Command
 

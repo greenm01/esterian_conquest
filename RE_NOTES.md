@@ -1872,3 +1872,16 @@ Fleet Orders were also confirmed based on manual references and game engine reac
 
 ### The Invasion Experiment
 By creating a "heavy attacker" AI fleet with Battleships, Cruisers, Destroyers, Troop Transports, and Armies, then ordering them to "Invade" (`7`) the mature colony at `(15,13)`, `ECMAINT` generated a robust casualty report (`RESULTS.DAT`) and changed the planet's ownership. The surviving troop transport armies successfully populated the captured planet's `0x58` field (Armies).
+
+### Fleet-vs-Fleet Interception
+
+Through targeted scenarios in `ECMAINT`, the mechanics of fleet-vs-fleet combat were decoded:
+- Fleets set to `Guard/Blockade` (order `5`) in a system will actively intercept any hostile fleets moving into that system.
+- When a fleet enters a guarded sector, combat resolves automatically. 
+- During a battle, exact ship counts are logged in the `RESULTS.DAT` combat report (e.g., "Our force contained 100 battleships. Alien force contained 1 cruiser and 1 ETAC ship.").
+- If a fleet spots another but *does not engage* (due to ROE settings, lack of hostile orders, or fleeing before combat), it reports the fleet composition using only generic size categories ("large", "medium", "small") and lists them as "of unknown type" rather than identifying exact ship classes.
+- The `ROE` (Rules of Engagement) byte at `0x25` governs the willingness to fight vs flee.
+- A heavily outgunned fleet (e.g., 1 DD vs 100 BB) will attempt to flee before being destroyed, which is explicitly reported ("The aliens fled before us").
+- AI Empires (e.g., "In Civil Disorder") actively defend their planets and intercept approaching player fleets.
+
+This perfectly corroborates the 16-bit ship capacity offsets discovered during the planetary bombardment testing, as the fleet-vs-fleet combat reports correctly enumerated the exact same 16-bit fields for Battleships, Cruisers, Destroyers, and ETACs.
