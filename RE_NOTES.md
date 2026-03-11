@@ -453,6 +453,39 @@ Ghidra follow-up on the live dump:
 - Ghidra did not auto-create a function at `2000:6d98`, so that region likely
   needs manual code/data carving even though surrounding areas disassemble well
 
+First control-flow recovery from the integrity region:
+
+- the code beginning at linear `0x26D9B` is a top-level integrity/restore
+  routine even though Ghidra did not auto-create a function there because it
+  immediately follows string data
+- it takes one byte-like stack argument at `[bp+4]`
+- observed behavior:
+  - argument `0`: validate the primary game state
+  - on failure, emit restore/abort messaging and recursively call itself with
+    argument `1`
+  - argument `1`: run the backup/restore-side validation path
+- the recursive call is explicit:
+  - `0x26F7C..0x26F81`: pushes `1` and calls back to `0x26D9B`
+
+Most important helper under it:
+
+- `0x25EE4` is the first substantial validator helper called by the top-level
+  integrity routine
+- early confirmed checks inside `0x25EE4`:
+  - opens/reads DS:`3278` with size `0x006E` (`110`) -> strong match for
+    `PLAYER.DAT`
+  - opens/reads DS:`2F78` with size `0x0061` (`97`) -> strong match for
+    `PLANETS.DAT`
+  - opens/reads DS:`3178` with size `0x0036` (`54`) -> strong match for
+    `FLEETS.DAT`
+
+Practical inference:
+
+- the synthetic Starbase 2 failure is now narrowed to the startup validator
+  rooted at `0x26D9B`, with `0x25EE4` as the first concrete helper to reverse
+- that matches the DOSBox-X trace evidence: the abort happens after the initial
+  file sweep and before the normal maintenance pipeline
+
 Relevant documentation cross-check:
 
 - `ECPLAYER.DOC` confirms `X` toggles a player-level `expert mode` setting and `T` changes the empire-wide tax rate

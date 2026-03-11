@@ -71,6 +71,14 @@ The active reverse-engineering target is `ECMAINT`.
     - `2000:841b` for the `main.tok` startup-guard cluster
   - caveat: `2000:6d98` was not auto-promoted to a function, so it likely needs
     manual code/data carving
+- First manual disassembly result:
+  - linear `0x26D9B` is a top-level integrity/restore routine
+  - `[bp+4] = 0` validates the primary state
+  - on failure it recursively calls itself with argument `1` for the
+    backup/restore-side path
+  - helper `0x25EE4` is the first major validator under it and immediately
+    checks structures matching `PLAYER.DAT` (`110` bytes), `PLANETS.DAT`
+    (`97` bytes), and `FLEETS.DAT` (`54` bytes)
 
 **Movement math (Recovered):**
 - Distance moved per pass = `speed / 1.5` (approximate, with turn-based rounding).
@@ -94,7 +102,7 @@ The active reverse-engineering target is `ECMAINT`.
 
 ## Next Steps
 
-1. **Manually carve the live-dump integrity region in Ghidra**: start at `2000:6d98`, convert the post-string bytes to code, and identify the first file-validation loop/call sequence.
+1. **Name and carve the integrity entry points in Ghidra**: create a function at linear `0x26D9B` / `2000:6d9b`, then label helper `0x25EE4` and the recursive backup path.
 2. **Compare early validation traces**: run a known-good Guard Starbase baseline and diff its initial read/validation phase against the failing Starbase 2 scenario.
 3. **Find the Starbase 2 companion structure**: `BASES.DAT[0x04] = 0x02` and `PLAYER.DAT[0x44] = 0x0002` are not sufficient by themselves, even with a second owned planet.
 4. **IPBM resolution**: investigate planetary bombardment missiles — still untouched in preserved fixtures, and `IPBM.DAT` is currently 0 bytes in all repo fixture families.
