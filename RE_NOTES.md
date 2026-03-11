@@ -2179,6 +2179,61 @@ Refined interpretation:
 - the next decisive experiment is a two-starbase scenario to determine whether
   it scales to `0x0002` or behaves like a boolean-style presence flag
 
+### BASES.DAT[0x04]: Starbase Identity / Number Candidate
+
+Follow-up multi-starbase probing on `fixtures/ecmaint-fleet-post/v1.5/` produced
+the strongest evidence so far that `BASES.DAT[0x04]` is the actual starbase
+identity/number field, while `BASES.DAT[0x00]` is not sufficient to define a
+distinct second base.
+
+Why this fixture was used:
+
+- it already has two empire-1 planets at `(15,13)` and `(16,13)`
+- a synthetic one-base state can be added there cleanly and accepted by
+  `ECMAINT`
+
+Observed results:
+
+- adding one starbase record at `(16,13)` with `PLAYER.DAT[0x44..0x45] = 0x0001`
+  succeeds cleanly and normalizes `PLAYER.DAT[0x46..0x47]` to `0x0001`
+- adding a second record with:
+  - `BASES.DAT[0x00] = 0x02`
+  - `BASES.DAT[0x04] = 0x02`
+  - coordinates `(15,13)`
+  - `PLAYER.DAT[0x44..0x45] = 0x0002`
+  causes the standard cross-file integrity failure
+- changing only the second record's local slot-like byte (`0x00 = 0x02`) while
+  leaving `BASES.DAT[0x04] = 0x01` does **not** produce a valid second base;
+  instead `ECMAINT` accepts the run and canonicalizes `BASES.DAT` back down to a
+  single 35-byte record
+- the same collapse-to-one-base behavior occurs even if the duplicate record is
+  placed first or second in the file
+
+Additional negative probes:
+
+- changing record-local flags at `BASES.DAT[0x02]`, `0x07`, or `0x19` did not
+  make `BASES.DAT[0x04] = 0x02` pass integrity
+- pre-linking a fleet to Guard Starbase 2 (`FLEETS.DAT[0x1F] = 0x04`,
+  `FLEETS.DAT[0x22] = 0x02`, `FLEETS.DAT[0x23] = 0x01`) also did not clear the
+  integrity gate
+
+Interpretation:
+
+- `BASES.DAT[0x04]` is the strongest current candidate for the actual
+  empire-relative starbase number (`1`, `2`, `3`, ...)
+- `BASES.DAT[0x00]` is not the decisive identity field; it behaves more like a
+  local slot/order byte
+- a real Starbase 2 requires at least one additional companion structure beyond:
+  - a second empire-owned planet
+  - a second 35-byte base record
+  - `PLAYER.DAT[0x44..0x45] = 0x0002`
+  - optional Guard Starbase fleet linkage
+
+This aligns with the historical logs, which clearly show real `Starbase 2` and
+`Starbase 3` states in later campaigns (`hector` and `helix` respectively), so
+the current blocker is missing cross-file bookkeeping rather than a design limit
+of one starbase per empire.
+
 ### Build Queue Follow-Up: No Delayed Fleet Materialization After Pass 2
 
 The minimal preserved build-queue fixture was re-run for two consecutive
