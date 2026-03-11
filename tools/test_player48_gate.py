@@ -9,7 +9,7 @@ SRC = ROOT / "fixtures" / "ecmaint-starbase-pre" / "v1.5"
 ECMAINT = ROOT / "original" / "v1.5" / "ECMAINT.EXE"
 
 
-def run_case(name: str, player48: int) -> None:
+def run_case(name: str, player48: int, ipbm_len: int) -> None:
     target = Path("/tmp") / name
     if target.exists():
         shutil.rmtree(target)
@@ -19,6 +19,7 @@ def run_case(name: str, player48: int) -> None:
     player = bytearray((target / "PLAYER.DAT").read_bytes())
     player[0x48:0x4A] = bytes([player48, 0x00])
     (target / "PLAYER.DAT").write_bytes(player)
+    (target / "IPBM.DAT").write_bytes(bytes(ipbm_len))
 
     cmd = [
         "dosbox-x",
@@ -61,7 +62,7 @@ def run_case(name: str, player48: int) -> None:
     errors = (target / "ERRORS.TXT").read_text(errors="ignore") if (target / "ERRORS.TXT").exists() else ""
     player_post = (target / "PLAYER.DAT").read_bytes()
 
-    print(f"{name}: player[0x48]={player48}")
+    print(f"{name}: player[0x48]={player48} ipbm_len={ipbm_len}")
     print("  errors:", "yes" if errors else "no")
     if errors:
         print("  first error:", errors.splitlines()[0])
@@ -69,5 +70,13 @@ def run_case(name: str, player48: int) -> None:
 
 
 if __name__ == "__main__":
-    for value in (0, 1, 2):
-        run_case(f"test-player48-{value}", value)
+    for value, ipbm_len in (
+        (0, 0x00),
+        (1, 0x00),
+        (1, 0x20),
+        (2, 0x20),
+        (2, 0x40),
+        (3, 0x40),
+        (3, 0x60),
+    ):
+        run_case(f"test-player48-{value}-{ipbm_len}", value, ipbm_len)

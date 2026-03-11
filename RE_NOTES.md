@@ -532,23 +532,26 @@ Additional player-side linkage:
 
 Direct fixture confirmation:
 
-- new reproducer: `tools/test_player48_gate.py`
+- updated reproducer: `tools/test_player48_gate.py`
 - on the original one-base shipped baseline:
-  - `PLAYER[0x48] = 0` => `ECMAINT` succeeds
-  - `PLAYER[0x48] = 1` => immediate `Game file(s) missing or failed integrity check!`
-  - `PLAYER[0x48] = 2` => same immediate integrity abort
-- observed post-failure normalization:
-  - `PLAYER[0x44..0x47]` collapses from `01 00 01 00` to `01 00 00 00`
-  - the patched `PLAYER[0x48]` value remains in place
+  - `PLAYER[0x48] = 0` with empty `IPBM.DAT` => `ECMAINT` succeeds
+  - `PLAYER[0x48] = 1` with empty `IPBM.DAT` => immediate integrity abort
+  - `PLAYER[0x48] = 1` with `IPBM.DAT` length `0x20` => success
+  - `PLAYER[0x48] = 2` with `IPBM.DAT` length `0x40` => success
+  - `PLAYER[0x48] = 3` with `IPBM.DAT` length `0x60` => success
+  - mismatched counts (`2` with `0x20`, `3` with `0x40`) fail
+- practical conclusion:
+  - `PLAYER[0x48]` is the count of `0x20`-byte `IPBM.DAT` records
+  - this validator path is about planetary missile data, not hidden starbase
+    metadata
 
 Practical inference:
 
-- `PLAYER[0x48]` is a confirmed early integrity gate, not just a vague
-  candidate
-- whatever DS:`31F8` represents, the validator requires it to be absent/zero in
-  the shipped one-base state
-- the remaining two-base blocker may live in this secondary `PLAYER[0x48]` ->
-  DS:`31F8` structure rather than in `BASES.DAT` alone
+- `PLAYER[0x48]` is no longer a starbase candidate
+- DS:`31F8` corresponds to the `IPBM.DAT` record stream
+- the remaining two-base blocker is back to the `BASES`-side integrity logic,
+  especially the direct `PLAYER[0x44] -> BASES` path and the secondary
+  base-to-base linkage through loaded base offset `0x05..0x06`
 
 Targeted fixture confirmation:
 
