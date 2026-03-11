@@ -6,6 +6,14 @@ Use this as the restart point instead of reconstructing the full thread.
 
 The active reverse-engineering target is `ECMAINT`. 
 
+**Headless Ghidra (Ready):**
+- `tools/ghidra_ecmaint.sh` imports and analyzes `original/v1.5/ECMAINT.EXE` headlessly.
+- Repo-local Ghidra state lives under `.ghidra/`; logs live under `artifacts/ghidra/ecmaint/`.
+- Current confirmed baseline:
+  - Loader: old-style DOS `MZ`
+  - Language: `x86:LE:16:Real Mode:default`
+  - MD5: `21489ef9798df77b20b7a02eb9347071`
+
 **Movement math (Recovered):**
 - Distance moved per pass = `speed / 1.5` (approximate, with turn-based rounding).
 - Observed pattern for Speed 3: Turn 1 (+2), Turn 2 (+3), Turn 3 (+3).
@@ -28,9 +36,10 @@ The active reverse-engineering target is `ECMAINT`.
 
 ## Next Steps
 
-1. **Find the Starbase 2 companion structure**: `BASES.DAT[0x04] = 0x02` and `PLAYER.DAT[0x44] = 0x0002` are not sufficient by themselves, even with a second owned planet.
-2. **IPBM resolution**: investigate planetary bombardment missiles — still untouched in preserved fixtures, and `IPBM.DAT` is currently 0 bytes in all repo fixture families.
-3. **Build queue mechanics**: deeper investigation of queued production materialization; the current minimal queue fixture remains a planet-state transition even after a second maintenance pass and does not create a fleet.
+1. **Use headless Ghidra on Starbase 2**: locate the `ECMAINT` routines that open `BASES.DAT`, `PLAYER.DAT`, and `FLEETS.DAT`, then trace the branch that rejects `BASES.DAT[0x04] = 0x02` scenarios.
+2. **Find the Starbase 2 companion structure**: `BASES.DAT[0x04] = 0x02` and `PLAYER.DAT[0x44] = 0x0002` are not sufficient by themselves, even with a second owned planet.
+3. **IPBM resolution**: investigate planetary bombardment missiles — still untouched in preserved fixtures, and `IPBM.DAT` is currently 0 bytes in all repo fixture families.
+4. **Build queue mechanics (Partially Solved)**: When a build order finishes, the newly constructed ships are moved into the planet's **Stardock** (`PLANETS.DAT[0x38]` and `0x4C`). They do not immediately form a fleet in `FLEETS.DAT` until they are manually "Commissioned" by the player. We need to map out exactly how `0x38` and `0x4C` encode multiple ships/types.
 
 ## Standard Runtime Command
 

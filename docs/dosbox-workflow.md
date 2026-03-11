@@ -5,10 +5,19 @@ DOSBox-X in a headless environment.
 
 ## Prerequisites
 
-- DOSBox-X binary at `/tmp/dosbox-x/src/dosbox-x`
-- `xvfb-run` for headless X11 (ECMAINT needs a display even though we don't
-  look at it)
+- `dosbox-x` binary in your `PATH` (the SDL2 version, e.g., `dosbox-x-sdl2`, is strongly recommended on Linux as SDL1 may segfault in headless environments)
+- `xvfb-run` for headless X11 (if not using the dummy driver below)
 - A scenario directory containing the game files to process
+
+## Headless Execution Tip
+
+For a faster and simpler headless setup (avoiding `xvfb-run`), use the SDL dummy video driver by setting the following environment variable:
+
+```bash
+export SDL_VIDEODRIVER=dummy
+```
+
+This allows `dosbox-x` (SDL2 version) to run without an X11 display or virtual framebuffer.
 
 ## Key Principle
 
@@ -30,7 +39,7 @@ cp fixtures/some-fixture/v1.5/* "$SCENARIO/"
 ### 2. Run ECMAINT
 
 ```bash
-xvfb-run -a /tmp/dosbox-x/src/dosbox-x \
+xvfb-run -a dosbox-x \
   -defaultconf \
   -nopromptfolder \
   -defaultdir "$SCENARIO" \
@@ -122,14 +131,14 @@ To test persistence across turns, run ECMAINT twice:
 
 ```bash
 # First pass
-xvfb-run -a /tmp/dosbox-x/src/dosbox-x [flags] \
+xvfb-run -a dosbox-x [flags] \
   -c "mount c $SCENARIO" -c "c:" -c "ECMAINT /R" -c "exit"
 
 # Save first-pass state
 cp "$SCENARIO"/*.DAT /tmp/pass1/
 
 # Second pass (runs against the already-modified files)
-xvfb-run -a /tmp/dosbox-x/src/dosbox-x [flags] \
+xvfb-run -a dosbox-x [flags] \
   -c "mount c $SCENARIO" -c "c:" -c "ECMAINT /R" -c "exit"
 
 # Diff pass1 vs pass2

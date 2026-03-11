@@ -19,5 +19,6 @@ Docs:
 - `docs/fixtures.md`: fixture creation and usage workflow
 - `docs/ecmaint-plan.md`: current plan for reverse engineering the maintenance engine
 - `docs/ecmaint-combat-reference.md`: combat-oriented historical validation references
+- `docs/ghidra-workflow.md`: headless Ghidra install and ECMAINT analysis workflow
 - `docs/planet-report-reference.md`: coordinate-linked scouting/world stat references
 - `docs/next-session.md`: exact restart point for the next ECMAINT experiment
