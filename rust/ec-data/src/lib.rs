@@ -209,53 +209,57 @@ impl PlanetRecord {
     pub fn status_or_name_bytes(&self) -> &[u8] {
         &self.raw[0x10..=0x1C]
     }
-pub fn potential_production_raw(&self) -> [u8; 2] {
-    [self.raw[0x02], self.raw[0x03]]
-}
 
-pub fn factories_raw(&self) -> [u8; 6] {
-    copy_array(&self.raw[0x04..0x0A])
-}
+    pub fn potential_production_raw(&self) -> [u8; 2] {
+        [self.raw[0x02], self.raw[0x03]]
+    }
 
-pub fn stored_goods_raw(&self) -> u32 {
-    u32::from_le_bytes(copy_array(&self.raw[0x0A..0x0E]))
-}
+    pub fn factories_raw(&self) -> [u8; 6] {
+        copy_array(&self.raw[0x04..0x0A])
+    }
 
-pub fn planet_tax_rate_raw(&self) -> u8 {
-    self.raw[0x0E]
-}
+    pub fn stored_goods_raw(&self) -> u32 {
+        u32::from_le_bytes(copy_array(&self.raw[0x0A..0x0E]))
+    }
 
-pub fn build_slot_raw(&self) -> u8 {
-    self.raw[0x24]
-}
+    pub fn planet_tax_rate_raw(&self) -> u8 {
+        self.raw[0x0E]
+    }
 
-pub fn build_kind_raw(&self) -> u8 {
-    self.raw[0x2E]
-}
+    pub fn build_slot_raw(&self) -> u8 {
+        self.raw[0x24]
+    }
 
-pub fn population_raw(&self) -> [u8; 6] {
-    copy_array(&self.raw[0x52..0x58])
-}
+    pub fn build_kind_raw(&self) -> u8 {
+        self.raw[0x2E]
+    }
 
-pub fn army_count_raw(&self) -> u8 {
-    self.raw[0x58]
-}
-
-pub fn ground_batteries_raw(&self) -> u8 {
-    self.raw[0x5A]
-}
-...
-impl PlayerRecord {
-pub fn treasury_raw(&self) -> u32 {
-    u32::from_le_bytes(copy_array(&self.raw[0x52..0x56]))
-}
-
-pub fn last_run_year_raw(&self) -> u16 {
-    u16::from_le_bytes(copy_array(&self.raw[0x4E..0x50]))
-}
+    pub fn population_raw(&self) -> [u8; 6] {
+        copy_array(&self.raw[0x52..0x58])
+    }
 
     pub fn owner_empire_slot_raw(&self) -> u8 {
         self.raw[0x5D]
+    }
+
+    pub fn army_count_raw(&self) -> u8 {
+        self.raw[0x58]
+    }
+
+    pub fn likely_army_count_raw(&self) -> u8 {
+        self.raw[0x58] // Alias to avoid breaking tests temporarily
+    }
+
+    pub fn ground_batteries_raw(&self) -> u8 {
+        self.raw[0x5A]
+    }
+
+    pub fn developed_value_raw(&self) -> u8 {
+        self.raw[0x58] // Alias to avoid breaking tests temporarily
+    }
+
+    pub fn ownership_status_raw(&self) -> u8 {
+        self.raw[0x5C]
     }
 
     pub fn status_or_name_summary(&self) -> String {

@@ -268,12 +268,20 @@ Draft record layout for record 0:
 - `0x30..0x3F`: mostly zero in joined state
 - `0x40..0x57`: small numeric fields, likely empire stats/options/status
 
-Confirmed field inside that tail block:
+Confirmed fields inside that tail block:
 
+- `0x44..0x45`: empire starbase count (`u16`, 0 = no starbases)
+  - shipped sample: `1`
+  - after ECUTIL init: `0`
+  - this field is checked by ECMAINT when resolving Guard Starbase orders
+- `0x4E..0x4F`: last run year (`u16`)
+  - shipped sample: `3022`
+  - after ECUTIL init: `0`
 - `0x51`: empire tax rate percentage
   - shipped sample: `65`
   - after initial join: `50`
   - after in-game tax change (`Tax rate: Empire` screen): `60`
+- `0x52..0x55`: treasury (`u32` LongInt)
 
 Observed joined-state strings:
 
@@ -460,6 +468,8 @@ Practical inference:
 
 - `0x0A` is likely the chosen current speed for the order
 - `0x1F..0x21` likely encode mission parameters such as destination coordinates, target slot, or route endpoint
+- `0x22`: mission-specific parameter — for Guard Starbase orders, this is the **starbase number** to guard
+- `0x23`: mission-specific parameter — for Guard Starbase orders, must be **exactly `0x01`** for the order to resolve
 - most of each fleet record remains unchanged by orders, which supports the idea that fleet identity/capacity lives in fixed header fields and only a compact mission block mutates during command entry
 
 ### `SETUP.DAT`
@@ -1866,6 +1876,8 @@ The exact byte mappings in `FLEETS.DAT` (starting at offset `0x24`) are:
 - `0x30..0x31`: **ETACs** (Colonization ships) (`u16`)
 
 Fleet Orders were also confirmed based on manual references and game engine reactions. Important order codes:
+- `4`: **Guard a Starbase** (persistent — not consumed after maintenance)
+- `5`: **Guard/Blockade / Sentry** (default standing order)
 - `6`: **Bombard a World**
 - `7`: **Invade a World**
 - `8`: **Blitz a World**
@@ -1891,6 +1903,8 @@ This perfectly corroborates the 16-bit ship capacity offsets discovered during t
 Through black-box simulation of `ECMAINT`, the planetary economic block was decoded. It relies heavily on Borland Pascal 48-bit `Real` values for large numbers (population, factories) and 32-bit `LongInt` for production points.
 
 Confirmed `PLANETS.DAT` fields:
+- `0x00`: **X coordinate** (u8).
+- `0x01`: **Y coordinate** (u8).
 - `0x02..0x03`: **Potential Production / Resource Rating** (2-byte Real prefix: [Mantissa high] [Exponent]).
 - `0x04..0x09`: **Factories** (6-byte Borland Pascal Real).
 - `0x0A..0x0D`: **Stored Goods (Production Points)** (4-byte LongInt).
@@ -1898,6 +1912,7 @@ Confirmed `PLANETS.DAT` fields:
 - `0x52..0x57`: **Population** (6-byte Borland Pascal Real).
 - `0x58`: **Armies** (8-bit).
 - `0x5A`: **Ground Batteries** (8-bit).
+- `0x5D`: **Owner Empire** (u8, 1-indexed; 0 = unowned).
 
 Economic Mechanics:
 - **Income Generation:** Treasury increases based on planetary Population. 
@@ -1907,3 +1922,198 @@ Economic Mechanics:
 Confirmed `PLAYER.DAT` fields:
 - `0x4E..0x4F`: **Last Run Year** (16-bit little-endian year offset/word).
 - `0x52..0x55`: **Treasury** (32-bit LongInt).
+
+## 2026-03-10: Starbases and BASES.DAT
+
+### BASES.DAT Record Format
+
+`BASES.DAT` stores starbase records. The original shipped state contains one
+35-byte record (1 starbase). The file is 0 bytes when no starbases exist.
+
+Record size: **35 bytes** (mirrors the first 35 bytes of the 54-byte `FLEETS.DAT`
+record layout, with fleet-specific fields zeroed or adapted).
+
+Confirmed field map:
+
+| Offset | Size | Value (shipped) | Field |
+|--------|------|-----------------|-------|
+| `0x00` | u8 | `0x01` | Base local slot |
+| `0x02` | u8 | `0x01` | Base active flag |
+| `0x04` | u8 | `0x01` | Base ID / count |
+| `0x07` | u8 | `0x01` | Unknown (always 1) |
+| `0x09` | u8 | `0x00` | Max speed equivalent (0 for bases) |
+| `0x0B` | u8 | `0x10` (16) | X coordinate |
+| `0x0C` | u8 | `0x0D` (13) | Y coordinate |
+| `0x0D` | u8 | `0x80` | Internal flag (same as fleets) |
+| `0x13` | u8 | `0x80` | Internal flag (same as fleets) |
+| `0x19` | u8 | `0x81` | Internal flag (same as fleets) |
+| `0x1F` | u8 | `0x00` | Standing order equivalent (none) |
+| `0x20` | u8 | `0x10` (16) | Target/home X (same as 0x0B) |
+| `0x21` | u8 | `0x0D` (13) | Target/home Y (same as 0x0C) |
+| `0x22` | u8 | `0x01` | Owner empire number |
+
+Full hex of the shipped starbase record:
+
+    0100 0100 0100 0001 0000 0010 0d80 0000
+    0000 0080 0000 0000 0081 0000 0000 0000
+    100d 01
+
+Evidence:
+
+- The original game at year 3022 has 1 starbase at (16,13) owned by empire 1
+  (planet "Dust Bowl").
+- Game log `ec10.txt` confirms: "There is a starbase orbiting planet 'zzzzrrr'"
+  and fleet 4 with "Guard Starbase 1 now in System (15,13)".
+- The `0x0B..0x0C` coordinates and `0x22` owner field were confirmed by matching
+  the starbase to the planet and fleet owner.
+
+### Guard Starbase Order (0x04)
+
+`FLEETS.DAT[0x1F] = 0x04` is the "Guard a Starbase" standing order.
+
+For this order to resolve successfully during ECMAINT, two additional fields
+must be set correctly:
+
+1. **`FLEETS.DAT[0x22]`**: the **starbase number** to guard (e.g., `0x01` =
+   "Starbase 1"). This was previously documented as the mission parameter byte.
+
+2. **`FLEETS.DAT[0x23]`**: must be set to **exactly `0x01`** for Guard Starbase
+   to resolve. Values `0x00` and `0x02+` all cause ECMAINT to report "Fleet
+   assigned to an unknown starbase" and zero out BASES.DAT. The exact semantics
+   of this byte are not yet clear — it may be a guard-mode flag, a secondary
+   starbase parameter, or an empire cross-reference.
+
+3. **`PLAYER.DAT[0x44]`**: the **starbase count** for the owning empire. Must
+   be `>= 1` for ECMAINT to find the starbase. When set to `0x00`, the lookup
+   fails regardless of BASES.DAT contents. Values `>= 2` trigger an integrity
+   error ("Game file(s) missing or failed integrity check") but the starbase
+   itself still resolves — confirming this is a count, not a boolean.
+
+Guard Starbase is a **persistent standing order**: after a successful maintenance
+pass, `FLEETS.DAT[0x1F]` remains `0x04` and BASES.DAT is unchanged (unlike
+bombard/invade orders which are consumed on resolution).
+
+When the starbase lookup fails, ECMAINT:
+
+- Writes "Fleet assigned to an unknown starbase" to `ERRORS.TXT`
+- Zeros out BASES.DAT (truncates to 0 bytes)
+- Clears the fleet's standing order (`FLEETS.DAT[0x1F]` → `0x00`)
+
+### PLAYER.DAT[0x44]: Starbase Count
+
+This field was identified through systematic bisection. Starting from a working
+original game state, replacing only `PLAYER.DAT` with the ECUTIL-initialized
+version caused the starbase lookup to fail. Bisecting Record 0 (88 bytes) by
+removing one group of differing bytes at a time from a full patch identified
+`0x44` as the sole essential byte.
+
+Sweep results for `PLAYER.DAT[0x44]`:
+
+| Value | Result |
+|-------|--------|
+| `0x00` | FAIL — "unknown starbase" error |
+| `0x01` | OK — no errors (correct for 1 starbase) |
+| `0x02+` | OK starbase-wise, but triggers integrity check error |
+
+This confirms `0x44` is a **starbase count** for the empire, not a flag.
+
+Updated `PLAYER.DAT` Record 0 layout (bytes `0x40..0x57`):
+
+| Offset | Size | Shipped | Init | Field |
+|--------|------|---------|------|-------|
+| `0x40..0x41` | u16 | `0x0001` | `0x0001` | Unknown (always 1) |
+| `0x42..0x43` | u16 | `0x0001` | `0x0004` | Unknown count (fleet groups?) |
+| `0x44..0x45` | u16 | `0x0001` | `0x0000` | **Starbase count** |
+| `0x46..0x47` | u16 | `0x0001` | `0x0000` | Unknown count |
+| `0x48..0x4B` | 4B | `0x00000000` | `0x00000000` | Unknown |
+| `0x4C` | u8 | `0x10` (16) | `0x0F` (15) | Homeworld X coordinate |
+| `0x4D` | u8 | `0x10` (16) | `0x0F` (15) | Homeworld Y coordinate |
+| `0x4E..0x4F` | u16 | `0x0BCE` (3022) | `0x0000` | Last run year |
+| `0x50` | u8 | `0x01` | `0x01` | Unknown (always 1) |
+| `0x51` | u8 | `0x41` (65) | `0x00` | Tax rate |
+| `0x52..0x55` | u32 | varies | varies | Treasury |
+
+### FLEETS.DAT[0x23]: Guard Starbase Resolver
+
+This byte was identified through the same bisection methodology. With both
+PLAYER.DAT and FLEETS.DAT from the initialized state (plus starbase count and
+order patches), the Guard Starbase order still failed. Bisecting the fleet
+record byte-by-byte isolated `0x23` as the sole essential fleet-side field.
+
+Sweep results for `FLEETS.DAT[0x23]`:
+
+| Value | Result |
+|-------|--------|
+| `0x00` | FAIL — "unknown starbase" error |
+| `0x01` | OK — starbase found |
+| `0x02+` | FAIL — "unknown starbase" error |
+
+Only `0x01` works, which is highly specific. The meaning is not yet clear.
+Hypotheses:
+
+- It could be an owner/empire cross-reference that must match the base owner
+- It could be a guard-mode subtype (exactly 1 = "guard this specific base")
+- It could be an internal fleet-state flag set by ECGAME when the order is issued
+
+In the original shipped state, fleet 0 (Guard Starbase) has `0x23=0x01`. All
+other fleets (order 0x05, Sentry) have various non-zero values (0xB0, 0x9A, etc.)
+that look like uninitialized/random data, while initialized fleets all have
+`0x23=0x00`.
+
+### Planet Owner Field
+
+During the starbase investigation, the planet owner field was confirmed:
+
+- **`PLANETS.DAT[0x5D]`**: owner empire number (1-indexed, 0 = unowned)
+
+Evidence: the four homeworld planets (those with `0x03 = 0x87`) have `0x5D`
+values of 1, 2, 3, 4 corresponding to the four empires. Non-homeworld planets
+have `0x5D = 0x00`.
+
+### Bisection Methodology
+
+The starbase findings were produced using a systematic binary search approach:
+
+1. Confirm a known-good baseline (original shipped state runs ECMAINT
+   successfully with Guard Starbase).
+2. Confirm the failure case (init state with BASES.DAT and fleet order patch
+   produces "unknown starbase" error).
+3. File-level bisection: replace one file at a time from original→init to find
+   which file causes the failure. Result: PLAYER.DAT alone breaks it; all other
+   files are safe to swap individually.
+4. Record-level bisection: patch Record 0 (bytes 0x00-0x57) from original into
+   init PLAYER.DAT. Result: Record 0 alone is sufficient.
+5. Byte-group bisection: apply all Record 0 patches, then remove one logical
+   group at a time. Result: only `0x44` is essential.
+6. Cross-file interaction: when both PLAYER.DAT and FLEETS.DAT are from init,
+   the `0x44` patch alone is insufficient. Bisecting fleet record bytes found
+   `0x23` as the second essential byte.
+
+### Minimum Working Init-Based Starbase Fixture
+
+To create a working Guard Starbase scenario from the ECUTIL-initialized state,
+three patches are required:
+
+1. `FLEETS.DAT[0x1F] = 0x04` — set fleet 0 to Guard Starbase order
+2. `FLEETS.DAT[0x23] = 0x01` — set the starbase resolver byte
+3. `PLAYER.DAT[0x44] = 0x01` — set empire 1 starbase count to 1
+4. Add `BASES.DAT` with a valid 35-byte starbase record at (16,13) for empire 1
+
+### End-to-End Verification (Confirmed)
+
+The full init-based fixture with all three patches was verified end-to-end:
+
+- **Pass 1**: No errors. BASES.DAT unchanged (35 bytes). FLEETS.DAT unchanged
+  (order 0x04 persists). Guard Starbase is confirmed persistent.
+- **Pass 2**: No errors. BASES.DAT, FLEETS.DAT, PLAYER.DAT, PLANETS.DAT all
+  identical to pass 1. Only CONQUEST.DAT byte 0 changed (year 3001 → 3002).
+- Pre/post fixtures preserved in `fixtures/ecmaint-starbase-pre/v1.5/` and
+  `fixtures/ecmaint-starbase-post/v1.5/`.
+
+**New finding — `PLAYER.DAT[0x46]`**: during the first maintenance pass, byte
+`0x46` changed from `0x00` to `0x01`. In the shipped original state, this byte
+is also `0x01`. It did NOT change during the second pass (already `0x01`).
+This suggests it is set once during the first maintenance run — possibly a
+"maintenance has been run" flag or a count that saturates at 1. The `0x46..0x47`
+pair in the PLAYER.DAT layout table above was previously "Unknown count"; this
+observation narrows it but does not yet confirm its purpose.

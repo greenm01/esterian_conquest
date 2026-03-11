@@ -10,14 +10,68 @@ They let us:
 
 ## Existing Fixture Families
 
+### Baselines
+
 - `original/v1.5/`
-  - shipped sample state and bundled assets
+  - shipped sample state and bundled assets (year 3022, 13 fleets, 1 starbase)
 - `fixtures/ecutil-init/v1.5/`
-  - known-good initialized game state produced by `ECUTIL`
+  - known-good initialized game state produced by `ECUTIL` (year 3000, 16 fleets, no starbases)
 - `fixtures/ecmaint-post/v1.5/`
-  - known-good post-maintenance state produced by `ECMAINT`
+  - known-good post-maintenance state produced by `ECMAINT` (one maint pass from init)
 - `fixtures/ecutil-f3-owner/v1.5/`
   - targeted ownership-change snapshot for `ECUTIL F3`
+
+### Build Queue
+
+- `fixtures/ecmaint-build-pre/v1.5/` / `fixtures/ecmaint-build-post/v1.5/`
+  - single planet build queue transition
+
+### Economics
+
+- `fixtures/ecmaint-econ-pre/v1.5/` / `fixtures/ecmaint-econ-post/v1.5/`
+  - economic maintenance pass (production, tax, population)
+
+### Fleet Movement
+
+- `fixtures/ecmaint-fleet-pre/v1.5/` / `fixtures/ecmaint-fleet-post/v1.5/`
+  - fleet movement resolution
+- `fixtures/ecmaint-fleet-battle-pre/v1.5/` / `fixtures/ecmaint-fleet-battle-post/v1.5/`
+  - fleet-vs-fleet combat scenario
+
+### Bombardment
+
+- `fixtures/ecmaint-bombard-pre/v1.5/` / `fixtures/ecmaint-bombard-post/v1.5/`
+  - basic bombardment scenario
+- `fixtures/ecmaint-bombard-arrive/v1.5/`
+  - fleet arriving at bombard target (single state)
+- `fixtures/ecmaint-bombard-heavy-pre/v1.5/` / `fixtures/ecmaint-bombard-heavy-post/v1.5/`
+  - heavy bombardment scenario
+- `fixtures/ecmaint-bombard-army0-pre/v1.5/` / `fixtures/ecmaint-bombard-army0-post/v1.5/`
+  - bombardment with 0 armies on target
+- `fixtures/ecmaint-bombard-army0-dev0-pre/v1.5/` / `fixtures/ecmaint-bombard-army0-dev0-post/v1.5/`
+  - bombardment with 0 armies and 0 development on target
+- `fixtures/ecmaint-bombard-army1-pre/v1.5/` / `fixtures/ecmaint-bombard-army1-post/v1.5/`
+  - bombardment with 1 army on target
+- `fixtures/ecmaint-bombard-army1-dev0-pre/v1.5/` / `fixtures/ecmaint-bombard-army1-dev0-post/v1.5/`
+  - bombardment with 1 army, 0 development
+- `fixtures/ecmaint-bombard-army1-dev0-b08-pre/v1.5/` / `fixtures/ecmaint-bombard-army1-dev0-b08-post/v1.5/`
+  - bombardment variant (b08 battleship count)
+- `fixtures/ecmaint-bombard-army1-dev0-b09-pre/v1.5/` / `fixtures/ecmaint-bombard-army1-dev0-b09-post/v1.5/`
+  - bombardment variant (b09 battleship count)
+- `fixtures/ecmaint-bombard-army1-dev0-e0c-pre/v1.5/` / `fixtures/ecmaint-bombard-army1-dev0-e0c-post/v1.5/`
+  - bombardment variant (e0c parameter)
+
+### Invasion
+
+- `fixtures/ecmaint-invade-heavy-pre/v1.5/` / `fixtures/ecmaint-invade-heavy-post/v1.5/`
+  - heavy invasion scenario
+
+### Starbases
+
+- `fixtures/ecmaint-starbase-pre/v1.5/` / `fixtures/ecmaint-starbase-post/v1.5/`
+  - Guard Starbase (order 0x04) scenario — init state with BASES.DAT added and
+    three required patches: `FLEETS.DAT[0x1F]=0x04`, `FLEETS.DAT[0x23]=0x01`,
+    `PLAYER.DAT[0x44]=0x01`
 
 ## Rules For New Fixtures
 

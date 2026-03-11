@@ -5,58 +5,95 @@ Use this as the restart point instead of reconstructing the full thread.
 ## Current State
 
 The active reverse-engineering target is `ECMAINT`, treated as a deterministic
-black box.
+black box. The current investigation focus is **Starbases** (`BASES.DAT` and
+Guard Starbase order `0x04`).
 
 **Highest-confidence planet model (Definitive):**
-A successful heavy bombardment generated a complete combat report in `RESULTS.DAT`,
-explicitly naming and defining the core planetary fields:
 
-- `PLANETS.DAT[0x04..0x09]` is a 48-bit Borland Pascal `Real` representing **Factories** (present capacity/development).
-- `PLANETS.DAT[0x0A..0x0D]` is a 32-bit `LongInt` representing **Stored Goods** (production points).
-- `PLANETS.DAT[0x0E]` is a strong secondary defense field, potentially a forcefield/multiplier, as it isn't explicitly listed alongside batteries/armies in basic reports but directly scales attacker losses.
-- `PLANETS.DAT[0x58]` is the **Armies** count.
-- `PLANETS.DAT[0x5A]` is the **Ground Batteries** count.
+- `PLANETS.DAT[0x00]`: X coordinate (u8)
+- `PLANETS.DAT[0x01]`: Y coordinate (u8)
+- `PLANETS.DAT[0x04..0x09]`: **Factories** (48-bit Borland Pascal Real)
+- `PLANETS.DAT[0x0A..0x0D]`: **Stored Goods** (32-bit LongInt)
+- `PLANETS.DAT[0x0E]`: planet tax rate (synced from empire during maintenance)
+- `PLANETS.DAT[0x52..0x57]`: **Population** (48-bit Borland Pascal Real)
+- `PLANETS.DAT[0x58]`: **Armies** (u8)
+- `PLANETS.DAT[0x5A]`: **Ground Batteries** (u8)
+- `PLANETS.DAT[0x5D]`: **Owner Empire** (u8, 1-indexed; 0 = unowned)
 
 **Highest-confidence fleet model (Definitive):**
-A successful planetary invasion generated a casualty report confirming that the game engine stores ship and troop counts as **16-bit (little-endian) integers** starting at `0x24` in `FLEETS.DAT`:
 
-- `FLEETS.DAT[0x1F]` is the standing order (e.g., `6` = Bombard, `7` = Invade, `8` = Blitz).
-- `FLEETS.DAT[0x24]` is the **Scouts** count (8-bit).
-- `FLEETS.DAT[0x26..0x27]` is the **Battleships** count (`u16`).
-- `FLEETS.DAT[0x28..0x29]` is the **Cruisers** count (`u16`).
-- `FLEETS.DAT[0x2A..0x2B]` is the **Destroyers** count (`u16`).
-- `FLEETS.DAT[0x2C..0x2D]` is the **Troop Transports** count (`u16`).
-- `FLEETS.DAT[0x2E..0x2F]` is the **Armies** loaded on transports (`u16`).
-- `FLEETS.DAT[0x30..0x31]` is the **ETACs** (Colonization ships) count (`u16`).
+- `FLEETS.DAT[0x0B..0x0C]`: current X, Y coordinates
+- `FLEETS.DAT[0x1F]`: standing order (`4`=Guard Starbase, `5`=Sentry, `6`=Bombard, `7`=Invade, `8`=Blitz)
+- `FLEETS.DAT[0x20..0x21]`: target X, Y coordinates
+- `FLEETS.DAT[0x22]`: mission parameter (starbase number for order `0x04`)
+- `FLEETS.DAT[0x23]`: mission parameter (must be `0x01` for Guard Starbase)
+- `FLEETS.DAT[0x24]`: **Scouts** (u8)
+- `FLEETS.DAT[0x25]`: **ROE** (Rules of Engagement)
+- `FLEETS.DAT[0x26..0x27]`: **Battleships** (u16)
+- `FLEETS.DAT[0x28..0x29]`: **Cruisers** (u16)
+- `FLEETS.DAT[0x2A..0x2B]`: **Destroyers** (u16)
+- `FLEETS.DAT[0x2C..0x2D]`: **Troop Transports** (u16)
+- `FLEETS.DAT[0x2E..0x2F]`: **Armies** loaded on transports (u16)
+- `FLEETS.DAT[0x30..0x31]`: **ETACs** (Colonization ships) (u16)
 
-## Latest Commits
+**Starbase model (New):**
 
-- `edd013e` `Identify 0x04-0x09 as Real, add 0x09 bombardment fixture and test`
-- `73aefb7` `Update handoff for next bombardment scaling experiment`
-- `[NEW]` Added heavy bombardment test proving report generation and exact byte mappings.
-- `[NEW]` Mapped 16-bit fleet ship capacities and Invasion orders via ECMAINT black-box testing.
-- `[NEW]` Decoded Planetary Economics: Population, Factories, Stored Goods, and Treasury.
+- `BASES.DAT`: 35 bytes per record, mirrors truncated `FLEETS.DAT` layout
+- `BASES.DAT[0x0B..0x0C]`: starbase X, Y coordinates
+- `BASES.DAT[0x22]`: owner empire number
+- `PLAYER.DAT[0x44..0x45]`: empire starbase count (u16)
+- Guard Starbase (`0x04`) is persistent — not consumed by maintenance
 
-## Next Experiment
+**Key PLAYER.DAT fields:**
 
-Goal: Decode `ECMAINT`'s handling of Starbases or Deep Space movement formulas.
+- `PLAYER.DAT[0x00]`: active/occupied flag
+- `PLAYER.DAT[0x01..0x1A]`: player handle (26 bytes, padded)
+- `PLAYER.DAT[0x1B..0x2E]`: empire name
+- `PLAYER.DAT[0x44..0x45]`: **starbase count** (u16)
+- `PLAYER.DAT[0x46..0x47]`: unknown — set to `0x01` by first maintenance pass
+- `PLAYER.DAT[0x4E..0x4F]`: last run year (u16)
+- `PLAYER.DAT[0x51]`: tax rate (u8)
+- `PLAYER.DAT[0x52..0x55]`: treasury (u32 LongInt)
 
-Now that the core state (Combat, Economics, Production) is mapped, the remaining unknowns are the stationary defenses and the exact math behind movement.
+## Starbase Investigation Status
 
-Suggested path: Starbases
-1. Set up a pre-maint scenario with a Starbase in a sector (`BASES.DAT`).
-2. Order a fleet to `Guard Starbase` (order `4`).
-3. Check how Starbases contribute to fleet defense or storage.
-4. Try to reverse-engineer the `BASES.DAT` format (likely similar to planets but simpler).
+### Confirmed
 
-Alternative path: Movement Math
-1. Set a fleet to `Move Only` (order `1`) with a known speed (`0x09`) and current speed (`0x0A`).
-2. Observe the coordinate delta over multiple maintenance runs.
-3. Determine if movement is strictly linear or if there is a "sublight" vs "translight" transition.
+- `BASES.DAT` 35-byte record format decoded (see `RE_NOTES.md`)
+- `PLAYER.DAT[0x44]` = starbase count — essential for ECMAINT lookup
+- `FLEETS.DAT[0x23]` = must be exactly `0x01` for Guard Starbase to resolve
+- Guard Starbase is persistent (fleet order + BASES.DAT unchanged after maint)
+- When lookup fails: ECMAINT zeroes BASES.DAT, clears fleet order, writes error
+- Full init-based fixture with all 3 patches verified end-to-end (2 passes)
+- Pre/post fixtures preserved in `fixtures/ecmaint-starbase-{pre,post}/v1.5/`
+- Persistence confirmed across 2 maintenance passes (only CONQUEST.DAT year changes)
+
+### New observation
+
+- `PLAYER.DAT[0x46]` changes from `0x00` to `0x01` during first maintenance pass.
+  Does not change on subsequent passes. Possibly a "maint has run" flag.
+
+### NOT yet confirmed
+
+- The meaning of `FLEETS.DAT[0x23]` is still unknown
+
+## Next Steps
+
+1. **Movement math**: set a fleet to Move Only (order `1`) with known speed and
+   observe coordinate deltas across maintenance passes.
+2. **Investigate `FLEETS.DAT[0x23]`**: create a second starbase and
+   cross-reference values to determine if this is an empire ID, a base index,
+   or something else.
+3. **Investigate `PLAYER.DAT[0x46]`**: test whether this is a boolean flag
+   or a counter by observing it across different scenarios.
+4. **Rogue/AI empire behavior**: observe what ECMAINT does for non-player empires.
+5. **IPBM resolution**: planetary bombardment missiles — untouched so far.
 
 ## Standard Runtime Command
 
-The established maintenance command is:
+See `docs/dosbox-workflow.md` for the full DOSBox-X ECMAINT testing workflow.
+
+Quick reference:
 
 ```bash
 xvfb-run -a /tmp/dosbox-x/src/dosbox-x \
@@ -74,7 +111,6 @@ xvfb-run -a /tmp/dosbox-x/src/dosbox-x \
   -set "output=surface" \
   -c "mount c /tmp/SCENARIO_DIR" \
   -c "c:" \
-  -c "ECMAINT /R" \
   -c "ECMAINT /R" \
   -c "exit"
 ```

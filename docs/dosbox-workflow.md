@@ -1,0 +1,137 @@
+# DOSBox-X ECMAINT Testing Workflow
+
+This documents the standard procedure for running `ECMAINT.EXE` through
+DOSBox-X in a headless environment.
+
+## Prerequisites
+
+- DOSBox-X binary at `/tmp/dosbox-x/src/dosbox-x`
+- `xvfb-run` for headless X11 (ECMAINT needs a display even though we don't
+  look at it)
+- A scenario directory containing the game files to process
+
+## Key Principle
+
+ECMAINT modifies files **in-place** and creates `.SAV` backup copies. Always
+copy your fixture files to a `/tmp/` working directory before running ECMAINT.
+Never run ECMAINT directly against repo fixture directories.
+
+## Standard Procedure
+
+### 1. Prepare the working directory
+
+```bash
+SCENARIO=/tmp/ecmaint-test
+rm -rf "$SCENARIO"
+mkdir -p "$SCENARIO"
+cp fixtures/some-fixture/v1.5/* "$SCENARIO/"
+```
+
+### 2. Run ECMAINT
+
+```bash
+xvfb-run -a /tmp/dosbox-x/src/dosbox-x \
+  -defaultconf \
+  -nopromptfolder \
+  -defaultdir "$SCENARIO" \
+  -set "dosv=off" \
+  -set "machine=vgaonly" \
+  -set "core=normal" \
+  -set "cputype=386_prefetch" \
+  -set "cycles=fixed 3000" \
+  -set "xms=false" \
+  -set "ems=false" \
+  -set "umb=false" \
+  -set "output=surface" \
+  -c "mount c $SCENARIO" \
+  -c "c:" \
+  -c "ECMAINT /R" \
+  -c "exit"
+```
+
+The `/R` flag runs maintenance in non-interactive mode.
+
+### 3. Check for errors
+
+```bash
+# Check if ERRORS.TXT was created (indicates a problem)
+cat "$SCENARIO/ERRORS.TXT" 2>/dev/null
+
+# Check DOSBox-X exit
+echo $?
+```
+
+Common error messages:
+- `"Fleet assigned to an unknown starbase"` — Guard Starbase lookup failed
+- `"Game file(s) missing or failed integrity check!"` — cross-file integrity
+  failure (usually caused by mixing files from different game states)
+
+### 4. Diff the results
+
+```bash
+# Binary diff of specific files
+xxd "$SCENARIO/FLEETS.DAT" > /tmp/post-fleets.hex
+xxd fixtures/some-fixture/v1.5/FLEETS.DAT > /tmp/pre-fleets.hex
+diff /tmp/pre-fleets.hex /tmp/post-fleets.hex
+```
+
+### 5. Preserve the results
+
+If the run produced useful results, copy the post-maint state to a fixture:
+
+```bash
+cp "$SCENARIO"/*.DAT fixtures/some-fixture-post/v1.5/
+# Also preserve .SAV files if needed for analysis
+cp "$SCENARIO"/*.SAV fixtures/some-fixture-post/v1.5/
+```
+
+## DOSBox-X Configuration Notes
+
+The configuration flags are carefully chosen:
+
+- `machine=vgaonly` — minimal video hardware emulation
+- `core=normal` — interpreter core (most compatible)
+- `cputype=386_prefetch` — matches era of original software
+- `cycles=fixed 3000` — deterministic speed (no dynamic throttling)
+- `xms=false`, `ems=false`, `umb=false` — no extended memory (DOS real mode only)
+- `output=surface` — minimal display backend (works with xvfb)
+
+## Files Created by ECMAINT
+
+After a maintenance run, ECMAINT produces:
+
+- `.SAV` files — backup copies of `.DAT` files before modification
+- `RANKINGS.TXT` — player rankings (text)
+- `ERRORS.TXT` — error log (only if errors occurred)
+- Updated `.DAT` files — the post-maintenance game state
+
+## Cross-File Integrity
+
+ECMAINT performs cross-file integrity checks. If you construct a scenario by
+mixing files from different game states (e.g., init PLAYER.DAT with original
+CONQUEST.DAT), it may fail with an integrity error. When testing patches:
+
+- Start from a single consistent baseline (either `original/` or `ecutil-init/`)
+- Apply minimal targeted patches to that baseline
+- Do not mix files from different baselines unless you have confirmed they pass
+  integrity checks together
+
+## Running Multiple Passes
+
+To test persistence across turns, run ECMAINT twice:
+
+```bash
+# First pass
+xvfb-run -a /tmp/dosbox-x/src/dosbox-x [flags] \
+  -c "mount c $SCENARIO" -c "c:" -c "ECMAINT /R" -c "exit"
+
+# Save first-pass state
+cp "$SCENARIO"/*.DAT /tmp/pass1/
+
+# Second pass (runs against the already-modified files)
+xvfb-run -a /tmp/dosbox-x/src/dosbox-x [flags] \
+  -c "mount c $SCENARIO" -c "c:" -c "ECMAINT /R" -c "exit"
+
+# Diff pass1 vs pass2
+diff <(xxd /tmp/pass1/FLEETS.DAT) <(xxd "$SCENARIO/FLEETS.DAT")
+```
