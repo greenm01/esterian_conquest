@@ -513,11 +513,25 @@ Targeted fixture confirmation:
   - varying the duplicate record's slot byte `BASES[0x00]` between `0x01` and
     `0x02` does not change the outcome
   - varying `BASES[0x04]` between `0x01` and `0x02` does change the outcome
-  - therefore the integrity gate is sensitive to `0x04`, not `0x00`
+  - therefore the front-loaded integrity gate is sensitive to `0x04`, not
+    `0x00`
+  - varying `BASES[0x02]` from `0x01` to `0x02` with `BASES[0x04] = 0x01` does
+    **not** trigger the front-loaded integrity abort; instead it reaches the
+    later `unknown starbase` path
+
+Refined interpretation from the matrix:
+
+- `BASES[0x04] = 0x02` is what trips the early cross-file integrity validator
+- `BASES[0x02]` also matters, but in a different way:
+  - `BASES[0x02] = 0x02` with `BASES[0x04] = 0x01` yields
+    `Fleet assigned to an unknown starbase.`
+  - so `0x02` participates in Guard Starbase ownership/lookup semantics, while
+    `0x04` is the byte that currently pushes the synthetic two-base attempt into
+    the earlier integrity-failure branch
 
 Practical conclusion:
 
-- `BASES.DAT[0x04]` is the decisive identity value in this integrity path
+- `BASES.DAT[0x04]` is the decisive identity value in the early integrity path
 - duplicate records that still claim starbase identity `1` are mergeable /
   canonicalizable
 - a true second starbase must satisfy more than just record presence plus

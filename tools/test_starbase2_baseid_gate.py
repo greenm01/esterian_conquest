@@ -18,7 +18,7 @@ def patch_player_starbase_fields(player_path: Path, count: int) -> None:
     player_path.write_bytes(data)
 
 
-def build_two_base_file(base2_id: int) -> bytes:
+def build_two_base_file(base2_group: int, base2_id: int) -> bytes:
     base1 = bytearray.fromhex(BASE_RECORD_HEX)
     base2 = bytearray.fromhex(BASE_RECORD_HEX)
 
@@ -27,6 +27,7 @@ def build_two_base_file(base2_id: int) -> bytes:
 
     # Candidate second base at (4,13).
     base2[0x00] = 0x02
+    base2[0x02] = base2_group
     base2[0x04] = base2_id
     base2[0x07] = 0x01
     base2[0x0B] = 0x04
@@ -36,7 +37,7 @@ def build_two_base_file(base2_id: int) -> bytes:
     return bytes(base1) + bytes(base2)
 
 
-def run_case(name: str, base2_id: int) -> None:
+def run_case(name: str, base2_group: int, base2_id: int) -> None:
     target = Path("/tmp") / name
     if target.exists():
         shutil.rmtree(target)
@@ -44,7 +45,7 @@ def run_case(name: str, base2_id: int) -> None:
     shutil.copy2(ECMAINT, target / "ECMAINT.EXE")
 
     patch_player_starbase_fields(target / "PLAYER.DAT", 2)
-    (target / "BASES.DAT").write_bytes(build_two_base_file(base2_id))
+    (target / "BASES.DAT").write_bytes(build_two_base_file(base2_group, base2_id))
 
     cmd = [
         "dosbox-x",
@@ -88,7 +89,7 @@ def run_case(name: str, base2_id: int) -> None:
     player = (target / "PLAYER.DAT").read_bytes()
     bases = (target / "BASES.DAT").read_bytes()
 
-    print(f"{name}: base2[0x04]={base2_id}")
+    print(f"{name}: base2[0x02]={base2_group} base2[0x04]={base2_id}")
     print("  errors:", "yes" if errors else "no")
     if errors:
         print("  first error:", errors.splitlines()[0])
@@ -100,5 +101,6 @@ def run_case(name: str, base2_id: int) -> None:
 
 
 if __name__ == "__main__":
-    run_case("test-starbase2-baseid2", 2)
-    run_case("test-starbase2-baseid1", 1)
+    run_case("test-starbase2-group1-id2", 0x01, 0x02)
+    run_case("test-starbase2-group1-id1", 0x01, 0x01)
+    run_case("test-starbase2-group2-id1", 0x02, 0x01)

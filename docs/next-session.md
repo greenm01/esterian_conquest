@@ -89,6 +89,9 @@ The active reverse-engineering target is `ECMAINT`.
     - base 2 with `0x04 = 0x01` => accepted and normalized back to one base
     - changing duplicate-record slot byte `BASES[0x00]` does not affect this
       result
+    - changing `BASES[0x02]` to `0x02` with `BASES[0x04] = 0x01` does not hit
+      the same integrity gate; it instead produces `Fleet assigned to an
+      unknown starbase`
 
 **Movement math (Recovered):**
 - Distance moved per pass = `speed / 1.5` (approximate, with turn-based rounding).
