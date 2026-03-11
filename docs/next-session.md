@@ -15,7 +15,7 @@ The active reverse-engineering target is `ECMAINT`.
 - `FLEETS.DAT[0x22]` = empire-relative starbase index.
 - `FLEETS.DAT[0x23]` = must be `0x01` for resolution.
 - **Auto-merge**: multiple fleets guarding the same base merge automatically.
-- `PLAYER.DAT[0x46..0x47]` is **not required as a precondition** for Guard Starbase resolution, but a successful guard-maint pass normalizes it to `0x0001`.
+- `PLAYER.DAT[0x46..0x47]` is **not required as a precondition** for Guard Starbase resolution and is **not specific to order `0x04`**; it normalizes to `0x0001` when ECMAINT sees a valid starbase state for the empire.
 
 **Rogue Empires (Confirmed):**
 - `PLAYER.DAT[0x00] = 0xFF`.
@@ -27,7 +27,7 @@ The active reverse-engineering target is `ECMAINT`.
 
 ## Next Steps
 
-1. **Investigate `PLAYER.DAT[0x46]` in non-starbase scenarios**: Guard Starbase rewrites it to `0x0001`, but its broader semantics are still unknown.
+1. **Two-starbase test for `PLAYER.DAT[0x46]`**: determine whether it scales with starbase count (`0x0002`) or behaves like a starbase-presence flag.
 2. **IPBM resolution**: investigate planetary bombardment missiles — still untouched in preserved fixtures, and `IPBM.DAT` is currently 0 bytes in all repo fixture families.
 3. **Build queue mechanics**: deeper investigation of queued production materialization; the current minimal queue fixture remains a planet-state transition even after a second maintenance pass and does not create a fleet.
 

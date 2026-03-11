@@ -2152,8 +2152,32 @@ Interpretation:
   lookup or persistence
 - instead, it appears to be a maintained or derived empire-level count/status
   that `ECMAINT` normalizes to `0x0001` on this successful starbase path
-- next step is to test whether non-starbase successful maintenance paths also
-  rewrite it to `0x0001`
+
+Further follow-up probes tightened this model:
+
+- starting from `fixtures/ecmaint-starbase-pre/v1.5/`, changing fleet 0 from
+  Guard Starbase (`0x04`) to Guard/Blockade (`0x05`) still produced post-maint
+  `PLAYER.DAT[0x44..0x47] = 01 00 01 00`
+- starting from `original/v1.5/`, zeroing `PLAYER.DAT[0x46..0x47]` before a
+  maintenance pass also returned it to `0x0001`, both with the original Guard
+  Starbase order intact and with fleet 0 changed to Guard/Blockade
+- when the starbase was removed (`BASES.DAT` zeroed) or the owning empire's
+  starbase count at `PLAYER.DAT[0x44..0x45]` was forced to `0x0000`,
+  `PLAYER.DAT[0x46..0x47]` did **not** normalize to `0x0001`
+- preserved non-starbase fixture families (`ecmaint-post`, build, fleet,
+  economics, bombardment, invasion, fleet-battle, movement) do not change
+  `PLAYER.DAT[0x46..0x47]`
+
+Refined interpretation:
+
+- `PLAYER.DAT[0x46..0x47]` is still not a Guard Starbase input gate
+- it is also not specific to standing order `0x04`
+- the strongest current model is that it is another maintained starbase-related
+  count or flag, set to `0x0001` when `ECMAINT` recognizes a valid starbase for
+  the empire through the combination of `BASES.DAT` and
+  `PLAYER.DAT[0x44..0x45]`
+- the next decisive experiment is a two-starbase scenario to determine whether
+  it scales to `0x0002` or behaves like a boolean-style presence flag
 
 ### Build Queue Follow-Up: No Delayed Fleet Materialization After Pass 2
 
