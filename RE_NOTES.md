@@ -530,10 +530,23 @@ Additional player-side linkage:
 - baseline shipped state has `PLAYER[0x48..0x49] = 0x0000`, so this path is
   dormant in the one-base scenario
 
+Direct fixture confirmation:
+
+- new reproducer: `tools/test_player48_gate.py`
+- on the original one-base shipped baseline:
+  - `PLAYER[0x48] = 0` => `ECMAINT` succeeds
+  - `PLAYER[0x48] = 1` => immediate `Game file(s) missing or failed integrity check!`
+  - `PLAYER[0x48] = 2` => same immediate integrity abort
+- observed post-failure normalization:
+  - `PLAYER[0x44..0x47]` collapses from `01 00 01 00` to `01 00 00 00`
+  - the patched `PLAYER[0x48]` value remains in place
+
 Practical inference:
 
-- `PLAYER[0x48]` is now a strong candidate for the missing second-base
-  companion pointer/count gate
+- `PLAYER[0x48]` is a confirmed early integrity gate, not just a vague
+  candidate
+- whatever DS:`31F8` represents, the validator requires it to be absent/zero in
+  the shipped one-base state
 - the remaining two-base blocker may live in this secondary `PLAYER[0x48]` ->
   DS:`31F8` structure rather than in `BASES.DAT` alone
 

@@ -98,6 +98,10 @@ The active reverse-engineering target is `ECMAINT`.
     `PLAYER.DAT[0x48]` reading DS:`31F8` records of size `0x20`
   - baseline one-base state has `PLAYER[0x48] = 0`, so this companion
     structure is currently unset in shipped fixtures
+  - direct repro in `tools/test_player48_gate.py` confirms `PLAYER[0x48]` is
+    itself an early integrity gate:
+    - `0` => success
+    - `1+` => immediate `Game file(s) missing or failed integrity check!`
 
 **Movement math (Recovered):**
 - Distance moved per pass = `speed / 1.5` (approximate, with turn-based rounding).
@@ -123,7 +127,7 @@ The active reverse-engineering target is `ECMAINT`.
 
 1. **Name and carve the integrity entry points in Ghidra**: create a function at linear `0x26D9B` / `2000:6d9b`, then label helper `0x25EE4` and the recursive backup path.
 2. **Compare early validation traces**: run a known-good Guard Starbase baseline and diff its initial read/validation phase against the failing Starbase 2 scenario.
-3. **Probe the secondary base companion structure**: `PLAYER.DAT[0x48]` and the DS:`31F8` / size-`0x20` records are now the strongest candidates for the remaining second-base precondition.
+3. **Identify the on-disk source for the `PLAYER[0x48]` companion path**: `PLAYER.DAT[0x48]` is now a confirmed early integrity gate, and DS:`31F8` / size-`0x20` is the strongest remaining candidate structure behind it.
 4. **IPBM resolution**: investigate planetary bombardment missiles — still untouched in preserved fixtures, and `IPBM.DAT` is currently 0 bytes in all repo fixture families.
 5. **Build queue mechanics (Partially Solved)**: When a build order finishes, the newly constructed ships are moved into the planet's **Stardock** (`PLANETS.DAT[0x38]` and `0x4C`). They do not immediately form a fleet in `FLEETS.DAT` until they are manually "Commissioned" by the player. We need to map out exactly how `0x38` and `0x4C` encode multiple ships/types.
 
