@@ -280,11 +280,12 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("Players:");
     for (idx, record) in player.records.iter().enumerate() {
         println!(
-            "  slot {}: owner_mode={} assigned_player_flag={} tax={} summary={}",
+            "  slot {}: owner_mode={} assigned_player_flag={} tax={} last_run_year={} summary={}",
             idx + 1,
             record.owner_mode_raw(),
             record.assigned_player_flag_raw(),
             record.tax_rate(),
+            record.last_run_year(),
             record.ownership_summary()
         );
     }

@@ -2033,38 +2033,55 @@ Updated `PLAYER.DAT` Record 0 layout (bytes `0x40..0x57`):
 | `0x51` | u8 | `0x41` (65) | `0x00` | Tax rate |
 | `0x52..0x55` | u32 | varies | varies | Treasury |
 
-### FLEETS.DAT[0x23]: Guard Starbase Resolver
+### Starbases: Guard Order and Auto-Merge
 
-This byte was identified through the same bisection methodology. With both
-PLAYER.DAT and FLEETS.DAT from the initialized state (plus starbase count and
-order patches), the Guard Starbase order still failed. Bisecting the fleet
-record byte-by-byte isolated `0x23` as the sole essential fleet-side field.
+The Guard Starbase order (`0x04`) has unique behavior regarding fleet management.
 
-Sweep results for `FLEETS.DAT[0x23]`:
+**Observed Behavior:**
+- When multiple fleets are assigned to the same starbase (using the same mission
+  parameter at `0x22`), `ECMAINT` automatically merges them into the lowest-ID
+  fleet assigned to that base.
+- This merge occurs even if the fleets are in different sectors (e.g., Fleet 1 at
+  (16,13) and Fleet 2 at (17,13)).
+- The resulting merged fleet inherits the ships from all component fleets and
+  continues guarding the starbase.
+- The standing order of the "consumed" fleets is reset to `0x05` (Sentry) and
+  their ship counts are zeroed out (effectively deleting them as active units).
 
-| Value | Result |
-|-------|--------|
-| `0x00` | FAIL — "unknown starbase" error |
-| `0x01` | OK — starbase found |
-| `0x02+` | FAIL — "unknown starbase" error |
+**Requirements for Order Resolution:**
+- `FLEETS.DAT[0x23]` MUST be exactly `0x01`. Any other value causes a lookup
+  failure.
+- `FLEETS.DAT[0x22]` is an **empire-relative starbase index** (1-indexed).
+- The lookup is **empire-specific**: a fleet can only guard a starbase owned
+  by its own empire. Assigning a fleet to a starbase index owned by a different
+  empire results in an "unknown starbase" error.
+- `PLAYER.DAT[0x44]` must reflect the correct total count of starbases owned by
+  the empire for the lookup logic to function.
+- `BASES.DAT` record must exist at the coordinates where the fleet is ordered
+   to guard.
 
-Only `0x01` works, which is highly specific. The meaning is not yet clear.
-Hypotheses:
+**Persistence:**
+- The Guard Starbase order is persistent across maintenance passes as long as
+  the starbase exists.
 
-- It could be an owner/empire cross-reference that must match the base owner
-- It could be a guard-mode subtype (exactly 1 = "guard this specific base")
-- It could be an internal fleet-state flag set by ECGAME when the order is issued
+### Rogue/AI Empire Behavior
 
-In the original shipped state, fleet 0 (Guard Starbase) has `0x23=0x01`. All
-other fleets (order 0x05, Sentry) have various non-zero values (0xB0, 0x9A, etc.)
-that look like uninitialized/random data, while initialized fleets all have
-`0x23=0x00`.
+Rogue empires (`PLAYER.DAT[0x00] = 0xFF`) are processed by `ECMAINT` during the
+maintenance pass.
 
-### Planet Owner Field
+**Observed Behavior:**
+- Rogue empires exhibit **automatic defensive clustering**.
+- All fleets belonging to a rogue empire are automatically merged into a single
+  large fleet at the empire's homeworld (or primary location).
+- The standing order of the merged rogue fleet is set to `0x05` (Guard/Blockade).
+- The ROE (Rules of Engagement) for rogue fleets is typically set to `10`
+  (highly hostile/defensive).
+- This auto-merge occurs regardless of the fleets' initial standing orders or
+  coordinates.
 
-During the starbase investigation, the planet owner field was confirmed:
-
-- **`PLANETS.DAT[0x5D]`**: owner empire number (1-indexed, 0 = unowned)
+**Conclusion:**
+Rogue empires in Esterian Conquest act as "stationary" or "defensive" AI blocks
+that consolidate their forces at their primary system when maintenance runs.
 
 Evidence: the four homeworld planets (those with `0x03 = 0x87`) have `0x5D`
 values of 1, 2, 3, 4 corresponding to the four empires. Non-homeworld planets
@@ -2110,10 +2127,36 @@ The full init-based fixture with all three patches was verified end-to-end:
 - Pre/post fixtures preserved in `fixtures/ecmaint-starbase-pre/v1.5/` and
   `fixtures/ecmaint-starbase-post/v1.5/`.
 
-**New finding — `PLAYER.DAT[0x46]`**: during the first maintenance pass, byte
-`0x46` changed from `0x00` to `0x01`. In the shipped original state, this byte
-is also `0x01`. It did NOT change during the second pass (already `0x01`).
-This suggests it is set once during the first maintenance run — possibly a
-"maintenance has been run" flag or a count that saturates at 1. The `0x46..0x47`
-pair in the PLAYER.DAT layout table above was previously "Unknown count"; this
-observation narrows it but does not yet confirm its purpose.
+### Fleet Movement: Speed and Distance
+
+The movement formula was recovered by observing Fleet 1 moving horizontally from
+(16,13) with varying speeds across multiple maintenance passes.
+
+**Movement Model:**
+- Distance moved per pass is approximately `speed / 1.5`.
+- Specifically, the following patterns were observed over 3 passes:
+
+| Speed | Pass 1 | Pass 2 | Pass 3 | Total | Avg/Pass |
+|-------|--------|--------|--------|-------|----------|
+| 1     | 1      | 0      | 1      | 2     | 0.67     |
+| 2     | 1      | 2      | 2      | 5     | 1.67     |
+| 3     | 2      | 3      | 3      | 8     | 2.67     |
+
+**Observations:**
+- At Speed 1: Moves 1 unit on turn 1 and turn 3.
+- At Speed 2: Moves 1 unit on turn 1, then 2 units subsequently.
+- At Speed 3: Moves 2 units on turn 1, then 3 units subsequently.
+- The first turn often shows a "startup penalty" of -1 unit compared to later
+  turns for Speed 2 and 3, or it's a simple rounding effect.
+- The long-term average strictly follows `distance = speed / 1.5`.
+
+**Coordinate Update:**
+- `FLEETS.DAT[0x0B..0x0C]` stores the current X, Y coordinates.
+- These are updated during the maintenance pass based on the standing order.
+- Move Only order (`0x01`) consumes the `current_speed` (`0x0A`) to reach the
+  target coordinates (`0x20..0x21`).
+
+**Fixture Details:**
+- `fixtures/ecmaint-move-pre/v1.5/`: Fleet 1 at (16,13), Speed 3, Move to (26,13).
+- `fixtures/ecmaint-move-post/v1.5/`: After 3 passes, Fleet 1 at (24,13).
+

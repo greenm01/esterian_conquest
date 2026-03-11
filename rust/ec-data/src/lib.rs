@@ -155,6 +155,14 @@ impl PlayerRecord {
     pub fn tax_rate(&self) -> u8 {
         self.raw[0x51]
     }
+
+    pub fn last_run_year(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x4E], self.raw[0x4F]])
+    }
+
+    pub fn treasury(&self) -> u32 {
+        u32::from_le_bytes([self.raw[0x52], self.raw[0x53], self.raw[0x54], self.raw[0x55]])
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
