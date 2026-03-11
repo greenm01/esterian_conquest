@@ -571,6 +571,25 @@ Practical inference:
   so it is best described as a stable duplicated-base structure, not yet proof
   of a valid true “Starbase 2” identity
 
+Promotion attempts from the stable duplicated-base state:
+
+- starting from the accepted duplicated-base layout, the following all still
+  fail the early integrity gate when base 2 is promoted to `BASES[0x04] = 0x02`:
+  - `BASES[0x02] = 0x01`, `BASES[0x05..0x06] = 0x0001`
+  - `BASES[0x02] = 0x01`, `BASES[0x05..0x06] = 0x0000`
+  - `BASES[0x02] = 0x01`, `BASES[0x05..0x06] = 0x0002`
+  - `BASES[0x02] = 0x02`, `BASES[0x05..0x06] = 0x0001`
+  - `BASES[0x02] = 0x02`, `BASES[0x05..0x06] = 0x0000`
+
+Practical inference:
+
+- the missing second-base precondition is not solved by local tweaks to
+  `BASES[0x02]` or `BASES[0x05..0x06]` around the accepted duplicated-base
+  layout
+- the next unexplained input is likely outside this immediate base-header
+  neighborhood, or requires a coordinated update to another file/structure that
+  the early validator consumes
+
 Additional player-side linkage:
 
 - after the `BASES` branches, the validator enters another phase at `0x2675A`
