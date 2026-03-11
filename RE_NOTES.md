@@ -590,6 +590,30 @@ Practical inference:
   neighborhood, or requires a coordinated update to another file/structure that
   the early validator consumes
 
+Update: recognized `.TOK` marker files are the missing gate
+
+- new reproducer: `tools/test_starbase2_tok_gate.py`
+- the raw two-base construction
+  (`PLAYER[0x44..0x47] = 02 00 02 00`, second `BASES` record with
+  `BASES[0x04] = 0x02`) still fails with no token files present
+- adding a single zero-length recognized token file makes the same state pass:
+  - `MAIN.TOK` => pass
+  - `PLAYER.TOK` => pass
+  - earlier spot checks also showed `PLANETS.TOK`, `FLEETS.TOK`,
+    `DATABASE.TOK`, and `CONQUEST.TOK` each work alone
+- an arbitrary marker name is not enough:
+  - `FOO.TOK` => still fails the integrity check
+- the accepted `MAIN.TOK` / `PLAYER.TOK` cases survive a second `ECMAINT` pass
+  unchanged, so this is not just a one-pass normalization artifact
+
+Practical inference:
+
+- the remaining Starbase 2 blocker was not another hidden byte inside the
+  `BASES` record
+- `ECMAINT` has a separate mode/path keyed by specific `*.TOK` marker names
+- once a recognized token marker is present, the raw Starbase 2 construction is
+  accepted without needing the earlier canonicalized `BASES` / `FLEETS` state
+
 Additional player-side linkage:
 
 - after the `BASES` branches, the validator enters another phase at `0x2675A`

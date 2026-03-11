@@ -110,6 +110,15 @@ The active reverse-engineering target is `ECMAINT`.
   - promotion attempts from that stable state still fail when base 2 advances
     to `BASES[0x04] = 0x02`, even after varying nearby fields `0x02` and
     `0x05..0x06`
+  - corrected finding: the real missing precondition is not another local base
+    field; it is the presence of a recognized zero-length `*.TOK` marker file
+  - `tools/test_starbase2_tok_gate.py` shows:
+    - no token file => raw `Starbase 2` attempt still fails integrity
+    - `MAIN.TOK` alone => same raw `Starbase 2` attempt succeeds
+    - `PLAYER.TOK` alone => also succeeds
+    - arbitrary `FOO.TOK` => still fails, so this is not just any `.TOK` name
+  - the accepted `MAIN.TOK` / `PLAYER.TOK` cases survive a second maintenance
+    pass, keeping both base records and `BASES[0x04] = 0x02` on the second one
   - after that, it enters a separate secondary phase driven by
     `PLAYER.DAT[0x48]` reading DS:`31F8` records of size `0x20`
   - direct repro in `tools/test_player48_gate.py` shows this is the `IPBM.DAT`
@@ -141,7 +150,7 @@ The active reverse-engineering target is `ECMAINT`.
 
 1. **Name and carve the integrity entry points in Ghidra**: create a function at linear `0x26D9B` / `2000:6d9b`, then label helper `0x25EE4` and the recursive backup path.
 2. **Compare early validation traces**: run a known-good Guard Starbase baseline and diff its initial read/validation phase against the failing Starbase 2 scenario.
-3. **Look outside the immediate base header**: the stable duplicated-base state cannot be promoted to `BASES[0x04] = 0x02` by changing only nearby `BASES[0x02]` and `BASES[0x05..0x06]`, so the remaining precondition likely lives in another linked field or file.
+3. **Reverse the token gate**: find where `ECMAINT` checks for recognized `*.TOK` marker names (`MAIN.TOK`, `PLAYER.TOK`, etc.) and determine whether that path weakens integrity validation or signals an in-progress maintenance state.
 4. **IPBM resolution**: investigate planetary bombardment missiles — still untouched in preserved fixtures, and `IPBM.DAT` is currently 0 bytes in all repo fixture families.
 5. **Build queue mechanics (Partially Solved)**: When a build order finishes, the newly constructed ships are moved into the planet's **Stardock** (`PLANETS.DAT[0x38]` and `0x4C`). They do not immediately form a fleet in `FLEETS.DAT` until they are manually "Commissioned" by the player. We need to map out exactly how `0x38` and `0x4C` encode multiple ships/types.
 
