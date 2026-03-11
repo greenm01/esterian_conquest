@@ -79,6 +79,10 @@ The active reverse-engineering target is `ECMAINT`.
   - helper `0x25EE4` is the first major validator under it and immediately
     checks structures matching `PLAYER.DAT` (`110` bytes), `PLANETS.DAT`
     (`97` bytes), and `FLEETS.DAT` (`54` bytes)
+  - the next phase inside `0x25EE4` reads `BASES.DAT` (`35` bytes) using
+    `PLAYER.DAT[0x44]` as the base-record selector
+  - after loading that base record, it compares one base byte against the
+    current player index before accepting the relation
 
 **Movement math (Recovered):**
 - Distance moved per pass = `speed / 1.5` (approximate, with turn-based rounding).

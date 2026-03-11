@@ -478,6 +478,24 @@ Most important helper under it:
     `PLANETS.DAT`
   - opens/reads DS:`3178` with size `0x0036` (`54`) -> strong match for
     `FLEETS.DAT`
+  - opens/reads DS:`2FF8` with size `0x0023` (`35`) -> strong match for
+    `BASES.DAT`
+
+First concrete `BASES.DAT` integrity logic recovered:
+
+- after the initial `PLAYER` / `PLANETS` / `FLEETS` phases, helper `0x25EE4`
+  enters the `BASES.DAT` pass at linear `0x263D3`
+- for each player-derived entry, it reads one `BASES.DAT` record by index:
+  - record index source: `PLAYER` entry field at offset `0x44`
+  - code: `0x2643C` loads `es:[di+0x44]`, decrements it, and uses that as the
+    record selector for the `BASES.DAT` reader
+- after loading the base record into a stack-local buffer, it checks:
+  - local byte `-0x88` against the current player index (`0x26488..0x264A0`)
+- practical meaning:
+  - `PLAYER.DAT[0x44]` is definitely part of the startup integrity relation
+    between player records and base records
+  - the validator does not trust `BASES.DAT[0x04] = 0x02` by itself; it first
+    resolves the player-owned base index through `PLAYER.DAT[0x44]`
 
 Practical inference:
 
