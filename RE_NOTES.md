@@ -497,6 +497,33 @@ First concrete `BASES.DAT` integrity logic recovered:
   - the validator does not trust `BASES.DAT[0x04] = 0x02` by itself; it first
     resolves the player-owned base index through `PLAYER.DAT[0x44]`
 
+Targeted fixture confirmation:
+
+- new reproducer: `tools/test_starbase2_baseid_gate.py`
+- with `PLAYER.DAT[0x44..0x47] = 02 00 02 00` and two base records:
+  - if base 2 keeps `BASES[0x04] = 0x02`, `ECMAINT` aborts with the
+    front-loaded integrity error
+  - if base 2 is changed back to `BASES[0x04] = 0x01`, `ECMAINT` accepts the
+    run and canonicalizes the state back to one base
+- observed accepted post-state:
+  - `PLAYER.DAT[0x44..0x47]` normalized from `02 00 02 00` to `01 00 01 00`
+  - `BASES.DAT` collapsed from two 35-byte records to one 35-byte record
+  - surviving base record kept slot byte `0x00 = 0x02` but `0x04 = 0x01`
+- additional matrix check:
+  - varying the duplicate record's slot byte `BASES[0x00]` between `0x01` and
+    `0x02` does not change the outcome
+  - varying `BASES[0x04]` between `0x01` and `0x02` does change the outcome
+  - therefore the integrity gate is sensitive to `0x04`, not `0x00`
+
+Practical conclusion:
+
+- `BASES.DAT[0x04]` is the decisive identity value in this integrity path
+- duplicate records that still claim starbase identity `1` are mergeable /
+  canonicalizable
+- a true second starbase must satisfy more than just record presence plus
+  `PLAYER.DAT[0x44] = 2`; the validator rejects the first attempt as soon as
+  `BASES[0x04]` advances to `2`
+
 Practical inference:
 
 - the synthetic Starbase 2 failure is now narrowed to the startup validator

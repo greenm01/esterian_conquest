@@ -83,6 +83,12 @@ The active reverse-engineering target is `ECMAINT`.
     `PLAYER.DAT[0x44]` as the base-record selector
   - after loading that base record, it compares one base byte against the
     current player index before accepting the relation
+  - targeted repro in `tools/test_starbase2_baseid_gate.py` confirms the key
+    byte is `BASES[0x04]`:
+    - base 2 with `0x04 = 0x02` => integrity abort
+    - base 2 with `0x04 = 0x01` => accepted and normalized back to one base
+    - changing duplicate-record slot byte `BASES[0x00]` does not affect this
+      result
 
 **Movement math (Recovered):**
 - Distance moved per pass = `speed / 1.5` (approximate, with turn-based rounding).
@@ -108,7 +114,7 @@ The active reverse-engineering target is `ECMAINT`.
 
 1. **Name and carve the integrity entry points in Ghidra**: create a function at linear `0x26D9B` / `2000:6d9b`, then label helper `0x25EE4` and the recursive backup path.
 2. **Compare early validation traces**: run a known-good Guard Starbase baseline and diff its initial read/validation phase against the failing Starbase 2 scenario.
-3. **Find the Starbase 2 companion structure**: `BASES.DAT[0x04] = 0x02` and `PLAYER.DAT[0x44] = 0x0002` are not sufficient by themselves, even with a second owned planet.
+3. **Find the remaining second-base precondition**: `BASES.DAT[0x04] = 0x02` is necessary to represent a true second base, but the validator still rejects the current synthetic record set when that value advances to `2`.
 4. **IPBM resolution**: investigate planetary bombardment missiles — still untouched in preserved fixtures, and `IPBM.DAT` is currently 0 bytes in all repo fixture families.
 5. **Build queue mechanics (Partially Solved)**: When a build order finishes, the newly constructed ships are moved into the planet's **Stardock** (`PLANETS.DAT[0x38]` and `0x4C`). They do not immediately form a fleet in `FLEETS.DAT` until they are manually "Commissioned" by the player. We need to map out exactly how `0x38` and `0x4C` encode multiple ships/types.
 
