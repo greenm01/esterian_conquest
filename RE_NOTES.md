@@ -522,6 +522,28 @@ Practical inference:
   consistent internal linkage structure, not just `PLAYER[0x44] = 2` plus a
   second record with `BASES[0x04] = 2`
 
+Direct fixture probing of `BASES[0x05..0x06]`:
+
+- new reproducer: `tools/test_starbase_link_gate.py`
+- using the otherwise accepted duplicate-base case
+  (`BASES[0x02] = 0x01`, `BASES[0x04] = 0x01` on the second record):
+  - `BASES[0x05..0x06] = 00 00` => accepted
+  - `BASES[0x05..0x06] = 01 00` => accepted
+  - `BASES[0x05..0x06] = 00 01` => early integrity abort
+  - `BASES[0x05..0x06] = 01 01` => early integrity abort
+  - `BASES[0x05..0x06] = 02 00` => `Unable to allocate memory.`
+
+Practical inference:
+
+- `BASES[0x05..0x06]` behaves like a little-endian selector / linkage word
+- `0x0001` is a plausible valid reference in the current one-base-compatible
+  state
+- `0x0100` is not a byte-swap-tolerant encoding; it is invalid and hits the
+  early integrity gate
+- `0x0002` appears to drive the program into a bad self-/second-record path
+  severe enough to trigger an allocation failure rather than a clean integrity
+  error
+
 Additional player-side linkage:
 
 - after the `BASES` branches, the validator enters another phase at `0x2675A`
