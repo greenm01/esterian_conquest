@@ -497,6 +497,46 @@ First concrete `BASES.DAT` integrity logic recovered:
   - the validator does not trust `BASES.DAT[0x04] = 0x02` by itself; it first
     resolves the player-owned base index through `PLAYER.DAT[0x44]`
 
+Follow-on linkage inside the same `BASES` validator:
+
+- after the direct `PLAYER[0x44] -> BASES` record check, helper `0x25EE4`
+  continues into a second `BASES` branch at `0x26582`
+- this branch uses the loaded base-buffer word at offsets `0x05..0x06` as
+  another base-record selector:
+  - `0x26582..0x265A3` loads local word `-0x87(%bp)` and reads that base record
+- after loading that secondary base record, it again checks buffer offset
+  `0x04` against the current player index:
+  - `0x265E2..0x265FA`
+- the emitted summary entry for this branch also copies:
+  - base `0x02..0x03`
+  - base `0x0B..0x0C`
+  - base `0x07..0x08`
+  - base `0x19..0x1D`
+
+Practical inference:
+
+- the validator is not modeling bases as isolated records
+- there is at least one additional base-to-base linkage field at
+  `BASES[0x05..0x06]`
+- this strengthens the current hypothesis that a true second-base state needs a
+  consistent internal linkage structure, not just `PLAYER[0x44] = 2` plus a
+  second record with `BASES[0x04] = 2`
+
+Additional player-side linkage:
+
+- after the `BASES` branches, the validator enters another phase at `0x2675A`
+  driven by `PLAYER` offset `0x48`
+- it reads DS:`31F8` records of size `0x20` using `PLAYER[0x48]` as an index
+- baseline shipped state has `PLAYER[0x48..0x49] = 0x0000`, so this path is
+  dormant in the one-base scenario
+
+Practical inference:
+
+- `PLAYER[0x48]` is now a strong candidate for the missing second-base
+  companion pointer/count gate
+- the remaining two-base blocker may live in this secondary `PLAYER[0x48]` ->
+  DS:`31F8` structure rather than in `BASES.DAT` alone
+
 Targeted fixture confirmation:
 
 - new reproducer: `tools/test_starbase2_baseid_gate.py`

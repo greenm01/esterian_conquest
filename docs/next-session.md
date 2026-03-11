@@ -92,6 +92,12 @@ The active reverse-engineering target is `ECMAINT`.
     - changing `BASES[0x02]` to `0x02` with `BASES[0x04] = 0x01` does not hit
       the same integrity gate; it instead produces `Fleet assigned to an
       unknown starbase`
+  - helper `0x25EE4` then follows an additional base-to-base selector through
+    loaded base-buffer word `0x05..0x06`
+  - after that, it enters a separate secondary phase driven by
+    `PLAYER.DAT[0x48]` reading DS:`31F8` records of size `0x20`
+  - baseline one-base state has `PLAYER[0x48] = 0`, so this companion
+    structure is currently unset in shipped fixtures
 
 **Movement math (Recovered):**
 - Distance moved per pass = `speed / 1.5` (approximate, with turn-based rounding).
@@ -117,7 +123,7 @@ The active reverse-engineering target is `ECMAINT`.
 
 1. **Name and carve the integrity entry points in Ghidra**: create a function at linear `0x26D9B` / `2000:6d9b`, then label helper `0x25EE4` and the recursive backup path.
 2. **Compare early validation traces**: run a known-good Guard Starbase baseline and diff its initial read/validation phase against the failing Starbase 2 scenario.
-3. **Find the remaining second-base precondition**: `BASES.DAT[0x04] = 0x02` is necessary to represent a true second base, but the validator still rejects the current synthetic record set when that value advances to `2`.
+3. **Probe the secondary base companion structure**: `PLAYER.DAT[0x48]` and the DS:`31F8` / size-`0x20` records are now the strongest candidates for the remaining second-base precondition.
 4. **IPBM resolution**: investigate planetary bombardment missiles — still untouched in preserved fixtures, and `IPBM.DAT` is currently 0 bytes in all repo fixture families.
 5. **Build queue mechanics (Partially Solved)**: When a build order finishes, the newly constructed ships are moved into the planet's **Stardock** (`PLANETS.DAT[0x38]` and `0x4C`). They do not immediately form a fleet in `FLEETS.DAT` until they are manually "Commissioned" by the player. We need to map out exactly how `0x38` and `0x4C` encode multiple ships/types.
 
