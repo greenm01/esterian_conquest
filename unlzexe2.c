@@ -238,6 +238,10 @@ void parsepath(char *pathname, int *fname, int *ext) {
 /*-------------------------------------------*/
 static WORD ihead[0x10],ohead[0x10],inf[8];
 static long loadsize;
+static int has_lz_header_marker(const WORD *header, const char *marker) {
+    return header[0x0c] == 0x1c && memcmp(&header[0x0e], marker, 4) == 0;
+}
+
 static BYTE sig90 [] = {			/* v0.8 */
     0x06, 0x0E, 0x1F, 0x8B, 0x0E, 0x0C, 0x00, 0x8B,
     0xF1, 0x4E, 0x89, 0xF7, 0x8C, 0xDB, 0x03, 0x1E,
@@ -303,6 +307,7 @@ static BYTE sig90 [] = {			/* v0.8 */
 /* EXE header test (is it LZEXE file?) */
 int rdhead(FILE *ifile ,int *ver){
     long entry; 	/* v0.8 */
+    long fpos;
 /* v0.7 old code */
 /*  if(fread(ihead,sizeof ihead[0],0x10,ifile)!=0x10)
  *      return FAILURE;
@@ -323,18 +328,34 @@ int rdhead(FILE *ifile ,int *ver){
        ihead [0x0d] != 0 || ihead [0x0c] != 0x1c)		     /* v0.8 */
 	return FAILURE; 					     /* v0.8 */
     entry = ((long) (ihead [4] + ihead[0x0b]) << 4) + ihead[0x0a];   /* v0.8 */
-    if (fseek (ifile, entry, SEEK_SET) != 0)			     /* v0.8 */
-	return FAILURE; 					     /* v0.8 */
-    if (fread (sigbuf, 1, sizeof sigbuf, ifile) != sizeof sigbuf)    /* v0.8 */
-	return FAILURE; 					     /* v0.8 */
-    if (memcmp (sigbuf, sig90, sizeof sigbuf) == 0) {		     /* v0.8 */
-	*ver = 90;						     /* v0.8 */
-	return SUCCESS; 					     /* v0.8 */
-    }								     /* v0.8 */
-    if (memcmp (sigbuf, sig91, sizeof sigbuf) == 0) {		     /* v0.8 */
-	*ver = 91;						     /* v0.8 */
-	return SUCCESS; 					     /* v0.8 */
-    }								     /* v0.8 */
+    if (fseek (ifile, entry, SEEK_SET) == 0 &&			     /* v0.8 */
+        fread (sigbuf, 1, sizeof sigbuf, ifile) == sizeof sigbuf) {  /* v0.8 */
+        if (memcmp (sigbuf, sig90, sizeof sigbuf) == 0) {	     /* v0.8 */
+	    *ver = 90;					     /* v0.8 */
+	    return SUCCESS;				     /* v0.8 */
+        }							     /* v0.8 */
+        if (memcmp (sigbuf, sig91, sizeof sigbuf) == 0) {	     /* v0.8 */
+	    *ver = 91;					     /* v0.8 */
+	    return SUCCESS;				     /* v0.8 */
+        }							     /* v0.8 */
+    }
+
+    /*
+     * Some later LZEXE 0.91-family variants keep the normal "LZ91" header
+     * marker but do not match the exact stub byte sequence expected above.
+     * The Esterian Conquest binaries are in that family.  Fall back to the
+     * header marker so the standard 0.91 relocation/decompression path can be
+     * attempted.
+     */
+    fpos = ((long)(ihead[0x0b] + ihead[4]) << 4);
+    if (has_lz_header_marker(ihead, "LZ91") && fpos > 0) {
+	*ver = 91;
+	return SUCCESS;
+    }
+    if (has_lz_header_marker(ihead, "LZ90") || has_lz_header_marker(ihead, "LZ09")) {
+	*ver = 90;
+	return SUCCESS;
+    }
     return FAILURE;
 }
 

@@ -1,0 +1,33 @@
+ECMAINT live memory dump anchors
+Source dump: /tmp/ecmaint-debug/MEMDUMP.BIN
+Dump recipe:
+  DEBUGBOX ECMAINT /R
+  BPINT 21 3D
+  RUN
+  DOS MCBS
+  MEMDUMPBIN 0814:0000 97EB0
+
+PSP: 0814
+Allocation size: 0x97EB0
+
+Important offsets:
+0x143B  early filename/error text cluster beginning with Planets.Dat
+0x26B86 backup filename table begins
+0x26C26 backup integrity failure string begins
+0x26CEC primary integrity failure string begins
+0x26D20 restore-from-backup string begins
+0x26D54 missing-or-failed-integrity string begins
+0x26D98 likely procedure start immediately after integrity-string table
+0x2841B main.tok startup guard string begins
+0x28455 "Performing integrity check of game files..."
+0x284B2 "Unable to restore previous game - maintenance aborting"
+
+Observed strings:
+- Runtime error
+- Portions Copyright (c) 1983,90 Borland
+- Backup game file(s) missing or failed integrity check
+- Game file(s) failed integrity check or are missing!
+- Attempting to restore game from last saved point...
+- Game file(s) missing or failed integrity check!
+- Performing integrity check of game files...
+- Unable to restore previous game - maintenance aborting

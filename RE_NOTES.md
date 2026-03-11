@@ -250,13 +250,19 @@ These are first-pass RE notes. Items marked `confirmed` are based on exact size/
 Status:
 
 - confirmed size: `440` bytes
-- confirmed structure: `5` records of `88` bytes each
+- older size split hypothesis (`5 x 88`) is superseded by `ECMAINT` runtime trace
+- `ECMAINT` reads the file in `110`-byte strides at offsets `0`, `110`, `220`, `330`
+- practical runtime model: `4` records of `110` bytes each
 
 Why this is likely:
 
-- `440 / 88 = 5`
-- the file visually splits cleanly on 88-byte boundaries
-- only the first record changed materially when the test user joined the game
+- DOSBox-X `INT 21h` / file-I/O tracing during `ECMAINT /R` showed:
+  - seek `0`, read `110`
+  - seek `110`, read `110`
+  - seek `220`, read `110`
+  - seek `330`, read `110`
+  - seek `440`, EOF
+- this is stronger evidence than the older visual split guess
 
 Draft record layout for record 0:
 
@@ -316,6 +322,136 @@ Practical inference:
   - current observed values after tax edit: `01 3c 64`
   - the middle byte is confirmed tax rate
   - the role of `0x50` and `0x52` is still unknown
+
+Runtime trace note:
+
+- `ECMAINT`'s actual file walker is currently the best evidence for on-disk
+  record geometry. Any older notes based on visual boundaries should be treated
+  as provisional unless they match the runtime access pattern.
+
+## ECMAINT File-I/O Trace Findings
+
+Using DOSBox-X with `-log-int21` and `-log-fileio` on `ECMAINT /R` produced
+high-confidence file access geometry for the maintenance engine.
+
+Confirmed initial load order:
+
+1. `CONQUEST.DAT`
+2. `SETUP.DAT`
+3. `PLAYER.DAT`
+4. `PLANETS.DAT`
+5. `FLEETS.DAT`
+6. `BASES.DAT`
+7. `IPBM.DAT`
+
+Confirmed runtime record sizes from the successful trace:
+
+- `PLAYER.DAT`: `4 x 110` bytes
+- `PLANETS.DAT`: `20 x 97` bytes
+- `FLEETS.DAT`: `16 x 54` bytes
+- `BASES.DAT`: `35`-byte records
+- `CONQUEST.DAT`: single `2085`-byte block
+- `SETUP.DAT`: single `522`-byte block
+- `DATABASE.DAT`: processed in `2000`-byte pages and later patched in `100`-byte slots
+
+Practical inference:
+
+- these runtime access widths are stronger evidence than earlier visual record
+  guesses
+- any Rust-side binary accessor geometry should be aligned to these trace-backed
+  widths unless contradicted by stronger evidence
+
+## Starbase 2 Integrity Gate Trace
+
+A DOSBox-X file-I/O trace of the failing `test_starbase2_list.py` scenario shows
+that the multi-starbase experiment aborts very early.
+
+Observed behavior:
+
+- `ECMAINT` completes the initial read sweep across:
+  - `PLAYER.DAT`
+  - `PLANETS.DAT`
+  - `FLEETS.DAT`
+  - `BASES.DAT`
+- then writes only to `ERRORS.TXT`
+- no normal maintenance writeback occurs to:
+  - `PLAYER.DAT`
+  - `PLANETS.DAT`
+  - `FLEETS.DAT`
+  - `BASES.DAT`
+  - `CONQUEST.DAT`
+- no database/report generation path is reached
+
+Observed `ERRORS.TXT` contents:
+
+- `Game file(s) missing or failed integrity check!`
+- `Attempting to restore game from last saved point...`
+- `Backup game file(s) missing or failed integrity check`
+- `Maintenance aborting...`
+- `Unable to restore previous game - maintenance aborting`
+
+Practical inference:
+
+- the Starbase 2 test case is failing a front-loaded cross-file integrity gate,
+  not a later starbase-order resolution branch
+- the decisive consistency check happens after the first full read pass and
+  before the normal maintenance mutation/report pipeline
+- this narrows the static RE target: we should hunt for the integrity validator
+  that consumes the initial `PLAYER` / `PLANETS` / `FLEETS` / `BASES` snapshot,
+  not for a late combat/order handler
+
+## ECMAINT Live Memory Dump Anchors
+
+A DOSBox-X debugger-assisted live dump of `ECMAINT` exposed the unpacked
+maintenance image directly.
+
+Working approach:
+
+- launch DOSBox-X with `DEBUGBOX ECMAINT /R`
+- set `BPINT 21 3D` to break on the first DOS file-open after the LZEXE stub
+  has unpacked the real program
+- at that breakpoint, `DOS MCBS` showed the `ECMAINT` block as:
+  - PSP `0814`
+  - allocation size `622256` bytes (`0x97EB0`)
+- dump the full live block with:
+  - `MEMDUMPBIN 0814:0000 97EB0`
+
+Confirmed from `/tmp/ecmaint-debug/MEMDUMP.BIN`:
+
+- Borland runtime strings are present:
+  - `Runtime error `
+  - `Portions Copyright (c) 1983,90 Borland`
+- the startup/integrity failure strings from `ERRORS.TXT` are present in the
+  live image, confirming the failure path is application code in the unpacked
+  program
+
+Useful dump offsets:
+
+- `0x143B`: early filename/error text cluster beginning with `Planets.Dat`
+- `0x26B86..0x26D97`: backup and primary filename tables followed by integrity
+  and restore strings
+- `0x26D98`: likely procedure start immediately after the integrity-string table
+- `0x2841B..0x284E5`: `main.tok` startup guard strings including:
+  - `Performing integrity check of game files...`
+  - `Unable to restore previous game - maintenance aborting`
+
+Practical inference:
+
+- the integrity/restore logic is now anchored in the unpacked live image
+- the code immediately following `0x26D98` is a strong first candidate for the
+  front-loaded cross-file validator that rejects the synthetic Starbase 2 state
+- future static RE should target the live dump rather than the packed
+  `ECMAINT.EXE` stub
+
+Ghidra follow-up on the live dump:
+
+- importing `/tmp/ecmaint-debug/MEMDUMP.BIN` as a raw binary with processor
+  `x86:LE:16:Real Mode` succeeded
+- Ghidra recovered `280` functions from the dump
+- the integrity-string anchor maps to Ghidra address `2000:6d98`
+- the `main.tok` startup-guard cluster maps to `2000:841b`
+- Ghidra did not auto-create a function at `2000:6d98`, so that region likely
+  needs manual code/data carving even though surrounding areas disassemble well
 
 Relevant documentation cross-check:
 

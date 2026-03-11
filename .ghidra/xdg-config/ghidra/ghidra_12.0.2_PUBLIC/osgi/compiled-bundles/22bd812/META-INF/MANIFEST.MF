@@ -1,0 +1,15 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Created-By: 21.0.10 (Arch Linux)
+Tool: Bnd-7.0.0.202310060912
+Bnd-LastModified: 1773259555926
+Import-Package: ghidra.app.script,ghidra.program.model.address,ghidra.pr
+ ogram.model.data,ghidra.program.model.listing,ghidra.program.model.symb
+ ol,ghidra.util.task,java.io,java.lang,java.lang.invoke,java.util,java.u
+ til.function,ghidra.app.plugin.core.osgi
+Require-Capability: osgi.ee;filter:="(&(osgi.ee=JavaSE)(version>=21))"
+Bundle-SymbolicName: 22bd812
+Bundle-Version: 1.0
+Bundle-Name: 22bd812
+Bundle-Activator: GeneratedActivator
+

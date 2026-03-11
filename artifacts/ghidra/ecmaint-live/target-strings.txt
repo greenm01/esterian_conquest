@@ -1,0 +1,39 @@
+Program: MEMDUMP.BIN
+Target string hits: 12
+
+2000:fca6 "Errors.Txt"
+  <- <no references>
+
+3000:00f8 "Planets.Dat"
+  <- <no references>
+
+3000:0178 "Bases.Dat"
+  <- <no references>
+
+3000:01f8 "Messages.Dat"
+  <- <no references>
+
+3000:0278 "Results.Dat"
+  <- <no references>
+
+3000:02f8 "Fleets.Dat"
+  <- <no references>
+
+3000:03f8 "Player.Dat"
+  <- <no references>
+
+3000:0478 "Conquest.Dat"
+  <- <no references>
+
+3000:0578 "Setup.Dat"
+  <- <no references>
+
+3000:05f8 "Database.dat"
+  <- <no references>
+
+4000:11a2 "conquest.dat"
+  <- <no references>
+
+4000:1222 "conquest.dat"
+  <- <no references>
+

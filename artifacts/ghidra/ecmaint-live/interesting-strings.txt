@@ -1,0 +1,49 @@
+Program: MEMDUMP.BIN
+Interesting string hits: 15
+
+1000:3ab9 "". ! the world in this solar system. (Accelerating to intercept alien fleet...1However, we are unable to intercept alien fleet. =In accordance to our ROE, we are avoiding this alien fleet...QThe alien fleet seems to be trying to beat us to the unowned world in this system*. Accelerating to intercept alien fleet...%and we are unable to intercept them. 0"
+  <- <no references>
+
+2000:b7f1 "!#$456789:;<=>?uRuntime error"
+  <- <no references>
+
+2000:fca6 "Errors.Txt"
+  <- <no references>
+
+3000:00f8 "Planets.Dat"
+  <- <no references>
+
+3000:0178 "Bases.Dat"
+  <- <no references>
+
+3000:02f8 "Fleets.Dat"
+  <- <no references>
+
+3000:03f8 "Player.Dat"
+  <- <no references>
+
+3000:0478 "Conquest.Dat"
+  <- <no references>
+
+3000:05f8 "Database.dat"
+  <- <no references>
+
+3000:189c "Enabling player-ranking text file generation...
+tenance Program"
+  <- <no references>
+
+4000:0f70 "conquest.tok"
+  <- <no references>
+
+4000:1102 "conquest.tok"
+  <- <no references>
+
+4000:11a2 "conquest.dat"
+  <- <no references>
+
+4000:1222 "conquest.dat"
+  <- <no references>
+
+4000:124f "C:\ECMAINT.EXE"
+  <- <no references>
+

@@ -75,6 +75,54 @@ Common error messages:
 - `"Game file(s) missing or failed integrity check!"` — cross-file integrity
   failure (usually caused by mixing files from different game states)
 
+### 3b. Dump The Unpacked Live Image
+
+When `ECMAINT.EXE` is LZEXE-packed, the DOSBox-X debugger is the fastest path
+to the real program image.
+
+Launch into the debugger at program entry:
+
+```bash
+env SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
+dosbox-x \
+  -defaultconf \
+  -nopromptfolder \
+  -nogui \
+  -nomenu \
+  -defaultdir "$SCENARIO" \
+  -set "dosv=off" \
+  -set "machine=vgaonly" \
+  -set "core=normal" \
+  -set "cputype=386_prefetch" \
+  -set "cycles=fixed 3000" \
+  -set "xms=false" \
+  -set "ems=false" \
+  -set "umb=false" \
+  -set "output=surface" \
+  -c "mount c $SCENARIO" \
+  -c "c:" \
+  -c "DEBUGBOX ECMAINT /R"
+```
+
+Inside the debugger:
+
+```text
+BPINT 21 3D
+RUN
+DOS MCBS
+MEMDUMPBIN 0814:0000 97EB0
+```
+
+Expected output:
+
+- `MEMDUMP.BIN` in the scenario directory
+
+Useful sanity check:
+
+```bash
+strings -a "$SCENARIO/MEMDUMP.BIN" | rg "Runtime error|Borland|integrity check|Player.Dat"
+```
+
 ### 4. Diff the results
 
 ```bash

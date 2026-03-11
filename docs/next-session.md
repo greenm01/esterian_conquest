@@ -13,6 +13,64 @@ The active reverse-engineering target is `ECMAINT`.
   - Loader: old-style DOS `MZ`
   - Language: `x86:LE:16:Real Mode:default`
   - MD5: `21489ef9798df77b20b7a02eb9347071`
+- Important limitation:
+  - `ECMAINT.EXE` is still LZEXE-packed, so current Ghidra output only sees the loader stub.
+  - The first post-script pass produced only one recovered function (`entry`) and no useful strings.
+
+**ECMAINT File-I/O Trace (New):**
+- Initial runtime load order:
+  - `CONQUEST.DAT`
+  - `SETUP.DAT`
+  - `PLAYER.DAT`
+  - `PLANETS.DAT`
+  - `FLEETS.DAT`
+  - `BASES.DAT`
+  - `IPBM.DAT`
+- Trace-backed runtime record sizes:
+  - `PLAYER.DAT` = `4 x 110`
+  - `PLANETS.DAT` = `20 x 97`
+  - `FLEETS.DAT` = `16 x 54`
+  - `BASES.DAT` = `35`-byte records
+- This runtime evidence supersedes the older `PLAYER.DAT = 5 x 88` guess.
+
+**Starbase 2 Integrity Gate (New):**
+- The failing multi-starbase test case aborts immediately after the initial
+  read sweep of `PLAYER.DAT`, `PLANETS.DAT`, `FLEETS.DAT`, and `BASES.DAT`.
+- It writes only to `ERRORS.TXT`; it does **not** reach the normal maintenance
+  writeback/report pipeline.
+- `ERRORS.TXT` reports:
+  - `Game file(s) missing or failed integrity check!`
+  - `Attempting to restore game from last saved point...`
+  - `Backup game file(s) missing or failed integrity check`
+  - `Maintenance aborting...`
+  - `Unable to restore previous game - maintenance aborting`
+- Practical conclusion:
+  - the Starbase 2 blocker is a **front-loaded cross-file integrity validator**,
+    not a late Guard Starbase resolution branch.
+
+**ECMAINT Live Dump (New):**
+- The productive path is now a DOSBox-X debugger memory dump, not more blind
+  packer guessing.
+- Working breakpoint recipe:
+  - launch with `DEBUGBOX ECMAINT /R`
+  - set `BPINT 21 3D`
+  - when it breaks on the first file open, run `DOS MCBS`
+  - dump the live block with `MEMDUMPBIN 0814:0000 97EB0`
+- Confirmed dump file:
+  - `/tmp/ecmaint-debug/MEMDUMP.BIN`
+- Best current anchors inside the live image:
+  - `0x26B86..0x26D97`: backup/primary filename tables and integrity strings
+  - `0x26D98`: likely integrity/restore procedure start
+  - `0x2841B..0x284E5`: `main.tok` startup guard strings including
+    `Performing integrity check of game files...`
+- Raw-binary Ghidra import of the dump also works:
+  - project: `.ghidra/projects/ecmaint-live`
+  - recovered functions: `280`
+  - Ghidra anchor addresses:
+    - `2000:6d98` for the integrity cluster
+    - `2000:841b` for the `main.tok` startup-guard cluster
+  - caveat: `2000:6d98` was not auto-promoted to a function, so it likely needs
+    manual code/data carving
 
 **Movement math (Recovered):**
 - Distance moved per pass = `speed / 1.5` (approximate, with turn-based rounding).
@@ -36,10 +94,11 @@ The active reverse-engineering target is `ECMAINT`.
 
 ## Next Steps
 
-1. **Use headless Ghidra on Starbase 2**: locate the `ECMAINT` routines that open `BASES.DAT`, `PLAYER.DAT`, and `FLEETS.DAT`, then trace the branch that rejects `BASES.DAT[0x04] = 0x02` scenarios.
-2. **Find the Starbase 2 companion structure**: `BASES.DAT[0x04] = 0x02` and `PLAYER.DAT[0x44] = 0x0002` are not sufficient by themselves, even with a second owned planet.
-3. **IPBM resolution**: investigate planetary bombardment missiles — still untouched in preserved fixtures, and `IPBM.DAT` is currently 0 bytes in all repo fixture families.
-4. **Build queue mechanics (Partially Solved)**: When a build order finishes, the newly constructed ships are moved into the planet's **Stardock** (`PLANETS.DAT[0x38]` and `0x4C`). They do not immediately form a fleet in `FLEETS.DAT` until they are manually "Commissioned" by the player. We need to map out exactly how `0x38` and `0x4C` encode multiple ships/types.
+1. **Manually carve the live-dump integrity region in Ghidra**: start at `2000:6d98`, convert the post-string bytes to code, and identify the first file-validation loop/call sequence.
+2. **Compare early validation traces**: run a known-good Guard Starbase baseline and diff its initial read/validation phase against the failing Starbase 2 scenario.
+3. **Find the Starbase 2 companion structure**: `BASES.DAT[0x04] = 0x02` and `PLAYER.DAT[0x44] = 0x0002` are not sufficient by themselves, even with a second owned planet.
+4. **IPBM resolution**: investigate planetary bombardment missiles — still untouched in preserved fixtures, and `IPBM.DAT` is currently 0 bytes in all repo fixture families.
+5. **Build queue mechanics (Partially Solved)**: When a build order finishes, the newly constructed ships are moved into the planet's **Stardock** (`PLANETS.DAT[0x38]` and `0x4C`). They do not immediately form a fleet in `FLEETS.DAT` until they are manually "Commissioned" by the player. We need to map out exactly how `0x38` and `0x4C` encode multiple ships/types.
 
 ## Standard Runtime Command
 
