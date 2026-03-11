@@ -144,6 +144,94 @@ Use a different project name:
 tools/ghidra_ecmaint.sh --project ec-v15-lab
 ```
 
+Apply the live-dump integrity labels to the existing `ecmaint-live` project:
+
+```bash
+XDG_CONFIG_HOME="$PWD/.ghidra/xdg-config" \
+XDG_CACHE_HOME="$PWD/.ghidra/xdg-cache" \
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk \
+"$HOME/tools/ghidra_12.0.2_PUBLIC/support/analyzeHeadless" \
+  "$PWD/.ghidra/projects" ecmaint-live \
+  -process MEMDUMP.BIN \
+  -scriptPath "$PWD/tools/ghidra_scripts" \
+  -postScript ECMaintNameIntegrityAnchors.java "$PWD/artifacts/ghidra/ecmaint-live" \
+  -noanalysis
+```
+
+This saves the labels/function names in the project and refreshes:
+
+- `artifacts/ghidra/ecmaint-live/integrity-anchors.txt`
+- `artifacts/ghidra/ecmaint-live/functions.txt` after rerunning `ECMaintDumpAnchors.java`
+
+Apply the token-anchor labels/report to the same live-dump project:
+
+```bash
+XDG_CONFIG_HOME="$PWD/.ghidra/xdg-config" \
+XDG_CACHE_HOME="$PWD/.ghidra/xdg-cache" \
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk \
+"$HOME/tools/ghidra_12.0.2_PUBLIC/support/analyzeHeadless" \
+  "$PWD/.ghidra/projects" ecmaint-live \
+  -process MEMDUMP.BIN \
+  -scriptPath "$PWD/tools/ghidra_scripts" \
+  -postScript ECMaintTokenAnchors.java "$PWD/artifacts/ghidra/ecmaint-live" \
+  -noanalysis
+```
+
+This saves:
+
+- token cluster labels at `2000:841b`, `2000:6fc6`, and `2000:9680`
+- function name `ecmaint_check_named_token_candidate` at `2000:96c4`
+- function name `ecmaint_move_tok_delete_wrapper_candidate` at `2000:9cb0`
+- function name `ecmaint_token_wait_timeout_helper` at `2000:9b13`
+- label `ecmaint_move_tok_recovery_candidate` at `2000:9d48`
+- report `artifacts/ghidra/ecmaint-live/token-anchors.txt`
+
+Generate the deeper token reachability report from the same project:
+
+```bash
+XDG_CONFIG_HOME="$PWD/.ghidra/xdg-config" \
+XDG_CACHE_HOME="$PWD/.ghidra/xdg-cache" \
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk \
+"$HOME/tools/ghidra_12.0.2_PUBLIC/support/analyzeHeadless" \
+  "$PWD/.ghidra/projects" ecmaint-live \
+  -process MEMDUMP.BIN \
+  -scriptPath "$PWD/tools/ghidra_scripts" \
+  -postScript ECMaintTokenReachabilityReport.java "$PWD/artifacts/ghidra/ecmaint-live" \
+  -noanalysis
+```
+
+This refreshes:
+
+- `artifacts/ghidra/ecmaint-live/token-reachability.txt`
+- the tiny `Move.Tok` wrapper/callee ranges at `2000:9c91`, `2000:9cb0`,
+  `2000:96c4`, and labeled start `2000:9887`
+- the `Move.Tok` recovery block report at `2000:9d48..0x9e1d`
+- the timestamp-message helper range at `2000:945b..0x967c`
+- the note that DS:`46cc` / CS:`0653` are runtime segment-relative operands,
+  not reliable raw-import linear string addresses
+
+Generate the stack-derived token caller report from the same project:
+
+```bash
+XDG_CONFIG_HOME="$PWD/.ghidra/xdg-config" \
+XDG_CACHE_HOME="$PWD/.ghidra/xdg-cache" \
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk \
+"$HOME/tools/ghidra_12.0.2_PUBLIC/support/analyzeHeadless" \
+  "$PWD/.ghidra/projects" ecmaint-live \
+  -process MEMDUMP.BIN \
+  -scriptPath "$PWD/tools/ghidra_scripts" \
+  -postScript ECMaintTokenCallerReport.java "$PWD/artifacts/ghidra/ecmaint-live" \
+  -noanalysis
+```
+
+This refreshes:
+
+- `artifacts/ghidra/ecmaint-live/token-callers.txt`
+- the dynamic-stack-derived lead from the first clean `2000:96c4` hit
+- the raw-import caller vicinity at `2000:731f..7338`
+- the current negative result that there are still no direct static xrefs to
+  `2000:9d48` or `2000:9e1e` in the saved disassembly
+
 ## First Analysis Pass
 
 From the repo root:

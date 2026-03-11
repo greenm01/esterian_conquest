@@ -80,6 +80,44 @@ Common error messages:
 When `ECMAINT.EXE` is LZEXE-packed, the DOSBox-X debugger is the fastest path
 to the real program image.
 
+For the current token-path work, you can prepare the standard live-debug
+scenario with:
+
+```bash
+python3 tools/prepare_ecmaint_token_debug_case.py
+```
+
+That rebuilds:
+
+- `/tmp/ecmaint-debug-token`
+- the raw two-base Starbase 2 repro
+- zero-length `PLAYER.TOK`
+
+Use that directory as the default debugger target when breaking on the token
+helpers at `2000:96c4`, `2000:9cb9`, and `2000:9e1e`.
+
+Important for live DOSBox-X breakpoints: those `2000:` addresses are the
+raw-import/Ghidra segment numbers, not the segment values shown by the live
+debugger. The working translation for this dump is PSP-relative, using the
+unpacked program PSP `0814` plus the raw-import segment base:
+
+```text
+2000:96c4 -> 2814:96c4
+2000:9cb9 -> 2814:9cb9
+2000:9e1e -> 2814:9e1e
+```
+
+Those PSP-relative breakpoints can display under different normalized segment
+values when DOSBox-X stops. For example, breaking on `2814:96c4` surfaced as
+`3159:0274`, but it resolves to the same linear address.
+
+Current headless-debugger caveat: `2814:96c4` is the first clean token-path
+code stop. If that breakpoint is deleted and execution continues with only
+`2814:9cb9` and `2814:9e1e` armed, DOSBox-X currently falls into repeated
+`Illegal Unhandled Interrupt Called 6` logging before either later breakpoint
+surfaces. Treat that as a debugger/runtime interaction problem, not an address
+translation failure.
+
 Launch into the debugger at program entry:
 
 ```bash

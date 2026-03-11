@@ -1,0 +1,66 @@
+Program: MEMDUMP.BIN
+
+2000:9d48 ecmaint_move_tok_recovery_candidate
+- <none>
+
+2000:9e1e ecmaint_wait_for_named_token_candidate
+- <none>
+
+Dynamic lead from 96c4 stack capture
+- incoming far-pointer candidate: 2000:7232
+- caller/return-site vicinity: 2000:7338
+- nearby at 2000:7232
+  - 2000:7212  DEC AX
+  - 2000:7213  OR byte ptr [SI + 0x33],DH
+  - 2000:7216  CALLF 0x3000:3be9
+  - 2000:721b  MOV DI,0x67b5
+  - 2000:721e  PUSH CS
+  - 2000:721f  PUSH DI
+  - 2000:7220  CALLF 0x3000:19c7
+  - 2000:7225  MOV AL,byte ptr [BP + -0x2]
+  - 2000:7228  MOV byte ptr [BP + -0x1],AL
+  - 2000:722b  MOV AL,byte ptr [BP + -0x1]
+  - 2000:722e  MOV SP,BP
+  - 2000:7230  POP BP
+  - 2000:7231  RET
+- nearby at 2000:7338
+  - 2000:7318  INC CX
+  - 2000:7319  BOUND BP,word ptr [BX + 0x72]
+  - 2000:731c  JZ 0x2000:7387
+  - 2000:731e  OUTSB DX,SI
+  - 2000:731f  PUSH BP
+  - 2000:7324  MOV BP,SP
+  - 2000:7326  SUB SP,0x40c
+  - 2000:732a  MOV byte ptr [BP + -0x2],0x0
+  - 2000:732e  MOV DI,0x6a22
+  - 2000:7331  PUSH CS
+  - 2000:7332  PUSH DI
+  - 2000:7333  CALLF 0x3000:1804
+  - 2000:7338  OR AL,AL
+  - 2000:733a  JNZ 0x2000:7388
+  - 2000:733c  MOV DI,0x6a2c
+  - 2000:733f  PUSH CS
+  - 2000:7340  PUSH DI
+  - 2000:7341  CALLF 0x3000:159b
+  - 2000:7346  MOV DI,0x6a63
+  - 2000:7349  PUSH CS
+  - 2000:734a  PUSH DI
+  - 2000:734b  CALLF 0x3000:159b
+  - 2000:7350  MOV DI,0x46cc
+  - 2000:7353  PUSH DS
+
+dynamic 96c4 caller vicinity (2000:7200 .. 2000:7360)
+- prologue candidate 2000:731f
+- no direct refs to 2000:9d48 or 2000:9e1e found in this range
+- prologue candidates seen: 1
+
+post-wait caller gap (2000:9e43 .. 2000:ac40)
+- no direct refs to 2000:9d48 or 2000:9e1e found in this range
+- prologue candidates seen: 0
+
+known local token helper block (2000:9c88 .. 2000:9e42)
+- prologue candidate 2000:9cb0  [function 2000:9cb0 ecmaint_move_tok_delete_wrapper_candidate]
+- prologue candidate 2000:9e1e  [function 2000:9e1e ecmaint_wait_for_named_token_candidate]
+- no direct refs to 2000:9d48 or 2000:9e1e found in this range
+- prologue candidates seen: 2
+
