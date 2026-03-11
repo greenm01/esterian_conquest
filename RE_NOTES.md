@@ -2234,6 +2234,82 @@ This aligns with the historical logs, which clearly show real `Starbase 2` and
 the current blocker is missing cross-file bookkeeping rather than a design limit
 of one starbase per empire.
 
+### One-Base Synthetic Runs: Side Effects Are Not Base-Coordinate Indexed
+
+To look for the hidden companion structure required by `Starbase 2`, two
+accepted single-base runs were compared on the same baseline fixture
+(`fixtures/ecmaint-fleet-post/v1.5/`) with only the starbase coordinates changed:
+
+- run A: one base at `(15,13)`
+- run B: one base at `(16,13)`
+
+Both runs succeeded cleanly and produced the same empire/global side effects:
+
+- `PLAYER.DAT[0x44..0x47]`: `00 00 00 00 -> 01 00 01 00`
+- `CONQUEST.DAT[0x00]`: year byte incremented by 1
+- `CONQUEST.DAT[0x0A]`: `100 -> 101`
+- `CONQUEST.DAT[0x3C]`: `1 -> 2`
+
+The only coordinate-sensitive persistent change was in the target planet record
+itself. In both accepted runs, exactly one 6-byte cluster changed in planet
+record 13 (`(15,13)`):
+
+- bytes `0x03..0x08` were rewritten to a new 6-byte value
+- the value differed between the `(15,13)` and `(16,13)` starbase placements
+
+However, the derived/indexed files did **not** vary with starbase location:
+
+- `DATABASE.DAT` changed at the same offsets in both runs and with the same
+  replacement values
+- `CONQUEST.DAT` changed at the same offsets in both runs and with the same
+  replacement values
+
+Interpretation:
+
+- the accepted synthetic one-base path does not reveal any obvious starbase-ID-
+  or starbase-coordinate-indexed companion structure in `DATABASE.DAT` or the
+  already-observed `CONQUEST.DAT` header bytes
+- the hidden `Starbase 2` companion bookkeeping is therefore more likely to live
+  in a different region/file or to require a multi-base-specific relationship
+  that a single-base run cannot expose
+
+### Planet Record `0x03..0x08`: Starbase-Related Rewrite, But Not Sufficient For Starbase 2
+
+The accepted one-base runs on `fixtures/ecmaint-fleet-post/v1.5/` consistently
+rewrite a 6-byte cluster in the target planet record:
+
+- target record: planet 13 at `(15,13)`
+- changed bytes: `PLANETS.DAT[record13 + 0x03..0x08]`
+
+Observed values:
+
+- baseline (`fixtures/ecmaint-fleet-post/v1.5/`): `81 00 00 00 00 00`
+- accepted one-base run with base at `(15,13)`: `84 1f 85 eb 51 64`
+- accepted one-base run with base at `(16,13)`: `84 dd 24 06 81 61`
+
+Important behavior:
+
+- the rewrite happens only on the `(15,13)` record, even when the accepted base
+  is placed at `(16,13)`
+- the replacement bytes differ based on which single-base placement was used
+- no other persistent planet bytes changed in those accepted one-base runs
+
+Follow-up test:
+
+- pre-seeding this 6-byte cluster on the candidate second planet before a
+  two-base run does **not** make `Starbase 2` pass integrity
+- tested with both observed accepted one-base cluster values, and with both
+  planets seeded
+
+Interpretation:
+
+- `PLANETS.DAT[0x03..0x08]` is starbase-related or starbase-side-effect-related
+  state
+- however, it is **not sufficient** as the missing companion structure for a
+  valid `Starbase 2` setup
+- the remaining multi-base gate therefore still points to some other linked
+  bookkeeping outside this planet-side cluster
+
 ### Build Queue Follow-Up: No Delayed Fleet Materialization After Pass 2
 
 The minimal preserved build-queue fixture was re-run for two consecutive
