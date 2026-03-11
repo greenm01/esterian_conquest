@@ -544,6 +544,33 @@ Practical inference:
   severe enough to trigger an allocation failure rather than a clean integrity
   error
 
+First stable accepted multi-record `BASES` state:
+
+- a clean reproducer exists inside `tools/test_starbase_link_gate.py`:
+  - base 1: `0x08 = 0x00`
+  - base 2:
+    - `0x00 = 0x02`
+    - `0x02 = 0x01`
+    - `0x04 = 0x01`
+    - `0x05..0x06 = 0x0001`
+    - `0x07 = 0x01`
+    - `0x08 = 0x00`
+- observed result after `ECMAINT`:
+  - no `ERRORS.TXT`
+  - `PLAYER.DAT[0x44..0x47]` remains `02 00 02 00`
+  - `BASES.DAT` remains `70` bytes (two records)
+  - both records are canonicalized to the same 9-byte header:
+    - `02 00 01 00 01 01 00 01 00`
+- this state survives a second maintenance pass unchanged
+
+Practical inference:
+
+- the validator can accept a multi-record `BASES.DAT` state without collapsing
+  it back to one record if the linkage fields are internally consistent
+- however, the accepted state still duplicates starbase identity `0x04 = 0x01`,
+  so it is best described as a stable duplicated-base structure, not yet proof
+  of a valid true “Starbase 2” identity
+
 Additional player-side linkage:
 
 - after the `BASES` branches, the validator enters another phase at `0x2675A`

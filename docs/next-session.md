@@ -99,6 +99,14 @@ The active reverse-engineering target is `ECMAINT`.
     - `0000` and `0001` are tolerated in the duplicate-base normalization case
     - `0100` and `0101` hit the early integrity abort
     - `0002` is bad enough to produce `Unable to allocate memory.`
+  - there is now a stable accepted two-record `BASES` state:
+    - base 1 `0x08 = 0`
+    - base 2 `0x00 = 2`, `0x02 = 1`, `0x04 = 1`, `0x05..0x06 = 0001`,
+      `0x07 = 1`, `0x08 = 0`
+    - post-maint `PLAYER[0x44..0x47]` stays `02000200`
+    - `BASES.DAT` stays at two records across a second pass
+  - caveat: this is a stable duplicated-base state, not yet a true accepted
+    `BASES[0x04] = 0x02` second-base identity
   - after that, it enters a separate secondary phase driven by
     `PLAYER.DAT[0x48]` reading DS:`31F8` records of size `0x20`
   - direct repro in `tools/test_player48_gate.py` shows this is the `IPBM.DAT`
@@ -130,7 +138,7 @@ The active reverse-engineering target is `ECMAINT`.
 
 1. **Name and carve the integrity entry points in Ghidra**: create a function at linear `0x26D9B` / `2000:6d9b`, then label helper `0x25EE4` and the recursive backup path.
 2. **Compare early validation traces**: run a known-good Guard Starbase baseline and diff its initial read/validation phase against the failing Starbase 2 scenario.
-3. **Continue on the `BASES`-side linkage**: `PLAYER[0x48]` has been explained as the `IPBM.DAT` count gate, so the remaining second-base blocker is back in the `BASES` integrity logic around `BASES[0x04]` and the secondary selector at `BASES[0x05..0x06]`.
+3. **Promote the stable duplicated-base state toward a true second-base identity**: starting from the accepted two-record `BASES` layout, change one field at a time toward `BASES[0x04] = 0x02` and identify which additional linkage/counter field must move with it.
 4. **IPBM resolution**: investigate planetary bombardment missiles — still untouched in preserved fixtures, and `IPBM.DAT` is currently 0 bytes in all repo fixture families.
 5. **Build queue mechanics (Partially Solved)**: When a build order finishes, the newly constructed ships are moved into the planet's **Stardock** (`PLANETS.DAT[0x38]` and `0x4C`). They do not immediately form a fleet in `FLEETS.DAT` until they are manually "Commissioned" by the player. We need to map out exactly how `0x38` and `0x4C` encode multiple ships/types.
 
