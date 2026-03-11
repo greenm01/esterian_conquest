@@ -614,6 +614,30 @@ Practical inference:
 - once a recognized token marker is present, the raw Starbase 2 construction is
   accepted without needing the earlier canonicalized `BASES` / `FLEETS` state
 
+Live-dump anchors for the token path:
+
+- `main.tok` string cluster is at linear `0x2841B`
+  - adjacent messages:
+    - `Error - Previous maintenance halted prematurely.`
+    - `Performing integrity check of game files...`
+    - `Unable to restore previous game - maintenance aborting`
+- `conquest.tok` string cluster is at linear `0x26FC6`
+  - adjacent messages:
+    - `Timeout occured for deletion of token file "conquest.tok"`
+    - `Ignoring and continuing...`
+    - `Will manually remove token file "Conquest.Tok"...`
+    - `Unable to open file "Conquest.Dat"`
+- another token-management string cluster begins around `0x29680`:
+  - `Waiting for token file`
+  - `Disk I/O error - Unable to delete token file`
+
+Practical inference:
+
+- `main.tok` is tied to the startup / previous-maintenance guard path
+- `conquest.tok` is tied to token deletion / cleanup during the run
+- the token gate is not just a passive file-exists check; there is explicit
+  management code for named token files in the live image
+
 Additional player-side linkage:
 
 - after the `BASES` branches, the validator enters another phase at `0x2675A`

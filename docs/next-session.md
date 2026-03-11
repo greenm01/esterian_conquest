@@ -119,6 +119,10 @@ The active reverse-engineering target is `ECMAINT`.
     - arbitrary `FOO.TOK` => still fails, so this is not just any `.TOK` name
   - the accepted `MAIN.TOK` / `PLAYER.TOK` cases survive a second maintenance
     pass, keeping both base records and `BASES[0x04] = 0x02` on the second one
+  - live-dump token anchors:
+    - `main.tok` + startup guard strings at linear `0x2841B`
+    - `conquest.tok` + token-deletion strings at linear `0x26FC6`
+    - generic token wait/delete strings around `0x29680`
   - after that, it enters a separate secondary phase driven by
     `PLAYER.DAT[0x48]` reading DS:`31F8` records of size `0x20`
   - direct repro in `tools/test_player48_gate.py` shows this is the `IPBM.DAT`
@@ -150,7 +154,7 @@ The active reverse-engineering target is `ECMAINT`.
 
 1. **Name and carve the integrity entry points in Ghidra**: create a function at linear `0x26D9B` / `2000:6d9b`, then label helper `0x25EE4` and the recursive backup path.
 2. **Compare early validation traces**: run a known-good Guard Starbase baseline and diff its initial read/validation phase against the failing Starbase 2 scenario.
-3. **Reverse the token gate**: find where `ECMAINT` checks for recognized `*.TOK` marker names (`MAIN.TOK`, `PLAYER.TOK`, etc.) and determine whether that path weakens integrity validation or signals an in-progress maintenance state.
+3. **Reverse the token gate**: start from the live-dump anchors at `0x2841B`, `0x26FC6`, and `0x29680` to map how recognized token names (`MAIN.TOK`, `PLAYER.TOK`, etc.) switch ECMAINT into the passing Starbase 2 path.
 4. **IPBM resolution**: investigate planetary bombardment missiles — still untouched in preserved fixtures, and `IPBM.DAT` is currently 0 bytes in all repo fixture families.
 5. **Build queue mechanics (Partially Solved)**: When a build order finishes, the newly constructed ships are moved into the planet's **Stardock** (`PLANETS.DAT[0x38]` and `0x4C`). They do not immediately form a fleet in `FLEETS.DAT` until they are manually "Commissioned" by the player. We need to map out exactly how `0x38` and `0x4C` encode multiple ships/types.
 
