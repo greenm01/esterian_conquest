@@ -2127,6 +2127,64 @@ The full init-based fixture with all three patches was verified end-to-end:
 - Pre/post fixtures preserved in `fixtures/ecmaint-starbase-pre/v1.5/` and
   `fixtures/ecmaint-starbase-post/v1.5/`.
 
+### PLAYER.DAT[0x46..0x47]: Starbase-Path Normalization
+
+Follow-up sweep results for `PLAYER.DAT[0x46..0x47]` in the working Guard
+Starbase fixture:
+
+- baseline fixture: `fixtures/ecmaint-starbase-pre/v1.5/`
+- tested pre-maint values: `0x0000`, `0x0001`, `0x0002`
+- all three values resolved successfully through `ECMAINT` with:
+  - no `ERRORS.TXT`
+  - unchanged `BASES.DAT` (35 bytes)
+  - persistent Guard Starbase order in fleet 0
+
+Observed post-maint result:
+
+- `PLAYER.DAT[0x44..0x47]` always ended as `01 00 01 00`
+- the only `PLAYER.DAT` byte change between
+  `fixtures/ecmaint-starbase-pre/v1.5/` and
+  `fixtures/ecmaint-starbase-post/v1.5/` is at byte `0x46`: `0x00 -> 0x01`
+
+Interpretation:
+
+- `PLAYER.DAT[0x46..0x47]` is **not a required input gate** for Guard Starbase
+  lookup or persistence
+- instead, it appears to be a maintained or derived empire-level count/status
+  that `ECMAINT` normalizes to `0x0001` on this successful starbase path
+- next step is to test whether non-starbase successful maintenance paths also
+  rewrite it to `0x0001`
+
+### Build Queue Follow-Up: No Delayed Fleet Materialization After Pass 2
+
+The minimal preserved build-queue fixture was re-run for two consecutive
+maintenance passes starting from `fixtures/ecmaint-build-pre/v1.5/`.
+
+Pass 1 reproduced the original known transition exactly:
+
+- `PLANETS.DAT` queue bytes cleared:
+  - record 14 byte `0x24`: `0x86 -> 0x00`
+  - record 14 byte `0x2E`: `0x0C -> 0x00`
+- replacement planet-state bytes appeared:
+  - record 14 byte `0x38`: `0x00 -> 0x03`
+  - record 14 byte `0x4C`: `0x00 -> 0x01`
+- `FLEETS.DAT` remained unchanged
+
+Pass 2 result:
+
+- `PLANETS.DAT` unchanged from pass 1
+- `FLEETS.DAT` unchanged from pass 1
+- only small derived churn remained:
+  - `DATABASE.DAT`: 12 bytes changed
+  - `CONQUEST.DAT`: byte `0x00` incremented by 1
+
+Interpretation:
+
+- the current minimal queue fixture is a real planet-state transition, not a
+  delayed ship/fleet materialization that completes on the next maintenance pass
+- follow-up build experiments should therefore vary the build encoding or the
+  supporting economic/planet state rather than simply running additional passes
+
 ### Fleet Movement: Speed and Distance
 
 The movement formula was recovered by observing Fleet 1 moving horizontally from
@@ -2159,4 +2217,3 @@ The movement formula was recovered by observing Fleet 1 moving horizontally from
 **Fixture Details:**
 - `fixtures/ecmaint-move-pre/v1.5/`: Fleet 1 at (16,13), Speed 3, Move to (26,13).
 - `fixtures/ecmaint-move-post/v1.5/`: After 3 passes, Fleet 1 at (24,13).
-
