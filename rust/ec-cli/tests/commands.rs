@@ -772,6 +772,50 @@ fn ipbm_record_set_updates_known_structural_prefix_fields() {
 }
 
 #[test]
+fn ipbm_validate_accepts_known_empty_post_fixture_state() {
+    let stdout = run_ec_cli(&["ipbm-validate", "fixtures/ecmaint-post/v1.5"]);
+    assert!(stdout.contains("Valid IPBM count/length state"));
+    assert!(stdout.contains("player[1].ipbm_count_raw = 0"));
+}
+
+#[test]
+fn ipbm_validate_rejects_count_length_mismatch() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-ipbm-invalid-{unique}"));
+    fs::create_dir_all(&target).unwrap();
+
+    let fixture = repo_root().join("fixtures/ecmaint-post/v1.5");
+    for name in [
+        "BASES.DAT",
+        "CONQUEST.DAT",
+        "DATABASE.DAT",
+        "FLEETS.DAT",
+        "IPBM.DAT",
+        "MESSAGES.DAT",
+        "PLANETS.DAT",
+        "PLAYER.DAT",
+        "RESULTS.DAT",
+        "SETUP.DAT",
+    ] {
+        fs::copy(fixture.join(name), target.join(name)).unwrap();
+    }
+
+    run_ec_cli_in_dir(&["ipbm-zero", target.to_str().unwrap(), "2"], repo_root().join("rust"));
+    fs::write(target.join("IPBM.DAT"), vec![0u8; 32]).unwrap();
+
+    let stderr = run_ec_cli_failure_in_dir(
+        &["ipbm-validate", target.to_str().unwrap()],
+        repo_root().join("rust"),
+    );
+    assert!(stderr.contains("IPBM record count expected 2, got 1"));
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
 fn validate_guard_starbase_accepts_known_valid_fixture() {
     let stdout = run_ec_cli(&["validate", "fixtures/ecmaint-starbase-pre/v1.5", "guard-starbase"]);
     assert!(stdout.contains("Valid guard-starbase scenario"));

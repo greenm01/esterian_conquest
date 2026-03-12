@@ -76,6 +76,7 @@ Current Rust milestone:
   - `ec-cli ipbm-report <dir>`
   - `ec-cli ipbm-zero <dir> <count>`
   - `ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>`
+  - `ec-cli ipbm-validate <dir>`
   - these are enough to inspect and satisfy the currently-known
     `PLAYER[0x48]` / `IPBM.DAT` count-length gate from Rust and to start
     emitting non-zero structural record prefixes

@@ -84,6 +84,7 @@
         - `ec-cli ipbm-report <dir>`
         - `ec-cli ipbm-zero <dir> <count>`
         - `ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>`
+        - `ec-cli ipbm-validate <dir>`
         - these now cover the first practical Rust-side `IPBM.DAT` workflow:
           inspect the current count/length state, then materialize a zero-filled
           valid record family that satisfies the known `PLAYER[0x48]` gate,

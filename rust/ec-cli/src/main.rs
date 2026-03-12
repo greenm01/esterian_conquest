@@ -440,6 +440,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 parse_u16_arg(&follow_on, "follow_on")?,
             )?;
         }
+        "ipbm-validate" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            validate_ipbm(dir.as_path())?;
+        }
         "scenario" => {
             let dir = args
                 .next()
@@ -1510,6 +1517,41 @@ fn set_ipbm_record_prefix(
     Ok(())
 }
 
+fn validate_ipbm(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let player = PlayerDat::parse(&fs::read(dir.join("PLAYER.DAT"))?)?;
+    let ipbm_bytes = fs::read(dir.join("IPBM.DAT"))?;
+    let ipbm = IpbmDat::parse(&ipbm_bytes)?;
+
+    let expected_count = player.records[0].ipbm_count_raw() as usize;
+    let actual_count = ipbm.records.len();
+    let expected_size = expected_count * ec_data::IPBM_RECORD_SIZE;
+
+    let mut errors = Vec::new();
+    if actual_count != expected_count {
+        errors.push(format!(
+            "IPBM record count expected {}, got {}",
+            expected_count, actual_count
+        ));
+    }
+    if ipbm_bytes.len() != expected_size {
+        errors.push(format!(
+            "IPBM.DAT size expected {}, got {}",
+            expected_size,
+            ipbm_bytes.len()
+        ));
+    }
+
+    if errors.is_empty() {
+        println!("Valid IPBM count/length state");
+        println!("  player[1].ipbm_count_raw = {}", expected_count);
+        println!("  IPBM.DAT size = {}", ipbm_bytes.len());
+        println!("  record_count = {}", actual_count);
+        Ok(())
+    } else {
+        Err(errors.join("\n").into())
+    }
+}
+
 fn validate_known_fleet_order_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let fleets = FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?)?;
     let mut errors = Vec::new();
@@ -2114,6 +2156,7 @@ fn print_usage() {
     println!("  ec-cli ipbm-report <dir>");
     println!("  ec-cli ipbm-zero <dir> <count>");
     println!("  ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>");
+    println!("  ec-cli ipbm-validate <dir>");
     println!("  ec-cli scenario <dir> <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli scenario <dir> show <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli scenario <dir> list");
