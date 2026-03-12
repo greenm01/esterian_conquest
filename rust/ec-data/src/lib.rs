@@ -657,28 +657,98 @@ pub struct BaseRecord {
 }
 
 impl BaseRecord {
+    pub fn new_zeroed() -> Self {
+        Self {
+            raw: [0; BASE_RECORD_SIZE],
+        }
+    }
+
     pub fn local_slot_raw(&self) -> u8 {
         self.raw[0x00]
+    }
+
+    pub fn set_local_slot_raw(&mut self, value: u8) {
+        self.raw[0x00] = value;
     }
 
     pub fn active_flag_raw(&self) -> u8 {
         self.raw[0x02]
     }
 
+    pub fn set_active_flag_raw(&mut self, value: u8) {
+        self.raw[0x02] = value;
+    }
+
     pub fn base_id_raw(&self) -> u8 {
         self.raw[0x04]
+    }
+
+    pub fn set_base_id_raw(&mut self, value: u8) {
+        self.raw[0x04] = value;
     }
 
     pub fn link_word_raw(&self) -> u16 {
         u16::from_le_bytes([self.raw[0x05], self.raw[0x06]])
     }
 
+    pub fn set_link_word_raw(&mut self, value: u16) {
+        self.raw[0x05..0x07].copy_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn chain_word_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x07], self.raw[0x08]])
+    }
+
+    pub fn set_chain_word_raw(&mut self, value: u16) {
+        self.raw[0x07..0x09].copy_from_slice(&value.to_le_bytes());
+    }
+
     pub fn coords_raw(&self) -> [u8; 2] {
         [self.raw[0x0B], self.raw[0x0C]]
     }
 
+    pub fn set_coords_raw(&mut self, coords: [u8; 2]) {
+        self.raw[0x0B..0x0D].copy_from_slice(&coords);
+    }
+
+    pub fn tuple_a_payload_raw(&self) -> [u8; 5] {
+        copy_array(&self.raw[0x0D..0x12])
+    }
+
+    pub fn set_tuple_a_payload_raw(&mut self, payload: [u8; 5]) {
+        self.raw[0x0D..0x12].copy_from_slice(&payload);
+    }
+
+    pub fn tuple_b_payload_raw(&self) -> [u8; 5] {
+        copy_array(&self.raw[0x13..0x18])
+    }
+
+    pub fn set_tuple_b_payload_raw(&mut self, payload: [u8; 5]) {
+        self.raw[0x13..0x18].copy_from_slice(&payload);
+    }
+
+    pub fn tuple_c_payload_raw(&self) -> [u8; 5] {
+        copy_array(&self.raw[0x19..0x1E])
+    }
+
+    pub fn set_tuple_c_payload_raw(&mut self, payload: [u8; 5]) {
+        self.raw[0x19..0x1E].copy_from_slice(&payload);
+    }
+
+    pub fn trailing_coords_raw(&self) -> [u8; 2] {
+        copy_array(&self.raw[0x20..0x22])
+    }
+
+    pub fn set_trailing_coords_raw(&mut self, coords: [u8; 2]) {
+        self.raw[0x20..0x22].copy_from_slice(&coords);
+    }
+
     pub fn owner_empire_raw(&self) -> u8 {
         self.raw[0x22]
+    }
+
+    pub fn set_owner_empire_raw(&mut self, value: u8) {
+        self.raw[0x22] = value;
     }
 
     pub fn from_raw(raw: [u8; BASE_RECORD_SIZE]) -> Self {
@@ -1360,6 +1430,43 @@ mod tests {
         let bytes = read_fixture("FLEETS.DAT");
         let parsed = FleetDat::parse(&bytes).unwrap();
         assert_eq!(parsed.records.len(), 13);
+    }
+
+    #[test]
+    fn base_record_setters_can_recreate_known_valid_guard_starbase_record() {
+        let mut record = BaseRecord::new_zeroed();
+        record.set_local_slot_raw(0x01);
+        record.set_active_flag_raw(0x01);
+        record.set_base_id_raw(0x01);
+        record.set_link_word_raw(0x0000);
+        record.set_chain_word_raw(0x0001);
+        record.set_coords_raw([0x10, 0x0D]);
+        record.set_tuple_a_payload_raw([0x80, 0x00, 0x00, 0x00, 0x00]);
+        record.set_tuple_b_payload_raw([0x80, 0x00, 0x00, 0x00, 0x00]);
+        record.set_tuple_c_payload_raw([0x81, 0x00, 0x00, 0x00, 0x00]);
+        record.set_trailing_coords_raw([0x10, 0x0D]);
+        record.set_owner_empire_raw(0x01);
+
+        assert_eq!(record.local_slot_raw(), 0x01);
+        assert_eq!(record.active_flag_raw(), 0x01);
+        assert_eq!(record.base_id_raw(), 0x01);
+        assert_eq!(record.link_word_raw(), 0x0000);
+        assert_eq!(record.chain_word_raw(), 0x0001);
+        assert_eq!(record.coords_raw(), [0x10, 0x0D]);
+        assert_eq!(record.tuple_a_payload_raw(), [0x80, 0x00, 0x00, 0x00, 0x00]);
+        assert_eq!(record.tuple_b_payload_raw(), [0x80, 0x00, 0x00, 0x00, 0x00]);
+        assert_eq!(record.tuple_c_payload_raw(), [0x81, 0x00, 0x00, 0x00, 0x00]);
+        assert_eq!(record.trailing_coords_raw(), [0x10, 0x0D]);
+        assert_eq!(record.owner_empire_raw(), 0x01);
+
+        assert_eq!(
+            record.raw,
+            [
+                0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x10,
+                0x0D, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x0D, 0x01,
+            ]
+        );
     }
 
     #[test]

@@ -85,6 +85,10 @@ Current concrete Rust milestone:
     `fixtures/ecmaint-build-pre/v1.5/PLANETS.DAT`
   - accepted Guard Starbase scenario rewrite reproducing the core gamestate
     files from `fixtures/ecmaint-starbase-pre/v1.5`
+  - the Guard Starbase base record is now emitted from named Rust field
+    setters over `BaseRecord`, not from a preserved raw byte blob
+  - Rust can also validate the currently-known accepted one-base Guard
+    Starbase shape with `ec-cli validate <dir> guard-starbase`
 
 This is intentionally narrower than a full arbitrary save generator, but it is
 the first real proof that the Rust layer can emit accepted gamestate files from

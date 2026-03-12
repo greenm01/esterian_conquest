@@ -2,7 +2,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use ec_data::{BaseDat, ConquestDat, FleetDat, IpbmDat, PlanetDat, PlayerDat, SetupDat};
+use ec_data::{BaseDat, BaseRecord, ConquestDat, FleetDat, IpbmDat, PlanetDat, PlayerDat, SetupDat};
 
 const INIT_FILES: &[&str] = &[
     "BASES.DAT",
@@ -25,12 +25,6 @@ const ORIGINAL_FILES: &[&str] = &[
     "PLANETS.DAT",
     "PLAYER.DAT",
     "SETUP.DAT",
-];
-
-const ACCEPTED_SINGLE_BASE_RECORD: [u8; 35] = [
-    0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x10,
-    0x0D, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x0D, 0x01,
 ];
 
 fn main() {
@@ -309,6 +303,16 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or_else(default_fixture_dir);
             match args.next().as_deref() {
                 Some("guard-starbase") => apply_guard_starbase_scenario(&dir)?,
+                _ => print_usage(),
+            }
+        }
+        "validate" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            match args.next().as_deref() {
+                Some("guard-starbase") => validate_guard_starbase_scenario(&dir)?,
                 _ => print_usage(),
             }
         }
@@ -954,15 +958,96 @@ fn apply_guard_starbase_scenario(dir: &Path) -> Result<(), Box<dyn std::error::E
 
     let bases_path = dir.join("BASES.DAT");
     let bases = BaseDat {
-        records: vec![ec_data::BaseRecord::from_raw(ACCEPTED_SINGLE_BASE_RECORD)],
+        records: vec![build_guard_starbase_base_record()],
     };
     fs::write(&bases_path, bases.to_bytes())?;
 
     println!("Applied scenario: guard-starbase");
     println!("  PLAYER[1].starbase_count_raw = 1");
     println!("  FLEET[1].order = 0x04, aux = [01, 01]");
-    println!("  BASES.DAT = accepted single-base template at (16,13) for empire 1");
+    println!("  BASES.DAT = structured single-base record at (16,13) for empire 1");
     Ok(())
+}
+
+fn build_guard_starbase_base_record() -> BaseRecord {
+    let mut record = BaseRecord::new_zeroed();
+    record.set_local_slot_raw(0x01);
+    record.set_active_flag_raw(0x01);
+    record.set_base_id_raw(0x01);
+    record.set_link_word_raw(0x0000);
+    record.set_chain_word_raw(0x0001);
+    record.set_coords_raw([0x10, 0x0D]);
+    record.set_tuple_a_payload_raw([0x80, 0x00, 0x00, 0x00, 0x00]);
+    record.set_tuple_b_payload_raw([0x80, 0x00, 0x00, 0x00, 0x00]);
+    record.set_tuple_c_payload_raw([0x81, 0x00, 0x00, 0x00, 0x00]);
+    record.set_trailing_coords_raw([0x10, 0x0D]);
+    record.set_owner_empire_raw(0x01);
+    record
+}
+
+fn validate_guard_starbase_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let player = PlayerDat::parse(&fs::read(dir.join("PLAYER.DAT"))?)?;
+    let fleets = FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?)?;
+    let bases = BaseDat::parse(&fs::read(dir.join("BASES.DAT"))?)?;
+
+    let mut errors = Vec::new();
+
+    match player.records.first() {
+        Some(record) if record.starbase_count_raw() == 1 => {}
+        Some(record) => errors.push(format!(
+            "PLAYER[1].starbase_count_raw expected 1, got {}",
+            record.starbase_count_raw()
+        )),
+        None => errors.push("PLAYER.DAT missing record 1".to_string()),
+    }
+
+    match fleets.records.first() {
+        Some(record) => {
+            if record.standing_order_code_raw() != 0x04 {
+                errors.push(format!(
+                    "FLEET[1].order expected 0x04, got {:#04x}",
+                    record.standing_order_code_raw()
+                ));
+            }
+            if record.mission_aux_bytes() != [0x01, 0x01] {
+                errors.push(format!(
+                    "FLEET[1].aux expected [01, 01], got {:02x?}",
+                    record.mission_aux_bytes()
+                ));
+            }
+        }
+        None => errors.push("FLEETS.DAT missing record 1".to_string()),
+    }
+
+    let expected_base = build_guard_starbase_base_record();
+    if bases.records.len() != 1 {
+        errors.push(format!(
+            "BASES.DAT expected 1 record, got {}",
+            bases.records.len()
+        ));
+    } else if bases.records[0].raw != expected_base.raw {
+        let actual = &bases.records[0];
+        errors.push(format!(
+            "BASES[1] mismatch: slot={} active={} id={} link={:#06x} chain={:#06x} coords={:?} owner={}",
+            actual.local_slot_raw(),
+            actual.active_flag_raw(),
+            actual.base_id_raw(),
+            actual.link_word_raw(),
+            actual.chain_word_raw(),
+            actual.coords_raw(),
+            actual.owner_empire_raw(),
+        ));
+    }
+
+    if errors.is_empty() {
+        println!("Valid guard-starbase scenario");
+        println!("  PLAYER[1].starbase_count_raw = 1");
+        println!("  FLEET[1].order = 0x04, aux = [01, 01]");
+        println!("  BASES.DAT matches the accepted one-base guard-starbase record");
+        Ok(())
+    } else {
+        Err(errors.join("\n").into())
+    }
 }
 
 fn weekday_labels() -> [&'static str; 7] {
@@ -1267,6 +1352,7 @@ fn print_usage() {
     println!("  ec-cli fleet-order <dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]");
     println!("  ec-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>");
     println!("  ec-cli scenario <dir> guard-starbase");
+    println!("  ec-cli validate <dir> guard-starbase");
     println!("  ec-cli match [dir]");
     println!("  ec-cli compare <left_dir> <right_dir>");
     println!("  ec-cli init [source_dir] <target_dir>");

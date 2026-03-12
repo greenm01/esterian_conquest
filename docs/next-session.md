@@ -20,9 +20,30 @@
       - `PLAYER.DAT`
       - `FLEETS.DAT`
       - `BASES.DAT`
+    - latest Rust milestone:
+      - `BASES.DAT` is no longer emitted from a raw 35-byte template constant
+      - `ec-data::BaseRecord` now exposes named setters for the currently
+        mapped integrity-critical fields:
+        - local slot
+        - active flag
+        - base ID
+        - link word
+        - chain word
+        - coords
+        - tuple A/B/C payload blocks
+        - trailing coords
+        - owner empire
+      - `cargo test` is green for the full Rust workspace after this change
+      - `ec-cli validate <dir> guard-starbase` now checks the currently-known
+        accepted one-base Guard Starbase invariants across `PLAYER.DAT`,
+        `FLEETS.DAT`, and `BASES.DAT`
   - practical meaning:
     - Rust can now emit accepted pre-maint scenario files from decoded fields,
       not just copy preserved fixture trees wholesale
+    - Rust can also reject obviously non-compliant starbase snapshots before
+      running the original engine
+    - the next Rust-side milestone should build on this by replacing more
+      scenario-specific raw blobs with explicit field encoders/validators
 
 ## Next Steps
 The token-gate investigation is complete. The next work should return to the
@@ -55,11 +76,11 @@ Primary project goal:
        - the early synthetic two-base integrity abort is therefore distinct
          from the later `Fleet assigned to an unknown starbase` behavior
    - Immediate next target:
-     - reverse the downstream kind-`1` summary path rooted at `0000:02ED`
-       and helper `2000:C067`
-     - goal: map scratch block `3502` back to fleet record offsets and locate
-       the exact later starbase-resolution rule that produces the
-       `unknown starbase` error
+     - recover the remaining kind-`1` / kind-`2` linkage semantics around
+       `3502`, `3558`, and `355A`
+     - goal: replace the current accepted single-base scenario encoder with a
+       more general Rust-side base/fleet linkage validator instead of
+       scenario-specific accepted values
    - Current kind-`1` follow-up:
      - artifact: `artifacts/ghidra/ecmaint-live/kind1-scratch-function.txt`
      - script: `tools/ghidra_scripts_tmp/ReportKind1ScratchFunction.java`

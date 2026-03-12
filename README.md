@@ -38,3 +38,8 @@ Current Rust milestone:
   - `ec-cli scenario <dir> guard-starbase`
   - verified against `fixtures/ecmaint-starbase-pre/v1.5` for `PLAYER.DAT`,
     `FLEETS.DAT`, and `BASES.DAT`
+  - the `BASES.DAT` output now comes from named `BaseRecord` field setters,
+    not a raw 35-byte template constant
+- Rust can now also validate the currently-known accepted one-base Guard
+  Starbase shape directly:
+  - `ec-cli validate <dir> guard-starbase`

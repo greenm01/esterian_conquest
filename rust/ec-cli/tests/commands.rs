@@ -28,6 +28,23 @@ fn run_ec_cli(args: &[&str]) -> String {
     run_ec_cli_in_dir(args, repo_root().join("rust"))
 }
 
+fn run_ec_cli_failure_in_dir(args: &[&str], current_dir: PathBuf) -> String {
+    let output = Command::new(env!("CARGO_BIN_EXE_ec-cli"))
+        .current_dir(current_dir)
+        .args(args)
+        .output()
+        .expect("ec-cli should run");
+
+    assert!(
+        !output.status.success(),
+        "ec-cli unexpectedly succeeded: stdout={:?} stderr={:?}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    String::from_utf8(output.stderr).expect("stderr should be utf-8")
+}
+
 #[test]
 fn match_identifies_original_fixture() {
     let stdout = run_ec_cli(&["match", "original/v1.5"]);
@@ -423,4 +440,22 @@ fn guard_starbase_scenario_recreates_known_valid_starbase_pre_fixture() {
     assert_eq!(fs::read(target.join("BASES.DAT")).unwrap(), fs::read(expected_bases).unwrap());
 
     let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn validate_guard_starbase_accepts_known_valid_fixture() {
+    let stdout = run_ec_cli(&["validate", "fixtures/ecmaint-starbase-pre/v1.5", "guard-starbase"]);
+    assert!(stdout.contains("Valid guard-starbase scenario"));
+    assert!(stdout.contains("BASES.DAT matches the accepted one-base guard-starbase record"));
+}
+
+#[test]
+fn validate_guard_starbase_rejects_post_maint_fixture() {
+    let stderr = run_ec_cli_failure_in_dir(
+        &["validate", "fixtures/ecmaint-post/v1.5", "guard-starbase"],
+        repo_root().join("rust"),
+    );
+    assert!(stderr.contains("PLAYER[1].starbase_count_raw expected 1, got 0"));
+    assert!(stderr.contains("FLEET[1].order expected 0x04, got 0x05"));
+    assert!(stderr.contains("BASES.DAT expected 1 record, got 0"));
 }

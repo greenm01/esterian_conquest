@@ -1386,6 +1386,40 @@ Kind-`2` matching milestone:
     coordinates, and the summary `+0x06` linkage values must also normalize
     into at least one accepted pair
 
+Rust Guard Starbase encoder milestone:
+
+- the accepted one-base Guard Starbase scenario is no longer emitted from a
+  raw 35-byte `BASES.DAT` constant in `ec-cli`
+- `ec-data::BaseRecord` now exposes named setters for the currently mapped
+  integrity-critical base fields:
+  - local slot (`0x00`)
+  - active flag (`0x02`)
+  - base ID (`0x04`)
+  - link word (`0x05..0x06`)
+  - chain word (`0x07..0x08`)
+  - coords (`0x0B..0x0C`)
+  - tuple A payload (`0x0D..0x11`)
+  - tuple B payload (`0x13..0x17`)
+  - tuple C payload (`0x19..0x1D`)
+  - trailing coords (`0x20..0x21`)
+  - owner empire (`0x22`)
+- `ec-cli scenario <dir> guard-starbase` now builds the accepted base record
+  through those setters and still reproduces
+  `fixtures/ecmaint-starbase-pre/v1.5/BASES.DAT` exactly
+- `ec-cli validate <dir> guard-starbase` now checks the currently-known
+  accepted one-base scenario invariants directly:
+  - `PLAYER[1].starbase_count_raw == 1`
+  - `FLEET[1].order == 0x04`
+  - `FLEET[1].aux == [0x01, 0x01]`
+  - `BASES.DAT` contains exactly one record matching the structured accepted
+    one-base encoding
+- practical meaning:
+  - the Rust layer has moved one more step away from fixture-byte templating
+    and toward explicit compliant gamestate encoding
+  - the next Rust-side step is not another raw blob transplant; it is to name
+    the remaining linkage semantics well enough to validate or emit additional
+    base/fleet pairings deliberately
+
 Base-side summary emitter mapping:
 
 - new artifact: `artifacts/ghidra/ecmaint-live/5ee4-base-branch.txt`
