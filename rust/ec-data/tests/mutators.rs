@@ -650,6 +650,39 @@ fn core_game_data_sync_current_known_initialized_post_maint_baseline_repairs_com
 }
 
 #[test]
+fn core_game_data_current_known_baseline_diff_counts_detect_mutated_files() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    let clean_diffs = data.current_known_baseline_diff_counts();
+    let clean_setup = clean_diffs
+        .iter()
+        .find(|diff| diff.name == "SETUP.DAT")
+        .unwrap()
+        .differing_bytes;
+    let clean_planets = clean_diffs
+        .iter()
+        .find(|diff| diff.name == "PLANETS.DAT")
+        .unwrap()
+        .differing_bytes;
+    assert_eq!(clean_setup, 0);
+
+    data.setup.raw[..5].copy_from_slice(b"BAD!!");
+    data.planets.records[14].set_planet_tax_rate_raw(3);
+
+    let diffs = data.current_known_baseline_diff_counts();
+    assert!(diffs.iter().any(|diff| diff.name == "SETUP.DAT" && diff.differing_bytes > clean_setup));
+    assert!(diffs.iter().any(|diff| diff.name == "PLANETS.DAT" && diff.differing_bytes > clean_planets));
+}
+
+#[test]
 fn core_game_data_can_apply_current_known_scenario_mutations() {
     let mut data = CoreGameData {
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),

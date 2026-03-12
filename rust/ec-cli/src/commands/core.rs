@@ -88,6 +88,21 @@ pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
+pub(crate) fn print_current_known_baseline_diff(
+    dir: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let data = CoreGameData::load(dir)?;
+    let diffs = data.current_known_baseline_diff_counts();
+
+    println!("Current-known Baseline Diff");
+    println!("  dir={}", dir.display());
+    for diff in diffs {
+        println!("  {}: differing_bytes={}", diff.name, diff.differing_bytes);
+    }
+
+    Ok(())
+}
+
 pub(crate) fn validate_core_state(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let data = CoreGameData::load(dir)?;
     let errors = data.current_known_core_state_errors();

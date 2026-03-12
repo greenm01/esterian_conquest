@@ -1185,3 +1185,13 @@ Suggested execution order:
   - practical meaning:
     - Rust now has a one-command way to materialize a validated baseline
       experiment directory, not just repair one already in place
+
+- New current-known drift report:
+  - `CoreGameData::current_known_baseline_diff_counts()`
+  - CLI: `ec-cli core-diff-current-known-baseline [dir]`
+  - reports per-file differing-byte counts between a directory and the
+    Rust-generated current-known baseline normalization
+  - practical meaning:
+    - this exposes where the current-known model is still not byte-complete,
+      which is useful for deciding the next RE targets instead of only knowing
+      whether the structural validator passes

@@ -61,6 +61,12 @@ pub struct CurrentKnownGuardStarbaseLinkageSummary {
     pub selected_base_owner_empire: Option<u8>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoreFileDiffCount {
+    pub name: &'static str,
+    pub differing_bytes: usize,
+}
+
 #[derive(Debug)]
 pub enum GameDirectoryError {
     Io {
@@ -1722,6 +1728,27 @@ impl CoreGameData {
             ipbm_record_count: self.ipbm.records.len(),
         }
     }
+
+    pub fn current_known_baseline_diff_counts(&self) -> Vec<CoreFileDiffCount> {
+        let mut normalized = self.clone();
+        normalized.sync_current_known_initialized_post_maint_baseline();
+
+        [
+            ("PLAYER.DAT", self.player.to_bytes(), normalized.player.to_bytes()),
+            ("PLANETS.DAT", self.planets.to_bytes(), normalized.planets.to_bytes()),
+            ("FLEETS.DAT", self.fleets.to_bytes(), normalized.fleets.to_bytes()),
+            ("BASES.DAT", self.bases.to_bytes(), normalized.bases.to_bytes()),
+            ("IPBM.DAT", self.ipbm.to_bytes(), normalized.ipbm.to_bytes()),
+            ("SETUP.DAT", self.setup.to_bytes(), normalized.setup.to_bytes()),
+            ("CONQUEST.DAT", self.conquest.to_bytes(), normalized.conquest.to_bytes()),
+        ]
+        .into_iter()
+        .map(|(name, current, normalized)| CoreFileDiffCount {
+            name,
+            differing_bytes: byte_diff_count(&current, &normalized),
+        })
+        .collect()
+    }
 }
 
 fn load_parsed<T>(
@@ -1740,6 +1767,14 @@ fn load_parsed<T>(
 fn save_bytes(dir: &Path, file_name: &'static str, bytes: &[u8]) -> Result<(), GameDirectoryError> {
     let path = dir.join(file_name);
     fs::write(&path, bytes).map_err(|source| GameDirectoryError::Io { path, source })
+}
+
+fn byte_diff_count(left: &[u8], right: &[u8]) -> usize {
+    left.iter()
+        .zip(right.iter())
+        .filter(|(a, b)| a != b)
+        .count()
+        + left.len().abs_diff(right.len())
 }
 
 fn build_guard_starbase_base_record(

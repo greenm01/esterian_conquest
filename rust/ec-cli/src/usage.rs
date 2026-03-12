@@ -2,6 +2,7 @@ pub fn print_usage() {
     println!("Usage:");
     println!("  ec-cli inspect [dir]");
     println!("  ec-cli core-report [dir]");
+    println!("  ec-cli core-diff-current-known-baseline [dir]");
     println!("  ec-cli core-validate [dir]");
     println!("  ec-cli core-sync-counts [dir]");
     println!("  ec-cli core-sync-baseline [dir]");

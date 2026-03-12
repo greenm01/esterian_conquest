@@ -247,6 +247,17 @@ That composed synchronizer now also has a directory-constructor wrapper:
 - this is the preferred CLI path when the task is “materialize a baseline
   experiment directory” rather than “repair the directory I already have”
 
+There is now also an explicit drift-reporting surface for the current-known
+baseline:
+- `CoreGameData::current_known_baseline_diff_counts()`
+- CLI: `ec-cli core-diff-current-known-baseline [dir]`
+- this compares a directory against the Rust-generated current-known baseline
+  normalization and reports per-file differing-byte counts for the core `.DAT`
+  set
+- this is useful specifically because the current-known normalizer is not yet
+  byte-complete; the diff report makes the remaining unexplained bytes visible
+  instead of hiding them behind a boolean pass/fail
+
 The shared model also now treats homeworld-seed alignment as a current-known
 multi-player invariant for initialized/post-maint state:
 - each active empire has exactly one owned `Not Named Yet` planet

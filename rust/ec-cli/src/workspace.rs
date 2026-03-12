@@ -82,7 +82,7 @@ fn dir_matches(
     Ok(true)
 }
 
-fn copy_top_level_files(source: &Path, target: &Path) -> Result<(), Box<dyn std::error::Error>> {
+pub fn copy_top_level_files(source: &Path, target: &Path) -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all(target)?;
 
     for entry in fs::read_dir(source)? {
