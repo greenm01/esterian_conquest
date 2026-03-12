@@ -75,6 +75,25 @@ pub(crate) fn apply_known_scenario(
     }
 }
 
+pub(crate) fn apply_known_scenarios(
+    dir: &Path,
+    scenarios: &[KnownScenario],
+) -> Result<(), Box<dyn std::error::Error>> {
+    for scenario in scenarios {
+        apply_known_scenario(dir, *scenario)?;
+    }
+
+    println!(
+        "Applied scenarios: {}",
+        scenarios
+            .iter()
+            .map(|scenario| scenario.name())
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    Ok(())
+}
+
 pub(crate) fn validate_known_scenario(
     dir: &Path,
     scenario: KnownScenario,
@@ -197,6 +216,20 @@ pub(crate) fn init_all_known_scenarios(
     }
     fs::write(target_root.join("SCENARIOS.txt"), manifest)?;
     println!("Initialized all known scenarios under {}", target_root.display());
+    Ok(())
+}
+
+pub(crate) fn init_known_scenario_chain(
+    source: &Path,
+    target: &Path,
+    scenarios: &[KnownScenario],
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(target)?;
+    for name in INIT_FILES {
+        fs::copy(source.join(name), target.join(name))?;
+    }
+    apply_known_scenarios(target, scenarios)?;
+    println!("Scenario chain directory initialized at {}", target.display());
     Ok(())
 }
 

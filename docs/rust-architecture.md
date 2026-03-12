@@ -32,6 +32,8 @@ For `ec-cli`:
 - prefer explicit command functions over framework-style indirection
 - keep batch/report paths built on shared pure validators instead of ad hoc
   command-specific checks
+- keep multi-step experiment setup in shared scenario workflows instead of
+  re-implementing chained per-command shell sequences
 
 ## Current Structure
 
@@ -57,6 +59,11 @@ The current intended split is:
 - `support/`: shared parsing and path helpers
 - `usage.rs`: top-level CLI usage/help text
 - `workspace.rs`: fixture initialization and directory matching helpers
+
+Scenario composition should stay centralized in `commands/scenario.rs`. When a
+new experiment can be expressed as an ordered combination of known scenario
+transforms, prefer extending that workflow instead of adding a one-off wrapper
+command.
 
 `ec-data` and `ec-tui` tests now live under crate `tests/` directories instead
 of source-file `#[cfg(test)]` modules.

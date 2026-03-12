@@ -21,7 +21,8 @@ use crate::commands::planet_build::{
     set_planet_build,
 };
 use crate::commands::scenario::{
-    apply_known_scenario, init_all_known_scenarios, init_known_scenario,
+    apply_known_scenario, apply_known_scenarios, init_all_known_scenarios, init_known_scenario,
+    init_known_scenario_chain,
     print_known_scenario_details, print_known_scenarios, validate_all_known_scenarios,
     validate_all_preserved_scenarios, validate_known_scenario, validate_preserved_scenario,
     KnownScenario,
@@ -403,6 +404,12 @@ pub fn run_args(
                     Some(scenario) => print_known_scenario_details(scenario),
                     None => print_usage(),
                 }
+            } else if selector.as_deref() == Some("compose") {
+                let Some(scenarios) = parse_known_scenarios(args.collect()) else {
+                    print_usage();
+                    return Ok(());
+                };
+                apply_known_scenarios(&dir, &scenarios)?;
             } else {
                 match selector.as_deref().and_then(KnownScenario::parse) {
                     Some(scenario) => apply_known_scenario(&dir, scenario)?,
@@ -432,6 +439,13 @@ pub fn run_args(
                 Some(scenario) => init_known_scenario(&source, &target, scenario)?,
                 None => print_usage(),
             }
+        }
+        "scenario-init-compose" => {
+            let Some((source, target, scenarios)) = parse_scenario_chain_init_args(args.collect()) else {
+                print_usage();
+                return Ok(());
+            };
+            init_known_scenario_chain(&source, &target, &scenarios)?;
         }
         "validate" => {
             let dir = next_dir(&mut args);
@@ -477,4 +491,28 @@ pub fn run_args(
     }
 
     Ok(())
+}
+
+fn parse_known_scenarios(args: Vec<String>) -> Option<Vec<KnownScenario>> {
+    if args.is_empty() {
+        return None;
+    }
+
+    args.into_iter().map(|name| KnownScenario::parse(&name)).collect()
+}
+
+fn parse_scenario_chain_init_args(args: Vec<String>) -> Option<(PathBuf, PathBuf, Vec<KnownScenario>)> {
+    match args.as_slice() {
+        [target, scenario_names @ ..] if !scenario_names.is_empty() => Some((
+            post_maint_fixture_dir(),
+            resolve_repo_path(target),
+            parse_known_scenarios(scenario_names.to_vec())?,
+        )),
+        [source, target, scenario_names @ ..] if !scenario_names.is_empty() => Some((
+            resolve_repo_path(source),
+            resolve_repo_path(target),
+            parse_known_scenarios(scenario_names.to_vec())?,
+        )),
+        _ => None,
+    }
 }

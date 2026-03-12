@@ -114,3 +114,34 @@ fn scenario_init_all_materializes_all_known_scenarios() {
 
     cleanup_dir(&target);
 }
+
+#[test]
+fn scenario_init_compose_materializes_combined_directory() {
+    let target = unique_temp_dir("ec-cli-scenario-compose");
+
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "scenario-init-compose",
+            target.to_str().unwrap(),
+            "fleet-order",
+            "planet-build",
+        ],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Applied scenarios: fleet-order, planet-build"));
+    assert!(stdout.contains("Scenario chain directory initialized at"));
+
+    let fleet_validate = run_ec_cli_in_dir(
+        &["validate", target.to_str().unwrap(), "fleet-order"],
+        common::rust_workspace(),
+    );
+    assert!(fleet_validate.contains("Valid fleet-order scenario"));
+
+    let build_validate = run_ec_cli_in_dir(
+        &["validate", target.to_str().unwrap(), "planet-build"],
+        common::rust_workspace(),
+    );
+    assert!(build_validate.contains("Valid planet-build scenario"));
+
+    cleanup_dir(&target);
+}

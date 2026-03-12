@@ -232,6 +232,14 @@ Rust architecture note:
       shared directory model instead of duplicating per-file load/save logic
     - this is the first step from scenario-specific file choreography toward
       a general compliant gamestate model in Rust
+  - latest scenario-composition milestone:
+    - `ec-cli scenario <dir> compose <scenario> <scenario>...`
+    - `ec-cli scenario-init-compose [source_dir] <target_dir> <scenario> <scenario>...`
+    - these now let Rust materialize combined experiment directories from the
+      compliant post-maint baseline without hand-chaining multiple commands
+    - current verified example:
+      - composing `fleet-order` + `planet-build` yields a directory that
+        satisfies both validators
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`
