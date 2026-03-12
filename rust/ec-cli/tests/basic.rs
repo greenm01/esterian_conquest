@@ -18,7 +18,7 @@ fn match_identifies_initialized_fixture() {
 #[test]
 fn match_identifies_current_known_post_maint_baseline() {
     let stdout = run_ec_cli(&["match", "fixtures/ecmaint-post/v1.5"]);
-    assert!(stdout.contains("MATCH current-known-post-maint-baseline"));
+    assert!(stdout.contains("MATCH current-known-post-maint-baseline-core"));
     assert!(stdout.contains("MATCH fixtures/ecmaint-post/v1.5"));
 }
 
@@ -190,7 +190,41 @@ fn core_init_current_known_baseline_materializes_valid_directory() {
         &["core-validate-current-known-baseline", target.to_str().unwrap()],
         common::rust_workspace(),
     );
-    assert!(exact_stdout.contains("Exact current-known baseline match"));
+    assert!(exact_stdout.contains("Exact canonical current-known baseline match"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn core_init_current_known_baseline_accepts_original_source_snapshot() {
+    let target = unique_temp_dir("ec-cli-core-init-current-known-original");
+
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "core-init-current-known-baseline",
+            "original/v1.5",
+            target.to_str().unwrap(),
+        ],
+        common::repo_root(),
+    );
+    assert!(stdout.contains("Current-known baseline directory initialized at"));
+    assert!(stdout.contains("source snapshot: original/v1.5"));
+
+    let stderr = common::run_ec_cli_failure_in_dir(
+        &["core-validate-current-known-baseline", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(stderr.contains("canonical current-known post-maint baseline"));
+
+    let match_stdout = run_ec_cli_in_dir(
+        &["match", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(!match_stdout.contains("MATCH current-known-post-maint-baseline-core"));
+
+    assert!(target.join("ECGAME.EXE").exists());
+    assert!(target.join("ECMAINT.EXE").exists());
+    assert!(target.join("IPBM.DAT").exists());
 
     cleanup_dir(&target);
 }

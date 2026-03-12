@@ -1244,15 +1244,18 @@ Suggested execution order:
       - `PLANETS.DAT`
       - `FLEETS.DAT`
   - new exact baseline oracle:
-    - `CoreGameData::current_known_baseline_exact_match_errors()`
     - CLI: `ec-cli core-validate-current-known-baseline [dir]`
-    - this is the first byte-level pass/fail oracle for the shared Rust
-      current-known post-maint baseline, not just a structural validator or
-      drift report
+    - this is the first byte-level pass/fail oracle for the canonical preserved
+      post-maint core baseline, not just a structural validator or drift report
   - new exact baseline classification path:
-    - `ec-cli match <dir>` now emits `MATCH current-known-post-maint-baseline`
-      when the directory is an exact byte match for the shared Rust baseline
-      model
+    - `ec-cli match <dir>` now emits
+      `MATCH current-known-post-maint-baseline-core` when the directory's core
+      `.DAT` set is an exact byte match for the canonical preserved post-maint
+      core baseline
+  - important boundary:
+    - normalizing `original/v1.5` directly now works because missing baseline
+      auxiliary files are seeded, but that result is not yet the canonical
+      preserved post-maint baseline
       - `BASES.DAT`
       - `IPBM.DAT`
       - `SETUP.DAT`

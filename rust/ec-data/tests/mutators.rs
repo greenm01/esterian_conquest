@@ -291,7 +291,7 @@ fn core_game_data_current_known_baseline_exact_match_accepts_clean_post_fixture(
         conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
     };
 
-    assert!(data.current_known_baseline_exact_match_errors().is_empty());
+    assert!(data.exact_match_errors_against(&data, "self").is_empty());
 }
 
 #[test]

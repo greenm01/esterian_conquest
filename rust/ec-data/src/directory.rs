@@ -1740,55 +1740,56 @@ impl CoreGameData {
     pub fn current_known_baseline_diff_counts(&self) -> Vec<CoreFileDiffCount> {
         let mut normalized = self.clone();
         normalized.sync_current_known_initialized_post_maint_baseline();
-
-        [
-            ("PLAYER.DAT", self.player.to_bytes(), normalized.player.to_bytes()),
-            ("PLANETS.DAT", self.planets.to_bytes(), normalized.planets.to_bytes()),
-            ("FLEETS.DAT", self.fleets.to_bytes(), normalized.fleets.to_bytes()),
-            ("BASES.DAT", self.bases.to_bytes(), normalized.bases.to_bytes()),
-            ("IPBM.DAT", self.ipbm.to_bytes(), normalized.ipbm.to_bytes()),
-            ("SETUP.DAT", self.setup.to_bytes(), normalized.setup.to_bytes()),
-            ("CONQUEST.DAT", self.conquest.to_bytes(), normalized.conquest.to_bytes()),
-        ]
-        .into_iter()
-        .map(|(name, current, normalized)| CoreFileDiffCount {
-            name,
-            differing_bytes: byte_diff_count(&current, &normalized),
-        })
-        .collect()
+        self.diff_counts_against(&normalized)
     }
 
     pub fn current_known_baseline_diff_offsets(&self) -> Vec<CoreFileDiffOffsets> {
         let mut normalized = self.clone();
         normalized.sync_current_known_initialized_post_maint_baseline();
+        self.diff_offsets_against(&normalized)
+    }
 
+    pub fn diff_counts_against(&self, other: &Self) -> Vec<CoreFileDiffCount> {
         [
-            ("PLAYER.DAT", self.player.to_bytes(), normalized.player.to_bytes()),
-            ("PLANETS.DAT", self.planets.to_bytes(), normalized.planets.to_bytes()),
-            ("FLEETS.DAT", self.fleets.to_bytes(), normalized.fleets.to_bytes()),
-            ("BASES.DAT", self.bases.to_bytes(), normalized.bases.to_bytes()),
-            ("IPBM.DAT", self.ipbm.to_bytes(), normalized.ipbm.to_bytes()),
-            ("SETUP.DAT", self.setup.to_bytes(), normalized.setup.to_bytes()),
-            ("CONQUEST.DAT", self.conquest.to_bytes(), normalized.conquest.to_bytes()),
+            ("PLAYER.DAT", self.player.to_bytes(), other.player.to_bytes()),
+            ("PLANETS.DAT", self.planets.to_bytes(), other.planets.to_bytes()),
+            ("FLEETS.DAT", self.fleets.to_bytes(), other.fleets.to_bytes()),
+            ("BASES.DAT", self.bases.to_bytes(), other.bases.to_bytes()),
+            ("IPBM.DAT", self.ipbm.to_bytes(), other.ipbm.to_bytes()),
+            ("SETUP.DAT", self.setup.to_bytes(), other.setup.to_bytes()),
+            ("CONQUEST.DAT", self.conquest.to_bytes(), other.conquest.to_bytes()),
         ]
         .into_iter()
-        .map(|(name, current, normalized)| CoreFileDiffOffsets {
+        .map(|(name, current, other)| CoreFileDiffCount {
             name,
-            differing_offsets: byte_diff_offsets(&current, &normalized),
+            differing_bytes: byte_diff_count(&current, &other),
         })
         .collect()
     }
 
-    pub fn current_known_baseline_exact_match_errors(&self) -> Vec<String> {
-        self.current_known_baseline_diff_counts()
+    pub fn diff_offsets_against(&self, other: &Self) -> Vec<CoreFileDiffOffsets> {
+        [
+            ("PLAYER.DAT", self.player.to_bytes(), other.player.to_bytes()),
+            ("PLANETS.DAT", self.planets.to_bytes(), other.planets.to_bytes()),
+            ("FLEETS.DAT", self.fleets.to_bytes(), other.fleets.to_bytes()),
+            ("BASES.DAT", self.bases.to_bytes(), other.bases.to_bytes()),
+            ("IPBM.DAT", self.ipbm.to_bytes(), other.ipbm.to_bytes()),
+            ("SETUP.DAT", self.setup.to_bytes(), other.setup.to_bytes()),
+            ("CONQUEST.DAT", self.conquest.to_bytes(), other.conquest.to_bytes()),
+        ]
+        .into_iter()
+        .map(|(name, current, other)| CoreFileDiffOffsets {
+            name,
+            differing_offsets: byte_diff_offsets(&current, &other),
+        })
+        .collect()
+    }
+
+    pub fn exact_match_errors_against(&self, other: &Self, label: &str) -> Vec<String> {
+        self.diff_counts_against(other)
             .into_iter()
             .filter(|diff| diff.differing_bytes != 0)
-            .map(|diff| {
-                format!(
-                    "{} differs by {} bytes from current-known baseline normalization",
-                    diff.name, diff.differing_bytes
-                )
-            })
+            .map(|diff| format!("{} differs by {} bytes from {}", diff.name, diff.differing_bytes, label))
             .collect()
     }
 }

@@ -1,8 +1,6 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::CoreGameData;
-
 use crate::support::paths::{init_fixture_dir, post_maint_fixture_dir};
 
 pub(crate) const INIT_FILES: &[&str] = &[
@@ -16,6 +14,16 @@ pub(crate) const INIT_FILES: &[&str] = &[
     "PLAYER.DAT",
     "RESULTS.DAT",
     "SETUP.DAT",
+];
+
+const CURRENT_KNOWN_CORE_FILES: &[&str] = &[
+    "PLAYER.DAT",
+    "PLANETS.DAT",
+    "FLEETS.DAT",
+    "BASES.DAT",
+    "IPBM.DAT",
+    "SETUP.DAT",
+    "CONQUEST.DAT",
 ];
 
 const ORIGINAL_FILES: &[&str] = &[
@@ -58,12 +66,10 @@ pub fn match_fixture_set(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Directory: {}", dir.display());
     let mut matched_any = false;
-
-    if let Ok(data) = CoreGameData::load(dir) {
-        if data.current_known_baseline_exact_match_errors().is_empty() {
-            println!("MATCH current-known-post-maint-baseline");
-            matched_any = true;
-        }
+    let current_known_core = post_maint_fixture_dir();
+    if dir_matches(dir, &current_known_core, CURRENT_KNOWN_CORE_FILES)? {
+        println!("MATCH current-known-post-maint-baseline-core");
+        matched_any = true;
     }
 
     for (label, candidate, files) in candidates {

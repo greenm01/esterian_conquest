@@ -1,7 +1,9 @@
+use std::fs;
 use std::path::Path;
 
 use ec_data::CoreGameData;
 
+use crate::support::paths::post_maint_fixture_dir;
 use crate::workspace::copy_top_level_files;
 
 pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -190,10 +192,14 @@ pub(crate) fn validate_current_known_baseline_exact(
     dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let data = CoreGameData::load(dir)?;
-    let errors = data.current_known_baseline_exact_match_errors();
+    let baseline = CoreGameData::load(&post_maint_fixture_dir())?;
+    let errors = data.exact_match_errors_against(
+        &baseline,
+        "canonical current-known post-maint baseline",
+    );
 
     if errors.is_empty() {
-        println!("Exact current-known baseline match");
+        println!("Exact canonical current-known baseline match");
         println!("  dir = {}", dir.display());
         Ok(())
     } else {
@@ -452,6 +458,7 @@ pub(crate) fn init_current_known_baseline(
     target: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     copy_top_level_files(source, target)?;
+    seed_missing_current_known_core_files(target)?;
     let mut data = CoreGameData::load(target)?;
     data.sync_current_known_initialized_post_maint_baseline();
     data.save(target)?;
@@ -491,5 +498,15 @@ pub(crate) fn init_current_known_baseline(
         data.current_known_conquest_baseline_errors().is_empty()
     );
 
+    Ok(())
+}
+
+fn seed_missing_current_known_core_files(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    for name in ["BASES.DAT", "IPBM.DAT"] {
+        let path = dir.join(name);
+        if !path.exists() {
+            fs::write(path, [])?;
+        }
+    }
     Ok(())
 }

@@ -66,7 +66,7 @@ fn core_validate_current_known_baseline_accepts_known_post_fixture_state() {
         "core-validate-current-known-baseline",
         "fixtures/ecmaint-post/v1.5",
     ]);
-    assert!(stdout.contains("Exact current-known baseline match"));
+    assert!(stdout.contains("Exact canonical current-known baseline match"));
 }
 
 #[test]
