@@ -3732,11 +3732,12 @@ The movement formula was recovered by observing Fleet 1 moving horizontally from
 
 The mysterious bytes `0x38` and `0x4C` that appeared in `PLANETS.DAT` after clearing the build queue are highly likely to be the **Stardock**.
 
-- `0x24` and `0x2E` act as the active "Build Queue" (quantity and type).
+- `0x24..0x2D` acts as the active "Build Queue" (array of 10 `u8` quantities).
+- `0x2E..0x37` acts as the active "Build Queue Types" (array of 10 `u8` types).
 - When `ECMAINT` processes these, it consumes `Stored Goods`.
 - Upon completion, the ships are moved to the planet's Stardock.
-- `0x38` corresponds to the count of built ships.
-- `0x4C` corresponds to the ship type currently occupying that slot in the Stardock.
+- `0x38..0x4B` corresponds to the count of built ships (array of 10 `u16` counts).
+- `0x4C..0x55` corresponds to the ship type currently occupying that slot in the Stardock (array of 10 `u8` types).
 - Ships in the Stardock do not automatically launch or appear in `FLEETS.DAT`. They remain docked on the planet until explicitly "Commissioned" (as observed in `WHATSNEW.DOC`: "AUTO-COMMISSION: Commission Fleets and starbases in all stardocks").
 
 This perfectly explains why `FLEETS.DAT` didn't change on a second `ECMAINT` pass; the ships simply sat in the Stardock waiting for a player command to commission them into an active fleet.

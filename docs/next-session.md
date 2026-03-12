@@ -2,6 +2,8 @@
 - Completed the reverse engineering of the token gate mechanism and the `16A4` integrity bypass flag.
 - Exhaustively proved that `DS:16A4` is never set to 1 due to a likely developer typo (command line `/B` sets `16A2`, but the integrity check tests `16A4`).
 - Discovered the true reason `.TOK` files "bypass" the crash: the presence of `Move.Tok` triggers an automatic restore of `.SAV` backups over the `.DAT` files prior to the integrity check, causing the repaired files to pass naturally.
+- Confirmed the planet stardock capacity: it is a 10-slot array of ship counts (`0x38..0x4B`) and corresponding ship kinds (`0x4C..0x55`), matching the 10-slot build queue.
+- Parameterized the Guard Starbase generator to dynamically copy `tuple_a`, `tuple_b`, and `tuple_c` payloads directly from the guarding fleet, completely removing hardcoded byte arrays.
 - Documented findings in `token-investigation.md`.
 - Rust scenario-writer milestone:
   - `ec-cli` is now split further by feature area:
