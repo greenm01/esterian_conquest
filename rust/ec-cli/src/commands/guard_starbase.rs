@@ -42,6 +42,10 @@ pub(crate) fn set_guard_starbase_onebase(
     // kind-2 follow-on +0x06 <- base raw 0x07..0x08
     let base_chain_word = fleet.fleet_id_word_raw();
 
+    let tuple_a = fleet.tuple_a_payload_raw();
+    let tuple_b = fleet.tuple_b_payload_raw();
+    let tuple_c = fleet.tuple_c_payload_raw();
+
     let _ = fleet;
     fs::write(&fleets_path, fleets.to_bytes())?;
 
@@ -53,6 +57,9 @@ pub(crate) fn set_guard_starbase_onebase(
             base_summary_word,
             base_chain_word,
             0x01,
+            tuple_a,
+            tuple_b,
+            tuple_c,
         )],
     };
     fs::write(&bases_path, bases.to_bytes())?;
@@ -72,6 +79,9 @@ fn build_guard_starbase_base_record(
     summary_word: u16,
     chain_word: u16,
     owner_empire: u8,
+    tuple_a: [u8; 5],
+    tuple_b: [u8; 5],
+    tuple_c: [u8; 5],
 ) -> BaseRecord {
     let mut record = BaseRecord::new_zeroed();
     record.set_local_slot_raw(base_id);
@@ -80,9 +90,9 @@ fn build_guard_starbase_base_record(
     record.set_link_word_raw(0x0000);
     record.set_chain_word_raw(chain_word);
     record.set_coords_raw(coords);
-    record.set_tuple_a_payload_raw([0x80, 0x00, 0x00, 0x00, 0x00]);
-    record.set_tuple_b_payload_raw([0x80, 0x00, 0x00, 0x00, 0x00]);
-    record.set_tuple_c_payload_raw([0x81, 0x00, 0x00, 0x00, 0x00]);
+    record.set_tuple_a_payload_raw(tuple_a);
+    record.set_tuple_b_payload_raw(tuple_b);
+    record.set_tuple_c_payload_raw(tuple_c);
     record.set_trailing_coords_raw(coords);
     record.set_owner_empire_raw(owner_empire);
     record
@@ -221,6 +231,27 @@ pub(crate) fn guard_starbase_errors(
                 "FLEET[1].fleet ID word expected BASES[1].chain_word {}, got {}",
                 base.chain_word_raw(),
                 fleet.fleet_id_word_raw()
+            ));
+        }
+        if base.tuple_a_payload_raw() != fleet.tuple_a_payload_raw() {
+            errors.push(format!(
+                "BASES[1].tuple_a_payload expected FLEET[1].tuple_a_payload {:?}, got {:?}",
+                fleet.tuple_a_payload_raw(),
+                base.tuple_a_payload_raw()
+            ));
+        }
+        if base.tuple_b_payload_raw() != fleet.tuple_b_payload_raw() {
+            errors.push(format!(
+                "BASES[1].tuple_b_payload expected FLEET[1].tuple_b_payload {:?}, got {:?}",
+                fleet.tuple_b_payload_raw(),
+                base.tuple_b_payload_raw()
+            ));
+        }
+        if base.tuple_c_payload_raw() != fleet.tuple_c_payload_raw() {
+            errors.push(format!(
+                "BASES[1].tuple_c_payload expected FLEET[1].tuple_c_payload {:?}, got {:?}",
+                fleet.tuple_c_payload_raw(),
+                base.tuple_c_payload_raw()
             ));
         }
     }

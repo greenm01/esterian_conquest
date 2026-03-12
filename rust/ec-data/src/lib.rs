@@ -572,6 +572,30 @@ impl FleetRecord {
         self.raw[0x23] = value[1];
     }
 
+    pub fn tuple_a_payload_raw(&self) -> [u8; 5] {
+        copy_array(&self.raw[0x0D..0x12])
+    }
+
+    pub fn set_tuple_a_payload_raw(&mut self, payload: [u8; 5]) {
+        self.raw[0x0D..0x12].copy_from_slice(&payload);
+    }
+
+    pub fn tuple_b_payload_raw(&self) -> [u8; 5] {
+        copy_array(&self.raw[0x13..0x18])
+    }
+
+    pub fn set_tuple_b_payload_raw(&mut self, payload: [u8; 5]) {
+        self.raw[0x13..0x18].copy_from_slice(&payload);
+    }
+
+    pub fn tuple_c_payload_raw(&self) -> [u8; 5] {
+        copy_array(&self.raw[0x19..0x1E])
+    }
+
+    pub fn set_tuple_c_payload_raw(&mut self, payload: [u8; 5]) {
+        self.raw[0x19..0x1E].copy_from_slice(&payload);
+    }
+
     pub fn standing_order_summary(&self) -> String {
         let [x, y] = self.standing_order_target_coords_raw();
         match self.standing_order_kind() {
