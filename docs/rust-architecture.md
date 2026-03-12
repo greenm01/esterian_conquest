@@ -51,7 +51,8 @@ For `ec-cli`:
 
 The current intended split is:
 
-- `main.rs`: argument dispatch and small workspace glue only
+- `main.rs`: process boundary only
+- `dispatch.rs`: top-level command routing
 - `commands/`: feature- and workflow-oriented command families
 - `support/`: shared parsing and path helpers
 - `usage.rs`: top-level CLI usage/help text

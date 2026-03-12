@@ -209,6 +209,7 @@ Rust architecture note:
   - shared argument/path helpers now live under `ec-cli/src/support/`
   - `ec-cli` workspace/file-copy helpers now live in `src/workspace.rs`
   - top-level CLI usage/help text now lives in `src/usage.rs`
+  - top-level command routing now lives in `src/dispatch.rs`
   - `ec-data` and `ec-tui` tests now live in crate `tests/` directories
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
@@ -221,8 +222,8 @@ Rust architecture note:
     - `src/support.rs`
   - `ec-data/src/lib.rs` is now crate wiring and reexports instead of another
     monolithic record dump
-  - `ec-cli/src/main.rs` is now down to dispatch plus minimal glue, with the
-    previous workspace/setup boilerplate extracted
+  - `ec-cli/src/main.rs` is now just the process boundary
+  - `ec-cli/src/dispatch.rs` carries the top-level command switchboard
 - preserve this direction:
   - data-oriented layout
   - feature/domain submodules
