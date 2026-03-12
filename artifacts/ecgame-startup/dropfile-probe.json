@@ -1,0 +1,42 @@
+{
+  "chain_only": {
+    "first_open": "Setup.dat",
+    "second_open": "C:\\CHAIN.TXT",
+    "sequence": [
+      "3F00",
+      "3E00",
+      "3D00",
+      "3F01",
+      "3E01",
+      "4C00"
+    ],
+    "exit_code": "1C"
+  },
+  "door_only": {
+    "first_open": "Setup.dat",
+    "second_open": "C:\\DOOR.SYS",
+    "sequence": [
+      "3F00",
+      "3E00",
+      "3D00",
+      "3FFF",
+      "3F30",
+      "3E01",
+      "4C00"
+    ],
+    "exit_code": "1C"
+  },
+  "both": {
+    "first_open": "Setup.dat",
+    "second_open": "C:\\CHAIN.TXT",
+    "sequence": [
+      "3F00",
+      "3E00",
+      "3D00",
+      "3F01",
+      "3E01",
+      "4C00"
+    ],
+    "exit_code": "1C"
+  }
+}

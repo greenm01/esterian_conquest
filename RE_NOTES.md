@@ -264,6 +264,44 @@ Important detail:
       - the `remote` Y/N flag
     - next work should trace the semantic decision path after the successful
       `CHAIN.TXT` prefix read, not iterate more obvious dropfile-shape variants
+- Dropfile auto-detection order is now confirmed:
+  - artifact:
+    - `artifacts/ecgame-startup/dropfile-probe.json`
+  - script:
+    - `tools/test_ecgame_dropfile_probe.py`
+  - confirmed selection rules:
+    - `chain_only`:
+      - second open is `C:\CHAIN.TXT`
+    - `door_only`:
+      - second open is `C:\DOOR.SYS`
+    - `both`:
+      - second open is still `C:\CHAIN.TXT`
+  - practical implication:
+    - local plain `ECGAME` prefers `CHAIN.TXT` when both dropfile families are
+      present
+    - removing `CHAIN.TXT` is enough to force the `DOOR.SYS` parser path
+- `DOOR.SYS` fallback path is materially different from the `CHAIN.TXT` path:
+  - `chain_only` / `both` sequence:
+    - `3F00`
+    - `3E00`
+    - `3D00`
+    - `3F01`
+    - `3E01`
+    - `4C00`
+  - `door_only` sequence:
+    - `3F00`
+    - `3E00`
+    - `3D00`
+    - `3FFF`
+    - `3F30`
+    - `3E01`
+    - `4C00`
+  - all three still end with exit code `0x1C`
+  - practical implication:
+    - `ECGAME` is not treating `DOOR.SYS` as just another alias for the
+      `CHAIN.TXT` parser; it follows a distinct read path before failing
+    - this is currently the best lead for recovering the local startup gate:
+      trace why the `DOOR.SYS` fallback also exits with `0x1C`
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
 
 Current caveat:

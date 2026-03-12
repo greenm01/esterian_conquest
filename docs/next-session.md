@@ -616,4 +616,42 @@ Suggested execution order:
   - implication:
     - stop spending time on obvious `CHAIN.TXT` shape/length tweaks
     - move to post-read semantic tracing instead
+- New positive result on dropfile routing:
+  - artifact:
+    - `artifacts/ecgame-startup/dropfile-probe.json`
+  - script:
+    - `tools/test_ecgame_dropfile_probe.py`
+  - confirmed:
+    - if both files are present, `ECGAME` chooses `C:\CHAIN.TXT`
+    - if `CHAIN.TXT` is absent, it falls back to `C:\DOOR.SYS`
+  - `DOOR.SYS` fallback is not identical to the `CHAIN.TXT` path:
+    - `CHAIN.TXT` path:
+      - `3F00`
+      - `3E00`
+      - `3D00`
+      - `3F01`
+      - `3E01`
+      - `4C00`
+    - `DOOR.SYS` fallback:
+      - `3F00`
+      - `3E00`
+      - `3D00`
+      - `3FFF`
+      - `3F30`
+      - `3E01`
+      - `4C00`
+    - both still exit `0x1C`
+  - implication:
+    - there are at least two distinct startup parser paths available locally
+    - the `DOOR.SYS` path is now the highest-value local harness lead
+- Updated next task:
+  - stop iterating easy `CHAIN.TXT` edits
+  - trace the semantic decision path after:
+    - `CHAIN.TXT` read/close -> `4C00 1C`
+    - or the distinct `DOOR.SYS` fallback read path -> `4C00 1C`
+  - likely productive next pass:
+    - capture the live `DOOR.SYS` read buffers the same way we already did for
+      `CHAIN.TXT`
+    - or set a post-read code breakpoint keyed from the `3F01` / `3FFF` /
+      `3F30` return path
 - Remaining blocker: the local interactive `ECGAME` flow is still not fully stable because several old scripts have brittle debugger prompt handling, and the freshly regenerated dumps still look like earlier-boot snapshots rather than the richer `/tmp/ecgboot_chain` state referenced in `RE_NOTES.md`.
