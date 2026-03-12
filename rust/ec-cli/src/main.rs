@@ -55,6 +55,14 @@ impl KnownScenario {
             _ => None,
         }
     }
+
+    fn description(self) -> &'static str {
+        match self {
+            Self::FleetOrder => "accepted fleet movement/order fixture rooted in FLEETS.DAT",
+            Self::PlanetBuild => "accepted planet build-queue fixture rooted in PLANETS.DAT",
+            Self::GuardStarbase => "accepted one-base guard-starbase fixture spanning PLAYER/FLEETS/BASES",
+        }
+    }
 }
 
 fn main() {
@@ -1258,10 +1266,24 @@ fn init_all_known_scenarios(
     target_root: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all(target_root)?;
+    let mut manifest = String::new();
+    manifest.push_str("Known scenarios\n");
+    manifest.push_str(&format!("source={}\n", source.display()));
+    manifest.push_str(&format!("target_root={}\n", target_root.display()));
+    manifest.push('\n');
     for scenario in KnownScenario::all() {
         let scenario_dir = target_root.join(scenario.name());
         init_known_scenario(source, &scenario_dir, scenario)?;
+        manifest.push_str(&format!("{}\n", scenario.name()));
+        manifest.push_str(&format!("  description={}\n", scenario.description()));
+        manifest.push_str(&format!("  dir={}\n", scenario_dir.display()));
+        manifest.push_str(&format!(
+            "  validate=ec-cli validate {} {}\n\n",
+            scenario_dir.display(),
+            scenario.name()
+        ));
     }
+    fs::write(target_root.join("SCENARIOS.txt"), manifest)?;
     println!("Initialized all known scenarios under {}", target_root.display());
     Ok(())
 }
@@ -1273,7 +1295,7 @@ fn weekday_labels() -> [&'static str; 7] {
 fn print_known_scenarios() {
     println!("Known scenarios:");
     for scenario in KnownScenario::all() {
-        println!("  {}", scenario.name());
+        println!("  {}: {}", scenario.name(), scenario.description());
     }
 }
 

@@ -61,9 +61,9 @@ fn match_identifies_initialized_fixture() {
 fn scenario_list_prints_known_scenarios() {
     let stdout = run_ec_cli(&["scenario", "original/v1.5", "list"]);
     assert!(stdout.contains("Known scenarios:"));
-    assert!(stdout.contains("fleet-order"));
-    assert!(stdout.contains("planet-build"));
-    assert!(stdout.contains("guard-starbase"));
+    assert!(stdout.contains("fleet-order: accepted fleet movement/order fixture"));
+    assert!(stdout.contains("planet-build: accepted planet build-queue fixture"));
+    assert!(stdout.contains("guard-starbase: accepted one-base guard-starbase fixture"));
 }
 
 #[test]
@@ -724,6 +724,13 @@ fn scenario_init_all_materializes_all_known_scenarios() {
         repo_root().join("rust"),
     );
     assert!(stdout.contains("Initialized all known scenarios under"));
+
+    let manifest = fs::read_to_string(target.join("SCENARIOS.txt")).unwrap();
+    assert!(manifest.contains("source="));
+    assert!(manifest.contains("fixtures/ecmaint-post/v1.5"));
+    assert!(manifest.contains("fleet-order"));
+    assert!(manifest.contains("planet-build"));
+    assert!(manifest.contains("guard-starbase"));
 
     let fleet_validate = run_ec_cli_in_dir(
         &["validate", target.join("fleet-order").to_str().unwrap(), "fleet-order"],
