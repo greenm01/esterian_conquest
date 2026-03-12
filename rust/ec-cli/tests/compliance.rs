@@ -36,7 +36,7 @@ fn core_report_summarizes_known_post_fixture_counts() {
     assert!(stdout.contains("player1_starbase_count=0"));
     assert!(stdout.contains("player1_owned_base_record_count=0"));
     assert!(stdout.contains("player1_ipbm_count=0"));
-    assert!(stdout.contains("player 01: owned_planet_count=1 homeworld_seed_coords=Some([16, 13]) starbase_count=0 owned_base_count=0 ipbm_count=0 fleet_chain_head=1"));
+    assert!(stdout.contains("player 01: owned_planet_count=1 homeworld_seed_coords=Some([16, 13]) owned_base_count=0 starbase_count_word_raw=0 ipbm_count_word_raw=0 fleet_chain_head_raw=1"));
 }
 
 #[test]
@@ -95,7 +95,7 @@ fn core_sync_counts_repairs_player1_count_words() {
     assert!(sync_stdout.contains("empty_auxiliary_state = true"));
     assert!(sync_stdout.contains("setup_baseline = true"));
     assert!(sync_stdout.contains("conquest_baseline = true"));
-    assert!(sync_stdout.contains("player 02: owned_planet_count = 1 homeworld_seed_coords = Some([4, 13]) starbase_count = 0 owned_base_count = 0 fleet_chain_head = 25956"));
+    assert!(sync_stdout.contains("player 02: owned_planet_count = 1 homeworld_seed_coords = Some([4, 13]) owned_base_count = 0 starbase_count_word_raw = 26725 ipbm_count_word_raw = 0 fleet_chain_head_raw = 25956"));
 
     let validate_stdout = run_ec_cli_in_dir(
         &["core-validate", target.to_str().unwrap()],

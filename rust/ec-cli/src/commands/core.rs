@@ -10,7 +10,6 @@ pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Er
     let owned_base_total = data.player1_owned_base_record_count_current_known();
     let ipbm_total = data.player1_ipbm_count_current_known();
     let player_owned_planet_counts = data.player_owned_planet_counts_current_known();
-    let player_starbase_counts = data.player_starbase_counts_current_known();
     let player_owned_base_counts = data.player_owned_base_record_counts_current_known();
     let player_homeworld_seed_coords = data.player_homeworld_seed_coords_current_known();
     let player_fleet_chain_heads = data.player_fleet_chain_heads_current_known();
@@ -74,12 +73,12 @@ pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Er
 
     for (idx, record) in data.player.records.iter().enumerate() {
         println!(
-            "  player {:02}: owned_planet_count={} homeworld_seed_coords={:?} starbase_count={} owned_base_count={} ipbm_count={} fleet_chain_head={}",
+            "  player {:02}: owned_planet_count={} homeworld_seed_coords={:?} owned_base_count={} starbase_count_word_raw={} ipbm_count_word_raw={} fleet_chain_head_raw={}",
             idx + 1,
             player_owned_planet_counts[idx],
             player_homeworld_seed_coords.get(idx).copied().flatten(),
-            player_starbase_counts[idx],
             player_owned_base_counts[idx],
+            record.starbase_count_raw(),
             record.ipbm_count_raw(),
             player_fleet_chain_heads[idx]
         );
@@ -246,23 +245,23 @@ pub(crate) fn sync_core_counts(dir: &Path) -> Result<(), Box<dyn std::error::Err
         "  conquest_baseline = {}",
         data.current_known_conquest_baseline_errors().is_empty()
     );
-    for (idx, (starbase_count, owned_base_count)) in data
-        .player_starbase_counts_current_known()
+    for (idx, owned_base_count) in data
+        .player_owned_base_record_counts_current_known()
         .into_iter()
-        .zip(data.player_owned_base_record_counts_current_known())
         .enumerate()
     {
         let fleet_chain_head = data.player_fleet_chain_heads_current_known()[idx];
         println!(
-            "  player {:02}: owned_planet_count = {} homeworld_seed_coords = {:?} starbase_count = {} owned_base_count = {} fleet_chain_head = {}",
+            "  player {:02}: owned_planet_count = {} homeworld_seed_coords = {:?} owned_base_count = {} starbase_count_word_raw = {} ipbm_count_word_raw = {} fleet_chain_head_raw = {}",
             idx + 1,
             data.player_owned_planet_counts_current_known()[idx],
             data.player_homeworld_seed_coords_current_known()
                 .get(idx)
                 .copied()
                 .flatten(),
-            starbase_count,
             owned_base_count,
+            data.player.records[idx].starbase_count_raw(),
+            data.player.records[idx].ipbm_count_raw(),
             fleet_chain_head
         );
     }

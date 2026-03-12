@@ -194,28 +194,25 @@ fn core_game_data_current_known_count_helpers_follow_player1_and_records() {
     assert_eq!(data.player_owned_base_record_counts_current_known(), vec![2, 1, 0, 0, 0]);
     assert_eq!(data.player1_ipbm_count_current_known(), 0);
     let initial_errors = data.current_known_core_state_errors();
-    assert_eq!(initial_errors.len(), 5);
+    assert_eq!(initial_errors.len(), 4);
     assert!(initial_errors.contains(&"PLAYER[1]-owned BASES.DAT record count expected 0, got 2".to_string()));
-    assert!(initial_errors.contains(&format!(
-        "PLAYER[2]-owned BASES.DAT record count expected {}, got 1",
-        data.player.records[1].starbase_count_raw()
-    )));
     assert!(initial_errors.contains(&"IPBM.DAT record count expected 0, got 3".to_string()));
     assert!(initial_errors.contains(&"BASES.DAT expected empty auxiliary baseline, got 3 records".to_string()));
     assert!(initial_errors.contains(&"IPBM.DAT expected empty auxiliary baseline, got 3 records".to_string()));
 
+    let player2_starbase_before = data.player.records[1].starbase_count_raw();
+    let player3_starbase_before = data.player.records[2].starbase_count_raw();
+    let player4_starbase_before = data.player.records[3].starbase_count_raw();
     data.sync_player1_current_known_counts();
 
     assert_eq!(data.player.records[0].starbase_count_raw(), 2);
-    assert_eq!(data.player.records[1].starbase_count_raw(), 1);
-    assert_eq!(data.player.records[2].starbase_count_raw(), 0);
-    assert_eq!(data.player.records[3].starbase_count_raw(), 0);
-    assert_eq!(data.player.records[4].starbase_count_raw(), 0);
+    assert_eq!(data.player.records[1].starbase_count_raw(), player2_starbase_before);
+    assert_eq!(data.player.records[2].starbase_count_raw(), player3_starbase_before);
+    assert_eq!(data.player.records[3].starbase_count_raw(), player4_starbase_before);
     assert_eq!(data.player.records[0].ipbm_count_raw(), 3);
     assert_eq!(data.player1_starbase_count_current_known(), 2);
     assert_eq!(data.player_owned_planet_counts_current_known(), vec![1, 1, 1, 1, 0]);
     assert_eq!(data.player1_owned_base_record_count_current_known(), 2);
-    assert_eq!(data.player_starbase_counts_current_known(), vec![2, 1, 0, 0, 0]);
     assert_eq!(data.player_owned_base_record_counts_current_known(), vec![2, 1, 0, 0, 0]);
     assert_eq!(data.player1_ipbm_count_current_known(), 3);
     let post_sync_errors = data.current_known_core_state_errors();
@@ -226,6 +223,27 @@ fn core_game_data_current_known_count_helpers_follow_player1_and_records() {
             "IPBM.DAT expected empty auxiliary baseline, got 3 records".to_string(),
         ]
     );
+}
+
+#[test]
+fn core_game_data_current_known_baseline_diff_offsets_clear_player_file_on_clean_post_fixture() {
+    let data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    let diffs = data.current_known_baseline_diff_offsets();
+    let player_offsets = &diffs
+        .iter()
+        .find(|diff| diff.name == "PLAYER.DAT")
+        .unwrap()
+        .differing_offsets;
+    assert!(player_offsets.is_empty());
 }
 
 #[test]

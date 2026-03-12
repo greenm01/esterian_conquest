@@ -271,6 +271,17 @@ baseline:
   - for the preserved `fixtures/ecmaint-post/v1.5` baseline, `FLEETS.DAT` is
     now byte-complete under the current-known normalizer, leaving `PLAYER.DAT`
     and `PLANETS.DAT` as the next byte-completion targets
+- second concrete payoff:
+  - the repeated `PLAYER.DAT` drift words at offsets `156/157`, `244/245`, and
+    `332/333` were traced to overreaching normalization of non-player-1 count
+    words
+  - the current 88-byte player-record model only treats player 1's starbase and
+    `IPBM` count words as validated semantics
+  - the shared baseline now preserves player 2..5 count words as raw /
+    uninterpreted bytes instead of rewriting them
+  - for the preserved `fixtures/ecmaint-post/v1.5` baseline, `PLAYER.DAT` is
+    now byte-complete under the current-known normalizer, leaving `PLANETS.DAT`
+    as the main remaining drift target
 
 The shared model also now treats homeworld-seed alignment as a current-known
 multi-player invariant for initialized/post-maint state:

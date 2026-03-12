@@ -172,14 +172,6 @@ impl CoreGameData {
             .unwrap_or(0)
     }
 
-    pub fn player_starbase_count_current_known(&self, player_record_index_1_based: usize) -> usize {
-        self.player
-            .records
-            .get(player_record_index_1_based - 1)
-            .map(|record| record.starbase_count_raw() as usize)
-            .unwrap_or(0)
-    }
-
     pub fn player1_owned_base_record_count_current_known(&self) -> usize {
         self.player_owned_base_record_count_current_known(1)
     }
@@ -220,7 +212,7 @@ impl CoreGameData {
 
         errors.extend(self.current_known_planet_owner_slot_errors());
         errors.extend(self.current_known_base_owner_empire_errors());
-        errors.extend(self.current_known_all_player_starbase_count_errors());
+        errors.extend(self.current_known_player1_starbase_count_errors());
         errors.extend(self.current_known_initialized_fleet_block_errors());
         errors.extend(self.current_known_initialized_fleet_payload_errors());
         errors.extend(self.current_known_initialized_fleet_mission_errors());
@@ -243,22 +235,15 @@ impl CoreGameData {
         errors
     }
 
-    pub fn current_known_all_player_starbase_count_errors(&self) -> Vec<String> {
+    pub fn current_known_player1_starbase_count_errors(&self) -> Vec<String> {
         let mut errors = Vec::new();
-        for player_record_index_1_based in 1..=self.player.records.len() {
-            let expected_bases = self.player_starbase_count_current_known(player_record_index_1_based);
-            let owned_bases =
-                self.player_owned_base_record_count_current_known(player_record_index_1_based);
-            let should_validate = player_record_index_1_based == 1 || owned_bases > 0;
-            if !should_validate {
-                continue;
-            }
-            if owned_bases != expected_bases {
-                errors.push(format!(
-                    "PLAYER[{}]-owned BASES.DAT record count expected {}, got {}",
-                    player_record_index_1_based, expected_bases, owned_bases
-                ));
-            }
+        let expected_bases = self.player1_starbase_count_current_known();
+        let owned_bases = self.player1_owned_base_record_count_current_known();
+        if owned_bases != expected_bases {
+            errors.push(format!(
+                "PLAYER[1]-owned BASES.DAT record count expected {}, got {}",
+                expected_bases, owned_bases
+            ));
         }
         errors
     }
@@ -298,9 +283,10 @@ impl CoreGameData {
     }
 
     pub fn sync_player1_current_known_counts(&mut self) {
-        self.sync_all_players_current_known_starbase_counts();
+        let starbase_count = self.player1_owned_base_record_count_current_known() as u16;
         let ipbm_count = self.ipbm.records.len() as u16;
         if let Some(player1) = self.player.records.first_mut() {
+            player1.set_starbase_count_raw(starbase_count);
             player1.set_ipbm_count_raw(ipbm_count);
         }
     }
@@ -425,17 +411,6 @@ impl CoreGameData {
         self.sync_current_known_baseline_controls_and_counts();
         self.sync_current_known_initialized_fleet_baseline();
         self.sync_current_known_initialized_planet_payloads();
-    }
-
-    pub fn sync_all_players_current_known_starbase_counts(&mut self) {
-        let owned_base_counts = (1..=self.player.records.len())
-            .map(|player_record_index_1_based| {
-                self.player_owned_base_record_count_current_known(player_record_index_1_based) as u16
-            })
-            .collect::<Vec<_>>();
-        for (idx, player) in self.player.records.iter_mut().enumerate() {
-            player.set_starbase_count_raw(owned_base_counts[idx]);
-        }
     }
 
     pub fn player_owned_base_record_counts_current_known(&self) -> Vec<usize> {
@@ -833,14 +808,6 @@ impl CoreGameData {
         }
 
         errors
-    }
-
-    pub fn player_starbase_counts_current_known(&self) -> Vec<usize> {
-        (1..=self.player.records.len())
-            .map(|player_record_index_1_based| {
-                self.player_starbase_count_current_known(player_record_index_1_based)
-            })
-            .collect()
     }
 
     pub fn player_fleet_chain_heads_current_known(&self) -> Vec<usize> {

@@ -1219,3 +1219,13 @@ Suggested execution order:
       - tuple B `[128, 0, 0, 0, 0]`
       - tuple C `[129, 0, 0, 0, 0]`
     - `fixtures/ecmaint-post/v1.5` now has `FLEETS.DAT: differing_offsets=[]`
+  - resolved `PLAYER.DAT` follow-up:
+    - old hotspot words were `[156, 157, 244, 245, 332, 333]`
+    - those came from rewriting non-player-1 starbase count words as if the
+      current 88-byte player-record model were validated for every player
+    - corrected boundary:
+      - player 1 starbase count word is current-known
+      - player 1 `IPBM` count word is current-known
+      - player 2..5 corresponding words are currently preserved as raw /
+        uninterpreted
+    - `fixtures/ecmaint-post/v1.5` now has `PLAYER.DAT: differing_offsets=[]`
