@@ -628,6 +628,17 @@ fn guard_starbase_onebase_allows_coordinate_variation() {
 }
 
 #[test]
+fn guard_starbase_report_prints_linkage_fields_for_known_fixture() {
+    let stdout = run_ec_cli(&["guard-starbase-report", "fixtures/ecmaint-starbase-pre/v1.5"]);
+    assert!(stdout.contains("Guard Starbase Report"));
+    assert!(stdout.contains("player[1].starbase_count_raw=1"));
+    assert!(stdout.contains("fleet[1].local_slot_word_raw=1"));
+    assert!(stdout.contains("fleet[1].fleet_id_word_raw=1"));
+    assert!(stdout.contains("base_count=1"));
+    assert!(stdout.contains("verdict=valid one-base guard-starbase linkage"));
+}
+
+#[test]
 fn validate_guard_starbase_accepts_known_valid_fixture() {
     let stdout = run_ec_cli(&["validate", "fixtures/ecmaint-starbase-pre/v1.5", "guard-starbase"]);
     assert!(stdout.contains("Valid guard-starbase scenario"));

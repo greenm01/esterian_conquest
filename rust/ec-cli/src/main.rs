@@ -370,6 +370,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 parse_u8_arg(&target_y, "target_y")?,
             )?;
         }
+        "guard-starbase-report" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            print_guard_starbase_report(&dir)?;
+        }
         "scenario" => {
             let dir = args
                 .next()
@@ -1297,6 +1304,57 @@ fn validate_guard_starbase_scenario(dir: &Path) -> Result<(), Box<dyn std::error
     }
 }
 
+fn print_guard_starbase_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let player = PlayerDat::parse(&fs::read(dir.join("PLAYER.DAT"))?)?;
+    let fleets = FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?)?;
+    let bases = BaseDat::parse(&fs::read(dir.join("BASES.DAT"))?)?;
+
+    let player1 = player.records.first().ok_or("PLAYER.DAT missing record 1")?;
+    let fleet1 = fleets.records.first().ok_or("FLEETS.DAT missing record 1")?;
+
+    println!("Guard Starbase Report");
+    println!("  dir={}", dir.display());
+    println!("  player[1].fleet_chain_head_raw={}", player1.fleet_chain_head_raw());
+    println!("  player[1].starbase_count_raw={}", player1.starbase_count_raw());
+    println!("  fleet[1].local_slot_word_raw={}", fleet1.local_slot_word_raw());
+    println!(
+        "  fleet[1].next_fleet_link_word_raw={}",
+        fleet1.next_fleet_link_word_raw()
+    );
+    println!("  fleet[1].fleet_id_word_raw={}", fleet1.fleet_id_word_raw());
+    println!(
+        "  fleet[1].order={:#04x} target={:?} guard_index={} guard_enable={}",
+        fleet1.standing_order_code_raw(),
+        fleet1.standing_order_target_coords_raw(),
+        fleet1.guard_starbase_index_raw(),
+        fleet1.guard_starbase_enable_raw()
+    );
+
+    if let Some(base1) = bases.records.first() {
+        println!("  base_count={}", bases.records.len());
+        println!(
+            "  base[1].slot={} summary_word={} id={} link={:#06x} chain={:#06x} coords={:?} trailing={:?} owner={}",
+            base1.local_slot_raw(),
+            base1.summary_word_raw(),
+            base1.base_id_raw(),
+            base1.link_word_raw(),
+            base1.chain_word_raw(),
+            base1.coords_raw(),
+            base1.trailing_coords_raw(),
+            base1.owner_empire_raw()
+        );
+    } else {
+        println!("  base_count=0");
+    }
+
+    match validate_guard_starbase_scenario(dir) {
+        Ok(()) => println!("  verdict=valid one-base guard-starbase linkage"),
+        Err(err) => println!("  verdict=invalid: {err}"),
+    }
+
+    Ok(())
+}
+
 fn validate_known_fleet_order_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let fleets = FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?)?;
     let mut errors = Vec::new();
@@ -1865,6 +1923,7 @@ fn print_usage() {
     println!("  ec-cli fleet-order <dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]");
     println!("  ec-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>");
     println!("  ec-cli guard-starbase-onebase <dir> <target_x> <target_y>");
+    println!("  ec-cli guard-starbase-report <dir>");
     println!("  ec-cli scenario <dir> <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli scenario <dir> show <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli scenario <dir> list");

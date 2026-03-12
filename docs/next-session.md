@@ -73,6 +73,10 @@
         - `ec-cli guard-starbase-onebase <dir> <target_x> <target_y>`
         - this emits a parameterized one-base guard-starbase directory while
           keeping the currently-known accepted linkage keys fixed
+        - `ec-cli guard-starbase-report <dir>`
+        - this prints the current player/fleet/base linkage words and the
+          current validator verdict, which is now the quickest Rust-side
+          inspection tool before handing a directory to `ECMAINT`
   - `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`
     materializes a runnable scenario directory in one command from a
     compliant baseline

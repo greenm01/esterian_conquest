@@ -138,6 +138,10 @@ Current concrete Rust milestone:
     - `ec-cli guard-starbase-onebase <dir> <target_x> <target_y>`
     - this keeps the currently-known linkage keys fixed in the accepted
       one-base shape while varying the sector coordinates
+  - Rust also now has a direct linkage inspection command:
+    - `ec-cli guard-starbase-report <dir>`
+    - use this to print the currently relevant player/fleet/base key words
+      before and after running `ECMAINT`
   - `ec-cli validate <dir> all` now gives a quick classification pass across
     the current known accepted scenarios
   - the known accepted scenarios are now centralized behind one Rust-side

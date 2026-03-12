@@ -64,6 +64,10 @@ Current Rust milestone:
   - `ec-cli guard-starbase-onebase <dir> <target_x> <target_y>`
   - keeps the current known-good linkage keys fixed while varying the guard
     target/base coordinates
+- Rust now also has a starbase-linkage inspection command:
+  - `ec-cli guard-starbase-report <dir>`
+  - prints the current player/fleet/base linkage words and the validator
+    verdict for quick ECMAINT experiment setup
 - `ec-cli validate <dir> all` now classifies a directory against all currently
   known accepted scenarios and reports which ones match
 - `ec-cli validate-preserved <dir> <scenario>` now checks exact byte-for-byte
