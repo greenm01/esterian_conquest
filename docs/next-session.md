@@ -207,6 +207,8 @@ Rust architecture note:
 - recent refactor milestone:
   - `ec-cli` Guard Starbase/IPBM logic now lives in command submodules
   - shared argument/path helpers now live under `ec-cli/src/support/`
+  - `ec-cli` workspace/file-copy helpers now live in `src/workspace.rs`
+  - top-level CLI usage/help text now lives in `src/usage.rs`
   - `ec-data` and `ec-tui` tests now live in crate `tests/` directories
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
@@ -219,6 +221,8 @@ Rust architecture note:
     - `src/support.rs`
   - `ec-data/src/lib.rs` is now crate wiring and reexports instead of another
     monolithic record dump
+  - `ec-cli/src/main.rs` is now down to dispatch plus minimal glue, with the
+    previous workspace/setup boilerplate extracted
 - preserve this direction:
   - data-oriented layout
   - feature/domain submodules

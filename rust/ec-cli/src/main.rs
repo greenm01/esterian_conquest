@@ -1,9 +1,9 @@
 mod commands;
 mod support;
+mod usage;
+mod workspace;
 
 use std::env;
-use std::fs;
-use std::path::Path;
 
 use commands::compare::{compare_all_preserved_scenarios, compare_dirs, compare_preserved_scenario};
 use commands::compliance::{print_compliance_batch_report, print_compliance_report};
@@ -43,32 +43,10 @@ use support::parse::{
     parse_target_and_fleet_spec, parse_target_and_fleet_spec_list, parse_target_and_planet_spec,
     parse_target_and_planet_spec_list, parse_u16_arg, parse_u8_arg, parse_usize_1_based,
 };
-use support::paths::{
-    default_fixture_dir, init_fixture_dir, post_maint_fixture_dir, resolve_repo_path,
-};
-
-pub(crate) const INIT_FILES: &[&str] = &[
-    "BASES.DAT",
-    "CONQUEST.DAT",
-    "DATABASE.DAT",
-    "FLEETS.DAT",
-    "IPBM.DAT",
-    "MESSAGES.DAT",
-    "PLANETS.DAT",
-    "PLAYER.DAT",
-    "RESULTS.DAT",
-    "SETUP.DAT",
-];
-
-const ORIGINAL_FILES: &[&str] = &[
-    "BASES.DAT",
-    "CONQUEST.DAT",
-    "DATABASE.DAT",
-    "FLEETS.DAT",
-    "PLANETS.DAT",
-    "PLAYER.DAT",
-    "SETUP.DAT",
-];
+use support::paths::{default_fixture_dir, post_maint_fixture_dir, resolve_repo_path};
+use usage::print_usage;
+pub(crate) use workspace::INIT_FILES;
+use workspace::{initialize_dir, match_fixture_set};
 
 
 fn main() {
@@ -640,128 +618,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         "compliance-batch-report" => {
-            let root = args
-                .next()
-                .map(|arg| resolve_repo_path(&arg))
-                .unwrap_or_else(post_maint_fixture_dir);
+            let root = args.next().map(|arg| resolve_repo_path(&arg)).unwrap_or_else(post_maint_fixture_dir);
             print_compliance_batch_report(&root)?;
         }
         _ => print_usage(),
     }
 
     Ok(())
-}
-
-fn initialize_dir(source: &Path, target: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    copy_top_level_files(source, target)?;
-
-    let init_dir = init_fixture_dir();
-    for name in INIT_FILES {
-        fs::copy(init_dir.join(name), target.join(name))?;
-    }
-
-    println!("Initialized game directory: {}", target.display());
-    println!("  source snapshot: {}", source.display());
-    println!("  init fixture set: {}", init_dir.display());
-    println!("  overlaid files:");
-    for name in INIT_FILES {
-        println!("    {name}");
-    }
-
-    Ok(())
-}
-
-fn match_fixture_set(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let candidates = [
-        ("original/v1.5", default_fixture_dir(), ORIGINAL_FILES),
-        ("fixtures/ecutil-init/v1.5", init_fixture_dir(), INIT_FILES),
-        ("fixtures/ecmaint-post/v1.5", post_maint_fixture_dir(), INIT_FILES),
-    ];
-
-    println!("Directory: {}", dir.display());
-    let mut matched_any = false;
-    for (label, candidate, files) in candidates {
-        if dir_matches(dir, &candidate, files)? {
-            println!("MATCH {label}");
-            matched_any = true;
-        }
-    }
-    if !matched_any {
-        println!("MATCH none");
-    }
-
-    Ok(())
-}
-
-fn dir_matches(
-    dir: &Path,
-    candidate: &Path,
-    files: &[&str],
-) -> Result<bool, Box<dyn std::error::Error>> {
-    for name in files {
-        if fs::read(dir.join(name))? != fs::read(candidate.join(name))? {
-            return Ok(false);
-        }
-    }
-    Ok(true)
-}
-
-fn copy_top_level_files(source: &Path, target: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    fs::create_dir_all(target)?;
-
-    for entry in fs::read_dir(source)? {
-        let entry = entry?;
-        let path = entry.path();
-        if !entry.file_type()?.is_file() {
-            continue;
-        }
-
-        let file_name = entry.file_name();
-        fs::copy(&path, target.join(file_name))?;
-    }
-
-    Ok(())
-}
-
-fn print_usage() {
-    println!("Usage:");
-    println!("  ec-cli inspect [dir]");
-    println!("  ec-cli headers [dir]");
-    println!("  ec-cli maintenance-days [dir]");
-    println!("  ec-cli maintenance-days <dir> set <sun|mon|tue|wed|thu|fri|sat>...");
-    println!("  ec-cli snoop [dir]");
-    println!("  ec-cli snoop <dir> <on|off>");
-    println!("  ec-cli purge-after [dir]");
-    println!("  ec-cli purge-after <dir> <turns>");
-    println!("  ec-cli fleet-order <dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]");
-    println!("  ec-cli fleet-order-report [dir] [fleet_record]");
-    println!("  ec-cli fleet-order-init <target_dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]");
-    println!("  ec-cli fleet-order-batch-init <target_root> <fleet_record:speed:order:target_x:target_y[:aux0[:aux1]]>...");
-    println!("  ec-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>");
-    println!("  ec-cli planet-build-report [dir] [planet_record]");
-    println!("  ec-cli planet-build-init <target_dir> <planet_record> <build_slot_raw> <build_kind_raw>");
-    println!("  ec-cli planet-build-batch-init <target_root> <planet_record:build_slot_raw:build_kind_raw>...");
-    println!("  ec-cli guard-starbase-onebase <dir> <target_x> <target_y>");
-    println!("  ec-cli guard-starbase-report <dir>");
-    println!("  ec-cli guard-starbase-init [source_dir] <target_dir> <target_x> <target_y>");
-    println!("  ec-cli guard-starbase-batch-init [source_dir] <target_root> <x:y> <x:y>...");
-    println!("  ec-cli ipbm-report <dir>");
-    println!("  ec-cli ipbm-zero <dir> <count>");
-    println!("  ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>");
-    println!("  ec-cli ipbm-validate <dir>");
-    println!("  ec-cli ipbm-init [source_dir] <target_dir> <count>");
-    println!("  ec-cli ipbm-batch-init [source_dir] <target_root> <count> <count>...");
-    println!("  ec-cli compliance-report <dir>");
-    println!("  ec-cli compliance-batch-report <root>");
-    println!("  ec-cli scenario <dir> <fleet-order|planet-build|guard-starbase>");
-    println!("  ec-cli scenario <dir> show <fleet-order|planet-build|guard-starbase>");
-    println!("  ec-cli scenario <dir> list");
-    println!("  ec-cli scenario-init-all [source_dir] <target_root>");
-    println!("  ec-cli scenario-init [source_dir] <target_dir> <fleet-order|planet-build|guard-starbase>");
-    println!("  ec-cli validate <dir> <all|fleet-order|planet-build|guard-starbase>");
-    println!("  ec-cli validate-preserved <dir> <all|fleet-order|planet-build|guard-starbase>");
-    println!("  ec-cli compare-preserved <dir> <all|fleet-order|planet-build|guard-starbase>");
-    println!("  ec-cli match [dir]");
-    println!("  ec-cli compare <left_dir> <right_dir>");
-    println!("  ec-cli init [source_dir] <target_dir>");
 }

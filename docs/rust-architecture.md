@@ -54,6 +54,8 @@ The current intended split is:
 - `main.rs`: argument dispatch and small workspace glue only
 - `commands/`: feature- and workflow-oriented command families
 - `support/`: shared parsing and path helpers
+- `usage.rs`: top-level CLI usage/help text
+- `workspace.rs`: fixture initialization and directory matching helpers
 
 `ec-data` and `ec-tui` tests now live under crate `tests/` directories instead
 of source-file `#[cfg(test)]` modules.
