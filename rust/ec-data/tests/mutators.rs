@@ -158,12 +158,14 @@ fn core_game_data_current_known_count_helpers_follow_player1_and_records() {
     base1.set_owner_empire_raw(1);
     let mut base2 = BaseRecord::new_zeroed();
     base2.set_owner_empire_raw(1);
+    let mut base3 = BaseRecord::new_zeroed();
+    base3.set_owner_empire_raw(2);
     let mut data = CoreGameData {
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
         planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
         fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
         bases: BaseDat {
-            records: vec![base1, base2],
+            records: vec![base1, base2, base3],
         },
         ipbm: IpbmDat {
             records: vec![
@@ -178,21 +180,29 @@ fn core_game_data_current_known_count_helpers_follow_player1_and_records() {
 
     assert_eq!(data.player1_starbase_count_current_known(), 0);
     assert_eq!(data.player1_owned_base_record_count_current_known(), 2);
+    assert_eq!(data.player_owned_base_record_counts_current_known(), vec![2, 1, 0, 0, 0]);
     assert_eq!(data.player1_ipbm_count_current_known(), 0);
-    assert_eq!(
-        data.current_known_core_state_errors(),
-        vec![
-            "PLAYER[1]-owned BASES.DAT record count expected 0, got 2".to_string(),
-            "IPBM.DAT record count expected 0, got 3".to_string(),
-        ]
-    );
+    let initial_errors = data.current_known_core_state_errors();
+    assert_eq!(initial_errors.len(), 3);
+    assert!(initial_errors.contains(&"PLAYER[1]-owned BASES.DAT record count expected 0, got 2".to_string()));
+    assert!(initial_errors.contains(&format!(
+        "PLAYER[2]-owned BASES.DAT record count expected {}, got 1",
+        data.player.records[1].starbase_count_raw()
+    )));
+    assert!(initial_errors.contains(&"IPBM.DAT record count expected 0, got 3".to_string()));
 
     data.sync_player1_current_known_counts();
 
     assert_eq!(data.player.records[0].starbase_count_raw(), 2);
+    assert_eq!(data.player.records[1].starbase_count_raw(), 1);
+    assert_eq!(data.player.records[2].starbase_count_raw(), 0);
+    assert_eq!(data.player.records[3].starbase_count_raw(), 0);
+    assert_eq!(data.player.records[4].starbase_count_raw(), 0);
     assert_eq!(data.player.records[0].ipbm_count_raw(), 3);
     assert_eq!(data.player1_starbase_count_current_known(), 2);
     assert_eq!(data.player1_owned_base_record_count_current_known(), 2);
+    assert_eq!(data.player_starbase_counts_current_known(), vec![2, 1, 0, 0, 0]);
+    assert_eq!(data.player_owned_base_record_counts_current_known(), vec![2, 1, 0, 0, 0]);
     assert_eq!(data.player1_ipbm_count_current_known(), 3);
     assert!(data.current_known_core_state_errors().is_empty());
 }

@@ -158,6 +158,10 @@ where the RE supports them. For player 1, starbase count normalization and
 validation shall be based on player-1-owned base records, not blindly on total
 `BASES.DAT` length.
 
+The same pattern shall extend across players when the field semantics are clear.
+Starbase-count normalization is now a per-player owned-base rule, even though
+`IPBM` count normalization remains intentionally player-1-scoped for now.
+
 Current expectation:
 
 - `fleet-order`, `planet-build`, `guard-starbase`, `ipbm`, and

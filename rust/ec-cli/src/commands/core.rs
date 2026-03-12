@@ -7,6 +7,8 @@ pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Er
     let starbase_total = data.player1_starbase_count_current_known();
     let owned_base_total = data.player1_owned_base_record_count_current_known();
     let ipbm_total = data.player1_ipbm_count_current_known();
+    let player_starbase_counts = data.player_starbase_counts_current_known();
+    let player_owned_base_counts = data.player_owned_base_record_counts_current_known();
 
     println!("Core State Report");
     println!("  dir={}", dir.display());
@@ -22,9 +24,10 @@ pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Er
 
     for (idx, record) in data.player.records.iter().enumerate() {
         println!(
-            "  player {:02}: starbase_count={} ipbm_count={} fleet_chain_head={}",
+            "  player {:02}: starbase_count={} owned_base_count={} ipbm_count={} fleet_chain_head={}",
             idx + 1,
-            record.starbase_count_raw(),
+            player_starbase_counts[idx],
+            player_owned_base_counts[idx],
             record.ipbm_count_raw(),
             record.fleet_chain_head_raw()
         );
@@ -78,5 +81,18 @@ pub(crate) fn sync_core_counts(dir: &Path) -> Result<(), Box<dyn std::error::Err
         "  player1_ipbm_count = {}",
         data.player1_ipbm_count_current_known()
     );
+    for (idx, (starbase_count, owned_base_count)) in data
+        .player_starbase_counts_current_known()
+        .into_iter()
+        .zip(data.player_owned_base_record_counts_current_known())
+        .enumerate()
+    {
+        println!(
+            "  player {:02}: starbase_count = {} owned_base_count = {}",
+            idx + 1,
+            starbase_count,
+            owned_base_count
+        );
+    }
     Ok(())
 }

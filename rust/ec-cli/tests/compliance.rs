@@ -25,6 +25,7 @@ fn core_report_summarizes_known_post_fixture_counts() {
     assert!(stdout.contains("player1_starbase_count=0"));
     assert!(stdout.contains("player1_owned_base_record_count=0"));
     assert!(stdout.contains("player1_ipbm_count=0"));
+    assert!(stdout.contains("player 01: starbase_count=0 owned_base_count=0"));
 }
 
 #[test]
@@ -63,6 +64,7 @@ fn core_sync_counts_repairs_player1_count_words() {
     assert!(sync_stdout.contains("player1_starbase_count = 0"));
     assert!(sync_stdout.contains("player1_owned_base_record_count = 0"));
     assert!(sync_stdout.contains("player1_ipbm_count = 0"));
+    assert!(sync_stdout.contains("player 02: starbase_count = 0 owned_base_count = 0"));
 
     let validate_stdout = run_ec_cli_in_dir(
         &["core-validate", target.to_str().unwrap()],

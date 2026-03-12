@@ -361,6 +361,12 @@ Rust architecture note:
       player-1-owned base records, not total `BASES.DAT` length
     - `core-validate`, `core-report`, and `core-sync-counts` now expose and use
       `player1_owned_base_record_count_current_known()`
+  - follow-on count generalization:
+    - the shared model now exposes per-player starbase counts and per-player
+      owned-base counts across all five player records
+    - starbase-count synchronization now updates all players from owned-base
+      counts, while `IPBM` synchronization remains intentionally scoped to
+      player 1
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`
