@@ -629,6 +629,8 @@ fn core_game_data_sync_current_known_initialized_post_maint_baseline_repairs_com
     data.player.records[0].set_starbase_count_raw(7);
     data.player.records[0].set_ipbm_count_raw(4);
     data.setup.raw[..5].copy_from_slice(b"BAD!!");
+    data.bases.records.push(BaseRecord::new_zeroed());
+    data.ipbm.records.push(IpbmRecord { raw: [0u8; IPBM_RECORD_SIZE] });
     data.fleets.records.clear();
     data.fleets.records.push(FleetRecord::new_zeroed());
     data.planets.records[14].set_planet_tax_rate_raw(3);
@@ -644,6 +646,7 @@ fn core_game_data_sync_current_known_initialized_post_maint_baseline_repairs_com
     assert!(data.current_known_initialized_homeworld_alignment_errors().is_empty());
     assert!(data.current_known_homeworld_seed_payload_errors().is_empty());
     assert!(data.current_known_unowned_planet_payload_errors().is_empty());
+    assert!(data.current_known_empty_auxiliary_state_errors().is_empty());
 }
 
 #[test]

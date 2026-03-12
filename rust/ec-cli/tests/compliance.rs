@@ -205,6 +205,8 @@ fn core_sync_current_known_baseline_repairs_combined_baseline_state() {
     data.player.records[0].set_starbase_count_raw(7);
     data.player.records[0].set_ipbm_count_raw(4);
     data.setup.raw[..5].copy_from_slice(b"BAD!!");
+    data.bases.records.push(ec_data::BaseRecord::new_zeroed());
+    data.ipbm.records.push(ec_data::IpbmRecord { raw: [0u8; ec_data::IPBM_RECORD_SIZE] });
     data.fleets.records.clear();
     data.fleets.records.push(ec_data::FleetRecord::new_zeroed());
     data.planets.records[14].set_planet_tax_rate_raw(3);
@@ -222,6 +224,7 @@ fn core_sync_current_known_baseline_repairs_combined_baseline_state() {
     assert!(sync_stdout.contains("initialized_planet_ownership = true"));
     assert!(sync_stdout.contains("homeworld_seed_payloads = true"));
     assert!(sync_stdout.contains("unowned_planet_payloads = true"));
+    assert!(sync_stdout.contains("empty_auxiliary_state = true"));
     assert!(sync_stdout.contains("setup_baseline = true"));
     assert!(sync_stdout.contains("conquest_baseline = true"));
 

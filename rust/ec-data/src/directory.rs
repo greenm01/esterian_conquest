@@ -404,6 +404,7 @@ impl CoreGameData {
     }
 
     pub fn sync_current_known_initialized_post_maint_baseline(&mut self) {
+        self.sync_current_known_empty_auxiliary_state();
         self.sync_current_known_baseline_controls_and_counts();
         self.sync_current_known_initialized_fleet_baseline();
         self.sync_current_known_initialized_planet_payloads();
@@ -733,6 +734,11 @@ impl CoreGameData {
         }
 
         errors
+    }
+
+    pub fn sync_current_known_empty_auxiliary_state(&mut self) {
+        self.bases.records.clear();
+        self.ipbm.records.clear();
     }
 
     pub fn current_known_setup_baseline_errors(&self) -> Vec<String> {

@@ -232,6 +232,7 @@ payloads:
 Those bounded repair surfaces now compose into one shared baseline synchronizer:
 - `CoreGameData::sync_current_known_initialized_post_maint_baseline()`
 - this composes:
+  - empty auxiliary-state repair
   - control/count repair
   - initialized fleet baseline repair
   - initialized planet payload repair

@@ -1168,6 +1168,7 @@ Suggested execution order:
   - `CoreGameData::sync_current_known_initialized_post_maint_baseline()`
   - CLI: `ec-cli core-sync-current-known-baseline [dir]`
   - this composes the three bounded repair surfaces now available:
+    - empty auxiliary-state repair
     - control/count repair
     - initialized fleet baseline repair
     - initialized planet payload repair
