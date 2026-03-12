@@ -1175,3 +1175,12 @@ Suggested execution order:
     - Rust can now take a directory with drift across those current-known
       surfaces and normalize it back into the validated initialized/post-maint
       baseline model in one command
+
+- New baseline constructor command:
+  - `ec-cli core-init-current-known-baseline [source_dir] <target_dir>`
+  - copies a source tree, then applies the composed current-known baseline
+    synchronizer before writing the target directory
+  - defaults the source to `fixtures/ecmaint-post/v1.5`
+  - practical meaning:
+    - Rust now has a one-command way to materialize a validated baseline
+      experiment directory, not just repair one already in place

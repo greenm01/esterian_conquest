@@ -2,6 +2,8 @@ use std::path::Path;
 
 use ec_data::CoreGameData;
 
+use crate::workspace::copy_top_level_files;
+
 pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let data = CoreGameData::load(dir)?;
     let starbase_total = data.player1_starbase_count_current_known();
@@ -395,5 +397,52 @@ pub(crate) fn sync_current_known_baseline(dir: &Path) -> Result<(), Box<dyn std:
         "  conquest_baseline = {}",
         data.current_known_conquest_baseline_errors().is_empty()
     );
+    Ok(())
+}
+
+pub(crate) fn init_current_known_baseline(
+    source: &Path,
+    target: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    copy_top_level_files(source, target)?;
+    let mut data = CoreGameData::load(target)?;
+    data.sync_current_known_initialized_post_maint_baseline();
+    data.save(target)?;
+
+    println!("Current-known baseline directory initialized at {}", target.display());
+    println!("  source snapshot: {}", source.display());
+    println!(
+        "  initialized_fleet_blocks = {}",
+        data.looks_like_initialized_fleet_blocks_current_known()
+    );
+    println!(
+        "  initialized_fleet_payloads = {}",
+        data.current_known_initialized_fleet_payload_errors().is_empty()
+    );
+    println!(
+        "  initialized_fleet_missions = {}",
+        data.current_known_initialized_fleet_mission_errors().is_empty()
+    );
+    println!(
+        "  initialized_planet_ownership = {}",
+        data.current_known_initialized_planet_ownership_errors().is_empty()
+    );
+    println!(
+        "  homeworld_seed_payloads = {}",
+        data.current_known_homeworld_seed_payload_errors().is_empty()
+    );
+    println!(
+        "  unowned_planet_payloads = {}",
+        data.current_known_unowned_planet_payload_errors().is_empty()
+    );
+    println!(
+        "  setup_baseline = {}",
+        data.current_known_setup_baseline_errors().is_empty()
+    );
+    println!(
+        "  conquest_baseline = {}",
+        data.current_known_conquest_baseline_errors().is_empty()
+    );
+
     Ok(())
 }

@@ -5,7 +5,7 @@ use crate::commands::compare::{
 };
 use crate::commands::compliance::{print_compliance_batch_report, print_compliance_report};
 use crate::commands::core::{
-    print_core_report, sync_core_baseline, sync_core_counts,
+    init_current_known_baseline, print_core_report, sync_core_baseline, sync_core_counts,
     sync_current_known_baseline,
     sync_initialized_fleet_baseline, sync_initialized_planet_payloads,
     validate_core_state,
@@ -75,6 +75,16 @@ pub fn run_args(
         "core-sync-current-known-baseline" => sync_current_known_baseline(&next_dir(&mut args))?,
         "core-sync-initialized-fleets" => sync_initialized_fleet_baseline(&next_dir(&mut args))?,
         "core-sync-initialized-planets" => sync_initialized_planet_payloads(&next_dir(&mut args))?,
+        "core-init-current-known-baseline" => {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((source, target)) =
+                parse_optional_source_and_target(remaining, post_maint_fixture_dir())
+            else {
+                print_usage();
+                return Ok(());
+            };
+            init_current_known_baseline(&source, &target)?;
+        }
         "headers" => dump_headers(&next_dir(&mut args))?,
         "match" => match_fixture_set(&next_dir(&mut args))?,
         "compare" => {

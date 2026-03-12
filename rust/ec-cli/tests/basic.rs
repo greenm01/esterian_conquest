@@ -156,3 +156,28 @@ fn scenario_init_compose_materializes_combined_directory() {
 
     cleanup_dir(&target);
 }
+
+#[test]
+fn core_init_current_known_baseline_materializes_valid_directory() {
+    let target = unique_temp_dir("ec-cli-core-init-current-known");
+
+    let stdout = run_ec_cli_in_dir(
+        &["core-init-current-known-baseline", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Current-known baseline directory initialized at"));
+    assert!(stdout.contains("source snapshot:"));
+    assert!(stdout.contains("fixtures/ecmaint-post/v1.5"));
+    assert!(stdout.contains("initialized_fleet_blocks = true"));
+    assert!(stdout.contains("homeworld_seed_payloads = true"));
+    assert!(stdout.contains("setup_baseline = true"));
+    assert!(stdout.contains("conquest_baseline = true"));
+
+    let validate_stdout = run_ec_cli_in_dir(
+        &["core-validate", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(validate_stdout.contains("Valid core state"));
+
+    cleanup_dir(&target);
+}

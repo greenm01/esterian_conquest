@@ -239,6 +239,13 @@ Those bounded repair surfaces now compose into one shared baseline synchronizer:
   compliant directories, while still staying explicit about scope and avoiding
   guesses beyond the validated model
 
+That composed synchronizer now also has a directory-constructor wrapper:
+- `ec-cli core-init-current-known-baseline [source_dir] <target_dir>`
+- it copies a source tree, applies the shared current-known baseline
+  synchronizer, and writes a ready-to-validate output directory
+- this is the preferred CLI path when the task is “materialize a baseline
+  experiment directory” rather than “repair the directory I already have”
+
 The shared model also now treats homeworld-seed alignment as a current-known
 multi-player invariant for initialized/post-maint state:
 - each active empire has exactly one owned `Not Named Yet` planet
