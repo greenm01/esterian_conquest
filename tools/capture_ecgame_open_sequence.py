@@ -10,6 +10,7 @@ from pexpect_argv import spawn_argv
 
 TARGET = Path("/tmp/ecgame-open-sequence")
 MAX_OPENS = 12
+MAX_NON_OPEN_STOPS = 12
 
 
 def prepare_target() -> None:
@@ -102,19 +103,22 @@ def main() -> None:
         sequence: list[str] = []
         transcript_parts: list[str] = []
 
-        for i in range(MAX_OPENS):
+        non_open_stops = 0
+        while len(sequence) < MAX_OPENS and non_open_stops < MAX_NON_OPEN_STOPS:
             child.sendline("RUN")
             time.sleep(4)
             text = read_available(child)
             transcript_parts.append(text)
             if "3D02" not in text:
-                break
+                non_open_stops += 1
+                continue
 
             child.sendline("EV AX BX CX DX SI DI BP SP DS ES SS")
             time.sleep(1)
             ev_text = read_available(child)
             transcript_parts.append(ev_text)
             segment, offset = parse_ev(text + ev_text)
+            non_open_stops = 0
 
             child.sendline(f"MEMDUMPBIN {segment}:{offset} 100")
             time.sleep(1)

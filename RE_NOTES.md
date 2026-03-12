@@ -195,8 +195,11 @@ Important detail:
   - on the corrected no-`/L` path, `ECGAME` first opens `Setup.dat`
   - this is the first concrete startup file-order fact recovered from the live debugger path
 - Current caveat on further sequencing:
-  - after resuming from the `Setup.dat` open, the next debugger stop no longer presented the same clean `3D02` line in the quick capture transcript
-  - so additional startup-open order still needs one more pass with slightly stronger stop classification
+  - after resuming from the `Setup.dat` open, the quick debugger path currently falls into repeated non-open stops instead of surfacing another clean `AH=3D` open immediately
+  - observed stop shape in the sequencer transcript:
+    - `CS=4294 EIP=00000637`
+    - repeated running state around `F000:D080`
+  - so additional startup-open order still needs stronger stop classification or a different breakpoint strategy after the first open
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
 
 Current caveat:

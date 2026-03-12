@@ -564,5 +564,9 @@ Suggested execution order:
   - corrected no-`/L` `ECGAME` opens `Setup.dat` first
 - Next task:
   - continue the startup-open sequence after `Setup.dat`
-  - the second stop needs stronger classification because it no longer showed the same clean `3D02` line in the quick transcript
+  - the quick sequencer now shows the post-`Setup.dat` path falling into repeated non-open stops instead of another clean `3D02` open
+  - observed shape:
+    - `CS=4294 EIP=00000637`
+    - running state around `F000:D080`
+  - next pass should either classify those stops or switch to a different post-open breakpoint strategy
 - Remaining blocker: the local interactive `ECGAME` flow is still not fully stable because several old scripts have brittle debugger prompt handling, and the freshly regenerated dumps still look like earlier-boot snapshots rather than the richer `/tmp/ecgboot_chain` state referenced in `RE_NOTES.md`.
