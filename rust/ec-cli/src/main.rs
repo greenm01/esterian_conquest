@@ -330,6 +330,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .map(|arg| resolve_repo_path(&arg))
                 .unwrap_or_else(default_fixture_dir);
             match args.next().as_deref() {
+                Some("all") => validate_all_known_scenarios(&dir)?,
                 Some("fleet-order") => validate_known_fleet_order_scenario(&dir)?,
                 Some("planet-build") => validate_known_planet_build_scenario(&dir)?,
                 Some("guard-starbase") => validate_guard_starbase_scenario(&dir)?,
@@ -1153,6 +1154,33 @@ fn validate_known_planet_build_scenario(dir: &Path) -> Result<(), Box<dyn std::e
     }
 }
 
+fn validate_all_known_scenarios(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let checks = [
+        ("fleet-order", validate_known_fleet_order_scenario(dir)),
+        ("planet-build", validate_known_planet_build_scenario(dir)),
+        ("guard-starbase", validate_guard_starbase_scenario(dir)),
+    ];
+
+    let mut matched = 0usize;
+    for (name, result) in checks {
+        match result {
+            Ok(()) => {
+                println!("OK   {name}");
+                matched += 1;
+            }
+            Err(err) => {
+                println!("FAIL {name}: {err}");
+            }
+        }
+    }
+
+    if matched == 0 {
+        Err("directory does not match any known accepted scenario".into())
+    } else {
+        Ok(())
+    }
+}
+
 fn init_guard_starbase_scenario(
     source: &Path,
     target: &Path,
@@ -1521,7 +1549,7 @@ fn print_usage() {
     println!("  ec-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>");
     println!("  ec-cli scenario <dir> <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli scenario-init [source_dir] <target_dir> <fleet-order|planet-build|guard-starbase>");
-    println!("  ec-cli validate <dir> <fleet-order|planet-build|guard-starbase>");
+    println!("  ec-cli validate <dir> <all|fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli match [dir]");
     println!("  ec-cli compare <left_dir> <right_dir>");
     println!("  ec-cli init [source_dir] <target_dir>");

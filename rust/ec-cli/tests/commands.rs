@@ -540,6 +540,14 @@ fn validate_planet_build_accepts_known_valid_fixture() {
 }
 
 #[test]
+fn validate_all_classifies_known_fleet_fixture() {
+    let stdout = run_ec_cli(&["validate", "fixtures/ecmaint-fleet-pre/v1.5", "all"]);
+    assert!(stdout.contains("OK   fleet-order"));
+    assert!(stdout.contains("FAIL planet-build:"));
+    assert!(stdout.contains("FAIL guard-starbase:"));
+}
+
+#[test]
 fn validate_guard_starbase_rejects_post_maint_fixture() {
     let stderr = run_ec_cli_failure_in_dir(
         &["validate", "fixtures/ecmaint-post/v1.5", "guard-starbase"],
@@ -568,6 +576,15 @@ fn validate_planet_build_rejects_post_maint_fixture() {
     );
     assert!(stderr.contains("PLANET[15].build_slot expected 0x03, got 0x00"));
     assert!(stderr.contains("PLANET[15].build_kind expected 0x01, got 0x00"));
+}
+
+#[test]
+fn validate_all_rejects_post_maint_fixture() {
+    let stderr = run_ec_cli_failure_in_dir(
+        &["validate", "fixtures/ecmaint-post/v1.5", "all"],
+        repo_root().join("rust"),
+    );
+    assert!(stderr.contains("directory does not match any known accepted scenario"));
 }
 
 #[test]

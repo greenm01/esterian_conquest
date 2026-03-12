@@ -1432,6 +1432,9 @@ Rust fleet/build scenario CLI milestone:
 - both scenarios also have validation entry points:
   - `ec-cli validate <dir> fleet-order`
   - `ec-cli validate <dir> planet-build`
+  - `ec-cli validate <dir> all` now runs the current scenario validators as a
+    directory-classification pass and reports which known accepted scenarios
+    match
 - both scenarios can now be materialized into runnable directories from a
   compliant baseline in one command:
   - `ec-cli scenario-init [source_dir] <target_dir> fleet-order`

@@ -15,6 +15,7 @@
     - `ec-cli scenario <dir> planet-build`
     - `ec-cli validate <dir> fleet-order`
     - `ec-cli validate <dir> planet-build`
+    - `ec-cli validate <dir> all`
     - `ec-cli scenario-init [source_dir] <target_dir> fleet-order`
     - `ec-cli scenario-init [source_dir] <target_dir> planet-build`
     - these now turn the two already-preserved accepted fleet/build rewrites
@@ -59,6 +60,8 @@
       not just copy preserved fixture trees wholesale
     - Rust can now generate and validate accepted fleet/build/starbase
       scenarios through a consistent scenario-oriented CLI
+    - Rust can now classify a directory against all currently-known accepted
+      scenarios with one command
     - Rust can also reject obviously non-compliant starbase snapshots before
       running the original engine
     - Rust can now generate a ready-to-run preserved scenario directory, not
