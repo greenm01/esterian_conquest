@@ -586,4 +586,17 @@ Suggested execution order:
     - dump the `0x40BC` chain buffer after the read returns
     - or set a code breakpoint on the post-read caller path instead of
       re-breaking on raw DOS file I/O
+- New result on that path:
+  - artifact:
+    - `artifacts/ecgame-startup/chain-buffer-summary.txt`
+    - `artifacts/ecgame-startup/chain-buffer-prefix.bin`
+  - script:
+    - `tools/capture_ecgame_chain_buffer.py`
+  - confirmed:
+    - the first `107` bytes of the live `0x40BC` read buffer exactly match the
+      generated `CHAIN.TXT`
+    - only the bytes beyond EOF are stale scratch data
+  - implication:
+    - the remaining blocker is not low-level `CHAIN.TXT` I/O or CRLF handling
+    - it is the semantic decision path after that successful prefix read
 - Remaining blocker: the local interactive `ECGAME` flow is still not fully stable because several old scripts have brittle debugger prompt handling, and the freshly regenerated dumps still look like earlier-boot snapshots rather than the richer `/tmp/ecgboot_chain` state referenced in `RE_NOTES.md`.

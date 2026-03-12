@@ -1,0 +1,6 @@
+close_stop_ax=3e01
+chain_len=107
+buffer_len=128
+prefix_match=True
+matched_prefix_len=107
+tail_after_chain=15052d2a00eb0a6030161747281b0f18

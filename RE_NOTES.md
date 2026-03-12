@@ -222,6 +222,22 @@ Important detail:
   - the next remaining question is why that `CHAIN.TXT` path terminates with
     exit code `0x1C` on the current local harness instead of proceeding into
     the richer door flow seen in older notes
+- `CHAIN.TXT` buffer capture is now pinned down too:
+  - artifact:
+    - `artifacts/ecgame-startup/chain-buffer-summary.txt`
+    - `artifacts/ecgame-startup/chain-buffer-prefix.bin`
+  - script:
+    - `tools/capture_ecgame_chain_buffer.py`
+  - confirmed:
+    - at the post-read close stop (`AX=3E01`), dumping the `0x80`-byte read
+      buffer at `DS:40BC` shows the first `107` bytes exactly match the
+      generated local `CHAIN.TXT`
+    - bytes beyond EOF are stale scratch bytes, not parser output
+  - practical implication:
+    - the current local startup failure is not caused by `ECGAME` misreading
+      the normalized dropfile prefix
+    - the remaining failure is in the semantic validation/decision path after
+      that successful prefix read
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
 
 Current caveat:
