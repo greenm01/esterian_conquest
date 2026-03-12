@@ -172,6 +172,16 @@ impl PlayerRecord {
         u16::from_le_bytes([self.raw[0x40], self.raw[0x41]])
     }
 
+    pub fn ipbm_count_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x48], self.raw[0x49]])
+    }
+
+    pub fn set_ipbm_count_raw(&mut self, value: u16) {
+        let [lo, hi] = value.to_le_bytes();
+        self.raw[0x48] = lo;
+        self.raw[0x49] = hi;
+    }
+
     pub fn last_run_year(&self) -> u16 {
         u16::from_le_bytes([self.raw[0x4E], self.raw[0x4F]])
     }
@@ -826,16 +836,32 @@ impl IpbmRecord {
         u16::from_le_bytes([self.raw[0x00], self.raw[0x01]])
     }
 
+    pub fn set_primary_word_raw(&mut self, value: u16) {
+        self.raw[0x00..0x02].copy_from_slice(&value.to_le_bytes());
+    }
+
     pub fn owner_empire_raw(&self) -> u8 {
         self.raw[0x02]
+    }
+
+    pub fn set_owner_empire_raw(&mut self, value: u8) {
+        self.raw[0x02] = value;
     }
 
     pub fn gate_word_raw(&self) -> u16 {
         u16::from_le_bytes([self.raw[0x03], self.raw[0x04]])
     }
 
+    pub fn set_gate_word_raw(&mut self, value: u16) {
+        self.raw[0x03..0x05].copy_from_slice(&value.to_le_bytes());
+    }
+
     pub fn follow_on_word_raw(&self) -> u16 {
         u16::from_le_bytes([self.raw[0x05], self.raw[0x06]])
+    }
+
+    pub fn set_follow_on_word_raw(&mut self, value: u16) {
+        self.raw[0x05..0x07].copy_from_slice(&value.to_le_bytes());
     }
 }
 
@@ -1216,6 +1242,15 @@ mod tests {
         fs::read(fixture_path(name)).expect("fixture should exist")
     }
 
+    fn read_ecmaint_starbase_pre_fixture(name: &str) -> Vec<u8> {
+        fs::read(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../fixtures/ecmaint-starbase-pre/v1.5")
+                .join(name),
+        )
+        .expect("ecmaint starbase-pre fixture should exist")
+    }
+
     fn read_initialized_fixture(name: &str) -> Vec<u8> {
         fs::read(initialized_fixture_path(name)).expect("initialized fixture should exist")
     }
@@ -1501,11 +1536,9 @@ mod tests {
     fn guard_starbase_related_accessors_expose_linkage_words() {
         let player = PlayerDat::parse(&read_fixture("PLAYER.DAT")).unwrap();
         assert_eq!(player.records[0].fleet_chain_head_raw(), 1);
+        assert_eq!(player.records[0].ipbm_count_raw(), 0);
 
-        let fleet_bytes = std::fs::read(
-            repo_root().join("fixtures/ecmaint-starbase-pre/v1.5/FLEETS.DAT"),
-        )
-        .unwrap();
+        let fleet_bytes = read_ecmaint_starbase_pre_fixture("FLEETS.DAT");
         let fleets = FleetDat::parse(&fleet_bytes).unwrap();
         let fleet = &fleets.records[0];
         assert_eq!(fleet.local_slot_word_raw(), 1);
@@ -1514,14 +1547,25 @@ mod tests {
         assert_eq!(fleet.guard_starbase_index_raw(), 1);
         assert_eq!(fleet.guard_starbase_enable_raw(), 1);
 
-        let base_bytes = std::fs::read(
-            repo_root().join("fixtures/ecmaint-starbase-pre/v1.5/BASES.DAT"),
-        )
-        .unwrap();
+        let base_bytes = read_ecmaint_starbase_pre_fixture("BASES.DAT");
         let bases = BaseDat::parse(&base_bytes).unwrap();
         let base = &bases.records[0];
         assert_eq!(base.summary_word_raw(), 1);
         assert_eq!(base.chain_word_raw(), 1);
+    }
+
+    #[test]
+    fn ipbm_record_setters_round_trip_structural_prefix_fields() {
+        let mut record = IpbmRecord { raw: [0u8; IPBM_RECORD_SIZE] };
+        record.set_primary_word_raw(0x1234);
+        record.set_owner_empire_raw(0x02);
+        record.set_gate_word_raw(0x4567);
+        record.set_follow_on_word_raw(0x89ab);
+
+        assert_eq!(record.primary_word_raw(), 0x1234);
+        assert_eq!(record.owner_empire_raw(), 0x02);
+        assert_eq!(record.gate_word_raw(), 0x4567);
+        assert_eq!(record.follow_on_word_raw(), 0x89ab);
     }
 
     #[test]

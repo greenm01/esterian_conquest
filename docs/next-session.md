@@ -81,6 +81,11 @@
         - this now materializes a coordinate-parameterized one-base Guard
           Starbase directory in one command, defaulting to
           `fixtures/ecmaint-post/v1.5`
+        - `ec-cli ipbm-report <dir>`
+        - `ec-cli ipbm-zero <dir> <count>`
+        - these now cover the first practical Rust-side `IPBM.DAT` workflow:
+          inspect the current count/length state, then materialize a zero-filled
+          valid record family that satisfies the known `PLAYER[0x48]` gate
   - `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`
     materializes a runnable scenario directory in one command from a
     compliant baseline

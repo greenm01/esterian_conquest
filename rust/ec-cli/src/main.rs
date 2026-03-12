@@ -388,6 +388,24 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             };
             init_guard_starbase_onebase(&source, &target, target_x, target_y)?;
         }
+        "ipbm-report" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            print_ipbm_report(&dir)?;
+        }
+        "ipbm-zero" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            let Some(count) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            set_ipbm_zero_records(&dir, count.parse::<u16>()?)?;
+        }
         "scenario" => {
             let dir = args
                 .next()
@@ -1381,6 +1399,55 @@ fn init_guard_starbase_onebase(
     Ok(())
 }
 
+fn print_ipbm_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let player = PlayerDat::parse(&fs::read(dir.join("PLAYER.DAT"))?)?;
+    let ipbm_bytes = fs::read(dir.join("IPBM.DAT"))?;
+    let ipbm = IpbmDat::parse(&ipbm_bytes)?;
+
+    println!("IPBM Report");
+    println!("  dir={}", dir.display());
+    println!("  player[1].ipbm_count_raw={}", player.records[0].ipbm_count_raw());
+    println!("  file_record_count={}", ipbm.records.len());
+    println!("  file_size={}", ipbm_bytes.len());
+    println!(
+        "  expected_size_from_player1={}",
+        player.records[0].ipbm_count_raw() as usize * ec_data::IPBM_RECORD_SIZE
+    );
+
+    for (idx, record) in ipbm.records.iter().enumerate() {
+        println!(
+            "  record {}: primary={:#06x} owner={} gate={:#06x} follow_on={:#06x}",
+            idx + 1,
+            record.primary_word_raw(),
+            record.owner_empire_raw(),
+            record.gate_word_raw(),
+            record.follow_on_word_raw()
+        );
+    }
+
+    Ok(())
+}
+
+fn set_ipbm_zero_records(dir: &Path, count: u16) -> Result<(), Box<dyn std::error::Error>> {
+    let player_path = dir.join("PLAYER.DAT");
+    let mut player = PlayerDat::parse(&fs::read(&player_path)?)?;
+    player.records[0].set_ipbm_count_raw(count);
+    fs::write(&player_path, player.to_bytes())?;
+
+    let mut ipbm = IpbmDat { records: Vec::new() };
+    for _ in 0..count {
+        ipbm.records.push(ec_data::IpbmRecord {
+            raw: [0u8; ec_data::IPBM_RECORD_SIZE],
+        });
+    }
+    fs::write(dir.join("IPBM.DAT"), ipbm.to_bytes())?;
+
+    println!("IPBM zero records written");
+    println!("  player[1].ipbm_count_raw = {}", count);
+    println!("  IPBM.DAT size = {}", ipbm.to_bytes().len());
+    Ok(())
+}
+
 fn validate_known_fleet_order_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let fleets = FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?)?;
     let mut errors = Vec::new();
@@ -1972,6 +2039,8 @@ fn print_usage() {
     println!("  ec-cli guard-starbase-onebase <dir> <target_x> <target_y>");
     println!("  ec-cli guard-starbase-report <dir>");
     println!("  ec-cli guard-starbase-init [source_dir] <target_dir> <target_x> <target_y>");
+    println!("  ec-cli ipbm-report <dir>");
+    println!("  ec-cli ipbm-zero <dir> <count>");
     println!("  ec-cli scenario <dir> <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli scenario <dir> show <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli scenario <dir> list");

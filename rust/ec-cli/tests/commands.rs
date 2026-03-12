@@ -670,6 +670,58 @@ fn guard_starbase_init_materializes_parameterized_directory() {
 }
 
 #[test]
+fn ipbm_report_prints_known_empty_post_fixture_state() {
+    let stdout = run_ec_cli(&["ipbm-report", "fixtures/ecmaint-post/v1.5"]);
+    assert!(stdout.contains("IPBM Report"));
+    assert!(stdout.contains("player[1].ipbm_count_raw=0"));
+    assert!(stdout.contains("file_record_count=0"));
+    assert!(stdout.contains("expected_size_from_player1=0"));
+}
+
+#[test]
+fn ipbm_zero_sets_player_count_and_file_size() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-ipbm-zero-{unique}"));
+    fs::create_dir_all(&target).unwrap();
+
+    let fixture = repo_root().join("fixtures/ecmaint-post/v1.5");
+    for name in [
+        "BASES.DAT",
+        "CONQUEST.DAT",
+        "DATABASE.DAT",
+        "FLEETS.DAT",
+        "IPBM.DAT",
+        "MESSAGES.DAT",
+        "PLANETS.DAT",
+        "PLAYER.DAT",
+        "RESULTS.DAT",
+        "SETUP.DAT",
+    ] {
+        fs::copy(fixture.join(name), target.join(name)).unwrap();
+    }
+
+    let stdout = run_ec_cli_in_dir(
+        &["ipbm-zero", target.to_str().unwrap(), "3"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("player[1].ipbm_count_raw = 3"));
+    assert!(stdout.contains("IPBM.DAT size = 96"));
+
+    let report = run_ec_cli_in_dir(
+        &["ipbm-report", target.to_str().unwrap()],
+        repo_root().join("rust"),
+    );
+    assert!(report.contains("player[1].ipbm_count_raw=3"));
+    assert!(report.contains("file_record_count=3"));
+    assert!(report.contains("expected_size_from_player1=96"));
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
 fn validate_guard_starbase_accepts_known_valid_fixture() {
     let stdout = run_ec_cli(&["validate", "fixtures/ecmaint-starbase-pre/v1.5", "guard-starbase"]);
     assert!(stdout.contains("Valid guard-starbase scenario"));

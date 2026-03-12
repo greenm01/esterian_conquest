@@ -146,6 +146,11 @@ Current concrete Rust milestone:
     - `ec-cli guard-starbase-init [source_dir] <target_dir> <target_x> <target_y>`
     - this is the quickest current path from a known-good baseline to a new
       ECMAINT-ready one-base Guard Starbase experiment
+  - Rust also now has the first practical `IPBM.DAT` control surface:
+    - `ec-cli ipbm-report <dir>`
+    - `ec-cli ipbm-zero <dir> <count>`
+    - this is enough to keep generated scenarios on the correct side of the
+      known `PLAYER[0x48]` / `IPBM.DAT` count gate without hand-editing bytes
   - `ec-cli validate <dir> all` now gives a quick classification pass across
     the current known accepted scenarios
   - the known accepted scenarios are now centralized behind one Rust-side
