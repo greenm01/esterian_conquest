@@ -275,7 +275,7 @@ impl PlanetRecord {
     }
 
     pub fn likely_army_count_raw(&self) -> u8 {
-        self.raw[0x58] // Alias to avoid breaking tests temporarily
+        self.raw[0x5A]
     }
 
     pub fn ground_batteries_raw(&self) -> u8 {
