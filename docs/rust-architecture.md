@@ -149,6 +149,10 @@ Reports built on those rules shall prefer the shared aggregate too. If the CLI
 needs counts or summaries of guarding fleets, that should come from the shared
 model view rather than from ad hoc command-local scans.
 
+When the next phase needs richer per-record starbase analysis, the starting
+point shall be shared guarding-fleet linkage summaries from `CoreGameData`, not
+new command-local byte inspection.
+
 Current expectation:
 
 - `fleet-order`, `planet-build`, `guard-starbase`, `ipbm`, and

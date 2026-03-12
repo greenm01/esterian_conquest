@@ -351,6 +351,11 @@ Rust architecture note:
     - this is the current-best shared-model view for guard-starbase compliance:
       not “fleet 1 happens to match the preserved fixture,” but “all guarding
       fleets satisfy the currently-known selected-base linkage rules”
+  - phase-close refinement:
+    - `CoreGameData` now also exposes full per-guarding-fleet linkage summaries
+      for the current-known selected-base rule set
+    - `ec-cli compliance-report` now prints those shared guarding-fleet
+      summaries directly instead of inferring them in CLI-local code
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`

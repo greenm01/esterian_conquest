@@ -714,6 +714,22 @@ impl CoreGameData {
             .collect()
     }
 
+    pub fn guard_starbase_linkage_summaries_for_guarding_fleets_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> Vec<CurrentKnownGuardStarbaseLinkageSummary> {
+        self.guarding_fleet_record_indexes_current_known()
+            .into_iter()
+            .filter_map(|fleet_record_index_1_based| {
+                self.guard_starbase_linkage_summary_current_known(
+                    player_record_index_1_based,
+                    fleet_record_index_1_based,
+                )
+                .ok()
+            })
+            .collect()
+    }
+
     pub fn guard_starbase_linkage_errors_for_guarding_fleets_current_known(
         &self,
         player_record_index_1_based: usize,

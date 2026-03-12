@@ -329,6 +329,12 @@ fn core_game_data_current_known_validation_helpers_match_known_fixtures() {
         starbase_data.guarding_fleet_record_indexes_current_known(),
         vec![1]
     );
+    assert_eq!(
+        starbase_data
+            .guard_starbase_linkage_summaries_for_guarding_fleets_current_known(1)
+            .len(),
+        1
+    );
     assert!(starbase_data
         .guard_starbase_linkage_errors_for_guarding_fleets_current_known(1)
         .is_empty());
@@ -345,6 +351,9 @@ fn core_game_data_current_known_validation_helpers_match_known_fixtures() {
     assert!(post_data.ipbm_count_length_errors_current_known().is_empty());
     assert!(post_data
         .guarding_fleet_record_indexes_current_known()
+        .is_empty());
+    assert!(post_data
+        .guard_starbase_linkage_summaries_for_guarding_fleets_current_known(1)
         .is_empty());
     assert_eq!(
         post_data.guard_starbase_linkage_errors_for_guarding_fleets_current_known(1),

@@ -30,6 +30,18 @@ pub(crate) fn print_compliance_report(dir: &Path) -> Result<(), Box<dyn std::err
         "  guarding_fleet_count={}",
         data.guarding_fleet_record_indexes_current_known().len()
     );
+    for linkage in data.guard_starbase_linkage_summaries_for_guarding_fleets_current_known(1) {
+        println!(
+            "  guarding_fleet[{}]: guard_index={} target={:?} selected_base.present={} selected_base.id={:?} selected_base.summary={:?} selected_base.owner={:?}",
+            linkage.fleet_record_index_1_based,
+            linkage.guard_index,
+            linkage.target_coords,
+            linkage.selected_base_present,
+            linkage.selected_base_id,
+            linkage.selected_base_summary_word,
+            linkage.selected_base_owner_empire
+        );
+    }
     if let (Some(local_slot), Some(fleet_id), Some(guard_index), Some(guard_enable), Some(target)) = (
         summary.fleet1_local_slot,
         summary.fleet1_id,
