@@ -1316,6 +1316,39 @@ Kind-`1` scratch dispatch follow-up:
   - kind `1` uses the same generic summary-dispatch architecture as kind `3`
   - the later Guard Starbase failure path should be recoverable from scratch
     block `0x3502` plus the common post-kind canonicalization logic
+- stronger input-path result:
+  - in `0000:02ED..03D5`, the only explicit summary field passed into the
+    kind-`1` scratch loader is `ES:[DI+0x06]`
+  - the fleet-emitted summary bytes `+0x01` / `+0x02` are not read in the
+    initial kind-`1` load path; they are overwritten later by the shared
+    canonicalization/writeback stage at `0000:0BE8..0CD4`
+  - practical consequence: the later starbase-resolution logic is more likely
+    keyed by the secondary word in summary `+0x06` than by the provisional
+    bytes written directly from the fleet record in `2000:6040..6368`
+- fleet-scratch offset correlation:
+  - using the confirmed `54`-byte fleet layout plus the initialized
+    `fixtures/ecutil-init/v1.5/FLEETS.DAT` bytes:
+    - `[BP+0xFF40]` = fleet `record[0x02]` (owner / empire byte)
+    - `[BP+0xFF41]` = fleet `record[0x03..0x04]`
+    - `[BP+0xFF43]` = fleet `record[0x05..0x06]`
+    - `[BP+0xFF49]` = fleet `record[0x0B]` (current X)
+    - `[BP+0xFF4A]` = fleet `record[0x0C]` (current Y)
+    - `[BP+0xFF57..0xFF5B]` = fleet `record[0x19..0x1D]` (internal flag /
+      state cluster)
+  - the initialized fixture makes the second sub-branch interpretation much
+    stronger:
+    - fleet `record[0x03]` is the local `next fleet ID`
+    - therefore the gate `CMP word ptr [BP+0xFF41],0` is effectively testing
+      whether the current fleet links to another fleet in the owning empire's
+      chain
+    - the follow-on load using `[BP+0xFF41] - 1` is therefore a chained-fleet
+      lookup, not a starbase-record selector
+- practical inference:
+  - summary `+0x06` in the second kind-`1` emission is likely carrying the
+      chained fleet identifier from `record[0x05..0x06]`
+  - summary `+0x06` in the first kind-`1` emission, taken from `player[0x40]`,
+      is now more likely the head-of-chain fleet identifier for that empire
+      than a count field
 - important correction:
   - the raw-import entry at `2000:C067` is not yet a trustworthy semantic
     helper start; like the earlier `C0CD` false lead, it decodes as a fragment
@@ -1323,6 +1356,35 @@ Kind-`1` scratch dispatch follow-up:
   - so the next useful step is not to assign semantics to `C067` itself, but
     to correlate the `3502` fields back to the `FLEETS.DAT` offsets already
     observed in `2000:6040..6368`
+
+Kind-`2` matching milestone:
+
+- the kind-`2` path in `0000:03DF..06AE` is not an isolated base normalizer; it
+  actively scans the summary table for a matching live kind-`1` entry before
+  finalizing the current entry
+- concrete scan predicate from `0000:0524..06AB`:
+  - candidate summary must have:
+    - same summary byte `+0x00`
+    - kind byte `+0x04 == 1`
+    - active/status byte `+0x03 != 0`
+  - then it accepts either:
+    - direct ID match: candidate summary word `+0x0A == [0x3558]`
+    - or a stronger structural match:
+      - same summary bytes `+0x01`, `+0x02`, and `+0x05`
+      - helper result from candidate summary `+0x06` with:
+        - decoded kind byte `== 4`
+        - decoded word `== [0x355A]`
+        - decoded flag byte `== 0`
+- practical interpretation:
+  - the later starbase-resolution layer is matching base-side kind-`2`
+    summaries against fleet-side kind-`1` summaries
+  - the `unknown starbase` failure is therefore more likely "no acceptable
+    kind-`1` / kind-`2` pair survived summary resolution" than a direct raw
+    `FLEETS.DAT[0x22]` parse failure
+  - for Rust-generated compliant gamestates, it will not be enough to emit
+    locally plausible `FLEETS.DAT` and `BASES.DAT`; the fleet/base chain IDs,
+    coordinates, and the summary `+0x06` linkage values must also normalize
+    into at least one accepted pair
 
 Relevant documentation cross-check:
 

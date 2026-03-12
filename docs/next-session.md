@@ -53,11 +53,47 @@ Primary project goal:
          - `351B..351F`
          - capped byte `3524`
          - selector/count byte `350C`
+       - in the initial kind-`1` load path, the only explicit summary input
+         passed to the `3502` loader is `ES:[DI+0x06]`
+       - summary bytes `+0x01` / `+0x02` emitted by the fleet branch are not
+         read there; they are overwritten later by the shared canonicalization
+         stage
+       - `5EE4` fleet-scratch offsets now correlate cleanly to the known fleet
+         layout:
+         - `[BP+0xFF40]` -> `record[0x02]`
+         - `[BP+0xFF41]` -> `record[0x03..0x04]`
+         - `[BP+0xFF43]` -> `record[0x05..0x06]`
+         - `[BP+0xFF49]` -> `record[0x0B]`
+         - `[BP+0xFF4A]` -> `record[0x0C]`
+       - the second sub-branch is therefore following the per-empire
+         `next fleet` link, not selecting another starbase-side record
+       - working hypothesis:
+         - summary `+0x06` is carrying a fleet-chain identifier
+         - `player[0x40]` in the first sub-branch is likely the empire's
+           head-of-chain fleet ID, not a count
      - correction:
        - raw-import entry `2000:C067` is not yet a trustworthy semantic
          function start; it decodes as a fragment inside a larger helper region
        - treat `3502` field correlation, not `C067` naming, as the next
          productive task
+     - milestone:
+       - the kind-`2` path at `0000:03DF..06AE` actively scans the summary
+         table for a matching active kind-`1` entry before it finalizes the
+         current base-side summary
+       - candidate summary requirements:
+         - same summary `+0x00`
+         - kind `+0x04 == 1`
+         - active/status `+0x03 != 0`
+         - and then either:
+           - direct word match `candidate +0x0A == [0x3558]`
+           - or same `+0x01`, `+0x02`, `+0x05` plus helper-decoded `+0x06`
+             matching `[0x355A]` with decoded kind `4` and flag `0`
+       - practical consequence:
+         - the later `unknown starbase` behavior is now best modeled as a
+           failed kind-`1` / kind-`2` summary pairing problem
+         - Rust-side compliant gamestate generation will need fleet/base
+           linkage values that survive this summary pairing, not just
+           individually plausible records
 
 2. `IPBM.DAT` resolution
    - Practical status: structurally complete enough for Rust-side compliant
