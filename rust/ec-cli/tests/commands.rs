@@ -816,6 +816,31 @@ fn ipbm_validate_rejects_count_length_mismatch() {
 }
 
 #[test]
+fn ipbm_init_materializes_valid_zero_filled_directory() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-ipbm-init-{unique}"));
+
+    let stdout = run_ec_cli_in_dir(
+        &["ipbm-init", target.to_str().unwrap(), "2"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("IPBM directory initialized at"));
+    assert!(stdout.contains("player[1].ipbm_count_raw = 2"));
+
+    let validate = run_ec_cli_in_dir(
+        &["ipbm-validate", target.to_str().unwrap()],
+        repo_root().join("rust"),
+    );
+    assert!(validate.contains("Valid IPBM count/length state"));
+    assert!(validate.contains("record_count = 2"));
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
 fn validate_guard_starbase_accepts_known_valid_fixture() {
     let stdout = run_ec_cli(&["validate", "fixtures/ecmaint-starbase-pre/v1.5", "guard-starbase"]);
     assert!(stdout.contains("Valid guard-starbase scenario"));

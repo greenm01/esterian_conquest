@@ -447,6 +447,17 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or_else(default_fixture_dir);
             validate_ipbm(dir.as_path())?;
         }
+        "ipbm-init" => {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((source, target, count)) = parse_optional_source_target_and_count(
+                remaining,
+                post_maint_fixture_dir(),
+            ) else {
+                print_usage();
+                return Ok(());
+            };
+            init_ipbm_zero_records(&source, &target, count)?;
+        }
         "scenario" => {
             let dir = args
                 .next()
@@ -1552,6 +1563,20 @@ fn validate_ipbm(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
+fn init_ipbm_zero_records(
+    source: &Path,
+    target: &Path,
+    count: u16,
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(target)?;
+    for name in INIT_FILES {
+        fs::copy(source.join(name), target.join(name))?;
+    }
+    set_ipbm_zero_records(target, count)?;
+    println!("IPBM directory initialized at {}", target.display());
+    Ok(())
+}
+
 fn validate_known_fleet_order_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let fleets = FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?)?;
     let mut errors = Vec::new();
@@ -2138,6 +2163,25 @@ fn parse_optional_source_target_and_xy(
     }
 }
 
+fn parse_optional_source_target_and_count(
+    args: Vec<String>,
+    default_source: PathBuf,
+) -> Option<(PathBuf, PathBuf, u16)> {
+    match args.as_slice() {
+        [target, count] => Some((
+            default_source,
+            PathBuf::from(target),
+            count.parse::<u16>().ok()?,
+        )),
+        [source, target, count] => Some((
+            resolve_repo_path(source),
+            PathBuf::from(target),
+            count.parse::<u16>().ok()?,
+        )),
+        _ => None,
+    }
+}
+
 fn print_usage() {
     println!("Usage:");
     println!("  ec-cli inspect [dir]");
@@ -2157,6 +2201,7 @@ fn print_usage() {
     println!("  ec-cli ipbm-zero <dir> <count>");
     println!("  ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>");
     println!("  ec-cli ipbm-validate <dir>");
+    println!("  ec-cli ipbm-init [source_dir] <target_dir> <count>");
     println!("  ec-cli scenario <dir> <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli scenario <dir> show <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli scenario <dir> list");

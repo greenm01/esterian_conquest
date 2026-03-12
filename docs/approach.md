@@ -151,6 +151,7 @@ Current concrete Rust milestone:
     - `ec-cli ipbm-zero <dir> <count>`
     - `ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>`
     - `ec-cli ipbm-validate <dir>`
+    - `ec-cli ipbm-init [source_dir] <target_dir> <count>`
     - this is enough to keep generated scenarios on the correct side of the
     known `PLAYER[0x48]` / `IPBM.DAT` count gate and to start emitting
     structured non-zero prefix fields without hand-editing bytes
