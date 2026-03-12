@@ -19,6 +19,11 @@
     - `ec-cli scenario-init [source_dir] <target_dir> planet-build`
     - these now turn the two already-preserved accepted fleet/build rewrites
       into named runnable scenarios rather than only low-level mutator calls
+    - latest parser/usability correction:
+      - `ec-cli init <target_dir>` now correctly uses the documented default
+        source `original/v1.5`
+      - `ec-cli scenario-init <target_dir> <scenario>` now correctly uses the
+        documented scenario baseline `fixtures/ecmaint-post/v1.5`
   - `cargo test -p ec-cli` now proves two exact fixture recreations from the
     compliant `fixtures/ecmaint-post/v1.5` baseline:
     - `FLEETS.DAT` for `fixtures/ecmaint-fleet-pre/v1.5`

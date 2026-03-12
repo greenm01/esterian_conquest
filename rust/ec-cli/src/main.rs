@@ -75,11 +75,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             compare_dirs(&left, &right)?;
         }
         "init" => {
-            let source = args
-                .next()
-                .map(|arg| resolve_repo_path(&arg))
-                .unwrap_or_else(default_fixture_dir);
-            let Some(target) = args.next().map(PathBuf::from) else {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((source, target)) = parse_optional_source_and_target(
+                remaining,
+                default_fixture_dir(),
+            ) else {
                 print_usage();
                 return Ok(());
             };
@@ -309,18 +309,18 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         "scenario-init" => {
-            let source = args
-                .next()
-                .map(|arg| resolve_repo_path(&arg))
-                .unwrap_or_else(default_fixture_dir);
-            let Some(target) = args.next().map(PathBuf::from) else {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((source, target, scenario_name)) = parse_optional_source_target_and_name(
+                remaining,
+                post_maint_fixture_dir(),
+            ) else {
                 print_usage();
                 return Ok(());
             };
-            match args.next().as_deref() {
-                Some("fleet-order") => init_known_fleet_order_scenario(&source, &target)?,
-                Some("planet-build") => init_known_planet_build_scenario(&source, &target)?,
-                Some("guard-starbase") => init_guard_starbase_scenario(&source, &target)?,
+            match scenario_name.as_str() {
+                "fleet-order" => init_known_fleet_order_scenario(&source, &target)?,
+                "planet-build" => init_known_planet_build_scenario(&source, &target)?,
+                "guard-starbase" => init_guard_starbase_scenario(&source, &target)?,
                 _ => print_usage(),
             }
         }
@@ -1479,6 +1479,32 @@ fn parse_usize_1_based(value: &str, label: &str) -> Result<usize, Box<dyn std::e
         return Err(format!("{label} must be >= 1").into());
     }
     Ok(parsed)
+}
+
+fn parse_optional_source_and_target(
+    args: Vec<String>,
+    default_source: PathBuf,
+) -> Option<(PathBuf, PathBuf)> {
+    match args.as_slice() {
+        [target] => Some((default_source, PathBuf::from(target))),
+        [source, target] => Some((resolve_repo_path(source), PathBuf::from(target))),
+        _ => None,
+    }
+}
+
+fn parse_optional_source_target_and_name(
+    args: Vec<String>,
+    default_source: PathBuf,
+) -> Option<(PathBuf, PathBuf, String)> {
+    match args.as_slice() {
+        [target, scenario_name] => Some((default_source, PathBuf::from(target), scenario_name.clone())),
+        [source, target, scenario_name] => Some((
+            resolve_repo_path(source),
+            PathBuf::from(target),
+            scenario_name.clone(),
+        )),
+        _ => None,
+    }
 }
 
 fn print_usage() {

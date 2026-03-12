@@ -1436,6 +1436,12 @@ Rust fleet/build scenario CLI milestone:
   compliant baseline in one command:
   - `ec-cli scenario-init [source_dir] <target_dir> fleet-order`
   - `ec-cli scenario-init [source_dir] <target_dir> planet-build`
+- parser/usability correction:
+  - the documented optional-source CLI forms now work as intended
+  - `ec-cli init <target_dir>` defaults to `original/v1.5`
+  - `ec-cli scenario-init <target_dir> <scenario>` defaults to the compliant
+    `fixtures/ecmaint-post/v1.5` baseline instead of incorrectly treating the
+    target directory as the source argument
 - current accepted scenario checks are intentionally narrow and tied to the
   preserved fixture evidence:
   - fleet-order:

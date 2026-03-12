@@ -54,3 +54,5 @@ Current Rust milestone:
 - Rust can now materialize a runnable Guard Starbase scenario directory from a
   compliant baseline in one command:
   - `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`
+  - if `source_dir` is omitted, `scenario-init` now correctly defaults to the
+    compliant `fixtures/ecmaint-post/v1.5` baseline

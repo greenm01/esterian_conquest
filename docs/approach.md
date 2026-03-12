@@ -100,6 +100,10 @@ Current concrete Rust milestone:
   - Rust can now materialize a runnable Guard Starbase directory from a
     compliant baseline with
     `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`
+  - the documented optional-source forms now work as intended:
+    - `ec-cli init <target_dir>` defaults to `original/v1.5`
+    - `ec-cli scenario-init <target_dir> <scenario>` defaults to
+      `fixtures/ecmaint-post/v1.5`
 
 This is intentionally narrower than a full arbitrary save generator, but it is
 the first real proof that the Rust layer can emit accepted gamestate files from
