@@ -61,6 +61,14 @@ The current intended split is:
 `ec-data` and `ec-tui` tests now live under crate `tests/` directories instead
 of source-file `#[cfg(test)]` modules.
 
+`ec-data` integration tests are now also split by concern instead of one large
+`regression.rs` file:
+
+- `tests/formats.rs`
+- `tests/mutators.rs`
+- `tests/ecmaint.rs`
+- `tests/common/mod.rs`
+
 `ec-cli` integration tests are now also split by command family instead of one
 large `commands.rs` file:
 

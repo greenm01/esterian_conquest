@@ -212,6 +212,11 @@ Rust architecture note:
   - top-level command routing now lives in `src/dispatch.rs`
   - `ec-cli` integration tests are now split by command family with shared
     helpers under `tests/common/mod.rs`
+  - `ec-data` integration tests are now split by concern:
+    - `tests/formats.rs`
+    - `tests/mutators.rs`
+    - `tests/ecmaint.rs`
+    - `tests/common/mod.rs`
   - `ec-data` and `ec-tui` tests now live in crate `tests/` directories
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
