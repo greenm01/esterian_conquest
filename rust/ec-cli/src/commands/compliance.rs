@@ -1,12 +1,10 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::{CoreGameData, FleetDat, PlanetDat};
+use ec_data::CoreGameData;
 
-use crate::commands::fleet_order::fleet_order_errors;
-use crate::commands::guard_starbase::{guard_starbase_errors, validate_guard_starbase_scenario};
-use crate::commands::ipbm::{ipbm_errors, validate_ipbm};
-use crate::commands::planet_build::planet_build_errors;
+use crate::commands::guard_starbase::validate_guard_starbase_scenario;
+use crate::commands::ipbm::validate_ipbm;
 
 pub(crate) fn print_compliance_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("Compliance Report");
@@ -72,26 +70,24 @@ pub(crate) fn print_compliance_batch_report(
 
     for dir in dirs {
         print!("{}: ", dir.file_name().unwrap_or_default().to_string_lossy());
-        let fleet_ok = match FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?) {
-            Ok(fleets) => fleet_order_errors(&fleets, 1, 0x03, 0x0C, [0x0F, 0x0D], None, None)
-                .is_empty(),
-            Err(_) => false,
-        };
-        let build_ok = match PlanetDat::parse(&fs::read(dir.join("PLANETS.DAT"))?) {
-            Ok(planets) => planet_build_errors(&planets, 15, 0x03, 0x01).is_empty(),
-            Err(_) => false,
-        };
         let guard_ok = match CoreGameData::load(&dir) {
-            Ok(data) => {
-                guard_starbase_errors(&data.player, &data.fleets, &data.bases).is_empty()
-            }
+            Ok(data) => data.guard_starbase_onebase_errors_current_known().is_empty(),
             _ => false,
         };
         let ipbm_ok = match CoreGameData::load(&dir) {
-            Ok(data) => {
-                let ipbm_bytes = data.ipbm.to_bytes();
-                ipbm_errors(&data.player, &data.ipbm, ipbm_bytes.len()).is_empty()
-            }
+            Ok(data) => data.ipbm_count_length_errors_current_known().is_empty(),
+            _ => false,
+        };
+        let fleet_ok = match CoreGameData::load(&dir) {
+            Ok(data) => data
+                .fleet_order_errors_current_known(1, 0x03, 0x0C, [0x0F, 0x0D], None, None)
+                .is_empty(),
+            _ => false,
+        };
+        let build_ok = match CoreGameData::load(&dir) {
+            Ok(data) => data
+                .planet_build_errors_current_known(15, 0x03, 0x01)
+                .is_empty(),
             _ => false,
         };
         println!(

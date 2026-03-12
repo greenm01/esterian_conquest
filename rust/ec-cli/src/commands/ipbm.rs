@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use ec_data::{CoreGameData, IpbmDat, IpbmRecord, PlayerDat, IPBM_RECORD_SIZE};
+use ec_data::{CoreGameData, IpbmDat, IpbmRecord, IPBM_RECORD_SIZE};
 
 use crate::workspace::copy_init_files;
 
@@ -95,10 +95,10 @@ pub(crate) fn validate_ipbm(dir: &Path) -> Result<(), Box<dyn std::error::Error>
     let data = CoreGameData::load(dir)?;
     let ipbm_bytes = data.ipbm.to_bytes();
 
-    let errors = ipbm_errors(&data.player, &data.ipbm, ipbm_bytes.len());
+    let errors = data.ipbm_count_length_errors_current_known();
 
     if errors.is_empty() {
-        let expected_count = data.player.records[0].ipbm_count_raw() as usize;
+        let expected_count = data.player1_ipbm_count_current_known();
         let actual_count = data.ipbm.records.len();
         println!("Valid IPBM count/length state");
         println!("  player[1].ipbm_count_raw = {}", expected_count);
@@ -108,27 +108,6 @@ pub(crate) fn validate_ipbm(dir: &Path) -> Result<(), Box<dyn std::error::Error>
     } else {
         Err(errors.join("\n").into())
     }
-}
-
-pub(crate) fn ipbm_errors(player: &PlayerDat, ipbm: &IpbmDat, ipbm_size: usize) -> Vec<String> {
-    let expected_count = player.records[0].ipbm_count_raw() as usize;
-    let actual_count = ipbm.records.len();
-    let expected_size = expected_count * IPBM_RECORD_SIZE;
-
-    let mut errors = Vec::new();
-    if actual_count != expected_count {
-        errors.push(format!(
-            "IPBM record count expected {}, got {}",
-            expected_count, actual_count
-        ));
-    }
-    if ipbm_size != expected_size {
-        errors.push(format!(
-            "IPBM.DAT size expected {}, got {}",
-            expected_size, ipbm_size
-        ));
-    }
-    errors
 }
 
 pub(crate) fn init_ipbm_zero_records(

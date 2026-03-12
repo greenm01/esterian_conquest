@@ -123,6 +123,10 @@ transform expresses shared directory semantics rather than CLI interaction
 policy, it should live on `CoreGameData` and the CLI should only load, invoke,
 save, and report.
 
+Current-known cross-file validation semantics should follow the same rule. The
+CLI shall not be the source of truth for fleet/build/starbase/IPBM rule checks
+once those checks are stable enough to live on `CoreGameData`.
+
 Current expectation:
 
 - `fleet-order`, `planet-build`, `guard-starbase`, `ipbm`, and

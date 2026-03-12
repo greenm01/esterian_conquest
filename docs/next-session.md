@@ -302,6 +302,19 @@ Rust architecture note:
         of owning those multi-file transforms themselves
       - this is the first point where the Rust shared model is acting like a
         real gamestate mutation engine, not just a parser/serializer
+  - current-known cross-file semantics milestone: complete
+    - `CoreGameData` now owns the current-known validation helpers for:
+      - fleet-order
+      - planet-build
+      - one-base guard-starbase
+      - IPBM count/length
+      - player-1 structural count words
+    - direct `ec-data` tests now cover those validation helpers against the
+      preserved accepted fixtures
+    - practical effect:
+      - the CLI is now a thin wrapper for the current-known mutation,
+        validation, inspection, and normalization logic instead of the source
+        of truth for those rules
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`

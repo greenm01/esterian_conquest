@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::{CoreGameData, FleetDat};
+use ec_data::CoreGameData;
 
 use crate::workspace::copy_init_files;
 
@@ -41,66 +41,6 @@ pub(crate) fn apply_fleet_order_scenario(dir: &Path) -> Result<(), Box<dyn std::
     Ok(())
 }
 
-pub(crate) fn fleet_order_errors(
-    fleets: &FleetDat,
-    record_index_1_based: usize,
-    speed: u8,
-    order_code: u8,
-    target: [u8; 2],
-    aux0: Option<u8>,
-    aux1: Option<u8>,
-) -> Vec<String> {
-    let mut errors = Vec::new();
-    match fleets.records.get(record_index_1_based - 1) {
-        Some(record) => {
-            if record.current_speed() != speed {
-                errors.push(format!(
-                    "FLEET[{}].current_speed expected {}, got {}",
-                    record_index_1_based,
-                    speed,
-                    record.current_speed()
-                ));
-            }
-            if record.standing_order_code_raw() != order_code {
-                errors.push(format!(
-                    "FLEET[{}].order expected {:#04x}, got {:#04x}",
-                    record_index_1_based,
-                    order_code,
-                    record.standing_order_code_raw()
-                ));
-            }
-            if record.standing_order_target_coords_raw() != target {
-                errors.push(format!(
-                    "FLEET[{}].target expected ({}, {}), got {:?}",
-                    record_index_1_based,
-                    target[0],
-                    target[1],
-                    record.standing_order_target_coords_raw()
-                ));
-            }
-            let mission_aux = record.mission_aux_bytes();
-            if let Some(value) = aux0 {
-                if mission_aux[0] != value {
-                    errors.push(format!(
-                        "FLEET[{}].aux0 expected {:#04x}, got {:#04x}",
-                        record_index_1_based, value, mission_aux[0]
-                    ));
-                }
-            }
-            if let Some(value) = aux1 {
-                if mission_aux[1] != value {
-                    errors.push(format!(
-                        "FLEET[{}].aux1 expected {:#04x}, got {:#04x}",
-                        record_index_1_based, value, mission_aux[1]
-                    ));
-                }
-            }
-        }
-        None => errors.push(format!("FLEETS.DAT missing record {record_index_1_based}")),
-    }
-    errors
-}
-
 pub(crate) fn validate_fleet_order_scenario(
     dir: &Path,
     record_index_1_based: usize,
@@ -112,8 +52,7 @@ pub(crate) fn validate_fleet_order_scenario(
     aux1: Option<u8>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let data = CoreGameData::load(dir)?;
-    let errors = fleet_order_errors(
-        &data.fleets,
+    let errors = data.fleet_order_errors_current_known(
         record_index_1_based,
         speed,
         order_code,

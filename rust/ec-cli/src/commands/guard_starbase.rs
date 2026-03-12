@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::{BaseDat, CoreGameData, FleetDat, PlayerDat};
+use ec_data::CoreGameData;
 
 use crate::workspace::copy_init_files;
 
@@ -37,7 +37,7 @@ pub(crate) fn validate_guard_starbase_scenario(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let data = CoreGameData::load(dir)?;
 
-    let errors = guard_starbase_errors(&data.player, &data.fleets, &data.bases);
+    let errors = data.guard_starbase_onebase_errors_current_known();
 
     if errors.is_empty() {
         let fleet = &data.fleets.records[0];
@@ -60,135 +60,6 @@ pub(crate) fn validate_guard_starbase_scenario(
     } else {
         Err(errors.join("\n").into())
     }
-}
-
-pub(crate) fn guard_starbase_errors(
-    player: &PlayerDat,
-    fleets: &FleetDat,
-    bases: &BaseDat,
-) -> Vec<String> {
-    let mut errors = Vec::new();
-
-    match player.records.first() {
-        Some(record) if record.starbase_count_raw() == 1 => {}
-        Some(record) => errors.push(format!(
-            "PLAYER[1].starbase_count_raw expected 1, got {}",
-            record.starbase_count_raw()
-        )),
-        None => errors.push("PLAYER.DAT missing record 1".to_string()),
-    }
-
-    match fleets.records.first() {
-        Some(record) => {
-            if record.standing_order_code_raw() != 0x04 {
-                errors.push(format!(
-                    "FLEET[1].order expected 0x04, got {:#04x}",
-                    record.standing_order_code_raw()
-                ));
-            }
-            if record.guard_starbase_enable_raw() != 0x01 {
-                errors.push(format!(
-                    "FLEET[1].guard enable expected 0x01, got {:#04x}",
-                    record.guard_starbase_enable_raw()
-                ));
-            }
-            if record.guard_starbase_index_raw() == 0 {
-                errors.push("FLEET[1].guard starbase index expected non-zero".to_string());
-            }
-        }
-        None => errors.push("FLEETS.DAT missing record 1".to_string()),
-    }
-
-    let Some(fleet) = fleets.records.first() else {
-        return errors;
-    };
-    let Some(player1) = player.records.first() else {
-        return errors;
-    };
-
-    if bases.records.len() != 1 {
-        errors.push(format!(
-            "BASES.DAT expected 1 record, got {}",
-            bases.records.len()
-        ));
-    } else {
-        let base = &bases.records[0];
-        if base.local_slot_raw() == 0 {
-            errors.push("BASES[1].local_slot expected non-zero".to_string());
-        }
-        if base.summary_word_raw() != fleet.local_slot_word_raw() {
-            errors.push(format!(
-                "BASES[1].summary_word expected FLEET[1].local_slot_word {}, got {}",
-                fleet.local_slot_word_raw(),
-                base.summary_word_raw()
-            ));
-        }
-        if base.base_id_raw() != fleet.guard_starbase_index_raw() {
-            errors.push(format!(
-                "BASES[1].base_id expected FLEET[1].guard index {}, got {}",
-                fleet.guard_starbase_index_raw(),
-                base.base_id_raw()
-            ));
-        }
-        if base.coords_raw() != fleet.standing_order_target_coords_raw() {
-            errors.push(format!(
-                "BASES[1].coords expected {:?}, got {:?}",
-                fleet.standing_order_target_coords_raw(),
-                base.coords_raw()
-            ));
-        }
-        if base.trailing_coords_raw() != base.coords_raw() {
-            errors.push(format!(
-                "BASES[1].trailing coords expected {:?}, got {:?}",
-                base.coords_raw(),
-                base.trailing_coords_raw()
-            ));
-        }
-        if base.chain_word_raw() != player1.starbase_count_raw() {
-            errors.push(format!(
-                "BASES[1].chain_word expected PLAYER[1].starbase_count_raw {}, got {}",
-                player1.starbase_count_raw(),
-                base.chain_word_raw()
-            ));
-        }
-        if fleet.local_slot_word_raw() != player1.starbase_count_raw() {
-            errors.push(format!(
-                "FLEET[1].local slot word expected PLAYER[1].starbase_count_raw {}, got {}",
-                player1.starbase_count_raw(),
-                fleet.local_slot_word_raw()
-            ));
-        }
-        if fleet.fleet_id_word_raw() != base.chain_word_raw() {
-            errors.push(format!(
-                "FLEET[1].fleet ID word expected BASES[1].chain_word {}, got {}",
-                base.chain_word_raw(),
-                fleet.fleet_id_word_raw()
-            ));
-        }
-        if base.tuple_a_payload_raw() != fleet.tuple_a_payload_raw() {
-            errors.push(format!(
-                "BASES[1].tuple_a_payload expected FLEET[1].tuple_a_payload {:?}, got {:?}",
-                fleet.tuple_a_payload_raw(),
-                base.tuple_a_payload_raw()
-            ));
-        }
-        if base.tuple_b_payload_raw() != fleet.tuple_b_payload_raw() {
-            errors.push(format!(
-                "BASES[1].tuple_b_payload expected FLEET[1].tuple_b_payload {:?}, got {:?}",
-                fleet.tuple_b_payload_raw(),
-                base.tuple_b_payload_raw()
-            ));
-        }
-        if base.tuple_c_payload_raw() != fleet.tuple_c_payload_raw() {
-            errors.push(format!(
-                "BASES[1].tuple_c_payload expected FLEET[1].tuple_c_payload {:?}, got {:?}",
-                fleet.tuple_c_payload_raw(),
-                base.tuple_c_payload_raw()
-            ));
-        }
-    }
-
-    errors
 }
 
 pub(crate) fn print_guard_starbase_report(

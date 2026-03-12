@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::{CoreGameData, PlanetDat};
+use ec_data::CoreGameData;
 
 use crate::workspace::copy_init_files;
 
@@ -29,37 +29,6 @@ pub(crate) fn apply_planet_build_scenario(dir: &Path) -> Result<(), Box<dyn std:
     Ok(())
 }
 
-pub(crate) fn planet_build_errors(
-    planets: &PlanetDat,
-    record_index_1_based: usize,
-    slot_raw: u8,
-    kind_raw: u8,
-) -> Vec<String> {
-    let mut errors = Vec::new();
-    match planets.records.get(record_index_1_based - 1) {
-        Some(record) => {
-            if record.build_count_raw(0) != slot_raw {
-                errors.push(format!(
-                    "PLANET[{}].build_slot expected {:#04x}, got {:#04x}",
-                    record_index_1_based,
-                    slot_raw,
-                    record.build_count_raw(0)
-                ));
-            }
-            if record.build_kind_raw(0) != kind_raw {
-                errors.push(format!(
-                    "PLANET[{}].build_kind expected {:#04x}, got {:#04x}",
-                    record_index_1_based,
-                    kind_raw,
-                    record.build_kind_raw(0)
-                ));
-            }
-        }
-        None => errors.push(format!("PLANETS.DAT missing record {record_index_1_based}")),
-    }
-    errors
-}
-
 pub(crate) fn validate_planet_build_scenario(
     dir: &Path,
     record_index_1_based: usize,
@@ -67,7 +36,7 @@ pub(crate) fn validate_planet_build_scenario(
     kind_raw: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let data = CoreGameData::load(dir)?;
-    let errors = planet_build_errors(&data.planets, record_index_1_based, slot_raw, kind_raw);
+    let errors = data.planet_build_errors_current_known(record_index_1_based, slot_raw, kind_raw);
     if errors.is_empty() {
         println!("Valid planet-build scenario");
         println!(
