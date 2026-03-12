@@ -444,6 +444,34 @@ Important detail:
     - this sharply narrows the next RE target: focus on which early `DOOR.SYS`
       fields drive the fixed-limit loop and the later `3FFF` / `3F1A`
       transition, rather than on the long `90` tail
+- Representative early-field subset mutations did not perturb that fixed window:
+  - artifact:
+    - `artifacts/ecgame-startup/legacy-door-field-subset.json`
+  - script:
+    - `tools/test_ecgame_legacy_door_field_subset.py`
+  - tested representative mutations:
+    - line `1`: `COM1:` -> `COM2:`
+    - line `2`: `19200` -> `9600`
+    - line `6`: `Y` -> `N`
+    - line `10`: `Sysop First` -> `Alice`
+    - line `13`: `1` -> `2`
+    - line `16`: `9000` -> `100`
+    - line `18`: `2` -> `1`
+  - all tested variants still produced the same:
+    - `3FFF`
+    - `3F05..3F10`
+    - `3FFF`
+    - `3F1A`
+    - `3E01`
+    - `4C00`
+    - stable loop-local progression `6 -> 17`
+    - exit code `0x1C`
+  - practical implication:
+    - those representative transport/flag/name/numeric fields are not the
+      primary discriminator for the current local startup failure
+    - the next highest-value mutations should target the still-untested early
+      fields in the fixed window, especially the dense `Y/Y/Y` flag run and
+      the lines between the initial transport fields and the final numeric IDs
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
 
 Current caveat:

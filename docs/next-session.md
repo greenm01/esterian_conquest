@@ -759,4 +759,19 @@ Suggested execution order:
       not an arbitrary-length tail
     - next work should focus on which early fields matter up through
       index/field `17`, not on the variable `90` tail
+- New representative field-sensitivity result:
+  - artifact:
+    - `artifacts/ecgame-startup/legacy-door-field-subset.json`
+  - script:
+    - `tools/test_ecgame_legacy_door_field_subset.py`
+  - representative mutations to line `1`, `2`, `6`, `10`, `13`, `16`, and
+    `18` did **not** change:
+    - the `3FFF -> 3F05..3F10 -> 3FFF -> 3F1A -> 3E01 -> 4C00` shape
+    - the stable loop-local `6 -> 17` progression
+    - the final exit `0x1C`
+  - implication:
+    - those representative transport/flag/name/numeric fields are not the main
+      discriminator for the current local startup gate
+    - next mutations should target the remaining untested early lines inside
+      the fixed window, not the already-tested representatives or the `90` tail
 - Remaining blocker: the local interactive `ECGAME` flow is still not fully stable because several old scripts have brittle debugger prompt handling, and the freshly regenerated dumps still look like earlier-boot snapshots rather than the richer `/tmp/ecgboot_chain` state referenced in `RE_NOTES.md`.
