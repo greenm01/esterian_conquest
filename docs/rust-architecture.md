@@ -145,6 +145,10 @@ model shall expose the aggregate form too. Guard-starbase compliance should not
 be implicitly hardcoded to fleet 1 when the rule is really “all guarding
 fleets”.
 
+Reports built on those rules shall prefer the shared aggregate too. If the CLI
+needs counts or summaries of guarding fleets, that should come from the shared
+model view rather than from ad hoc command-local scans.
+
 Current expectation:
 
 - `fleet-order`, `planet-build`, `guard-starbase`, `ipbm`, and

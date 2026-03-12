@@ -348,6 +348,9 @@ Rust architecture note:
     - `ec-cli compliance-report` now reports guard-starbase status through that
       shared all-guarding-fleets validator and prints the current guarding
       fleet count
+    - this is the current-best shared-model view for guard-starbase compliance:
+      not “fleet 1 happens to match the preserved fixture,” but “all guarding
+      fleets satisfy the currently-known selected-base linkage rules”
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`

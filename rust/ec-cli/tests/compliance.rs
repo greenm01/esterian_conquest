@@ -10,6 +10,7 @@ fn compliance_report_summarizes_known_post_fixture_failures() {
     assert!(stdout.contains("FAIL guard-starbase-linkage:"));
     assert!(stdout.contains("OK   ipbm-count-length"));
     assert!(stdout.contains("Key words: player.starbase_count=0 player.ipbm_count=0"));
+    assert!(stdout.contains("guarding_fleet_count=0"));
 }
 
 #[test]
@@ -84,6 +85,7 @@ fn compliance_report_summarizes_valid_parameterized_guard_starbase_directory() {
     );
     assert!(stdout.contains("OK   guard-starbase-linkage"));
     assert!(stdout.contains("OK   ipbm-count-length"));
+    assert!(stdout.contains("guarding_fleet_count=1"));
     assert!(stdout.contains("fleet1.local_slot=1 fleet1.id=1"));
     assert!(stdout.contains("base1.summary=1 base1.id=1 base1.chain=1 coords=[12, 9]"));
 
