@@ -134,6 +134,10 @@ Current concrete Rust milestone:
     - base chain word
     - guard target/base coords
     - guard starbase index/enable bytes
+  - Rust also now has a first safe parameterized starbase writer:
+    - `ec-cli guard-starbase-onebase <dir> <target_x> <target_y>`
+    - this keeps the currently-known linkage keys fixed in the accepted
+      one-base shape while varying the sector coordinates
   - `ec-cli validate <dir> all` now gives a quick classification pass across
     the current known accepted scenarios
   - the known accepted scenarios are now centralized behind one Rust-side

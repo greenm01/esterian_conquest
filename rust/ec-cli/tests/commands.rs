@@ -539,6 +539,95 @@ fn guard_starbase_scenario_recreates_known_valid_starbase_pre_fixture() {
 }
 
 #[test]
+fn guard_starbase_onebase_recreates_known_valid_starbase_pre_fixture() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-guard-starbase-onebase-{unique}"));
+    fs::create_dir_all(&target).unwrap();
+
+    let fixture = repo_root().join("fixtures/ecmaint-post/v1.5");
+    for name in [
+        "BASES.DAT",
+        "CONQUEST.DAT",
+        "DATABASE.DAT",
+        "FLEETS.DAT",
+        "IPBM.DAT",
+        "MESSAGES.DAT",
+        "PLANETS.DAT",
+        "PLAYER.DAT",
+        "RESULTS.DAT",
+        "SETUP.DAT",
+    ] {
+        fs::copy(fixture.join(name), target.join(name)).unwrap();
+    }
+
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "guard-starbase-onebase",
+            target.to_str().unwrap(),
+            "0x10",
+            "0x0d",
+        ],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("PLAYER[1].starbase_count_raw = 1"));
+    assert!(stdout.contains("structured single-base record at (16, 13)"));
+
+    let expected_player = repo_root().join("fixtures/ecmaint-starbase-pre/v1.5/PLAYER.DAT");
+    let expected_fleets = repo_root().join("fixtures/ecmaint-starbase-pre/v1.5/FLEETS.DAT");
+    let expected_bases = repo_root().join("fixtures/ecmaint-starbase-pre/v1.5/BASES.DAT");
+
+    assert_eq!(fs::read(target.join("PLAYER.DAT")).unwrap(), fs::read(expected_player).unwrap());
+    assert_eq!(fs::read(target.join("FLEETS.DAT")).unwrap(), fs::read(expected_fleets).unwrap());
+    assert_eq!(fs::read(target.join("BASES.DAT")).unwrap(), fs::read(expected_bases).unwrap());
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn guard_starbase_onebase_allows_coordinate_variation() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-guard-starbase-shifted-{unique}"));
+    fs::create_dir_all(&target).unwrap();
+
+    let fixture = repo_root().join("fixtures/ecmaint-post/v1.5");
+    for name in [
+        "BASES.DAT",
+        "CONQUEST.DAT",
+        "DATABASE.DAT",
+        "FLEETS.DAT",
+        "IPBM.DAT",
+        "MESSAGES.DAT",
+        "PLANETS.DAT",
+        "PLAYER.DAT",
+        "RESULTS.DAT",
+        "SETUP.DAT",
+    ] {
+        fs::copy(fixture.join(name), target.join(name)).unwrap();
+    }
+
+    let stdout = run_ec_cli_in_dir(
+        &["guard-starbase-onebase", target.to_str().unwrap(), "12", "9"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("structured single-base record at (12, 9)"));
+
+    let validate = run_ec_cli_in_dir(
+        &["validate", target.to_str().unwrap(), "guard-starbase"],
+        repo_root().join("rust"),
+    );
+    assert!(validate.contains("Valid guard-starbase scenario"));
+    assert!(validate.contains("one-base guard-starbase linkage holds at coords [12, 9]"));
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
 fn validate_guard_starbase_accepts_known_valid_fixture() {
     let stdout = run_ec_cli(&["validate", "fixtures/ecmaint-starbase-pre/v1.5", "guard-starbase"]);
     assert!(stdout.contains("Valid guard-starbase scenario"));

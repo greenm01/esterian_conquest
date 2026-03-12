@@ -69,6 +69,10 @@
         - base chain word
         - guard starbase index/enable bytes
         - base/fleet coordinate agreement
+      - Rust-side next-step milestone already landed:
+        - `ec-cli guard-starbase-onebase <dir> <target_x> <target_y>`
+        - this emits a parameterized one-base guard-starbase directory while
+          keeping the currently-known accepted linkage keys fixed
   - `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`
     materializes a runnable scenario directory in one command from a
     compliant baseline

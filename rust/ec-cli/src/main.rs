@@ -351,6 +351,25 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 parse_u8_arg(&kind_raw, "build kind")?,
             )?;
         }
+        "guard-starbase-onebase" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            let Some(target_x) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(target_y) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            set_guard_starbase_onebase(
+                &dir,
+                parse_u8_arg(&target_x, "target_x")?,
+                parse_u8_arg(&target_y, "target_y")?,
+            )?;
+        }
         "scenario" => {
             let dir = args
                 .next()
@@ -1085,6 +1104,16 @@ fn apply_known_scenario(
 }
 
 fn apply_guard_starbase_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    set_guard_starbase_onebase(dir, 0x10, 0x0D)?;
+    println!("Applied scenario: guard-starbase");
+    Ok(())
+}
+
+fn set_guard_starbase_onebase(
+    dir: &Path,
+    target_x: u8,
+    target_y: u8,
+) -> Result<(), Box<dyn std::error::Error>> {
     let player_path = dir.join("PLAYER.DAT");
     let mut player = PlayerDat::parse(&fs::read(&player_path)?)?;
     player.records[0].set_starbase_count_raw(1);
@@ -1097,23 +1126,27 @@ fn apply_guard_starbase_scenario(dir: &Path) -> Result<(), Box<dyn std::error::E
         .get_mut(0)
         .ok_or("missing fleet record 1")?;
     fleet.set_standing_order_code_raw(0x04);
+    fleet.set_standing_order_target_coords_raw([target_x, target_y]);
     fleet.set_mission_aux_bytes([0x01, 0x01]);
-    let target_coords = fleet.standing_order_target_coords_raw();
     let _ = fleet;
     fs::write(&fleets_path, fleets.to_bytes())?;
 
     let bases_path = dir.join("BASES.DAT");
     let bases = BaseDat {
-        records: vec![build_guard_starbase_base_record(target_coords, 0x01, 0x0001, 0x01)],
+        records: vec![build_guard_starbase_base_record(
+            [target_x, target_y],
+            0x01,
+            0x0001,
+            0x01,
+        )],
     };
     fs::write(&bases_path, bases.to_bytes())?;
 
-    println!("Applied scenario: guard-starbase");
     println!("  PLAYER[1].starbase_count_raw = 1");
     println!("  FLEET[1].order = 0x04, aux = [01, 01]");
     println!(
         "  BASES.DAT = structured single-base record at ({}, {}) for empire 1",
-        target_coords[0], target_coords[1]
+        target_x, target_y
     );
     Ok(())
 }
@@ -1831,6 +1864,7 @@ fn print_usage() {
     println!("  ec-cli purge-after <dir> <turns>");
     println!("  ec-cli fleet-order <dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]");
     println!("  ec-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>");
+    println!("  ec-cli guard-starbase-onebase <dir> <target_x> <target_y>");
     println!("  ec-cli scenario <dir> <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli scenario <dir> show <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli scenario <dir> list");

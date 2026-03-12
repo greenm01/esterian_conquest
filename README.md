@@ -60,6 +60,10 @@ Current Rust milestone:
   - this validator now checks the explicit one-base linkage keys across
     `PLAYER.DAT`, `FLEETS.DAT`, and `BASES.DAT` instead of only comparing one
     accepted base record byte-for-byte
+- Rust now also has a safe parameterized one-base Guard Starbase writer:
+  - `ec-cli guard-starbase-onebase <dir> <target_x> <target_y>`
+  - keeps the current known-good linkage keys fixed while varying the guard
+    target/base coordinates
 - `ec-cli validate <dir> all` now classifies a directory against all currently
   known accepted scenarios and reports which ones match
 - `ec-cli validate-preserved <dir> <scenario>` now checks exact byte-for-byte
