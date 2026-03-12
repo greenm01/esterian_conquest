@@ -302,6 +302,26 @@ Important detail:
       `CHAIN.TXT` parser; it follows a distinct read path before failing
     - this is currently the best lead for recovering the local startup gate:
       trace why the `DOOR.SYS` fallback also exits with `0x1C`
+- `DOOR.SYS` buffer capture is now fully characterized at the read level:
+  - artifact:
+    - `artifacts/ecgame-startup/door-buffer-summary.txt`
+    - `artifacts/ecgame-startup/door-buffer-first.bin`
+    - `artifacts/ecgame-startup/door-buffer-second.bin`
+  - script:
+    - `tools/capture_ecgame_door_buffers.py`
+  - confirmed:
+    - `DOOR.SYS` length is `250` bytes
+    - first completed read:
+      - reads the first `128` bytes exactly
+      - buffer matches `DOOR.SYS[0:128]` byte-for-byte
+    - second completed read:
+      - fills the same `0x40BC` buffer with the remaining `122` bytes
+      - buffer prefix matches `DOOR.SYS[128:250]`
+      - bytes beyond the `122`-byte tail are stale scratch bytes
+  - practical implication:
+    - the fallback path is not failing on low-level `DOOR.SYS` I/O either
+    - the remaining startup blocker is semantic validation/decision logic after
+      a successful two-chunk `DOOR.SYS` read
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
 
 Current caveat:

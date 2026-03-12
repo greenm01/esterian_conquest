@@ -1,0 +1,8 @@
+door_len=250
+first_buffer_prefix_match=True
+first_buffer_ascii_prefix='COM1:\r\n19200\r\n8\r\nN\r\n1\r\n1\r\nY\r\nY\r\nY\r\nY\r\nSysop\r\nHANNIBAL\r\nOrlando, FL\r\n123-456-7890\r\n1\r\n0\r\n100\r\n9000\r\n1\r\n99\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90'
+second_buffer_ascii_prefix='\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90'
+first_buffer_head=434f4d313a0d0a31393230300d0a380d0a4e0d0a310d0a310d0a590d0a590d0a
+second_buffer_head=0d0a39300d0a39300d0a39300d0a39300d0a39300d0a39300d0a39300d0a3930
+second_read_pre_ax=3f30
+close_stop_ax=3e01

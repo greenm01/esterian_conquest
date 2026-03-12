@@ -644,6 +644,23 @@ Suggested execution order:
   - implication:
     - there are at least two distinct startup parser paths available locally
     - the `DOOR.SYS` path is now the highest-value local harness lead
+- New `DOOR.SYS` read-level result:
+  - artifact:
+    - `artifacts/ecgame-startup/door-buffer-summary.txt`
+    - `artifacts/ecgame-startup/door-buffer-first.bin`
+    - `artifacts/ecgame-startup/door-buffer-second.bin`
+  - script:
+    - `tools/capture_ecgame_door_buffers.py`
+  - confirmed:
+    - `DOOR.SYS` is read in two completed chunks:
+      - first `128` bytes
+      - then remaining `122` bytes
+    - both chunks land in the same `0x40BC` buffer
+    - bytes beyond the second chunk are stale scratch data
+  - implication:
+    - the `DOOR.SYS` fallback is not failing at the raw read level either
+    - next work should target the post-read semantic decision path, not more
+      dropfile formatting or chunk-size guesses
 - Updated next task:
   - stop iterating easy `CHAIN.TXT` edits
   - trace the semantic decision path after:
