@@ -544,6 +544,49 @@ Important detail:
       adjacent helper layer rather than hand-rolling DOS calls directly
     - the `4294:060C` / `4294:06E8` pointers are now concrete code-adjacent
       anchors for the post-`3F10` handoff path
+- Post-handoff code-hit capture now pins the local failure path much more
+  tightly:
+  - artifact:
+    - `artifacts/ecgame-startup/legacy-door-code-hits.json`
+  - script:
+    - `tools/capture_ecgame_legacy_code_hits.py`
+  - important dynamic rule:
+    - the displayed `4294:` code addresses became reliable breakpoint targets
+      only after arming them from the first live `BPINT 21 3D` startup stop
+  - confirmed hit sequence on the legacy `DOOR.SYS` path:
+    - `4294:06FC`
+      - first post-loop handoff hit
+      - state still matches the handoff phase:
+        - `AX=3FFF`
+        - `BX=0005`
+        - `CX=0080`
+        - `DX=40BC`
+        - `SI=F8B8`
+        - `DI=403C`
+        - `BP=F6A8`
+        - `SP=F68A`
+      - implication:
+        - `06FC` is on the real post-`3F10` handoff path
+    - `4294:076D`
+      - later close/error path hit multiple times with `AX=3E01`
+      - one hit carries inline frame text:
+        - `ECGAME: found invalid data in file: C:\DOOR.SYS`
+      - implication:
+        - `076D` is on or immediately adjacent to the invalid-dropfile
+          reporter path
+    - `4294:01A3`
+      - final hit before process termination with `AX=4C67`
+      - active stack text is:
+        - `ECGAME: found an unexpected End Of File in File: C:\DOOR.SYS`
+      - implication:
+        - `01A3` sits on the EOF-report / final termination path
+        - low exit byte `0x67` is the internal error selector before the
+          later DOS termination code `0x1C`
+  - practical conclusion:
+    - the remaining local-startup blocker is now a narrow semantic parser rule
+      in the legacy `DOOR.SYS` validator
+    - it is no longer a low-level file I/O problem, a CRLF problem, or one of
+      the already-tested obvious transport/flag field tweaks
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
 
 Current caveat:

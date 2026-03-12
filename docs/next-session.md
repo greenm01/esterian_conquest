@@ -821,4 +821,29 @@ Suggested execution order:
     - `4294:060C` / `4294:06E8` are now the best concrete post-`3F10` anchors
       for static/dynamic RE of the local startup gate
     - this is a better next target than more blind dropfile text mutation
-- Remaining blocker: the local interactive `ECGAME` flow is still not fully stable because several old scripts have brittle debugger prompt handling, and the freshly regenerated dumps still look like earlier-boot snapshots rather than the richer `/tmp/ecgboot_chain` state referenced in `RE_NOTES.md`.
+- New post-handoff code-hit result:
+  - artifact:
+    - `artifacts/ecgame-startup/legacy-door-code-hits.json`
+  - script:
+    - `tools/capture_ecgame_legacy_code_hits.py`
+  - confirmed:
+    - after arming breakpoints from the first live `BPINT 21 3D` stop,
+      `4294:` code breakpoints are usable
+    - `4294:06FC` hits first on the post-`3F10` handoff path with the same
+      `AX=3FFF`, `DX=40BC`, `DI=403C`, `BP=F6A8` handoff state
+    - `4294:076D` later hits on a close/error path and carries inline frame
+      text:
+      - `ECGAME: found invalid data in file: C:\DOOR.SYS`
+    - `4294:01A3` is the final EOF-report/termination path, carrying stack
+      text:
+      - `ECGAME: found an unexpected End Of File in File: C:\DOOR.SYS`
+      - `AX=4C67`
+  - implication:
+    - startup RE is now "complete enough" for the current project phase
+    - the blocker has been narrowed to a semantic parser rule inside the
+      legacy `DOOR.SYS` validator, not low-level file I/O or launch plumbing
+    - unless local `ECGAME` ANSI/session preservation becomes immediate
+      priority, return focus to Rust gamestate/compliance work
+- Remaining blocker if local startup is revisited later:
+  - recover the exact parser comparison between post-loop handoff `06FC` and
+    the invalid-data / EOF reporters at `076D` and `01A3`
