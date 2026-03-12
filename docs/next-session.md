@@ -745,4 +745,18 @@ Suggested execution order:
     - this is likely the parser-progress / field-index counter
     - next work should target how that `BP+0x0C` counter is compared and why
       the loop still eventually exits `0x1C`
+- New fixed-limit result:
+  - artifact:
+    - `artifacts/ecgame-startup/legacy-door-tail-matrix.json`
+  - script:
+    - `tools/test_ecgame_legacy_door_tail_matrix.py`
+  - confirmed:
+    - adding extra trailing `90` lines changes the early low-byte `3Fnn`
+      pattern and starting index
+    - but the stable loop limit stays fixed at `17` in every tested case
+  - implication:
+    - the deeper local `DOOR.SYS` parser is validating a fixed field window,
+      not an arbitrary-length tail
+    - next work should focus on which early fields matter up through
+      index/field `17`, not on the variable `90` tail
 - Remaining blocker: the local interactive `ECGAME` flow is still not fully stable because several old scripts have brittle debugger prompt handling, and the freshly regenerated dumps still look like earlier-boot snapshots rather than the richer `/tmp/ecgboot_chain` state referenced in `RE_NOTES.md`.

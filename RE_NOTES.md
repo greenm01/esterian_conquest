@@ -425,6 +425,25 @@ Important detail:
   - additional clue:
     - the loop frame also contains an inline `COM` prefix near the same local
       region, consistent with token/field parsing from the `DOOR.SYS` text
+- Tail-count matrix now shows the loop limit is fixed, not file-length-driven:
+  - artifact:
+    - `artifacts/ecgame-startup/legacy-door-tail-matrix.json`
+  - script:
+    - `tools/test_ecgame_legacy_door_tail_matrix.py`
+  - tested variants:
+    - legacy base shape plus `4`, `6`, `8`, `10`, and `12` trailing `90` lines
+  - confirmed:
+    - the stable loop-local limit remains `17` (`0x0011`) in every case
+    - the loop-local current index still climbs toward that same fixed limit
+    - extra trailing `90` lines only change the earlier low-byte pattern /
+      starting index, not the fixed stable-loop limit
+  - practical implication:
+    - the deeper local parser is not validating an arbitrary-length dropfile
+    - it appears to care about a fixed field window that tops out at
+      field/index `17`
+    - this sharply narrows the next RE target: focus on which early `DOOR.SYS`
+      fields drive the fixed-limit loop and the later `3FFF` / `3F1A`
+      transition, rather than on the long `90` tail
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
 
 Current caveat:
