@@ -55,6 +55,14 @@ pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Er
         data.current_known_empty_auxiliary_state_errors().is_empty()
     );
     println!(
+        "  setup_baseline={}",
+        data.current_known_setup_baseline_errors().is_empty()
+    );
+    println!(
+        "  conquest_baseline={}",
+        data.current_known_conquest_baseline_errors().is_empty()
+    );
+    println!(
         "  initialized_fleet_block_head_ids={:?}",
         initialized_fleet_block_head_ids
     );
@@ -130,6 +138,14 @@ pub(crate) fn validate_core_state(dir: &Path) -> Result<(), Box<dyn std::error::
             "  empty_auxiliary_state = {}",
             data.current_known_empty_auxiliary_state_errors().is_empty()
         );
+        println!(
+            "  setup_baseline = {}",
+            data.current_known_setup_baseline_errors().is_empty()
+        );
+        println!(
+            "  conquest_baseline = {}",
+            data.current_known_conquest_baseline_errors().is_empty()
+        );
         Ok(())
     } else {
         Err(errors.join("\n").into())
@@ -186,6 +202,14 @@ pub(crate) fn sync_core_counts(dir: &Path) -> Result<(), Box<dyn std::error::Err
     println!(
         "  empty_auxiliary_state = {}",
         data.current_known_empty_auxiliary_state_errors().is_empty()
+    );
+    println!(
+        "  setup_baseline = {}",
+        data.current_known_setup_baseline_errors().is_empty()
+    );
+    println!(
+        "  conquest_baseline = {}",
+        data.current_known_conquest_baseline_errors().is_empty()
     );
     for (idx, (starbase_count, owned_base_count)) in data
         .player_starbase_counts_current_known()

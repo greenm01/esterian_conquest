@@ -30,6 +30,8 @@ fn core_report_summarizes_known_post_fixture_counts() {
     assert!(stdout.contains("homeworld_seed_payloads=true"));
     assert!(stdout.contains("unowned_planet_payloads=true"));
     assert!(stdout.contains("empty_auxiliary_state=true"));
+    assert!(stdout.contains("setup_baseline=true"));
+    assert!(stdout.contains("conquest_baseline=true"));
     assert!(stdout.contains("initialized_fleet_block_head_ids=[1, 5, 9, 13]"));
     assert!(stdout.contains("player1_starbase_count=0"));
     assert!(stdout.contains("player1_owned_base_record_count=0"));
@@ -51,6 +53,8 @@ fn core_validate_accepts_known_post_fixture_state() {
     assert!(stdout.contains("homeworld_seed_payloads = true"));
     assert!(stdout.contains("unowned_planet_payloads = true"));
     assert!(stdout.contains("empty_auxiliary_state = true"));
+    assert!(stdout.contains("setup_baseline = true"));
+    assert!(stdout.contains("conquest_baseline = true"));
     assert!(stdout.contains("player1_starbase_count = 0"));
     assert!(stdout.contains("player1_owned_base_record_count = 0"));
     assert!(stdout.contains("player1_ipbm_count = 0"));
@@ -89,6 +93,8 @@ fn core_sync_counts_repairs_player1_count_words() {
     assert!(sync_stdout.contains("homeworld_seed_payloads = true"));
     assert!(sync_stdout.contains("unowned_planet_payloads = true"));
     assert!(sync_stdout.contains("empty_auxiliary_state = true"));
+    assert!(sync_stdout.contains("setup_baseline = true"));
+    assert!(sync_stdout.contains("conquest_baseline = true"));
     assert!(sync_stdout.contains("player 02: owned_planet_count = 1 homeworld_seed_coords = Some([4, 13]) starbase_count = 0 owned_base_count = 0 fleet_chain_head = 25956"));
 
     let validate_stdout = run_ec_cli_in_dir(

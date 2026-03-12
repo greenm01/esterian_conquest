@@ -185,6 +185,18 @@ semantics, not just per-block consistency:
 - every fleet in a block also keeps mission aux bytes `[1, 0]`, so the full
   preserved mission pattern is `[5, x, y, 1, 0]`
 
+The preserved initialized/post-maint control-file baseline is now explicit too:
+- `SETUP.DAT.version_tag()` stays `EC151`
+- `SETUP.DAT.option_prefix()` stays `[4, 3, 4, 3, 1, 1, 1, 1]`
+- snoop and remote timeout stay enabled
+- local timeout stays disabled
+- max-time-between-keys stays `10`
+- minimum granted time, purge-after-turns, and autopilot-inactive-turns stay `0`
+- `CONQUEST.DAT.player_count()` stays `4`
+- `CONQUEST.DAT.maintenance_schedule_bytes()` stays `[1, 1, 1, 1, 1, 1, 1]`
+- `CONQUEST.DAT.game_year()` stays within the preserved initialized/post-maint
+  pair `3000` / `3001`
+
 The shared model also now treats homeworld-seed alignment as a current-known
 multi-player invariant for initialized/post-maint state:
 - each active empire has exactly one owned `Not Named Yet` planet

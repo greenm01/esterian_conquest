@@ -1105,3 +1105,15 @@ Suggested execution order:
   - this closes the remaining obvious gap in the fleet-side initialized/post-
     maint baseline: we were already validating topology, payloads, and
     homeworld alignment, but not the exact mission-byte semantics
+
+- Preserved initialized/post-maint control-file baseline is now explicit too:
+  - `SETUP.DAT.version_tag = EC151`
+  - `SETUP.DAT.option_prefix = [4, 3, 4, 3, 1, 1, 1, 1]`
+  - snoop + remote timeout enabled
+  - local timeout disabled
+  - max-time-between-keys `10`
+  - minimum granted time / purge-after-turns / autopilot-inactive-turns `0`
+  - `CONQUEST.DAT.player_count = 4`
+  - `CONQUEST.DAT.maintenance_schedule = [1, 1, 1, 1, 1, 1, 1]`
+  - `CONQUEST.DAT.game_year` stays within the preserved initialized/post-maint
+    pair `3000` / `3001`

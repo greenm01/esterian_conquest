@@ -244,6 +244,8 @@ fn core_game_data_initialized_fleet_block_helpers_match_known_fixtures() {
     assert!(data.current_known_unowned_planet_payload_errors().is_empty());
     assert!(data.current_known_empty_auxiliary_state_errors().is_empty());
     assert!(data.current_known_initialized_homeworld_alignment_errors().is_empty());
+    assert!(data.current_known_setup_baseline_errors().is_empty());
+    assert!(data.current_known_conquest_baseline_errors().is_empty());
 }
 
 #[test]
@@ -493,6 +495,47 @@ fn core_game_data_empty_auxiliary_state_errors_catch_starbase_record() {
     assert_eq!(
         data.current_known_empty_auxiliary_state_errors(),
         vec!["BASES.DAT expected empty auxiliary baseline, got 1 records".to_string()]
+    );
+}
+
+#[test]
+fn core_game_data_setup_baseline_errors_catch_changed_timeout_flag() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    data.setup.set_remote_timeout_enabled(false);
+
+    assert_eq!(
+        data.current_known_setup_baseline_errors(),
+        vec!["SETUP.DAT.remote_timeout expected enabled in baseline".to_string()]
+    );
+}
+
+#[test]
+fn core_game_data_conquest_baseline_errors_catch_changed_year() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    data.conquest.raw[0] = 0xB7;
+    data.conquest.raw[1] = 0x0B; // 2999
+
+    assert_eq!(
+        data.current_known_conquest_baseline_errors(),
+        vec!["CONQUEST.DAT.game_year expected 3000 or 3001 for preserved initialized/post-maint baseline, got 2999".to_string()]
     );
 }
 

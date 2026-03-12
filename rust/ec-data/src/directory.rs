@@ -218,6 +218,8 @@ impl CoreGameData {
         errors.extend(self.current_known_unowned_planet_payload_errors());
         errors.extend(self.current_known_empty_auxiliary_state_errors());
         errors.extend(self.current_known_initialized_homeworld_alignment_errors());
+        errors.extend(self.current_known_setup_baseline_errors());
+        errors.extend(self.current_known_conquest_baseline_errors());
         if self.ipbm.records.len() != expected_ipbm {
             errors.push(format!(
                 "IPBM.DAT record count expected {}, got {}",
@@ -611,6 +613,83 @@ impl CoreGameData {
             errors.push(format!(
                 "guarding fleet count expected 0 in empty auxiliary baseline, got {}",
                 guarding_fleet_count
+            ));
+        }
+
+        errors
+    }
+
+    pub fn current_known_setup_baseline_errors(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+
+        if self.setup.version_tag() != b"EC151" {
+            errors.push(format!(
+                "SETUP.DAT.version_tag expected EC151, got {:?}",
+                self.setup.version_tag()
+            ));
+        }
+        if self.setup.option_prefix() != [4, 3, 4, 3, 1, 1, 1, 1] {
+            errors.push(format!(
+                "SETUP.DAT.option_prefix expected [4, 3, 4, 3, 1, 1, 1, 1], got {:?}",
+                self.setup.option_prefix()
+            ));
+        }
+        if !self.setup.snoop_enabled() {
+            errors.push("SETUP.DAT.snoop expected enabled in baseline".to_string());
+        }
+        if self.setup.max_time_between_keys_minutes_raw() != 10 {
+            errors.push(format!(
+                "SETUP.DAT.max_time_between_keys expected 10, got {}",
+                self.setup.max_time_between_keys_minutes_raw()
+            ));
+        }
+        if !self.setup.remote_timeout_enabled() {
+            errors.push("SETUP.DAT.remote_timeout expected enabled in baseline".to_string());
+        }
+        if self.setup.local_timeout_enabled() {
+            errors.push("SETUP.DAT.local_timeout expected disabled in baseline".to_string());
+        }
+        if self.setup.minimum_time_granted_minutes_raw() != 0 {
+            errors.push(format!(
+                "SETUP.DAT.minimum_time_granted expected 0, got {}",
+                self.setup.minimum_time_granted_minutes_raw()
+            ));
+        }
+        if self.setup.purge_after_turns_raw() != 0 {
+            errors.push(format!(
+                "SETUP.DAT.purge_after_turns expected 0, got {}",
+                self.setup.purge_after_turns_raw()
+            ));
+        }
+        if self.setup.autopilot_inactive_turns_raw() != 0 {
+            errors.push(format!(
+                "SETUP.DAT.autopilot_inactive_turns expected 0, got {}",
+                self.setup.autopilot_inactive_turns_raw()
+            ));
+        }
+
+        errors
+    }
+
+    pub fn current_known_conquest_baseline_errors(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+
+        if !matches!(self.conquest.game_year(), 3000 | 3001) {
+            errors.push(format!(
+                "CONQUEST.DAT.game_year expected 3000 or 3001 for preserved initialized/post-maint baseline, got {}",
+                self.conquest.game_year()
+            ));
+        }
+        if self.conquest.player_count() != 4 {
+            errors.push(format!(
+                "CONQUEST.DAT.player_count expected 4, got {}",
+                self.conquest.player_count()
+            ));
+        }
+        if self.conquest.maintenance_schedule_bytes() != [1; 7] {
+            errors.push(format!(
+                "CONQUEST.DAT.maintenance_schedule expected [1, 1, 1, 1, 1, 1, 1], got {:?}",
+                self.conquest.maintenance_schedule_bytes()
             ));
         }
 
