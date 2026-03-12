@@ -1,0 +1,18 @@
+Program: MEMDUMP.BIN
+
+Entry: 2000:c0cd
+Function: FUN_2000_c0cd
+
+References to 2000:c0cd
+- 0000:06d2  [caller 0000:02c0 FUN_0000_02c0]
+
+Body
+- 2000:c0cd  JA 0x2000:c0d3    [ref 2000:c0d3]    [addr 2000:c0d3]
+- 2000:c0cf  LODSB SI
+- 2000:c0d0  STOSB ES:DI
+- 2000:c0d1  MOV CL,AL
+- 2000:c0d3  XOR CH,CH
+- 2000:c0d5  MOVSB.REP ES:DI,SI
+- 2000:c0d7  MOV DS,DX
+- 2000:c0d9  RETF 0x4    [scalar 0x4]
+

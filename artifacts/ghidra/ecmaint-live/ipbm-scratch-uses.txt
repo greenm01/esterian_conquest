@@ -1,0 +1,465 @@
+Program: MEMDUMP.BIN
+
+Instructions with scalar operands in [0x3538, 0x3553]
+- 0000:06cd  MOV DI,0x3538  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:06c3  ADD DI,AX
+  - 0000:06c5  LES DI,ES:[DI + -0x4]
+  - 0000:06c9  PUSH word ptr ES:[DI + 0x6]
+  - 0000:06cd  MOV DI,0x3538
+  - 0000:06d0  PUSH DS
+  - 0000:06d1  PUSH DI
+  - 0000:06d2  CALLF 0x2000:c0cd
+  - 0000:06d7  MOV AL,[0x3541]
+  - 0000:06da  XOR AH,AH
+- 0000:06d7  MOV AL,[0x3541]  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:06d0  PUSH DS
+  - 0000:06d1  PUSH DI
+  - 0000:06d2  CALLF 0x2000:c0cd
+  - 0000:06d7  MOV AL,[0x3541]
+  - 0000:06da  XOR AH,AH
+  - 0000:06dc  XOR DX,DX
+  - 0000:06de  CALLF 0x3000:4891
+  - 0000:06e3  MOV CX,word ptr [0x3543]
+  - 0000:06e7  MOV SI,word ptr [0x3545]
+- 0000:06e3  MOV CX,word ptr [0x3543]  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:06da  XOR AH,AH
+  - 0000:06dc  XOR DX,DX
+  - 0000:06de  CALLF 0x3000:4891
+  - 0000:06e3  MOV CX,word ptr [0x3543]
+  - 0000:06e7  MOV SI,word ptr [0x3545]
+  - 0000:06eb  MOV DI,word ptr [0x3547]
+  - 0000:06ef  CALLF 0x3000:486b
+  - 0000:06f4  MOV word ptr [BP + -0x6],AX
+  - 0000:06f7  MOV word ptr [BP + -0x4],BX
+- 0000:06e7  MOV SI,word ptr [0x3545]  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:06dc  XOR DX,DX
+  - 0000:06de  CALLF 0x3000:4891
+  - 0000:06e3  MOV CX,word ptr [0x3543]
+  - 0000:06e7  MOV SI,word ptr [0x3545]
+  - 0000:06eb  MOV DI,word ptr [0x3547]
+  - 0000:06ef  CALLF 0x3000:486b
+  - 0000:06f4  MOV word ptr [BP + -0x6],AX
+  - 0000:06f7  MOV word ptr [BP + -0x4],BX
+  - 0000:06fa  MOV word ptr [BP + -0x2],DX
+- 0000:06eb  MOV DI,word ptr [0x3547]  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:06de  CALLF 0x3000:4891
+  - 0000:06e3  MOV CX,word ptr [0x3543]
+  - 0000:06e7  MOV SI,word ptr [0x3545]
+  - 0000:06eb  MOV DI,word ptr [0x3547]
+  - 0000:06ef  CALLF 0x3000:486b
+  - 0000:06f4  MOV word ptr [BP + -0x6],AX
+  - 0000:06f7  MOV word ptr [BP + -0x4],BX
+  - 0000:06fa  MOV word ptr [BP + -0x2],DX
+  - 0000:06fd  MOV AL,[0x3542]
+- 0000:06fd  MOV AL,[0x3542]  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:06f4  MOV word ptr [BP + -0x6],AX
+  - 0000:06f7  MOV word ptr [BP + -0x4],BX
+  - 0000:06fa  MOV word ptr [BP + -0x2],DX
+  - 0000:06fd  MOV AL,[0x3542]
+  - 0000:0700  XOR AH,AH
+  - 0000:0702  XOR DX,DX
+  - 0000:0704  CALLF 0x3000:4891
+  - 0000:0709  MOV CX,word ptr [0x3549]
+  - 0000:070d  MOV SI,word ptr [0x354b]
+- 0000:0709  MOV CX,word ptr [0x3549]  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:0700  XOR AH,AH
+  - 0000:0702  XOR DX,DX
+  - 0000:0704  CALLF 0x3000:4891
+  - 0000:0709  MOV CX,word ptr [0x3549]
+  - 0000:070d  MOV SI,word ptr [0x354b]
+  - 0000:0711  MOV DI,word ptr [0x354d]
+  - 0000:0715  CALLF 0x3000:486b
+  - 0000:071a  MOV word ptr [BP + -0x12],AX
+  - 0000:071d  MOV word ptr [BP + -0x10],BX
+- 0000:070d  MOV SI,word ptr [0x354b]  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:0702  XOR DX,DX
+  - 0000:0704  CALLF 0x3000:4891
+  - 0000:0709  MOV CX,word ptr [0x3549]
+  - 0000:070d  MOV SI,word ptr [0x354b]
+  - 0000:0711  MOV DI,word ptr [0x354d]
+  - 0000:0715  CALLF 0x3000:486b
+  - 0000:071a  MOV word ptr [BP + -0x12],AX
+  - 0000:071d  MOV word ptr [BP + -0x10],BX
+  - 0000:0720  MOV word ptr [BP + -0xe],DX
+- 0000:0711  MOV DI,word ptr [0x354d]  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:0704  CALLF 0x3000:4891
+  - 0000:0709  MOV CX,word ptr [0x3549]
+  - 0000:070d  MOV SI,word ptr [0x354b]
+  - 0000:0711  MOV DI,word ptr [0x354d]
+  - 0000:0715  CALLF 0x3000:486b
+  - 0000:071a  MOV word ptr [BP + -0x12],AX
+  - 0000:071d  MOV word ptr [BP + -0x10],BX
+  - 0000:0720  MOV word ptr [BP + -0xe],DX
+  - 0000:0723  MOV AL,[0x3555]
+- 0000:0765  MOV AX,[0x354f]  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:075c  MOV word ptr [BP + -0x18],AX
+  - 0000:075f  MOV word ptr [BP + -0x16],BX
+  - 0000:0762  MOV word ptr [BP + -0x14],DX
+  - 0000:0765  MOV AX,[0x354f]
+  - 0000:0768  MOV BX,word ptr [0x3551]
+  - 0000:076c  MOV DX,word ptr [0x3553]
+  - 0000:0770  MOV word ptr [BP + -0x24],AX
+  - 0000:0773  MOV word ptr [BP + -0x22],BX
+  - 0000:0776  MOV word ptr [BP + -0x20],DX
+- 0000:0768  MOV BX,word ptr [0x3551]  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:075f  MOV word ptr [BP + -0x16],BX
+  - 0000:0762  MOV word ptr [BP + -0x14],DX
+  - 0000:0765  MOV AX,[0x354f]
+  - 0000:0768  MOV BX,word ptr [0x3551]
+  - 0000:076c  MOV DX,word ptr [0x3553]
+  - 0000:0770  MOV word ptr [BP + -0x24],AX
+  - 0000:0773  MOV word ptr [BP + -0x22],BX
+  - 0000:0776  MOV word ptr [BP + -0x20],DX
+  - 0000:0779  CMP byte ptr [0x3557],0x1
+- 0000:076c  MOV DX,word ptr [0x3553]  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:0762  MOV word ptr [BP + -0x14],DX
+  - 0000:0765  MOV AX,[0x354f]
+  - 0000:0768  MOV BX,word ptr [0x3551]
+  - 0000:076c  MOV DX,word ptr [0x3553]
+  - 0000:0770  MOV word ptr [BP + -0x24],AX
+  - 0000:0773  MOV word ptr [BP + -0x22],BX
+  - 0000:0776  MOV word ptr [BP + -0x20],DX
+  - 0000:0779  CMP byte ptr [0x3557],0x1
+  - 0000:077e  JBE 0x0000:0785
+- 0000:0e4c  MOV [0x3541],AL  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:0e41  MOV BX,word ptr [BP + -0x4]
+  - 0000:0e44  MOV DX,word ptr [BP + -0x2]
+  - 0000:0e47  CALLF 0x3000:4895
+  - 0000:0e4c  MOV [0x3541],AL
+  - 0000:0e4f  MOV AX,word ptr [BP + -0x6]
+  - 0000:0e52  MOV BX,word ptr [BP + -0x4]
+  - 0000:0e55  MOV DX,word ptr [BP + -0x2]
+  - 0000:0e58  CALLF 0x3000:4930
+  - 0000:0e5d  MOV [0x3543],AX
+- 0000:0e5d  MOV [0x3543],AX  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:0e52  MOV BX,word ptr [BP + -0x4]
+  - 0000:0e55  MOV DX,word ptr [BP + -0x2]
+  - 0000:0e58  CALLF 0x3000:4930
+  - 0000:0e5d  MOV [0x3543],AX
+  - 0000:0e60  MOV word ptr [0x3545],BX
+  - 0000:0e64  MOV word ptr [0x3547],DX
+  - 0000:0e68  MOV AX,word ptr [BP + -0x12]
+  - 0000:0e6b  MOV BX,word ptr [BP + -0x10]
+  - 0000:0e6e  MOV DX,word ptr [BP + -0xe]
+- 0000:0e60  MOV word ptr [0x3545],BX  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:0e55  MOV DX,word ptr [BP + -0x2]
+  - 0000:0e58  CALLF 0x3000:4930
+  - 0000:0e5d  MOV [0x3543],AX
+  - 0000:0e60  MOV word ptr [0x3545],BX
+  - 0000:0e64  MOV word ptr [0x3547],DX
+  - 0000:0e68  MOV AX,word ptr [BP + -0x12]
+  - 0000:0e6b  MOV BX,word ptr [BP + -0x10]
+  - 0000:0e6e  MOV DX,word ptr [BP + -0xe]
+  - 0000:0e71  CALLF 0x3000:4895
+- 0000:0e64  MOV word ptr [0x3547],DX  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:0e58  CALLF 0x3000:4930
+  - 0000:0e5d  MOV [0x3543],AX
+  - 0000:0e60  MOV word ptr [0x3545],BX
+  - 0000:0e64  MOV word ptr [0x3547],DX
+  - 0000:0e68  MOV AX,word ptr [BP + -0x12]
+  - 0000:0e6b  MOV BX,word ptr [BP + -0x10]
+  - 0000:0e6e  MOV DX,word ptr [BP + -0xe]
+  - 0000:0e71  CALLF 0x3000:4895
+  - 0000:0e76  MOV [0x3542],AL
+- 0000:0e76  MOV [0x3542],AL  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:0e6b  MOV BX,word ptr [BP + -0x10]
+  - 0000:0e6e  MOV DX,word ptr [BP + -0xe]
+  - 0000:0e71  CALLF 0x3000:4895
+  - 0000:0e76  MOV [0x3542],AL
+  - 0000:0e79  MOV AX,word ptr [BP + -0x12]
+  - 0000:0e7c  MOV BX,word ptr [BP + -0x10]
+  - 0000:0e7f  MOV DX,word ptr [BP + -0xe]
+  - 0000:0e82  CALLF 0x3000:4930
+  - 0000:0e87  MOV [0x3549],AX
+- 0000:0e87  MOV [0x3549],AX  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:0e7c  MOV BX,word ptr [BP + -0x10]
+  - 0000:0e7f  MOV DX,word ptr [BP + -0xe]
+  - 0000:0e82  CALLF 0x3000:4930
+  - 0000:0e87  MOV [0x3549],AX
+  - 0000:0e8a  MOV word ptr [0x354b],BX
+  - 0000:0e8e  MOV word ptr [0x354d],DX
+  - 0000:0e92  MOV AX,word ptr [BP + -0x24]
+  - 0000:0e95  MOV BX,word ptr [BP + -0x22]
+  - 0000:0e98  MOV DX,word ptr [BP + -0x20]
+- 0000:0e8a  MOV word ptr [0x354b],BX  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:0e7f  MOV DX,word ptr [BP + -0xe]
+  - 0000:0e82  CALLF 0x3000:4930
+  - 0000:0e87  MOV [0x3549],AX
+  - 0000:0e8a  MOV word ptr [0x354b],BX
+  - 0000:0e8e  MOV word ptr [0x354d],DX
+  - 0000:0e92  MOV AX,word ptr [BP + -0x24]
+  - 0000:0e95  MOV BX,word ptr [BP + -0x22]
+  - 0000:0e98  MOV DX,word ptr [BP + -0x20]
+  - 0000:0e9b  MOV [0x354f],AX
+- 0000:0e8e  MOV word ptr [0x354d],DX  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:0e82  CALLF 0x3000:4930
+  - 0000:0e87  MOV [0x3549],AX
+  - 0000:0e8a  MOV word ptr [0x354b],BX
+  - 0000:0e8e  MOV word ptr [0x354d],DX
+  - 0000:0e92  MOV AX,word ptr [BP + -0x24]
+  - 0000:0e95  MOV BX,word ptr [BP + -0x22]
+  - 0000:0e98  MOV DX,word ptr [BP + -0x20]
+  - 0000:0e9b  MOV [0x354f],AX
+  - 0000:0e9e  MOV word ptr [0x3551],BX
+- 0000:0e9b  MOV [0x354f],AX  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:0e92  MOV AX,word ptr [BP + -0x24]
+  - 0000:0e95  MOV BX,word ptr [BP + -0x22]
+  - 0000:0e98  MOV DX,word ptr [BP + -0x20]
+  - 0000:0e9b  MOV [0x354f],AX
+  - 0000:0e9e  MOV word ptr [0x3551],BX
+  - 0000:0ea2  MOV word ptr [0x3553],DX
+  - 0000:0ea6  MOV AX,word ptr [BP + -0x6]
+  - 0000:0ea9  MOV BX,word ptr [BP + -0x4]
+  - 0000:0eac  MOV DX,word ptr [BP + -0x2]
+- 0000:0e9e  MOV word ptr [0x3551],BX  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:0e95  MOV BX,word ptr [BP + -0x22]
+  - 0000:0e98  MOV DX,word ptr [BP + -0x20]
+  - 0000:0e9b  MOV [0x354f],AX
+  - 0000:0e9e  MOV word ptr [0x3551],BX
+  - 0000:0ea2  MOV word ptr [0x3553],DX
+  - 0000:0ea6  MOV AX,word ptr [BP + -0x6]
+  - 0000:0ea9  MOV BX,word ptr [BP + -0x4]
+  - 0000:0eac  MOV DX,word ptr [BP + -0x2]
+  - 0000:0eaf  CALLF 0x3000:4895
+- 0000:0ea2  MOV word ptr [0x3553],DX  [function 0000:02c0 FUN_0000_02c0]
+  - 0000:0e98  MOV DX,word ptr [BP + -0x20]
+  - 0000:0e9b  MOV [0x354f],AX
+  - 0000:0e9e  MOV word ptr [0x3551],BX
+  - 0000:0ea2  MOV word ptr [0x3553],DX
+  - 0000:0ea6  MOV AX,word ptr [BP + -0x6]
+  - 0000:0ea9  MOV BX,word ptr [BP + -0x4]
+  - 0000:0eac  MOV DX,word ptr [BP + -0x2]
+  - 0000:0eaf  CALLF 0x3000:4895
+  - 0000:0eb4  MOV CX,AX
+- 1000:759e  MOV DI,0x353f
+  - 1000:7596  PUSH DI
+  - 1000:7597  CALLF 0x2000:bec4
+  - 1000:759c  JMP 0x1000:75a8
+  - 1000:759e  MOV DI,0x353f
+  - 1000:75a1  PUSH CS
+  - 1000:75a2  PUSH DI
+  - 1000:75a3  CALLF 0x2000:bec4
+  - 1000:75a8  JMP 0x1000:76c9
+  - 1000:75ab  MOV DI,word ptr [BP + 0x4]
+- 1000:8c78  MOV DI,0x353f
+  - 1000:8c70  PUSH DI
+  - 1000:8c71  CALLF 0x2000:bec4
+  - 1000:8c76  JMP 0x1000:8c82
+  - 1000:8c78  MOV DI,0x353f
+  - 1000:8c7b  PUSH CS
+  - 1000:8c7c  PUSH DI
+  - 1000:8c7d  CALLF 0x2000:bec4
+  - 1000:8c82  JMP 0x1000:8d8a
+  - 1000:8c85  MOV DI,word ptr [BP + 0x4]
+- 2000:67eb  MOV DI,0x3538  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:67e6  MOV DI,0x31f8
+  - 2000:67e9  PUSH DS
+  - 2000:67ea  PUSH DI
+  - 2000:67eb  MOV DI,0x3538
+  - 2000:67ee  PUSH DS
+  - 2000:67ef  PUSH DI
+  - 2000:67f0  CALLF 0x3000:502f
+  - 2000:67f5  ADD SP,0x4
+  - 2000:67f8  CALLF 0x3000:3be2
+- 2000:680e  MOV AL,[0x353a]  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:6804  MOV byte ptr [BP + -0x2],AL
+  - 2000:6807  CMP byte ptr [0x16a4],0x0
+  - 2000:680c  JZ 0x2000:6828
+  - 2000:680e  MOV AL,[0x353a]
+  - 2000:6811  XOR AH,AH
+  - 2000:6813  CMP AX,word ptr [BP + 0xfeae]
+  - 2000:6817  JNZ 0x2000:681f
+  - 2000:6819  CMP byte ptr [BP + -0x2],0x0
+  - 2000:681d  JNZ 0x2000:6823
+- 2000:6870  MOV AX,[0x3538]  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:6864  LES DI,ES:[DI + -0x4]
+  - 2000:6868  MOV word ptr [BP + 0xfea8],DI
+  - 2000:686c  MOV word ptr [BP + 0xfeaa],ES
+  - 2000:6870  MOV AX,[0x3538]
+  - 2000:6873  LES DI,[BP + 0xfea8]
+  - 2000:6877  MOV word ptr ES:[DI + 0xa],AX
+  - 2000:687b  CMP byte ptr [0x16a4],0x0
+  - 2000:6880  JZ 0x2000:688e
+  - 2000:6882  MOV AL,[0x353a]
+- 2000:6882  MOV AL,[0x353a]  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:6877  MOV word ptr ES:[DI + 0xa],AX
+  - 2000:687b  CMP byte ptr [0x16a4],0x0
+  - 2000:6880  JZ 0x2000:688e
+  - 2000:6882  MOV AL,[0x353a]
+  - 2000:6885  LES DI,[BP + 0xfea8]
+  - 2000:6889  MOV byte ptr ES:[DI],AL
+  - 2000:688c  JMP 0x2000:6899
+  - 2000:688e  MOV AL,byte ptr [BP + 0xfeae]
+  - 2000:6892  LES DI,[BP + 0xfea8]
+- 2000:68a2  MOV AL,[0x3541]  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:6896  MOV byte ptr ES:[DI],AL
+  - 2000:6899  LES DI,[BP + 0xfea8]
+  - 2000:689d  MOV byte ptr ES:[DI + 0x4],0x3
+  - 2000:68a2  MOV AL,[0x3541]
+  - 2000:68a5  LES DI,[BP + 0xfea8]
+  - 2000:68a9  MOV byte ptr ES:[DI + 0x1],AL
+  - 2000:68ad  MOV AL,[0x3542]
+  - 2000:68b0  LES DI,[BP + 0xfea8]
+  - 2000:68b4  MOV byte ptr ES:[DI + 0x2],AL
+- 2000:68ad  MOV AL,[0x3542]  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:68a2  MOV AL,[0x3541]
+  - 2000:68a5  LES DI,[BP + 0xfea8]
+  - 2000:68a9  MOV byte ptr ES:[DI + 0x1],AL
+  - 2000:68ad  MOV AL,[0x3542]
+  - 2000:68b0  LES DI,[BP + 0xfea8]
+  - 2000:68b4  MOV byte ptr ES:[DI + 0x2],AL
+  - 2000:68b8  MOV AX,[0x354f]
+  - 2000:68bb  MOV BX,word ptr [0x3551]
+  - 2000:68bf  MOV DX,word ptr [0x3553]
+- 2000:68b8  MOV AX,[0x354f]  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:68ad  MOV AL,[0x3542]
+  - 2000:68b0  LES DI,[BP + 0xfea8]
+  - 2000:68b4  MOV byte ptr ES:[DI + 0x2],AL
+  - 2000:68b8  MOV AX,[0x354f]
+  - 2000:68bb  MOV BX,word ptr [0x3551]
+  - 2000:68bf  MOV DX,word ptr [0x3553]
+  - 2000:68c3  MOV CX,0x80
+  - 2000:68c6  XOR SI,SI
+  - 2000:68c8  XOR DI,DI
+- 2000:68bb  MOV BX,word ptr [0x3551]  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:68b0  LES DI,[BP + 0xfea8]
+  - 2000:68b4  MOV byte ptr ES:[DI + 0x2],AL
+  - 2000:68b8  MOV AX,[0x354f]
+  - 2000:68bb  MOV BX,word ptr [0x3551]
+  - 2000:68bf  MOV DX,word ptr [0x3553]
+  - 2000:68c3  MOV CX,0x80
+  - 2000:68c6  XOR SI,SI
+  - 2000:68c8  XOR DI,DI
+  - 2000:68ca  CALLF 0x3000:488d
+- 2000:68bf  MOV DX,word ptr [0x3553]  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:68b4  MOV byte ptr ES:[DI + 0x2],AL
+  - 2000:68b8  MOV AX,[0x354f]
+  - 2000:68bb  MOV BX,word ptr [0x3551]
+  - 2000:68bf  MOV DX,word ptr [0x3553]
+  - 2000:68c3  MOV CX,0x80
+  - 2000:68c6  XOR SI,SI
+  - 2000:68c8  XOR DI,DI
+  - 2000:68ca  CALLF 0x3000:488d
+  - 2000:68cf  JNC 0x2000:68dc
+- 2000:6906  CMP word ptr [0x353b],0x0  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:68fa  MOV AX,word ptr ES:[DI + 0x48]
+  - 2000:68fe  LES DI,[BP + 0xfea8]
+  - 2000:6902  MOV word ptr ES:[DI + 0x6],AX
+  - 2000:6906  CMP word ptr [0x353b],0x0
+  - 2000:690b  JA 0x2000:6910
+  - 2000:690d  JMP 0x2000:6a59
+  - 2000:6910  CMP byte ptr [BP + -0x2],0x0
+  - 2000:6914  JNZ 0x2000:6919
+  - 2000:6916  JMP 0x2000:6a59
+- 2000:691e  MOV AX,[0x353b]  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:6919  MOV DI,0x31f8
+  - 2000:691c  PUSH DS
+  - 2000:691d  PUSH DI
+  - 2000:691e  MOV AX,[0x353b]
+  - 2000:6921  DEC AX
+  - 2000:6922  XOR DX,DX
+  - 2000:6924  PUSH DX
+  - 2000:6925  PUSH AX
+  - 2000:6926  CALLF 0x3000:50cd
+- 2000:6948  MOV DI,0x3538  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:6943  MOV DI,0x31f8
+  - 2000:6946  PUSH DS
+  - 2000:6947  PUSH DI
+  - 2000:6948  MOV DI,0x3538
+  - 2000:694b  PUSH DS
+  - 2000:694c  PUSH DI
+  - 2000:694d  CALLF 0x3000:502f
+  - 2000:6952  ADD SP,0x4
+  - 2000:6955  CALLF 0x3000:3be2
+- 2000:696b  MOV AL,[0x353a]  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:6961  MOV byte ptr [BP + -0x2],AL
+  - 2000:6964  CMP byte ptr [0x16a4],0x0
+  - 2000:6969  JNZ 0x2000:6985
+  - 2000:696b  MOV AL,[0x353a]
+  - 2000:696e  XOR AH,AH
+  - 2000:6970  CMP AX,word ptr [BP + 0xfeae]
+  - 2000:6974  JNZ 0x2000:697c
+  - 2000:6976  CMP byte ptr [BP + -0x2],0x0
+  - 2000:697a  JNZ 0x2000:6980
+- 2000:69cd  MOV AX,[0x3538]  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:69c1  LES DI,ES:[DI + -0x4]
+  - 2000:69c5  MOV word ptr [BP + 0xfea8],DI
+  - 2000:69c9  MOV word ptr [BP + 0xfeaa],ES
+  - 2000:69cd  MOV AX,[0x3538]
+  - 2000:69d0  LES DI,[BP + 0xfea8]
+  - 2000:69d4  MOV word ptr ES:[DI + 0xa],AX
+  - 2000:69d8  CMP byte ptr [0x16a4],0x0
+  - 2000:69dd  JZ 0x2000:69eb
+  - 2000:69df  MOV AL,[0x353a]
+- 2000:69df  MOV AL,[0x353a]  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:69d4  MOV word ptr ES:[DI + 0xa],AX
+  - 2000:69d8  CMP byte ptr [0x16a4],0x0
+  - 2000:69dd  JZ 0x2000:69eb
+  - 2000:69df  MOV AL,[0x353a]
+  - 2000:69e2  LES DI,[BP + 0xfea8]
+  - 2000:69e6  MOV byte ptr ES:[DI],AL
+  - 2000:69e9  JMP 0x2000:69f6
+  - 2000:69eb  MOV AL,byte ptr [BP + 0xfeae]
+  - 2000:69ef  LES DI,[BP + 0xfea8]
+- 2000:69ff  MOV AL,[0x3541]  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:69f3  MOV byte ptr ES:[DI],AL
+  - 2000:69f6  LES DI,[BP + 0xfea8]
+  - 2000:69fa  MOV byte ptr ES:[DI + 0x4],0x3
+  - 2000:69ff  MOV AL,[0x3541]
+  - 2000:6a02  LES DI,[BP + 0xfea8]
+  - 2000:6a06  MOV byte ptr ES:[DI + 0x1],AL
+  - 2000:6a0a  MOV AL,[0x3542]
+  - 2000:6a0d  LES DI,[BP + 0xfea8]
+  - 2000:6a11  MOV byte ptr ES:[DI + 0x2],AL
+- 2000:6a0a  MOV AL,[0x3542]  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:69ff  MOV AL,[0x3541]
+  - 2000:6a02  LES DI,[BP + 0xfea8]
+  - 2000:6a06  MOV byte ptr ES:[DI + 0x1],AL
+  - 2000:6a0a  MOV AL,[0x3542]
+  - 2000:6a0d  LES DI,[BP + 0xfea8]
+  - 2000:6a11  MOV byte ptr ES:[DI + 0x2],AL
+  - 2000:6a15  MOV AX,[0x354f]
+  - 2000:6a18  MOV BX,word ptr [0x3551]
+  - 2000:6a1c  MOV DX,word ptr [0x3553]
+- 2000:6a15  MOV AX,[0x354f]  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:6a0a  MOV AL,[0x3542]
+  - 2000:6a0d  LES DI,[BP + 0xfea8]
+  - 2000:6a11  MOV byte ptr ES:[DI + 0x2],AL
+  - 2000:6a15  MOV AX,[0x354f]
+  - 2000:6a18  MOV BX,word ptr [0x3551]
+  - 2000:6a1c  MOV DX,word ptr [0x3553]
+  - 2000:6a20  MOV CX,0x80
+  - 2000:6a23  XOR SI,SI
+  - 2000:6a25  XOR DI,DI
+- 2000:6a18  MOV BX,word ptr [0x3551]  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:6a0d  LES DI,[BP + 0xfea8]
+  - 2000:6a11  MOV byte ptr ES:[DI + 0x2],AL
+  - 2000:6a15  MOV AX,[0x354f]
+  - 2000:6a18  MOV BX,word ptr [0x3551]
+  - 2000:6a1c  MOV DX,word ptr [0x3553]
+  - 2000:6a20  MOV CX,0x80
+  - 2000:6a23  XOR SI,SI
+  - 2000:6a25  XOR DI,DI
+  - 2000:6a27  CALLF 0x3000:488d
+- 2000:6a1c  MOV DX,word ptr [0x3553]  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:6a11  MOV byte ptr ES:[DI + 0x2],AL
+  - 2000:6a15  MOV AX,[0x354f]
+  - 2000:6a18  MOV BX,word ptr [0x3551]
+  - 2000:6a1c  MOV DX,word ptr [0x3553]
+  - 2000:6a20  MOV CX,0x80
+  - 2000:6a23  XOR SI,SI
+  - 2000:6a25  XOR DI,DI
+  - 2000:6a27  CALLF 0x3000:488d
+  - 2000:6a2c  JNC 0x2000:6a39
+- 2000:6a4b  MOV AX,[0x353d]  [function 2000:5ee4 ecmaint_validate_primary_state]
+  - 2000:6a3d  MOV byte ptr ES:[DI + 0x5],0x1
+  - 2000:6a42  LES DI,[BP + 0xfea8]
+  - 2000:6a46  MOV byte ptr ES:[DI + 0x3],0x1
+  - 2000:6a4b  MOV AX,[0x353d]
+  - 2000:6a4e  LES DI,[BP + 0xfea8]
+  - 2000:6a52  MOV word ptr ES:[DI + 0x6],AX
+  - 2000:6a56  JMP 0x2000:6906
+  - 2000:6a59  MOV AX,word ptr [BP + 0xfeae]
+  - 2000:6a5d  CMP AX,word ptr [BP + 0xfeac]
+
+Match count: 46

@@ -1,0 +1,34 @@
+Program: MEMDUMP.BIN
+
+2000:3538 ipbm_scratch_base
+- <none>
+
+2000:353a ipbm_bypass_override_candidate
+- ref from 2000:34e6  JNZ 0x2000:353a  [function 2000:33f7 FUN_2000_33f7]
+  - 2000:34da  CALLF 0x3000:4f83
+  - 2000:34df  CALLF 0x3000:3be2
+  - 2000:34e4  OR AX,AX
+  - 2000:34e6  JNZ 0x2000:353a
+  - 2000:34e8  MOV AL,[0x190e]
+  - 2000:34eb  XOR AH,AH
+  - 2000:34ed  MOV word ptr [BP + 0xce42],AX
+  - 2000:34f1  MOV AX,0x1
+
+2000:353b ipbm_follow_on_count_or_gate
+- <none>
+
+2000:3541 ipbm_summary_byte_1
+- <none>
+
+2000:3542 ipbm_summary_byte_2
+- <none>
+
+2000:354f ipbm_summary_word_a
+- <none>
+
+2000:3551 ipbm_summary_word_b
+- <none>
+
+2000:3553 ipbm_summary_word_c
+- <none>
+

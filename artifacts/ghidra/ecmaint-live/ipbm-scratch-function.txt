@@ -1,0 +1,909 @@
+Program: MEMDUMP.BIN
+
+0000:02c0 FUN_0000_02c0
+
+References to function entry
+- <none>
+
+Function body
+- 0000:02c0  PUSH BP
+- 0000:02c1  MOV BP,SP
+- 0000:02c3  SUB SP,0x88a
+- 0000:02c7  MOV byte ptr [BP + 0xf77f],0x0    [ref Stack[-0x883]]
+- 0000:02cc  MOV byte ptr [BP + 0xf77b],0x0    [ref Stack[-0x887]]
+- 0000:02d1  MOV AX,word ptr [BP + 0x4]    [ref Stack[0x2]]
+- 0000:02d4  SHL AX,0x1
+- 0000:02d6  SHL AX,0x1
+- 0000:02d8  LES DI,[0x2f72]
+- 0000:02dc  ADD DI,AX
+- 0000:02de  LES DI,ES:[DI + -0x4]
+- 0000:02e2  MOV AL,byte ptr ES:[DI + 0x4]
+- 0000:02e6  CMP AL,0x1
+- 0000:02e8  JZ 0x0000:02ed    [ref 0000:02ed]
+- 0000:02ea  JMP 0x0000:03d8    [ref 0000:03d8]
+- 0000:02ed  MOV AX,word ptr [BP + 0x4]    [ref Stack[0x2]]
+- 0000:02f0  SHL AX,0x1
+- 0000:02f2  SHL AX,0x1
+- 0000:02f4  LES DI,[0x2f72]
+- 0000:02f8  ADD DI,AX
+- 0000:02fa  LES DI,ES:[DI + -0x4]
+- 0000:02fe  PUSH word ptr ES:[DI + 0x6]
+- 0000:0302  MOV DI,0x3502
+- 0000:0305  PUSH DS
+- 0000:0306  PUSH DI
+- 0000:0307  CALLF 0x2000:c067    [ref 2000:c067]
+- 0000:030c  MOV AL,[0x350d]
+- 0000:030f  XOR AH,AH
+- 0000:0311  XOR DX,DX
+- 0000:0313  CALLF 0x3000:4891    [ref 3000:4891]
+- 0000:0318  MOV CX,word ptr [0x350f]
+- 0000:031c  MOV SI,word ptr [0x3511]
+- 0000:0320  MOV DI,word ptr [0x3513]
+- 0000:0324  CALLF 0x3000:486b    [ref 3000:486b]
+- 0000:0329  MOV word ptr [BP + -0x6],AX    [ref Stack[-0x8]]
+- 0000:032c  MOV word ptr [BP + -0x4],BX    [ref Stack[-0x6]]
+- 0000:032f  MOV word ptr [BP + -0x2],DX    [ref Stack[-0x4]]
+- 0000:0332  MOV AL,[0x350e]
+- 0000:0335  XOR AH,AH
+- 0000:0337  XOR DX,DX
+- 0000:0339  CALLF 0x3000:4891    [ref 3000:4891]
+- 0000:033e  MOV CX,word ptr [0x3515]
+- 0000:0342  MOV SI,word ptr [0x3517]
+- 0000:0346  MOV DI,word ptr [0x3519]
+- 0000:034a  CALLF 0x3000:486b    [ref 3000:486b]
+- 0000:034f  MOV word ptr [BP + -0x12],AX    [ref Stack[-0x14]]
+- 0000:0352  MOV word ptr [BP + -0x10],BX    [ref Stack[-0x12]]
+- 0000:0355  MOV word ptr [BP + -0xe],DX    [ref Stack[-0x10]]
+- 0000:0358  MOV AL,[0x3522]
+- 0000:035b  XOR AH,AH
+- 0000:035d  XOR DX,DX
+- 0000:035f  CALLF 0x3000:4891    [ref 3000:4891]
+- 0000:0364  MOV CX,0x80
+- 0000:0367  XOR SI,SI
+- 0000:0369  XOR DI,DI
+- 0000:036b  CALLF 0x3000:486b    [ref 3000:486b]
+- 0000:0370  MOV word ptr [BP + -0xc],AX    [ref Stack[-0xe]]
+- 0000:0373  MOV word ptr [BP + -0xa],BX    [ref Stack[-0xc]]
+- 0000:0376  MOV word ptr [BP + -0x8],DX    [ref Stack[-0xa]]
+- 0000:0379  MOV AL,[0x3523]
+- 0000:037c  XOR AH,AH
+- 0000:037e  XOR DX,DX
+- 0000:0380  CALLF 0x3000:4891    [ref 3000:4891]
+- 0000:0385  MOV CX,0x80
+- 0000:0388  XOR SI,SI
+- 0000:038a  XOR DI,DI
+- 0000:038c  CALLF 0x3000:486b    [ref 3000:486b]
+- 0000:0391  MOV word ptr [BP + -0x18],AX    [ref Stack[-0x1a]]
+- 0000:0394  MOV word ptr [BP + -0x16],BX    [ref Stack[-0x18]]
+- 0000:0397  MOV word ptr [BP + -0x14],DX    [ref Stack[-0x16]]
+- 0000:039a  MOV AX,[0x351b]
+- 0000:039d  MOV BX,word ptr [0x351d]
+- 0000:03a1  MOV DX,word ptr [0x351f]
+- 0000:03a5  MOV word ptr [BP + -0x24],AX    [ref Stack[-0x26]]
+- 0000:03a8  MOV word ptr [BP + -0x22],BX    [ref Stack[-0x24]]
+- 0000:03ab  MOV word ptr [BP + -0x20],DX    [ref Stack[-0x22]]
+- 0000:03ae  CMP byte ptr [0x3524],0x1
+- 0000:03b3  JBE 0x0000:03ba    [ref 0000:03ba]
+- 0000:03b5  MOV byte ptr [0x3524],0x1
+- 0000:03ba  MOV AL,[0x3524]
+- 0000:03bd  XOR AH,AH
+- 0000:03bf  XOR DX,DX
+- 0000:03c1  CALLF 0x3000:4891    [ref 3000:4891]
+- 0000:03c6  MOV word ptr [BP + -0x2a],AX    [ref Stack[-0x2c]]
+- 0000:03c9  MOV word ptr [BP + -0x28],BX    [ref Stack[-0x2a]]
+- 0000:03cc  MOV word ptr [BP + -0x26],DX    [ref Stack[-0x28]]
+- 0000:03cf  MOV AL,[0x350c]
+- 0000:03d2  MOV byte ptr [BP + -0x19],AL    [ref Stack[-0x1b]]
+- 0000:03d5  JMP 0x0000:079e    [ref 0000:079e]
+- 0000:03d8  CMP AL,0x2
+- 0000:03da  JZ 0x0000:03df    [ref 0000:03df]
+- 0000:03dc  JMP 0x0000:06b1    [ref 0000:06b1]
+- 0000:03df  MOV byte ptr [BP + 0xf77b],0x1    [ref Stack[-0x887]]
+- 0000:03e4  MOV AX,word ptr [BP + 0x4]    [ref Stack[0x2]]
+- 0000:03e7  SHL AX,0x1
+- 0000:03e9  SHL AX,0x1
+- 0000:03eb  LES DI,[0x2f72]
+- 0000:03ef  ADD DI,AX
+- 0000:03f1  LES DI,ES:[DI + -0x4]
+- 0000:03f5  PUSH word ptr ES:[DI + 0x6]
+- 0000:03f9  MOV DI,0x3558
+- 0000:03fc  PUSH DS
+- 0000:03fd  PUSH DI
+- 0000:03fe  CALLF 0x2000:c09a    [ref 2000:c09a]
+- 0000:0403  MOV AL,[0x3563]
+- 0000:0406  XOR AH,AH
+- 0000:0408  XOR DX,DX
+- 0000:040a  CALLF 0x3000:4891    [ref 3000:4891]
+- 0000:040f  MOV CX,word ptr [0x3565]
+- 0000:0413  MOV SI,word ptr [0x3567]
+- 0000:0417  MOV DI,word ptr [0x3569]
+- 0000:041b  CALLF 0x3000:486b    [ref 3000:486b]
+- 0000:0420  MOV word ptr [BP + -0x6],AX    [ref Stack[-0x8]]
+- 0000:0423  MOV word ptr [BP + -0x4],BX    [ref Stack[-0x6]]
+- 0000:0426  MOV word ptr [BP + -0x2],DX    [ref Stack[-0x4]]
+- 0000:0429  MOV AL,[0x3564]
+- 0000:042c  XOR AH,AH
+- 0000:042e  XOR DX,DX
+- 0000:0430  CALLF 0x3000:4891    [ref 3000:4891]
+- 0000:0435  MOV CX,word ptr [0x356b]
+- 0000:0439  MOV SI,word ptr [0x356d]
+- 0000:043d  MOV DI,word ptr [0x356f]
+- 0000:0441  CALLF 0x3000:486b    [ref 3000:486b]
+- 0000:0446  MOV word ptr [BP + -0x12],AX    [ref Stack[-0x14]]
+- 0000:0449  MOV word ptr [BP + -0x10],BX    [ref Stack[-0x12]]
+- 0000:044c  MOV word ptr [BP + -0xe],DX    [ref Stack[-0x10]]
+- 0000:044f  MOV AL,[0x3578]
+- 0000:0452  XOR AH,AH
+- 0000:0454  XOR DX,DX
+- 0000:0456  CALLF 0x3000:4891    [ref 3000:4891]
+- 0000:045b  MOV CX,0x80
+- 0000:045e  XOR SI,SI
+- 0000:0460  XOR DI,DI
+- 0000:0462  CALLF 0x3000:486b    [ref 3000:486b]
+- 0000:0467  MOV word ptr [BP + -0xc],AX    [ref Stack[-0xe]]
+- 0000:046a  MOV word ptr [BP + -0xa],BX    [ref Stack[-0xc]]
+- 0000:046d  MOV word ptr [BP + -0x8],DX    [ref Stack[-0xa]]
+- 0000:0470  MOV AL,[0x3579]
+- 0000:0473  XOR AH,AH
+- 0000:0475  XOR DX,DX
+- 0000:0477  CALLF 0x3000:4891    [ref 3000:4891]
+- 0000:047c  MOV CX,0x80
+- 0000:047f  XOR SI,SI
+- 0000:0481  XOR DI,DI
+- 0000:0483  CALLF 0x3000:486b    [ref 3000:486b]
+- 0000:0488  MOV word ptr [BP + -0x18],AX    [ref Stack[-0x1a]]
+- 0000:048b  MOV word ptr [BP + -0x16],BX    [ref Stack[-0x18]]
+- 0000:048e  MOV word ptr [BP + -0x14],DX    [ref Stack[-0x16]]
+- 0000:0491  MOV AX,[0x3571]
+- 0000:0494  MOV BX,word ptr [0x3573]
+- 0000:0498  MOV DX,word ptr [0x3575]
+- 0000:049c  MOV word ptr [BP + -0x24],AX    [ref Stack[-0x26]]
+- 0000:049f  MOV word ptr [BP + -0x22],BX    [ref Stack[-0x24]]
+- 0000:04a2  MOV word ptr [BP + -0x20],DX    [ref Stack[-0x22]]
+- 0000:04a5  CMP byte ptr [0x357a],0x1
+- 0000:04aa  JBE 0x0000:04b1    [ref 0000:04b1]
+- 0000:04ac  MOV byte ptr [0x357a],0x1
+- 0000:04b1  MOV AL,[0x357a]
+- 0000:04b4  XOR AH,AH
+- 0000:04b6  XOR DX,DX
+- 0000:04b8  CALLF 0x3000:4891    [ref 3000:4891]
+- 0000:04bd  MOV word ptr [BP + -0x2a],AX    [ref Stack[-0x2c]]
+- 0000:04c0  MOV word ptr [BP + -0x28],BX    [ref Stack[-0x2a]]
+- 0000:04c3  MOV word ptr [BP + -0x26],DX    [ref Stack[-0x28]]
+- 0000:04c6  MOV AX,word ptr [BP + -0x6]    [ref Stack[-0x8]]
+- 0000:04c9  MOV BX,word ptr [BP + -0x4]    [ref Stack[-0x6]]
+- 0000:04cc  MOV DX,word ptr [BP + -0x2]    [ref Stack[-0x4]]
+- 0000:04cf  MOV CX,word ptr [BP + -0xc]    [ref Stack[-0xe]]
+- 0000:04d2  MOV SI,word ptr [BP + -0xa]    [ref Stack[-0xc]]
+- 0000:04d5  MOV DI,word ptr [BP + -0x8]    [ref Stack[-0xa]]
+- 0000:04d8  CALLF 0x3000:488d    [ref 3000:488d]
+- 0000:04dd  JNZ 0x0000:0511    [ref 0000:0511]
+- 0000:04df  MOV AX,word ptr [BP + -0x12]    [ref Stack[-0x14]]
+- 0000:04e2  MOV BX,word ptr [BP + -0x10]    [ref Stack[-0x12]]
+- 0000:04e5  MOV DX,word ptr [BP + -0xe]    [ref Stack[-0x10]]
+- 0000:04e8  MOV CX,word ptr [BP + -0x18]    [ref Stack[-0x1a]]
+- 0000:04eb  MOV SI,word ptr [BP + -0x16]    [ref Stack[-0x18]]
+- 0000:04ee  MOV DI,word ptr [BP + -0x14]    [ref Stack[-0x16]]
+- 0000:04f1  CALLF 0x3000:488d    [ref 3000:488d]
+- 0000:04f6  JNZ 0x0000:0511    [ref 0000:0511]
+- 0000:04f8  MOV AX,word ptr [BP + -0x24]    [ref Stack[-0x26]]
+- 0000:04fb  MOV BX,word ptr [BP + -0x22]    [ref Stack[-0x24]]
+- 0000:04fe  MOV DX,word ptr [BP + -0x20]    [ref Stack[-0x22]]
+- 0000:0501  MOV CX,word ptr [BP + -0x2a]    [ref Stack[-0x2c]]
+- 0000:0504  MOV SI,word ptr [BP + -0x28]    [ref Stack[-0x2a]]
+- 0000:0507  MOV DI,word ptr [BP + -0x26]    [ref Stack[-0x28]]
+- 0000:050a  CALLF 0x3000:488d    [ref 3000:488d]
+- 0000:050f  JZ 0x0000:0517    [ref 0000:0517]
+- 0000:0511  MOV byte ptr [BP + -0x19],0x1    [ref Stack[-0x1b]]
+- 0000:0515  JMP 0x0000:051b    [ref 0000:051b]
+- 0000:0517  MOV byte ptr [BP + -0x19],0x0    [ref Stack[-0x1b]]
+- 0000:051b  CMP byte ptr [BP + -0x19],0x0    [ref Stack[-0x1b]]
+- 0000:051f  JA 0x0000:0524    [ref 0000:0524]
+- 0000:0521  JMP 0x0000:06ae    [ref 0000:06ae]
+- 0000:0524  XOR AX,AX
+- 0000:0526  MOV word ptr [BP + 0xf7ee],AX    [ref Stack[-0x814]]
+- 0000:052a  MOV AX,word ptr [BP + 0xf7ee]    [ref Stack[-0x814]]
+- 0000:052e  CMP AX,word ptr [0x2f76]
+- 0000:0532  JC 0x0000:0537    [ref 0000:0537]
+- 0000:0534  JMP 0x0000:06ae    [ref 0000:06ae]
+- 0000:0537  CMP byte ptr [BP + 0xf77f],0x0    [ref Stack[-0x883]]
+- 0000:053c  JZ 0x0000:0541    [ref 0000:0541]
+- 0000:053e  JMP 0x0000:06ae    [ref 0000:06ae]
+- 0000:0541  CMP byte ptr [BP + -0x19],0x0    [ref Stack[-0x1b]]
+- 0000:0545  JA 0x0000:054a    [ref 0000:054a]
+- 0000:0547  JMP 0x0000:06ae    [ref 0000:06ae]
+- 0000:054a  INC word ptr [BP + 0xf7ee]    [ref Stack[-0x814]]
+- 0000:054e  MOV AX,word ptr [BP + 0xf7ee]    [ref Stack[-0x814]]
+- 0000:0552  SHL AX,0x1
+- 0000:0554  SHL AX,0x1
+- 0000:0556  LES DI,[0x2f72]
+- 0000:055a  ADD DI,AX
+- 0000:055c  LES DI,ES:[DI + -0x4]
+- 0000:0560  MOV DL,byte ptr ES:[DI]
+- 0000:0563  MOV AX,word ptr [BP + 0x4]    [ref Stack[0x2]]
+- 0000:0566  SHL AX,0x1
+- 0000:0568  SHL AX,0x1
+- 0000:056a  LES DI,[0x2f72]
+- 0000:056e  ADD DI,AX
+- 0000:0570  LES DI,ES:[DI + -0x4]
+- 0000:0574  MOV AL,byte ptr ES:[DI]
+- 0000:0577  CMP AL,DL
+- 0000:0579  JZ 0x0000:057e    [ref 0000:057e]
+- 0000:057b  JMP 0x0000:06ab    [ref 0000:06ab]
+- 0000:057e  MOV AX,word ptr [BP + 0xf7ee]    [ref Stack[-0x814]]
+- 0000:0582  SHL AX,0x1
+- 0000:0584  SHL AX,0x1
+- 0000:0586  LES DI,[0x2f72]
+- 0000:058a  ADD DI,AX
+- 0000:058c  LES DI,ES:[DI + -0x4]
+- 0000:0590  CMP byte ptr ES:[DI + 0x4],0x1
+- 0000:0595  JZ 0x0000:059a    [ref 0000:059a]
+- 0000:0597  JMP 0x0000:06ab    [ref 0000:06ab]
+- 0000:059a  MOV AX,word ptr [BP + 0xf7ee]    [ref Stack[-0x814]]
+- 0000:059e  SHL AX,0x1
+- 0000:05a0  SHL AX,0x1
+- 0000:05a2  LES DI,[0x2f72]
+- 0000:05a6  ADD DI,AX
+- 0000:05a8  LES DI,ES:[DI + -0x4]
+- 0000:05ac  CMP byte ptr ES:[DI + 0x3],0x0
+- 0000:05b1  JNZ 0x0000:05b6    [ref 0000:05b6]
+- 0000:05b3  JMP 0x0000:06ab    [ref 0000:06ab]
+- 0000:05b6  MOV AX,word ptr [BP + 0xf7ee]    [ref Stack[-0x814]]
+- 0000:05ba  SHL AX,0x1
+- 0000:05bc  SHL AX,0x1
+- 0000:05be  LES DI,[0x2f72]
+- 0000:05c2  ADD DI,AX
+- 0000:05c4  LES DI,ES:[DI + -0x4]
+- 0000:05c8  MOV AX,word ptr ES:[DI + 0xa]
+- 0000:05cc  CMP AX,word ptr [0x3558]
+- 0000:05d0  JNZ 0x0000:05d5    [ref 0000:05d5]
+- 0000:05d2  JMP 0x0000:0665    [ref 0000:0665]
+- 0000:05d5  MOV AX,word ptr [BP + 0xf7ee]    [ref Stack[-0x814]]
+- 0000:05d9  SHL AX,0x1
+- 0000:05db  SHL AX,0x1
+- 0000:05dd  LES DI,[0x2f72]
+- 0000:05e1  ADD DI,AX
+- 0000:05e3  LES DI,ES:[DI + -0x4]
+- 0000:05e7  MOV DL,byte ptr ES:[DI + 0x1]
+- 0000:05eb  MOV AX,word ptr [BP + 0x4]    [ref Stack[0x2]]
+- 0000:05ee  SHL AX,0x1
+- 0000:05f0  SHL AX,0x1
+- 0000:05f2  LES DI,[0x2f72]
+- 0000:05f6  ADD DI,AX
+- 0000:05f8  LES DI,ES:[DI + -0x4]
+- 0000:05fc  MOV AL,byte ptr ES:[DI + 0x1]
+- 0000:0600  CMP AL,DL
+- 0000:0602  JZ 0x0000:0607    [ref 0000:0607]
+- 0000:0604  JMP 0x0000:06ab    [ref 0000:06ab]
+- 0000:0607  MOV AX,word ptr [BP + 0xf7ee]    [ref Stack[-0x814]]
+- 0000:060b  SHL AX,0x1
+- 0000:060d  SHL AX,0x1
+- 0000:060f  LES DI,[0x2f72]
+- 0000:0613  ADD DI,AX
+- 0000:0615  LES DI,ES:[DI + -0x4]
+- 0000:0619  MOV DL,byte ptr ES:[DI + 0x2]
+- 0000:061d  MOV AX,word ptr [BP + 0x4]    [ref Stack[0x2]]
+- 0000:0620  SHL AX,0x1
+- 0000:0622  SHL AX,0x1
+- 0000:0624  LES DI,[0x2f72]
+- 0000:0628  ADD DI,AX
+- 0000:062a  LES DI,ES:[DI + -0x4]
+- 0000:062e  MOV AL,byte ptr ES:[DI + 0x2]
+- 0000:0632  CMP AL,DL
+- 0000:0634  JNZ 0x0000:06ab    [ref 0000:06ab]
+- 0000:0636  MOV AX,word ptr [BP + 0xf7ee]    [ref Stack[-0x814]]
+- 0000:063a  SHL AX,0x1
+- 0000:063c  SHL AX,0x1
+- 0000:063e  LES DI,[0x2f72]
+- 0000:0642  ADD DI,AX
+- 0000:0644  LES DI,ES:[DI + -0x4]
+- 0000:0648  MOV DL,byte ptr ES:[DI + 0x5]
+- 0000:064c  MOV AX,word ptr [BP + 0x4]    [ref Stack[0x2]]
+- 0000:064f  SHL AX,0x1
+- 0000:0651  SHL AX,0x1
+- 0000:0653  LES DI,[0x2f72]
+- 0000:0657  ADD DI,AX
+- 0000:0659  LES DI,ES:[DI + -0x4]
+- 0000:065d  MOV AL,byte ptr ES:[DI + 0x5]
+- 0000:0661  CMP AL,DL
+- 0000:0663  JNZ 0x0000:06ab    [ref 0000:06ab]
+- 0000:0665  MOV AX,word ptr [BP + 0xf7ee]    [ref Stack[-0x814]]
+- 0000:0669  SHL AX,0x1
+- 0000:066b  SHL AX,0x1
+- 0000:066d  LES DI,[0x2f72]
+- 0000:0671  ADD DI,AX
+- 0000:0673  LES DI,ES:[DI + -0x4]
+- 0000:0677  PUSH word ptr ES:[DI + 0x6]
+- 0000:067b  LEA DI,[BP + 0xf7b6]    [ref Stack[-0x84c]]
+- 0000:067f  PUSH SS
+- 0000:0680  PUSH DI
+- 0000:0681  CALLF 0x2000:c067    [ref 2000:c067]
+- 0000:0686  CMP byte ptr [BP + 0xf7d5],0x4    [ref Stack[-0x82d]]
+- 0000:068b  JNZ 0x0000:06ab    [ref 0000:06ab]
+- 0000:068d  MOV AX,word ptr [BP + 0xf7d9]    [ref Stack[-0x829]]
+- 0000:0691  CMP AX,word ptr [0x355a]
+- 0000:0695  JNZ 0x0000:06ab    [ref 0000:06ab]
+- 0000:0697  CMP byte ptr [BP + 0xf7c0],0x0    [ref Stack[-0x842]]
+- 0000:069c  JNZ 0x0000:06ab    [ref 0000:06ab]
+- 0000:069e  MOV byte ptr [BP + 0xf77f],0x1    [ref Stack[-0x883]]
+- 0000:06a3  MOV AX,word ptr [BP + 0xf7ee]    [ref Stack[-0x814]]
+- 0000:06a7  MOV word ptr [BP + 0xf7f2],AX    [ref Stack[-0x810]]
+- 0000:06ab  JMP 0x0000:052a    [ref 0000:052a]
+- 0000:06ae  JMP 0x0000:079e    [ref 0000:079e]
+- 0000:06b1  CMP AL,0x3
+- 0000:06b3  JZ 0x0000:06b8    [ref 0000:06b8]
+- 0000:06b5  JMP 0x0000:079e    [ref 0000:079e]
+- 0000:06b8  MOV AX,word ptr [BP + 0x4]    [ref Stack[0x2]]
+- 0000:06bb  SHL AX,0x1
+- 0000:06bd  SHL AX,0x1
+- 0000:06bf  LES DI,[0x2f72]
+- 0000:06c3  ADD DI,AX
+- 0000:06c5  LES DI,ES:[DI + -0x4]
+- 0000:06c9  PUSH word ptr ES:[DI + 0x6]
+- 0000:06cd  MOV DI,0x3538    [scratch 0x3538]
+- 0000:06d0  PUSH DS
+- 0000:06d1  PUSH DI
+- 0000:06d2  CALLF 0x2000:c0cd    [ref 2000:c0cd]
+- 0000:06d7  MOV AL,[0x3541]    [scratch 0x3541]
+- 0000:06da  XOR AH,AH
+- 0000:06dc  XOR DX,DX
+- 0000:06de  CALLF 0x3000:4891    [ref 3000:4891]
+- 0000:06e3  MOV CX,word ptr [0x3543]    [scratch 0x3543]
+- 0000:06e7  MOV SI,word ptr [0x3545]    [scratch 0x3545]
+- 0000:06eb  MOV DI,word ptr [0x3547]    [scratch 0x3547]
+- 0000:06ef  CALLF 0x3000:486b    [ref 3000:486b]
+- 0000:06f4  MOV word ptr [BP + -0x6],AX    [ref Stack[-0x8]]
+- 0000:06f7  MOV word ptr [BP + -0x4],BX    [ref Stack[-0x6]]
+- 0000:06fa  MOV word ptr [BP + -0x2],DX    [ref Stack[-0x4]]
+- 0000:06fd  MOV AL,[0x3542]    [scratch 0x3542]
+- 0000:0700  XOR AH,AH
+- 0000:0702  XOR DX,DX
+- 0000:0704  CALLF 0x3000:4891    [ref 3000:4891]
+- 0000:0709  MOV CX,word ptr [0x3549]    [scratch 0x3549]
+- 0000:070d  MOV SI,word ptr [0x354b]    [scratch 0x354b]
+- 0000:0711  MOV DI,word ptr [0x354d]    [scratch 0x354d]
+- 0000:0715  CALLF 0x3000:486b    [ref 3000:486b]
+- 0000:071a  MOV word ptr [BP + -0x12],AX    [ref Stack[-0x14]]
+- 0000:071d  MOV word ptr [BP + -0x10],BX    [ref Stack[-0x12]]
+- 0000:0720  MOV word ptr [BP + -0xe],DX    [ref Stack[-0x10]]
+- 0000:0723  MOV AL,[0x3555]    [scratch 0x3555]
+- 0000:0726  XOR AH,AH
+- 0000:0728  XOR DX,DX
+- 0000:072a  CALLF 0x3000:4891    [ref 3000:4891]
+- 0000:072f  MOV CX,0x80
+- 0000:0732  XOR SI,SI
+- 0000:0734  XOR DI,DI
+- 0000:0736  CALLF 0x3000:486b    [ref 3000:486b]
+- 0000:073b  MOV word ptr [BP + -0xc],AX    [ref Stack[-0xe]]
+- 0000:073e  MOV word ptr [BP + -0xa],BX    [ref Stack[-0xc]]
+- 0000:0741  MOV word ptr [BP + -0x8],DX    [ref Stack[-0xa]]
+- 0000:0744  MOV AL,[0x3556]    [scratch 0x3556]
+- 0000:0747  XOR AH,AH
+- 0000:0749  XOR DX,DX
+- 0000:074b  CALLF 0x3000:4891    [ref 3000:4891]
+- 0000:0750  MOV CX,0x80
+- 0000:0753  XOR SI,SI
+- 0000:0755  XOR DI,DI
+- 0000:0757  CALLF 0x3000:486b    [ref 3000:486b]
+- 0000:075c  MOV word ptr [BP + -0x18],AX    [ref Stack[-0x1a]]
+- 0000:075f  MOV word ptr [BP + -0x16],BX    [ref Stack[-0x18]]
+- 0000:0762  MOV word ptr [BP + -0x14],DX    [ref Stack[-0x16]]
+- 0000:0765  MOV AX,[0x354f]    [scratch 0x354f]
+- 0000:0768  MOV BX,word ptr [0x3551]    [scratch 0x3551]
+- 0000:076c  MOV DX,word ptr [0x3553]    [scratch 0x3553]
+- 0000:0770  MOV word ptr [BP + -0x24],AX    [ref Stack[-0x26]]
+- 0000:0773  MOV word ptr [BP + -0x22],BX    [ref Stack[-0x24]]
+- 0000:0776  MOV word ptr [BP + -0x20],DX    [ref Stack[-0x22]]
+- 0000:0779  CMP byte ptr [0x3557],0x1    [scratch 0x3557]
+- 0000:077e  JBE 0x0000:0785    [ref 0000:0785]
+- 0000:0780  MOV byte ptr [0x3557],0x1    [scratch 0x3557]
+- 0000:0785  MOV AL,[0x3557]    [scratch 0x3557]
+- 0000:0788  XOR AH,AH
+- 0000:078a  XOR DX,DX
+- 0000:078c  CALLF 0x3000:4891    [ref 3000:4891]
+- 0000:0791  MOV word ptr [BP + -0x2a],AX    [ref Stack[-0x2c]]
+- 0000:0794  MOV word ptr [BP + -0x28],BX    [ref Stack[-0x2a]]
+- 0000:0797  MOV word ptr [BP + -0x26],DX    [ref Stack[-0x28]]
+- 0000:079a  MOV byte ptr [BP + -0x19],0x7    [ref Stack[-0x1b]]
+- 0000:079e  CMP byte ptr [BP + -0x19],0x0    [ref Stack[-0x1b]]
+- 0000:07a2  JA 0x0000:07a7    [ref 0000:07a7]
+- 0000:07a4  JMP 0x0000:108c    [ref 0000:108c]
+- 0000:07a7  MOV AX,word ptr [BP + -0x6]    [ref Stack[-0x8]]
+- 0000:07aa  MOV BX,word ptr [BP + -0x4]    [ref Stack[-0x6]]
+- 0000:07ad  MOV DX,word ptr [BP + -0x2]    [ref Stack[-0x4]]
+- 0000:07b0  CALLF 0x3000:4895    [ref 3000:4895]
+- 0000:07b5  MOV byte ptr [BP + -0x1b],AL    [ref Stack[-0x1d]]
+- 0000:07b8  MOV AX,word ptr [BP + -0x12]    [ref Stack[-0x14]]
+- 0000:07bb  MOV BX,word ptr [BP + -0x10]    [ref Stack[-0x12]]
+- 0000:07be  MOV DX,word ptr [BP + -0xe]    [ref Stack[-0x10]]
+- 0000:07c1  CALLF 0x3000:4895    [ref 3000:4895]
+- 0000:07c6  MOV byte ptr [BP + -0x1c],AL    [ref Stack[-0x1e]]
+- 0000:07c9  MOV AX,word ptr [BP + -0x24]    [ref Stack[-0x26]]
+- 0000:07cc  MOV BX,word ptr [BP + -0x22]    [ref Stack[-0x24]]
+- 0000:07cf  MOV DX,word ptr [BP + -0x20]    [ref Stack[-0x22]]
+- 0000:07d2  CALLF 0x3000:489d    [ref 3000:489d]
+- 0000:07d7  MOV byte ptr [BP + -0x1d],AL    [ref Stack[-0x1f]]
+- 0000:07da  MOV AL,byte ptr [BP + -0x19]    [ref Stack[-0x1b]]
+- 0000:07dd  XOR AH,AH
+- 0000:07df  XOR DX,DX
+- 0000:07e1  CALLF 0x3000:4891    [ref 3000:4891]
+- 0000:07e6  MOV CX,0x86
+- 0000:07e9  XOR SI,SI
+- 0000:07eb  MOV DI,0x5000
+- 0000:07ee  CALLF 0x3000:4883    [ref 3000:4883]
+- 0000:07f3  MOV word ptr [BP + -0x30],AX    [ref Stack[-0x32]]
+- 0000:07f6  MOV word ptr [BP + -0x2e],BX    [ref Stack[-0x30]]
+- 0000:07f9  MOV word ptr [BP + -0x2c],DX    [ref Stack[-0x2e]]
+- 0000:07fc  MOV AX,word ptr [BP + -0xc]    [ref Stack[-0xe]]
+- 0000:07ff  MOV BX,word ptr [BP + -0xa]    [ref Stack[-0xc]]
+- 0000:0802  MOV DX,word ptr [BP + -0x8]    [ref Stack[-0xa]]
+- 0000:0805  CALLF 0x3000:4895    [ref 3000:4895]
+- 0000:080a  PUSH DX
+- 0000:080b  PUSH AX
+- 0000:080c  MOV AX,word ptr [BP + -0x6]    [ref Stack[-0x8]]
+- 0000:080f  MOV BX,word ptr [BP + -0x4]    [ref Stack[-0x6]]
+- 0000:0812  MOV DX,word ptr [BP + -0x2]    [ref Stack[-0x4]]
+- 0000:0815  CALLF 0x3000:4895    [ref 3000:4895]
+- 0000:081a  POP CX
+- 0000:081b  POP BX
+- 0000:081c  CMP DX,BX
+- 0000:081e  JNZ 0x0000:0865    [ref 0000:0865]
+- 0000:0820  CMP AX,CX
+- 0000:0822  JNZ 0x0000:0865    [ref 0000:0865]
+- 0000:0824  MOV AX,word ptr [BP + -0x18]    [ref Stack[-0x1a]]
+- 0000:0827  MOV BX,word ptr [BP + -0x16]    [ref Stack[-0x18]]
+- 0000:082a  MOV DX,word ptr [BP + -0x14]    [ref Stack[-0x16]]
+- 0000:082d  CALLF 0x3000:4895    [ref 3000:4895]
+- 0000:0832  PUSH DX
+- 0000:0833  PUSH AX
+- 0000:0834  MOV AX,word ptr [BP + -0x12]    [ref Stack[-0x14]]
+- 0000:0837  MOV BX,word ptr [BP + -0x10]    [ref Stack[-0x12]]
+- 0000:083a  MOV DX,word ptr [BP + -0xe]    [ref Stack[-0x10]]
+- 0000:083d  CALLF 0x3000:4895    [ref 3000:4895]
+- 0000:0842  POP CX
+- 0000:0843  POP BX
+- 0000:0844  CMP DX,BX
+- 0000:0846  JNZ 0x0000:0865    [ref 0000:0865]
+- 0000:0848  CMP AX,CX
+- 0000:084a  JNZ 0x0000:0865    [ref 0000:0865]
+- 0000:084c  MOV AX,word ptr [BP + -0x2a]    [ref Stack[-0x2c]]
+- 0000:084f  MOV BX,word ptr [BP + -0x28]    [ref Stack[-0x2a]]
+- 0000:0852  MOV DX,word ptr [BP + -0x26]    [ref Stack[-0x28]]
+- 0000:0855  MOV CX,word ptr [BP + -0x24]    [ref Stack[-0x26]]
+- 0000:0858  MOV SI,word ptr [BP + -0x22]    [ref Stack[-0x24]]
+- 0000:085b  MOV DI,word ptr [BP + -0x20]    [ref Stack[-0x22]]
+- 0000:085e  CALLF 0x3000:488d    [ref 3000:488d]
+- 0000:0863  JNC 0x0000:08de    [ref 0000:08de]
+- 0000:0865  MOV AX,word ptr [BP + -0x30]    [ref Stack[-0x32]]
+- 0000:0868  MOV BX,word ptr [BP + -0x2e]    [ref Stack[-0x30]]
+- 0000:086b  MOV DX,word ptr [BP + -0x2c]    [ref Stack[-0x2e]]
+- 0000:086e  MOV CX,word ptr [BP + -0x24]    [ref Stack[-0x26]]
+- 0000:0871  MOV SI,word ptr [BP + -0x22]    [ref Stack[-0x24]]
+- 0000:0874  MOV DI,word ptr [BP + -0x20]    [ref Stack[-0x22]]
+- 0000:0877  CALLF 0x3000:488d    [ref 3000:488d]
+- 0000:087c  JBE 0x0000:08af    [ref 0000:08af]
+- 0000:087e  MOV AX,word ptr [BP + -0x30]    [ref Stack[-0x32]]
+- 0000:0881  MOV BX,word ptr [BP + -0x2e]    [ref Stack[-0x30]]
+- 0000:0884  MOV DX,word ptr [BP + -0x2c]    [ref Stack[-0x2e]]
+- 0000:0887  MOV CX,word ptr [BP + -0x24]    [ref Stack[-0x26]]
+- 0000:088a  MOV SI,word ptr [BP + -0x22]    [ref Stack[-0x24]]
+- 0000:088d  MOV DI,word ptr [BP + -0x20]    [ref Stack[-0x22]]
+- 0000:0890  CALLF 0x3000:4871    [ref 3000:4871]
+- 0000:0895  MOV word ptr [BP + -0x30],AX    [ref Stack[-0x32]]
+- 0000:0898  MOV word ptr [BP + -0x2e],BX    [ref Stack[-0x30]]
+- 0000:089b  MOV word ptr [BP + -0x2c],DX    [ref Stack[-0x2e]]
+- 0000:089e  MOV word ptr [BP + -0x24],0x0    [ref Stack[-0x26]]
+- 0000:08a3  MOV word ptr [BP + -0x22],0x0    [ref Stack[-0x24]]
+- 0000:08a8  MOV word ptr [BP + -0x20],0x0    [ref Stack[-0x22]]
+- 0000:08ad  JMP 0x0000:08de    [ref 0000:08de]
+- 0000:08af  MOV AX,word ptr [BP + -0x24]    [ref Stack[-0x26]]
+- 0000:08b2  MOV BX,word ptr [BP + -0x22]    [ref Stack[-0x24]]
+- 0000:08b5  MOV DX,word ptr [BP + -0x20]    [ref Stack[-0x22]]
+- 0000:08b8  MOV CX,word ptr [BP + -0x30]    [ref Stack[-0x32]]
+- 0000:08bb  MOV SI,word ptr [BP + -0x2e]    [ref Stack[-0x30]]
+- 0000:08be  MOV DI,word ptr [BP + -0x2c]    [ref Stack[-0x2e]]
+- 0000:08c1  CALLF 0x3000:4871    [ref 3000:4871]
+- 0000:08c6  MOV word ptr [BP + -0x24],AX    [ref Stack[-0x26]]
+- 0000:08c9  MOV word ptr [BP + -0x22],BX    [ref Stack[-0x24]]
+- 0000:08cc  MOV word ptr [BP + -0x20],DX    [ref Stack[-0x22]]
+- 0000:08cf  MOV word ptr [BP + -0x30],0x0    [ref Stack[-0x32]]
+- 0000:08d4  MOV word ptr [BP + -0x2e],0x0    [ref Stack[-0x30]]
+- 0000:08d9  MOV word ptr [BP + -0x2c],0x0    [ref Stack[-0x2e]]
+- 0000:08de  MOV AX,word ptr [BP + -0x30]    [ref Stack[-0x32]]
+- 0000:08e1  MOV BX,word ptr [BP + -0x2e]    [ref Stack[-0x30]]
+- 0000:08e4  MOV DX,word ptr [BP + -0x2c]    [ref Stack[-0x2e]]
+- 0000:08e7  XOR CX,CX
+- 0000:08e9  XOR SI,SI
+- 0000:08eb  XOR DI,DI
+- 0000:08ed  CALLF 0x3000:488d    [ref 3000:488d]
+- 0000:08f2  JA 0x0000:08f7    [ref 0000:08f7]
+- 0000:08f4  JMP 0x0000:0be8    [ref 0000:0be8]
+- 0000:08f7  PUSH word ptr [BP + -0x2]    [ref Stack[-0x4]]
+- 0000:08fa  PUSH word ptr [BP + -0x4]    [ref Stack[-0x6]]
+- 0000:08fd  PUSH word ptr [BP + -0x6]    [ref Stack[-0x8]]
+- 0000:0900  PUSH word ptr [BP + -0xe]    [ref Stack[-0x10]]
+- 0000:0903  PUSH word ptr [BP + -0x10]    [ref Stack[-0x12]]
+- 0000:0906  PUSH word ptr [BP + -0x12]    [ref Stack[-0x14]]
+- 0000:0909  XOR AX,AX
+- 0000:090b  XOR BX,BX
+- 0000:090d  XOR DX,DX
+- 0000:090f  PUSH DX
+- 0000:0910  PUSH BX
+- 0000:0911  PUSH AX
+- 0000:0912  PUSH word ptr [BP + -0x8]    [ref Stack[-0xa]]
+- 0000:0915  PUSH word ptr [BP + -0xa]    [ref Stack[-0xc]]
+- 0000:0918  PUSH word ptr [BP + -0xc]    [ref Stack[-0xe]]
+- 0000:091b  PUSH word ptr [BP + -0x14]    [ref Stack[-0x16]]
+- 0000:091e  PUSH word ptr [BP + -0x16]    [ref Stack[-0x18]]
+- 0000:0921  PUSH word ptr [BP + -0x18]    [ref Stack[-0x1a]]
+- 0000:0924  XOR AX,AX
+- 0000:0926  XOR BX,BX
+- 0000:0928  XOR DX,DX
+- 0000:092a  PUSH DX
+- 0000:092b  PUSH BX
+- 0000:092c  PUSH AX
+- 0000:092d  CALLF 0x2000:4e2d    [ref 2000:4e2d]
+- 0000:0932  MOV word ptr [BP + -0x36],AX    [ref Stack[-0x38]]
+- 0000:0935  MOV word ptr [BP + -0x34],BX    [ref Stack[-0x36]]
+- 0000:0938  MOV word ptr [BP + -0x32],DX    [ref Stack[-0x34]]
+- 0000:093b  MOV AX,word ptr [BP + -0x36]    [ref Stack[-0x38]]
+- 0000:093e  MOV BX,word ptr [BP + -0x34]    [ref Stack[-0x36]]
+- 0000:0941  MOV DX,word ptr [BP + -0x32]    [ref Stack[-0x34]]
+- 0000:0944  MOV CX,word ptr [BP + -0x30]    [ref Stack[-0x32]]
+- 0000:0947  MOV SI,word ptr [BP + -0x2e]    [ref Stack[-0x30]]
+- 0000:094a  MOV DI,word ptr [BP + -0x2c]    [ref Stack[-0x2e]]
+- 0000:094d  CALLF 0x3000:488d    [ref 3000:488d]
+- 0000:0952  JBE 0x0000:0977    [ref 0000:0977]
+- 0000:0954  MOV AX,word ptr [BP + -0x30]    [ref Stack[-0x32]]
+- 0000:0957  MOV BX,word ptr [BP + -0x2e]    [ref Stack[-0x30]]
+- 0000:095a  MOV DX,word ptr [BP + -0x2c]    [ref Stack[-0x2e]]
+- 0000:095d  MOV word ptr [BP + -0x3c],AX    [ref Stack[-0x3e]]
+- 0000:0960  MOV word ptr [BP + -0x3a],BX    [ref Stack[-0x3c]]
+- 0000:0963  MOV word ptr [BP + -0x38],DX    [ref Stack[-0x3a]]
+- 0000:0966  MOV word ptr [BP + -0x30],0x0    [ref Stack[-0x32]]
+- 0000:096b  MOV word ptr [BP + -0x2e],0x0    [ref Stack[-0x30]]
+- 0000:0970  MOV word ptr [BP + -0x2c],0x0    [ref Stack[-0x2e]]
+- 0000:0975  JMP 0x0000:09a9    [ref 0000:09a9]
+- 0000:0977  MOV AX,word ptr [BP + -0x36]    [ref Stack[-0x38]]
+- 0000:097a  MOV BX,word ptr [BP + -0x34]    [ref Stack[-0x36]]
+- 0000:097d  MOV DX,word ptr [BP + -0x32]    [ref Stack[-0x34]]
+- 0000:0980  MOV word ptr [BP + -0x3c],AX    [ref Stack[-0x3e]]
+- 0000:0983  MOV word ptr [BP + -0x3a],BX    [ref Stack[-0x3c]]
+- 0000:0986  MOV word ptr [BP + -0x38],DX    [ref Stack[-0x3a]]
+- 0000:0989  MOV AX,word ptr [BP + -0x30]    [ref Stack[-0x32]]
+- 0000:098c  MOV BX,word ptr [BP + -0x2e]    [ref Stack[-0x30]]
+- 0000:098f  MOV DX,word ptr [BP + -0x2c]    [ref Stack[-0x2e]]
+- 0000:0992  MOV CX,word ptr [BP + -0x36]    [ref Stack[-0x38]]
+- 0000:0995  MOV SI,word ptr [BP + -0x34]    [ref Stack[-0x36]]
+- 0000:0998  MOV DI,word ptr [BP + -0x32]    [ref Stack[-0x34]]
+- 0000:099b  CALLF 0x3000:4871    [ref 3000:4871]
+- 0000:09a0  MOV word ptr [BP + -0x30],AX    [ref Stack[-0x32]]
+- 0000:09a3  MOV word ptr [BP + -0x2e],BX    [ref Stack[-0x30]]
+- 0000:09a6  MOV word ptr [BP + -0x2c],DX    [ref Stack[-0x2e]]
+- 0000:09a9  MOV AX,word ptr [BP + -0x30]    [ref Stack[-0x32]]
+- 0000:09ac  MOV BX,word ptr [BP + -0x2e]    [ref Stack[-0x30]]
+- 0000:09af  MOV DX,word ptr [BP + -0x2c]    [ref Stack[-0x2e]]
+- 0000:09b2  XOR CX,CX
+- 0000:09b4  XOR SI,SI
+- 0000:09b6  XOR DI,DI
+- 0000:09b8  CALLF 0x3000:488d    [ref 3000:488d]
+- 0000:09bd  JA 0x0000:09c2    [ref 0000:09c2]
+- 0000:09bf  JMP 0x0000:0a5a    [ref 0000:0a5a]
+- 0000:09c2  MOV AX,word ptr [BP + -0xc]    [ref Stack[-0xe]]
+- 0000:09c5  MOV BX,word ptr [BP + -0xa]    [ref Stack[-0xc]]
+- 0000:09c8  MOV DX,word ptr [BP + -0x8]    [ref Stack[-0xa]]
+- 0000:09cb  MOV word ptr [BP + -0x6],AX    [ref Stack[-0x8]]
+- 0000:09ce  MOV word ptr [BP + -0x4],BX    [ref Stack[-0x6]]
+- 0000:09d1  MOV word ptr [BP + -0x2],DX    [ref Stack[-0x4]]
+- 0000:09d4  MOV AX,word ptr [BP + -0x18]    [ref Stack[-0x1a]]
+- 0000:09d7  MOV BX,word ptr [BP + -0x16]    [ref Stack[-0x18]]
+- 0000:09da  MOV DX,word ptr [BP + -0x14]    [ref Stack[-0x16]]
+- 0000:09dd  MOV word ptr [BP + -0x12],AX    [ref Stack[-0x14]]
+- 0000:09e0  MOV word ptr [BP + -0x10],BX    [ref Stack[-0x12]]
+- 0000:09e3  MOV word ptr [BP + -0xe],DX    [ref Stack[-0x10]]
+- 0000:09e6  MOV AX,word ptr [BP + -0x2a]    [ref Stack[-0x2c]]
+- 0000:09e9  MOV BX,word ptr [BP + -0x28]    [ref Stack[-0x2a]]
+- 0000:09ec  MOV DX,word ptr [BP + -0x26]    [ref Stack[-0x28]]
+- 0000:09ef  XOR CX,CX
+- 0000:09f1  XOR SI,SI
+- 0000:09f3  XOR DI,DI
+- 0000:09f5  CALLF 0x3000:488d    [ref 3000:488d]
+- 0000:09fa  JBE 0x0000:0a57    [ref 0000:0a57]
+- 0000:09fc  MOV AX,word ptr [BP + -0x30]    [ref Stack[-0x32]]
+- 0000:09ff  MOV BX,word ptr [BP + -0x2e]    [ref Stack[-0x30]]
+- 0000:0a02  MOV DX,word ptr [BP + -0x2c]    [ref Stack[-0x2e]]
+- 0000:0a05  MOV CX,word ptr [BP + -0x24]    [ref Stack[-0x26]]
+- 0000:0a08  MOV SI,word ptr [BP + -0x22]    [ref Stack[-0x24]]
+- 0000:0a0b  MOV DI,word ptr [BP + -0x20]    [ref Stack[-0x22]]
+- 0000:0a0e  CALLF 0x3000:486b    [ref 3000:486b]
+- 0000:0a13  MOV CX,word ptr [BP + -0x2a]    [ref Stack[-0x2c]]
+- 0000:0a16  MOV SI,word ptr [BP + -0x28]    [ref Stack[-0x2a]]
+- 0000:0a19  MOV DI,word ptr [BP + -0x26]    [ref Stack[-0x28]]
+- 0000:0a1c  CALLF 0x3000:488d    [ref 3000:488d]
+- 0000:0a21  JBE 0x0000:0a37    [ref 0000:0a37]
+- 0000:0a23  MOV AX,word ptr [BP + -0x2a]    [ref Stack[-0x2c]]
+- 0000:0a26  MOV BX,word ptr [BP + -0x28]    [ref Stack[-0x2a]]
+- 0000:0a29  MOV DX,word ptr [BP + -0x26]    [ref Stack[-0x28]]
+- 0000:0a2c  MOV word ptr [BP + -0x24],AX    [ref Stack[-0x26]]
+- 0000:0a2f  MOV word ptr [BP + -0x22],BX    [ref Stack[-0x24]]
+- 0000:0a32  MOV word ptr [BP + -0x20],DX    [ref Stack[-0x22]]
+- 0000:0a35  JMP 0x0000:0a57    [ref 0000:0a57]
+- 0000:0a37  MOV AX,word ptr [BP + -0x30]    [ref Stack[-0x32]]
+- 0000:0a3a  MOV BX,word ptr [BP + -0x2e]    [ref Stack[-0x30]]
+- 0000:0a3d  MOV DX,word ptr [BP + -0x2c]    [ref Stack[-0x2e]]
+- 0000:0a40  MOV CX,word ptr [BP + -0x24]    [ref Stack[-0x26]]
+- 0000:0a43  MOV SI,word ptr [BP + -0x22]    [ref Stack[-0x24]]
+- 0000:0a46  MOV DI,word ptr [BP + -0x20]    [ref Stack[-0x22]]
+- 0000:0a49  CALLF 0x3000:486b    [ref 3000:486b]
+- 0000:0a4e  MOV word ptr [BP + -0x24],AX    [ref Stack[-0x26]]
+- 0000:0a51  MOV word ptr [BP + -0x22],BX    [ref Stack[-0x24]]
+- 0000:0a54  MOV word ptr [BP + -0x20],DX    [ref Stack[-0x22]]
+- 0000:0a57  JMP 0x0000:0be8    [ref 0000:0be8]
+- 0000:0a5a  MOV AX,word ptr [BP + -0x6]    [ref Stack[-0x8]]
+- 0000:0a5d  MOV BX,word ptr [BP + -0x4]    [ref Stack[-0x6]]
+- 0000:0a60  MOV DX,word ptr [BP + -0x2]    [ref Stack[-0x4]]
+- 0000:0a63  MOV CX,word ptr [BP + -0xc]    [ref Stack[-0xe]]
+- 0000:0a66  MOV SI,word ptr [BP + -0xa]    [ref Stack[-0xc]]
+- 0000:0a69  MOV DI,word ptr [BP + -0x8]    [ref Stack[-0xa]]
+- 0000:0a6c  CALLF 0x3000:488d    [ref 3000:488d]
+- 0000:0a71  JNC 0x0000:0ac8    [ref 0000:0ac8]
+- 0000:0a73  MOV AX,word ptr [BP + -0x3c]    [ref Stack[-0x3e]]
+- 0000:0a76  MOV BX,word ptr [BP + -0x3a]    [ref Stack[-0x3c]]
+- 0000:0a79  MOV DX,word ptr [BP + -0x38]    [ref Stack[-0x3a]]
+- 0000:0a7c  MOV CX,word ptr [BP + -0x36]    [ref Stack[-0x38]]
+- 0000:0a7f  MOV SI,word ptr [BP + -0x34]    [ref Stack[-0x36]]
+- 0000:0a82  MOV DI,word ptr [BP + -0x32]    [ref Stack[-0x34]]
+- 0000:0a85  CALLF 0x3000:4883    [ref 3000:4883]
+- 0000:0a8a  PUSH DX
+- 0000:0a8b  PUSH BX
+- 0000:0a8c  PUSH AX
+- 0000:0a8d  MOV AX,word ptr [BP + -0x6]    [ref Stack[-0x8]]
+- 0000:0a90  MOV BX,word ptr [BP + -0x4]    [ref Stack[-0x6]]
+- 0000:0a93  MOV DX,word ptr [BP + -0x2]    [ref Stack[-0x4]]
+- 0000:0a96  MOV CX,word ptr [BP + -0xc]    [ref Stack[-0xe]]
+- 0000:0a99  MOV SI,word ptr [BP + -0xa]    [ref Stack[-0xc]]
+- 0000:0a9c  MOV DI,word ptr [BP + -0x8]    [ref Stack[-0xa]]
+- 0000:0a9f  CALLF 0x3000:4871    [ref 3000:4871]
+- 0000:0aa4  AND DH,0x7f
+- 0000:0aa7  POP CX
+- 0000:0aa8  POP SI
+- 0000:0aa9  POP DI
+- 0000:0aaa  CALLF 0x3000:487d    [ref 3000:487d]
+- 0000:0aaf  MOV CX,word ptr [BP + -0x6]    [ref Stack[-0x8]]
+- 0000:0ab2  MOV SI,word ptr [BP + -0x4]    [ref Stack[-0x6]]
+- 0000:0ab5  MOV DI,word ptr [BP + -0x2]    [ref Stack[-0x4]]
+- 0000:0ab8  CALLF 0x3000:486b    [ref 3000:486b]
+- 0000:0abd  MOV word ptr [BP + -0x6],AX    [ref Stack[-0x8]]
+- 0000:0ac0  MOV word ptr [BP + -0x4],BX    [ref Stack[-0x6]]
+- 0000:0ac3  MOV word ptr [BP + -0x2],DX    [ref Stack[-0x4]]
+- 0000:0ac6  JMP 0x0000:0b21    [ref 0000:0b21]
+- 0000:0ac8  MOV AX,word ptr [BP + -0x3c]    [ref Stack[-0x3e]]
+- 0000:0acb  MOV BX,word ptr [BP + -0x3a]    [ref Stack[-0x3c]]
+- 0000:0ace  MOV DX,word ptr [BP + -0x38]    [ref Stack[-0x3a]]
+- 0000:0ad1  MOV CX,word ptr [BP + -0x36]    [ref Stack[-0x38]]
+- 0000:0ad4  MOV SI,word ptr [BP + -0x34]    [ref Stack[-0x36]]
+- 0000:0ad7  MOV DI,word ptr [BP + -0x32]    [ref Stack[-0x34]]
+- 0000:0ada  CALLF 0x3000:4883    [ref 3000:4883]
+- 0000:0adf  PUSH DX
+- 0000:0ae0  PUSH BX
+- 0000:0ae1  PUSH AX
+- 0000:0ae2  MOV AX,word ptr [BP + -0x6]    [ref Stack[-0x8]]
+- 0000:0ae5  MOV BX,word ptr [BP + -0x4]    [ref Stack[-0x6]]
+- 0000:0ae8  MOV DX,word ptr [BP + -0x2]    [ref Stack[-0x4]]
+- 0000:0aeb  MOV CX,word ptr [BP + -0xc]    [ref Stack[-0xe]]
+- 0000:0aee  MOV SI,word ptr [BP + -0xa]    [ref Stack[-0xc]]
+- 0000:0af1  MOV DI,word ptr [BP + -0x8]    [ref Stack[-0xa]]
+- 0000:0af4  CALLF 0x3000:4871    [ref 3000:4871]
+- 0000:0af9  AND DH,0x7f
+- 0000:0afc  POP CX
+- 0000:0afd  POP SI
+- 0000:0afe  POP DI
+- 0000:0aff  CALLF 0x3000:487d    [ref 3000:487d]
+- 0000:0b04  PUSH DX
+- 0000:0b05  PUSH BX
+- 0000:0b06  PUSH AX
+- 0000:0b07  MOV AX,word ptr [BP + -0x6]    [ref Stack[-0x8]]
+- 0000:0b0a  MOV BX,word ptr [BP + -0x4]    [ref Stack[-0x6]]
+- 0000:0b0d  MOV DX,word ptr [BP + -0x2]    [ref Stack[-0x4]]
+- 0000:0b10  POP CX
+- 0000:0b11  POP SI
+- 0000:0b12  POP DI
+- 0000:0b13  CALLF 0x3000:4871    [ref 3000:4871]
+- 0000:0b18  MOV word ptr [BP + -0x6],AX    [ref Stack[-0x8]]
+- 0000:0b1b  MOV word ptr [BP + -0x4],BX    [ref Stack[-0x6]]
+- 0000:0b1e  MOV word ptr [BP + -0x2],DX    [ref Stack[-0x4]]
+- 0000:0b21  MOV AX,word ptr [BP + -0x12]    [ref Stack[-0x14]]
+- 0000:0b24  MOV BX,word ptr [BP + -0x10]    [ref Stack[-0x12]]
+- 0000:0b27  MOV DX,word ptr [BP + -0xe]    [ref Stack[-0x10]]
+- 0000:0b2a  MOV CX,word ptr [BP + -0x18]    [ref Stack[-0x1a]]
+- 0000:0b2d  MOV SI,word ptr [BP + -0x16]    [ref Stack[-0x18]]
+- 0000:0b30  MOV DI,word ptr [BP + -0x14]    [ref Stack[-0x16]]
+- 0000:0b33  CALLF 0x3000:488d    [ref 3000:488d]
+- 0000:0b38  JNC 0x0000:0b8f    [ref 0000:0b8f]
+- 0000:0b3a  MOV AX,word ptr [BP + -0x3c]    [ref Stack[-0x3e]]
+- 0000:0b3d  MOV BX,word ptr [BP + -0x3a]    [ref Stack[-0x3c]]
+- 0000:0b40  MOV DX,word ptr [BP + -0x38]    [ref Stack[-0x3a]]
+- 0000:0b43  MOV CX,word ptr [BP + -0x36]    [ref Stack[-0x38]]
+- 0000:0b46  MOV SI,word ptr [BP + -0x34]    [ref Stack[-0x36]]
+- 0000:0b49  MOV DI,word ptr [BP + -0x32]    [ref Stack[-0x34]]
+- 0000:0b4c  CALLF 0x3000:4883    [ref 3000:4883]
+- 0000:0b51  PUSH DX
+- 0000:0b52  PUSH BX
+- 0000:0b53  PUSH AX
+- 0000:0b54  MOV AX,word ptr [BP + -0x12]    [ref Stack[-0x14]]
+- 0000:0b57  MOV BX,word ptr [BP + -0x10]    [ref Stack[-0x12]]
+- 0000:0b5a  MOV DX,word ptr [BP + -0xe]    [ref Stack[-0x10]]
+- 0000:0b5d  MOV CX,word ptr [BP + -0x18]    [ref Stack[-0x1a]]
+- 0000:0b60  MOV SI,word ptr [BP + -0x16]    [ref Stack[-0x18]]
+- 0000:0b63  MOV DI,word ptr [BP + -0x14]    [ref Stack[-0x16]]
+- 0000:0b66  CALLF 0x3000:4871    [ref 3000:4871]
+- 0000:0b6b  AND DH,0x7f
+- 0000:0b6e  POP CX
+- 0000:0b6f  POP SI
+- 0000:0b70  POP DI
+- 0000:0b71  CALLF 0x3000:487d    [ref 3000:487d]
+- 0000:0b76  MOV CX,word ptr [BP + -0x12]    [ref Stack[-0x14]]
+- 0000:0b79  MOV SI,word ptr [BP + -0x10]    [ref Stack[-0x12]]
+- 0000:0b7c  MOV DI,word ptr [BP + -0xe]    [ref Stack[-0x10]]
+- 0000:0b7f  CALLF 0x3000:486b    [ref 3000:486b]
+- 0000:0b84  MOV word ptr [BP + -0x12],AX    [ref Stack[-0x14]]
+- 0000:0b87  MOV word ptr [BP + -0x10],BX    [ref Stack[-0x12]]
+- 0000:0b8a  MOV word ptr [BP + -0xe],DX    [ref Stack[-0x10]]
+- 0000:0b8d  JMP 0x0000:0be8    [ref 0000:0be8]
+- 0000:0b8f  MOV AX,word ptr [BP + -0x3c]    [ref Stack[-0x3e]]
+- 0000:0b92  MOV BX,word ptr [BP + -0x3a]    [ref Stack[-0x3c]]
+- 0000:0b95  MOV DX,word ptr [BP + -0x38]    [ref Stack[-0x3a]]
+- 0000:0b98  MOV CX,word ptr [BP + -0x36]    [ref Stack[-0x38]]
+- 0000:0b9b  MOV SI,word ptr [BP + -0x34]    [ref Stack[-0x36]]
+- 0000:0b9e  MOV DI,word ptr [BP + -0x32]    [ref Stack[-0x34]]
+- 0000:0ba1  CALLF 0x3000:4883    [ref 3000:4883]
+- 0000:0ba6  PUSH DX
+- 0000:0ba7  PUSH BX
+- 0000:0ba8  PUSH AX
+- 0000:0ba9  MOV AX,word ptr [BP + -0x12]    [ref Stack[-0x14]]
+- 0000:0bac  MOV BX,word ptr [BP + -0x10]    [ref Stack[-0x12]]
+- 0000:0baf  MOV DX,word ptr [BP + -0xe]    [ref Stack[-0x10]]
+- 0000:0bb2  MOV CX,word ptr [BP + -0x18]    [ref Stack[-0x1a]]
+- 0000:0bb5  MOV SI,word ptr [BP + -0x16]    [ref Stack[-0x18]]
+- 0000:0bb8  MOV DI,word ptr [BP + -0x14]    [ref Stack[-0x16]]
+- 0000:0bbb  CALLF 0x3000:4871    [ref 3000:4871]
+- 0000:0bc0  AND DH,0x7f
+- 0000:0bc3  POP CX
+- 0000:0bc4  POP SI
+- 0000:0bc5  POP DI
+- 0000:0bc6  CALLF 0x3000:487d    [ref 3000:487d]
+- 0000:0bcb  PUSH DX
+- 0000:0bcc  PUSH BX
+- 0000:0bcd  PUSH AX
+- 0000:0bce  MOV AX,word ptr [BP + -0x12]    [ref Stack[-0x14]]
+- 0000:0bd1  MOV BX,word ptr [BP + -0x10]    [ref Stack[-0x12]]
+- 0000:0bd4  MOV DX,word ptr [BP + -0xe]    [ref Stack[-0x10]]
+- 0000:0bd7  POP CX
+- 0000:0bd8  POP SI
+- 0000:0bd9  POP DI
+- 0000:0bda  CALLF 0x3000:4871    [ref 3000:4871]
+- 0000:0bdf  MOV word ptr [BP + -0x12],AX    [ref Stack[-0x14]]
+- 0000:0be2  MOV word ptr [BP + -0x10],BX    [ref Stack[-0x12]]
+- 0000:0be5  MOV word ptr [BP + -0xe],DX    [ref Stack[-0x10]]
+- 0000:0be8  MOV AX,word ptr [BP + 0x4]    [ref Stack[0x2]]
+- 0000:0beb  SHL AX,0x1
+- 0000:0bed  SHL AX,0x1
+- 0000:0bef  LES DI,[0x2f72]
+- 0000:0bf3  ADD DI,AX
+- 0000:0bf5  LES DI,ES:[DI + -0x4]
+- 0000:0bf9  MOV word ptr [BP + 0xf776],DI    [ref Stack[-0x88c]]
+- 0000:0bfd  MOV word ptr [BP + 0xf778],ES    [ref Stack[-0x88a]]
+- 0000:0c01  MOV AX,word ptr [BP + -0x24]    [ref Stack[-0x26]]
+- 0000:0c04  MOV BX,word ptr [BP + -0x22]    [ref Stack[-0x24]]
+- 0000:0c07  MOV DX,word ptr [BP + -0x20]    [ref Stack[-0x22]]
+- 0000:0c0a  CALLF 0x3000:489d    [ref 3000:489d]
+- 0000:0c0f  CMP DX,0x0
+- 0000:0c12  JNZ 0x0000:0c19    [ref 0000:0c19]
+- 0000:0c14  CMP AX,0x1
+- 0000:0c17  JZ 0x0000:0c1d    [ref 0000:0c1d]
+- 0000:0c19  MOV AL,0x0
+- 0000:0c1b  JMP 0x0000:0c1f    [ref 0000:0c1f]
+- 0000:0c1d  MOV AL,0x1
+- 0000:0c1f  LES DI,[BP + 0xf776]    [ref Stack[-0x88c]]
+- 0000:0c23  MOV byte ptr ES:[DI + 0x5],AL
+- 0000:0c27  MOV AX,word ptr [BP + -0x6]    [ref Stack[-0x8]]
+- 0000:0c2a  MOV BX,word ptr [BP + -0x4]    [ref Stack[-0x6]]
+- 0000:0c2d  MOV DX,word ptr [BP + -0x2]    [ref Stack[-0x4]]
+- 0000:0c30  CALLF 0x3000:4895    [ref 3000:4895]
+- 0000:0c35  LES DI,[BP + 0xf776]    [ref Stack[-0x88c]]
+- 0000:0c39  MOV byte ptr ES:[DI + 0x1],AL
+- 0000:0c3d  MOV AX,word ptr [BP + -0x12]    [ref Stack[-0x14]]
+- 0000:0c40  MOV BX,word ptr [BP + -0x10]    [ref Stack[-0x12]]
+- 0000:0c43  MOV DX,word ptr [BP + -0xe]    [ref Stack[-0x10]]
+- 0000:0c46  CALLF 0x3000:4895    [ref 3000:4895]
+- 0000:0c4b  LES DI,[BP + 0xf776]    [ref Stack[-0x88c]]
+- 0000:0c4f  MOV byte ptr ES:[DI + 0x2],AL
+- 0000:0c53  MOV AX,word ptr [BP + 0x4]    [ref Stack[0x2]]
+- 0000:0c56  SHL AX,0x1
+- 0000:0c58  SHL AX,0x1
+- 0000:0c5a  LES DI,[0x2f72]
+- 0000:0c5e  ADD DI,AX
+- 0000:0c60  LES DI,ES:[DI + -0x4]
+- 0000:0c64  MOV AL,byte ptr ES:[DI + 0x4]
+- 0000:0c68  CMP AL,0x1
+- 0000:0c6a  JNZ 0x0000:0cd7    [ref 0000:0cd7]
+- 0000:0c6c  MOV AX,word ptr [BP + -0x6]    [ref Stack[-0x8]]
+- 0000:0c6f  MOV BX,word ptr [BP + -0x4]    [ref Stack[-0x6]]
+- 0000:0c72  MOV DX,word ptr [BP + -0x2]    [ref Stack[-0x4]]
+- 0000:0c75  CALLF 0x3000:4895    [ref 3000:4895]
+- 0000:0c7a  MOV [0x350d],AL
+- 0000:0c7d  MOV AX,word ptr [BP + -0x6]    [ref Stack[-0x8]]
+- 0000:0c80  MOV BX,word ptr [BP + -0x4]    [ref Stack[-0x6]]
+- 0000:0c83  MOV DX,word ptr [BP + -0x2]    [ref Stack[-0x4]]
+- 0000:0c86  CALLF 0x3000:4930    [ref 3000:4930]
+- 0000:0c8b  MOV [0x350f],AX
+- 0000:0c8e  MOV word ptr [0x3511],BX
+- 0000:0c92  MOV word ptr [0x3513],DX
+- 0000:0c96  MOV AX,word ptr [BP + -0x12]    [ref Stack[-0x14]]
+- 0000:0c99  MOV BX,word ptr [BP + -0x10]    [ref Stack[-0x12]]
+- 0000:0c9c  MOV DX,word ptr [BP + -0xe]    [ref Stack[-0x10]]
+- 0000:0c9f  CALLF 0x3000:4895    [ref 3000:4895]
+- 0000:0ca4  MOV [0x350e],AL
+- 0000:0ca7  MOV AX,word ptr [BP + -0x12]    [ref Stack[-0x14]]
+- 0000:0caa  MOV BX,word ptr [BP + -0x10]    [ref Stack[-0x12]]
+- 0000:0cad  MOV DX,word ptr [BP + -0xe]    [ref Stack[-0x10]]
+- 0000:0cb0  CALLF 0x3000:4930    [ref 3000:4930]
+- 0000:0cb5  MOV [0x3515],AX
+- 0000:0cb8  MOV word ptr [0x3517],BX
+- 0000:0cbc  MOV word ptr [0x3519],DX
+- 0000:0cc0  MOV AX,word ptr [BP + -0x24]    [ref Stack[-0x26]]
+- 0000:0cc3  MOV BX,word ptr [BP + -0x22]    [ref Stack[-0x24]]
+- 0000:0cc6  MOV DX,word ptr [BP + -0x20]    [ref Stack[-0x22]]
+- 0000:0cc9  MOV [0x351b],AX
+- 0000:0ccc  MOV word ptr [0x351d],BX
+- 0000:0cd0  MOV word ptr [0x351f],DX
+- 0000:0cd4  JMP 0x0000:0ea6    [ref 0000:0ea6]
+- 0000:0cd7  CMP AL,0x2
+- 0000:0cd9  JZ 0x0000:0cde    [ref 0000:0cde]
+- 0000:0cdb  JMP 0x0000:0e3a    [ref 0000:0e3a]
+- 0000:0cde  MOV AX,word ptr [BP + -0x6]    [ref Stack[-0x8]]
+- 0000:0ce1  MOV BX,word ptr [BP + -0x4]    [ref Stack[-0x6]]
+- 0000:0ce4  MOV DX,word ptr [BP + -0x2]    [ref Stack[-0x4]]
+- 0000:0ce7  CALLF 0x3000:4895    [ref 3000:4895]
+- 0000:0cec  MOV [0x3563],AL
+- 0000:0cef  MOV AX,word ptr [BP + -0x6]    [ref Stack[-0x8]]
+- 0000:0cf2  MOV BX,word ptr [BP + -0x4]    [ref Stack[-0x6]]
+- 0000:0cf5  MOV DX,word ptr [BP + -0x2]    [ref Stack[-0x4]]
+- 0000:0cf8  CALLF 0x3000:4930    [ref 3000:4930]
+- 0000:0cfd  MOV [0x3565],AX
+- 0000:0d00  MOV word ptr [0x3567],BX
+- 0000:0d04  MOV word ptr [0x3569],DX
+- 0000:0d08  MOV AX,word ptr [BP + -0x12]    [ref Stack[-0x14]]
+- 0000:0d0b  MOV BX,word ptr [BP + -0x10]    [ref Stack[-0x12]]
+- 0000:0d0e  MOV DX,word ptr [BP + -0xe]    [ref Stack[-0x10]]
+- 0000:0d11  CALLF 0x3000:4895    [ref 3000:4895]
+- 0000:0d16  MOV [0x3564],AL
+- 0000:0d19  MOV AX,word ptr [BP + -0x12]    [ref Stack[-0x14]]
+- 0000:0d1c  MOV BX,word ptr [BP + -0x10]    [ref Stack[-0x12]]
+- 0000:0d1f  MOV DX,word ptr [BP + -0xe]    [ref Stack[-0x10]]
+- 0000:0d22  CALLF 0x3000:4930    [ref 3000:4930]
+- 0000:0d27  MOV [0x356b],AX
+- 0000:0d2a  MOV word ptr [0x356d],BX
+- 0000:0d2e  MOV word ptr [0x356f],DX
+- 0000:0d32  MOV AX,word ptr [BP + -0x24]    [ref Stack[-0x26]]
+- 0000:0d35  MOV BX,word ptr [BP + -0x22]    [ref Stack[-0x24]]
+- 0000:0d38  MOV DX,word ptr [BP + -0x20]    [ref Stack[-0x22]]
+- 0000:0d3b  MOV [0x3571],AX
+- 0000:0d3e  MOV word ptr [0x3573],BX
+- 0000:0d42  MOV word ptr [0x3575],DX
+- 0000:0d46  CMP byte ptr [BP + 0xf77f],0x0    [ref Stack[-0x883]]
+- 0000:0d4b  JNZ 0x0000:0d50    [ref 0000:0d50]
+- 0000:0d4d  JMP 0x0000:0e38    [ref 0000:0e38]
+- 0000:0d50  MOV AL,[0x3563]
+- 0000:0d53  MOV byte ptr [BP + 0xf7c1],AL    [ref Stack[-0x841]]
+- 0000:0d57  MOV AL,[0x3564]
+- 0000:0d5a  MOV byte ptr [BP + 0xf7c2],AL    [ref Stack[-0x840]]
+- 0000:0d5e  MOV AX,[0x3565]
+- 0000:0d61  MOV BX,word ptr [0x3567]
+- 0000:0d65  MOV DX,word ptr [0x3569]
+- 0000:0d69  MOV word ptr [BP + 0xf7c3],AX    [ref Stack[-0x83f]]
+- 0000:0d6d  MOV word ptr [BP + 0xf7c5],BX    [ref Stack[-0x83d]]
+- 0000:0d71  MOV word ptr [BP + 0xf7c7],DX    [ref Stack[-0x83b]]
+- 0000:0d75  MOV AX,[0x356b]
+- 0000:0d78  MOV BX,word ptr [0x356d]
+

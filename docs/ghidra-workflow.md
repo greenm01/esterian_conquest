@@ -232,6 +232,86 @@ This refreshes:
 - the current negative result that there are still no direct static xrefs to
   `2000:9d48` or `2000:9e1e` in the saved disassembly
 
+Generate the focused `2000:5EE4` / `IPBM.DAT` branch report:
+
+```bash
+tools/run_ghidra_script_args.sh ecmaint-live Report5EE4IPBM.java
+```
+
+This refreshes:
+
+- `artifacts/ghidra/ecmaint-live/5ee4-ipbm.txt`
+- the player-indexed `IPBM.DAT` branch at `2000:675A..68E8`
+- the follow-on `IPBM` summary branch at `2000:68E9..69B8`
+- the current DS:`31F8` / DS:`3538` / `0x2F72` / `0x2F76` data-flow notes
+
+Generate the whole-program scalar sweep for the `IPBM` scratch block:
+
+```bash
+tools/run_ghidra_script_args.sh ecmaint-live ReportIPBMScratchScalarUses.java
+```
+
+This refreshes:
+
+- `artifacts/ghidra/ecmaint-live/ipbm-scratch-uses.txt`
+- the current uses of `3538..3553` across the live image
+- the producer/consumer lead at function `0000:02c0`
+
+Generate the full function dump for the summary dispatcher at `0000:02c0`:
+
+```bash
+tools/run_ghidra_script_args.sh ecmaint-live ReportIPBMScratchFunction.java
+```
+
+This refreshes:
+
+- `artifacts/ghidra/ecmaint-live/ipbm-scratch-function.txt`
+- the summary-kind dispatch at `0000:02c0`
+- the current kind-`1` / kind-`2` / kind-`3` scratch-block split
+
+Generate the helper/tail correction reports for the kind-`3` path:
+
+```bash
+tools/run_ghidra_script_args.sh ecmaint-live ReportIPBMNormalizer.java
+tools/run_ghidra_script_args.sh ecmaint-live ReportSummaryHelperRegion.java
+```
+
+This refreshes:
+
+- `artifacts/ghidra/ecmaint-live/ipbm-normalizer.txt`
+- `artifacts/ghidra/ecmaint-live/summary-helper-region.txt`
+- the correction that `2000:c0cd` is only a tiny copy-tail / mis-carved entry
+- the nearby clean bounded-copy helper at `2000:c0dc`
+
+Generate the focused shared post-kind pipeline report:
+
+```bash
+tools/run_ghidra_script_args.sh ecmaint-live ReportIPBMPostKindPipeline.java
+```
+
+This refreshes:
+
+- `artifacts/ghidra/ecmaint-live/ipbm-postkind-pipeline.txt`
+- the common `0000:07da..0ea6` comparison / merge stage inside `0000:02c0`
+- the writeback from canonicalized tuple state back into summary offsets
+  `+0x01`, `+0x02`, and `+0x05`
+
+Generate the tail transition report for the kind split at the end of the
+post-kind pipeline:
+
+```bash
+tools/run_ghidra_script_args.sh ecmaint-live ReportIPBMTailTransition.java
+```
+
+This refreshes:
+
+- `artifacts/ghidra/ecmaint-live/ipbm-tail-transition.txt`
+- the kind-2 side path through `0x2000:c100`
+- the confirmed kind-3 tuple writeback:
+  - tuple A -> `3541`, `3543..3547`
+  - tuple B -> `3542`, `3549..354d`
+  - tuple C -> `354f..3553`
+
 ## First Analysis Pass
 
 From the repo root:

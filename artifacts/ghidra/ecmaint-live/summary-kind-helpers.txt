@@ -1,0 +1,52 @@
+Program: MEMDUMP.BIN
+
+2000:c067 kind1_helper
+- function: FUN_2000_c067
+- body:
+  - 2000:c067  ADD CX,SI
+  - 2000:c069  ADC BX,DI
+  - 2000:c06b  CMC
+  - 2000:c06c  RCL AX,0x1
+  - 2000:c06e  RCL DX,0x1
+  - 2000:c070  DEC BP
+  - 2000:c071  JNZ 0x2000:c05d    [ref 2000:c05d]
+  - 2000:c073  POPF
+  - 2000:c074  JNS 0x2000:c085    [ref 2000:c085]
+  - 2000:c076  NOT CX
+  - 2000:c078  NOT BX
+  - 2000:c07a  ADD CX,0x1
+  - 2000:c07d  ADC BX,0x0
+  - 2000:c080  POPF
+  - 2000:c081  JNS 0x2000:c088    [ref 2000:c088]
+  - 2000:c083  JMP 0x2000:c092    [ref 2000:c092]
+  - 2000:c085  POPF
+  - 2000:c086  JNS 0x2000:c092    [ref 2000:c092]
+  - 2000:c088  NOT AX
+  - 2000:c08a  NOT DX
+  - 2000:c08c  ADD AX,0x1
+  - 2000:c08f  ADC DX,0x0
+  - 2000:c092  POP BP
+  - 2000:c093  RETF
+
+2000:c09a kind2_helper
+- function: FUN_2000_c09a
+- body:
+  - 2000:c09a  TEST byte ptr [BP + DI + 0x1fe1],0x74    [ref 0000:1fe1]
+  - 2000:c09f  PUSH ES
+  - 2000:c0a0  SHR DX,0x1
+  - 2000:c0a2  RCR AX,0x1
+  - 2000:c0a4  LOOP 0x2000:c0a0    [ref 2000:c0a0]
+  - 2000:c0a6  RETF
+
+2000:c0cd kind3_helper
+- function: FUN_2000_c0cd
+- body:
+  - 2000:c0cd  JA 0x2000:c0d3    [ref 2000:c0d3]
+  - 2000:c0cf  LODSB SI
+  - 2000:c0d0  STOSB ES:DI
+  - 2000:c0d1  MOV CL,AL
+  - 2000:c0d3  XOR CH,CH
+  - 2000:c0d5  MOVSB.REP ES:DI,SI
+  - 2000:c0d7  MOV DS,DX
+  - 2000:c0d9  RETF 0x4
+

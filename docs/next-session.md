@@ -116,6 +116,20 @@ Primary project goal:
      - next use:
        - map tuple A / B / C onto specific kind-`3` scratch fields and compare
          against the live baseline dump from `3538`
+   - Tail transition result:
+     - artifact: `artifacts/ghidra/ecmaint-live/ipbm-tail-transition.txt`
+     - script: `tools/ghidra_scripts_tmp/ReportIPBMTailTransition.java`
+     - confirmed:
+       - common writeback always updates summary offsets `+0x01`, `+0x02`,
+         `+0x05`
+       - kind `2` has an extra side path through helper `0x2000:c100`
+       - kind `3` writes finalized tuples back into:
+         - tuple A -> `3541`, `3543..3547`
+         - tuple B -> `3542`, `3549..354d`
+         - tuple C -> `354f..3553`
+     - practical implication:
+       - `3555..3557` are outside the main tuple A/B/C writeback and should be
+         treated as a separate trailing control group
    - Current boundary result:
      - `353D` is only consumed by the second `5EE4` `IPBM` branch
      - `3555..3557` are only visible inside the kind-`3` path in `0000:02c0`
@@ -141,6 +155,92 @@ Primary project goal:
      - practical implication:
        - this is the baseline shape to compare against future mutated `IPBM`
          records
+   - First mutated correlation point:
+     - artifacts:
+       - `artifacts/ecmaint-ipbm-debug/off_00_val_01-registers.txt`
+       - `artifacts/ecmaint-ipbm-debug/off_00_val_01-scratch.txt`
+     - setup:
+       - `IPBM.DAT[0x00] = 0x01`
+       - all other bytes zero
+       - same breakpoint at live `2814:6870`
+     - observed delta vs baseline:
+       - `3538` changed from `0x0000` to `0x0001`
+       - baseline `353D = 0x0001` cleared to `0x0000`
+       - baseline `3543 = 0x0080` cleared to `0x0000`
+       - baseline `3549 = 0x0080` cleared to `0x0000`
+     - practical implication:
+       - raw `IPBM` offset `0x00` definitely feeds tuple C / the summary-`+0x0A`
+         word path
+       - it also suppresses the zero-record default normalization that
+         previously produced `353D = 1` and the paired `0x0080` defaults
+   - Second mutated correlation point:
+     - artifacts:
+       - `artifacts/ecmaint-ipbm-debug/off_01_val_01-registers.txt`
+       - `artifacts/ecmaint-ipbm-debug/off_01_val_01-scratch.txt`
+     - setup:
+       - `IPBM.DAT[0x01] = 0x01`
+       - all other bytes zero
+       - same breakpoint at live `2814:6870`
+     - observed delta vs baseline:
+       - `3538` changed from `0x0000` to `0x0100`
+       - baseline `353D = 0x0001` cleared to `0x0000`
+       - baseline `3543 = 0x0080` cleared to `0x0000`
+       - baseline `3549 = 0x0080` cleared to `0x0000`
+     - practical implication:
+       - raw `IPBM[0x00..0x01]` maps directly into `3538` as a little-endian
+         word
+       - tuple C / early summary `+0x0A` is therefore confirmed to derive from
+         the first `u16` in the raw record
+   - Expanded prefix mapping:
+     - artifacts:
+       - `artifacts/ecmaint-ipbm-debug/off_02_val_01-scratch.txt`
+       - `artifacts/ecmaint-ipbm-debug/off_03_val_01-scratch.txt`
+       - `artifacts/ecmaint-ipbm-debug/off_04_val_01-scratch.txt`
+       - `artifacts/ecmaint-ipbm-debug/off_05_val_01-scratch.txt`
+       - `artifacts/ecmaint-ipbm-debug/off_06_val_01-scratch.txt`
+       - `artifacts/ecmaint-ipbm-debug/off_07_val_01-scratch.txt`
+       - `artifacts/ecmaint-ipbm-debug/off_09_val_01-scratch.txt`
+       - `artifacts/ecmaint-ipbm-debug/off_0a_val_01-scratch.txt`
+     - confirmed:
+       - `IPBM[0x02]` copies to scratch `353A`
+       - `IPBM[0x03]` copies to scratch `353B`
+       - `IPBM[0x04]` copies to scratch `353C`
+       - `IPBM[0x05]` copies to scratch `353D`
+       - `IPBM[0x06]` copies to scratch `353E`
+       - `IPBM[0x07]` copies to scratch `353F`
+       - `IPBM[0x09]` copies to scratch `3541`
+       - `IPBM[0x0A]` copies to scratch `3542`
+     - semantic read with `2000:5EE4`:
+       - `353A` is the player / empire byte copied to summary `+0x00`
+       - `353B..353C` is the non-aligned `u16` that gates the second `IPBM`
+         branch
+       - `353D..353E` is the non-aligned `u16` later written to summary `+0x06`
+       - `3541` and `3542` are the kind-`3` tag bytes written to summary
+         `+0x01` and `+0x02`
+     - practical implication:
+       - the front of the raw `IPBM` record copies contiguously into scratch,
+         then `ECMAINT` interprets overlapping byte/word fields over that copy
+       - baseline all-zero defaults like `353D = 1` and `3543 = 3549 = 0x0080`
+         are derived normalization, not the raw on-disk values
+   - Group-start confirmation:
+     - artifacts:
+       - `artifacts/ecmaint-ipbm-debug/off_0b_val_01-scratch.txt`
+       - `artifacts/ecmaint-ipbm-debug/off_11_val_01-scratch.txt`
+       - `artifacts/ecmaint-ipbm-debug/off_17_val_01-scratch.txt`
+       - `artifacts/ecmaint-ipbm-debug/off_1d_val_01-scratch.txt`
+     - confirmed:
+       - `IPBM[0x0B]` copies to scratch `3543` (tuple-A payload block start)
+       - `IPBM[0x11]` copies to scratch `3549` (tuple-B payload block start)
+       - `IPBM[0x17]` copies to scratch `354F` (tuple-C payload block start)
+       - `IPBM[0x1D]` copies to scratch `3555` (trailing control group start)
+     - static follow-up from `0000:0723..0797`:
+       - `3555` and `3556` are read as scalar bytes and expanded through
+         helper `0x3000:486B`
+       - `3557` is clamped to at most `1`, so raw `0x1F` behaves like a
+         boolean / capped mode byte
+     - practical implication:
+       - the coarse full-record layout is now stable enough for Rust-side
+         binary encoding even though several gameplay semantics remain unnamed
 
 3. Build queue / stardock encoding
    - Continue the partially solved `PLANETS.DAT[0x38]` / `0x4C` work.

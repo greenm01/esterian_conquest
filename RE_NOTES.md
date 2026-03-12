@@ -760,6 +760,461 @@ Practical inference:
   especially the direct `PLAYER[0x44] -> BASES` path and the secondary
   base-to-base linkage through loaded base offset `0x05..0x06`
 
+Static `IPBM.DAT` branch report:
+
+- new headless Ghidra script:
+  - `tools/ghidra_scripts_tmp/Report5EE4IPBM.java`
+- artifact:
+  - `artifacts/ghidra/ecmaint-live/5ee4-ipbm.txt`
+- concrete control-flow anchors inside `2000:5EE4`:
+  - `2000:675A..68E8` = player-indexed `IPBM.DAT` branch
+  - `2000:68E9..69B8` = follow-on summary branch after the first `IPBM` pass
+- confirmed static behavior:
+  - the branch starts by treating DS:`31F8` as a `0x20`-byte record stream:
+    - `MOV DI,0x31f8`
+    - `MOV AX,0x20`
+    - `CALLF 0x3000:4f7a`
+  - player iteration count is driven by global `0x16AE`, which already tracks
+    the validated `PLAYER.DAT` entries from the earlier pass
+  - for each player entry:
+    - load player pointer via table at `0x16AC`
+    - test `ES:[DI+0x48]`
+    - if `PLAYER[0x48] == 0`, skip the `IPBM` read path
+    - otherwise read `IPBM` record index `PLAYER[0x48] - 1`
+  - the indexed read uses:
+    - DS:`31F8` as the source stream
+    - scratch buffer DS:`3538`
+    - helper `0x3000:50CD` for indexed record fetch
+    - helper `0x3000:502F` to copy/normalize the fetched record into DS:`3538`
+  - on successful validation, the branch appends a `0x0C`-byte summary entry
+    through the pointer table at `0x2F72` while incrementing `0x2F76`
+- concrete summary-field writes observed in the first branch:
+  - summary `+0x00` = player index from local loop counter, unless the dead
+    bypass path at `0x16A4` overrides it with `DS:353A`
+  - summary `+0x01` = `DS:3541`
+  - summary `+0x02` = `DS:3542`
+  - summary `+0x04` = constant `0x03`
+  - summary `+0x05` = success/failure bit from helper `0x3000:488D`
+  - summary `+0x06` = original `PLAYER[0x48]`
+  - summary `+0x0A` = word from DS:`3538`
+- follow-on branch at `2000:6906`:
+  - gated by word `DS:353B`
+  - reuses the same DS:`31F8` stream and DS:`3538` scratch buffer
+  - appends more `0x0C`-byte entries via `0x2F72` / `0x2F76`
+- practical consequence:
+  - `IPBM.DAT` is not just length-validated; `2000:5EE4` also builds a
+    structured in-memory summary from the fetched `0x20`-byte records
+  - the next `IPBM` RE task is now narrower: name the DS:`3538..3553` scratch
+    fields and determine what `DS:353B` represents in the second branch
+
+Scalar sweep of the `IPBM` scratch fields:
+
+- new headless Ghidra script:
+  - `tools/ghidra_scripts_tmp/ReportIPBMScratchScalarUses.java`
+- artifact:
+  - `artifacts/ghidra/ecmaint-live/ipbm-scratch-uses.txt`
+- important result:
+  - the useful accesses to `DS:3538..3553` are not limited to `2000:5EE4`
+  - a separate function currently carved as `0000:02c0` both writes and reads
+    a larger field family around:
+    - `3541`, `3543..3547`
+    - `3542`, `3549..354d`
+    - `354f..3553`
+- concrete write cluster in `0000:02c0`:
+  - `0e4c` writes `3541`
+  - `0e5d..0e64` writes `3543..3547`
+  - `0e76` writes `3542`
+  - `0e87..0e8e` writes `3549..354d`
+  - `0e9b..0ea2` writes `354f..3553`
+- concrete read cluster in the same function:
+  - `06d7` reads `3541`
+  - `06e3..06eb` reads `3543..3547`
+  - `06fd` reads `3542`
+  - `0709..0711` reads `3549..354d`
+  - `0765..076c` reads `354f..3553`
+- practical inference:
+  - DS:`3538..3553` is a structured scratch/state block, not just a single
+    copied `IPBM` record image
+  - the layout strongly suggests:
+    - two tagged values or tagged tuples rooted at `3541` and `3542`
+    - multiple associated word triples (`3543..3547`, `3549..354d`,
+      `354f..3553`)
+  - `2000:5EE4` is consuming already-normalized fields from that shared block
+    rather than interpreting raw `IPBM` bytes directly
+- second-branch refinement:
+  - `2000:6906` gates on word `353B`
+  - `2000:6A4B` later copies word `353D` into summary offset `+0x06`
+  - practical meaning:
+  - `353B` / `353D` form another paired result from the shared `IPBM`
+      normalization block and should be reversed together
+
+`0000:02C0` summary-dispatch function:
+
+- new headless Ghidra script:
+  - `tools/ghidra_scripts_tmp/ReportIPBMScratchFunction.java`
+- artifact:
+  - `artifacts/ghidra/ecmaint-live/ipbm-scratch-function.txt`
+- concrete entry behavior:
+  - takes a summary-entry index in `[BP+4]`
+  - indexes through the summary pointer table at `0x2F72`
+  - dispatches on summary kind byte `ES:[DI+4]`
+  - confirmed branches:
+    - kind `1` -> uses scratch block rooted at `0x3502`
+    - kind `2` -> uses scratch block rooted at `0x3558`
+    - kind `3` -> uses the `IPBM` scratch block rooted at `0x3538`
+- kind `3` branch specifics:
+  - copies / loads from `0x3538`
+  - consumes normalized fields at:
+    - `3541`, `3543..3547`
+    - `3542`, `3549..354d`
+    - `354f..3553`
+    - `3555..3557`
+  - then continues into generic comparison/normalization logic shared with the
+    other kinds
+- practical inference:
+  - `0000:02C0` is not an `IPBM`-specific parser
+  - it is a generic summary-entry dispatcher / normalizer that reuses the same
+    downstream logic for multiple summary kinds, one of which is the `IPBM`
+    kind emitted by `2000:5EE4`
+  - the `IPBM` task is therefore split:
+    - `2000:5EE4` emits kind-`3` summary entries from `PLAYER[0x48]`
+    - `0000:02C0` later consumes those kind-`3` entries through the shared
+      summary-processing machinery
+  - `0000:02C0` also eventually writes normalized data back out:
+    - summary entry fields `+0x01`, `+0x02`, `+0x05`
+    - kind-specific scratch blocks rooted at `3502`, `3538`, and `3558`
+  - so the current best model is "generic round-trip summary normalizer",
+    not a one-way consumer of pre-normalized `IPBM` state
+
+Mis-carved low-level helper caveat:
+
+- new report:
+  - `artifacts/ghidra/ecmaint-live/summary-kind-helpers.txt`
+- the apparent helper entries `2000:C067`, `2000:C09A`, and `2000:C0CD` are
+  not yet trustworthy semantic function starts in the raw import
+- at least `2000:C0CD` clearly behaves like a tiny counted-string/byte-copy
+  helper rather than a high-level kind parser
+- follow-up region dump:
+  - `artifacts/ghidra/ecmaint-live/summary-helper-region.txt`
+  - `2000:C0DC..C0FD` is a clean bounded counted-string copy helper
+  - `2000:C0CD` still looks like a tail-entry or raw-import misalignment,
+    not the real semantic start of an `IPBM` routine
+- practical consequence:
+  - the real semantic target remains `0000:02C0` and the scratch layouts it
+    uses, not the current misleading helper names around `C067..C0CD`
+
+Follow-up correction on the kind-`3` helper model:
+
+- new headless Ghidra scripts:
+  - `tools/ghidra_scripts_tmp/ReportIPBMNormalizer.java`
+  - `tools/ghidra_scripts_tmp/ReportSummaryHelperRegion.java`
+- new artifacts:
+  - `artifacts/ghidra/ecmaint-live/ipbm-normalizer.txt`
+  - `artifacts/ghidra/ecmaint-live/summary-helper-region.txt`
+- corrected result:
+  - the direct call target from `0000:02C0` is still `2000:C0CD`
+  - but the bytes at `2000:C0CD` decode only as a tiny copy tail
+  - the nearby clean helper start is `2000:C0DC`, which takes bounded
+    counted-string copy arguments from the stack
+  - so `C0CD` should not be treated as the semantic kind-`3` normalizer
+- practical implication:
+  - the real `IPBM` meaning is still concentrated in `0000:02C0`
+  - the next static task is to understand the common post-kind pipeline from
+    `0000:07DA` onward, where `0000:02C0` compares, combines, and writes the
+    normalized values back into the summary entry and scratch blocks
+
+Focused post-kind pipeline result:
+
+- new headless Ghidra script:
+  - `tools/ghidra_scripts_tmp/ReportIPBMPostKindPipeline.java`
+- new artifact:
+  - `artifacts/ghidra/ecmaint-live/ipbm-postkind-pipeline.txt`
+- concrete structure inside `0000:07DA..0EA6`:
+  - the pipeline starts by converting local kind-count byte `[BP-0x19]` into a
+    3-word value and scaling it by literal `0x86`
+  - it then works over three local normalized tuples:
+    - tuple A at `[BP-0x06 .. -0x02]`
+    - tuple B at `[BP-0x12 .. -0x0E]`
+    - tuple C at `[BP-0x24 .. -0x20]`
+  - first branch:
+    - if tuple A equals the first auxiliary tuple and tuple B equals the second
+      auxiliary tuple, and tuple C passes the `0x3000:488D` comparison, it
+      skips the combine path
+  - otherwise it builds/updates auxiliary tuples at `[BP-0x30..-0x2C]` and
+    `[BP-0x3C..-0x38]` using helper family `0x3000:488D`, `0x3000:4871`,
+    `0x3000:4883`, `0x3000:487D`, and `0x2000:4E2D`
+  - practical reading:
+    - this is common canonicalization / merge logic over three normalized
+      values, not simple field copying
+- writeback stage at `0000:0BE8..`:
+  - writes the finalized tuple C-derived boolean back to summary offset `+0x05`
+  - writes canonicalized tuple A / tuple B tags back to summary offsets
+    `+0x01` and `+0x02`
+  - then dispatches on summary kind and writes the canonicalized tuples back to
+    the corresponding scratch block (`3502`, `3558`, or later `3538`)
+- practical consequence:
+  - `0000:02C0` is acting as a summary-entry normalizer/coalescer
+  - for kind `3`, the `IPBM` scratch block is not just "decoded state"; it is
+    also the destination of a later canonicalized rewrite
+  - the next semantic RE target is now sharper:
+    - identify what the three tuple families A/B/C represent for kind `3`
+    - then correlate those tuple roles with the live `3538` baseline capture
+
+Tail transition / kind split clarification:
+
+- new headless Ghidra script:
+  - `tools/ghidra_scripts_tmp/ReportIPBMTailTransition.java`
+- new artifact:
+  - `artifacts/ghidra/ecmaint-live/ipbm-tail-transition.txt`
+- confirmed control flow at `0000:0DE9..0EC8`:
+  - common writeback always updates summary offsets:
+    - `+0x05` from the finalized tuple-C-derived boolean
+    - `+0x01` from tuple A via `0x3000:4895`
+    - `+0x02` from tuple B via `0x3000:4895`
+  - kind `2` then takes an additional side path through stack buffer
+    `BP+0xF7B6` and helper `0x2000:C100`, after which it skips directly to the
+    shared tail at `0x0EA6`
+  - kind `3` skips that kind-2-only path and instead writes the finalized
+    tuples back into the `IPBM` scratch block:
+    - tuple A -> `3541`, `3543..3547`
+    - tuple B -> `3542`, `3549..354d`
+    - tuple C -> `354f..3553`
+- practical implication:
+  - tuple A / tuple B are definitely the two single-byte-plus-word-triple
+    families in the kind-`3` block
+  - tuple C is definitely the trailing word triple `354f..3553`
+  - `3555..3557` are therefore not part of the main A/B/C writeback and should
+    be treated as a separate trailing kind-`3` control group
+
+Refined kind-`3` scratch layout boundary:
+
+- follow-up artifact review across:
+  - `artifacts/ghidra/ecmaint-live/5ee4-ipbm.txt`
+  - `artifacts/ghidra/ecmaint-live/ipbm-scratch-uses.txt`
+  - `artifacts/ghidra/ecmaint-live/ipbm-scratch-function.txt`
+- current confinement:
+  - `353D` is only consumed by the second `IPBM` branch in `2000:5EE4`
+    (`2000:6A4B -> summary +0x06`)
+  - `3555..3557` are only visible in the kind-`3` path inside `0000:02C0`
+- practical inference:
+  - kind `3` appears to use at least two related normalized field groups:
+    - primary group: `3541`, `3543..3547`, `3542`, `3549..354d`,
+      `354f..3553`
+    - trailing group: `3555..3557`
+  - the second `5EE4` branch likely consumes a separate follow-on result pair
+    `353B` / `353D` produced by the same overall normalization flow, but not
+    by the generic dispatcher's trailing `3555..3557` block
+  - the next semantic RE question is no longer “where are these fields used?”
+    but “what real game concepts do the primary group, trailing group, and
+    `353B/353D` pair encode?”
+
+First live kind-`3` scratch snapshot:
+
+- dynamic case:
+  - `/tmp/ecmaint-debug-ipbm`
+  - `PLAYER[0x48] = 1`
+  - `IPBM.DAT` length `0x20`
+  - record contents all zero
+- live breakpoint:
+  - `BP 2814:6870`
+  - DOSBox-X stop reported as `2895:6060`, which is the first summary write
+    from DS:`3538` inside `2000:5EE4`
+- register snapshot:
+  - `CS=2895 EIP=6060 DS=3529 ES=59F9 SS=39AB`
+  - `SP=F9CA BP=FB22 AX=0048 BX=59F9 CX=0000 DX=59F9 SI=59F9 DI=0000`
+- preserved artifacts:
+  - `artifacts/ecmaint-ipbm-debug/registers-6870.txt`
+  - `artifacts/ecmaint-ipbm-debug/scratch-3538-6870.txt`
+- dumped bytes from `DS:3538` (`32` bytes):
+  - `00 00 00 00 00 01 00 00 00 00 00 80 00 00 00 00`
+  - `00 80 00 00 00 00 00 00 00 00 00 00 00 00 00 00`
+- field-level interpretation from that zero-record baseline:
+  - `3538 = 0x0000`
+  - `353A = 0x00`
+  - `353B = 0x0000`
+  - `353D = 0x0001`
+  - `3541 = 0x00`
+  - `3542 = 0x00`
+  - `3543 = 0x0080`
+  - `3545 = 0x0000`
+  - `3547 = 0x0000`
+  - `3549 = 0x0080`
+  - `354B = 0x0000`
+  - `354D = 0x0000`
+  - `354F = 0x0000`
+  - `3551 = 0x0000`
+  - `3553 = 0x0000`
+  - `3555 = 0x00`
+  - `3556 = 0x00`
+  - `3557 = 0x00`
+- practical consequence:
+  - the zeroed valid record establishes a baseline normalization shape
+  - `353D = 1` is now the strongest current candidate for the second-branch
+    follow-on count / resolved record selector copied at `2000:6A4B`
+  - `3543` and `3549` defaulting to `0x0080` suggests they are normalized
+    constants or default magnitudes rather than copied raw bytes
+
+First mutated `IPBM` correlation point:
+
+- dynamic case:
+  - `/tmp/ecmaint-debug-ipbm`
+  - `PLAYER[0x48] = 1`
+  - `IPBM.DAT[0x00] = 0x01`
+  - all other `IPBM` bytes zero
+- live breakpoint:
+  - same first summary-write stop at live `2814:6870`
+  - DOSBox-X again stopped at `2895:6060`
+- preserved artifacts:
+  - `artifacts/ecmaint-ipbm-debug/off_00_val_01-registers.txt`
+  - `artifacts/ecmaint-ipbm-debug/off_00_val_01-scratch.txt`
+- dumped bytes from `DS:3538` (`32` bytes):
+  - `01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00`
+  - `00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00`
+- delta vs baseline:
+  - `3538` changed from `0x0000` to `0x0001`
+  - baseline `353D = 0x0001` was cleared to `0x0000`
+  - baseline `3543 = 0x0080` was cleared to `0x0000`
+  - baseline `3549 = 0x0080` was cleared to `0x0000`
+- practical implication:
+  - raw `IPBM` offset `0x00` definitely feeds the main tuple-C / summary-`+0x0A`
+    word path rooted at `3538`
+  - it also suppresses the zero-record default normalization that previously
+    produced `353D = 1` and the paired `0x0080` defaults in tuple A / tuple B
+  - for Rust-side compliance work, `IPBM[0x00]` is now the first confirmed
+    byte with strong downstream effects across both the early `5EE4` summary
+    emission and the later kind-`3` normalized state
+
+Second mutated `IPBM` correlation point:
+
+- dynamic case:
+  - `/tmp/ecmaint-debug-ipbm`
+  - `PLAYER[0x48] = 1`
+  - `IPBM.DAT[0x01] = 0x01`
+  - all other `IPBM` bytes zero
+- preserved artifacts:
+  - `artifacts/ecmaint-ipbm-debug/off_01_val_01-registers.txt`
+  - `artifacts/ecmaint-ipbm-debug/off_01_val_01-scratch.txt`
+- dumped bytes from `DS:3538` (`32` bytes):
+  - `00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00`
+  - `00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00`
+- delta vs baseline:
+  - `3538` changed from `0x0000` to `0x0100`
+  - baseline `353D = 0x0001` was cleared to `0x0000`
+  - baseline `3543 = 0x0080` was cleared to `0x0000`
+  - baseline `3549 = 0x0080` was cleared to `0x0000`
+- practical implication:
+  - raw `IPBM` offsets `0x00..0x01` map directly into `3538` as a little-endian
+    word
+  - so tuple C / early summary `+0x0A` is now confirmed to derive from the
+    first `u16` in the raw `IPBM` record
+  - the same non-zero-first-word condition also suppresses the zero-record
+    default normalization that produced `353D = 1` and the paired `0x0080`
+    defaults in tuple A / tuple B
+
+Expanded raw-to-scratch mapping for the `IPBM` record prefix:
+
+- additional dynamic cases:
+  - `/tmp/ecmaint-debug-ipbm`
+  - `PLAYER[0x48] = 1`
+  - one non-zero byte in `IPBM.DAT`; all other bytes zero
+  - same first summary-write stop at live `2814:6870`
+- preserved scratch artifacts:
+  - `artifacts/ecmaint-ipbm-debug/off_02_val_01-scratch.txt`
+  - `artifacts/ecmaint-ipbm-debug/off_03_val_01-scratch.txt`
+  - `artifacts/ecmaint-ipbm-debug/off_04_val_01-scratch.txt`
+  - `artifacts/ecmaint-ipbm-debug/off_05_val_01-scratch.txt`
+  - `artifacts/ecmaint-ipbm-debug/off_06_val_01-scratch.txt`
+  - `artifacts/ecmaint-ipbm-debug/off_07_val_01-scratch.txt`
+  - `artifacts/ecmaint-ipbm-debug/off_09_val_01-scratch.txt`
+  - `artifacts/ecmaint-ipbm-debug/off_0a_val_01-scratch.txt`
+- observed one-byte deltas:
+  - `IPBM[0x02] = 0x01` -> scratch byte `353A = 0x01`
+  - `IPBM[0x03] = 0x01` -> scratch byte `353B = 0x01`
+  - `IPBM[0x04] = 0x01` -> scratch byte `353C = 0x01`
+  - `IPBM[0x05] = 0x01` -> scratch byte `353D = 0x01`
+  - `IPBM[0x06] = 0x01` -> scratch byte `353E = 0x01`
+  - `IPBM[0x07] = 0x01` -> scratch byte `353F = 0x01`
+  - `IPBM[0x09] = 0x01` -> scratch byte `3541 = 0x01`
+  - `IPBM[0x0A] = 0x01` -> scratch byte `3542 = 0x01`
+- combined with the earlier `0x00` / `0x01` probes and `2000:5EE4` field uses:
+  - the front of the raw `0x20`-byte record is now confirmed to copy
+    contiguously into the scratch block rooted at `3538`
+  - the first interpreted fields are:
+    - raw `0x00..0x01` -> scratch `3538..3539` -> `u16` copied to summary
+      `+0x0A`
+    - raw `0x02` -> scratch `353A` -> player / empire byte copied to summary
+      `+0x00` in the non-bypass path
+    - raw `0x03..0x04` -> scratch `353B..353C` -> non-aligned `u16` that
+      gates the second `IPBM` branch (`CMP word ptr [0x353b],0`)
+    - raw `0x05..0x06` -> scratch `353D..353E` -> non-aligned `u16` used by
+      the second branch when it writes summary `+0x06`
+    - raw `0x09` -> scratch `3541` -> kind-`3` summary tag byte written to
+      summary `+0x01`
+    - raw `0x0A` -> scratch `3542` -> kind-`3` summary tag byte written to
+      summary `+0x02`
+- practical correction:
+  - the apparent `353B` and `353D` "words" are not aligned raw fields at
+    offsets `0x02` and `0x04`; they are overlapping interpretations over the
+    contiguous copied byte stream
+  - baseline all-zero normalization still adds derived defaults like
+    `353D = 1` and `3543 = 3549 = 0x0080`, but the underlying raw-copy layout
+    for the prefix bytes is now straightforward
+- current best raw record prefix model:
+  - `0x00..0x01` = primary selector / target `u16`
+  - `0x02` = owning / current empire byte
+  - `0x03..0x04` = follow-on selector or linked-record count/index `u16`
+  - `0x05..0x06` = secondary selector / payload `u16`
+  - `0x09` = tuple-A tag
+  - `0x0A` = tuple-B tag
+
+Kind-`3` group-start confirmation:
+
+- additional dynamic cases:
+  - one-byte mutations at raw offsets `0x0B`, `0x11`, `0x17`, `0x1D`
+  - same first summary-write stop at live `2814:6870`
+- preserved scratch artifacts:
+  - `artifacts/ecmaint-ipbm-debug/off_0b_val_01-scratch.txt`
+  - `artifacts/ecmaint-ipbm-debug/off_11_val_01-scratch.txt`
+  - `artifacts/ecmaint-ipbm-debug/off_17_val_01-scratch.txt`
+  - `artifacts/ecmaint-ipbm-debug/off_1d_val_01-scratch.txt`
+- observed one-byte deltas:
+  - `IPBM[0x0B] = 0x01` -> scratch byte `3543 = 0x01`
+  - `IPBM[0x11] = 0x01` -> scratch byte `3549 = 0x01`
+  - `IPBM[0x17] = 0x01` -> scratch byte `354F = 0x01`
+  - `IPBM[0x1D] = 0x01` -> scratch byte `3555 = 0x01`
+- combined with the existing shared-kind writeback:
+  - raw `0x0B..0x0F` is the on-disk source for tuple-A payload block
+    `3543..3547`
+  - raw `0x11..0x15` is the on-disk source for tuple-B payload block
+    `3549..354D`
+  - raw `0x17..0x1B` is the on-disk source for tuple-C payload block
+    `354F..3553`
+  - raw `0x1D..0x1F` is the on-disk source for the trailing control group
+    `3555..3557`
+- trailing-control semantics from `0000:0723..0797`:
+  - `3555` and `3556` are treated as scalar bytes, widened through helper
+    `0x3000:4891`, then expanded with `0x3000:486B` against literal `0x80`
+  - `3557` is clamped so values above `1` normalize back to `1`
+  - practical reading:
+    - raw offsets `0x1D` and `0x1E` are small scalar control bytes
+    - raw offset `0x1F` behaves like a boolean / capped mode byte
+- current best practical raw-record layout:
+  - `0x00..0x01` = primary selector / target `u16`
+  - `0x02` = owning / current empire byte
+  - `0x03..0x04` = follow-on selector / count / linked-record `u16`
+  - `0x05..0x06` = secondary selector / payload `u16`
+  - `0x07..0x08` = still structurally copied, semantics not yet named
+  - `0x09` = tuple-A tag
+  - `0x0A` = tuple-B tag
+  - `0x0B..0x0F` = tuple-A payload
+  - `0x10` = copied gap / currently-unused byte
+  - `0x11..0x15` = tuple-B payload
+  - `0x16` = copied gap / currently-unused byte
+  - `0x17..0x1B` = tuple-C payload
+  - `0x1C` = copied gap / currently-unused byte
+  - `0x1D..0x1E` = trailing scalar controls
+  - `0x1F` = trailing boolean / capped mode byte
+
 Targeted fixture confirmation:
 
 - new reproducer: `tools/test_starbase2_baseid_gate.py`
