@@ -403,6 +403,12 @@ impl CoreGameData {
         }
     }
 
+    pub fn sync_current_known_initialized_post_maint_baseline(&mut self) {
+        self.sync_current_known_baseline_controls_and_counts();
+        self.sync_current_known_initialized_fleet_baseline();
+        self.sync_current_known_initialized_planet_payloads();
+    }
+
     pub fn sync_all_players_current_known_starbase_counts(&mut self) {
         let owned_base_counts = (1..=self.player.records.len())
             .map(|player_record_index_1_based| {

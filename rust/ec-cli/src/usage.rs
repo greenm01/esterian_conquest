@@ -5,6 +5,7 @@ pub fn print_usage() {
     println!("  ec-cli core-validate [dir]");
     println!("  ec-cli core-sync-counts [dir]");
     println!("  ec-cli core-sync-baseline [dir]");
+    println!("  ec-cli core-sync-current-known-baseline [dir]");
     println!("  ec-cli core-sync-initialized-fleets [dir]");
     println!("  ec-cli core-sync-initialized-planets [dir]");
     println!("  ec-cli headers [dir]");

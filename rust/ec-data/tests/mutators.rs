@@ -615,6 +615,38 @@ fn core_game_data_sync_current_known_initialized_planet_payloads_repairs_mutated
 }
 
 #[test]
+fn core_game_data_sync_current_known_initialized_post_maint_baseline_repairs_combined_state() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    data.player.records[0].set_starbase_count_raw(7);
+    data.player.records[0].set_ipbm_count_raw(4);
+    data.setup.raw[..5].copy_from_slice(b"BAD!!");
+    data.fleets.records.clear();
+    data.fleets.records.push(FleetRecord::new_zeroed());
+    data.planets.records[14].set_planet_tax_rate_raw(3);
+    data.planets.records[0].set_status_or_name_summary_raw("Broken");
+
+    data.sync_current_known_initialized_post_maint_baseline();
+
+    assert!(data.current_known_setup_baseline_errors().is_empty());
+    assert!(data.current_known_conquest_baseline_errors().is_empty());
+    assert!(data.current_known_initialized_fleet_block_errors().is_empty());
+    assert!(data.current_known_initialized_fleet_payload_errors().is_empty());
+    assert!(data.current_known_initialized_fleet_mission_errors().is_empty());
+    assert!(data.current_known_initialized_homeworld_alignment_errors().is_empty());
+    assert!(data.current_known_homeworld_seed_payload_errors().is_empty());
+    assert!(data.current_known_unowned_planet_payload_errors().is_empty());
+}
+
+#[test]
 fn core_game_data_can_apply_current_known_scenario_mutations() {
     let mut data = CoreGameData {
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),

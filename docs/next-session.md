@@ -1163,3 +1163,15 @@ Suggested execution order:
   - intentionally does **not** guess new homeworld ownership or arbitrary
     planet topology; it only normalizes the payload fields the current model
     already validates
+
+- New composed baseline synchronizer:
+  - `CoreGameData::sync_current_known_initialized_post_maint_baseline()`
+  - CLI: `ec-cli core-sync-current-known-baseline [dir]`
+  - this composes the three bounded repair surfaces now available:
+    - control/count repair
+    - initialized fleet baseline repair
+    - initialized planet payload repair
+  - practical meaning:
+    - Rust can now take a directory with drift across those current-known
+      surfaces and normalize it back into the validated initialized/post-maint
+      baseline model in one command

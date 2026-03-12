@@ -6,6 +6,7 @@ use crate::commands::compare::{
 use crate::commands::compliance::{print_compliance_batch_report, print_compliance_report};
 use crate::commands::core::{
     print_core_report, sync_core_baseline, sync_core_counts,
+    sync_current_known_baseline,
     sync_initialized_fleet_baseline, sync_initialized_planet_payloads,
     validate_core_state,
 };
@@ -71,6 +72,7 @@ pub fn run_args(
         "core-validate" => validate_core_state(&next_dir(&mut args))?,
         "core-sync-counts" => sync_core_counts(&next_dir(&mut args))?,
         "core-sync-baseline" => sync_core_baseline(&next_dir(&mut args))?,
+        "core-sync-current-known-baseline" => sync_current_known_baseline(&next_dir(&mut args))?,
         "core-sync-initialized-fleets" => sync_initialized_fleet_baseline(&next_dir(&mut args))?,
         "core-sync-initialized-planets" => sync_initialized_planet_payloads(&next_dir(&mut args))?,
         "headers" => dump_headers(&next_dir(&mut args))?,

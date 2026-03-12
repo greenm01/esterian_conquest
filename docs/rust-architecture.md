@@ -229,6 +229,16 @@ payloads:
   or rebuild arbitrary planet topology, it only normalizes the payload fields
   the current model already validates
 
+Those bounded repair surfaces now compose into one shared baseline synchronizer:
+- `CoreGameData::sync_current_known_initialized_post_maint_baseline()`
+- this composes:
+  - control/count repair
+  - initialized fleet baseline repair
+  - initialized planet payload repair
+- the CLI-facing goal is practical baseline construction/repair for current-known
+  compliant directories, while still staying explicit about scope and avoiding
+  guesses beyond the validated model
+
 The shared model also now treats homeworld-seed alignment as a current-known
 multi-player invariant for initialized/post-maint state:
 - each active empire has exactly one owned `Not Named Yet` planet
