@@ -400,6 +400,13 @@ Rust architecture note:
       baseline, owned planets are restricted to those homeworld seeds
     - non-homeworld planets remain unowned
     - owned homeworld seeds carry ownership status `2`
+  - follow-on homeworld-seed payload baseline:
+    - the shared model now validates the preserved owned homeworld-seed payload:
+      - header markers `100 / 135`
+      - `developed_value_raw = 10`
+      - `likely_army_count_raw = 4`
+      - zeroed build queue, stardock, and population payloads
+    - `core-report` now exposes `homeworld_seed_payloads`
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`

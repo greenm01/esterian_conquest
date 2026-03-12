@@ -230,6 +230,7 @@ fn core_game_data_initialized_fleet_block_helpers_match_known_fixtures() {
     assert!(data.current_known_initialized_fleet_payload_errors().is_empty());
     assert!(data.current_known_homeworld_seed_errors().is_empty());
     assert!(data.current_known_initialized_planet_ownership_errors().is_empty());
+    assert!(data.current_known_homeworld_seed_payload_errors().is_empty());
     assert!(data.current_known_initialized_homeworld_alignment_errors().is_empty());
 }
 
@@ -340,6 +341,26 @@ fn core_game_data_initialized_planet_ownership_errors_catch_non_homeworld_owner(
             "PLANET[1] expected unowned non-homeworld baseline, got owner 2".to_string(),
             "PLAYER[2] owned_planet_count expected 1, got 2".to_string(),
         ]
+    );
+}
+
+#[test]
+fn core_game_data_homeworld_seed_payload_errors_catch_changed_army_marker() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    data.planets.records[14].raw[0x5A] = 1;
+
+    assert_eq!(
+        data.current_known_homeworld_seed_payload_errors(),
+        vec!["PLANET[15].likely_army_count expected 4 for homeworld seed, got 1".to_string()]
     );
 }
 

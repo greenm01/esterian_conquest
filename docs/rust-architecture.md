@@ -188,6 +188,12 @@ The initialized/post-maint planet baseline is now explicit too:
 - non-homeworld planets remain unowned in the preserved baseline
 - owned homeworld seeds carry ownership status `2`
 
+The owned homeworld-seed payload is also now part of the current-known baseline:
+- header bytes carry the preserved `100 / 135` seed markers
+- `developed_value_raw()` is `10`
+- `likely_army_count_raw()` is `4`
+- build queue, stardock, and population payloads remain zeroed
+
 Current-known ownership semantics shall also prefer explicit owner fields where
 the file format is stable. `PLANETS.DAT.owner_empire_slot_raw()` and
 `BASES.DAT.owner_empire_raw()` now feed shared per-player ownership counts and
