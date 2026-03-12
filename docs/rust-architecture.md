@@ -58,6 +58,23 @@ The current intended split is:
 `ec-data` and `ec-tui` tests now live under crate `tests/` directories instead
 of source-file `#[cfg(test)]` modules.
 
+`ec-data` is now split into domain modules instead of one large `lib.rs`:
+
+- `src/records/player.rs`
+- `src/records/planet.rs`
+- `src/records/fleet.rs`
+- `src/records/base.rs`
+- `src/records/ipbm.rs`
+- `src/records/setup.rs`
+- `src/records/conquest.rs`
+- `src/support.rs`
+
+The intended split is:
+
+- `lib.rs`: constants, module wiring, crate-root reexports only
+- `records/`: record/file layouts and deterministic byte transforms
+- `support.rs`: shared parse helpers and errors
+
 ## KDL Timing
 
 If a KDL scenario/order layer is added later, it should sit on top of the

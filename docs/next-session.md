@@ -208,6 +208,17 @@ Rust architecture note:
   - `ec-cli` Guard Starbase/IPBM logic now lives in command submodules
   - shared argument/path helpers now live under `ec-cli/src/support/`
   - `ec-data` and `ec-tui` tests now live in crate `tests/` directories
+  - `ec-data` is now split into domain modules:
+    - `src/records/player.rs`
+    - `src/records/planet.rs`
+    - `src/records/fleet.rs`
+    - `src/records/base.rs`
+    - `src/records/ipbm.rs`
+    - `src/records/setup.rs`
+    - `src/records/conquest.rs`
+    - `src/support.rs`
+  - `ec-data/src/lib.rs` is now crate wiring and reexports instead of another
+    monolithic record dump
 - preserve this direction:
   - data-oriented layout
   - feature/domain submodules
