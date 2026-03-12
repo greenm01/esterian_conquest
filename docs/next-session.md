@@ -18,6 +18,8 @@
     - `ec-cli validate <dir> all`
     - `ec-cli validate-preserved <dir> <scenario>`
     - `ec-cli validate-preserved <dir> all`
+    - `ec-cli compare-preserved <dir> <scenario>`
+    - `ec-cli compare-preserved <dir> all`
     - `ec-cli scenario <dir> list`
     - `ec-cli scenario <dir> show <scenario>`
     - `ec-cli scenario-init-all [source_dir] <target_root>`
@@ -69,6 +71,8 @@
       scenarios with one command
     - Rust can now also distinguish "matches the currently-known rule shape"
       from "exactly matches the preserved accepted fixture bytes"
+    - Rust can now diff a generated scenario directly against the preserved
+      accepted fixture files for the same scenario
     - Rust now has a first-class scenario catalog and can materialize all
       currently-known accepted scenarios under one target root in one run
     - Rust can also reject obviously non-compliant starbase snapshots before

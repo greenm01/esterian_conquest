@@ -1447,6 +1447,9 @@ Rust fleet/build scenario CLI milestone:
   - preserved exact-match checks:
     - `ec-cli validate-preserved <dir> <scenario>`
     - `ec-cli validate-preserved <dir> all`
+- preserved scenario drift can now be inspected directly:
+  - `ec-cli compare-preserved <dir> <scenario>`
+  - `ec-cli compare-preserved <dir> all`
 - both scenarios can now be materialized into runnable directories from a
   compliant baseline in one command:
   - `ec-cli scenario-init [source_dir] <target_dir> fleet-order`

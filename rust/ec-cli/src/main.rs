@@ -424,6 +424,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 _ => print_usage(),
             }
         }
+        "compare-preserved" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            match args.next().as_deref() {
+                Some("all") => compare_all_preserved_scenarios(&dir)?,
+                Some(name) => match KnownScenario::parse(name) {
+                    Some(scenario) => compare_preserved_scenario(&dir, scenario)?,
+                    None => print_usage(),
+                },
+                _ => print_usage(),
+            }
+        }
         _ => print_usage(),
     }
 
@@ -1335,6 +1349,31 @@ fn validate_all_preserved_scenarios(dir: &Path) -> Result<(), Box<dyn std::error
     }
 }
 
+fn compare_preserved_scenario(
+    dir: &Path,
+    scenario: KnownScenario,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let fixture_dir = scenario.preserved_fixture_dir();
+    println!("Scenario: {}", scenario.name());
+    println!("Actual:   {}", dir.display());
+    println!("Fixture:  {}", fixture_dir.display());
+    println!();
+
+    for name in scenario.exact_match_files() {
+        compare_raw_file(dir, &fixture_dir, name)?;
+    }
+
+    Ok(())
+}
+
+fn compare_all_preserved_scenarios(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    for scenario in KnownScenario::all() {
+        compare_preserved_scenario(dir, scenario)?;
+        println!();
+    }
+    Ok(())
+}
+
 fn init_known_scenario(
     source: &Path,
     target: &Path,
@@ -1730,6 +1769,7 @@ fn print_usage() {
     println!("  ec-cli scenario-init [source_dir] <target_dir> <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli validate <dir> <all|fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli validate-preserved <dir> <all|fleet-order|planet-build|guard-starbase>");
+    println!("  ec-cli compare-preserved <dir> <all|fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli match [dir]");
     println!("  ec-cli compare <left_dir> <right_dir>");
     println!("  ec-cli init [source_dir] <target_dir>");

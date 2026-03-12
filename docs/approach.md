@@ -137,6 +137,8 @@ Current concrete Rust milestone:
   - scenario validation now has two useful levels:
     - rule-shaped validators: `ec-cli validate <dir> ...`
     - preserved exact-match validators: `ec-cli validate-preserved <dir> ...`
+  - preserved scenario drift can now be inspected directly with
+    `ec-cli compare-preserved <dir> ...`
   - Rust can now materialize a runnable Guard Starbase directory from a
     compliant baseline with
     `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`

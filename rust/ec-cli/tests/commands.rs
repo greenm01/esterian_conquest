@@ -640,6 +640,30 @@ fn validate_preserved_rejects_post_maint_fixture() {
 }
 
 #[test]
+fn compare_preserved_reports_zero_diff_for_known_fleet_fixture() {
+    let stdout = run_ec_cli(&[
+        "compare-preserved",
+        "fixtures/ecmaint-fleet-pre/v1.5",
+        "fleet-order",
+    ]);
+    assert!(stdout.contains("Scenario: fleet-order"));
+    assert!(stdout.contains("FLEETS.DAT: size 864 vs 864, differing bytes 0"));
+}
+
+#[test]
+fn compare_preserved_reports_nonzero_diff_for_post_maint_fixture() {
+    let stdout = run_ec_cli(&[
+        "compare-preserved",
+        "fixtures/ecmaint-post/v1.5",
+        "guard-starbase",
+    ]);
+    assert!(stdout.contains("Scenario: guard-starbase"));
+    assert!(stdout.contains("PLAYER.DAT: size 440 vs 440, differing bytes"));
+    assert!(stdout.contains("FLEETS.DAT: size 864 vs 864, differing bytes"));
+    assert!(stdout.contains("BASES.DAT: size 0 vs 35, differing bytes 35"));
+}
+
+#[test]
 fn scenario_init_guard_starbase_materializes_runnable_directory() {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)

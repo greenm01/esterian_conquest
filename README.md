@@ -61,6 +61,8 @@ Current Rust milestone:
   known accepted scenarios and reports which ones match
 - `ec-cli validate-preserved <dir> <scenario>` now checks exact byte-for-byte
   agreement with the preserved accepted fixture files for that scenario
+- `ec-cli compare-preserved <dir> <scenario>` now reports scenario-focused
+  byte diffs against the preserved accepted fixture files
 - `ec-cli scenario original/v1.5 list` now prints the current Rust-side
   scenario catalog
 - `ec-cli scenario original/v1.5 show <scenario>` now prints the preserved
