@@ -3740,3 +3740,54 @@ The mysterious bytes `0x38` and `0x4C` that appeared in `PLANETS.DAT` after clea
 - Ships in the Stardock do not automatically launch or appear in `FLEETS.DAT`. They remain docked on the planet until explicitly "Commissioned" (as observed in `WHATSNEW.DOC`: "AUTO-COMMISSION: Commission Fleets and starbases in all stardocks").
 
 This perfectly explains why `FLEETS.DAT` didn't change on a second `ECMAINT` pass; the ships simply sat in the Stardock waiting for a player command to commission them into an active fleet.
+
+## Guard Starbase Linkage Keys
+
+Artifact:
+- `artifacts/ghidra/ecmaint-live/summary-key-sources.txt`
+
+Script:
+- `tools/ghidra_scripts_tmp/ReportSummaryKeySources.java`
+
+The most actionable matcher inputs are now pinned down to raw file words instead
+of vague scratch names.
+
+Kind-`1` summary sources (`2000:6040..6368`):
+- summary `+0x0A` always comes from fleet raw `0x00..0x01`
+  - `2000:6158 -> 6160`
+  - `2000:62BA -> 62C2`
+- primary-branch summary `+0x06` comes from player raw `0x40..0x41`
+  - `2000:61E7 -> 61EF`
+- follow-on summary `+0x06` comes from fleet raw `0x05..0x06`
+  - `2000:62E5 -> 62ED`
+
+Kind-`2` summary sources (`2000:63D3..6759`):
+- summary `+0x0A` comes from base raw `0x02..0x03`
+  - `2000:64EB -> 64F3`
+  - `2000:6645 -> 664D`
+- primary-branch summary `+0x06` comes from player raw `0x44..0x45`
+  - `2000:6576 -> 657E`
+- follow-on summary `+0x06` comes from base raw `0x07..0x08`
+  - `2000:66C4 -> 66CC`
+
+Matcher consequence (`0000:03DF..06AE`):
+- direct accept path compares candidate kind-`1` summary `+0x0A` against
+  decoded `[0x3558]`
+- structural accept path decodes candidate kind-`1` summary `+0x06`, then
+  requires:
+  - decoded kind byte `== 4`
+  - decoded word `== [0x355A]`
+  - decoded flag byte `== 0`
+
+Practical one-base inference:
+- the preserved accepted one-base Guard Starbase case aligns all obvious raw key
+  words to `1`
+  - player `0x44..0x45 = 0x0001`
+  - fleet `0x00..0x01 = 0x0001`
+  - fleet `0x05..0x06 = 0x0001`
+  - base `0x07..0x08 = 0x0001`
+- for Rust-side compliant generation, the next useful abstraction is:
+  - fleet direct-match key = raw `0x00..0x01`
+  - fleet structural key = raw `0x05..0x06`
+  - base/player direct decode source = player `0x44..0x45`
+  - base structural decode source = base `0x07..0x08`

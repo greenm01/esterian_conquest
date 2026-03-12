@@ -1,0 +1,74 @@
+Summary Key Source Report
+
+Focus:
+- lock down the raw file/scratch sources behind the summary words
+  that feed the later kind-2 matcher
+- especially kind-1 summary +0x0A/+0x06 and kind-2 summary +0x06
+
+kind-1 summary emitter (2000:6040..6368)
+- primary fleet branch:
+  - 2000:6158 MOV AX,word ptr [BP + 0xFF3E]
+  - 2000:6160 MOV word ptr ES:[DI + 0x0A],AX
+  - [BP+0xFF3E] is the first word of the loaded fleet record scratch
+  - practical mapping: summary +0x0A <- fleet raw[0x00..0x01]
+  - in preserved one-base case this is 0x0001
+
+  - 2000:61E7 MOV AX,word ptr ES:[DI + 0x40]
+  - 2000:61EF MOV word ptr ES:[DI + 0x06],AX
+  - practical mapping: summary +0x06 <- player raw[0x40..0x41]
+    from the active player record
+
+- follow-on fleet branch:
+  - 2000:62BA MOV AX,word ptr [BP + 0xFF3E]
+  - 2000:62C2 MOV word ptr ES:[DI + 0x0A],AX
+  - practical mapping: summary +0x0A <- fleet raw[0x00..0x01]
+
+  - 2000:62E5 MOV AX,word ptr [BP + 0xFF43]
+  - 2000:62ED MOV word ptr ES:[DI + 0x06],AX
+  - [BP+0xFF43] is fleet scratch offset +0x05
+  - practical mapping: summary +0x06 <- fleet raw[0x05..0x06]
+
+kind-2 summary emitter (2000:63D3..6759)
+- primary base branch:
+  - 2000:64EB MOV AX,word ptr [BP + 0xFF76]
+  - 2000:64F3 MOV word ptr ES:[DI + 0x0A],AX
+  - [BP+0xFF76] is base scratch offset +0x02
+  - practical mapping: summary +0x0A <- base raw[0x02..0x03]
+
+
+  - 2000:6576 MOV AX,word ptr ES:[DI + 0x44]
+  - 2000:657E MOV word ptr ES:[DI + 0x06],AX
+  - practical mapping: summary +0x06 <- player raw[0x44..0x45]
+    from the active player record
+
+- follow-on base branch:
+  - 2000:6645 MOV AX,word ptr [BP + 0xFF76]
+  - 2000:664D MOV word ptr ES:[DI + 0x0A],AX
+  - practical mapping: summary +0x0A <- base raw[0x02..0x03]
+
+  - 2000:66C4 MOV AX,word ptr [BP + 0xFF7B]
+  - 2000:66CC MOV word ptr ES:[DI + 0x06],AX
+  - [BP+0xFF7B] is base scratch offset +0x07
+  - practical mapping: summary +0x06 <- base raw[0x07..0x08]
+
+Matcher consequence (0000:03DF..06AE)
+- direct accept path:
+  - candidate kind-1 summary +0x0A == decoded[0x3558]
+  - this compares fleet raw[0x00..0x01] against a decoded key derived
+    from base-side summary +0x06
+- structural accept path:
+  - candidate kind-1 summary +0x06 is decoded through the sibling
+    helper into a local buffer
+  - decoded local +0x23 == [0x355A], decoded local +0x1F == 4,
+    decoded local +0x0A == 0
+  - this uses fleet raw[0x05..0x06] in the follow-on kind-1 branch
+    and player raw[0x40..0x41] in the primary kind-1 branch
+
+Practical one-base inference
+- in the preserved accepted one-base guard-starbase case:
+  - player raw[0x44..0x45] = 0x0001
+  - fleet raw[0x00..0x01] = 0x0001
+  - fleet raw[0x05..0x06] = 0x0001
+  - base raw[0x07..0x08] = 0x0001
+- this is the clearest current reason the one-base fixture survives
+  the matcher even before the helper-decoded semantics are fully named

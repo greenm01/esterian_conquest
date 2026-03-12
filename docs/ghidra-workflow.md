@@ -402,6 +402,12 @@ rm -rf .ghidra/projects/ec-v15.gpr .ghidra/projects/ec-v15.rep
 tools/ghidra_ecmaint.sh --overwrite
 ```
 
+Focused live-dump linkage report:
+
+```bash
+tools/run_ghidra_script_args.sh ecmaint-live ReportSummaryKeySources.java
+```
+
 ## Recommended First Pass
 
 For the current `ECMAINT` work, the first headless pass should answer:

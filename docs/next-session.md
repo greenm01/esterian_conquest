@@ -431,3 +431,20 @@ Suggested execution order:
 - Then move to build queue / stardock mechanics.
 - Finally map movement-phase ordering and backup/token lifecycle around
   `Move.Tok`.
+
+Current highest-value guard-starbase linkage milestone:
+- artifact: `artifacts/ghidra/ecmaint-live/summary-key-sources.txt`
+- script: `tools/ghidra_scripts_tmp/ReportSummaryKeySources.java`
+- confirmed source words behind the matcher:
+  - kind-`1` summary `+0x0A` <- fleet raw `0x00..0x01`
+  - kind-`1` primary `+0x06` <- player raw `0x40..0x41`
+  - kind-`1` follow-on `+0x06` <- fleet raw `0x05..0x06`
+  - kind-`2` summary `+0x0A` <- base raw `0x02..0x03`
+  - kind-`2` primary `+0x06` <- player raw `0x44..0x45`
+  - kind-`2` follow-on `+0x06` <- base raw `0x07..0x08`
+- practical one-base inference:
+  - the preserved accepted one-base fixture lines up all obvious direct raw key
+    words to `1`
+  - this is the best current basis for replacing the Rust `guard-starbase`
+    scenario's hard-coded accepted-shape assumptions with explicit linkage-key
+    validation and generation
