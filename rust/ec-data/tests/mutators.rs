@@ -177,7 +177,6 @@ fn core_game_data_current_known_count_helpers_follow_player1_and_records() {
         setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
         conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
     };
-
     assert_eq!(data.player1_starbase_count_current_known(), 0);
     assert_eq!(data.player1_owned_base_record_count_current_known(), 2);
     assert_eq!(data.player_owned_base_record_counts_current_known(), vec![2, 1, 0, 0, 0]);
@@ -205,6 +204,43 @@ fn core_game_data_current_known_count_helpers_follow_player1_and_records() {
     assert_eq!(data.player_owned_base_record_counts_current_known(), vec![2, 1, 0, 0, 0]);
     assert_eq!(data.player1_ipbm_count_current_known(), 3);
     assert!(data.current_known_core_state_errors().is_empty());
+}
+
+#[test]
+fn core_game_data_initialized_fleet_block_helpers_match_known_fixtures() {
+    let data = CoreGameData {
+        player: PlayerDat::parse(&read_initialized_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_initialized_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_initialized_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_initialized_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_initialized_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_initialized_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_initialized_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    assert!(data.looks_like_initialized_fleet_blocks_current_known());
+    assert_eq!(data.current_known_initialized_fleet_block_head_ids(), vec![1, 5, 9, 13]);
+    assert!(data.current_known_initialized_fleet_block_errors().is_empty());
+}
+
+#[test]
+fn core_game_data_initialized_fleet_block_errors_catch_broken_local_chain() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    data.fleets.records[1].raw[0x03] = 9;
+
+    assert_eq!(
+        data.current_known_initialized_fleet_block_errors(),
+        vec!["FLEET[2].next_fleet_id expected 3, got 9".to_string()]
+    );
 }
 
 #[test]

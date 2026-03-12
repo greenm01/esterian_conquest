@@ -196,7 +196,7 @@ impl CoreGameData {
         let expected_ipbm = self.player1_ipbm_count_current_known();
 
         errors.extend(self.current_known_all_player_starbase_count_errors());
-
+        errors.extend(self.current_known_initialized_fleet_block_errors());
         if self.ipbm.records.len() != expected_ipbm {
             errors.push(format!(
                 "IPBM.DAT record count expected {}, got {}",
@@ -261,6 +261,117 @@ impl CoreGameData {
                 self.player_starbase_count_current_known(player_record_index_1_based)
             })
             .collect()
+    }
+
+    pub fn player_fleet_chain_heads_current_known(&self) -> Vec<usize> {
+        self.player
+            .records
+            .iter()
+            .map(|record| record.fleet_chain_head_raw() as usize)
+            .collect()
+    }
+
+    pub fn looks_like_initialized_fleet_blocks_current_known(&self) -> bool {
+        let player_count = self.conquest.player_count() as usize;
+        let expected_fleet_count = player_count.saturating_mul(4);
+        player_count > 0
+            && self.fleets.records.len() == expected_fleet_count
+            && self.fleets.records.chunks_exact(4).enumerate().all(|(block_idx, group)| {
+                group.iter().enumerate().all(|(slot_idx, record)| {
+                    let expected_fleet_id = (block_idx * 4 + slot_idx + 1) as u8;
+                    let expected_local_slot = (slot_idx + 1) as u8;
+                    let expected_prev = if slot_idx == 0 {
+                        0
+                    } else {
+                        expected_fleet_id - 1
+                    };
+                    let expected_next = if slot_idx == 3 {
+                        0
+                    } else {
+                        expected_fleet_id + 1
+                    };
+                    record.fleet_id() == expected_fleet_id
+                        && record.local_slot() == expected_local_slot
+                        && record.previous_fleet_id() == expected_prev
+                        && record.next_fleet_id() == expected_next
+                })
+            })
+    }
+
+    pub fn current_known_initialized_fleet_block_head_ids(&self) -> Vec<usize> {
+        self.fleets
+            .records
+            .chunks(4)
+            .filter_map(|group| group.first())
+            .map(|record| record.fleet_id() as usize)
+            .collect()
+    }
+
+    pub fn current_known_initialized_fleet_block_errors(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+        let player_count = self.conquest.player_count() as usize;
+        let expected_fleet_count = player_count.saturating_mul(4);
+
+        if self.fleets.records.len() != expected_fleet_count {
+            errors.push(format!(
+                "FLEETS.DAT record count expected {}, got {}",
+                expected_fleet_count,
+                self.fleets.records.len()
+            ));
+            return errors;
+        }
+
+        for (block_idx, group) in self.fleets.records.chunks_exact(4).enumerate() {
+            for (slot_idx, record) in group.iter().enumerate() {
+                let fleet_record_index_1_based = block_idx * 4 + slot_idx + 1;
+                let expected_fleet_id = fleet_record_index_1_based as u8;
+                let expected_local_slot = (slot_idx + 1) as u8;
+                let expected_prev = if slot_idx == 0 {
+                    0
+                } else {
+                    expected_fleet_id - 1
+                };
+                let expected_next = if slot_idx == 3 {
+                    0
+                } else {
+                    expected_fleet_id + 1
+                };
+
+                if record.fleet_id() != expected_fleet_id {
+                    errors.push(format!(
+                        "FLEET[{}].fleet_id expected {}, got {}",
+                        fleet_record_index_1_based,
+                        expected_fleet_id,
+                        record.fleet_id()
+                    ));
+                }
+                if record.local_slot() != expected_local_slot {
+                    errors.push(format!(
+                        "FLEET[{}].local_slot expected {}, got {}",
+                        fleet_record_index_1_based,
+                        expected_local_slot,
+                        record.local_slot()
+                    ));
+                }
+                if record.previous_fleet_id() != expected_prev {
+                    errors.push(format!(
+                        "FLEET[{}].previous_fleet_id expected {}, got {}",
+                        fleet_record_index_1_based,
+                        expected_prev,
+                        record.previous_fleet_id()
+                    ));
+                }
+                if record.next_fleet_id() != expected_next {
+                    errors.push(format!(
+                        "FLEET[{}].next_fleet_id expected {}, got {}",
+                        fleet_record_index_1_based,
+                        expected_next,
+                        record.next_fleet_id()
+                    ));
+                }
+            }
+        }
+        errors
     }
 
     pub fn set_fleet_order(

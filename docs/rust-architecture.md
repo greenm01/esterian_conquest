@@ -162,6 +162,14 @@ The same pattern shall extend across players when the field semantics are clear.
 Starbase-count normalization is now a per-player owned-base rule, even though
 `IPBM` count normalization remains intentionally player-1-scoped for now.
 
+Current-known fleet topology shall be modeled from the fleet table itself, not
+from speculative player-side ownership words. The initialized/post-maint
+preserved `FLEETS.DAT` shape supports a deterministic four-fleet-per-player
+block rule (IDs, local slots, prev/next links), and that topology is now part
+of shared validation. By contrast, non-player-1 `PLAYER.DAT.fleet_chain_head`
+words in the current 88-byte model are not stable enough to treat as generic
+cross-file truth.
+
 Current expectation:
 
 - `fleet-order`, `planet-build`, `guard-starbase`, `ipbm`, and

@@ -367,6 +367,15 @@ Rust architecture note:
     - starbase-count synchronization now updates all players from owned-base
       counts, while `IPBM` synchronization remains intentionally scoped to
       player 1
+  - follow-on fleet topology validation:
+    - the shared model now validates the deterministic initialized/post-maint
+      four-fleet block topology directly from `FLEETS.DAT`
+    - this checks fleet IDs, local slots, and prev/next links across the
+      `4 x player_count` roster
+    - important caveat: non-player-1 `PLAYER.DAT.fleet_chain_head` words are
+      not currently reliable in the preserved 88-byte player model, so generic
+      cross-file validation should continue to prefer fleet-table truth over
+      those player-side words
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`
