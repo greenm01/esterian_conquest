@@ -47,6 +47,24 @@ pub(crate) fn validate_core_state(dir: &Path) -> Result<(), Box<dyn std::error::
     }
 }
 
+pub(crate) fn sync_core_counts(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let mut data = CoreGameData::load(dir)?;
+    let starbase_count = data.bases.records.len() as u16;
+    let ipbm_count = data.ipbm.records.len() as u16;
+
+    if let Some(player1) = data.player.records.first_mut() {
+        player1.set_starbase_count_raw(starbase_count);
+        player1.set_ipbm_count_raw(ipbm_count);
+    }
+
+    data.save(dir)?;
+
+    println!("Core counts synchronized");
+    println!("  player1_starbase_count = {}", starbase_count);
+    println!("  player1_ipbm_count = {}", ipbm_count);
+    Ok(())
+}
+
 pub(crate) fn core_state_errors(data: &CoreGameData) -> Vec<String> {
     let mut errors = Vec::new();
     let starbase_total = player1_starbases(data);

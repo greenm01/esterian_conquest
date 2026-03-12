@@ -124,6 +124,9 @@ Current expectation:
 - directory-level structural reports/validators should be layered on top of the
   shared model, but they shall be explicit about scope when they encode only
   current-known invariants rather than full engine behavior
+- if a current-known invariant is repairable without guessing at unknown engine
+  semantics, prefer adding an explicit normalization command on top of the
+  shared model rather than forcing users to hand-edit raw bytes
 
 ## KDL Timing
 

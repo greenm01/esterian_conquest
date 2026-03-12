@@ -272,6 +272,16 @@ Rust architecture note:
       - `PLAYER[1].ipbm_count_raw` vs `IPBM.DAT` record count
     - this is a reusable structural preflight surface for generated
       experiment directories, not a full `ECMAINT` integrity reimplementation
+  - latest normalization milestone:
+    - `ec-cli core-sync-counts [dir]`
+    - this repairs the current-known player-1 structural count invariants from
+      the actual directory contents:
+      - `PLAYER[1].starbase_count_raw <- BASES.DAT` record count
+      - `PLAYER[1].ipbm_count_raw <- IPBM.DAT` record count
+    - practical use:
+      - after manual or scripted directory shaping, run `core-validate`
+      - if only the current-known count words are wrong, `core-sync-counts`
+        can normalize them before higher-level scenario or `ECMAINT` testing
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`

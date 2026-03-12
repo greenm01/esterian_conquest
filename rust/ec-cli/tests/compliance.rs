@@ -1,6 +1,7 @@
 mod common;
 
 use common::{cleanup_dir, run_ec_cli, run_ec_cli_in_dir, unique_temp_dir};
+use ec_data::CoreGameData;
 
 #[test]
 fn compliance_report_summarizes_known_post_fixture_failures() {
@@ -32,6 +33,40 @@ fn core_validate_accepts_known_post_fixture_state() {
     assert!(stdout.contains("ipbm_record_count = 0"));
     assert!(stdout.contains("player1_starbase_count = 0"));
     assert!(stdout.contains("player1_ipbm_count = 0"));
+}
+
+#[test]
+fn core_sync_counts_repairs_player1_count_words() {
+    let target = unique_temp_dir("ec-cli-core-sync");
+    common::copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut data = CoreGameData::load(&target).unwrap();
+    data.player.records[0].set_starbase_count_raw(3);
+    data.player.records[0].set_ipbm_count_raw(2);
+    data.save(&target).unwrap();
+
+    let stderr = common::run_ec_cli_failure_in_dir(
+        &["core-validate", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(stderr.contains("BASES.DAT record count expected 3, got 0"));
+    assert!(stderr.contains("IPBM.DAT record count expected 2, got 0"));
+
+    let sync_stdout = run_ec_cli_in_dir(
+        &["core-sync-counts", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(sync_stdout.contains("Core counts synchronized"));
+    assert!(sync_stdout.contains("player1_starbase_count = 0"));
+    assert!(sync_stdout.contains("player1_ipbm_count = 0"));
+
+    let validate_stdout = run_ec_cli_in_dir(
+        &["core-validate", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(validate_stdout.contains("Valid core state"));
+
+    cleanup_dir(&target);
 }
 
 #[test]
