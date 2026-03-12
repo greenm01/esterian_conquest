@@ -14,21 +14,21 @@ Treat the original DOS binaries and preserved fixtures as the acceptance oracle.
 
 ## Architecture Rules
 
-Enforce these as standing rules:
+Enforce these as standing requirements:
 
-- prefer data-oriented design
-- keep logic DRY
-- keep binary layout explicit
-- prefer plain record/file data plus focused functions
-- avoid deep object hierarchies and abstraction-heavy designs
-- avoid monolithic source files when feature-oriented submodules are clearer
+- agents shall use data-oriented design
+- agents shall keep logic DRY
+- agents shall keep binary layout explicit
+- agents shall use plain record/file data plus focused functions
+- agents shall avoid deep object hierarchies and abstraction-heavy designs
+- agents shall avoid monolithic source files when feature-oriented submodules are clearer
 
 In practice:
 
-- `ec-data` should stay organized around explicit file/record layouts
-- `ec-cli` should stay organized around command-family submodules
-- shared parsing, path, and reporting helpers should live in support modules
-- batch/report commands should reuse pure validators rather than duplicate checks
+- `ec-data` shall stay organized around explicit file/record layouts
+- `ec-cli` shall stay organized around command-family submodules
+- shared parsing, path, and reporting helpers shall live in support modules
+- batch/report commands shall reuse pure validators rather than duplicate checks
 
 See [docs/rust-architecture.md](/home/mag/dev/esterian_conquest/docs/rust-architecture.md) for the fuller rationale.
 
