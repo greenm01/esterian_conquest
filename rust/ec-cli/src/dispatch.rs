@@ -6,6 +6,7 @@ use crate::commands::compare::{
 use crate::commands::compliance::{print_compliance_batch_report, print_compliance_report};
 use crate::commands::core::{
     init_current_known_baseline, print_core_report, print_current_known_baseline_diff,
+    print_current_known_baseline_diff_offsets,
     sync_core_baseline, sync_core_counts,
     sync_current_known_baseline,
     sync_initialized_fleet_baseline, sync_initialized_planet_payloads,
@@ -72,6 +73,9 @@ pub fn run_args(
         "core-report" => print_core_report(&next_dir(&mut args))?,
         "core-diff-current-known-baseline" => {
             print_current_known_baseline_diff(&next_dir(&mut args))?
+        }
+        "core-diff-current-known-baseline-offsets" => {
+            print_current_known_baseline_diff_offsets(&next_dir(&mut args))?
         }
         "core-validate" => validate_core_state(&next_dir(&mut args))?,
         "core-sync-counts" => sync_core_counts(&next_dir(&mut args))?,

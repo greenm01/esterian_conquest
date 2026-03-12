@@ -1195,3 +1195,18 @@ Suggested execution order:
     - this exposes where the current-known model is still not byte-complete,
       which is useful for deciding the next RE targets instead of only knowing
       whether the structural validator passes
+
+- New current-known drift offset report:
+  - `CoreGameData::current_known_baseline_diff_offsets()`
+  - CLI: `ec-cli core-diff-current-known-baseline-offsets [dir]`
+  - reports exact differing byte offsets per core `.DAT` file versus the
+    Rust-generated current-known baseline normalization
+  - practical meaning:
+    - this turns the remaining baseline drift into concrete byte-level RE
+      targets, especially in `PLAYER.DAT`, `PLANETS.DAT`, and `FLEETS.DAT`
+  - current-known post-maint hotspot run:
+    - `PLAYER.DAT`: `[156, 157, 244, 245, 332, 333]`
+    - `PLANETS.DAT`: concentrated clusters including `23..28`, `120..125`,
+      `217..222`, `314..319`, and later repeated six-byte runs
+    - `FLEETS.DAT`: repeated four-byte stride pattern including `2,13,19,25`,
+      `56,67,73,79`, continuing through the initialized 16-record block

@@ -67,6 +67,12 @@ pub struct CoreFileDiffCount {
     pub differing_bytes: usize,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoreFileDiffOffsets {
+    pub name: &'static str,
+    pub differing_offsets: Vec<usize>,
+}
+
 #[derive(Debug)]
 pub enum GameDirectoryError {
     Io {
@@ -1749,6 +1755,27 @@ impl CoreGameData {
         })
         .collect()
     }
+
+    pub fn current_known_baseline_diff_offsets(&self) -> Vec<CoreFileDiffOffsets> {
+        let mut normalized = self.clone();
+        normalized.sync_current_known_initialized_post_maint_baseline();
+
+        [
+            ("PLAYER.DAT", self.player.to_bytes(), normalized.player.to_bytes()),
+            ("PLANETS.DAT", self.planets.to_bytes(), normalized.planets.to_bytes()),
+            ("FLEETS.DAT", self.fleets.to_bytes(), normalized.fleets.to_bytes()),
+            ("BASES.DAT", self.bases.to_bytes(), normalized.bases.to_bytes()),
+            ("IPBM.DAT", self.ipbm.to_bytes(), normalized.ipbm.to_bytes()),
+            ("SETUP.DAT", self.setup.to_bytes(), normalized.setup.to_bytes()),
+            ("CONQUEST.DAT", self.conquest.to_bytes(), normalized.conquest.to_bytes()),
+        ]
+        .into_iter()
+        .map(|(name, current, normalized)| CoreFileDiffOffsets {
+            name,
+            differing_offsets: byte_diff_offsets(&current, &normalized),
+        })
+        .collect()
+    }
 }
 
 fn load_parsed<T>(
@@ -1775,6 +1802,20 @@ fn byte_diff_count(left: &[u8], right: &[u8]) -> usize {
         .filter(|(a, b)| a != b)
         .count()
         + left.len().abs_diff(right.len())
+}
+
+fn byte_diff_offsets(left: &[u8], right: &[u8]) -> Vec<usize> {
+    let shared_len = left.len().min(right.len());
+    let mut offsets: Vec<usize> = left[..shared_len]
+        .iter()
+        .zip(right[..shared_len].iter())
+        .enumerate()
+        .filter_map(|(idx, (a, b))| (a != b).then_some(idx))
+        .collect();
+
+    let extra_len = left.len().max(right.len());
+    offsets.extend(shared_len..extra_len);
+    offsets
 }
 
 fn build_guard_starbase_base_record(

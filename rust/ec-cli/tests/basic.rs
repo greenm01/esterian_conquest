@@ -202,3 +202,27 @@ fn core_diff_current_known_baseline_reports_mutated_files() {
 
     cleanup_dir(&target);
 }
+
+#[test]
+fn core_diff_current_known_baseline_offsets_reports_mutated_offsets() {
+    let target = unique_temp_dir("ec-cli-core-diff-current-known-offsets");
+    common::copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut data = ec_data::CoreGameData::load(&target).unwrap();
+    data.setup.raw[..5].copy_from_slice(b"BAD!!");
+    data.planets.records[14].set_planet_tax_rate_raw(3);
+    data.save(&target).unwrap();
+
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "core-diff-current-known-baseline-offsets",
+            target.to_str().unwrap(),
+        ],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Current-known Baseline Diff Offsets"));
+    assert!(stdout.contains("SETUP.DAT: differing_offsets=[0, 1, 2, 3, 4"));
+    assert!(stdout.contains("PLANETS.DAT: differing_offsets="));
+
+    cleanup_dir(&target);
+}

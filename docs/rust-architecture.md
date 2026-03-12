@@ -250,13 +250,16 @@ That composed synchronizer now also has a directory-constructor wrapper:
 There is now also an explicit drift-reporting surface for the current-known
 baseline:
 - `CoreGameData::current_known_baseline_diff_counts()`
+- `CoreGameData::current_known_baseline_diff_offsets()`
 - CLI: `ec-cli core-diff-current-known-baseline [dir]`
+- CLI: `ec-cli core-diff-current-known-baseline-offsets [dir]`
 - this compares a directory against the Rust-generated current-known baseline
-  normalization and reports per-file differing-byte counts for the core `.DAT`
-  set
+  normalization and reports either per-file differing-byte counts or exact byte
+  offsets for the core `.DAT` set
 - this is useful specifically because the current-known normalizer is not yet
-  byte-complete; the diff report makes the remaining unexplained bytes visible
-  instead of hiding them behind a boolean pass/fail
+  byte-complete; the diff report makes the remaining unexplained bytes visible,
+  and the offset report makes them actionable RE targets instead of hiding them
+  behind a boolean pass/fail
 
 The shared model also now treats homeworld-seed alignment as a current-known
 multi-player invariant for initialized/post-maint state:

@@ -103,6 +103,24 @@ pub(crate) fn print_current_known_baseline_diff(
     Ok(())
 }
 
+pub(crate) fn print_current_known_baseline_diff_offsets(
+    dir: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let data = CoreGameData::load(dir)?;
+    let diffs = data.current_known_baseline_diff_offsets();
+
+    println!("Current-known Baseline Diff Offsets");
+    println!("  dir={}", dir.display());
+    for diff in diffs {
+        println!(
+            "  {}: differing_offsets={:?}",
+            diff.name, diff.differing_offsets
+        );
+    }
+
+    Ok(())
+}
+
 pub(crate) fn validate_core_state(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let data = CoreGameData::load(dir)?;
     let errors = data.current_known_core_state_errors();

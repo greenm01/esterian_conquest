@@ -683,6 +683,57 @@ fn core_game_data_current_known_baseline_diff_counts_detect_mutated_files() {
 }
 
 #[test]
+fn core_game_data_current_known_baseline_diff_offsets_pinpoint_mutated_bytes() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    let clean_diffs = data.current_known_baseline_diff_offsets();
+    let clean_setup = clean_diffs
+        .iter()
+        .find(|diff| diff.name == "SETUP.DAT")
+        .unwrap()
+        .differing_offsets
+        .clone();
+    let clean_planets = clean_diffs
+        .iter()
+        .find(|diff| diff.name == "PLANETS.DAT")
+        .unwrap()
+        .differing_offsets
+        .clone();
+
+    data.setup.raw[..5].copy_from_slice(b"BAD!!");
+    data.planets.records[14].set_planet_tax_rate_raw(3);
+
+    let diffs = data.current_known_baseline_diff_offsets();
+    let setup_offsets = &diffs
+        .iter()
+        .find(|diff| diff.name == "SETUP.DAT")
+        .unwrap()
+        .differing_offsets;
+    let planet_offsets = &diffs
+        .iter()
+        .find(|diff| diff.name == "PLANETS.DAT")
+        .unwrap()
+        .differing_offsets;
+
+    for offset in 0..5 {
+        assert!(setup_offsets.contains(&offset));
+    }
+    assert!(setup_offsets.len() >= clean_setup.len() + 5);
+
+    let tax_offset = 14 * PLANET_RECORD_SIZE + 0x0E;
+    assert!(planet_offsets.contains(&tax_offset));
+    assert!(planet_offsets.len() > clean_planets.len());
+}
+
+#[test]
 fn core_game_data_can_apply_current_known_scenario_mutations() {
     let mut data = CoreGameData {
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
