@@ -183,6 +183,11 @@ multi-player invariant for initialized/post-maint state:
 - that planet's coordinates match the owning empire's four-fleet block location
   and mission target bytes
 
+The initialized/post-maint planet baseline is now explicit too:
+- owned planets are restricted to those homeworld seeds
+- non-homeworld planets remain unowned in the preserved baseline
+- owned homeworld seeds carry ownership status `2`
+
 Current-known ownership semantics shall also prefer explicit owner fields where
 the file format is stable. `PLANETS.DAT.owner_empire_slot_raw()` and
 `BASES.DAT.owner_empire_raw()` now feed shared per-player ownership counts and

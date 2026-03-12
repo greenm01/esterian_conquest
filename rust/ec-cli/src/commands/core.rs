@@ -35,6 +35,10 @@ pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Er
         data.current_known_initialized_homeworld_alignment_errors().is_empty()
     );
     println!(
+        "  initialized_planet_ownership={}",
+        data.current_known_initialized_planet_ownership_errors().is_empty()
+    );
+    println!(
         "  initialized_fleet_block_head_ids={:?}",
         initialized_fleet_block_head_ids
     );
@@ -90,6 +94,10 @@ pub(crate) fn validate_core_state(dir: &Path) -> Result<(), Box<dyn std::error::
             "  initialized_homeworld_alignment = {}",
             data.current_known_initialized_homeworld_alignment_errors().is_empty()
         );
+        println!(
+            "  initialized_planet_ownership = {}",
+            data.current_known_initialized_planet_ownership_errors().is_empty()
+        );
         Ok(())
     } else {
         Err(errors.join("\n").into())
@@ -126,6 +134,10 @@ pub(crate) fn sync_core_counts(dir: &Path) -> Result<(), Box<dyn std::error::Err
     println!(
         "  initialized_homeworld_alignment = {}",
         data.current_known_initialized_homeworld_alignment_errors().is_empty()
+    );
+    println!(
+        "  initialized_planet_ownership = {}",
+        data.current_known_initialized_planet_ownership_errors().is_empty()
     );
     for (idx, (starbase_count, owned_base_count)) in data
         .player_starbase_counts_current_known()

@@ -212,6 +212,7 @@ impl CoreGameData {
         errors.extend(self.current_known_initialized_fleet_block_errors());
         errors.extend(self.current_known_initialized_fleet_payload_errors());
         errors.extend(self.current_known_homeworld_seed_errors());
+        errors.extend(self.current_known_initialized_planet_ownership_errors());
         errors.extend(self.current_known_initialized_homeworld_alignment_errors());
         if self.ipbm.records.len() != expected_ipbm {
             errors.push(format!(
@@ -352,6 +353,56 @@ impl CoreGameData {
                 ));
             }
         }
+        errors
+    }
+
+    pub fn current_known_initialized_planet_ownership_errors(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+        let player_count = self.conquest.player_count() as usize;
+
+        for (idx, record) in self.planets.records.iter().enumerate() {
+            let planet_index_1_based = idx + 1;
+            let owner = record.owner_empire_slot_raw() as usize;
+            let is_homeworld_seed = record.is_named_homeworld_seed();
+
+            if owner != 0 && !is_homeworld_seed {
+                errors.push(format!(
+                    "PLANET[{}] expected unowned non-homeworld baseline, got owner {}",
+                    planet_index_1_based,
+                    owner
+                ));
+            }
+
+            if is_homeworld_seed {
+                if owner == 0 || owner > player_count {
+                    errors.push(format!(
+                        "PLANET[{}] homeworld seed expected owner 1..={}, got {}",
+                        planet_index_1_based,
+                        player_count,
+                        owner
+                    ));
+                }
+                if owner != 0 && record.ownership_status_raw() != 2 {
+                    errors.push(format!(
+                        "PLANET[{}].ownership_status expected 2 for owned homeworld seed, got {}",
+                        planet_index_1_based,
+                        record.ownership_status_raw()
+                    ));
+                }
+            }
+        }
+
+        for player_record_index_1_based in 1..=player_count {
+            let owned_count = self.player_owned_planet_count_current_known(player_record_index_1_based);
+            if owned_count != 1 {
+                errors.push(format!(
+                    "PLAYER[{}] owned_planet_count expected 1, got {}",
+                    player_record_index_1_based,
+                    owned_count
+                ));
+            }
+        }
+
         errors
     }
 

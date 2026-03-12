@@ -395,6 +395,11 @@ Rust architecture note:
       - that planet's coordinates match the owning empire's fleet-block
         location and mission target bytes
     - `core-report` now exposes per-player `homeworld_seed_coords`
+  - follow-on initialized planet-ownership baseline:
+    - the shared model now validates that, in the preserved initialized/post
+      baseline, owned planets are restricted to those homeworld seeds
+    - non-homeworld planets remain unowned
+    - owned homeworld seeds carry ownership status `2`
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`
