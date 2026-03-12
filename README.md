@@ -11,6 +11,12 @@ Current focus:
 - expanding Rust from fixture copying toward scenario generation from decoded
   fields
 
+Current milestone ladder:
+- `known accepted scenarios`: in progress and already useful
+- `parameterized scenario generation`: started, but incomplete
+- `general compliant gamestate generation`: not there yet
+- `full Rust ECMAINT replacement`: later milestone after the above
+
 Current top-level contents:
 - `original/`: local snapshot of original EC 1.5 files used for preservation and testing
 - `docs/`: stable project docs for approach, fixtures, and ECMAINT planning
@@ -53,6 +59,10 @@ Current Rust milestone:
   - `ec-cli validate <dir> guard-starbase`
 - `ec-cli validate <dir> all` now classifies a directory against all currently
   known accepted scenarios and reports which ones match
+- `ec-cli scenario original/v1.5 list` now prints the current Rust-side
+  scenario catalog
+- `ec-cli scenario-init-all [source_dir] <target_root>` now materializes all
+  currently-known accepted scenario directories in one run
 - Rust can now materialize a runnable Guard Starbase scenario directory from a
   compliant baseline in one command:
   - `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`

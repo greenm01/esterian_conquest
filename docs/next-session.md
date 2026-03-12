@@ -16,6 +16,8 @@
     - `ec-cli validate <dir> fleet-order`
     - `ec-cli validate <dir> planet-build`
     - `ec-cli validate <dir> all`
+    - `ec-cli scenario <dir> list`
+    - `ec-cli scenario-init-all [source_dir] <target_root>`
     - `ec-cli scenario-init [source_dir] <target_dir> fleet-order`
     - `ec-cli scenario-init [source_dir] <target_dir> planet-build`
     - these now turn the two already-preserved accepted fleet/build rewrites
@@ -62,6 +64,8 @@
       scenarios through a consistent scenario-oriented CLI
     - Rust can now classify a directory against all currently-known accepted
       scenarios with one command
+    - Rust now has a first-class scenario catalog and can materialize all
+      currently-known accepted scenarios under one target root in one run
     - Rust can also reject obviously non-compliant starbase snapshots before
       running the original engine
     - Rust can now generate a ready-to-run preserved scenario directory, not
@@ -80,6 +84,25 @@ Primary project goal:
 - treat the original game and `ECMAINT` as the acceptance oracle for that
   milestone
 - use that milestone as the first concrete step toward a full Rust port
+
+Milestone ladder:
+
+1. Known accepted scenarios
+   - current state: active and productive
+   - Rust can already emit, validate, and materialize preserved accepted
+     `fleet-order`, `planet-build`, and `guard-starbase` scenarios
+
+2. Parameterized scenario generation
+   - current state: partially started
+   - next work here is to replace more accepted-value blobs and
+     scenario-specific assumptions with explicit field encoders/validators
+
+3. General compliant gamestate generation
+   - blocked on the remaining `ECMAINT` linkage semantics, especially
+     `3502` / `3558` / `355A`
+
+4. Full Rust `ECMAINT` replacement
+   - deferred until the first three milestones are substantially complete
 
 1. `2000:5EE4` / integrity validator completion
    - Fully map the accepted and rejected structure rules in the early

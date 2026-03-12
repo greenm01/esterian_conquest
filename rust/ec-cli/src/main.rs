@@ -27,6 +27,36 @@ const ORIGINAL_FILES: &[&str] = &[
     "SETUP.DAT",
 ];
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum KnownScenario {
+    FleetOrder,
+    PlanetBuild,
+    GuardStarbase,
+}
+
+impl KnownScenario {
+    fn all() -> [Self; 3] {
+        [Self::FleetOrder, Self::PlanetBuild, Self::GuardStarbase]
+    }
+
+    fn name(self) -> &'static str {
+        match self {
+            Self::FleetOrder => "fleet-order",
+            Self::PlanetBuild => "planet-build",
+            Self::GuardStarbase => "guard-starbase",
+        }
+    }
+
+    fn parse(value: &str) -> Option<Self> {
+        match value {
+            "fleet-order" => Some(Self::FleetOrder),
+            "planet-build" => Some(Self::PlanetBuild),
+            "guard-starbase" => Some(Self::GuardStarbase),
+            _ => None,
+        }
+    }
+}
+
 fn main() {
     if let Err(err) = run() {
         eprintln!("error: {err}");
@@ -301,12 +331,23 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .next()
                 .map(|arg| resolve_repo_path(&arg))
                 .unwrap_or_else(default_fixture_dir);
-            match args.next().as_deref() {
-                Some("fleet-order") => apply_known_fleet_order_scenario(&dir)?,
-                Some("planet-build") => apply_known_planet_build_scenario(&dir)?,
-                Some("guard-starbase") => apply_guard_starbase_scenario(&dir)?,
-                _ => print_usage(),
+            let selector = args.next();
+            match selector.as_deref().and_then(KnownScenario::parse) {
+                Some(scenario) => apply_known_scenario(&dir, scenario)?,
+                None if selector.as_deref() == Some("list") => print_known_scenarios(),
+                None => print_usage(),
             }
+        }
+        "scenario-init-all" => {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((source, target_root)) = parse_optional_source_and_target(
+                remaining,
+                post_maint_fixture_dir(),
+            ) else {
+                print_usage();
+                return Ok(());
+            };
+            init_all_known_scenarios(&source, &target_root)?;
         }
         "scenario-init" => {
             let remaining = args.collect::<Vec<_>>();
@@ -317,11 +358,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 print_usage();
                 return Ok(());
             };
-            match scenario_name.as_str() {
-                "fleet-order" => init_known_fleet_order_scenario(&source, &target)?,
-                "planet-build" => init_known_planet_build_scenario(&source, &target)?,
-                "guard-starbase" => init_guard_starbase_scenario(&source, &target)?,
-                _ => print_usage(),
+            match KnownScenario::parse(&scenario_name) {
+                Some(scenario) => init_known_scenario(&source, &target, scenario)?,
+                None => print_usage(),
             }
         }
         "validate" => {
@@ -331,9 +370,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or_else(default_fixture_dir);
             match args.next().as_deref() {
                 Some("all") => validate_all_known_scenarios(&dir)?,
-                Some("fleet-order") => validate_known_fleet_order_scenario(&dir)?,
-                Some("planet-build") => validate_known_planet_build_scenario(&dir)?,
-                Some("guard-starbase") => validate_guard_starbase_scenario(&dir)?,
+                Some(name) => match KnownScenario::parse(name) {
+                    Some(scenario) => validate_known_scenario(&dir, scenario)?,
+                    None => print_usage(),
+                },
                 _ => print_usage(),
             }
         }
@@ -972,6 +1012,17 @@ fn apply_known_planet_build_scenario(dir: &Path) -> Result<(), Box<dyn std::erro
     Ok(())
 }
 
+fn apply_known_scenario(
+    dir: &Path,
+    scenario: KnownScenario,
+) -> Result<(), Box<dyn std::error::Error>> {
+    match scenario {
+        KnownScenario::FleetOrder => apply_known_fleet_order_scenario(dir),
+        KnownScenario::PlanetBuild => apply_known_planet_build_scenario(dir),
+        KnownScenario::GuardStarbase => apply_guard_starbase_scenario(dir),
+    }
+}
+
 fn apply_guard_starbase_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let player_path = dir.join("PLAYER.DAT");
     let mut player = PlayerDat::parse(&fs::read(&player_path)?)?;
@@ -1154,15 +1205,22 @@ fn validate_known_planet_build_scenario(dir: &Path) -> Result<(), Box<dyn std::e
     }
 }
 
-fn validate_all_known_scenarios(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let checks = [
-        ("fleet-order", validate_known_fleet_order_scenario(dir)),
-        ("planet-build", validate_known_planet_build_scenario(dir)),
-        ("guard-starbase", validate_guard_starbase_scenario(dir)),
-    ];
+fn validate_known_scenario(
+    dir: &Path,
+    scenario: KnownScenario,
+) -> Result<(), Box<dyn std::error::Error>> {
+    match scenario {
+        KnownScenario::FleetOrder => validate_known_fleet_order_scenario(dir),
+        KnownScenario::PlanetBuild => validate_known_planet_build_scenario(dir),
+        KnownScenario::GuardStarbase => validate_guard_starbase_scenario(dir),
+    }
+}
 
+fn validate_all_known_scenarios(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let mut matched = 0usize;
-    for (name, result) in checks {
+    for scenario in KnownScenario::all() {
+        let name = scenario.name();
+        let result = validate_known_scenario(dir, scenario);
         match result {
             Ok(()) => {
                 println!("OK   {name}");
@@ -1181,47 +1239,42 @@ fn validate_all_known_scenarios(dir: &Path) -> Result<(), Box<dyn std::error::Er
     }
 }
 
-fn init_guard_starbase_scenario(
+fn init_known_scenario(
     source: &Path,
     target: &Path,
+    scenario: KnownScenario,
 ) -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all(target)?;
     for name in INIT_FILES {
         fs::copy(source.join(name), target.join(name))?;
     }
-    apply_guard_starbase_scenario(target)?;
+    apply_known_scenario(target, scenario)?;
     println!("Scenario directory initialized at {}", target.display());
     Ok(())
 }
 
-fn init_known_fleet_order_scenario(
+fn init_all_known_scenarios(
     source: &Path,
-    target: &Path,
+    target_root: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    fs::create_dir_all(target)?;
-    for name in INIT_FILES {
-        fs::copy(source.join(name), target.join(name))?;
+    fs::create_dir_all(target_root)?;
+    for scenario in KnownScenario::all() {
+        let scenario_dir = target_root.join(scenario.name());
+        init_known_scenario(source, &scenario_dir, scenario)?;
     }
-    apply_known_fleet_order_scenario(target)?;
-    println!("Scenario directory initialized at {}", target.display());
-    Ok(())
-}
-
-fn init_known_planet_build_scenario(
-    source: &Path,
-    target: &Path,
-) -> Result<(), Box<dyn std::error::Error>> {
-    fs::create_dir_all(target)?;
-    for name in INIT_FILES {
-        fs::copy(source.join(name), target.join(name))?;
-    }
-    apply_known_planet_build_scenario(target)?;
-    println!("Scenario directory initialized at {}", target.display());
+    println!("Initialized all known scenarios under {}", target_root.display());
     Ok(())
 }
 
 fn weekday_labels() -> [&'static str; 7] {
     ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
+}
+
+fn print_known_scenarios() {
+    println!("Known scenarios:");
+    for scenario in KnownScenario::all() {
+        println!("  {}", scenario.name());
+    }
 }
 
 fn com_index(port_name: &str) -> Option<usize> {
@@ -1548,6 +1601,7 @@ fn print_usage() {
     println!("  ec-cli fleet-order <dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]");
     println!("  ec-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>");
     println!("  ec-cli scenario <dir> <fleet-order|planet-build|guard-starbase>");
+    println!("  ec-cli scenario-init-all [source_dir] <target_root>");
     println!("  ec-cli scenario-init [source_dir] <target_dir> <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli validate <dir> <all|fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli match [dir]");

@@ -66,6 +66,36 @@ Long term:
 - build a usable player client and admin client
 - support classic-compatible saves and reproducible results
 
+## Milestone Ladder
+
+1. Known accepted scenarios
+
+- Rust can emit preserved accepted pre-maint scenarios from decoded fields
+- the original binaries and preserved fixtures are the acceptance oracle
+- current examples:
+  - `fleet-order`
+  - `planet-build`
+  - `guard-starbase`
+
+2. Parameterized scenario generation
+
+- replace scenario-specific constants with explicit field builders and
+  validators
+- move from "recreate this one accepted shape" toward "generate families of
+  accepted shapes within known-safe constraints"
+
+3. General compliant gamestate generation
+
+- Rust can write a full arbitrary gamestate directory that `ECMAINT` accepts
+  without integrity failures
+- this requires the remaining cross-file linkage rules, especially the
+  starbase/fleet summary-pairing semantics in `ECMAINT`
+
+4. Full Rust maintenance replacement
+
+- reimplement `ECMAINT` behavior in Rust with reproducible outputs
+- preserve compatibility with original save directories and reports
+
 Near-term acceptance rule:
 
 - a format/mechanic is not "done" until Rust can emit the relevant state and
@@ -99,6 +129,10 @@ Current concrete Rust milestone:
     Starbase shape with `ec-cli validate <dir> guard-starbase`
   - `ec-cli validate <dir> all` now gives a quick classification pass across
     the current known accepted scenarios
+  - the known accepted scenarios are now centralized behind one Rust-side
+    catalog:
+    - `ec-cli scenario <dir> list`
+    - `ec-cli scenario-init-all [source_dir] <target_root>`
   - Rust can now materialize a runnable Guard Starbase directory from a
     compliant baseline with
     `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`

@@ -1435,6 +1435,10 @@ Rust fleet/build scenario CLI milestone:
   - `ec-cli validate <dir> all` now runs the current scenario validators as a
     directory-classification pass and reports which known accepted scenarios
     match
+- the Rust-side known accepted scenarios are now centralized behind one
+  catalog:
+  - `ec-cli scenario <dir> list`
+  - `ec-cli scenario-init-all [source_dir] <target_root>`
 - both scenarios can now be materialized into runnable directories from a
   compliant baseline in one command:
   - `ec-cli scenario-init [source_dir] <target_dir> fleet-order`
@@ -1457,8 +1461,23 @@ Rust fleet/build scenario CLI milestone:
 - practical meaning:
   - Rust can now generate and sanity-check three preserved accepted scenarios
     through one consistent scenario-oriented interface
+  - Rust can now materialize the full current known-scenario set in one batch,
+    which lowers the cost of running multiple original-engine experiments from
+    the same baseline
   - that lowers the cost of spinning up new original-engine runs while the
     remaining integrity-linkage semantics are still being decoded
+
+Project milestone framing:
+
+- the explicit milestone ladder is now:
+  - known accepted scenarios
+  - parameterized scenario generation
+  - general compliant gamestate generation
+  - full Rust `ECMAINT` replacement
+- current state:
+  - milestone 1 is active and useful
+  - milestone 2 has started
+  - milestone 3 is still blocked on remaining `5EE4` linkage semantics
 
 Base-side summary emitter mapping:
 

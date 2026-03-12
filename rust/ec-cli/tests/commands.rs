@@ -58,6 +58,15 @@ fn match_identifies_initialized_fixture() {
 }
 
 #[test]
+fn scenario_list_prints_known_scenarios() {
+    let stdout = run_ec_cli(&["scenario", "original/v1.5", "list"]);
+    assert!(stdout.contains("Known scenarios:"));
+    assert!(stdout.contains("fleet-order"));
+    assert!(stdout.contains("planet-build"));
+    assert!(stdout.contains("guard-starbase"));
+}
+
+#[test]
 fn headers_prints_known_setup_and_conquest_values() {
     let stdout = run_ec_cli(&["headers", "original/v1.5"]);
     assert!(stdout.contains("SETUP.version=EC151"));
@@ -698,6 +707,41 @@ fn scenario_init_planet_build_materializes_runnable_directory() {
 
     assert_eq!(fs::read(target.join("PLANETS.DAT")).unwrap(), fs::read(expected_planets).unwrap());
     assert_eq!(fs::read(target.join("FLEETS.DAT")).unwrap(), fs::read(expected_fleets).unwrap());
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn scenario_init_all_materializes_all_known_scenarios() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-all-scenarios-{unique}"));
+
+    let stdout = run_ec_cli_in_dir(
+        &["scenario-init-all", target.to_str().unwrap()],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Initialized all known scenarios under"));
+
+    let fleet_validate = run_ec_cli_in_dir(
+        &["validate", target.join("fleet-order").to_str().unwrap(), "fleet-order"],
+        repo_root().join("rust"),
+    );
+    assert!(fleet_validate.contains("Valid fleet-order scenario"));
+
+    let build_validate = run_ec_cli_in_dir(
+        &["validate", target.join("planet-build").to_str().unwrap(), "planet-build"],
+        repo_root().join("rust"),
+    );
+    assert!(build_validate.contains("Valid planet-build scenario"));
+
+    let starbase_validate = run_ec_cli_in_dir(
+        &["validate", target.join("guard-starbase").to_str().unwrap(), "guard-starbase"],
+        repo_root().join("rust"),
+    );
+    assert!(starbase_validate.contains("Valid guard-starbase scenario"));
 
     let _ = fs::remove_dir_all(&target);
 }
