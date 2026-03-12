@@ -301,6 +301,30 @@ fn core_game_data_current_known_validation_helpers_match_known_fixtures() {
             ipbm_record_count: 0,
         }
     );
+    assert_eq!(
+        starbase_data.guard_starbase_linkage_summary_current_known(1, 1).unwrap(),
+        CurrentKnownGuardStarbaseLinkageSummary {
+            player_record_index_1_based: 1,
+            fleet_record_index_1_based: 1,
+            player_starbase_count: 1,
+            fleet_order: 0x04,
+            fleet_local_slot: 1,
+            fleet_id: 1,
+            guard_index: 1,
+            guard_enable: 1,
+            target_coords: [0x10, 0x0D],
+            selected_base_present: true,
+            selected_base_summary_word: Some(1),
+            selected_base_id: Some(1),
+            selected_base_chain_word: Some(1),
+            selected_base_coords: Some([0x10, 0x0D]),
+            selected_base_trailing_coords: Some([0x10, 0x0D]),
+            selected_base_owner_empire: Some(1),
+        }
+    );
+    assert!(starbase_data
+        .guard_starbase_linkage_errors_current_known(1, 1)
+        .is_empty());
 
     let post_data = CoreGameData {
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
@@ -312,4 +336,8 @@ fn core_game_data_current_known_validation_helpers_match_known_fixtures() {
         conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
     };
     assert!(post_data.ipbm_count_length_errors_current_known().is_empty());
+    assert!(post_data
+        .guard_starbase_linkage_errors_current_known(1, 1)
+        .iter()
+        .any(|error| error.contains("guard enable expected 0x01")));
 }

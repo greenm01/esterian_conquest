@@ -135,6 +135,11 @@ Current-known compliance aggregation and key-word summaries shall follow the
 same rule. If multiple CLI reports are reusing the same rule set and field
 summary, that status aggregation belongs on `CoreGameData`.
 
+Current-known starbase linkage checks shall also live on the shared model. When
+the code needs to follow a guarded base by index and compare decoded fleet/base
+fields, that linkage logic belongs in `ec-data`, even if the CLI still exposes
+one-base scenario workflows on top of it.
+
 Current expectation:
 
 - `fleet-order`, `planet-build`, `guard-starbase`, `ipbm`, and

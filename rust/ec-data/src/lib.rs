@@ -20,8 +20,8 @@ mod records;
 mod support;
 
 pub use directory::{
-    CoreGameData, CurrentKnownComplianceStatus, CurrentKnownKeyWordSummary, GameDirectoryError,
-    GameStateMutationError,
+    CoreGameData, CurrentKnownComplianceStatus, CurrentKnownGuardStarbaseLinkageSummary,
+    CurrentKnownKeyWordSummary, GameDirectoryError, GameStateMutationError,
 };
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;

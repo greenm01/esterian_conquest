@@ -327,6 +327,18 @@ Rust architecture note:
     - `ec-cli compliance-report` and `ec-cli compliance-batch-report` now
       consume that shared model output instead of reassembling current-known
       rule groups in CLI-only code
+  - latest starbase-linkage expansion:
+    - `CoreGameData` now owns a broader current-known guard-starbase linkage
+      helper that follows the selected guarded base by index instead of only
+      validating the accepted one-base fixture shape
+    - the shared model now exposes selected-base linkage summary fields for:
+      - guard index / enable
+      - selected base presence
+      - selected base ID / summary word / chain word
+      - selected base coords / trailing coords / owner
+    - `ec-cli` guard-starbase validation still preserves the one-base scenario
+      output, but it now does so on top of the broader shared selected-base
+      linkage checker
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`

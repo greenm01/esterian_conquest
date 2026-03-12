@@ -36,10 +36,10 @@ pub(crate) fn validate_guard_starbase_scenario(
     dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let data = CoreGameData::load(dir)?;
-
-    let errors = data.guard_starbase_onebase_errors_current_known();
+    let errors = data.guard_starbase_linkage_errors_current_known(1, 1);
 
     if errors.is_empty() {
+        let linkage = data.guard_starbase_linkage_summary_current_known(1, 1)?;
         let fleet = &data.fleets.records[0];
         let player1 = &data.player.records[0];
         let base = &data.bases.records[0];
@@ -55,6 +55,13 @@ pub(crate) fn validate_guard_starbase_scenario(
         println!(
             "  one-base guard-starbase linkage holds at coords {:?}",
             base.coords_raw()
+        );
+        println!(
+            "  selected_base: present={} id={:?} summary={:?} owner={:?}",
+            linkage.selected_base_present,
+            linkage.selected_base_id,
+            linkage.selected_base_summary_word,
+            linkage.selected_base_owner_empire
         );
         Ok(())
     } else {
@@ -94,6 +101,16 @@ pub(crate) fn print_guard_starbase_report(
         fleet1.guard_starbase_index_raw(),
         fleet1.guard_starbase_enable_raw()
     );
+    if let Ok(linkage) = data.guard_starbase_linkage_summary_current_known(1, 1) {
+        println!(
+            "  selected_base.present={} selected_base.id={:?} selected_base.summary={:?} selected_base.chain={:?} selected_base.owner={:?}",
+            linkage.selected_base_present,
+            linkage.selected_base_id,
+            linkage.selected_base_summary_word,
+            linkage.selected_base_chain_word,
+            linkage.selected_base_owner_empire
+        );
+    }
 
     if let Some(base1) = data.bases.records.first() {
         println!("  base_count={}", data.bases.records.len());

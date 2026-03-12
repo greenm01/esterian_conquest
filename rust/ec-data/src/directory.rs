@@ -41,6 +41,26 @@ pub struct CurrentKnownKeyWordSummary {
     pub ipbm_record_count: usize,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CurrentKnownGuardStarbaseLinkageSummary {
+    pub player_record_index_1_based: usize,
+    pub fleet_record_index_1_based: usize,
+    pub player_starbase_count: u16,
+    pub fleet_order: u8,
+    pub fleet_local_slot: u16,
+    pub fleet_id: u16,
+    pub guard_index: u8,
+    pub guard_enable: u8,
+    pub target_coords: [u8; 2],
+    pub selected_base_present: bool,
+    pub selected_base_summary_word: Option<u16>,
+    pub selected_base_id: Option<u8>,
+    pub selected_base_chain_word: Option<u16>,
+    pub selected_base_coords: Option<[u8; 2]>,
+    pub selected_base_trailing_coords: Option<[u8; 2]>,
+    pub selected_base_owner_empire: Option<u8>,
+}
+
 #[derive(Debug)]
 pub enum GameDirectoryError {
     Io {
@@ -521,6 +541,168 @@ impl CoreGameData {
         errors
     }
 
+    pub fn guard_starbase_linkage_summary_current_known(
+        &self,
+        player_record_index_1_based: usize,
+        fleet_record_index_1_based: usize,
+    ) -> Result<CurrentKnownGuardStarbaseLinkageSummary, GameStateMutationError> {
+        let player = self
+            .player
+            .records
+            .get(player_record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingPlayerRecord {
+                index_1_based: player_record_index_1_based,
+            })?;
+        let fleet = self
+            .fleets
+            .records
+            .get(fleet_record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingFleetRecord {
+                index_1_based: fleet_record_index_1_based,
+            })?;
+
+        let selected_base = fleet
+            .guard_starbase_index_raw()
+            .checked_sub(1)
+            .and_then(|idx| self.bases.records.get(idx as usize));
+
+        Ok(CurrentKnownGuardStarbaseLinkageSummary {
+            player_record_index_1_based,
+            fleet_record_index_1_based,
+            player_starbase_count: player.starbase_count_raw(),
+            fleet_order: fleet.standing_order_code_raw(),
+            fleet_local_slot: fleet.local_slot_word_raw(),
+            fleet_id: fleet.fleet_id_word_raw(),
+            guard_index: fleet.guard_starbase_index_raw(),
+            guard_enable: fleet.guard_starbase_enable_raw(),
+            target_coords: fleet.standing_order_target_coords_raw(),
+            selected_base_present: selected_base.is_some(),
+            selected_base_summary_word: selected_base.map(|base| base.summary_word_raw()),
+            selected_base_id: selected_base.map(|base| base.base_id_raw()),
+            selected_base_chain_word: selected_base.map(|base| base.chain_word_raw()),
+            selected_base_coords: selected_base.map(|base| base.coords_raw()),
+            selected_base_trailing_coords: selected_base.map(|base| base.trailing_coords_raw()),
+            selected_base_owner_empire: selected_base.map(|base| base.owner_empire_raw()),
+        })
+    }
+
+    pub fn guard_starbase_linkage_errors_current_known(
+        &self,
+        player_record_index_1_based: usize,
+        fleet_record_index_1_based: usize,
+    ) -> Vec<String> {
+        let mut errors = Vec::new();
+
+        let summary =
+            match self.guard_starbase_linkage_summary_current_known(
+                player_record_index_1_based,
+                fleet_record_index_1_based,
+            ) {
+                Ok(summary) => summary,
+                Err(GameStateMutationError::MissingPlayerRecord { index_1_based }) => {
+                    errors.push(format!("PLAYER.DAT missing record {index_1_based}"));
+                    return errors;
+                }
+                Err(GameStateMutationError::MissingFleetRecord { index_1_based }) => {
+                    errors.push(format!("FLEETS.DAT missing record {index_1_based}"));
+                    return errors;
+                }
+                Err(other) => {
+                    errors.push(other.to_string());
+                    return errors;
+                }
+            };
+
+        if summary.fleet_order != 0x04 {
+            errors.push(format!(
+                "FLEET[{}].order expected 0x04, got {:#04x}",
+                fleet_record_index_1_based, summary.fleet_order
+            ));
+        }
+        if summary.guard_enable != 0x01 {
+            errors.push(format!(
+                "FLEET[{}].guard enable expected 0x01, got {:#04x}",
+                fleet_record_index_1_based, summary.guard_enable
+            ));
+        }
+        if summary.guard_index == 0 {
+            errors.push(format!(
+                "FLEET[{}].guard starbase index expected non-zero",
+                fleet_record_index_1_based
+            ));
+            return errors;
+        }
+        if summary.player_starbase_count == 0 {
+            errors.push(format!(
+                "PLAYER[{}].starbase_count_raw expected non-zero, got 0",
+                player_record_index_1_based
+            ));
+        }
+        if summary.guard_index as u16 > summary.player_starbase_count {
+            errors.push(format!(
+                "FLEET[{}].guard index {} exceeds PLAYER[{}].starbase_count_raw {}",
+                fleet_record_index_1_based,
+                summary.guard_index,
+                player_record_index_1_based,
+                summary.player_starbase_count
+            ));
+        }
+        if !summary.selected_base_present {
+            errors.push(format!(
+                "BASES.DAT missing selected starbase record {}",
+                summary.guard_index
+            ));
+            return errors;
+        }
+
+        if summary.selected_base_id != Some(summary.guard_index) {
+            errors.push(format!(
+                "BASES[{}].base_id expected FLEET[{}].guard index {}, got {:?}",
+                summary.guard_index,
+                fleet_record_index_1_based,
+                summary.guard_index,
+                summary.selected_base_id
+            ));
+        }
+        if summary.selected_base_summary_word != Some(summary.fleet_local_slot) {
+            errors.push(format!(
+                "BASES[{}].summary_word expected FLEET[{}].local_slot_word {}, got {:?}",
+                summary.guard_index,
+                fleet_record_index_1_based,
+                summary.fleet_local_slot,
+                summary.selected_base_summary_word
+            ));
+        }
+        if summary.selected_base_coords != Some(summary.target_coords) {
+            errors.push(format!(
+                "BASES[{}].coords expected FLEET[{}].target {:?}, got {:?}",
+                summary.guard_index,
+                fleet_record_index_1_based,
+                summary.target_coords,
+                summary.selected_base_coords
+            ));
+        }
+        if summary.selected_base_trailing_coords != summary.selected_base_coords {
+            errors.push(format!(
+                "BASES[{}].trailing coords expected {:?}, got {:?}",
+                summary.guard_index,
+                summary.selected_base_coords.unwrap_or([0, 0]),
+                summary.selected_base_trailing_coords
+            ));
+        }
+        let expected_owner_empire = player_record_index_1_based as u8;
+        if summary.selected_base_owner_empire != Some(expected_owner_empire) {
+            errors.push(format!(
+                "BASES[{}].owner_empire expected {}, got {:?}",
+                summary.guard_index,
+                expected_owner_empire,
+                summary.selected_base_owner_empire
+            ));
+        }
+
+        errors
+    }
+
     pub fn ipbm_count_length_errors_current_known(&self) -> Vec<String> {
         let expected_count = self.player1_ipbm_count_current_known();
         let actual_count = self.ipbm.records.len();
@@ -551,7 +733,9 @@ impl CoreGameData {
             planet_build: self
                 .planet_build_errors_current_known(15, 0x03, 0x01)
                 .is_empty(),
-            guard_starbase: self.guard_starbase_onebase_errors_current_known().is_empty(),
+            guard_starbase: self
+                .guard_starbase_linkage_errors_current_known(1, 1)
+                .is_empty(),
             ipbm: self.ipbm_count_length_errors_current_known().is_empty(),
         }
     }
