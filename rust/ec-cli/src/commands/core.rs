@@ -10,6 +10,7 @@ pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Er
     let player_owned_planet_counts = data.player_owned_planet_counts_current_known();
     let player_starbase_counts = data.player_starbase_counts_current_known();
     let player_owned_base_counts = data.player_owned_base_record_counts_current_known();
+    let player_homeworld_seed_coords = data.player_homeworld_seed_coords_current_known();
     let player_fleet_chain_heads = data.player_fleet_chain_heads_current_known();
     let initialized_fleet_block_head_ids = data.current_known_initialized_fleet_block_head_ids();
 
@@ -30,6 +31,10 @@ pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Er
         data.current_known_initialized_fleet_payload_errors().is_empty()
     );
     println!(
+        "  initialized_homeworld_alignment={}",
+        data.current_known_initialized_homeworld_alignment_errors().is_empty()
+    );
+    println!(
         "  initialized_fleet_block_head_ids={:?}",
         initialized_fleet_block_head_ids
     );
@@ -39,9 +44,10 @@ pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Er
 
     for (idx, record) in data.player.records.iter().enumerate() {
         println!(
-            "  player {:02}: owned_planet_count={} starbase_count={} owned_base_count={} ipbm_count={} fleet_chain_head={}",
+            "  player {:02}: owned_planet_count={} homeworld_seed_coords={:?} starbase_count={} owned_base_count={} ipbm_count={} fleet_chain_head={}",
             idx + 1,
             player_owned_planet_counts[idx],
+            player_homeworld_seed_coords.get(idx).copied().flatten(),
             player_starbase_counts[idx],
             player_owned_base_counts[idx],
             record.ipbm_count_raw(),
@@ -80,6 +86,10 @@ pub(crate) fn validate_core_state(dir: &Path) -> Result<(), Box<dyn std::error::
             "  initialized_fleet_payloads = {}",
             data.current_known_initialized_fleet_payload_errors().is_empty()
         );
+        println!(
+            "  initialized_homeworld_alignment = {}",
+            data.current_known_initialized_homeworld_alignment_errors().is_empty()
+        );
         Ok(())
     } else {
         Err(errors.join("\n").into())
@@ -113,6 +123,10 @@ pub(crate) fn sync_core_counts(dir: &Path) -> Result<(), Box<dyn std::error::Err
         "  initialized_fleet_payloads = {}",
         data.current_known_initialized_fleet_payload_errors().is_empty()
     );
+    println!(
+        "  initialized_homeworld_alignment = {}",
+        data.current_known_initialized_homeworld_alignment_errors().is_empty()
+    );
     for (idx, (starbase_count, owned_base_count)) in data
         .player_starbase_counts_current_known()
         .into_iter()
@@ -121,9 +135,13 @@ pub(crate) fn sync_core_counts(dir: &Path) -> Result<(), Box<dyn std::error::Err
     {
         let fleet_chain_head = data.player_fleet_chain_heads_current_known()[idx];
         println!(
-            "  player {:02}: owned_planet_count = {} starbase_count = {} owned_base_count = {} fleet_chain_head = {}",
+            "  player {:02}: owned_planet_count = {} homeworld_seed_coords = {:?} starbase_count = {} owned_base_count = {} fleet_chain_head = {}",
             idx + 1,
             data.player_owned_planet_counts_current_known()[idx],
+            data.player_homeworld_seed_coords_current_known()
+                .get(idx)
+                .copied()
+                .flatten(),
             starbase_count,
             owned_base_count,
             fleet_chain_head

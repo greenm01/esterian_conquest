@@ -211,6 +211,8 @@ impl CoreGameData {
         errors.extend(self.current_known_all_player_starbase_count_errors());
         errors.extend(self.current_known_initialized_fleet_block_errors());
         errors.extend(self.current_known_initialized_fleet_payload_errors());
+        errors.extend(self.current_known_homeworld_seed_errors());
+        errors.extend(self.current_known_initialized_homeworld_alignment_errors());
         if self.ipbm.records.len() != expected_ipbm {
             errors.push(format!(
                 "IPBM.DAT record count expected {}, got {}",
@@ -309,6 +311,48 @@ impl CoreGameData {
                 self.player_owned_planet_count_current_known(player_record_index_1_based)
             })
             .collect()
+    }
+
+    pub fn player_homeworld_seed_coords_current_known(&self) -> Vec<Option<[u8; 2]>> {
+        let player_count = self.conquest.player_count() as usize;
+        (1..=player_count)
+            .map(|player_record_index_1_based| {
+                self.planets
+                    .records
+                    .iter()
+                    .find(|record| {
+                        record.owner_empire_slot_raw() as usize == player_record_index_1_based
+                            && record.is_named_homeworld_seed()
+                    })
+                    .map(|record| record.coords_raw())
+            })
+            .collect()
+    }
+
+    pub fn current_known_homeworld_seed_errors(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+        let player_count = self.conquest.player_count() as usize;
+        for player_record_index_1_based in 1..=player_count {
+            let matches = self
+                .planets
+                .records
+                .iter()
+                .enumerate()
+                .filter(|(_, record)| {
+                    record.owner_empire_slot_raw() as usize == player_record_index_1_based
+                        && record.is_named_homeworld_seed()
+                })
+                .map(|(idx, record)| (idx + 1, record.coords_raw()))
+                .collect::<Vec<_>>();
+            if matches.len() != 1 {
+                errors.push(format!(
+                    "PLAYER[{}] homeworld seed expected 1 owned 'Not Named Yet' planet, got {}",
+                    player_record_index_1_based,
+                    matches.len()
+                ));
+            }
+        }
+        errors
     }
 
     pub fn player_starbase_counts_current_known(&self) -> Vec<usize> {
@@ -516,6 +560,44 @@ impl CoreGameData {
                         record.etac_count()
                     ));
                 }
+            }
+        }
+
+        errors
+    }
+
+    pub fn current_known_initialized_homeworld_alignment_errors(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+        let player_count = self.conquest.player_count() as usize;
+        let expected_fleet_count = player_count.saturating_mul(4);
+
+        if self.fleets.records.len() != expected_fleet_count {
+            return errors;
+        }
+
+        let homeworld_coords = self.player_homeworld_seed_coords_current_known();
+        for block_idx in 0..player_count {
+            let Some(expected_coords) = homeworld_coords.get(block_idx).and_then(|coords| *coords) else {
+                continue;
+            };
+            let fleet = &self.fleets.records[block_idx * 4];
+            let actual_loc = fleet.current_location_coords_raw();
+            let actual_target = fleet.standing_order_target_coords_raw();
+            if actual_loc != expected_coords {
+                errors.push(format!(
+                    "FLEET block {} location expected homeworld seed {:?}, got {:?}",
+                    block_idx + 1,
+                    expected_coords,
+                    actual_loc
+                ));
+            }
+            if actual_target != expected_coords {
+                errors.push(format!(
+                    "FLEET block {} target expected homeworld seed {:?}, got {:?}",
+                    block_idx + 1,
+                    expected_coords,
+                    actual_target
+                ));
             }
         }
 

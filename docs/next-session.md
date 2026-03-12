@@ -388,6 +388,13 @@ Rust architecture note:
       existing owned-base and starbase counts
     - this gives a stronger explicit-owner foundation for broader multi-player
       compliance work than the weaker player-side chain words
+  - follow-on homeworld alignment validation:
+    - the shared model now validates the initialized/post-maint homeworld-seed
+      invariant:
+      - each active empire has exactly one owned `Not Named Yet` planet
+      - that planet's coordinates match the owning empire's fleet-block
+        location and mission target bytes
+    - `core-report` now exposes per-player `homeworld_seed_coords`
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`

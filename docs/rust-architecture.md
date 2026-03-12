@@ -177,6 +177,12 @@ slot/block payload rules proven by preserved fixtures:
 - current speed is `0` in the preserved baseline
 - location and mission bytes are constant within each four-fleet empire block
 
+The shared model also now treats homeworld-seed alignment as a current-known
+multi-player invariant for initialized/post-maint state:
+- each active empire has exactly one owned `Not Named Yet` planet
+- that planet's coordinates match the owning empire's four-fleet block location
+  and mission target bytes
+
 Current-known ownership semantics shall also prefer explicit owner fields where
 the file format is stable. `PLANETS.DAT.owner_empire_slot_raw()` and
 `BASES.DAT.owner_empire_raw()` now feed shared per-player ownership counts and

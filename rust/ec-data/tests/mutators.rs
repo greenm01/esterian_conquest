@@ -179,6 +179,10 @@ fn core_game_data_current_known_count_helpers_follow_player1_and_records() {
     };
     assert_eq!(data.player1_starbase_count_current_known(), 0);
     assert_eq!(data.player_owned_planet_counts_current_known(), vec![1, 1, 1, 1, 0]);
+    assert_eq!(
+        data.player_homeworld_seed_coords_current_known(),
+        vec![Some([16, 13]), Some([4, 13]), Some([6, 5]), Some([13, 5])]
+    );
     assert_eq!(data.player1_owned_base_record_count_current_known(), 2);
     assert_eq!(data.player_owned_base_record_counts_current_known(), vec![2, 1, 0, 0, 0]);
     assert_eq!(data.player1_ipbm_count_current_known(), 0);
@@ -224,6 +228,8 @@ fn core_game_data_initialized_fleet_block_helpers_match_known_fixtures() {
     assert_eq!(data.current_known_initialized_fleet_block_head_ids(), vec![1, 5, 9, 13]);
     assert!(data.current_known_initialized_fleet_block_errors().is_empty());
     assert!(data.current_known_initialized_fleet_payload_errors().is_empty());
+    assert!(data.current_known_homeworld_seed_errors().is_empty());
+    assert!(data.current_known_initialized_homeworld_alignment_errors().is_empty());
 }
 
 #[test]
@@ -290,6 +296,26 @@ fn core_game_data_owner_range_errors_catch_invalid_planet_and_base_owners() {
     assert_eq!(
         data.current_known_base_owner_empire_errors(),
         vec!["BASES[1].owner_empire expected 1..=4, got 0".to_string()]
+    );
+}
+
+#[test]
+fn core_game_data_homeworld_alignment_errors_catch_misaligned_fleet_block() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    data.fleets.records[4].raw[0x20] = 9;
+
+    assert_eq!(
+        data.current_known_initialized_homeworld_alignment_errors(),
+        vec!["FLEET block 2 target expected homeworld seed [4, 13], got [9, 13]".to_string()]
     );
 }
 
