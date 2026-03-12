@@ -183,8 +183,20 @@ Important detail:
 - First-open breakpoint state captured so far:
   - `AX=3D02`
   - `DS=44A1`
-  - visible debugger output also showed `ESI=FABE`
-  - dumping `DS:ESI` was all zeroes, so the real filename pointer still needs one more pass via the correct register field (`DS:DX` is the main candidate)
+  - `EV AX BX CX DX SI DI BP SP DS ES SS` gives:
+    - `AX=3D02`
+    - `DX=A506`
+    - `SI=FABE`
+    - `DS=44A1`
+  - dumping `DS:ESI` was all zeroes
+  - dumping `DS:DX` (`44A1:A506`) yields the first startup-open filename:
+    - `Setup.dat`
+- Early startup-open finding:
+  - on the corrected no-`/L` path, `ECGAME` first opens `Setup.dat`
+  - this is the first concrete startup file-order fact recovered from the live debugger path
+- Current caveat on further sequencing:
+  - after resuming from the `Setup.dat` open, the next debugger stop no longer presented the same clean `3D02` line in the quick capture transcript
+  - so additional startup-open order still needs one more pass with slightly stronger stop classification
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
 
 Current caveat:

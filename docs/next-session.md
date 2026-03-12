@@ -554,6 +554,15 @@ Suggested execution order:
   - equivalent non-debug launches of `ECGAME.EXE` and `ECGAME.EXE C:\CHAIN.TXT` currently return immediately with no visible `ERRORS.TXT` and no useful file-I/O log entries
   - so the productive path remains debugger-assisted startup, not plain headless execution
 - Current open-break snapshot:
-  - `AX=3D02`, `DS=44A1`, visible `ESI=FABE`
-  - dumping `DS:ESI` returned zeroes, so the next task is to recover the real filename register at that first open breakpoint, most likely `DS:DX`
+  - `EV AX BX CX DX SI DI BP SP DS ES SS` confirms:
+    - `AX=3D02`
+    - `DX=A506`
+    - `SI=FABE`
+    - `DS=44A1`
+  - dumping `DS:DX` (`44A1:A506`) yields `Setup.dat`
+- First concrete startup-open fact:
+  - corrected no-`/L` `ECGAME` opens `Setup.dat` first
+- Next task:
+  - continue the startup-open sequence after `Setup.dat`
+  - the second stop needs stronger classification because it no longer showed the same clean `3D02` line in the quick transcript
 - Remaining blocker: the local interactive `ECGAME` flow is still not fully stable because several old scripts have brittle debugger prompt handling, and the freshly regenerated dumps still look like earlier-boot snapshots rather than the richer `/tmp/ecgboot_chain` state referenced in `RE_NOTES.md`.
