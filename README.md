@@ -86,6 +86,7 @@ Current Rust milestone:
   - `ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>`
   - `ec-cli ipbm-validate <dir>`
   - `ec-cli ipbm-init [source_dir] <target_dir> <count>`
+  - `ec-cli ipbm-batch-init [source_dir] <target_root> <count> <count>...`
   - these are enough to inspect and satisfy the currently-known
     `PLAYER[0x48]` / `IPBM.DAT` count-length gate from Rust and to start
     emitting non-zero structural record prefixes
@@ -94,8 +95,11 @@ Current Rust milestone:
     prints them
 - Rust now also has a combined integrity-focused inspection command:
   - `ec-cli compliance-report <dir>`
+  - `ec-cli compliance-batch-report <root>`
   - this summarizes the current Guard Starbase linkage verdict, the current
     `IPBM` count/length verdict, and the most relevant key words in one pass
+  - the batch form scans a directory of generated scenarios and prints a
+    concise per-directory compliance summary
 - `ec-cli validate <dir> all` now classifies a directory against all currently
   known accepted scenarios and reports which ones match
 - `ec-cli validate-preserved <dir> <scenario>` now checks exact byte-for-byte

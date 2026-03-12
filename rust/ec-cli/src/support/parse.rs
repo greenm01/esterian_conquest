@@ -102,6 +102,25 @@ pub(crate) fn parse_optional_source_target_and_count(
     }
 }
 
+pub(crate) fn parse_optional_source_target_and_count_list(
+    args: Vec<String>,
+    default_source: PathBuf,
+) -> Option<(PathBuf, PathBuf, Vec<u16>)> {
+    match args.as_slice() {
+        [target_root, counts @ ..] if !counts.is_empty() => Some((
+            default_source,
+            PathBuf::from(target_root),
+            counts.iter().map(|value| value.parse::<u16>().ok()).collect::<Option<Vec<_>>>()?,
+        )),
+        [source, target_root, counts @ ..] if !counts.is_empty() => Some((
+            resolve_repo_path(source),
+            PathBuf::from(target_root),
+            counts.iter().map(|value| value.parse::<u16>().ok()).collect::<Option<Vec<_>>>()?,
+        )),
+        _ => None,
+    }
+}
+
 pub(crate) fn parse_coord_pair(value: &str) -> Option<[u8; 2]> {
     let (x, y) = value.split_once(':')?;
     Some([

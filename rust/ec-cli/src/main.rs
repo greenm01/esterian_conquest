@@ -7,17 +7,19 @@ use std::path::{Path, PathBuf};
 
 use ec_data::{BaseDat, ConquestDat, FleetDat, IpbmDat, PlanetDat, PlayerDat, SetupDat};
 use commands::guard_starbase::{
-    apply_guard_starbase_scenario, init_guard_starbase_batch, init_guard_starbase_onebase,
-    print_guard_starbase_report, set_guard_starbase_onebase, validate_guard_starbase_scenario,
+    apply_guard_starbase_scenario, guard_starbase_errors, init_guard_starbase_batch,
+    init_guard_starbase_onebase, print_guard_starbase_report, set_guard_starbase_onebase,
+    validate_guard_starbase_scenario,
 };
 use commands::ipbm::{
-    init_ipbm_zero_records, print_ipbm_report, set_ipbm_record_prefix, set_ipbm_zero_records,
-    validate_ipbm,
+    init_ipbm_batch, init_ipbm_zero_records, ipbm_errors, print_ipbm_report,
+    set_ipbm_record_prefix, set_ipbm_zero_records, validate_ipbm,
 };
 use support::parse::{
     parse_optional_source_and_target, parse_optional_source_target_and_coord_list,
-    parse_optional_source_target_and_count, parse_optional_source_target_and_name,
-    parse_optional_source_target_and_xy, parse_u16_arg, parse_u8_arg, parse_usize_1_based,
+    parse_optional_source_target_and_count, parse_optional_source_target_and_count_list,
+    parse_optional_source_target_and_name, parse_optional_source_target_and_xy, parse_u16_arg,
+    parse_u8_arg, parse_usize_1_based,
 };
 use support::paths::{
     default_fixture_dir, init_fixture_dir, post_maint_fixture_dir, repo_root, resolve_repo_path,
@@ -495,6 +497,17 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             };
             init_guard_starbase_batch(&source, &target_root, &coords)?;
         }
+        "ipbm-batch-init" => {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((source, target_root, counts)) = parse_optional_source_target_and_count_list(
+                remaining,
+                post_maint_fixture_dir(),
+            ) else {
+                print_usage();
+                return Ok(());
+            };
+            init_ipbm_batch(&source, &target_root, &counts)?;
+        }
         "scenario" => {
             let dir = args
                 .next()
@@ -581,6 +594,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 },
                 _ => print_usage(),
             }
+        }
+        "compliance-batch-report" => {
+            let root = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(post_maint_fixture_dir);
+            print_compliance_batch_report(&root)?;
         }
         _ => print_usage(),
     }
@@ -1253,6 +1273,50 @@ fn print_compliance_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>>
     Ok(())
 }
 
+fn print_compliance_batch_report(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    println!("Compliance Batch Report");
+    println!("  root={}", root.display());
+    let mut dirs = fs::read_dir(root)?
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| {
+            entry.file_type().ok().filter(|ty| ty.is_dir())?;
+            Some(entry.path())
+        })
+        .collect::<Vec<_>>();
+    dirs.sort();
+
+    for dir in dirs {
+        print!("{}: ", dir.file_name().unwrap_or_default().to_string_lossy());
+        let guard_ok = match (
+            PlayerDat::parse(&fs::read(dir.join("PLAYER.DAT"))?),
+            FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?),
+            BaseDat::parse(&fs::read(dir.join("BASES.DAT"))?),
+        ) {
+            (Ok(player), Ok(fleets), Ok(bases)) => {
+                guard_starbase_errors(&player, &fleets, &bases).is_empty()
+            }
+            _ => false,
+        };
+        let ipbm_ok = match (
+            PlayerDat::parse(&fs::read(dir.join("PLAYER.DAT"))?),
+            fs::read(dir.join("IPBM.DAT")),
+        ) {
+            (Ok(player), Ok(ipbm_bytes)) => match IpbmDat::parse(&ipbm_bytes) {
+                Ok(ipbm) => ipbm_errors(&player, &ipbm, ipbm_bytes.len()).is_empty(),
+                Err(_) => false,
+            },
+            _ => false,
+        };
+        println!(
+            "guard-starbase={} ipbm={}",
+            if guard_ok { "ok" } else { "fail" },
+            if ipbm_ok { "ok" } else { "fail" }
+        );
+    }
+
+    Ok(())
+}
+
 fn validate_known_fleet_order_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let fleets = FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?)?;
     let mut errors = Vec::new();
@@ -1785,7 +1849,9 @@ fn print_usage() {
     println!("  ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>");
     println!("  ec-cli ipbm-validate <dir>");
     println!("  ec-cli ipbm-init [source_dir] <target_dir> <count>");
+    println!("  ec-cli ipbm-batch-init [source_dir] <target_root> <count> <count>...");
     println!("  ec-cli compliance-report <dir>");
+    println!("  ec-cli compliance-batch-report <root>");
     println!("  ec-cli scenario <dir> <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli scenario <dir> show <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli scenario <dir> list");

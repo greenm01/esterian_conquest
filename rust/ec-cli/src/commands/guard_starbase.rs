@@ -83,6 +83,36 @@ pub(crate) fn validate_guard_starbase_scenario(
     let fleets = FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?)?;
     let bases = BaseDat::parse(&fs::read(dir.join("BASES.DAT"))?)?;
 
+    let errors = guard_starbase_errors(&player, &fleets, &bases);
+
+    if errors.is_empty() {
+        let fleet = &fleets.records[0];
+        let player1 = &player.records[0];
+        let base = &bases.records[0];
+        println!("Valid guard-starbase scenario");
+        println!("  PLAYER[1].starbase_count_raw = 1");
+        println!(
+            "  linkage keys: player[44]={} fleet[00]={} fleet[05]={} base[07]={}",
+            player1.starbase_count_raw(),
+            fleet.local_slot_word_raw(),
+            fleet.fleet_id_word_raw(),
+            base.chain_word_raw()
+        );
+        println!(
+            "  one-base guard-starbase linkage holds at coords {:?}",
+            base.coords_raw()
+        );
+        Ok(())
+    } else {
+        Err(errors.join("\n").into())
+    }
+}
+
+pub(crate) fn guard_starbase_errors(
+    player: &PlayerDat,
+    fleets: &FleetDat,
+    bases: &BaseDat,
+) -> Vec<String> {
     let mut errors = Vec::new();
 
     match player.records.first() {
@@ -116,10 +146,10 @@ pub(crate) fn validate_guard_starbase_scenario(
     }
 
     let Some(fleet) = fleets.records.first() else {
-        return Err("FLEETS.DAT missing record 1".into());
+        return errors;
     };
     let Some(player1) = player.records.first() else {
-        return Err("PLAYER.DAT missing record 1".into());
+        return errors;
     };
 
     if bases.records.len() != 1 {
@@ -182,25 +212,7 @@ pub(crate) fn validate_guard_starbase_scenario(
         }
     }
 
-    if errors.is_empty() {
-        let base = &bases.records[0];
-        println!("Valid guard-starbase scenario");
-        println!("  PLAYER[1].starbase_count_raw = 1");
-        println!(
-            "  linkage keys: player[44]={} fleet[00]={} fleet[05]={} base[07]={}",
-            player1.starbase_count_raw(),
-            fleet.local_slot_word_raw(),
-            fleet.fleet_id_word_raw(),
-            base.chain_word_raw()
-        );
-        println!(
-            "  one-base guard-starbase linkage holds at coords {:?}",
-            base.coords_raw()
-        );
-        Ok(())
-    } else {
-        Err(errors.join("\n").into())
-    }
+    errors
 }
 
 pub(crate) fn print_guard_starbase_report(

@@ -173,6 +173,7 @@ Current concrete Rust milestone:
     - `ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>`
     - `ec-cli ipbm-validate <dir>`
     - `ec-cli ipbm-init [source_dir] <target_dir> <count>`
+    - `ec-cli ipbm-batch-init [source_dir] <target_root> <count> <count>...`
     - this is enough to keep generated scenarios on the correct side of the
     known `PLAYER[0x48]` / `IPBM.DAT` count gate and to start emitting
     structured non-zero prefix fields without hand-editing bytes
@@ -183,8 +184,11 @@ Current concrete Rust milestone:
     - `ec-cli ipbm-report` now prints those structural groups directly
   - Rust also now has a combined integrity-focused inspection command:
     - `ec-cli compliance-report <dir>`
+    - `ec-cli compliance-batch-report <root>`
     - this prints the current Guard Starbase linkage verdict, current `IPBM`
       count/length verdict, and the most relevant key words in one pass
+    - the batch form is meant for generated scenario roots and keeps the
+      output compact enough to compare multiple experiment directories quickly
   - `ec-cli validate <dir> all` now gives a quick classification pass across
     the current known accepted scenarios
   - the known accepted scenarios are now centralized behind one Rust-side

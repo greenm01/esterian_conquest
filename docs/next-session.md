@@ -89,6 +89,7 @@
         - `ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>`
         - `ec-cli ipbm-validate <dir>`
         - `ec-cli ipbm-init [source_dir] <target_dir> <count>`
+        - `ec-cli ipbm-batch-init [source_dir] <target_root> <count> <count>...`
         - these now cover the first practical Rust-side `IPBM.DAT` workflow:
           inspect the current count/length state, then materialize a zero-filled
           valid record family that satisfies the known `PLAYER[0x48]` gate,
@@ -100,10 +101,13 @@
             scenario shaping no longer needs raw hex inspection for the mapped
             parts of the record
         - `ec-cli compliance-report <dir>`
+        - `ec-cli compliance-batch-report <root>`
         - this now gives the quickest Rust-side preflight for the currently
           mapped integrity-sensitive areas:
           - Guard Starbase linkage
           - `IPBM.DAT` count/length state
+        - the batch form now gives a compact per-directory verdict for roots
+          produced by the Rust scenario generators
   - `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`
     materializes a runnable scenario directory in one command from a
     compliant baseline

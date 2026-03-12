@@ -1,13 +1,17 @@
 # Rust Architecture
 
-The Rust workspace should follow a pragmatic data-oriented design.
+The Rust workspace should follow a pragmatic data-oriented design. This is a
+standing project rule, not a temporary preference.
 
 ## Principles
 
 - keep binary layout explicit
 - prefer plain data records plus small focused functions
+- optimize for data flow and deterministic transforms, not object lifecycles
 - avoid deep object hierarchies and abstraction layers
 - split by data domain and command family, not by arbitrary utility classes
+- keep logic DRY by centralizing shared field validation and report helpers
+- avoid copy-pasted scenario logic when one record-level helper can express it
 - treat preserved fixtures and original binaries as the acceptance oracle
 
 ## Module Direction
@@ -17,6 +21,7 @@ For `ec-data`:
 - keep record/file layout code close to the bytes it represents
 - keep parsing and serialization deterministic
 - prefer stable typed accessors over semantic guesses
+- prefer explicit record structs and free functions over sprawling impl blocks
 - keep tests in `tests/`, not inline in source files
 
 For `ec-cli`:
@@ -25,6 +30,8 @@ For `ec-cli`:
 - group commands by feature area in submodules
 - keep shared parsing/path helpers in `support/`
 - prefer explicit command functions over framework-style indirection
+- keep batch/report paths built on shared pure validators instead of ad hoc
+  command-specific checks
 
 ## Current Structure
 

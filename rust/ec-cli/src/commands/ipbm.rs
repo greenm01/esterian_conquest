@@ -96,6 +96,22 @@ pub(crate) fn validate_ipbm(dir: &Path) -> Result<(), Box<dyn std::error::Error>
     let ipbm_bytes = fs::read(dir.join("IPBM.DAT"))?;
     let ipbm = IpbmDat::parse(&ipbm_bytes)?;
 
+    let errors = ipbm_errors(&player, &ipbm, ipbm_bytes.len());
+
+    if errors.is_empty() {
+        let expected_count = player.records[0].ipbm_count_raw() as usize;
+        let actual_count = ipbm.records.len();
+        println!("Valid IPBM count/length state");
+        println!("  player[1].ipbm_count_raw = {}", expected_count);
+        println!("  IPBM.DAT size = {}", ipbm_bytes.len());
+        println!("  record_count = {}", actual_count);
+        Ok(())
+    } else {
+        Err(errors.join("\n").into())
+    }
+}
+
+pub(crate) fn ipbm_errors(player: &PlayerDat, ipbm: &IpbmDat, ipbm_size: usize) -> Vec<String> {
     let expected_count = player.records[0].ipbm_count_raw() as usize;
     let actual_count = ipbm.records.len();
     let expected_size = expected_count * IPBM_RECORD_SIZE;
@@ -107,23 +123,13 @@ pub(crate) fn validate_ipbm(dir: &Path) -> Result<(), Box<dyn std::error::Error>
             expected_count, actual_count
         ));
     }
-    if ipbm_bytes.len() != expected_size {
+    if ipbm_size != expected_size {
         errors.push(format!(
             "IPBM.DAT size expected {}, got {}",
-            expected_size,
-            ipbm_bytes.len()
+            expected_size, ipbm_size
         ));
     }
-
-    if errors.is_empty() {
-        println!("Valid IPBM count/length state");
-        println!("  player[1].ipbm_count_raw = {}", expected_count);
-        println!("  IPBM.DAT size = {}", ipbm_bytes.len());
-        println!("  record_count = {}", actual_count);
-        Ok(())
-    } else {
-        Err(errors.join("\n").into())
-    }
+    errors
 }
 
 pub(crate) fn init_ipbm_zero_records(
@@ -137,5 +143,39 @@ pub(crate) fn init_ipbm_zero_records(
     }
     set_ipbm_zero_records(target, count)?;
     println!("IPBM directory initialized at {}", target.display());
+    Ok(())
+}
+
+pub(crate) fn init_ipbm_batch(
+    source: &Path,
+    target_root: &Path,
+    counts: &[u16],
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(target_root)?;
+    let mut manifest = String::new();
+    manifest.push_str("IPBM batch\n");
+    manifest.push_str(&format!("source={}\n", source.display()));
+    manifest.push_str(&format!("target_root={}\n", target_root.display()));
+    manifest.push('\n');
+
+    for count in counts {
+        let name = format!("count-{:02}", count);
+        let scenario_dir = target_root.join(&name);
+        init_ipbm_zero_records(source, &scenario_dir, *count)?;
+        manifest.push_str(&format!("{name}\n"));
+        manifest.push_str(&format!("  count={}\n", count));
+        manifest.push_str(&format!("  dir={}\n", scenario_dir.display()));
+        manifest.push_str(&format!(
+            "  validate=ec-cli ipbm-validate {}\n\n",
+            scenario_dir.display()
+        ));
+    }
+
+    fs::write(target_root.join("IPBM_BATCH.txt"), manifest)?;
+    println!(
+        "Initialized {} IPBM directories under {}",
+        counts.len(),
+        target_root.display()
+    );
     Ok(())
 }

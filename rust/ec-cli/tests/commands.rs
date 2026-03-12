@@ -909,6 +909,59 @@ fn guard_starbase_batch_init_materializes_multiple_parameterized_directories() {
 }
 
 #[test]
+fn ipbm_batch_init_materializes_multiple_valid_directories() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-ipbm-batch-{unique}"));
+
+    let stdout = run_ec_cli_in_dir(
+        &["ipbm-batch-init", target.to_str().unwrap(), "0", "2", "4"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Initialized 3 IPBM directories under"));
+
+    let manifest = fs::read_to_string(target.join("IPBM_BATCH.txt")).unwrap();
+    assert!(manifest.contains("count-00"));
+    assert!(manifest.contains("count-02"));
+    assert!(manifest.contains("count-04"));
+
+    let validate = run_ec_cli_in_dir(
+        &["ipbm-validate", target.join("count-02").to_str().unwrap()],
+        repo_root().join("rust"),
+    );
+    assert!(validate.contains("Valid IPBM count/length state"));
+    assert!(validate.contains("record_count = 2"));
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn compliance_batch_report_summarizes_batch_directory_status() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-compliance-batch-{unique}"));
+
+    run_ec_cli_in_dir(
+        &["guard-starbase-batch-init", target.to_str().unwrap(), "12:9", "14:7"],
+        repo_root().join("rust"),
+    );
+
+    let stdout = run_ec_cli_in_dir(
+        &["compliance-batch-report", target.to_str().unwrap()],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Compliance Batch Report"));
+    assert!(stdout.contains("x12-y09: guard-starbase=ok ipbm=ok"));
+    assert!(stdout.contains("x14-y07: guard-starbase=ok ipbm=ok"));
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
 fn validate_guard_starbase_accepts_known_valid_fixture() {
     let stdout = run_ec_cli(&["validate", "fixtures/ecmaint-starbase-pre/v1.5", "guard-starbase"]);
     assert!(stdout.contains("Valid guard-starbase scenario"));
