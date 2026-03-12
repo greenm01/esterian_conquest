@@ -383,6 +383,39 @@ fn fleet_order_recreates_known_valid_fleet_pre_fixture() {
 }
 
 #[test]
+fn fleet_order_report_prints_known_fixture_fields() {
+    let stdout = run_ec_cli(&["fleet-order-report", "fixtures/ecmaint-fleet-pre/v1.5", "1"]);
+    assert!(stdout.contains("Fleet Order Report"));
+    assert!(stdout.contains("record=1"));
+    assert!(stdout.contains("current_speed=3"));
+    assert!(stdout.contains("order=0x0c"));
+    assert!(stdout.contains("target=[15, 13]"));
+}
+
+#[test]
+fn fleet_order_init_materializes_parameterized_directory() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-fleet-order-init-params-{unique}"));
+
+    let stdout = run_ec_cli_in_dir(
+        &["fleet-order-init", target.to_str().unwrap(), "1", "3", "0x0c", "15", "13"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Fleet-order directory initialized at"));
+
+    let validate = run_ec_cli_in_dir(
+        &["validate", target.to_str().unwrap(), "fleet-order"],
+        repo_root().join("rust"),
+    );
+    assert!(validate.contains("Valid fleet-order scenario"));
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
 fn planet_build_recreates_known_valid_build_pre_fixture() {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -416,6 +449,38 @@ fn planet_build_recreates_known_valid_build_pre_fixture() {
     let expected = repo_root().join("fixtures/ecmaint-build-pre/v1.5/PLANETS.DAT");
     let actual = fs::read(target.join("PLANETS.DAT")).unwrap();
     assert_eq!(actual, fs::read(expected).unwrap());
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn planet_build_report_prints_known_fixture_fields() {
+    let stdout = run_ec_cli(&["planet-build-report", "fixtures/ecmaint-build-pre/v1.5", "15"]);
+    assert!(stdout.contains("Planet Build Report"));
+    assert!(stdout.contains("record=15"));
+    assert!(stdout.contains("build_slot=0x03"));
+    assert!(stdout.contains("build_kind=0x01"));
+}
+
+#[test]
+fn planet_build_init_materializes_parameterized_directory() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-planet-build-init-params-{unique}"));
+
+    let stdout = run_ec_cli_in_dir(
+        &["planet-build-init", target.to_str().unwrap(), "15", "0x03", "0x01"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Planet-build directory initialized at"));
+
+    let validate = run_ec_cli_in_dir(
+        &["validate", target.to_str().unwrap(), "planet-build"],
+        repo_root().join("rust"),
+    );
+    assert!(validate.contains("Valid planet-build scenario"));
 
     let _ = fs::remove_dir_all(&target);
 }

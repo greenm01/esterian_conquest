@@ -38,6 +38,12 @@ Docs:
 - `docs/next-session.md`: exact restart point for the next ECMAINT experiment
 
 Current Rust milestone:
+- `ec-cli` is now split by feature area instead of letting `main.rs` keep
+  growing:
+  - `src/commands/fleet_order.rs`
+  - `src/commands/planet_build.rs`
+  - `src/commands/guard_starbase.rs`
+  - `src/commands/ipbm.rs`
 - `cargo test -p ec-cli` now verifies that Rust can rewrite a compliant
   `fixtures/ecmaint-post/v1.5` snapshot into two preserved accepted pre-maint
   scenarios using decoded fields instead of wholesale fixture replacement:
@@ -102,6 +108,14 @@ Current Rust milestone:
     concise per-directory compliance summary
 - `ec-cli validate <dir> all` now classifies a directory against all currently
   known accepted scenarios and reports which ones match
+- Rust now also has parameterized fleet/build inspection and init commands:
+  - `ec-cli fleet-order-report [dir] [fleet_record]`
+  - `ec-cli fleet-order-init <target_dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]`
+  - `ec-cli planet-build-report [dir] [planet_record]`
+  - `ec-cli planet-build-init <target_dir> <planet_record> <build_slot_raw> <build_kind_raw>`
+  - these default to the compliant `fixtures/ecmaint-post/v1.5` baseline and
+    make the fleet/build paths consistent with the existing starbase/IPBM
+    report/init workflow
 - `ec-cli validate-preserved <dir> <scenario>` now checks exact byte-for-byte
   agreement with the preserved accepted fixture files for that scenario
 - `ec-cli compare-preserved <dir> <scenario>` now reports scenario-focused

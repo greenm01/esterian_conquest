@@ -37,6 +37,8 @@ For `ec-cli`:
 
 `ec-cli` is now split into:
 
+- `src/commands/fleet_order.rs`
+- `src/commands/planet_build.rs`
 - `src/commands/guard_starbase.rs`
 - `src/commands/ipbm.rs`
 - `src/support/parse.rs`

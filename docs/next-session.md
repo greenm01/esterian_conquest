@@ -4,6 +4,14 @@
 - Discovered the true reason `.TOK` files "bypass" the crash: the presence of `Move.Tok` triggers an automatic restore of `.SAV` backups over the `.DAT` files prior to the integrity check, causing the repaired files to pass naturally.
 - Documented findings in `token-investigation.md`.
 - Rust scenario-writer milestone:
+  - `ec-cli` is now split further by feature area:
+    - `src/commands/fleet_order.rs`
+    - `src/commands/planet_build.rs`
+    - `src/commands/guard_starbase.rs`
+    - `src/commands/ipbm.rs`
+  - `fleet-order` and `planet-build` no longer live as one-off logic inside
+    `main.rs`; they now follow the same module/report/init pattern as the
+    starbase/IPBM workflows
   - `ec-data` now parses `BASES.DAT` (`35`-byte records) and `IPBM.DAT`
     (`0x20`-byte records) to the current structural level
   - `ec-cli fleet-order <dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]`
@@ -108,6 +116,12 @@
           - `IPBM.DAT` count/length state
         - the batch form now gives a compact per-directory verdict for roots
           produced by the Rust scenario generators
+        - `ec-cli fleet-order-report [dir] [fleet_record]`
+        - `ec-cli fleet-order-init <target_dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]`
+        - `ec-cli planet-build-report [dir] [planet_record]`
+        - `ec-cli planet-build-init <target_dir> <planet_record> <build_slot_raw> <build_kind_raw>`
+        - these now make fleet/build experiment directories as easy to
+          materialize and inspect as the existing starbase/IPBM flows
   - `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`
     materializes a runnable scenario directory in one command from a
     compliant baseline
@@ -116,6 +130,8 @@
       not just copy preserved fixture trees wholesale
     - Rust can now generate and validate accepted fleet/build/starbase
       scenarios through a consistent scenario-oriented CLI
+    - Rust can now also materialize and inspect parameterized fleet/build
+      experiment directories directly from the compliant post-maint baseline
     - Rust can now classify a directory against all currently-known accepted
       scenarios with one command
     - Rust can now also distinguish "matches the currently-known rule shape"

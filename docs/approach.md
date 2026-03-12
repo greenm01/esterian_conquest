@@ -121,6 +121,12 @@ Near-term acceptance rule:
 
 Current concrete Rust milestone:
 
+- `ec-cli` is now split by command family instead of continuing to grow in
+  one file:
+  - `src/commands/fleet_order.rs`
+  - `src/commands/planet_build.rs`
+  - `src/commands/guard_starbase.rs`
+  - `src/commands/ipbm.rs`
 - start from a known-good preserved snapshot such as
   `fixtures/ecmaint-post/v1.5`
 - rewrite only decoded fields in Rust
@@ -191,6 +197,14 @@ Current concrete Rust milestone:
       output compact enough to compare multiple experiment directories quickly
   - `ec-cli validate <dir> all` now gives a quick classification pass across
     the current known accepted scenarios
+  - Rust now also has parameterized fleet/build inspection and init commands:
+    - `ec-cli fleet-order-report [dir] [fleet_record]`
+    - `ec-cli fleet-order-init <target_dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]`
+    - `ec-cli planet-build-report [dir] [planet_record]`
+    - `ec-cli planet-build-init <target_dir> <planet_record> <build_slot_raw> <build_kind_raw>`
+    - these now make the fleet/build paths consistent with the existing
+      starbase/IPBM report/init workflow and remove more experiment setup from
+      hand-edited fixture directories
   - the known accepted scenarios are now centralized behind one Rust-side
     catalog:
     - `ec-cli scenario <dir> list`

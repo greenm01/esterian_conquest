@@ -121,6 +121,58 @@ pub(crate) fn parse_optional_source_target_and_count_list(
     }
 }
 
+pub(crate) fn parse_target_and_fleet_spec(
+    args: Vec<String>,
+) -> Option<(PathBuf, usize, u8, u8, u8, u8, Option<u8>, Option<u8>)> {
+    match args.as_slice() {
+        [target, record_index, speed, order_code, target_x, target_y] => Some((
+            PathBuf::from(target),
+            parse_usize_1_based(record_index, "fleet record index").ok()?,
+            parse_u8_arg(speed, "speed").ok()?,
+            parse_u8_arg(order_code, "order code").ok()?,
+            parse_u8_arg(target_x, "target_x").ok()?,
+            parse_u8_arg(target_y, "target_y").ok()?,
+            None,
+            None,
+        )),
+        [target, record_index, speed, order_code, target_x, target_y, aux0] => Some((
+            PathBuf::from(target),
+            parse_usize_1_based(record_index, "fleet record index").ok()?,
+            parse_u8_arg(speed, "speed").ok()?,
+            parse_u8_arg(order_code, "order code").ok()?,
+            parse_u8_arg(target_x, "target_x").ok()?,
+            parse_u8_arg(target_y, "target_y").ok()?,
+            Some(parse_u8_arg(aux0, "aux0").ok()?),
+            None,
+        )),
+        [target, record_index, speed, order_code, target_x, target_y, aux0, aux1] => Some((
+            PathBuf::from(target),
+            parse_usize_1_based(record_index, "fleet record index").ok()?,
+            parse_u8_arg(speed, "speed").ok()?,
+            parse_u8_arg(order_code, "order code").ok()?,
+            parse_u8_arg(target_x, "target_x").ok()?,
+            parse_u8_arg(target_y, "target_y").ok()?,
+            Some(parse_u8_arg(aux0, "aux0").ok()?),
+            Some(parse_u8_arg(aux1, "aux1").ok()?),
+        )),
+        _ => None,
+    }
+}
+
+pub(crate) fn parse_target_and_planet_spec(
+    args: Vec<String>,
+) -> Option<(PathBuf, usize, u8, u8)> {
+    match args.as_slice() {
+        [target, record_index, slot_raw, kind_raw] => Some((
+            PathBuf::from(target),
+            parse_usize_1_based(record_index, "planet record index").ok()?,
+            parse_u8_arg(slot_raw, "build slot").ok()?,
+            parse_u8_arg(kind_raw, "build kind").ok()?,
+        )),
+        _ => None,
+    }
+}
+
 pub(crate) fn parse_coord_pair(value: &str) -> Option<[u8; 2]> {
     let (x, y) = value.split_once(':')?;
     Some([

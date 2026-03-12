@@ -6,6 +6,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use ec_data::{BaseDat, ConquestDat, FleetDat, IpbmDat, PlanetDat, PlayerDat, SetupDat};
+use commands::fleet_order::{
+    apply_fleet_order_scenario, init_fleet_order_scenario, print_fleet_order_report,
+    set_fleet_order, validate_fleet_order_scenario,
+};
 use commands::guard_starbase::{
     apply_guard_starbase_scenario, guard_starbase_errors, init_guard_starbase_batch,
     init_guard_starbase_onebase, print_guard_starbase_report, set_guard_starbase_onebase,
@@ -15,11 +19,16 @@ use commands::ipbm::{
     init_ipbm_batch, init_ipbm_zero_records, ipbm_errors, print_ipbm_report,
     set_ipbm_record_prefix, set_ipbm_zero_records, validate_ipbm,
 };
+use commands::planet_build::{
+    apply_planet_build_scenario, init_planet_build_scenario, print_planet_build_report,
+    set_planet_build, validate_planet_build_scenario,
+};
 use support::parse::{
     parse_optional_source_and_target, parse_optional_source_target_and_coord_list,
     parse_optional_source_target_and_count, parse_optional_source_target_and_count_list,
-    parse_optional_source_target_and_name, parse_optional_source_target_and_xy, parse_u16_arg,
-    parse_u8_arg, parse_usize_1_based,
+    parse_optional_source_target_and_name, parse_optional_source_target_and_xy,
+    parse_target_and_fleet_spec, parse_target_and_planet_spec, parse_u16_arg, parse_u8_arg,
+    parse_usize_1_based,
 };
 use support::paths::{
     default_fixture_dir, init_fixture_dir, post_maint_fixture_dir, repo_root, resolve_repo_path,
@@ -348,6 +357,38 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 aux1.as_deref().map(|value| parse_u8_arg(value, "aux1")).transpose()?,
             )?;
         }
+        "fleet-order-report" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            let record_index_arg = args.next();
+            let record_index = record_index_arg.as_deref().unwrap_or("1");
+            print_fleet_order_report(
+                &dir,
+                parse_usize_1_based(record_index, "fleet record index")?,
+            )?;
+        }
+        "fleet-order-init" => {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((target, record_index, speed, order_code, target_x, target_y, aux0, aux1)) =
+                parse_target_and_fleet_spec(remaining)
+            else {
+                print_usage();
+                return Ok(());
+            };
+            init_fleet_order_scenario(
+                &post_maint_fixture_dir(),
+                &target,
+                record_index,
+                speed,
+                order_code,
+                target_x,
+                target_y,
+                aux0,
+                aux1,
+            )?;
+        }
         "planet-build" => {
             let dir = args
                 .next()
@@ -370,6 +411,34 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 parse_usize_1_based(&record_index, "planet record index")?,
                 parse_u8_arg(&slot_raw, "build slot")?,
                 parse_u8_arg(&kind_raw, "build kind")?,
+            )?;
+        }
+        "planet-build-report" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            let record_index_arg = args.next();
+            let record_index = record_index_arg.as_deref().unwrap_or("15");
+            print_planet_build_report(
+                &dir,
+                parse_usize_1_based(record_index, "planet record index")?,
+            )?;
+        }
+        "planet-build-init" => {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((target, record_index, slot_raw, kind_raw)) =
+                parse_target_and_planet_spec(remaining)
+            else {
+                print_usage();
+                return Ok(());
+            };
+            init_planet_build_scenario(
+                &post_maint_fixture_dir(),
+                &target,
+                record_index,
+                slot_raw,
+                kind_raw,
             )?;
         }
         "guard-starbase-onebase" => {
@@ -1132,91 +1201,13 @@ fn set_maintenance_days(dir: &Path, day_names: &[String]) -> Result<(), Box<dyn 
     Ok(())
 }
 
-fn set_fleet_order(
-    dir: &Path,
-    record_index_1_based: usize,
-    speed: u8,
-    order_code: u8,
-    target_x: u8,
-    target_y: u8,
-    aux0: Option<u8>,
-    aux1: Option<u8>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let fleets_path = dir.join("FLEETS.DAT");
-    let mut fleets = FleetDat::parse(&fs::read(&fleets_path)?)?;
-    let record = fleets
-        .records
-        .get_mut(record_index_1_based - 1)
-        .ok_or_else(|| format!("fleet record index out of range: {record_index_1_based}"))?;
-    record.set_current_speed(speed);
-    record.set_standing_order_code_raw(order_code);
-    record.set_standing_order_target_coords_raw([target_x, target_y]);
-    let mut mission_aux = record.mission_aux_bytes();
-    if let Some(value) = aux0 {
-        mission_aux[0] = value;
-    }
-    if let Some(value) = aux1 {
-        mission_aux[1] = value;
-    }
-    record.set_mission_aux_bytes(mission_aux);
-    let final_aux = record.mission_aux_bytes();
-    let _ = record;
-    fs::write(&fleets_path, fleets.to_bytes())?;
-
-    println!(
-        "Fleet record {} updated: speed={} order={:#04x} target=({}, {}) aux={:02x?}",
-        record_index_1_based,
-        speed,
-        order_code,
-        target_x,
-        target_y,
-        final_aux
-    );
-    Ok(())
-}
-
-fn set_planet_build(
-    dir: &Path,
-    record_index_1_based: usize,
-    slot_raw: u8,
-    kind_raw: u8,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let planets_path = dir.join("PLANETS.DAT");
-    let mut planets = PlanetDat::parse(&fs::read(&planets_path)?)?;
-    let record = planets
-        .records
-        .get_mut(record_index_1_based - 1)
-        .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
-    record.set_build_slot_raw(slot_raw);
-    record.set_build_kind_raw(kind_raw);
-    fs::write(&planets_path, planets.to_bytes())?;
-
-    println!(
-        "Planet record {} updated: build_slot={:#04x} build_kind={:#04x}",
-        record_index_1_based, slot_raw, kind_raw
-    );
-    Ok(())
-}
-
-fn apply_known_fleet_order_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    set_fleet_order(dir, 1, 0x03, 0x0C, 0x0F, 0x0D, None, None)?;
-    println!("Applied scenario: fleet-order");
-    Ok(())
-}
-
-fn apply_known_planet_build_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    set_planet_build(dir, 15, 0x03, 0x01)?;
-    println!("Applied scenario: planet-build");
-    Ok(())
-}
-
 fn apply_known_scenario(
     dir: &Path,
     scenario: KnownScenario,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match scenario {
-        KnownScenario::FleetOrder => apply_known_fleet_order_scenario(dir),
-        KnownScenario::PlanetBuild => apply_known_planet_build_scenario(dir),
+        KnownScenario::FleetOrder => apply_fleet_order_scenario(dir),
+        KnownScenario::PlanetBuild => apply_planet_build_scenario(dir),
         KnownScenario::GuardStarbase => apply_guard_starbase_scenario(dir),
     }
 }
@@ -1317,84 +1308,15 @@ fn print_compliance_batch_report(root: &Path) -> Result<(), Box<dyn std::error::
     Ok(())
 }
 
-fn validate_known_fleet_order_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let fleets = FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?)?;
-    let mut errors = Vec::new();
-
-    match fleets.records.first() {
-        Some(record) => {
-            if record.current_speed() != 0x03 {
-                errors.push(format!(
-                    "FLEET[1].current_speed expected 3, got {}",
-                    record.current_speed()
-                ));
-            }
-            if record.standing_order_code_raw() != 0x0C {
-                errors.push(format!(
-                    "FLEET[1].order expected 0x0c, got {:#04x}",
-                    record.standing_order_code_raw()
-                ));
-            }
-            if record.standing_order_target_coords_raw() != [0x0F, 0x0D] {
-                errors.push(format!(
-                    "FLEET[1].target expected (15, 13), got {:?}",
-                    record.standing_order_target_coords_raw()
-                ));
-            }
-        }
-        None => errors.push("FLEETS.DAT missing record 1".to_string()),
-    }
-
-    if errors.is_empty() {
-        println!("Valid fleet-order scenario");
-        println!("  FLEET[1].speed = 3");
-        println!("  FLEET[1].order = 0x0c");
-        println!("  FLEET[1].target = (15, 13)");
-        Ok(())
-    } else {
-        Err(errors.join("\n").into())
-    }
-}
-
-fn validate_known_planet_build_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let planets = PlanetDat::parse(&fs::read(dir.join("PLANETS.DAT"))?)?;
-    let mut errors = Vec::new();
-
-    match planets.records.get(14) {
-        Some(record) => {
-            if record.build_slot_raw() != 0x03 {
-                errors.push(format!(
-                    "PLANET[15].build_slot expected 0x03, got {:#04x}",
-                    record.build_slot_raw()
-                ));
-            }
-            if record.build_kind_raw() != 0x01 {
-                errors.push(format!(
-                    "PLANET[15].build_kind expected 0x01, got {:#04x}",
-                    record.build_kind_raw()
-                ));
-            }
-        }
-        None => errors.push("PLANETS.DAT missing record 15".to_string()),
-    }
-
-    if errors.is_empty() {
-        println!("Valid planet-build scenario");
-        println!("  PLANET[15].build_slot = 0x03");
-        println!("  PLANET[15].build_kind = 0x01");
-        Ok(())
-    } else {
-        Err(errors.join("\n").into())
-    }
-}
-
 fn validate_known_scenario(
     dir: &Path,
     scenario: KnownScenario,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match scenario {
-        KnownScenario::FleetOrder => validate_known_fleet_order_scenario(dir),
-        KnownScenario::PlanetBuild => validate_known_planet_build_scenario(dir),
+        KnownScenario::FleetOrder => {
+            validate_fleet_order_scenario(dir, 1, 0x03, 0x0C, 0x0F, 0x0D, None, None)
+        }
+        KnownScenario::PlanetBuild => validate_planet_build_scenario(dir, 15, 0x03, 0x01),
         KnownScenario::GuardStarbase => validate_guard_starbase_scenario(dir),
     }
 }
@@ -1839,7 +1761,11 @@ fn print_usage() {
     println!("  ec-cli purge-after [dir]");
     println!("  ec-cli purge-after <dir> <turns>");
     println!("  ec-cli fleet-order <dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]");
+    println!("  ec-cli fleet-order-report [dir] [fleet_record]");
+    println!("  ec-cli fleet-order-init <target_dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]");
     println!("  ec-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>");
+    println!("  ec-cli planet-build-report [dir] [planet_record]");
+    println!("  ec-cli planet-build-init <target_dir> <planet_record> <build_slot_raw> <build_kind_raw>");
     println!("  ec-cli guard-starbase-onebase <dir> <target_x> <target_y>");
     println!("  ec-cli guard-starbase-report <dir>");
     println!("  ec-cli guard-starbase-init [source_dir] <target_dir> <target_x> <target_y>");
