@@ -515,6 +515,35 @@ Important detail:
     - control then transfers into a follow-on phase that repacks parser state
       before the later `0x1C` exit path
     - this is now a better next target than more broad value-mutation sweeps
+- Handoff pointer capture now identifies the live dropfile stream object:
+  - artifact:
+    - `artifacts/ecgame-startup/legacy-door-handoff.json`
+  - script:
+    - `tools/capture_ecgame_legacy_door_handoff_buffers.py`
+  - confirmed:
+    - `DI=403C` is stable across `3F10`, `3FFF`, and `3F1A`
+    - dumping `DS:403C` yields a consistent structure head:
+      - `05 00`
+      - `B1 D7`
+      - `80 00`
+      - `...`
+      - `BC 40 A1 44`
+      - `0C 06 94 42`
+      - `E8 06 94 42`
+    - practical interpretation of that object head:
+      - handle-like word `0x0005`
+      - Borland/RTL-style file-object magic near `0xD7B1`
+      - buffer size `0x0080`
+      - buffer pointer `44A1:40BC`
+      - code/data pointers back into the live `4294:` image near `060C` and
+        `06E8`
+  - why it matters:
+    - this strongly suggests `DI=403C` is the live dropfile stream/file object
+      used by the parser loop
+    - the recurring `AH=3F` loop is likely calling through that object or its
+      adjacent helper layer rather than hand-rolling DOS calls directly
+    - the `4294:060C` / `4294:06E8` pointers are now concrete code-adjacent
+      anchors for the post-`3F10` handoff path
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
 
 Current caveat:

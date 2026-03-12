@@ -804,4 +804,21 @@ Suggested execution order:
       broad pre-`3F10` sweeps
     - specifically: trace how the completed parser loop repacks state and
       decides to continue toward `0x1C`
+- New live-object anchor:
+  - artifact:
+    - `artifacts/ecgame-startup/legacy-door-handoff.json`
+  - script:
+    - `tools/capture_ecgame_legacy_door_handoff_buffers.py`
+  - confirmed:
+    - `DI=403C` is stable across `3F10`, `3FFF`, and `3F1A`
+    - `DS:403C` looks like a live Borland-style file/stream object with:
+      - handle `0x0005`
+      - magic-like word near `0xD7B1`
+      - buffer size `0x0080`
+      - buffer pointer `44A1:40BC`
+      - pointers back into live code near `4294:060C` and `4294:06E8`
+  - implication:
+    - `4294:060C` / `4294:06E8` are now the best concrete post-`3F10` anchors
+      for static/dynamic RE of the local startup gate
+    - this is a better next target than more blind dropfile text mutation
 - Remaining blocker: the local interactive `ECGAME` flow is still not fully stable because several old scripts have brittle debugger prompt handling, and the freshly regenerated dumps still look like earlier-boot snapshots rather than the richer `/tmp/ecgboot_chain` state referenced in `RE_NOTES.md`.
