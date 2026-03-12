@@ -150,17 +150,15 @@ Current concrete Rust milestone:
     setters over `BaseRecord`, not from a preserved raw byte blob
   - Rust can also validate the currently-known accepted one-base Guard
     Starbase shape with `ec-cli validate <dir> guard-starbase`
-  - that Guard Starbase validator is now linkage-shaped:
+  - that Guard Starbase validator is now explicitly linkage-shaped based on the kind-1 / kind-2 semantic keys:
     - player starbase-count word
-    - fleet local-slot word
-    - fleet ID word
-    - base chain word
+    - fleet local-slot word matching base summary word
+    - fleet ID word matching base chain word
     - guard target/base coords
     - guard starbase index/enable bytes
-  - Rust also now has a first safe parameterized starbase writer:
+  - Rust also now has a first explicit parameterized starbase writer:
     - `ec-cli guard-starbase-onebase <dir> <target_x> <target_y>`
-    - this keeps the currently-known linkage keys fixed in the accepted
-      one-base shape while varying the sector coordinates
+    - this explicit encoder derives the accepted base linkage keys directly from the `PLAYER.DAT` and `FLEETS.DAT` records instead of relying on a hard-coded accepted-shape blob
   - Rust also now has a direct linkage inspection command:
     - `ec-cli guard-starbase-report <dir>`
     - use this to print the currently relevant player/fleet/base key words

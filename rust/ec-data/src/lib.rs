@@ -713,6 +713,10 @@ impl BaseRecord {
         u16::from_le_bytes([self.raw[0x02], self.raw[0x03]])
     }
 
+    pub fn set_summary_word_raw(&mut self, value: u16) {
+        self.raw[0x02..0x04].copy_from_slice(&value.to_le_bytes());
+    }
+
     pub fn set_active_flag_raw(&mut self, value: u8) {
         self.raw[0x02] = value;
     }

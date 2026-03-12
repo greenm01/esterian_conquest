@@ -32,6 +32,16 @@ pub(crate) fn set_guard_starbase_onebase(
     fleet.set_standing_order_code_raw(0x04);
     fleet.set_standing_order_target_coords_raw([target_x, target_y]);
     fleet.set_mission_aux_bytes([0x01, 0x01]);
+    
+    // Explicit linkage keys derived from 3558/355A pairing semantics
+    // kind-1 summary +0x0A <- fleet raw 0x00..0x01
+    // kind-2 summary +0x0A <- base raw 0x02..0x03
+    let base_summary_word = fleet.local_slot_word_raw();
+    
+    // kind-1 follow-on +0x06 <- fleet raw 0x05..0x06
+    // kind-2 follow-on +0x06 <- base raw 0x07..0x08
+    let base_chain_word = fleet.fleet_id_word_raw();
+
     let _ = fleet;
     fs::write(&fleets_path, fleets.to_bytes())?;
 
@@ -40,7 +50,8 @@ pub(crate) fn set_guard_starbase_onebase(
         records: vec![build_guard_starbase_base_record(
             [target_x, target_y],
             0x01,
-            0x0001,
+            base_summary_word,
+            base_chain_word,
             0x01,
         )],
     };
@@ -58,12 +69,13 @@ pub(crate) fn set_guard_starbase_onebase(
 fn build_guard_starbase_base_record(
     coords: [u8; 2],
     base_id: u8,
+    summary_word: u16,
     chain_word: u16,
     owner_empire: u8,
 ) -> BaseRecord {
     let mut record = BaseRecord::new_zeroed();
     record.set_local_slot_raw(base_id);
-    record.set_active_flag_raw(0x01);
+    record.set_summary_word_raw(summary_word);
     record.set_base_id_raw(base_id);
     record.set_link_word_raw(0x0000);
     record.set_chain_word_raw(chain_word);
@@ -162,10 +174,11 @@ pub(crate) fn guard_starbase_errors(
         if base.local_slot_raw() == 0 {
             errors.push("BASES[1].local_slot expected non-zero".to_string());
         }
-        if base.active_flag_raw() != 0x01 {
+        if base.summary_word_raw() != fleet.local_slot_word_raw() {
             errors.push(format!(
-                "BASES[1].active_flag expected 0x01, got {:#04x}",
-                base.active_flag_raw()
+                "BASES[1].summary_word expected FLEET[1].local_slot_word {}, got {}",
+                fleet.local_slot_word_raw(),
+                base.summary_word_raw()
             ));
         }
         if base.base_id_raw() != fleet.guard_starbase_index_raw() {
