@@ -1589,6 +1589,44 @@ Helper-region correction after focused dump:
     and/or dynamic capture of the call arguments/results, not more naive
     function naming at the current addresses
 
+Caller-pattern milestone for the helper island:
+
+- new artifact: `artifacts/ghidra/ecmaint-live/kind2-helper-callers.txt`
+- new script: `tools/ghidra_scripts_tmp/ReportKind2HelperCallers.java`
+- despite the raw helper region still being poorly carved, the callers now
+  establish a stable contract for both targets:
+  - `0x2000:c067`
+  - `0x2000:c09a`
+- shared observed calling convention:
+  - caller pushes source summary word `ES:[DI + 0x06]`
+  - caller then pushes a destination far pointer
+    - either `DS:offset`
+    - or `SS:local`
+  - then performs the far call
+- confirmed high-value callers:
+  - `0000:0307`:
+    - kind-`1` loader pushes summary `+0x06`
+    - destination `DS:3502`
+    - then immediately consumes `350d..` as decoded scratch
+  - `0000:03fe`:
+    - kind-`2` matcher pushes summary `+0x06`
+    - destination `DS:3558`
+    - then immediately consumes `3563..357a` as decoded scratch
+  - `0000:0681`:
+    - kind-`2` structural accept path pushes candidate kind-`1` summary `+0x06`
+    - destination `SS:[BP+f7b6]`
+    - then checks decoded output at offsets:
+      - `+0x1f` -> kind byte `== 4`
+      - `+0x23` -> word compared against `[0x355A]`
+      - `+0x0a` -> flag byte `== 0`
+- practical interpretation:
+  - `c067` is now strongly supported as a generic summary-`+0x06` decoder used
+    by the kind-`1` loader and by the matcher's structural comparison path
+  - `c09a` is likewise supported as a sibling decoder used to populate the
+    `3558` scratch family from base-side summary `+0x06`
+  - even without a clean raw function carve, the decoded-output offsets are now
+    concrete enough to guide both future dynamic capture and Rust-side naming
+
 Relevant documentation cross-check:
 
 - `ECPLAYER.DOC` confirms `X` toggles a player-level `expert mode` setting and `T` changes the empire-wide tax rate

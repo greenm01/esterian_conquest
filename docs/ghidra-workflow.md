@@ -342,6 +342,21 @@ This refreshes:
 - the current correction that those addresses are still not trustworthy
   semantic helper starts in the raw import
 
+Generate the caller-pattern report for those helper targets:
+
+```bash
+tools/run_ghidra_script_args.sh ecmaint-live ReportKind2HelperCallers.java
+```
+
+This refreshes:
+
+- `artifacts/ghidra/ecmaint-live/kind2-helper-callers.txt`
+- the stable far-call contract for `0x2000:c067` and `0x2000:c09a`
+- the key caller cases that decode summary `+0x06` into:
+  - `DS:3502`
+  - `DS:3558`
+  - local structural-match buffers
+
 ## First Analysis Pass
 
 From the repo root:

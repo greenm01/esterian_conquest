@@ -1,0 +1,229 @@
+# Callers of 2000:c067
+
+## Call from 0000:0307
+
+0000:02f8  ADD DI,AX                    ; bytes=03 f8
+0000:02fa  LES DI,ES:[DI + -0x4]        ; bytes=26 c4 7d fc
+0000:02fe  PUSH word ptr ES:[DI + 0x6]  ; bytes=26 ff 75 06
+0000:0302  MOV DI,0x3502                ; bytes=bf 02 35
+0000:0305  PUSH DS                      ; bytes=1e
+0000:0306  PUSH DI                      ; bytes=57
+0000:0307  CALLF 0x2000:c067            ; bytes=9a 17 37 95 28
+0000:030c  MOV AL,[0x350d]              ; bytes=a0 0d 35
+0000:030f  XOR AH,AH                    ; bytes=30 e4
+0000:0311  XOR DX,DX                    ; bytes=31 d2
+0000:0313  CALLF 0x3000:4891            ; bytes=9a 51 11 74 33
+
+## Call from 0000:0681
+
+0000:0671  ADD DI,AX                    ; bytes=03 f8
+0000:0673  LES DI,ES:[DI + -0x4]        ; bytes=26 c4 7d fc
+0000:0677  PUSH word ptr ES:[DI + 0x6]  ; bytes=26 ff 75 06
+0000:067b  LEA DI,[BP + 0xf7b6]         ; bytes=8d be b6 f7
+0000:067f  PUSH SS                      ; bytes=16
+0000:0680  PUSH DI                      ; bytes=57
+0000:0681  CALLF 0x2000:c067            ; bytes=9a 17 37 95 28
+0000:0686  CMP byte ptr [BP + 0xf7d5],0x4 ; bytes=80 be d5 f7 04
+0000:068b  JNZ 0x0000:06ab              ; bytes=75 1e
+0000:068d  MOV AX,word ptr [BP + 0xf7d9] ; bytes=8b 86 d9 f7
+0000:0691  CMP AX,word ptr [0x355a]     ; bytes=3b 06 5a 35
+
+## Call from 0000:0fcb
+
+0000:0fbb  ADD DI,AX                    ; bytes=03 f8
+0000:0fbd  LES DI,ES:[DI + -0x4]        ; bytes=26 c4 7d fc
+0000:0fc1  PUSH word ptr ES:[DI + 0x6]  ; bytes=26 ff 75 06
+0000:0fc5  LEA DI,[BP + 0xf780]         ; bytes=8d be 80 f7
+0000:0fc9  PUSH SS                      ; bytes=16
+0000:0fca  PUSH DI                      ; bytes=57
+0000:0fcb  CALLF 0x2000:c067            ; bytes=9a 17 37 95 28
+0000:0fd0  CMP byte ptr [BP + 0xf79f],0x4 ; bytes=80 be 9f f7 04
+0000:0fd5  JZ 0x0000:0fda               ; bytes=74 03
+0000:0fd7  JMP 0x0000:107f              ; bytes=e9 a5 00
+0000:0fda  MOV AX,word ptr [BP + 0xf7a3] ; bytes=8b 86 a3 f7
+
+## Call from 0000:f8c4
+
+0000:f8b5  ADD DI,AX                    ; bytes=03 f8
+0000:f8b7  LES DI,ES:[DI + -0x4]        ; bytes=26 c4 7d fc
+0000:f8bb  PUSH word ptr ES:[DI + 0x6]  ; bytes=26 ff 75 06
+0000:f8bf  MOV DI,0x3502                ; bytes=bf 02 35
+0000:f8c2  PUSH DS                      ; bytes=1e
+0000:f8c3  PUSH DI                      ; bytes=57
+0000:f8c4  CALLF 0x2000:c067            ; bytes=9a 17 37 95 28
+0000:f8c9  MOV AX,word ptr [BP + -0x6]  ; bytes=8b 46 fa
+0000:f8cc  CMP AX,word ptr [BP + -0xa]  ; bytes=3b 46 f6
+0000:f8cf  JZ 0x0000:f8d4               ; bytes=74 03
+0000:f8d1  JMP 0x0000:f764              ; bytes=e9 90 fe
+
+## Call from 1000:51c8
+
+1000:51b9  ADD DI,AX                    ; bytes=03 f8
+1000:51bb  LES DI,ES:[DI + -0x4]        ; bytes=26 c4 7d fc
+1000:51bf  PUSH word ptr ES:[DI + 0x6]  ; bytes=26 ff 75 06
+1000:51c3  LES DI,[BP + 0x6]            ; bytes=c4 7e 06
+1000:51c6  PUSH ES                      ; bytes=06
+1000:51c7  PUSH DI                      ; bytes=57
+1000:51c8  CALLF 0x2000:c067            ; bytes=9a 17 37 95 28
+1000:51cd  LES DI,[BP + 0x6]            ; bytes=c4 7e 06
+1000:51d0  CMP byte ptr ES:[DI + 0x1f],0x4 ; bytes=26 80 7d 1f 04
+1000:51d5  JNZ 0x1000:51ed              ; bytes=75 16
+1000:51d7  LES DI,[BP + 0x6]            ; bytes=c4 7e 06
+
+## Call from 1000:d759
+
+1000:d74a  ADD DI,AX                    ; bytes=03 f8
+1000:d74c  LES DI,ES:[DI + -0x4]        ; bytes=26 c4 7d fc
+1000:d750  PUSH word ptr ES:[DI + 0x6]  ; bytes=26 ff 75 06
+1000:d754  LEA DI,[BP + -0x3a]          ; bytes=8d 7e c6
+1000:d757  PUSH SS                      ; bytes=16
+1000:d758  PUSH DI                      ; bytes=57
+1000:d759  CALLF 0x2000:c067            ; bytes=9a 17 37 95 28
+1000:d75e  LEA DI,[BP + -0x3a]          ; bytes=8d 7e c6
+1000:d761  PUSH SS                      ; bytes=16
+1000:d762  PUSH DI                      ; bytes=57
+1000:d763  CALLF 0x2000:ba44            ; bytes=9a f4 30 95 28
+
+## Call from 1000:ebe1
+
+1000:ebd2  ADD DI,AX                    ; bytes=03 f8
+1000:ebd4  LES DI,ES:[DI + -0x4]        ; bytes=26 c4 7d fc
+1000:ebd8  PUSH word ptr ES:[DI + 0x6]  ; bytes=26 ff 75 06
+1000:ebdc  LEA DI,[BP + -0x3a]          ; bytes=8d 7e c6
+1000:ebdf  PUSH SS                      ; bytes=16
+1000:ebe0  PUSH DI                      ; bytes=57
+1000:ebe1  CALLF 0x2000:c067            ; bytes=9a 17 37 95 28
+1000:ebe6  MOV AL,byte ptr [BP + 0x4]   ; bytes=8a 46 04
+1000:ebe9  XOR AH,AH                    ; bytes=30 e4
+1000:ebeb  MOV DI,AX                    ; bytes=8b f8
+1000:ebed  SHL DI,0x1                   ; bytes=d1 e7
+
+## Call from 1000:ee20
+
+1000:ee11  ADD DI,AX                    ; bytes=03 f8
+1000:ee13  LES DI,ES:[DI + -0x4]        ; bytes=26 c4 7d fc
+1000:ee17  PUSH word ptr ES:[DI + 0x6]  ; bytes=26 ff 75 06
+1000:ee1b  LEA DI,[BP + -0x70]          ; bytes=8d 7e 90
+1000:ee1e  PUSH SS                      ; bytes=16
+1000:ee1f  PUSH DI                      ; bytes=57
+1000:ee20  CALLF 0x2000:c067            ; bytes=9a 17 37 95 28
+1000:ee25  MOV AL,byte ptr [BP + 0x4]   ; bytes=8a 46 04
+1000:ee28  XOR AH,AH                    ; bytes=30 e4
+1000:ee2a  MOV DI,AX                    ; bytes=8b f8
+1000:ee2c  SHL DI,0x1                   ; bytes=d1 e7
+
+## Call from 1000:ef72
+
+1000:ef63  ADD DI,AX                    ; bytes=03 f8
+1000:ef65  LES DI,ES:[DI + -0x4]        ; bytes=26 c4 7d fc
+1000:ef69  PUSH word ptr ES:[DI + 0x6]  ; bytes=26 ff 75 06
+1000:ef6d  LEA DI,[BP + -0x3a]          ; bytes=8d 7e c6
+1000:ef70  PUSH SS                      ; bytes=16
+1000:ef71  PUSH DI                      ; bytes=57
+1000:ef72  CALLF 0x2000:c067            ; bytes=9a 17 37 95 28
+1000:ef77  MOV AL,byte ptr [BP + 0x4]   ; bytes=8a 46 04
+1000:ef7a  XOR AH,AH                    ; bytes=30 e4
+1000:ef7c  MOV DI,AX                    ; bytes=8b f8
+1000:ef7e  SHL DI,0x1                   ; bytes=d1 e7
+
+## Call from 1000:f879
+
+1000:f86a  ADD DI,AX                    ; bytes=03 f8
+1000:f86c  LES DI,ES:[DI + -0x4]        ; bytes=26 c4 7d fc
+1000:f870  PUSH word ptr ES:[DI + 0x6]  ; bytes=26 ff 75 06
+1000:f874  LEA DI,[BP + -0x40]          ; bytes=8d 7e c0
+1000:f877  PUSH SS                      ; bytes=16
+1000:f878  PUSH DI                      ; bytes=57
+1000:f879  CALLF 0x2000:c067            ; bytes=9a 17 37 95 28
+1000:f87e  LEA DI,[BP + -0x40]          ; bytes=8d 7e c0
+1000:f881  PUSH SS                      ; bytes=16
+1000:f882  PUSH DI                      ; bytes=57
+1000:f883  LEA DI,[BP + -0x76]          ; bytes=8d 7e 8a
+
+
+# Callers of 2000:c09a
+
+## Call from 0000:03fe
+
+0000:03ef  ADD DI,AX                    ; bytes=03 f8
+0000:03f1  LES DI,ES:[DI + -0x4]        ; bytes=26 c4 7d fc
+0000:03f5  PUSH word ptr ES:[DI + 0x6]  ; bytes=26 ff 75 06
+0000:03f9  MOV DI,0x3558                ; bytes=bf 58 35
+0000:03fc  PUSH DS                      ; bytes=1e
+0000:03fd  PUSH DI                      ; bytes=57
+0000:03fe  CALLF 0x2000:c09a            ; bytes=9a 4a 37 95 28
+0000:0403  MOV AL,[0x3563]              ; bytes=a0 63 35
+0000:0406  XOR AH,AH                    ; bytes=30 e4
+0000:0408  XOR DX,DX                    ; bytes=31 d2
+0000:040a  CALLF 0x3000:4891            ; bytes=9a 51 11 74 33
+
+## Call from 1000:50c2
+
+1000:50b3  ADD DI,AX                    ; bytes=03 f8
+1000:50b5  LES DI,ES:[DI + -0x4]        ; bytes=26 c4 7d fc
+1000:50b9  PUSH word ptr ES:[DI + 0x6]  ; bytes=26 ff 75 06
+1000:50bd  LES DI,[BP + 0x6]            ; bytes=c4 7e 06
+1000:50c0  PUSH ES                      ; bytes=06
+1000:50c1  PUSH DI                      ; bytes=57
+1000:50c2  CALLF 0x2000:c09a            ; bytes=9a 4a 37 95 28
+1000:50c7  LES DI,[BP + 0x6]            ; bytes=c4 7e 06
+1000:50ca  MOV AX,word ptr ES:[DI + 0x2] ; bytes=26 8b 45 02
+1000:50ce  CMP AX,word ptr [BP + -0x15] ; bytes=3b 46 eb
+1000:50d1  JNZ 0x1000:50dd              ; bytes=75 0a
+
+## Call from 1000:d882
+
+1000:d873  ADD DI,AX                    ; bytes=03 f8
+1000:d875  LES DI,ES:[DI + -0x4]        ; bytes=26 c4 7d fc
+1000:d879  PUSH word ptr ES:[DI + 0x6]  ; bytes=26 ff 75 06
+1000:d87d  LEA DI,[BP + -0x5e]          ; bytes=8d 7e a2
+1000:d880  PUSH SS                      ; bytes=16
+1000:d881  PUSH DI                      ; bytes=57
+1000:d882  CALLF 0x2000:c09a            ; bytes=9a 4a 37 95 28
+1000:d887  PUSH word ptr [BP + -0x2]    ; bytes=ff 76 fe
+1000:d88a  LEA DI,[BP + -0x5e]          ; bytes=8d 7e a2
+1000:d88d  PUSH SS                      ; bytes=16
+1000:d88e  PUSH DI                      ; bytes=57
+
+## Call from 1000:ecd7
+
+1000:ecc7  ADD DI,AX                    ; bytes=03 f8
+1000:ecc9  LES DI,ES:[DI + -0x4]        ; bytes=26 c4 7d fc
+1000:eccd  PUSH word ptr ES:[DI + 0x6]  ; bytes=26 ff 75 06
+1000:ecd1  LEA DI,[BP + 0xff6c]         ; bytes=8d be 6c ff
+1000:ecd5  PUSH SS                      ; bytes=16
+1000:ecd6  PUSH DI                      ; bytes=57
+1000:ecd7  CALLF 0x2000:c09a            ; bytes=9a 4a 37 95 28
+1000:ecdc  MOV AL,byte ptr [BP + 0xff77] ; bytes=8a 86 77 ff
+1000:ece0  CMP AL,byte ptr [BP + -0x74] ; bytes=3a 46 8c
+1000:ece3  JNZ 0x1000:ed0f              ; bytes=75 2a
+1000:ece5  MOV AL,byte ptr [BP + 0xff78] ; bytes=8a 86 78 ff
+
+## Call from 1000:f161
+
+1000:f152  ADD DI,AX                    ; bytes=03 f8
+1000:f154  LES DI,ES:[DI + -0x4]        ; bytes=26 c4 7d fc
+1000:f158  PUSH word ptr ES:[DI + 0x6]  ; bytes=26 ff 75 06
+1000:f15c  LEA DI,[BP + -0x62]          ; bytes=8d 7e 9e
+1000:f15f  PUSH SS                      ; bytes=16
+1000:f160  PUSH DI                      ; bytes=57
+1000:f161  CALLF 0x2000:c09a            ; bytes=9a 4a 37 95 28
+1000:f166  MOV AL,byte ptr [BP + -0x57] ; bytes=8a 46 a9
+1000:f169  CMP AL,byte ptr [BP + -0x42] ; bytes=3a 46 be
+1000:f16c  JNZ 0x1000:f19d              ; bytes=75 2f
+1000:f16e  MOV AL,byte ptr [BP + -0x56] ; bytes=8a 46 aa
+
+## Call from 1000:f279
+
+1000:f26a  ADD DI,AX                    ; bytes=03 f8
+1000:f26c  LES DI,ES:[DI + -0x4]        ; bytes=26 c4 7d fc
+1000:f270  PUSH word ptr ES:[DI + 0x6]  ; bytes=26 ff 75 06
+1000:f274  LEA DI,[BP + -0x5c]          ; bytes=8d 7e a4
+1000:f277  PUSH SS                      ; bytes=16
+1000:f278  PUSH DI                      ; bytes=57
+1000:f279  CALLF 0x2000:c09a            ; bytes=9a 4a 37 95 28
+1000:f27e  MOV AL,byte ptr [BP + -0x51] ; bytes=8a 46 af
+1000:f281  MOV byte ptr [BP + -0x2d],AL ; bytes=88 46 d3
+1000:f284  MOV AL,byte ptr [BP + -0x50] ; bytes=8a 46 b0
+1000:f287  MOV byte ptr [BP + -0x2c],AL ; bytes=88 46 d4
+

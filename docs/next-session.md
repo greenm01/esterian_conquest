@@ -230,10 +230,25 @@ Milestone ladder:
          function starts in the raw live import
        - they currently sit inside a dense helper island that includes
          arithmetic and counted-string helpers
-   - Next Rust-facing target:
-     - recover the true call boundaries/results feeding the matcher's
-       `3558` / `355A` decode path, rather than naming `c067` / `c09a`
-       prematurely
+     - caller-pattern milestone:
+       - artifact: `artifacts/ghidra/ecmaint-live/kind2-helper-callers.txt`
+       - script: `tools/ghidra_scripts_tmp/ReportKind2HelperCallers.java`
+       - confirmed shared contract:
+         - callers push source summary word `ES:[DI + 0x06]`
+         - then push a destination far pointer
+         - then call either `0x2000:c067` or `0x2000:c09a`
+       - concrete high-value cases:
+         - `0000:0307` decodes summary `+0x06` into `DS:3502`
+         - `0000:03fe` decodes summary `+0x06` into `DS:3558`
+         - `0000:0681` decodes candidate kind-`1` summary `+0x06` into a
+           local buffer and then checks:
+           - decoded `+0x1f` as kind byte
+           - decoded `+0x23` as word matched against `[0x355A]`
+           - decoded `+0x0a` as flag byte
+    - Next Rust-facing target:
+     - use the now-confirmed caller contract to name the decoded output
+       structure fields behind `3502`, `3558`, and the local structural-match
+       buffer
      - then turn the current kind-`1` / kind-`2` pairing rule into a Rust-side
        validation helper for Guard Starbase scenarios
      - now that a fixed accepted Guard Starbase scenario exists in Rust,
