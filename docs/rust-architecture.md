@@ -58,7 +58,8 @@ The current intended split is:
 - `commands/`: feature- and workflow-oriented command families
 - `support/`: shared parsing and path helpers
 - `usage.rs`: top-level CLI usage/help text
-- `workspace.rs`: fixture initialization and directory matching helpers
+- `workspace.rs`: shared fixture copying, initialization, and directory
+  matching helpers
 
 Scenario composition should stay centralized in `commands/scenario.rs`. When a
 new experiment can be expressed as an ordered combination of known scenario

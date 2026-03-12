@@ -5,7 +5,6 @@ mod usage;
 mod workspace;
 
 use std::env;
-pub(crate) use workspace::INIT_FILES;
 
 fn main() {
     if let Err(err) = run() {

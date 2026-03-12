@@ -3,7 +3,7 @@ use std::path::Path;
 
 use ec_data::{BaseDat, BaseRecord, CoreGameData, FleetDat, PlayerDat};
 
-use crate::INIT_FILES;
+use crate::workspace::copy_init_files;
 
 pub(crate) fn apply_guard_starbase_scenario(
     dir: &Path,
@@ -315,10 +315,7 @@ pub(crate) fn init_guard_starbase_onebase(
     target_x: u8,
     target_y: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    fs::create_dir_all(target)?;
-    for name in INIT_FILES {
-        fs::copy(source.join(name), target.join(name))?;
-    }
+    copy_init_files(source, target)?;
     set_guard_starbase_onebase(target, target_x, target_y)?;
     println!("Guard Starbase directory initialized at {}", target.display());
     Ok(())

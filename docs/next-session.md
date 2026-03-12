@@ -251,6 +251,11 @@ Rust architecture note:
     - practical effect:
       - future multi-step scenario generation can compose these transforms
         without introducing new per-file choreography
+  - latest DRY workspace milestone:
+    - the repeated `INIT_FILES` overlay loop now lives in the shared
+      `ec-cli` workspace layer
+    - fleet/build/starbase/IPBM/scenario init paths now reuse that helper
+      instead of duplicating the same file-copy boilerplate
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`

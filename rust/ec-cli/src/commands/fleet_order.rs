@@ -3,7 +3,7 @@ use std::path::Path;
 
 use ec_data::{CoreGameData, FleetDat};
 
-use crate::INIT_FILES;
+use crate::workspace::copy_init_files;
 
 pub(crate) fn set_fleet_order(
     dir: &Path,
@@ -182,10 +182,7 @@ pub(crate) fn init_fleet_order_scenario(
     aux0: Option<u8>,
     aux1: Option<u8>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    fs::create_dir_all(target)?;
-    for name in INIT_FILES {
-        fs::copy(source.join(name), target.join(name))?;
-    }
+    copy_init_files(source, target)?;
     set_fleet_order(
         target,
         record_index_1_based,

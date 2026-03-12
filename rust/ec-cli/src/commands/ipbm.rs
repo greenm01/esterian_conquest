@@ -2,7 +2,7 @@ use std::path::Path;
 
 use ec_data::{CoreGameData, IpbmDat, IpbmRecord, PlayerDat, IPBM_RECORD_SIZE};
 
-use crate::INIT_FILES;
+use crate::workspace::copy_init_files;
 
 pub(crate) fn print_ipbm_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let data = CoreGameData::load(dir)?;
@@ -136,10 +136,7 @@ pub(crate) fn init_ipbm_zero_records(
     target: &Path,
     count: u16,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    std::fs::create_dir_all(target)?;
-    for name in INIT_FILES {
-        std::fs::copy(source.join(name), target.join(name))?;
-    }
+    copy_init_files(source, target)?;
     set_ipbm_zero_records(target, count)?;
     println!("IPBM directory initialized at {}", target.display());
     Ok(())

@@ -5,7 +5,7 @@ use crate::commands::fleet_order::{apply_fleet_order_scenario, validate_fleet_or
 use crate::commands::guard_starbase::{apply_guard_starbase_scenario, validate_guard_starbase_scenario};
 use crate::commands::planet_build::{apply_planet_build_scenario, validate_planet_build_scenario};
 use crate::support::paths::repo_root;
-use crate::INIT_FILES;
+use crate::workspace::copy_init_files;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum KnownScenario {
@@ -183,10 +183,7 @@ pub(crate) fn init_known_scenario(
     target: &Path,
     scenario: KnownScenario,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    fs::create_dir_all(target)?;
-    for name in INIT_FILES {
-        fs::copy(source.join(name), target.join(name))?;
-    }
+    copy_init_files(source, target)?;
     apply_known_scenario(target, scenario)?;
     println!("Scenario directory initialized at {}", target.display());
     Ok(())
@@ -224,10 +221,7 @@ pub(crate) fn init_known_scenario_chain(
     target: &Path,
     scenarios: &[KnownScenario],
 ) -> Result<(), Box<dyn std::error::Error>> {
-    fs::create_dir_all(target)?;
-    for name in INIT_FILES {
-        fs::copy(source.join(name), target.join(name))?;
-    }
+    copy_init_files(source, target)?;
     apply_known_scenarios(target, scenarios)?;
     println!("Scenario chain directory initialized at {}", target.display());
     Ok(())

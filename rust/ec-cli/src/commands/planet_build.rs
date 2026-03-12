@@ -3,7 +3,7 @@ use std::path::Path;
 
 use ec_data::{CoreGameData, PlanetDat};
 
-use crate::INIT_FILES;
+use crate::workspace::copy_init_files;
 
 pub(crate) fn set_planet_build(
     dir: &Path,
@@ -118,10 +118,7 @@ pub(crate) fn init_planet_build_scenario(
     slot_raw: u8,
     kind_raw: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    fs::create_dir_all(target)?;
-    for name in INIT_FILES {
-        fs::copy(source.join(name), target.join(name))?;
-    }
+    copy_init_files(source, target)?;
     set_planet_build(target, record_index_1_based, slot_raw, kind_raw)?;
     println!("Planet-build directory initialized at {}", target.display());
     Ok(())

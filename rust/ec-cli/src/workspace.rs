@@ -30,9 +30,7 @@ pub fn initialize_dir(source: &Path, target: &Path) -> Result<(), Box<dyn std::e
     copy_top_level_files(source, target)?;
 
     let init_dir = init_fixture_dir();
-    for name in INIT_FILES {
-        fs::copy(init_dir.join(name), target.join(name))?;
-    }
+    copy_named_files(&init_dir, target, INIT_FILES)?;
 
     println!("Initialized game directory: {}", target.display());
     println!("  source snapshot: {}", source.display());
@@ -43,6 +41,10 @@ pub fn initialize_dir(source: &Path, target: &Path) -> Result<(), Box<dyn std::e
     }
 
     Ok(())
+}
+
+pub fn copy_init_files(source: &Path, target: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    copy_named_files(source, target, INIT_FILES)
 }
 
 pub fn match_fixture_set(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -92,6 +94,20 @@ fn copy_top_level_files(source: &Path, target: &Path) -> Result<(), Box<dyn std:
 
         let file_name = entry.file_name();
         fs::copy(&path, target.join(file_name))?;
+    }
+
+    Ok(())
+}
+
+fn copy_named_files(
+    source: &Path,
+    target: &Path,
+    names: &[&str],
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(target)?;
+
+    for name in names {
+        fs::copy(source.join(name), target.join(name))?;
     }
 
     Ok(())
