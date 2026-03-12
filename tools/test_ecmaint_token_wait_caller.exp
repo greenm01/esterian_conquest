@@ -1,0 +1,48 @@
+#!/usr/bin/expect -f
+
+set timeout 30
+
+# Spawn DOSBox-X debug session
+spawn ./tools/debug_ecmaint.sh
+
+expect "DOSBox-X Debugger"
+
+# Set BP at the first valid token wait caller we can think of, 
+# from the notes the PSP offset is 0814.
+# The `ecmaint_check_named_token_candidate` is at 2000:96c4 -> 2814:96c4
+# The generic helper is hit first, let's break there and get a stack trace.
+send "BP 2814:96c4\r"
+expect ">"
+
+send "RUN\r"
+
+# Wait for breakpoint hit
+expect {
+    "Breakpoint 1" {
+        send "SR SR\r"
+        expect ">"
+        
+        send "MD SS:SP\r"
+        expect ">"
+        
+        # After first one hit, maybe another run
+        send "RUN\r"
+        expect {
+            "Breakpoint 1" {
+                send "SR SR\r"
+                expect ">"
+                send "MD SS:SP\r"
+                expect ">"
+            }
+            timeout {
+                puts "Timeout waiting for second hit"
+            }
+        }
+    }
+    timeout {
+        puts "Timeout waiting for breakpoint"
+    }
+}
+
+send "EXIT\r"
+expect eof
