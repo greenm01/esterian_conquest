@@ -24,6 +24,7 @@ fn core_report_summarizes_known_post_fixture_counts() {
     assert!(stdout.contains("ipbm_record_count=0"));
     assert!(stdout.contains("initialized_fleet_blocks=true"));
     assert!(stdout.contains("initialized_fleet_payloads=true"));
+    assert!(stdout.contains("initialized_fleet_missions=true"));
     assert!(stdout.contains("initialized_homeworld_alignment=true"));
     assert!(stdout.contains("initialized_planet_ownership=true"));
     assert!(stdout.contains("homeworld_seed_payloads=true"));
@@ -44,6 +45,7 @@ fn core_validate_accepts_known_post_fixture_state() {
     assert!(stdout.contains("ipbm_record_count = 0"));
     assert!(stdout.contains("initialized_fleet_blocks = true"));
     assert!(stdout.contains("initialized_fleet_payloads = true"));
+    assert!(stdout.contains("initialized_fleet_missions = true"));
     assert!(stdout.contains("initialized_homeworld_alignment = true"));
     assert!(stdout.contains("initialized_planet_ownership = true"));
     assert!(stdout.contains("homeworld_seed_payloads = true"));
@@ -81,6 +83,7 @@ fn core_sync_counts_repairs_player1_count_words() {
     assert!(sync_stdout.contains("player1_ipbm_count = 0"));
     assert!(sync_stdout.contains("initialized_fleet_blocks = true"));
     assert!(sync_stdout.contains("initialized_fleet_payloads = true"));
+    assert!(sync_stdout.contains("initialized_fleet_missions = true"));
     assert!(sync_stdout.contains("initialized_homeworld_alignment = true"));
     assert!(sync_stdout.contains("initialized_planet_ownership = true"));
     assert!(sync_stdout.contains("homeworld_seed_payloads = true"));

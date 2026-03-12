@@ -177,6 +177,12 @@ slot/block payload rules proven by preserved fixtures:
 - current speed is `0` in the preserved baseline
 - location and mission bytes are constant within each four-fleet empire block
 
+The initialized/post-maint fleet baseline now also includes exact mission
+semantics, not just per-block consistency:
+- every fleet in those preserved four-fleet blocks uses standing order `5`
+  (`Guard/blockade world`)
+- every fleet in a block targets that empire's homeworld-seed coordinates
+
 The shared model also now treats homeworld-seed alignment as a current-known
 multi-player invariant for initialized/post-maint state:
 - each active empire has exactly one owned `Not Named Yet` planet

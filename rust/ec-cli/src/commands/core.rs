@@ -31,6 +31,10 @@ pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Er
         data.current_known_initialized_fleet_payload_errors().is_empty()
     );
     println!(
+        "  initialized_fleet_missions={}",
+        data.current_known_initialized_fleet_mission_errors().is_empty()
+    );
+    println!(
         "  initialized_homeworld_alignment={}",
         data.current_known_initialized_homeworld_alignment_errors().is_empty()
     );
@@ -103,6 +107,10 @@ pub(crate) fn validate_core_state(dir: &Path) -> Result<(), Box<dyn std::error::
             data.current_known_initialized_fleet_payload_errors().is_empty()
         );
         println!(
+            "  initialized_fleet_missions = {}",
+            data.current_known_initialized_fleet_mission_errors().is_empty()
+        );
+        println!(
             "  initialized_homeworld_alignment = {}",
             data.current_known_initialized_homeworld_alignment_errors().is_empty()
         );
@@ -154,6 +162,10 @@ pub(crate) fn sync_core_counts(dir: &Path) -> Result<(), Box<dyn std::error::Err
     println!(
         "  initialized_fleet_payloads = {}",
         data.current_known_initialized_fleet_payload_errors().is_empty()
+    );
+    println!(
+        "  initialized_fleet_missions = {}",
+        data.current_known_initialized_fleet_mission_errors().is_empty()
     );
     println!(
         "  initialized_homeworld_alignment = {}",

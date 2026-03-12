@@ -211,6 +211,7 @@ impl CoreGameData {
         errors.extend(self.current_known_all_player_starbase_count_errors());
         errors.extend(self.current_known_initialized_fleet_block_errors());
         errors.extend(self.current_known_initialized_fleet_payload_errors());
+        errors.extend(self.current_known_initialized_fleet_mission_errors());
         errors.extend(self.current_known_homeworld_seed_errors());
         errors.extend(self.current_known_initialized_planet_ownership_errors());
         errors.extend(self.current_known_homeworld_seed_payload_errors());
@@ -819,6 +820,45 @@ impl CoreGameData {
                         fleet_record_index_1_based,
                         expected_et,
                         record.etac_count()
+                    ));
+                }
+            }
+        }
+
+        errors
+    }
+
+    pub fn current_known_initialized_fleet_mission_errors(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+        let player_count = self.conquest.player_count() as usize;
+        let expected_fleet_count = player_count.saturating_mul(4);
+
+        if self.fleets.records.len() != expected_fleet_count {
+            return errors;
+        }
+
+        let homeworld_coords = self.player_homeworld_seed_coords_current_known();
+        for block_idx in 0..player_count {
+            let Some(expected_coords) = homeworld_coords.get(block_idx).and_then(|coords| *coords) else {
+                continue;
+            };
+
+            for slot_idx in 0..4 {
+                let fleet_record_index_1_based = block_idx * 4 + slot_idx + 1;
+                let record = &self.fleets.records[fleet_record_index_1_based - 1];
+                if record.standing_order_code_raw() != 5 {
+                    errors.push(format!(
+                        "FLEET[{}].standing_order expected 5 for initialized baseline, got {}",
+                        fleet_record_index_1_based,
+                        record.standing_order_code_raw()
+                    ));
+                }
+                if record.standing_order_target_coords_raw() != expected_coords {
+                    errors.push(format!(
+                        "FLEET[{}].standing_order_target expected {:?} for initialized baseline, got {:?}",
+                        fleet_record_index_1_based,
+                        expected_coords,
+                        record.standing_order_target_coords_raw()
                     ));
                 }
             }

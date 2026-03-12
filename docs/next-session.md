@@ -1096,3 +1096,11 @@ Suggested execution order:
   comparably broad initialized/post-maint player baseline. Continue extending
   broader cross-file rules from `PLANETS.DAT`, `FLEETS.DAT`, `BASES.DAT`, and
   `IPBM.DAT` first unless new player-side RE lands.
+
+- Preserved initialized/post-maint fleet mission baseline is now explicit too:
+  - every fleet in the four-fleet empire blocks uses standing order `5`
+    (`Guard/blockade world`)
+  - every fleet in a block targets that empire's homeworld-seed coordinates
+  - this closes the remaining obvious gap in the fleet-side initialized/post-
+    maint baseline: we were already validating topology, payloads, and
+    homeworld alignment, but not the exact standing-order semantics
