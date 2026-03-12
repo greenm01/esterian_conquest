@@ -599,4 +599,21 @@ Suggested execution order:
   - implication:
     - the remaining blocker is not low-level `CHAIN.TXT` I/O or CRLF handling
     - it is the semantic decision path after that successful prefix read
+- Additional negative result:
+  - artifact:
+    - `artifacts/ecgame-startup/chain-variant-matrix.json`
+  - script:
+    - `tools/test_ecgame_chain_variants.py`
+  - changing any of the following does **not** alter the early startup path:
+    - `first_name = HANNIBAL`
+    - `remote = Y`
+    - padding `CHAIN.TXT` to exactly `128` bytes
+  - all tested variants still:
+    - read `SETUP.DAT`
+    - open and read the first `0x80` bytes of `CHAIN.TXT`
+    - close `CHAIN.TXT`
+    - exit with code `0x1C`
+  - implication:
+    - stop spending time on obvious `CHAIN.TXT` shape/length tweaks
+    - move to post-read semantic tracing instead
 - Remaining blocker: the local interactive `ECGAME` flow is still not fully stable because several old scripts have brittle debugger prompt handling, and the freshly regenerated dumps still look like earlier-boot snapshots rather than the richer `/tmp/ecgboot_chain` state referenced in `RE_NOTES.md`.

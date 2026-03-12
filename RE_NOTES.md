@@ -238,6 +238,32 @@ Important detail:
       the normalized dropfile prefix
     - the remaining failure is in the semantic validation/decision path after
       that successful prefix read
+- Small `CHAIN.TXT` variant matrix now rules out several obvious causes:
+  - artifact:
+    - `artifacts/ecgame-startup/chain-variant-matrix.json`
+  - script:
+    - `tools/test_ecgame_chain_variants.py`
+  - tested variants:
+    - default normalized `CHAIN.TXT`
+    - `first_name = HANNIBAL`
+    - `remote = Y`
+    - padded-to-128-byte default file
+    - padded-to-128-byte `HANNIBAL` variant
+  - all five variants still produce the same early DOS file-op sequence:
+    - `3F00`
+    - `3E00`
+    - `3D00`
+    - `3F01`
+    - `3E01`
+    - `4C00`
+  - all five still terminate with exit code `0x1C`
+  - practical implication:
+    - the current local failure is not explained by:
+      - short `CHAIN.TXT` length vs `0x80` read size
+      - simple first-name content
+      - the `remote` Y/N flag
+    - next work should trace the semantic decision path after the successful
+      `CHAIN.TXT` prefix read, not iterate more obvious dropfile-shape variants
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
 
 Current caveat:

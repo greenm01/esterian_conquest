@@ -1,0 +1,62 @@
+{
+  "default": {
+    "chain_len": 107,
+    "sequence": [
+      "3f00",
+      "3e00",
+      "3d00",
+      "3f01",
+      "3e01",
+      "4c00"
+    ],
+    "exit_code": "1C"
+  },
+  "hannibal": {
+    "chain_len": 110,
+    "sequence": [
+      "3f00",
+      "3e00",
+      "3d00",
+      "3f01",
+      "3e01",
+      "4c00"
+    ],
+    "exit_code": "1C"
+  },
+  "remote_y": {
+    "chain_len": 107,
+    "sequence": [
+      "3f00",
+      "3e00",
+      "3d00",
+      "3f01",
+      "3e01",
+      "4c00"
+    ],
+    "exit_code": "1C"
+  },
+  "pad128": {
+    "chain_len": 128,
+    "sequence": [
+      "3f00",
+      "3e00",
+      "3d00",
+      "3f01",
+      "3e01",
+      "4c00"
+    ],
+    "exit_code": "1C"
+  },
+  "hannibal_pad128": {
+    "chain_len": 128,
+    "sequence": [
+      "3f00",
+      "3e00",
+      "3d00",
+      "3f01",
+      "3e01",
+      "4c00"
+    ],
+    "exit_code": "1C"
+  }
+}
