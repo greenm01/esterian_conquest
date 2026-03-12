@@ -139,6 +139,35 @@ fn core_sync_baseline_repairs_control_and_count_fields() {
 }
 
 #[test]
+fn core_sync_initialized_fleets_repairs_fleet_baseline() {
+    let target = unique_temp_dir("ec-cli-core-sync-fleets");
+    common::copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut data = CoreGameData::load(&target).unwrap();
+    data.fleets.records.clear();
+    data.fleets.records.push(ec_data::FleetRecord::new_zeroed());
+    data.save(&target).unwrap();
+
+    let sync_stdout = run_ec_cli_in_dir(
+        &["core-sync-initialized-fleets", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(sync_stdout.contains("Initialized fleet baseline synchronized"));
+    assert!(sync_stdout.contains("initialized_fleet_blocks = true"));
+    assert!(sync_stdout.contains("initialized_fleet_payloads = true"));
+    assert!(sync_stdout.contains("initialized_fleet_missions = true"));
+    assert!(sync_stdout.contains("initialized_homeworld_alignment = true"));
+
+    let validate_stdout = run_ec_cli_in_dir(
+        &["core-validate", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(validate_stdout.contains("Valid core state"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn compliance_report_summarizes_valid_parameterized_guard_starbase_directory() {
     let target = unique_temp_dir("ec-cli-compliance-report");
 

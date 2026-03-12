@@ -2,8 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::{
-    BaseDat, BaseRecord, ConquestDat, FleetDat, IpbmDat, IpbmRecord, ParseError, PlanetDat,
-    PlayerDat, SetupDat, IPBM_RECORD_SIZE,
+    BaseDat, BaseRecord, ConquestDat, FleetDat, FleetRecord, IpbmDat, IpbmRecord, ParseError,
+    PlanetDat, PlayerDat, SetupDat, IPBM_RECORD_SIZE,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -311,6 +311,52 @@ impl CoreGameData {
         }
         self.conquest.raw[2] = 4;
         self.conquest.raw[3..10].copy_from_slice(&[1; 7]);
+    }
+
+    pub fn sync_current_known_initialized_fleet_baseline(&mut self) {
+        let player_count = self.conquest.player_count() as usize;
+        let expected_fleet_count = player_count.saturating_mul(4);
+        let homeworld_coords = self.player_homeworld_seed_coords_current_known();
+
+        let mut records = Vec::with_capacity(expected_fleet_count);
+        for block_idx in 0..player_count {
+            let coords = homeworld_coords
+                .get(block_idx)
+                .and_then(|coords| *coords)
+                .unwrap_or([0, 0]);
+
+            for slot_idx in 0..4 {
+                let fleet_record_index_1_based = block_idx * 4 + slot_idx + 1;
+                let mut record = FleetRecord::new_zeroed();
+                let fleet_id = fleet_record_index_1_based as u16;
+                let local_slot = (slot_idx + 1) as u16;
+                let prev = if slot_idx == 0 { 0 } else { fleet_id - 1 };
+                let next = if slot_idx == 3 { 0 } else { fleet_id + 1 };
+
+                record.set_local_slot_word_raw(local_slot);
+                record.set_next_fleet_link_word_raw(next);
+                record.set_fleet_id_word_raw(fleet_id);
+                record.set_previous_fleet_id(prev as u8);
+                record.set_max_speed(if slot_idx < 2 { 3 } else { 6 });
+                record.set_current_speed(0);
+                record.set_current_location_coords_raw(coords);
+                record.set_standing_order_code_raw(5);
+                record.set_standing_order_target_coords_raw(coords);
+                record.set_mission_aux_bytes([1, 0]);
+                record.set_scout_count(0);
+                record.set_rules_of_engagement(6);
+                record.set_battleship_count(0);
+                record.set_cruiser_count(if slot_idx < 2 { 1 } else { 0 });
+                record.set_destroyer_count(if slot_idx < 2 { 0 } else { 1 });
+                record.set_troop_transport_count(0);
+                record.set_army_count(0);
+                record.set_etac_count(if slot_idx < 2 { 1 } else { 0 });
+
+                records.push(record);
+            }
+        }
+
+        self.fleets.records = records;
     }
 
     pub fn sync_all_players_current_known_starbase_counts(&mut self) {

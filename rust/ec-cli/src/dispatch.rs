@@ -5,7 +5,8 @@ use crate::commands::compare::{
 };
 use crate::commands::compliance::{print_compliance_batch_report, print_compliance_report};
 use crate::commands::core::{
-    print_core_report, sync_core_baseline, sync_core_counts, validate_core_state,
+    print_core_report, sync_core_baseline, sync_core_counts,
+    sync_initialized_fleet_baseline, validate_core_state,
 };
 use crate::commands::fleet_order::{
     init_fleet_order_batch, init_fleet_order_scenario, print_fleet_order_report, set_fleet_order,
@@ -69,6 +70,7 @@ pub fn run_args(
         "core-validate" => validate_core_state(&next_dir(&mut args))?,
         "core-sync-counts" => sync_core_counts(&next_dir(&mut args))?,
         "core-sync-baseline" => sync_core_baseline(&next_dir(&mut args))?,
+        "core-sync-initialized-fleets" => sync_initialized_fleet_baseline(&next_dir(&mut args))?,
         "headers" => dump_headers(&next_dir(&mut args))?,
         "match" => match_fixture_set(&next_dir(&mut args))?,
         "compare" => {

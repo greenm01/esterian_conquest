@@ -1130,3 +1130,15 @@ Suggested execution order:
   - intentionally does **not** attempt full baseline reconstruction of
     planets/fleets/player records; it only touches fields the current RE
     supports confidently
+
+- New shared fleet repair path:
+  - `CoreGameData::sync_current_known_initialized_fleet_baseline()`
+  - CLI: `ec-cli core-sync-initialized-fleets [dir]`
+  - this rebuilds the deterministic preserved four-fleet-per-player baseline
+    from current homeworld-seed coordinates:
+    - fleet block topology
+    - slot loadout payloads
+    - mission bytes `[5, x, y, 1, 0]`
+    - current fleet locations
+  - intentionally does **not** claim to reconstruct arbitrary live fleets;
+    it only reconstructs the current-known initialized/post-maint fleet block

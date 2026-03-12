@@ -207,6 +207,15 @@ Those control/count rules are now also repairable through the shared model:
 - this is intentionally narrower than full baseline reconstruction; it only
   touches deterministic fields the current RE actually supports
 
+The same now applies to the deterministic initialized fleet baseline:
+- `CoreGameData::sync_current_known_initialized_fleet_baseline()` rebuilds the
+  four-fleet-per-player preserved baseline from the current homeworld-seed
+  coordinates
+- it rewrites fleet count/ordering topology, payload/loadout bytes, mission
+  bytes, and current locations
+- this is still current-known and intentionally bounded: it reconstructs the
+  preserved initialized/post-maint fleet blocks, not arbitrary live fleet state
+
 The shared model also now treats homeworld-seed alignment as a current-known
 multi-player invariant for initialized/post-maint state:
 - each active empire has exactly one owned `Not Named Yet` planet

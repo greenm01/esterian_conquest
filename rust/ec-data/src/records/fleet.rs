@@ -96,23 +96,40 @@ impl FleetStandingOrderKind {
 }
 
 impl FleetRecord {
+    pub fn new_zeroed() -> Self { Self { raw: [0; FLEET_RECORD_SIZE] } }
+
     pub fn local_slot_word_raw(&self) -> u16 {
         u16::from_le_bytes([self.raw[0x00], self.raw[0x01]])
+    }
+    pub fn set_local_slot_word_raw(&mut self, value: u16) {
+        self.raw[0x00..0x02].copy_from_slice(&value.to_le_bytes());
     }
     pub fn local_slot(&self) -> u8 { self.raw[0x00] }
     pub fn next_fleet_link_word_raw(&self) -> u16 {
         u16::from_le_bytes([self.raw[0x03], self.raw[0x04]])
     }
+    pub fn set_next_fleet_link_word_raw(&mut self, value: u16) {
+        self.raw[0x03..0x05].copy_from_slice(&value.to_le_bytes());
+    }
     pub fn next_fleet_id(&self) -> u8 { self.raw[0x03] }
     pub fn fleet_id_word_raw(&self) -> u16 {
         u16::from_le_bytes([self.raw[0x05], self.raw[0x06]])
     }
+    pub fn set_fleet_id_word_raw(&mut self, value: u16) {
+        self.raw[0x05..0x07].copy_from_slice(&value.to_le_bytes());
+    }
     pub fn fleet_id(&self) -> u8 { self.raw[0x05] }
     pub fn previous_fleet_id(&self) -> u8 { self.raw[0x07] }
+    pub fn set_previous_fleet_id(&mut self, value: u8) { self.raw[0x07] = value; }
     pub fn max_speed(&self) -> u8 { self.raw[0x09] }
+    pub fn set_max_speed(&mut self, value: u8) { self.raw[0x09] = value; }
     pub fn current_speed(&self) -> u8 { self.raw[0x0A] }
     pub fn set_current_speed(&mut self, value: u8) { self.raw[0x0A] = value; }
     pub fn current_location_coords_raw(&self) -> [u8; 2] { [self.raw[0x0B], self.raw[0x0C]] }
+    pub fn set_current_location_coords_raw(&mut self, coords: [u8; 2]) {
+        self.raw[0x0B] = coords[0];
+        self.raw[0x0C] = coords[1];
+    }
     pub fn mission_param_bytes(&self) -> &[u8] { &self.raw[0x1F..=0x21] }
     pub fn standing_order_code_raw(&self) -> u8 { self.raw[0x1F] }
     pub fn set_standing_order_code_raw(&mut self, value: u8) { self.raw[0x1F] = value; }
@@ -168,13 +185,33 @@ impl FleetRecord {
     }
 
     pub fn scout_count(&self) -> u8 { self.raw[0x24] }
+    pub fn set_scout_count(&mut self, value: u8) { self.raw[0x24] = value; }
     pub fn rules_of_engagement(&self) -> u8 { self.raw[0x25] }
+    pub fn set_rules_of_engagement(&mut self, value: u8) { self.raw[0x25] = value; }
     pub fn battleship_count(&self) -> u16 { u16::from_le_bytes([self.raw[0x26], self.raw[0x27]]) }
+    pub fn set_battleship_count(&mut self, value: u16) {
+        self.raw[0x26..0x28].copy_from_slice(&value.to_le_bytes());
+    }
     pub fn cruiser_count(&self) -> u16 { u16::from_le_bytes([self.raw[0x28], self.raw[0x29]]) }
+    pub fn set_cruiser_count(&mut self, value: u16) {
+        self.raw[0x28..0x2A].copy_from_slice(&value.to_le_bytes());
+    }
     pub fn destroyer_count(&self) -> u16 { u16::from_le_bytes([self.raw[0x2A], self.raw[0x2B]]) }
+    pub fn set_destroyer_count(&mut self, value: u16) {
+        self.raw[0x2A..0x2C].copy_from_slice(&value.to_le_bytes());
+    }
     pub fn troop_transport_count(&self) -> u16 { u16::from_le_bytes([self.raw[0x2C], self.raw[0x2D]]) }
+    pub fn set_troop_transport_count(&mut self, value: u16) {
+        self.raw[0x2C..0x2E].copy_from_slice(&value.to_le_bytes());
+    }
     pub fn army_count(&self) -> u16 { u16::from_le_bytes([self.raw[0x2E], self.raw[0x2F]]) }
+    pub fn set_army_count(&mut self, value: u16) {
+        self.raw[0x2E..0x30].copy_from_slice(&value.to_le_bytes());
+    }
     pub fn etac_count(&self) -> u16 { u16::from_le_bytes([self.raw[0x30], self.raw[0x31]]) }
+    pub fn set_etac_count(&mut self, value: u16) {
+        self.raw[0x30..0x32].copy_from_slice(&value.to_le_bytes());
+    }
 
     pub fn ship_composition_summary(&self) -> String {
         let parts = [

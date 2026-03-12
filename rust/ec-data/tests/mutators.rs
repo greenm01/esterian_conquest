@@ -570,6 +570,29 @@ fn core_game_data_sync_current_known_baseline_controls_and_counts_repairs_mutate
 }
 
 #[test]
+fn core_game_data_sync_current_known_initialized_fleet_baseline_repairs_mutated_fleets() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    data.fleets.records.clear();
+    data.fleets.records.push(FleetRecord::new_zeroed());
+
+    data.sync_current_known_initialized_fleet_baseline();
+
+    assert!(data.looks_like_initialized_fleet_blocks_current_known());
+    assert!(data.current_known_initialized_fleet_payload_errors().is_empty());
+    assert!(data.current_known_initialized_fleet_mission_errors().is_empty());
+    assert!(data.current_known_initialized_homeworld_alignment_errors().is_empty());
+}
+
+#[test]
 fn core_game_data_can_apply_current_known_scenario_mutations() {
     let mut data = CoreGameData {
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
