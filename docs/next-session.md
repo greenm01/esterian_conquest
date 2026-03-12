@@ -5,16 +5,26 @@
 - Documented findings in `token-investigation.md`.
 - Rust scenario-writer milestone:
   - `ec-cli` is now split further by feature area:
+    - `src/commands/compare.rs`
+    - `src/commands/compliance.rs`
     - `src/commands/fleet_order.rs`
     - `src/commands/planet_build.rs`
     - `src/commands/guard_starbase.rs`
+    - `src/commands/inspect.rs`
     - `src/commands/ipbm.rs`
     - `src/commands/scenario.rs`
+    - `src/commands/setup.rs`
   - `fleet-order` and `planet-build` no longer live as one-off logic inside
     `main.rs`; they now follow the same module/report/init pattern as the
     starbase/IPBM workflows
   - scenario catalog / init / preserved-validation logic also now lives in its
     own command module instead of being embedded directly in `main.rs`
+  - compliance/batch-report, compare/preserved-diff, inspect/header dumping,
+    and setup/config editing are also now extracted from `main.rs`
+  - current refactor checkpoint:
+    - `rust/ec-cli/src/main.rs` is now `767` lines, down from the original
+      multi-thousand-line monolith
+    - full `cargo test` is green after the extraction
   - `ec-data` now parses `BASES.DAT` (`35`-byte records) and `IPBM.DAT`
     (`0x20`-byte records) to the current structural level
   - `ec-cli fleet-order <dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]`

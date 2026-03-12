@@ -37,13 +37,23 @@ For `ec-cli`:
 
 `ec-cli` is now split into:
 
+- `src/commands/compare.rs`
+- `src/commands/compliance.rs`
 - `src/commands/fleet_order.rs`
 - `src/commands/planet_build.rs`
 - `src/commands/guard_starbase.rs`
+- `src/commands/inspect.rs`
 - `src/commands/ipbm.rs`
 - `src/commands/scenario.rs`
+- `src/commands/setup.rs`
 - `src/support/parse.rs`
 - `src/support/paths.rs`
+
+The current intended split is:
+
+- `main.rs`: argument dispatch and small workspace glue only
+- `commands/`: feature- and workflow-oriented command families
+- `support/`: shared parsing and path helpers
 
 `ec-data` and `ec-tui` tests now live under crate `tests/` directories instead
 of source-file `#[cfg(test)]` modules.
