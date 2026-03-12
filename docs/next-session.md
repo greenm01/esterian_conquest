@@ -562,11 +562,28 @@ Suggested execution order:
   - dumping `DS:DX` (`44A1:A506`) yields `Setup.dat`
 - First concrete startup-open fact:
   - corrected no-`/L` `ECGAME` opens `Setup.dat` first
+- Current startup file-op sequence:
+  - artifact:
+    - `artifacts/ecgame-startup/startup-fileops.txt`
+  - script:
+    - `tools/capture_ecgame_startup_fileops.py`
+  - confirmed debugger-assisted sequence:
+    1. open `Setup.dat` with mode `0x02`
+    2. read `0x20A` bytes from handle `5`
+    3. close handle `5`
+    4. open `C:\CHAIN.TXT` with mode `0x00`
+    5. read `0x80` bytes from handle `5`
+    6. close handle `5`
+    7. exit with code `0x1C`
+  - consistency:
+    - `fixtures/ecutil-init/v1.5/SETUP.DAT` is `522` bytes (`0x20A`)
+    - local generated `CHAIN.TXT` is `107` bytes, so `ECGAME` only reads the
+      first `0x80` bytes before deciding to exit
 - Next task:
-  - continue the startup-open sequence after `Setup.dat`
-  - the quick sequencer now shows the post-`Setup.dat` path falling into repeated non-open stops instead of another clean `3D02` open
-  - observed shape:
-    - `CS=4294 EIP=00000637`
-    - running state around `F000:D080`
-  - next pass should either classify those stops or switch to a different post-open breakpoint strategy
+  - investigate the `CHAIN.TXT` parser/decision path that leads to exit code
+    `0x1C` after the `0x80`-byte prefix read
+  - likely productive methods:
+    - dump the `0x40BC` chain buffer after the read returns
+    - or set a code breakpoint on the post-read caller path instead of
+      re-breaking on raw DOS file I/O
 - Remaining blocker: the local interactive `ECGAME` flow is still not fully stable because several old scripts have brittle debugger prompt handling, and the freshly regenerated dumps still look like earlier-boot snapshots rather than the richer `/tmp/ecgboot_chain` state referenced in `RE_NOTES.md`.

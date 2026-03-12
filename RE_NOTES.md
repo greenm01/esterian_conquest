@@ -194,12 +194,34 @@ Important detail:
 - Early startup-open finding:
   - on the corrected no-`/L` path, `ECGAME` first opens `Setup.dat`
   - this is the first concrete startup file-order fact recovered from the live debugger path
-- Current caveat on further sequencing:
-  - after resuming from the `Setup.dat` open, the quick debugger path currently falls into repeated non-open stops instead of surfacing another clean `AH=3D` open immediately
-  - observed stop shape in the sequencer transcript:
-    - `CS=4294 EIP=00000637`
-    - repeated running state around `F000:D080`
-  - so additional startup-open order still needs stronger stop classification or a different breakpoint strategy after the first open
+- Startup file-op sequence is now stable under the corrected debugger-assisted harness:
+  - artifact:
+    - `artifacts/ecgame-startup/startup-fileops.txt`
+  - script:
+    - `tools/capture_ecgame_startup_fileops.py`
+  - confirmed sequence:
+    1. open `Setup.dat` with mode `0x02`
+    2. read `0x20A` bytes from handle `5` into `DS:44A1:0xA556`
+    3. close handle `5`
+    4. open `C:\CHAIN.TXT` with mode `0x00`
+    5. read `0x80` bytes from handle `5` into `DS:44A1:0x40BC`
+    6. close handle `5`
+    7. terminate via `INT 21h / AH=4C` with exit code `0x1C`
+  - consistency checks:
+    - preserved `fixtures/ecutil-init/v1.5/SETUP.DAT` is `522` bytes
+      (`0x20A`), exactly matching the first read count
+    - generated local `CHAIN.TXT` is `107` bytes, so the `0x80` read is a
+      partial-prefix read, not a full-file read
+  - practical implication:
+    - the post-`Setup.dat` non-open stop at `CS=4294 EIP=00000637` is not the
+      next startup mystery anymore; it is the second file-open path and leads
+      directly into a `CHAIN.TXT` prefix read before early process exit
+- Current startup blocker is narrower now:
+  - `ECGAME` is definitely reading both `SETUP.DAT` and the first `0x80` bytes
+    of `CHAIN.TXT`
+  - the next remaining question is why that `CHAIN.TXT` path terminates with
+    exit code `0x1C` on the current local harness instead of proceeding into
+    the richer door flow seen in older notes
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
 
 Current caveat:

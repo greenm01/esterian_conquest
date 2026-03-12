@@ -1,0 +1,7 @@
+1. open Setup.dat mode=02 ds:dx=A506
+2. read handle=5 count=0x20A buffer_ds:dx=A556
+3. close handle=5
+4. open C:\CHAIN.TXT mode=00 ds:dx=406C
+5. read handle=5 count=0x80 buffer_ds:dx=40BC
+6. close handle=5
+7. exit code=0x1C
