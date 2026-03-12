@@ -114,6 +114,10 @@ scenario commands to operate. Commands shall not reimplement ad hoc
 `PLAYER.DAT`/`FLEETS.DAT`/`BASES.DAT`/`IPBM.DAT` load-save choreography when the
 same workflow can use `ec_data::CoreGameData`.
 
+`CoreGameData` is now more than a load/save container. Current-known structural
+validator/normalizer logic should live on the data model when it reflects shared
+directory semantics rather than command-specific UI behavior.
+
 Current expectation:
 
 - `fleet-order`, `planet-build`, `guard-starbase`, `ipbm`, and

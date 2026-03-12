@@ -69,6 +69,53 @@ impl CoreGameData {
         save_bytes(dir, "CONQUEST.DAT", &self.conquest.to_bytes())?;
         Ok(())
     }
+
+    pub fn player1_starbase_count_current_known(&self) -> usize {
+        self.player
+            .records
+            .first()
+            .map(|record| record.starbase_count_raw() as usize)
+            .unwrap_or(0)
+    }
+
+    pub fn player1_ipbm_count_current_known(&self) -> usize {
+        self.player
+            .records
+            .first()
+            .map(|record| record.ipbm_count_raw() as usize)
+            .unwrap_or(0)
+    }
+
+    pub fn current_known_core_state_errors(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+        let expected_bases = self.player1_starbase_count_current_known();
+        let expected_ipbm = self.player1_ipbm_count_current_known();
+
+        if self.bases.records.len() != expected_bases {
+            errors.push(format!(
+                "BASES.DAT record count expected {}, got {}",
+                expected_bases,
+                self.bases.records.len()
+            ));
+        }
+
+        if self.ipbm.records.len() != expected_ipbm {
+            errors.push(format!(
+                "IPBM.DAT record count expected {}, got {}",
+                expected_ipbm,
+                self.ipbm.records.len()
+            ));
+        }
+
+        errors
+    }
+
+    pub fn sync_player1_current_known_counts(&mut self) {
+        if let Some(player1) = self.player.records.first_mut() {
+            player1.set_starbase_count_raw(self.bases.records.len() as u16);
+            player1.set_ipbm_count_raw(self.ipbm.records.len() as u16);
+        }
+    }
 }
 
 fn load_parsed<T>(

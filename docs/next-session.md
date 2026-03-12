@@ -282,6 +282,16 @@ Rust architecture note:
       - after manual or scripted directory shaping, run `core-validate`
       - if only the current-known count words are wrong, `core-sync-counts`
         can normalize them before higher-level scenario or `ECMAINT` testing
+  - latest shared-model milestone:
+    - current-known core-state semantics now live on `ec_data::CoreGameData`
+    - shared methods now cover:
+      - `player1_starbase_count_current_known()`
+      - `player1_ipbm_count_current_known()`
+      - `current_known_core_state_errors()`
+      - `sync_player1_current_known_counts()`
+    - practical effect:
+      - the CLI core report/validate/sync commands are now thin wrappers over
+        the shared data model instead of owning those rules themselves
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`

@@ -4,8 +4,8 @@ use ec_data::CoreGameData;
 
 pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let data = CoreGameData::load(dir)?;
-    let starbase_total = player1_starbases(&data);
-    let ipbm_total = player1_ipbm(&data);
+    let starbase_total = data.player1_starbase_count_current_known();
+    let ipbm_total = data.player1_ipbm_count_current_known();
 
     println!("Core State Report");
     println!("  dir={}", dir.display());
@@ -33,14 +33,20 @@ pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Er
 
 pub(crate) fn validate_core_state(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let data = CoreGameData::load(dir)?;
-    let errors = core_state_errors(&data);
+    let errors = data.current_known_core_state_errors();
 
     if errors.is_empty() {
         println!("Valid core state");
         println!("  base_record_count = {}", data.bases.records.len());
-        println!("  player1_starbase_count = {}", player1_starbases(&data));
+        println!(
+            "  player1_starbase_count = {}",
+            data.player1_starbase_count_current_known()
+        );
         println!("  ipbm_record_count = {}", data.ipbm.records.len());
-        println!("  player1_ipbm_count = {}", player1_ipbm(&data));
+        println!(
+            "  player1_ipbm_count = {}",
+            data.player1_ipbm_count_current_known()
+        );
         Ok(())
     } else {
         Err(errors.join("\n").into())
@@ -49,58 +55,18 @@ pub(crate) fn validate_core_state(dir: &Path) -> Result<(), Box<dyn std::error::
 
 pub(crate) fn sync_core_counts(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let mut data = CoreGameData::load(dir)?;
-    let starbase_count = data.bases.records.len() as u16;
-    let ipbm_count = data.ipbm.records.len() as u16;
-
-    if let Some(player1) = data.player.records.first_mut() {
-        player1.set_starbase_count_raw(starbase_count);
-        player1.set_ipbm_count_raw(ipbm_count);
-    }
+    data.sync_player1_current_known_counts();
 
     data.save(dir)?;
 
     println!("Core counts synchronized");
-    println!("  player1_starbase_count = {}", starbase_count);
-    println!("  player1_ipbm_count = {}", ipbm_count);
+    println!(
+        "  player1_starbase_count = {}",
+        data.player1_starbase_count_current_known()
+    );
+    println!(
+        "  player1_ipbm_count = {}",
+        data.player1_ipbm_count_current_known()
+    );
     Ok(())
-}
-
-pub(crate) fn core_state_errors(data: &CoreGameData) -> Vec<String> {
-    let mut errors = Vec::new();
-    let starbase_total = player1_starbases(data);
-    let ipbm_total = player1_ipbm(data);
-
-    if data.bases.records.len() != starbase_total {
-        errors.push(format!(
-            "BASES.DAT record count expected {}, got {}",
-            starbase_total,
-            data.bases.records.len()
-        ));
-    }
-
-    if data.ipbm.records.len() != ipbm_total {
-        errors.push(format!(
-            "IPBM.DAT record count expected {}, got {}",
-            ipbm_total,
-            data.ipbm.records.len()
-        ));
-    }
-
-    errors
-}
-
-fn player1_starbases(data: &CoreGameData) -> usize {
-    data.player
-        .records
-        .first()
-        .map(|record| record.starbase_count_raw() as usize)
-        .unwrap_or(0)
-}
-
-fn player1_ipbm(data: &CoreGameData) -> usize {
-    data.player
-        .records
-        .first()
-        .map(|record| record.ipbm_count_raw() as usize)
-        .unwrap_or(0)
 }

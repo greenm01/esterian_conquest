@@ -151,3 +151,40 @@ fn can_set_purge_after_turns_raw() {
     assert_eq!(setup.purge_after_turns_raw(), 1);
     assert_eq!(setup.raw[518], 1);
 }
+
+#[test]
+fn core_game_data_current_known_count_helpers_follow_player1_and_records() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat { records: vec![BaseRecord::new_zeroed(), BaseRecord::new_zeroed()] },
+        ipbm: IpbmDat {
+            records: vec![
+                IpbmRecord { raw: [0u8; IPBM_RECORD_SIZE] },
+                IpbmRecord { raw: [0u8; IPBM_RECORD_SIZE] },
+                IpbmRecord { raw: [0u8; IPBM_RECORD_SIZE] },
+            ],
+        },
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    assert_eq!(data.player1_starbase_count_current_known(), 0);
+    assert_eq!(data.player1_ipbm_count_current_known(), 0);
+    assert_eq!(
+        data.current_known_core_state_errors(),
+        vec![
+            "BASES.DAT record count expected 0, got 2".to_string(),
+            "IPBM.DAT record count expected 0, got 3".to_string(),
+        ]
+    );
+
+    data.sync_player1_current_known_counts();
+
+    assert_eq!(data.player.records[0].starbase_count_raw(), 2);
+    assert_eq!(data.player.records[0].ipbm_count_raw(), 3);
+    assert_eq!(data.player1_starbase_count_current_known(), 2);
+    assert_eq!(data.player1_ipbm_count_current_known(), 3);
+    assert!(data.current_known_core_state_errors().is_empty());
+}
