@@ -159,6 +159,10 @@ Current concrete Rust milestone:
     - `ec-cli guard-starbase-init [source_dir] <target_dir> <target_x> <target_y>`
     - this is the quickest current path from a known-good baseline to a new
       ECMAINT-ready one-base Guard Starbase experiment
+  - Rust also now has a batch coordinate-variant starbase initializer:
+    - `ec-cli guard-starbase-batch-init [source_dir] <target_root> <x:y> <x:y>...`
+    - use this when you want multiple ECMAINT-ready one-base Guard Starbase
+      experiments from one baseline in a single run
   - Rust also now has the first practical `IPBM.DAT` control surface:
     - `ec-cli ipbm-report <dir>`
     - `ec-cli ipbm-zero <dir> <count>`

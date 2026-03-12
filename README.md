@@ -75,6 +75,10 @@ Current Rust milestone:
   - `ec-cli guard-starbase-init [source_dir] <target_dir> <target_x> <target_y>`
   - defaults to the compliant `fixtures/ecmaint-post/v1.5` baseline when
     `source_dir` is omitted
+- Rust now also has a batch coordinate-variant starbase initializer:
+  - `ec-cli guard-starbase-batch-init [source_dir] <target_root> <x:y> <x:y>...`
+  - writes multiple ECMAINT-ready one-base Guard Starbase directories plus a
+    manifest in one run
 - Rust now also has the first practical `IPBM.DAT` controls:
   - `ec-cli ipbm-report <dir>`
   - `ec-cli ipbm-zero <dir> <count>`

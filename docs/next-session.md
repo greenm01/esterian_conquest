@@ -81,6 +81,9 @@
         - this now materializes a coordinate-parameterized one-base Guard
           Starbase directory in one command, defaulting to
           `fixtures/ecmaint-post/v1.5`
+        - `ec-cli guard-starbase-batch-init [source_dir] <target_root> <x:y> <x:y>...`
+        - this now materializes multiple coordinate-parameterized one-base
+          Guard Starbase directories plus a manifest in one run
         - `ec-cli ipbm-report <dir>`
         - `ec-cli ipbm-zero <dir> <count>`
         - `ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>`

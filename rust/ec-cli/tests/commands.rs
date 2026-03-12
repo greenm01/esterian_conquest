@@ -876,6 +876,39 @@ fn compliance_report_summarizes_valid_parameterized_guard_starbase_directory() {
 }
 
 #[test]
+fn guard_starbase_batch_init_materializes_multiple_parameterized_directories() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-guard-starbase-batch-{unique}"));
+
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "guard-starbase-batch-init",
+            target.to_str().unwrap(),
+            "12:9",
+            "14:7",
+        ],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Initialized 2 Guard Starbase directories under"));
+
+    let manifest = fs::read_to_string(target.join("GUARD_STARBASES.txt")).unwrap();
+    assert!(manifest.contains("x12-y09"));
+    assert!(manifest.contains("x14-y07"));
+
+    let report = run_ec_cli_in_dir(
+        &["compliance-report", target.join("x12-y09").to_str().unwrap()],
+        repo_root().join("rust"),
+    );
+    assert!(report.contains("OK   guard-starbase-linkage"));
+    assert!(report.contains("base1.summary=1 base1.id=1 base1.chain=1 coords=[12, 9]"));
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
 fn validate_guard_starbase_accepts_known_valid_fixture() {
     let stdout = run_ec_cli(&["validate", "fixtures/ecmaint-starbase-pre/v1.5", "guard-starbase"]);
     assert!(stdout.contains("Valid guard-starbase scenario"));

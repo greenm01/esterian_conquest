@@ -465,6 +465,17 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or_else(default_fixture_dir);
             print_compliance_report(&dir)?;
         }
+        "guard-starbase-batch-init" => {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((source, target_root, coords)) = parse_optional_source_target_and_coord_list(
+                remaining,
+                post_maint_fixture_dir(),
+            ) else {
+                print_usage();
+                return Ok(());
+            };
+            init_guard_starbase_batch(&source, &target_root, &coords)?;
+        }
         "scenario" => {
             let dir = args
                 .next()
@@ -1642,6 +1653,40 @@ fn print_compliance_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>>
     Ok(())
 }
 
+fn init_guard_starbase_batch(
+    source: &Path,
+    target_root: &Path,
+    coords: &[[u8; 2]],
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(target_root)?;
+    let mut manifest = String::new();
+    manifest.push_str("Guard Starbase batch\n");
+    manifest.push_str(&format!("source={}\n", source.display()));
+    manifest.push_str(&format!("target_root={}\n", target_root.display()));
+    manifest.push('\n');
+
+    for [x, y] in coords {
+        let name = format!("x{:02}-y{:02}", x, y);
+        let scenario_dir = target_root.join(&name);
+        init_guard_starbase_onebase(source, &scenario_dir, *x, *y)?;
+        manifest.push_str(&format!("{name}\n"));
+        manifest.push_str(&format!("  target=[{}, {}]\n", x, y));
+        manifest.push_str(&format!("  dir={}\n", scenario_dir.display()));
+        manifest.push_str(&format!(
+            "  validate=ec-cli compliance-report {}\n\n",
+            scenario_dir.display()
+        ));
+    }
+
+    fs::write(target_root.join("GUARD_STARBASES.txt"), manifest)?;
+    println!(
+        "Initialized {} Guard Starbase directories under {}",
+        coords.len(),
+        target_root.display()
+    );
+    Ok(())
+}
+
 fn validate_known_fleet_order_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let fleets = FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?)?;
     let mut errors = Vec::new();
@@ -2247,6 +2292,33 @@ fn parse_optional_source_target_and_count(
     }
 }
 
+fn parse_coord_pair(value: &str) -> Option<[u8; 2]> {
+    let (x, y) = value.split_once(':')?;
+    Some([
+        parse_u8_arg(x, "target_x").ok()?,
+        parse_u8_arg(y, "target_y").ok()?,
+    ])
+}
+
+fn parse_optional_source_target_and_coord_list(
+    args: Vec<String>,
+    default_source: PathBuf,
+) -> Option<(PathBuf, PathBuf, Vec<[u8; 2]>)> {
+    match args.as_slice() {
+        [target_root, coords @ ..] if !coords.is_empty() => Some((
+            default_source,
+            PathBuf::from(target_root),
+            coords.iter().map(|value| parse_coord_pair(value)).collect::<Option<Vec<_>>>()?,
+        )),
+        [source, target_root, coords @ ..] if !coords.is_empty() => Some((
+            resolve_repo_path(source),
+            PathBuf::from(target_root),
+            coords.iter().map(|value| parse_coord_pair(value)).collect::<Option<Vec<_>>>()?,
+        )),
+        _ => None,
+    }
+}
+
 fn print_usage() {
     println!("Usage:");
     println!("  ec-cli inspect [dir]");
@@ -2262,6 +2334,7 @@ fn print_usage() {
     println!("  ec-cli guard-starbase-onebase <dir> <target_x> <target_y>");
     println!("  ec-cli guard-starbase-report <dir>");
     println!("  ec-cli guard-starbase-init [source_dir] <target_dir> <target_x> <target_y>");
+    println!("  ec-cli guard-starbase-batch-init [source_dir] <target_root> <x:y> <x:y>...");
     println!("  ec-cli ipbm-report <dir>");
     println!("  ec-cli ipbm-zero <dir> <count>");
     println!("  ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>");
