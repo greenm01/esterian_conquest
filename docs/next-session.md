@@ -1208,5 +1208,14 @@ Suggested execution order:
     - `PLAYER.DAT`: `[156, 157, 244, 245, 332, 333]`
     - `PLANETS.DAT`: concentrated clusters including `23..28`, `120..125`,
       `217..222`, `314..319`, and later repeated six-byte runs
-    - `FLEETS.DAT`: repeated four-byte stride pattern including `2,13,19,25`,
-      `56,67,73,79`, continuing through the initialized 16-record block
+    - `FLEETS.DAT`: now clean after promoting the missing initialized owner-byte
+      and tuple-marker semantics into the shared baseline model
+  - resolved `FLEETS.DAT` follow-up:
+    - old repeated hotspot stride: `2,13,19,25`, `56,67,73,79`, continuing
+      across the initialized 16-record block
+    - missing semantics were:
+      - `owner_empire` byte at offset `0x02`
+      - tuple A `[128, 0, 0, 0, 0]`
+      - tuple B `[128, 0, 0, 0, 0]`
+      - tuple C `[129, 0, 0, 0, 0]`
+    - `fixtures/ecmaint-post/v1.5` now has `FLEETS.DAT: differing_offsets=[]`

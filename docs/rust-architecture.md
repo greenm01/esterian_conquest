@@ -260,6 +260,17 @@ baseline:
   byte-complete; the diff report makes the remaining unexplained bytes visible,
   and the offset report makes them actionable RE targets instead of hiding them
   behind a boolean pass/fail
+- first concrete payoff:
+  - the repeated `FLEETS.DAT` drift clusters were traced to missing initialized
+    fleet owner-byte and tuple-marker semantics
+  - the shared initialized fleet baseline now includes:
+    - `owner_empire` at fleet offset `0x02`
+    - tuple A `[0x80, 0, 0, 0, 0]`
+    - tuple B `[0x80, 0, 0, 0, 0]`
+    - tuple C `[0x81, 0, 0, 0, 0]`
+  - for the preserved `fixtures/ecmaint-post/v1.5` baseline, `FLEETS.DAT` is
+    now byte-complete under the current-known normalizer, leaving `PLAYER.DAT`
+    and `PLANETS.DAT` as the next byte-completion targets
 
 The shared model also now treats homeworld-seed alignment as a current-known
 multi-player invariant for initialized/post-maint state:

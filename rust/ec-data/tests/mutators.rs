@@ -63,6 +63,13 @@ fn guard_starbase_related_accessors_expose_linkage_words() {
 }
 
 #[test]
+fn fleet_owner_empire_accessor_round_trips() {
+    let mut record = FleetRecord::new_zeroed();
+    record.set_owner_empire_raw(0x03);
+    assert_eq!(record.owner_empire_raw(), 0x03);
+}
+
+#[test]
 fn ipbm_record_setters_round_trip_structural_prefix_fields() {
     let mut record = IpbmRecord { raw: [0u8; IPBM_RECORD_SIZE] };
     record.set_primary_word_raw(0x1234);
@@ -285,6 +292,26 @@ fn core_game_data_initialized_fleet_payload_errors_catch_broken_slot_pattern() {
     assert_eq!(
         data.current_known_initialized_fleet_payload_errors(),
         vec!["FLEET[3].max_speed expected 6, got 3".to_string()]
+    );
+}
+
+#[test]
+fn core_game_data_initialized_fleet_payload_errors_catch_missing_tuple_markers() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    data.fleets.records[0].set_tuple_a_payload_raw([0; 5]);
+
+    assert_eq!(
+        data.current_known_initialized_fleet_payload_errors(),
+        vec!["FLEET[1].tuple_a_payload expected [128, 0, 0, 0, 0], got [0, 0, 0, 0, 0]".to_string()]
     );
 }
 
@@ -731,6 +758,27 @@ fn core_game_data_current_known_baseline_diff_offsets_pinpoint_mutated_bytes() {
     let tax_offset = 14 * PLANET_RECORD_SIZE + 0x0E;
     assert!(planet_offsets.contains(&tax_offset));
     assert!(planet_offsets.len() > clean_planets.len());
+}
+
+#[test]
+fn core_game_data_current_known_baseline_diff_offsets_clear_fleet_file_on_clean_post_fixture() {
+    let data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    let diffs = data.current_known_baseline_diff_offsets();
+    let fleet_offsets = &diffs
+        .iter()
+        .find(|diff| diff.name == "FLEETS.DAT")
+        .unwrap()
+        .differing_offsets;
+    assert!(fleet_offsets.is_empty());
 }
 
 #[test]

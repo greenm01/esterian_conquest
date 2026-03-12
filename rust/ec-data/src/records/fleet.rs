@@ -105,6 +105,8 @@ impl FleetRecord {
         self.raw[0x00..0x02].copy_from_slice(&value.to_le_bytes());
     }
     pub fn local_slot(&self) -> u8 { self.raw[0x00] }
+    pub fn owner_empire_raw(&self) -> u8 { self.raw[0x02] }
+    pub fn set_owner_empire_raw(&mut self, value: u8) { self.raw[0x02] = value; }
     pub fn next_fleet_link_word_raw(&self) -> u16 {
         u16::from_le_bytes([self.raw[0x03], self.raw[0x04]])
     }

@@ -342,16 +342,21 @@ impl CoreGameData {
                 let mut record = FleetRecord::new_zeroed();
                 let fleet_id = fleet_record_index_1_based as u16;
                 let local_slot = (slot_idx + 1) as u16;
+                let owner_empire = (block_idx + 1) as u8;
                 let prev = if slot_idx == 0 { 0 } else { fleet_id - 1 };
                 let next = if slot_idx == 3 { 0 } else { fleet_id + 1 };
 
                 record.set_local_slot_word_raw(local_slot);
+                record.set_owner_empire_raw(owner_empire);
                 record.set_next_fleet_link_word_raw(next);
                 record.set_fleet_id_word_raw(fleet_id);
                 record.set_previous_fleet_id(prev as u8);
                 record.set_max_speed(if slot_idx < 2 { 3 } else { 6 });
                 record.set_current_speed(0);
                 record.set_current_location_coords_raw(coords);
+                record.set_tuple_a_payload_raw([0x80, 0, 0, 0, 0]);
+                record.set_tuple_b_payload_raw([0x80, 0, 0, 0, 0]);
+                record.set_tuple_c_payload_raw([0x81, 0, 0, 0, 0]);
                 record.set_standing_order_code_raw(5);
                 record.set_standing_order_target_coords_raw(coords);
                 record.set_mission_aux_bytes([1, 0]);
@@ -964,6 +969,7 @@ impl CoreGameData {
 
             for (slot_idx, record) in group.iter().enumerate() {
                 let fleet_record_index_1_based = block_idx * 4 + slot_idx + 1;
+                let expected_owner_empire = (block_idx + 1) as u8;
                 let expected_max_speed = if slot_idx < 2 { 3 } else { 6 };
                 let expected_cur_speed = 0;
                 let expected_ca = if slot_idx < 2 { 1 } else { 0 };
@@ -985,6 +991,14 @@ impl CoreGameData {
                         fleet_record_index_1_based,
                         expected_mission,
                         record.mission_param_bytes()
+                    ));
+                }
+                if record.owner_empire_raw() != expected_owner_empire {
+                    errors.push(format!(
+                        "FLEET[{}].owner_empire expected {}, got {}",
+                        fleet_record_index_1_based,
+                        expected_owner_empire,
+                        record.owner_empire_raw()
                     ));
                 }
                 if record.max_speed() != expected_max_speed {
@@ -1033,6 +1047,27 @@ impl CoreGameData {
                         fleet_record_index_1_based,
                         expected_et,
                         record.etac_count()
+                    ));
+                }
+                if record.tuple_a_payload_raw() != [0x80, 0, 0, 0, 0] {
+                    errors.push(format!(
+                        "FLEET[{}].tuple_a_payload expected [128, 0, 0, 0, 0], got {:?}",
+                        fleet_record_index_1_based,
+                        record.tuple_a_payload_raw()
+                    ));
+                }
+                if record.tuple_b_payload_raw() != [0x80, 0, 0, 0, 0] {
+                    errors.push(format!(
+                        "FLEET[{}].tuple_b_payload expected [128, 0, 0, 0, 0], got {:?}",
+                        fleet_record_index_1_based,
+                        record.tuple_b_payload_raw()
+                    ));
+                }
+                if record.tuple_c_payload_raw() != [0x81, 0, 0, 0, 0] {
+                    errors.push(format!(
+                        "FLEET[{}].tuple_c_payload expected [129, 0, 0, 0, 0], got {:?}",
+                        fleet_record_index_1_based,
+                        record.tuple_c_payload_raw()
                     ));
                 }
             }
