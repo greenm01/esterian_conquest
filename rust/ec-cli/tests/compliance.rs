@@ -168,6 +168,35 @@ fn core_sync_initialized_fleets_repairs_fleet_baseline() {
 }
 
 #[test]
+fn core_sync_initialized_planets_repairs_planet_payload_baseline() {
+    let target = unique_temp_dir("ec-cli-core-sync-planets");
+    common::copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut data = CoreGameData::load(&target).unwrap();
+    data.planets.records[14].set_planet_tax_rate_raw(3);
+    data.planets.records[0].set_status_or_name_summary_raw("Broken");
+    data.planets.records[0].set_likely_army_count_raw(9);
+    data.save(&target).unwrap();
+
+    let sync_stdout = run_ec_cli_in_dir(
+        &["core-sync-initialized-planets", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(sync_stdout.contains("Initialized planet payloads synchronized"));
+    assert!(sync_stdout.contains("initialized_planet_ownership = true"));
+    assert!(sync_stdout.contains("homeworld_seed_payloads = true"));
+    assert!(sync_stdout.contains("unowned_planet_payloads = true"));
+
+    let validate_stdout = run_ec_cli_in_dir(
+        &["core-validate", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(validate_stdout.contains("Valid core state"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn compliance_report_summarizes_valid_parameterized_guard_starbase_directory() {
     let target = unique_temp_dir("ec-cli-compliance-report");
 

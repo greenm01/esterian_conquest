@@ -593,6 +593,28 @@ fn core_game_data_sync_current_known_initialized_fleet_baseline_repairs_mutated_
 }
 
 #[test]
+fn core_game_data_sync_current_known_initialized_planet_payloads_repairs_mutated_planets() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    data.planets.records[14].set_planet_tax_rate_raw(3);
+    data.planets.records[0].set_status_or_name_summary_raw("Broken");
+    data.planets.records[0].set_likely_army_count_raw(9);
+
+    data.sync_current_known_initialized_planet_payloads();
+
+    assert!(data.current_known_homeworld_seed_payload_errors().is_empty());
+    assert!(data.current_known_unowned_planet_payload_errors().is_empty());
+}
+
+#[test]
 fn core_game_data_can_apply_current_known_scenario_mutations() {
     let mut data = CoreGameData {
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),

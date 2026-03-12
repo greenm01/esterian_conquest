@@ -1142,3 +1142,24 @@ Suggested execution order:
     - current fleet locations
   - intentionally does **not** claim to reconstruct arbitrary live fleets;
     it only reconstructs the current-known initialized/post-maint fleet block
+
+- New shared planet repair path:
+  - `CoreGameData::sync_current_known_initialized_planet_payloads()`
+  - CLI: `ec-cli core-sync-initialized-planets [dir]`
+  - this repairs the deterministic payload fields for:
+    - owned homeworld seeds
+    - unowned planets
+  - rewritten fields include:
+    - status/name summary bytes
+    - tax
+    - stored goods
+    - factories
+    - build queue
+    - stardock
+    - population
+    - developed value
+    - likely-army count
+    - ownership status
+  - intentionally does **not** guess new homeworld ownership or arbitrary
+    planet topology; it only normalizes the payload fields the current model
+    already validates

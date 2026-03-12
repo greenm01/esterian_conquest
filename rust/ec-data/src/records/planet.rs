@@ -30,17 +30,38 @@ impl PlanetRecord {
     pub fn potential_production_raw(&self) -> [u8; 2] {
         [self.raw[0x02], self.raw[0x03]]
     }
+    pub fn set_potential_production_raw(&mut self, value: [u8; 2]) {
+        self.raw[0x02] = value[0];
+        self.raw[0x03] = value[1];
+    }
 
     pub fn factories_raw(&self) -> [u8; 6] {
         copy_array(&self.raw[0x04..0x0A])
+    }
+    pub fn set_factories_raw(&mut self, value: [u8; 6]) {
+        self.raw[0x04..0x0A].copy_from_slice(&value);
     }
 
     pub fn stored_goods_raw(&self) -> u32 {
         u32::from_le_bytes(copy_array(&self.raw[0x0A..0x0E]))
     }
+    pub fn set_stored_goods_raw(&mut self, value: u32) {
+        self.raw[0x0A..0x0E].copy_from_slice(&value.to_le_bytes());
+    }
 
     pub fn planet_tax_rate_raw(&self) -> u8 {
         self.raw[0x0E]
+    }
+    pub fn set_planet_tax_rate_raw(&mut self, value: u8) {
+        self.raw[0x0E] = value;
+    }
+
+    pub fn set_status_or_name_summary_raw(&mut self, value: &str) {
+        let bytes = value.as_bytes();
+        let len = bytes.len().min(13);
+        self.raw[0x0F] = len as u8;
+        self.raw[0x10..0x1D].fill(0);
+        self.raw[0x10..0x10 + len].copy_from_slice(&bytes[..len]);
     }
 
     pub fn build_count_raw(&self, slot: usize) -> u8 {
@@ -78,9 +99,15 @@ impl PlanetRecord {
     pub fn population_raw(&self) -> [u8; 6] {
         copy_array(&self.raw[0x52..0x58])
     }
+    pub fn set_population_raw(&mut self, value: [u8; 6]) {
+        self.raw[0x52..0x58].copy_from_slice(&value);
+    }
 
     pub fn owner_empire_slot_raw(&self) -> u8 {
         self.raw[0x5D]
+    }
+    pub fn set_owner_empire_slot_raw(&mut self, value: u8) {
+        self.raw[0x5D] = value;
     }
 
     pub fn army_count_raw(&self) -> u8 {
@@ -90,6 +117,9 @@ impl PlanetRecord {
     pub fn likely_army_count_raw(&self) -> u8 {
         self.raw[0x5A]
     }
+    pub fn set_likely_army_count_raw(&mut self, value: u8) {
+        self.raw[0x5A] = value;
+    }
 
     pub fn ground_batteries_raw(&self) -> u8 {
         self.raw[0x5A]
@@ -98,9 +128,15 @@ impl PlanetRecord {
     pub fn developed_value_raw(&self) -> u8 {
         self.raw[0x58]
     }
+    pub fn set_developed_value_raw(&mut self, value: u8) {
+        self.raw[0x58] = value;
+    }
 
     pub fn ownership_status_raw(&self) -> u8 {
         self.raw[0x5C]
+    }
+    pub fn set_ownership_status_raw(&mut self, value: u8) {
+        self.raw[0x5C] = value;
     }
 
     pub fn status_or_name_summary(&self) -> String {

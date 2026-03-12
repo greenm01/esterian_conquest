@@ -323,3 +323,27 @@ pub(crate) fn sync_initialized_fleet_baseline(
     );
     Ok(())
 }
+
+pub(crate) fn sync_initialized_planet_payloads(
+    dir: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut data = CoreGameData::load(dir)?;
+    data.sync_current_known_initialized_planet_payloads();
+
+    data.save(dir)?;
+
+    println!("Initialized planet payloads synchronized");
+    println!(
+        "  initialized_planet_ownership = {}",
+        data.current_known_initialized_planet_ownership_errors().is_empty()
+    );
+    println!(
+        "  homeworld_seed_payloads = {}",
+        data.current_known_homeworld_seed_payload_errors().is_empty()
+    );
+    println!(
+        "  unowned_planet_payloads = {}",
+        data.current_known_unowned_planet_payload_errors().is_empty()
+    );
+    Ok(())
+}

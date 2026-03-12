@@ -216,6 +216,19 @@ The same now applies to the deterministic initialized fleet baseline:
 - this is still current-known and intentionally bounded: it reconstructs the
   preserved initialized/post-maint fleet blocks, not arbitrary live fleet state
 
+The same pattern now exists for deterministic initialized/post-maint planet
+payloads:
+- `CoreGameData::sync_current_known_initialized_planet_payloads()` rewrites the
+  current-known payload fields for:
+  - owned homeworld seeds
+  - unowned planets
+- it repairs name/summary bytes, tax, stored goods, factories, build queue,
+  stardock, population, developed value, likely-army count, and ownership
+  status for those already-classified records
+- this is intentionally bounded too: it does not guess new homeworld ownership
+  or rebuild arbitrary planet topology, it only normalizes the payload fields
+  the current model already validates
+
 The shared model also now treats homeworld-seed alignment as a current-known
 multi-player invariant for initialized/post-maint state:
 - each active empire has exactly one owned `Not Named Yet` planet

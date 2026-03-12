@@ -359,6 +359,50 @@ impl CoreGameData {
         self.fleets.records = records;
     }
 
+    pub fn sync_current_known_initialized_planet_payloads(&mut self) {
+        let player_count = self.conquest.player_count() as usize;
+
+        for record in &mut self.planets.records {
+            let owner = record.owner_empire_slot_raw() as usize;
+            if record.is_named_homeworld_seed() && (1..=player_count).contains(&owner) {
+                record.set_potential_production_raw([100, 135]);
+                record.set_factories_raw([0, 0, 0, 0, 72, 134]);
+                record.set_stored_goods_raw(0);
+                record.set_planet_tax_rate_raw(12);
+                record.set_status_or_name_summary_raw("Not Named Yet");
+                for slot in 0..10 {
+                    record.set_build_count_raw(slot, 0);
+                    record.set_build_kind_raw(slot, 0);
+                }
+                for slot in 0..6 {
+                    record.set_stardock_count_raw(slot, 0);
+                    record.set_stardock_kind_raw(slot, 0);
+                }
+                record.set_population_raw([0; 6]);
+                record.set_developed_value_raw(10);
+                record.set_likely_army_count_raw(4);
+                record.set_ownership_status_raw(2);
+            } else if owner == 0 {
+                record.set_status_or_name_summary_raw("Unowned");
+                record.set_planet_tax_rate_raw(0);
+                record.set_factories_raw([0; 6]);
+                record.set_stored_goods_raw(0);
+                for slot in 0..10 {
+                    record.set_build_count_raw(slot, 0);
+                    record.set_build_kind_raw(slot, 0);
+                }
+                for slot in 0..6 {
+                    record.set_stardock_count_raw(slot, 0);
+                    record.set_stardock_kind_raw(slot, 0);
+                }
+                record.set_population_raw([0; 6]);
+                record.set_developed_value_raw(0);
+                record.set_likely_army_count_raw(0);
+                record.set_ownership_status_raw(0);
+            }
+        }
+    }
+
     pub fn sync_all_players_current_known_starbase_counts(&mut self) {
         let owned_base_counts = (1..=self.player.records.len())
             .map(|player_record_index_1_based| {
