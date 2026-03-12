@@ -118,6 +118,11 @@ same workflow can use `ec_data::CoreGameData`.
 validator/normalizer logic should live on the data model when it reflects shared
 directory semantics rather than command-specific UI behavior.
 
+The same rule now applies to current-known multi-file scenario mutations. If a
+transform expresses shared directory semantics rather than CLI interaction
+policy, it should live on `CoreGameData` and the CLI should only load, invoke,
+save, and report.
+
 Current expectation:
 
 - `fleet-order`, `planet-build`, `guard-starbase`, `ipbm`, and

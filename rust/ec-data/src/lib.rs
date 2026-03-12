@@ -19,7 +19,7 @@ mod directory;
 mod records;
 mod support;
 
-pub use directory::{CoreGameData, GameDirectoryError};
+pub use directory::{CoreGameData, GameDirectoryError, GameStateMutationError};
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;
 pub use records::fleet::{FleetDat, FleetRecord, FleetStandingOrderKind};

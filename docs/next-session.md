@@ -292,6 +292,16 @@ Rust architecture note:
     - practical effect:
       - the CLI core report/validate/sync commands are now thin wrappers over
         the shared data model instead of owning those rules themselves
+  - latest shared-mutation milestone:
+    - `CoreGameData` now owns the current-known scenario mutation helpers for:
+      - fleet-order shaping
+      - planet-build shaping
+      - one-base guard-starbase shaping
+    - practical effect:
+      - the CLI mutation commands now delegate to the shared data model instead
+        of owning those multi-file transforms themselves
+      - this is the first point where the Rust shared model is acting like a
+        real gamestate mutation engine, not just a parser/serializer
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`

@@ -188,3 +188,38 @@ fn core_game_data_current_known_count_helpers_follow_player1_and_records() {
     assert_eq!(data.player1_ipbm_count_current_known(), 3);
     assert!(data.current_known_core_state_errors().is_empty());
 }
+
+#[test]
+fn core_game_data_can_apply_current_known_scenario_mutations() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    let aux = data
+        .set_fleet_order(1, 0x03, 0x0C, [0x0F, 0x0D], None, None)
+        .unwrap();
+    assert_eq!(data.fleets.records[0].current_speed(), 0x03);
+    assert_eq!(data.fleets.records[0].standing_order_code_raw(), 0x0C);
+    assert_eq!(data.fleets.records[0].standing_order_target_coords_raw(), [0x0F, 0x0D]);
+    assert_eq!(aux, data.fleets.records[0].mission_aux_bytes());
+
+    data.set_planet_build(15, 0x03, 0x01).unwrap();
+    assert_eq!(data.planets.records[14].build_count_raw(0), 0x03);
+    assert_eq!(data.planets.records[14].build_kind_raw(0), 0x01);
+
+    data.set_guard_starbase_onebase([0x10, 0x0D]).unwrap();
+    assert_eq!(data.player.records[0].starbase_count_raw(), 1);
+    assert_eq!(data.fleets.records[0].standing_order_code_raw(), 0x04);
+    assert_eq!(data.fleets.records[0].standing_order_target_coords_raw(), [0x10, 0x0D]);
+    assert_eq!(data.fleets.records[0].mission_aux_bytes(), [0x01, 0x01]);
+    assert_eq!(data.bases.records.len(), 1);
+    assert_eq!(data.bases.records[0].summary_word_raw(), data.fleets.records[0].local_slot_word_raw());
+    assert_eq!(data.bases.records[0].chain_word_raw(), data.fleets.records[0].fleet_id_word_raw());
+    assert_eq!(data.bases.records[0].coords_raw(), [0x10, 0x0D]);
+}

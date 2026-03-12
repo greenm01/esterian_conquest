@@ -16,24 +16,16 @@ pub(crate) fn set_fleet_order(
     aux1: Option<u8>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut data = CoreGameData::load(dir)?;
-    let record = data
-        .fleets
-        .records
-        .get_mut(record_index_1_based - 1)
-        .ok_or_else(|| format!("fleet record index out of range: {record_index_1_based}"))?;
-    record.set_current_speed(speed);
-    record.set_standing_order_code_raw(order_code);
-    record.set_standing_order_target_coords_raw([target_x, target_y]);
-    let mut mission_aux = record.mission_aux_bytes();
-    if let Some(value) = aux0 {
-        mission_aux[0] = value;
-    }
-    if let Some(value) = aux1 {
-        mission_aux[1] = value;
-    }
-    record.set_mission_aux_bytes(mission_aux);
-    let final_aux = record.mission_aux_bytes();
-    let _ = record;
+    let final_aux = data
+        .set_fleet_order(
+            record_index_1_based,
+            speed,
+            order_code,
+            [target_x, target_y],
+            aux0,
+            aux1,
+        )
+        .map_err(|err| err.to_string())?;
     data.save(dir)?;
 
     println!(

@@ -12,13 +12,8 @@ pub(crate) fn set_planet_build(
     kind_raw: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut data = CoreGameData::load(dir)?;
-    let record = data
-        .planets
-        .records
-        .get_mut(record_index_1_based - 1)
-        .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
-    record.set_build_count_raw(0, slot_raw);
-    record.set_build_kind_raw(0, kind_raw);
+    data.set_planet_build(record_index_1_based, slot_raw, kind_raw)
+        .map_err(|err| err.to_string())?;
     data.save(dir)?;
 
     println!(
