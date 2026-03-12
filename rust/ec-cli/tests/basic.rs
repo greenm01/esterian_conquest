@@ -273,3 +273,55 @@ fn core_diff_current_known_baseline_offsets_reports_mutated_offsets() {
 
     cleanup_dir(&target);
 }
+
+#[test]
+fn core_diff_canonical_current_known_baseline_reports_original_gap() {
+    let target = unique_temp_dir("ec-cli-core-diff-canonical-current-known");
+    run_ec_cli_in_dir(
+        &[
+            "core-init-current-known-baseline",
+            "original/v1.5",
+            target.to_str().unwrap(),
+        ],
+        common::rust_workspace(),
+    );
+
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "core-diff-canonical-current-known-baseline",
+            target.to_str().unwrap(),
+        ],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Canonical Current-known Baseline Diff"));
+    assert!(stdout.contains("PLAYER.DAT: differing_bytes="));
+    assert!(stdout.contains("PLANETS.DAT: differing_bytes="));
+    assert!(stdout.contains("FLEETS.DAT: differing_bytes="));
+    assert!(stdout.contains("CONQUEST.DAT: differing_bytes="));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn core_diff_canonical_current_known_baseline_offsets_reports_mutated_offsets() {
+    let target = unique_temp_dir("ec-cli-core-diff-canonical-current-known-offsets");
+    common::copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut data = ec_data::CoreGameData::load(&target).unwrap();
+    data.setup.raw[..5].copy_from_slice(b"BAD!!");
+    data.planets.records[14].set_planet_tax_rate_raw(3);
+    data.save(&target).unwrap();
+
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "core-diff-canonical-current-known-baseline-offsets",
+            target.to_str().unwrap(),
+        ],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Canonical Current-known Baseline Diff Offsets"));
+    assert!(stdout.contains("SETUP.DAT: differing_offsets=[0, 1, 2, 3, 4"));
+    assert!(stdout.contains("PLANETS.DAT: differing_offsets="));
+
+    cleanup_dir(&target);
+}

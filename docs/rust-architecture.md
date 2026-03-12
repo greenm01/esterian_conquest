@@ -256,6 +256,7 @@ baseline:
 - this compares a directory against the Rust-generated current-known baseline
   normalization and reports either per-file differing-byte counts or exact byte
   offsets for the core `.DAT` set
+- this answers: "what would the current-known normalizer still change?"
 - this is useful specifically because the current-known normalizer is not yet
   byte-complete; the diff report makes the remaining unexplained bytes visible,
   and the offset report makes them actionable RE targets instead of hiding them
@@ -290,6 +291,20 @@ baseline:
     so it preserves that hidden tail instead of zeroing it
   - for the preserved `fixtures/ecmaint-post/v1.5` baseline, the current-known
     normalizer is now byte-complete across the full core `.DAT` set
+
+There is now a second drift-reporting surface for the canonical preserved
+post-maint oracle:
+- CLI: `ec-cli core-diff-canonical-current-known-baseline [dir]`
+- CLI: `ec-cli core-diff-canonical-current-known-baseline-offsets [dir]`
+- these compare a directory directly against the canonical preserved core
+  baseline in `fixtures/ecmaint-post/v1.5`
+- this answers: "how far is this directory from the preserved oracle bytes?"
+- this is intentionally different from normalizer drift:
+  - a directory can be a current-known fixed point of the Rust normalizer
+    without matching the canonical preserved post-maint core bytes
+  - for example, normalizing `original/v1.5` currently yields a valid
+    current-known state, but the canonical diff still reports remaining gaps
+    in `PLAYER.DAT`, `PLANETS.DAT`, `FLEETS.DAT`, and `CONQUEST.DAT`
 
 That byte-complete baseline now supports an exact-match oracle:
 - CLI: `ec-cli core-validate-current-known-baseline [dir]`

@@ -104,6 +104,22 @@ pub(crate) fn print_current_known_baseline_diff(
     Ok(())
 }
 
+pub(crate) fn print_canonical_current_known_baseline_diff(
+    dir: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let data = CoreGameData::load(dir)?;
+    let baseline = CoreGameData::load(&post_maint_fixture_dir())?;
+    let diffs = data.diff_counts_against(&baseline);
+
+    println!("Canonical Current-known Baseline Diff");
+    println!("  dir={}", dir.display());
+    for diff in diffs {
+        println!("  {}: differing_bytes={}", diff.name, diff.differing_bytes);
+    }
+
+    Ok(())
+}
+
 pub(crate) fn print_current_known_baseline_diff_offsets(
     dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -111,6 +127,25 @@ pub(crate) fn print_current_known_baseline_diff_offsets(
     let diffs = data.current_known_baseline_diff_offsets();
 
     println!("Current-known Baseline Diff Offsets");
+    println!("  dir={}", dir.display());
+    for diff in diffs {
+        println!(
+            "  {}: differing_offsets={:?}",
+            diff.name, diff.differing_offsets
+        );
+    }
+
+    Ok(())
+}
+
+pub(crate) fn print_canonical_current_known_baseline_diff_offsets(
+    dir: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let data = CoreGameData::load(dir)?;
+    let baseline = CoreGameData::load(&post_maint_fixture_dir())?;
+    let diffs = data.diff_offsets_against(&baseline);
+
+    println!("Canonical Current-known Baseline Diff Offsets");
     println!("  dir={}", dir.display());
     for diff in diffs {
         println!(

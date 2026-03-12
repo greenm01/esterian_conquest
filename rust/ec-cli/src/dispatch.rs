@@ -5,12 +5,12 @@ use crate::commands::compare::{
 };
 use crate::commands::compliance::{print_compliance_batch_report, print_compliance_report};
 use crate::commands::core::{
-    init_current_known_baseline, print_core_report, print_current_known_baseline_diff,
-    print_current_known_baseline_diff_offsets,
-    sync_core_baseline, sync_core_counts,
-    sync_current_known_baseline,
-    sync_initialized_fleet_baseline, sync_initialized_planet_payloads,
-    validate_core_state, validate_current_known_baseline_exact,
+    init_current_known_baseline, print_canonical_current_known_baseline_diff,
+    print_canonical_current_known_baseline_diff_offsets, print_core_report,
+    print_current_known_baseline_diff, print_current_known_baseline_diff_offsets,
+    sync_core_baseline, sync_core_counts, sync_current_known_baseline,
+    sync_initialized_fleet_baseline, sync_initialized_planet_payloads, validate_core_state,
+    validate_current_known_baseline_exact,
 };
 use crate::commands::fleet_order::{
     init_fleet_order_batch, init_fleet_order_scenario, print_fleet_order_report, set_fleet_order,
@@ -76,6 +76,12 @@ pub fn run_args(
         }
         "core-diff-current-known-baseline-offsets" => {
             print_current_known_baseline_diff_offsets(&next_dir(&mut args))?
+        }
+        "core-diff-canonical-current-known-baseline" => {
+            print_canonical_current_known_baseline_diff(&next_dir(&mut args))?
+        }
+        "core-diff-canonical-current-known-baseline-offsets" => {
+            print_canonical_current_known_baseline_diff_offsets(&next_dir(&mut args))?
         }
         "core-validate" => validate_core_state(&next_dir(&mut args))?,
         "core-validate-current-known-baseline" => {

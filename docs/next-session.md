@@ -1191,6 +1191,7 @@ Suggested execution order:
   - CLI: `ec-cli core-diff-current-known-baseline [dir]`
   - reports per-file differing-byte counts between a directory and the
     Rust-generated current-known baseline normalization
+  - this answers: "what would the current-known normalizer still change?"
   - practical meaning:
     - this exposes where the current-known model is still not byte-complete,
       which is useful for deciding the next RE targets instead of only knowing
@@ -1243,6 +1244,19 @@ Suggested execution order:
       - `PLAYER.DAT`
       - `PLANETS.DAT`
       - `FLEETS.DAT`
+  - new canonical drift reports:
+    - CLI: `ec-cli core-diff-canonical-current-known-baseline [dir]`
+    - CLI: `ec-cli core-diff-canonical-current-known-baseline-offsets [dir]`
+    - these compare a directory directly against the preserved canonical core
+      post-maint oracle in `fixtures/ecmaint-post/v1.5`
+    - this answers: "how far is this directory from the preserved oracle
+      bytes?"
+    - important distinction:
+      - a directory can be a valid fixed point of the Rust normalizer without
+        being canonical
+      - `original/v1.5` normalized through the current-known synchronizer still
+        differs from the canonical baseline in `PLAYER.DAT`, `PLANETS.DAT`,
+        `FLEETS.DAT`, and `CONQUEST.DAT`
   - new exact baseline oracle:
     - CLI: `ec-cli core-validate-current-known-baseline [dir]`
     - this is the first byte-level pass/fail oracle for the canonical preserved
