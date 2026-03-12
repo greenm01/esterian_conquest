@@ -406,6 +406,40 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             };
             set_ipbm_zero_records(&dir, count.parse::<u16>()?)?;
         }
+        "ipbm-record-set" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            let Some(record_index) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(primary) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(owner) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(gate) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(follow_on) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            set_ipbm_record_prefix(
+                &dir,
+                parse_usize_1_based(&record_index, "ipbm record index")?,
+                parse_u16_arg(&primary, "primary")?,
+                parse_u8_arg(&owner, "owner")?,
+                parse_u16_arg(&gate, "gate")?,
+                parse_u16_arg(&follow_on, "follow_on")?,
+            )?;
+        }
         "scenario" => {
             let dir = args
                 .next()
@@ -1448,6 +1482,34 @@ fn set_ipbm_zero_records(dir: &Path, count: u16) -> Result<(), Box<dyn std::erro
     Ok(())
 }
 
+fn set_ipbm_record_prefix(
+    dir: &Path,
+    record_index_1_based: usize,
+    primary: u16,
+    owner: u8,
+    gate: u16,
+    follow_on: u16,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let ipbm_path = dir.join("IPBM.DAT");
+    let mut ipbm = IpbmDat::parse(&fs::read(&ipbm_path)?)?;
+    let record = ipbm
+        .records
+        .get_mut(record_index_1_based - 1)
+        .ok_or_else(|| format!("ipbm record index out of range: {record_index_1_based}"))?;
+    record.set_primary_word_raw(primary);
+    record.set_owner_empire_raw(owner);
+    record.set_gate_word_raw(gate);
+    record.set_follow_on_word_raw(follow_on);
+    fs::write(&ipbm_path, ipbm.to_bytes())?;
+
+    println!("IPBM record {} updated", record_index_1_based);
+    println!(
+        "  primary={:#06x} owner={} gate={:#06x} follow_on={:#06x}",
+        primary, owner, gate, follow_on
+    );
+    Ok(())
+}
+
 fn validate_known_fleet_order_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let fleets = FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?)?;
     let mut errors = Vec::new();
@@ -1969,6 +2031,16 @@ fn parse_u8_arg(value: &str, label: &str) -> Result<u8, Box<dyn std::error::Erro
     Ok(parsed)
 }
 
+fn parse_u16_arg(value: &str, label: &str) -> Result<u16, Box<dyn std::error::Error>> {
+    let parsed = if let Some(hex) = value.strip_prefix("0x").or_else(|| value.strip_prefix("0X")) {
+        u16::from_str_radix(hex, 16)?
+    } else {
+        value.parse::<u16>()?
+    };
+    let _ = label;
+    Ok(parsed)
+}
+
 fn parse_usize_1_based(value: &str, label: &str) -> Result<usize, Box<dyn std::error::Error>> {
     let parsed = value.parse::<usize>()?;
     if parsed == 0 {
@@ -2041,6 +2113,7 @@ fn print_usage() {
     println!("  ec-cli guard-starbase-init [source_dir] <target_dir> <target_x> <target_y>");
     println!("  ec-cli ipbm-report <dir>");
     println!("  ec-cli ipbm-zero <dir> <count>");
+    println!("  ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>");
     println!("  ec-cli scenario <dir> <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli scenario <dir> show <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli scenario <dir> list");

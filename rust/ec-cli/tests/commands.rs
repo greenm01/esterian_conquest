@@ -722,6 +722,56 @@ fn ipbm_zero_sets_player_count_and_file_size() {
 }
 
 #[test]
+fn ipbm_record_set_updates_known_structural_prefix_fields() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-ipbm-record-set-{unique}"));
+    fs::create_dir_all(&target).unwrap();
+
+    let fixture = repo_root().join("fixtures/ecmaint-post/v1.5");
+    for name in [
+        "BASES.DAT",
+        "CONQUEST.DAT",
+        "DATABASE.DAT",
+        "FLEETS.DAT",
+        "IPBM.DAT",
+        "MESSAGES.DAT",
+        "PLANETS.DAT",
+        "PLAYER.DAT",
+        "RESULTS.DAT",
+        "SETUP.DAT",
+    ] {
+        fs::copy(fixture.join(name), target.join(name)).unwrap();
+    }
+
+    run_ec_cli_in_dir(&["ipbm-zero", target.to_str().unwrap(), "1"], repo_root().join("rust"));
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "ipbm-record-set",
+            target.to_str().unwrap(),
+            "1",
+            "0x1234",
+            "2",
+            "0x4567",
+            "0x89ab",
+        ],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("IPBM record 1 updated"));
+    assert!(stdout.contains("primary=0x1234 owner=2 gate=0x4567 follow_on=0x89ab"));
+
+    let report = run_ec_cli_in_dir(
+        &["ipbm-report", target.to_str().unwrap()],
+        repo_root().join("rust"),
+    );
+    assert!(report.contains("record 1: primary=0x1234 owner=2 gate=0x4567 follow_on=0x89ab"));
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
 fn validate_guard_starbase_accepts_known_valid_fixture() {
     let stdout = run_ec_cli(&["validate", "fixtures/ecmaint-starbase-pre/v1.5", "guard-starbase"]);
     assert!(stdout.contains("Valid guard-starbase scenario"));

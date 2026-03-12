@@ -75,8 +75,10 @@ Current Rust milestone:
 - Rust now also has the first practical `IPBM.DAT` controls:
   - `ec-cli ipbm-report <dir>`
   - `ec-cli ipbm-zero <dir> <count>`
+  - `ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>`
   - these are enough to inspect and satisfy the currently-known
-    `PLAYER[0x48]` / `IPBM.DAT` count-length gate from Rust
+    `PLAYER[0x48]` / `IPBM.DAT` count-length gate from Rust and to start
+    emitting non-zero structural record prefixes
 - `ec-cli validate <dir> all` now classifies a directory against all currently
   known accepted scenarios and reports which ones match
 - `ec-cli validate-preserved <dir> <scenario>` now checks exact byte-for-byte

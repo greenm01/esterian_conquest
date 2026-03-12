@@ -83,9 +83,11 @@
           `fixtures/ecmaint-post/v1.5`
         - `ec-cli ipbm-report <dir>`
         - `ec-cli ipbm-zero <dir> <count>`
+        - `ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>`
         - these now cover the first practical Rust-side `IPBM.DAT` workflow:
           inspect the current count/length state, then materialize a zero-filled
-          valid record family that satisfies the known `PLAYER[0x48]` gate
+          valid record family that satisfies the known `PLAYER[0x48]` gate,
+          then start populating the decoded record prefix fields from Rust
   - `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`
     materializes a runnable scenario directory in one command from a
     compliant baseline

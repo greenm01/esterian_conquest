@@ -149,8 +149,10 @@ Current concrete Rust milestone:
   - Rust also now has the first practical `IPBM.DAT` control surface:
     - `ec-cli ipbm-report <dir>`
     - `ec-cli ipbm-zero <dir> <count>`
+    - `ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>`
     - this is enough to keep generated scenarios on the correct side of the
-      known `PLAYER[0x48]` / `IPBM.DAT` count gate without hand-editing bytes
+      known `PLAYER[0x48]` / `IPBM.DAT` count gate and to start emitting
+      structured non-zero prefix fields without hand-editing bytes
   - `ec-cli validate <dir> all` now gives a quick classification pass across
     the current known accepted scenarios
   - the known accepted scenarios are now centralized behind one Rust-side
