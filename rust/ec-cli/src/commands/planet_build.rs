@@ -103,6 +103,8 @@ pub(crate) fn print_planet_build_report(
     println!("  record={}", record_index_1_based);
     println!("  build_slot={:#04x}", record.build_slot_raw());
     println!("  build_kind={:#04x}", record.build_kind_raw());
+    println!("  stardock_count={:#04x}", record.stardock_count_raw());
+    println!("  stardock_kind={:#04x}", record.stardock_kind_raw());
     println!("  owner={:#04x}", record.owner_empire_slot_raw());
     println!("  coords={:?}", record.coords_raw());
     Ok(())

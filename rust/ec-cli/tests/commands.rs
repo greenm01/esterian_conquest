@@ -492,6 +492,8 @@ fn planet_build_report_prints_known_fixture_fields() {
     assert!(stdout.contains("record=15"));
     assert!(stdout.contains("build_slot=0x03"));
     assert!(stdout.contains("build_kind=0x01"));
+    assert!(stdout.contains("stardock_count=0x00"));
+    assert!(stdout.contains("stardock_kind=0x00"));
 }
 
 #[test]

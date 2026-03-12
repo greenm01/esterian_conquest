@@ -276,6 +276,22 @@ impl PlanetRecord {
         self.raw[0x2E] = value;
     }
 
+    pub fn stardock_count_raw(&self) -> u8 {
+        self.raw[0x38]
+    }
+
+    pub fn stardock_kind_raw(&self) -> u8 {
+        self.raw[0x4C]
+    }
+
+    pub fn set_stardock_count_raw(&mut self, value: u8) {
+        self.raw[0x38] = value;
+    }
+
+    pub fn set_stardock_kind_raw(&mut self, value: u8) {
+        self.raw[0x4C] = value;
+    }
+
     pub fn population_raw(&self) -> [u8; 6] {
         copy_array(&self.raw[0x52..0x58])
     }
