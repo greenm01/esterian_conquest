@@ -65,6 +65,17 @@ fn headers_accepts_relative_fixture_paths_from_rust_workspace() {
 }
 
 #[test]
+fn inspect_summarizes_core_directory_state() {
+    let stdout = run_ec_cli(&["inspect", "fixtures/ecmaint-post/v1.5"]);
+    assert!(stdout.contains("Directory:"));
+    assert!(stdout.contains("Players:"));
+    assert!(stdout.contains("Planets:"));
+    assert!(stdout.contains("Fleets:"));
+    assert!(stdout.contains("Bases:"));
+    assert!(stdout.contains("IPBM:"));
+}
+
+#[test]
 fn compare_reports_expected_initialized_to_post_maint_shape() {
     let stdout = run_ec_cli(&[
         "compare",

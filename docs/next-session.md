@@ -256,6 +256,12 @@ Rust architecture note:
       `ec-cli` workspace layer
     - fleet/build/starbase/IPBM/scenario init paths now reuse that helper
       instead of duplicating the same file-copy boilerplate
+  - latest inspection milestone:
+    - `ec-cli inspect` now loads through `ec_data::CoreGameData`
+    - this gives generated experiment directories a single typed report path
+      for players/planets/fleets/bases/IPBM instead of ad hoc per-file loads
+    - `ec-cli headers` intentionally stays on the lighter `SETUP.DAT` /
+      `CONQUEST.DAT` path so it still works against `original/v1.5`
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`
