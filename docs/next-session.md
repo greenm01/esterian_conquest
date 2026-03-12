@@ -224,20 +224,11 @@ The active reverse-engineering target is `ECMAINT`.
         - practical conclusion: the current blocker is now a debugger/runtime
           interaction after the generic helper, not bad breakpoint translation
       - new caller recovery from the stable `96c4` stop:
-        - dumping `SS:SP` at the first clean `2814:96c4` breakpoint gives:
-          - return IP `0x6b28`
-          - pushed far-pointer words `0x2895:0x6a22`
-        - converting through PSP `0814` puts those in raw-import space at:
-          - caller/return-site vicinity `2000:7338`
-          - incoming argument pointer `2000:7232`
-        - static caller report `artifacts/ghidra/ecmaint-live/token-callers.txt`
-          shows the first clean `96c4` hit comes from a separate prologue at
-          `2000:731f`, not from the `Move.Tok` wrappers near `9c91` / `9cb0`
-        - practical conclusion:
-          - the first `96c4` hit is an earlier generic named-file probe and
-            should be skipped or filtered in future token-path debugger runs
-          - there are still no direct static xrefs to `2000:9d48` or
-            `2000:9e1e` in the current saved disassembly
+        - By parsing the live memory dump offline we identified the exact stack return addresses when breaking inside the token validation helper (`2814:96c4` / `3159:0274`).
+        - The validation for `setup.tok` originates from a `CALL FAR` at `2000:7333` (return IP `0x6b28`).
+        - The caller passes the string pointer via `CS:DI` (e.g. `2000:6a22` points to `\x09setup.tok`).
+        - The master loop that iterates and checks the remaining game `.tok` files (`Player.Tok`, `Fleets.Tok`, `Database.Tok`, etc.) is located at `2000:997C`.
+        - This master loop cleverly fakes a `FAR` call from a `NEAR` call within the same segment to masquerade its parameter passing and cross-file integrity invocation: `MOV DI, 0x4e5; PUSH CS; PUSH DI; PUSH CS; CALL NEAR ...`
 
 **ECMAINT Live Dump (New):**
 - The productive path is now a DOSBox-X debugger memory dump, not more blind
@@ -346,17 +337,7 @@ The active reverse-engineering target is `ECMAINT`.
 ## Next Steps
 
 1. **Compare early validation traces**: run a known-good Guard Starbase baseline and diff its initial read/validation phase against the failing Starbase 2 scenario.
-2. **Reverse the token gate**: start from the saved token helpers
-   `ecmaint_move_tok_recovery_candidate` at `2000:9d48`,
-   `ecmaint_check_named_token_candidate` at `2000:96c4`,
-   `ecmaint_token_wait_timeout_helper` at `2000:9b13`, and
-   `ecmaint_wait_for_named_token_candidate` at `2000:9e1e`, plus the live-dump
-   anchors at `0x2841B`, `0x26FC6`, and `0x29680`, to map how recognized token
-   names (`MAIN.TOK`, `PLAYER.TOK`, etc.) switch ECMAINT into the passing
-   Starbase 2 path. The best immediate static question is now which caller
-   reaches the `9d48` / `9e1e` block and what runtime segment/register state
-   supplies the actual token-name/message pointers. The most direct dynamic
-   breakpoint targets are now `2000:96c4`, `2000:9cb9`, and `2000:9e1e`.
+2. **Reverse the token gate side-effects**: We have successfully mapped the call chain and found the callers at `2000:7333` and `2000:997C` using the fake `FAR` call trick. The next step is to statically analyze `2000:997C` and its surrounding code to understand *why* the presence of `PLAYER.TOK` bypassing the check allows the subsequent `Starbase 2` integrity check to pass. Does it set a global variable? Does it skip a chunk of code?
 3. **IPBM resolution**: investigate planetary bombardment missiles — still untouched in preserved fixtures, and `IPBM.DAT` is currently 0 bytes in all repo fixture families.
 4. **Build queue mechanics (Partially Solved)**: When a build order finishes, the newly constructed ships are moved into the planet's **Stardock** (`PLANETS.DAT[0x38]` and `0x4C`). They do not immediately form a fleet in `FLEETS.DAT` until they are manually "Commissioned" by the player. We need to map out exactly how `0x38` and `0x4C` encode multiple ships/types.
 
