@@ -194,6 +194,12 @@ The owned homeworld-seed payload is also now part of the current-known baseline:
 - `likely_army_count_raw()` is `4`
 - build queue, stardock, and population payloads remain zeroed
 
+The complementary unowned-planet payload baseline is now explicit too:
+- non-homeworld planets remain `Unowned`
+- owner slot and ownership status stay `0`
+- developed value and likely-army markers stay `0`
+- build queue, stardock, and population payloads remain zeroed
+
 Current-known ownership semantics shall also prefer explicit owner fields where
 the file format is stable. `PLANETS.DAT.owner_empire_slot_raw()` and
 `BASES.DAT.owner_empire_raw()` now feed shared per-player ownership counts and

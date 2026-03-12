@@ -407,6 +407,15 @@ Rust architecture note:
       - `likely_army_count_raw = 4`
       - zeroed build queue, stardock, and population payloads
     - `core-report` now exposes `homeworld_seed_payloads`
+  - follow-on unowned-planet payload baseline:
+    - the shared model now validates the preserved non-homeworld baseline:
+      - status/name `Unowned`
+      - owner slot `0`
+      - ownership status `0`
+      - developed value `0`
+      - likely-army count `0`
+      - zeroed build queue, stardock, and population payloads
+    - `core-report` now exposes `unowned_planet_payloads`
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`

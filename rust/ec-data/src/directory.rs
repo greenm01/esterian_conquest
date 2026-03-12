@@ -214,6 +214,7 @@ impl CoreGameData {
         errors.extend(self.current_known_homeworld_seed_errors());
         errors.extend(self.current_known_initialized_planet_ownership_errors());
         errors.extend(self.current_known_homeworld_seed_payload_errors());
+        errors.extend(self.current_known_unowned_planet_payload_errors());
         errors.extend(self.current_known_initialized_homeworld_alignment_errors());
         if self.ipbm.records.len() != expected_ipbm {
             errors.push(format!(
@@ -468,6 +469,75 @@ impl CoreGameData {
             {
                 errors.push(format!(
                     "PLANET[{}] stardock expected all zeroes for homeworld seed",
+                    planet_index_1_based
+                ));
+            }
+        }
+
+        errors
+    }
+
+    pub fn current_known_unowned_planet_payload_errors(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+
+        for (idx, record) in self.planets.records.iter().enumerate() {
+            if record.is_named_homeworld_seed() {
+                continue;
+            }
+            let planet_index_1_based = idx + 1;
+            if record.status_or_name_summary() != "Unowned" {
+                errors.push(format!(
+                    "PLANET[{}].status_or_name expected 'Unowned', got {:?}",
+                    planet_index_1_based,
+                    record.status_or_name_summary()
+                ));
+            }
+            if record.owner_empire_slot_raw() != 0 {
+                errors.push(format!(
+                    "PLANET[{}].owner_empire_slot expected 0 for unowned baseline, got {}",
+                    planet_index_1_based,
+                    record.owner_empire_slot_raw()
+                ));
+            }
+            if record.ownership_status_raw() != 0 {
+                errors.push(format!(
+                    "PLANET[{}].ownership_status expected 0 for unowned baseline, got {}",
+                    planet_index_1_based,
+                    record.ownership_status_raw()
+                ));
+            }
+            if record.developed_value_raw() != 0 {
+                errors.push(format!(
+                    "PLANET[{}].developed_value_raw expected 0 for unowned baseline, got {}",
+                    planet_index_1_based,
+                    record.developed_value_raw()
+                ));
+            }
+            if record.likely_army_count_raw() != 0 {
+                errors.push(format!(
+                    "PLANET[{}].likely_army_count expected 0 for unowned baseline, got {}",
+                    planet_index_1_based,
+                    record.likely_army_count_raw()
+                ));
+            }
+            if record.population_raw() != [0; 6] {
+                errors.push(format!(
+                    "PLANET[{}].population_raw expected all zeroes for unowned baseline, got {:?}",
+                    planet_index_1_based,
+                    record.population_raw()
+                ));
+            }
+            if (0..10).any(|slot| record.build_count_raw(slot) != 0 || record.build_kind_raw(slot) != 0)
+            {
+                errors.push(format!(
+                    "PLANET[{}] build queue expected all zeroes for unowned baseline",
+                    planet_index_1_based
+                ));
+            }
+            if (0..6).any(|slot| record.stardock_kind_raw(slot) != 0 || record.stardock_count_raw(slot) != 0)
+            {
+                errors.push(format!(
+                    "PLANET[{}] stardock expected all zeroes for unowned baseline",
                     planet_index_1_based
                 ));
             }
