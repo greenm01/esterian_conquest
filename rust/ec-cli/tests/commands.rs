@@ -459,3 +459,36 @@ fn validate_guard_starbase_rejects_post_maint_fixture() {
     assert!(stderr.contains("FLEET[1].order expected 0x04, got 0x05"));
     assert!(stderr.contains("BASES.DAT expected 1 record, got 0"));
 }
+
+#[test]
+fn scenario_init_guard_starbase_materializes_runnable_directory() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-guard-starbase-init-{unique}"));
+
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "scenario-init",
+            "fixtures/ecmaint-post/v1.5",
+            target.to_str().unwrap(),
+            "guard-starbase",
+        ],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Applied scenario: guard-starbase"));
+    assert!(stdout.contains("Scenario directory initialized at"));
+
+    let expected_player = repo_root().join("fixtures/ecmaint-starbase-pre/v1.5/PLAYER.DAT");
+    let expected_fleets = repo_root().join("fixtures/ecmaint-starbase-pre/v1.5/FLEETS.DAT");
+    let expected_bases = repo_root().join("fixtures/ecmaint-starbase-pre/v1.5/BASES.DAT");
+    let expected_setup = repo_root().join("fixtures/ecmaint-post/v1.5/SETUP.DAT");
+
+    assert_eq!(fs::read(target.join("PLAYER.DAT")).unwrap(), fs::read(expected_player).unwrap());
+    assert_eq!(fs::read(target.join("FLEETS.DAT")).unwrap(), fs::read(expected_fleets).unwrap());
+    assert_eq!(fs::read(target.join("BASES.DAT")).unwrap(), fs::read(expected_bases).unwrap());
+    assert_eq!(fs::read(target.join("SETUP.DAT")).unwrap(), fs::read(expected_setup).unwrap());
+
+    let _ = fs::remove_dir_all(&target);
+}

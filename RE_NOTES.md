@@ -1413,6 +1413,9 @@ Rust Guard Starbase encoder milestone:
   - `FLEET[1].aux == [0x01, 0x01]`
   - `BASES.DAT` contains exactly one record matching the structured accepted
     one-base encoding
+- `ec-cli scenario-init [source_dir] <target_dir> guard-starbase` now copies a
+  compliant baseline and applies the accepted one-base scenario in one step,
+  producing a runnable directory directly from Rust
 - practical meaning:
   - the Rust layer has moved one more step away from fixture-byte templating
     and toward explicit compliant gamestate encoding

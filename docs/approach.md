@@ -89,6 +89,9 @@ Current concrete Rust milestone:
     setters over `BaseRecord`, not from a preserved raw byte blob
   - Rust can also validate the currently-known accepted one-base Guard
     Starbase shape with `ec-cli validate <dir> guard-starbase`
+  - Rust can now materialize a runnable Guard Starbase directory from a
+    compliant baseline with
+    `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`
 
 This is intentionally narrower than a full arbitrary save generator, but it is
 the first real proof that the Rust layer can emit accepted gamestate files from

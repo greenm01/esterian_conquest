@@ -306,6 +306,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 _ => print_usage(),
             }
         }
+        "scenario-init" => {
+            let source = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            let Some(target) = args.next().map(PathBuf::from) else {
+                print_usage();
+                return Ok(());
+            };
+            match args.next().as_deref() {
+                Some("guard-starbase") => init_guard_starbase_scenario(&source, &target)?,
+                _ => print_usage(),
+            }
+        }
         "validate" => {
             let dir = args
                 .next()
@@ -1050,6 +1064,19 @@ fn validate_guard_starbase_scenario(dir: &Path) -> Result<(), Box<dyn std::error
     }
 }
 
+fn init_guard_starbase_scenario(
+    source: &Path,
+    target: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(target)?;
+    for name in INIT_FILES {
+        fs::copy(source.join(name), target.join(name))?;
+    }
+    apply_guard_starbase_scenario(target)?;
+    println!("Scenario directory initialized at {}", target.display());
+    Ok(())
+}
+
 fn weekday_labels() -> [&'static str; 7] {
     ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
 }
@@ -1352,6 +1379,7 @@ fn print_usage() {
     println!("  ec-cli fleet-order <dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]");
     println!("  ec-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>");
     println!("  ec-cli scenario <dir> guard-starbase");
+    println!("  ec-cli scenario-init [source_dir] <target_dir> guard-starbase");
     println!("  ec-cli validate <dir> guard-starbase");
     println!("  ec-cli match [dir]");
     println!("  ec-cli compare <left_dir> <right_dir>");

@@ -43,3 +43,6 @@ Current Rust milestone:
 - Rust can now also validate the currently-known accepted one-base Guard
   Starbase shape directly:
   - `ec-cli validate <dir> guard-starbase`
+- Rust can now materialize a runnable Guard Starbase scenario directory from a
+  compliant baseline in one command:
+  - `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`

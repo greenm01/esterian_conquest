@@ -37,11 +37,16 @@
       - `ec-cli validate <dir> guard-starbase` now checks the currently-known
         accepted one-base Guard Starbase invariants across `PLAYER.DAT`,
         `FLEETS.DAT`, and `BASES.DAT`
+      - `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`
+        materializes a runnable scenario directory in one command from a
+        compliant baseline
   - practical meaning:
     - Rust can now emit accepted pre-maint scenario files from decoded fields,
       not just copy preserved fixture trees wholesale
     - Rust can also reject obviously non-compliant starbase snapshots before
       running the original engine
+    - Rust can now generate a ready-to-run preserved scenario directory, not
+      just mutate an existing one in place
     - the next Rust-side milestone should build on this by replacing more
       scenario-specific raw blobs with explicit field encoders/validators
 
