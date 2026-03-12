@@ -328,6 +328,20 @@ This refreshes:
 - the structural accept path that decodes candidate kind-1 summary `+0x06`
   through helper `0x2000:c067` and compares against `[0x355A]`
 
+Generate the focused dump around the current raw-import helper island for that
+matcher path:
+
+```bash
+tools/run_ghidra_script_args.sh ecmaint-live ReportKind2DecodeHelpers.java
+```
+
+This refreshes:
+
+- `artifacts/ghidra/ecmaint-live/kind2-decode-helpers.txt`
+- the raw disassembly around `0x2000:c067` and `0x2000:c09a`
+- the current correction that those addresses are still not trustworthy
+  semantic helper starts in the raw import
+
 ## First Analysis Pass
 
 From the repo root:

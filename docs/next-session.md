@@ -223,9 +223,17 @@ Milestone ladder:
        - practical consequence:
          - `3558` / `355A` are now best modeled as helper-decoded linkage keys
            derived from summary `+0x06`, not as raw persistent fields
+     - correction after helper dump:
+       - artifact: `artifacts/ghidra/ecmaint-live/kind2-decode-helpers.txt`
+       - script: `tools/ghidra_scripts_tmp/ReportKind2DecodeHelpers.java`
+       - `0x2000:c067` and `0x2000:c09a` are still not trustworthy semantic
+         function starts in the raw live import
+       - they currently sit inside a dense helper island that includes
+         arithmetic and counted-string helpers
    - Next Rust-facing target:
-     - reverse helpers `0x2000:c09a` and `0x2000:c067` strongly enough to name
-       the decoded linkage keys behind `3558/355A`
+     - recover the true call boundaries/results feeding the matcher's
+       `3558` / `355A` decode path, rather than naming `c067` / `c09a`
+       prematurely
      - then turn the current kind-`1` / kind-`2` pairing rule into a Rust-side
        validation helper for Guard Starbase scenarios
      - now that a fixed accepted Guard Starbase scenario exists in Rust,

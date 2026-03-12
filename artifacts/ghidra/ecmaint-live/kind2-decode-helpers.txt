@@ -1,0 +1,153 @@
+# Kind-2 Decode Helpers
+
+- Focus helpers:
+  - `0x2000:c09a` from the base-side summary `+0x06` decode path
+  - `0x2000:c067` from the candidate kind-1 summary `+0x06` decode path
+
+## Region Around 2000:C067
+
+2000:c040  ADC BX,0x0                   ; bytes=83 d3 00
+2000:c043  OR DX,DX                     ; bytes=0b d2
+2000:c045  PUSHF                        ; bytes=9c
+2000:c046  JNS 0x2000:c052              ; bytes=79 0a
+2000:c048  NOT AX                       ; bytes=f7 d0
+2000:c04a  NOT DX                       ; bytes=f7 d2
+2000:c04c  ADD AX,0x1                   ; bytes=05 01 00
+2000:c04f  ADC DX,0x0                   ; bytes=83 d2 00
+2000:c052  MOV SI,CX                    ; bytes=8b f1
+2000:c054  MOV DI,BX                    ; bytes=8b fb
+2000:c056  <no instruction>
+2000:c057  LEAVE                        ; bytes=c9
+2000:c058  XOR BX,BX                    ; bytes=33 db
+2000:c05a  MOV BP,0x21                  ; bytes=bd 21 00
+2000:c05d  RCL CX,0x1                   ; bytes=d1 d1
+2000:c05f  RCL BX,0x1                   ; bytes=d1 d3
+2000:c061  SUB CX,SI                    ; bytes=2b ce
+2000:c063  SBB BX,DI                    ; bytes=1b df
+2000:c065  JNC 0x2000:c06b              ; bytes=73 04
+2000:c067  ADD CX,SI                    ; bytes=03 ce
+2000:c069  ADC BX,DI                    ; bytes=13 df
+2000:c06b  CMC                          ; bytes=f5
+2000:c06c  RCL AX,0x1                   ; bytes=d1 d0
+2000:c06e  RCL DX,0x1                   ; bytes=d1 d2
+2000:c070  DEC BP                       ; bytes=4d
+2000:c071  JNZ 0x2000:c05d              ; bytes=75 ea
+2000:c073  POPF                         ; bytes=9d
+2000:c074  JNS 0x2000:c085              ; bytes=79 0f
+2000:c076  NOT CX                       ; bytes=f7 d1
+2000:c078  NOT BX                       ; bytes=f7 d3
+2000:c07a  ADD CX,0x1                   ; bytes=83 c1 01
+2000:c07d  ADC BX,0x0                   ; bytes=83 d3 00
+2000:c080  POPF                         ; bytes=9d
+2000:c081  JNS 0x2000:c088              ; bytes=79 05
+2000:c083  JMP 0x2000:c092              ; bytes=eb 0d
+2000:c085  POPF                         ; bytes=9d
+2000:c086  JNS 0x2000:c092              ; bytes=79 0a
+2000:c088  NOT AX                       ; bytes=f7 d0
+2000:c08a  NOT DX                       ; bytes=f7 d2
+2000:c08c  ADD AX,0x1                   ; bytes=05 01 00
+2000:c08f  ADC DX,0x0                   ; bytes=83 d2 00
+2000:c092  POP BP                       ; bytes=5d
+2000:c093  RETF                         ; bytes=cb
+2000:c094  POP BP                       ; bytes=5d
+2000:c095  MOV AX,0xc8                  ; bytes=b8 c8 00
+2000:c098  <no instruction>
+2000:c099  INC DI                       ; bytes=47
+2000:c09a  TEST byte ptr [BP + DI + 0x1fe1],0x74 ; bytes=f6 83 e1 1f 74
+2000:c09f  PUSH ES                      ; bytes=06
+2000:c0a0  SHR DX,0x1                   ; bytes=d1 ea
+2000:c0a2  RCR AX,0x1                   ; bytes=d1 d8
+2000:c0a4  LOOP 0x2000:c0a0             ; bytes=e2 fa
+2000:c0a6  RETF                         ; bytes=cb
+2000:c0a7  AND CX,0x1f                  ; bytes=83 e1 1f
+2000:c0aa  JZ 0x2000:c0b2               ; bytes=74 06
+2000:c0ac  SHL AX,0x1                   ; bytes=d1 e0
+2000:c0ae  RCL DX,0x1                   ; bytes=d1 d2
+2000:c0b0  LOOP 0x2000:c0ac             ; bytes=e2 fa
+2000:c0b2  RETF                         ; bytes=cb
+2000:c0b3  OR DX,DX                     ; bytes=0b d2
+2000:c0b5  JGE 0x2000:c0c1              ; bytes=7d 0a
+2000:c0b7  NOT AX                       ; bytes=f7 d0
+2000:c0b9  NOT DX                       ; bytes=f7 d2
+2000:c0bb  ADD AX,0x1                   ; bytes=05 01 00
+2000:c0be  ADC DX,0x0                   ; bytes=83 d2 00
+
+## Region Around 2000:C09A
+
+2000:c080  POPF                         ; bytes=9d
+2000:c081  JNS 0x2000:c088              ; bytes=79 05
+2000:c083  JMP 0x2000:c092              ; bytes=eb 0d
+2000:c085  POPF                         ; bytes=9d
+2000:c086  JNS 0x2000:c092              ; bytes=79 0a
+2000:c088  NOT AX                       ; bytes=f7 d0
+2000:c08a  NOT DX                       ; bytes=f7 d2
+2000:c08c  ADD AX,0x1                   ; bytes=05 01 00
+2000:c08f  ADC DX,0x0                   ; bytes=83 d2 00
+2000:c092  POP BP                       ; bytes=5d
+2000:c093  RETF                         ; bytes=cb
+2000:c094  POP BP                       ; bytes=5d
+2000:c095  MOV AX,0xc8                  ; bytes=b8 c8 00
+2000:c098  <no instruction>
+2000:c099  INC DI                       ; bytes=47
+2000:c09a  TEST byte ptr [BP + DI + 0x1fe1],0x74 ; bytes=f6 83 e1 1f 74
+2000:c09f  PUSH ES                      ; bytes=06
+2000:c0a0  SHR DX,0x1                   ; bytes=d1 ea
+2000:c0a2  RCR AX,0x1                   ; bytes=d1 d8
+2000:c0a4  LOOP 0x2000:c0a0             ; bytes=e2 fa
+2000:c0a6  RETF                         ; bytes=cb
+2000:c0a7  AND CX,0x1f                  ; bytes=83 e1 1f
+2000:c0aa  JZ 0x2000:c0b2               ; bytes=74 06
+2000:c0ac  SHL AX,0x1                   ; bytes=d1 e0
+2000:c0ae  RCL DX,0x1                   ; bytes=d1 d2
+2000:c0b0  LOOP 0x2000:c0ac             ; bytes=e2 fa
+2000:c0b2  RETF                         ; bytes=cb
+2000:c0b3  OR DX,DX                     ; bytes=0b d2
+2000:c0b5  JGE 0x2000:c0c1              ; bytes=7d 0a
+2000:c0b7  NOT AX                       ; bytes=f7 d0
+2000:c0b9  NOT DX                       ; bytes=f7 d2
+2000:c0bb  ADD AX,0x1                   ; bytes=05 01 00
+2000:c0be  ADC DX,0x0                   ; bytes=83 d2 00
+2000:c0c1  RETF                         ; bytes=cb
+2000:c0c2  CLD                          ; bytes=fc
+2000:c0c3  MOV BX,SP                    ; bytes=8b dc
+2000:c0c5  MOV DX,DS                    ; bytes=8c da
+2000:c0c7  LES DI,SS:[BX + 0x8]         ; bytes=36 c4 7f 08
+2000:c0cb  <no instruction>
+2000:c0cc  <no instruction>
+2000:c0cd  JA 0x2000:c0d3               ; bytes=77 04
+2000:c0cf  LODSB SI                     ; bytes=ac
+2000:c0d0  STOSB ES:DI                  ; bytes=aa
+2000:c0d1  MOV CL,AL                    ; bytes=8a c8
+2000:c0d3  XOR CH,CH                    ; bytes=32 ed
+2000:c0d5  MOVSB.REP ES:DI,SI           ; bytes=f3 a4
+2000:c0d7  MOV DS,DX                    ; bytes=8e da
+2000:c0d9  RETF 0x4                     ; bytes=ca 04 00
+2000:c0dc  CLD                          ; bytes=fc
+2000:c0dd  MOV BX,SP                    ; bytes=8b dc
+2000:c0df  MOV DX,DS                    ; bytes=8c da
+2000:c0e1  LDS SI,SS:[BX + 0xa]         ; bytes=36 c5 77 0a
+2000:c0e5  LES DI,SS:[BX + 0x6]         ; bytes=36 c4 7f 06
+2000:c0e9  MOV CX,word ptr SS:[BX + 0x4] ; bytes=36 8b 4f 04
+2000:c0ed  LODSB SI                     ; bytes=ac
+2000:c0ee  CMP AL,CL                    ; bytes=3a c1
+2000:c0f0  JBE 0x2000:c0f4              ; bytes=76 02
+2000:c0f2  MOV AL,CL                    ; bytes=8a c1
+2000:c0f4  STOSB ES:DI                  ; bytes=aa
+2000:c0f5  MOV CL,AL                    ; bytes=8a c8
+2000:c0f7  XOR CH,CH                    ; bytes=32 ed
+2000:c0f9  MOVSB.REP ES:DI,SI           ; bytes=f3 a4
+2000:c0fb  MOV DS,DX                    ; bytes=8e da
+2000:c0fd  RETF 0xa                     ; bytes=ca 0a 00
+2000:c100  MOV BX,SP                    ; bytes=8b dc
+2000:c102  LES DI,SS:[BX + 0x4]         ; bytes=36 c4 7f 04
+2000:c106  MOV AL,byte ptr ES:[DI]      ; bytes=26 8a 05
+2000:c109  XOR AH,AH                    ; bytes=32 e4
+2000:c10b  RETF 0x4                     ; bytes=ca 04 00
+2000:c10e  CLD                          ; bytes=fc
+2000:c10f  MOV BX,SP                    ; bytes=8b dc
+2000:c111  MOV DX,DS                    ; bytes=8c da
+2000:c113  LES DI,SS:[BX + 0xc]         ; bytes=36 c4 7f 0c
+2000:c117  LDS SI,SS:[BX + 0x8]         ; bytes=36 c5 77 08
+2000:c11b  MOV AL,byte ptr [SI]         ; bytes=8a 04
+2000:c11d  XOR AH,AH                    ; bytes=32 e4
+2000:c11f  MOV CX,word ptr SS:[BX + 0x6] ; bytes=36 8b 4f 06

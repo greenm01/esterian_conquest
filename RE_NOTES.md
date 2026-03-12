@@ -1569,6 +1569,26 @@ Kind-`2` matcher decode milestone:
     `0x2000:c09a` and `0x2000:c067`, because they bridge raw summary `+0x06`
     values into the actual pairing keys
 
+Helper-region correction after focused dump:
+
+- new artifact: `artifacts/ghidra/ecmaint-live/kind2-decode-helpers.txt`
+- new script: `tools/ghidra_scripts_tmp/ReportKind2DecodeHelpers.java`
+- the focused dump around `0x2000:c067` and `0x2000:c09a` is a useful
+  correction, not yet a semantic decode:
+  - in the raw live import, both addresses still sit inside a dense helper
+    island that includes arithmetic and counted-string helpers
+  - `0x2000:c067` currently lands in the middle of an arithmetic / shift /
+    divide-style region, not at a trustworthy standalone function prologue
+  - `0x2000:c09a` also does not yet decode as a clean semantic entry point in
+    this raw view
+- practical consequence:
+  - the matcher's call targets remain operationally important, but the raw
+    import still does not support naming `c067` / `c09a` themselves as
+    recovered helpers with confidence
+  - the next productive step is finer carving around the real call boundaries
+    and/or dynamic capture of the call arguments/results, not more naive
+    function naming at the current addresses
+
 Relevant documentation cross-check:
 
 - `ECPLAYER.DOC` confirms `X` toggles a player-level `expert mode` setting and `T` changes the empire-wide tax rate
