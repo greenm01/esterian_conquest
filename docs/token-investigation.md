@@ -76,3 +76,19 @@ We statically analyzed the master token loop at `2000:997C` and its core token v
    - Searching the binary for references to `16A4` shows it is *only ever explicitly set to 0* (at `2000:9430`), and is otherwise only compared against `0`. 
    - This suggests `16A4` is set dynamically either via indirect pointers, `REP MOVSB/W` block copies, or initialization from the startup arguments before standard control flow.
 4. **Clarification on the Fake FAR Call**: The caller at `2000:7333` executes a standard `CALL FAR 3159:0274`. When adjusted by the DOSBox PSP load offset (`0814`), segment `3159` maps perfectly to `0x31804`, which is precisely the linear address of `2814:96C4` (the token validator `2000:96C4`).
+
+## The "Bypass" Flag and Move.Tok Restore (Final Conclusion)
+
+After exhaustively hunting for the mechanism that sets the `DS:16A4` integrity bypass flag dynamically, we discovered two major revelations:
+
+1. **The `16A4` Developer Typo Bug**:
+   An exhaustive binary scan confirms that `16A4` is **never** set to a non-zero value anywhere in the executable. It is explicitly initialized to `0` at `2000:9430` and never touched again. 
+   However, analyzing the command-line parser (`0x29120`) revealed that passing the `/B` (presumably "Bypass") flag sets the boolean variable at `DS:16A2` to `1`. The integrity check at `2000:5EE4` incorrectly tests `DS:16A4`. This is a classic developer typo—the parser sets one variable (`16A2`), but the integrity check reads a different, permanently zero variable (`16A4`). Thus, the direct memory bypass mechanism is completely inaccessible and broken.
+
+2. **The True `.TOK` "Bypass" Mechanism (Restore from Backup)**:
+   The presence of `.TOK` files does not flip a magic memory flag to bypass the integrity check logic. Instead, `.TOK` files function as lock files indicating active operations.
+   - The master token loop (`2000:997C`) acts as a "wait gate." If tokens like `Player.Tok` are present, it enters a polling loop waiting for the node to delete them. If it times out, it manually deletes them and continues.
+   - However, a secondary check for **`Move.Tok`** (`3159:08F8`) is performed immediately after. 
+   - If `Move.Tok` is present, it indicates a crash during the movement phase. The game jumps to a block at `2000:6DAA` which prints *"Error - Previous maintenance halted during movement phase"* and *"Attempting to restore game from backup..."*.
+   - It then automatically copies the `.SAV` backup files over the corrupted `.DAT` files **before** calling the Starbase 2 integrity check (`2000:5EE4`).
+   - Therefore, the presence of `Move.Tok` causes the game to overwrite the broken `BASES.DAT` with a clean backup, causing the Starbase 2 integrity check to pass naturally rather than skipping it via a flag.
