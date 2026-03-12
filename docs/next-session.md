@@ -238,6 +238,13 @@ Primary project goal:
          helper `0x3000:486B`
        - `3557` is clamped to at most `1`, so raw `0x1F` behaves like a
          boolean / capped mode byte
+     - dynamic clarification:
+       - `artifacts/ecmaint-ipbm-debug/off_1e_val_01-scratch.txt` confirms
+         `IPBM[0x1E]` copies to `3556`
+       - `artifacts/ecmaint-ipbm-debug/off_1f_val_02-scratch.txt` shows the
+         first `5EE4` stop still sees raw `3557 = 0x02`
+       - the clamp to `1` therefore happens later in shared summary logic,
+         not during the initial record-to-scratch copy
      - practical implication:
        - the coarse full-record layout is now stable enough for Rust-side
          binary encoding even though several gameplay semantics remain unnamed

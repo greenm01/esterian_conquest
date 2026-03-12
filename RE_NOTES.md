@@ -1182,6 +1182,9 @@ Kind-`3` group-start confirmation:
   - `IPBM[0x11] = 0x01` -> scratch byte `3549 = 0x01`
   - `IPBM[0x17] = 0x01` -> scratch byte `354F = 0x01`
   - `IPBM[0x1D] = 0x01` -> scratch byte `3555 = 0x01`
+  - `IPBM[0x1E] = 0x01` -> scratch byte `3556 = 0x01`
+  - `IPBM[0x1F] = 0x02` -> scratch byte `3557 = 0x02` at the first
+    `2000:5EE4` summary-write stop
 - combined with the existing shared-kind writeback:
   - raw `0x0B..0x0F` is the on-disk source for tuple-A payload block
     `3543..3547`
@@ -1195,6 +1198,12 @@ Kind-`3` group-start confirmation:
   - `3555` and `3556` are treated as scalar bytes, widened through helper
     `0x3000:4891`, then expanded with `0x3000:486B` against literal `0x80`
   - `3557` is clamped so values above `1` normalize back to `1`
+  - dynamic clarification:
+    - the initial `5EE4` scratch capture still shows the raw on-disk `3557`
+      byte before that clamp runs
+    - so `2000:5EE4` / `0x3000:502F` is a raw copier into `3538`, while the
+      cap-to-`1` behavior belongs to the later shared summary path in
+      `0000:02C0`
   - practical reading:
     - raw offsets `0x1D` and `0x1E` are small scalar control bytes
     - raw offset `0x1F` behaves like a boolean / capped mode byte
