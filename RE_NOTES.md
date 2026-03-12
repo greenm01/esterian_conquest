@@ -157,7 +157,18 @@ Important detail:
 - Minimal synthetic `CHAIN.TXT` files were rejected as invalid.
 - A complete 32-line `CHAIN.TXT` format was required to clear the initial parser gate.
 - Repo helper scripts now normalize this through `tools/ecgame_dropfiles.py`, which writes the known local `CHAIN.TXT` shape with explicit DOS CRLF line endings.
+- A second repo-level harness bug was also fixed: multiple old `ECGAME` pexpect scripts were building argv correctly, then breaking it with `pexpect.spawn(" ".join(cmd), ...)`.
+- Practical effect: `-c "DEBUGBOX ECGAME.EXE /L"` lost its quoting boundary and `/L` was being parsed by DOSBox-X itself instead of reaching `ECGAME`.
+- Fresh evidence from the corrected boot-dump run:
+  - the old bogus warning `Unknown option l` disappeared once argv was passed as a real argument vector
+  - `tools/dump_ecgame_memory.py` resumed producing `/tmp/ecgame-dump/MEMDUMP.BIN`
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
+
+Current caveat:
+
+- fixing dropfile generation and argv passing repaired the stale harness layer, but the remaining interactive/local-flow problem is now narrower:
+  - some old scripts still have brittle debugger prompt handling
+  - the currently regenerated `MEMDUMP.BIN` images look like earlier-boot snapshots and still do not expose the later door/parser strings cited from the older `/tmp/ecgboot_chain` work
 
 Useful test files created during analysis:
 

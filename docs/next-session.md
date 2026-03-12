@@ -536,4 +536,9 @@ Suggested execution order:
 - `tools/ecgame_dropfiles.py` is now the shared writer for local `ECGAME` door files.
 - `setup_commission_test.py` and `fix_dropfiles.py` were normalized to use the same 32-line WWIV-style `CHAIN.TXT` with explicit DOS CRLF endings.
 - This removes the earlier repo inconsistency where `CHAIN.TXT` helpers disagreed on both line count and line endings.
-- Caveat: the interactive local `ECGAME` launch is still not fully stable; the dropfile helpers are aligned now, but the human-playable Wayland path still needs a confirmed end-to-end recipe.
+- Non-active `ECGAME` pexpect harnesses were also fixed to pass argv correctly via `pexpect.spawn(cmd[0], cmd[1:], ...)` instead of `pexpect.spawn(" ".join(cmd), ...)`.
+- Root cause: the old join-based form caused `/L` to be consumed by DOSBox-X as an outer option rather than passed through to `ECGAME`.
+- Confirmed effect:
+  - `tools/dump_ecgame_memory.py` once again produces `/tmp/ecgame-dump/MEMDUMP.BIN`
+  - the old bogus `Unknown option l` warning disappears under the corrected argv path
+- Remaining blocker: the local interactive `ECGAME` flow is still not fully stable because several old scripts have brittle debugger prompt handling, and the freshly regenerated dumps still look like earlier-boot snapshots rather than the richer `/tmp/ecgboot_chain` state referenced in `RE_NOTES.md`.
