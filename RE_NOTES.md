@@ -493,6 +493,28 @@ Important detail:
       - still-untested early lines `3`, `4`, `5`, `11`, `12`, `14`, `15`
       - or a later semantic/code-side comparison that is insensitive to these
         obvious line-value tweaks
+- The legacy parser phase boundary is now explicit:
+  - artifact:
+    - `artifacts/ecgame-startup/legacy-door-transition.txt`
+  - script:
+    - `tools/summarize_ecgame_legacy_door_transition.py`
+  - confirmed:
+    - stable loop phase ends at `3F10` with:
+      - `[BP+0x0A] = 0x0011`
+      - `[BP+0x0C] = 0x0011`
+    - the next `3FFF` stop switches to a different frame shape:
+      - `BP=F6A8`
+      - `SP=F68A`
+      - `SI=F8B8`
+    - the later `3F1A` stop uses a third frame shape:
+      - `BP=F6AE`
+      - `SP=F692`
+    - the old `0x0011` loop-limit pair is gone by that point
+  - practical interpretation:
+    - `3F10` completes the fixed early-field parser loop
+    - control then transfers into a follow-on phase that repacks parser state
+      before the later `0x1C` exit path
+    - this is now a better next target than more broad value-mutation sweeps
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
 
 Current caveat:

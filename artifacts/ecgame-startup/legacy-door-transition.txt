@@ -1,0 +1,51 @@
+3F10
+  regs: SI=0 DI=403C BP=F6A4 SP=F688 CS=4294 DS=44A1 SS=4F7E
+  [BP+0x00] = 0xF6B2
+  [BP+0x02] = 0x1514
+  [BP+0x04] = 0x3911
+  [BP+0x06] = 0x403C
+  [BP+0x08] = 0x44A1
+  [BP+0x0A] = 0x0011
+  [BP+0x0C] = 0x0011
+  [BP+0x0E] = 0xF9B8
+  [BP+0x10] = 0x1673
+  [BP+0x12] = 0x0011
+  [BP+0x14] = 0x4303
+  [BP+0x16] = 0x4D4F
+
+3FFF
+  regs: SI=F8B8 DI=403C BP=F6A8 SP=F68A CS=4294 DS=44A1 SS=4F7E
+  [BP+0x00] = 0xF9B8
+  [BP+0x02] = 0x1687
+  [BP+0x04] = 0x3911
+  [BP+0x06] = 0x00FF
+  [BP+0x08] = 0xF8B8
+  [BP+0x0A] = 0x4F7E
+  [BP+0x0C] = 0x403C
+  [BP+0x0E] = 0x44A1
+  [BP+0x10] = 0x4303
+  [BP+0x12] = 0x4D4F
+  [BP+0x14] = 0x0000
+  [BP+0x16] = 0x0000
+
+3F1A
+  regs: SI=F8B8 DI=403C BP=F6AE SP=F692 CS=4294 DS=44A1 SS=4F7E
+  [BP+0x00] = 0xF9B8
+  [BP+0x02] = 0x168C
+  [BP+0x04] = 0x3911
+  [BP+0x06] = 0x403C
+  [BP+0x08] = 0x44A1
+  [BP+0x0A] = 0x4303
+  [BP+0x0C] = 0x4D4F
+  [BP+0x0E] = 0x0000
+  [BP+0x10] = 0x0000
+  [BP+0x12] = 0x0000
+  [BP+0x14] = 0x0000
+  [BP+0x16] = 0x0000
+
+Observed handoff:
+- Stable loop phase ends at `3F10` with `[BP+0x0A] = [BP+0x0C] = 0x0011`.
+- The next `3FFF` stop uses a different frame shape (`BP=F6A8`, `SP=F68A`, `SI=F8B8`).
+- At that handoff, the old loop counter slots are replaced by pointer/data words including `0x403C`, `0x44A1`, and inline `COM` bytes.
+- The later `3F1A` stop uses a third frame shape (`BP=F6AE`, `SP=F692`) and no longer carries the `0x0011` loop-limit pair.
+- Practical interpretation: `3F10` completes the fixed field-window parser loop, then control transfers into a follow-on phase that repacks parser state before the later `0x1C` exit path.

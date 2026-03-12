@@ -788,4 +788,20 @@ Suggested execution order:
     - next likely productive targets are:
       - lines `3`, `4`, `5`, `11`, `12`, `14`, `15`
       - or a direct code/counter trace on the `BP+0x0C` comparison path
+- New phase-boundary result:
+  - artifact:
+    - `artifacts/ecgame-startup/legacy-door-transition.txt`
+  - script:
+    - `tools/summarize_ecgame_legacy_door_transition.py`
+  - confirmed:
+    - stable parser loop ends at `3F10` with:
+      - `[BP+0x0A] = 0x0011`
+      - `[BP+0x0C] = 0x0011`
+    - then the next `3FFF` and later `3F1A` stops use different frame shapes
+      and no longer carry that loop-limit pair
+  - implication:
+    - the most productive next work is now the handoff after `3F10`, not more
+      broad pre-`3F10` sweeps
+    - specifically: trace how the completed parser loop repacks state and
+      decides to continue toward `0x1C`
 - Remaining blocker: the local interactive `ECGAME` flow is still not fully stable because several old scripts have brittle debugger prompt handling, and the freshly regenerated dumps still look like earlier-boot snapshots rather than the richer `/tmp/ecgboot_chain` state referenced in `RE_NOTES.md`.
