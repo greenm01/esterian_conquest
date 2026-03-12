@@ -1,0 +1,43 @@
+{
+  "shared": {
+    "door_len": 250,
+    "sequence": [
+      "3F00",
+      "3E00",
+      "3D00",
+      "3FFF",
+      "3F30",
+      "3E01",
+      "4C00"
+    ],
+    "exit_code": "1C",
+    "tail": "\r(Running)F000   EIP=0000D080  C0 Z0 S0 O0 A0 P0 D0 I09E                        \rI-> _    4C00  ESI=000002011C  EDI=0000ADC4  CS=4294   EIP=000001A3  C0 Z1 S0 O"
+  },
+  "legacy": {
+    "door_len": 124,
+    "sequence": [
+      "3F00",
+      "3E00",
+      "3D00",
+      "3FFF",
+      "3F05",
+      "3F06",
+      "3F07",
+      "3F08",
+      "3F09",
+      "3F0A",
+      "3F0B",
+      "3F0C",
+      "3F0D",
+      "3F0E",
+      "3F0F",
+      "3F10",
+      "3FFF",
+      "3F1A",
+      "3E01",
+      "4C00"
+    ],
+    "exit_code": "1C",
+    "tail": "\r(Running)F000   EIP=0000D080  C0 Z0 S0 O0 A0 P0 D0 I09E                        \rI-> _    4C00  ESI=000002011C  EDI=0000ADC4  CS=4294   EIP=000001A3  C0 Z1 S0 O"
+  }
+}

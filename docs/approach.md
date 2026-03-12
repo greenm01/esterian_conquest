@@ -69,6 +69,9 @@ Long term:
 - reimplement the real turn engine in Rust
 - build a usable player client and admin client
 - support classic-compatible saves and reproducible results
+- preserve the original player-facing ANSI presentation well enough to reuse
+  or faithfully recreate important opening/menu/report screens in the Rust
+  client
 
 ## Milestone Ladder
 
@@ -112,6 +115,17 @@ Long term:
   - emit gamestate files
   - run original `ECMAINT`
   - iterate over a whole game from scripted inputs
+
+6. ANSI / UI preservation layer
+
+- capture and preserve the original `ECGAME` ANSI output/screens where
+  practical
+- treat those captures as reference assets for the Rust client
+- prefer exact stream capture when possible and rendered-screen capture as a
+  fallback
+- this is not the immediate RE priority, but it is an explicit preservation
+  goal and should be folded into the Rust clone once the local `ECGAME`
+  harness is reliable enough
 
 Near-term acceptance rule:
 

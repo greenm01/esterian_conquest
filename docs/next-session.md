@@ -192,6 +192,16 @@ Later serialization-layer milestone:
 - treat that as a layer on top of the compliant generator, not as the next RE
   milestone
 
+Preservation TODO:
+
+- preserve original `ECGAME` ANSI opening/menu/report screens for reuse as
+  Rust-client reference material
+- once the local startup harness is reliable enough, capture:
+  - raw ANSI stream output when available
+  - rendered text/screen dumps as a fallback
+- this is not the immediate next debugging task, but it is now an explicit
+  project goal
+
 Rust architecture note:
 
 - recent refactor milestone:
@@ -671,4 +681,29 @@ Suggested execution order:
       `CHAIN.TXT`
     - or set a post-read code breakpoint keyed from the `3F01` / `3FFF` /
       `3F30` return path
+- New best local-harness lead:
+  - the legacy `DOOR.SYS` shape from `tools/test_fossil_commission.py` gets
+    materially farther into the fallback parser than the current shared
+    `write_door_sys()` output
+  - observed dynamic difference:
+    - shared `DOOR.SYS`:
+      - `3FFF`
+      - `3F30`
+      - `3E01`
+      - `4C00`
+    - legacy fossil-style `DOOR.SYS`:
+      - `3FFF`
+      - `3F05`
+      - `3F06`
+      - `3F07`
+      - `3F08`
+      - `3F09`
+      - `3F0A`
+      - ...
+      - later `3F10`, `3FFF`, `3F1A`, then close/exit
+  - implication:
+    - the current shared `DOOR.SYS` writer is probably not faithful enough for
+      deeper local `ECGAME` startup
+    - next pass should start by preserving/probing the legacy fossil-style
+      `DOOR.SYS` shape, not by iterating more on the current shared one
 - Remaining blocker: the local interactive `ECGAME` flow is still not fully stable because several old scripts have brittle debugger prompt handling, and the freshly regenerated dumps still look like earlier-boot snapshots rather than the richer `/tmp/ecgboot_chain` state referenced in `RE_NOTES.md`.

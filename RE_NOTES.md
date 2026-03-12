@@ -322,6 +322,51 @@ Important detail:
     - the fallback path is not failing on low-level `DOOR.SYS` I/O either
     - the remaining startup blocker is semantic validation/decision logic after
       a successful two-chunk `DOOR.SYS` read
+- Legacy `DOOR.SYS` shape from the older fossil harness is now a concrete lead:
+  - the legacy format from `tools/test_fossil_commission.py` differs materially
+    from the current shared `write_door_sys()` output
+  - quick format comparison:
+    - current shared writer:
+      - `250` bytes
+      - modernized field count / line set
+    - legacy fossil harness shape:
+      - `124` bytes
+      - different early line structure including `19200`, `8`, `1`, `19200`
+        and a much shorter tail
+  - dynamic result:
+    - current shared `DOOR.SYS` still follows:
+      - `3F00`
+      - `3E00`
+      - `3D00`
+      - `3FFF`
+      - `3F30`
+      - `3E01`
+      - `4C00`
+      - exit `0x1C`
+    - legacy fossil-style `DOOR.SYS` instead continues much deeper:
+      - `3F00`
+      - `3E00`
+      - `3D00`
+      - `3FFF`
+      - `3F05`
+      - `3F06`
+      - `3F07`
+      - `3F08`
+      - `3F09`
+      - `3F0A`
+      - ...
+      - later:
+        - `3F10`
+        - `3FFF`
+        - `3F1A`
+        - `3E01`
+        - `4C00`
+      - still eventually exits `0x1C`
+  - practical implication:
+    - the shared `write_door_sys()` layout is likely not faithful enough for
+      the deeper local `ECGAME` path
+    - the legacy fossil-style `DOOR.SYS` gets materially farther into the
+      parser and is now the best lead for recovering a usable local harness
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
 
 Current caveat:
