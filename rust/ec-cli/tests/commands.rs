@@ -401,6 +401,82 @@ fn planet_build_recreates_known_valid_build_pre_fixture() {
 }
 
 #[test]
+fn scenario_fleet_order_recreates_known_valid_fleet_pre_fixture() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-scenario-fleet-order-{unique}"));
+    fs::create_dir_all(&target).unwrap();
+
+    let fixture = repo_root().join("fixtures/ecmaint-post/v1.5");
+    for name in [
+        "BASES.DAT",
+        "CONQUEST.DAT",
+        "DATABASE.DAT",
+        "FLEETS.DAT",
+        "IPBM.DAT",
+        "MESSAGES.DAT",
+        "PLANETS.DAT",
+        "PLAYER.DAT",
+        "RESULTS.DAT",
+        "SETUP.DAT",
+    ] {
+        fs::copy(fixture.join(name), target.join(name)).unwrap();
+    }
+
+    let stdout = run_ec_cli_in_dir(
+        &["scenario", target.to_str().unwrap(), "fleet-order"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Applied scenario: fleet-order"));
+
+    let expected = repo_root().join("fixtures/ecmaint-fleet-pre/v1.5/FLEETS.DAT");
+    let actual = fs::read(target.join("FLEETS.DAT")).unwrap();
+    assert_eq!(actual, fs::read(expected).unwrap());
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn scenario_planet_build_recreates_known_valid_build_pre_fixture() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-scenario-planet-build-{unique}"));
+    fs::create_dir_all(&target).unwrap();
+
+    let fixture = repo_root().join("fixtures/ecmaint-post/v1.5");
+    for name in [
+        "BASES.DAT",
+        "CONQUEST.DAT",
+        "DATABASE.DAT",
+        "FLEETS.DAT",
+        "IPBM.DAT",
+        "MESSAGES.DAT",
+        "PLANETS.DAT",
+        "PLAYER.DAT",
+        "RESULTS.DAT",
+        "SETUP.DAT",
+    ] {
+        fs::copy(fixture.join(name), target.join(name)).unwrap();
+    }
+
+    let stdout = run_ec_cli_in_dir(
+        &["scenario", target.to_str().unwrap(), "planet-build"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Applied scenario: planet-build"));
+
+    let expected = repo_root().join("fixtures/ecmaint-build-pre/v1.5/PLANETS.DAT");
+    let actual = fs::read(target.join("PLANETS.DAT")).unwrap();
+    assert_eq!(actual, fs::read(expected).unwrap());
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
 fn guard_starbase_scenario_recreates_known_valid_starbase_pre_fixture() {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -450,6 +526,20 @@ fn validate_guard_starbase_accepts_known_valid_fixture() {
 }
 
 #[test]
+fn validate_fleet_order_accepts_known_valid_fixture() {
+    let stdout = run_ec_cli(&["validate", "fixtures/ecmaint-fleet-pre/v1.5", "fleet-order"]);
+    assert!(stdout.contains("Valid fleet-order scenario"));
+    assert!(stdout.contains("FLEET[1].order = 0x0c"));
+}
+
+#[test]
+fn validate_planet_build_accepts_known_valid_fixture() {
+    let stdout = run_ec_cli(&["validate", "fixtures/ecmaint-build-pre/v1.5", "planet-build"]);
+    assert!(stdout.contains("Valid planet-build scenario"));
+    assert!(stdout.contains("PLANET[15].build_kind = 0x01"));
+}
+
+#[test]
 fn validate_guard_starbase_rejects_post_maint_fixture() {
     let stderr = run_ec_cli_failure_in_dir(
         &["validate", "fixtures/ecmaint-post/v1.5", "guard-starbase"],
@@ -458,6 +548,26 @@ fn validate_guard_starbase_rejects_post_maint_fixture() {
     assert!(stderr.contains("PLAYER[1].starbase_count_raw expected 1, got 0"));
     assert!(stderr.contains("FLEET[1].order expected 0x04, got 0x05"));
     assert!(stderr.contains("BASES.DAT expected 1 record, got 0"));
+}
+
+#[test]
+fn validate_fleet_order_rejects_post_maint_fixture() {
+    let stderr = run_ec_cli_failure_in_dir(
+        &["validate", "fixtures/ecmaint-post/v1.5", "fleet-order"],
+        repo_root().join("rust"),
+    );
+    assert!(stderr.contains("FLEET[1].order expected 0x0c, got 0x05"));
+    assert!(stderr.contains("FLEET[1].target expected (15, 13), got [16, 13]"));
+}
+
+#[test]
+fn validate_planet_build_rejects_post_maint_fixture() {
+    let stderr = run_ec_cli_failure_in_dir(
+        &["validate", "fixtures/ecmaint-post/v1.5", "planet-build"],
+        repo_root().join("rust"),
+    );
+    assert!(stderr.contains("PLANET[15].build_slot expected 0x03, got 0x00"));
+    assert!(stderr.contains("PLANET[15].build_kind expected 0x01, got 0x00"));
 }
 
 #[test]
@@ -489,6 +599,64 @@ fn scenario_init_guard_starbase_materializes_runnable_directory() {
     assert_eq!(fs::read(target.join("FLEETS.DAT")).unwrap(), fs::read(expected_fleets).unwrap());
     assert_eq!(fs::read(target.join("BASES.DAT")).unwrap(), fs::read(expected_bases).unwrap());
     assert_eq!(fs::read(target.join("SETUP.DAT")).unwrap(), fs::read(expected_setup).unwrap());
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn scenario_init_fleet_order_materializes_runnable_directory() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-fleet-order-init-{unique}"));
+
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "scenario-init",
+            "fixtures/ecmaint-post/v1.5",
+            target.to_str().unwrap(),
+            "fleet-order",
+        ],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Applied scenario: fleet-order"));
+    assert!(stdout.contains("Scenario directory initialized at"));
+
+    let expected_fleets = repo_root().join("fixtures/ecmaint-fleet-pre/v1.5/FLEETS.DAT");
+    let expected_planets = repo_root().join("fixtures/ecmaint-post/v1.5/PLANETS.DAT");
+
+    assert_eq!(fs::read(target.join("FLEETS.DAT")).unwrap(), fs::read(expected_fleets).unwrap());
+    assert_eq!(fs::read(target.join("PLANETS.DAT")).unwrap(), fs::read(expected_planets).unwrap());
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn scenario_init_planet_build_materializes_runnable_directory() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-planet-build-init-{unique}"));
+
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "scenario-init",
+            "fixtures/ecmaint-post/v1.5",
+            target.to_str().unwrap(),
+            "planet-build",
+        ],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Applied scenario: planet-build"));
+    assert!(stdout.contains("Scenario directory initialized at"));
+
+    let expected_planets = repo_root().join("fixtures/ecmaint-build-pre/v1.5/PLANETS.DAT");
+    let expected_fleets = repo_root().join("fixtures/ecmaint-post/v1.5/FLEETS.DAT");
+
+    assert_eq!(fs::read(target.join("PLANETS.DAT")).unwrap(), fs::read(expected_planets).unwrap());
+    assert_eq!(fs::read(target.join("FLEETS.DAT")).unwrap(), fs::read(expected_fleets).unwrap());
 
     let _ = fs::remove_dir_all(&target);
 }

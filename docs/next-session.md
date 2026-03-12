@@ -10,6 +10,15 @@
     rewrites decoded fleet-order fields in place
   - `ec-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>`
     rewrites decoded build-queue bytes in place
+  - latest Rust scenario CLI milestone:
+    - `ec-cli scenario <dir> fleet-order`
+    - `ec-cli scenario <dir> planet-build`
+    - `ec-cli validate <dir> fleet-order`
+    - `ec-cli validate <dir> planet-build`
+    - `ec-cli scenario-init [source_dir] <target_dir> fleet-order`
+    - `ec-cli scenario-init [source_dir] <target_dir> planet-build`
+    - these now turn the two already-preserved accepted fleet/build rewrites
+      into named runnable scenarios rather than only low-level mutator calls
   - `cargo test -p ec-cli` now proves two exact fixture recreations from the
     compliant `fixtures/ecmaint-post/v1.5` baseline:
     - `FLEETS.DAT` for `fixtures/ecmaint-fleet-pre/v1.5`
@@ -43,6 +52,8 @@
   - practical meaning:
     - Rust can now emit accepted pre-maint scenario files from decoded fields,
       not just copy preserved fixture trees wholesale
+    - Rust can now generate and validate accepted fleet/build/starbase
+      scenarios through a consistent scenario-oriented CLI
     - Rust can also reject obviously non-compliant starbase snapshots before
       running the original engine
     - Rust can now generate a ready-to-run preserved scenario directory, not

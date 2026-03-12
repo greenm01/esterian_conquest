@@ -1423,6 +1423,34 @@ Rust Guard Starbase encoder milestone:
     the remaining linkage semantics well enough to validate or emit additional
     base/fleet pairings deliberately
 
+Rust fleet/build scenario CLI milestone:
+
+- the previously low-level exact-fixture rewrites are now exposed as named
+  accepted scenarios in `ec-cli`:
+  - `ec-cli scenario <dir> fleet-order`
+  - `ec-cli scenario <dir> planet-build`
+- both scenarios also have validation entry points:
+  - `ec-cli validate <dir> fleet-order`
+  - `ec-cli validate <dir> planet-build`
+- both scenarios can now be materialized into runnable directories from a
+  compliant baseline in one command:
+  - `ec-cli scenario-init [source_dir] <target_dir> fleet-order`
+  - `ec-cli scenario-init [source_dir] <target_dir> planet-build`
+- current accepted scenario checks are intentionally narrow and tied to the
+  preserved fixture evidence:
+  - fleet-order:
+    - `FLEET[1].current_speed == 3`
+    - `FLEET[1].order == 0x0c`
+    - `FLEET[1].target == (15, 13)`
+  - planet-build:
+    - `PLANET[15].build_slot == 0x03`
+    - `PLANET[15].build_kind == 0x01`
+- practical meaning:
+  - Rust can now generate and sanity-check three preserved accepted scenarios
+    through one consistent scenario-oriented interface
+  - that lowers the cost of spinning up new original-engine runs while the
+    remaining integrity-linkage semantics are still being decoded
+
 Base-side summary emitter mapping:
 
 - new artifact: `artifacts/ghidra/ecmaint-live/5ee4-base-branch.txt`

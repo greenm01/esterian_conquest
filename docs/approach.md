@@ -83,6 +83,14 @@ Current concrete Rust milestone:
   - fleet-order rewrite reproducing `fixtures/ecmaint-fleet-pre/v1.5/FLEETS.DAT`
   - planet build-queue rewrite reproducing
     `fixtures/ecmaint-build-pre/v1.5/PLANETS.DAT`
+  - named fleet/build scenario commands and validators over those same
+    preserved accepted rewrites:
+    - `ec-cli scenario <dir> fleet-order`
+    - `ec-cli scenario <dir> planet-build`
+    - `ec-cli validate <dir> fleet-order`
+    - `ec-cli validate <dir> planet-build`
+    - `ec-cli scenario-init [source_dir] <target_dir> fleet-order`
+    - `ec-cli scenario-init [source_dir] <target_dir> planet-build`
   - accepted Guard Starbase scenario rewrite reproducing the core gamestate
     files from `fixtures/ecmaint-starbase-pre/v1.5`
   - the Guard Starbase base record is now emitted from named Rust field
