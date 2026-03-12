@@ -33,3 +33,8 @@ Current Rust milestone:
   scenarios using decoded fields instead of wholesale fixture replacement:
   - `ec-cli fleet-order ...` reproduces `fixtures/ecmaint-fleet-pre/v1.5/FLEETS.DAT`
   - `ec-cli planet-build ...` reproduces `fixtures/ecmaint-build-pre/v1.5/PLANETS.DAT`
+- Rust can also now emit an accepted Guard Starbase scenario from the same
+  compliant baseline:
+  - `ec-cli scenario <dir> guard-starbase`
+  - verified against `fixtures/ecmaint-starbase-pre/v1.5` for `PLAYER.DAT`,
+    `FLEETS.DAT`, and `BASES.DAT`

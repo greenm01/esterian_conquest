@@ -83,6 +83,8 @@ Current concrete Rust milestone:
   - fleet-order rewrite reproducing `fixtures/ecmaint-fleet-pre/v1.5/FLEETS.DAT`
   - planet build-queue rewrite reproducing
     `fixtures/ecmaint-build-pre/v1.5/PLANETS.DAT`
+  - accepted Guard Starbase scenario rewrite reproducing the core gamestate
+    files from `fixtures/ecmaint-starbase-pre/v1.5`
 
 This is intentionally narrower than a full arbitrary save generator, but it is
 the first real proof that the Rust layer can emit accepted gamestate files from

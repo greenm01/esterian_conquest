@@ -27,6 +27,12 @@ const ORIGINAL_FILES: &[&str] = &[
     "SETUP.DAT",
 ];
 
+const ACCEPTED_SINGLE_BASE_RECORD: [u8; 35] = [
+    0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x10,
+    0x0D, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x0D, 0x01,
+];
+
 fn main() {
     if let Err(err) = run() {
         eprintln!("error: {err}");
@@ -296,6 +302,16 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 parse_u8_arg(&kind_raw, "build kind")?,
             )?;
         }
+        "scenario" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            match args.next().as_deref() {
+                Some("guard-starbase") => apply_guard_starbase_scenario(&dir)?,
+                _ => print_usage(),
+            }
+        }
         _ => print_usage(),
     }
 
@@ -350,6 +366,7 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
             record.last_run_year(),
             record.ownership_summary()
         );
+        println!("    starbase_count_raw={}", record.starbase_count_raw());
     }
     println!();
 
@@ -411,6 +428,7 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
                         record.standing_order_target_coords_raw(),
                         record.standing_order_summary()
                     );
+                    println!("    mission_aux={:02x?}", record.mission_aux_bytes());
                 }
                 if fleets.records.len() > fleet_display_count {
                     println!("  ... {} total fleet records", fleets.records.len());
@@ -917,6 +935,36 @@ fn set_planet_build(
     Ok(())
 }
 
+fn apply_guard_starbase_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let player_path = dir.join("PLAYER.DAT");
+    let mut player = PlayerDat::parse(&fs::read(&player_path)?)?;
+    player.records[0].set_starbase_count_raw(1);
+    fs::write(&player_path, player.to_bytes())?;
+
+    let fleets_path = dir.join("FLEETS.DAT");
+    let mut fleets = FleetDat::parse(&fs::read(&fleets_path)?)?;
+    let fleet = fleets
+        .records
+        .get_mut(0)
+        .ok_or("missing fleet record 1")?;
+    fleet.set_standing_order_code_raw(0x04);
+    fleet.set_mission_aux_bytes([0x01, 0x01]);
+    let _ = fleet;
+    fs::write(&fleets_path, fleets.to_bytes())?;
+
+    let bases_path = dir.join("BASES.DAT");
+    let bases = BaseDat {
+        records: vec![ec_data::BaseRecord::from_raw(ACCEPTED_SINGLE_BASE_RECORD)],
+    };
+    fs::write(&bases_path, bases.to_bytes())?;
+
+    println!("Applied scenario: guard-starbase");
+    println!("  PLAYER[1].starbase_count_raw = 1");
+    println!("  FLEET[1].order = 0x04, aux = [01, 01]");
+    println!("  BASES.DAT = accepted single-base template at (16,13) for empire 1");
+    Ok(())
+}
+
 fn weekday_labels() -> [&'static str; 7] {
     ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
 }
@@ -1218,6 +1266,7 @@ fn print_usage() {
     println!("  ec-cli purge-after <dir> <turns>");
     println!("  ec-cli fleet-order <dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]");
     println!("  ec-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>");
+    println!("  ec-cli scenario <dir> guard-starbase");
     println!("  ec-cli match [dir]");
     println!("  ec-cli compare <left_dir> <right_dir>");
     println!("  ec-cli init [source_dir] <target_dir>");

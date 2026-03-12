@@ -14,6 +14,12 @@
     compliant `fixtures/ecmaint-post/v1.5` baseline:
     - `FLEETS.DAT` for `fixtures/ecmaint-fleet-pre/v1.5`
     - `PLANETS.DAT` for `fixtures/ecmaint-build-pre/v1.5`
+  - new accepted starbase scenario command:
+    - `ec-cli scenario <dir> guard-starbase`
+    - verified against `fixtures/ecmaint-starbase-pre/v1.5` for:
+      - `PLAYER.DAT`
+      - `FLEETS.DAT`
+      - `BASES.DAT`
   - practical meaning:
     - Rust can now emit accepted pre-maint scenario files from decoded fields,
       not just copy preserved fixture trees wholesale
@@ -108,12 +114,29 @@ Primary project goal:
          - Rust-side compliant gamestate generation will need fleet/base
            linkage values that survive this summary pairing, not just
            individually plausible records
+     - new base-side emitter mapping:
+       - artifact: `artifacts/ghidra/ecmaint-live/5ee4-base-branch.txt`
+       - script: `tools/ghidra_scripts_tmp/Report5EE4BaseBranch.java`
+       - confirmed:
+         - `2000:63D3..6759` is the `BASES.DAT` validator / kind-`2` summary
+           emitter
+         - kind-`2` summary `+0x01` / `+0x02` come from base coords
+           `0x0B` / `0x0C`
+         - kind-`2` summary `+0x0A` comes from base `0x02..0x03`
+         - kind-`2` summary `+0x06` comes from:
+           - `player[0x44]` in the primary branch
+           - base `0x07..0x08` in the follow-on linked-base branch
+       - practical consequence:
+         - the remaining unknown pairing keys around `3558/355A` are now
+           narrowed to values derived from `player[0x44]` or base `0x07..0x08`,
+           not the coordinate or flag fields already mapped
    - Next Rust-facing target:
      - map the base-side summary emitter strongly enough to name `3558/355A`
        and turn the current kind-`1` / kind-`2` pairing rule into a Rust-side
        validation helper for Guard Starbase scenarios
-     - once those keys are named, add a Rust command that emits an accepted
-       Guard Starbase pre-maint scenario from a compliant baseline
+     - now that a fixed accepted Guard Starbase scenario exists in Rust,
+       replace the current single-base template with a more explicit encoder
+       derived from the remaining `3558/355A` linkage semantics
 
 2. `IPBM.DAT` resolution
    - Practical status: structurally complete enough for Rust-side compliant

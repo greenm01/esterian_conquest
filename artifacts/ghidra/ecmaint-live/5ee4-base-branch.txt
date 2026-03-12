@@ -1,0 +1,309 @@
+Program: MEMDUMP.BIN
+
+2000:5ee4 ecmaint_validate_primary_state
+- function: ecmaint_validate_primary_state
+
+base_primary_branch (2000:63d3 .. 2000:657f)
+- 2000:63d3  MOV DI,0x2ff8    [scalar 0x2ff8]
+- 2000:63d6  PUSH DS
+- 2000:63d7  PUSH DI
+- 2000:63d8  MOV AX,0x23    [scalar 0x23]
+- 2000:63db  PUSH AX
+- 2000:63dc  CALLF 0x3000:4f7a    [ref 3000:4f7a]    [addr 3000:4f7a]
+- 2000:63e1  CALLF 0x3000:3be2    [ref 3000:3be2]    [addr 3000:3be2]
+- 2000:63e6  OR AX,AX
+- 2000:63e8  JZ 0x2000:63ed    [ref 2000:63ed]    [addr 2000:63ed]
+- 2000:63ea  JMP 0x2000:66f1    [ref 2000:66f1]    [addr 2000:66f1]
+- 2000:63ed  MOV AL,[0x16ae]    [scalar 0x16ae]
+- 2000:63f0  XOR AH,AH
+- 2000:63f2  MOV word ptr [BP + 0xfeac],AX    [ref Stack[-0x156]]    [scalar 0xfeac]
+- 2000:63f6  MOV AX,0x1    [scalar 0x1]
+- 2000:63f9  CMP AX,word ptr [BP + 0xfeac]    [ref Stack[-0x156]]    [scalar 0xfeac]
+- 2000:63fd  JBE 0x2000:6402    [ref 2000:6402]    [addr 2000:6402]
+- 2000:63ff  JMP 0x2000:66e0    [ref 2000:66e0]    [addr 2000:66e0]
+- 2000:6402  MOV word ptr [BP + 0xfeae],AX    [ref Stack[-0x154]]    [scalar 0xfeae]
+- 2000:6406  JMP 0x2000:640c    [ref 2000:640c]    [addr 2000:640c]
+- 2000:6408  INC word ptr [BP + 0xfeae]    [ref Stack[-0x154]]    [scalar 0xfeae]
+- 2000:640c  MOV DI,word ptr [BP + 0xfeae]    [ref Stack[-0x154]]    [scalar 0xfeae]
+- 2000:6410  SHL DI,0x1    [scalar 0x1]
+- 2000:6412  SHL DI,0x1    [scalar 0x1]
+- 2000:6414  LES DI,[DI + 0x16ac]    [scalar 0x16ac]
+- 2000:6418  CMP word ptr ES:[DI + 0x44],0x0    [scalar 0x44]    [scalar 0x0]
+- 2000:641d  JA 0x2000:6422    [ref 2000:6422]    [addr 2000:6422]
+- 2000:641f  JMP 0x2000:66d3    [ref 2000:66d3]    [addr 2000:66d3]
+- 2000:6422  CMP byte ptr [BP + -0x2],0x0    [ref Stack[-0x4]]    [scalar 0xfffe]    [scalar 0x0]
+- 2000:6426  JNZ 0x2000:642b    [ref 2000:642b]    [addr 2000:642b]
+- 2000:6428  JMP 0x2000:66d3    [ref 2000:66d3]    [addr 2000:66d3]
+- 2000:642b  MOV DI,0x2ff8    [scalar 0x2ff8]
+- 2000:642e  PUSH DS
+- 2000:642f  PUSH DI
+- 2000:6430  MOV DI,word ptr [BP + 0xfeae]    [ref Stack[-0x154]]    [scalar 0xfeae]
+- 2000:6434  SHL DI,0x1    [scalar 0x1]
+- 2000:6436  SHL DI,0x1    [scalar 0x1]
+- 2000:6438  LES DI,[DI + 0x16ac]    [scalar 0x16ac]
+- 2000:643c  MOV AX,word ptr ES:[DI + 0x44]    [scalar 0x44]
+- 2000:6440  DEC AX
+- 2000:6441  XOR DX,DX
+- 2000:6443  PUSH DX
+- 2000:6444  PUSH AX
+- 2000:6445  CALLF 0x3000:50cd    [ref 3000:50cd]    [addr 3000:50cd]
+- 2000:644a  CALLF 0x3000:3be2    [ref 3000:3be2]    [addr 3000:3be2]
+- 2000:644f  OR AX,AX
+- 2000:6451  MOV AL,0x0    [scalar 0x0]
+- 2000:6453  JNZ 0x2000:6456    [ref 2000:6456]    [addr 2000:6456]
+- 2000:6455  INC AX
+- 2000:6456  MOV byte ptr [BP + -0x2],AL    [ref Stack[-0x4]]    [scalar 0xfffe]
+- 2000:6459  CMP byte ptr [BP + -0x2],0x0    [ref Stack[-0x4]]    [scalar 0xfffe]    [scalar 0x0]
+- 2000:645d  JZ 0x2000:6481    [ref 2000:6481]    [addr 2000:6481]
+- 2000:645f  MOV DI,0x2ff8    [scalar 0x2ff8]
+- 2000:6462  PUSH DS
+- 2000:6463  PUSH DI
+- 2000:6464  LEA DI,[BP + 0xff74]    [ref Stack[-0x8e]]    [scalar 0xff74]
+- 2000:6468  PUSH SS
+- 2000:6469  PUSH DI
+- 2000:646a  CALLF 0x3000:502f    [ref 3000:502f]    [addr 3000:502f]
+- 2000:646f  ADD SP,0x4    [scalar 0x4]
+- 2000:6472  CALLF 0x3000:3be2    [ref 3000:3be2]    [addr 3000:3be2]
+- 2000:6477  OR AX,AX
+- 2000:6479  MOV AL,0x0    [scalar 0x0]
+- 2000:647b  JNZ 0x2000:647e    [ref 2000:647e]    [addr 2000:647e]
+- 2000:647d  INC AX
+- 2000:647e  MOV byte ptr [BP + -0x2],AL    [ref Stack[-0x4]]    [scalar 0xfffe]
+- 2000:6481  CMP byte ptr [0x16a4],0x0    [scalar 0x16a4]    [scalar 0x0]
+- 2000:6486  JNZ 0x2000:64a3    [ref 2000:64a3]    [addr 2000:64a3]
+- 2000:6488  MOV AL,byte ptr [BP + 0xff78]    [ref Stack[-0x8a]]    [scalar 0xff78]
+- 2000:648c  XOR AH,AH
+- 2000:648e  CMP AX,word ptr [BP + 0xfeae]    [ref Stack[-0x154]]    [scalar 0xfeae]
+- 2000:6492  JNZ 0x2000:649a    [ref 2000:649a]    [addr 2000:649a]
+- 2000:6494  CMP byte ptr [BP + -0x2],0x0    [ref Stack[-0x4]]    [scalar 0xfffe]    [scalar 0x0]
+- 2000:6498  JNZ 0x2000:649e    [ref 2000:649e]    [addr 2000:649e]
+- 2000:649a  MOV AL,0x0    [scalar 0x0]
+- 2000:649c  JMP 0x2000:64a0    [ref 2000:64a0]    [addr 2000:64a0]
+- 2000:649e  MOV AL,0x1    [scalar 0x1]
+- 2000:64a0  MOV byte ptr [BP + -0x2],AL    [ref Stack[-0x4]]    [scalar 0xfffe]
+- 2000:64a3  CMP byte ptr [BP + -0x2],0x0    [ref Stack[-0x4]]    [scalar 0xfffe]    [scalar 0x0]
+- 2000:64a7  JNZ 0x2000:64ac    [ref 2000:64ac]    [addr 2000:64ac]
+- 2000:64a9  JMP 0x2000:6582    [ref 2000:6582]    [addr 2000:6582]
+- 2000:64ac  INC word ptr [0x2f76]    [scalar 0x2f76]
+- 2000:64b0  MOV AX,0xc    [scalar 0xc]
+- 2000:64b3  PUSH AX
+- 2000:64b4  CALLF 0x3000:1c53    [ref 3000:1c53]    [addr 3000:1c53]
+- 2000:64b9  MOV CX,AX
+- 2000:64bb  MOV BX,DX
+- 2000:64bd  MOV AX,[0x2f76]    [scalar 0x2f76]
+- 2000:64c0  SHL AX,0x1    [scalar 0x1]
+- 2000:64c2  SHL AX,0x1    [scalar 0x1]
+- 2000:64c4  LES DI,[0x2f72]    [scalar 0x2f72]
+- 2000:64c8  ADD DI,AX
+- 2000:64ca  MOV word ptr ES:[DI + -0x4],CX    [scalar 0xfffc]
+- 2000:64ce  MOV word ptr ES:[DI + -0x2],BX    [scalar 0xfffe]
+- 2000:64d2  MOV AX,[0x2f76]    [scalar 0x2f76]
+- 2000:64d5  SHL AX,0x1    [scalar 0x1]
+- 2000:64d7  SHL AX,0x1    [scalar 0x1]
+- 2000:64d9  LES DI,[0x2f72]    [scalar 0x2f72]
+- 2000:64dd  ADD DI,AX
+- 2000:64df  LES DI,ES:[DI + -0x4]    [scalar 0xfffc]
+- 2000:64e3  MOV word ptr [BP + 0xfea8],DI    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:64e7  MOV word ptr [BP + 0xfeaa],ES    [ref Stack[-0x158]]    [scalar 0xfeaa]
+- 2000:64eb  MOV AX,word ptr [BP + 0xff76]    [ref Stack[-0x8c]]    [scalar 0xff76]
+- 2000:64ef  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:64f3  MOV word ptr ES:[DI + 0xa],AX    [scalar 0xa]
+- 2000:64f7  CMP byte ptr [0x16a4],0x0    [scalar 0x16a4]    [scalar 0x0]
+- 2000:64fc  JZ 0x2000:650b    [ref 2000:650b]    [addr 2000:650b]
+- 2000:64fe  MOV AL,byte ptr [BP + 0xff78]    [ref Stack[-0x8a]]    [scalar 0xff78]
+- 2000:6502  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:6506  MOV byte ptr ES:[DI],AL
+- 2000:6509  JMP 0x2000:6516    [ref 2000:6516]    [addr 2000:6516]
+- 2000:650b  MOV AL,byte ptr [BP + 0xfeae]    [ref Stack[-0x154]]    [scalar 0xfeae]
+- 2000:650f  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:6513  MOV byte ptr ES:[DI],AL
+- 2000:6516  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:651a  MOV byte ptr ES:[DI + 0x4],0x2    [scalar 0x4]    [scalar 0x2]
+- 2000:651f  MOV AL,byte ptr [BP + 0xff7f]    [ref Stack[-0x83]]    [scalar 0xff7f]
+- 2000:6523  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:6527  MOV byte ptr ES:[DI + 0x1],AL    [scalar 0x1]
+- 2000:652b  MOV AL,byte ptr [BP + -0x80]    [ref Stack[-0x82]]    [scalar 0xff80]
+- 2000:652e  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:6532  MOV byte ptr ES:[DI + 0x2],AL    [scalar 0x2]
+- 2000:6536  MOV AX,word ptr [BP + -0x73]    [ref Stack[-0x75]]    [scalar 0xff8d]
+- 2000:6539  MOV BX,word ptr [BP + -0x71]    [ref Stack[-0x73]]    [scalar 0xff8f]
+- 2000:653c  MOV DX,word ptr [BP + -0x6f]    [ref Stack[-0x71]]    [scalar 0xff91]
+- 2000:653f  MOV CX,0x80    [scalar 0x80]
+- 2000:6542  XOR SI,SI
+- 2000:6544  XOR DI,DI
+- 2000:6546  CALLF 0x3000:488d    [ref 3000:488d]    [addr 3000:488d]
+- 2000:654b  JNC 0x2000:6558    [ref 2000:6558]    [addr 2000:6558]
+- 2000:654d  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:6551  MOV byte ptr ES:[DI + 0x5],0x0    [scalar 0x5]    [scalar 0x0]
+- 2000:6556  JMP 0x2000:6561    [ref 2000:6561]    [addr 2000:6561]
+- 2000:6558  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:655c  MOV byte ptr ES:[DI + 0x5],0x1    [scalar 0x5]    [scalar 0x1]
+- 2000:6561  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:6565  MOV byte ptr ES:[DI + 0x3],0x1    [scalar 0x3]    [scalar 0x1]
+- 2000:656a  MOV DI,word ptr [BP + 0xfeae]    [ref Stack[-0x154]]    [scalar 0xfeae]
+- 2000:656e  SHL DI,0x1    [scalar 0x1]
+- 2000:6570  SHL DI,0x1    [scalar 0x1]
+- 2000:6572  LES DI,[DI + 0x16ac]    [scalar 0x16ac]
+- 2000:6576  MOV AX,word ptr ES:[DI + 0x44]    [scalar 0x44]
+- 2000:657a  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:657e  MOV word ptr ES:[DI + 0x6],AX    [scalar 0x6]
+
+base_follow_on_branch (2000:6582 .. 2000:6759)
+- 2000:6582  CMP word ptr [BP + 0xff79],0x0    [ref Stack[-0x89]]    [scalar 0xff79]    [scalar 0x0]
+- 2000:6587  JA 0x2000:658c    [ref 2000:658c]    [addr 2000:658c]
+- 2000:6589  JMP 0x2000:66d3    [ref 2000:66d3]    [addr 2000:66d3]
+- 2000:658c  CMP byte ptr [BP + -0x2],0x0    [ref Stack[-0x4]]    [scalar 0xfffe]    [scalar 0x0]
+- 2000:6590  JNZ 0x2000:6595    [ref 2000:6595]    [addr 2000:6595]
+- 2000:6592  JMP 0x2000:66d3    [ref 2000:66d3]    [addr 2000:66d3]
+- 2000:6595  MOV DI,0x2ff8    [scalar 0x2ff8]
+- 2000:6598  PUSH DS
+- 2000:6599  PUSH DI
+- 2000:659a  MOV AX,word ptr [BP + 0xff79]    [ref Stack[-0x89]]    [scalar 0xff79]
+- 2000:659e  DEC AX
+- 2000:659f  XOR DX,DX
+- 2000:65a1  PUSH DX
+- 2000:65a2  PUSH AX
+- 2000:65a3  CALLF 0x3000:50cd    [ref 3000:50cd]    [addr 3000:50cd]
+- 2000:65a8  CALLF 0x3000:3be2    [ref 3000:3be2]    [addr 3000:3be2]
+- 2000:65ad  OR AX,AX
+- 2000:65af  MOV AL,0x0    [scalar 0x0]
+- 2000:65b1  JNZ 0x2000:65b4    [ref 2000:65b4]    [addr 2000:65b4]
+- 2000:65b3  INC AX
+- 2000:65b4  MOV byte ptr [BP + -0x2],AL    [ref Stack[-0x4]]    [scalar 0xfffe]
+- 2000:65b7  CMP byte ptr [BP + -0x2],0x0    [ref Stack[-0x4]]    [scalar 0xfffe]    [scalar 0x0]
+- 2000:65bb  JNZ 0x2000:65c0    [ref 2000:65c0]    [addr 2000:65c0]
+- 2000:65bd  JMP 0x2000:66d0    [ref 2000:66d0]    [addr 2000:66d0]
+- 2000:65c0  MOV DI,0x2ff8    [scalar 0x2ff8]
+- 2000:65c3  PUSH DS
+- 2000:65c4  PUSH DI
+- 2000:65c5  LEA DI,[BP + 0xff74]    [ref Stack[-0x8e]]    [scalar 0xff74]
+- 2000:65c9  PUSH SS
+- 2000:65ca  PUSH DI
+- 2000:65cb  CALLF 0x3000:502f    [ref 3000:502f]    [addr 3000:502f]
+- 2000:65d0  ADD SP,0x4    [scalar 0x4]
+- 2000:65d3  CALLF 0x3000:3be2    [ref 3000:3be2]    [addr 3000:3be2]
+- 2000:65d8  OR AX,AX
+- 2000:65da  MOV AL,0x0    [scalar 0x0]
+- 2000:65dc  JNZ 0x2000:65df    [ref 2000:65df]    [addr 2000:65df]
+- 2000:65de  INC AX
+- 2000:65df  MOV byte ptr [BP + -0x2],AL    [ref Stack[-0x4]]    [scalar 0xfffe]
+- 2000:65e2  MOV AL,byte ptr [BP + 0xff78]    [ref Stack[-0x8a]]    [scalar 0xff78]
+- 2000:65e6  XOR AH,AH
+- 2000:65e8  CMP AX,word ptr [BP + 0xfeae]    [ref Stack[-0x154]]    [scalar 0xfeae]
+- 2000:65ec  JNZ 0x2000:65f4    [ref 2000:65f4]    [addr 2000:65f4]
+- 2000:65ee  CMP byte ptr [BP + -0x2],0x0    [ref Stack[-0x4]]    [scalar 0xfffe]    [scalar 0x0]
+- 2000:65f2  JNZ 0x2000:65f8    [ref 2000:65f8]    [addr 2000:65f8]
+- 2000:65f4  MOV AL,0x0    [scalar 0x0]
+- 2000:65f6  JMP 0x2000:65fa    [ref 2000:65fa]    [addr 2000:65fa]
+- 2000:65f8  MOV AL,0x1    [scalar 0x1]
+- 2000:65fa  MOV byte ptr [BP + -0x2],AL    [ref Stack[-0x4]]    [scalar 0xfffe]
+- 2000:65fd  CMP byte ptr [BP + -0x2],0x0    [ref Stack[-0x4]]    [scalar 0xfffe]    [scalar 0x0]
+- 2000:6601  JNZ 0x2000:6606    [ref 2000:6606]    [addr 2000:6606]
+- 2000:6603  JMP 0x2000:66d0    [ref 2000:66d0]    [addr 2000:66d0]
+- 2000:6606  INC word ptr [0x2f76]    [scalar 0x2f76]
+- 2000:660a  MOV AX,0xc    [scalar 0xc]
+- 2000:660d  PUSH AX
+- 2000:660e  CALLF 0x3000:1c53    [ref 3000:1c53]    [addr 3000:1c53]
+- 2000:6613  MOV CX,AX
+- 2000:6615  MOV BX,DX
+- 2000:6617  MOV AX,[0x2f76]    [scalar 0x2f76]
+- 2000:661a  SHL AX,0x1    [scalar 0x1]
+- 2000:661c  SHL AX,0x1    [scalar 0x1]
+- 2000:661e  LES DI,[0x2f72]    [scalar 0x2f72]
+- 2000:6622  ADD DI,AX
+- 2000:6624  MOV word ptr ES:[DI + -0x4],CX    [scalar 0xfffc]
+- 2000:6628  MOV word ptr ES:[DI + -0x2],BX    [scalar 0xfffe]
+- 2000:662c  MOV AX,[0x2f76]    [scalar 0x2f76]
+- 2000:662f  SHL AX,0x1    [scalar 0x1]
+- 2000:6631  SHL AX,0x1    [scalar 0x1]
+- 2000:6633  LES DI,[0x2f72]    [scalar 0x2f72]
+- 2000:6637  ADD DI,AX
+- 2000:6639  LES DI,ES:[DI + -0x4]    [scalar 0xfffc]
+- 2000:663d  MOV word ptr [BP + 0xfea8],DI    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:6641  MOV word ptr [BP + 0xfeaa],ES    [ref Stack[-0x158]]    [scalar 0xfeaa]
+- 2000:6645  MOV AX,word ptr [BP + 0xff76]    [ref Stack[-0x8c]]    [scalar 0xff76]
+- 2000:6649  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:664d  MOV word ptr ES:[DI + 0xa],AX    [scalar 0xa]
+- 2000:6651  CMP byte ptr [0x16a4],0x0    [scalar 0x16a4]    [scalar 0x0]
+- 2000:6656  JZ 0x2000:6665    [ref 2000:6665]    [addr 2000:6665]
+- 2000:6658  MOV AL,byte ptr [BP + 0xff78]    [ref Stack[-0x8a]]    [scalar 0xff78]
+- 2000:665c  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:6660  MOV byte ptr ES:[DI],AL
+- 2000:6663  JMP 0x2000:6670    [ref 2000:6670]    [addr 2000:6670]
+- 2000:6665  MOV AL,byte ptr [BP + 0xfeae]    [ref Stack[-0x154]]    [scalar 0xfeae]
+- 2000:6669  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:666d  MOV byte ptr ES:[DI],AL
+- 2000:6670  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:6674  MOV byte ptr ES:[DI + 0x4],0x2    [scalar 0x4]    [scalar 0x2]
+- 2000:6679  MOV AL,byte ptr [BP + 0xff7f]    [ref Stack[-0x83]]    [scalar 0xff7f]
+- 2000:667d  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:6681  MOV byte ptr ES:[DI + 0x1],AL    [scalar 0x1]
+- 2000:6685  MOV AL,byte ptr [BP + -0x80]    [ref Stack[-0x82]]    [scalar 0xff80]
+- 2000:6688  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:668c  MOV byte ptr ES:[DI + 0x2],AL    [scalar 0x2]
+- 2000:6690  MOV AX,word ptr [BP + -0x73]    [ref Stack[-0x75]]    [scalar 0xff8d]
+- 2000:6693  MOV BX,word ptr [BP + -0x71]    [ref Stack[-0x73]]    [scalar 0xff8f]
+- 2000:6696  MOV DX,word ptr [BP + -0x6f]    [ref Stack[-0x71]]    [scalar 0xff91]
+- 2000:6699  MOV CX,0x80    [scalar 0x80]
+- 2000:669c  XOR SI,SI
+- 2000:669e  XOR DI,DI
+- 2000:66a0  CALLF 0x3000:488d    [ref 3000:488d]    [addr 3000:488d]
+- 2000:66a5  JNC 0x2000:66b2    [ref 2000:66b2]    [addr 2000:66b2]
+- 2000:66a7  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:66ab  MOV byte ptr ES:[DI + 0x5],0x0    [scalar 0x5]    [scalar 0x0]
+- 2000:66b0  JMP 0x2000:66bb    [ref 2000:66bb]    [addr 2000:66bb]
+- 2000:66b2  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:66b6  MOV byte ptr ES:[DI + 0x5],0x1    [scalar 0x5]    [scalar 0x1]
+- 2000:66bb  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:66bf  MOV byte ptr ES:[DI + 0x3],0x1    [scalar 0x3]    [scalar 0x1]
+- 2000:66c4  MOV AX,word ptr [BP + 0xff7b]    [ref Stack[-0x87]]    [scalar 0xff7b]
+- 2000:66c8  LES DI,[BP + 0xfea8]    [ref Stack[-0x15a]]    [scalar 0xfea8]
+- 2000:66cc  MOV word ptr ES:[DI + 0x6],AX    [scalar 0x6]
+- 2000:66d0  JMP 0x2000:6582    [ref 2000:6582]    [addr 2000:6582]
+- 2000:66d3  MOV AX,word ptr [BP + 0xfeae]    [ref Stack[-0x154]]    [scalar 0xfeae]
+- 2000:66d7  CMP AX,word ptr [BP + 0xfeac]    [ref Stack[-0x156]]    [scalar 0xfeac]
+- 2000:66db  JZ 0x2000:66e0    [ref 2000:66e0]    [addr 2000:66e0]
+- 2000:66dd  JMP 0x2000:6408    [ref 2000:6408]    [addr 2000:6408]
+- 2000:66e0  MOV DI,0x2ff8    [scalar 0x2ff8]
+- 2000:66e3  PUSH DS
+- 2000:66e4  PUSH DI
+- 2000:66e5  CALLF 0x3000:4ffb    [ref 3000:4ffb]    [addr 3000:4ffb]
+- 2000:66ea  CALLF 0x3000:3be9    [ref 3000:3be9]    [addr 3000:3be9]
+- 2000:66ef  JMP 0x2000:6751    [ref 2000:6751]    [addr 2000:6751]
+- 2000:66f1  MOV AL,[0x16ae]    [scalar 0x16ae]
+- 2000:66f4  XOR AH,AH
+- 2000:66f6  MOV word ptr [BP + 0xfeac],AX    [ref Stack[-0x156]]    [scalar 0xfeac]
+- 2000:66fa  MOV AX,0x1    [scalar 0x1]
+- 2000:66fd  CMP AX,word ptr [BP + 0xfeac]    [ref Stack[-0x156]]    [scalar 0xfeac]
+- 2000:6701  JA 0x2000:672e    [ref 2000:672e]    [addr 2000:672e]
+- 2000:6703  MOV word ptr [BP + 0xfeae],AX    [ref Stack[-0x154]]    [scalar 0xfeae]
+- 2000:6707  JMP 0x2000:670d    [ref 2000:670d]    [addr 2000:670d]
+- 2000:6709  INC word ptr [BP + 0xfeae]    [ref Stack[-0x154]]    [scalar 0xfeae]
+- 2000:670d  MOV DI,word ptr [BP + 0xfeae]    [ref Stack[-0x154]]    [scalar 0xfeae]
+- 2000:6711  SHL DI,0x1    [scalar 0x1]
+- 2000:6713  SHL DI,0x1    [scalar 0x1]
+- 2000:6715  LES DI,[DI + 0x16ac]    [scalar 0x16ac]
+- 2000:6719  CMP word ptr ES:[DI + 0x44],0x0    [scalar 0x44]    [scalar 0x0]
+- 2000:671e  JZ 0x2000:6724    [ref 2000:6724]    [addr 2000:6724]
+- 2000:6720  MOV byte ptr [BP + -0x2],0x0    [ref Stack[-0x4]]    [scalar 0xfffe]    [scalar 0x0]
+- 2000:6724  MOV AX,word ptr [BP + 0xfeae]    [ref Stack[-0x154]]    [scalar 0xfeae]
+- 2000:6728  CMP AX,word ptr [BP + 0xfeac]    [ref Stack[-0x156]]    [scalar 0xfeac]
+- 2000:672c  JNZ 0x2000:6709    [ref 2000:6709]    [addr 2000:6709]
+- 2000:672e  CMP byte ptr [BP + -0x2],0x0    [ref Stack[-0x4]]    [scalar 0xfffe]    [scalar 0x0]
+- 2000:6732  JZ 0x2000:6751    [ref 2000:6751]    [addr 2000:6751]
+- 2000:6734  MOV DI,0x2ff8    [scalar 0x2ff8]
+- 2000:6737  PUSH DS
+- 2000:6738  PUSH DI
+- 2000:6739  MOV AX,0x23    [scalar 0x23]
+- 2000:673c  PUSH AX
+- 2000:673d  CALLF 0x3000:4f83    [ref 3000:4f83]    [addr 3000:4f83]
+- 2000:6742  CALLF 0x3000:3be2    [ref 3000:3be2]    [addr 3000:3be2]
+- 2000:6747  OR AX,AX
+- 2000:6749  MOV AL,0x0    [scalar 0x0]
+- 2000:674b  JNZ 0x2000:674e    [ref 2000:674e]    [addr 2000:674e]
+- 2000:674d  INC AX
+- 2000:674e  MOV byte ptr [BP + -0x2],AL    [ref Stack[-0x4]]    [scalar 0xfffe]
+- 2000:6751  CMP byte ptr [BP + -0x2],0x0    [ref Stack[-0x4]]    [scalar 0xfffe]    [scalar 0x0]
+- 2000:6755  JNZ 0x2000:675a    [ref 2000:675a]    [addr 2000:675a]
+- 2000:6757  JMP 0x2000:6ab4    [ref 2000:6ab4]    [addr 2000:6ab4]
+

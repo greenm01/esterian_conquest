@@ -1386,6 +1386,47 @@ Kind-`2` matching milestone:
     coordinates, and the summary `+0x06` linkage values must also normalize
     into at least one accepted pair
 
+Base-side summary emitter mapping:
+
+- new artifact: `artifacts/ghidra/ecmaint-live/5ee4-base-branch.txt`
+- new script: `tools/ghidra_scripts_tmp/Report5EE4BaseBranch.java`
+- `2000:63D3..6759` is the full `BASES.DAT` validator / kind-`2` summary
+  emitter between the fleet and `IPBM` passes
+- primary branch (`2000:63D3..657F`):
+  - opens stream `0x2FF8` with record size `0x23`
+  - uses `player[0x44] - 1` as the first base-record selector
+  - loads the base record into local scratch at `[BP+0xFF74]`
+  - validates `[BP+0xFF78]` against the current player index
+  - emits a kind-`2` summary entry with:
+    - summary `+0x0A` <- base `[0x02..0x03]` (`[BP+0xFF76]`)
+    - summary `+0x00` <- current player index or bypass-side owner byte
+    - summary `+0x04` <- `2`
+    - summary `+0x01` <- base `[0x0B]`
+    - summary `+0x02` <- base `[0x0C]`
+    - summary `+0x05` <- derived from base `[0x19..0x1D]`
+    - summary `+0x03` <- `1`
+    - summary `+0x06` <- `player[0x44]`
+- follow-on branch (`2000:6582..66D0`):
+  - gated by base linkage word `[BP+0xFF79]`
+  - re-reads another base record using that word minus one
+  - emits another kind-`2` summary entry with the same `+0x0A`, `+0x01`,
+    `+0x02`, `+0x05` pattern
+  - but summary `+0x06` now comes from base `[0x07..0x08]`
+- local offset map for the loaded base scratch:
+  - `[BP+0xFF76]` -> base `0x02..0x03`
+  - `[BP+0xFF78]` -> base `0x04`
+  - `[BP+0xFF79]` -> base `0x05..0x06`
+  - `[BP+0xFF7B]` -> base `0x07..0x08`
+  - `[BP+0xFF7F]` -> base `0x0B`
+  - `[BP+0xFF80]` -> base `0x0C`
+  - `[BP+0xFF8D..0xFF91]` -> base `0x19..0x1D`
+- practical consequence for the pairing rule:
+  - kind-`2` summary `+0x01` / `+0x02` are definitely base coordinates
+  - kind-`2` summary `+0x0A` is definitely rooted in base bytes `0x02..0x03`
+  - the still-unknown helper-decoded keys around `3558/355A` must derive from
+    either `player[0x44]` or base `0x07..0x08`, depending on which base-side
+    sub-branch produced the active summary entry
+
 Relevant documentation cross-check:
 
 - `ECPLAYER.DOC` confirms `X` toggles a player-level `expert mode` setting and `T` changes the empire-wide tax rate
