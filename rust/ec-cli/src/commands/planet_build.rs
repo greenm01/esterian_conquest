@@ -17,8 +17,8 @@ pub(crate) fn set_planet_build(
         .records
         .get_mut(record_index_1_based - 1)
         .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
-    record.set_build_slot_raw(slot_raw);
-    record.set_build_kind_raw(kind_raw);
+    record.set_build_count_raw(0, slot_raw);
+    record.set_build_kind_raw(0, kind_raw);
     fs::write(&planets_path, planets.to_bytes())?;
 
     println!(
@@ -43,20 +43,20 @@ pub(crate) fn planet_build_errors(
     let mut errors = Vec::new();
     match planets.records.get(record_index_1_based - 1) {
         Some(record) => {
-            if record.build_slot_raw() != slot_raw {
+            if record.build_count_raw(0) != slot_raw {
                 errors.push(format!(
                     "PLANET[{}].build_slot expected {:#04x}, got {:#04x}",
                     record_index_1_based,
                     slot_raw,
-                    record.build_slot_raw()
+                    record.build_count_raw(0)
                 ));
             }
-            if record.build_kind_raw() != kind_raw {
+            if record.build_kind_raw(0) != kind_raw {
                 errors.push(format!(
                     "PLANET[{}].build_kind expected {:#04x}, got {:#04x}",
                     record_index_1_based,
                     kind_raw,
-                    record.build_kind_raw()
+                    record.build_kind_raw(0)
                 ));
             }
         }
@@ -101,10 +101,10 @@ pub(crate) fn print_planet_build_report(
     println!("Planet Build Report");
     println!("  dir={}", dir.display());
     println!("  record={}", record_index_1_based);
-    println!("  build_slot={:#04x}", record.build_slot_raw());
-    println!("  build_kind={:#04x}", record.build_kind_raw());
-    println!("  stardock_count={:#04x}", record.stardock_count_raw());
-    println!("  stardock_kind={:#04x}", record.stardock_kind_raw());
+    println!("  build_slot={:#04x}", record.build_count_raw(0));
+    println!("  build_kind={:#04x}", record.build_kind_raw(0));
+    println!("  stardock_count={:#04x}", record.stardock_count_raw(0));
+    println!("  stardock_kind={:#04x}", record.stardock_kind_raw(0));
     println!("  owner={:#04x}", record.owner_empire_slot_raw());
     println!("  coords={:?}", record.coords_raw());
     Ok(())

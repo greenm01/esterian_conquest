@@ -260,36 +260,36 @@ impl PlanetRecord {
         self.raw[0x0E]
     }
 
-    pub fn build_slot_raw(&self) -> u8 {
-        self.raw[0x24]
+    pub fn build_count_raw(&self, slot: usize) -> u8 {
+        self.raw[0x24 + slot]
     }
 
-    pub fn build_kind_raw(&self) -> u8 {
-        self.raw[0x2E]
+    pub fn build_kind_raw(&self, slot: usize) -> u8 {
+        self.raw[0x2E + slot]
     }
 
-    pub fn set_build_slot_raw(&mut self, value: u8) {
-        self.raw[0x24] = value;
+    pub fn set_build_count_raw(&mut self, slot: usize, value: u8) {
+        self.raw[0x24 + slot] = value;
     }
 
-    pub fn set_build_kind_raw(&mut self, value: u8) {
-        self.raw[0x2E] = value;
+    pub fn set_build_kind_raw(&mut self, slot: usize, value: u8) {
+        self.raw[0x2E + slot] = value;
     }
 
-    pub fn stardock_count_raw(&self) -> u8 {
-        self.raw[0x38]
+    pub fn stardock_count_raw(&self, slot: usize) -> u16 {
+        u16::from_le_bytes([self.raw[0x38 + slot * 2], self.raw[0x38 + slot * 2 + 1]])
     }
 
-    pub fn stardock_kind_raw(&self) -> u8 {
-        self.raw[0x4C]
+    pub fn stardock_kind_raw(&self, slot: usize) -> u8 {
+        self.raw[0x4C + slot]
     }
 
-    pub fn set_stardock_count_raw(&mut self, value: u8) {
-        self.raw[0x38] = value;
+    pub fn set_stardock_count_raw(&mut self, slot: usize, value: u16) {
+        self.raw[0x38 + slot * 2..0x38 + slot * 2 + 2].copy_from_slice(&value.to_le_bytes());
     }
 
-    pub fn set_stardock_kind_raw(&mut self, value: u8) {
-        self.raw[0x4C] = value;
+    pub fn set_stardock_kind_raw(&mut self, slot: usize, value: u8) {
+        self.raw[0x4C + slot] = value;
     }
 
     pub fn population_raw(&self) -> [u8; 6] {
@@ -340,11 +340,11 @@ impl PlanetRecord {
         if self.is_named_homeworld_seed() {
             parts.push("likely_homeworld_seed".to_string());
         }
-        if self.build_slot_raw() != 0 || self.build_kind_raw() != 0 {
+        if self.build_count_raw(0) != 0 || self.build_kind_raw(0) != 0 {
             parts.push(format!(
                 "build_raw={:02x}/{:02x}",
-                self.build_slot_raw(),
-                self.build_kind_raw()
+                self.build_count_raw(0),
+                self.build_kind_raw(0)
             ));
         }
         if self.owner_empire_slot_raw() != 0 {
