@@ -703,6 +703,38 @@ impl CoreGameData {
         errors
     }
 
+    pub fn guarding_fleet_record_indexes_current_known(&self) -> Vec<usize> {
+        self.fleets
+            .records
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, fleet)| {
+                (fleet.standing_order_code_raw() == 0x04).then_some(idx + 1)
+            })
+            .collect()
+    }
+
+    pub fn guard_starbase_linkage_errors_for_guarding_fleets_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> Vec<String> {
+        let guarding_fleets = self.guarding_fleet_record_indexes_current_known();
+        if guarding_fleets.is_empty() {
+            return vec!["no guarding fleets found".to_string()];
+        }
+
+        let mut errors = Vec::new();
+        for fleet_record_index_1_based in guarding_fleets {
+            errors.extend(
+                self.guard_starbase_linkage_errors_current_known(
+                    player_record_index_1_based,
+                    fleet_record_index_1_based,
+                ),
+            );
+        }
+        errors
+    }
+
     pub fn ipbm_count_length_errors_current_known(&self) -> Vec<String> {
         let expected_count = self.player1_ipbm_count_current_known();
         let actual_count = self.ipbm.records.len();
@@ -734,7 +766,7 @@ impl CoreGameData {
                 .planet_build_errors_current_known(15, 0x03, 0x01)
                 .is_empty(),
             guard_starbase: self
-                .guard_starbase_linkage_errors_current_known(1, 1)
+                .guard_starbase_linkage_errors_for_guarding_fleets_current_known(1)
                 .is_empty(),
             ipbm: self.ipbm_count_length_errors_current_known().is_empty(),
         }

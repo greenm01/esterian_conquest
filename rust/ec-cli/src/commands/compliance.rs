@@ -14,7 +14,7 @@ pub(crate) fn print_compliance_report(dir: &Path) -> Result<(), Box<dyn std::err
     println!(
         "{} guard-starbase-linkage{}",
         if status.guard_starbase { "OK  " } else { "FAIL" },
-        render_errors_suffix(&data.guard_starbase_onebase_errors_current_known())
+        render_errors_suffix(&data.guard_starbase_linkage_errors_for_guarding_fleets_current_known(1))
     );
     println!(
         "{} ipbm-count-length{}",
@@ -25,6 +25,10 @@ pub(crate) fn print_compliance_report(dir: &Path) -> Result<(), Box<dyn std::err
     println!(
         "Key words: player.starbase_count={} player.ipbm_count={}",
         summary.player_starbase_count, summary.player_ipbm_count
+    );
+    println!(
+        "  guarding_fleet_count={}",
+        data.guarding_fleet_record_indexes_current_known().len()
     );
     if let (Some(local_slot), Some(fleet_id), Some(guard_index), Some(guard_enable), Some(target)) = (
         summary.fleet1_local_slot,

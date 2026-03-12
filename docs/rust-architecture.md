@@ -140,6 +140,11 @@ the code needs to follow a guarded base by index and compare decoded fleet/base
 fields, that linkage logic belongs in `ec-data`, even if the CLI still exposes
 one-base scenario workflows on top of it.
 
+When a current-known rule naturally applies to all matching records, the shared
+model shall expose the aggregate form too. Guard-starbase compliance should not
+be implicitly hardcoded to fleet 1 when the rule is really “all guarding
+fleets”.
+
 Current expectation:
 
 - `fleet-order`, `planet-build`, `guard-starbase`, `ipbm`, and

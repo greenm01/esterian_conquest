@@ -325,6 +325,13 @@ fn core_game_data_current_known_validation_helpers_match_known_fixtures() {
     assert!(starbase_data
         .guard_starbase_linkage_errors_current_known(1, 1)
         .is_empty());
+    assert_eq!(
+        starbase_data.guarding_fleet_record_indexes_current_known(),
+        vec![1]
+    );
+    assert!(starbase_data
+        .guard_starbase_linkage_errors_for_guarding_fleets_current_known(1)
+        .is_empty());
 
     let post_data = CoreGameData {
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
@@ -336,6 +343,13 @@ fn core_game_data_current_known_validation_helpers_match_known_fixtures() {
         conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
     };
     assert!(post_data.ipbm_count_length_errors_current_known().is_empty());
+    assert!(post_data
+        .guarding_fleet_record_indexes_current_known()
+        .is_empty());
+    assert_eq!(
+        post_data.guard_starbase_linkage_errors_for_guarding_fleets_current_known(1),
+        vec!["no guarding fleets found".to_string()]
+    );
     assert!(post_data
         .guard_starbase_linkage_errors_current_known(1, 1)
         .iter()

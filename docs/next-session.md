@@ -339,6 +339,15 @@ Rust architecture note:
     - `ec-cli` guard-starbase validation still preserves the one-base scenario
       output, but it now does so on top of the broader shared selected-base
       linkage checker
+  - latest guarding-fleet aggregation follow-on:
+    - `CoreGameData` now exposes the current-known set of guarding fleets and a
+      shared aggregated guard-starbase linkage validator for all of them
+    - current-known guard-starbase compliance is no longer implicitly tied to
+      fleet 1 inside the shared model; it now means “all guarding fleets satisfy
+      the selected-base linkage checks”
+    - `ec-cli compliance-report` now reports guard-starbase status through that
+      shared all-guarding-fleets validator and prints the current guarding
+      fleet count
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`
