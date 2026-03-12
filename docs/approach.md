@@ -6,7 +6,10 @@ The goal is:
 
 - preserve Esterian Conquest v1.5 as a working historical artifact
 - reverse engineer its file formats and rules
-- build a faithful modern reimplementation in Rust
+- build Rust tooling that can generate 100% compliant gamestate files accepted
+  by the original game and `ECMAINT`
+- use that compliance target as the first concrete milestone toward a faithful
+  modern reimplementation in Rust
 - keep the original DOS binaries and data as the reference implementation
 
 ## Principles
@@ -54,12 +57,20 @@ Short term:
 - decode the important on-disk formats
 - reproduce `ECUTIL` behavior faithfully
 - understand `ECMAINT` as a deterministic state transformer
+- define the cross-file invariants required for original-engine acceptance
+- generate fully compliant gamestate files from Rust
 
 Long term:
 
 - reimplement the real turn engine in Rust
 - build a usable player client and admin client
 - support classic-compatible saves and reproducible results
+
+Near-term acceptance rule:
+
+- a format/mechanic is not "done" until Rust can emit the relevant state and
+  the original binaries accept it without integrity failures or unexpected
+  normalization
 
 ## Current Strategy
 
@@ -77,6 +88,8 @@ Why:
   - database and report generation
 
 That makes `ECMAINT` the highest-value target for recovering the actual rules of the game.
+It is also the main acceptance oracle for the first milestone: Rust-generated
+gamestate files that are 100% compliant with the original engine.
 
 ## ECMAINT Investigation Model
 

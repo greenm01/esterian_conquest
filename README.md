@@ -6,6 +6,8 @@ Current focus:
 - documenting the original DOS game behavior and file formats
 - preserving confirmed reverse-engineering findings
 - building a Rust compatibility/preservation toolchain
+- making Rust-generated gamestate files 100% compliant with the original game
+  and `ECMAINT`
 
 Current top-level contents:
 - `original/`: local snapshot of original EC 1.5 files used for preservation and testing
