@@ -23,6 +23,7 @@ fn core_report_summarizes_known_post_fixture_counts() {
     assert!(stdout.contains("base_record_count=0"));
     assert!(stdout.contains("ipbm_record_count=0"));
     assert!(stdout.contains("player1_starbase_count=0"));
+    assert!(stdout.contains("player1_owned_base_record_count=0"));
     assert!(stdout.contains("player1_ipbm_count=0"));
 }
 
@@ -33,6 +34,7 @@ fn core_validate_accepts_known_post_fixture_state() {
     assert!(stdout.contains("base_record_count = 0"));
     assert!(stdout.contains("ipbm_record_count = 0"));
     assert!(stdout.contains("player1_starbase_count = 0"));
+    assert!(stdout.contains("player1_owned_base_record_count = 0"));
     assert!(stdout.contains("player1_ipbm_count = 0"));
 }
 
@@ -50,7 +52,7 @@ fn core_sync_counts_repairs_player1_count_words() {
         &["core-validate", target.to_str().unwrap()],
         common::rust_workspace(),
     );
-    assert!(stderr.contains("BASES.DAT record count expected 3, got 0"));
+    assert!(stderr.contains("PLAYER[1]-owned BASES.DAT record count expected 3, got 0"));
     assert!(stderr.contains("IPBM.DAT record count expected 2, got 0"));
 
     let sync_stdout = run_ec_cli_in_dir(
@@ -59,6 +61,7 @@ fn core_sync_counts_repairs_player1_count_words() {
     );
     assert!(sync_stdout.contains("Core counts synchronized"));
     assert!(sync_stdout.contains("player1_starbase_count = 0"));
+    assert!(sync_stdout.contains("player1_owned_base_record_count = 0"));
     assert!(sync_stdout.contains("player1_ipbm_count = 0"));
 
     let validate_stdout = run_ec_cli_in_dir(

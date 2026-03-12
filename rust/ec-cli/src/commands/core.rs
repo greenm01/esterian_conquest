@@ -5,6 +5,7 @@ use ec_data::CoreGameData;
 pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let data = CoreGameData::load(dir)?;
     let starbase_total = data.player1_starbase_count_current_known();
+    let owned_base_total = data.player1_owned_base_record_count_current_known();
     let ipbm_total = data.player1_ipbm_count_current_known();
 
     println!("Core State Report");
@@ -16,6 +17,7 @@ pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Er
     println!("  ipbm_record_count={}", data.ipbm.records.len());
     println!("  conquest.game_year={}", data.conquest.game_year());
     println!("  player1_starbase_count={}", starbase_total);
+    println!("  player1_owned_base_record_count={}", owned_base_total);
     println!("  player1_ipbm_count={}", ipbm_total);
 
     for (idx, record) in data.player.records.iter().enumerate() {
@@ -42,6 +44,10 @@ pub(crate) fn validate_core_state(dir: &Path) -> Result<(), Box<dyn std::error::
             "  player1_starbase_count = {}",
             data.player1_starbase_count_current_known()
         );
+        println!(
+            "  player1_owned_base_record_count = {}",
+            data.player1_owned_base_record_count_current_known()
+        );
         println!("  ipbm_record_count = {}", data.ipbm.records.len());
         println!(
             "  player1_ipbm_count = {}",
@@ -63,6 +69,10 @@ pub(crate) fn sync_core_counts(dir: &Path) -> Result<(), Box<dyn std::error::Err
     println!(
         "  player1_starbase_count = {}",
         data.player1_starbase_count_current_known()
+    );
+    println!(
+        "  player1_owned_base_record_count = {}",
+        data.player1_owned_base_record_count_current_known()
     );
     println!(
         "  player1_ipbm_count = {}",

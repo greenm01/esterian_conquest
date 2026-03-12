@@ -160,6 +160,14 @@ impl CoreGameData {
             .unwrap_or(0)
     }
 
+    pub fn player1_owned_base_record_count_current_known(&self) -> usize {
+        self.bases
+            .records
+            .iter()
+            .filter(|record| record.owner_empire_raw() == 1)
+            .count()
+    }
+
     pub fn player1_ipbm_count_current_known(&self) -> usize {
         self.player
             .records
@@ -171,13 +179,14 @@ impl CoreGameData {
     pub fn current_known_core_state_errors(&self) -> Vec<String> {
         let mut errors = Vec::new();
         let expected_bases = self.player1_starbase_count_current_known();
+        let owned_bases = self.player1_owned_base_record_count_current_known();
         let expected_ipbm = self.player1_ipbm_count_current_known();
 
-        if self.bases.records.len() != expected_bases {
+        if owned_bases != expected_bases {
             errors.push(format!(
-                "BASES.DAT record count expected {}, got {}",
+                "PLAYER[1]-owned BASES.DAT record count expected {}, got {}",
                 expected_bases,
-                self.bases.records.len()
+                owned_bases
             ));
         }
 
@@ -193,9 +202,11 @@ impl CoreGameData {
     }
 
     pub fn sync_player1_current_known_counts(&mut self) {
+        let owned_bases = self.player1_owned_base_record_count_current_known() as u16;
+        let ipbm_count = self.ipbm.records.len() as u16;
         if let Some(player1) = self.player.records.first_mut() {
-            player1.set_starbase_count_raw(self.bases.records.len() as u16);
-            player1.set_ipbm_count_raw(self.ipbm.records.len() as u16);
+            player1.set_starbase_count_raw(owned_bases);
+            player1.set_ipbm_count_raw(ipbm_count);
         }
     }
 

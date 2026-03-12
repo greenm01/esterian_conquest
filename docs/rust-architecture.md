@@ -153,6 +153,11 @@ When the next phase needs richer per-record starbase analysis, the starting
 point shall be shared guarding-fleet linkage summaries from `CoreGameData`, not
 new command-local byte inspection.
 
+Current-known core count rules shall prefer per-empire owned-record semantics
+where the RE supports them. For player 1, starbase count normalization and
+validation shall be based on player-1-owned base records, not blindly on total
+`BASES.DAT` length.
+
 Current expectation:
 
 - `fleet-order`, `planet-build`, `guard-starbase`, `ipbm`, and

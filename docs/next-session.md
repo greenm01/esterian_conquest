@@ -356,6 +356,11 @@ Rust architecture note:
       for the current-known selected-base rule set
     - `ec-cli compliance-report` now prints those shared guarding-fleet
       summaries directly instead of inferring them in CLI-local code
+  - next-phase core-count correction:
+    - the shared model now treats `PLAYER[1].starbase_count_raw` as a count of
+      player-1-owned base records, not total `BASES.DAT` length
+    - `core-validate`, `core-report`, and `core-sync-counts` now expose and use
+      `player1_owned_base_record_count_current_known()`
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`

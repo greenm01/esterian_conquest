@@ -154,11 +154,17 @@ fn can_set_purge_after_turns_raw() {
 
 #[test]
 fn core_game_data_current_known_count_helpers_follow_player1_and_records() {
+    let mut base1 = BaseRecord::new_zeroed();
+    base1.set_owner_empire_raw(1);
+    let mut base2 = BaseRecord::new_zeroed();
+    base2.set_owner_empire_raw(1);
     let mut data = CoreGameData {
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
         planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
         fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
-        bases: BaseDat { records: vec![BaseRecord::new_zeroed(), BaseRecord::new_zeroed()] },
+        bases: BaseDat {
+            records: vec![base1, base2],
+        },
         ipbm: IpbmDat {
             records: vec![
                 IpbmRecord { raw: [0u8; IPBM_RECORD_SIZE] },
@@ -171,11 +177,12 @@ fn core_game_data_current_known_count_helpers_follow_player1_and_records() {
     };
 
     assert_eq!(data.player1_starbase_count_current_known(), 0);
+    assert_eq!(data.player1_owned_base_record_count_current_known(), 2);
     assert_eq!(data.player1_ipbm_count_current_known(), 0);
     assert_eq!(
         data.current_known_core_state_errors(),
         vec![
-            "BASES.DAT record count expected 0, got 2".to_string(),
+            "PLAYER[1]-owned BASES.DAT record count expected 0, got 2".to_string(),
             "IPBM.DAT record count expected 0, got 3".to_string(),
         ]
     );
@@ -185,6 +192,7 @@ fn core_game_data_current_known_count_helpers_follow_player1_and_records() {
     assert_eq!(data.player.records[0].starbase_count_raw(), 2);
     assert_eq!(data.player.records[0].ipbm_count_raw(), 3);
     assert_eq!(data.player1_starbase_count_current_known(), 2);
+    assert_eq!(data.player1_owned_base_record_count_current_known(), 2);
     assert_eq!(data.player1_ipbm_count_current_known(), 3);
     assert!(data.current_known_core_state_errors().is_empty());
 }
