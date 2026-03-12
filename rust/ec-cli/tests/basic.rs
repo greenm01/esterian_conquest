@@ -325,3 +325,38 @@ fn core_diff_canonical_current_known_baseline_offsets_reports_mutated_offsets() 
 
     cleanup_dir(&target);
 }
+
+#[test]
+fn core_init_canonical_current_known_baseline_materializes_exact_directory() {
+    let target = unique_temp_dir("ec-cli-core-init-canonical-current-known");
+
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "core-init-canonical-current-known-baseline",
+            "original/v1.5",
+            target.to_str().unwrap(),
+        ],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Canonical current-known baseline directory initialized"));
+    assert!(stdout.contains("exact_canonical_current_known_baseline = true"));
+
+    let exact_stdout = run_ec_cli_in_dir(
+        &[
+            "core-validate-current-known-baseline",
+            target.to_str().unwrap(),
+        ],
+        common::rust_workspace(),
+    );
+    assert!(exact_stdout.contains("Exact canonical current-known baseline match"));
+
+    let match_stdout = run_ec_cli_in_dir(
+        &["match", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(match_stdout.contains("MATCH current-known-post-maint-baseline-core"));
+    assert!(target.join("ECGAME.EXE").exists());
+    assert!(target.join("ECMAINT.EXE").exists());
+
+    cleanup_dir(&target);
+}

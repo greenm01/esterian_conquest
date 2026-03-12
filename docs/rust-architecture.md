@@ -323,6 +323,20 @@ That byte-complete baseline now supports an exact-match oracle:
   - for example, normalizing `original/v1.5` directly currently yields a valid
     current-known state, but not the canonical preserved post-maint core bytes
 
+The CLI now also has exact canonical constructor/synchronizer paths:
+- `ec-cli core-sync-canonical-current-known-baseline [dir]`
+- `ec-cli core-init-canonical-current-known-baseline [source_dir] <target_dir>`
+- these overlay the canonical preserved post-maint core `.DAT` set from
+  `fixtures/ecmaint-post/v1.5`
+- practical meaning:
+  - use `core-sync-current-known-baseline` when you want the bounded
+    current-known normalizer
+  - use `core-sync-canonical-current-known-baseline` when you want exact
+    preserved oracle bytes for the core `.DAT` set
+  - use `core-init-canonical-current-known-baseline` when you want to preserve
+    top-level programs/non-core files from some source tree while materializing
+    the exact preserved post-maint core baseline on top
+
 The shared model also now treats homeworld-seed alignment as a current-known
 multi-player invariant for initialized/post-maint state:
 - each active empire has exactly one owned `Not Named Yet` planet

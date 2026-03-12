@@ -16,7 +16,7 @@ pub(crate) const INIT_FILES: &[&str] = &[
     "SETUP.DAT",
 ];
 
-const CURRENT_KNOWN_CORE_FILES: &[&str] = &[
+pub(crate) const CURRENT_KNOWN_CORE_FILES: &[&str] = &[
     "PLAYER.DAT",
     "PLANETS.DAT",
     "FLEETS.DAT",
@@ -55,6 +55,13 @@ pub fn initialize_dir(source: &Path, target: &Path) -> Result<(), Box<dyn std::e
 
 pub fn copy_init_files(source: &Path, target: &Path) -> Result<(), Box<dyn std::error::Error>> {
     copy_named_files(source, target, INIT_FILES)
+}
+
+pub fn copy_current_known_core_files(
+    source: &Path,
+    target: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    copy_named_files(source, target, CURRENT_KNOWN_CORE_FILES)
 }
 
 pub fn match_fixture_set(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {

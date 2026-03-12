@@ -1270,6 +1270,17 @@ Suggested execution order:
     - normalizing `original/v1.5` directly now works because missing baseline
       auxiliary files are seeded, but that result is not yet the canonical
       preserved post-maint baseline
+  - new exact canonical constructor/synchronizer:
+    - CLI: `ec-cli core-sync-canonical-current-known-baseline [dir]`
+    - CLI: `ec-cli core-init-canonical-current-known-baseline [source_dir] <target_dir>`
+    - these overlay the exact preserved post-maint core `.DAT` set from
+      `fixtures/ecmaint-post/v1.5`
+    - practical meaning:
+      - use the current-known synchronizer when the goal is bounded repair from
+        validated shared rules
+      - use the canonical synchronizer/constructor when the goal is to
+        materialize the preserved oracle baseline exactly while keeping top-level
+        programs and non-core files from another source tree
       - `BASES.DAT`
       - `IPBM.DAT`
       - `SETUP.DAT`

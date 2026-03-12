@@ -247,6 +247,31 @@ fn core_sync_current_known_baseline_repairs_combined_baseline_state() {
 }
 
 #[test]
+fn core_sync_canonical_current_known_baseline_repairs_to_exact_fixture() {
+    let target = unique_temp_dir("ec-cli-core-sync-canonical-current-known");
+    common::copy_fixture_dir("original/v1.5", &target);
+
+    run_ec_cli_in_dir(
+        &[
+            "core-sync-canonical-current-known-baseline",
+            target.to_str().unwrap(),
+        ],
+        common::rust_workspace(),
+    );
+
+    let exact_stdout = run_ec_cli_in_dir(
+        &[
+            "core-validate-current-known-baseline",
+            target.to_str().unwrap(),
+        ],
+        common::rust_workspace(),
+    );
+    assert!(exact_stdout.contains("Exact canonical current-known baseline match"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn compliance_report_summarizes_valid_parameterized_guard_starbase_directory() {
     let target = unique_temp_dir("ec-cli-compliance-report");
 

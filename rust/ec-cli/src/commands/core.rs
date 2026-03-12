@@ -4,7 +4,7 @@ use std::path::Path;
 use ec_data::CoreGameData;
 
 use crate::support::paths::post_maint_fixture_dir;
-use crate::workspace::copy_top_level_files;
+use crate::workspace::{copy_current_known_core_files, copy_top_level_files};
 
 pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let data = CoreGameData::load(dir)?;
@@ -488,6 +488,26 @@ pub(crate) fn sync_current_known_baseline(dir: &Path) -> Result<(), Box<dyn std:
     Ok(())
 }
 
+pub(crate) fn sync_canonical_current_known_baseline(
+    dir: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let baseline_dir = post_maint_fixture_dir();
+    copy_current_known_core_files(&baseline_dir, dir)?;
+    let data = CoreGameData::load(dir)?;
+
+    println!("Canonical current-known baseline synchronized");
+    println!("  dir = {}", dir.display());
+    println!(
+        "  exact_canonical_current_known_baseline = {}",
+        data.exact_match_errors_against(
+            &CoreGameData::load(&baseline_dir)?,
+            "canonical current-known post-maint baseline",
+        )
+        .is_empty()
+    );
+    Ok(())
+}
+
 pub(crate) fn init_current_known_baseline(
     source: &Path,
     target: &Path,
@@ -531,6 +551,32 @@ pub(crate) fn init_current_known_baseline(
     println!(
         "  conquest_baseline = {}",
         data.current_known_conquest_baseline_errors().is_empty()
+    );
+
+    Ok(())
+}
+
+pub(crate) fn init_canonical_current_known_baseline(
+    source: &Path,
+    target: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    copy_top_level_files(source, target)?;
+    copy_current_known_core_files(&post_maint_fixture_dir(), target)?;
+    let baseline = CoreGameData::load(&post_maint_fixture_dir())?;
+    let data = CoreGameData::load(target)?;
+
+    println!(
+        "Canonical current-known baseline directory initialized at {}",
+        target.display()
+    );
+    println!("  source snapshot: {}", source.display());
+    println!(
+        "  exact_canonical_current_known_baseline = {}",
+        data.exact_match_errors_against(
+            &baseline,
+            "canonical current-known post-maint baseline",
+        )
+        .is_empty()
     );
 
     Ok(())

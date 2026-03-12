@@ -8,9 +8,10 @@ use crate::commands::core::{
     init_current_known_baseline, print_canonical_current_known_baseline_diff,
     print_canonical_current_known_baseline_diff_offsets, print_core_report,
     print_current_known_baseline_diff, print_current_known_baseline_diff_offsets,
-    sync_core_baseline, sync_core_counts, sync_current_known_baseline,
-    sync_initialized_fleet_baseline, sync_initialized_planet_payloads, validate_core_state,
-    validate_current_known_baseline_exact,
+    sync_canonical_current_known_baseline, sync_core_baseline, sync_core_counts,
+    sync_current_known_baseline, sync_initialized_fleet_baseline,
+    sync_initialized_planet_payloads, validate_core_state, validate_current_known_baseline_exact,
+    init_canonical_current_known_baseline,
 };
 use crate::commands::fleet_order::{
     init_fleet_order_batch, init_fleet_order_scenario, print_fleet_order_report, set_fleet_order,
@@ -90,6 +91,9 @@ pub fn run_args(
         "core-sync-counts" => sync_core_counts(&next_dir(&mut args))?,
         "core-sync-baseline" => sync_core_baseline(&next_dir(&mut args))?,
         "core-sync-current-known-baseline" => sync_current_known_baseline(&next_dir(&mut args))?,
+        "core-sync-canonical-current-known-baseline" => {
+            sync_canonical_current_known_baseline(&next_dir(&mut args))?
+        }
         "core-sync-initialized-fleets" => sync_initialized_fleet_baseline(&next_dir(&mut args))?,
         "core-sync-initialized-planets" => sync_initialized_planet_payloads(&next_dir(&mut args))?,
         "core-init-current-known-baseline" => {
@@ -101,6 +105,16 @@ pub fn run_args(
                 return Ok(());
             };
             init_current_known_baseline(&source, &target)?;
+        }
+        "core-init-canonical-current-known-baseline" => {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((source, target)) =
+                parse_optional_source_and_target(remaining, post_maint_fixture_dir())
+            else {
+                print_usage();
+                return Ok(());
+            };
+            init_canonical_current_known_baseline(&source, &target)?;
         }
         "headers" => dump_headers(&next_dir(&mut args))?,
         "match" => match_fixture_set(&next_dir(&mut args))?,
