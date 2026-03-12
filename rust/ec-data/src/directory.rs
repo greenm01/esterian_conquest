@@ -861,6 +861,13 @@ impl CoreGameData {
                         record.standing_order_target_coords_raw()
                     ));
                 }
+                if record.mission_aux_bytes() != [1, 0] {
+                    errors.push(format!(
+                        "FLEET[{}].mission_aux expected [1, 0] for initialized baseline, got {:?}",
+                        fleet_record_index_1_based,
+                        record.mission_aux_bytes()
+                    ));
+                }
             }
         }
 

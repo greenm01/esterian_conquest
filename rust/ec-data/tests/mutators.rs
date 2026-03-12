@@ -307,6 +307,26 @@ fn core_game_data_initialized_fleet_mission_errors_catch_wrong_order_code() {
 }
 
 #[test]
+fn core_game_data_initialized_fleet_mission_errors_catch_wrong_aux_bytes() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    data.fleets.records[0].set_mission_aux_bytes([0, 1]);
+
+    assert_eq!(
+        data.current_known_initialized_fleet_mission_errors(),
+        vec!["FLEET[1].mission_aux expected [1, 0] for initialized baseline, got [0, 1]".to_string()]
+    );
+}
+
+#[test]
 fn core_game_data_owner_range_errors_catch_invalid_planet_and_base_owners() {
     let mut data = CoreGameData {
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),

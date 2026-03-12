@@ -1101,6 +1101,7 @@ Suggested execution order:
   - every fleet in the four-fleet empire blocks uses standing order `5`
     (`Guard/blockade world`)
   - every fleet in a block targets that empire's homeworld-seed coordinates
+  - every fleet in a block keeps mission aux bytes `[1, 0]`
   - this closes the remaining obvious gap in the fleet-side initialized/post-
     maint baseline: we were already validating topology, payloads, and
-    homeworld alignment, but not the exact standing-order semantics
+    homeworld alignment, but not the exact mission-byte semantics

@@ -182,6 +182,8 @@ semantics, not just per-block consistency:
 - every fleet in those preserved four-fleet blocks uses standing order `5`
   (`Guard/blockade world`)
 - every fleet in a block targets that empire's homeworld-seed coordinates
+- every fleet in a block also keeps mission aux bytes `[1, 0]`, so the full
+  preserved mission pattern is `[5, x, y, 1, 0]`
 
 The shared model also now treats homeworld-seed alignment as a current-known
 multi-player invariant for initialized/post-maint state:
