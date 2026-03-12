@@ -531,3 +531,9 @@ Suggested execution order:
 - Then move to build queue / stardock mechanics.
 - Finally map movement-phase ordering and backup/token lifecycle around
   `Move.Tok`.
+## ECGAME Dropfiles
+
+- `tools/ecgame_dropfiles.py` is now the shared writer for local `ECGAME` door files.
+- `setup_commission_test.py` and `fix_dropfiles.py` were normalized to use the same 32-line WWIV-style `CHAIN.TXT` with explicit DOS CRLF endings.
+- This removes the earlier repo inconsistency where `CHAIN.TXT` helpers disagreed on both line count and line endings.
+- Caveat: the interactive local `ECGAME` launch is still not fully stable; the dropfile helpers are aligned now, but the human-playable Wayland path still needs a confirmed end-to-end recipe.

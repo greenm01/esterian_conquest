@@ -156,6 +156,7 @@ Important detail:
 - `ECGAME` does parse `CHAIN.TXT` successfully when given a sufficiently complete WWIV-style file.
 - Minimal synthetic `CHAIN.TXT` files were rejected as invalid.
 - A complete 32-line `CHAIN.TXT` format was required to clear the initial parser gate.
+- Repo helper scripts now normalize this through `tools/ecgame_dropfiles.py`, which writes the known local `CHAIN.TXT` shape with explicit DOS CRLF line endings.
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
 
 Useful test files created during analysis:

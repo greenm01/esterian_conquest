@@ -1,6 +1,8 @@
 import os
 import shutil
 
+from ecgame_dropfiles import write_chain_txt
+
 target = "/tmp/starbase-ready"
 if os.path.exists(target):
     shutil.rmtree(target)
@@ -20,41 +22,7 @@ patch_file(planets, 1358 + 0x38, [1, 0, 0, 0])
 # Set Stardock Slot 1 Type to 50 (0x4C)
 patch_file(planets, 1358 + 0x4C, [50, 0])
 
-# Create CHAIN.TXT for Empire 1
-chain_txt = """1
-sysop
-Sysop
-1
-25
-Y
-N
-80
-24
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-"""
-with open(os.path.join(target, "CHAIN.TXT"), "w") as f:
-    f.write(chain_txt)
+# Create CHAIN.TXT for Empire 1 using the normalized local dropfile format.
+write_chain_txt(os.path.join(target, "CHAIN.TXT"))
 
 print("Scenario created in /tmp/starbase-ready")
