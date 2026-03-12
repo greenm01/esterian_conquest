@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::PlanetDat;
+use ec_data::{CoreGameData, PlanetDat};
 
 use crate::INIT_FILES;
 
@@ -11,15 +11,15 @@ pub(crate) fn set_planet_build(
     slot_raw: u8,
     kind_raw: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let planets_path = dir.join("PLANETS.DAT");
-    let mut planets = PlanetDat::parse(&fs::read(&planets_path)?)?;
-    let record = planets
+    let mut data = CoreGameData::load(dir)?;
+    let record = data
+        .planets
         .records
         .get_mut(record_index_1_based - 1)
         .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
     record.set_build_count_raw(0, slot_raw);
     record.set_build_kind_raw(0, kind_raw);
-    fs::write(&planets_path, planets.to_bytes())?;
+    data.save(dir)?;
 
     println!(
         "Planet record {} updated: build_slot={:#04x} build_kind={:#04x}",
@@ -71,8 +71,8 @@ pub(crate) fn validate_planet_build_scenario(
     slot_raw: u8,
     kind_raw: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let planets = PlanetDat::parse(&fs::read(dir.join("PLANETS.DAT"))?)?;
-    let errors = planet_build_errors(&planets, record_index_1_based, slot_raw, kind_raw);
+    let data = CoreGameData::load(dir)?;
+    let errors = planet_build_errors(&data.planets, record_index_1_based, slot_raw, kind_raw);
     if errors.is_empty() {
         println!("Valid planet-build scenario");
         println!(
@@ -93,8 +93,9 @@ pub(crate) fn print_planet_build_report(
     dir: &Path,
     record_index_1_based: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let planets = PlanetDat::parse(&fs::read(dir.join("PLANETS.DAT"))?)?;
-    let record = planets
+    let data = CoreGameData::load(dir)?;
+    let record = data
+        .planets
         .records
         .get(record_index_1_based - 1)
         .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;

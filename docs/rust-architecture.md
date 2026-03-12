@@ -113,6 +113,12 @@ scenario commands to operate. Commands shall not reimplement ad hoc
 `PLAYER.DAT`/`FLEETS.DAT`/`BASES.DAT`/`IPBM.DAT` load-save choreography when the
 same workflow can use `ec_data::CoreGameData`.
 
+Current expectation:
+
+- `fleet-order`, `planet-build`, `guard-starbase`, `ipbm`, and
+  `compliance-report` paths should use the shared directory model where they
+  touch multiple files or participate in scenario-composition workflows
+
 ## KDL Timing
 
 If a KDL scenario/order layer is added later, it should sit on top of the

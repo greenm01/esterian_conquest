@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::FleetDat;
+use ec_data::{CoreGameData, FleetDat};
 
 use crate::INIT_FILES;
 
@@ -15,9 +15,9 @@ pub(crate) fn set_fleet_order(
     aux0: Option<u8>,
     aux1: Option<u8>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let fleets_path = dir.join("FLEETS.DAT");
-    let mut fleets = FleetDat::parse(&fs::read(&fleets_path)?)?;
-    let record = fleets
+    let mut data = CoreGameData::load(dir)?;
+    let record = data
+        .fleets
         .records
         .get_mut(record_index_1_based - 1)
         .ok_or_else(|| format!("fleet record index out of range: {record_index_1_based}"))?;
@@ -34,7 +34,7 @@ pub(crate) fn set_fleet_order(
     record.set_mission_aux_bytes(mission_aux);
     let final_aux = record.mission_aux_bytes();
     let _ = record;
-    fs::write(&fleets_path, fleets.to_bytes())?;
+    data.save(dir)?;
 
     println!(
         "Fleet record {} updated: speed={} order={:#04x} target=({}, {}) aux={:02x?}",
@@ -119,9 +119,9 @@ pub(crate) fn validate_fleet_order_scenario(
     aux0: Option<u8>,
     aux1: Option<u8>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let fleets = FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?)?;
+    let data = CoreGameData::load(dir)?;
     let errors = fleet_order_errors(
-        &fleets,
+        &data.fleets,
         record_index_1_based,
         speed,
         order_code,
@@ -140,7 +140,7 @@ pub(crate) fn validate_fleet_order_scenario(
         println!(
             "  FLEET[{}].aux = {:02x?}",
             record_index_1_based,
-            fleets.records[record_index_1_based - 1].mission_aux_bytes()
+            data.fleets.records[record_index_1_based - 1].mission_aux_bytes()
         );
         Ok(())
     } else {
@@ -152,8 +152,9 @@ pub(crate) fn print_fleet_order_report(
     dir: &Path,
     record_index_1_based: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let fleets = FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?)?;
-    let record = fleets
+    let data = CoreGameData::load(dir)?;
+    let record = data
+        .fleets
         .records
         .get(record_index_1_based - 1)
         .ok_or_else(|| format!("fleet record index out of range: {record_index_1_based}"))?;

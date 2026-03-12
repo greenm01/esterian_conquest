@@ -240,6 +240,17 @@ Rust architecture note:
     - current verified example:
       - composing `fleet-order` + `planet-build` yields a directory that
         satisfies both validators
+  - latest convergence milestone:
+    - `fleet-order` and `planet-build` now also operate through
+      `ec_data::CoreGameData`
+    - all current scenario transforms now share the same typed directory model:
+      - `fleet-order`
+      - `planet-build`
+      - `guard-starbase`
+      - `ipbm`
+    - practical effect:
+      - future multi-step scenario generation can compose these transforms
+        without introducing new per-file choreography
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`
