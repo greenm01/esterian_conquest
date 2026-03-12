@@ -399,6 +399,32 @@ Important detail:
       reads
     - the right next target is the code path around the recurring legacy
       `3F` loop, or a buffer/counter snapshot paired with that loop
+- First semantic local-state result from that legacy loop:
+  - artifact:
+    - `artifacts/ecgame-startup/legacy-door-locals.json`
+  - script:
+    - `tools/capture_ecgame_legacy_door_locals.py`
+  - confirmed stable frame facts:
+    - through the `3F05..3F10` run:
+      - `BP = F6A4`
+      - `SP = F688`
+      - `DX = 40BC`
+      - `DI = 403C`
+    - a local word at `SS:[BP+0x0C]` increments exactly with the observed
+      `AH=3F` low-byte progression:
+      - `3F05` -> `SS:[BP+0x0C] = 0x0006`
+      - `3F06` -> `0x0007`
+      - `3F07` -> `0x0008`
+      - ...
+      - `3F10` -> `0x0011`
+  - practical interpretation:
+    - this strongly looks like a parser-progress counter or current-field index
+      inside the legacy `DOOR.SYS` loop
+    - it is the first concrete semantic state variable recovered from the
+      local `ECGAME` startup gate
+  - additional clue:
+    - the loop frame also contains an inline `COM` prefix near the same local
+      region, consistent with token/field parsing from the `DOOR.SYS` text
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
 
 Current caveat:

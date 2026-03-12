@@ -729,4 +729,20 @@ Suggested execution order:
       simple file reads
     - next work should target the code/counter logic around that recurring
       legacy `3F` loop
+- New semantic state result inside that loop:
+  - artifact:
+    - `artifacts/ecgame-startup/legacy-door-locals.json`
+  - script:
+    - `tools/capture_ecgame_legacy_door_locals.py`
+  - confirmed:
+    - during the stable `3F05..3F10` run, `BP = F6A4`
+    - local word `SS:[BP+0x0C]` increments in lockstep with the loop:
+      - `3F05` -> `0x0006`
+      - `3F06` -> `0x0007`
+      - ...
+      - `3F10` -> `0x0011`
+  - implication:
+    - this is likely the parser-progress / field-index counter
+    - next work should target how that `BP+0x0C` counter is compared and why
+      the loop still eventually exits `0x1C`
 - Remaining blocker: the local interactive `ECGAME` flow is still not fully stable because several old scripts have brittle debugger prompt handling, and the freshly regenerated dumps still look like earlier-boot snapshots rather than the richer `/tmp/ecgboot_chain` state referenced in `RE_NOTES.md`.
