@@ -245,9 +245,23 @@ Milestone ladder:
            - decoded `+0x1f` as kind byte
            - decoded `+0x23` as word matched against `[0x355A]`
            - decoded `+0x0a` as flag byte
+     - decoded-field-layout milestone:
+       - artifact: `artifacts/ghidra/ecmaint-live/kind2-decoded-field-uses.txt`
+       - script: `tools/ghidra_scripts_tmp/ReportKind2DecodedFieldUses.java`
+       - confirmed:
+         - `3502` and `3558` are sibling decoded summary-`+0x06` structures
+           with the same tuple-oriented layout
+         - shared shape:
+           - tag byte `+0x0b` with payload words `+0x0d/+0x0f/+0x11`
+           - tag byte `+0x0c` with payload words `+0x13/+0x15/+0x17`
+           - control/scalar group rooted at `+0x20`
+         - the local structural-match buffer from `0000:0681` confirms:
+           - decoded kind byte at local `+0x1f`
+           - decoded word at local `+0x23`
+           - decoded flag byte at local `+0x0a`
     - Next Rust-facing target:
-     - use the now-confirmed caller contract to name the decoded output
-       structure fields behind `3502`, `3558`, and the local structural-match
+     - use the now-confirmed decoded summary-`+0x06` buffer shape to name the
+       field groups behind `3502`, `3558`, and the local structural-match
        buffer
      - then turn the current kind-`1` / kind-`2` pairing rule into a Rust-side
        validation helper for Guard Starbase scenarios

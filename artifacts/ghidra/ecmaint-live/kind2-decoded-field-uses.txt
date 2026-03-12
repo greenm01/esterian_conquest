@@ -1,0 +1,128 @@
+# Kind-2 Decoded Field Uses
+
+- Focus: immediate post-call field consumption after the known summary `+0x06`
+  decoders populate `3502`, `3558`, or local buffers.
+
+## Window Around 0000:0307
+
+0000:0307  CALLF 0x2000:c067            ; bytes=9a 17 37 95 28
+0000:030c  MOV AL,[0x350d]              ; bytes=a0 0d 35
+0000:030f  XOR AH,AH                    ; bytes=30 e4
+0000:0311  XOR DX,DX                    ; bytes=31 d2
+0000:0313  CALLF 0x3000:4891            ; bytes=9a 51 11 74 33
+0000:0318  MOV CX,word ptr [0x350f]     ; bytes=8b 0e 0f 35
+0000:031c  MOV SI,word ptr [0x3511]     ; bytes=8b 36 11 35
+0000:0320  MOV DI,word ptr [0x3513]     ; bytes=8b 3e 13 35
+0000:0324  CALLF 0x3000:486b            ; bytes=9a 2b 11 74 33
+0000:0329  MOV word ptr [BP + -0x6],AX  ; bytes=89 46 fa
+0000:032c  MOV word ptr [BP + -0x4],BX  ; bytes=89 5e fc
+0000:032f  MOV word ptr [BP + -0x2],DX  ; bytes=89 56 fe
+0000:0332  MOV AL,[0x350e]              ; bytes=a0 0e 35
+0000:0335  XOR AH,AH                    ; bytes=30 e4
+0000:0337  XOR DX,DX                    ; bytes=31 d2
+0000:0339  CALLF 0x3000:4891            ; bytes=9a 51 11 74 33
+0000:033e  MOV CX,word ptr [0x3515]     ; bytes=8b 0e 15 35
+0000:0342  MOV SI,word ptr [0x3517]     ; bytes=8b 36 17 35
+0000:0346  MOV DI,word ptr [0x3519]     ; bytes=8b 3e 19 35
+0000:034a  CALLF 0x3000:486b            ; bytes=9a 2b 11 74 33
+0000:034f  MOV word ptr [BP + -0x12],AX ; bytes=89 46 ee
+0000:0352  MOV word ptr [BP + -0x10],BX ; bytes=89 5e f0
+0000:0355  MOV word ptr [BP + -0xe],DX  ; bytes=89 56 f2
+0000:0358  MOV AL,[0x3522]              ; bytes=a0 22 35
+0000:035b  XOR AH,AH                    ; bytes=30 e4
+0000:035d  XOR DX,DX                    ; bytes=31 d2
+0000:035f  CALLF 0x3000:4891            ; bytes=9a 51 11 74 33
+0000:0364  MOV CX,0x80                  ; bytes=b9 80 00
+0000:0367  XOR SI,SI                    ; bytes=31 f6
+
+## Window Around 0000:03fe
+
+0000:03fe  CALLF 0x2000:c09a            ; bytes=9a 4a 37 95 28
+0000:0403  MOV AL,[0x3563]              ; bytes=a0 63 35
+0000:0406  XOR AH,AH                    ; bytes=30 e4
+0000:0408  XOR DX,DX                    ; bytes=31 d2
+0000:040a  CALLF 0x3000:4891            ; bytes=9a 51 11 74 33
+0000:040f  MOV CX,word ptr [0x3565]     ; bytes=8b 0e 65 35
+0000:0413  MOV SI,word ptr [0x3567]     ; bytes=8b 36 67 35
+0000:0417  MOV DI,word ptr [0x3569]     ; bytes=8b 3e 69 35
+0000:041b  CALLF 0x3000:486b            ; bytes=9a 2b 11 74 33
+0000:0420  MOV word ptr [BP + -0x6],AX  ; bytes=89 46 fa
+0000:0423  MOV word ptr [BP + -0x4],BX  ; bytes=89 5e fc
+0000:0426  MOV word ptr [BP + -0x2],DX  ; bytes=89 56 fe
+0000:0429  MOV AL,[0x3564]              ; bytes=a0 64 35
+0000:042c  XOR AH,AH                    ; bytes=30 e4
+0000:042e  XOR DX,DX                    ; bytes=31 d2
+0000:0430  CALLF 0x3000:4891            ; bytes=9a 51 11 74 33
+0000:0435  MOV CX,word ptr [0x356b]     ; bytes=8b 0e 6b 35
+0000:0439  MOV SI,word ptr [0x356d]     ; bytes=8b 36 6d 35
+0000:043d  MOV DI,word ptr [0x356f]     ; bytes=8b 3e 6f 35
+0000:0441  CALLF 0x3000:486b            ; bytes=9a 2b 11 74 33
+0000:0446  MOV word ptr [BP + -0x12],AX ; bytes=89 46 ee
+0000:0449  MOV word ptr [BP + -0x10],BX ; bytes=89 5e f0
+0000:044c  MOV word ptr [BP + -0xe],DX  ; bytes=89 56 f2
+0000:044f  MOV AL,[0x3578]              ; bytes=a0 78 35
+0000:0452  XOR AH,AH                    ; bytes=30 e4
+0000:0454  XOR DX,DX                    ; bytes=31 d2
+0000:0456  CALLF 0x3000:4891            ; bytes=9a 51 11 74 33
+0000:045b  MOV CX,0x80                  ; bytes=b9 80 00
+0000:045e  XOR SI,SI                    ; bytes=31 f6
+0000:0460  XOR DI,DI                    ; bytes=31 ff
+0000:0462  CALLF 0x3000:486b            ; bytes=9a 2b 11 74 33
+0000:0467  MOV word ptr [BP + -0xc],AX  ; bytes=89 46 f4
+0000:046a  MOV word ptr [BP + -0xa],BX  ; bytes=89 5e f6
+0000:046d  MOV word ptr [BP + -0x8],DX  ; bytes=89 56 f8
+0000:0470  MOV AL,[0x3579]              ; bytes=a0 79 35
+0000:0473  XOR AH,AH                    ; bytes=30 e4
+0000:0475  XOR DX,DX                    ; bytes=31 d2
+0000:0477  CALLF 0x3000:4891            ; bytes=9a 51 11 74 33
+0000:047c  MOV CX,0x80                  ; bytes=b9 80 00
+0000:047f  XOR SI,SI                    ; bytes=31 f6
+0000:0481  XOR DI,DI                    ; bytes=31 ff
+
+## Window Around 0000:0681
+
+0000:0681  CALLF 0x2000:c067            ; bytes=9a 17 37 95 28
+0000:0686  CMP byte ptr [BP + 0xf7d5],0x4 ; bytes=80 be d5 f7 04
+0000:068b  JNZ 0x0000:06ab              ; bytes=75 1e
+0000:068d  MOV AX,word ptr [BP + 0xf7d9] ; bytes=8b 86 d9 f7
+0000:0691  CMP AX,word ptr [0x355a]     ; bytes=3b 06 5a 35
+0000:0695  JNZ 0x0000:06ab              ; bytes=75 14
+0000:0697  CMP byte ptr [BP + 0xf7c0],0x0 ; bytes=80 be c0 f7 00
+0000:069c  JNZ 0x0000:06ab              ; bytes=75 0d
+0000:069e  MOV byte ptr [BP + 0xf77f],0x1 ; bytes=c6 86 7f f7 01
+0000:06a3  MOV AX,word ptr [BP + 0xf7ee] ; bytes=8b 86 ee f7
+0000:06a7  MOV word ptr [BP + 0xf7f2],AX ; bytes=89 86 f2 f7
+0000:06ab  JMP 0x0000:052a              ; bytes=e9 7c fe
+0000:06ae  JMP 0x0000:079e              ; bytes=e9 ed 00
+0000:06b1  CMP AL,0x3                   ; bytes=3c 03
+0000:06b3  JZ 0x0000:06b8               ; bytes=74 03
+0000:06b5  JMP 0x0000:079e              ; bytes=e9 e6 00
+0000:06b8  MOV AX,word ptr [BP + 0x4]   ; bytes=8b 46 04
+0000:06bb  SHL AX,0x1                   ; bytes=d1 e0
+0000:06bd  SHL AX,0x1                   ; bytes=d1 e0
+0000:06bf  LES DI,[0x2f72]              ; bytes=c4 3e 72 2f
+0000:06c3  ADD DI,AX                    ; bytes=03 f8
+
+## Window Around 1000:50c2
+
+1000:50c2  CALLF 0x2000:c09a            ; bytes=9a 4a 37 95 28
+1000:50c7  LES DI,[BP + 0x6]            ; bytes=c4 7e 06
+1000:50ca  MOV AX,word ptr ES:[DI + 0x2] ; bytes=26 8b 45 02
+1000:50ce  CMP AX,word ptr [BP + -0x15] ; bytes=3b 46 eb
+1000:50d1  JNZ 0x1000:50dd              ; bytes=75 0a
+1000:50d3  MOV AX,word ptr [BP + -0x3a] ; bytes=8b 46 c6
+1000:50d6  MOV word ptr [BP + -0x3c],AX ; bytes=89 46 c4
+1000:50d9  MOV byte ptr [BP + -0x3d],0x1 ; bytes=c6 46 c3 01
+1000:50dd  JMP 0x1000:506a              ; bytes=eb 8b
+1000:50df  MOV AX,word ptr [BP + -0x3c] ; bytes=8b 46 c4
+1000:50e2  MOV word ptr [BP + -0x2],AX  ; bytes=89 46 fe
+1000:50e5  MOV AX,word ptr [BP + -0x2]  ; bytes=8b 46 fe
+1000:50e8  MOV SP,BP                    ; bytes=89 ec
+1000:50ea  POP BP                       ; bytes=5d
+1000:50eb  RETF 0x8                     ; bytes=ca 08 00
+1000:50ee  PUSH BP                      ; bytes=55
+1000:50ef  MOV BP,SP                    ; bytes=89 e5
+1000:50f1  SUB SP,0x30                  ; bytes=83 ec 30
+1000:50f4  LES DI,[BP + 0xa]            ; bytes=c4 7e 0a
+1000:50f7  PUSH ES                      ; bytes=06
+1000:50f8  PUSH DI                      ; bytes=57

@@ -1627,6 +1627,43 @@ Caller-pattern milestone for the helper island:
   - even without a clean raw function carve, the decoded-output offsets are now
     concrete enough to guide both future dynamic capture and Rust-side naming
 
+Decoded-output field-layout milestone:
+
+- new artifact: `artifacts/ghidra/ecmaint-live/kind2-decoded-field-uses.txt`
+- new script: `tools/ghidra_scripts_tmp/ReportKind2DecodedFieldUses.java`
+- the immediate post-call reads now show that `3502` and `3558` are sibling
+  decoded summary-`+0x06` structures with the same tuple layout:
+  - first tuple:
+    - tag byte at `+0x0b`
+    - payload words at `+0x0d`, `+0x0f`, `+0x11`
+  - second tuple:
+    - tag byte at `+0x0c`
+    - payload words at `+0x13`, `+0x15`, `+0x17`
+  - shared scalar/control group:
+    - byte at `+0x20`
+    - words at `+0x22`, `+0x24`, `+0x26`
+    - capped byte at `+0x28`
+- concrete mapped instances:
+  - `DS:3502`:
+    - `350d`, `350f/3511/3513`
+    - `350e`, `3515/3517/3519`
+    - `3522`, `3524`, and the already-known surrounding group
+  - `DS:3558`:
+    - `3563`, `3565/3567/3569`
+    - `3564`, `356b/356d/356f`
+    - `3578`, `3571/3573/3575`, capped `357a`
+- local structural-match decode from `0000:0681` confirms the key offsets in a
+  stack-local instance of the same family:
+  - local `+0x1f` = decoded kind byte
+  - local `+0x23` = decoded word compared against `[0x355A]`
+  - local `+0x0a` = decoded flag byte expected to be `0`
+- practical interpretation:
+  - the important remaining unknown is now the meaning of these decoded tuple
+    groups, not their existence or rough field shape
+  - this is enough structure to start naming a generic "decoded summary `+0x06`
+    buffer" in Rust-facing notes instead of treating `3502` and `3558` as
+    unrelated scratch islands
+
 Relevant documentation cross-check:
 
 - `ECPLAYER.DOC` confirms `X` toggles a player-level `expert mode` setting and `T` changes the empire-wide tax rate

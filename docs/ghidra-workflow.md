@@ -357,6 +357,18 @@ This refreshes:
   - `DS:3558`
   - local structural-match buffers
 
+Generate the immediate post-call field-use report for those decoded buffers:
+
+```bash
+tools/run_ghidra_script_args.sh ecmaint-live ReportKind2DecodedFieldUses.java
+```
+
+This refreshes:
+
+- `artifacts/ghidra/ecmaint-live/kind2-decoded-field-uses.txt`
+- the sibling decoded summary-`+0x06` field layout behind `3502` and `3558`
+- the key local structural-match offsets checked after `0000:0681`
+
 ## First Analysis Pass
 
 From the repo root:
