@@ -1531,6 +1531,44 @@ Base-side summary emitter mapping:
     either `player[0x44]` or base `0x07..0x08`, depending on which base-side
     sub-branch produced the active summary entry
 
+Kind-`2` matcher decode milestone:
+
+- new artifact: `artifacts/ghidra/ecmaint-live/kind2-matcher.txt`
+- new script: `tools/ghidra_scripts_tmp/ReportKind2Matcher.java`
+- `0000:03DF..06AE` is now preserved as a concrete kind-`2` pairing loop
+  instead of a vague "remaining `3558/355A` logic" placeholder
+- the important clarification is that `3558` / `355A` are not compared as raw
+  base fields:
+  - the current kind-`2` summary entry first pushes summary word `+0x06`
+  - then calls far helper `0x2000:c09a` with destination `0x3558`
+  - that helper populates a decode scratch family rooted at `3558`, including:
+    - `3558` and `355A` as comparison keys
+    - supporting decode fields at `3563..357a`
+- after that decode, the matcher builds three normalized comparison tuples from
+  the `3558` scratch family:
+  - `3563 + 3565/3567/3569`
+  - `3564 + 356b/356d/356f`
+  - `3578`, `3579`, `3571/3573/3575`, capped `357a`
+- those tuples are compared against local reference tuples through the common
+  far helpers at `0x3000:4891`, `0x3000:486b`, and `0x3000:488d`
+- only if that decode/normalization succeeds does the scan advance to candidate
+  kind-`1` summaries:
+  - direct accept path:
+    - candidate summary word `+0x0A == [0x3558]`
+  - structural accept path:
+    - same summary bytes `+0x01`, `+0x02`, and `+0x05`
+    - candidate summary word `+0x06` decoded through `0x2000:c067`
+    - decoded kind byte `== 4`
+    - decoded word `== [0x355A]`
+    - decoded flag byte `== 0`
+- practical interpretation:
+  - `3558` / `355A` are now better modeled as helper-decoded linkage keys
+    derived from base-side summary `+0x06`, not as raw persistent fields
+    directly stored in `BASES.DAT`
+  - the next high-value RE target is therefore the decode-helper pair
+    `0x2000:c09a` and `0x2000:c067`, because they bridge raw summary `+0x06`
+    values into the actual pairing keys
+
 Relevant documentation cross-check:
 
 - `ECPLAYER.DOC` confirms `X` toggles a player-level `expert mode` setting and `T` changes the empire-wide tax rate

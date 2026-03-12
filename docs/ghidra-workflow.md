@@ -312,6 +312,22 @@ This refreshes:
   - tuple B -> `3542`, `3549..354d`
   - tuple C -> `354f..3553`
 
+Generate the focused kind-2 matcher report for the remaining fleet/base
+pairing keys:
+
+```bash
+tools/run_ghidra_script_args.sh ecmaint-live ReportKind2Matcher.java
+```
+
+This refreshes:
+
+- `artifacts/ghidra/ecmaint-live/kind2-matcher.txt`
+- the concrete pairing loop at `0000:03DF..06AE`
+- the decode path from base-side summary `+0x06` through helper `0x2000:c09a`
+  into scratch rooted at `3558`
+- the structural accept path that decodes candidate kind-1 summary `+0x06`
+  through helper `0x2000:c067` and compares against `[0x355A]`
+
 ## First Analysis Pass
 
 From the repo root:

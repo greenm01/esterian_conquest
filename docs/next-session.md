@@ -207,9 +207,26 @@ Milestone ladder:
          - the remaining unknown pairing keys around `3558/355A` are now
            narrowed to values derived from `player[0x44]` or base `0x07..0x08`,
            not the coordinate or flag fields already mapped
+     - new matcher decode milestone:
+       - artifact: `artifacts/ghidra/ecmaint-live/kind2-matcher.txt`
+       - script: `tools/ghidra_scripts_tmp/ReportKind2Matcher.java`
+       - confirmed:
+         - the kind-`2` matcher at `0000:03DF..06AE` does not compare `3558`
+           and `355A` as raw base fields
+         - it first pushes base-side summary `+0x06`, then decodes it through
+           helper `0x2000:c09a` into scratch rooted at `3558`
+         - the direct accept path compares candidate kind-`1` summary `+0x0A`
+           against decoded `[0x3558]`
+         - the structural accept path decodes candidate kind-`1` summary `+0x06`
+           through helper `0x2000:c067` and compares decoded word against
+           `[0x355A]` with decoded kind `4` and flag `0`
+       - practical consequence:
+         - `3558` / `355A` are now best modeled as helper-decoded linkage keys
+           derived from summary `+0x06`, not as raw persistent fields
    - Next Rust-facing target:
-     - map the base-side summary emitter strongly enough to name `3558/355A`
-       and turn the current kind-`1` / kind-`2` pairing rule into a Rust-side
+     - reverse helpers `0x2000:c09a` and `0x2000:c067` strongly enough to name
+       the decoded linkage keys behind `3558/355A`
+     - then turn the current kind-`1` / kind-`2` pairing rule into a Rust-side
        validation helper for Guard Starbase scenarios
      - now that a fixed accepted Guard Starbase scenario exists in Rust,
        replace the current single-base template with a more explicit encoder
