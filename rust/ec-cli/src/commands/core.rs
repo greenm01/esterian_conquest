@@ -233,3 +233,65 @@ pub(crate) fn sync_core_counts(dir: &Path) -> Result<(), Box<dyn std::error::Err
     }
     Ok(())
 }
+
+pub(crate) fn sync_core_baseline(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let mut data = CoreGameData::load(dir)?;
+    data.sync_current_known_baseline_controls_and_counts();
+
+    data.save(dir)?;
+
+    println!("Core baseline synchronized");
+    println!(
+        "  player1_starbase_count = {}",
+        data.player1_starbase_count_current_known()
+    );
+    println!(
+        "  player1_owned_base_record_count = {}",
+        data.player1_owned_base_record_count_current_known()
+    );
+    println!(
+        "  player1_ipbm_count = {}",
+        data.player1_ipbm_count_current_known()
+    );
+    println!(
+        "  initialized_fleet_blocks = {}",
+        data.looks_like_initialized_fleet_blocks_current_known()
+    );
+    println!(
+        "  initialized_fleet_payloads = {}",
+        data.current_known_initialized_fleet_payload_errors().is_empty()
+    );
+    println!(
+        "  initialized_fleet_missions = {}",
+        data.current_known_initialized_fleet_mission_errors().is_empty()
+    );
+    println!(
+        "  initialized_homeworld_alignment = {}",
+        data.current_known_initialized_homeworld_alignment_errors().is_empty()
+    );
+    println!(
+        "  initialized_planet_ownership = {}",
+        data.current_known_initialized_planet_ownership_errors().is_empty()
+    );
+    println!(
+        "  homeworld_seed_payloads = {}",
+        data.current_known_homeworld_seed_payload_errors().is_empty()
+    );
+    println!(
+        "  unowned_planet_payloads = {}",
+        data.current_known_unowned_planet_payload_errors().is_empty()
+    );
+    println!(
+        "  empty_auxiliary_state = {}",
+        data.current_known_empty_auxiliary_state_errors().is_empty()
+    );
+    println!(
+        "  setup_baseline = {}",
+        data.current_known_setup_baseline_errors().is_empty()
+    );
+    println!(
+        "  conquest_baseline = {}",
+        data.current_known_conquest_baseline_errors().is_empty()
+    );
+    Ok(())
+}

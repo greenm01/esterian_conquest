@@ -197,6 +197,16 @@ The preserved initialized/post-maint control-file baseline is now explicit too:
 - `CONQUEST.DAT.game_year()` stays within the preserved initialized/post-maint
   pair `3000` / `3001`
 
+Those control/count rules are now also repairable through the shared model:
+- `CoreGameData::sync_current_known_baseline_controls_and_counts()` repairs
+  current-known starbase/IPBM count words
+- rewrites `SETUP.DAT` baseline control fields
+- rewrites `CONQUEST.DAT` player-count and maintenance-schedule baseline fields
+- normalizes invalid `CONQUEST.DAT` years back into the preserved
+  initialized/post-maint pair by setting `3001`
+- this is intentionally narrower than full baseline reconstruction; it only
+  touches deterministic fields the current RE actually supports
+
 The shared model also now treats homeworld-seed alignment as a current-known
 multi-player invariant for initialized/post-maint state:
 - each active empire has exactly one owned `Not Named Yet` planet

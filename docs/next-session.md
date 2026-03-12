@@ -1117,3 +1117,16 @@ Suggested execution order:
   - `CONQUEST.DAT.maintenance_schedule = [1, 1, 1, 1, 1, 1, 1]`
   - `CONQUEST.DAT.game_year` stays within the preserved initialized/post-maint
     pair `3000` / `3001`
+
+- New shared repair path:
+  - `CoreGameData::sync_current_known_baseline_controls_and_counts()`
+  - CLI: `ec-cli core-sync-baseline [dir]`
+  - this now repairs the deterministic current-known control/count fields:
+    - player starbase counts
+    - player-1 `IPBM` count
+    - `SETUP.DAT` baseline control fields
+    - `CONQUEST.DAT` player count + maintenance schedule
+    - invalid `CONQUEST.DAT` years normalized to `3001`
+  - intentionally does **not** attempt full baseline reconstruction of
+    planets/fleets/player records; it only touches fields the current RE
+    supports confidently

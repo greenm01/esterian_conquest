@@ -293,6 +293,26 @@ impl CoreGameData {
         }
     }
 
+    pub fn sync_current_known_baseline_controls_and_counts(&mut self) {
+        self.sync_player1_current_known_counts();
+
+        self.setup.raw[..5].copy_from_slice(b"EC151");
+        self.setup.raw[5..13].copy_from_slice(&[4, 3, 4, 3, 1, 1, 1, 1]);
+        self.setup.set_snoop_enabled(true);
+        self.setup.set_max_time_between_keys_minutes_raw(10);
+        self.setup.set_remote_timeout_enabled(true);
+        self.setup.set_local_timeout_enabled(false);
+        self.setup.set_minimum_time_granted_minutes_raw(0);
+        self.setup.set_purge_after_turns_raw(0);
+        self.setup.set_autopilot_inactive_turns_raw(0);
+
+        if !matches!(self.conquest.game_year(), 3000 | 3001) {
+            self.conquest.raw[0..2].copy_from_slice(&3001u16.to_le_bytes());
+        }
+        self.conquest.raw[2] = 4;
+        self.conquest.raw[3..10].copy_from_slice(&[1; 7]);
+    }
+
     pub fn sync_all_players_current_known_starbase_counts(&mut self) {
         let owned_base_counts = (1..=self.player.records.len())
             .map(|player_record_index_1_based| {

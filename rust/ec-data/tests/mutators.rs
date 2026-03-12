@@ -540,6 +540,36 @@ fn core_game_data_conquest_baseline_errors_catch_changed_year() {
 }
 
 #[test]
+fn core_game_data_sync_current_known_baseline_controls_and_counts_repairs_mutated_fields() {
+    let mut base1 = BaseRecord::new_zeroed();
+    base1.set_owner_empire_raw(1);
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat { records: vec![base1] },
+        ipbm: IpbmDat { records: vec![IpbmRecord { raw: [0u8; IPBM_RECORD_SIZE] }] },
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    data.player.records[0].set_starbase_count_raw(9);
+    data.player.records[0].set_ipbm_count_raw(9);
+    data.setup.raw[..5].copy_from_slice(b"BAD!!");
+    data.setup.set_remote_timeout_enabled(false);
+    data.conquest.raw[0..2].copy_from_slice(&2999u16.to_le_bytes());
+    data.conquest.raw[2] = 9;
+    data.conquest.set_maintenance_schedule_enabled([false; 7]);
+
+    data.sync_current_known_baseline_controls_and_counts();
+
+    assert_eq!(data.player.records[0].starbase_count_raw(), 1);
+    assert_eq!(data.player.records[0].ipbm_count_raw(), 1);
+    assert!(data.current_known_setup_baseline_errors().is_empty());
+    assert!(data.current_known_conquest_baseline_errors().is_empty());
+}
+
+#[test]
 fn core_game_data_can_apply_current_known_scenario_mutations() {
     let mut data = CoreGameData {
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),

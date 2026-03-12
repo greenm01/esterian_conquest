@@ -107,6 +107,38 @@ fn core_sync_counts_repairs_player1_count_words() {
 }
 
 #[test]
+fn core_sync_baseline_repairs_control_and_count_fields() {
+    let target = unique_temp_dir("ec-cli-core-sync-baseline");
+    common::copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut data = CoreGameData::load(&target).unwrap();
+    data.player.records[0].set_starbase_count_raw(3);
+    data.player.records[0].set_ipbm_count_raw(2);
+    data.setup.raw[..5].copy_from_slice(b"BAD!!");
+    data.setup.set_remote_timeout_enabled(false);
+    data.conquest.raw[0..2].copy_from_slice(&2999u16.to_le_bytes());
+    data.conquest.raw[2] = 9;
+    data.conquest.set_maintenance_schedule_enabled([false; 7]);
+    data.save(&target).unwrap();
+
+    let sync_stdout = run_ec_cli_in_dir(
+        &["core-sync-baseline", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(sync_stdout.contains("Core baseline synchronized"));
+    assert!(sync_stdout.contains("setup_baseline = true"));
+    assert!(sync_stdout.contains("conquest_baseline = true"));
+
+    let validate_stdout = run_ec_cli_in_dir(
+        &["core-validate", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(validate_stdout.contains("Valid core state"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn compliance_report_summarizes_valid_parameterized_guard_starbase_directory() {
     let target = unique_temp_dir("ec-cli-compliance-report");
 
