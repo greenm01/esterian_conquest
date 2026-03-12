@@ -1229,3 +1229,21 @@ Suggested execution order:
       - player 2..5 corresponding words are currently preserved as raw /
         uninterpreted
     - `fixtures/ecmaint-post/v1.5` now has `PLAYER.DAT: differing_offsets=[]`
+  - resolved `PLANETS.DAT` follow-up:
+    - the old repeated six-byte clusters were the hidden tail bytes after the
+      visible `"Unowned"` name prefix in non-homeworld records
+    - corrected boundary:
+      - `"Unowned"` prefix is current-known
+      - trailing bytes in that 13-byte name/status window are preserved raw
+        per-planet payload
+    - `fixtures/ecmaint-post/v1.5` now has `PLANETS.DAT: differing_offsets=[]`
+  - current state:
+    - the current-known baseline normalizer is now byte-complete for the full
+      core post-maint fixture set:
+      - `PLAYER.DAT`
+      - `PLANETS.DAT`
+      - `FLEETS.DAT`
+      - `BASES.DAT`
+      - `IPBM.DAT`
+      - `SETUP.DAT`
+      - `CONQUEST.DAT`

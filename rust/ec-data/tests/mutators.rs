@@ -160,6 +160,18 @@ fn can_set_purge_after_turns_raw() {
 }
 
 #[test]
+fn planet_status_prefix_setter_preserves_hidden_tail_bytes() {
+    let mut record = PlanetRecord { raw: [0u8; PLANET_RECORD_SIZE] };
+    record.raw[0x17..0x1D].copy_from_slice(&[1, 2, 3, 4, 5, 6]);
+
+    record.set_status_or_name_prefix_raw("Unowned");
+
+    assert_eq!(record.string_len(), 7);
+    assert_eq!(record.status_or_name_summary(), "Unowned");
+    assert_eq!(&record.raw[0x17..0x1D], &[1, 2, 3, 4, 5, 6]);
+}
+
+#[test]
 fn core_game_data_current_known_count_helpers_follow_player1_and_records() {
     let mut base1 = BaseRecord::new_zeroed();
     base1.set_owner_empire_raw(1);
@@ -244,6 +256,27 @@ fn core_game_data_current_known_baseline_diff_offsets_clear_player_file_on_clean
         .unwrap()
         .differing_offsets;
     assert!(player_offsets.is_empty());
+}
+
+#[test]
+fn core_game_data_current_known_baseline_diff_offsets_clear_planet_file_on_clean_post_fixture() {
+    let data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    let diffs = data.current_known_baseline_diff_offsets();
+    let planet_offsets = &diffs
+        .iter()
+        .find(|diff| diff.name == "PLANETS.DAT")
+        .unwrap()
+        .differing_offsets;
+    assert!(planet_offsets.is_empty());
 }
 
 #[test]

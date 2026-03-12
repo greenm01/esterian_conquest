@@ -282,6 +282,14 @@ baseline:
   - for the preserved `fixtures/ecmaint-post/v1.5` baseline, `PLAYER.DAT` is
     now byte-complete under the current-known normalizer, leaving `PLANETS.DAT`
     as the main remaining drift target
+- third concrete payoff:
+  - the remaining `PLANETS.DAT` drift clusters were the six hidden bytes after
+    the visible `"Unowned"` name prefix in non-homeworld records
+  - those bytes are preserved per-planet payload, not generic string padding
+  - the shared baseline now uses a prefix-only setter for `"Unowned"` records
+    so it preserves that hidden tail instead of zeroing it
+  - for the preserved `fixtures/ecmaint-post/v1.5` baseline, the current-known
+    normalizer is now byte-complete across the full core `.DAT` set
 
 The shared model also now treats homeworld-seed alignment as a current-known
 multi-player invariant for initialized/post-maint state:

@@ -64,6 +64,13 @@ impl PlanetRecord {
         self.raw[0x10..0x10 + len].copy_from_slice(&bytes[..len]);
     }
 
+    pub fn set_status_or_name_prefix_raw(&mut self, value: &str) {
+        let bytes = value.as_bytes();
+        let len = bytes.len().min(13);
+        self.raw[0x0F] = len as u8;
+        self.raw[0x10..0x10 + len].copy_from_slice(&bytes[..len]);
+    }
+
     pub fn build_count_raw(&self, slot: usize) -> u8 {
         self.raw[0x24 + slot]
     }

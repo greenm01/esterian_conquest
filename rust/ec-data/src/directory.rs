@@ -386,7 +386,7 @@ impl CoreGameData {
                 record.set_likely_army_count_raw(4);
                 record.set_ownership_status_raw(2);
             } else if owner == 0 {
-                record.set_status_or_name_summary_raw("Unowned");
+                record.set_status_or_name_prefix_raw("Unowned");
                 record.set_planet_tax_rate_raw(0);
                 record.set_factories_raw([0; 6]);
                 record.set_stored_goods_raw(0);
