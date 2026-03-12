@@ -61,6 +61,18 @@ The current intended split is:
 `ec-data` and `ec-tui` tests now live under crate `tests/` directories instead
 of source-file `#[cfg(test)]` modules.
 
+`ec-cli` integration tests are now also split by command family instead of one
+large `commands.rs` file:
+
+- `tests/basic.rs`
+- `tests/setup.rs`
+- `tests/fleet.rs`
+- `tests/planet.rs`
+- `tests/starbase.rs`
+- `tests/ipbm.rs`
+- `tests/compliance.rs`
+- `tests/common/mod.rs`
+
 `ec-data` is now split into domain modules instead of one large `lib.rs`:
 
 - `src/records/player.rs`

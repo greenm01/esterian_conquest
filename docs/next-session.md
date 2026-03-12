@@ -210,6 +210,8 @@ Rust architecture note:
   - `ec-cli` workspace/file-copy helpers now live in `src/workspace.rs`
   - top-level CLI usage/help text now lives in `src/usage.rs`
   - top-level command routing now lives in `src/dispatch.rs`
+  - `ec-cli` integration tests are now split by command family with shared
+    helpers under `tests/common/mod.rs`
   - `ec-data` and `ec-tui` tests now live in crate `tests/` directories
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
