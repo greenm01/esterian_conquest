@@ -1,5 +1,6 @@
 pub(crate) mod compare;
 pub(crate) mod compliance;
+pub(crate) mod core;
 pub(crate) mod fleet_order;
 pub(crate) mod guard_starbase;
 pub(crate) mod inspect;

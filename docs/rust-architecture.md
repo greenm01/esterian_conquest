@@ -121,6 +121,9 @@ Current expectation:
   touch multiple files or participate in scenario-composition workflows
 - full directory inspection should also use the shared directory model; keep
   narrower header-only commands on the lighter targeted file reads they need
+- directory-level structural reports/validators should be layered on top of the
+  shared model, but they shall be explicit about scope when they encode only
+  current-known invariants rather than full engine behavior
 
 ## KDL Timing
 

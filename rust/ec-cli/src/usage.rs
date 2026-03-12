@@ -1,6 +1,8 @@
 pub fn print_usage() {
     println!("Usage:");
     println!("  ec-cli inspect [dir]");
+    println!("  ec-cli core-report [dir]");
+    println!("  ec-cli core-validate [dir]");
     println!("  ec-cli headers [dir]");
     println!("  ec-cli maintenance-days [dir]");
     println!("  ec-cli maintenance-days <dir> set <sun|mon|tue|wed|thu|fri|sat>...");

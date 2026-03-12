@@ -4,6 +4,7 @@ use crate::commands::compare::{
     compare_all_preserved_scenarios, compare_dirs, compare_preserved_scenario,
 };
 use crate::commands::compliance::{print_compliance_batch_report, print_compliance_report};
+use crate::commands::core::{print_core_report, validate_core_state};
 use crate::commands::fleet_order::{
     init_fleet_order_batch, init_fleet_order_scenario, print_fleet_order_report, set_fleet_order,
 };
@@ -62,6 +63,8 @@ pub fn run_args(
 
     match cmd.as_str() {
         "inspect" => inspect_dir(&next_dir(&mut args))?,
+        "core-report" => print_core_report(&next_dir(&mut args))?,
+        "core-validate" => validate_core_state(&next_dir(&mut args))?,
         "headers" => dump_headers(&next_dir(&mut args))?,
         "match" => match_fixture_set(&next_dir(&mut args))?,
         "compare" => {

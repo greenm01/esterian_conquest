@@ -262,6 +262,16 @@ Rust architecture note:
       for players/planets/fleets/bases/IPBM instead of ad hoc per-file loads
     - `ec-cli headers` intentionally stays on the lighter `SETUP.DAT` /
       `CONQUEST.DAT` path so it still works against `original/v1.5`
+  - latest core-state milestone:
+    - `ec-cli core-report [dir]`
+    - `ec-cli core-validate [dir]`
+    - these now provide a typed structural report/validator over the shared
+      `CoreGameData` model
+    - current-known validation scope is intentionally narrow:
+      - `PLAYER[1].starbase_count_raw` vs `BASES.DAT` record count
+      - `PLAYER[1].ipbm_count_raw` vs `IPBM.DAT` record count
+    - this is a reusable structural preflight surface for generated
+      experiment directories, not a full `ECMAINT` integrity reimplementation
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`

@@ -12,6 +12,29 @@ fn compliance_report_summarizes_known_post_fixture_failures() {
 }
 
 #[test]
+fn core_report_summarizes_known_post_fixture_counts() {
+    let stdout = run_ec_cli(&["core-report", "fixtures/ecmaint-post/v1.5"]);
+    assert!(stdout.contains("Core State Report"));
+    assert!(stdout.contains("player_record_count=5"));
+    assert!(stdout.contains("planet_record_count=20"));
+    assert!(stdout.contains("fleet_record_count=16"));
+    assert!(stdout.contains("base_record_count=0"));
+    assert!(stdout.contains("ipbm_record_count=0"));
+    assert!(stdout.contains("player1_starbase_count=0"));
+    assert!(stdout.contains("player1_ipbm_count=0"));
+}
+
+#[test]
+fn core_validate_accepts_known_post_fixture_state() {
+    let stdout = run_ec_cli(&["core-validate", "fixtures/ecmaint-post/v1.5"]);
+    assert!(stdout.contains("Valid core state"));
+    assert!(stdout.contains("base_record_count = 0"));
+    assert!(stdout.contains("ipbm_record_count = 0"));
+    assert!(stdout.contains("player1_starbase_count = 0"));
+    assert!(stdout.contains("player1_ipbm_count = 0"));
+}
+
+#[test]
 fn compliance_report_summarizes_valid_parameterized_guard_starbase_directory() {
     let target = unique_temp_dir("ec-cli-compliance-report");
 
