@@ -416,6 +416,38 @@ fn fleet_order_init_materializes_parameterized_directory() {
 }
 
 #[test]
+fn fleet_order_batch_init_materializes_multiple_directories() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-fleet-order-batch-{unique}"));
+
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "fleet-order-batch-init",
+            target.to_str().unwrap(),
+            "1:3:0x0c:15:13",
+            "1:2:0x0c:10:9:0x01:0x00",
+        ],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Initialized 2 fleet-order directories under"));
+
+    let manifest = fs::read_to_string(target.join("FLEET_ORDERS.txt")).unwrap();
+    assert!(manifest.contains("r01-s03-o0c-x15-y13"));
+    assert!(manifest.contains("r01-s02-o0c-x10-y09"));
+
+    let validate = run_ec_cli_in_dir(
+        &["validate", target.join("r01-s03-o0c-x15-y13").to_str().unwrap(), "fleet-order"],
+        repo_root().join("rust"),
+    );
+    assert!(validate.contains("Valid fleet-order scenario"));
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
 fn planet_build_recreates_known_valid_build_pre_fixture() {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -478,6 +510,38 @@ fn planet_build_init_materializes_parameterized_directory() {
 
     let validate = run_ec_cli_in_dir(
         &["validate", target.to_str().unwrap(), "planet-build"],
+        repo_root().join("rust"),
+    );
+    assert!(validate.contains("Valid planet-build scenario"));
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn planet_build_batch_init_materializes_multiple_directories() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-planet-build-batch-{unique}"));
+
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "planet-build-batch-init",
+            target.to_str().unwrap(),
+            "15:0x03:0x01",
+            "12:0x02:0x04",
+        ],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Initialized 2 planet-build directories under"));
+
+    let manifest = fs::read_to_string(target.join("PLANET_BUILDS.txt")).unwrap();
+    assert!(manifest.contains("p15-s03-k01"));
+    assert!(manifest.contains("p12-s02-k04"));
+
+    let validate = run_ec_cli_in_dir(
+        &["validate", target.join("p15-s03-k01").to_str().unwrap(), "planet-build"],
         repo_root().join("rust"),
     );
     assert!(validate.contains("Valid planet-build scenario"));
@@ -1020,8 +1084,8 @@ fn compliance_batch_report_summarizes_batch_directory_status() {
         repo_root().join("rust"),
     );
     assert!(stdout.contains("Compliance Batch Report"));
-    assert!(stdout.contains("x12-y09: guard-starbase=ok ipbm=ok"));
-    assert!(stdout.contains("x14-y07: guard-starbase=ok ipbm=ok"));
+    assert!(stdout.contains("x12-y09: fleet-order=fail planet-build=fail guard-starbase=ok ipbm=ok"));
+    assert!(stdout.contains("x14-y07: fleet-order=fail planet-build=fail guard-starbase=ok ipbm=ok"));
 
     let _ = fs::remove_dir_all(&target);
 }

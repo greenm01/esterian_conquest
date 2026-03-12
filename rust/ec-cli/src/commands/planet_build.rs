@@ -123,3 +123,40 @@ pub(crate) fn init_planet_build_scenario(
     println!("Planet-build directory initialized at {}", target.display());
     Ok(())
 }
+
+pub(crate) fn init_planet_build_batch(
+    source: &Path,
+    target_root: &Path,
+    specs: &[(usize, u8, u8)],
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(target_root)?;
+    let mut manifest = String::new();
+    manifest.push_str("Planet-build batch\n");
+    manifest.push_str(&format!("source={}\n", source.display()));
+    manifest.push_str(&format!("target_root={}\n", target_root.display()));
+    manifest.push('\n');
+
+    for (record_index, slot_raw, kind_raw) in specs {
+        let name = format!("p{:02}-s{:02x}-k{:02x}", record_index, slot_raw, kind_raw);
+        let scenario_dir = target_root.join(&name);
+        init_planet_build_scenario(source, &scenario_dir, *record_index, *slot_raw, *kind_raw)?;
+        manifest.push_str(&format!("{name}\n"));
+        manifest.push_str(&format!(
+            "  spec={}:{:#04x}:{:#04x}\n",
+            record_index, slot_raw, kind_raw
+        ));
+        manifest.push_str(&format!("  dir={}\n", scenario_dir.display()));
+        manifest.push_str(&format!(
+            "  validate=ec-cli validate {} planet-build\n\n",
+            scenario_dir.display()
+        ));
+    }
+
+    fs::write(target_root.join("PLANET_BUILDS.txt"), manifest)?;
+    println!(
+        "Initialized {} planet-build directories under {}",
+        specs.len(),
+        target_root.display()
+    );
+    Ok(())
+}

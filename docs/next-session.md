@@ -112,16 +112,23 @@
         - `ec-cli compliance-batch-report <root>`
         - this now gives the quickest Rust-side preflight for the currently
           mapped integrity-sensitive areas:
+          - Fleet Order
+          - Planet Build
           - Guard Starbase linkage
           - `IPBM.DAT` count/length state
         - the batch form now gives a compact per-directory verdict for roots
           produced by the Rust scenario generators
         - `ec-cli fleet-order-report [dir] [fleet_record]`
         - `ec-cli fleet-order-init <target_dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]`
+        - `ec-cli fleet-order-batch-init <target_root> <fleet_record:speed:order:target_x:target_y[:aux0[:aux1]]>...`
         - `ec-cli planet-build-report [dir] [planet_record]`
         - `ec-cli planet-build-init <target_dir> <planet_record> <build_slot_raw> <build_kind_raw>`
+        - `ec-cli planet-build-batch-init <target_root> <planet_record:build_slot_raw:build_kind_raw>...`
         - these now make fleet/build experiment directories as easy to
           materialize and inspect as the existing starbase/IPBM flows
+        - the new batch forms now make it practical to generate multiple
+          parameterized fleet/build experiment roots without hand-copying the
+          same baseline directory repeatedly
   - `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`
     materializes a runnable scenario directory in one command from a
     compliant baseline

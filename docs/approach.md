@@ -195,16 +195,25 @@ Current concrete Rust milestone:
       count/length verdict, and the most relevant key words in one pass
     - the batch form is meant for generated scenario roots and keeps the
       output compact enough to compare multiple experiment directories quickly
+    - the batch form now covers:
+      - `fleet-order`
+      - `planet-build`
+      - `guard-starbase`
+      - `ipbm`
   - `ec-cli validate <dir> all` now gives a quick classification pass across
     the current known accepted scenarios
   - Rust now also has parameterized fleet/build inspection and init commands:
     - `ec-cli fleet-order-report [dir] [fleet_record]`
     - `ec-cli fleet-order-init <target_dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]`
+    - `ec-cli fleet-order-batch-init <target_root> <fleet_record:speed:order:target_x:target_y[:aux0[:aux1]]>...`
     - `ec-cli planet-build-report [dir] [planet_record]`
     - `ec-cli planet-build-init <target_dir> <planet_record> <build_slot_raw> <build_kind_raw>`
+    - `ec-cli planet-build-batch-init <target_root> <planet_record:build_slot_raw:build_kind_raw>...`
     - these now make the fleet/build paths consistent with the existing
       starbase/IPBM report/init workflow and remove more experiment setup from
       hand-edited fixture directories
+    - the new batch forms now materialize multiple parameterized experiment
+      roots plus manifests in one run
   - the known accepted scenarios are now centralized behind one Rust-side
     catalog:
     - `ec-cli scenario <dir> list`

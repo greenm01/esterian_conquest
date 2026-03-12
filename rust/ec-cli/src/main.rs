@@ -7,8 +7,9 @@ use std::path::{Path, PathBuf};
 
 use ec_data::{BaseDat, ConquestDat, FleetDat, IpbmDat, PlanetDat, PlayerDat, SetupDat};
 use commands::fleet_order::{
-    apply_fleet_order_scenario, init_fleet_order_scenario, print_fleet_order_report,
-    set_fleet_order, validate_fleet_order_scenario,
+    apply_fleet_order_scenario, fleet_order_errors, init_fleet_order_batch,
+    init_fleet_order_scenario, print_fleet_order_report, set_fleet_order,
+    validate_fleet_order_scenario,
 };
 use commands::guard_starbase::{
     apply_guard_starbase_scenario, guard_starbase_errors, init_guard_starbase_batch,
@@ -20,15 +21,16 @@ use commands::ipbm::{
     set_ipbm_record_prefix, set_ipbm_zero_records, validate_ipbm,
 };
 use commands::planet_build::{
-    apply_planet_build_scenario, init_planet_build_scenario, print_planet_build_report,
-    set_planet_build, validate_planet_build_scenario,
+    apply_planet_build_scenario, init_planet_build_batch, init_planet_build_scenario,
+    planet_build_errors, print_planet_build_report, set_planet_build,
+    validate_planet_build_scenario,
 };
 use support::parse::{
     parse_optional_source_and_target, parse_optional_source_target_and_coord_list,
     parse_optional_source_target_and_count, parse_optional_source_target_and_count_list,
     parse_optional_source_target_and_name, parse_optional_source_target_and_xy,
-    parse_target_and_fleet_spec, parse_target_and_planet_spec, parse_u16_arg, parse_u8_arg,
-    parse_usize_1_based,
+    parse_target_and_fleet_spec, parse_target_and_fleet_spec_list, parse_target_and_planet_spec,
+    parse_target_and_planet_spec_list, parse_u16_arg, parse_u8_arg, parse_usize_1_based,
 };
 use support::paths::{
     default_fixture_dir, init_fixture_dir, post_maint_fixture_dir, repo_root, resolve_repo_path,
@@ -389,6 +391,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 aux1,
             )?;
         }
+        "fleet-order-batch-init" => {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((target_root, specs)) = parse_target_and_fleet_spec_list(remaining) else {
+                print_usage();
+                return Ok(());
+            };
+            init_fleet_order_batch(&post_maint_fixture_dir(), &target_root, &specs)?;
+        }
         "planet-build" => {
             let dir = args
                 .next()
@@ -440,6 +450,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 slot_raw,
                 kind_raw,
             )?;
+        }
+        "planet-build-batch-init" => {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((target_root, specs)) = parse_target_and_planet_spec_list(remaining) else {
+                print_usage();
+                return Ok(());
+            };
+            init_planet_build_batch(&post_maint_fixture_dir(), &target_root, &specs)?;
         }
         "guard-starbase-onebase" => {
             let dir = args
@@ -1278,6 +1296,15 @@ fn print_compliance_batch_report(root: &Path) -> Result<(), Box<dyn std::error::
 
     for dir in dirs {
         print!("{}: ", dir.file_name().unwrap_or_default().to_string_lossy());
+        let fleet_ok = match FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?) {
+            Ok(fleets) => fleet_order_errors(&fleets, 1, 0x03, 0x0C, [0x0F, 0x0D], None, None)
+                .is_empty(),
+            Err(_) => false,
+        };
+        let build_ok = match PlanetDat::parse(&fs::read(dir.join("PLANETS.DAT"))?) {
+            Ok(planets) => planet_build_errors(&planets, 15, 0x03, 0x01).is_empty(),
+            Err(_) => false,
+        };
         let guard_ok = match (
             PlayerDat::parse(&fs::read(dir.join("PLAYER.DAT"))?),
             FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?),
@@ -1299,7 +1326,9 @@ fn print_compliance_batch_report(root: &Path) -> Result<(), Box<dyn std::error::
             _ => false,
         };
         println!(
-            "guard-starbase={} ipbm={}",
+            "fleet-order={} planet-build={} guard-starbase={} ipbm={}",
+            if fleet_ok { "ok" } else { "fail" },
+            if build_ok { "ok" } else { "fail" },
             if guard_ok { "ok" } else { "fail" },
             if ipbm_ok { "ok" } else { "fail" }
         );
@@ -1763,9 +1792,11 @@ fn print_usage() {
     println!("  ec-cli fleet-order <dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]");
     println!("  ec-cli fleet-order-report [dir] [fleet_record]");
     println!("  ec-cli fleet-order-init <target_dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]");
+    println!("  ec-cli fleet-order-batch-init <target_root> <fleet_record:speed:order:target_x:target_y[:aux0[:aux1]]>...");
     println!("  ec-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>");
     println!("  ec-cli planet-build-report [dir] [planet_record]");
     println!("  ec-cli planet-build-init <target_dir> <planet_record> <build_slot_raw> <build_kind_raw>");
+    println!("  ec-cli planet-build-batch-init <target_root> <planet_record:build_slot_raw:build_kind_raw>...");
     println!("  ec-cli guard-starbase-onebase <dir> <target_x> <target_y>");
     println!("  ec-cli guard-starbase-report <dir>");
     println!("  ec-cli guard-starbase-init [source_dir] <target_dir> <target_x> <target_y>");

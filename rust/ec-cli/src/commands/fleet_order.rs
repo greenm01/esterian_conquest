@@ -198,3 +198,63 @@ pub(crate) fn init_fleet_order_scenario(
     println!("Fleet-order directory initialized at {}", target.display());
     Ok(())
 }
+
+pub(crate) fn init_fleet_order_batch(
+    source: &Path,
+    target_root: &Path,
+    specs: &[(usize, u8, u8, u8, u8, Option<u8>, Option<u8>)],
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(target_root)?;
+    let mut manifest = String::new();
+    manifest.push_str("Fleet-order batch\n");
+    manifest.push_str(&format!("source={}\n", source.display()));
+    manifest.push_str(&format!("target_root={}\n", target_root.display()));
+    manifest.push('\n');
+
+    for (record_index, speed, order_code, target_x, target_y, aux0, aux1) in specs {
+        let name = format!(
+            "r{:02}-s{:02}-o{:02x}-x{:02}-y{:02}",
+            record_index, speed, order_code, target_x, target_y
+        );
+        let scenario_dir = target_root.join(&name);
+        init_fleet_order_scenario(
+            source,
+            &scenario_dir,
+            *record_index,
+            *speed,
+            *order_code,
+            *target_x,
+            *target_y,
+            *aux0,
+            *aux1,
+        )?;
+        manifest.push_str(&format!("{name}\n"));
+        manifest.push_str(&format!(
+            "  spec={}:{:#04x}:{:#04x}:{}:{}",
+            record_index, speed, order_code, target_x, target_y
+        ));
+        if let Some(value) = aux0 {
+            manifest.push_str(&format!(":{:#04x}", value));
+        }
+        if let Some(value) = aux1 {
+            if aux0.is_none() {
+                manifest.push_str(":--");
+            }
+            manifest.push_str(&format!(":{:#04x}", value));
+        }
+        manifest.push('\n');
+        manifest.push_str(&format!("  dir={}\n", scenario_dir.display()));
+        manifest.push_str(&format!(
+            "  validate=ec-cli validate {} fleet-order\n\n",
+            scenario_dir.display()
+        ));
+    }
+
+    fs::write(target_root.join("FLEET_ORDERS.txt"), manifest)?;
+    println!(
+        "Initialized {} fleet-order directories under {}",
+        specs.len(),
+        target_root.display()
+    );
+    Ok(())
+}

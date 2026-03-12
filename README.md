@@ -106,16 +106,22 @@ Current Rust milestone:
     `IPBM` count/length verdict, and the most relevant key words in one pass
   - the batch form scans a directory of generated scenarios and prints a
     concise per-directory compliance summary
+  - the batch form now covers `fleet-order`, `planet-build`,
+    `guard-starbase`, and `ipbm`
 - `ec-cli validate <dir> all` now classifies a directory against all currently
   known accepted scenarios and reports which ones match
 - Rust now also has parameterized fleet/build inspection and init commands:
   - `ec-cli fleet-order-report [dir] [fleet_record]`
   - `ec-cli fleet-order-init <target_dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]`
+  - `ec-cli fleet-order-batch-init <target_root> <fleet_record:speed:order:target_x:target_y[:aux0[:aux1]]>...`
   - `ec-cli planet-build-report [dir] [planet_record]`
   - `ec-cli planet-build-init <target_dir> <planet_record> <build_slot_raw> <build_kind_raw>`
+  - `ec-cli planet-build-batch-init <target_root> <planet_record:build_slot_raw:build_kind_raw>...`
   - these default to the compliant `fixtures/ecmaint-post/v1.5` baseline and
     make the fleet/build paths consistent with the existing starbase/IPBM
     report/init workflow
+  - the new batch forms materialize multiple parameterized directories plus
+    manifests in one run
 - `ec-cli validate-preserved <dir> <scenario>` now checks exact byte-for-byte
   agreement with the preserved accepted fixture files for that scenario
 - `ec-cli compare-preserved <dir> <scenario>` now reports scenario-focused
