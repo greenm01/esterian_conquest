@@ -1468,13 +1468,19 @@ fn print_ipbm_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
 
     for (idx, record) in ipbm.records.iter().enumerate() {
         println!(
-            "  record {}: primary={:#06x} owner={} gate={:#06x} follow_on={:#06x}",
+            "  record {}: primary={:#06x} owner={} gate={:#06x} follow_on={:#06x} tags=({:#04x},{:#04x}) tail={:02x?}",
             idx + 1,
             record.primary_word_raw(),
             record.owner_empire_raw(),
             record.gate_word_raw(),
-            record.follow_on_word_raw()
+            record.follow_on_word_raw(),
+            record.tuple_a_tag_raw(),
+            record.tuple_b_tag_raw(),
+            record.trailing_control_raw()
         );
+        println!("    tuple_a={:02x?}", record.tuple_a_payload_raw());
+        println!("    tuple_b={:02x?}", record.tuple_b_payload_raw());
+        println!("    tuple_c={:02x?}", record.tuple_c_payload_raw());
     }
 
     Ok(())

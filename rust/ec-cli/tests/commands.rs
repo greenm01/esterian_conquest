@@ -767,6 +767,7 @@ fn ipbm_record_set_updates_known_structural_prefix_fields() {
         repo_root().join("rust"),
     );
     assert!(report.contains("record 1: primary=0x1234 owner=2 gate=0x4567 follow_on=0x89ab"));
+    assert!(report.contains("tuple_a=[00, 00, 00, 00, 00]"));
 
     let _ = fs::remove_dir_all(&target);
 }

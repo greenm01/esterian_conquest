@@ -90,6 +90,12 @@
           inspect the current count/length state, then materialize a zero-filled
           valid record family that satisfies the known `PLAYER[0x48]` gate,
           then start populating the decoded record prefix fields from Rust
+        - latest refinement:
+          - `ec-data::IpbmRecord` now exposes the currently mapped tuple tags,
+            tuple payload groups, and trailing control bytes
+          - `ec-cli ipbm-report` now prints those groups directly, so Rust-side
+            scenario shaping no longer needs raw hex inspection for the mapped
+            parts of the record
   - `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`
     materializes a runnable scenario directory in one command from a
     compliant baseline

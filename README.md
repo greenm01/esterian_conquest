@@ -81,6 +81,9 @@ Current Rust milestone:
   - these are enough to inspect and satisfy the currently-known
     `PLAYER[0x48]` / `IPBM.DAT` count-length gate from Rust and to start
     emitting non-zero structural record prefixes
+  - `ec-data::IpbmRecord` now also exposes the currently mapped tuple tags,
+    tuple payload groups, and trailing control bytes, and `ec-cli ipbm-report`
+    prints them
 - `ec-cli validate <dir> all` now classifies a directory against all currently
   known accepted scenarios and reports which ones match
 - `ec-cli validate-preserved <dir> <scenario>` now checks exact byte-for-byte

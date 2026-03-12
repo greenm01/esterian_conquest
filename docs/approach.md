@@ -155,6 +155,11 @@ Current concrete Rust milestone:
     - this is enough to keep generated scenarios on the correct side of the
     known `PLAYER[0x48]` / `IPBM.DAT` count gate and to start emitting
     structured non-zero prefix fields without hand-editing bytes
+    - `ec-data::IpbmRecord` now also exposes:
+      - tuple A/B tag bytes
+      - tuple A/B/C payload groups
+      - trailing control bytes
+    - `ec-cli ipbm-report` now prints those structural groups directly
   - `ec-cli validate <dir> all` now gives a quick classification pass across
     the current known accepted scenarios
   - the known accepted scenarios are now centralized behind one Rust-side

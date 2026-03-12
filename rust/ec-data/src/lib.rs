@@ -863,6 +863,54 @@ impl IpbmRecord {
     pub fn set_follow_on_word_raw(&mut self, value: u16) {
         self.raw[0x05..0x07].copy_from_slice(&value.to_le_bytes());
     }
+
+    pub fn tuple_a_tag_raw(&self) -> u8 {
+        self.raw[0x09]
+    }
+
+    pub fn set_tuple_a_tag_raw(&mut self, value: u8) {
+        self.raw[0x09] = value;
+    }
+
+    pub fn tuple_b_tag_raw(&self) -> u8 {
+        self.raw[0x0A]
+    }
+
+    pub fn set_tuple_b_tag_raw(&mut self, value: u8) {
+        self.raw[0x0A] = value;
+    }
+
+    pub fn tuple_a_payload_raw(&self) -> [u8; 5] {
+        copy_array(&self.raw[0x0B..0x10])
+    }
+
+    pub fn set_tuple_a_payload_raw(&mut self, value: [u8; 5]) {
+        self.raw[0x0B..0x10].copy_from_slice(&value);
+    }
+
+    pub fn tuple_b_payload_raw(&self) -> [u8; 5] {
+        copy_array(&self.raw[0x11..0x16])
+    }
+
+    pub fn set_tuple_b_payload_raw(&mut self, value: [u8; 5]) {
+        self.raw[0x11..0x16].copy_from_slice(&value);
+    }
+
+    pub fn tuple_c_payload_raw(&self) -> [u8; 5] {
+        copy_array(&self.raw[0x17..0x1C])
+    }
+
+    pub fn set_tuple_c_payload_raw(&mut self, value: [u8; 5]) {
+        self.raw[0x17..0x1C].copy_from_slice(&value);
+    }
+
+    pub fn trailing_control_raw(&self) -> [u8; 3] {
+        copy_array(&self.raw[0x1D..0x20])
+    }
+
+    pub fn set_trailing_control_raw(&mut self, value: [u8; 3]) {
+        self.raw[0x1D..0x20].copy_from_slice(&value);
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1566,6 +1614,24 @@ mod tests {
         assert_eq!(record.owner_empire_raw(), 0x02);
         assert_eq!(record.gate_word_raw(), 0x4567);
         assert_eq!(record.follow_on_word_raw(), 0x89ab);
+    }
+
+    #[test]
+    fn ipbm_record_setters_round_trip_structural_payload_groups() {
+        let mut record = IpbmRecord { raw: [0u8; IPBM_RECORD_SIZE] };
+        record.set_tuple_a_tag_raw(0x11);
+        record.set_tuple_b_tag_raw(0x22);
+        record.set_tuple_a_payload_raw([1, 2, 3, 4, 5]);
+        record.set_tuple_b_payload_raw([6, 7, 8, 9, 10]);
+        record.set_tuple_c_payload_raw([11, 12, 13, 14, 15]);
+        record.set_trailing_control_raw([0xAA, 0xBB, 0xCC]);
+
+        assert_eq!(record.tuple_a_tag_raw(), 0x11);
+        assert_eq!(record.tuple_b_tag_raw(), 0x22);
+        assert_eq!(record.tuple_a_payload_raw(), [1, 2, 3, 4, 5]);
+        assert_eq!(record.tuple_b_payload_raw(), [6, 7, 8, 9, 10]);
+        assert_eq!(record.tuple_c_payload_raw(), [11, 12, 13, 14, 15]);
+        assert_eq!(record.trailing_control_raw(), [0xAA, 0xBB, 0xCC]);
     }
 
     #[test]
