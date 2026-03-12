@@ -550,6 +550,9 @@ Suggested execution order:
   - on the corrected no-`/L` path, `BPINT 21 3D` breaks inside live `ECGAME`
   - `DOS MCBS` at that stop shows `ECGAME` as PSP `0814`
   - that is currently the best hook for startup RE
+- Important current limitation:
+  - equivalent non-debug launches of `ECGAME.EXE` and `ECGAME.EXE C:\CHAIN.TXT` currently return immediately with no visible `ERRORS.TXT` and no useful file-I/O log entries
+  - so the productive path remains debugger-assisted startup, not plain headless execution
 - Current open-break snapshot:
   - `AX=3D02`, `DS=44A1`, visible `ESI=FABE`
   - dumping `DS:ESI` returned zeroes, so the next task is to recover the real filename register at that first open breakpoint, most likely `DS:DX`

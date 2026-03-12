@@ -173,6 +173,13 @@ Important detail:
   - `DOS MCBS` at that stop shows:
     - `0813        622256     0814          ECGAME`
   - so the live `ECGAME` PSP is again confirmed as `0814` on the current local setup
+- Important contrast:
+  - the equivalent non-debug launches currently return immediately with no visible `ERRORS.TXT`
+  - corrected headless runs of both:
+    - `ECGAME.EXE`
+    - `ECGAME.EXE C:\CHAIN.TXT`
+    produced no observable DOSBox file-I/O log entries before returning to DOS
+  - so the current reproducible startup hook is the debugger-assisted path, not plain non-debug execution
 - First-open breakpoint state captured so far:
   - `AX=3D02`
   - `DS=44A1`
@@ -185,6 +192,7 @@ Current caveat:
 - fixing dropfile generation and argv passing repaired the stale harness layer, but the remaining interactive/local-flow problem is now narrower:
   - several old `DEBUGBOX` scripts also forgot to issue `RUN`, so their fake "game input" was going to the debugger prompt rather than `ECGAME`
   - the first reliable pause point for the corrected no-`/L` path is file-open (`INT 21h / AH=3D`), not keyboard wait
+  - plain non-debug startup still exits too early to give useful file-open traces, so immediate next RE should stay on the debugger-assisted first-open path
   - some old scripts still have brittle debugger prompt handling
   - the currently regenerated `MEMDUMP.BIN` images look like earlier-boot snapshots and still do not expose the later door/parser strings cited from the older `/tmp/ecgboot_chain` work
 
