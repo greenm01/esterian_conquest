@@ -1,0 +1,31 @@
+token=none
+  result: 03-11-2026 6:46pm -> Game file(s) missing or failed integrity check!
+  tok_files: CONQUEST.TOK, DATABASE.TOK, FLEETS.TOK, IPBMS.TOK, MAIN.TOK, MESSAGE.TOK, PLANETS.TOK, PLAYER.TOK, RESULTS.TOK
+
+token=MAIN.TOK
+  result: OK
+  tok_files: MAIN.TOK
+
+token=PLAYER.TOK
+  result: OK
+  tok_files: FLEETS.TOK, MAIN.TOK, PLANETS.TOK, PLAYER.TOK
+
+token=PLANETS.TOK
+  result: OK
+  tok_files: MAIN.TOK, PLANETS.TOK
+
+token=FLEETS.TOK
+  result: OK
+  tok_files: FLEETS.TOK, MAIN.TOK, PLANETS.TOK
+
+token=DATABASE.TOK
+  result: OK
+  tok_files: CONQUEST.TOK, DATABASE.TOK, FLEETS.TOK, IPBMS.TOK, MAIN.TOK, MESSAGE.TOK, PLANETS.TOK, PLAYER.TOK, RESULTS.TOK
+
+token=CONQUEST.TOK
+  result: OK
+  tok_files: CONQUEST.TOK
+
+token=FOO.TOK
+  result: 03-11-2026 6:48pm -> Game file(s) missing or failed integrity check!
+  tok_files: CONQUEST.TOK, DATABASE.TOK, FLEETS.TOK, FOO.TOK, IPBMS.TOK, MAIN.TOK, MESSAGE.TOK, PLANETS.TOK, PLAYER.TOK, RESULTS.TOK

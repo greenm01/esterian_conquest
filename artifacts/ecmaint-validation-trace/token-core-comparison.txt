@@ -1,0 +1,11 @@
+Core validation comparison
+
+First divergence:
+- failing: open PLAYER.DAT
+
+Immediate follow-on:
+- failing+1: seek PLAYER.DAT offset=0 whence=1
+- failing+2: seek PLAYER.DAT offset=0 whence=2
+- failing+3: seek PLAYER.DAT offset=0 whence=0
+- failing+4: read PLAYER.DAT 110
+- failing+5: seek PLAYER.DAT offset=0 whence=1

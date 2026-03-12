@@ -1,0 +1,19 @@
+Early validation comparison
+
+Shared prefix before divergence:
+- open CONQUEST.DAT
+- read CONQUEST.DAT 2085
+- open SETUP.DAT
+- read SETUP.DAT 522
+
+First divergence:
+- bad: open PLAYER.DAT
+
+Immediate follow-on:
+- bad+1: seek PLAYER.DAT offset=0 whence=1
+- bad+2: seek PLAYER.DAT offset=0 whence=2
+- bad+3: seek PLAYER.DAT offset=0 whence=0
+- bad+4: read PLAYER.DAT 110
+- bad+5: seek PLAYER.DAT offset=0 whence=1
+
+Practical difference:

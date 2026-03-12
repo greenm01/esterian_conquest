@@ -1,0 +1,7 @@
+Scenario: bad-raw-starbase2-player-tok
+ERRORS.TXT first line: <none>
+
+open  CONQUEST.DAT
+read  CONQUEST.DAT 2085
+open  SETUP.DAT
+read  SETUP.DAT 522

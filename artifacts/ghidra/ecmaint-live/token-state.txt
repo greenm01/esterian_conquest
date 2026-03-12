@@ -1,0 +1,23 @@
+Program: MEMDUMP.BIN
+
+2000:34fa ecmaint_token_wait_start_time_low
+- <none>
+
+2000:34fc ecmaint_token_wait_start_time_high
+- <none>
+
+2000:2f72 ecmaint_token_wait_result_low
+- <none>
+
+2000:2f74 ecmaint_token_wait_result_high
+- <none>
+
+2000:2f76 ecmaint_token_wait_state_flag
+- <none>
+
+2000:46cc ecmaint_token_timeout_message_ptr_candidate
+- <none>
+
+2000:0653 ecmaint_token_timeout_caption_ptr_candidate
+- <none>
+

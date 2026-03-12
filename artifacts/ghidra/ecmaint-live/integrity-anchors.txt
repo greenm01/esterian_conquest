@@ -1,0 +1,31 @@
+Program: MEMDUMP.BIN
+
+Named anchors:
+- 2000:6d98 ecmaint_integrity_string_cluster
+- 2000:6d9b ecmaint_integrity_restore_entry
+- 2000:5ee4 ecmaint_validate_primary_state
+- 2000:6f7c ecmaint_integrity_recursive_backup_call
+- 2000:841b ecmaint_main_tok_guard_strings
+- 2000:96f8 ecmaint_token_wait_delete_strings
+
+Function at 2000:6d9b
+- name: ecmaint_integrity_restore_entry
+- incoming references:
+  - 2000:6f7f (ecmaint_integrity_restore_entry)
+- first instructions:
+  - 2000:6d9b  PUSH BP
+  - 2000:6d9c  MOV BP,SP
+  - 2000:6d9e  SUB SP,0x2
+  - 2000:6da1  CMP byte ptr [BP + 0x4],0x0
+  - 2000:6da5  JNZ 0x2000:6daa
+  - 2000:6da7  JMP 0x2000:6f20
+  - 2000:6daa  MOV byte ptr [0x634],0x0
+  - 2000:6daf  MOV DI,0x2f78
+  - 2000:6db2  PUSH DS
+  - 2000:6db3  PUSH DI
+  - 2000:6db4  MOV DI,0x6373
+  - 2000:6db7  PUSH CS
+  - 2000:6db8  PUSH DI
+  - 2000:6db9  CALLF 0x3000:4f4c
+  - 2000:6dbe  MOV DI,0x2ff8
+  - 2000:6dc1  PUSH DS

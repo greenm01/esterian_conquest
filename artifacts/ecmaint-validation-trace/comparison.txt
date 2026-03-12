@@ -1,0 +1,162 @@
+Early validation comparison
+
+Shared prefix before divergence:
+- open CONQUEST.DAT
+- read CONQUEST.DAT 2085
+- open SETUP.DAT
+- read SETUP.DAT 522
+- open PLAYER.DAT
+- seek PLAYER.DAT offset=0 whence=1
+- seek PLAYER.DAT offset=0 whence=2
+- seek PLAYER.DAT offset=0 whence=0
+- read PLAYER.DAT 110
+- seek PLAYER.DAT offset=0 whence=1
+- seek PLAYER.DAT offset=0 whence=2
+- seek PLAYER.DAT offset=110 whence=0
+- read PLAYER.DAT 110
+- seek PLAYER.DAT offset=0 whence=1
+- seek PLAYER.DAT offset=0 whence=2
+- seek PLAYER.DAT offset=220 whence=0
+- read PLAYER.DAT 110
+- seek PLAYER.DAT offset=0 whence=1
+- seek PLAYER.DAT offset=0 whence=2
+- seek PLAYER.DAT offset=330 whence=0
+- read PLAYER.DAT 110
+- seek PLAYER.DAT offset=0 whence=1
+- seek PLAYER.DAT offset=0 whence=2
+- seek PLAYER.DAT offset=440 whence=0
+- open PLANETS.DAT
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=0 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=97 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=194 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=291 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=388 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=485 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=582 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=679 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=776 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=873 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=970 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=1067 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=1164 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=1261 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=1358 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=1455 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=1552 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=1649 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=1746 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=1843 whence=0
+- read PLANETS.DAT 97
+- seek PLANETS.DAT offset=0 whence=1
+- seek PLANETS.DAT offset=0 whence=2
+- seek PLANETS.DAT offset=1940 whence=0
+- open FLEETS.DAT
+- seek FLEETS.DAT offset=0 whence=0
+- read FLEETS.DAT 54
+- seek FLEETS.DAT offset=54 whence=0
+- read FLEETS.DAT 54
+- seek FLEETS.DAT offset=108 whence=0
+- read FLEETS.DAT 54
+- seek FLEETS.DAT offset=162 whence=0
+- read FLEETS.DAT 54
+- seek FLEETS.DAT offset=216 whence=0
+- read FLEETS.DAT 54
+- seek FLEETS.DAT offset=270 whence=0
+- read FLEETS.DAT 54
+- seek FLEETS.DAT offset=324 whence=0
+- read FLEETS.DAT 54
+- seek FLEETS.DAT offset=378 whence=0
+- read FLEETS.DAT 54
+- seek FLEETS.DAT offset=432 whence=0
+- read FLEETS.DAT 54
+- seek FLEETS.DAT offset=486 whence=0
+- read FLEETS.DAT 54
+- seek FLEETS.DAT offset=540 whence=0
+- read FLEETS.DAT 54
+- seek FLEETS.DAT offset=594 whence=0
+- read FLEETS.DAT 54
+- seek FLEETS.DAT offset=648 whence=0
+- read FLEETS.DAT 54
+- seek FLEETS.DAT offset=702 whence=0
+- read FLEETS.DAT 54
+- seek FLEETS.DAT offset=756 whence=0
+- read FLEETS.DAT 54
+- seek FLEETS.DAT offset=810 whence=0
+- read FLEETS.DAT 54
+- open BASES.DAT
+
+First divergence:
+- good: seek BASES.DAT offset=0 whence=0
+- bad: seek BASES.DAT offset=35 whence=0
+
+Immediate follow-on:
+- good+1: read BASES.DAT 35
+- bad+1: read BASES.DAT 35
+- good+2: open IPBM.DAT
+- bad+2: open ERRORS.TXT
+- good+3: open DATABASE.DAT
+- bad+3: write ERRORS.TXT 70
+- good+4: read DATABASE.DAT 2000
+- good+5: read DATABASE.DAT 2000
+
+Practical difference:
+- after the shared read/seek sweep, the failing case writes ERRORS.TXT first while the good case reaches normal maintenance output via FLEETS.DAT

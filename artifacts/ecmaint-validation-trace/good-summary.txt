@@ -1,0 +1,4315 @@
+Scenario: good-guard-starbase
+ERRORS.TXT first line: <none>
+
+open  CONQUEST.DAT
+read  CONQUEST.DAT 2085
+open  SETUP.DAT
+read  SETUP.DAT 522
+open  PLAYER.DAT
+seek  PLAYER.DAT offset=0 whence=1
+seek  PLAYER.DAT offset=0 whence=2
+seek  PLAYER.DAT offset=0 whence=0
+read  PLAYER.DAT 110
+seek  PLAYER.DAT offset=0 whence=1
+seek  PLAYER.DAT offset=0 whence=2
+seek  PLAYER.DAT offset=110 whence=0
+read  PLAYER.DAT 110
+seek  PLAYER.DAT offset=0 whence=1
+seek  PLAYER.DAT offset=0 whence=2
+seek  PLAYER.DAT offset=220 whence=0
+read  PLAYER.DAT 110
+seek  PLAYER.DAT offset=0 whence=1
+seek  PLAYER.DAT offset=0 whence=2
+seek  PLAYER.DAT offset=330 whence=0
+read  PLAYER.DAT 110
+seek  PLAYER.DAT offset=0 whence=1
+seek  PLAYER.DAT offset=0 whence=2
+seek  PLAYER.DAT offset=440 whence=0
+open  PLANETS.DAT
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=0 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=97 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=194 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=291 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=388 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=485 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=582 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=679 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=776 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=873 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=970 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1067 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1164 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1261 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1358 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1455 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1552 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1649 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1746 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1843 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1940 whence=0
+open  FLEETS.DAT
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+open  BASES.DAT
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+open  IPBM.DAT
+open  DATABASE.DAT
+read  DATABASE.DAT 2000
+read  DATABASE.DAT 2000
+read  DATABASE.DAT 2000
+read  DATABASE.DAT 2000
+open  DATABASE.DAT
+read  DATABASE.DAT 2000
+read  DATABASE.DAT 2000
+read  DATABASE.DAT 2000
+read  DATABASE.DAT 2000
+open  PLAYER.DAT
+seek  PLAYER.DAT offset=0 whence=1
+seek  PLAYER.DAT offset=0 whence=2
+seek  PLAYER.DAT offset=0 whence=0
+seek  PLAYER.DAT offset=0 whence=1
+seek  PLAYER.DAT offset=0 whence=2
+seek  PLAYER.DAT offset=0 whence=0
+read  PLAYER.DAT 110
+seek  PLAYER.DAT offset=0 whence=1
+seek  PLAYER.DAT offset=0 whence=2
+seek  PLAYER.DAT offset=110 whence=0
+seek  PLAYER.DAT offset=0 whence=1
+seek  PLAYER.DAT offset=0 whence=2
+seek  PLAYER.DAT offset=110 whence=0
+read  PLAYER.DAT 110
+seek  PLAYER.DAT offset=0 whence=1
+seek  PLAYER.DAT offset=0 whence=2
+seek  PLAYER.DAT offset=220 whence=0
+seek  PLAYER.DAT offset=0 whence=1
+seek  PLAYER.DAT offset=0 whence=2
+seek  PLAYER.DAT offset=220 whence=0
+read  PLAYER.DAT 110
+seek  PLAYER.DAT offset=0 whence=1
+seek  PLAYER.DAT offset=0 whence=2
+seek  PLAYER.DAT offset=330 whence=0
+seek  PLAYER.DAT offset=0 whence=1
+seek  PLAYER.DAT offset=0 whence=2
+seek  PLAYER.DAT offset=330 whence=0
+read  PLAYER.DAT 110
+seek  PLAYER.DAT offset=0 whence=1
+seek  PLAYER.DAT offset=0 whence=2
+seek  PLAYER.DAT offset=440 whence=0
+seek  PLAYER.DAT offset=0 whence=1
+seek  PLAYER.DAT offset=0 whence=2
+seek  PLAYER.DAT offset=440 whence=0
+open  PLANETS.DAT
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=0 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=0 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=97 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=97 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=194 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=194 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=291 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=291 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=388 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=388 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=485 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=485 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=582 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=582 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=679 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=679 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=776 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=776 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=873 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=873 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=970 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=970 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1067 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1067 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1164 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1164 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1261 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1261 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1358 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1358 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1455 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1455 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1552 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1552 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1649 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1649 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1746 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1746 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1843 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1843 whence=0
+read  PLANETS.DAT 97
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1940 whence=0
+seek  PLANETS.DAT offset=0 whence=1
+seek  PLANETS.DAT offset=0 whence=2
+seek  PLANETS.DAT offset=1940 whence=0
+open  BASES.DAT
+seek  BASES.DAT offset=0 whence=1
+seek  BASES.DAT offset=0 whence=2
+seek  BASES.DAT offset=0 whence=0
+seek  BASES.DAT offset=0 whence=1
+seek  BASES.DAT offset=0 whence=2
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=1
+seek  BASES.DAT offset=0 whence=2
+seek  BASES.DAT offset=35 whence=0
+seek  BASES.DAT offset=0 whence=1
+seek  BASES.DAT offset=0 whence=2
+seek  BASES.DAT offset=35 whence=0
+open  IPBM.DAT
+seek  IPBM.DAT offset=0 whence=1
+seek  IPBM.DAT offset=0 whence=2
+seek  IPBM.DAT offset=0 whence=0
+seek  IPBM.DAT offset=0 whence=1
+seek  IPBM.DAT offset=0 whence=2
+seek  IPBM.DAT offset=0 whence=0
+open  FLEETS.DAT
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=0 whence=0
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=54 whence=0
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=108 whence=0
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=162 whence=0
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=216 whence=0
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=270 whence=0
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=324 whence=0
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=378 whence=0
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=432 whence=0
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=486 whence=0
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=540 whence=0
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=594 whence=0
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=648 whence=0
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=702 whence=0
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=756 whence=0
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=810 whence=0
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=864 whence=0
+seek  FLEETS.DAT offset=0 whence=1
+seek  FLEETS.DAT offset=0 whence=2
+seek  FLEETS.DAT offset=864 whence=0
+open  FLEETS.DAT
+open  BASES.DAT
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+write FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  BASES.DAT offset=0 whence=0
+write BASES.DAT 35
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+seek  FLEETS.DAT offset=0 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+write FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+open  DATABASE.DAT
+seek  DATABASE.DAT offset=0 whence=1
+seek  DATABASE.DAT offset=0 whence=2
+seek  DATABASE.DAT offset=0 whence=0
+seek  DATABASE.DAT offset=4400 whence=0
+read  DATABASE.DAT 100
+seek  DATABASE.DAT offset=0 whence=1
+seek  DATABASE.DAT offset=0 whence=2
+seek  DATABASE.DAT offset=4500 whence=0
+seek  DATABASE.DAT offset=4400 whence=0
+write DATABASE.DAT 100
+open  DATABASE.DAT
+seek  DATABASE.DAT offset=0 whence=1
+seek  DATABASE.DAT offset=0 whence=2
+seek  DATABASE.DAT offset=0 whence=0
+seek  DATABASE.DAT offset=6500 whence=0
+read  DATABASE.DAT 100
+seek  DATABASE.DAT offset=0 whence=1
+seek  DATABASE.DAT offset=0 whence=2
+seek  DATABASE.DAT offset=6600 whence=0
+seek  DATABASE.DAT offset=6500 whence=0
+write DATABASE.DAT 100
+open  DATABASE.DAT
+seek  DATABASE.DAT offset=0 whence=1
+seek  DATABASE.DAT offset=0 whence=2
+seek  DATABASE.DAT offset=0 whence=0
+seek  DATABASE.DAT offset=3200 whence=0
+read  DATABASE.DAT 100
+seek  DATABASE.DAT offset=0 whence=1
+seek  DATABASE.DAT offset=0 whence=2
+seek  DATABASE.DAT offset=3300 whence=0
+seek  DATABASE.DAT offset=3200 whence=0
+write DATABASE.DAT 100
+open  DATABASE.DAT
+seek  DATABASE.DAT offset=0 whence=1
+seek  DATABASE.DAT offset=0 whence=2
+seek  DATABASE.DAT offset=0 whence=0
+seek  DATABASE.DAT offset=1400 whence=0
+read  DATABASE.DAT 100
+seek  DATABASE.DAT offset=0 whence=1
+seek  DATABASE.DAT offset=0 whence=2
+seek  DATABASE.DAT offset=1500 whence=0
+seek  DATABASE.DAT offset=1400 whence=0
+write DATABASE.DAT 100
+open  FLEETS.DAT
+seek  FLEETS.DAT offset=0 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=54 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=108 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=162 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=216 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=270 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=324 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=378 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=432 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=486 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=540 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=594 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=648 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=702 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=756 whence=0
+read  FLEETS.DAT 54
+seek  FLEETS.DAT offset=810 whence=0
+read  FLEETS.DAT 54
+open  BASES.DAT
+seek  BASES.DAT offset=0 whence=0
+read  BASES.DAT 35
+open  PLAYER.DAT
+seek  PLAYER.DAT offset=0 whence=0
+write PLAYER.DAT 110
+write PLAYER.DAT 110
+write PLAYER.DAT 110
+write PLAYER.DAT 110
+write PLANETS.DAT 97
+write PLANETS.DAT 97
+write PLANETS.DAT 97
+write PLANETS.DAT 97
+write PLANETS.DAT 97
+write PLANETS.DAT 97
+write PLANETS.DAT 97
+write PLANETS.DAT 97
+write PLANETS.DAT 97
+write PLANETS.DAT 97
+write PLANETS.DAT 97
+write PLANETS.DAT 97
+write PLANETS.DAT 97
+write PLANETS.DAT 97
+write PLANETS.DAT 97
+write PLANETS.DAT 97
+write PLANETS.DAT 97
+write PLANETS.DAT 97
+write PLANETS.DAT 97
+write PLANETS.DAT 97
+write CONQUEST.DAT 2085
+write RANKINGS.TXT 128
+write RANKINGS.TXT 128
+write RANKINGS.TXT 128
+write RANKINGS.TXT 128
+write RANKINGS.TXT 128
+write RANKINGS.TXT 128
+write RANKINGS.TXT 128
+write RANKINGS.TXT 128
+write RANKINGS.TXT 128
+write RANKINGS.TXT 116
