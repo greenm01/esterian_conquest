@@ -1,9 +1,11 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::commands::fleet_order::{apply_fleet_order_scenario, validate_fleet_order_scenario};
-use crate::commands::guard_starbase::{apply_guard_starbase_scenario, validate_guard_starbase_scenario};
-use crate::commands::planet_build::{apply_planet_build_scenario, validate_planet_build_scenario};
+use ec_data::CoreGameData;
+
+use crate::commands::fleet_order::apply_fleet_order_scenario;
+use crate::commands::guard_starbase::apply_guard_starbase_scenario;
+use crate::commands::planet_build::apply_planet_build_scenario;
 use crate::support::paths::repo_root;
 use crate::workspace::copy_init_files;
 
@@ -98,22 +100,27 @@ pub(crate) fn validate_known_scenario(
     dir: &Path,
     scenario: KnownScenario,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let data = CoreGameData::load(dir)?;
     match scenario {
-        KnownScenario::FleetOrder => {
-            validate_fleet_order_scenario(dir, 1, 0x03, 0x0C, 0x0F, 0x0D, None, None)
-        }
-        KnownScenario::PlanetBuild => validate_planet_build_scenario(dir, 15, 0x03, 0x01),
-        KnownScenario::GuardStarbase => validate_guard_starbase_scenario(dir),
+        KnownScenario::FleetOrder => validate_fleet_order_data(&data),
+        KnownScenario::PlanetBuild => validate_planet_build_data(&data),
+        KnownScenario::GuardStarbase => validate_guard_starbase_data(&data),
     }
 }
 
 pub(crate) fn validate_all_known_scenarios(
     dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let data = CoreGameData::load(dir)?;
     let mut matched = 0usize;
     for scenario in KnownScenario::all() {
         let name = scenario.name();
-        match validate_known_scenario(dir, scenario) {
+        let result = match scenario {
+            KnownScenario::FleetOrder => validate_fleet_order_data(&data),
+            KnownScenario::PlanetBuild => validate_planet_build_data(&data),
+            KnownScenario::GuardStarbase => validate_guard_starbase_data(&data),
+        };
+        match result {
             Ok(()) => {
                 println!("OK   {name}");
                 matched += 1;
@@ -244,5 +251,56 @@ pub(crate) fn print_known_scenario_details(scenario: KnownScenario) {
     println!("Exact-match files:");
     for name in scenario.exact_match_files() {
         println!("  {name}");
+    }
+}
+
+fn validate_fleet_order_data(data: &CoreGameData) -> Result<(), Box<dyn std::error::Error>> {
+    let errors = data.fleet_order_errors_current_known(1, 0x03, 0x0C, [0x0F, 0x0D], None, None);
+    if errors.is_empty() {
+        println!("Valid fleet-order scenario");
+        println!("  FLEET[1].speed = 3");
+        println!("  FLEET[1].order = 0x0c");
+        println!("  FLEET[1].target = (15, 13)");
+        println!("  FLEET[1].aux = {:02x?}", data.fleets.records[0].mission_aux_bytes());
+        Ok(())
+    } else {
+        Err(errors.join("\n").into())
+    }
+}
+
+fn validate_planet_build_data(data: &CoreGameData) -> Result<(), Box<dyn std::error::Error>> {
+    let errors = data.planet_build_errors_current_known(15, 0x03, 0x01);
+    if errors.is_empty() {
+        println!("Valid planet-build scenario");
+        println!("  PLANET[15].build_slot = 0x03");
+        println!("  PLANET[15].build_kind = 0x01");
+        Ok(())
+    } else {
+        Err(errors.join("\n").into())
+    }
+}
+
+fn validate_guard_starbase_data(data: &CoreGameData) -> Result<(), Box<dyn std::error::Error>> {
+    let errors = data.guard_starbase_onebase_errors_current_known();
+    if errors.is_empty() {
+        println!("Valid guard-starbase scenario");
+        let fleet = &data.fleets.records[0];
+        let player1 = &data.player.records[0];
+        let base = &data.bases.records[0];
+        println!("  PLAYER[1].starbase_count_raw = 1");
+        println!(
+            "  linkage keys: player[44]={} fleet[00]={} fleet[05]={} base[07]={}",
+            player1.starbase_count_raw(),
+            fleet.local_slot_word_raw(),
+            fleet.fleet_id_word_raw(),
+            base.chain_word_raw()
+        );
+        println!(
+            "  one-base guard-starbase linkage holds at coords {:?}",
+            base.coords_raw()
+        );
+        Ok(())
+    } else {
+        Err(errors.join("\n").into())
     }
 }

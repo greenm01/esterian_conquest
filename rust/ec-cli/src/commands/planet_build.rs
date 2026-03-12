@@ -29,30 +29,6 @@ pub(crate) fn apply_planet_build_scenario(dir: &Path) -> Result<(), Box<dyn std:
     Ok(())
 }
 
-pub(crate) fn validate_planet_build_scenario(
-    dir: &Path,
-    record_index_1_based: usize,
-    slot_raw: u8,
-    kind_raw: u8,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
-    let errors = data.planet_build_errors_current_known(record_index_1_based, slot_raw, kind_raw);
-    if errors.is_empty() {
-        println!("Valid planet-build scenario");
-        println!(
-            "  PLANET[{}].build_slot = {:#04x}",
-            record_index_1_based, slot_raw
-        );
-        println!(
-            "  PLANET[{}].build_kind = {:#04x}",
-            record_index_1_based, kind_raw
-        );
-        Ok(())
-    } else {
-        Err(errors.join("\n").into())
-    }
-}
-
 pub(crate) fn print_planet_build_report(
     dir: &Path,
     record_index_1_based: usize,
