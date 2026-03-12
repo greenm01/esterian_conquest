@@ -372,6 +372,11 @@ Rust architecture note:
       four-fleet block topology directly from `FLEETS.DAT`
     - this checks fleet IDs, local slots, and prev/next links across the
       `4 x player_count` roster
+    - it also validates the preserved block payload pattern:
+      - slots `1/2` => `CA=1 ET=1` and max speed `3`
+      - slots `3/4` => `DD=1` and max speed `6`
+      - current speed `0`
+      - constant location and mission bytes within each empire block
     - important caveat: non-player-1 `PLAYER.DAT.fleet_chain_head` words are
       not currently reliable in the preserved 88-byte player model, so generic
       cross-file validation should continue to prefer fleet-table truth over

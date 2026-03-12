@@ -223,6 +223,7 @@ fn core_game_data_initialized_fleet_block_helpers_match_known_fixtures() {
     assert!(data.looks_like_initialized_fleet_blocks_current_known());
     assert_eq!(data.current_known_initialized_fleet_block_head_ids(), vec![1, 5, 9, 13]);
     assert!(data.current_known_initialized_fleet_block_errors().is_empty());
+    assert!(data.current_known_initialized_fleet_payload_errors().is_empty());
 }
 
 #[test]
@@ -242,6 +243,26 @@ fn core_game_data_initialized_fleet_block_errors_catch_broken_local_chain() {
     assert_eq!(
         data.current_known_initialized_fleet_block_errors(),
         vec!["FLEET[2].next_fleet_id expected 3, got 9".to_string()]
+    );
+}
+
+#[test]
+fn core_game_data_initialized_fleet_payload_errors_catch_broken_slot_pattern() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    data.fleets.records[2].raw[0x09] = 3;
+
+    assert_eq!(
+        data.current_known_initialized_fleet_payload_errors(),
+        vec!["FLEET[3].max_speed expected 6, got 3".to_string()]
     );
 }
 

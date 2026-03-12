@@ -210,6 +210,7 @@ impl CoreGameData {
         errors.extend(self.current_known_base_owner_empire_errors());
         errors.extend(self.current_known_all_player_starbase_count_errors());
         errors.extend(self.current_known_initialized_fleet_block_errors());
+        errors.extend(self.current_known_initialized_fleet_payload_errors());
         if self.ipbm.records.len() != expected_ipbm {
             errors.push(format!(
                 "IPBM.DAT record count expected {}, got {}",
@@ -426,6 +427,98 @@ impl CoreGameData {
                 }
             }
         }
+        errors
+    }
+
+    pub fn current_known_initialized_fleet_payload_errors(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+        let player_count = self.conquest.player_count() as usize;
+        let expected_fleet_count = player_count.saturating_mul(4);
+
+        if self.fleets.records.len() != expected_fleet_count {
+            return errors;
+        }
+
+        for (block_idx, group) in self.fleets.records.chunks_exact(4).enumerate() {
+            let expected_loc = group[0].current_location_coords_raw();
+            let expected_mission = group[0].mission_param_bytes().to_vec();
+
+            for (slot_idx, record) in group.iter().enumerate() {
+                let fleet_record_index_1_based = block_idx * 4 + slot_idx + 1;
+                let expected_max_speed = if slot_idx < 2 { 3 } else { 6 };
+                let expected_cur_speed = 0;
+                let expected_ca = if slot_idx < 2 { 1 } else { 0 };
+                let expected_dd = if slot_idx < 2 { 0 } else { 1 };
+                let expected_et = if slot_idx < 2 { 1 } else { 0 };
+                let expected_roe = 6;
+
+                if record.current_location_coords_raw() != expected_loc {
+                    errors.push(format!(
+                        "FLEET[{}].current_location expected {:?}, got {:?}",
+                        fleet_record_index_1_based,
+                        expected_loc,
+                        record.current_location_coords_raw()
+                    ));
+                }
+                if record.mission_param_bytes() != expected_mission.as_slice() {
+                    errors.push(format!(
+                        "FLEET[{}].mission_param_bytes expected {:?}, got {:?}",
+                        fleet_record_index_1_based,
+                        expected_mission,
+                        record.mission_param_bytes()
+                    ));
+                }
+                if record.max_speed() != expected_max_speed {
+                    errors.push(format!(
+                        "FLEET[{}].max_speed expected {}, got {}",
+                        fleet_record_index_1_based,
+                        expected_max_speed,
+                        record.max_speed()
+                    ));
+                }
+                if record.current_speed() != expected_cur_speed {
+                    errors.push(format!(
+                        "FLEET[{}].current_speed expected {}, got {}",
+                        fleet_record_index_1_based,
+                        expected_cur_speed,
+                        record.current_speed()
+                    ));
+                }
+                if record.rules_of_engagement() != expected_roe {
+                    errors.push(format!(
+                        "FLEET[{}].roe expected {}, got {}",
+                        fleet_record_index_1_based,
+                        expected_roe,
+                        record.rules_of_engagement()
+                    ));
+                }
+                if record.cruiser_count() != expected_ca {
+                    errors.push(format!(
+                        "FLEET[{}].cruiser_count expected {}, got {}",
+                        fleet_record_index_1_based,
+                        expected_ca,
+                        record.cruiser_count()
+                    ));
+                }
+                if record.destroyer_count() != expected_dd {
+                    errors.push(format!(
+                        "FLEET[{}].destroyer_count expected {}, got {}",
+                        fleet_record_index_1_based,
+                        expected_dd,
+                        record.destroyer_count()
+                    ));
+                }
+                if record.etac_count() != expected_et {
+                    errors.push(format!(
+                        "FLEET[{}].etac_count expected {}, got {}",
+                        fleet_record_index_1_based,
+                        expected_et,
+                        record.etac_count()
+                    ));
+                }
+            }
+        }
+
         errors
     }
 

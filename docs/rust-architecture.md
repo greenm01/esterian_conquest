@@ -170,6 +170,13 @@ of shared validation. By contrast, non-player-1 `PLAYER.DAT.fleet_chain_head`
 words in the current 88-byte model are not stable enough to treat as generic
 cross-file truth.
 
+That initialized/post-maint fleet model now also includes the current-known
+slot/block payload rules proven by preserved fixtures:
+- slots `1` and `2` carry the cruiser+ETAC loadout with max speed `3`
+- slots `3` and `4` carry the destroyer loadout with max speed `6`
+- current speed is `0` in the preserved baseline
+- location and mission bytes are constant within each four-fleet empire block
+
 Current-known ownership semantics shall also prefer explicit owner fields where
 the file format is stable. `PLANETS.DAT.owner_empire_slot_raw()` and
 `BASES.DAT.owner_empire_raw()` now feed shared per-player ownership counts and
