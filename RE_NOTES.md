@@ -472,6 +472,27 @@ Important detail:
     - the next highest-value mutations should target the still-untested early
       fields in the fixed window, especially the dense `Y/Y/Y` flag run and
       the lines between the initial transport fields and the final numeric IDs
+- Focused remaining-flag cluster mutations also came back negative:
+  - artifact:
+    - `artifacts/ecgame-startup/legacy-door-flag-cluster.json`
+  - script:
+    - `tools/test_ecgame_legacy_door_flag_cluster.py`
+  - tested mutations:
+    - line `7`: `Y` -> `N`
+    - line `8`: `Y` -> `N`
+    - line `9`: `Y` -> `N`
+    - line `17`: `1` -> `2`
+  - all still preserved:
+    - `3FFF -> 3F05..3F10 -> 3FFF -> 3F1A -> 3E01 -> 4C00`
+    - stable loop-local `6 -> 17`
+    - exit code `0x1C`
+  - practical implication:
+    - the dense `Y/Y/Y` flag run also does not appear to be the primary
+      discriminator for the current local startup gate
+    - remaining likely causes are now:
+      - still-untested early lines `3`, `4`, `5`, `11`, `12`, `14`, `15`
+      - or a later semantic/code-side comparison that is insensitive to these
+        obvious line-value tweaks
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
 
 Current caveat:

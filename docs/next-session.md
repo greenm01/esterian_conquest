@@ -774,4 +774,18 @@ Suggested execution order:
       discriminator for the current local startup gate
     - next mutations should target the remaining untested early lines inside
       the fixed window, not the already-tested representatives or the `90` tail
+- Focused flag-cluster result:
+  - artifact:
+    - `artifacts/ecgame-startup/legacy-door-flag-cluster.json`
+  - script:
+    - `tools/test_ecgame_legacy_door_flag_cluster.py`
+  - changing line `7`, `8`, `9`, or `17` also did **not** change:
+    - parser sequence shape
+    - stable loop-local `6 -> 17`
+    - exit `0x1C`
+  - implication:
+    - the dense `Y/Y/Y` flag run is now largely deprioritized too
+    - next likely productive targets are:
+      - lines `3`, `4`, `5`, `11`, `12`, `14`, `15`
+      - or a direct code/counter trace on the `BP+0x0C` comparison path
 - Remaining blocker: the local interactive `ECGAME` flow is still not fully stable because several old scripts have brittle debugger prompt handling, and the freshly regenerated dumps still look like earlier-boot snapshots rather than the richer `/tmp/ecgboot_chain` state referenced in `RE_NOTES.md`.
