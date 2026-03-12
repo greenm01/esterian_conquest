@@ -96,6 +96,11 @@
           - `ec-cli ipbm-report` now prints those groups directly, so Rust-side
             scenario shaping no longer needs raw hex inspection for the mapped
             parts of the record
+        - `ec-cli compliance-report <dir>`
+        - this now gives the quickest Rust-side preflight for the currently
+          mapped integrity-sensitive areas:
+          - Guard Starbase linkage
+          - `IPBM.DAT` count/length state
   - `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`
     materializes a runnable scenario directory in one command from a
     compliant baseline
@@ -130,6 +135,13 @@ Primary project goal:
 - treat the original game and `ECMAINT` as the acceptance oracle for that
   milestone
 - use that milestone as the first concrete step toward a full Rust port
+
+Later serialization-layer milestone:
+
+- add a KDL-backed scenario/order format only after the internal Rust
+  gamestate/order model stabilizes
+- treat that as a layer on top of the compliant generator, not as the next RE
+  milestone
 
 Milestone ladder:
 

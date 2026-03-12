@@ -96,6 +96,19 @@ Long term:
 - reimplement `ECMAINT` behavior in Rust with reproducible outputs
 - preserve compatibility with original save directories and reports
 
+5. Scenario DSL / KDL layer
+
+- add a human-editable scenario/order format only after the internal Rust
+  gamestate and order model stabilizes
+- treat KDL as a serialization layer over the compliant generator, not as the
+  next reverse-engineering target
+- long-term goal:
+  - describe scenarios
+  - describe per-turn player orders
+  - emit gamestate files
+  - run original `ECMAINT`
+  - iterate over a whole game from scripted inputs
+
 Near-term acceptance rule:
 
 - a format/mechanic is not "done" until Rust can emit the relevant state and
@@ -160,6 +173,10 @@ Current concrete Rust milestone:
       - tuple A/B/C payload groups
       - trailing control bytes
     - `ec-cli ipbm-report` now prints those structural groups directly
+  - Rust also now has a combined integrity-focused inspection command:
+    - `ec-cli compliance-report <dir>`
+    - this prints the current Guard Starbase linkage verdict, current `IPBM`
+      count/length verdict, and the most relevant key words in one pass
   - `ec-cli validate <dir> all` now gives a quick classification pass across
     the current known accepted scenarios
   - the known accepted scenarios are now centralized behind one Rust-side

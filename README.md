@@ -16,6 +16,9 @@ Current milestone ladder:
 - `parameterized scenario generation`: started, but incomplete
 - `general compliant gamestate generation`: not there yet
 - `full Rust ECMAINT replacement`: later milestone after the above
+- `scenario DSL / KDL layer`: defer until the internal Rust gamestate/order
+  model stabilizes; add it as a serialization layer on top of the compliant
+  generator rather than as the next RE milestone
 
 Current top-level contents:
 - `original/`: local snapshot of original EC 1.5 files used for preservation and testing
@@ -84,6 +87,10 @@ Current Rust milestone:
   - `ec-data::IpbmRecord` now also exposes the currently mapped tuple tags,
     tuple payload groups, and trailing control bytes, and `ec-cli ipbm-report`
     prints them
+- Rust now also has a combined integrity-focused inspection command:
+  - `ec-cli compliance-report <dir>`
+  - this summarizes the current Guard Starbase linkage verdict, the current
+    `IPBM` count/length verdict, and the most relevant key words in one pass
 - `ec-cli validate <dir> all` now classifies a directory against all currently
   known accepted scenarios and reports which ones match
 - `ec-cli validate-preserved <dir> <scenario>` now checks exact byte-for-byte

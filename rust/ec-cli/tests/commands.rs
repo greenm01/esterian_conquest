@@ -842,6 +842,40 @@ fn ipbm_init_materializes_valid_zero_filled_directory() {
 }
 
 #[test]
+fn compliance_report_summarizes_known_post_fixture_failures() {
+    let stdout = run_ec_cli(&["compliance-report", "fixtures/ecmaint-post/v1.5"]);
+    assert!(stdout.contains("Compliance Report"));
+    assert!(stdout.contains("FAIL guard-starbase-linkage:"));
+    assert!(stdout.contains("OK   ipbm-count-length"));
+    assert!(stdout.contains("Key words: player.starbase_count=0 player.ipbm_count=0"));
+}
+
+#[test]
+fn compliance_report_summarizes_valid_parameterized_guard_starbase_directory() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-compliance-report-{unique}"));
+
+    run_ec_cli_in_dir(
+        &["guard-starbase-init", target.to_str().unwrap(), "12", "9"],
+        repo_root().join("rust"),
+    );
+
+    let stdout = run_ec_cli_in_dir(
+        &["compliance-report", target.to_str().unwrap()],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("OK   guard-starbase-linkage"));
+    assert!(stdout.contains("OK   ipbm-count-length"));
+    assert!(stdout.contains("fleet1.local_slot=1 fleet1.id=1"));
+    assert!(stdout.contains("base1.summary=1 base1.id=1 base1.chain=1 coords=[12, 9]"));
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
 fn validate_guard_starbase_accepts_known_valid_fixture() {
     let stdout = run_ec_cli(&["validate", "fixtures/ecmaint-starbase-pre/v1.5", "guard-starbase"]);
     assert!(stdout.contains("Valid guard-starbase scenario"));
