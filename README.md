@@ -8,6 +8,8 @@ Current focus:
 - building a Rust compatibility/preservation toolchain
 - making Rust-generated gamestate files 100% compliant with the original game
   and `ECMAINT`
+- expanding Rust from fixture copying toward scenario generation from decoded
+  fields
 
 Current top-level contents:
 - `original/`: local snapshot of original EC 1.5 files used for preservation and testing
@@ -24,3 +26,10 @@ Docs:
 - `docs/ghidra-workflow.md`: headless Ghidra install and ECMAINT analysis workflow
 - `docs/planet-report-reference.md`: coordinate-linked scouting/world stat references
 - `docs/next-session.md`: exact restart point for the next ECMAINT experiment
+
+Current Rust milestone:
+- `cargo test -p ec-cli` now verifies that Rust can rewrite a compliant
+  `fixtures/ecmaint-post/v1.5` snapshot into two preserved accepted pre-maint
+  scenarios using decoded fields instead of wholesale fixture replacement:
+  - `ec-cli fleet-order ...` reproduces `fixtures/ecmaint-fleet-pre/v1.5/FLEETS.DAT`
+  - `ec-cli planet-build ...` reproduces `fixtures/ecmaint-build-pre/v1.5/PLANETS.DAT`

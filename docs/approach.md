@@ -72,6 +72,22 @@ Near-term acceptance rule:
   the original binaries accept it without integrity failures or unexpected
   normalization
 
+Current concrete Rust milestone:
+
+- start from a known-good preserved snapshot such as
+  `fixtures/ecmaint-post/v1.5`
+- rewrite only decoded fields in Rust
+- verify the rewritten `.DAT` file matches a preserved accepted pre-maint
+  scenario exactly
+- current confirmed examples:
+  - fleet-order rewrite reproducing `fixtures/ecmaint-fleet-pre/v1.5/FLEETS.DAT`
+  - planet build-queue rewrite reproducing
+    `fixtures/ecmaint-build-pre/v1.5/PLANETS.DAT`
+
+This is intentionally narrower than a full arbitrary save generator, but it is
+the first real proof that the Rust layer can emit accepted gamestate files from
+decoded state rather than only copy fixture trees.
+
 ## Current Strategy
 
 Near-term effort should prioritize `ECMAINT`.

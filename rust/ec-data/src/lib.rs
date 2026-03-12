@@ -11,6 +11,8 @@ pub const PLANETS_DAT_SIZE: usize = PLANET_RECORD_SIZE * PLANET_RECORD_COUNT;
 pub const FLEET_RECORD_SIZE: usize = 54;
 pub const INITIALIZED_FLEET_RECORD_COUNT: usize = 16;
 pub const INITIALIZED_FLEETS_DAT_SIZE: usize = FLEET_RECORD_SIZE * INITIALIZED_FLEET_RECORD_COUNT;
+pub const BASE_RECORD_SIZE: usize = 35;
+pub const IPBM_RECORD_SIZE: usize = 32;
 
 pub const SETUP_DAT_SIZE: usize = 522;
 pub const CONQUEST_DAT_SIZE: usize = 2085;
@@ -242,6 +244,14 @@ impl PlanetRecord {
         self.raw[0x2E]
     }
 
+    pub fn set_build_slot_raw(&mut self, value: u8) {
+        self.raw[0x24] = value;
+    }
+
+    pub fn set_build_kind_raw(&mut self, value: u8) {
+        self.raw[0x2E] = value;
+    }
+
     pub fn population_raw(&self) -> [u8; 6] {
         copy_array(&self.raw[0x52..0x58])
     }
@@ -460,6 +470,10 @@ impl FleetRecord {
         self.raw[0x0A]
     }
 
+    pub fn set_current_speed(&mut self, value: u8) {
+        self.raw[0x0A] = value;
+    }
+
     pub fn current_location_coords_raw(&self) -> [u8; 2] {
         [self.raw[0x0B], self.raw[0x0C]]
     }
@@ -472,12 +486,30 @@ impl FleetRecord {
         self.raw[0x1F]
     }
 
+    pub fn set_standing_order_code_raw(&mut self, value: u8) {
+        self.raw[0x1F] = value;
+    }
+
     pub fn standing_order_kind(&self) -> FleetStandingOrderKind {
         FleetStandingOrderKind::from_raw(self.standing_order_code_raw())
     }
 
     pub fn standing_order_target_coords_raw(&self) -> [u8; 2] {
         [self.raw[0x20], self.raw[0x21]]
+    }
+
+    pub fn set_standing_order_target_coords_raw(&mut self, coords: [u8; 2]) {
+        self.raw[0x20] = coords[0];
+        self.raw[0x21] = coords[1];
+    }
+
+    pub fn mission_aux_bytes(&self) -> [u8; 2] {
+        [self.raw[0x22], self.raw[0x23]]
+    }
+
+    pub fn set_mission_aux_bytes(&mut self, value: [u8; 2]) {
+        self.raw[0x22] = value[0];
+        self.raw[0x23] = value[1];
     }
 
     pub fn standing_order_summary(&self) -> String {
@@ -595,6 +627,124 @@ impl FleetDat {
             records: data
                 .chunks_exact(FLEET_RECORD_SIZE)
                 .map(|chunk| FleetRecord {
+                    raw: copy_array(chunk),
+                })
+                .collect(),
+        })
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.records
+            .iter()
+            .flat_map(|record| record.raw)
+            .collect::<Vec<_>>()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BaseRecord {
+    pub raw: [u8; BASE_RECORD_SIZE],
+}
+
+impl BaseRecord {
+    pub fn local_slot_raw(&self) -> u8 {
+        self.raw[0x00]
+    }
+
+    pub fn active_flag_raw(&self) -> u8 {
+        self.raw[0x02]
+    }
+
+    pub fn base_id_raw(&self) -> u8 {
+        self.raw[0x04]
+    }
+
+    pub fn link_word_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x05], self.raw[0x06]])
+    }
+
+    pub fn coords_raw(&self) -> [u8; 2] {
+        [self.raw[0x0B], self.raw[0x0C]]
+    }
+
+    pub fn owner_empire_raw(&self) -> u8 {
+        self.raw[0x22]
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BaseDat {
+    pub records: Vec<BaseRecord>,
+}
+
+impl BaseDat {
+    pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
+        if data.len() % BASE_RECORD_SIZE != 0 {
+            return Err(ParseError::WrongRecordMultiple {
+                file_type: "BASES.DAT",
+                record_size: BASE_RECORD_SIZE,
+                actual: data.len(),
+            });
+        }
+        Ok(Self {
+            records: data
+                .chunks_exact(BASE_RECORD_SIZE)
+                .map(|chunk| BaseRecord {
+                    raw: copy_array(chunk),
+                })
+                .collect(),
+        })
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.records
+            .iter()
+            .flat_map(|record| record.raw)
+            .collect::<Vec<_>>()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IpbmRecord {
+    pub raw: [u8; IPBM_RECORD_SIZE],
+}
+
+impl IpbmRecord {
+    pub fn primary_word_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x00], self.raw[0x01]])
+    }
+
+    pub fn owner_empire_raw(&self) -> u8 {
+        self.raw[0x02]
+    }
+
+    pub fn gate_word_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x03], self.raw[0x04]])
+    }
+
+    pub fn follow_on_word_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x05], self.raw[0x06]])
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IpbmDat {
+    pub records: Vec<IpbmRecord>,
+}
+
+impl IpbmDat {
+    pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
+        if data.len() % IPBM_RECORD_SIZE != 0 {
+            return Err(ParseError::WrongRecordMultiple {
+                file_type: "IPBM.DAT",
+                record_size: IPBM_RECORD_SIZE,
+                actual: data.len(),
+            });
+        }
+        Ok(Self {
+            records: data
+                .chunks_exact(IPBM_RECORD_SIZE)
+                .map(|chunk| IpbmRecord {
                     raw: copy_array(chunk),
                 })
                 .collect(),

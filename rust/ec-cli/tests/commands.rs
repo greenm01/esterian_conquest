@@ -306,3 +306,79 @@ fn com_irq_rewrites_setup_value() {
 
     let _ = fs::remove_dir_all(&target);
 }
+
+#[test]
+fn fleet_order_recreates_known_valid_fleet_pre_fixture() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-fleet-order-{unique}"));
+    fs::create_dir_all(&target).unwrap();
+
+    let fixture = repo_root().join("fixtures/ecmaint-post/v1.5");
+    for name in [
+        "BASES.DAT",
+        "CONQUEST.DAT",
+        "DATABASE.DAT",
+        "FLEETS.DAT",
+        "IPBM.DAT",
+        "MESSAGES.DAT",
+        "PLANETS.DAT",
+        "PLAYER.DAT",
+        "RESULTS.DAT",
+        "SETUP.DAT",
+    ] {
+        fs::copy(fixture.join(name), target.join(name)).unwrap();
+    }
+
+    let stdout = run_ec_cli_in_dir(
+        &["fleet-order", target.to_str().unwrap(), "1", "3", "12", "15", "13"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Fleet record 1 updated: speed=3 order=0x0c target=(15, 13)"));
+
+    let expected = repo_root().join("fixtures/ecmaint-fleet-pre/v1.5/FLEETS.DAT");
+    let actual = fs::read(target.join("FLEETS.DAT")).unwrap();
+    assert_eq!(actual, fs::read(expected).unwrap());
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
+fn planet_build_recreates_known_valid_build_pre_fixture() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-planet-build-{unique}"));
+    fs::create_dir_all(&target).unwrap();
+
+    let fixture = repo_root().join("fixtures/ecmaint-post/v1.5");
+    for name in [
+        "BASES.DAT",
+        "CONQUEST.DAT",
+        "DATABASE.DAT",
+        "FLEETS.DAT",
+        "IPBM.DAT",
+        "MESSAGES.DAT",
+        "PLANETS.DAT",
+        "PLAYER.DAT",
+        "RESULTS.DAT",
+        "SETUP.DAT",
+    ] {
+        fs::copy(fixture.join(name), target.join(name)).unwrap();
+    }
+
+    let stdout = run_ec_cli_in_dir(
+        &["planet-build", target.to_str().unwrap(), "15", "0x03", "0x01"],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Planet record 15 updated: build_slot=0x03 build_kind=0x01"));
+
+    let expected = repo_root().join("fixtures/ecmaint-build-pre/v1.5/PLANETS.DAT");
+    let actual = fs::read(target.join("PLANETS.DAT")).unwrap();
+    assert_eq!(actual, fs::read(expected).unwrap());
+
+    let _ = fs::remove_dir_all(&target);
+}

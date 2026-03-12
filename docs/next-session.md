@@ -3,6 +3,20 @@
 - Exhaustively proved that `DS:16A4` is never set to 1 due to a likely developer typo (command line `/B` sets `16A2`, but the integrity check tests `16A4`).
 - Discovered the true reason `.TOK` files "bypass" the crash: the presence of `Move.Tok` triggers an automatic restore of `.SAV` backups over the `.DAT` files prior to the integrity check, causing the repaired files to pass naturally.
 - Documented findings in `token-investigation.md`.
+- Rust scenario-writer milestone:
+  - `ec-data` now parses `BASES.DAT` (`35`-byte records) and `IPBM.DAT`
+    (`0x20`-byte records) to the current structural level
+  - `ec-cli fleet-order <dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]`
+    rewrites decoded fleet-order fields in place
+  - `ec-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>`
+    rewrites decoded build-queue bytes in place
+  - `cargo test -p ec-cli` now proves two exact fixture recreations from the
+    compliant `fixtures/ecmaint-post/v1.5` baseline:
+    - `FLEETS.DAT` for `fixtures/ecmaint-fleet-pre/v1.5`
+    - `PLANETS.DAT` for `fixtures/ecmaint-build-pre/v1.5`
+  - practical meaning:
+    - Rust can now emit accepted pre-maint scenario files from decoded fields,
+      not just copy preserved fixture trees wholesale
 
 ## Next Steps
 The token-gate investigation is complete. The next work should return to the
@@ -94,6 +108,12 @@ Primary project goal:
          - Rust-side compliant gamestate generation will need fleet/base
            linkage values that survive this summary pairing, not just
            individually plausible records
+   - Next Rust-facing target:
+     - map the base-side summary emitter strongly enough to name `3558/355A`
+       and turn the current kind-`1` / kind-`2` pairing rule into a Rust-side
+       validation helper for Guard Starbase scenarios
+     - once those keys are named, add a Rust command that emits an accepted
+       Guard Starbase pre-maint scenario from a compliant baseline
 
 2. `IPBM.DAT` resolution
    - Practical status: structurally complete enough for Rust-side compliant

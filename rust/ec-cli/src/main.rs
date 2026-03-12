@@ -2,7 +2,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use ec_data::{ConquestDat, FleetDat, PlanetDat, PlayerDat, SetupDat};
+use ec_data::{BaseDat, ConquestDat, FleetDat, IpbmDat, PlanetDat, PlayerDat, SetupDat};
 
 const INIT_FILES: &[&str] = &[
     "BASES.DAT",
@@ -234,6 +234,68 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or_else(default_fixture_dir);
             print_setup_programs(&dir)?;
         }
+        "fleet-order" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            let Some(record_index) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(speed) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(order_code) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(target_x) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(target_y) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let aux0 = args.next();
+            let aux1 = args.next();
+            set_fleet_order(
+                &dir,
+                parse_usize_1_based(&record_index, "fleet record index")?,
+                parse_u8_arg(&speed, "speed")?,
+                parse_u8_arg(&order_code, "order code")?,
+                parse_u8_arg(&target_x, "target_x")?,
+                parse_u8_arg(&target_y, "target_y")?,
+                aux0.as_deref().map(|value| parse_u8_arg(value, "aux0")).transpose()?,
+                aux1.as_deref().map(|value| parse_u8_arg(value, "aux1")).transpose()?,
+            )?;
+        }
+        "planet-build" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            let Some(record_index) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(slot_raw) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(kind_raw) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            set_planet_build(
+                &dir,
+                parse_usize_1_based(&record_index, "planet record index")?,
+                parse_u8_arg(&slot_raw, "build slot")?,
+                parse_u8_arg(&kind_raw, "build kind")?,
+            )?;
+        }
         _ => print_usage(),
     }
 
@@ -390,6 +452,58 @@ fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
                 println!();
                 println!("Fleets:");
                 println!("  FLEETS.DAT does not match initialized 16x54 layout: {err}");
+            }
+        },
+        Err(_) => {}
+    }
+
+    match fs::read(dir.join("BASES.DAT")) {
+        Ok(bytes) => match BaseDat::parse(&bytes) {
+            Ok(bases) => {
+                println!();
+                println!("Bases:");
+                for (idx, record) in bases.records.iter().enumerate() {
+                    println!(
+                        "  base {:02}: slot={} active={} id={} link={} owner={} coords={:02x?}",
+                        idx + 1,
+                        record.local_slot_raw(),
+                        record.active_flag_raw(),
+                        record.base_id_raw(),
+                        record.link_word_raw(),
+                        record.owner_empire_raw(),
+                        record.coords_raw()
+                    );
+                }
+            }
+            Err(err) => {
+                println!();
+                println!("Bases:");
+                println!("  BASES.DAT does not match 35-byte layout: {err}");
+            }
+        },
+        Err(_) => {}
+    }
+
+    match fs::read(dir.join("IPBM.DAT")) {
+        Ok(bytes) => match IpbmDat::parse(&bytes) {
+            Ok(ipbm) => {
+                println!();
+                println!("IPBM:");
+                for (idx, record) in ipbm.records.iter().enumerate() {
+                    println!(
+                        "  record {:02}: primary={} owner={} gate={} follow_on={}",
+                        idx + 1,
+                        record.primary_word_raw(),
+                        record.owner_empire_raw(),
+                        record.gate_word_raw(),
+                        record.follow_on_word_raw()
+                    );
+                }
+            }
+            Err(err) => {
+                println!();
+                println!("IPBM:");
+                println!("  IPBM.DAT does not match 32-byte layout: {err}");
             }
         },
         Err(_) => {}
@@ -737,6 +851,72 @@ fn set_maintenance_days(dir: &Path, day_names: &[String]) -> Result<(), Box<dyn 
     Ok(())
 }
 
+fn set_fleet_order(
+    dir: &Path,
+    record_index_1_based: usize,
+    speed: u8,
+    order_code: u8,
+    target_x: u8,
+    target_y: u8,
+    aux0: Option<u8>,
+    aux1: Option<u8>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let fleets_path = dir.join("FLEETS.DAT");
+    let mut fleets = FleetDat::parse(&fs::read(&fleets_path)?)?;
+    let record = fleets
+        .records
+        .get_mut(record_index_1_based - 1)
+        .ok_or_else(|| format!("fleet record index out of range: {record_index_1_based}"))?;
+    record.set_current_speed(speed);
+    record.set_standing_order_code_raw(order_code);
+    record.set_standing_order_target_coords_raw([target_x, target_y]);
+    let mut mission_aux = record.mission_aux_bytes();
+    if let Some(value) = aux0 {
+        mission_aux[0] = value;
+    }
+    if let Some(value) = aux1 {
+        mission_aux[1] = value;
+    }
+    record.set_mission_aux_bytes(mission_aux);
+    let final_aux = record.mission_aux_bytes();
+    let _ = record;
+    fs::write(&fleets_path, fleets.to_bytes())?;
+
+    println!(
+        "Fleet record {} updated: speed={} order={:#04x} target=({}, {}) aux={:02x?}",
+        record_index_1_based,
+        speed,
+        order_code,
+        target_x,
+        target_y,
+        final_aux
+    );
+    Ok(())
+}
+
+fn set_planet_build(
+    dir: &Path,
+    record_index_1_based: usize,
+    slot_raw: u8,
+    kind_raw: u8,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let planets_path = dir.join("PLANETS.DAT");
+    let mut planets = PlanetDat::parse(&fs::read(&planets_path)?)?;
+    let record = planets
+        .records
+        .get_mut(record_index_1_based - 1)
+        .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
+    record.set_build_slot_raw(slot_raw);
+    record.set_build_kind_raw(kind_raw);
+    fs::write(&planets_path, planets.to_bytes())?;
+
+    println!(
+        "Planet record {} updated: build_slot={:#04x} build_kind={:#04x}",
+        record_index_1_based, slot_raw, kind_raw
+    );
+    Ok(())
+}
+
 fn weekday_labels() -> [&'static str; 7] {
     ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
 }
@@ -1008,6 +1188,24 @@ fn diff_count(left: &[u8], right: &[u8]) -> usize {
     shared + left.len().abs_diff(right.len())
 }
 
+fn parse_u8_arg(value: &str, label: &str) -> Result<u8, Box<dyn std::error::Error>> {
+    let parsed = if let Some(hex) = value.strip_prefix("0x").or_else(|| value.strip_prefix("0X")) {
+        u8::from_str_radix(hex, 16)?
+    } else {
+        value.parse::<u8>()?
+    };
+    let _ = label;
+    Ok(parsed)
+}
+
+fn parse_usize_1_based(value: &str, label: &str) -> Result<usize, Box<dyn std::error::Error>> {
+    let parsed = value.parse::<usize>()?;
+    if parsed == 0 {
+        return Err(format!("{label} must be >= 1").into());
+    }
+    Ok(parsed)
+}
+
 fn print_usage() {
     println!("Usage:");
     println!("  ec-cli inspect [dir]");
@@ -1018,6 +1216,8 @@ fn print_usage() {
     println!("  ec-cli snoop <dir> <on|off>");
     println!("  ec-cli purge-after [dir]");
     println!("  ec-cli purge-after <dir> <turns>");
+    println!("  ec-cli fleet-order <dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]");
+    println!("  ec-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>");
     println!("  ec-cli match [dir]");
     println!("  ec-cli compare <left_dir> <right_dir>");
     println!("  ec-cli init [source_dir] <target_dir>");
