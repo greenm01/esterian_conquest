@@ -168,12 +168,23 @@ Important detail:
 - Current best local-launch rule:
   - use plain `ECGAME` / `ECGAME.EXE` with normalized `CHAIN.TXT` present in the game directory
   - do **not** rely on `/L` for local play on this build
+- Corrected no-`/L` `DEBUGBOX` probing now proves the plain startup path really does enter the game process:
+  - with `BPINT 21 3D` armed, `DEBUGBOX ECGAME.EXE` hits the first DOS open breakpoint
+  - `DOS MCBS` at that stop shows:
+    - `0813        622256     0814          ECGAME`
+  - so the live `ECGAME` PSP is again confirmed as `0814` on the current local setup
+- First-open breakpoint state captured so far:
+  - `AX=3D02`
+  - `DS=44A1`
+  - visible debugger output also showed `ESI=FABE`
+  - dumping `DS:ESI` was all zeroes, so the real filename pointer still needs one more pass via the correct register field (`DS:DX` is the main candidate)
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
 
 Current caveat:
 
 - fixing dropfile generation and argv passing repaired the stale harness layer, but the remaining interactive/local-flow problem is now narrower:
   - several old `DEBUGBOX` scripts also forgot to issue `RUN`, so their fake "game input" was going to the debugger prompt rather than `ECGAME`
+  - the first reliable pause point for the corrected no-`/L` path is file-open (`INT 21h / AH=3D`), not keyboard wait
   - some old scripts still have brittle debugger prompt handling
   - the currently regenerated `MEMDUMP.BIN` images look like earlier-boot snapshots and still do not expose the later door/parser strings cited from the older `/tmp/ecgboot_chain` work
 

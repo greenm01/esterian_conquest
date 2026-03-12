@@ -546,4 +546,11 @@ Suggested execution order:
   - the best current local-launch assumption is plain `ECGAME` / `ECGAME.EXE` with normalized `CHAIN.TXT` auto-detection, not `ECGAME /L`
 - Another stale-script bug:
   - several old `DEBUGBOX` helpers never issued `RUN`, so their later `send()` calls were targeting the debugger prompt instead of the game
+- New reliable `ECGAME` pause point:
+  - on the corrected no-`/L` path, `BPINT 21 3D` breaks inside live `ECGAME`
+  - `DOS MCBS` at that stop shows `ECGAME` as PSP `0814`
+  - that is currently the best hook for startup RE
+- Current open-break snapshot:
+  - `AX=3D02`, `DS=44A1`, visible `ESI=FABE`
+  - dumping `DS:ESI` returned zeroes, so the next task is to recover the real filename register at that first open breakpoint, most likely `DS:DX`
 - Remaining blocker: the local interactive `ECGAME` flow is still not fully stable because several old scripts have brittle debugger prompt handling, and the freshly regenerated dumps still look like earlier-boot snapshots rather than the richer `/tmp/ecgboot_chain` state referenced in `RE_NOTES.md`.
