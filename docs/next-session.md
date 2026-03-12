@@ -146,6 +146,17 @@ Later serialization-layer milestone:
 - treat that as a layer on top of the compliant generator, not as the next RE
   milestone
 
+Rust architecture note:
+
+- recent refactor milestone:
+  - `ec-cli` Guard Starbase/IPBM logic now lives in command submodules
+  - shared argument/path helpers now live under `ec-cli/src/support/`
+  - `ec-data` and `ec-tui` tests now live in crate `tests/` directories
+- preserve this direction:
+  - data-oriented layout
+  - feature/domain submodules
+  - thin `main.rs`
+
 Milestone ladder:
 
 1. Known accepted scenarios

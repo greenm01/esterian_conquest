@@ -34,6 +34,7 @@ Docs:
 - `docs/ecmaint-combat-reference.md`: combat-oriented historical validation references
 - `docs/ghidra-workflow.md`: headless Ghidra install and ECMAINT analysis workflow
 - `docs/planet-report-reference.md`: coordinate-linked scouting/world stat references
+- `docs/rust-architecture.md`: Rust module layout and data-oriented design notes
 - `docs/next-session.md`: exact restart point for the next ECMAINT experiment
 
 Current Rust milestone:

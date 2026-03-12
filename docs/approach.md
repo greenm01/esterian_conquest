@@ -35,6 +35,10 @@ The goal is:
 - `ec-data`: binary formats and typed accessors
 - `ec-cli`: std-only scripting and verification interface
 - `ec-tui`: user-facing terminal UI
+- keep the Rust implementation data-oriented:
+  - explicit record/file data
+  - focused free functions or small impl blocks
+  - feature-oriented submodules instead of monolithic source files
 
 5. Use fixtures to lock in behavior
 
@@ -237,6 +241,11 @@ The current `ECMAINT` workflow is:
 
 This keeps the preservation work grounded in deterministic engine behavior rather
 than in UI rendering.
+
+Rust layout note:
+
+- see `docs/rust-architecture.md` for the current submodule split and the
+  data-oriented design guidance for future refactors
 
 ## Session Handoff
 

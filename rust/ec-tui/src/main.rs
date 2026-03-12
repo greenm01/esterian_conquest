@@ -1,7 +1,7 @@
 use std::env;
 use std::fs;
 use std::io::stdout;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
@@ -10,6 +10,7 @@ use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
 use ec_data::{ConquestDat, FleetDat, PlanetDat, PlayerDat, SetupDat};
+use ec_tui::{AppMode, CliOptions, parse_args, resolve_game_dir};
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -21,18 +22,6 @@ const EC_BLUE_DARK: Color = Color::Rgb(22, 24, 33);
 const EC_GOLD: Color = Color::Rgb(224, 175, 104);
 const EC_CREAM: Color = Color::Rgb(192, 202, 245);
 const EC_BLACK: Color = Color::Rgb(26, 27, 38);
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum AppMode {
-    Player,
-    Util,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-struct CliOptions {
-    mode: AppMode,
-    dir: PathBuf,
-}
 
 #[derive(Debug)]
 struct AppData {
@@ -587,101 +576,10 @@ fn load_app_data(dir: &Path) -> Result<AppData, Box<dyn std::error::Error>> {
     })
 }
 
-fn resolve_game_dir(options: CliOptions) -> CliOptions {
-    if looks_like_game_dir(&options.dir) {
-        return options;
-    }
-
-    let repo_default = repo_root().join("fixtures/ecmaint-post/v1.5");
-    if looks_like_game_dir(&repo_default) {
-        CliOptions {
-            mode: options.mode,
-            dir: repo_default,
-        }
-    } else {
-        options
-    }
-}
-
-fn looks_like_game_dir(dir: &Path) -> bool {
-    ["PLAYER.DAT", "PLANETS.DAT", "SETUP.DAT", "CONQUEST.DAT"]
-        .into_iter()
-        .all(|name| dir.join(name).is_file())
-}
-
-fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
-fn parse_args(
-    mut args: impl Iterator<Item = String>,
-    current_dir: PathBuf,
-) -> Result<CliOptions, Box<dyn std::error::Error>> {
-    match args.next() {
-        None => Ok(CliOptions {
-            mode: AppMode::Player,
-            dir: current_dir,
-        }),
-        Some(first) if first == "util" => Ok(CliOptions {
-            mode: AppMode::Util,
-            dir: args.next().map(PathBuf::from).unwrap_or(current_dir),
-        }),
-        Some(first) => Ok(CliOptions {
-            mode: AppMode::Player,
-            dir: PathBuf::from(first),
-        }),
-    }
-}
-
 fn on_off(value: bool) -> &'static str {
     if value { "on" } else { "off" }
 }
 
 fn yes_no(value: bool) -> &'static str {
     if value { "Yes" } else { "No" }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parse_args_defaults_to_player_mode_and_current_dir() {
-        let cwd = PathBuf::from("/tmp/ecgame");
-        let parsed = parse_args(std::iter::empty(), cwd.clone()).unwrap();
-        assert_eq!(
-            parsed,
-            CliOptions {
-                mode: AppMode::Player,
-                dir: cwd,
-            }
-        );
-    }
-
-    #[test]
-    fn parse_args_supports_util_subcommand_and_optional_dir() {
-        let cwd = PathBuf::from("/tmp/ecgame");
-        let parsed = parse_args(
-            ["util", "/tmp/ecutil"].into_iter().map(String::from),
-            cwd,
-        )
-        .unwrap();
-        assert_eq!(
-            parsed,
-            CliOptions {
-                mode: AppMode::Util,
-                dir: PathBuf::from("/tmp/ecutil"),
-            }
-        );
-    }
-
-    #[test]
-    fn resolve_game_dir_falls_back_to_repo_post_maint_snapshot() {
-        let options = CliOptions {
-            mode: AppMode::Util,
-            dir: PathBuf::from("/tmp/not-a-game-dir"),
-        };
-        let resolved = resolve_game_dir(options);
-        assert!(resolved.dir.ends_with("fixtures/ecmaint-post/v1.5"));
-    }
 }

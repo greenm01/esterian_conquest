@@ -1,0 +1,141 @@
+use std::fs;
+use std::path::Path;
+
+use ec_data::{IpbmDat, IpbmRecord, PlayerDat, IPBM_RECORD_SIZE};
+
+use crate::INIT_FILES;
+
+pub(crate) fn print_ipbm_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let player = PlayerDat::parse(&fs::read(dir.join("PLAYER.DAT"))?)?;
+    let ipbm_bytes = fs::read(dir.join("IPBM.DAT"))?;
+    let ipbm = IpbmDat::parse(&ipbm_bytes)?;
+
+    println!("IPBM Report");
+    println!("  dir={}", dir.display());
+    println!("  player[1].ipbm_count_raw={}", player.records[0].ipbm_count_raw());
+    println!("  file_record_count={}", ipbm.records.len());
+    println!("  file_size={}", ipbm_bytes.len());
+    println!(
+        "  expected_size_from_player1={}",
+        player.records[0].ipbm_count_raw() as usize * IPBM_RECORD_SIZE
+    );
+
+    for (idx, record) in ipbm.records.iter().enumerate() {
+        println!(
+            "  record {}: primary={:#06x} owner={} gate={:#06x} follow_on={:#06x} tags=({:#04x},{:#04x}) tail={:02x?}",
+            idx + 1,
+            record.primary_word_raw(),
+            record.owner_empire_raw(),
+            record.gate_word_raw(),
+            record.follow_on_word_raw(),
+            record.tuple_a_tag_raw(),
+            record.tuple_b_tag_raw(),
+            record.trailing_control_raw()
+        );
+        println!("    tuple_a={:02x?}", record.tuple_a_payload_raw());
+        println!("    tuple_b={:02x?}", record.tuple_b_payload_raw());
+        println!("    tuple_c={:02x?}", record.tuple_c_payload_raw());
+    }
+
+    Ok(())
+}
+
+pub(crate) fn set_ipbm_zero_records(
+    dir: &Path,
+    count: u16,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let player_path = dir.join("PLAYER.DAT");
+    let mut player = PlayerDat::parse(&fs::read(&player_path)?)?;
+    player.records[0].set_ipbm_count_raw(count);
+    fs::write(&player_path, player.to_bytes())?;
+
+    let mut ipbm = IpbmDat { records: Vec::new() };
+    for _ in 0..count {
+        ipbm.records.push(IpbmRecord {
+            raw: [0u8; IPBM_RECORD_SIZE],
+        });
+    }
+    fs::write(dir.join("IPBM.DAT"), ipbm.to_bytes())?;
+
+    println!("IPBM zero records written");
+    println!("  player[1].ipbm_count_raw = {}", count);
+    println!("  IPBM.DAT size = {}", ipbm.to_bytes().len());
+    Ok(())
+}
+
+pub(crate) fn set_ipbm_record_prefix(
+    dir: &Path,
+    record_index_1_based: usize,
+    primary: u16,
+    owner: u8,
+    gate: u16,
+    follow_on: u16,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let ipbm_path = dir.join("IPBM.DAT");
+    let mut ipbm = IpbmDat::parse(&fs::read(&ipbm_path)?)?;
+    let record = ipbm
+        .records
+        .get_mut(record_index_1_based - 1)
+        .ok_or_else(|| format!("ipbm record index out of range: {record_index_1_based}"))?;
+    record.set_primary_word_raw(primary);
+    record.set_owner_empire_raw(owner);
+    record.set_gate_word_raw(gate);
+    record.set_follow_on_word_raw(follow_on);
+    fs::write(&ipbm_path, ipbm.to_bytes())?;
+
+    println!("IPBM record {} updated", record_index_1_based);
+    println!(
+        "  primary={:#06x} owner={} gate={:#06x} follow_on={:#06x}",
+        primary, owner, gate, follow_on
+    );
+    Ok(())
+}
+
+pub(crate) fn validate_ipbm(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let player = PlayerDat::parse(&fs::read(dir.join("PLAYER.DAT"))?)?;
+    let ipbm_bytes = fs::read(dir.join("IPBM.DAT"))?;
+    let ipbm = IpbmDat::parse(&ipbm_bytes)?;
+
+    let expected_count = player.records[0].ipbm_count_raw() as usize;
+    let actual_count = ipbm.records.len();
+    let expected_size = expected_count * IPBM_RECORD_SIZE;
+
+    let mut errors = Vec::new();
+    if actual_count != expected_count {
+        errors.push(format!(
+            "IPBM record count expected {}, got {}",
+            expected_count, actual_count
+        ));
+    }
+    if ipbm_bytes.len() != expected_size {
+        errors.push(format!(
+            "IPBM.DAT size expected {}, got {}",
+            expected_size,
+            ipbm_bytes.len()
+        ));
+    }
+
+    if errors.is_empty() {
+        println!("Valid IPBM count/length state");
+        println!("  player[1].ipbm_count_raw = {}", expected_count);
+        println!("  IPBM.DAT size = {}", ipbm_bytes.len());
+        println!("  record_count = {}", actual_count);
+        Ok(())
+    } else {
+        Err(errors.join("\n").into())
+    }
+}
+
+pub(crate) fn init_ipbm_zero_records(
+    source: &Path,
+    target: &Path,
+    count: u16,
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(target)?;
+    for name in INIT_FILES {
+        fs::copy(source.join(name), target.join(name))?;
+    }
+    set_ipbm_zero_records(target, count)?;
+    println!("IPBM directory initialized at {}", target.display());
+    Ok(())
+}
