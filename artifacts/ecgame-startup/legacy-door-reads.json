@@ -1,0 +1,137 @@
+[
+  {
+    "ax": "3FFF",
+    "read_len": 255,
+    "buffer_offset": "40BC",
+    "expected_offset": 0,
+    "prefix_match": false,
+    "ascii_prefix": "",
+    "head_hex": "1010051405051010051405051010051405051010051405051010051405051010"
+  },
+  {
+    "ax": "3F05",
+    "read_len": 5,
+    "buffer_offset": "40BC",
+    "expected_offset": 255,
+    "prefix_match": true,
+    "ascii_prefix": "COM1:\r\n19200\r\n8\r",
+    "head_hex": "434f4d313a0d0a31393230300d0a380d0a310d0a31393230300d0a590d0a590d"
+  },
+  {
+    "ax": "3F06",
+    "read_len": 6,
+    "buffer_offset": "40BC",
+    "expected_offset": 260,
+    "prefix_match": true,
+    "ascii_prefix": "COM1:\r\n19200\r\n8\r",
+    "head_hex": "434f4d313a0d0a31393230300d0a380d0a310d0a31393230300d0a590d0a590d"
+  },
+  {
+    "ax": "3F07",
+    "read_len": 7,
+    "buffer_offset": "40BC",
+    "expected_offset": 266,
+    "prefix_match": true,
+    "ascii_prefix": "COM1:\r\n19200\r\n8\r",
+    "head_hex": "434f4d313a0d0a31393230300d0a380d0a310d0a31393230300d0a590d0a590d"
+  },
+  {
+    "ax": "3F08",
+    "read_len": 8,
+    "buffer_offset": "40BC",
+    "expected_offset": 273,
+    "prefix_match": true,
+    "ascii_prefix": "COM1:\r\n19200\r\n8\r",
+    "head_hex": "434f4d313a0d0a31393230300d0a380d0a310d0a31393230300d0a590d0a590d"
+  },
+  {
+    "ax": "3F09",
+    "read_len": 9,
+    "buffer_offset": "40BC",
+    "expected_offset": 281,
+    "prefix_match": true,
+    "ascii_prefix": "COM1:\r\n19200\r\n8\r",
+    "head_hex": "434f4d313a0d0a31393230300d0a380d0a310d0a31393230300d0a590d0a590d"
+  },
+  {
+    "ax": "3F0A",
+    "read_len": 10,
+    "buffer_offset": "40BC",
+    "expected_offset": 290,
+    "prefix_match": true,
+    "ascii_prefix": "COM1:\r\n19200\r\n8\r",
+    "head_hex": "434f4d313a0d0a31393230300d0a380d0a310d0a31393230300d0a590d0a590d"
+  },
+  {
+    "ax": "3F0B",
+    "read_len": 11,
+    "buffer_offset": "40BC",
+    "expected_offset": 300,
+    "prefix_match": true,
+    "ascii_prefix": "COM1:\r\n19200\r\n8\r",
+    "head_hex": "434f4d313a0d0a31393230300d0a380d0a310d0a31393230300d0a590d0a590d"
+  },
+  {
+    "ax": "3F0C",
+    "read_len": 12,
+    "buffer_offset": "40BC",
+    "expected_offset": 311,
+    "prefix_match": true,
+    "ascii_prefix": "COM1:\r\n19200\r\n8\r",
+    "head_hex": "434f4d313a0d0a31393230300d0a380d0a310d0a31393230300d0a590d0a590d"
+  },
+  {
+    "ax": "3F0D",
+    "read_len": 13,
+    "buffer_offset": "40BC",
+    "expected_offset": 323,
+    "prefix_match": true,
+    "ascii_prefix": "COM1:\r\n19200\r\n8\r",
+    "head_hex": "434f4d313a0d0a31393230300d0a380d0a310d0a31393230300d0a590d0a590d"
+  },
+  {
+    "ax": "3F0E",
+    "read_len": 14,
+    "buffer_offset": "40BC",
+    "expected_offset": 336,
+    "prefix_match": true,
+    "ascii_prefix": "COM1:\r\n19200\r\n8\r",
+    "head_hex": "434f4d313a0d0a31393230300d0a380d0a310d0a31393230300d0a590d0a590d"
+  },
+  {
+    "ax": "3F0F",
+    "read_len": 15,
+    "buffer_offset": "40BC",
+    "expected_offset": 350,
+    "prefix_match": true,
+    "ascii_prefix": "COM1:\r\n19200\r\n8\r",
+    "head_hex": "434f4d313a0d0a31393230300d0a380d0a310d0a31393230300d0a590d0a590d"
+  },
+  {
+    "ax": "3F10",
+    "read_len": 16,
+    "buffer_offset": "40BC",
+    "expected_offset": 365,
+    "prefix_match": true,
+    "ascii_prefix": "COM1:\r\n19200\r\n8\r",
+    "head_hex": "434f4d313a0d0a31393230300d0a380d0a310d0a31393230300d0a590d0a590d"
+  },
+  {
+    "ax": "3FFF",
+    "read_len": 255,
+    "buffer_offset": "40BC",
+    "expected_offset": 381,
+    "prefix_match": true,
+    "ascii_prefix": "COM1:\r\n19200\r\n8\r\n1\r\n19200\r\nY\r\nY\r\nY\r\nY\r\nSysop First\r\nSysop Last\r\nOrlando, FL\r\n1\r\n1\r\n100\r\n9000\r\n1\r\n2\r\n90\r\n90\r\n90\r\n90\r\n90\r\n90\r\n",
+    "head_hex": "434f4d313a0d0a31393230300d0a380d0a310d0a31393230300d0a590d0a590d"
+  },
+  {
+    "ax": "3F1A",
+    "read_len": 26,
+    "buffer_offset": "40BC",
+    "expected_offset": 636,
+    "prefix_match": true,
+    "ascii_prefix": "COM1:\r\n19200\r\n8\r\n1\r\n19200\r",
+    "head_hex": "434f4d313a0d0a31393230300d0a380d0a310d0a31393230300d0a590d0a590d"
+  }
+]

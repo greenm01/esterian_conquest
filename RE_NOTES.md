@@ -367,6 +367,38 @@ Important detail:
       the deeper local `ECGAME` path
     - the legacy fossil-style `DOOR.SYS` gets materially farther into the
       parser and is now the best lead for recovering a usable local harness
+- First structural read-trace on the legacy `DOOR.SYS` path:
+  - artifact:
+    - `artifacts/ecgame-startup/legacy-door-reads.json`
+  - script:
+    - `tools/capture_ecgame_legacy_door_reads.py`
+  - important correction:
+    - the earlier naive model of "each `3Fnn` stop corresponds to a completed
+      DOS read whose returned bytes should advance through the file" does not
+      hold cleanly here
+    - the dumped `0x40BC` buffer remains anchored to the same leading
+      `DOOR.SYS` text prefix across many stops
+  - useful stable facts:
+    - the legacy path repeatedly hits `INT 21h / AH=3F` with:
+      - handle `BX=5`
+      - count `CX=0x80`
+      - buffer `DX=0x40BC`
+    - after the initial `3FFF`, the low byte in `AX` walks upward across many
+      consecutive `3F` stops:
+      - `3F05`
+      - `3F06`
+      - `3F07`
+      - ...
+      - `3F10`
+      - later `3FFF`
+      - then `3F1A`
+    - that strongly suggests the legacy fallback is inside a deeper
+      iterative parser/validator loop, not a single read-and-exit path
+  - practical implication:
+    - the next pass should not treat these stops as simple sequential file
+      reads
+    - the right next target is the code path around the recurring legacy
+      `3F` loop, or a buffer/counter snapshot paired with that loop
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
 
 Current caveat:

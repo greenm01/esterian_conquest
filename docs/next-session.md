@@ -706,4 +706,27 @@ Suggested execution order:
       deeper local `ECGAME` startup
     - next pass should start by preserving/probing the legacy fossil-style
       `DOOR.SYS` shape, not by iterating more on the current shared one
+- New parser-structure clue on that legacy path:
+  - artifact:
+    - `artifacts/ecgame-startup/legacy-door-reads.json`
+  - script:
+    - `tools/capture_ecgame_legacy_door_reads.py`
+  - confirmed:
+    - the legacy path repeatedly hits `AH=3F` with the same:
+      - `BX=5`
+      - `CX=0x80`
+      - `DX=0x40BC`
+    - while the low byte in `AX` walks through:
+      - `3F05`
+      - `3F06`
+      - `3F07`
+      - ...
+      - `3F10`
+      - later `3FFF`
+      - `3F1A`
+  - implication:
+    - this is a deeper iterative parser/validator loop, not just one or two
+      simple file reads
+    - next work should target the code/counter logic around that recurring
+      legacy `3F` loop
 - Remaining blocker: the local interactive `ECGAME` flow is still not fully stable because several old scripts have brittle debugger prompt handling, and the freshly regenerated dumps still look like earlier-boot snapshots rather than the richer `/tmp/ecgboot_chain` state referenced in `RE_NOTES.md`.
