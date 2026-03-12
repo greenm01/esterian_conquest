@@ -1,17 +1,13 @@
 import os
-import re
 import shutil
 import time
 from pathlib import Path
-
-import pexpect
 
 from ecgame_dropfiles import write_chain_txt
 from pexpect_argv import spawn_argv
 
 
-TARGET = Path("/tmp/ecgame-boot-dump")
-MEMDUMP_SIZE = 0x97EB0
+TARGET = Path("/tmp/ecgame-mcb")
 
 
 def prepare_target() -> None:
@@ -69,23 +65,14 @@ def main() -> None:
         time.sleep(8)
         child.sendline("DOS MCBS")
         time.sleep(2)
-        output = ""
-        try:
-            output += child.read_nonblocking(size=4096, timeout=0.5)
-        except Exception:
-            pass
-        (TARGET / "DOS_MCBS.txt").write_text(output, encoding="utf-8", errors="replace")
-        match = re.search(r"(?m)^LOG:\\s+([0-9A-F]{4})\\s+[0-9]+\\s+([0-9A-F]{4}).*ECGAME", output)
-        if match:
-            (TARGET / "PSP.txt").write_text(
-                f"MCB={match.group(1)}\nPSP={match.group(2)}\n",
-                encoding="ascii",
-            )
-        child.sendline("MEMDUMPBIN 0814:0000 97eb0")
-        time.sleep(2)
-        child.sendline("EXIT")
-        child.close()
-        print(f"Captured {TARGET / 'MEMDUMP.BIN'}")
+        text = ""
+        while True:
+            try:
+                text += child.read_nonblocking(size=4096, timeout=0.2)
+            except Exception:
+                break
+        (TARGET / "DOS_MCBS.txt").write_text(text, encoding="utf-8", errors="replace")
+        print(f"Captured {TARGET / 'DOS_MCBS.txt'}")
     finally:
         if child.isalive():
             child.close(force=True)

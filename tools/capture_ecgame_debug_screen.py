@@ -1,17 +1,13 @@
 import os
-import re
 import shutil
 import time
 from pathlib import Path
-
-import pexpect
 
 from ecgame_dropfiles import write_chain_txt
 from pexpect_argv import spawn_argv
 
 
-TARGET = Path("/tmp/ecgame-boot-dump")
-MEMDUMP_SIZE = 0x97EB0
+TARGET = Path("/tmp/ecgame-debug-screen")
 
 
 def prepare_target() -> None:
@@ -66,22 +62,12 @@ def main() -> None:
 
     child = spawn_argv(cmd, env=env, timeout=20, encoding="cp437")
     try:
-        time.sleep(8)
-        child.sendline("DOS MCBS")
-        time.sleep(2)
-        output = ""
-        try:
-            output += child.read_nonblocking(size=4096, timeout=0.5)
-        except Exception:
-            pass
-        (TARGET / "DOS_MCBS.txt").write_text(output, encoding="utf-8", errors="replace")
-        match = re.search(r"(?m)^LOG:\\s+([0-9A-F]{4})\\s+[0-9]+\\s+([0-9A-F]{4}).*ECGAME", output)
-        if match:
-            (TARGET / "PSP.txt").write_text(
-                f"MCB={match.group(1)}\nPSP={match.group(2)}\n",
-                encoding="ascii",
-            )
-        child.sendline("MEMDUMPBIN 0814:0000 97eb0")
+        time.sleep(3)
+        child.sendline("BPINT 16 00")
+        time.sleep(1)
+        child.sendline("RUN")
+        time.sleep(6)
+        child.sendline("MEMDUMPBIN B800:0000 4000")
         time.sleep(2)
         child.sendline("EXIT")
         child.close()

@@ -162,11 +162,18 @@ Important detail:
 - Fresh evidence from the corrected boot-dump run:
   - the old bogus warning `Unknown option l` disappeared once argv was passed as a real argument vector
   - `tools/dump_ecgame_memory.py` resumed producing `/tmp/ecgame-dump/MEMDUMP.BIN`
+- More importantly, once the corrected harness actually reached `ECGAME`, the program itself treated `/L` as a door-file path, not a local-mode switch:
+  - `ERRORS.TXT` recorded `ECGAME: could not find a Door File in path: C:\/L\`
+  - this explains the older contradictory `/L` behavior in stale scripts
+- Current best local-launch rule:
+  - use plain `ECGAME` / `ECGAME.EXE` with normalized `CHAIN.TXT` present in the game directory
+  - do **not** rely on `/L` for local play on this build
 - Once valid, `ECGAME` stopped writing `ERRORS.TXT` and proceeded into the door flow.
 
 Current caveat:
 
 - fixing dropfile generation and argv passing repaired the stale harness layer, but the remaining interactive/local-flow problem is now narrower:
+  - several old `DEBUGBOX` scripts also forgot to issue `RUN`, so their fake "game input" was going to the debugger prompt rather than `ECGAME`
   - some old scripts still have brittle debugger prompt handling
   - the currently regenerated `MEMDUMP.BIN` images look like earlier-boot snapshots and still do not expose the later door/parser strings cited from the older `/tmp/ecgboot_chain` work
 

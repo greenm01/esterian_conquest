@@ -541,4 +541,9 @@ Suggested execution order:
 - Confirmed effect:
   - `tools/dump_ecgame_memory.py` once again produces `/tmp/ecgame-dump/MEMDUMP.BIN`
   - the old bogus `Unknown option l` warning disappears under the corrected argv path
+- New `ECGAME` launch clarification:
+  - once the corrected harness truly reaches `ECGAME`, `/L` is interpreted as a door-file path and fails with `C:\/L\`
+  - the best current local-launch assumption is plain `ECGAME` / `ECGAME.EXE` with normalized `CHAIN.TXT` auto-detection, not `ECGAME /L`
+- Another stale-script bug:
+  - several old `DEBUGBOX` helpers never issued `RUN`, so their later `send()` calls were targeting the debugger prompt instead of the game
 - Remaining blocker: the local interactive `ECGAME` flow is still not fully stable because several old scripts have brittle debugger prompt handling, and the freshly regenerated dumps still look like earlier-boot snapshots rather than the richer `/tmp/ecgboot_chain` state referenced in `RE_NOTES.md`.
