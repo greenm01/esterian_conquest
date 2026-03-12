@@ -187,13 +187,15 @@ fn core_game_data_current_known_count_helpers_follow_player1_and_records() {
     assert_eq!(data.player_owned_base_record_counts_current_known(), vec![2, 1, 0, 0, 0]);
     assert_eq!(data.player1_ipbm_count_current_known(), 0);
     let initial_errors = data.current_known_core_state_errors();
-    assert_eq!(initial_errors.len(), 3);
+    assert_eq!(initial_errors.len(), 5);
     assert!(initial_errors.contains(&"PLAYER[1]-owned BASES.DAT record count expected 0, got 2".to_string()));
     assert!(initial_errors.contains(&format!(
         "PLAYER[2]-owned BASES.DAT record count expected {}, got 1",
         data.player.records[1].starbase_count_raw()
     )));
     assert!(initial_errors.contains(&"IPBM.DAT record count expected 0, got 3".to_string()));
+    assert!(initial_errors.contains(&"BASES.DAT expected empty auxiliary baseline, got 3 records".to_string()));
+    assert!(initial_errors.contains(&"IPBM.DAT expected empty auxiliary baseline, got 3 records".to_string()));
 
     data.sync_player1_current_known_counts();
 
@@ -209,7 +211,14 @@ fn core_game_data_current_known_count_helpers_follow_player1_and_records() {
     assert_eq!(data.player_starbase_counts_current_known(), vec![2, 1, 0, 0, 0]);
     assert_eq!(data.player_owned_base_record_counts_current_known(), vec![2, 1, 0, 0, 0]);
     assert_eq!(data.player1_ipbm_count_current_known(), 3);
-    assert!(data.current_known_core_state_errors().is_empty());
+    let post_sync_errors = data.current_known_core_state_errors();
+    assert_eq!(
+        post_sync_errors,
+        vec![
+            "BASES.DAT expected empty auxiliary baseline, got 3 records".to_string(),
+            "IPBM.DAT expected empty auxiliary baseline, got 3 records".to_string(),
+        ]
+    );
 }
 
 #[test]
@@ -232,6 +241,7 @@ fn core_game_data_initialized_fleet_block_helpers_match_known_fixtures() {
     assert!(data.current_known_initialized_planet_ownership_errors().is_empty());
     assert!(data.current_known_homeworld_seed_payload_errors().is_empty());
     assert!(data.current_known_unowned_planet_payload_errors().is_empty());
+    assert!(data.current_known_empty_auxiliary_state_errors().is_empty());
     assert!(data.current_known_initialized_homeworld_alignment_errors().is_empty());
 }
 
@@ -366,6 +376,26 @@ fn core_game_data_homeworld_seed_payload_errors_catch_changed_army_marker() {
 }
 
 #[test]
+fn core_game_data_homeworld_seed_payload_errors_catch_changed_tax_rate() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    data.planets.records[14].raw[0x0E] = 11;
+
+    assert_eq!(
+        data.current_known_homeworld_seed_payload_errors(),
+        vec!["PLANET[15].planet_tax_rate expected 12 for homeworld seed, got 11".to_string()]
+    );
+}
+
+#[test]
 fn core_game_data_unowned_planet_payload_errors_catch_owned_marker() {
     let mut data = CoreGameData {
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
@@ -382,6 +412,46 @@ fn core_game_data_unowned_planet_payload_errors_catch_owned_marker() {
     assert_eq!(
         data.current_known_unowned_planet_payload_errors(),
         vec!["PLANET[1].likely_army_count expected 0 for unowned baseline, got 1".to_string()]
+    );
+}
+
+#[test]
+fn core_game_data_unowned_planet_payload_errors_catch_nonzero_stored_goods() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    data.planets.records[0].raw[0x0A] = 1;
+
+    assert_eq!(
+        data.current_known_unowned_planet_payload_errors(),
+        vec!["PLANET[1].stored_goods_raw expected 0 for unowned baseline, got 1".to_string()]
+    );
+}
+
+#[test]
+fn core_game_data_empty_auxiliary_state_errors_catch_starbase_record() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    data.bases.records.push(BaseRecord::new_zeroed());
+
+    assert_eq!(
+        data.current_known_empty_auxiliary_state_errors(),
+        vec!["BASES.DAT expected empty auxiliary baseline, got 1 records".to_string()]
     );
 }
 

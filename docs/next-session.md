@@ -1068,3 +1068,31 @@ Suggested execution order:
 - Remaining blocker if local startup is revisited later:
   - recover the exact parser comparison between post-loop handoff `06FC` and
     the invalid-data / EOF reporters at `076D` and `01A3`
+
+## Latest Rust Milestones
+
+- Preserved initialized/post-maint auxiliary baseline is now explicit in the
+  shared model:
+  - `BASES.DAT` empty
+  - `IPBM.DAT` empty
+  - guarding-fleet count `0`
+  - `core-report`, `core-validate`, and `core-sync-counts` now expose
+    `empty_auxiliary_state`
+  - count-sync helpers intentionally normalize only the proven count words;
+    they do not erase these baseline errors in synthetic non-baseline states
+
+- Preserved initialized/post-maint planet economy baseline is now explicit in
+  the shared model too:
+  - homeworld seeds keep tax rate `12`
+  - homeworld seeds keep factories payload `[0, 0, 0, 0, 72, 134]`
+  - homeworld seeds keep stored goods `0`
+  - unowned planets keep tax rate `0`
+  - unowned planets keep factories all zero
+  - unowned planets keep stored goods `0`
+  - this closes the remaining obvious planet-side gap in the deterministic
+    initialized/post-maint baseline
+
+- The current 88-byte `PLAYER.DAT` parser model is still too weak/noisy for a
+  comparably broad initialized/post-maint player baseline. Continue extending
+  broader cross-file rules from `PLANETS.DAT`, `FLEETS.DAT`, `BASES.DAT`, and
+  `IPBM.DAT` first unless new player-side RE lands.

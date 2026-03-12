@@ -215,6 +215,7 @@ impl CoreGameData {
         errors.extend(self.current_known_initialized_planet_ownership_errors());
         errors.extend(self.current_known_homeworld_seed_payload_errors());
         errors.extend(self.current_known_unowned_planet_payload_errors());
+        errors.extend(self.current_known_empty_auxiliary_state_errors());
         errors.extend(self.current_known_initialized_homeworld_alignment_errors());
         if self.ipbm.records.len() != expected_ipbm {
             errors.push(format!(
@@ -444,11 +445,32 @@ impl CoreGameData {
                     record.developed_value_raw()
                 ));
             }
+            if record.planet_tax_rate_raw() != 12 {
+                errors.push(format!(
+                    "PLANET[{}].planet_tax_rate expected 12 for homeworld seed, got {}",
+                    planet_index_1_based,
+                    record.planet_tax_rate_raw()
+                ));
+            }
             if record.likely_army_count_raw() != 4 {
                 errors.push(format!(
                     "PLANET[{}].likely_army_count expected 4 for homeworld seed, got {}",
                     planet_index_1_based,
                     record.likely_army_count_raw()
+                ));
+            }
+            if record.factories_raw() != [0, 0, 0, 0, 72, 134] {
+                errors.push(format!(
+                    "PLANET[{}].factories_raw expected [0, 0, 0, 0, 72, 134] for homeworld seed, got {:?}",
+                    planet_index_1_based,
+                    record.factories_raw()
+                ));
+            }
+            if record.stored_goods_raw() != 0 {
+                errors.push(format!(
+                    "PLANET[{}].stored_goods_raw expected 0 for homeworld seed, got {}",
+                    planet_index_1_based,
+                    record.stored_goods_raw()
                 ));
             }
             if record.population_raw() != [0; 6] {
@@ -513,11 +535,32 @@ impl CoreGameData {
                     record.developed_value_raw()
                 ));
             }
+            if record.planet_tax_rate_raw() != 0 {
+                errors.push(format!(
+                    "PLANET[{}].planet_tax_rate expected 0 for unowned baseline, got {}",
+                    planet_index_1_based,
+                    record.planet_tax_rate_raw()
+                ));
+            }
             if record.likely_army_count_raw() != 0 {
                 errors.push(format!(
                     "PLANET[{}].likely_army_count expected 0 for unowned baseline, got {}",
                     planet_index_1_based,
                     record.likely_army_count_raw()
+                ));
+            }
+            if record.factories_raw() != [0; 6] {
+                errors.push(format!(
+                    "PLANET[{}].factories_raw expected all zeroes for unowned baseline, got {:?}",
+                    planet_index_1_based,
+                    record.factories_raw()
+                ));
+            }
+            if record.stored_goods_raw() != 0 {
+                errors.push(format!(
+                    "PLANET[{}].stored_goods_raw expected 0 for unowned baseline, got {}",
+                    planet_index_1_based,
+                    record.stored_goods_raw()
                 ));
             }
             if record.population_raw() != [0; 6] {
@@ -541,6 +584,33 @@ impl CoreGameData {
                     planet_index_1_based
                 ));
             }
+        }
+
+        errors
+    }
+
+    pub fn current_known_empty_auxiliary_state_errors(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+
+        if !self.bases.records.is_empty() {
+            errors.push(format!(
+                "BASES.DAT expected empty auxiliary baseline, got {} records",
+                self.bases.records.len()
+            ));
+        }
+        if !self.ipbm.records.is_empty() {
+            errors.push(format!(
+                "IPBM.DAT expected empty auxiliary baseline, got {} records",
+                self.ipbm.records.len()
+            ));
+        }
+
+        let guarding_fleet_count = self.guarding_fleet_record_indexes_current_known().len();
+        if guarding_fleet_count != 0 {
+            errors.push(format!(
+                "guarding fleet count expected 0 in empty auxiliary baseline, got {}",
+                guarding_fleet_count
+            ));
         }
 
         errors

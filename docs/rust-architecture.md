@@ -200,6 +200,22 @@ The complementary unowned-planet payload baseline is now explicit too:
 - developed value and likely-army markers stay `0`
 - build queue, stardock, and population payloads remain zeroed
 
+That planet baseline now includes the current-known economic payload too:
+- homeworld seeds keep tax rate `12`
+- homeworld seeds keep factories payload `[0, 0, 0, 0, 72, 134]`
+- homeworld seeds keep stored goods at `0`
+- unowned planets keep tax rate `0`
+- unowned planets keep factories all zero
+- unowned planets keep stored goods at `0`
+
+The initialized/post-maint baseline also now treats auxiliary state as
+intentionally empty:
+- `BASES.DAT` is empty
+- `IPBM.DAT` is empty
+- guarding-fleet count is `0`
+- this is a preserved baseline rule, distinct from later scenario-specific
+  valid directories
+
 Current-known ownership semantics shall also prefer explicit owner fields where
 the file format is stable. `PLANETS.DAT.owner_empire_slot_raw()` and
 `BASES.DAT.owner_empire_raw()` now feed shared per-player ownership counts and
