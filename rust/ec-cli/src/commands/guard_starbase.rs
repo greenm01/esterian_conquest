@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::{BaseDat, BaseRecord, FleetDat, PlayerDat};
+use ec_data::{BaseDat, BaseRecord, CoreGameData, FleetDat, PlayerDat};
 
 use crate::INIT_FILES;
 
@@ -18,14 +18,11 @@ pub(crate) fn set_guard_starbase_onebase(
     target_x: u8,
     target_y: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let player_path = dir.join("PLAYER.DAT");
-    let mut player = PlayerDat::parse(&fs::read(&player_path)?)?;
-    player.records[0].set_starbase_count_raw(1);
-    fs::write(&player_path, player.to_bytes())?;
+    let mut data = CoreGameData::load(dir)?;
+    data.player.records[0].set_starbase_count_raw(1);
 
-    let fleets_path = dir.join("FLEETS.DAT");
-    let mut fleets = FleetDat::parse(&fs::read(&fleets_path)?)?;
-    let fleet = fleets
+    let fleet = data
+        .fleets
         .records
         .get_mut(0)
         .ok_or("missing fleet record 1")?;
@@ -47,10 +44,7 @@ pub(crate) fn set_guard_starbase_onebase(
     let tuple_c = fleet.tuple_c_payload_raw();
 
     let _ = fleet;
-    fs::write(&fleets_path, fleets.to_bytes())?;
-
-    let bases_path = dir.join("BASES.DAT");
-    let bases = BaseDat {
+    data.bases = BaseDat {
         records: vec![build_guard_starbase_base_record(
             [target_x, target_y],
             0x01,
@@ -62,7 +56,7 @@ pub(crate) fn set_guard_starbase_onebase(
             tuple_c,
         )],
     };
-    fs::write(&bases_path, bases.to_bytes())?;
+    data.save(dir)?;
 
     println!("  PLAYER[1].starbase_count_raw = 1");
     println!("  FLEET[1].order = 0x04, aux = [01, 01]");
@@ -101,16 +95,14 @@ fn build_guard_starbase_base_record(
 pub(crate) fn validate_guard_starbase_scenario(
     dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let player = PlayerDat::parse(&fs::read(dir.join("PLAYER.DAT"))?)?;
-    let fleets = FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?)?;
-    let bases = BaseDat::parse(&fs::read(dir.join("BASES.DAT"))?)?;
+    let data = CoreGameData::load(dir)?;
 
-    let errors = guard_starbase_errors(&player, &fleets, &bases);
+    let errors = guard_starbase_errors(&data.player, &data.fleets, &data.bases);
 
     if errors.is_empty() {
-        let fleet = &fleets.records[0];
-        let player1 = &player.records[0];
-        let base = &bases.records[0];
+        let fleet = &data.fleets.records[0];
+        let player1 = &data.player.records[0];
+        let base = &data.bases.records[0];
         println!("Valid guard-starbase scenario");
         println!("  PLAYER[1].starbase_count_raw = 1");
         println!(
@@ -262,12 +254,17 @@ pub(crate) fn guard_starbase_errors(
 pub(crate) fn print_guard_starbase_report(
     dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let player = PlayerDat::parse(&fs::read(dir.join("PLAYER.DAT"))?)?;
-    let fleets = FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?)?;
-    let bases = BaseDat::parse(&fs::read(dir.join("BASES.DAT"))?)?;
-
-    let player1 = player.records.first().ok_or("PLAYER.DAT missing record 1")?;
-    let fleet1 = fleets.records.first().ok_or("FLEETS.DAT missing record 1")?;
+    let data = CoreGameData::load(dir)?;
+    let player1 = data
+        .player
+        .records
+        .first()
+        .ok_or("PLAYER.DAT missing record 1")?;
+    let fleet1 = data
+        .fleets
+        .records
+        .first()
+        .ok_or("FLEETS.DAT missing record 1")?;
 
     println!("Guard Starbase Report");
     println!("  dir={}", dir.display());
@@ -287,8 +284,8 @@ pub(crate) fn print_guard_starbase_report(
         fleet1.guard_starbase_enable_raw()
     );
 
-    if let Some(base1) = bases.records.first() {
-        println!("  base_count={}", bases.records.len());
+    if let Some(base1) = data.bases.records.first() {
+        println!("  base_count={}", data.bases.records.len());
         println!(
             "  base[1].slot={} summary_word={} id={} link={:#06x} chain={:#06x} coords={:?} trailing={:?} owner={}",
             base1.local_slot_raw(),

@@ -218,6 +218,20 @@ Rust architecture note:
     - `tests/ecmaint.rs`
     - `tests/common/mod.rs`
   - `ec-data` and `ec-tui` tests now live in crate `tests/` directories
+  - latest multi-file compliance milestone:
+    - `ec-data::CoreGameData` now provides a typed core-directory load/save
+      layer for:
+      - `PLAYER.DAT`
+      - `PLANETS.DAT`
+      - `FLEETS.DAT`
+      - `BASES.DAT`
+      - `IPBM.DAT`
+      - `SETUP.DAT`
+      - `CONQUEST.DAT`
+    - `guard_starbase`, `ipbm`, and `compliance-report` paths now use that
+      shared directory model instead of duplicating per-file load/save logic
+    - this is the first step from scenario-specific file choreography toward
+      a general compliant gamestate model in Rust
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`

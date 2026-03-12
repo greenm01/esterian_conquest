@@ -15,9 +15,11 @@ pub const IPBM_RECORD_SIZE: usize = 32;
 pub const SETUP_DAT_SIZE: usize = 522;
 pub const CONQUEST_DAT_SIZE: usize = 2085;
 pub const MAINTENANCE_DAY_ENABLED_CODES: [u8; 7] = [0x01, 0x01, 0xCA, 0x01, 0x0A, 0x01, 0x26];
+mod directory;
 mod records;
 mod support;
 
+pub use directory::{CoreGameData, GameDirectoryError};
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;
 pub use records::fleet::{FleetDat, FleetRecord, FleetStandingOrderKind};

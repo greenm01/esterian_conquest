@@ -83,6 +83,7 @@ large `commands.rs` file:
 
 `ec-data` is now split into domain modules instead of one large `lib.rs`:
 
+- `src/directory.rs`
 - `src/records/player.rs`
 - `src/records/planet.rs`
 - `src/records/fleet.rs`
@@ -95,8 +96,15 @@ large `commands.rs` file:
 The intended split is:
 
 - `lib.rs`: constants, module wiring, crate-root reexports only
+- `directory.rs`: shared typed multi-file game-directory loading/saving for
+  core `.DAT` workflows
 - `records/`: record/file layouts and deterministic byte transforms
 - `support.rs`: shared parse helpers and errors
+
+This shared directory layer is the preferred way for multi-file compliance and
+scenario commands to operate. Commands shall not reimplement ad hoc
+`PLAYER.DAT`/`FLEETS.DAT`/`BASES.DAT`/`IPBM.DAT` load-save choreography when the
+same workflow can use `ec_data::CoreGameData`.
 
 ## KDL Timing
 

@@ -1,5 +1,8 @@
 mod common;
 
+use std::fs;
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use common::*;
 use ec_data::*;
 
@@ -205,4 +208,48 @@ fn preserved_conquest_year_progression_matches_docs() {
 fn post_maintenance_fixture_exposes_known_schedule_bytes() {
     let post_maint = ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap();
     assert_eq!(post_maint.maintenance_schedule_bytes(), [0x01; 7]);
+}
+
+#[test]
+fn core_game_data_round_trips_post_maintenance_directory() {
+    let source_dir = repo_root().join("fixtures/ecmaint-post/v1.5");
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let temp_dir = std::env::temp_dir().join(format!("ec-data-core-game-{unique}"));
+    fs::create_dir_all(&temp_dir).unwrap();
+
+    for name in [
+        "PLAYER.DAT",
+        "PLANETS.DAT",
+        "FLEETS.DAT",
+        "BASES.DAT",
+        "IPBM.DAT",
+        "SETUP.DAT",
+        "CONQUEST.DAT",
+    ] {
+        fs::copy(source_dir.join(name), temp_dir.join(name)).unwrap();
+    }
+
+    let parsed = CoreGameData::load(&temp_dir).unwrap();
+    parsed.save(&temp_dir).unwrap();
+
+    for name in [
+        "PLAYER.DAT",
+        "PLANETS.DAT",
+        "FLEETS.DAT",
+        "BASES.DAT",
+        "IPBM.DAT",
+        "SETUP.DAT",
+        "CONQUEST.DAT",
+    ] {
+        assert_eq!(
+            fs::read(temp_dir.join(name)).unwrap(),
+            fs::read(source_dir.join(name)).unwrap(),
+            "{name} should round-trip through CoreGameData unchanged"
+        );
+    }
+
+    fs::remove_dir_all(temp_dir).unwrap();
 }
