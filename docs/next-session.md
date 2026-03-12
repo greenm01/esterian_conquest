@@ -9,9 +9,12 @@
     - `src/commands/planet_build.rs`
     - `src/commands/guard_starbase.rs`
     - `src/commands/ipbm.rs`
+    - `src/commands/scenario.rs`
   - `fleet-order` and `planet-build` no longer live as one-off logic inside
     `main.rs`; they now follow the same module/report/init pattern as the
     starbase/IPBM workflows
+  - scenario catalog / init / preserved-validation logic also now lives in its
+    own command module instead of being embedded directly in `main.rs`
   - `ec-data` now parses `BASES.DAT` (`35`-byte records) and `IPBM.DAT`
     (`0x20`-byte records) to the current structural level
   - `ec-cli fleet-order <dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]`

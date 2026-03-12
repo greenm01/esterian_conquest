@@ -41,6 +41,7 @@ For `ec-cli`:
 - `src/commands/planet_build.rs`
 - `src/commands/guard_starbase.rs`
 - `src/commands/ipbm.rs`
+- `src/commands/scenario.rs`
 - `src/support/parse.rs`
 - `src/support/paths.rs`
 

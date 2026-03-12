@@ -3,27 +3,29 @@ mod support;
 
 use std::env;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use ec_data::{BaseDat, ConquestDat, FleetDat, IpbmDat, PlanetDat, PlayerDat, SetupDat};
 use commands::fleet_order::{
-    apply_fleet_order_scenario, fleet_order_errors, init_fleet_order_batch,
-    init_fleet_order_scenario, print_fleet_order_report, set_fleet_order,
-    validate_fleet_order_scenario,
+    fleet_order_errors, init_fleet_order_batch, init_fleet_order_scenario,
+    print_fleet_order_report, set_fleet_order,
 };
 use commands::guard_starbase::{
-    apply_guard_starbase_scenario, guard_starbase_errors, init_guard_starbase_batch,
-    init_guard_starbase_onebase, print_guard_starbase_report, set_guard_starbase_onebase,
-    validate_guard_starbase_scenario,
+    guard_starbase_errors, init_guard_starbase_batch, init_guard_starbase_onebase,
+    print_guard_starbase_report, set_guard_starbase_onebase, validate_guard_starbase_scenario,
 };
 use commands::ipbm::{
     init_ipbm_batch, init_ipbm_zero_records, ipbm_errors, print_ipbm_report,
     set_ipbm_record_prefix, set_ipbm_zero_records, validate_ipbm,
 };
 use commands::planet_build::{
-    apply_planet_build_scenario, init_planet_build_batch, init_planet_build_scenario,
-    planet_build_errors, print_planet_build_report, set_planet_build,
-    validate_planet_build_scenario,
+    init_planet_build_batch, init_planet_build_scenario, planet_build_errors,
+    print_planet_build_report, set_planet_build,
+};
+use commands::scenario::{
+    apply_known_scenario, init_all_known_scenarios, init_known_scenario, print_known_scenario_details,
+    print_known_scenarios, validate_all_known_scenarios, validate_all_preserved_scenarios,
+    validate_known_scenario, validate_preserved_scenario, KnownScenario,
 };
 use support::parse::{
     parse_optional_source_and_target, parse_optional_source_target_and_coord_list,
@@ -33,7 +35,7 @@ use support::parse::{
     parse_target_and_planet_spec_list, parse_u16_arg, parse_u8_arg, parse_usize_1_based,
 };
 use support::paths::{
-    default_fixture_dir, init_fixture_dir, post_maint_fixture_dir, repo_root, resolve_repo_path,
+    default_fixture_dir, init_fixture_dir, post_maint_fixture_dir, resolve_repo_path,
 };
 
 pub(crate) const INIT_FILES: &[&str] = &[
@@ -59,60 +61,6 @@ const ORIGINAL_FILES: &[&str] = &[
     "SETUP.DAT",
 ];
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum KnownScenario {
-    FleetOrder,
-    PlanetBuild,
-    GuardStarbase,
-}
-
-impl KnownScenario {
-    fn all() -> [Self; 3] {
-        [Self::FleetOrder, Self::PlanetBuild, Self::GuardStarbase]
-    }
-
-    fn name(self) -> &'static str {
-        match self {
-            Self::FleetOrder => "fleet-order",
-            Self::PlanetBuild => "planet-build",
-            Self::GuardStarbase => "guard-starbase",
-        }
-    }
-
-    fn parse(value: &str) -> Option<Self> {
-        match value {
-            "fleet-order" => Some(Self::FleetOrder),
-            "planet-build" => Some(Self::PlanetBuild),
-            "guard-starbase" => Some(Self::GuardStarbase),
-            _ => None,
-        }
-    }
-
-    fn description(self) -> &'static str {
-        match self {
-            Self::FleetOrder => "accepted fleet movement/order fixture rooted in FLEETS.DAT",
-            Self::PlanetBuild => "accepted planet build-queue fixture rooted in PLANETS.DAT",
-            Self::GuardStarbase => "accepted one-base guard-starbase fixture spanning PLAYER/FLEETS/BASES",
-        }
-    }
-
-    fn preserved_fixture_dir(self) -> PathBuf {
-        let root = repo_root().join("fixtures");
-        match self {
-            Self::FleetOrder => root.join("ecmaint-fleet-pre/v1.5"),
-            Self::PlanetBuild => root.join("ecmaint-build-pre/v1.5"),
-            Self::GuardStarbase => root.join("ecmaint-starbase-pre/v1.5"),
-        }
-    }
-
-    fn exact_match_files(self) -> &'static [&'static str] {
-        match self {
-            Self::FleetOrder => &["FLEETS.DAT"],
-            Self::PlanetBuild => &["PLANETS.DAT"],
-            Self::GuardStarbase => &["PLAYER.DAT", "FLEETS.DAT", "BASES.DAT"],
-        }
-    }
-}
 
 fn main() {
     if let Err(err) = run() {
@@ -1219,17 +1167,6 @@ fn set_maintenance_days(dir: &Path, day_names: &[String]) -> Result<(), Box<dyn 
     Ok(())
 }
 
-fn apply_known_scenario(
-    dir: &Path,
-    scenario: KnownScenario,
-) -> Result<(), Box<dyn std::error::Error>> {
-    match scenario {
-        KnownScenario::FleetOrder => apply_fleet_order_scenario(dir),
-        KnownScenario::PlanetBuild => apply_planet_build_scenario(dir),
-        KnownScenario::GuardStarbase => apply_guard_starbase_scenario(dir),
-    }
-}
-
 fn print_compliance_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("Compliance Report");
     println!("  dir={}", dir.display());
@@ -1337,91 +1274,6 @@ fn print_compliance_batch_report(root: &Path) -> Result<(), Box<dyn std::error::
     Ok(())
 }
 
-fn validate_known_scenario(
-    dir: &Path,
-    scenario: KnownScenario,
-) -> Result<(), Box<dyn std::error::Error>> {
-    match scenario {
-        KnownScenario::FleetOrder => {
-            validate_fleet_order_scenario(dir, 1, 0x03, 0x0C, 0x0F, 0x0D, None, None)
-        }
-        KnownScenario::PlanetBuild => validate_planet_build_scenario(dir, 15, 0x03, 0x01),
-        KnownScenario::GuardStarbase => validate_guard_starbase_scenario(dir),
-    }
-}
-
-fn validate_all_known_scenarios(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let mut matched = 0usize;
-    for scenario in KnownScenario::all() {
-        let name = scenario.name();
-        let result = validate_known_scenario(dir, scenario);
-        match result {
-            Ok(()) => {
-                println!("OK   {name}");
-                matched += 1;
-            }
-            Err(err) => {
-                println!("FAIL {name}: {err}");
-            }
-        }
-    }
-
-    if matched == 0 {
-        Err("directory does not match any known accepted scenario".into())
-    } else {
-        Ok(())
-    }
-}
-
-fn validate_preserved_scenario(
-    dir: &Path,
-    scenario: KnownScenario,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let fixture_dir = scenario.preserved_fixture_dir();
-    let mut errors = Vec::new();
-
-    for name in scenario.exact_match_files() {
-        let actual = fs::read(dir.join(name))?;
-        let expected = fs::read(fixture_dir.join(name))?;
-        if actual != expected {
-            errors.push(format!("{name} differs from preserved fixture"));
-        }
-    }
-
-    if errors.is_empty() {
-        println!("Exact preserved match: {}", scenario.name());
-        println!("  fixture: {}", fixture_dir.display());
-        for name in scenario.exact_match_files() {
-            println!("  {name}");
-        }
-        Ok(())
-    } else {
-        Err(errors.join("\n").into())
-    }
-}
-
-fn validate_all_preserved_scenarios(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let mut matched = 0usize;
-    for scenario in KnownScenario::all() {
-        let name = scenario.name();
-        match validate_preserved_scenario(dir, scenario) {
-            Ok(()) => {
-                println!("OK   {name}");
-                matched += 1;
-            }
-            Err(err) => {
-                println!("FAIL {name}: {err}");
-            }
-        }
-    }
-
-    if matched == 0 {
-        Err("directory does not exactly match any preserved accepted scenario".into())
-    } else {
-        Ok(())
-    }
-}
-
 fn compare_preserved_scenario(
     dir: &Path,
     scenario: KnownScenario,
@@ -1447,70 +1299,10 @@ fn compare_all_preserved_scenarios(dir: &Path) -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
-fn init_known_scenario(
-    source: &Path,
-    target: &Path,
-    scenario: KnownScenario,
-) -> Result<(), Box<dyn std::error::Error>> {
-    fs::create_dir_all(target)?;
-    for name in INIT_FILES {
-        fs::copy(source.join(name), target.join(name))?;
-    }
-    apply_known_scenario(target, scenario)?;
-    println!("Scenario directory initialized at {}", target.display());
-    Ok(())
-}
-
-fn init_all_known_scenarios(
-    source: &Path,
-    target_root: &Path,
-) -> Result<(), Box<dyn std::error::Error>> {
-    fs::create_dir_all(target_root)?;
-    let mut manifest = String::new();
-    manifest.push_str("Known scenarios\n");
-    manifest.push_str(&format!("source={}\n", source.display()));
-    manifest.push_str(&format!("target_root={}\n", target_root.display()));
-    manifest.push('\n');
-    for scenario in KnownScenario::all() {
-        let scenario_dir = target_root.join(scenario.name());
-        init_known_scenario(source, &scenario_dir, scenario)?;
-        manifest.push_str(&format!("{}\n", scenario.name()));
-        manifest.push_str(&format!("  description={}\n", scenario.description()));
-        manifest.push_str(&format!("  dir={}\n", scenario_dir.display()));
-        manifest.push_str(&format!(
-            "  validate=ec-cli validate {} {}\n\n",
-            scenario_dir.display(),
-            scenario.name()
-        ));
-    }
-    fs::write(target_root.join("SCENARIOS.txt"), manifest)?;
-    println!("Initialized all known scenarios under {}", target_root.display());
-    Ok(())
-}
-
 fn weekday_labels() -> [&'static str; 7] {
     ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
 }
 
-fn print_known_scenarios() {
-    println!("Known scenarios:");
-    for scenario in KnownScenario::all() {
-        println!("  {}: {}", scenario.name(), scenario.description());
-    }
-}
-
-fn print_known_scenario_details(scenario: KnownScenario) {
-    println!("Scenario: {}", scenario.name());
-    println!("Description: {}", scenario.description());
-    println!(
-        "Preserved fixture: {}",
-        scenario.preserved_fixture_dir().display()
-    );
-    println!("Exact-match files:");
-    for name in scenario.exact_match_files() {
-        println!("  {name}");
-    }
-}
 
 fn com_index(port_name: &str) -> Option<usize> {
     match port_name.to_ascii_lowercase().as_str() {
