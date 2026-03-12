@@ -172,6 +172,17 @@ impl CoreGameData {
         self.player_owned_base_record_count_current_known(1)
     }
 
+    pub fn player_owned_planet_count_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> usize {
+        self.planets
+            .records
+            .iter()
+            .filter(|record| record.owner_empire_slot_raw() as usize == player_record_index_1_based)
+            .count()
+    }
+
     pub fn player_owned_base_record_count_current_known(
         &self,
         player_record_index_1_based: usize,
@@ -195,6 +206,8 @@ impl CoreGameData {
         let mut errors = Vec::new();
         let expected_ipbm = self.player1_ipbm_count_current_known();
 
+        errors.extend(self.current_known_planet_owner_slot_errors());
+        errors.extend(self.current_known_base_owner_empire_errors());
         errors.extend(self.current_known_all_player_starbase_count_errors());
         errors.extend(self.current_known_initialized_fleet_block_errors());
         if self.ipbm.records.len() != expected_ipbm {
@@ -228,6 +241,40 @@ impl CoreGameData {
         errors
     }
 
+    pub fn current_known_planet_owner_slot_errors(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+        let player_count = self.conquest.player_count() as usize;
+        for (idx, record) in self.planets.records.iter().enumerate() {
+            let owner = record.owner_empire_slot_raw() as usize;
+            if owner > player_count {
+                errors.push(format!(
+                    "PLANET[{}].owner_empire_slot expected <= {}, got {}",
+                    idx + 1,
+                    player_count,
+                    owner
+                ));
+            }
+        }
+        errors
+    }
+
+    pub fn current_known_base_owner_empire_errors(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+        let player_count = self.conquest.player_count() as usize;
+        for (idx, record) in self.bases.records.iter().enumerate() {
+            let owner = record.owner_empire_raw() as usize;
+            if owner == 0 || owner > player_count {
+                errors.push(format!(
+                    "BASES[{}].owner_empire expected 1..={}, got {}",
+                    idx + 1,
+                    player_count,
+                    owner
+                ));
+            }
+        }
+        errors
+    }
+
     pub fn sync_player1_current_known_counts(&mut self) {
         self.sync_all_players_current_known_starbase_counts();
         let ipbm_count = self.ipbm.records.len() as u16;
@@ -251,6 +298,14 @@ impl CoreGameData {
         (1..=self.player.records.len())
             .map(|player_record_index_1_based| {
                 self.player_owned_base_record_count_current_known(player_record_index_1_based)
+            })
+            .collect()
+    }
+
+    pub fn player_owned_planet_counts_current_known(&self) -> Vec<usize> {
+        (1..=self.player.records.len())
+            .map(|player_record_index_1_based| {
+                self.player_owned_planet_count_current_known(player_record_index_1_based)
             })
             .collect()
     }

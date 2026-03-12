@@ -170,6 +170,12 @@ of shared validation. By contrast, non-player-1 `PLAYER.DAT.fleet_chain_head`
 words in the current 88-byte model are not stable enough to treat as generic
 cross-file truth.
 
+Current-known ownership semantics shall also prefer explicit owner fields where
+the file format is stable. `PLANETS.DAT.owner_empire_slot_raw()` and
+`BASES.DAT.owner_empire_raw()` now feed shared per-player ownership counts and
+range validation, so broader multi-player compliance work should build on those
+fields before leaning on weaker inferred relationships.
+
 Current expectation:
 
 - `fleet-order`, `planet-build`, `guard-starbase`, `ipbm`, and

@@ -178,6 +178,7 @@ fn core_game_data_current_known_count_helpers_follow_player1_and_records() {
         conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
     };
     assert_eq!(data.player1_starbase_count_current_known(), 0);
+    assert_eq!(data.player_owned_planet_counts_current_known(), vec![1, 1, 1, 1, 0]);
     assert_eq!(data.player1_owned_base_record_count_current_known(), 2);
     assert_eq!(data.player_owned_base_record_counts_current_known(), vec![2, 1, 0, 0, 0]);
     assert_eq!(data.player1_ipbm_count_current_known(), 0);
@@ -199,6 +200,7 @@ fn core_game_data_current_known_count_helpers_follow_player1_and_records() {
     assert_eq!(data.player.records[4].starbase_count_raw(), 0);
     assert_eq!(data.player.records[0].ipbm_count_raw(), 3);
     assert_eq!(data.player1_starbase_count_current_known(), 2);
+    assert_eq!(data.player_owned_planet_counts_current_known(), vec![1, 1, 1, 1, 0]);
     assert_eq!(data.player1_owned_base_record_count_current_known(), 2);
     assert_eq!(data.player_starbase_counts_current_known(), vec![2, 1, 0, 0, 0]);
     assert_eq!(data.player_owned_base_record_counts_current_known(), vec![2, 1, 0, 0, 0]);
@@ -240,6 +242,33 @@ fn core_game_data_initialized_fleet_block_errors_catch_broken_local_chain() {
     assert_eq!(
         data.current_known_initialized_fleet_block_errors(),
         vec!["FLEET[2].next_fleet_id expected 3, got 9".to_string()]
+    );
+}
+
+#[test]
+fn core_game_data_owner_range_errors_catch_invalid_planet_and_base_owners() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat {
+            records: vec![BaseRecord::new_zeroed()],
+        },
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    data.planets.records[0].raw[0x5D] = 9;
+    data.bases.records[0].set_owner_empire_raw(0);
+
+    assert_eq!(
+        data.current_known_planet_owner_slot_errors(),
+        vec!["PLANET[1].owner_empire_slot expected <= 4, got 9".to_string()]
+    );
+    assert_eq!(
+        data.current_known_base_owner_empire_errors(),
+        vec!["BASES[1].owner_empire expected 1..=4, got 0".to_string()]
     );
 }
 

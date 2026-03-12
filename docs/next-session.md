@@ -376,6 +376,13 @@ Rust architecture note:
       not currently reliable in the preserved 88-byte player model, so generic
       cross-file validation should continue to prefer fleet-table truth over
       those player-side words
+  - follow-on owner-range validation:
+    - the shared model now validates `PLANETS.DAT.owner_empire_slot_raw()` and
+      `BASES.DAT.owner_empire_raw()` against `CONQUEST.player_count`
+    - `core-report` now exposes per-player owned-planet counts alongside the
+      existing owned-base and starbase counts
+    - this gives a stronger explicit-owner foundation for broader multi-player
+      compliance work than the weaker player-side chain words
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`
