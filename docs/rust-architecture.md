@@ -298,6 +298,9 @@ That byte-complete baseline now supports an exact-match oracle:
   - `core-validate` checks the current-known structural and semantic rules
   - `core-validate-current-known-baseline` checks byte-identical equality to
     the Rust-generated current-known post-maint baseline
+- that exact oracle now also feeds normal directory classification:
+  - `ec-cli match <dir>` prints `MATCH current-known-post-maint-baseline` when
+    the directory is an exact byte match for the shared Rust baseline model
 
 The shared model also now treats homeworld-seed alignment as a current-known
 multi-player invariant for initialized/post-maint state:

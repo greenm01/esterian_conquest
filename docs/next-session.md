@@ -1249,6 +1249,10 @@ Suggested execution order:
     - this is the first byte-level pass/fail oracle for the shared Rust
       current-known post-maint baseline, not just a structural validator or
       drift report
+  - new exact baseline classification path:
+    - `ec-cli match <dir>` now emits `MATCH current-known-post-maint-baseline`
+      when the directory is an exact byte match for the shared Rust baseline
+      model
       - `BASES.DAT`
       - `IPBM.DAT`
       - `SETUP.DAT`

@@ -16,6 +16,13 @@ fn match_identifies_initialized_fixture() {
 }
 
 #[test]
+fn match_identifies_current_known_post_maint_baseline() {
+    let stdout = run_ec_cli(&["match", "fixtures/ecmaint-post/v1.5"]);
+    assert!(stdout.contains("MATCH current-known-post-maint-baseline"));
+    assert!(stdout.contains("MATCH fixtures/ecmaint-post/v1.5"));
+}
+
+#[test]
 fn scenario_list_prints_known_scenarios() {
     let stdout = run_ec_cli(&["scenario", "original/v1.5", "list"]);
     assert!(stdout.contains("Known scenarios:"));
