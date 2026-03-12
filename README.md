@@ -57,6 +57,9 @@ Current Rust milestone:
 - Rust can now also validate the currently-known accepted one-base Guard
   Starbase shape directly:
   - `ec-cli validate <dir> guard-starbase`
+  - this validator now checks the explicit one-base linkage keys across
+    `PLAYER.DAT`, `FLEETS.DAT`, and `BASES.DAT` instead of only comparing one
+    accepted base record byte-for-byte
 - `ec-cli validate <dir> all` now classifies a directory against all currently
   known accepted scenarios and reports which ones match
 - `ec-cli validate-preserved <dir> <scenario>` now checks exact byte-for-byte

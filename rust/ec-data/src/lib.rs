@@ -168,6 +168,10 @@ impl PlayerRecord {
         self.raw[0x45] = hi;
     }
 
+    pub fn fleet_chain_head_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x40], self.raw[0x41]])
+    }
+
     pub fn last_run_year(&self) -> u16 {
         u16::from_le_bytes([self.raw[0x4E], self.raw[0x4F]])
     }
@@ -456,12 +460,24 @@ impl FleetStandingOrderKind {
 }
 
 impl FleetRecord {
+    pub fn local_slot_word_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x00], self.raw[0x01]])
+    }
+
     pub fn local_slot(&self) -> u8 {
         self.raw[0x00]
     }
 
+    pub fn next_fleet_link_word_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x03], self.raw[0x04]])
+    }
+
     pub fn next_fleet_id(&self) -> u8 {
         self.raw[0x03]
+    }
+
+    pub fn fleet_id_word_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x05], self.raw[0x06]])
     }
 
     pub fn fleet_id(&self) -> u8 {
@@ -515,6 +531,14 @@ impl FleetRecord {
 
     pub fn mission_aux_bytes(&self) -> [u8; 2] {
         [self.raw[0x22], self.raw[0x23]]
+    }
+
+    pub fn guard_starbase_index_raw(&self) -> u8 {
+        self.raw[0x22]
+    }
+
+    pub fn guard_starbase_enable_raw(&self) -> u8 {
+        self.raw[0x23]
     }
 
     pub fn set_mission_aux_bytes(&mut self, value: [u8; 2]) {
@@ -673,6 +697,10 @@ impl BaseRecord {
 
     pub fn active_flag_raw(&self) -> u8 {
         self.raw[0x02]
+    }
+
+    pub fn summary_word_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x02], self.raw[0x03]])
     }
 
     pub fn set_active_flag_raw(&mut self, value: u8) {
@@ -1467,6 +1495,33 @@ mod tests {
                 0x00, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x0D, 0x01,
             ]
         );
+    }
+
+    #[test]
+    fn guard_starbase_related_accessors_expose_linkage_words() {
+        let player = PlayerDat::parse(&read_fixture("PLAYER.DAT")).unwrap();
+        assert_eq!(player.records[0].fleet_chain_head_raw(), 1);
+
+        let fleet_bytes = std::fs::read(
+            repo_root().join("fixtures/ecmaint-starbase-pre/v1.5/FLEETS.DAT"),
+        )
+        .unwrap();
+        let fleets = FleetDat::parse(&fleet_bytes).unwrap();
+        let fleet = &fleets.records[0];
+        assert_eq!(fleet.local_slot_word_raw(), 1);
+        assert_eq!(fleet.next_fleet_link_word_raw(), 2);
+        assert_eq!(fleet.fleet_id_word_raw(), 1);
+        assert_eq!(fleet.guard_starbase_index_raw(), 1);
+        assert_eq!(fleet.guard_starbase_enable_raw(), 1);
+
+        let base_bytes = std::fs::read(
+            repo_root().join("fixtures/ecmaint-starbase-pre/v1.5/BASES.DAT"),
+        )
+        .unwrap();
+        let bases = BaseDat::parse(&base_bytes).unwrap();
+        let base = &bases.records[0];
+        assert_eq!(base.summary_word_raw(), 1);
+        assert_eq!(base.chain_word_raw(), 1);
     }
 
     #[test]

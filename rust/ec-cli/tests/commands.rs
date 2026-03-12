@@ -542,7 +542,8 @@ fn guard_starbase_scenario_recreates_known_valid_starbase_pre_fixture() {
 fn validate_guard_starbase_accepts_known_valid_fixture() {
     let stdout = run_ec_cli(&["validate", "fixtures/ecmaint-starbase-pre/v1.5", "guard-starbase"]);
     assert!(stdout.contains("Valid guard-starbase scenario"));
-    assert!(stdout.contains("BASES.DAT matches the accepted one-base guard-starbase record"));
+    assert!(stdout.contains("linkage keys: player[44]=1 fleet[00]=1 fleet[05]=1 base[07]=1"));
+    assert!(stdout.contains("one-base guard-starbase linkage holds"));
 }
 
 #[test]

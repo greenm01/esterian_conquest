@@ -127,6 +127,13 @@ Current concrete Rust milestone:
     setters over `BaseRecord`, not from a preserved raw byte blob
   - Rust can also validate the currently-known accepted one-base Guard
     Starbase shape with `ec-cli validate <dir> guard-starbase`
+  - that Guard Starbase validator is now linkage-shaped:
+    - player starbase-count word
+    - fleet local-slot word
+    - fleet ID word
+    - base chain word
+    - guard target/base coords
+    - guard starbase index/enable bytes
   - `ec-cli validate <dir> all` now gives a quick classification pass across
     the current known accepted scenarios
   - the known accepted scenarios are now centralized behind one Rust-side

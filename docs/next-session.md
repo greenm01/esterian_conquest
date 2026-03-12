@@ -56,12 +56,22 @@
         - trailing coords
         - owner empire
       - `cargo test` is green for the full Rust workspace after this change
-      - `ec-cli validate <dir> guard-starbase` now checks the currently-known
-        accepted one-base Guard Starbase invariants across `PLAYER.DAT`,
-        `FLEETS.DAT`, and `BASES.DAT`
-      - `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`
-        materializes a runnable scenario directory in one command from a
-        compliant baseline
+  - `ec-cli validate <dir> guard-starbase` now checks the currently-known
+    accepted one-base Guard Starbase invariants across `PLAYER.DAT`,
+    `FLEETS.DAT`, and `BASES.DAT`
+    - latest refinement:
+      - it now validates the one-base linkage keys directly instead of only
+        comparing a preserved accepted base blob
+      - current explicit checks cover:
+        - player starbase-count word
+        - fleet local-slot word
+        - fleet ID word
+        - base chain word
+        - guard starbase index/enable bytes
+        - base/fleet coordinate agreement
+  - `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`
+    materializes a runnable scenario directory in one command from a
+    compliant baseline
   - practical meaning:
     - Rust can now emit accepted pre-maint scenario files from decoded fields,
       not just copy preserved fixture trees wholesale
