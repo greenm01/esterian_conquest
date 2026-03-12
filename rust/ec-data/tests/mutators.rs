@@ -222,6 +222,19 @@ fn core_game_data_can_apply_current_known_scenario_mutations() {
     assert_eq!(data.bases.records[0].summary_word_raw(), data.fleets.records[0].local_slot_word_raw());
     assert_eq!(data.bases.records[0].chain_word_raw(), data.fleets.records[0].fleet_id_word_raw());
     assert_eq!(data.bases.records[0].coords_raw(), [0x10, 0x0D]);
+
+    data.set_ipbm_zero_records(2);
+    assert_eq!(data.player.records[0].ipbm_count_raw(), 2);
+    assert_eq!(data.ipbm.records.len(), 2);
+    assert_eq!(data.ipbm.to_bytes().len(), 2 * IPBM_RECORD_SIZE);
+
+    data.set_ipbm_record_prefix(2, 0x1234, 0x02, 0x4567, 0x89ab)
+        .unwrap();
+    let ipbm = &data.ipbm.records[1];
+    assert_eq!(ipbm.primary_word_raw(), 0x1234);
+    assert_eq!(ipbm.owner_empire_raw(), 0x02);
+    assert_eq!(ipbm.gate_word_raw(), 0x4567);
+    assert_eq!(ipbm.follow_on_word_raw(), 0x89ab);
 }
 
 #[test]
@@ -262,6 +275,32 @@ fn core_game_data_current_known_validation_helpers_match_known_fixtures() {
         conquest: ConquestDat::parse(&read_ecmaint_starbase_pre_fixture("CONQUEST.DAT")).unwrap(),
     };
     assert!(starbase_data.guard_starbase_onebase_errors_current_known().is_empty());
+    assert_eq!(
+        starbase_data.current_known_compliance_status(),
+        CurrentKnownComplianceStatus {
+            fleet_order: false,
+            planet_build: false,
+            guard_starbase: true,
+            ipbm: true,
+        }
+    );
+    assert_eq!(
+        starbase_data.current_known_key_word_summary(),
+        CurrentKnownKeyWordSummary {
+            player_starbase_count: 1,
+            player_ipbm_count: 0,
+            fleet1_local_slot: Some(1),
+            fleet1_id: Some(1),
+            fleet1_guard_index: Some(1),
+            fleet1_guard_enable: Some(1),
+            fleet1_target: Some([0x10, 0x0D]),
+            base1_summary: Some(1),
+            base1_id: Some(1),
+            base1_chain: Some(1),
+            base1_coords: Some([0x10, 0x0D]),
+            ipbm_record_count: 0,
+        }
+    );
 
     let post_data = CoreGameData {
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),

@@ -2,8 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::{
-    BaseDat, BaseRecord, ConquestDat, FleetDat, IpbmDat, ParseError, PlanetDat, PlayerDat,
-    SetupDat,
+    BaseDat, BaseRecord, ConquestDat, FleetDat, IpbmDat, IpbmRecord, ParseError, PlanetDat,
+    PlayerDat, SetupDat, IPBM_RECORD_SIZE,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,6 +15,30 @@ pub struct CoreGameData {
     pub ipbm: IpbmDat,
     pub setup: SetupDat,
     pub conquest: ConquestDat,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CurrentKnownComplianceStatus {
+    pub fleet_order: bool,
+    pub planet_build: bool,
+    pub guard_starbase: bool,
+    pub ipbm: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CurrentKnownKeyWordSummary {
+    pub player_starbase_count: u16,
+    pub player_ipbm_count: u16,
+    pub fleet1_local_slot: Option<u16>,
+    pub fleet1_id: Option<u16>,
+    pub fleet1_guard_index: Option<u8>,
+    pub fleet1_guard_enable: Option<u8>,
+    pub fleet1_target: Option<[u8; 2]>,
+    pub base1_summary: Option<u16>,
+    pub base1_id: Option<u8>,
+    pub base1_chain: Option<u16>,
+    pub base1_coords: Option<[u8; 2]>,
+    pub ipbm_record_count: usize,
 }
 
 #[derive(Debug)]
@@ -32,6 +56,9 @@ pub enum GameDirectoryError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GameStateMutationError {
     MissingFleetRecord {
+        index_1_based: usize,
+    },
+    MissingIpbmRecord {
         index_1_based: usize,
     },
     MissingPlanetRecord {
@@ -65,6 +92,9 @@ impl std::fmt::Display for GameStateMutationError {
         match self {
             Self::MissingFleetRecord { index_1_based } => {
                 write!(f, "missing fleet record {}", index_1_based)
+            }
+            Self::MissingIpbmRecord { index_1_based } => {
+                write!(f, "missing IPBM record {}", index_1_based)
             }
             Self::MissingPlanetRecord { index_1_based } => {
                 write!(f, "missing planet record {}", index_1_based)
@@ -236,6 +266,42 @@ impl CoreGameData {
             )],
         };
 
+        Ok(())
+    }
+
+    pub fn set_ipbm_zero_records(&mut self, count: u16) {
+        if let Some(player1) = self.player.records.first_mut() {
+            player1.set_ipbm_count_raw(count);
+        }
+
+        self.ipbm = IpbmDat {
+            records: (0..count)
+                .map(|_| IpbmRecord {
+                    raw: [0u8; IPBM_RECORD_SIZE],
+                })
+                .collect(),
+        };
+    }
+
+    pub fn set_ipbm_record_prefix(
+        &mut self,
+        record_index_1_based: usize,
+        primary: u16,
+        owner: u8,
+        gate: u16,
+        follow_on: u16,
+    ) -> Result<(), GameStateMutationError> {
+        let record = self
+            .ipbm
+            .records
+            .get_mut(record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingIpbmRecord {
+                index_1_based: record_index_1_based,
+            })?;
+        record.set_primary_word_raw(primary);
+        record.set_owner_empire_raw(owner);
+        record.set_gate_word_raw(gate);
+        record.set_follow_on_word_raw(follow_on);
         Ok(())
     }
 
@@ -475,6 +541,40 @@ impl CoreGameData {
             ));
         }
         errors
+    }
+
+    pub fn current_known_compliance_status(&self) -> CurrentKnownComplianceStatus {
+        CurrentKnownComplianceStatus {
+            fleet_order: self
+                .fleet_order_errors_current_known(1, 0x03, 0x0C, [0x0F, 0x0D], None, None)
+                .is_empty(),
+            planet_build: self
+                .planet_build_errors_current_known(15, 0x03, 0x01)
+                .is_empty(),
+            guard_starbase: self.guard_starbase_onebase_errors_current_known().is_empty(),
+            ipbm: self.ipbm_count_length_errors_current_known().is_empty(),
+        }
+    }
+
+    pub fn current_known_key_word_summary(&self) -> CurrentKnownKeyWordSummary {
+        let player1 = self.player.records.first();
+        let fleet1 = self.fleets.records.first();
+        let base1 = self.bases.records.first();
+
+        CurrentKnownKeyWordSummary {
+            player_starbase_count: player1.map(|record| record.starbase_count_raw()).unwrap_or(0),
+            player_ipbm_count: player1.map(|record| record.ipbm_count_raw()).unwrap_or(0),
+            fleet1_local_slot: fleet1.map(|record| record.local_slot_word_raw()),
+            fleet1_id: fleet1.map(|record| record.fleet_id_word_raw()),
+            fleet1_guard_index: fleet1.map(|record| record.guard_starbase_index_raw()),
+            fleet1_guard_enable: fleet1.map(|record| record.guard_starbase_enable_raw()),
+            fleet1_target: fleet1.map(|record| record.standing_order_target_coords_raw()),
+            base1_summary: base1.map(|record| record.summary_word_raw()),
+            base1_id: base1.map(|record| record.base_id_raw()),
+            base1_chain: base1.map(|record| record.chain_word_raw()),
+            base1_coords: base1.map(|record| record.coords_raw()),
+            ipbm_record_count: self.ipbm.records.len(),
+        }
     }
 }
 

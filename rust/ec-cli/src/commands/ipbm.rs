@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use ec_data::{CoreGameData, IpbmDat, IpbmRecord, IPBM_RECORD_SIZE};
+use ec_data::{CoreGameData, IPBM_RECORD_SIZE};
 
 use crate::workspace::copy_init_files;
 
@@ -46,15 +46,7 @@ pub(crate) fn set_ipbm_zero_records(
     count: u16,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut data = CoreGameData::load(dir)?;
-    data.player.records[0].set_ipbm_count_raw(count);
-
-    let mut ipbm = IpbmDat { records: Vec::new() };
-    for _ in 0..count {
-        ipbm.records.push(IpbmRecord {
-            raw: [0u8; IPBM_RECORD_SIZE],
-        });
-    }
-    data.ipbm = ipbm;
+    data.set_ipbm_zero_records(count);
     data.save(dir)?;
 
     println!("IPBM zero records written");
@@ -72,15 +64,7 @@ pub(crate) fn set_ipbm_record_prefix(
     follow_on: u16,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut data = CoreGameData::load(dir)?;
-    let record = data
-        .ipbm
-        .records
-        .get_mut(record_index_1_based - 1)
-        .ok_or_else(|| format!("ipbm record index out of range: {record_index_1_based}"))?;
-    record.set_primary_word_raw(primary);
-    record.set_owner_empire_raw(owner);
-    record.set_gate_word_raw(gate);
-    record.set_follow_on_word_raw(follow_on);
+    data.set_ipbm_record_prefix(record_index_1_based, primary, owner, gate, follow_on)?;
     data.save(dir)?;
 
     println!("IPBM record {} updated", record_index_1_based);

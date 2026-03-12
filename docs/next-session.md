@@ -315,6 +315,18 @@ Rust architecture note:
       - the CLI is now a thin wrapper for the current-known mutation,
         validation, inspection, and normalization logic instead of the source
         of truth for those rules
+  - latest `IPBM` centralization follow-on:
+    - `CoreGameData` now also owns the current-known `IPBM` mutation helpers
+      for zero-filled record families and mapped prefix-field updates
+    - `ec-cli ipbm-zero` and `ec-cli ipbm-record-set` now delegate to the
+      shared directory model instead of mutating decoded `IPBM` state in
+      CLI-only code
+  - latest compliance-report centralization follow-on:
+    - `CoreGameData` now owns the current-known compliance status aggregate
+      and key-word summary used by the compliance report surfaces
+    - `ec-cli compliance-report` and `ec-cli compliance-batch-report` now
+      consume that shared model output instead of reassembling current-known
+      rule groups in CLI-only code
   - `ec-data` is now split into domain modules:
     - `src/records/player.rs`
     - `src/records/planet.rs`

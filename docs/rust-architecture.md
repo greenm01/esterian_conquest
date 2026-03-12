@@ -127,6 +127,14 @@ Current-known cross-file validation semantics should follow the same rule. The
 CLI shall not be the source of truth for fleet/build/starbase/IPBM rule checks
 once those checks are stable enough to live on `CoreGameData`.
 
+The same requirement applies to current-known `IPBM` mutation helpers. Zero-fill
+record shaping and mapped prefix-field updates shall live on `CoreGameData`,
+with the CLI acting only as load/save/report orchestration.
+
+Current-known compliance aggregation and key-word summaries shall follow the
+same rule. If multiple CLI reports are reusing the same rule set and field
+summary, that status aggregation belongs on `CoreGameData`.
+
 Current expectation:
 
 - `fleet-order`, `planet-build`, `guard-starbase`, `ipbm`, and

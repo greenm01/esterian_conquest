@@ -3,54 +3,55 @@ use std::path::Path;
 
 use ec_data::CoreGameData;
 
-use crate::commands::guard_starbase::validate_guard_starbase_scenario;
-use crate::commands::ipbm::validate_ipbm;
-
 pub(crate) fn print_compliance_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let data = CoreGameData::load(dir)?;
+    let status = data.current_known_compliance_status();
+    let summary = data.current_known_key_word_summary();
+
     println!("Compliance Report");
     println!("  dir={}", dir.display());
     println!();
-
-    match validate_guard_starbase_scenario(dir) {
-        Ok(()) => println!("OK   guard-starbase-linkage"),
-        Err(err) => println!("FAIL guard-starbase-linkage: {err}"),
-    }
-
-    match validate_ipbm(dir) {
-        Ok(()) => println!("OK   ipbm-count-length"),
-        Err(err) => println!("FAIL ipbm-count-length: {err}"),
-    }
-
-    let data = CoreGameData::load(dir)?;
-    let player1 = &data.player.records[0];
+    println!(
+        "{} guard-starbase-linkage{}",
+        if status.guard_starbase { "OK  " } else { "FAIL" },
+        render_errors_suffix(&data.guard_starbase_onebase_errors_current_known())
+    );
+    println!(
+        "{} ipbm-count-length{}",
+        if status.ipbm { "OK  " } else { "FAIL" },
+        render_errors_suffix(&data.ipbm_count_length_errors_current_known())
+    );
     println!();
     println!(
         "Key words: player.starbase_count={} player.ipbm_count={}",
-        player1.starbase_count_raw(),
-        player1.ipbm_count_raw()
+        summary.player_starbase_count, summary.player_ipbm_count
     );
-    if let Some(fleet1) = data.fleets.records.first() {
+    if let (Some(local_slot), Some(fleet_id), Some(guard_index), Some(guard_enable), Some(target)) = (
+        summary.fleet1_local_slot,
+        summary.fleet1_id,
+        summary.fleet1_guard_index,
+        summary.fleet1_guard_enable,
+        summary.fleet1_target,
+    ) {
         println!(
             "  fleet1.local_slot={} fleet1.id={} fleet1.guard={}/{} target={:?}",
-            fleet1.local_slot_word_raw(),
-            fleet1.fleet_id_word_raw(),
-            fleet1.guard_starbase_index_raw(),
-            fleet1.guard_starbase_enable_raw(),
-            fleet1.standing_order_target_coords_raw()
+            local_slot, fleet_id, guard_index, guard_enable, target
         );
     }
-    if let Some(base1) = data.bases.records.first() {
+    if let (Some(summary_word), Some(base_id), Some(chain), Some(coords)) = (
+        summary.base1_summary,
+        summary.base1_id,
+        summary.base1_chain,
+        summary.base1_coords,
+    ) {
         println!(
             "  base1.summary={} base1.id={} base1.chain={} coords={:?}",
-            base1.summary_word_raw(),
-            base1.base_id_raw(),
-            base1.chain_word_raw(),
-            base1.coords_raw()
+            summary_word, base_id, chain, coords
         );
     } else {
         println!("  base1=<none>");
     }
-    println!("  ipbm.record_count={}", data.ipbm.records.len());
+    println!("  ipbm.record_count={}", summary.ipbm_record_count);
     Ok(())
 }
 
@@ -70,34 +71,41 @@ pub(crate) fn print_compliance_batch_report(
 
     for dir in dirs {
         print!("{}: ", dir.file_name().unwrap_or_default().to_string_lossy());
-        let guard_ok = match CoreGameData::load(&dir) {
-            Ok(data) => data.guard_starbase_onebase_errors_current_known().is_empty(),
-            _ => false,
-        };
-        let ipbm_ok = match CoreGameData::load(&dir) {
-            Ok(data) => data.ipbm_count_length_errors_current_known().is_empty(),
-            _ => false,
-        };
-        let fleet_ok = match CoreGameData::load(&dir) {
-            Ok(data) => data
-                .fleet_order_errors_current_known(1, 0x03, 0x0C, [0x0F, 0x0D], None, None)
-                .is_empty(),
-            _ => false,
-        };
-        let build_ok = match CoreGameData::load(&dir) {
-            Ok(data) => data
-                .planet_build_errors_current_known(15, 0x03, 0x01)
-                .is_empty(),
-            _ => false,
-        };
+        let status = CoreGameData::load(&dir)
+            .ok()
+            .map(|data| data.current_known_compliance_status());
         println!(
             "fleet-order={} planet-build={} guard-starbase={} ipbm={}",
-            if fleet_ok { "ok" } else { "fail" },
-            if build_ok { "ok" } else { "fail" },
-            if guard_ok { "ok" } else { "fail" },
-            if ipbm_ok { "ok" } else { "fail" }
+            if status.as_ref().map(|s| s.fleet_order).unwrap_or(false) {
+                "ok"
+            } else {
+                "fail"
+            },
+            if status.as_ref().map(|s| s.planet_build).unwrap_or(false) {
+                "ok"
+            } else {
+                "fail"
+            },
+            if status.as_ref().map(|s| s.guard_starbase).unwrap_or(false) {
+                "ok"
+            } else {
+                "fail"
+            },
+            if status.as_ref().map(|s| s.ipbm).unwrap_or(false) {
+                "ok"
+            } else {
+                "fail"
+            }
         );
     }
 
     Ok(())
+}
+
+fn render_errors_suffix(errors: &[String]) -> String {
+    if errors.is_empty() {
+        String::new()
+    } else {
+        format!(": {}", errors.join("; "))
+    }
 }
