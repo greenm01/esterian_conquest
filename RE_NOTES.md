@@ -426,329 +426,70 @@ Practical inference:
   “what additional condition allows the selected second base record to survive
   the integrity validator without falling into the error/token path?”
 
-Token-trace follow-up from the same runner:
+Token gate investigation (resolved):
 
-- expanded `tools/compare_ecmaint_validation_trace.py` to try a recognized-token
-  variant as well
-- under `-debug -log-int21 -log-fileio`, the recognized-token path does not
-  simply continue into the same `PLAYER` / `PLANETS` / `FLEETS` / `BASES`
-  validation trace
-- observed behavior in `artifacts/ecmaint-validation-trace/bad-player-tok.log`:
-  - creates/deletes synthetic `conquest.tok` and `setup.tok`
-  - creates `main.tok`, `planets.tok`, `fleets.tok`, then reaches
-    `Player.Tok`
-  - repeatedly searches for `Player.Tok` until the DOSBox-X time limit kills
-    the run
+- The token-gate question is now closed. The detailed exploratory work is
+  preserved in `docs/token-investigation.md`; the summary below is the final
+  model that supersedes the earlier speculative token notes.
+- Key static anchors:
+  - `2000:9430`: global option/flag initializer
+  - `2000:5EE4`: main cross-file integrity validator
+  - `2000:6D9B`: top-level integrity/restore routine
+  - `2000:7323`: `Setup.Tok` probe and early file setup
+  - `2000:96C4`: named token existence checker
+  - `2000:997C`: master token wait loop
+  - `2000:9D48`: `Move.Tok` recovery path
+  - `0x29120`: command-line parser
 
-Practical inference:
+Final conclusions:
 
-- the token path is an active synchronization/wait state, not just a quick
-  flag check
-- comparing token-enabled runs against the no-token validator path requires
-  either:
-  - modeling the external token lifecycle correctly, or
-  - breaking/tracing after the wait loop instead of from process start
+1. `DS:16A4` is a dead bypass flag.
+   - The integrity validator at `2000:5EE4` checks `CMP byte ptr [0x16A4],0`.
+   - Exhaustive static reference scanning shows `16A4` is only initialized to
+     zero at `2000:9430` and is never set non-zero anywhere in the executable.
+   - The command-line parser at `0x29120` sets `DS:16A2` when `/B` is passed,
+     not `DS:16A4`.
+   - Practical conclusion: this is a developer typo. The intended direct
+     bypass mechanism is broken and unreachable.
 
-Controlled token-release probe:
+2. `.TOK` files do not directly bypass the integrity validator.
+   - The master loop at `2000:997C` is a BBS/node lock-file wait gate over the
+     game token set.
+   - `2000:96C4` is the generic token checker used by that loop and by other
+     named-file probes.
+   - Recognized tokens change runtime control flow, but they do not flip a
+     hidden "skip integrity" global.
 
-- new helper: `tools/test_ecmaint_token_release.py`
-- logs preserved under `artifacts/ecmaint-token-release/`
-- setup:
-  - raw failing Starbase 2 state
-  - `PLAYER.TOK` present at startup
-  - host deletes `PLAYER.TOK` after controlled delays
-- observed outcomes:
-  - short delays (`0.5s`, `1.0s`, `2.0s`) remove the file before ECMAINT checks
-    it
-    - ECMAINT simply recreates `Player.Tok`
-    - then continues into `PLAYER.DAT`
-    - then still seeks `BASES.DAT` to `35` and aborts via `ERRORS.TXT`
-  - later delays (`4.0s`, `6.0s`, `8.0s`) hit while ECMAINT is already polling
-    `Player.Tok`
-    - repeated `file search attributes 20 name Player.Tok`
-    - once the host deletion lands, ECMAINT creates `Player.Tok`
-    - then resumes normal file access
-    - but again falls into:
-      - `PLAYER.DAT` read sweep
-      - `BASES.DAT` seek `35`
-      - `ERRORS.TXT` write path
+3. The real Starbase 2 "token bypass" is restore-from-backup.
+   - After the token wait logic, ECMAINT checks for `Move.Tok`.
+   - `Move.Tok` indicates that a previous maintenance run halted during the
+     movement phase.
+   - The recovery path restores `.SAV` backups over the working `.DAT` files
+     before re-entering the main integrity path rooted at `2000:6D9B`.
+   - Once the broken `.DAT` files have been replaced by valid backups, the
+     normal integrity validator at `2000:5EE4` passes naturally.
+   - Practical conclusion: `.TOK` files only appear to "bypass" the synthetic
+     Starbase 2 failure because `Move.Tok` triggers automatic rollback to clean
+     game state before validation.
 
-Practical inference:
+Recovered command-line flag map:
 
-- deleting the recognized token during the wait loop is sufficient to release
-  the synchronization gate
-- but that alone does **not** unlock the accepted Starbase 2 path
-- therefore the earlier black-box success with recognized token files must
-  depend on some additional side effect or control-flow state inside the token
-  path, not merely the presence/absence transition of `PLAYER.TOK`
+- `/F` -> `DS:16A0 = 1`
+- `/R` -> `DS:16A1 = 1`
+- `/B` -> `DS:16A2 = 1` (intended bypass flag, but ineffective because
+  `2000:5EE4` checks `16A4`)
+- `/C` -> `DS:16A3 = 1`
+- `/I` -> `DS:169C = 1`
+- `/S=nnn` -> timeout value at `DS:16A6/16A8`
+- `/Y=nnn` -> year override at `DS:169E`
 
-Instrumentation timing caveat:
+Practical status:
 
-- direct long-run test with `PLAYER.TOK` present and full DOSBox-X tracing:
-  - command shape:
-    - `-debug -log-int21 -log-fileio -time-limit 45`
-  - artifact:
-    - `artifacts/ecmaint-token-release/player-tok-debug-long.log`
-- result:
-  - `ERRORS.TXT` begins with
-    `03-11-2026 6:43pm -> Timeout error for tokenfile Player.Tok`
-  - leftover files include the expanded synthetic token set:
-    - `CONQUEST.TOK`
-    - `DATABASE.TOK`
-    - `FLEETS.TOK`
-    - `IPBMS.TOK`
-    - `MAIN.TOK`
-    - `MESSAGE.TOK`
-    - `PLANETS.TOK`
-    - `PLAYER.TOK`
-    - `RESULTS.TOK`
-
-Practical inference:
-
-- the earlier successful black-box `PLAYER.TOK` case is real, but the heavy
-  `-debug -log-int21 -log-fileio` instrumentation perturbs execution enough to
-  trip ECMAINT's internal token timeout
-- therefore full file-I/O tracing is not a trustworthy observation method for
-  the token path itself
-- next token-path RE should favor:
-  - debugger breakpoints / memory dumps after token setup, or
-  - lower-overhead black-box experiments on token file lifecycles
-
-Low-overhead token matrix:
-
-- new helper: `tools/test_ecmaint_token_matrix.py`
-- artifact: `artifacts/ecmaint-token-matrix.txt`
-- one-pass results on the raw Starbase 2 setup:
-  - no token:
-    - integrity failure
-    - leaves expanded token set:
-      `CONQUEST.TOK`, `DATABASE.TOK`, `FLEETS.TOK`, `IPBMS.TOK`, `MAIN.TOK`,
-      `MESSAGE.TOK`, `PLANETS.TOK`, `PLAYER.TOK`, `RESULTS.TOK`
-  - `MAIN.TOK`:
-    - `OK`
-    - leaves only `MAIN.TOK`
-  - `PLAYER.TOK`:
-    - `OK`
-    - leaves `FLEETS.TOK`, `MAIN.TOK`, `PLANETS.TOK`, `PLAYER.TOK`
-  - `PLANETS.TOK`:
-    - `OK`
-    - leaves `MAIN.TOK`, `PLANETS.TOK`
-  - `FLEETS.TOK`:
-    - `OK`
-    - leaves `FLEETS.TOK`, `MAIN.TOK`, `PLANETS.TOK`
-  - `DATABASE.TOK`:
-    - `OK`
-    - leaves the full expanded token set
-  - `CONQUEST.TOK`:
-    - `OK`
-    - leaves only `CONQUEST.TOK`
-  - `FOO.TOK`:
-    - integrity failure
-    - leaves the same expanded token set as the no-token case, plus `FOO.TOK`
-
-Practical inference:
-
-- recognized token names are not interchangeable “enable the good path” flags
-- they appear to select different submodes or cleanup horizons within the token
-  manager
-- the most promising next static target is therefore the token-management code
-  around:
-  - `0x2841B` (`main.tok` / startup guard)
-  - `0x26FC6` (`conquest.tok` deletion/cleanup)
-  - `0x29680` (generic wait/delete messaging)
-
-Static follow-up in the live Ghidra project:
-
-- new script: `tools/ghidra_scripts/ECMaintTokenAnchors.java`
-- report: `artifacts/ghidra/ecmaint-live/token-anchors.txt`
-- saved labels:
-  - `2000:841b` => `ecmaint_main_tok_guard_strings`
-  - `2000:6fc6` => `ecmaint_conquest_tok_cleanup_strings`
-  - `2000:9680` => `ecmaint_generic_token_wait_delete_strings`
-- saved function:
-  - `2000:9b13` => `ecmaint_token_wait_timeout_helper`
-
-First concrete static inference from the report:
-
-- the generic wait/delete string cluster at `2000:9680` is immediately followed
-  by `ecmaint_token_wait_timeout_helper`
-- opening instructions:
-  - `CALLF 0x3000:39dc`
-  - capture returned `AX:DX`
-  - subtract against globals at `0x34fa:0x34fc`
-- practical meaning:
-  - this is a strong candidate for the actual token wait/timeout bookkeeping
-    loop
-  - the next static RE pass should start from `2000:9b13` and work outward to
-    its caller at `2000:9e1e`
-
-Deeper token flow report:
-
-- new script: `tools/ghidra_scripts/ECMaintTokenFlowReport.java`
-- report: `artifacts/ghidra/ecmaint-live/token-flow.txt`
-- additional saved names:
-  - `2000:9e1e` => `ecmaint_wait_for_named_token_candidate`
-  - `3000:39dc` => `ecmaint_time_query_helper_candidate`
-
-First-pass control-flow recovery:
-
-- `ecmaint_wait_for_named_token_candidate`:
-  - calls `ecmaint_time_query_helper_candidate`
-  - stores returned `AX:DX` into globals `0x34fa:0x34fc`
-  - clears global `0x2f76`
-  - pushes literal `0xFA00`
-  - calls `ecmaint_token_wait_timeout_helper`
-  - stores the helper return pair into globals `0x2f72:0x2f74`
-- `ecmaint_token_wait_timeout_helper`:
-  - re-queries time via `0x3000:39dc`
-  - subtracts current time from the stored baseline at `0x34fa:0x34fc`
-  - calls another helper at `0x3000:39f8` before comparing against its stack
-    argument
-  - if still within range, it computes/returns a pair via `0x3000:397f`
-  - otherwise it enters the timeout-message path at `0x9b82`
-    - loads DS:`46cc`
-    - loads CS:`0653`
-    - then runs a cluster of far calls through `0x3000:4057`,
-      `0x3000:3f88`, `0x3000:3be9`, `0x3000:2d81`, `0x3000:428f`
-
-Practical inference:
-
-- `0xFA00` is now the leading timeout-parameter candidate for the named-token
-  wait routine
-- globals `0x34fa:0x34fc` and `0x2f72:0x2f76` are part of the token wait state
-- the next static question is what inputs `ecmaint_wait_for_named_token_candidate`
-  receives from its undiscovered callers, especially the token-name pointer and
-  any per-token mode flags
-
-Token reachability follow-up:
-
-- new script: `tools/ghidra_scripts/ECMaintTokenReachabilityReport.java`
-- report: `artifacts/ghidra/ecmaint-live/token-reachability.txt`
-- additional saved label:
-  - `2000:9d48` => `ecmaint_move_tok_recovery_candidate`
-- recovered adjacent token-management block:
-  - `0x9d48..0x9e1d` is a real `Move.Tok` recovery/delete path immediately
-    before `ecmaint_wait_for_named_token_candidate`
-  - it uses the same DS:`46cc` message-buffer pattern seen in the timeout path
-  - it emits message strings via CS offsets `0x877`, `0x8b1`, and `0x8db`
-  - Ghidra would not promote `0x9d48` to a clean function because the region is
-    interleaved with nearby counted token strings/data, so only the label was
-    saved there
-- newly named shared helper:
-  - `2000:945b` => `ecmaint_emit_timestamp_message_helper`
-  - this helper is not token-state logic; it is a reusable date/time formatter
-    and message emitter
-  - static behavior from `artifacts/ghidra/ecmaint-live/token-reachability.txt`:
-    - parses date and time fields into locals via `0x3000:2f95` and `0x3000:2fcb`
-    - writes a formatted timestamp into DS:`2b26`
-    - emits separators `'-'`, `' '`, and `':'` around numeric fields
-    - then pushes the formatted buffer through the standard output helpers
-- practical implication:
-  - the `CALL 0x945b` sites inside the `Move.Tok` block are timestamped status
-    message emission, not additional token-selection logic
-
-Move.Tok wrapper split:
-
-- exact tiny-wrapper starts recovered from raw bytes:
-  - `2000:9c91` => `ecmaint_move_tok_check_wrapper_candidate`
-  - `2000:9cb0` => `ecmaint_move_tok_delete_wrapper_candidate`
-- direct calls under those wrappers:
-  - `2000:9c9d` calls `2000:96c4`
-  - `2000:9cb9` calls labeled anchor `2000:9887`
-- saved/static interpretations:
-  - `2000:96c4` => `ecmaint_check_named_token_candidate`
-    - this is a real saved function in the live project
-    - it copies/canonicalizes the supplied token name into local buffers
-    - it reuses `0x3000:4f4c`, the same helper family already seen elsewhere in
-      token handling
-    - it ultimately returns a byte status in `AL`
-  - `2000:9887` => `ecmaint_delete_named_token_candidate`
-    - the `Move.Tok` delete wrapper calls it directly, but the raw import still
-      does not carve a clean function there because the start sits adjacent to a
-      counted string island
-- practical inference:
-  - the token path is now split into generic named-token primitives plus thin
-    `Move.Tok` wrappers, instead of one undifferentiated string/code cluster
-  - the next productive debugger targets are `2000:96c4`, `2000:9cb9`, and
-    `2000:9e1e` to capture the runtime token-name pointers and segment state
-- reproducible debug scenario:
-  - `tools/prepare_ecmaint_token_debug_case.py` now rebuilds
-    `/tmp/ecmaint-debug-token`
-  - that target contains the raw two-base Starbase 2 repro plus zero-length
-    `PLAYER.TOK`
-  - use it as the default live debugger case for the token helper breakpoints
-
-First live debugger address mapping:
-
-- the DOSBox-X debugger reliably breaks at the first real file-open with:
-  - `BPINT 21 3D`
-  - `RUN`
-- first captured live register snapshot at that stop:
-  - `CS=3374 EIP=1880 DS=39AB ES=39AB SS=39AB`
-  - `SP=F7F4 BP=F7F6 AX=3D02 BX=F7F6 CX=0000 DX=F832 SI=000D DI=F802`
-- `DOS MCBS` at the same stop:
-  - PSP `0814`
-  - allocation size `622256` bytes
-  - owner `ECMAINT`
-- practical consequence for token-helper breakpoints:
-  - raw-import addresses under segment `2000:` are not the live runtime code
-    segment in DOSBox-X
-  - the working translation for this dump is PSP-relative, using unpacked PSP
-    `0814`
-  - current working debugger translation is therefore:
-    - `2000:96c4` -> `2814:96c4`
-    - `2000:9cb9` -> `2814:9cb9`
-    - `2000:9e1e` -> `2814:9e1e`
-  - DOSBox-X may show the same breakpoint under a normalized segment:offset
-    pair; for example `2814:96c4` surfaced as `3159:0274`
-- remaining dynamic blocker:
-  - after switching to the rebased live code breakpoints, the token-wait path
-    still does not surface a later code-break stop cleanly in the headless TTY
-    transcript
-  - `BP 2814:96c4` does hit cleanly and DOSBox-X reports it as `3159:0274`,
-    confirming the translation is correct
-  - if `2814:96c4` is then deleted and execution continues with only
-    `2814:9cb9` and `2814:9e1e` armed, the headless debugger falls into
-    repeated `Illegal Unhandled Interrupt Called 6` logging before either
-    later breakpoint surfaces
-  - observed disk side effects at that point are minimal: no `ERRORS.TXT`, no
-    new token files, and the original zero-length `PLAYER.TOK` remains
-  - this now looks like a debugger/runtime interaction after the generic
-    helper, not another address-translation problem
-- stack-derived caller recovery from the stable `2000:96c4` hit:
-  - at the first clean `2814:96c4` / `3159:0274` stop, register snapshot was:
-    - `CS=3159 EIP=0274 DS=3529 ES=39AB SS=39AB`
-    - `SP=F512 BP=F926 AX=0001 BX=F68A CX=0000 DX=F7C2 SI=F81F DI=6A22`
-  - dumping `SS:SP` at that stop produced 32 bytes:
-    - `28 6b 95 28 22 6a 95 28 00 00 00 00 ...`
-  - interpreted against the pre-prologue stack:
-    - return IP `0x6b28`
-    - incoming far pointer `0x2895:0x6a22`
-  - converting through PSP base `0x0814:0000` gives raw-import leads:
-    - return-site vicinity `2000:7338`
-    - incoming pointer vicinity `2000:7232`
-  - new static report/script:
-    - `tools/ghidra_scripts/ECMaintTokenCallerReport.java`
-    - `artifacts/ghidra/ecmaint-live/token-callers.txt`
-  - current result from that report:
-    - no direct static xrefs yet to `2000:9d48` or `2000:9e1e`
-    - the first stable `96c4` hit instead comes from a separate prologue
-      candidate at `2000:731f`
-    - nearby code at `2000:732e` pushes `DI=0x6a22`, then `CALLF 0x3000:1804`
-    - the function continues through nearby literals `0x6a2c`, `0x6a63`, and
-      DS:`46cc`
-- practical consequence:
-  - the first `2000:96c4` hit is not the token-gate path we want; it is an
-    earlier generic named-file probe
-  - future debugger work should skip/filter the first `96c4` caller at
-    `2000:731f` instead of assuming the first stop is token-specific
-- important caveat from the raw-binary import:
-  - DS:`46cc` and CS:`0653` should not be treated as trustworthy linear string
-    addresses in the imported dump
-  - the bytes currently visible at those raw linear offsets decode as code, not
-    the final timeout text
-  - inference: these operands are meaningful only with the runtime segment
-    register state that existed in the live DOS image
+- The token gate investigation is complete.
+- Any future work on the maintenance engine should treat the token path as:
+  - a lock/wait system for BBS node coordination, plus
+  - a crash-recovery/restore entry point through `Move.Tok`,
+  - not as an active integrity-bypass flag path.
 
 ## ECMAINT Live Memory Dump Anchors
 
