@@ -132,7 +132,11 @@ Current concrete Rust milestone:
   - the known accepted scenarios are now centralized behind one Rust-side
     catalog:
     - `ec-cli scenario <dir> list`
+    - `ec-cli scenario <dir> show <scenario>`
     - `ec-cli scenario-init-all [source_dir] <target_root>`
+  - scenario validation now has two useful levels:
+    - rule-shaped validators: `ec-cli validate <dir> ...`
+    - preserved exact-match validators: `ec-cli validate-preserved <dir> ...`
   - Rust can now materialize a runnable Guard Starbase directory from a
     compliant baseline with
     `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`

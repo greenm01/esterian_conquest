@@ -1438,7 +1438,15 @@ Rust fleet/build scenario CLI milestone:
 - the Rust-side known accepted scenarios are now centralized behind one
   catalog:
   - `ec-cli scenario <dir> list`
+  - `ec-cli scenario <dir> show <scenario>`
   - `ec-cli scenario-init-all [source_dir] <target_root>`
+- scenario validation now has two layers:
+  - rule-shaped acceptance checks:
+    - `ec-cli validate <dir> <scenario>`
+    - `ec-cli validate <dir> all`
+  - preserved exact-match checks:
+    - `ec-cli validate-preserved <dir> <scenario>`
+    - `ec-cli validate-preserved <dir> all`
 - both scenarios can now be materialized into runnable directories from a
   compliant baseline in one command:
   - `ec-cli scenario-init [source_dir] <target_dir> fleet-order`

@@ -16,7 +16,10 @@
     - `ec-cli validate <dir> fleet-order`
     - `ec-cli validate <dir> planet-build`
     - `ec-cli validate <dir> all`
+    - `ec-cli validate-preserved <dir> <scenario>`
+    - `ec-cli validate-preserved <dir> all`
     - `ec-cli scenario <dir> list`
+    - `ec-cli scenario <dir> show <scenario>`
     - `ec-cli scenario-init-all [source_dir] <target_root>`
     - `ec-cli scenario-init [source_dir] <target_dir> fleet-order`
     - `ec-cli scenario-init [source_dir] <target_dir> planet-build`
@@ -64,6 +67,8 @@
       scenarios through a consistent scenario-oriented CLI
     - Rust can now classify a directory against all currently-known accepted
       scenarios with one command
+    - Rust can now also distinguish "matches the currently-known rule shape"
+      from "exactly matches the preserved accepted fixture bytes"
     - Rust now has a first-class scenario catalog and can materialize all
       currently-known accepted scenarios under one target root in one run
     - Rust can also reject obviously non-compliant starbase snapshots before

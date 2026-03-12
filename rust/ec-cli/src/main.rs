@@ -63,6 +63,23 @@ impl KnownScenario {
             Self::GuardStarbase => "accepted one-base guard-starbase fixture spanning PLAYER/FLEETS/BASES",
         }
     }
+
+    fn preserved_fixture_dir(self) -> PathBuf {
+        let root = repo_root().join("fixtures");
+        match self {
+            Self::FleetOrder => root.join("ecmaint-fleet-pre/v1.5"),
+            Self::PlanetBuild => root.join("ecmaint-build-pre/v1.5"),
+            Self::GuardStarbase => root.join("ecmaint-starbase-pre/v1.5"),
+        }
+    }
+
+    fn exact_match_files(self) -> &'static [&'static str] {
+        match self {
+            Self::FleetOrder => &["FLEETS.DAT"],
+            Self::PlanetBuild => &["PLANETS.DAT"],
+            Self::GuardStarbase => &["PLAYER.DAT", "FLEETS.DAT", "BASES.DAT"],
+        }
+    }
 }
 
 fn main() {
@@ -340,10 +357,18 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .map(|arg| resolve_repo_path(&arg))
                 .unwrap_or_else(default_fixture_dir);
             let selector = args.next();
-            match selector.as_deref().and_then(KnownScenario::parse) {
-                Some(scenario) => apply_known_scenario(&dir, scenario)?,
-                None if selector.as_deref() == Some("list") => print_known_scenarios(),
-                None => print_usage(),
+            if selector.as_deref() == Some("list") {
+                print_known_scenarios();
+            } else if selector.as_deref() == Some("show") {
+                match args.next().as_deref().and_then(KnownScenario::parse) {
+                    Some(scenario) => print_known_scenario_details(scenario),
+                    None => print_usage(),
+                }
+            } else {
+                match selector.as_deref().and_then(KnownScenario::parse) {
+                    Some(scenario) => apply_known_scenario(&dir, scenario)?,
+                    None => print_usage(),
+                }
             }
         }
         "scenario-init-all" => {
@@ -380,6 +405,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 Some("all") => validate_all_known_scenarios(&dir)?,
                 Some(name) => match KnownScenario::parse(name) {
                     Some(scenario) => validate_known_scenario(&dir, scenario)?,
+                    None => print_usage(),
+                },
+                _ => print_usage(),
+            }
+        }
+        "validate-preserved" => {
+            let dir = args
+                .next()
+                .map(|arg| resolve_repo_path(&arg))
+                .unwrap_or_else(default_fixture_dir);
+            match args.next().as_deref() {
+                Some("all") => validate_all_preserved_scenarios(&dir)?,
+                Some(name) => match KnownScenario::parse(name) {
+                    Some(scenario) => validate_preserved_scenario(&dir, scenario)?,
                     None => print_usage(),
                 },
                 _ => print_usage(),
@@ -1247,6 +1286,55 @@ fn validate_all_known_scenarios(dir: &Path) -> Result<(), Box<dyn std::error::Er
     }
 }
 
+fn validate_preserved_scenario(
+    dir: &Path,
+    scenario: KnownScenario,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let fixture_dir = scenario.preserved_fixture_dir();
+    let mut errors = Vec::new();
+
+    for name in scenario.exact_match_files() {
+        let actual = fs::read(dir.join(name))?;
+        let expected = fs::read(fixture_dir.join(name))?;
+        if actual != expected {
+            errors.push(format!("{name} differs from preserved fixture"));
+        }
+    }
+
+    if errors.is_empty() {
+        println!("Exact preserved match: {}", scenario.name());
+        println!("  fixture: {}", fixture_dir.display());
+        for name in scenario.exact_match_files() {
+            println!("  {name}");
+        }
+        Ok(())
+    } else {
+        Err(errors.join("\n").into())
+    }
+}
+
+fn validate_all_preserved_scenarios(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let mut matched = 0usize;
+    for scenario in KnownScenario::all() {
+        let name = scenario.name();
+        match validate_preserved_scenario(dir, scenario) {
+            Ok(()) => {
+                println!("OK   {name}");
+                matched += 1;
+            }
+            Err(err) => {
+                println!("FAIL {name}: {err}");
+            }
+        }
+    }
+
+    if matched == 0 {
+        Err("directory does not exactly match any preserved accepted scenario".into())
+    } else {
+        Ok(())
+    }
+}
+
 fn init_known_scenario(
     source: &Path,
     target: &Path,
@@ -1296,6 +1384,19 @@ fn print_known_scenarios() {
     println!("Known scenarios:");
     for scenario in KnownScenario::all() {
         println!("  {}: {}", scenario.name(), scenario.description());
+    }
+}
+
+fn print_known_scenario_details(scenario: KnownScenario) {
+    println!("Scenario: {}", scenario.name());
+    println!("Description: {}", scenario.description());
+    println!(
+        "Preserved fixture: {}",
+        scenario.preserved_fixture_dir().display()
+    );
+    println!("Exact-match files:");
+    for name in scenario.exact_match_files() {
+        println!("  {name}");
     }
 }
 
@@ -1623,9 +1724,12 @@ fn print_usage() {
     println!("  ec-cli fleet-order <dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]");
     println!("  ec-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>");
     println!("  ec-cli scenario <dir> <fleet-order|planet-build|guard-starbase>");
+    println!("  ec-cli scenario <dir> show <fleet-order|planet-build|guard-starbase>");
+    println!("  ec-cli scenario <dir> list");
     println!("  ec-cli scenario-init-all [source_dir] <target_root>");
     println!("  ec-cli scenario-init [source_dir] <target_dir> <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli validate <dir> <all|fleet-order|planet-build|guard-starbase>");
+    println!("  ec-cli validate-preserved <dir> <all|fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli match [dir]");
     println!("  ec-cli compare <left_dir> <right_dir>");
     println!("  ec-cli init [source_dir] <target_dir>");

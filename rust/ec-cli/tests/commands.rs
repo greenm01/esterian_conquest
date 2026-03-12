@@ -67,6 +67,17 @@ fn scenario_list_prints_known_scenarios() {
 }
 
 #[test]
+fn scenario_show_prints_fixture_metadata() {
+    let stdout = run_ec_cli(&["scenario", "original/v1.5", "show", "guard-starbase"]);
+    assert!(stdout.contains("Scenario: guard-starbase"));
+    assert!(stdout.contains("Description: accepted one-base guard-starbase fixture"));
+    assert!(stdout.contains("fixtures/ecmaint-starbase-pre/v1.5"));
+    assert!(stdout.contains("PLAYER.DAT"));
+    assert!(stdout.contains("FLEETS.DAT"));
+    assert!(stdout.contains("BASES.DAT"));
+}
+
+#[test]
 fn headers_prints_known_setup_and_conquest_values() {
     let stdout = run_ec_cli(&["headers", "original/v1.5"]);
     assert!(stdout.contains("SETUP.version=EC151"));
@@ -542,6 +553,29 @@ fn validate_fleet_order_accepts_known_valid_fixture() {
 }
 
 #[test]
+fn validate_preserved_guard_starbase_accepts_known_fixture() {
+    let stdout = run_ec_cli(&[
+        "validate-preserved",
+        "fixtures/ecmaint-starbase-pre/v1.5",
+        "guard-starbase",
+    ]);
+    assert!(stdout.contains("Exact preserved match: guard-starbase"));
+    assert!(stdout.contains("fixtures/ecmaint-starbase-pre/v1.5"));
+}
+
+#[test]
+fn validate_preserved_all_classifies_known_build_fixture() {
+    let stdout = run_ec_cli(&[
+        "validate-preserved",
+        "fixtures/ecmaint-build-pre/v1.5",
+        "all",
+    ]);
+    assert!(stdout.contains("OK   planet-build"));
+    assert!(stdout.contains("FAIL fleet-order:"));
+    assert!(stdout.contains("FAIL guard-starbase:"));
+}
+
+#[test]
 fn validate_planet_build_accepts_known_valid_fixture() {
     let stdout = run_ec_cli(&["validate", "fixtures/ecmaint-build-pre/v1.5", "planet-build"]);
     assert!(stdout.contains("Valid planet-build scenario"));
@@ -594,6 +628,15 @@ fn validate_all_rejects_post_maint_fixture() {
         repo_root().join("rust"),
     );
     assert!(stderr.contains("directory does not match any known accepted scenario"));
+}
+
+#[test]
+fn validate_preserved_rejects_post_maint_fixture() {
+    let stderr = run_ec_cli_failure_in_dir(
+        &["validate-preserved", "fixtures/ecmaint-post/v1.5", "all"],
+        repo_root().join("rust"),
+    );
+    assert!(stderr.contains("directory does not exactly match any preserved accepted scenario"));
 }
 
 #[test]

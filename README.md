@@ -59,8 +59,12 @@ Current Rust milestone:
   - `ec-cli validate <dir> guard-starbase`
 - `ec-cli validate <dir> all` now classifies a directory against all currently
   known accepted scenarios and reports which ones match
+- `ec-cli validate-preserved <dir> <scenario>` now checks exact byte-for-byte
+  agreement with the preserved accepted fixture files for that scenario
 - `ec-cli scenario original/v1.5 list` now prints the current Rust-side
   scenario catalog
+- `ec-cli scenario original/v1.5 show <scenario>` now prints the preserved
+  fixture path and exact-match files for a known scenario
 - `ec-cli scenario-init-all [source_dir] <target_root>` now materializes all
   currently-known accepted scenario directories in one run
 - Rust can now materialize a runnable Guard Starbase scenario directory from a
