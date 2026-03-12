@@ -1272,6 +1272,58 @@ Practical inference:
 - that matches the DOSBox-X trace evidence: the abort happens after the initial
   file sweep and before the normal maintenance pipeline
 
+Validator branch correction:
+
+- static report: `artifacts/ghidra/ecmaint-live/5ee4-fleet-branch.txt`
+- script: `tools/ghidra_scripts_tmp/Report5EE4FleetBranch.java`
+- `2000:6040..6368` is the `FLEETS.DAT` validator branch inside `2000:5EE4`,
+  not the direct `BASES.DAT` loader
+- evidence:
+  - opens stream `0x3178`
+  - uses record size `0x36`
+  - copies the active fleet record into local scratch at `[BP+0xFF3E]`
+- structure:
+  - loops over per-player pointers from `0x16AC`
+  - validates fleet-owner byte `[BP+0xFF40]` against the current loop index
+    when the dead `16A4` bypass flag is off
+  - emits kind-`1` summary entries through `0x2F72` / `0x2F76`
+  - first sub-branch writes summary `+0x06` from `player[0x40]`
+  - second sub-branch is gated by local word `[BP+0xFF41]` and writes summary
+    `+0x06` from `[BP+0xFF43]`
+- practical consequence:
+  - the front-loaded synthetic two-base integrity abort is distinct from the
+    later `Fleet assigned to an unknown starbase` behavior
+  - that later error is now most likely produced by downstream kind-`1`
+    summary resolution over scratch block `0x3502`, not by this loader loop
+
+Kind-`1` scratch dispatch follow-up:
+
+- new artifact: `artifacts/ghidra/ecmaint-live/kind1-scratch-function.txt`
+- new script: `tools/ghidra_scripts_tmp/ReportKind1ScratchFunction.java`
+- `0000:02ED..03D5` is the kind-`1` mirror of the already-mapped kind-`3`
+  summary loader:
+  - pushes summary field `ES:[DI+0x06]`
+  - passes scratch base `0x3502`
+  - then reads the normalized field family:
+    - `350D`, `350F..3513`
+    - `350E`, `3515..3519`
+    - `3522`
+    - `3523`
+    - `351B..351F`
+    - capped byte `3524`
+    - selector/count byte `350C`
+- practical interpretation:
+  - kind `1` uses the same generic summary-dispatch architecture as kind `3`
+  - the later Guard Starbase failure path should be recoverable from scratch
+    block `0x3502` plus the common post-kind canonicalization logic
+- important correction:
+  - the raw-import entry at `2000:C067` is not yet a trustworthy semantic
+    helper start; like the earlier `C0CD` false lead, it decodes as a fragment
+    inside a larger arithmetic/helper region
+  - so the next useful step is not to assign semantics to `C067` itself, but
+    to correlate the `3502` fields back to the `FLEETS.DAT` offsets already
+    observed in `2000:6040..6368`
+
 Relevant documentation cross-check:
 
 - `ECPLAYER.DOC` confirms `X` toggles a player-level `expert mode` setting and `T` changes the empire-wide tax rate
