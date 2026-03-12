@@ -38,6 +38,10 @@ At the start of a development or agent session, read these in order:
 
 1. [docs/next-session.md](/home/mag/dev/esterian_conquest/docs/next-session.md)
    Use this as the current handoff and restart point.
+   It shall remain a compact restart brief, not a running notebook.
+   If it starts accumulating detailed history, move that detail into
+   archive docs and keep only the current state, current goal, biggest
+   blockers, and immediate next steps.
 2. [docs/approach.md](/home/mag/dev/esterian_conquest/docs/approach.md)
    Reconfirm the project goal, milestone ladder, and acceptance criteria.
 3. [docs/rust-architecture.md](/home/mag/dev/esterian_conquest/docs/rust-architecture.md)
@@ -66,6 +70,8 @@ If the task is DOSBox-heavy, also check:
 
 - `RE_NOTES.md` is the chronological RE notebook
 - `docs/` holds stable engineering guidance and milestone docs
+- historical or bulky handoff detail shall be archived outside
+  `docs/next-session.md`, for example in `docs/next-session-archive.md`
 - when a significant RE finding lands, update both:
   - `RE_NOTES.md`
   - the relevant stable doc, usually `docs/next-session.md` and/or `docs/approach.md`
@@ -89,6 +95,8 @@ Prefer rule-shaped generators and validators over preserved-byte blob emission.
 - update user-facing docs when commands, workflows, or project milestones change
 - mention new commands in `README.md` and the relevant docs when they become part of the normal workflow
 - preserve unrelated local `.ghidra` project DB churn; do not revert it unless explicitly asked
+- `docs/next-session.md` shall stay short and current; archive older detail
+  instead of appending indefinitely
 
 ## Current Priorities
 
