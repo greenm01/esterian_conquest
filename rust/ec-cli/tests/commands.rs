@@ -639,6 +639,37 @@ fn guard_starbase_report_prints_linkage_fields_for_known_fixture() {
 }
 
 #[test]
+fn guard_starbase_init_materializes_parameterized_directory() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let target = std::env::temp_dir().join(format!("ec-cli-guard-starbase-init-xy-{unique}"));
+
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "guard-starbase-init",
+            target.to_str().unwrap(),
+            "12",
+            "9",
+        ],
+        repo_root().join("rust"),
+    );
+    assert!(stdout.contains("Guard Starbase directory initialized at"));
+    assert!(stdout.contains("structured single-base record at (12, 9)"));
+
+    let report = run_ec_cli_in_dir(
+        &["guard-starbase-report", target.to_str().unwrap()],
+        repo_root().join("rust"),
+    );
+    assert!(report.contains("base_count=1"));
+    assert!(report.contains("verdict=valid one-base guard-starbase linkage"));
+    assert!(report.contains("target=[12, 9]"));
+
+    let _ = fs::remove_dir_all(&target);
+}
+
+#[test]
 fn validate_guard_starbase_accepts_known_valid_fixture() {
     let stdout = run_ec_cli(&["validate", "fixtures/ecmaint-starbase-pre/v1.5", "guard-starbase"]);
     assert!(stdout.contains("Valid guard-starbase scenario"));

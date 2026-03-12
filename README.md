@@ -68,6 +68,10 @@ Current Rust milestone:
   - `ec-cli guard-starbase-report <dir>`
   - prints the current player/fleet/base linkage words and the validator
     verdict for quick ECMAINT experiment setup
+- Rust now also has a one-command parameterized directory initializer:
+  - `ec-cli guard-starbase-init [source_dir] <target_dir> <target_x> <target_y>`
+  - defaults to the compliant `fixtures/ecmaint-post/v1.5` baseline when
+    `source_dir` is omitted
 - `ec-cli validate <dir> all` now classifies a directory against all currently
   known accepted scenarios and reports which ones match
 - `ec-cli validate-preserved <dir> <scenario>` now checks exact byte-for-byte

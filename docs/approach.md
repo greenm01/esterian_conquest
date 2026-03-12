@@ -142,6 +142,10 @@ Current concrete Rust milestone:
     - `ec-cli guard-starbase-report <dir>`
     - use this to print the currently relevant player/fleet/base key words
       before and after running `ECMAINT`
+  - Rust also now has a one-command parameterized directory initializer:
+    - `ec-cli guard-starbase-init [source_dir] <target_dir> <target_x> <target_y>`
+    - this is the quickest current path from a known-good baseline to a new
+      ECMAINT-ready one-base Guard Starbase experiment
   - `ec-cli validate <dir> all` now gives a quick classification pass across
     the current known accepted scenarios
   - the known accepted scenarios are now centralized behind one Rust-side

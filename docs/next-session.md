@@ -77,6 +77,10 @@
         - this prints the current player/fleet/base linkage words and the
           current validator verdict, which is now the quickest Rust-side
           inspection tool before handing a directory to `ECMAINT`
+        - `ec-cli guard-starbase-init [source_dir] <target_dir> <target_x> <target_y>`
+        - this now materializes a coordinate-parameterized one-base Guard
+          Starbase directory in one command, defaulting to
+          `fixtures/ecmaint-post/v1.5`
   - `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`
     materializes a runnable scenario directory in one command from a
     compliant baseline

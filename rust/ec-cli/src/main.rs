@@ -377,6 +377,17 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or_else(default_fixture_dir);
             print_guard_starbase_report(&dir)?;
         }
+        "guard-starbase-init" => {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((source, target, target_x, target_y)) = parse_optional_source_target_and_xy(
+                remaining,
+                post_maint_fixture_dir(),
+            ) else {
+                print_usage();
+                return Ok(());
+            };
+            init_guard_starbase_onebase(&source, &target, target_x, target_y)?;
+        }
         "scenario" => {
             let dir = args
                 .next()
@@ -1355,6 +1366,21 @@ fn print_guard_starbase_report(dir: &Path) -> Result<(), Box<dyn std::error::Err
     Ok(())
 }
 
+fn init_guard_starbase_onebase(
+    source: &Path,
+    target: &Path,
+    target_x: u8,
+    target_y: u8,
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(target)?;
+    for name in INIT_FILES {
+        fs::copy(source.join(name), target.join(name))?;
+    }
+    set_guard_starbase_onebase(target, target_x, target_y)?;
+    println!("Guard Starbase directory initialized at {}", target.display());
+    Ok(())
+}
+
 fn validate_known_fleet_order_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let fleets = FleetDat::parse(&fs::read(dir.join("FLEETS.DAT"))?)?;
     let mut errors = Vec::new();
@@ -1910,6 +1936,27 @@ fn parse_optional_source_target_and_name(
     }
 }
 
+fn parse_optional_source_target_and_xy(
+    args: Vec<String>,
+    default_source: PathBuf,
+) -> Option<(PathBuf, PathBuf, u8, u8)> {
+    match args.as_slice() {
+        [target, x, y] => Some((
+            default_source,
+            PathBuf::from(target),
+            parse_u8_arg(x, "target_x").ok()?,
+            parse_u8_arg(y, "target_y").ok()?,
+        )),
+        [source, target, x, y] => Some((
+            resolve_repo_path(source),
+            PathBuf::from(target),
+            parse_u8_arg(x, "target_x").ok()?,
+            parse_u8_arg(y, "target_y").ok()?,
+        )),
+        _ => None,
+    }
+}
+
 fn print_usage() {
     println!("Usage:");
     println!("  ec-cli inspect [dir]");
@@ -1924,6 +1971,7 @@ fn print_usage() {
     println!("  ec-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>");
     println!("  ec-cli guard-starbase-onebase <dir> <target_x> <target_y>");
     println!("  ec-cli guard-starbase-report <dir>");
+    println!("  ec-cli guard-starbase-init [source_dir] <target_dir> <target_x> <target_y>");
     println!("  ec-cli scenario <dir> <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli scenario <dir> show <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli scenario <dir> list");
