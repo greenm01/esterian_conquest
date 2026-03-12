@@ -1778,6 +1778,19 @@ impl CoreGameData {
         })
         .collect()
     }
+
+    pub fn current_known_baseline_exact_match_errors(&self) -> Vec<String> {
+        self.current_known_baseline_diff_counts()
+            .into_iter()
+            .filter(|diff| diff.differing_bytes != 0)
+            .map(|diff| {
+                format!(
+                    "{} differs by {} bytes from current-known baseline normalization",
+                    diff.name, diff.differing_bytes
+                )
+            })
+            .collect()
+    }
 }
 
 fn load_parsed<T>(

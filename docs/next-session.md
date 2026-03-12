@@ -1243,6 +1243,12 @@ Suggested execution order:
       - `PLAYER.DAT`
       - `PLANETS.DAT`
       - `FLEETS.DAT`
+  - new exact baseline oracle:
+    - `CoreGameData::current_known_baseline_exact_match_errors()`
+    - CLI: `ec-cli core-validate-current-known-baseline [dir]`
+    - this is the first byte-level pass/fail oracle for the shared Rust
+      current-known post-maint baseline, not just a structural validator or
+      drift report
       - `BASES.DAT`
       - `IPBM.DAT`
       - `SETUP.DAT`

@@ -186,6 +186,21 @@ pub(crate) fn validate_core_state(dir: &Path) -> Result<(), Box<dyn std::error::
     }
 }
 
+pub(crate) fn validate_current_known_baseline_exact(
+    dir: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let data = CoreGameData::load(dir)?;
+    let errors = data.current_known_baseline_exact_match_errors();
+
+    if errors.is_empty() {
+        println!("Exact current-known baseline match");
+        println!("  dir = {}", dir.display());
+        Ok(())
+    } else {
+        Err(errors.join("\n").into())
+    }
+}
+
 pub(crate) fn sync_core_counts(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let mut data = CoreGameData::load(dir)?;
     data.sync_player1_current_known_counts();

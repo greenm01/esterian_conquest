@@ -291,6 +291,14 @@ baseline:
   - for the preserved `fixtures/ecmaint-post/v1.5` baseline, the current-known
     normalizer is now byte-complete across the full core `.DAT` set
 
+That byte-complete baseline now supports an exact-match oracle:
+- `CoreGameData::current_known_baseline_exact_match_errors()`
+- CLI: `ec-cli core-validate-current-known-baseline [dir]`
+- this is stricter than `ec-cli core-validate [dir]`
+  - `core-validate` checks the current-known structural and semantic rules
+  - `core-validate-current-known-baseline` checks byte-identical equality to
+    the Rust-generated current-known post-maint baseline
+
 The shared model also now treats homeworld-seed alignment as a current-known
 multi-player invariant for initialized/post-maint state:
 - each active empire has exactly one owned `Not Named Yet` planet

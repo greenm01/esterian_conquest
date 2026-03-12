@@ -5,6 +5,7 @@ pub fn print_usage() {
     println!("  ec-cli core-diff-current-known-baseline [dir]");
     println!("  ec-cli core-diff-current-known-baseline-offsets [dir]");
     println!("  ec-cli core-validate [dir]");
+    println!("  ec-cli core-validate-current-known-baseline [dir]");
     println!("  ec-cli core-sync-counts [dir]");
     println!("  ec-cli core-sync-baseline [dir]");
     println!("  ec-cli core-sync-current-known-baseline [dir]");

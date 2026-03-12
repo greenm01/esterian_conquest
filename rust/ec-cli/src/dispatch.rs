@@ -10,7 +10,7 @@ use crate::commands::core::{
     sync_core_baseline, sync_core_counts,
     sync_current_known_baseline,
     sync_initialized_fleet_baseline, sync_initialized_planet_payloads,
-    validate_core_state,
+    validate_core_state, validate_current_known_baseline_exact,
 };
 use crate::commands::fleet_order::{
     init_fleet_order_batch, init_fleet_order_scenario, print_fleet_order_report, set_fleet_order,
@@ -78,6 +78,9 @@ pub fn run_args(
             print_current_known_baseline_diff_offsets(&next_dir(&mut args))?
         }
         "core-validate" => validate_core_state(&next_dir(&mut args))?,
+        "core-validate-current-known-baseline" => {
+            validate_current_known_baseline_exact(&next_dir(&mut args))?
+        }
         "core-sync-counts" => sync_core_counts(&next_dir(&mut args))?,
         "core-sync-baseline" => sync_core_baseline(&next_dir(&mut args))?,
         "core-sync-current-known-baseline" => sync_current_known_baseline(&next_dir(&mut args))?,

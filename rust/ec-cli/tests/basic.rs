@@ -179,6 +179,12 @@ fn core_init_current_known_baseline_materializes_valid_directory() {
     );
     assert!(validate_stdout.contains("Valid core state"));
 
+    let exact_stdout = run_ec_cli_in_dir(
+        &["core-validate-current-known-baseline", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(exact_stdout.contains("Exact current-known baseline match"));
+
     cleanup_dir(&target);
 }
 

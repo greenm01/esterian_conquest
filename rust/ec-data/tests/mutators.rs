@@ -280,6 +280,21 @@ fn core_game_data_current_known_baseline_diff_offsets_clear_planet_file_on_clean
 }
 
 #[test]
+fn core_game_data_current_known_baseline_exact_match_accepts_clean_post_fixture() {
+    let data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    assert!(data.current_known_baseline_exact_match_errors().is_empty());
+}
+
+#[test]
 fn core_game_data_initialized_fleet_block_helpers_match_known_fixtures() {
     let data = CoreGameData {
         player: PlayerDat::parse(&read_initialized_fixture("PLAYER.DAT")).unwrap(),

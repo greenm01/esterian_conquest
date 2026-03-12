@@ -61,6 +61,15 @@ fn core_validate_accepts_known_post_fixture_state() {
 }
 
 #[test]
+fn core_validate_current_known_baseline_accepts_known_post_fixture_state() {
+    let stdout = run_ec_cli(&[
+        "core-validate-current-known-baseline",
+        "fixtures/ecmaint-post/v1.5",
+    ]);
+    assert!(stdout.contains("Exact current-known baseline match"));
+}
+
+#[test]
 fn core_sync_counts_repairs_player1_count_words() {
     let target = unique_temp_dir("ec-cli-core-sync");
     common::copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
