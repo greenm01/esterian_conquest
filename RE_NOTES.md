@@ -4347,3 +4347,41 @@ Practical consequence:
   - the immediate post-match handoff into common canonicalization
 - next best target: the later consumer of canonicalized kind-`1` / kind-`2`
   summaries that still has access to guard/order semantics
+
+Later post-canonical consumer (`0000:108c..1400`):
+
+Artifacts:
+- `artifacts/ghidra/ecmaint-live/summary-post-canonical.txt`
+
+Tool:
+- `tools/ghidra_scripts_tmp/ReportSummaryPostCanonical.java`
+
+Recovered structure:
+- `0000:1104..123E` is a generic summary post-processing pass:
+  - seeds summary word `+0x08` for every entry via helper `0x3000:4d2a`
+  - then sorts / swaps the 12-byte summary records by that derived `+0x08`
+    key using repeated `0x3000:4136` copies
+- `0000:123E..12FD` appears to emit generic report/header material through
+  repeated `0x3000:3f88`, `0x3000:4057`, and `0x3000:40ed` calls
+- the first later active-summary consumer is `0000:1302..1361`:
+  - loops summary index `1..[0x2F76]`
+  - filters on summary active/status byte `+0x03 != 0`
+  - for each active summary:
+    - `CALL 0000:02C0` (shared summary loader/normalizer)
+    - `CALLF 0x1000:a26e`
+    - `CALLF 0x2000:c057`
+    - `CALLF 0x1000:0b51`
+    - `CALLF 0x2000:c057`
+
+Practical consequence:
+- this `0000:1302..1361` loop is the first concrete later consumer after the
+  matcher/canonicalizer that still processes each active summary entry
+- it is now the best current target for the unresolved `unknown starbase`
+  behavior, because it sits later than:
+  - base-side decode
+  - fleet-side kind-`1` summary emission
+  - immediate post-match handoff
+  - generic sort/report staging
+- next highest-value step: identify whether the segment-`1000` callees
+  `a26e` and `0b51` are the starbase-resolution / error-emission path for
+  active kind-`1` / kind-`2` summaries

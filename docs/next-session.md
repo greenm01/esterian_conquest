@@ -80,8 +80,13 @@ Priority order:
        - the new `0000:06AE..0800` dump shows kind `2` falls straight into the
          generic post-kind canonicalization path; the special work there is for
          kind `3`
-       - next target should therefore be the later consumer of canonicalized
-         summaries that still has access to guard/order semantics
+       - the first concrete later consumer is now `0000:1302..1361`, which:
+         - loops active summaries (`+0x03 != 0`)
+         - calls the shared loader `0000:02C0`
+         - then dispatches each active entry through two far calls in segment
+           `1000`
+       - next target should therefore be those later active-summary callees,
+         not the matcher/canonicalizer itself
 
 2. Recover initialized-to-post-maint deterministic rules
    - use canonical post-maint diff output from normalized `original/v1.5`
@@ -113,9 +118,11 @@ Best immediate task:
     the emitted kind-`1` summary itself
   - the immediate `0000:06AE..0800` handoff is mostly generic
     canonicalization, not a starbase-specific decision block
-  - so the next capture/search should target the later consumer of the
-    canonicalized summaries, not the base decode, raw kind-`1` summary
-    emission, or the immediate post-match handoff
+  - the next concrete consumer after generic sort/report staging is now
+    `0000:1302..1361`
+  - so the next capture/search should target the segment-`1000` callees from
+    that loop, not the base decode, raw kind-`1` summary emission, or the
+    immediate post-match handoff
 - once those rules are recovered, promote them into `CoreGameData`
 
 Why this first:
