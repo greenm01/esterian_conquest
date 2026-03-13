@@ -140,6 +140,14 @@ Recommended order:
 1. `PLANETS.DAT`
    - explain the remaining repeated economy/homeworld payload clusters
    - this is now the upstream target for the shipped sample
+   - the new transition-details report shows the shipped sample still has a
+     different homeworld/unowned topology from the canonical post-maint
+     baseline
+   - examples:
+     - current record 13 homeworld seed at `(6,12)` vs canonical `(4,13)`
+     - current record 16 `Dust Bowl` owned world at `(16,13)` vs canonical
+       unowned record 16 and canonical player-1 homeworld seed at record 15
+         `(16,13)`
 2. `FLEETS.DAT`
    - after current-known normalization, remaining fleet drift collapses to
      offsets `11/12` and `32/33`
@@ -147,6 +155,10 @@ Recommended order:
    - practical implication:
      - remaining `FLEETS.DAT` drift is derived from the sample’s planet /
        homeworld state, not an independent queue
+   - the new detail report confirms the dependency:
+     - fleet block 2 follows current `(6,12)` vs canonical `(4,13)`
+     - fleet block 3 follows current `(16,5)` vs canonical `(6,5)`
+     - fleet block 4 follows current `(7,4)` vs canonical `(13,5)`
 3. `PLAYER.DAT`
    - promote only count/summary words that are supported by evidence
 4. `IPBM.DAT`

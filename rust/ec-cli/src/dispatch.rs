@@ -7,7 +7,7 @@ use crate::commands::compliance::{print_compliance_batch_report, print_complianc
 use crate::commands::core::{
     init_current_known_baseline, print_canonical_current_known_baseline_diff,
     print_canonical_current_known_baseline_diff_offsets, print_canonical_transition_clusters,
-    print_core_report,
+    print_canonical_transition_details, print_core_report,
     print_current_known_baseline_diff, print_current_known_baseline_diff_offsets,
     sync_canonical_current_known_baseline, sync_core_baseline, sync_core_counts,
     sync_current_known_baseline, sync_initialized_fleet_baseline,
@@ -87,6 +87,9 @@ pub fn run_args(
         }
         "core-report-canonical-transition-clusters" => {
             print_canonical_transition_clusters(&next_dir(&mut args))?
+        }
+        "core-report-canonical-transition-details" => {
+            print_canonical_transition_details(&next_dir(&mut args))?
         }
         "core-validate" => validate_core_state(&next_dir(&mut args))?,
         "core-validate-current-known-baseline" => {

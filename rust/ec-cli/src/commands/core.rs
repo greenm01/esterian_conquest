@@ -178,6 +178,90 @@ pub(crate) fn print_canonical_transition_clusters(
     Ok(())
 }
 
+pub(crate) fn print_canonical_transition_details(
+    dir: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let data = CoreGameData::load(dir)?;
+    let baseline = CoreGameData::load(&post_maint_fixture_dir())?;
+    let diffs = data.diff_offsets_against(&baseline);
+
+    println!("Canonical Transition Details");
+    println!("  dir={}", dir.display());
+
+    for diff in diffs {
+        match diff.name {
+            "PLAYER.DAT" => {
+                println!("  PLAYER.DAT:");
+                for record_index in unique_record_indexes(&diff.differing_offsets, PLAYER_RECORD_SIZE) {
+                    let current = &data.player.records[record_index - 1];
+                    let canonical = &baseline.player.records[record_index - 1];
+                    println!(
+                        "    record {} current: starbase_count_raw={} ipbm_count_raw={} fleet_chain_head_raw={}",
+                        record_index,
+                        current.starbase_count_raw(),
+                        current.ipbm_count_raw(),
+                        current.fleet_chain_head_raw()
+                    );
+                    println!(
+                        "    record {} canonical: starbase_count_raw={} ipbm_count_raw={} fleet_chain_head_raw={}",
+                        record_index,
+                        canonical.starbase_count_raw(),
+                        canonical.ipbm_count_raw(),
+                        canonical.fleet_chain_head_raw()
+                    );
+                }
+            }
+            "PLANETS.DAT" => {
+                println!("  PLANETS.DAT:");
+                for record_index in unique_record_indexes(&diff.differing_offsets, PLANET_RECORD_SIZE) {
+                    let current = &data.planets.records[record_index - 1];
+                    let canonical = &baseline.planets.records[record_index - 1];
+                    println!(
+                        "    record {} current: {}",
+                        record_index,
+                        current.derived_summary()
+                    );
+                    println!(
+                        "    record {} canonical: {}",
+                        record_index,
+                        canonical.derived_summary()
+                    );
+                }
+            }
+            "FLEETS.DAT" => {
+                println!("  FLEETS.DAT:");
+                for record_index in unique_record_indexes(&diff.differing_offsets, FLEET_RECORD_SIZE) {
+                    let current = &data.fleets.records[record_index - 1];
+                    let canonical = &baseline.fleets.records[record_index - 1];
+                    println!(
+                        "    record {} current: loc={:?} target={:?} order={} aux={:?}",
+                        record_index,
+                        current.current_location_coords_raw(),
+                        current.standing_order_target_coords_raw(),
+                        current.standing_order_summary(),
+                        current.mission_aux_bytes()
+                    );
+                    println!(
+                        "    record {} canonical: loc={:?} target={:?} order={} aux={:?}",
+                        record_index,
+                        canonical.current_location_coords_raw(),
+                        canonical.standing_order_target_coords_raw(),
+                        canonical.standing_order_summary(),
+                        canonical.mission_aux_bytes()
+                    );
+                }
+            }
+            _ => {
+                if !diff.differing_offsets.is_empty() {
+                    println!("  {}: differing_offsets={:?}", diff.name, diff.differing_offsets);
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
 fn print_record_clusters(name: &str, record_size: usize, offsets: &[usize]) {
     println!("  {}:", name);
     if offsets.is_empty() {
@@ -204,6 +288,19 @@ fn print_record_clusters(name: &str, record_size: usize, offsets: &[usize]) {
     if let Some(record_index) = current_record {
         println!("    record {} -> {:?}", record_index, current_offsets);
     }
+}
+
+fn unique_record_indexes(offsets: &[usize], record_size: usize) -> Vec<usize> {
+    let mut result = Vec::new();
+    let mut current = None;
+    for offset in offsets {
+        let record_index = offset / record_size + 1;
+        if current != Some(record_index) {
+            result.push(record_index);
+            current = Some(record_index);
+        }
+    }
+    result
 }
 
 pub(crate) fn validate_core_state(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {

@@ -4829,3 +4829,16 @@ Transition-queue implication:
     - fleet drift is downstream of the sample's planet/homeworld state
     - the next initialized-to-post-maint rule discovery pass should start with
       `PLANETS.DAT`, not another fleet-only dive
+- the new semantic transition-details report makes that dependency concrete:
+  - current normalized shipped-sample homeworld seed / owned-world state still
+    differs from the canonical post-maint topology
+  - examples:
+    - current record 13 homeworld seed at `(6,12)` vs canonical `(4,13)`
+    - current record 16 owned `Dust Bowl` world at `(16,13)` vs canonical
+      unowned record 16, while canonical player-1 homeworld seed lives at
+      record 15 `(16,13)`
+  - the remaining fleet-block drift follows those planet/homeworld coords
+    directly:
+    - block 2 current `(6,12)` vs canonical `(4,13)`
+    - block 3 current `(16,5)` vs canonical `(6,5)`
+    - block 4 current `(7,4)` vs canonical `(13,5)`

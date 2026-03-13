@@ -259,6 +259,34 @@ fn core_report_canonical_transition_clusters_groups_original_sample_drift() {
 }
 
 #[test]
+fn core_report_canonical_transition_details_summarizes_differing_records() {
+    let target = unique_temp_dir("ec-cli-core-transition-details-original");
+
+    run_ec_cli_in_dir(
+        &[
+            "core-init-current-known-baseline",
+            "original/v1.5",
+            target.to_str().unwrap(),
+        ],
+        common::repo_root(),
+    );
+
+    let stdout = run_ec_cli_in_dir(
+        &["core-report-canonical-transition-details", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Canonical Transition Details"));
+    assert!(stdout.contains("PLANETS.DAT:"));
+    assert!(stdout.contains("record 6 current:"));
+    assert!(stdout.contains("record 6 canonical:"));
+    assert!(stdout.contains("FLEETS.DAT:"));
+    assert!(stdout.contains("record 9 current: loc="));
+    assert!(stdout.contains("record 9 canonical: loc="));
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn core_diff_current_known_baseline_reports_mutated_files() {
     let target = unique_temp_dir("ec-cli-core-diff-current-known");
     common::copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);

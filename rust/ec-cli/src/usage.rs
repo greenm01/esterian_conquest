@@ -7,6 +7,7 @@ pub fn print_usage() {
     println!("  ec-cli core-diff-canonical-current-known-baseline [dir]");
     println!("  ec-cli core-diff-canonical-current-known-baseline-offsets [dir]");
     println!("  ec-cli core-report-canonical-transition-clusters [dir]");
+    println!("  ec-cli core-report-canonical-transition-details [dir]");
     println!("  ec-cli core-validate [dir]");
     println!("  ec-cli core-validate-current-known-baseline [dir]");
     println!("  ec-cli core-sync-counts [dir]");
