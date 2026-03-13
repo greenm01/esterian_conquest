@@ -26,39 +26,38 @@ impl DatabaseRecord {
     }
 
     /// Get the raw bytes of the planet name field.
-    /// Name appears to be Pascal-style: first byte is length, followed by characters.
-    /// Based on observations: offset 0x01 starts the name with length prefix.
+    /// Name is Pascal-style: length byte at offset 0x00, followed by characters at 0x01+.
+    /// Maximum name length is 14 characters (fits in 0x00..0x0E).
     pub fn planet_name_bytes(&self) -> &[u8] {
-        // Name starts at offset 0x01 with Pascal-style length prefix
-        let len = self.raw[0x01] as usize;
+        let len = self.raw[0x00] as usize;
         if len > 0 && len <= 14 {
-            &self.raw[0x01..=len]
+            &self.raw[0x01..0x01 + len]
         } else {
-            &self.raw[0x01..0x01]
+            &self.raw[0x01..0x01] // Empty slice
         }
     }
 
-    /// Set the planet name using Pascal-style encoding (length prefix).
+    /// Set the planet name using Pascal-style encoding (length prefix at 0x00).
     pub fn set_planet_name(&mut self, name: &str) {
-        // Clear the name area first (offsets 0x01 to 0x0F, 15 bytes total)
-        self.raw[0x01..=0x0F].fill(0);
+        // Clear the name area first (offsets 0x00 to 0x0E, 15 bytes total)
+        self.raw[0x00..0x0F].fill(0);
 
         let bytes = name.as_bytes();
-        let len = bytes.len().min(14); // Max 14 chars after length byte
+        let len = bytes.len().min(14); // Max 14 chars
 
-        // Pascal-style: first byte is length
-        self.raw[0x01] = len as u8;
-        self.raw[0x02..=0x02 + len - 1].copy_from_slice(&bytes[..len]);
+        // Pascal-style: first byte at offset 0x00 is length
+        self.raw[0x00] = len as u8;
+        self.raw[0x01..0x01 + len].copy_from_slice(&bytes[..len]);
     }
 
-    /// Get the raw name string area (15 bytes at offset 0x01, including length prefix).
+    /// Get the raw name string area (15 bytes at offset 0x00, including length prefix).
     pub fn name_area_raw(&self) -> [u8; 15] {
-        copy_array(&self.raw[0x01..0x10])
+        copy_array(&self.raw[0x00..0x0F])
     }
 
-    /// Set the entire name area (15 bytes including length prefix).
+    /// Set the entire name area (15 bytes including length prefix at 0x00).
     pub fn set_name_area_raw(&mut self, area: [u8; 15]) {
-        self.raw[0x01..0x10].copy_from_slice(&area);
+        self.raw[0x00..0x0F].copy_from_slice(&area);
     }
 
     /// Get a word at a specific offset (little-endian u16).

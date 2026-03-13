@@ -53,12 +53,21 @@ fn regenerate_database_dat(
         None
     };
 
-    // Extract planet names from PLANETS.DAT
+    // Extract planet names from PLANETS.DAT and normalize them
+    // ECMAINT normalizes certain names to "UNKNOWN"
     let planet_names: Vec<String> = game_data
         .planets
         .records
         .iter()
-        .map(|p| p.planet_name())
+        .map(|p| {
+            let name = p.planet_name();
+            // Normalize names like ECMAINT does
+            if name.eq_ignore_ascii_case("unowned") || name.eq_ignore_ascii_case("not named yet") {
+                "UNKNOWN".to_string()
+            } else {
+                name
+            }
+        })
         .collect();
 
     // Get current game year
