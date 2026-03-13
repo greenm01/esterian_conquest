@@ -2,6 +2,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -12,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "fixtures" / "ecmaint-starbase-pre" / "v1.5"
 ECMAINT = ROOT / "original" / "v1.5" / "ECMAINT.EXE"
 TARGET = Path("/tmp/ecmaint-debug-kind2")
-ARTIFACT_DIR = ROOT / "artifacts" / "ecmaint-kind2-debug"
+ARTIFACT_BASE = ROOT / "artifacts" / "ecmaint-kind2-debug"
 
 BREAKPOINTS = {
     "base_decode_post_call": "0814:0403",
@@ -23,15 +24,6 @@ TARGET_EIPS = {
     "base_decode_post_call": 0x0303,
     "candidate_decode_post_call": 0x0586,
 }
-
-
-def prepare_target() -> None:
-    if TARGET.exists():
-        shutil.rmtree(TARGET)
-    shutil.copytree(SRC, TARGET)
-    shutil.copy2(ECMAINT, TARGET / "ECMAINT.EXE")
-
-
 def run_sanity() -> None:
     env = os.environ.copy()
     env["SDL_VIDEODRIVER"] = "dummy"
@@ -134,15 +126,29 @@ def capture_memory(child, registers: dict[str, int], linear_start_expr: str, len
 
 
 def main() -> None:
-    prepare_target()
+    label = sys.argv[1] if len(sys.argv) > 1 else "accepted-onebase"
+    source = Path(sys.argv[2]) if len(sys.argv) > 2 else SRC
+    artifact_dir = ARTIFACT_BASE / label
+
+    global TARGET
+    TARGET = Path(f"/tmp/ecmaint-debug-kind2-{label}")
+
+    if TARGET.exists():
+        shutil.rmtree(TARGET)
+    shutil.copytree(source, TARGET)
+    if not (TARGET / "ECMAINT.EXE").exists():
+        shutil.copy2(ECMAINT, TARGET / "ECMAINT.EXE")
     run_sanity()
 
-    if (TARGET / "ERRORS.TXT").exists() and (TARGET / "ERRORS.TXT").read_text(errors="ignore").strip():
-        raise SystemExit("Sanity run produced ERRORS.TXT")
+    sanity_error_text = ""
+    if (TARGET / "ERRORS.TXT").exists():
+        sanity_error_text = (TARGET / "ERRORS.TXT").read_text(errors="ignore").strip()
 
-    if ARTIFACT_DIR.exists():
-        shutil.rmtree(ARTIFACT_DIR)
-    ARTIFACT_DIR.mkdir(parents=True)
+    if artifact_dir.exists():
+        shutil.rmtree(artifact_dir)
+    artifact_dir.mkdir(parents=True)
+    if sanity_error_text:
+        (artifact_dir / "sanity_errors.txt").write_text(sanity_error_text + "\n")
 
     env = os.environ.copy()
     env["SDL_VIDEODRIVER"] = "dummy"
@@ -215,13 +221,13 @@ def main() -> None:
             if eip == TARGET_EIPS["base_decode_post_call"] and base_ev is None:
                 base_ev = ev_block
                 base_hex = capture_memory(child, regs, "DS:3558", 0x24)
-                (ARTIFACT_DIR / "base_decode_registers.txt").write_text(base_ev + "\n")
-                (ARTIFACT_DIR / "base_decode_3558.txt").write_text(base_hex)
+                (artifact_dir / "base_decode_registers.txt").write_text(base_ev + "\n")
+                (artifact_dir / "base_decode_3558.txt").write_text(base_hex)
             elif eip == TARGET_EIPS["candidate_decode_post_call"] and cand_ev is None:
                 cand_ev = ev_block
                 cand_hex = capture_memory(child, regs, "LOCAL_CANDIDATE", 0x30)
-                (ARTIFACT_DIR / "candidate_decode_registers.txt").write_text(cand_ev + "\n")
-                (ARTIFACT_DIR / "candidate_decode_local.txt").write_text(cand_hex)
+                (artifact_dir / "candidate_decode_registers.txt").write_text(cand_ev + "\n")
+                (artifact_dir / "candidate_decode_local.txt").write_text(cand_hex)
             elif regs["AX"] >> 8 == 0x4C:
                 break
             elif base_ev is not None and cand_ev is None:
@@ -233,7 +239,7 @@ def main() -> None:
 
         if base_ev is None or base_hex is None:
             raise RuntimeError(f"Did not hit base decode breakpoint. EV hits: {hits}")
-        (ARTIFACT_DIR / "ev_hits.txt").write_text("\n".join(hits) + "\n")
+        (artifact_dir / "ev_hits.txt").write_text("\n".join(hits) + "\n")
 
         child.sendcontrol("c")
         child.expect(r"y/n:", timeout=5)
@@ -241,24 +247,28 @@ def main() -> None:
         child.expect_exact("Killed", timeout=5)
         transcript.append(child.before)
     finally:
-        (ARTIFACT_DIR / "session.log").write_text("".join(transcript))
+        (artifact_dir / "session.log").write_text("".join(transcript))
         child.close(force=True)
 
     summary = []
-    summary.append("Accepted one-base guard-starbase matcher decode capture")
+    summary.append(f"ECMAINT kind-2 matcher decode capture: {label}")
     summary.append("")
+    if sanity_error_text:
+        summary.append("Sanity run ERRORS.TXT:")
+        summary.append(sanity_error_text)
+        summary.append("")
     summary.append("Base-side decode breakpoint: 0814:0403")
     summary.append(base_ev)
     summary.append("")
     summary.append(base_hex)
     summary.append("")
     summary.append("Candidate-side decode breakpoint: 0814:0686")
-    summary.append(cand_ev)
+    summary.append(cand_ev or "<not hit>")
     summary.append("")
-    summary.append(cand_hex)
+    summary.append(cand_hex or "<not captured>")
     summary.append("")
-    (ARTIFACT_DIR / "summary.txt").write_text("\n".join(summary))
-    print(ARTIFACT_DIR)
+    (artifact_dir / "summary.txt").write_text("\n".join(summary))
+    print(artifact_dir)
 
 
 if __name__ == "__main__":

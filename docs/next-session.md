@@ -65,6 +65,15 @@ Priority order:
        - the accepted one-base case likely succeeds on the direct decoded-key
          path (`candidate +0x0A == [3558]`)
        - the structural candidate-decode path may not be needed in that case
+   - latest concrete narrowing from the failing `fleet[0x23] = 0` case:
+     - it still reaches the same live base-decode stop `CS=0824 EIP=0303`
+     - its base-side decode block is byte-for-byte identical to the accepted
+       one-base case
+     - practical implication:
+       - the `unknown starbase` discriminator is not in the base-side decoded
+         `3558/355A` object
+       - the remaining rule must be later, in the candidate-side match path or
+         a follow-on guard/flag check
 
 2. Recover initialized-to-post-maint deterministic rules
    - use canonical post-maint diff output from normalized `original/v1.5`
@@ -90,8 +99,10 @@ Best immediate task:
 - specifically compare:
   - the accepted one-base direct-key path
   - a failing `unknown starbase` case
-  - to see whether the remaining rule is a decoded key mismatch, kind mismatch,
-    or flag mismatch
+  - the new narrowing is that the failing `fleet[0x23] = 0` case already has
+    the same base-side decoded keys as the accepted case
+  - so the next capture should target the candidate-side match path or the
+    later guard/flag check, not the base decode itself
 - once those rules are recovered, promote them into `CoreGameData`
 
 Why this first:

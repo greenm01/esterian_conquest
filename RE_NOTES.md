@@ -4264,3 +4264,38 @@ Practical interpretation:
 - this strengthens the hypothesis that the accepted one-base case succeeds on
   the direct decoded-key path (`candidate +0x0A == [3558]`) and may not need
   the later structural candidate-decode path at all
+
+Failing `unknown starbase` matcher comparison (`fleet[0x23] = 0`):
+
+Artifacts:
+- `artifacts/ecmaint-kind2-debug/badenable/base_decode_registers.txt`
+- `artifacts/ecmaint-kind2-debug/badenable/base_decode_3558.txt`
+- `artifacts/ecmaint-kind2-debug/badenable/sanity_errors.txt`
+
+Capture notes:
+- source directory was the accepted one-base fixture with only `fleet[0x23]`
+  cleared to `0`, which reliably produces:
+  - `Fleet assigned to an unknown starbase.`
+- the generalized capture helper was updated to:
+  - accept `label` and source-directory arguments
+  - preserve expected failing `ERRORS.TXT` output instead of aborting the run
+  - write partial base-side artifacts as soon as the base decode is captured
+
+Recovered failing-case base decode:
+- live stop is still `CS=0824 EIP=0303`
+- registers match the accepted one-base capture exactly:
+  - `824 303 3529 3529 39ab f50c fd96 0 b 23 64 3538 2ff8`
+- `DS:3558` dump is byte-for-byte identical to the accepted one-base case:
+  - `[3558] = 0x0001`
+  - `[355A] = 0x0001`
+  - `[3563] = 0x10`
+  - `[3564] = 0x0D`
+  - `[3578] = 0x10`
+  - `[3579] = 0x0D`
+  - `[357A] = 0x01`
+
+Practical consequence:
+- the later `unknown starbase` failure is not caused by a difference in the
+  base-side decoded matcher object
+- the remaining discriminator must be later in the kind-`1` candidate-side
+  match path or in a follow-on guard/flag check after the identical base decode

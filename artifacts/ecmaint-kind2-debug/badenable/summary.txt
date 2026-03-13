@@ -1,0 +1,17 @@
+ECMAINT kind-2 matcher decode capture: badenable
+
+Sanity run ERRORS.TXT:
+03-12-2026 8:10pm -> Fleet assigned to an unknown starbase.
+
+Base-side decode breakpoint: 0814:0403
+824 303 3529 3529 39ab f50c fd96 0 b 23 64 3538 2ff8
+
+00000000: 01 00 01 00 01 00 00 01 00 00 00 10 0d 80 00 00  ................
+00000010: 00 00 00 80 00 00 00 00 00 81 00 00 00 00 00 00  ................
+00000020: 10 0d 01 00                                      ....
+
+Comparison against accepted one-base capture:
+- base-side register snapshot is identical
+- base-side `DS:3558` block is byte-for-byte identical
+- the `unknown starbase` discriminator is therefore later than the base decode
+  itself
