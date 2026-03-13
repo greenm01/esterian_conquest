@@ -77,6 +77,20 @@ If the task is DOSBox-heavy, also check:
   - the relevant stable doc, usually `docs/next-session.md` and/or `docs/approach.md`
 - prefer headless Ghidra scripts and reproducible artifacts over ad hoc manual notes
 - do not treat guessed semantics as settled; keep unknown fields raw until supported
+- agents shall use escalating RE depth:
+  - start with Rust-generated scenarios, preserved fixtures, and black-box
+    oracle testing against the original binaries
+  - promote repeated deterministic pass/fail patterns into shared Rust rules first
+  - escalate to deep static/dynamic RE only when:
+    - the path blocks broader compliant gamestate generation
+    - black-box testing has plateaued
+    - the expected rule is reusable rather than one-off trivia
+- agents shall stop a deep RE thread once the rule is explicit enough to
+  promote into Rust; they shall not continue a rabbit hole only for extra
+  historical detail
+- agents shall not default to maximum-depth RE for every mechanic; the recent
+  Guard Starbase / `unknown starbase` path is the blocker-escalation template,
+  not the baseline workflow
 
 ## Rust Workflow
 

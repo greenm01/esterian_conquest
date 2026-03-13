@@ -54,6 +54,21 @@ The goal is:
 - when possible, decode changes in `.DAT` files first and use live report viewing second
 - historical text captures are reference evidence when live playback is unavailable or flaky
 
+7. Use escalating RE depth, not maximum depth by default
+
+- start with Rust-generated scenarios, preserved fixtures, and black-box
+  `ECMAINT` acceptance testing
+- promote repeated deterministic pass/fail patterns into shared Rust rules first
+- escalate to deep static/dynamic RE only when all three are true:
+  - a path is blocking broader compliant gamestate generation
+  - black-box testing has plateaued
+  - the expected rule is reusable, not one-off trivia
+- when deep RE is required, stop once the rule is explicit enough to promote
+  into Rust; do not keep digging only to satisfy curiosity
+- treat the recent Guard Starbase / `unknown starbase` investigation as the
+  template for a justified deep-dive blocker, not as the default workflow for
+  every mechanic
+
 ## What Counts As Success
 
 Short term:
@@ -132,6 +147,29 @@ Near-term acceptance rule:
 - a format/mechanic is not "done" until Rust can emit the relevant state and
   the original binaries accept it without integrity failures or unexpected
   normalization
+
+## RE Workflow
+
+Default loop:
+
+1. Generate or mutate a controlled scenario in Rust.
+2. Run the original binary (`ECMAINT`, `ECGAME`, or `ECUTIL`) as the oracle.
+3. Diff the resulting `.DAT` files and reports.
+4. Promote only strong repeated patterns into `CoreGameData`.
+5. Escalate to deep RE only if the rule still blocks generalization.
+
+Deep RE escalation criteria:
+
+- use static/dynamic RE when a blocker survives repeated black-box tests
+- prefer narrow, reproducible captures over broad exploratory tracing
+- stop the deep dive once the missing rule can be stated precisely enough for
+  Rust validation/generation
+
+Anti-rabbit-hole rule:
+
+- do not apply full deep-dive treatment to every mechanic
+- if a path is not currently blocking broader compliant generation, keep it in
+  the black-box queue until it becomes a real blocker
 
 Current concrete Rust milestone:
 

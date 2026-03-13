@@ -12,6 +12,23 @@ Primary milestone:
 - use that compliant generator as the bridge toward a Rust `ECMAINT`
   replacement
 
+## Working Method
+
+Default method:
+
+- black-box first
+- Rust-generated scenario -> original binary oracle -> `.DAT` diff -> promote
+  deterministic rule into `CoreGameData`
+
+Escalate to deep RE only when:
+
+- the path is blocking broader compliant gamestate generation
+- black-box testing has plateaued
+- the expected rule is reusable
+
+The current Guard Starbase / `unknown starbase` thread meets that bar. Do not
+use its depth as the default workflow for unrelated mechanics.
+
 ## Current State
 
 What is strong:
