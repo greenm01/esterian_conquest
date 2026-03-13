@@ -316,6 +316,19 @@ ones.
   - `ViewWorld`
   - `ScoutSector`
   - `ScoutSolarSystem`
+- scout-ordered fleets that meet hostile forces now also emit first-class
+  contact-identification events from the battle/contact phase, which the report
+  writer renders as:
+  - initial sensor contact
+  - identified alien fleet summary
+- that contact-event family is now mission-aware and also drives:
+  - `JoinAnotherFleet` contact reports
+  - `RendezvousSector` contact reports
+  - `Guard/Blockade World` contact reports
+- `RendezvousSector` arrival now emits the classic waiting-style report, and
+  friendly merge processing emits:
+  - join-merge reports
+  - rendezvous-merge reports
 - current Rust maint policy is still to leave
   [`MESSAGES.DAT`](/home/mag/dev/esterian_conquest/rust/ec-cli/src/commands/reports.rs)
   empty, because every preserved post-maint fixture in the current corpus does so
@@ -339,8 +352,11 @@ ones.
     contact cases
   - refine `RESULTS.DAT` formatting toward the original fixed-record idiom now
     that the deterministic event surface is in place
-  - deepen scout/contact reporting beyond the current arrival/intel reports and
-    add true contact-identification follow-up events
+  - refine edge-case non-combat report semantics beyond the current broad
+    coverage, especially:
+    - join host destroyed / mission abandoned
+    - rendezvous absorption wording
+    - guard/blockade arrival and non-contact status reports
   - only revisit `MESSAGES.DAT` once a non-empty maint-generated sample is
     recovered from oracle fixtures or historical session captures
   - add end-to-end `maint-compare` command coverage once the oracle-backed CLI
@@ -597,7 +613,10 @@ enum MaintEvent {
 - [x] scout mission arrivals emit first-class typed events
 - [x] `ViewWorld` emits typed mission results and intel refresh
 - [x] battle-driven mission aborts emit typed outcomes for move/view/scout
-- [ ] scout intel/contact follow-up reports are modeled beyond arrival/intel
+- [x] scout contact-identification reports exist for hostile fleet encounters
+- [x] join/rendezvous mission-result reporting is promoted into the typed
+  event/report pipeline
+- [ ] join host-destruction and absorption edge reports are modeled
 - [ ] no inline report string construction outside the report generation pass
 
 ---
@@ -646,11 +665,11 @@ enum MaintEvent {
 
 **Immediate next steps:**
 
-1. Add typed scout/contact follow-up events for reconnaissance intel and
-   first-contact style reporting beyond the current arrival/intel reports.
-2. Decide whether `JoinAnotherFleet` / `RendezvousSector` should become the
-   next non-combat mission families promoted into the generic mission-outcome
-  /report pipeline, or whether contact-identification should come first.
+1. Recover and model join-host-destroyed / mission-abandoned outcomes from the
+   historical logs or fresh oracle scenarios.
+2. Recover and model rendezvous “absorbing the Nth Fleet” wording as distinct
+   from the current generic “merging with” path when the host/survivor side is
+   known.
 3. Keep refining `RESULTS.DAT` family formatting against preserved fixtures and
    historical session logs.
 4. Do not add a canonical `MESSAGES.DAT` writer until a non-empty maint-driven

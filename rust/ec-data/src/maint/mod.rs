@@ -44,6 +44,42 @@ pub struct FleetBattleEvent {
     pub winner_empire_raw: Option<u8>,
 }
 
+/// A scout-style hostile contact report resolved during maintenance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ScoutContactEvent {
+    /// Fleet index in FLEETS.DAT that made the contact.
+    pub fleet_idx: usize,
+    /// Empire that owns the observing fleet.
+    pub viewer_empire_raw: u8,
+    /// Mission family under which the contact was reported.
+    pub mission_kind: MissionResolutionKind,
+    /// Coordinates where the contact occurred.
+    pub coords: [u8; 2],
+    /// Empire that was detected.
+    pub target_empire_raw: u8,
+    /// Aggregate "small vessel" count in the detected force.
+    pub small_vessels: u32,
+    /// Aggregate "medium vessel" count in the detected force.
+    pub medium_vessels: u32,
+    /// Aggregate "large vessel" count in the detected force.
+    pub large_vessels: u32,
+}
+
+/// A friendly merge result for join/rendezvous style orders.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FleetMergeEvent {
+    /// Fleet index in FLEETS.DAT that merged away.
+    pub fleet_idx: usize,
+    /// Empire that owned the merging fleet.
+    pub owner_empire_raw: u8,
+    /// Kind of merge-producing mission.
+    pub kind: MissionResolutionKind,
+    /// Host fleet ID that remained after the merge.
+    pub host_fleet_id: u8,
+    /// Coordinates where the merge occurred.
+    pub coords: [u8; 2],
+}
+
 /// The generic outcome class for a mission report.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MissionResolutionOutcome {
@@ -57,6 +93,9 @@ pub enum MissionResolutionOutcome {
 pub enum MissionResolutionKind {
     MoveOnly,
     ViewWorld,
+    GuardBlockadeWorld,
+    JoinAnotherFleet,
+    RendezvousSector,
     ColonizeWorld,
     BombardWorld,
     InvadeWorld,
@@ -121,6 +160,10 @@ pub struct MaintenanceEvents {
     pub ownership_change_events: Vec<PlanetOwnershipChangeEvent>,
     /// Fleet battle summaries for later reporting layers.
     pub fleet_battle_events: Vec<FleetBattleEvent>,
+    /// Scout-style hostile contact reports.
+    pub scout_contact_events: Vec<ScoutContactEvent>,
+    /// Friendly merge reports for join/rendezvous outcomes.
+    pub fleet_merge_events: Vec<FleetMergeEvent>,
     /// Successful colonization outcomes.
     pub colonization_events: Vec<ColonizationResolvedEvent>,
     /// Generic mission outcomes for report generation.
@@ -272,7 +315,7 @@ pub fn run_maintenance_turn(
     // included in the merge even though it moves to (15,13) this turn.
     // The merge runs before movement resolution, absorbing all same-position
     // fleets for flagged players (PLAYER raw[0x00]==0xff).
-    process_fleet_merging(game_data)?;
+    let merge_events = process_fleet_merging(game_data)?;
 
     // Process fleet orders; collect side-effect events
     let movement_events = process_fleet_movement(game_data)?;
@@ -356,6 +399,8 @@ pub fn run_maintenance_turn(
         },
         ownership_change_events: assault_events.ownership_change_events,
         fleet_battle_events: fleet_battle_phase_events.fleet_battle_events,
+        scout_contact_events: fleet_battle_phase_events.scout_contact_events,
+        fleet_merge_events: merge_events,
         colonization_events,
         mission_resolution_events,
     })
@@ -475,6 +520,19 @@ fn process_fleet_movement(
                                     MissionResolutionOutcome::Failed
                                 },
                                 planet_idx,
+                                location_coords: Some([target_x, target_y]),
+                                target_coords: Some([target_x, target_y]),
+                            });
+                    }
+                    FleetStandingOrderKind::RendezvousSector => {
+                        movement_events
+                            .mission_resolution_events
+                            .push(MissionResolutionEvent {
+                                fleet_idx: i,
+                                owner_empire_raw: owner_empire,
+                                kind: MissionResolutionKind::RendezvousSector,
+                                outcome: MissionResolutionOutcome::Succeeded,
+                                planet_idx: None,
                                 location_coords: Some([target_x, target_y]),
                                 target_coords: Some([target_x, target_y]),
                             });
@@ -766,10 +824,12 @@ fn process_colonizations(
 ///   are decremented by the count of removed slots before each position.
 /// - PLAYER.DAT first_fleet_id (raw[0x40]) and last_fleet_id (raw[0x42]) are
 ///   updated for all players to reflect the remapped IDs.
-fn process_fleet_merging(game_data: &mut CoreGameData) -> Result<(), Box<dyn std::error::Error>> {
+fn process_fleet_merging(
+    game_data: &mut CoreGameData,
+) -> Result<Vec<FleetMergeEvent>, Box<dyn std::error::Error>> {
     let fleet_count = game_data.fleets.records.len();
     if fleet_count == 0 {
-        return Ok(());
+        return Ok(Vec::new());
     }
 
     // Snapshot original fleet owner/id before any removals (for last_fleet_id recompute).
@@ -788,6 +848,7 @@ fn process_fleet_merging(game_data: &mut CoreGameData) -> Result<(), Box<dyn std
 
     // Build a list of which fleets should be removed (merged into another).
     let mut to_remove: Vec<bool> = vec![false; fleet_count];
+    let mut merge_events = Vec::new();
 
     let player_count = game_data.player.records.len();
     for player_idx in 0..player_count {
@@ -812,6 +873,22 @@ fn process_fleet_merging(game_data: &mut CoreGameData) -> Result<(), Box<dyn std
             if let Some(&survivor_idx) = coord_to_survivor.get(&coords) {
                 // This fleet duplicates an existing location → merge into survivor.
                 to_remove[fi] = true;
+
+                let merging_order = game_data.fleets.records[fi].standing_order_kind();
+                let merge_kind = match merging_order {
+                    FleetStandingOrderKind::JoinAnotherFleet => Some(MissionResolutionKind::JoinAnotherFleet),
+                    FleetStandingOrderKind::RendezvousSector => Some(MissionResolutionKind::RendezvousSector),
+                    _ => None,
+                };
+                if let Some(kind) = merge_kind {
+                    merge_events.push(FleetMergeEvent {
+                        fleet_idx: fi,
+                        owner_empire_raw: owner,
+                        kind,
+                        host_fleet_id: game_data.fleets.records[survivor_idx].fleet_id(),
+                        coords,
+                    });
+                }
 
                 // Sum ship counts into survivor.
                 let bb = game_data.fleets.records[fi].battleship_count();
@@ -938,7 +1015,7 @@ fn process_fleet_merging(game_data: &mut CoreGameData) -> Result<(), Box<dyn std
         }
     }
 
-    Ok(())
+    Ok(merge_events)
 }
 
 /// Process build queue completion for all planets.

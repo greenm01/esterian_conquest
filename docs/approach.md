@@ -246,6 +246,12 @@ Near-term policy:
 - when combat forces a fleet off its standing orders, emit a typed mission
   `Aborted` outcome from the battle phase instead of hiding that consequence
   inside fleet-byte mutations alone
+- let scout-style hostile contact detection be emitted from the battle/contact
+  grouping phase, because that is where maint has the cleanest simultaneous
+  view of who met whom before attrition rewrites the board
+- keep that contact event family mission-aware so scout, join, rendezvous, and
+  guard/blockade reports can share one detection path without copy-pasted
+  reporting logic
 - treat `RESULTS.DAT` as the active canonical maint report target
 - leave `MESSAGES.DAT` empty until a non-empty maint-generated sample is
   recovered from fixtures, oracle runs, or historical session captures

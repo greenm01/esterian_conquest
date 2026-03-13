@@ -276,3 +276,37 @@ fn test_view_world_arrival_emits_success_and_intel_event() {
             && event.planet_idx == Some(13)
     }));
 }
+
+#[test]
+fn test_rendezvous_arrival_emits_waiting_event() {
+    let mut game_data = load_fixture("ecmaint-fleet-pre");
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_standing_order_code_raw(14);
+    fleet.set_standing_order_target_coords_raw([15, 13]);
+
+    let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
+
+    assert!(events.mission_resolution_events.iter().any(|event| {
+        event.fleet_idx == 0
+            && event.kind == MissionResolutionKind::RendezvousSector
+            && event.outcome == MissionResolutionOutcome::Succeeded
+            && event.location_coords == Some([15, 13])
+    }));
+}
+
+#[test]
+fn test_join_merge_emits_merge_event() {
+    let mut game_data = load_fixture("ecmaint-post");
+    game_data.player.records[0].raw[0x00] = 0xff;
+    let coords = game_data.fleets.records[0].current_location_coords_raw();
+    game_data.fleets.records[1].set_current_location_coords_raw(coords);
+    game_data.fleets.records[1].set_standing_order_code_raw(13);
+
+    let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
+
+    assert!(events.fleet_merge_events.iter().any(|event| {
+        event.fleet_idx == 1
+            && event.kind == MissionResolutionKind::JoinAnotherFleet
+            && event.owner_empire_raw == 1
+    }));
+}

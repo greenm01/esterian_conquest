@@ -270,3 +270,126 @@ fn maint_rust_battle_abort_generates_move_abort_report() {
 
     cleanup_dir(&target);
 }
+
+#[test]
+fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
+    let target = unique_temp_dir("ec-cli-maint-rust-scout-abort");
+    copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    game_data.fleets.records[0].set_standing_order_code_raw(10);
+    game_data.save(&target).expect("mutated fixture should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("Scouting mission report"));
+    assert!(text.contains("Sensor contact") || text.contains("contact shows"));
+    assert!(text.contains("identified the alien fleet") || text.contains("located and ident"));
+    assert!(text.contains("withdraw toward") || text.contains("seeking safety"));
+    assert!(text.contains("planet \"") || text.contains("System("));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_rendezvous_arrival_generates_waiting_report() {
+    let target = unique_temp_dir("ec-cli-maint-rust-rendezvous-wait");
+    copy_fixture_dir("fixtures/ecmaint-fleet-pre/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_standing_order_code_raw(14);
+    fleet.set_standing_order_target_coords_raw([15, 13]);
+    game_data.save(&target).expect("mutated fixture should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("Rendezvous mission report"));
+    assert!(text.contains("waiting for more fleets"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_join_merge_generates_join_report() {
+    let target = unique_temp_dir("ec-cli-maint-rust-join-merge");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    game_data.player.records[0].raw[0x00] = 0xff;
+    let coords = game_data.fleets.records[0].current_location_coords_raw();
+    game_data.fleets.records[1].set_current_location_coords_raw(coords);
+    game_data.fleets.records[1].set_standing_order_code_raw(13);
+    game_data.save(&target).expect("mutated fixture should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("Join mission report"));
+    assert!(text.contains("now merging"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_join_contact_uses_join_report_label() {
+    let target = unique_temp_dir("ec-cli-maint-rust-join-contact");
+    copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    game_data.fleets.records[0].set_standing_order_code_raw(13);
+    game_data.save(&target).expect("mutated fixture should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("Join mission report"));
+    assert!(text.contains("Sensor contact") || text.contains("contact shows"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_guard_contact_uses_guard_report_label() {
+    let target = unique_temp_dir("ec-cli-maint-rust-guard-contact");
+    copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    game_data.fleets.records[0].set_standing_order_code_raw(5);
+    game_data.save(&target).expect("mutated fixture should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("Guard/Blockade World mission report"));
+    assert!(text.contains("Sensor contact") || text.contains("contact shows"));
+
+    cleanup_dir(&target);
+}

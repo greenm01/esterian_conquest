@@ -12,7 +12,7 @@ use crate::{CoreGameData, FleetStandingOrderKind};
 
 use super::{
     BombardEvent, FleetBattleEvent, MissionResolutionEvent, MissionResolutionKind,
-    MissionResolutionOutcome, PlanetIntelEvent, PlanetOwnershipChangeEvent,
+    MissionResolutionOutcome, PlanetIntelEvent, PlanetOwnershipChangeEvent, ScoutContactEvent,
 };
 
 const IDX_DD: usize = 0;
@@ -420,6 +420,34 @@ pub(crate) fn process_fleet_battles(
             .map(|tf| (tf.empire, tf.state.clone()))
             .collect();
 
+        for tf in &task_forces {
+            let target_empire =
+                empire_target_priority(tf.empire, tf.role, &task_forces, planet_owner);
+            let Some(target_empire) = target_empire else {
+                continue;
+            };
+            let Some(target_state) = original_states.get(&target_empire) else {
+                continue;
+            };
+            let (small_vessels, medium_vessels, large_vessels) = vessel_size_summary(target_state);
+            for &idx in &tf.fleet_indices {
+                let order = game_data.fleets.records[idx].standing_order_kind();
+                let Some(mission_kind) = contact_reporting_kind(order) else {
+                    continue;
+                };
+                events.scout_contact_events.push(ScoutContactEvent {
+                    fleet_idx: idx,
+                    viewer_empire_raw: game_data.fleets.records[idx].owner_empire_raw(),
+                    mission_kind,
+                    coords,
+                    target_empire_raw: target_empire,
+                    small_vessels,
+                    medium_vessels,
+                    large_vessels,
+                });
+            }
+        }
+
         for _round in 0..3 {
             let active: Vec<u8> = task_forces
                 .iter()
@@ -560,6 +588,7 @@ pub(crate) fn process_fleet_battles(
 #[derive(Debug, Default)]
 pub(crate) struct FleetBattlePhaseEvents {
     pub fleet_battle_events: Vec<FleetBattleEvent>,
+    pub scout_contact_events: Vec<ScoutContactEvent>,
     pub mission_resolution_events: Vec<MissionResolutionEvent>,
 }
 
@@ -571,6 +600,24 @@ fn mission_kind_for_order(order: Option<FleetStandingOrderKind>) -> Option<Missi
         FleetStandingOrderKind::ScoutSolarSystem => Some(MissionResolutionKind::ScoutSolarSystem),
         _ => None,
     }
+}
+
+fn contact_reporting_kind(order: FleetStandingOrderKind) -> Option<MissionResolutionKind> {
+    match order {
+        FleetStandingOrderKind::ScoutSector => Some(MissionResolutionKind::ScoutSector),
+        FleetStandingOrderKind::ScoutSolarSystem => Some(MissionResolutionKind::ScoutSolarSystem),
+        FleetStandingOrderKind::JoinAnotherFleet => Some(MissionResolutionKind::JoinAnotherFleet),
+        FleetStandingOrderKind::RendezvousSector => Some(MissionResolutionKind::RendezvousSector),
+        FleetStandingOrderKind::GuardBlockadeWorld => Some(MissionResolutionKind::GuardBlockadeWorld),
+        _ => None,
+    }
+}
+
+fn vessel_size_summary(state: &FleetCombatState) -> (u32, u32, u32) {
+    let small = state.counts[IDX_DD] + state.counts[IDX_SC] + state.counts[IDX_TT] + state.counts[IDX_ET];
+    let medium = state.counts[IDX_CA];
+    let large = state.counts[IDX_BB];
+    (small, medium, large)
 }
 
 #[derive(Debug, Default)]

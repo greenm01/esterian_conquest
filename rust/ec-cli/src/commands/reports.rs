@@ -241,6 +241,38 @@ fn mission_location_phrase(kind: MissionResolutionKind, coords: [u8; 2]) -> Stri
     }
 }
 
+fn mission_report_label(kind: MissionResolutionKind) -> &'static str {
+    match kind {
+        MissionResolutionKind::JoinAnotherFleet => "Join mission report",
+        MissionResolutionKind::RendezvousSector => "Rendezvous mission report",
+        MissionResolutionKind::GuardBlockadeWorld => "Guard/Blockade World mission report",
+        MissionResolutionKind::ViewWorld => "Viewing mission report",
+        _ => "Scouting mission report",
+    }
+}
+
+fn coords_system_text(coords: [u8; 2]) -> String {
+    let [x, y] = coords;
+    format!("System({x},{y})")
+}
+
+fn nearest_owned_destination_text(game_data: &CoreGameData, empire_raw: u8, coords: [u8; 2]) -> String {
+    if let Some(planet) = game_data
+        .planets
+        .records
+        .iter()
+        .find(|planet| planet.coords_raw() == coords && planet.owner_empire_slot_raw() == empire_raw)
+    {
+        format!(
+            "planet \"{}\", located in {}",
+            planet.planet_name(),
+            coords_system_text(coords)
+        )
+    } else {
+        coords_system_text(coords)
+    }
+}
+
 pub(crate) fn regenerate_results_dat(
     dir: &Path,
     game_data: &CoreGameData,
@@ -287,6 +319,47 @@ pub(crate) fn regenerate_results_dat(
             RESULTS_TAIL_FLEET,
             &text,
         );
+    }
+
+    for event in &events.scout_contact_events {
+        let [x, y] = event.coords;
+        let label = mission_report_label(event.mission_kind);
+        let contact_text = format!(
+            "From your fleet in System({x},{y}): {label}: Sensor contact shows an alien fleet in System({x},{y}) traveling at sublight speed. Closing to check it out..."
+        );
+        push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &contact_text);
+
+        let size_summary = match (
+            event.large_vessels > 0,
+            event.medium_vessels > 0,
+            event.small_vessels > 0,
+        ) {
+            (true, true, true) => format!(
+                "{} large, {} medium, and {} small vessel(s)",
+                event.large_vessels, event.medium_vessels, event.small_vessels
+            ),
+            (true, true, false) => format!(
+                "{} large and {} medium vessel(s)",
+                event.large_vessels, event.medium_vessels
+            ),
+            (true, false, true) => format!(
+                "{} large and {} small vessel(s)",
+                event.large_vessels, event.small_vessels
+            ),
+            (false, true, true) => format!(
+                "{} medium and {} small vessel(s)",
+                event.medium_vessels, event.small_vessels
+            ),
+            (true, false, false) => format!("{} large vessel(s)", event.large_vessels),
+            (false, true, false) => format!("{} medium vessel(s)", event.medium_vessels),
+            (false, false, true) => format!("{} small vessel(s)", event.small_vessels),
+            (false, false, false) => "no combat vessels".to_string(),
+        };
+        let identified_text = format!(
+            "From your fleet in System({x},{y}): {label}: We have located and identified the alien fleet in System({x},{y}). It belongs to {}. Their fleet contains {size_summary} of unknown type. Ignoring alien fleet...",
+            empire_label(game_data, event.target_empire_raw),
+        );
+        push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &identified_text);
     }
 
     for event in &events.ownership_change_events {
@@ -375,6 +448,12 @@ pub(crate) fn regenerate_results_dat(
                 );
                 push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
             }
+            (MissionResolutionKind::RendezvousSector, MissionResolutionOutcome::Succeeded) => {
+                let text = format!(
+                    "From your fleet in Sector({x},{y}): Rendezvous mission report: We have arrived at the our rendezvous point and are waiting for more fleets to arrive."
+                );
+                push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
+            }
             (MissionResolutionKind::MoveOnly, MissionResolutionOutcome::Aborted) => {
                 let destination = fleet.standing_order_target_coords_raw();
                 let [dx, dy] = destination;
@@ -417,8 +496,12 @@ pub(crate) fn regenerate_results_dat(
                 push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
             }
             (MissionResolutionKind::ViewWorld, MissionResolutionOutcome::Aborted) => {
+                let retreat = event
+                    .target_coords
+                    .map(|coords| nearest_owned_destination_text(game_data, event.owner_empire_raw, coords))
+                    .unwrap_or_else(|| "the nearest friendly controlled solar system".to_string());
                 let text = format!(
-                    "From your fleet in System({x},{y}): Viewing mission report: We were attacked before the viewing mission could be completed and are aborting our assignment."
+                    "From your fleet in System({x},{y}): Viewing mission report: We were attacked before the viewing mission could be completed. We are aborting our assignment and seeking safety at {retreat}."
                 );
                 push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
             }
@@ -429,8 +512,12 @@ pub(crate) fn regenerate_results_dat(
                 push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
             }
             (MissionResolutionKind::ScoutSector, MissionResolutionOutcome::Aborted) => {
+                let retreat = event
+                    .target_coords
+                    .map(|coords| nearest_owned_destination_text(game_data, event.owner_empire_raw, coords))
+                    .unwrap_or_else(|| "the nearest friendly controlled solar system".to_string());
                 let text = format!(
-                    "From your fleet in Sector({x},{y}): Scouting mission report: Hostile action forced us to abort our scouting mission and withdraw."
+                    "From your fleet in Sector({x},{y}): Scouting mission report: Hostile action forced us to abort our scouting mission and withdraw toward {retreat}."
                 );
                 push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
             }
@@ -470,13 +557,33 @@ pub(crate) fn regenerate_results_dat(
                 push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
             }
             (MissionResolutionKind::ScoutSolarSystem, MissionResolutionOutcome::Aborted) => {
+                let retreat = event
+                    .target_coords
+                    .map(|coords| nearest_owned_destination_text(game_data, event.owner_empire_raw, coords))
+                    .unwrap_or_else(|| "the nearest friendly controlled solar system".to_string());
                 let text = format!(
-                    "From your fleet in System({x},{y}): Scouting mission report: We were forced to break off our close reconnaissance and withdraw from the solar system."
+                    "From your fleet in System({x},{y}): Scouting mission report: We were forced to break off our close reconnaissance and withdraw toward {retreat}."
                 );
                 push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
             }
             _ => {}
         }
+    }
+
+    for event in &events.fleet_merge_events {
+        let [x, y] = event.coords;
+        let text = match event.kind {
+            MissionResolutionKind::JoinAnotherFleet => format!(
+                "From your fleet in System({x},{y}): Join mission report: We have joined the {}th Fleet and are now merging with them.",
+                event.host_fleet_id
+            ),
+            MissionResolutionKind::RendezvousSector => format!(
+                "From your fleet in Sector({x},{y}): Rendezvous mission report: We have arrived at the our rendezvous point and are merging with the {}th Fleet.",
+                event.host_fleet_id
+            ),
+            _ => continue,
+        };
+        push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
     }
 
     fs::write(dir.join("RESULTS.DAT"), results)?;

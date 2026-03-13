@@ -100,7 +100,8 @@ fn canonical_bombardment_consumes_order_and_devastates_target() {
 #[test]
 fn canonical_fleet_battle_removes_losers_without_garbage_counts() {
     let mut game_data = load_fixture("ecmaint-fleet-battle-pre");
-    game_data.fleets.records[0].set_standing_order_code_raw(1);
+    game_data.fleets.records[0].set_standing_order_code_raw(10);
+    game_data.fleets.records[0].set_scout_count(1);
 
     let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
 
@@ -124,9 +125,15 @@ fn canonical_fleet_battle_removes_losers_without_garbage_counts() {
 
     assert!(events.mission_resolution_events.iter().any(|event| {
         event.fleet_idx == 0
-            && event.kind == MissionResolutionKind::MoveOnly
+            && event.kind == MissionResolutionKind::ScoutSector
             && event.outcome == MissionResolutionOutcome::Aborted
             && event.location_coords == Some([10, 10])
+    }));
+    assert!(events.scout_contact_events.iter().any(|event| {
+        event.fleet_idx == 0
+            && event.viewer_empire_raw == 1
+            && event.coords == [10, 10]
+            && event.target_empire_raw == 2
     }));
 
     let survivor = &game_data.fleets.records[6];
