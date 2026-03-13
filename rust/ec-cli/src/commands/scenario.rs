@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use ec_data::CoreGameData;
 
 use crate::commands::bombard::{apply_bombard_scenario, validate_bombard_data};
+use crate::commands::fleet_battle::{apply_fleet_battle_scenario, validate_fleet_battle_data};
 use crate::commands::fleet_order::{apply_fleet_order_scenario, apply_move_scenario};
 use crate::commands::guard_starbase::apply_guard_starbase_scenario;
 use crate::commands::ipbm::{apply_ipbm_scenario, validate_ipbm_data};
@@ -19,10 +20,11 @@ pub(crate) enum KnownScenario {
     Ipbm,
     Move,
     Bombard,
+    FleetBattle,
 }
 
 impl KnownScenario {
-    pub(crate) fn all() -> [Self; 6] {
+    pub(crate) fn all() -> [Self; 7] {
         [
             Self::FleetOrder,
             Self::PlanetBuild,
@@ -30,6 +32,7 @@ impl KnownScenario {
             Self::Ipbm,
             Self::Move,
             Self::Bombard,
+            Self::FleetBattle,
         ]
     }
 
@@ -41,6 +44,7 @@ impl KnownScenario {
             Self::Ipbm => "ipbm",
             Self::Move => "move",
             Self::Bombard => "bombard",
+            Self::FleetBattle => "fleet-battle",
         }
     }
 
@@ -52,6 +56,7 @@ impl KnownScenario {
             "ipbm" => Some(Self::Ipbm),
             "move" => Some(Self::Move),
             "bombard" => Some(Self::Bombard),
+            "fleet-battle" => Some(Self::FleetBattle),
             _ => None,
         }
     }
@@ -66,6 +71,9 @@ impl KnownScenario {
             Self::Ipbm => "accepted zero-record IPBM fixture",
             Self::Move => "accepted multi-tick fleet move fixture rooted in FLEETS.DAT",
             Self::Bombard => "accepted fleet bombardment scenario targeting planet 14 at (15,13)",
+            Self::FleetBattle => {
+                "accepted multi-fleet battle scenario with 4 empires converging at (10,10)"
+            }
         }
     }
 
@@ -78,6 +86,7 @@ impl KnownScenario {
             Self::Ipbm => root.join("ecmaint-post/v1.5"),
             Self::Move => root.join("ecmaint-move-pre/v1.5"),
             Self::Bombard => root.join("ecmaint-bombard-pre/v1.5"),
+            Self::FleetBattle => root.join("ecmaint-fleet-battle-pre/v1.5"),
         }
     }
 
@@ -89,6 +98,7 @@ impl KnownScenario {
             Self::Ipbm => &["PLAYER.DAT", "IPBM.DAT"],
             Self::Move => &["FLEETS.DAT"],
             Self::Bombard => &["FLEETS.DAT", "PLANETS.DAT"],
+            Self::FleetBattle => &["FLEETS.DAT", "PLANETS.DAT"],
         }
     }
 }
@@ -104,6 +114,7 @@ pub(crate) fn apply_known_scenario(
         KnownScenario::Ipbm => apply_ipbm_scenario(dir),
         KnownScenario::Move => apply_move_scenario(dir),
         KnownScenario::Bombard => apply_bombard_scenario(dir),
+        KnownScenario::FleetBattle => apply_fleet_battle_scenario(dir),
     }
 }
 
@@ -138,6 +149,7 @@ pub(crate) fn validate_known_scenario(
         KnownScenario::Ipbm => validate_ipbm_data(&data),
         KnownScenario::Move => validate_move_data(&data),
         KnownScenario::Bombard => validate_bombard_data(&data),
+        KnownScenario::FleetBattle => validate_fleet_battle_data(&data),
     }
 }
 
@@ -153,6 +165,7 @@ pub(crate) fn validate_all_known_scenarios(dir: &Path) -> Result<(), Box<dyn std
             KnownScenario::Ipbm => validate_ipbm_data(&data),
             KnownScenario::Move => validate_move_data(&data),
             KnownScenario::Bombard => validate_bombard_data(&data),
+            KnownScenario::FleetBattle => validate_fleet_battle_data(&data),
         };
         match result {
             Ok(()) => {

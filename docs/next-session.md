@@ -226,6 +226,8 @@ What is strong:
     - `guard-starbase`
     - `ipbm`
     - `move`
+    - `bombard`
+    - `fleet-battle`
 
 What is still incomplete:
 
@@ -300,27 +302,20 @@ Priority order:
 
 ## Concrete Next Task
 
-All 5 deterministic scenarios (`fleet-order`, `planet-build`, `guard-starbase`,
-`move`, `ipbm`) now have a Rust generator and pass `replay-known` with zero
-compare diff. There are no remaining deterministic compliance gaps in the
-currently covered scenarios.
+Scenarios `fleet-order`, `planet-build`, `guard-starbase`, `move`, `ipbm`,
+`bombard`, and `fleet-battle` now have Rust generators and passing tests.
+`bombard` and `fleet-battle` exact-match their preserved pre-maint fixtures for
+`FLEETS.DAT` and `PLANETS.DAT`.
 
-The 4 non-deterministic scenarios (`econ`, `bombard`, `fleet-battle`,
-`invade-heavy`) cannot produce zero diff by construction — their outcomes
-involve random battle damage, army growth, or invasion results.
+The remaining non-deterministic scenarios still need pre-maint generators:
 
-Best immediate task:
+1. **`invade-heavy`** — invasion pre-maint setup; follow the `bombard`/`fleet-battle`
+   pattern (analyze pre-fixture diff from canonical baseline, implement
+   `apply_invade_heavy_scenario`, add 3 tests)
+2. **`econ`** — economy tick; requires understanding the production/tax rule
+   (raw[0x0e] and factories_word at raw[0x08..0x09])
 
-**Extend the Rust generator to cover new scenario families.**
-
-The next scenario families to cover with a Rust generator and a `replay-known`
-harness entry are:
-
-1. **`bombard`** / **`fleet-battle`** — bombardment/battle pre-maint setup; the
-   deterministic tick1 (pre-battle) may be coverable; tick2 is random
-2. **`econ`** — economy tick; requires understanding of the production/tax rule
-   that drives factory growth (raw[0x0e] and factories_word at raw[0x08..0x09])
-3. **`invade-heavy`** — invasion pre-maint setup
+Best immediate task: **`invade-heavy` scenario** (same pattern as `fleet-battle`).
 
 ## Canonical Baseline Tools
 
