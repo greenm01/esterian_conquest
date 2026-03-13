@@ -360,10 +360,10 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 - fleet:        10/10 ✅ 100%
 - move:         10/10 ✅ 100%
 - starbase:     10/10 ✅ 100%
+- invasion:      7/10 ⏳ 70% — implemented, needs oracle fixture validation
 - econ:          8/10 ⏳ 80%  — blocked on rogue AI (deferred, stochastic)
 - bombard:       9/10 ⏳ 90%  — FLEETS 2 bytes: CA/DD ship losses (stochastic, deferred)
 - fleet-battle:  7/10 ⏳ 70%  — 23 bytes FLEETS diff (battle position/ship-counts stochastic)
-- invade:       TBD
 
 **187 tests passing, 0 failing.**
 
@@ -405,9 +405,9 @@ Affected mechanics (deferred until structure is solid across all scenarios):
 - Rogue/autopilot AI economy choices (factories, armies, tax)
 
 **Next priorities:**
-1. Build clean invade test fixture to verify invasion parity with oracle
-2. Refine stochastic combat rules (fleet battle attrition, bombardment losses)
-3. Implement rogue/autopilot AI economy choices (factories, armies, tax)
+1. Refine stochastic combat rules (fleet battle attrition, bombardment losses, invasion army losses)
+2. Implement rogue/autopilot AI economy choices (factories, armies, tax)
+3. Build clean oracle fixtures for validation of invasion and fleet-battle mechanics
 
 ---
 
