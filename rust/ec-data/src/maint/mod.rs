@@ -104,6 +104,27 @@ pub fn run_maintenance_turn(
         })
         .collect();
 
+    // InvadeWorld execution: a InvadeWorld fleet that had raw[0x19]==0x80 at start of turn
+    // executes this turn. Snapshot indices now, before movement mutates raw[0x19].
+    let invade_ready: Vec<usize> = game_data
+        .fleets
+        .records
+        .iter()
+        .enumerate()
+        .filter_map(|(i, f)| {
+            if f.raw[0x19] == 0x80
+                && matches!(
+                    FleetStandingOrderKind::from_raw(f.standing_order_code_raw()),
+                    FleetStandingOrderKind::InvadeWorld
+                )
+            {
+                Some(i)
+            } else {
+                None
+            }
+        })
+        .collect();
+
     // Advance game year by 1
     let current_year = game_data.conquest.game_year();
     let new_year = current_year + 1;
@@ -148,6 +169,10 @@ pub fn run_maintenance_turn(
     // Resolve bombardment for fleets that were already-arrived (raw[0x19]==0x80) at turn start.
     // Confirmed: bombardment executes on the tick AFTER transit-arrival, not same tick.
     let bombard_events = process_bombardment(game_data, &bombard_ready)?;
+
+    // Resolve invasions for fleets that were already-arrived (raw[0x19]==0x80) at turn start.
+    // Invasion executes on the tick AFTER transit-arrival, similar to bombardment.
+    process_invasions(game_data, &invade_ready)?;
 
     // Normalize CONQUEST.DAT header fields
     process_conquest_header(game_data, should_accumulate_conquest)?;
@@ -1017,6 +1042,100 @@ fn process_bombardment(
     }
 
     Ok(bombard_events)
+}
+
+/// Resolve invasions for fleets with InvadeWorld orders.
+///
+/// Invasion mechanics (based on oracle analysis and game docs):
+/// - Fleet must have InvadeWorld order (0x07) and be at target planet
+/// - Invasion executes the turn AFTER arrival (raw[0x19]==0x80 at turn start)
+/// - Planet ownership transfers to attacker if invasion succeeds
+/// - Attacking armies are deposited on planet (with losses from combat)
+/// - Defending armies are reduced/killed
+/// - Batteries may be destroyed
+///
+/// Deterministic implementation per stochastic mechanics policy:
+/// - Use canonical rules for army attrition rates
+/// - Ownership transfer is deterministic
+/// - Exact combat resolution TBD once structure is validated
+fn process_invasions(
+    game_data: &mut CoreGameData,
+    invade_ready: &[usize],
+) -> Result<(), Box<dyn std::error::Error>> {
+    for &fleet_idx in invade_ready {
+        let fleet = &game_data.fleets.records[fleet_idx];
+        let target_coords = fleet.standing_order_target_coords_raw();
+        let attacker_empire = fleet.owner_empire_raw();
+        let attacking_armies = fleet.army_count();
+
+        // Find planet at target coordinates
+        let planet_idx = game_data
+            .planets
+            .records
+            .iter()
+            .position(|p| p.coords_raw() == target_coords);
+
+        if let Some(planet_idx) = planet_idx {
+            let planet = &mut game_data.planets.records[planet_idx];
+            let defender_empire = planet.owner_empire_slot_raw();
+
+            // Only invade if planet is owned by someone else (not unowned and not attacker)
+            if defender_empire != 0 && defender_empire != attacker_empire {
+                // TODO: Implement stochastic combat resolution
+                // For now, use placeholder deterministic rules:
+                // - Attacker loses 20% of armies (min 1)
+                // - Defender armies are cleared
+                // - Batteries are destroyed
+                // - Planet ownership transfers to attacker
+
+                let armies_to_deposit = attacking_armies.saturating_sub(1); // Lose 1 army minimum
+
+                // Transfer ownership
+                planet.set_owner_empire_slot_raw(attacker_empire);
+                planet.set_ownership_status_raw(2); // 2 = owned
+                planet.set_army_count_raw(armies_to_deposit as u8);
+                planet.set_ground_batteries_raw(0); // Batteries destroyed
+
+                // Update planet name if it was "Unowned" or similar
+                let current_name = planet.planet_name();
+                if current_name == "Unowned" || current_name.is_empty() {
+                    planet.set_planet_name("Conquered World");
+                }
+
+                // Update PLAYER.DAT for the conquering player
+                let player_idx = (attacker_empire as usize).saturating_sub(1);
+                if player_idx < game_data.player.records.len() {
+                    // Increment planet count
+                    let current_count = game_data.player.records[player_idx].raw[0x50];
+                    game_data.player.records[player_idx].raw[0x50] =
+                        current_count.saturating_add(1);
+
+                    // Increment economic score
+                    let current_score = game_data.player.records[player_idx].raw[0x52];
+                    game_data.player.records[player_idx].raw[0x52] =
+                        current_score.saturating_add(1);
+                }
+
+                // Update DATABASE.DAT with conquest intel (year stamp)
+                let current_year = game_data.conquest.game_year();
+                // TODO: Add DATABASE record update for conquered planet
+            }
+        }
+
+        // Clear fleet order and speed regardless of outcome
+        let fleet = &mut game_data.fleets.records[fleet_idx];
+        fleet.set_standing_order_code_raw(0); // HoldPosition
+        fleet.set_current_speed(0);
+        fleet.raw[0x19] = 0x81; // Stationary at planet
+                                // Clear arrival payload
+        fleet.raw[0x1a] = 0x00;
+        fleet.raw[0x1b] = 0x00;
+        fleet.raw[0x1c] = 0x00;
+        fleet.raw[0x1d] = 0x00;
+        fleet.raw[0x1e] = 0x00;
+    }
+
+    Ok(())
 }
 
 /// Update PLAYER.DAT raw[0x46] starbase presence flag.
