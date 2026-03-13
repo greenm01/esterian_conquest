@@ -3,7 +3,7 @@ use std::path::Path;
 
 use ec_data::{
     CoreGameData, DatabaseDat, MaintenanceEvents, MissionResolutionKind, MissionResolutionOutcome,
-    PlanetDat,
+    PlanetDat, ShipLosses,
 };
 
 const RESULTS_RECORD_SIZE: usize = 84;
@@ -273,6 +273,33 @@ fn nearest_owned_destination_text(game_data: &CoreGameData, empire_raw: u8, coor
     }
 }
 
+fn ship_loss_summary(losses: ShipLosses) -> String {
+    let mut parts = Vec::new();
+    if losses.battleships > 0 {
+        parts.push(format!("{} battleship(s)", losses.battleships));
+    }
+    if losses.cruisers > 0 {
+        parts.push(format!("{} cruiser(s)", losses.cruisers));
+    }
+    if losses.destroyers > 0 {
+        parts.push(format!("{} destroyer(s)", losses.destroyers));
+    }
+    if losses.scouts > 0 {
+        parts.push(format!("{} scout ship(s)", losses.scouts));
+    }
+    if losses.transports > 0 {
+        parts.push(format!("{} troop transport(s)", losses.transports));
+    }
+    if losses.etacs > 0 {
+        parts.push(format!("{} ETAC(s)", losses.etacs));
+    }
+    if parts.is_empty() {
+        "no ship losses".to_string()
+    } else {
+        parts.join(", ")
+    }
+}
+
 pub(crate) fn regenerate_results_dat(
     dir: &Path,
     game_data: &CoreGameData,
@@ -287,10 +314,12 @@ pub(crate) fn regenerate_results_dat(
         if let Some(planet) = game_data.planets.records.get(event.planet_idx) {
             let [x, y] = planet.coords_raw();
             let text = format!(
-                "From planet \"{}\" in System({x},{y}): Stardate 1/{}. We have been bombarded by {}.",
+                "From planet \"{}\" in System({x},{y}): Stardate 1/{}. We have been bombarded by {}. We observed losses of {} ground batteries and {} armies.",
                 planet.planet_name(),
                 game_data.conquest.game_year(),
-                empire_label(game_data, event.attacker_empire_raw)
+                empire_label(game_data, event.attacker_empire_raw),
+                event.defender_battery_losses,
+                event.defender_army_losses,
             );
             push_results_chunked(
                 &mut results,
@@ -315,7 +344,9 @@ pub(crate) fn regenerate_results_dat(
             "We were forced to disengage.".to_string()
         };
         let text = format!(
-            "From your fleet in System({x},{y}): Fleet battle report. We engaged hostile forces belonging to {enemies}. {outcome}"
+            "From your fleet in System({x},{y}): Fleet battle report. We engaged hostile forces belonging to {enemies}. Friendly losses: {}. Observed enemy losses: {}. {outcome}",
+            ship_loss_summary(event.friendly_losses),
+            ship_loss_summary(event.enemy_losses),
         );
         push_results_chunked(
             &mut results,
@@ -323,6 +354,30 @@ pub(crate) fn regenerate_results_dat(
             RESULTS_TAIL_FLEET,
             &text,
         );
+    }
+
+    for event in &events.fleet_destroyed_events {
+        let [x, y] = event.coords;
+        let enemy = event
+            .primary_enemy_empire_raw
+            .map(|empire| empire_label(game_data, empire))
+            .unwrap_or_else(|| "an alien fleet".to_string());
+        let verb = if event.was_intercepting {
+            "intercepted"
+        } else {
+            "was attacked by"
+        };
+        let text = format!(
+            "From your Fleet Command Center: We lost all contact with the {}th Fleet shortly after it {} {} in System({x},{y}). Records show the fleet was composed of {} and carried {} armies. According to a burnt flight recorder we recovered, the alien force initially contained {}. The flight recorder recorded alien ship casualties of {}.",
+            event.fleet_id,
+            verb,
+            enemy,
+            ship_loss_summary(event.friendly_initial),
+            event.friendly_armies,
+            ship_loss_summary(event.enemy_initial),
+            ship_loss_summary(event.enemy_losses),
+        );
+        push_results_chunked(&mut results, 0x06, RESULTS_TAIL_FLEET, &text);
     }
 
     for event in &events.scout_contact_events {
@@ -367,6 +422,9 @@ pub(crate) fn regenerate_results_dat(
     }
 
     for event in &events.ownership_change_events {
+        if event.reporting_empire_raw == 0 {
+            continue;
+        }
         if let Some(planet) = game_data.planets.records.get(event.planet_idx) {
             let [x, y] = planet.coords_raw();
             let from = if event.previous_owner_empire_raw == 0 {
@@ -508,6 +566,88 @@ pub(crate) fn regenerate_results_dat(
                     "From your fleet in System({x},{y}): Viewing mission report: We were attacked before the viewing mission could be completed. We are aborting our assignment and seeking safety at {retreat}."
                 );
                 push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
+            }
+            (MissionResolutionKind::BombardWorld, MissionResolutionOutcome::Succeeded) => {
+                let bombard_event = events.bombard_events.iter().find(|bombard| {
+                    bombard.planet_idx == event.planet_idx.unwrap_or(usize::MAX)
+                        && bombard.attacker_empire_raw == event.owner_empire_raw
+                });
+                let text = if let Some(planet_idx) = event.planet_idx {
+                    if let Some(planet) = game_data.planets.records.get(planet_idx) {
+                        format!(
+                            "From your fleet in System({x},{y}): Bombardment mission report: We have concluded our bombing run against planet \"{}\". Friendly losses: {}. Observed enemy losses: {} ground batteries and {} armies.",
+                            planet.planet_name(),
+                            bombard_event.map(|e| ship_loss_summary(e.attacker_losses)).unwrap_or_else(|| "no ship losses".to_string()),
+                            bombard_event.map(|e| e.defender_battery_losses).unwrap_or(0),
+                            bombard_event.map(|e| e.defender_army_losses).unwrap_or(0),
+                        )
+                    } else {
+                        format!(
+                            "From your fleet in System({x},{y}): Bombardment mission report: We have concluded our bombing run and are awaiting new orders."
+                        )
+                    }
+                } else {
+                    format!(
+                        "From your fleet in System({x},{y}): Bombardment mission report: We have concluded our bombing run and are awaiting new orders."
+                    )
+                };
+                push_results_chunked(&mut results, 0x08, RESULTS_TAIL_BOMBARD, &text);
+            }
+            (MissionResolutionKind::InvadeWorld, MissionResolutionOutcome::Succeeded) => {
+                let text = if let Some(planet_idx) = event.planet_idx {
+                    if let Some(planet) = game_data.planets.records.get(planet_idx) {
+                        format!(
+                            "From your fleet in System({x},{y}): Invasion mission report: Our armies have captured planet \"{}\" and now hold the world for the empire.",
+                            planet.planet_name(),
+                        )
+                    } else {
+                        format!(
+                            "From your fleet in System({x},{y}): Invasion mission report: Our armies have captured the target world."
+                        )
+                    }
+                } else {
+                    format!(
+                        "From your fleet in System({x},{y}): Invasion mission report: Our armies have captured the target world."
+                    )
+                };
+                push_results_chunked(&mut results, 0x0c, RESULTS_TAIL_INVASION, &text);
+            }
+            (MissionResolutionKind::InvadeWorld, MissionResolutionOutcome::Failed) => {
+                let text = format!(
+                    "From your fleet in System({x},{y}): Invasion mission report: The landing was repulsed and our armies were lost before the planet could be taken."
+                );
+                push_results_chunked(&mut results, 0x0c, RESULTS_TAIL_INVASION, &text);
+            }
+            (MissionResolutionKind::InvadeWorld, MissionResolutionOutcome::Aborted) => {
+                let text = format!(
+                    "From your fleet in System({x},{y}): Invasion mission report: Enemy ground batteries prevented a landing and the invasion was aborted."
+                );
+                push_results_chunked(&mut results, 0x0c, RESULTS_TAIL_INVASION, &text);
+            }
+            (MissionResolutionKind::BlitzWorld, MissionResolutionOutcome::Succeeded) => {
+                let text = if let Some(planet_idx) = event.planet_idx {
+                    if let Some(planet) = game_data.planets.records.get(planet_idx) {
+                        format!(
+                            "From your fleet in System({x},{y}): Blitz mission report: We have seized planet \"{}\" in a fast assault and now hold the world.",
+                            planet.planet_name(),
+                        )
+                    } else {
+                        format!(
+                            "From your fleet in System({x},{y}): Blitz mission report: We have seized the target world in a fast assault."
+                        )
+                    }
+                } else {
+                    format!(
+                        "From your fleet in System({x},{y}): Blitz mission report: We have seized the target world in a fast assault."
+                    )
+                };
+                push_results_chunked(&mut results, 0x0c, RESULTS_TAIL_INVASION, &text);
+            }
+            (MissionResolutionKind::BlitzWorld, MissionResolutionOutcome::Failed) => {
+                let text = format!(
+                    "From your fleet in System({x},{y}): Blitz mission report: The blitz attack failed and our landing force did not survive."
+                );
+                push_results_chunked(&mut results, 0x0c, RESULTS_TAIL_INVASION, &text);
             }
             (MissionResolutionKind::ScoutSector, MissionResolutionOutcome::Succeeded) => {
                 let text = format!(

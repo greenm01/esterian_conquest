@@ -4,6 +4,16 @@ mod combat;
 
 use crate::{CoreGameData, FleetStandingOrderKind};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ShipLosses {
+    pub destroyers: u32,
+    pub cruisers: u32,
+    pub battleships: u32,
+    pub scouts: u32,
+    pub transports: u32,
+    pub etacs: u32,
+}
+
 /// A bombardment event: one fleet executed BombardWorld against one planet.
 #[derive(Debug)]
 pub struct BombardEvent {
@@ -13,6 +23,12 @@ pub struct BombardEvent {
     pub attacker_empire_raw: u8,
     /// Defending empire that should receive the bombardment report, if any.
     pub defender_empire_raw: u8,
+    /// Exact attacker fleet losses during the bombardment exchange.
+    pub attacker_losses: ShipLosses,
+    /// Observed defender ground battery losses.
+    pub defender_battery_losses: u8,
+    /// Observed defender army losses.
+    pub defender_army_losses: u8,
 }
 
 /// A combat-triggered intel refresh for one player's DATABASE view of one planet.
@@ -29,6 +45,8 @@ pub struct PlanetIntelEvent {
 pub struct PlanetOwnershipChangeEvent {
     /// Planet index (into PLANETS.DAT records) that changed owner.
     pub planet_idx: usize,
+    /// Empire that should receive the "we were captured" report.
+    pub reporting_empire_raw: u8,
     /// Previous owner empire slot (1-based, or 0 if unowned).
     pub previous_owner_empire_raw: u8,
     /// New owner empire slot (1-based).
@@ -46,6 +64,33 @@ pub struct FleetBattleEvent {
     pub enemy_empires_raw: Vec<u8>,
     /// Whether the reporting empire held the field after the battle.
     pub held_field: bool,
+    /// Exact losses suffered by the reporting empire.
+    pub friendly_losses: ShipLosses,
+    /// Observed hostile losses across the opposing forces.
+    pub enemy_losses: ShipLosses,
+}
+
+/// A fleet was completely destroyed and command lost all contact with it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FleetDestroyedEvent {
+    /// Empire that receives the destruction report.
+    pub reporting_empire_raw: u8,
+    /// Fleet id that was lost.
+    pub fleet_id: u8,
+    /// Coordinates of the loss.
+    pub coords: [u8; 2],
+    /// Whether the fleet was attacking/intercepting or was attacked.
+    pub was_intercepting: bool,
+    /// Initial composition of the lost fleet.
+    pub friendly_initial: ShipLosses,
+    /// Initial observed hostile composition.
+    pub enemy_initial: ShipLosses,
+    /// Observed hostile losses before contact was lost.
+    pub enemy_losses: ShipLosses,
+    /// Armies carried by the lost fleet.
+    pub friendly_armies: u32,
+    /// Hostile empire if a primary enemy can be named.
+    pub primary_enemy_empire_raw: Option<u8>,
 }
 
 /// A scout-style hostile contact report resolved during maintenance.
@@ -197,6 +242,8 @@ pub struct MaintenanceEvents {
     pub ownership_change_events: Vec<PlanetOwnershipChangeEvent>,
     /// Fleet battle summaries for later reporting layers.
     pub fleet_battle_events: Vec<FleetBattleEvent>,
+    /// Command-center reports for fleets that were totally destroyed.
+    pub fleet_destroyed_events: Vec<FleetDestroyedEvent>,
     /// Scout-style hostile contact reports.
     pub scout_contact_events: Vec<ScoutContactEvent>,
     /// Friendly merge reports for join/rendezvous outcomes.
@@ -440,6 +487,7 @@ pub fn run_maintenance_turn(
         },
         ownership_change_events: assault_events.ownership_change_events,
         fleet_battle_events: fleet_battle_phase_events.fleet_battle_events,
+        fleet_destroyed_events: fleet_battle_phase_events.fleet_destroyed_events,
         scout_contact_events: fleet_battle_phase_events.scout_contact_events,
         fleet_merge_events: merge_events,
         join_host_events,

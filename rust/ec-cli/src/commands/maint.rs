@@ -39,6 +39,9 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
             .fleet_battle_events
             .extend(events.fleet_battle_events);
         all_events
+            .fleet_destroyed_events
+            .extend(events.fleet_destroyed_events);
+        all_events
             .scout_contact_events
             .extend(events.scout_contact_events);
         all_events

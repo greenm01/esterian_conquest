@@ -619,6 +619,8 @@ enum MaintEvent {
   event/report pipeline
 - [x] survivor-side rendezvous absorption reports are modeled
 - [x] join host-destruction / retarget reports are modeled
+- [x] completely destroyed fleets now emit classic-style "lost all contact"
+  command-center reports
 - [ ] no inline report string construction outside the report generation pass
 
 ---
@@ -652,6 +654,11 @@ enum MaintEvent {
 - current fleet-battle reporting is now recipient-scoped rather than a global
   participant/winner dump; battle events record who should receive the report
   and only enumerate the hostile empires seen from that side
+- fleet battle reports now include bilateral ship-loss summaries
+- bombardment reports now include attacker ship losses plus observed defender
+  battery/army losses
+- completely destroyed fleets now emit a separate command-center style
+  "We lost all contact..." report derived from typed combat events
 - the report writer now follows the observed 84-byte record family more closely:
   - family/type first byte
   - fixed trailing bytes by report family
@@ -674,7 +681,10 @@ enum MaintEvent {
 
 1. Keep tightening fog-of-war semantics by making more report/event families
    explicitly recipient-scoped instead of globally summarized.
-2. Keep refining `RESULTS.DAT` family formatting against preserved fixtures and
+2. Add typed ground-loss payloads for invasion/blitz reports so attacker and
+   defender summaries can include bilateral army/battery losses, not only the
+   final outcome text.
+3. Keep refining `RESULTS.DAT` family formatting against preserved fixtures and
    historical session logs.
-3. Do not add a canonical `MESSAGES.DAT` writer until a non-empty maint-driven
+4. Do not add a canonical `MESSAGES.DAT` writer until a non-empty maint-driven
    sample is recovered.
