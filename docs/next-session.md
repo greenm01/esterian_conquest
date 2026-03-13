@@ -56,6 +56,15 @@ Priority order:
      `3558/355A` keys
    - this is the main blocker between accepted one-base scenarios and more
      general compliant gamestate generation
+   - latest concrete anchor from the accepted one-base fixture:
+     - live matcher post-decode stop `CS=0824 EIP=0303`
+     - decoded base-side keys `[3558] = 1`, `[355A] = 1`
+     - decoded tuple/control bytes also line up with guard target
+       coordinates `(16,13)`
+     - practical implication:
+       - the accepted one-base case likely succeeds on the direct decoded-key
+         path (`candidate +0x0A == [3558]`)
+       - the structural candidate-decode path may not be needed in that case
 
 2. Recover initialized-to-post-maint deterministic rules
    - use canonical post-maint diff output from normalized `original/v1.5`
@@ -78,6 +87,11 @@ Best immediate task:
 - finish the unresolved base/fleet linkage semantics in the `ECMAINT` matcher
 - target the remaining kind-`1` / kind-`2` path around the decoded `+0x06`
   helper keys and the `3558/355A` comparisons
+- specifically compare:
+  - the accepted one-base direct-key path
+  - a failing `unknown starbase` case
+  - to see whether the remaining rule is a decoded key mismatch, kind mismatch,
+    or flag mismatch
 - once those rules are recovered, promote them into `CoreGameData`
 
 Why this first:

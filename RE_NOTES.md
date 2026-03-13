@@ -4232,3 +4232,35 @@ Practical one-base inference:
   - fleet structural key = raw `0x05..0x06`
   - base/player direct decode source = player `0x44..0x45`
   - base structural decode source = base `0x07..0x08`
+
+Accepted one-base matcher decode capture:
+
+Artifacts:
+- `artifacts/ecmaint-kind2-debug/base_decode_registers.txt`
+- `artifacts/ecmaint-kind2-debug/base_decode_3558.txt`
+- `artifacts/ecmaint-kind2-debug/summary.txt`
+
+Tool:
+- `tools/capture_ecmaint_kind2_decode.py`
+
+New live translation anchor:
+- raw matcher post-decode stop `0000:0403`
+- live stop surfaced as `CS=0824 EIP=0303`
+
+Accepted one-base decoded base-side matcher values:
+- `[3558] = 0x0001`
+- `[355A] = 0x0001`
+- `[3563] = 0x10`
+- `[3564] = 0x0D`
+- `[3578] = 0x10`
+- `[3579] = 0x0D`
+- `[357A] = 0x01`
+
+Practical interpretation:
+- the accepted one-base case gives the matcher decoded key words equal to `1`,
+  matching the preserved direct-linkage raw words
+- the decoded tuple/control bytes also line up with the accepted guard target
+  coordinates `(16,13)`
+- this strengthens the hypothesis that the accepted one-base case succeeds on
+  the direct decoded-key path (`candidate +0x0A == [3558]`) and may not need
+  the later structural candidate-decode path at all

@@ -1,0 +1,36 @@
+Accepted one-base guard-starbase matcher decode capture
+
+Fixture:
+- `fixtures/ecmaint-starbase-pre/v1.5`
+
+Live breakpoint result:
+- raw matcher post-decode stop `0000:0403`
+- live stop surfaced as:
+  - `CS=0824`
+  - `EIP=0303`
+  - `DS=3529`
+  - `SS=39AB`
+
+Captured base-side decoded scratch:
+- source file: `base_decode_3558.txt`
+- dump origin: `DS:3558`
+- length: `0x24`
+
+Confirmed values in the accepted one-base case:
+- decoded key word `[3558] = 0x0001`
+- decoded key word `[355A] = 0x0001`
+- decoded byte `[3563] = 0x10`
+- decoded byte `[3564] = 0x0D`
+- decoded byte `[3578] = 0x10`
+- decoded byte `[3579] = 0x0D`
+- decoded capped flag `[357A] = 0x01`
+
+Immediate interpretation:
+- the accepted one-base case gives the matcher direct decoded keys equal to `1`
+- that is consistent with the direct accept path:
+  - candidate kind-1 summary `+0x0A == [3558]`
+- the decoded tuple/control bytes also line up with the accepted guard target
+  coordinates `(16,13)`
+- this makes it more likely that the accepted one-base case succeeds on the
+  direct decoded-key path and may not need the later structural candidate-decode
+  path at all
