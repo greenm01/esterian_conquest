@@ -5,9 +5,7 @@ use ec_data::CoreGameData;
 
 use crate::workspace::copy_init_files;
 
-pub(crate) fn apply_guard_starbase_scenario(
-    dir: &Path,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub(crate) fn apply_guard_starbase_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     set_guard_starbase_onebase(dir, 0x10, 0x0D)?;
     println!("Applied scenario: guard-starbase");
     Ok(())
@@ -19,7 +17,8 @@ pub(crate) fn set_guard_starbase_onebase(
     target_y: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut data = CoreGameData::load(dir)?;
-    data.set_guard_starbase_onebase([target_x, target_y])
+    // Scenario-specific constants: player 1, fleet 1, base id 1, owner empire 1
+    data.set_guard_starbase(1, 1, [target_x, target_y], 1, 1)
         .map_err(|err| err.to_string())?;
     data.save(dir)?;
 
@@ -69,9 +68,7 @@ pub(crate) fn validate_guard_starbase_scenario(
     }
 }
 
-pub(crate) fn print_guard_starbase_report(
-    dir: &Path,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub(crate) fn print_guard_starbase_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let data = CoreGameData::load(dir)?;
     let player1 = data
         .player
@@ -86,14 +83,26 @@ pub(crate) fn print_guard_starbase_report(
 
     println!("Guard Starbase Report");
     println!("  dir={}", dir.display());
-    println!("  player[1].fleet_chain_head_raw={}", player1.fleet_chain_head_raw());
-    println!("  player[1].starbase_count_raw={}", player1.starbase_count_raw());
-    println!("  fleet[1].local_slot_word_raw={}", fleet1.local_slot_word_raw());
+    println!(
+        "  player[1].fleet_chain_head_raw={}",
+        player1.fleet_chain_head_raw()
+    );
+    println!(
+        "  player[1].starbase_count_raw={}",
+        player1.starbase_count_raw()
+    );
+    println!(
+        "  fleet[1].local_slot_word_raw={}",
+        fleet1.local_slot_word_raw()
+    );
     println!(
         "  fleet[1].next_fleet_link_word_raw={}",
         fleet1.next_fleet_link_word_raw()
     );
-    println!("  fleet[1].fleet_id_word_raw={}", fleet1.fleet_id_word_raw());
+    println!(
+        "  fleet[1].fleet_id_word_raw={}",
+        fleet1.fleet_id_word_raw()
+    );
     println!(
         "  fleet[1].order={:#04x} target={:?} guard_index={} guard_enable={}",
         fleet1.standing_order_code_raw(),
@@ -145,7 +154,10 @@ pub(crate) fn init_guard_starbase_onebase(
 ) -> Result<(), Box<dyn std::error::Error>> {
     copy_init_files(source, target)?;
     set_guard_starbase_onebase(target, target_x, target_y)?;
-    println!("Guard Starbase directory initialized at {}", target.display());
+    println!(
+        "Guard Starbase directory initialized at {}",
+        target.display()
+    );
     Ok(())
 }
 

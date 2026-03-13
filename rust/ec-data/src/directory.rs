@@ -1189,39 +1189,50 @@ impl CoreGameData {
         Ok(())
     }
 
-    pub fn set_guard_starbase_onebase(
+    /// Set a guard-starbase order on the specified fleet, update the owning player's starbase
+    /// count, and append a single base record derived from that fleet's linkage words.
+    ///
+    /// All record indices are 1-based. `base_id` and `owner_empire` are passed explicitly so
+    /// the caller (ec-cli scenario wiring) owns all fixture-specific constants.
+    pub fn set_guard_starbase(
         &mut self,
+        player_index_1_based: usize,
+        fleet_index_1_based: usize,
         target: [u8; 2],
+        base_id: u8,
+        owner_empire: u8,
     ) -> Result<(), GameStateMutationError> {
-        let player1 = self
+        let player = self
             .player
             .records
-            .first_mut()
-            .ok_or(GameStateMutationError::MissingPlayerRecord { index_1_based: 1 })?;
-        player1.set_starbase_count_raw(1);
+            .get_mut(player_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingPlayerRecord {
+                index_1_based: player_index_1_based,
+            })?;
+        player.set_starbase_count_raw(1);
 
-        let fleet1 = self
-            .fleets
-            .records
-            .first_mut()
-            .ok_or(GameStateMutationError::MissingFleetRecord { index_1_based: 1 })?;
-        fleet1.set_standing_order_code_raw(0x04);
-        fleet1.set_standing_order_target_coords_raw(target);
-        fleet1.set_mission_aux_bytes([0x01, 0x01]);
+        let fleet = self.fleets.records.get_mut(fleet_index_1_based - 1).ok_or(
+            GameStateMutationError::MissingFleetRecord {
+                index_1_based: fleet_index_1_based,
+            },
+        )?;
+        fleet.set_standing_order_code_raw(0x04);
+        fleet.set_standing_order_target_coords_raw(target);
+        fleet.set_mission_aux_bytes([0x01, 0x01]);
 
-        let base_summary_word = fleet1.local_slot_word_raw();
-        let base_chain_word = fleet1.fleet_id_word_raw();
-        let tuple_a = fleet1.tuple_a_payload_raw();
-        let tuple_b = fleet1.tuple_b_payload_raw();
-        let tuple_c = fleet1.tuple_c_payload_raw();
+        let base_summary_word = fleet.local_slot_word_raw();
+        let base_chain_word = fleet.fleet_id_word_raw();
+        let tuple_a = fleet.tuple_a_payload_raw();
+        let tuple_b = fleet.tuple_b_payload_raw();
+        let tuple_c = fleet.tuple_c_payload_raw();
 
         self.bases = BaseDat {
             records: vec![build_guard_starbase_base_record(
                 target,
-                0x01,
+                base_id,
                 base_summary_word,
                 base_chain_word,
-                0x01,
+                owner_empire,
                 tuple_a,
                 tuple_b,
                 tuple_c,

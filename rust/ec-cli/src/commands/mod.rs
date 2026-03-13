@@ -1,3 +1,4 @@
+pub(crate) mod bombard;
 pub(crate) mod compare;
 pub(crate) mod compliance;
 pub(crate) mod core;

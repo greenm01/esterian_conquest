@@ -31,27 +31,33 @@ pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Er
     );
     println!(
         "  initialized_fleet_payloads={}",
-        data.current_known_initialized_fleet_payload_errors().is_empty()
+        data.current_known_initialized_fleet_payload_errors()
+            .is_empty()
     );
     println!(
         "  initialized_fleet_missions={}",
-        data.current_known_initialized_fleet_mission_errors().is_empty()
+        data.current_known_initialized_fleet_mission_errors()
+            .is_empty()
     );
     println!(
         "  initialized_homeworld_alignment={}",
-        data.current_known_initialized_homeworld_alignment_errors().is_empty()
+        data.current_known_initialized_homeworld_alignment_errors()
+            .is_empty()
     );
     println!(
         "  initialized_planet_ownership={}",
-        data.current_known_initialized_planet_ownership_errors().is_empty()
+        data.current_known_initialized_planet_ownership_errors()
+            .is_empty()
     );
     println!(
         "  homeworld_seed_payloads={}",
-        data.current_known_homeworld_seed_payload_errors().is_empty()
+        data.current_known_homeworld_seed_payload_errors()
+            .is_empty()
     );
     println!(
         "  unowned_planet_payloads={}",
-        data.current_known_unowned_planet_payload_errors().is_empty()
+        data.current_known_unowned_planet_payload_errors()
+            .is_empty()
     );
     println!(
         "  empty_auxiliary_state={}",
@@ -168,10 +174,19 @@ pub(crate) fn print_canonical_transition_clusters(
     println!("  dir={}", dir.display());
     for diff in diffs {
         match diff.name {
-            "PLAYER.DAT" => print_record_clusters(diff.name, PLAYER_RECORD_SIZE, &diff.differing_offsets),
-            "PLANETS.DAT" => print_record_clusters(diff.name, PLANET_RECORD_SIZE, &diff.differing_offsets),
-            "FLEETS.DAT" => print_record_clusters(diff.name, FLEET_RECORD_SIZE, &diff.differing_offsets),
-            _ => println!("  {}: differing_offsets={:?}", diff.name, diff.differing_offsets),
+            "PLAYER.DAT" => {
+                print_record_clusters(diff.name, PLAYER_RECORD_SIZE, &diff.differing_offsets)
+            }
+            "PLANETS.DAT" => {
+                print_record_clusters(diff.name, PLANET_RECORD_SIZE, &diff.differing_offsets)
+            }
+            "FLEETS.DAT" => {
+                print_record_clusters(diff.name, FLEET_RECORD_SIZE, &diff.differing_offsets)
+            }
+            _ => println!(
+                "  {}: differing_offsets={:?}",
+                diff.name, diff.differing_offsets
+            ),
         }
     }
 
@@ -192,7 +207,9 @@ pub(crate) fn print_canonical_transition_details(
         match diff.name {
             "PLAYER.DAT" => {
                 println!("  PLAYER.DAT:");
-                for record_index in unique_record_indexes(&diff.differing_offsets, PLAYER_RECORD_SIZE) {
+                for record_index in
+                    unique_record_indexes(&diff.differing_offsets, PLAYER_RECORD_SIZE)
+                {
                     let current = &data.player.records[record_index - 1];
                     let canonical = &baseline.player.records[record_index - 1];
                     println!(
@@ -213,7 +230,9 @@ pub(crate) fn print_canonical_transition_details(
             }
             "PLANETS.DAT" => {
                 println!("  PLANETS.DAT:");
-                for record_index in unique_record_indexes(&diff.differing_offsets, PLANET_RECORD_SIZE) {
+                for record_index in
+                    unique_record_indexes(&diff.differing_offsets, PLANET_RECORD_SIZE)
+                {
                     let current = &data.planets.records[record_index - 1];
                     let canonical = &baseline.planets.records[record_index - 1];
                     println!(
@@ -230,7 +249,9 @@ pub(crate) fn print_canonical_transition_details(
             }
             "FLEETS.DAT" => {
                 println!("  FLEETS.DAT:");
-                for record_index in unique_record_indexes(&diff.differing_offsets, FLEET_RECORD_SIZE) {
+                for record_index in
+                    unique_record_indexes(&diff.differing_offsets, FLEET_RECORD_SIZE)
+                {
                     let current = &data.fleets.records[record_index - 1];
                     let canonical = &baseline.fleets.records[record_index - 1];
                     println!(
@@ -253,7 +274,10 @@ pub(crate) fn print_canonical_transition_details(
             }
             _ => {
                 if !diff.differing_offsets.is_empty() {
-                    println!("  {}: differing_offsets={:?}", diff.name, diff.differing_offsets);
+                    println!(
+                        "  {}: differing_offsets={:?}",
+                        diff.name, diff.differing_offsets
+                    );
                 }
             }
         }
@@ -329,27 +353,33 @@ pub(crate) fn validate_core_state(dir: &Path) -> Result<(), Box<dyn std::error::
         );
         println!(
             "  initialized_fleet_payloads = {}",
-            data.current_known_initialized_fleet_payload_errors().is_empty()
+            data.current_known_initialized_fleet_payload_errors()
+                .is_empty()
         );
         println!(
             "  initialized_fleet_missions = {}",
-            data.current_known_initialized_fleet_mission_errors().is_empty()
+            data.current_known_initialized_fleet_mission_errors()
+                .is_empty()
         );
         println!(
             "  initialized_homeworld_alignment = {}",
-            data.current_known_initialized_homeworld_alignment_errors().is_empty()
+            data.current_known_initialized_homeworld_alignment_errors()
+                .is_empty()
         );
         println!(
             "  initialized_planet_ownership = {}",
-            data.current_known_initialized_planet_ownership_errors().is_empty()
+            data.current_known_initialized_planet_ownership_errors()
+                .is_empty()
         );
         println!(
             "  homeworld_seed_payloads = {}",
-            data.current_known_homeworld_seed_payload_errors().is_empty()
+            data.current_known_homeworld_seed_payload_errors()
+                .is_empty()
         );
         println!(
             "  unowned_planet_payloads = {}",
-            data.current_known_unowned_planet_payload_errors().is_empty()
+            data.current_known_unowned_planet_payload_errors()
+                .is_empty()
         );
         println!(
             "  empty_auxiliary_state = {}",
@@ -374,10 +404,8 @@ pub(crate) fn validate_current_known_baseline_exact(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let data = CoreGameData::load(dir)?;
     let baseline = CoreGameData::load(&post_maint_fixture_dir())?;
-    let errors = data.exact_match_errors_against(
-        &baseline,
-        "canonical current-known post-maint baseline",
-    );
+    let errors =
+        data.exact_match_errors_against(&baseline, "canonical current-known post-maint baseline");
 
     if errors.is_empty() {
         println!("Exact canonical current-known baseline match");
@@ -413,27 +441,33 @@ pub(crate) fn sync_core_counts(dir: &Path) -> Result<(), Box<dyn std::error::Err
     );
     println!(
         "  initialized_fleet_payloads = {}",
-        data.current_known_initialized_fleet_payload_errors().is_empty()
+        data.current_known_initialized_fleet_payload_errors()
+            .is_empty()
     );
     println!(
         "  initialized_fleet_missions = {}",
-        data.current_known_initialized_fleet_mission_errors().is_empty()
+        data.current_known_initialized_fleet_mission_errors()
+            .is_empty()
     );
     println!(
         "  initialized_homeworld_alignment = {}",
-        data.current_known_initialized_homeworld_alignment_errors().is_empty()
+        data.current_known_initialized_homeworld_alignment_errors()
+            .is_empty()
     );
     println!(
         "  initialized_planet_ownership = {}",
-        data.current_known_initialized_planet_ownership_errors().is_empty()
+        data.current_known_initialized_planet_ownership_errors()
+            .is_empty()
     );
     println!(
         "  homeworld_seed_payloads = {}",
-        data.current_known_homeworld_seed_payload_errors().is_empty()
+        data.current_known_homeworld_seed_payload_errors()
+            .is_empty()
     );
     println!(
         "  unowned_planet_payloads = {}",
-        data.current_known_unowned_planet_payload_errors().is_empty()
+        data.current_known_unowned_planet_payload_errors()
+            .is_empty()
     );
     println!(
         "  empty_auxiliary_state = {}",
@@ -495,27 +529,33 @@ pub(crate) fn sync_core_baseline(dir: &Path) -> Result<(), Box<dyn std::error::E
     );
     println!(
         "  initialized_fleet_payloads = {}",
-        data.current_known_initialized_fleet_payload_errors().is_empty()
+        data.current_known_initialized_fleet_payload_errors()
+            .is_empty()
     );
     println!(
         "  initialized_fleet_missions = {}",
-        data.current_known_initialized_fleet_mission_errors().is_empty()
+        data.current_known_initialized_fleet_mission_errors()
+            .is_empty()
     );
     println!(
         "  initialized_homeworld_alignment = {}",
-        data.current_known_initialized_homeworld_alignment_errors().is_empty()
+        data.current_known_initialized_homeworld_alignment_errors()
+            .is_empty()
     );
     println!(
         "  initialized_planet_ownership = {}",
-        data.current_known_initialized_planet_ownership_errors().is_empty()
+        data.current_known_initialized_planet_ownership_errors()
+            .is_empty()
     );
     println!(
         "  homeworld_seed_payloads = {}",
-        data.current_known_homeworld_seed_payload_errors().is_empty()
+        data.current_known_homeworld_seed_payload_errors()
+            .is_empty()
     );
     println!(
         "  unowned_planet_payloads = {}",
-        data.current_known_unowned_planet_payload_errors().is_empty()
+        data.current_known_unowned_planet_payload_errors()
+            .is_empty()
     );
     println!(
         "  empty_auxiliary_state = {}",
@@ -547,15 +587,18 @@ pub(crate) fn sync_initialized_fleet_baseline(
     );
     println!(
         "  initialized_fleet_payloads = {}",
-        data.current_known_initialized_fleet_payload_errors().is_empty()
+        data.current_known_initialized_fleet_payload_errors()
+            .is_empty()
     );
     println!(
         "  initialized_fleet_missions = {}",
-        data.current_known_initialized_fleet_mission_errors().is_empty()
+        data.current_known_initialized_fleet_mission_errors()
+            .is_empty()
     );
     println!(
         "  initialized_homeworld_alignment = {}",
-        data.current_known_initialized_homeworld_alignment_errors().is_empty()
+        data.current_known_initialized_homeworld_alignment_errors()
+            .is_empty()
     );
     Ok(())
 }
@@ -571,15 +614,18 @@ pub(crate) fn sync_initialized_planet_payloads(
     println!("Initialized planet payloads synchronized");
     println!(
         "  initialized_planet_ownership = {}",
-        data.current_known_initialized_planet_ownership_errors().is_empty()
+        data.current_known_initialized_planet_ownership_errors()
+            .is_empty()
     );
     println!(
         "  homeworld_seed_payloads = {}",
-        data.current_known_homeworld_seed_payload_errors().is_empty()
+        data.current_known_homeworld_seed_payload_errors()
+            .is_empty()
     );
     println!(
         "  unowned_planet_payloads = {}",
-        data.current_known_unowned_planet_payload_errors().is_empty()
+        data.current_known_unowned_planet_payload_errors()
+            .is_empty()
     );
     Ok(())
 }
@@ -597,27 +643,33 @@ pub(crate) fn sync_current_known_baseline(dir: &Path) -> Result<(), Box<dyn std:
     );
     println!(
         "  initialized_fleet_payloads = {}",
-        data.current_known_initialized_fleet_payload_errors().is_empty()
+        data.current_known_initialized_fleet_payload_errors()
+            .is_empty()
     );
     println!(
         "  initialized_fleet_missions = {}",
-        data.current_known_initialized_fleet_mission_errors().is_empty()
+        data.current_known_initialized_fleet_mission_errors()
+            .is_empty()
     );
     println!(
         "  initialized_homeworld_alignment = {}",
-        data.current_known_initialized_homeworld_alignment_errors().is_empty()
+        data.current_known_initialized_homeworld_alignment_errors()
+            .is_empty()
     );
     println!(
         "  initialized_planet_ownership = {}",
-        data.current_known_initialized_planet_ownership_errors().is_empty()
+        data.current_known_initialized_planet_ownership_errors()
+            .is_empty()
     );
     println!(
         "  homeworld_seed_payloads = {}",
-        data.current_known_homeworld_seed_payload_errors().is_empty()
+        data.current_known_homeworld_seed_payload_errors()
+            .is_empty()
     );
     println!(
         "  unowned_planet_payloads = {}",
-        data.current_known_unowned_planet_payload_errors().is_empty()
+        data.current_known_unowned_planet_payload_errors()
+            .is_empty()
     );
     println!(
         "  empty_auxiliary_state = {}",
@@ -664,7 +716,10 @@ pub(crate) fn init_current_known_baseline(
     data.sync_current_known_initialized_post_maint_baseline();
     data.save(target)?;
 
-    println!("Current-known baseline directory initialized at {}", target.display());
+    println!(
+        "Current-known baseline directory initialized at {}",
+        target.display()
+    );
     println!("  source snapshot: {}", source.display());
     println!(
         "  initialized_fleet_blocks = {}",
@@ -672,23 +727,28 @@ pub(crate) fn init_current_known_baseline(
     );
     println!(
         "  initialized_fleet_payloads = {}",
-        data.current_known_initialized_fleet_payload_errors().is_empty()
+        data.current_known_initialized_fleet_payload_errors()
+            .is_empty()
     );
     println!(
         "  initialized_fleet_missions = {}",
-        data.current_known_initialized_fleet_mission_errors().is_empty()
+        data.current_known_initialized_fleet_mission_errors()
+            .is_empty()
     );
     println!(
         "  initialized_planet_ownership = {}",
-        data.current_known_initialized_planet_ownership_errors().is_empty()
+        data.current_known_initialized_planet_ownership_errors()
+            .is_empty()
     );
     println!(
         "  homeworld_seed_payloads = {}",
-        data.current_known_homeworld_seed_payload_errors().is_empty()
+        data.current_known_homeworld_seed_payload_errors()
+            .is_empty()
     );
     println!(
         "  unowned_planet_payloads = {}",
-        data.current_known_unowned_planet_payload_errors().is_empty()
+        data.current_known_unowned_planet_payload_errors()
+            .is_empty()
     );
     println!(
         "  setup_baseline = {}",
@@ -718,11 +778,8 @@ pub(crate) fn init_canonical_current_known_baseline(
     println!("  source snapshot: {}", source.display());
     println!(
         "  exact_canonical_current_known_baseline = {}",
-        data.exact_match_errors_against(
-            &baseline,
-            "canonical current-known post-maint baseline",
-        )
-        .is_empty()
+        data.exact_match_errors_against(&baseline, "canonical current-known post-maint baseline",)
+            .is_empty()
     );
 
     Ok(())

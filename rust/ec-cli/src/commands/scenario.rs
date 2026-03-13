@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use ec_data::CoreGameData;
 
+use crate::commands::bombard::{apply_bombard_scenario, validate_bombard_data};
 use crate::commands::fleet_order::{apply_fleet_order_scenario, apply_move_scenario};
 use crate::commands::guard_starbase::apply_guard_starbase_scenario;
 use crate::commands::ipbm::{apply_ipbm_scenario, validate_ipbm_data};
@@ -17,16 +18,18 @@ pub(crate) enum KnownScenario {
     GuardStarbase,
     Ipbm,
     Move,
+    Bombard,
 }
 
 impl KnownScenario {
-    pub(crate) fn all() -> [Self; 5] {
+    pub(crate) fn all() -> [Self; 6] {
         [
             Self::FleetOrder,
             Self::PlanetBuild,
             Self::GuardStarbase,
             Self::Ipbm,
             Self::Move,
+            Self::Bombard,
         ]
     }
 
@@ -37,6 +40,7 @@ impl KnownScenario {
             Self::GuardStarbase => "guard-starbase",
             Self::Ipbm => "ipbm",
             Self::Move => "move",
+            Self::Bombard => "bombard",
         }
     }
 
@@ -47,6 +51,7 @@ impl KnownScenario {
             "guard-starbase" => Some(Self::GuardStarbase),
             "ipbm" => Some(Self::Ipbm),
             "move" => Some(Self::Move),
+            "bombard" => Some(Self::Bombard),
             _ => None,
         }
     }
@@ -60,6 +65,7 @@ impl KnownScenario {
             }
             Self::Ipbm => "accepted zero-record IPBM fixture",
             Self::Move => "accepted multi-tick fleet move fixture rooted in FLEETS.DAT",
+            Self::Bombard => "accepted fleet bombardment scenario targeting planet 14 at (15,13)",
         }
     }
 
@@ -71,6 +77,7 @@ impl KnownScenario {
             Self::GuardStarbase => root.join("ecmaint-starbase-pre/v1.5"),
             Self::Ipbm => root.join("ecmaint-post/v1.5"),
             Self::Move => root.join("ecmaint-move-pre/v1.5"),
+            Self::Bombard => root.join("ecmaint-bombard-pre/v1.5"),
         }
     }
 
@@ -81,6 +88,7 @@ impl KnownScenario {
             Self::GuardStarbase => &["PLAYER.DAT", "FLEETS.DAT", "BASES.DAT"],
             Self::Ipbm => &["PLAYER.DAT", "IPBM.DAT"],
             Self::Move => &["FLEETS.DAT"],
+            Self::Bombard => &["FLEETS.DAT", "PLANETS.DAT"],
         }
     }
 }
@@ -95,6 +103,7 @@ pub(crate) fn apply_known_scenario(
         KnownScenario::GuardStarbase => apply_guard_starbase_scenario(dir),
         KnownScenario::Ipbm => apply_ipbm_scenario(dir),
         KnownScenario::Move => apply_move_scenario(dir),
+        KnownScenario::Bombard => apply_bombard_scenario(dir),
     }
 }
 
@@ -128,6 +137,7 @@ pub(crate) fn validate_known_scenario(
         KnownScenario::GuardStarbase => validate_guard_starbase_data(&data),
         KnownScenario::Ipbm => validate_ipbm_data(&data),
         KnownScenario::Move => validate_move_data(&data),
+        KnownScenario::Bombard => validate_bombard_data(&data),
     }
 }
 
@@ -142,6 +152,7 @@ pub(crate) fn validate_all_known_scenarios(dir: &Path) -> Result<(), Box<dyn std
             KnownScenario::GuardStarbase => validate_guard_starbase_data(&data),
             KnownScenario::Ipbm => validate_ipbm_data(&data),
             KnownScenario::Move => validate_move_data(&data),
+            KnownScenario::Bombard => validate_bombard_data(&data),
         };
         match result {
             Ok(()) => {

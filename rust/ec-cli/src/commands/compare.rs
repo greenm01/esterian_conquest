@@ -32,10 +32,7 @@ pub(crate) fn compare_all_preserved_scenarios(
     Ok(())
 }
 
-pub(crate) fn compare_dirs(
-    left: &Path,
-    right: &Path,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub(crate) fn compare_dirs(left: &Path, right: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("Left:  {}", left.display());
     println!("Right: {}", right.display());
     println!();
@@ -142,12 +139,22 @@ fn compare_fleets(left_dir: &Path, right_dir: &Path) -> Result<(), Box<dyn std::
 fn ascii_trim(bytes: &[u8]) -> String {
     let text = bytes
         .iter()
-        .map(|b| if (32..127).contains(b) { *b as char } else { ' ' })
+        .map(|b| {
+            if (32..127).contains(b) {
+                *b as char
+            } else {
+                ' '
+            }
+        })
         .collect::<String>();
     text.trim().to_string()
 }
 
 fn diff_count(left: &[u8], right: &[u8]) -> usize {
-    let shared = left.iter().zip(right.iter()).filter(|(a, b)| a != b).count();
+    let shared = left
+        .iter()
+        .zip(right.iter())
+        .filter(|(a, b)| a != b)
+        .count();
     shared + left.len().abs_diff(right.len())
 }

@@ -70,14 +70,14 @@ pub(crate) fn print_port_setup(dir: &Path) -> Result<(), Box<dyn std::error::Err
 pub(crate) fn print_snoop(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
     println!("Directory: {}", dir.display());
-    println!("Snoop enabled: {}", if setup.snoop_enabled() { "yes" } else { "no" });
+    println!(
+        "Snoop enabled: {}",
+        if setup.snoop_enabled() { "yes" } else { "no" }
+    );
     Ok(())
 }
 
-pub(crate) fn set_snoop(
-    dir: &Path,
-    enabled: bool,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub(crate) fn set_snoop(dir: &Path, enabled: bool) -> Result<(), Box<dyn std::error::Error>> {
     let setup_path = dir.join("SETUP.DAT");
     let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
     setup.set_snoop_enabled(enabled);
@@ -153,7 +153,11 @@ pub(crate) fn print_local_timeout(dir: &Path) -> Result<(), Box<dyn std::error::
     println!("Directory: {}", dir.display());
     println!(
         "Local timeout enabled: {}",
-        if setup.local_timeout_enabled() { "yes" } else { "no" }
+        if setup.local_timeout_enabled() {
+            "yes"
+        } else {
+            "no"
+        }
     );
     Ok(())
 }
@@ -175,7 +179,11 @@ pub(crate) fn print_remote_timeout(dir: &Path) -> Result<(), Box<dyn std::error:
     println!("Directory: {}", dir.display());
     println!(
         "Remote timeout enabled: {}",
-        if setup.remote_timeout_enabled() { "yes" } else { "no" }
+        if setup.remote_timeout_enabled() {
+            "yes"
+        } else {
+            "no"
+        }
     );
     Ok(())
 }
@@ -202,10 +210,7 @@ pub(crate) fn print_max_key_gap(dir: &Path) -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
-pub(crate) fn set_max_key_gap(
-    dir: &Path,
-    minutes: u8,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub(crate) fn set_max_key_gap(dir: &Path, minutes: u8) -> Result<(), Box<dyn std::error::Error>> {
     let setup_path = dir.join("SETUP.DAT");
     let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
     setup.set_max_time_between_keys_minutes_raw(minutes);
@@ -224,10 +229,7 @@ pub(crate) fn print_minimum_time(dir: &Path) -> Result<(), Box<dyn std::error::E
     Ok(())
 }
 
-pub(crate) fn set_minimum_time(
-    dir: &Path,
-    minutes: u8,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub(crate) fn set_minimum_time(dir: &Path, minutes: u8) -> Result<(), Box<dyn std::error::Error>> {
     let setup_path = dir.join("SETUP.DAT");
     let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
     setup.set_minimum_time_granted_minutes_raw(minutes);
@@ -275,10 +277,7 @@ pub(crate) fn print_setup_programs(dir: &Path) -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
-pub(crate) fn set_purge_after(
-    dir: &Path,
-    turns: u8,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub(crate) fn set_purge_after(dir: &Path, turns: u8) -> Result<(), Box<dyn std::error::Error>> {
     let setup_path = dir.join("SETUP.DAT");
     let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
     setup.set_purge_after_turns_raw(turns);
@@ -297,10 +296,7 @@ pub(crate) fn print_autopilot_after(dir: &Path) -> Result<(), Box<dyn std::error
     Ok(())
 }
 
-pub(crate) fn set_autopilot_after(
-    dir: &Path,
-    turns: u8,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub(crate) fn set_autopilot_after(dir: &Path, turns: u8) -> Result<(), Box<dyn std::error::Error>> {
     let setup_path = dir.join("SETUP.DAT");
     let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
     setup.set_autopilot_inactive_turns_raw(turns);
@@ -337,5 +333,9 @@ fn com_index(port_name: &str) -> Option<usize> {
 }
 
 fn yes_no(value: bool) -> &'static str {
-    if value { "Yes" } else { "No" }
+    if value {
+        "Yes"
+    } else {
+        "No"
+    }
 }

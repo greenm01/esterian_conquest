@@ -994,7 +994,7 @@ fn core_game_data_can_apply_current_known_scenario_mutations() {
     assert_eq!(data.planets.records[14].build_count_raw(0), 0x03);
     assert_eq!(data.planets.records[14].build_kind_raw(0), 0x01);
 
-    data.set_guard_starbase_onebase([0x10, 0x0D]).unwrap();
+    data.set_guard_starbase(1, 1, [0x10, 0x0D], 1, 1).unwrap();
     assert_eq!(data.player.records[0].starbase_count_raw(), 1);
     assert_eq!(data.fleets.records[0].standing_order_code_raw(), 0x04);
     assert_eq!(

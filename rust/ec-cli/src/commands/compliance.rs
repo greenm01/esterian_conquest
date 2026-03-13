@@ -13,8 +13,14 @@ pub(crate) fn print_compliance_report(dir: &Path) -> Result<(), Box<dyn std::err
     println!();
     println!(
         "{} guard-starbase-linkage{}",
-        if status.guard_starbase { "OK  " } else { "FAIL" },
-        render_errors_suffix(&data.guard_starbase_linkage_errors_for_guarding_fleets_current_known(1))
+        if status.guard_starbase {
+            "OK  "
+        } else {
+            "FAIL"
+        },
+        render_errors_suffix(
+            &data.guard_starbase_linkage_errors_for_guarding_fleets_current_known(1)
+        )
     );
     println!(
         "{} ipbm-count-length{}",
@@ -71,9 +77,7 @@ pub(crate) fn print_compliance_report(dir: &Path) -> Result<(), Box<dyn std::err
     Ok(())
 }
 
-pub(crate) fn print_compliance_batch_report(
-    root: &Path,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub(crate) fn print_compliance_batch_report(root: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("Compliance Batch Report");
     println!("  root={}", root.display());
     let mut dirs = fs::read_dir(root)?
@@ -86,7 +90,10 @@ pub(crate) fn print_compliance_batch_report(
     dirs.sort();
 
     for dir in dirs {
-        print!("{}: ", dir.file_name().unwrap_or_default().to_string_lossy());
+        print!(
+            "{}: ",
+            dir.file_name().unwrap_or_default().to_string_lossy()
+        );
         let status = CoreGameData::load(&dir)
             .ok()
             .map(|data| data.current_known_compliance_status());
