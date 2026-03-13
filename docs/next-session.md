@@ -136,6 +136,14 @@ Priority order:
                - it explicitly clears `3521` and `350c` before exit
            - `3521` behaves like a late report/control selector byte and is
              reset when the later report flow completes
+             - concrete later mode map now recovered:
+               - `6` -> writes `[10, 20, 30, 40]` to `0x630..0x633`
+               - `7` -> writes `[20, 25, 25, 30]`
+               - `8` -> writes `[0, 0, 0, 100]`
+             - those values later flow through `f812` / `f8f2`, which pass
+               `3521` and CS:`0x6766` to `0x3000:44b7` and only continue the
+               follow-on path on nonzero return
+             - best current label: late report-layout / variant mode byte
          - nearby raw strings after `41a1` show this region also owns the
            wider starbase merge/guard report family:
            - arrival at starbase
@@ -160,6 +168,7 @@ Priority order:
          - the exact semantic labels for `3521`
          - the exact CS-local report variants chosen across both late blocks
            (`3fcf..41a0` and `42d8..456e`)
+         - the human-facing meaning of `3521` modes `6`, `7`, and `8`
          - which scratch fields and helper returns choose each variant
          - exact runtime text bodies for the late CS-local report references
            around `0x0d30` / `0x0d53`, which did not decode as plain raw-import
