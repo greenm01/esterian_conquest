@@ -95,6 +95,11 @@ If the task is DOSBox-heavy, also check:
 - agents shall use escalating RE depth:
   - start with Rust-generated scenarios, preserved fixtures, and black-box
     oracle testing against the original binaries
+  - for new mechanics, default to:
+    - initialize or materialize a controlled directory
+    - submit one narrow order family or field mutation
+    - run the original binary oracle
+    - diff `.DAT` and report outputs
   - promote repeated deterministic pass/fail patterns into shared Rust rules first
   - escalate to deep static/dynamic RE only when:
     - the path blocks broader compliant gamestate generation

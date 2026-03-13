@@ -17,8 +17,17 @@ Primary milestone:
 Default method:
 
 - black-box first
-- Rust-generated scenario -> original binary oracle -> `.DAT` diff -> promote
-  deterministic rule into `CoreGameData`
+- initialize or materialize a controlled directory
+- submit one narrow order family or field mutation
+- run the original binary oracle
+- diff `.DAT` files and reports
+- promote deterministic rule into `CoreGameData`
+
+Default harness:
+
+- `python3 tools/ecmaint_oracle.py prepare <target_dir> [source_dir]`
+- submit orders or mutate one narrow field family
+- `python3 tools/ecmaint_oracle.py run <target_dir>`
 
 Escalate to deep RE only when:
 
@@ -134,14 +143,23 @@ Start with initialized-to-post-maint rule discovery, not more starbase deep RE.
 
 Best immediate task:
 
-- use the canonical baseline diff tools on a Rust-normalized `original/v1.5`
-  directory
-- cluster the remaining deterministic byte deltas by file and field family
-- promote only the clearly reusable transition rules into `CoreGameData`
-- use:
-  - `cargo run -q -p ec-cli -- core-init-current-known-baseline original/v1.5 /tmp/ec-from-original`
-  - `cargo run -q -p ec-cli -- core-report-canonical-transition-clusters /tmp/ec-from-original`
-  to get a per-record queue for `PLAYER.DAT`, `PLANETS.DAT`, and `FLEETS.DAT`
+Use the black-box oracle loop for new mechanics first, not more deep RE.
+
+Best immediate task:
+
+- initialize a clean directory
+- submit one controlled order family
+- run `ECMAINT`
+- diff `.DAT` and report outputs
+- only if that plateaus, return to static/dynamic RE
+
+Useful prep/oracle commands:
+
+- `python3 tools/ecmaint_oracle.py prepare /tmp/ecmaint-oracle`
+- `python3 tools/ecmaint_oracle.py run /tmp/ecmaint-oracle`
+- `cargo run -q -p ec-cli -- core-init-current-known-baseline original/v1.5 /tmp/ec-from-original`
+- `cargo run -q -p ec-cli -- core-report-canonical-transition-clusters /tmp/ec-from-original`
+- `cargo run -q -p ec-cli -- core-report-canonical-transition-details /tmp/ec-from-original`
 
 Recommended order:
 
@@ -152,6 +170,8 @@ Recommended order:
      different homeworld/unowned topology from the canonical post-maint
      baseline, but the coordinates themselves may simply reflect randomized
      setup
+   - likewise, planet-name drift is not deterministic maintenance state by
+     itself because players are allowed to rename colonized planets
    - examples:
      - current record 13 homeworld seed at `(6,12)` vs canonical `(4,13)`
      - current record 16 `Dust Bowl` owned world at `(16,13)` vs canonical
@@ -177,9 +197,9 @@ Why this first:
 
 - the Guard Starbase blocker is complete enough for compliance work
 - Rust tooling is no longer the main bottleneck
-- initialized-to-post-maint transition rules are the next shortest path toward
-  broader `ECMAINT`-compliant gamestate generation and eventually a Rust
-  `ECMAINT`
+- this loop scales better than another deep rabbit hole
+- initialized-to-post-maint rule discovery is now best driven by controlled
+  before/after oracle runs
 
 ## Canonical Baseline Tools
 

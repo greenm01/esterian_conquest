@@ -69,6 +69,15 @@ The goal is:
   template for a justified deep-dive blocker, not as the default workflow for
   every mechanic
 
+8. Prefer controlled order -> `ECMAINT` -> diff loops for new mechanics
+
+- initialize a controlled directory in Rust or from a preserved baseline
+- submit one tightly scoped order family
+- run `ECMAINT` as the oracle
+- diff `.DAT`, `MESSAGES.DAT`, `RESULTS.DAT`, and `ERRORS.TXT`
+- promote only repeated deterministic effects into `CoreGameData`
+- use deep RE only after this loop stops yielding reusable rules
+
 ## What Counts As Success
 
 Short term:
@@ -157,6 +166,14 @@ Default loop:
 3. Diff the resulting `.DAT` files and reports.
 4. Promote only strong repeated patterns into `CoreGameData`.
 5. Escalate to deep RE only if the rule still blocks generalization.
+
+Default `ECMAINT` black-box loop for new mechanics:
+
+1. `python3 tools/ecmaint_oracle.py prepare <target_dir> [source_dir]`
+2. submit one controlled set of orders or mutate one narrow field family
+3. `python3 tools/ecmaint_oracle.py run <target_dir>`
+4. inspect the `.oracle/` snapshots plus the printed diff clusters
+5. promote only strong repeated rules into shared Rust logic
 
 Deep RE escalation criteria:
 

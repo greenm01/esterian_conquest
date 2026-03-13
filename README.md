@@ -37,6 +37,12 @@ Docs:
 - `docs/rust-architecture.md`: Rust module layout and data-oriented design notes
 - `docs/next-session.md`: exact restart point for the next ECMAINT experiment
 
+Default black-box oracle loop for new mechanics:
+- `python3 tools/ecmaint_oracle.py prepare /tmp/ecmaint-oracle [source_dir]`
+- submit one controlled order family or mutate one narrow field family
+- `python3 tools/ecmaint_oracle.py run /tmp/ecmaint-oracle`
+- inspect `.oracle/` snapshots plus the reported `.DAT`/report diff clusters
+
 Current Rust milestone:
 - `ec-cli` is now split by feature area instead of letting `main.rs` keep
   growing:

@@ -27,6 +27,17 @@ Never run ECMAINT directly against repo fixture directories.
 
 ## Standard Procedure
 
+For most new mechanics, prefer the repo harness first:
+
+```bash
+python3 tools/ecmaint_oracle.py prepare /tmp/ecmaint-oracle
+# submit one controlled order family or mutate one narrow field family
+python3 tools/ecmaint_oracle.py run /tmp/ecmaint-oracle
+```
+
+That captures pre/post snapshots under `/tmp/ecmaint-oracle/.oracle/` and
+prints byte-diff clusters for the core `.DAT` files plus report files.
+
 ### 1. Prepare the working directory
 
 ```bash
