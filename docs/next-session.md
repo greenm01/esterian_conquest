@@ -303,15 +303,41 @@ Priority order:
 
 ## Concrete Next Task
 
-Scenarios `fleet-order`, `planet-build`, `guard-starbase`, `move`, `ipbm`,
-`bombard`, `fleet-battle`, and `invade` now have Rust generators and passing
-tests. `bombard`, `fleet-battle`, and `invade` exact-match their preserved
-pre-maint fixtures for `FLEETS.DAT` and `PLANETS.DAT`.
+All known scenarios now have Rust generators and passing tests (commit `fd6c494`):
 
-The remaining non-deterministic scenarios still need pre-maint generators:
+| Scenario | generator | tests | pre-fixture exact match |
+|----------|-----------|-------|------------------------|
+| fleet-order | ✅ | ✅ | ✅ |
+| planet-build | ✅ | ✅ | ✅ |
+| guard-starbase | ✅ | ✅ | ✅ |
+| move | ✅ | ✅ | ✅ |
+| ipbm | ✅ | ✅ | ✅ |
+| bombard | ✅ | ✅ | ✅ |
+| fleet-battle | ✅ | ✅ | ✅ |
+| invade | ✅ | ✅ | ✅ |
+| econ | ✅ | ✅ | ✅ |
 
-1. **`econ`** — economy tick; requires understanding the production/tax rule
-   (raw[0x0e] and factories_word at raw[0x08..0x09])
+**Milestone 1 (Known accepted scenarios) is complete.**
+
+The next work is one of:
+
+1. **Milestone 2 — Parameterized scenario generation**: replace the remaining
+   scenario-specific raw byte blobs (e.g. planet 14 raw assignment shared
+   across bombard/fleet-battle/invade/econ) with explicit parameterized field
+   builders; move from "recreate this one accepted shape" toward "generate
+   families of accepted shapes within known-safe constraints".
+
+2. **Recover more `ECMAINT` cross-file linkage and integrity rules**: use the
+   controlled black-box loop (prepare → mutate → run → diff) to find rules
+   beyond the currently known scenario families.
+
+3. **Expand `IPBM` from structural to semantic**: the file is structurally
+   mapped, but the gameplay semantics (targeting, resolution, ECMAINT handling)
+   are not yet encoded in Rust.
+
+Recommended starting point: tackle Milestone 2 by parameterizing the shared
+planet-14 raw-blob pattern, which appears identically across four scenarios.
+That is the most concrete near-term DRY/DOD improvement.
 
 ## Canonical Baseline Tools
 
