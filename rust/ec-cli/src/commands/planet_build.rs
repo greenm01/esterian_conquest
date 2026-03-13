@@ -148,8 +148,7 @@ pub(crate) fn init_planet_original(dir: &Path) -> Result<(), Box<dyn std::error:
 
     for (idx, coords, owner, name, potential, fact_word, tax) in hw_specs {
         let record = &mut data.planets.records[idx - 1];
-        record.raw[0] = coords[0];
-        record.raw[1] = coords[1];
+        record.set_coords_raw(coords);
         record.set_owner_empire_slot_raw(owner);
         record.set_ownership_status_raw(2);
         if idx == 16 {
@@ -188,8 +187,7 @@ pub(crate) fn init_planet_original(dir: &Path) -> Result<(), Box<dyn std::error:
 
     for (idx, coords, potential) in unowned_specs {
         let record = &mut data.planets.records[idx - 1];
-        record.raw[0] = coords[0];
-        record.raw[1] = coords[1];
+        record.set_coords_raw(coords);
         record.set_owner_empire_slot_raw(0);
         record.set_ownership_status_raw(0);
         record.set_status_or_name_prefix_raw("Unowned");

@@ -15,6 +15,11 @@ impl PlanetRecord {
         [self.raw[0], self.raw[1]]
     }
 
+    pub fn set_coords_raw(&mut self, coords: [u8; 2]) {
+        self.raw[0] = coords[0];
+        self.raw[1] = coords[1];
+    }
+
     pub fn header_value_raw(&self) -> u8 {
         self.raw[2]
     }

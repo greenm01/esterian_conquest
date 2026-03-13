@@ -141,6 +141,15 @@ impl FleetRecord {
     pub fn set_previous_fleet_id(&mut self, value: u8) {
         self.raw[0x07] = value;
     }
+    /// Armies loaded onto this fleet for an invasion order (raw[0x08]).
+    /// Empirically confirmed from the invade scenario fixture.
+    /// No docs reference yet; keep as raw until further RE confirms semantics.
+    pub fn invasion_army_count_raw(&self) -> u8 {
+        self.raw[0x08]
+    }
+    pub fn set_invasion_army_count_raw(&mut self, value: u8) {
+        self.raw[0x08] = value;
+    }
     pub fn max_speed(&self) -> u8 {
         self.raw[0x09]
     }

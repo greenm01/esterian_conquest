@@ -41,8 +41,7 @@ pub(crate) fn apply_bombard_scenario(dir: &Path) -> Result<(), Box<dyn std::erro
             .get_mut(13)
             .ok_or("planet record 14 missing")?;
         p14.raw = template;
-        p14.raw[0x00] = 0x0F; // x = 15
-        p14.raw[0x01] = 0x0D; // y = 13 (already correct from template, set explicitly)
+        p14.set_coords_raw([0x0F, 0x0D]); // (15,13)
     }
 
     data.save(dir)?;

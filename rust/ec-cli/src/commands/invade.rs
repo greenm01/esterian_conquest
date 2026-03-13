@@ -6,15 +6,13 @@ use ec_data::CoreGameData;
 ///
 /// Fixture-specific constants for this scenario:
 /// - Fleet 3 (empire=1, slot=3, index=2): InvadeWorld (0x0a) order, speed=3/3,
-///   target (15,13), raw[0x08]=100 (army count), SC=100, BB=100, CA=50, DD=50, TT=50
-/// - Planet 14 (index=13): set via direct raw byte assignment (Dust Bowl-type seeded world
+///   target (15,13), invasion_army_count=100, SC=100, BB=100, CA=50, DD=50, TT=50
+/// - Planet 14 (index=13): set via set_as_owned_target_world (Dust Bowl-type seeded world
 ///   at (15,13), owned by empire 2, armies=142, batteries=15)
 ///
 /// Order code 0x0a is empirically confirmed as InvadeWorld from fixture analysis.
 /// The Rust fleet enum labels this code differently (guessed from docs); use
 /// set_standing_order_code_raw directly until the enum is corrected.
-///
-/// raw[0x08] carries the army count loaded onto the fleet. No named accessor exists yet.
 ///
 /// All record indices and constants here are scenario-specific; the general mutators live in
 /// ec-data and accept parameters.
@@ -25,7 +23,7 @@ pub(crate) fn apply_invade_scenario(dir: &Path) -> Result<(), Box<dyn std::error
     // army_count=100, SC=100, BB=100, CA=50, DD=50, TT=50
     {
         let f = &mut data.fleets.records[2];
-        f.raw[0x08] = 0x64; // army count carried by fleet (no named accessor)
+        f.set_invasion_army_count_raw(0x64); // 100 armies loaded for invasion
         f.set_max_speed(3);
         f.set_current_speed(3);
         f.set_standing_order_code_raw(0x0a); // InvadeWorld (empirically confirmed)
@@ -74,10 +72,10 @@ pub(crate) fn validate_invade_data(data: &CoreGameData) -> Result<(), Box<dyn st
     match data.fleets.records.get(2) {
         None => errors.push("missing fleet record 3".to_string()),
         Some(f) => {
-            if f.raw[0x08] != 0x64 {
+            if f.invasion_army_count_raw() != 0x64 {
                 errors.push(format!(
-                    "FLEET[3].army_count expected 100 (0x64), got {:#04x}",
-                    f.raw[0x08]
+                    "FLEET[3].invasion_army_count expected 100 (0x64), got {:#04x}",
+                    f.invasion_army_count_raw()
                 ));
             }
             if f.max_speed() != 3 {
