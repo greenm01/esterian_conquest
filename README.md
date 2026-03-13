@@ -50,7 +50,8 @@ Default black-box oracle loop for new mechanics:
 - inspect `.oracle/` snapshots plus the reported `.DAT`/report diff clusters
 
 Sysop/admin setup surface:
-- `ec-cli sysop new-game <target_dir>`
+- `ec-cli sysop new-game <target_dir> [--players <1-4>]`
+- `ec-cli sysop generate-gamestate <target_dir> <player_count> <year> [<homeworld_x>:<homeworld_y>...]`
 - `ec-cli sysop setup-programs [dir]`
 - `ec-cli sysop port-setup [dir]`
 - `ec-cli sysop snoop <dir> <on|off>`

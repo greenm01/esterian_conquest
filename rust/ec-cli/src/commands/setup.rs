@@ -26,8 +26,21 @@ pub(crate) fn print_maintenance_days(dir: &Path) -> Result<(), Box<dyn std::erro
 pub(crate) fn init_canonical_four_player_start(
     target: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data =
-        GameStateBuilder::build_canonical_four_player_start(CanonicalFourPlayerSetup::default())?;
+    init_new_game(target, 4)
+}
+
+pub(crate) fn init_new_game(
+    target: &Path,
+    player_count: u8,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let data = if player_count == 4 {
+        GameStateBuilder::build_canonical_four_player_start(CanonicalFourPlayerSetup::default())?
+    } else {
+        GameStateBuilder::new()
+            .with_player_count(player_count)
+            .with_year(3000)
+            .build_initialized_baseline()?
+    };
 
     fs::create_dir_all(target)?;
     data.save(target)?;

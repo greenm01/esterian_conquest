@@ -2,7 +2,7 @@ pub fn print_usage() {
     println!("Usage:");
     println!("  ec-cli inspect [dir]");
     println!("  ec-cli sysop <subcommand> ...");
-    println!("  ec-cli sysop new-game <target_dir>");
+    println!("  ec-cli sysop new-game <target_dir> [--players <1-4>]");
     println!("  ec-cli sysop generate-gamestate <target_dir> <player_count> <year> [<homeworld_x>:<homeworld_y>...]");
     println!("  ec-cli sysop init-canonical-four-player-start <target_dir>  # compatibility alias");
     println!("  ec-cli sysop maintenance-days [dir]");

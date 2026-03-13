@@ -33,8 +33,24 @@ fn sysop_snoop_off_rewrites_setup_flag() {
 fn sysop_can_init_canonical_four_player_start() {
     let target = unique_temp_dir("ec-cli-sysop-init");
     let stdout = run_ec_cli(&["sysop", "new-game", target.to_str().unwrap()]);
-    assert!(stdout.contains("Initialized canonical four-player start"));
+    assert!(stdout.contains("Initialized new game"));
+    assert!(stdout.contains("players=4"));
     assert!(target.join("DATABASE.DAT").exists());
+    cleanup_dir(&target);
+}
+
+#[test]
+fn sysop_new_game_accepts_player_count_flag() {
+    let target = unique_temp_dir("ec-cli-sysop-new-game-players");
+    let stdout = run_ec_cli(&[
+        "sysop",
+        "new-game",
+        target.to_str().unwrap(),
+        "--players",
+        "2",
+    ]);
+    assert!(stdout.contains("Initialized new game"));
+    assert!(stdout.contains("players=2"));
     cleanup_dir(&target);
 }
 

@@ -102,15 +102,20 @@ Success rate: 100.0%
 
 1. **Generate arbitrary gamestates:**
    ```bash
-   ec-cli generate-gamestate /tmp/game 4 3001 16:13 30:6 2:25 26:26
+   ec-cli sysop generate-gamestate /tmp/game 4 3001 16:13 30:6 2:25 26:26
    ```
 
-2. **Validate compliance:**
+2. **Start a default new game quickly:**
+   ```bash
+   ec-cli sysop new-game /tmp/game --players 4
+   ```
+
+3. **Validate compliance:**
    ```bash
    ec-cli compliance-report /tmp/game
    ```
 
-3. **Oracle validation:**
+4. **Oracle validation:**
    ```bash
    python3 tools/oracle_sweep.py
    ```

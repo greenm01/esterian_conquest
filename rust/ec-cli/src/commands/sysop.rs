@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::commands::setup::{
-    init_canonical_four_player_start, print_autopilot_after, print_com_irq, print_flow_control,
+    init_canonical_four_player_start, init_new_game, print_autopilot_after, print_com_irq, print_flow_control,
     print_local_timeout, print_maintenance_days, print_max_key_gap, print_minimum_time,
     print_port_setup, print_purge_after, print_remote_timeout, print_setup_programs, print_snoop,
     set_autopilot_after, set_com_irq, set_flow_control, set_local_timeout, set_maintenance_days,
@@ -97,6 +97,25 @@ fn generate_gamestate_from_args(
     Ok(())
 }
 
+fn parse_new_game_player_count(args: &[String]) -> Result<u8, String> {
+    if args.is_empty() {
+        return Ok(4);
+    }
+
+    if args.len() == 2 && (args[0] == "--players" || args[0] == "-p") {
+        let player_count: u8 = args[1]
+            .parse()
+            .map_err(|_| format!("invalid player count: {}", args[1]))?;
+        if (1..=4).contains(&player_count) {
+            Ok(player_count)
+        } else {
+            Err(format!("player_count must be 1-4, got {player_count}"))
+        }
+    } else {
+        Err("usage: sysop new-game <target_dir> [--players N]".to_string())
+    }
+}
+
 pub(crate) fn run_sysop_args(
     mut args: impl Iterator<Item = String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -112,11 +131,29 @@ pub(crate) fn run_sysop_args(
                 print_usage();
                 return Ok(());
             };
-            init_canonical_four_player_start(&target_dir)?;
-            println!(
-                "Initialized canonical four-player start at: {}",
-                target_dir.display()
-            );
+            let remaining = args.collect::<Vec<_>>();
+            let player_count = match parse_new_game_player_count(&remaining) {
+                Ok(count) => count,
+                Err(message) => {
+                    eprintln!("Error: {message}");
+                    print_usage();
+                    return Ok(());
+                }
+            };
+            if player_count == 4 && cmd == "init-canonical-four-player-start" {
+                init_canonical_four_player_start(&target_dir)?;
+                println!(
+                    "Initialized canonical four-player start at: {}",
+                    target_dir.display()
+                );
+            } else {
+                init_new_game(&target_dir, player_count)?;
+                println!(
+                    "Initialized new game at: {} (players={})",
+                    target_dir.display(),
+                    player_count
+                );
+            }
         }
         "maintenance-days" => {
             let Some(dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
