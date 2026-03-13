@@ -42,18 +42,47 @@ KNOWN_SCENARIOS = {
     "fleet-order": {
         "pre": ROOT / "fixtures" / "ecmaint-fleet-pre" / "v1.5",
         "post": ROOT / "fixtures" / "ecmaint-fleet-post" / "v1.5",
+        "ticks": 1,
     },
     "planet-build": {
         "pre": ROOT / "fixtures" / "ecmaint-build-pre" / "v1.5",
         "post": ROOT / "fixtures" / "ecmaint-build-post" / "v1.5",
+        "ticks": 1,
     },
     "guard-starbase": {
         "pre": ROOT / "fixtures" / "ecmaint-starbase-pre" / "v1.5",
         "post": ROOT / "fixtures" / "ecmaint-starbase-post" / "v1.5",
+        "ticks": 1,
     },
     "ipbm": {
         "pre": ROOT / "fixtures" / "ecmaint-post" / "v1.5",
         "post": ROOT / "fixtures" / "ecmaint-post" / "v1.5",
+        "ticks": 1,
+    },
+    "move": {
+        "pre": ROOT / "fixtures" / "ecmaint-move-pre" / "v1.5",
+        "post": ROOT / "fixtures" / "ecmaint-move-post" / "v1.5",
+        "ticks": 3,
+    },
+    "bombard": {
+        "pre": ROOT / "fixtures" / "ecmaint-bombard-pre" / "v1.5",
+        "post": ROOT / "fixtures" / "ecmaint-bombard-post" / "v1.5",
+        "ticks": 2,
+    },
+    "econ": {
+        "pre": ROOT / "fixtures" / "ecmaint-econ-pre" / "v1.5",
+        "post": ROOT / "fixtures" / "ecmaint-econ-post" / "v1.5",
+        "ticks": 2,
+    },
+    "fleet-battle": {
+        "pre": ROOT / "fixtures" / "ecmaint-fleet-battle-pre" / "v1.5",
+        "post": ROOT / "fixtures" / "ecmaint-fleet-battle-post" / "v1.5",
+        "ticks": 2,
+    },
+    "invade-heavy": {
+        "pre": ROOT / "fixtures" / "ecmaint-invade-heavy-pre" / "v1.5",
+        "post": ROOT / "fixtures" / "ecmaint-invade-heavy-post" / "v1.5",
+        "ticks": 2,
     },
 }
 
@@ -321,10 +350,12 @@ def cmd_compare(args: argparse.Namespace) -> int:
 def cmd_replay_preserved(args: argparse.Namespace) -> int:
     scenario = require_known_scenario(args.scenario)
     target = Path(args.target).resolve()
+    ticks: int = scenario.get("ticks", 1)  # type: ignore[assignment]
     prepare_args = argparse.Namespace(target=str(target), source=str(scenario["pre"]))
     cmd_prepare(prepare_args)
     run_args = argparse.Namespace(target=str(target))
-    cmd_run(run_args)
+    for _ in range(ticks):
+        cmd_run(run_args)
     compare_args = argparse.Namespace(target=str(target), expected=str(scenario["post"]))
     cmd_compare(compare_args)
     return 0
