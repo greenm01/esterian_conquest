@@ -102,7 +102,7 @@ impl KnownScenario {
             Self::Move => root.join("ecmaint-move-pre/v1.5"),
             Self::Bombard => root.join("ecmaint-bombard-pre/v1.5"),
             Self::FleetBattle => root.join("ecmaint-fleet-battle-pre/v1.5"),
-            Self::Invade => root.join("ecmaint-invade-heavy-pre/v1.5"),
+            Self::Invade => root.join("ecmaint-invade-pre/v1.5"),
             Self::Econ => root.join("ecmaint-econ-pre/v1.5"),
         }
     }

@@ -29,7 +29,7 @@ pub use directory::{
     CoreGameData, CurrentKnownComplianceStatus, CurrentKnownGuardStarbaseLinkageSummary,
     CurrentKnownKeyWordSummary, GameDirectoryError, GameStateMutationError,
 };
-pub use maint::{run_maintenance_turn, run_maintenance_turns};
+pub use maint::{run_maintenance_turn, run_maintenance_turns, BombardEvent, MaintenanceEvents};
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;
 pub use records::database::{DatabaseDat, DatabaseRecord};

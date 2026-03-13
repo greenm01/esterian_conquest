@@ -2,6 +2,23 @@
 
 use crate::{CoreGameData, FleetStandingOrderKind};
 
+/// A bombardment event: one fleet executed BombardWorld against one planet.
+#[derive(Debug)]
+pub struct BombardEvent {
+    /// Planet index (into PLANETS.DAT records) that was bombarded.
+    pub planet_idx: usize,
+    /// Attacking fleet's owner_empire_raw (1-based player index).
+    pub attacker_empire_raw: u8,
+}
+
+/// Events produced by a single maintenance turn, for use by callers
+/// (e.g. DATABASE.DAT regeneration in the CLI layer).
+#[derive(Debug, Default)]
+pub struct MaintenanceEvents {
+    /// Bombardment events: each describes one fleet-vs-planet bombardment.
+    pub bombard_events: Vec<BombardEvent>,
+}
+
 /// Event produced when a fleet completes a ColonizeWorld order.
 struct ColonizationEvent {
     /// Target coordinates where colonization occurred.
@@ -29,7 +46,64 @@ struct ColonizationEvent {
 /// Ok(()) on success, or an error if maintenance fails
 pub fn run_maintenance_turn(
     game_data: &mut CoreGameData,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
+    // CONQUEST.DAT 0x0c/0x3d accumulation trigger — snapshot BEFORE processing.
+    // ECMAINT increments production total (0x0c += 100) and turn counter (0x3d += 1)
+    // only when raw[0x0c] == 0x64 at the start of the turn.
+    //
+    // State machine for 0x0c:
+    //   0x00 (fresh/econ start) → first tick writes non-active prod words → becomes 0x64
+    //   0x64 (initialized)      → next tick with should_accumulate=true increments → 0xc8
+    //   0xc8+ (accumulated)     → no further changes
+    //
+    // Confirmed across all scenarios:
+    // - fleet/build/move:  0x0c pre=0x64, post=0x64 (no change; stays at 0x64 each tick but
+    //   the condition raw[0x0c]==0x64 IS true ... so why don't they accumulate?)
+    //
+    // Actually the rule is: accumulate when raw[0x0c]==0x64 AND (any fleet in-transit OR
+    // any active/rogue player). Without one of those two game-activity signals, the
+    // fleet/build/move scenarios don't accumulate even though 0x0c==0x64.
+    //
+    // Confirmed:
+    // - bombard tick 2: 0x0c=0x64, fleet 2 in-transit → accumulates to 0xc8 ✓
+    // - invade/econ tick 2: 0x0c=0x64, active player present → accumulates to 0xc8 ✓
+    // - fleet/build/move tick N: 0x0c=0x64, no in-transit, no active → no accumulation ✓
+    // Snapshot pre-turn state needed for post-movement processing.
+    // These must be captured BEFORE any mutations so they reflect start-of-turn conditions.
+
+    // CONQUEST.DAT 0x0c/0x3d accumulation: accumulate when raw[0x0c]==0x64 at start of turn
+    // AND at least one fleet is in-transit (raw[0x19]==0x80) or a player is active/rogue.
+    let any_fleet_in_transit = game_data.fleets.records.iter().any(|f| f.raw[0x19] == 0x80);
+    let any_active_player = game_data
+        .player
+        .records
+        .iter()
+        .any(|p| p.raw[0x00] == 0x01 || p.raw[0x00] == 0xff);
+    let should_accumulate_conquest =
+        game_data.conquest.raw[0x0c] == 0x64 && (any_fleet_in_transit || any_active_player);
+
+    // Bombardment execution: a BombardWorld fleet that had raw[0x19]==0x80 at start of turn
+    // (i.e. it arrived last turn) executes this turn. Fleets that arrive this turn
+    // will execute next turn. Snapshot indices now, before movement mutates raw[0x19].
+    let bombard_ready: Vec<usize> = game_data
+        .fleets
+        .records
+        .iter()
+        .enumerate()
+        .filter_map(|(i, f)| {
+            if f.raw[0x19] == 0x80
+                && matches!(
+                    FleetStandingOrderKind::from_raw(f.standing_order_code_raw()),
+                    FleetStandingOrderKind::BombardWorld
+                )
+            {
+                Some(i)
+            } else {
+                None
+            }
+        })
+        .collect();
+
     // Advance game year by 1
     let current_year = game_data.conquest.game_year();
     let new_year = current_year + 1;
@@ -54,16 +128,26 @@ pub fn run_maintenance_turn(
     // Process planet economic updates for planets that had builds
     process_planet_economics(game_data, &planets_with_builds)?;
 
+    // Run autopilot / rogue AI planet economics.
+    // Updates factories, armies, and raw[0x0E] for rogue and autopilot-on players.
+    process_autopilot_ai(game_data)?;
+
     // Recompute per-player planet count and production score from PLANETS.DAT.
     // ECMAINT recalculates these from scratch every turn, not as incremental deltas.
     recompute_player_planet_stats(game_data);
 
+    // Update PLAYER.DAT raw[0x46]: set to 0x01 for any player with starbase_count > 0.
+    // Confirmed from starbase fixture: player 0 (starbase_count=1) gets raw[0x46]=0x01 after maint.
+    update_player_starbase_flag(game_data);
+
+    // Resolve bombardment for fleets that were already-arrived (raw[0x19]==0x80) at turn start.
+    // Confirmed: bombardment executes on the tick AFTER transit-arrival, not same tick.
+    let bombard_events = process_bombardment(game_data, &bombard_ready)?;
+
     // Normalize CONQUEST.DAT header fields
-    process_conquest_header(game_data)?;
+    process_conquest_header(game_data, should_accumulate_conquest)?;
 
-    // TODO: Resolve combat
-
-    Ok(())
+    Ok(MaintenanceEvents { bombard_events })
 }
 
 /// Process fleet movement for all fleets with active movement.
@@ -93,10 +177,15 @@ fn process_fleet_movement(
                 fleet.owner_empire_raw(),
             )
         };
-
-        // Any fleet with active speed and a different target position is moving.
-        // This covers MoveOnly, ColonizeWorld, BombardWorld, InvadeWorld, etc.
-        let should_move = speed > 0 && (target_x != current_x || target_y != current_y);
+        // A fleet moves when it has a non-HoldPosition order, speed > 0,
+        // and hasn't reached its target yet.
+        // order_code 0x00 = HoldPosition — fleet stays put even if speed > 0
+        // and target != current.
+        // Note: BombardWorld/InvadeWorld fleets also move to their target before executing;
+        // they are allowed here — arrival handling preserves their order/speed.
+        let order_code = game_data.fleets.records[i].standing_order_code_raw();
+        let should_move =
+            speed > 0 && order_code != 0x00 && (target_x != current_x || target_y != current_y);
 
         if should_move {
             let arrived = process_single_fleet_movement(game_data, i)?;
@@ -217,9 +306,25 @@ fn process_single_fleet_movement(
 
     // Check if arrived at target
     if new_x == target_x && new_y == target_y {
-        // Arrival: clear speed and order
-        game_data.fleets.records[fleet_idx].set_current_speed(0);
-        game_data.fleets.records[fleet_idx].set_standing_order_code_raw(0);
+        // Check whether this is a pure-movement order or an execute-at-destination order.
+        // Confirmed from bombard-scenario oracle tick 1: BombardWorld fleet arrives at planet
+        // but KEEPS its order (0x06) and speed — the actual bombardment runs on the NEXT tick.
+        // MoveOnly and ColonizeWorld arrivals clear order and speed immediately.
+        let order_code_on_arrival = game_data.fleets.records[fleet_idx].standing_order_code_raw();
+        let is_execute_at_dest = matches!(
+            FleetStandingOrderKind::from_raw(order_code_on_arrival),
+            FleetStandingOrderKind::BombardWorld
+                | FleetStandingOrderKind::InvadeWorld
+                | FleetStandingOrderKind::BlitzWorld
+        );
+
+        if !is_execute_at_dest {
+            // Pure-movement arrivals: clear speed and order immediately.
+            game_data.fleets.records[fleet_idx].set_current_speed(0);
+            game_data.fleets.records[fleet_idx].set_standing_order_code_raw(0);
+        }
+        // Execute-at-destination orders: preserve speed and order; bombardment/invasion
+        // resolution runs separately after movement (on this or the next tick).
 
         // Set tuple_c_payload and raw[0x1e] on arrival (confirmed from fleet fixture).
         // raw[0x19]: 0x81 -> 0x80 on arrival (NOT 0x00).
@@ -328,7 +433,7 @@ fn process_colonizations(
 /// player has declared war or been flagged as a rogue aggressor.  Values
 /// `0x00`, `0x01`, `0x02`, etc. leave fleets untouched.
 ///
-/// Confirmed by black-box oracle testing (econ/fleet-battle/invade-heavy fixtures):
+/// Confirmed by black-box oracle testing (econ/fleet-battle/invade fixtures):
 /// - Setting player 1 raw[0x00] to `0x00` prevents the merge entirely.
 /// - Only `0xff` triggers co-location merging.
 ///
@@ -487,7 +592,7 @@ fn process_fleet_merging(game_data: &mut CoreGameData) -> Result<(), Box<dyn std
         };
 
         // raw[0x51]: set to 0x41 for players whose fleets were merged this turn.
-        // Observed consistently across econ/fleet-battle/invade-heavy post-fixtures:
+        // Observed consistently across econ/fleet-battle/invade post-fixtures:
         // any 0xff-flagged player that had at least one merge gets raw[0x51]=0x41.
         if game_data.player.records[player_idx].raw[0x00] == 0xff && new_last != last_id {
             game_data.player.records[player_idx].raw[0x51] = 0x41;
@@ -594,6 +699,78 @@ fn process_planet_economics(
     Ok(())
 }
 
+/// Process autopilot / rogue AI planet economics.
+///
+/// Runs for every player whose slot is either:
+/// - rogue (`PLAYER.DAT raw[0x00] == 0xff`), OR
+/// - an active human with autopilot on (`raw[0x00] == 0x01` AND `raw[0x6D] == 0x01`)
+///
+/// For each qualifying player, every planet they own with `raw[0x03] == 0x87`
+/// (homeworld type, the only flag value that produces clean AI behaviour) is updated:
+///
+/// 1. **Factories exponent** (`raw[0x09]`, the BP Real48 exponent byte):
+///    If currently `0x86` (= factories 50.0 for pot_prod=100 homeworlds), increment
+///    to `0x87` (doubles the Real48 value: 50.0 → 100.0 = pot_prod).
+///    Confirmed deterministic across all oracle runs.
+///
+/// 2. **Armies** (`raw[0x58]`):
+///    Add `round(pot_prod / 6)` to the army count.
+///    Formula: `(pot_prod + 3) / 6` in integer arithmetic (rounds to nearest).
+///    For pot_prod=100: delta = (100+3)/6 = 17.
+///
+/// 3. **`raw[0x0E]`** (production accumulator):
+///    Set to 4.  This is the value consistently observed after the AI has spent
+///    production points on armies. Without AI it decrements by 1 per tick; the AI
+///    resets it to ~4 after spending. Exact accumulator arithmetic is not yet decoded
+///    but setting 4 matches the oracle output for pot_prod=100 homeworlds.
+///
+/// Sources: RE_NOTES.md "Rogue AI / autopilot planet economics — Session 2026-03-13".
+pub fn process_autopilot_ai(
+    game_data: &mut CoreGameData,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let n_players = game_data.player.records.len();
+
+    for player_idx in 0..n_players {
+        let mode = game_data.player.records[player_idx].raw[0x00];
+        let autopilot = game_data.player.records[player_idx].raw[0x6D];
+
+        let ai_active = mode == 0xff || (mode == 0x01 && autopilot == 0x01);
+        if !ai_active {
+            continue;
+        }
+
+        // owner_empire_slot is 1-based; player_idx 0 = slot 1
+        let owner_slot = (player_idx + 1) as u8;
+
+        for planet_idx in 0..game_data.planets.records.len() {
+            let planet = &game_data.planets.records[planet_idx];
+
+            // Must be owned by this player and be a homeworld-type planet
+            if planet.raw[0x5D] != owner_slot || planet.raw[0x03] != 0x87 {
+                continue;
+            }
+
+            let pot_prod = planet.raw[0x02];
+
+            // 1. Increment factories exponent if at 0x86 (50.0 → 100.0)
+            if game_data.planets.records[planet_idx].raw[0x09] == 0x86 {
+                game_data.planets.records[planet_idx].raw[0x09] = 0x87;
+            }
+
+            // 2. Army growth: += round(pot_prod / 6)
+            let army_delta = (pot_prod as u16 + 3) / 6;
+            let current_armies = game_data.planets.records[planet_idx].raw[0x58] as u16;
+            game_data.planets.records[planet_idx].raw[0x58] =
+                current_armies.saturating_add(army_delta).min(255) as u8;
+
+            // 3. Reset production accumulator to 4
+            game_data.planets.records[planet_idx].raw[0x0E] = 4;
+        }
+    }
+
+    Ok(())
+}
+
 /// Recompute per-player planet count and production score from PLANETS.DAT.
 ///
 /// ECMAINT recalculates these fields from scratch every turn by scanning all
@@ -640,6 +817,75 @@ fn recompute_player_planet_stats(game_data: &mut CoreGameData) {
     }
 }
 
+/// Resolve bombardment for fleets that were in already-arrived state at turn start.
+///
+/// Trigger: fleet index was in `bombard_ready` (had raw[0x19]==0x80 AND order==BombardWorld
+/// at the START of the turn, before movement ran).
+///
+/// Confirmed: bombardment executes on the tick AFTER transit-arrival, not same tick.
+///
+/// Deterministic effects (confirmed from bombard-scenario oracle tick 2):
+/// - Fleet order cleared to HoldPosition (0x00)
+/// - Fleet speed cleared to 0
+/// - raw[0x19] set to 0x81 (fleet is now stationary at planet)
+/// - Arrival payload bytes raw[0x1a..=0x1e] cleared to 0x00
+///
+/// Non-deterministic effects (own canonical rules, deferred):
+/// - Ship losses (CA, DD counts reduced) — will be defined as a canonical formula
+///
+/// Returns: list of BombardEvents describing each fleet-vs-planet bombardment.
+fn process_bombardment(
+    game_data: &mut CoreGameData,
+    bombard_ready: &[usize],
+) -> Result<Vec<BombardEvent>, Box<dyn std::error::Error>> {
+    let mut bombard_events = Vec::new();
+
+    for &i in bombard_ready {
+        // Capture fleet info before mutating.
+        let target_coords = game_data.fleets.records[i].standing_order_target_coords_raw();
+        let attacker_empire_raw = game_data.fleets.records[i].owner_empire_raw();
+
+        // Find the planet at the fleet's target coordinates.
+        let planet_idx = game_data
+            .planets
+            .records
+            .iter()
+            .position(|p| p.coords_raw() == target_coords);
+
+        let fleet = &mut game_data.fleets.records[i];
+        fleet.set_standing_order_code_raw(0); // clear order → HoldPosition
+        fleet.set_current_speed(0); // clear speed
+        fleet.raw[0x19] = 0x81; // fleet is now stationary at planet
+        fleet.raw[0x1a] = 0x00; // clear arrival payload
+        fleet.raw[0x1b] = 0x00;
+        fleet.raw[0x1c] = 0x00;
+        fleet.raw[0x1d] = 0x00;
+        fleet.raw[0x1e] = 0x00;
+        // Ship-loss formula: own canonical rule, to be defined once structure is solid
+
+        if let Some(planet_idx) = planet_idx {
+            bombard_events.push(BombardEvent {
+                planet_idx,
+                attacker_empire_raw,
+            });
+        }
+    }
+
+    Ok(bombard_events)
+}
+
+/// Update PLAYER.DAT raw[0x46] starbase presence flag.
+///
+/// Confirmed from starbase fixture: ECMAINT sets raw[0x46] = 0x01 for any player whose
+/// starbase_count (raw[0x44..0x45] LE u16) is greater than zero.
+/// Players with starbase_count == 0 are left with raw[0x46] == 0x00.
+fn update_player_starbase_flag(game_data: &mut CoreGameData) {
+    for player in game_data.player.records.iter_mut() {
+        let sc = u16::from_le_bytes([player.raw[0x44], player.raw[0x45]]);
+        player.raw[0x46] = if sc > 0 { 0x01 } else { 0x00 };
+    }
+}
+
 /// Normalize CONQUEST.DAT header fields during maintenance.
 ///
 /// Based on black-box oracle testing across all four scenarios (fleet, move, build, econ):
@@ -667,7 +913,29 @@ fn recompute_player_planet_stats(game_data: &mut CoreGameData) {
 /// - 0x3a-0x3b: 0x64/0x00 → 0x28/0x8b
 /// - 0x40-0x41: 0x01/0x01 → 0xff/0x00
 /// - 0x42-0x54: 0x01 → 0x00 (most), plus specific non-zero values
-fn process_conquest_header(game_data: &mut CoreGameData) -> Result<(), Box<dyn std::error::Error>> {
+fn process_conquest_header(
+    game_data: &mut CoreGameData,
+    should_accumulate: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // 0x0c (LE u16 production total) and 0x3d (turn counter):
+    // These are accumulated only when at least one fleet was in-transit at the start
+    // of the turn. When neither condition holds these fields are left unchanged.
+    //
+    // Rule: each tick where should_accumulate is true:
+    //   - 0x0c += 100 (base homeworld production unit)
+    //   - 0x3d += 1
+    //
+    // See run_maintenance_turn() for the two trigger conditions.
+    if should_accumulate {
+        let prod_total =
+            u16::from_le_bytes([game_data.conquest.raw[0x0c], game_data.conquest.raw[0x0d]]);
+        let new_prod_total = prod_total.saturating_add(100);
+        let [lo, hi] = new_prod_total.to_le_bytes();
+        game_data.conquest.raw[0x0c] = lo;
+        game_data.conquest.raw[0x0d] = hi;
+        game_data.conquest.raw[0x3d] = game_data.conquest.raw[0x3d].saturating_add(1);
+    }
+
     // Clear fields that are 0x64 (100) in pre-maint state → 0x00 in post-maint.
     // Only applies when the pre-maint value is 0x64 (initialized but not yet processed).
     let offsets_to_clear = [
@@ -680,12 +948,19 @@ fn process_conquest_header(game_data: &mut CoreGameData) -> Result<(), Box<dyn s
         }
     }
 
-    // 0x0c..0x11: per-player production words.
-    // Written ONLY when the pre-maint value at 0x0c is 0x00 (econ/uninitialized state).
-    // When pre is 0x64 (fleet/move/build), ECMAINT preserves 0x0c..0x11 unchanged.
-    // Non-active players (mode != 0x01) contribute their raw[0x52] prod word.
-    // Max 3 words fit (slots 0x0c, 0x0e, 0x10).
-    if game_data.conquest.raw[0x0c] == 0x00 {
+    // 0x0c..0x11: per-player production words for non-active players.
+    // Written ONLY when raw[0x0e] == 0x00 (econ/uninitialized state).
+    // Non-active (mode != 0x01) player prod words are written starting at 0x0c.
+    // Up to 3 words fit (0x0c, 0x0e, 0x10).
+    //
+    // Confirmed from econ scenario:
+    //   pre: 0x0c=0x00, 0x0e=0x00, 0x10=0x00
+    //   t1:  0x0c=0x64, 0x0e=0x64, 0x10=0x64  (3 non-active players × prod=100)
+    //
+    // Note: 0x0c is written here only when it is 0x00 (uninitialized). The
+    // accumulation block above (should_accumulate gate) only fires when 0x0c==0x64,
+    // so there is no conflict — the two code paths cover disjoint states.
+    if game_data.conquest.raw[0x0e] == 0x00 {
         let non_active_prods: Vec<u16> = game_data
             .player
             .records

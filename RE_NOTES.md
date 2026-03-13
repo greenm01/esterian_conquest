@@ -1,5 +1,18 @@
 # Esterian Conquest v1.5 RE Notes
 
+## RE Policy: Stochastic Mechanics
+
+`ECMAINT` uses an internal RNG for combat (fleet battles, bombardment losses)
+and rogue/autopilot AI. We do **not** attempt byte-exact reproduction of those
+results. Instead:
+
+- use oracle diffs to understand **which fields change** and **in what range**
+- define our own **deterministic canonical rules** for the magnitude of random
+  effects (documented below each mechanic as it is ported)
+- byte-exact fixture match is the target only for fully deterministic mechanics
+  (movement, year, build queues, economy totals, cross-file linking)
+- see `docs/approach.md` §9 for the full rationale
+
 ## Current Status
 
 - `ECGAME.EXE`, `ECUTIL.EXE`, and `ECMAINT.EXE` are 16-bit DOS `MZ` executables.
@@ -5041,3 +5054,125 @@ green.
 
 Note: the bombard scenario fixture names `army0`/`army1` are misleading — they
 vary the **batteries** field (`0x5A`), not the army field (`0x58`).
+
+---
+
+## Rogue AI / autopilot planet economics — Session 2026-03-13
+
+### How rogue empires are created
+
+Two confirmed paths (from ECUTIL F3 and WHATSNEW docs):
+
+1. **Sysop manually** via `ECUTIL F3 Change Empire Ownership → R (Make empire ROGUE)`.
+   Sets `PLAYER.DAT[0x00] = 0xff` and writes `"Rogues"` into the empire label field.
+2. **Bulk close** via `ECMAINT /C` command-line flag, which forces all currently
+   unclaimed (`mode=0x00`) empires to become rogues. Used by sysops to "close"
+   enrollment at the start of a game so latecomers become AI opponents.
+
+`mode=0x00` (civil disorder / unclaimed slot) does **not** automatically become
+rogue each turn. It only becomes rogue when the sysop explicitly acts.
+
+### AI trigger rule — confirmed by black-box oracle
+
+AI planet economics run for a player's planets when either:
+
+- `PLAYER.DAT[0x00] == 0xff` (rogue mode) — regardless of autopilot flag, OR
+- `PLAYER.DAT[0x00] == 0x01` (active human) AND `PLAYER.DAT[0x6D] == 0x01`
+  (autopilot flag on)
+
+`mode=0x00` (civil disorder) planets are **never touched** by the AI, even when the
+player owns homeworld-type planets. Confirmed by oracle: econ fixture players 2 and
+3 (mode=0x00) own planets 4 and 5 — both are unchanged across all oracle runs.
+
+### Planet-side trigger — flags field must be exactly 0x87
+
+The AI only modifies a planet if `PLANET.raw[0x03] == 0x87` (homeworld flag byte).
+Other flag values (0x81 new-colony, 0x00 unowned, etc.) do not trigger the AI or
+produce garbage field writes.
+
+Sweep results for `PLANET.raw[0x03]` with a rogue owner:
+
+| flags | result |
+|-------|--------|
+| `0x87` | clean AI: factories doubled, armies +17, `raw[0x0E]` updated |
+| `0x81` | no change |
+| `0x00` | no change |
+| `0x84`, `0x86`, etc. | partial/garbage writes — AI stumbles into wrong offsets |
+
+`0x87` is the exact homeworld-type byte assigned during game init for all player
+homeworlds. Only one per empire in the base game setup.
+
+### Factories field: Borland Pascal Real48, exponent +1 = doubling
+
+`PLANET.raw[0x04..0x09]` is a 6-byte Borland Pascal Real48:
+- byte `[5]` = exponent (stored at raw[0x09] in the planet record)
+- byte `[4]` = high mantissa byte (stored at raw[0x08])
+- bytes `[0..3]` = low mantissa bytes (stored at raw[0x04..0x07], all zero for
+  homeworld seeds)
+
+For the canonical homeworld seed:
+- initial: `raw[0x08..0x09] = [0x48, 0x86]` → exponent=0x86=134 → `2^(134-129) × 1.5625 = 50.0`
+- after one AI tick: `raw[0x08..0x09] = [0x48, 0x87]` → exponent=0x87=135 → `2^(135-129) × 1.5625 = 100.0`
+
+The AI increments the exponent byte by 1, which doubles the Real48 value. Starting
+from `factories=50.0`, one AI tick brings it to `factories=100.0` (= pot_prod).
+
+This is **deterministic**: confirmed across all oracle runs. The increment is always
+exactly +1 to raw[0x09] (the exponent byte of the Real48).
+
+**Important:** the increment only happens when `raw[0x09] == 0x86` on entry. Once at
+0x87 (factories=100.0 for pot_prod=100 planets), subsequent AI ticks do not further
+increment the exponent — the factories field stops changing. Tested: pre=0x87 →
+post=0x87 (no change). Pre=0x88 → post=0x87 (clamped back). The AI is converging
+factories toward some target, not blindly incrementing.
+
+### Army growth: +`pot_prod / 6` (rounded)
+
+When the AI runs on a pot_prod=100 homeworld: armies increase by 17 per tick
+(`100 / 6 = 16.67`, rounded to 17). Confirmed by black-box oracle.
+
+This matches the `original/v1.5` run on Dust Bowl where armies grew +19 with
+pot_prod=100 and the planet already had accumulated armies=142 at that point
+(different factories/raw[0x0E] state → slightly different spending mix).
+
+The formula `armies += round(pot_prod / 6)` is the current best model.
+
+### `raw[0x0E]`: production accumulator, not tax rate
+
+`PLANET.raw[0x0E]` is a per-planet production accumulator used by the AI spending
+logic. It is **not** the empire tax rate (that is `PLAYER.DAT[0x51]`).
+
+Observed behavior:
+- Fresh homeworld seed: `raw[0x0E] = 12`
+- Without autopilot/rogue AI: decrements by 1 per tick (12→11→...→4→3→...)
+- After one AI tick from the fresh-seed state (raw[0x0E]=12): becomes 4
+- After AI runs on an already-AI-run planet (raw[0x0E]=4): varies (2–4 range,
+  partly non-deterministic due to DOSBox clock)
+
+The exact accumulator rule is not yet decoded. It appears to track remaining
+production points available for spending this tick, and resets to a small value
+after the AI has spent them. The non-determinism in army count (occasionally armies
+don't grow) is believed to come from this field's interaction with a timer or RNG
+in ECMAINT, not from a fundamentally stochastic rule.
+
+### DATABASE.DAT record 14 raw[0x1e] and raw[0x23]
+
+When the AI runs on planet 14, two DATABASE.DAT bytes also change:
+- `rec[14].raw[0x1e]`: `0x23 → 0x40 + owner_slot` (= 0x41 for slot=1)
+  This is the fog-of-war ownership marker for the player's own planet.
+- `rec[14].raw[0x23]`: mirrors the post-maint army count on planet 14.
+
+Both are a consequence of the DATABASE.DAT fog-of-war update rule already
+implemented in Rust — the planet's intel record gets refreshed after the AI
+changes the army count. These are not new rules; they follow from the existing
+`regenerate_database_dat()` logic once the army count is updated correctly.
+
+### What is NOT yet decoded
+
+- The exact formula for `raw[0x0E]` update (production accumulator arithmetic)
+- Battery growth rule under autopilot (in `original/v1.5` batteries grew +1 per
+  tick; not tested in the econ scenario where batteries stayed at 4)
+- Whether the army formula varies with batteries count or other planet fields
+- Multi-planet AI behavior when a rogue/autopilot player owns more than one
+  homeworld-type planet (tested briefly: the same per-planet rule applies
+  independently to each `flags==0x87` planet)

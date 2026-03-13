@@ -63,7 +63,7 @@ They let us:
 
 ### Invasion
 
-- `fixtures/ecmaint-invade-heavy-pre/v1.5/` / `fixtures/ecmaint-invade-heavy-post/v1.5/`
+- `fixtures/ecmaint-invade-pre/v1.5/` / `fixtures/ecmaint-invade-post/v1.5/`
   - heavy invasion scenario
 
 ### Starbases

@@ -356,34 +356,54 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 **Milestone 4 Phase 2:** Mechanics implementation — IN PROGRESS
 
 **Parity results (live oracle, sequential runs):**
-- build: 10/10 ✅ 100%
-- fleet: 10/10 ✅ 100%
-- move:  10/10 ✅ 100%
-- econ:   8/10 ⏳ 80% — PLANETS.DAT (3 bytes) + DATABASE.DAT (1-2 bytes) blocked on rogue AI
+- build:        10/10 ✅ 100%
+- fleet:        10/10 ✅ 100%
+- move:         10/10 ✅ 100%
+- starbase:     10/10 ✅ 100%
+- econ:          8/10 ⏳ 80%  — blocked on rogue AI (deferred, stochastic)
+- bombard:       9/10 ⏳ 90%  — FLEETS 2 bytes: CA/DD ship losses (stochastic, deferred)
+- invade:       TBD
+- fleet-battle: TBD
 
-**Remaining econ diffs — all rogue AI / autopilot on planet 14:**
+**187 tests passing, 0 failing.**
+
+**Remaining econ diffs — all rogue AI / autopilot on planet 14 (deferred):**
 - `PLANETS.DAT planet 14`: factories_word, tax_rate, stardock changes from AI autopilot
-- `DATABASE.DAT record 14 off=0x1e`: `0x23 → 0x40+owner_slot` change linked to fleet-merge event
-- `DATABASE.DAT record 14 off=0x23`: army count mirror of planet 14 (varies between oracle runs)
-- Non-deterministic between oracle runs — rogue AI involves some stochastic behavior
-- Explicitly deferred to rogue AI / autopilot milestone
+- `DATABASE.DAT record 14`: army count mirror (varies between oracle runs)
 
-**Known-good mechanics:**
+**Known-good mechanics (cumulative):**
 - Year advancement ✅
 - Fleet movement (speed formula, transit flags, arrival) ✅
 - Fleet co-location merging (pre-merge, ROE=10, ID remapping, PLAYER chain update) ✅
 - Planet colonization (ColonizeWorld arrival, new-colony markers) ✅
 - Player planet stats recompute (raw[0x50] count, raw[0x52] prod sum) ✅
 - CONQUEST.DAT economic sim (0x0c..0x15 prod block, 0x1a..0x1b, 0x20..0x54) ✅
-- DATABASE.DAT fog-of-war discovery (orbit records, new colonies, pre-existing owned) ✅
+- DATABASE.DAT fog-of-war discovery (orbit, colonization, bombardment intel) ✅
+- PLAYER.DAT raw[0x46] starbase flag (set to 1 for starbase_count > 0) ✅
+- BombardWorld transit-arrival: fleet preserves order+speed, executes next tick ✅
+- Bombardment resolution: clears order/speed/raw[0x19]→0x81/arrival-payload ✅
+- Correct movement gate: uses `raw[0x1f]` (standing_order_code) not `raw[0x0c]` (current_y) ✅
 
-**~187 tests passing**, 0 failing.
+## Stochastic Mechanics Policy
+
+We implement **our own deterministic versions** of all mechanics, including
+combat and AI. The original ECMAINT RNG is not reproducible without full
+emulation of its internal state. Instead:
+
+- use oracle diffs to learn **which fields change** and **in what range**
+- define canonical Rust rules for the *magnitude* of stochastic effects
+- byte-exact fixture match is the target only for fully deterministic mechanics
+- see `docs/approach.md` §9 for the full rationale
+
+Affected mechanics (deferred until structure is solid across all scenarios):
+- Bombardment ship losses (CA/DD counts reduced by RNG)
+- Fleet battle attrition rates
+- Rogue/autopilot AI economy choices (factories, armies, tax)
 
 **Next priorities:**
-1. Investigate other scenario families (invade-heavy, fleet-battle, bombard, guard-starbase)
-   to find new non-rogue-AI mechanics to port
-2. Defer rogue AI until core mechanics are solid across all non-AI scenarios
-3. When all non-AI scenarios reach 100%, tackle rogue AI as a unit
+1. fleet-battle: FLEETS.DAT size wrong (594 vs 756 bytes) — fleet merging producing wrong count
+2. invade: PLAYER/PLANETS/FLEETS/DATABASE all have diffs — planet conquest + invasion mechanics
+3. Once structural mechanics are solid across all scenarios, define stochastic rules as a unit
 
 ---
 
@@ -462,7 +482,7 @@ enum GameEvent {
 - Bombardment results ("We have just concluded a bombing run...")
 
 **Known facts:**
-- RESULTS.DAT is non-empty for fleet-battle and invade-heavy scenarios (combat reports)
+- RESULTS.DAT is non-empty for fleet-battle and invade scenarios (combat reports)
 - MESSAGES.DAT is empty in all known fixture post-states (player-to-player messages only?)
 - Guard/blockade and econ-only turns produce empty RESULTS.DAT (no report generated)
 - Report format: Pascal-style length-prefixed strings, word-wrapped at ~72 chars, with stardate header
@@ -471,7 +491,7 @@ enum GameEvent {
 
 **Acceptance criteria:**
 - [ ] Byte-exact RESULTS.DAT match on fleet-battle scenario
-- [ ] Byte-exact RESULTS.DAT match on invade-heavy scenario
+- [ ] Byte-exact RESULTS.DAT match on invade scenario
 - [ ] Byte-exact RESULTS.DAT match on bombard scenario (currently empty — verify)
 - [ ] All scenario families produce correct MESSAGES.DAT / RESULTS.DAT
 - [ ] Report format (word-wrap, stardate, sender/receiver addressing) matches original

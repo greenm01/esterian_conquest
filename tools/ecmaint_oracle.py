@@ -77,11 +77,11 @@ KNOWN_SCENARIOS = {
     "fleet-battle": {
         "pre": ROOT / "fixtures" / "ecmaint-fleet-battle-pre" / "v1.5",
         "post": ROOT / "fixtures" / "ecmaint-fleet-battle-post" / "v1.5",
-        "ticks": 2,
+        "ticks": 1,
     },
-    "invade-heavy": {
-        "pre": ROOT / "fixtures" / "ecmaint-invade-heavy-pre" / "v1.5",
-        "post": ROOT / "fixtures" / "ecmaint-invade-heavy-post" / "v1.5",
+    "invade": {
+        "pre": ROOT / "fixtures" / "ecmaint-invade-pre" / "v1.5",
+        "post": ROOT / "fixtures" / "ecmaint-invade-post" / "v1.5",
         "ticks": 2,
     },
 }
@@ -193,8 +193,10 @@ def collect_expected_diffs(expected_dir: Path, actual_dir: Path) -> list[FileDif
 
 def run_ecmaint(target: Path, extra_env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
-    env.setdefault("SDL_VIDEODRIVER", "dummy")
-    env.setdefault("SDL_AUDIODRIVER", "dummy")
+    # Force headless SDL so DOSBox never opens a window, regardless of the
+    # caller's environment (DISPLAY, WAYLAND_DISPLAY, etc.).
+    env["SDL_VIDEODRIVER"] = "dummy"
+    env["SDL_AUDIODRIVER"] = "dummy"
     if extra_env:
         env.update(extra_env)
 

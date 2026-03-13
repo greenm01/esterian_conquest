@@ -14,7 +14,7 @@ fn scenario_invade_recreates_known_valid_pre_fixture() {
     );
     assert!(stdout.contains("Applied scenario: invade"));
 
-    let fixture_pre = repo_root().join("fixtures/ecmaint-invade-heavy-pre/v1.5");
+    let fixture_pre = repo_root().join("fixtures/ecmaint-invade-pre/v1.5");
     for name in ["FLEETS.DAT", "PLANETS.DAT"] {
         let expected = fs::read(fixture_pre.join(name)).unwrap();
         let actual = fs::read(target.join(name)).unwrap();
@@ -31,7 +31,7 @@ fn scenario_invade_recreates_known_valid_pre_fixture() {
 fn validate_invade_accepts_known_valid_fixture() {
     let stdout = run_ec_cli(&[
         "validate",
-        "fixtures/ecmaint-invade-heavy-pre/v1.5",
+        "fixtures/ecmaint-invade-pre/v1.5",
         "invade",
     ]);
     assert!(stdout.contains("Valid invade scenario"));
@@ -54,7 +54,7 @@ fn scenario_init_replayable_invade_matches_exact_preserved_pre_fixture() {
     );
     assert!(stdout.contains("Replayable scenario directory initialized at"));
 
-    let fixture_pre = repo_root().join("fixtures/ecmaint-invade-heavy-pre/v1.5");
+    let fixture_pre = repo_root().join("fixtures/ecmaint-invade-pre/v1.5");
     for name in ["FLEETS.DAT", "PLANETS.DAT", "SETUP.DAT"] {
         let expected = fs::read(fixture_pre.join(name)).unwrap();
         let actual = fs::read(target.join(name)).unwrap();
@@ -90,7 +90,7 @@ fn invade_init_recreates_known_valid_pre_fixture() {
     );
     assert!(stdout.contains("Invade directory initialized at"));
 
-    let fixture_pre = repo_root().join("fixtures/ecmaint-invade-heavy-pre/v1.5");
+    let fixture_pre = repo_root().join("fixtures/ecmaint-invade-pre/v1.5");
     for name in ["FLEETS.DAT", "PLANETS.DAT"] {
         let expected = fs::read(fixture_pre.join(name)).unwrap();
         let actual = fs::read(target.join(name)).unwrap();

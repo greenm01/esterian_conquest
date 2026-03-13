@@ -2,7 +2,9 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use ec_data::{run_maintenance_turn, CoreGameData, DatabaseDat, PlanetDat};
+use ec_data::{
+    run_maintenance_turn, BombardEvent, CoreGameData, DatabaseDat, MaintenanceEvents, PlanetDat,
+};
 
 /// Run Rust maintenance on a game directory for specified number of turns
 pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::error::Error>> {
@@ -22,9 +24,11 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
     // in order to clear the 0x1e field in the corresponding orbit records.
     let pre_maint_planets = game_data.planets.clone();
 
-    // Run maintenance logic for specified turns
+    // Run maintenance logic for specified turns, accumulating events across all turns.
+    let mut all_events = MaintenanceEvents::default();
     for turn in 1..=turns {
-        run_maintenance_turn(&mut game_data)?;
+        let events = run_maintenance_turn(&mut game_data)?;
+        all_events.bombard_events.extend(events.bombard_events);
         println!("  Turn {}: year {}", turn, game_data.conquest.game_year());
     }
 
@@ -38,7 +42,7 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
     game_data.save(dir)?;
 
     // Regenerate DATABASE.DAT from PLANETS.DAT
-    regenerate_database_dat(dir, &game_data, &pre_maint_planets)?;
+    regenerate_database_dat(dir, &game_data, &pre_maint_planets, &all_events)?;
 
     println!("Rust maintenance complete.");
     Ok(())
@@ -52,6 +56,7 @@ fn regenerate_database_dat(
     dir: &Path,
     game_data: &CoreGameData,
     pre_maint_planets: &PlanetDat,
+    events: &MaintenanceEvents,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load existing DATABASE.DAT as template
     let template_path = dir.join("DATABASE.DAT");
@@ -155,6 +160,35 @@ fn regenerate_database_dat(
                             new_database.records[record_idx].raw[0x1e] = 0x00;
                         }
                     }
+
+                    // If the autopilot/rogue AI ran on this planet this turn, also
+                    // refresh the owner intel fields in the orbit record:
+                    //   raw[0x1e] = 0x40 + owner_slot
+                    //   raw[0x23] = post-maint army count
+                    //
+                    // Trigger: same condition as process_autopilot_ai — planet
+                    // flags==0x87 and the owning player is rogue (mode=0xff) or
+                    // has autopilot on (mode=0x01 and raw[0x6D]==0x01).
+                    //
+                    // Confirmed: econ fixture rec=14 (player=0/rogue, planet=14)
+                    // gets raw[0x1e] updated; rec=32 (player=1/human, planet=12)
+                    // does not because no AI ran on planet 12 that turn.
+                    if planet < game_data.planets.records.len()
+                        && game_data.planets.records[planet].raw[0x03] == 0x87
+                        && planet_owner > 0
+                        && planet_owner == player + 1
+                    {
+                        let player_mode = game_data.player.records[player].raw[0x00];
+                        let autopilot = game_data.player.records[player].raw[0x6D];
+                        let ai_ran =
+                            player_mode == 0xff || (player_mode == 0x01 && autopilot == 0x01);
+                        if ai_ran {
+                            let owner_slot = planet_owner as u8;
+                            let armies = game_data.planets.records[planet].army_count_raw();
+                            new_database.records[record_idx].raw[0x1e] = 0x40 + owner_slot;
+                            new_database.records[record_idx].raw[0x23] = armies;
+                        }
+                    }
                 } else if is_owned_unknown {
                     // Owned-planet UNKNOWN record: populate with real planet name + intel.
                     let owner_slot = planet_owner as u8; // = player + 1
@@ -204,6 +238,69 @@ fn regenerate_database_dat(
                         new_database.records[record_idx].raw[0x25] = batteries;
                         new_database.records[record_idx].raw[0x26] = 0x00;
                     }
+                }
+            }
+        }
+    }
+
+    // Update DATABASE.DAT records for bombarded planets.
+    //
+    // Confirmed from bombard-scenario oracle: when a BombardWorld fleet executes,
+    // the attacking player's and defending player's (planet owner's) DATABASE records
+    // for the bombarded planet are updated with full planet intel.
+    // raw[0x15] = planet's owner_slot; other players' records are NOT updated.
+    if let Some(ref _template_db) = template {
+        let year_bytes = discovery_year.to_le_bytes();
+        for event in &events.bombard_events {
+            let planet_idx = event.planet_idx;
+            if planet_idx >= game_data.planets.records.len() {
+                continue;
+            }
+            let planet = &game_data.planets.records[planet_idx];
+            let owner_slot = planet.owner_empire_slot_raw();
+            let pot_prod_lo = planet.raw[0x02];
+            let armies = planet.army_count_raw();
+            let batteries = planet.ground_batteries_raw();
+            let name_len = planet.raw[0x0F];
+            let planet_name: String = planet.raw[0x10..0x10 + name_len.min(13) as usize]
+                .iter()
+                .map(|&b| b as char)
+                .collect();
+
+            // Attacker: owner_empire_raw is 1-based → player index = owner_empire_raw - 1
+            let attacker_player = event.attacker_empire_raw.saturating_sub(1) as usize;
+            // Defender: planet owner_slot is 1-based → player index = owner_slot - 1
+            let defender_player = owner_slot.saturating_sub(1) as usize;
+
+            let update_record = |new_database: &mut DatabaseDat, record_idx: usize| {
+                new_database.records[record_idx].set_planet_name(&planet_name);
+                new_database.records[record_idx].raw[0x15] = owner_slot;
+                new_database.records[record_idx].raw[0x16] = year_bytes[0];
+                new_database.records[record_idx].raw[0x17] = year_bytes[1];
+                new_database.records[record_idx].raw[0x18] = year_bytes[0];
+                new_database.records[record_idx].raw[0x19] = year_bytes[1];
+                new_database.records[record_idx].raw[0x1c] = pot_prod_lo;
+                new_database.records[record_idx].raw[0x1d] = pot_prod_lo;
+                new_database.records[record_idx].raw[0x1e] = 0x23;
+                new_database.records[record_idx].raw[0x1f] = 0x00;
+                new_database.records[record_idx].raw[0x23] = armies;
+                new_database.records[record_idx].raw[0x24] = 0x00;
+                new_database.records[record_idx].raw[0x25] = batteries;
+                new_database.records[record_idx].raw[0x26] = 0x00;
+                new_database.records[record_idx].raw[0x27] = year_bytes[0];
+                new_database.records[record_idx].raw[0x28] = year_bytes[1];
+            };
+
+            // Update attacker's record
+            let atk_record = attacker_player * 20 + planet_idx;
+            if atk_record < new_database.records.len() {
+                update_record(&mut new_database, atk_record);
+            }
+            // Update defender's record (if different from attacker's)
+            if defender_player != attacker_player && owner_slot > 0 {
+                let def_record = defender_player * 20 + planet_idx;
+                if def_record < new_database.records.len() {
+                    update_record(&mut new_database, def_record);
                 }
             }
         }
@@ -267,16 +364,26 @@ pub fn compare_maintenance(
     );
     println!();
 
-    // Auto-detect turns from year difference if not specified
+    // Auto-detect turns from directory name if not specified.
+    // Known tick counts per scenario family:
+    //   move: 3 ticks   (3000 → 3003)
+    //   bombard: 2 ticks (3000 → 3002)
+    //   invade: 2 ticks  (3010 → 3012)
+    //   econ: 2 ticks    (3010 → 3012)
+    //   all others: 1 tick
     let turns_to_run = match turns {
         Some(t) => t,
         None => {
-            // Try to detect from fixture directory name or default to 1
             let dir_str = dir.to_string_lossy();
             if dir_str.contains("move") {
-                // Move scenario: year 3000 -> 3003 = 3 turns
-                println!("Auto-detected: Move scenario requires 3 turns");
+                println!("Auto-detected: move scenario — 3 turns");
                 3
+            } else if dir_str.contains("bombard")
+                || dir_str.contains("invade")
+                || dir_str.contains("econ")
+            {
+                println!("Auto-detected: 2-tick scenario — 2 turns");
+                2
             } else {
                 1
             }

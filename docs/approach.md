@@ -151,11 +151,38 @@ Long term:
   goal and should be folded into the Rust clone once the local `ECGAME`
   harness is reliable enough
 
+9. Own the mechanics; do not reproduce the original RNG
+
+- `ECMAINT` uses an internal RNG for combat resolution (fleet battles,
+  bombardment ship losses) and rogue/autopilot AI decisions
+- the original RNG output is not reproducible without full emulation of its
+  internal state; attempting to match it byte-for-byte is intractable and
+  would produce a brittle clone, not a faithful reimplementation
+- instead, implement **our own deterministic versions** of every mechanic:
+  - use the original binary and preserved fixtures to understand the
+    *structure* of changes (what fields change, in what range, under what
+    conditions)
+  - define our own canonical rules for the *magnitude* of random effects
+    (e.g. bombardment ship losses, battle attrition rates, AI economy choices)
+  - document those rules here and in `RE_NOTES.md` so they are auditable
+    and tunable independently of the original binary
+- the acceptance criterion for these mechanics is internal consistency and
+  gameplay plausibility, not byte-exact fixture match
+- byte-exact fixture match remains the acceptance criterion only for fully
+  deterministic mechanics (movement, year advancement, build queues, economy
+  totals, cross-file linking)
+- the original post-maint fixtures are still used to understand field
+  ranges and change patterns; they are not used as a bit-level target for
+  stochastic mechanics
+
 Near-term acceptance rule:
 
 - a format/mechanic is not "done" until Rust can emit the relevant state and
   the original binaries accept it without integrity failures or unexpected
   normalization
+- for stochastic mechanics, "done" means: correct field structure, plausible
+  magnitudes, and a documented canonical rule — not byte-exact match to any
+  single oracle run
 
 ## RE Workflow
 
