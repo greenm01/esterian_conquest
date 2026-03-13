@@ -34,12 +34,43 @@ Known replay harness:
 - `python3 tools/ecmaint_oracle.py replay-known fleet-order /tmp/ecmaint-fleet-oracle`
 - `python3 tools/ecmaint_oracle.py replay-known planet-build /tmp/ecmaint-build-oracle`
 - `python3 tools/ecmaint_oracle.py replay-known guard-starbase /tmp/ecmaint-starbase-oracle`
+- `python3 tools/ecmaint_oracle.py replay-known move /tmp/ecmaint-move-oracle`
 
 Preserved replay harness:
 
 - `python3 tools/ecmaint_oracle.py replay-preserved fleet-order /tmp/ecmaint-fleet-pre-direct`
 - `python3 tools/ecmaint_oracle.py replay-preserved planet-build /tmp/ecmaint-build-pre-direct`
 - `python3 tools/ecmaint_oracle.py replay-preserved guard-starbase /tmp/ecmaint-starbase-pre-direct`
+- `python3 tools/ecmaint_oracle.py replay-preserved move /tmp/ecmaint-move-pre-direct`
+
+### Replay coverage status (confirmed)
+
+| Scenario | ticks | replay-preserved compare | notes |
+|----------|-------|--------------------------|-------|
+| fleet-order | 1 | **zero diff** ✅ | |
+| planet-build | 1 | **zero diff** ✅ | |
+| guard-starbase | 1 | **zero diff** ✅ | |
+| move | 3 | **zero diff** ✅ | |
+| econ | 2 | **non-deterministic** ⚠️ | all remaining diffs non-det |
+| bombard | 2 | **non-deterministic** ⚠️ | CA/DD losses random |
+| fleet-battle | 2 | **non-deterministic** ⚠️ | battle outcome random |
+| invade-heavy | 2 | **non-deterministic** ⚠️ | invasion outcome random |
+
+Non-deterministic diffs in econ: army count growth (rec14 off 0x58), stardock
+build queue residual (off 0x3c), fleet CA/DD losses (fleet 2 bombards rec13).
+These are all random. There are no deterministic compliance gaps in the econ
+scenario.
+
+Field notes from econ investigation:
+- `PLANETS.DAT` `0x38..0x4b`: stardock build queue counts (u16_le per slot)
+- `PLANETS.DAT` `0x4c..0x4f`: stardock build queue kinds (u8 per slot)
+- `PLANETS.DAT` `0x50`: meaning unknown but set after 2 ticks of economy activity
+  (present in econ-post, fleet-battle-post, invade-heavy-post rec14); not
+  related to stardock queue
+- `PLANETS.DAT` `0x38+` gets populated by ECMAINT during tick processing (not
+  just from pre-existing build orders); cleared as ships are built
+- Build scenario confirms: pre `0x24[slot]`/`0x2e[slot]` (build order) →
+  post `0x38[slot*2]`/`0x4c[slot]` (stardock queue entry)
 
 First concrete replay result:
 
@@ -194,6 +225,7 @@ What is strong:
     - `planet-build`
     - `guard-starbase`
     - `ipbm`
+    - `move`
 
 What is still incomplete:
 
@@ -268,63 +300,27 @@ Priority order:
 
 ## Concrete Next Task
 
-Start with the verified black-box oracle loop, not more starbase deep RE.
+All 5 deterministic scenarios (`fleet-order`, `planet-build`, `guard-starbase`,
+`move`, `ipbm`) now have a Rust generator and pass `replay-known` with zero
+compare diff. There are no remaining deterministic compliance gaps in the
+currently covered scenarios.
+
+The 4 non-deterministic scenarios (`econ`, `bombard`, `fleet-battle`,
+`invade-heavy`) cannot produce zero diff by construction — their outcomes
+involve random battle damage, army growth, or invasion results.
 
 Best immediate task:
 
-- use `replay-preserved` to validate the oracle path for a mechanic family
-- use `replay-known` to measure the remaining gap in the Rust-generated
-  pre-maint state
-- promote those residual diffs into `CoreGameData`
-- only if that plateaus, return to static/dynamic RE
+**Extend the Rust generator to cover new scenario families.**
 
-Useful prep/oracle commands:
+The next scenario families to cover with a Rust generator and a `replay-known`
+harness entry are:
 
-- `python3 tools/ecmaint_oracle.py prepare /tmp/ecmaint-oracle`
-- `python3 tools/ecmaint_oracle.py run /tmp/ecmaint-oracle`
-- `cargo run -q -p ec-cli -- core-init-current-known-baseline original/v1.5 /tmp/ec-from-original`
-- `cargo run -q -p ec-cli -- core-report-canonical-transition-clusters /tmp/ec-from-original`
-- `cargo run -q -p ec-cli -- core-report-canonical-transition-details /tmp/ec-from-original`
-
-Recommended order:
-
-1. `PLANETS.DAT`
-   - explain the remaining repeated economy/homeworld payload clusters
-   - this is now the upstream target for the shipped sample
-   - the new transition-details report shows the shipped sample still has a
-     different homeworld/unowned topology from the canonical post-maint
-     baseline, but the coordinates themselves may simply reflect randomized
-     setup
-   - likewise, planet-name drift is not deterministic maintenance state by
-     itself because players are allowed to rename colonized planets
-   - examples:
-     - current record 13 homeworld seed at `(6,12)` vs canonical `(4,13)`
-     - current record 16 `Dust Bowl` owned world at `(16,13)` vs canonical
-       unowned record 16 and canonical player-1 homeworld seed at record 15
-         `(16,13)`
-2. `FLEETS.DAT`
-   - after current-known normalization, remaining fleet drift collapses to
-     offsets `11/12` and `32/33`
-   - those are already-mapped location/target coordinate fields
-   - practical implication:
-     - remaining `FLEETS.DAT` drift is derived from the sample’s planet /
-       homeworld state, not an independent queue
-   - the new detail report confirms the dependency:
-     - fleet block 2 follows current `(6,12)` vs canonical `(4,13)`
-     - fleet block 3 follows current `(16,5)` vs canonical `(6,5)`
-     - fleet block 4 follows current `(7,4)` vs canonical `(13,5)`
-3. `PLAYER.DAT`
-   - promote only count/summary words that are supported by evidence
-4. `IPBM.DAT`
-   - move from structural validity toward real gameplay semantics
-
-Why this first:
-
-- the Guard Starbase blocker is complete enough for compliance work
-- Rust tooling is no longer the main bottleneck
-- this loop scales better than another deep rabbit hole
-- initialized-to-post-maint rule discovery is now best driven by controlled
-  before/after oracle runs
+1. **`bombard`** / **`fleet-battle`** — bombardment/battle pre-maint setup; the
+   deterministic tick1 (pre-battle) may be coverable; tick2 is random
+2. **`econ`** — economy tick; requires understanding of the production/tax rule
+   that drives factory growth (raw[0x0e] and factories_word at raw[0x08..0x09])
+3. **`invade-heavy`** — invasion pre-maint setup
 
 ## Canonical Baseline Tools
 

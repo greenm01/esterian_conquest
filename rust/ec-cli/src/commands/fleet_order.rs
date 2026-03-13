@@ -41,6 +41,12 @@ pub(crate) fn apply_fleet_order_scenario(dir: &Path) -> Result<(), Box<dyn std::
     Ok(())
 }
 
+pub(crate) fn apply_move_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    set_fleet_order(dir, 1, 0x03, 0x01, 0x1A, 0x0D, None, None)?;
+    println!("Applied scenario: move");
+    Ok(())
+}
+
 pub(crate) fn print_fleet_order_report(
     dir: &Path,
     record_index_1_based: usize,
@@ -59,7 +65,10 @@ pub(crate) fn print_fleet_order_report(
     println!("  target={:?}", record.standing_order_target_coords_raw());
     println!("  mission_aux={:02x?}", record.mission_aux_bytes());
     println!("  local_slot_word={}", record.local_slot_word_raw());
-    println!("  next_fleet_link_word={}", record.next_fleet_link_word_raw());
+    println!(
+        "  next_fleet_link_word={}",
+        record.next_fleet_link_word_raw()
+    );
     println!("  fleet_id_word={}", record.fleet_id_word_raw());
     Ok(())
 }

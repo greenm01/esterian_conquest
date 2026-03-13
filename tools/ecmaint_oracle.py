@@ -365,10 +365,12 @@ def cmd_replay_known(args: argparse.Namespace) -> int:
     scenario = require_known_scenario(args.scenario)
     source = Path(args.source).resolve() if args.source else DEFAULT_BASELINE
     target = Path(args.target).resolve()
+    ticks: int = scenario.get("ticks", 1)  # type: ignore[assignment]
     prepare_args = argparse.Namespace(scenario=args.scenario, source=str(source), target=str(target))
     cmd_prepare_known(prepare_args)
     run_args = argparse.Namespace(target=str(target))
-    cmd_run(run_args)
+    for _ in range(ticks):
+        cmd_run(run_args)
     compare_args = argparse.Namespace(target=str(target), expected=str(scenario["post"]))
     cmd_compare(compare_args)
     return 0

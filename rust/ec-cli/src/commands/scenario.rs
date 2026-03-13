@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use ec_data::CoreGameData;
 
-use crate::commands::fleet_order::apply_fleet_order_scenario;
+use crate::commands::fleet_order::{apply_fleet_order_scenario, apply_move_scenario};
 use crate::commands::guard_starbase::apply_guard_starbase_scenario;
 use crate::commands::ipbm::{apply_ipbm_scenario, validate_ipbm_data};
 use crate::commands::planet_build::apply_planet_build_scenario;
@@ -16,15 +16,17 @@ pub(crate) enum KnownScenario {
     PlanetBuild,
     GuardStarbase,
     Ipbm,
+    Move,
 }
 
 impl KnownScenario {
-    pub(crate) fn all() -> [Self; 4] {
+    pub(crate) fn all() -> [Self; 5] {
         [
             Self::FleetOrder,
             Self::PlanetBuild,
             Self::GuardStarbase,
             Self::Ipbm,
+            Self::Move,
         ]
     }
 
@@ -34,6 +36,7 @@ impl KnownScenario {
             Self::PlanetBuild => "planet-build",
             Self::GuardStarbase => "guard-starbase",
             Self::Ipbm => "ipbm",
+            Self::Move => "move",
         }
     }
 
@@ -43,6 +46,7 @@ impl KnownScenario {
             "planet-build" => Some(Self::PlanetBuild),
             "guard-starbase" => Some(Self::GuardStarbase),
             "ipbm" => Some(Self::Ipbm),
+            "move" => Some(Self::Move),
             _ => None,
         }
     }
@@ -55,6 +59,7 @@ impl KnownScenario {
                 "accepted one-base guard-starbase fixture spanning PLAYER/FLEETS/BASES"
             }
             Self::Ipbm => "accepted zero-record IPBM fixture",
+            Self::Move => "accepted multi-tick fleet move fixture rooted in FLEETS.DAT",
         }
     }
 
@@ -65,6 +70,7 @@ impl KnownScenario {
             Self::PlanetBuild => root.join("ecmaint-build-pre/v1.5"),
             Self::GuardStarbase => root.join("ecmaint-starbase-pre/v1.5"),
             Self::Ipbm => root.join("ecmaint-post/v1.5"),
+            Self::Move => root.join("ecmaint-move-pre/v1.5"),
         }
     }
 
@@ -74,6 +80,7 @@ impl KnownScenario {
             Self::PlanetBuild => &["PLANETS.DAT"],
             Self::GuardStarbase => &["PLAYER.DAT", "FLEETS.DAT", "BASES.DAT"],
             Self::Ipbm => &["PLAYER.DAT", "IPBM.DAT"],
+            Self::Move => &["FLEETS.DAT"],
         }
     }
 }
@@ -87,6 +94,7 @@ pub(crate) fn apply_known_scenario(
         KnownScenario::PlanetBuild => apply_planet_build_scenario(dir),
         KnownScenario::GuardStarbase => apply_guard_starbase_scenario(dir),
         KnownScenario::Ipbm => apply_ipbm_scenario(dir),
+        KnownScenario::Move => apply_move_scenario(dir),
     }
 }
 
@@ -119,12 +127,11 @@ pub(crate) fn validate_known_scenario(
         KnownScenario::PlanetBuild => validate_planet_build_data(&data),
         KnownScenario::GuardStarbase => validate_guard_starbase_data(&data),
         KnownScenario::Ipbm => validate_ipbm_data(&data),
+        KnownScenario::Move => validate_move_data(&data),
     }
 }
 
-pub(crate) fn validate_all_known_scenarios(
-    dir: &Path,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub(crate) fn validate_all_known_scenarios(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let data = CoreGameData::load(dir)?;
     let mut matched = 0usize;
     for scenario in KnownScenario::all() {
@@ -134,6 +141,7 @@ pub(crate) fn validate_all_known_scenarios(
             KnownScenario::PlanetBuild => validate_planet_build_data(&data),
             KnownScenario::GuardStarbase => validate_guard_starbase_data(&data),
             KnownScenario::Ipbm => validate_ipbm_data(&data),
+            KnownScenario::Move => validate_move_data(&data),
         };
         match result {
             Ok(()) => {
@@ -219,7 +227,10 @@ pub(crate) fn init_known_replayable_scenario(
     copy_init_files(source, target)?;
     copy_pre_maint_replay_context_files(target)?;
     apply_known_scenario(target, scenario)?;
-    println!("Replayable scenario directory initialized at {}", target.display());
+    println!(
+        "Replayable scenario directory initialized at {}",
+        target.display()
+    );
     Ok(())
 }
 
@@ -246,7 +257,10 @@ pub(crate) fn init_all_known_scenarios(
         ));
     }
     fs::write(target_root.join("SCENARIOS.txt"), manifest)?;
-    println!("Initialized all known scenarios under {}", target_root.display());
+    println!(
+        "Initialized all known scenarios under {}",
+        target_root.display()
+    );
     Ok(())
 }
 
@@ -257,7 +271,10 @@ pub(crate) fn init_known_scenario_chain(
 ) -> Result<(), Box<dyn std::error::Error>> {
     copy_init_files(source, target)?;
     apply_known_scenarios(target, scenarios)?;
-    println!("Scenario chain directory initialized at {}", target.display());
+    println!(
+        "Scenario chain directory initialized at {}",
+        target.display()
+    );
     Ok(())
 }
 
@@ -288,7 +305,10 @@ fn validate_fleet_order_data(data: &CoreGameData) -> Result<(), Box<dyn std::err
         println!("  FLEET[1].speed = 3");
         println!("  FLEET[1].order = 0x0c");
         println!("  FLEET[1].target = (15, 13)");
-        println!("  FLEET[1].aux = {:02x?}", data.fleets.records[0].mission_aux_bytes());
+        println!(
+            "  FLEET[1].aux = {:02x?}",
+            data.fleets.records[0].mission_aux_bytes()
+        );
         Ok(())
     } else {
         Err(errors.join("\n").into())
@@ -326,6 +346,19 @@ fn validate_guard_starbase_data(data: &CoreGameData) -> Result<(), Box<dyn std::
             "  one-base guard-starbase linkage holds at coords {:?}",
             base.coords_raw()
         );
+        Ok(())
+    } else {
+        Err(errors.join("\n").into())
+    }
+}
+
+fn validate_move_data(data: &CoreGameData) -> Result<(), Box<dyn std::error::Error>> {
+    let errors = data.fleet_order_errors_current_known(1, 0x03, 0x01, [0x1A, 0x0D], None, None);
+    if errors.is_empty() {
+        println!("Valid move scenario");
+        println!("  FLEET[1].speed = 3");
+        println!("  FLEET[1].order = 0x01");
+        println!("  FLEET[1].target = (26, 13)");
         Ok(())
     } else {
         Err(errors.join("\n").into())
