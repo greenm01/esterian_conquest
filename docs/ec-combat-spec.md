@@ -9,6 +9,11 @@ The intent is to preserve the **spirit** of the original player manuals while
 adopting a cleaner simultaneous-resolution structure inspired by
 *Empire of the Sun*.
 
+That debt is deliberate. Where the original game often hid combat in opaque
+RNG and processing order, this spec assumes a more legible universe: forces
+meet, both strike from the same instant, and history is written from the
+survivors.
+
 ## Status
 
 This is a design spec for implementation. It is the source of truth for:

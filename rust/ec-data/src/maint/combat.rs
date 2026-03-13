@@ -1,3 +1,11 @@
+//! Canonical EC combat resolution.
+//!
+//! The structure here owes an explicit debt to *Empire of the Sun*: both sides
+//! compute their blows from the same moment in time, and only then does the
+//! board reckon with the cost. That simultaneous exchange fits EC's manuals
+//! better than file-order skirmishes, while staying deterministic enough for
+//! Rust maintenance and classic save compatibility.
+
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::{CoreGameData, FleetStandingOrderKind};
