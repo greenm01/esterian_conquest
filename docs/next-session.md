@@ -118,7 +118,17 @@ Priority order:
                `f(351b..351f)`
              - then decoded candidate local `+0x23` must equal `[3525]`
              - decoded candidate local flag `+0x0a` must be `0`
-           - `3521` behaves like a late report/control selector byte
+             - after that structural hit, the same block now looks like a real
+               second late resolution/report loop:
+               - it calls `0x2000:b9a7`
+               - splits into two CS-local report families
+               - the fallback path re-runs `0x1000:d183`, copies the selected
+                 entry back through `0x2000:c151`, rewrites `351b..351f`, and
+                 finalizes through `0x2000:c100`, `0x2000:c02a`, and
+                 `0x2000:c2f0`
+               - it explicitly clears `3521` and `350c` before exit
+           - `3521` behaves like a late report/control selector byte and is
+             reset when the later report flow completes
          - nearby raw strings after `41a1` show this region also owns the
            wider starbase merge/guard report family:
            - arrival at starbase
@@ -141,8 +151,9 @@ Priority order:
            - the direct register return is only a boolean success gate
        - next target should now stay in `0000:3fcf..41a0`, especially:
          - the exact semantic labels for `3521`
-         - the exact CS-local report variants and which scratch fields choose
-           them
+         - the exact CS-local report variants chosen across both late blocks
+           (`3fcf..41a0` and `42d8..456e`)
+         - which scratch fields and helper returns choose each variant
 
 2. Recover initialized-to-post-maint deterministic rules
    - use canonical post-maint diff output from normalized `original/v1.5`

@@ -4540,6 +4540,22 @@ Strong practical consequence:
     - it behaves as the kind-`1` side comparison word paired against decoded
       local `+0x23`, analogous to how earlier matcher logic compares candidate
       decoded `+0x23` against base-side `[355A]`
+  - the later half of that block is now clarified as a real resolution/report
+    loop, not just another selector helper:
+    - after a structural hit it calls `0x2000:b9a7`
+    - that splits into two nearby CS-local report families around `0xd30` and
+      `0xd53`
+    - both branches format report text around the same local candidate data
+    - the fallback path at `451b..456e` emits an additional message, re-runs
+      `0x1000:d183`, copies the selected entry back through `0x2000:c151`,
+      rewrites `351b..351f`, then finalizes through `0x2000:c100`,
+      `0x2000:c02a`, and `0x2000:c2f0`
+    - `3521` is explicitly cleared at `44f5`, alongside `350c` at `44fa`
+  - practical consequence:
+    - `42d8..456e` is the second late starbase resolution/report loop
+    - it consumes the same kind-`1` canonicalized payload as
+      `3fcf..41a0`, but drives a later report family after a deeper
+      structural candidate match
 - `3521` is now narrowed, though not fully named:
   - read by `0000:cce7..cd39` to select one of several small constant tables
     written to `0x630..0x633`
@@ -4568,11 +4584,13 @@ Artifacts:
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-payload-producers.txt`
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-scalar-scan.txt`
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-late-ranges.txt`
+- `artifacts/ghidra/ecmaint-live/unknown-starbase-resolution-loop.txt`
 
 Tool:
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbasePredicate.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseScratchRefs.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseStrings.java`
+- `tools/ghidra_scripts_tmp/ReportUnknownStarbaseResolutionLoop.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbasePayloadProducers.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseScalarScan.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseLateRanges.java`
