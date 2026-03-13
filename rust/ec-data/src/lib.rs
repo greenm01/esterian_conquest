@@ -31,9 +31,9 @@ pub use directory::{
 };
 pub use maint::{
     run_maintenance_turn, run_maintenance_turns, BombardEvent, ColonizationResolvedEvent,
-    FleetBattleEvent, FleetMergeEvent, MaintenanceEvents, MissionResolutionEvent,
-    MissionResolutionKind, MissionResolutionOutcome, PlanetIntelEvent,
-    PlanetOwnershipChangeEvent, ScoutContactEvent,
+    FleetBattleEvent, FleetMergeEvent, JoinMissionHostEvent, MaintenanceEvents,
+    MissionResolutionEvent, MissionResolutionKind, MissionResolutionOutcome,
+    PlanetIntelEvent, PlanetOwnershipChangeEvent, ScoutContactEvent,
 };
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;

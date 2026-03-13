@@ -191,6 +191,12 @@ impl FleetRecord {
     pub fn mission_aux_bytes(&self) -> [u8; 2] {
         [self.raw[0x22], self.raw[0x23]]
     }
+    pub fn join_host_fleet_id_raw(&self) -> u8 {
+        self.raw[0x22]
+    }
+    pub fn set_join_host_fleet_id_raw(&mut self, value: u8) {
+        self.raw[0x22] = value;
+    }
     pub fn guard_starbase_index_raw(&self) -> u8 {
         self.raw[0x22]
     }

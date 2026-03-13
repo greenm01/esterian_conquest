@@ -252,9 +252,16 @@ Near-term policy:
 - keep that contact event family mission-aware so scout, join, rendezvous, and
   guard/blockade reports can share one detection path without copy-pasted
   reporting logic
+- prefer recipient-scoped maintenance events over omniscient report summaries;
+  bombardment, fleet battle, scouting/contact, merge, colonization, and mission
+  outcome reporting should be modeled from the acting or affected empire's
+  point of view rather than as a global debug narration
 - treat `RESULTS.DAT` as the active canonical maint report target
 - leave `MESSAGES.DAT` empty until a non-empty maint-generated sample is
   recovered from fixtures, oracle runs, or historical session captures
+- current limitation: the Rust port still writes one aggregate `RESULTS.DAT`
+  stream for maintenance, even when the underlying events are recipient-scoped;
+  exact classic per-player report routing remains a later report-layer task
 
 Default `ECMAINT` black-box loop for new mechanics:
 

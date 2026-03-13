@@ -11,6 +11,8 @@ pub struct BombardEvent {
     pub planet_idx: usize,
     /// Attacking fleet's owner_empire_raw (1-based player index).
     pub attacker_empire_raw: u8,
+    /// Defending empire that should receive the bombardment report, if any.
+    pub defender_empire_raw: u8,
 }
 
 /// A combat-triggered intel refresh for one player's DATABASE view of one planet.
@@ -36,12 +38,14 @@ pub struct PlanetOwnershipChangeEvent {
 /// A fleet battle resolved at one location.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FleetBattleEvent {
+    /// Empire that should receive this battle report.
+    pub reporting_empire_raw: u8,
     /// Coordinates where the battle took place.
     pub coords: [u8; 2],
-    /// Empires that participated in the battle.
-    pub participant_empires_raw: Vec<u8>,
-    /// Winning empire, if one side held the field.
-    pub winner_empire_raw: Option<u8>,
+    /// Hostile empires this side encountered.
+    pub enemy_empires_raw: Vec<u8>,
+    /// Whether the reporting empire held the field after the battle.
+    pub held_field: bool,
 }
 
 /// A scout-style hostile contact report resolved during maintenance.
@@ -82,6 +86,35 @@ pub struct FleetMergeEvent {
     pub coords: [u8; 2],
     /// Whether this is the survivor-side "absorbing" report.
     pub survivor_side: bool,
+}
+
+/// A join mission whose host fleet changed or was lost during maintenance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JoinMissionHostEvent {
+    /// The intended host merged into another surviving fleet.
+    Retargeted {
+        /// Joining fleet index in FLEETS.DAT.
+        fleet_idx: usize,
+        /// Empire that owned the joining fleet.
+        owner_empire_raw: u8,
+        /// Previous host fleet ID.
+        previous_host_fleet_id: u8,
+        /// New surviving host fleet ID.
+        new_host_fleet_id: u8,
+        /// Current location of the joining fleet.
+        coords: [u8; 2],
+    },
+    /// The intended host was destroyed and the joining fleet abandoned its mission.
+    HostDestroyed {
+        /// Joining fleet index in FLEETS.DAT.
+        fleet_idx: usize,
+        /// Empire that owned the joining fleet.
+        owner_empire_raw: u8,
+        /// Destroyed host fleet ID.
+        destroyed_host_fleet_id: u8,
+        /// Current location of the joining fleet.
+        coords: [u8; 2],
+    },
 }
 
 /// The generic outcome class for a mission report.
@@ -168,6 +201,8 @@ pub struct MaintenanceEvents {
     pub scout_contact_events: Vec<ScoutContactEvent>,
     /// Friendly merge reports for join/rendezvous outcomes.
     pub fleet_merge_events: Vec<FleetMergeEvent>,
+    /// Join mission host retarget/destruction reports.
+    pub join_host_events: Vec<JoinMissionHostEvent>,
     /// Successful colonization outcomes.
     pub colonization_events: Vec<ColonizationResolvedEvent>,
     /// Generic mission outcomes for report generation.
@@ -356,6 +391,8 @@ pub fn run_maintenance_turn(
     let assault_events =
         combat::process_planetary_assaults(game_data, &bombard_ready, &invade_ready, &blitz_ready)?;
 
+    let join_host_events = process_join_host_updates(game_data, &merge_events);
+
     // Normalize CONQUEST.DAT header fields
     process_conquest_header(game_data, should_accumulate_conquest)?;
 
@@ -405,9 +442,94 @@ pub fn run_maintenance_turn(
         fleet_battle_events: fleet_battle_phase_events.fleet_battle_events,
         scout_contact_events: fleet_battle_phase_events.scout_contact_events,
         fleet_merge_events: merge_events,
+        join_host_events,
         colonization_events,
         mission_resolution_events,
     })
+}
+
+fn process_join_host_updates(
+    game_data: &mut CoreGameData,
+    merge_events: &[FleetMergeEvent],
+) -> Vec<JoinMissionHostEvent> {
+    let mut absorbed_to_host = std::collections::HashMap::new();
+    for event in merge_events {
+        if event.absorbed_fleet_id != 0 && event.absorbed_fleet_id != event.host_fleet_id {
+            absorbed_to_host.insert(event.absorbed_fleet_id, event.host_fleet_id);
+        }
+    }
+
+    let current_fleet_ids: std::collections::HashSet<u8> = game_data
+        .fleets
+        .records
+        .iter()
+        .map(|fleet| fleet.fleet_id())
+        .collect();
+    let current_host_viability: std::collections::HashMap<u8, bool> = game_data
+        .fleets
+        .records
+        .iter()
+        .map(|fleet| {
+            let viable = fleet.destroyer_count() > 0
+                || fleet.cruiser_count() > 0
+                || fleet.battleship_count() > 0
+                || fleet.scout_count() > 0
+                || fleet.troop_transport_count() > 0
+                || fleet.etac_count() > 0;
+            (fleet.fleet_id(), viable)
+        })
+        .collect();
+    let current_fleet_coords: std::collections::HashMap<u8, [u8; 2]> = game_data
+        .fleets
+        .records
+        .iter()
+        .map(|fleet| (fleet.fleet_id(), fleet.current_location_coords_raw()))
+        .collect();
+
+    let mut events = Vec::new();
+    for (fleet_idx, fleet) in game_data.fleets.records.iter_mut().enumerate() {
+        if fleet.standing_order_kind() != FleetStandingOrderKind::JoinAnotherFleet {
+            continue;
+        }
+
+        let host_id = fleet.join_host_fleet_id_raw();
+        if host_id == 0 || host_id == fleet.fleet_id() {
+            continue;
+        }
+
+        if let Some(&new_host_id) = absorbed_to_host.get(&host_id) {
+            fleet.set_join_host_fleet_id_raw(new_host_id);
+            if let Some(coords) = current_fleet_coords.get(&new_host_id).copied() {
+                fleet.set_standing_order_target_coords_raw(coords);
+            }
+            events.push(JoinMissionHostEvent::Retargeted {
+                fleet_idx,
+                owner_empire_raw: fleet.owner_empire_raw(),
+                previous_host_fleet_id: host_id,
+                new_host_fleet_id: new_host_id,
+                coords: fleet.current_location_coords_raw(),
+            });
+            continue;
+        }
+
+        let host_exists = current_fleet_ids.contains(&host_id);
+        let host_viable = current_host_viability.get(&host_id).copied().unwrap_or(false);
+        if !host_exists || !host_viable {
+            let coords = fleet.current_location_coords_raw();
+            fleet.set_standing_order_code_raw(0);
+            fleet.set_current_speed(0);
+            fleet.set_standing_order_target_coords_raw(coords);
+            fleet.set_join_host_fleet_id_raw(0);
+            events.push(JoinMissionHostEvent::HostDestroyed {
+                fleet_idx,
+                owner_empire_raw: fleet.owner_empire_raw(),
+                destroyed_host_fleet_id: host_id,
+                coords,
+            });
+        }
+    }
+
+    events
 }
 
 /// Process fleet movement for all fleets with active movement.

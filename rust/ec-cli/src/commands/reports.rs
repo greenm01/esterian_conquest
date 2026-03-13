@@ -281,6 +281,9 @@ pub(crate) fn regenerate_results_dat(
     let mut results = Vec::new();
 
     for event in &events.bombard_events {
+        if event.defender_empire_raw == 0 {
+            continue;
+        }
         if let Some(planet) = game_data.planets.records.get(event.planet_idx) {
             let [x, y] = planet.coords_raw();
             let text = format!(
@@ -299,19 +302,20 @@ pub(crate) fn regenerate_results_dat(
     }
 
     for event in &events.fleet_battle_events {
-        let participants = event
-            .participant_empires_raw
+        let enemies = event
+            .enemy_empires_raw
             .iter()
             .map(|empire| empire_label(game_data, *empire))
             .collect::<Vec<_>>()
             .join(", ");
         let [x, y] = event.coords;
-        let outcome = match event.winner_empire_raw {
-            Some(empire) => format!("winner {}", empire_label(game_data, empire)),
-            None => "no clear winner".to_string(),
+        let outcome = if event.held_field {
+            "We held the field.".to_string()
+        } else {
+            "We were forced to disengage.".to_string()
         };
         let text = format!(
-            "From your fleet in System({x},{y}): Fleet battle report. Participants: {participants}. Outcome: {outcome}."
+            "From your fleet in System({x},{y}): Fleet battle report. We engaged hostile forces belonging to {enemies}. {outcome}"
         );
         push_results_chunked(
             &mut results,
@@ -586,6 +590,33 @@ pub(crate) fn regenerate_results_dat(
                 event.host_fleet_id
             ),
             _ => continue,
+        };
+        push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
+    }
+
+    for event in &events.join_host_events {
+        let text = match *event {
+            ec_data::JoinMissionHostEvent::Retargeted {
+                previous_host_fleet_id,
+                new_host_fleet_id,
+                coords,
+                ..
+            } => {
+                let [x, y] = coords;
+                format!(
+                    "From your fleet in Sector({x},{y}): Join mission report: Since the {previous_host_fleet_id}th Fleet has merged with the {new_host_fleet_id}th Fleet, we are now attempting to join the {new_host_fleet_id}th Fleet."
+                )
+            }
+            ec_data::JoinMissionHostEvent::HostDestroyed {
+                destroyed_host_fleet_id,
+                coords,
+                ..
+            } => {
+                let [x, y] = coords;
+                format!(
+                    "From your fleet in Sector({x},{y}): Join mission report: In light of the destruction of the {destroyed_host_fleet_id}th Fleet, we are holding our current position in Sector({x},{y}) and are awaiting new orders."
+                )
+            }
         };
         push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
     }

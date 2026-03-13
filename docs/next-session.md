@@ -618,7 +618,7 @@ enum MaintEvent {
 - [x] join/rendezvous mission-result reporting is promoted into the typed
   event/report pipeline
 - [x] survivor-side rendezvous absorption reports are modeled
-- [ ] join host-destruction / retarget reports are modeled
+- [x] join host-destruction / retarget reports are modeled
 - [ ] no inline report string construction outside the report generation pass
 
 ---
@@ -649,11 +649,16 @@ enum MaintEvent {
 
 - Rust now writes deterministic fixed-record `RESULTS.DAT` output from typed
   maintenance events
+- current fleet-battle reporting is now recipient-scoped rather than a global
+  participant/winner dump; battle events record who should receive the report
+  and only enumerate the hostile empires seen from that side
 - the report writer now follows the observed 84-byte record family more closely:
   - family/type first byte
   - fixed trailing bytes by report family
   - multi-record chunking instead of single-record truncation
 - this is structural and stylistic progress, not byte-exact parity yet
+- `RESULTS.DAT` is still emitted as one aggregate maintenance stream in Rust;
+  exact classic per-player routing semantics remain a later report-layer task
 - the next additions should be event-driven reports for:
   - scout/recon outcomes
   - more mission-result categories beyond current combat summaries
@@ -667,11 +672,9 @@ enum MaintEvent {
 
 **Immediate next steps:**
 
-1. Recover and model join-host-destroyed / mission-abandoned outcomes from the
-   historical logs or fresh oracle scenarios.
-2. Recover and model join retarget wording when the intended host merges into a
-   different survivor before the joining fleet arrives.
-3. Keep refining `RESULTS.DAT` family formatting against preserved fixtures and
+1. Keep tightening fog-of-war semantics by making more report/event families
+   explicitly recipient-scoped instead of globally summarized.
+2. Keep refining `RESULTS.DAT` family formatting against preserved fixtures and
    historical session logs.
-4. Do not add a canonical `MESSAGES.DAT` writer until a non-empty maint-driven
+3. Do not add a canonical `MESSAGES.DAT` writer until a non-empty maint-driven
    sample is recovered.

@@ -575,11 +575,19 @@ pub(crate) fn process_fleet_battles(
                 }
             }
         }
-        events.fleet_battle_events.push(FleetBattleEvent {
-            coords,
-            participant_empires_raw: participants,
-            winner_empire_raw: winner_empire,
-        });
+        for empire in participants {
+            let enemy_empires_raw = task_forces
+                .iter()
+                .filter(|tf| tf.empire != empire && tf.state.has_units())
+                .map(|tf| tf.empire)
+                .collect();
+            events.fleet_battle_events.push(FleetBattleEvent {
+                reporting_empire_raw: empire,
+                coords,
+                enemy_empires_raw,
+                held_field: winner_empire == Some(empire),
+            });
+        }
     }
 
     Ok(events)
@@ -850,6 +858,7 @@ pub(crate) fn process_planetary_assaults(
                 events.bombard_events.push(BombardEvent {
                     planet_idx,
                     attacker_empire_raw: winner_empire,
+                    defender_empire_raw: game_data.planets.records[planet_idx].owner_empire_slot_raw(),
                 });
                 for &fleet_idx in &winner_fleets {
                     if bombard_set.contains(&fleet_idx) {
