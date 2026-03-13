@@ -279,18 +279,22 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 - ✅ Basic movement harness implemented
 - ✅ Uses RE_NOTES.md formula: distance = speed / 1.5
 - ✅ Multi-turn support added to `maint-rust` and `maint-compare`
-- ✅ Auto-detection: move scenarios default to 3 turns
-- ⚠️ Complex field updates discovered:
-  - Position changes (0x0b-0x0c): x, y coordinates  
-  - Max speed (0x09): Changes 16→24 (unexpected increase!)
+- ⚠️ **Discovery:** Move scenario doesn't trigger ECMAINT properly (oracle shows 0 changes)
+- ⚠️ **Fleet scenario works:** ECMAINT processes correctly, year 3000→3001
+- ⚠️ Complex field updates in fleet scenario:
+  - Position changes (0x0b-0x0c): x, y coordinates
+  - Max speed (0x09): Changes 16→15 (decrease, not increase!)
   - Tuple payload A (0x0d-0x11): Likely ETA/distance tracking
-  - Link fields (0x17): Changes from 129 to 0
-- **Current parity on move scenario (3 turns):** 80% (8/10 files match)
-
-**Next steps for fleet movement:**
-1. Understand max_speed changes (why does it increase during maintenance?)
-2. Understand tuple payload semantics
-3. Investigate Y=192 coordinate (0xC0) - possibly special value
+  - Link fields (0x17): Changes from 129 to 128
+  - Invasion armies (0x08): Cleared from 3→0
+  - Order tail (0x1d): Changes from 0x0c→0x00
+- **Current parity on fleet scenario (1 turn):** 50% (5/10 files match)
+- **Files needing work in fleet scenario:**
+  - CONQUEST.DAT (51 bytes - header updates beyond year)
+  - PLAYER.DAT (2 bytes - player statistics)
+  - PLANETS.DAT (18 bytes - planet state changes)
+  - FLEETS.DAT (9 bytes - movement processing)
+  - DATABASE.DAT (109 bytes - needs regeneration from PLANETS)
 
 ### Step 5: Regression Test — IN PROGRESS
 - ✅ Year advancement tests (3 tests)
