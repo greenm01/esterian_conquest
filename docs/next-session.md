@@ -278,23 +278,24 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 #### Fleet Movement — IN PROGRESS ⏳
 - ✅ Basic movement harness implemented
 - ✅ Uses RE_NOTES.md formula: distance = speed / 1.5
+- ✅ Multi-turn support added to `maint-rust` and `maint-compare`
+- ✅ Auto-detection: move scenarios default to 3 turns
 - ⚠️ Complex field updates discovered:
-  - Position changes (0x0b-0x0c): x, y coordinates
-  - Tuple payload A (0x0d-0x11): Changes from [0,0,0,0,0] to [250,255,255,255,127]
+  - Position changes (0x0b-0x0c): x, y coordinates  
+  - Max speed (0x09): Changes 16→24 (unexpected increase!)
+  - Tuple payload A (0x0d-0x11): Likely ETA/distance tracking
   - Link fields (0x17): Changes from 129 to 0
-  - Max speed (0x09): Changes 16→24
-- **Current parity on move scenario:** 80% (8/10 files match)
-- **Issue:** Move scenario requires 3 turns (year 3000→3003), comparison runs 1 turn
+- **Current parity on move scenario (3 turns):** 80% (8/10 files match)
 
 **Next steps for fleet movement:**
-1. Implement turn-count detection for comparison
-2. Understand tuple payload changes (ETA? distance remaining?)
-3. Handle multi-turn scenarios correctly
+1. Understand max_speed changes (why does it increase during maintenance?)
+2. Understand tuple payload semantics
+3. Investigate Y=192 coordinate (0xC0) - possibly special value
 
 ### Step 5: Regression Test — IN PROGRESS
 - ✅ Year advancement tests (3 tests)
+- ✅ Multi-turn support tests (via CLI)
 - ⏳ Fleet movement tests (pending full implementation)
-- ⏳ Multi-turn scenario tests (pending)
 
 ---
 
@@ -319,8 +320,8 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 - `cargo run -q -p ec-cli -- generate-gamestate <dir> <players> <year> [coords...]`
 - `cargo run -q -p ec-cli -- compliance-report <dir>`
 - `cargo run -q -p ec-cli -- core-validate-current-known-baseline <dir>`
-- `cargo run -q -p ec-cli -- maint-rust <dir>` — Run Rust maintenance (WIP)
-- `cargo run -q -p ec-cli -- maint-compare <dir>` — Compare Rust vs ECMAINT output
+- `cargo run -q -p ec-cli -- maint-rust <dir> [turns]` — Run Rust maintenance
+- `cargo run -q -p ec-cli -- maint-compare <dir> [turns]` — Compare Rust vs ECMAINT
 - `python3 tools/oracle_sweep.py`
 
 ## RE Focus Files
