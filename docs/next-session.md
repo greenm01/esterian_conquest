@@ -12,6 +12,120 @@ Primary milestone:
 - use that compliant generator as the bridge toward a Rust `ECMAINT`
   replacement
 
+## Milestone 3: General Compliant Gamestate Generation
+
+**Status:** In Progress (Phase 1: DATABASE.DAT)
+
+**Definition:** Rust can write an arbitrary full gamestate directory (not just one of the 9 known scenarios) that `ECMAINT` accepts without integrity failures or unexpected normalization. "Arbitrary" means: any valid combination of player count, fleet configurations, starbase presence, IPBM counts, planet states, and orders — within the rules ECMAINT enforces at `2000:5EE4`.
+
+### Phase 1: DATABASE.DAT — Close the Derived Cache Gap
+
+**Goal:** Model and generate DATABASE.DAT (8000 bytes, 80 × 100-byte intel cache records) derived from PLANETS.DAT + CONQUEST.DAT. This closes the remaining 12–15 byte replay drift seen in all `replay-known` runs.
+
+**Work Items:**
+
+1.1 Model DATABASE.DAT in `ec-data`
+- Add `DatabaseDat` type: 80 records × 100 bytes each = 8000 bytes
+- Add `DatabaseRecord`: raw 100-byte wrapper with accessors for:
+  - Display name string slots (Pascal-style copy/trim helpers)
+  - Embedded CONQUEST.DAT year word in homeworld records
+- Implement `parse()` / `to_bytes()` round-trip
+- Does NOT join `CoreGameData` — it's a derived file, not authoritative state
+
+1.2 Build DATABASE.DAT generator from PLANETS.DAT + CONQUEST.DAT
+- Map which PLANETS.DAT fields land in which DATABASE.DAT record offsets via fixture comparison
+- For each of the 20 planets × 4 per-player slots, populate the 100-byte record:
+  - Copy planet display name from PLANETS.DAT
+  - Embed CONQUEST.DAT year in appropriate homeworld offsets
+  - Use `ecutil-init/v1.5/DATABASE.DAT` as template for unknown bytes
+
+1.3 Wire into workspace/scenario init
+- Replace raw file copy of DATABASE.DAT with generation call
+- Remove DATABASE.DAT from `PRE_MAINT_REPLAY_CONTEXT_FILES` (should be generated, not copied)
+
+1.4 Validate with oracle
+- Target: zero DATABASE.DAT drift in `replay-known` runs
+- Regression test: generated DATABASE.DAT matches preserved fixture bytes
+
+### Phase 2: Expand Cross-File Compliance Validator
+
+**Goal:** Promote all known ECMAINT integrity rules (from `2000:5EE4` RE) into explicit `CoreGameData` validators. This is the Rust equivalent of the ECMAINT preflight check.
+
+**Rules to Implement:**
+
+| Rule | Files | Check | ECMAINT Location |
+|------|-------|-------|------------------|
+| CONQUEST header | CONQUEST.DAT | year in range, player_count matches | Early |
+| SETUP header | SETUP.DAT | version_tag == "EC151" | Early |
+| PLAYER starbase_count ↔ BASES.DAT | PLAYER[0x44] ↔ BASES count | Count match + BASES[0x04] identity | 2000:5EE4 |
+| PLAYER ipbm_count ↔ IPBM.DAT | PLAYER[0x48] ↔ IPBM.DAT length/32 | Exact count match | 2000:5EE4 |
+| Fleet owner validation | FLEETS[0x02] | Owner byte matches expected player | 2000:6040..6368 |
+| Fleet block structure | FLEETS | id/local_slot/prev/next chain | 2000:6040..6368 |
+| Planet owner bounds | PLANETS[0x5D] ↔ CONQUEST[0x02] | owner_slot <= player_count | 2000:5EE4 |
+| Base link word validity | BASES[0x05..0x06] | Valid index or 0x0000; no 0x0001/0x0101 | 2000:26582 |
+| Guard starbase resolution | FLEET[0x1F]=4, [0x23]=1 | Full fleet↔base linkage | 0000:3fcf..41a0 |
+
+Aggregate into `ecmaint_preflight_errors()` method and wire into `compliance-report` CLI.
+
+### Phase 3: General Gamestate Builder
+
+**Goal:** Enable arbitrary valid gamestate generation via a builder API.
+
+**Work Items:**
+
+3.1 Design the builder API
+- `GameStateBuilder` or extend `CoreGameData` with builder pattern
+- Parameters: player_count (1-4), per-player fleet configs, per-player starbase configs, per-player IPBM configs, planet assignments, orders
+- Builder ensures all cross-file linkage rules satisfied by construction
+
+3.2 Implement initialized baseline builder
+- Generalize `sync_current_known_initialized_post_maint_baseline()` to accept parameters
+- Support variable player_count, homeworld coordinates, fleet compositions
+
+3.3 Implement order overlay
+- Generalize `set_fleet_order`, `set_planet_build`, `set_guard_starbase` pattern
+- Support composing multiple order types in one directory
+
+3.4 Generate DATABASE.DAT from built state
+- Use Phase 1 generator
+
+3.5 CLI: `generate-gamestate` command
+- Accept spec (initially positional args)
+- Run `ecmaint_preflight_errors()` before writing
+
+### Phase 4: Oracle Validation Loop
+
+**Goal:** Achieve 100% ECMAINT acceptance for diverse generated gamestates.
+
+**Work Items:**
+
+4.1 Automated oracle sweep
+- Generate N diverse gamestates (vary: coords, fleet counts, base presence, IPBM counts, orders)
+- Run each through `ECMAINT` oracle
+- Collect pass/fail + diff reports
+
+4.2 Regression test suite
+- Integration tests that generate diverse gamestates and verify `ecmaint_preflight_errors()` returns empty
+- Lock in new rules discovered during oracle sweep
+
+### Open Questions / Risks
+
+1. **DATABASE.DAT record layout** — Full 100-byte structure not decoded; some bytes may come from unmapped fields. Mitigation: start from template and incrementally map via oracle diffing.
+
+2. **Multi-base starbase configurations** — Only single-base is well-understood. Multi-base linkage via `BASES[0x05..0x06]` is partially probed. Mitigation: acceptable to restrict builder to 0-1 bases for Milestone 3.
+
+3. **Variable player_count** — All current work assumes 4 players. ECMAINT behavior with fewer players may have edge cases. Mitigation: start with player_count=4, extend later.
+
+4. **IPBM content normalization** — ECMAINT copies IPBM fields into scratch and builds kind-3 summaries. Non-trivial IPBM must satisfy this normalization. Mitigation: start with IPBM count=0 (simplest accepted state).
+
+### Execution Order
+
+Current: **Phase 1 (DATABASE.DAT)** — Most concrete, closes known gap, prerequisite for Phase 3.
+
+Next: Phase 2 (validators) → Phase 3 (builder) → Phase 4 (oracle sweep)
+
+---
+
 ## Working Method
 
 Default method:
@@ -303,7 +417,7 @@ Priority order:
 
 ## Concrete Next Task
 
-All known scenarios now have Rust generators and passing tests (commit `fd6c494`):
+All known scenarios now have Rust generators and passing tests:
 
 | Scenario | generator | tests | pre-fixture exact match |
 |----------|-----------|-------|------------------------|
@@ -319,34 +433,19 @@ All known scenarios now have Rust generators and passing tests (commit `fd6c494`
 
 **Milestone 1 (Known accepted scenarios) is complete.**
 
-**Milestone 2 parameterized init progress:**
+**Milestone 2 parameterized init is complete.**
 
-| Scenario | `set_*_onefleet` / `init_*` | `*_batch_init` | CLI commands |
-|----------|---------------------------|----------------|--------------|
-| fleet-order | ✅ | ✅ | `fleet-order-init`, `fleet-order-batch-init` |
-| planet-build | ✅ | ✅ | `planet-build-init`, `planet-build-batch-init` |
-| guard-starbase | ✅ | ✅ | `guard-starbase-init`, `guard-starbase-batch-init` |
-| ipbm | ✅ | ✅ | `ipbm-init`, `ipbm-batch-init` |
-| bombard | ✅ | ✅ | `bombard-init`, `bombard-batch-init`, `bombard-onefleet` |
-| invade | ✅ | ✅ | `invade-init`, `invade-batch-init`, `invade-onefleet` |
-| fleet-battle | ✅ | ✅ | `fleet-battle-init`, `fleet-battle-batch-init`, `fleet-battle` |
-| econ | ✅ | ✅ | `econ-init`, `econ-batch-init`, `econ` |
+**Milestone 3 in progress:** Phase 1 — DATABASE.DAT modeling and generation.
 
-`bombard-init` accepts: `[source_dir] <target_dir> <target_x> <target_y> <ca> <dd>`
-`bombard-batch-init` accepts: `[source_dir] <target_root> <x:y:ca:dd> ...`
+**Current implementation task:** 
 
-`invade-init` accepts: `[source_dir] <target_dir> <target_x> <target_y> <sc> <bb> <ca> <dd> <tt> <armies>`
-`invade-batch-init` accepts: `[source_dir] <target_root> <x:y:sc:bb:ca:dd:tt:armies> ...`
+1. Add `DatabaseDat` and `DatabaseRecord` types to `ec-data`
+2. Implement `parse()`/`to_bytes()` for round-trip
+3. Build generator that creates DATABASE.DAT from PLANETS.DAT + CONQUEST.DAT
+4. Wire into workspace init to replace raw file copy
+5. Validate with oracle: target zero DATABASE.DAT drift
 
-`fleet-battle-init` accepts: `[source_dir] <target_dir> <battle_x> <battle_y> <f0_roe> <f0_bb> <f0_ca> <f0_dd> <f2_ca> <f2_dd> <f4_sc> <f4_bb> <f4_ca> <f8_loc_x> <f8_loc_y> <f8_sc> <f8_bb> <f8_ca> <p14_x> <p14_y> <p14_armies> <p14_batteries>`
-`fleet-battle-batch-init` accepts: `[source_dir] <target_root> <bx:by:f0r:f0bb:f0ca:f0dd:f2ca:f2dd:f4sc:f4bb:f4ca:f8lx:f8ly:f8sc:f8bb:f8ca:p14x:p14y:p14a:p14b> ...`
-
-`econ-init` accepts: `[source_dir] <target_dir> <target_x> <target_y> <bb> <ca> <dd> <p14_x> <p14_y> <p14_armies> <p14_batteries>`
-`econ-batch-init` accepts: `[source_dir] <target_root> <x:y:bb:ca:dd:p14x:p14y:p14a:p14b> ...`
-
-**Milestone 2 complete!** All scenarios now have parameterized init commands.
-
-**Recommended next task:** Proceed to broader compliance generation or begin Milestone 3: general compliant gamestate generation.
+See Milestone 3 section at top of this file for full plan.
 
 ## Canonical Baseline Tools
 
@@ -367,11 +466,12 @@ Current important distinction:
 
 ## RE Focus Files
 
-Read these for the next phase:
+Read these for the current phase:
 
 - [RE_NOTES.md](/home/mag/dev/esterian_conquest/RE_NOTES.md)
-  Focus on the `5EE4`, Guard Starbase, and `IPBM` sections.
-- [ghidra-workflow.md](/home/mag/dev/esterian_conquest/docs/ghidra-workflow.md)
+  Focus on DATABASE.DAT sections and the `5EE4` integrity validator.
+- [tools/dump_db.py](/home/mag/dev/esterian_conquest/tools/dump_db.py)
+  DATABASE.DAT inspection tool.
 - [approach.md](/home/mag/dev/esterian_conquest/docs/approach.md)
 - [rust-architecture.md](/home/mag/dev/esterian_conquest/docs/rust-architecture.md)
 

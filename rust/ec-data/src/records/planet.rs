@@ -76,6 +76,17 @@ impl PlanetRecord {
         self.raw[0x10..0x10 + len].copy_from_slice(&bytes[..len]);
     }
 
+    /// Get the planet name as a String.
+    /// Uses Pascal-style encoding: length at 0x0F, content at 0x10-0x1C.
+    pub fn planet_name(&self) -> String {
+        let len = self.raw[0x0F] as usize;
+        if len == 0 || len > 13 {
+            return String::new();
+        }
+        let name_bytes = &self.raw[0x10..0x10 + len];
+        String::from_utf8_lossy(name_bytes).to_string()
+    }
+
     pub fn set_planet_name_buffer(&mut self, len: u8, buffer: &[u8; 13]) {
         self.raw[0x0F] = len;
         self.raw[0x10..0x1D].copy_from_slice(buffer);
