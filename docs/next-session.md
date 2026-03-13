@@ -296,9 +296,23 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
   - FLEETS.DAT (9 bytes - movement processing)
   - DATABASE.DAT (109 bytes - needs regeneration from PLANETS)
 
+#### Build Completion — IMPLEMENTED ⏳
+- ✅ Basic build queue processing implemented
+- ✅ Decrements build_count by 1 per turn (placeholder)
+- ✅ Moves completed ships to stardock slot 0
+- ✅ Clears build slot after completion
+- ⚠️ **Production rate:** Currently hardcoded to 1/turn, needs industry calculation
+- ⚠️ **Stardock slot:** Always uses slot 0, should find empty slot
+- **Current parity on build scenario (1 turn):** 70% (7/10 files match)
+- **Files differing in build scenario:**
+  - CONQUEST.DAT (50 bytes - header updates)
+  - PLANETS.DAT (6 bytes - build completion changes as expected)
+  - DATABASE.DAT (81 bytes - needs regeneration from PLANETS)
+
 ### Step 5: Regression Test — IN PROGRESS
 - ✅ Year advancement tests (3 tests)
 - ✅ Multi-turn support tests (via CLI)
+- ⏳ Build completion tests (pending)
 - ⏳ Fleet movement tests (pending full implementation)
 
 ---
@@ -308,14 +322,8 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 **Milestone 4 Phase 1:** Test harness complete — ✅ DONE  
 **Milestone 4 Phase 2:** Mechanics implementation — IN PROGRESS
 - Year advancement: ✅ 100% match
-- Fleet movement: ⏳ 80% match (1 byte differ in FLEETS.DAT on 1-turn test)
-
-**Parity by file (move scenario, 1 turn):**
-- ✅ SETUP.DAT, PLAYER.DAT, PLANETS.DAT (match)
-- ✅ BASES.DAT, IPBM.DAT (empty)
-- ✅ MESSAGES.DAT, RESULTS.DAT, DATABASE.DAT (match on 1-turn)
-- ⚠️ CONQUEST.DAT (1 byte - year difference due to 1 vs 3 turns)
-- ⚠️ FLEETS.DAT (1 byte - max_speed differs: 0x10 vs 0x12)
+- Build completion: ⏳ 70% match (framework working, needs production rates)
+- Fleet movement: ⏳ 50% match on working scenarios
 
 ---
 
