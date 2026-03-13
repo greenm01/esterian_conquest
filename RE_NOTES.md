@@ -4880,3 +4880,30 @@ First replay result:
     preserved campaign-state transition
   - use these residual diffs as the next black-box rule queue instead of
     assuming the preserved `fleet-order` pre state is fully exact
+
+Further replay results:
+
+- `python3 tools/ecmaint_oracle.py replay-known planet-build /tmp/ecmaint-build-oracle`
+  - clean run, no `ERRORS.TXT`
+  - residual drift:
+    - `PLANETS.DAT`: `6` bytes, all in record `15`
+    - `DATABASE.DAT`: `1` byte
+  - exact `PLANETS.DAT` record-15 deltas:
+    - `+0x09`: `134 -> 0`
+    - `+0x0E`: tax `12 -> 0`
+    - `+0x24`: build-count slot `3 -> 0`
+    - `+0x2E`: build-kind slot `1 -> 0`
+    - `+0x38`: developed-value byte `0 -> 3`
+    - `+0x4C`: stardock-kind slot `0 -> 1`
+  - practical interpretation:
+    - this is the cleanest current black-box queue for build completion:
+      queue entry consumed, planet economics normalized, completed output
+      emitted into stardock
+
+- `python3 tools/ecmaint_oracle.py replay-known guard-starbase /tmp/ecmaint-starbase-oracle`
+  - clean run, no `ERRORS.TXT`
+  - residual drift:
+    - `PLAYER.DAT`: `1` byte at absolute offset `70`
+  - practical implication:
+    - Guard Starbase is now effectively out of the critical path for
+      compliance work

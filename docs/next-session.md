@@ -52,6 +52,33 @@ First concrete replay result:
   - use the oracle replay diffs as the next rule-discovery queue instead of
     assuming the current pre-maint shape is exact
 
+Replay queue update:
+
+- `planet-build` is now the cleanest next black-box queue
+  - `python3 tools/ecmaint_oracle.py replay-known planet-build /tmp/ecmaint-build-oracle`
+  - clean `ECMAINT` run, no `ERRORS.TXT`
+  - residual drift is tightly isolated:
+    - `PLANETS.DAT`: `6` bytes, all in record `15`
+    - `DATABASE.DAT`: `1` byte
+  - current -> canonical post deltas on `PLANETS.DAT` record `15`:
+    - offset `0x09`: factory tail byte `134 -> 0`
+    - offset `0x0E`: tax `12 -> 0`
+    - offset `0x24`: build-count slot `3 -> 0`
+    - offset `0x2E`: build-kind slot `1 -> 0`
+    - offset `0x38`: developed-value byte `0 -> 3`
+    - offset `0x4C`: stardock-kind slot `0 -> 1`
+  - practical interpretation:
+    - this looks like a clean build-completion / queue-consumption /
+      stardock-emission transition
+    - it is a better immediate rule-discovery target than the broader
+      `fleet-order` replay gap
+
+- `guard-starbase` replay is nearly exact
+  - `python3 tools/ecmaint_oracle.py replay-known guard-starbase /tmp/ecmaint-starbase-oracle`
+  - only residual drift:
+    - `PLAYER.DAT`: `1` byte at offset `70`
+  - this is currently lower priority than the isolated `planet-build` queue
+
 Escalate to deep RE only when:
 
 - the path is blocking broader compliant gamestate generation
