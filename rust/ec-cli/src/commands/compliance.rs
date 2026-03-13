@@ -7,10 +7,20 @@ pub(crate) fn print_compliance_report(dir: &Path) -> Result<(), Box<dyn std::err
     let data = CoreGameData::load(dir)?;
     let status = data.current_known_compliance_status();
     let summary = data.current_known_key_word_summary();
+    let preflight_errors = data.ecmaint_preflight_errors();
 
     println!("Compliance Report");
     println!("  dir={}", dir.display());
     println!();
+    println!(
+        "{} ecmaint-preflight{}",
+        if preflight_errors.is_empty() {
+            "OK  "
+        } else {
+            "FAIL"
+        },
+        render_errors_suffix(&preflight_errors)
+    );
     println!(
         "{} guard-starbase-linkage{}",
         if status.guard_starbase {
