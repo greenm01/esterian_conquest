@@ -123,6 +123,56 @@ impl PlanetRecord {
         self.raw[0x4C + slot] = value;
     }
 
+    /// Set the 7 raw bytes at [0x1d..0x24] — the region between the end of the
+    /// name buffer and the first build-count slot.  These bytes are not decoded
+    /// but are preserved verbatim in fixture-derived target worlds.
+    pub fn set_name_suffix_raw(&mut self, value: [u8; 7]) {
+        self.raw[0x1D..0x24].copy_from_slice(&value);
+    }
+
+    /// Seed this record as an owned target world from explicit field values.
+    ///
+    /// Sets:
+    /// - coords [0x00..0x01]
+    /// - potential_production [0x02..0x03]
+    /// - factories (6 bytes) [0x04..0x09]
+    /// - tax_rate [0x0e]
+    /// - planet name (len + 13-byte buffer) [0x0f..0x1c]
+    /// - name_suffix_raw (7 bytes) [0x1d..0x23]
+    /// - army_count [0x58], ground_batteries [0x5a]
+    /// - ownership_status [0x5c], owner_empire_slot [0x5d]
+    ///
+    /// All other bytes are zeroed first.  The caller is responsible for
+    /// passing fixture-accurate values for the opaque fields (potential_production,
+    /// factories, name_buffer, name_suffix_raw) when exact fixture matching is required.
+    pub fn set_as_owned_target_world(
+        &mut self,
+        coords: [u8; 2],
+        potential_production: [u8; 2],
+        factories: [u8; 6],
+        tax_rate: u8,
+        name_len: u8,
+        name_buffer: [u8; 13],
+        name_suffix_raw: [u8; 7],
+        army_count: u8,
+        ground_batteries: u8,
+        ownership_status: u8,
+        owner_empire_slot: u8,
+    ) {
+        self.raw = [0u8; PLANET_RECORD_SIZE];
+        self.raw[0x00] = coords[0];
+        self.raw[0x01] = coords[1];
+        self.set_potential_production_raw(potential_production);
+        self.set_factories_raw(factories);
+        self.raw[0x0E] = tax_rate;
+        self.set_planet_name_buffer(name_len, &name_buffer);
+        self.set_name_suffix_raw(name_suffix_raw);
+        self.raw[0x58] = army_count;
+        self.raw[0x5A] = ground_batteries;
+        self.raw[0x5C] = ownership_status;
+        self.raw[0x5D] = owner_empire_slot;
+    }
+
     pub fn population_raw(&self) -> [u8; 6] {
         copy_array(&self.raw[0x52..0x58])
     }

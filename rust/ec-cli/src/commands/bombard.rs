@@ -6,8 +6,7 @@ use ec_data::CoreGameData;
 ///
 /// Fixture-specific constants for this scenario:
 /// - Fleet 3 (player 1, slot 3): BombardWorld order (0x06), speed 3, max_speed 3,
-///   targeting planet 14 at (15, 13)
-/// - Fleet 3 raw bytes [0x28]=0x03 and [0x2a]=0x05 (observed linkage words in preserved fixture)
+///   targeting planet 14 at (15, 13), CA=3, DD=5
 /// - Planet 14: seeded as an owned planet for empire 2 by cloning planet 13's raw layout
 ///   and changing only the x-coordinate to 15 (0x0F)
 ///
@@ -20,12 +19,12 @@ pub(crate) fn apply_bombard_scenario(dir: &Path) -> Result<(), Box<dyn std::erro
     data.set_fleet_order(3, 3, 0x06, [0x0F, 0x0D], None, None)
         .map_err(|e| e.to_string())?;
 
-    // Fleet 3: max_speed and raw linkage bytes observed in preserved fixture
+    // Fleet 3: max_speed and ship counts observed in preserved fixture
     {
         let fleet3 = &mut data.fleets.records[2];
         fleet3.set_max_speed(3);
-        fleet3.raw[0x28] = 0x03;
-        fleet3.raw[0x2a] = 0x05;
+        fleet3.set_cruiser_count(3);
+        fleet3.set_destroyer_count(5);
     }
 
     // Planet 14: clone planet 13's raw record (empire 2 homeworld), change x-coord to 15

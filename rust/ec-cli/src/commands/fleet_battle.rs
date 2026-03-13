@@ -68,29 +68,28 @@ pub(crate) fn apply_fleet_battle_scenario(dir: &Path) -> Result<(), Box<dyn std:
         f.set_cruiser_count(0);
     }
 
-    // Planet 14 (index 13): direct raw assignment — Dust Bowl-type world at (15,13)
-    // owned by empire 2, armies=142, batteries=15, named "TargetPrime" (with stale suffix bytes)
+    // Planet 14 (index 13): Dust Bowl-type target world at (15,13), owned by empire 2,
+    // armies=142, batteries=15, named "TargetPrime" (name buffer retains stale "et" suffix).
+    // Opaque bytes [02..03], [08..09], [0e], [1d..23] are fixture-specific; see RE_NOTES.
     {
         let p = data
             .planets
             .records
             .get_mut(13)
             .ok_or("planet record 14 missing")?;
-        p.raw = [
-            0x0f, 0x0d, 0x64, 0x87, 0x00, 0x00, 0x00, 0x00, // [00..07]
-            0x48, 0x87, 0x00, 0x00, 0x00, 0x00, 0x04, 0x0b, // [08..0f]
-            0x54, 0x61, 0x72, 0x67, 0x65, 0x74, 0x50, 0x72, // [10..17] "TargetPr"
-            0x69, 0x6d, 0x65, 0x65, 0x74, 0x05, 0x1d, 0x0b, // [18..1f] "imeet\x05\x1d\x0b"
-            0x11, 0x25, 0x1c, 0x05, 0x00, 0x00, 0x00, 0x00, // [20..27]
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // [28..2f]
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // [30..37]
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // [38..3f]
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // [40..47]
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // [48..4f]
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // [50..57]
-            0x8e, 0x00, 0x0f, 0x00, 0x02, 0x02, 0x00, 0x00, // [58..5f]
-            0x00, // [60]
-        ];
+        p.set_as_owned_target_world(
+            [0x0f, 0x0d],                               // coords (15,13)
+            [0x64, 0x87],                               // potential_production
+            [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],       // factories
+            0x04,                                       // tax_rate
+            0x0b,                                       // name_len = 11
+            *b"TargetPrimeet",                          // name_buffer (stale "et" suffix)
+            [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05], // name_suffix_raw [1d..23]
+            0x8e,                                       // army_count = 142
+            0x0f,                                       // ground_batteries = 15
+            0x02,                                       // ownership_status
+            0x02,                                       // owner_empire_slot
+        );
     }
 
     data.save(dir)?;
