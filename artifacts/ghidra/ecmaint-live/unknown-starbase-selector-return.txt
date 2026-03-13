@@ -1,0 +1,88 @@
+# Unknown Starbase Selector Return
+
+- Focus: local list layout and return block inside `1000:d166..d4fe`.
+- Goal: explain how the helper's candidate list rooted at `FECC`
+  yields the winning entry consumed by `0000:3fcf..41a0`.
+
+## Local Slot Layout
+
+- candidate count: `[BP + 0xFBD6]`
+- candidate list base: `[BP + 0xFECC]`
+- first candidate slot: `[BP + 0xFECE] = FECC + 2`
+- ranking tuples: `[BP + 0xFBD8]`, `[BP + 0xFBDA]`, `[BP + 0xFBDC]`
+
+## Candidate Insert Block
+
+1000:d205  INC word ptr [BP + 0xfbd6]       ; bytes=ff 86 d6 fb
+1000:d209  MOV AX,word ptr [BP + 0xfbd2]    ; bytes=8b 86 d2 fb
+1000:d20d  MOV DI,word ptr [BP + 0xfbd6]    ; bytes=8b be d6 fb
+1000:d211  SHL DI,0x1                       ; bytes=d1 e7
+1000:d213  MOV word ptr [BP + DI + 0xfecc],AX ; bytes=89 83 cc fe
+1000:d217  MOV AX,word ptr [BP + 0xfbd2]    ; bytes=8b 86 d2 fb
+
+Interpretation:
+- the helper increments candidate count first
+- then stores the matched entry index at `FECC + count * 2`
+- because the list is 1-based, the first real candidate lands at `FECE`
+
+## Candidate Sort / First-Slot Swap Block
+
+1000:d46c  MOV DI,word ptr [BP + 0xfbd0]    ; bytes=8b be d0 fb
+1000:d470  SHL DI,0x1                       ; bytes=d1 e7
+1000:d472  MOV AX,word ptr [BP + DI + 0xfecc] ; bytes=8b 83 cc fe
+1000:d476  MOV word ptr [BP + 0xfecc],AX    ; bytes=89 86 cc fe
+1000:d47a  MOV AX,word ptr [BP + 0xfbd0]    ; bytes=8b 86 d0 fb
+1000:d47e  INC AX                           ; bytes=40
+1000:d47f  MOV DI,AX                        ; bytes=8b f8
+1000:d481  SHL DI,0x1                       ; bytes=d1 e7
+1000:d483  MOV AX,word ptr [BP + DI + 0xfecc] ; bytes=8b 83 cc fe
+1000:d487  MOV DI,word ptr [BP + 0xfbd0]    ; bytes=8b be d0 fb
+1000:d48b  SHL DI,0x1                       ; bytes=d1 e7
+1000:d48d  MOV word ptr [BP + DI + 0xfecc],AX ; bytes=89 83 cc fe
+1000:d491  MOV DX,word ptr [BP + 0xfecc]    ; bytes=8b 96 cc fe
+1000:d495  MOV AX,word ptr [BP + 0xfbd0]    ; bytes=8b 86 d0 fb
+1000:d499  INC AX                           ; bytes=40
+1000:d49a  MOV DI,AX                        ; bytes=8b f8
+1000:d49c  SHL DI,0x1                       ; bytes=d1 e7
+1000:d49e  MOV word ptr [BP + DI + 0xfecc],DX ; bytes=89 93 cc fe
+1000:d4a2  MOV AX,word ptr [BP + 0xfbd0]    ; bytes=8b 86 d0 fb
+
+Interpretation:
+- sort/swaps move entry indexes within the same `FECC` list
+- the first sorted winner is normalized back into the first slot
+- after sorting, `FECE` is the winning candidate slot used by return
+
+## Return Block
+
+1000:d4bc  CMP word ptr [BP + 0xfbd6],0x0   ; bytes=83 be d6 fb 00
+1000:d4c1  JNZ 0x1000:d4c9                  ; bytes=75 06
+1000:d4c3  MOV byte ptr [BP + -0x1],0x0     ; bytes=c6 46 ff 00
+1000:d4c7  JMP 0x1000:d4f8                  ; bytes=eb 2f
+1000:d4c9  MOV byte ptr [BP + -0x1],0x1     ; bytes=c6 46 ff 01
+1000:d4cd  MOV DI,word ptr [BP + 0xfece]    ; bytes=8b be ce fe
+1000:d4d1  SHL DI,0x1                       ; bytes=d1 e7
+1000:d4d3  SHL DI,0x1                       ; bytes=d1 e7
+1000:d4d5  LES DI,[DI + 0x1712]             ; bytes=c4 bd 12 17
+1000:d4d9  MOV AL,byte ptr ES:[DI]          ; bytes=26 8a 05
+1000:d4dc  LES DI,[BP + 0xa]                ; bytes=c4 7e 0a
+1000:d4df  MOV byte ptr ES:[DI],AL          ; bytes=26 88 05
+1000:d4e2  MOV DI,word ptr [BP + 0xfece]    ; bytes=8b be ce fe
+1000:d4e6  SHL DI,0x1                       ; bytes=d1 e7
+1000:d4e8  SHL DI,0x1                       ; bytes=d1 e7
+1000:d4ea  LES DI,[DI + 0x1712]             ; bytes=c4 bd 12 17
+1000:d4ee  MOV AL,byte ptr ES:[DI + 0x1]    ; bytes=26 8a 45 01
+1000:d4f2  LES DI,[BP + 0x6]                ; bytes=c4 7e 06
+1000:d4f5  MOV byte ptr ES:[DI],AL          ; bytes=26 88 05
+1000:d4f8  MOV AL,byte ptr [BP + -0x1]      ; bytes=8a 46 ff
+1000:d4fb  MOV SP,BP                        ; bytes=89 ec
+1000:d4fd  POP BP                           ; bytes=5d
+1000:d4fe  RETF 0xe                         ; bytes=ca 0e 00
+
+Interpretation:
+- if candidate count is zero, helper returns `AL = 0`
+- otherwise it returns `AL = 1`
+- the selected entry bytes `0x00` and `0x01` are read from the
+  winning candidate slot at `FECE`
+- this means the helper's stable side effect is the winning
+  selected-entry pair, while the direct register return is only a
+  boolean success gate

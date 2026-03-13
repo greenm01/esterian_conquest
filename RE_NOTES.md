@@ -4523,11 +4523,27 @@ Current practical interpretation:
 - `0x1000:d183` is a candidate locator/selector, not a direct error emitter
 - for the later starbase-specific region at `0000:3fcf..41a0`, it returns:
   - success/failure in `AL`
-  - a selected candidate index/count result in local scratch
   - two selected bytes from the winning entry
 - this makes the later region's compare on summary bytes `+0x01` / `+0x02` /
   `+0x05` more coherent: it is checking the current summary against a
   best-matching located candidate, not scanning blindly
-- remaining unresolved point:
-  - the exact local slot used for the winning candidate index (`FECE`) still
-    needs a tighter read
+- return/list layout is now narrowed further:
+  - candidate count lives at `[BP+0xFBD6]`
+  - candidate indexes are appended into a 1-based local list rooted at
+    `[BP+0xFECC]`
+  - because the helper increments count before storing, the first real
+    candidate lands at `[BP+0xFECE]`
+  - the sort/swap block normalizes the winning candidate back into that first
+    slot
+  - the return block then reads the selected entry bytes `0x00` and `0x01`
+    from `[BP+0xFECE]`
+  - practical consequence:
+    - the stable semantic side effect of `0x1000:d183` is the winning
+      selected-entry pair
+    - the direct register return is only a boolean success gate in `AL`
+
+Artifacts:
+- `artifacts/ghidra/ecmaint-live/unknown-starbase-selector-return.txt`
+
+Tool:
+- `tools/ghidra_scripts_tmp/ReportUnknownStarbaseSelectorReturn.java`

@@ -97,8 +97,17 @@ Priority order:
          - filters matching entries
          - sorts multiple candidates
          - returns success in `AL` and two selected bytes via output pointers
+         - the candidate index list is 1-based at local `FECC`
+         - the first real candidate slot is `FECE`
+         - the sort/swap block normalizes the winning candidate back into that
+           first slot
+         - the return block reads selected entry bytes `0x00` and `0x01` from
+           `FECE`
+         - practical implication:
+           - the stable side effect is the selected-entry pair
+           - the direct register return is only a boolean success gate
        - next target should now stay in `0000:3fcf..41a0`, especially:
-         - the exact winning-index slot used after `0x1000:d183`
+         - the exact compare inputs in the `+1/+2/+5` success path
          - the nearby indirect message/report path
 
 2. Recover initialized-to-post-maint deterministic rules
@@ -140,7 +149,8 @@ Best immediate task:
   - the new concrete later target is `0000:3fcf..41a0`, immediately after that
     raw string
   - so the next capture/search should focus on:
-    - the exact winning-index slot and compare inputs after `0x1000:d183`
+    - the exact compare inputs and caller-side expectations after
+      `0x1000:d183`
     - how `0000:3fcf..41a0` chooses between success/report/error paths
     - the indirect message/report helpers used there
 - once those rules are recovered, promote them into `CoreGameData`
