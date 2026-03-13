@@ -1,6 +1,25 @@
 pub fn print_usage() {
     println!("Usage:");
     println!("  ec-cli inspect [dir]");
+    println!("  ec-cli sysop <subcommand> ...");
+    println!("  ec-cli sysop new-game <target_dir>");
+    println!("  ec-cli sysop generate-gamestate <target_dir> <player_count> <year> [<homeworld_x>:<homeworld_y>...]");
+    println!("  ec-cli sysop init-canonical-four-player-start <target_dir>  # compatibility alias");
+    println!("  ec-cli sysop maintenance-days [dir]");
+    println!("  ec-cli sysop maintenance-days <dir> set <sun|mon|tue|wed|thu|fri|sat>...");
+    println!("  ec-cli sysop snoop [dir]");
+    println!("  ec-cli sysop snoop <dir> <on|off>");
+    println!("  ec-cli sysop purge-after [dir]");
+    println!("  ec-cli sysop purge-after <dir> <turns>");
+    println!("  ec-cli sysop setup-programs [dir]");
+    println!("  ec-cli sysop port-setup [dir]");
+    println!("  ec-cli sysop flow-control <dir> <com1|com2|com3|com4> [on|off]");
+    println!("  ec-cli sysop com-irq <dir> <com1|com2|com3|com4> [irq]");
+    println!("  ec-cli sysop local-timeout <dir> [on|off]");
+    println!("  ec-cli sysop remote-timeout <dir> [on|off]");
+    println!("  ec-cli sysop max-key-gap <dir> [minutes]");
+    println!("  ec-cli sysop minimum-time <dir> [minutes]");
+    println!("  ec-cli sysop autopilot-after <dir> [turns]");
     println!("  ec-cli core-report [dir]");
     println!("  ec-cli core-diff-current-known-baseline [dir]");
     println!("  ec-cli core-diff-current-known-baseline-offsets [dir]");

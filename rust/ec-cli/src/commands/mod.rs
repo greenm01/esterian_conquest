@@ -14,3 +14,4 @@ pub(crate) mod planet_build;
 pub(crate) mod reports;
 pub(crate) mod scenario;
 pub(crate) mod setup;
+pub(crate) mod sysop;

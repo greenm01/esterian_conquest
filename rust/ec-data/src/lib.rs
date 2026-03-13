@@ -24,7 +24,10 @@ mod maint;
 mod records;
 mod support;
 
-pub use builder::{FleetOrderSpec, GameStateBuilder, GuardStarbaseSpec, PlanetBuildSpec};
+pub use builder::{
+    CanonicalFourPlayerSetup, FleetOrderSpec, GameStateBuilder, GuardStarbaseSpec,
+    PlanetBuildSpec,
+};
 pub use directory::{
     CoreGameData, CurrentKnownComplianceStatus, CurrentKnownGuardStarbaseLinkageSummary,
     CurrentKnownKeyWordSummary, GameDirectoryError, GameStateMutationError,

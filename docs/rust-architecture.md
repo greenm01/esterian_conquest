@@ -133,6 +133,31 @@ transform expresses shared directory semantics rather than CLI interaction
 policy, it should live on `CoreGameData` and the CLI should only load, invoke,
 save, and report.
 
+The same should be true for setup and routing once those surfaces mature:
+
+- a faithful game initializer should live on the shared model side, not as a
+  command-local script
+- route planning should be a focused movement/pathfinding module in `ec-data`
+  whose outputs are then consumed by maintenance, not an ad hoc CLI helper
+
+The same separation should hold for sysop tooling:
+
+- original EC separated `ECUTIL` (sysop/setup/admin) from `ECGAME`
+  (player-facing client)
+- the Rust port may share implementation underneath, but should keep those
+  workflows distinct at the user-facing boundary
+- setup, initialization, and destructive admin mutation paths should live in
+  admin/sysop surfaces, not in the routine player-client flow
+- if a future Rust client ships as one binary, it should still separate
+  `player`, `sysop`, and `maint` modes rather than blending those roles
+
+The current CLI direction now reflects that split:
+
+- `ec-cli sysop ...` is the preferred home for `ECUTIL`-style setup/admin
+  commands
+- older flat setup commands may remain temporarily as compatibility aliases
+  during the reorganization
+
 Current-known cross-file validation semantics should follow the same rule. The
 CLI shall not be the source of truth for fleet/build/starbase/IPBM rule checks
 once those checks are stable enough to live on `CoreGameData`.

@@ -1,7 +1,5 @@
 use std::path::PathBuf;
 
-use ec_data::{CoreGameData, GameStateBuilder};
-
 use crate::commands::compare::{
     compare_all_preserved_scenarios, compare_dirs, compare_preserved_scenario,
 };
@@ -47,12 +45,14 @@ use crate::commands::scenario::{
     KnownScenario,
 };
 use crate::commands::setup::{
+    init_canonical_four_player_start,
     print_autopilot_after, print_com_irq, print_flow_control, print_local_timeout,
     print_maintenance_days, print_max_key_gap, print_minimum_time, print_port_setup,
     print_purge_after, print_remote_timeout, print_setup_programs, print_snoop,
     set_autopilot_after, set_com_irq, set_flow_control, set_local_timeout, set_maintenance_days,
     set_max_key_gap, set_minimum_time, set_purge_after, set_remote_timeout, set_snoop,
 };
+use crate::commands::sysop::run_sysop_args;
 use crate::support::parse::{
     parse_optional_source_and_target, parse_optional_source_target_and_bombard_spec,
     parse_optional_source_target_and_coord_list, parse_optional_source_target_and_count,
@@ -81,6 +81,7 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
     };
 
     match cmd.as_str() {
+        "sysop" => run_sysop_args(args)?,
         "inspect" => inspect_dir(&next_dir(&mut args))?,
         "core-report" => print_core_report(&next_dir(&mut args))?,
         "core-diff-current-known-baseline" => {
@@ -156,89 +157,17 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
             };
             initialize_dir(&source, &target)?;
         }
-        "generate-gamestate" => {
-            let target_dir = match args.next() {
-                Some(dir) => PathBuf::from(dir),
-                None => {
-                    print_usage();
-                    return Ok(());
-                }
+        "generate-gamestate" => run_sysop_args(std::iter::once("generate-gamestate".to_string()).chain(args))?,
+        "init-canonical-four-player-start" => {
+            let Some(target_dir) = args.next().map(PathBuf::from) else {
+                print_usage();
+                return Ok(());
             };
-            let player_count: u8 = match args.next().and_then(|s| s.parse().ok()) {
-                Some(count) if count >= 1 && count <= 4 => count,
-                _ => {
-                    eprintln!("Error: player_count must be 1-4");
-                    print_usage();
-                    return Ok(());
-                }
-            };
-            let year: u16 = match args.next().and_then(|s| s.parse().ok()) {
-                Some(y) => y,
-                None => {
-                    eprintln!("Error: year must be a valid number");
-                    print_usage();
-                    return Ok(());
-                }
-            };
-
-            // Collect homeworld coordinates
-            let mut homeworld_coords = Vec::new();
-            for coord_str in args {
-                let parts: Vec<&str> = coord_str.split(':').collect();
-                if parts.len() != 2 {
-                    eprintln!("Error: homeworld coords must be in format x:y");
-                    print_usage();
-                    return Ok(());
-                }
-                let x: u8 = match parts[0].parse() {
-                    Ok(v) => v,
-                    Err(_) => {
-                        eprintln!("Error: invalid x coordinate: {}", parts[0]);
-                        return Ok(());
-                    }
-                };
-                let y: u8 = match parts[1].parse() {
-                    Ok(v) => v,
-                    Err(_) => {
-                        eprintln!("Error: invalid y coordinate: {}", parts[1]);
-                        return Ok(());
-                    }
-                };
-                homeworld_coords.push([x, y]);
-            }
-
-            // Ensure we have enough coords
-            while homeworld_coords.len() < player_count as usize {
-                homeworld_coords.push([0, 0]);
-            }
-            homeworld_coords.truncate(player_count as usize);
-
-            // Build and save the gamestate
-            let builder = GameStateBuilder::new()
-                .with_player_count(player_count)
-                .with_year(year)
-                .with_homeworld_coords(homeworld_coords);
-
-            match builder.build_and_save(&target_dir) {
-                Ok(()) => {
-                    println!("Generated gamestate at: {}", target_dir.display());
-
-                    // Validate with preflight
-                    let data = CoreGameData::load(&target_dir)?;
-                    let errors = data.ecmaint_preflight_errors();
-                    if errors.is_empty() {
-                        println!("Preflight validation: OK");
-                    } else {
-                        println!("Preflight validation errors:");
-                        for error in errors {
-                            println!("  - {}", error);
-                        }
-                    }
-                }
-                Err(e) => {
-                    eprintln!("Error generating gamestate: {}", e);
-                }
-            }
+            init_canonical_four_player_start(&target_dir)?;
+            println!(
+                "Initialized canonical four-player start at: {}",
+                target_dir.display()
+            );
         }
         "maint-rust" => {
             let dir = next_dir(&mut args);

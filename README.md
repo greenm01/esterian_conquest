@@ -36,6 +36,8 @@ Docs:
 - `docs/ec-combat-spec.md`: canonical deterministic combat rules for the Rust port
 - `docs/config-architecture.md`: Rust-vs-KDL ownership and future config layering
 - `docs/ecmaint-combat-reference.md`: combat-oriented historical validation references
+- `docs/ec-setup-spec.md`: manual-driven setup and starmap rules for Rust
+- `docs/ec-movement-spec.md`: classic movement semantics and canonical routing policy
 - `docs/ghidra-workflow.md`: headless Ghidra install and ECMAINT analysis workflow
 - `docs/planet-report-reference.md`: coordinate-linked scouting/world stat references
 - `docs/rust-architecture.md`: Rust module layout and data-oriented design notes
@@ -46,6 +48,16 @@ Default black-box oracle loop for new mechanics:
 - submit one controlled order family or mutate one narrow field family
 - `python3 tools/ecmaint_oracle.py run /tmp/ecmaint-oracle`
 - inspect `.oracle/` snapshots plus the reported `.DAT`/report diff clusters
+
+Sysop/admin setup surface:
+- `ec-cli sysop new-game <target_dir>`
+- `ec-cli sysop setup-programs [dir]`
+- `ec-cli sysop port-setup [dir]`
+- `ec-cli sysop snoop <dir> <on|off>`
+- `ec-cli sysop maintenance-days <dir> set <sun|mon|...>`
+
+The older flat setup commands remain available as compatibility aliases, but
+new admin/setup work should prefer the `sysop` command family.
 
 Known scenario replay:
 - `python3 tools/ecmaint_oracle.py replay-known fleet-order /tmp/ecmaint-fleet-oracle`

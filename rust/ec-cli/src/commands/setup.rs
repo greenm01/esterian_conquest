@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::{ConquestDat, SetupDat};
+use ec_data::{CanonicalFourPlayerSetup, ConquestDat, DatabaseDat, GameStateBuilder, SetupDat};
 
 pub(crate) fn print_maintenance_days(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let conquest = ConquestDat::parse(&fs::read(dir.join("CONQUEST.DAT"))?)?;
@@ -20,6 +20,35 @@ pub(crate) fn print_maintenance_days(dir: &Path) -> Result<(), Box<dyn std::erro
         "Maintenance raw: {:02x?}",
         conquest.maintenance_schedule_bytes()
     );
+    Ok(())
+}
+
+pub(crate) fn init_canonical_four_player_start(
+    target: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let data =
+        GameStateBuilder::build_canonical_four_player_start(CanonicalFourPlayerSetup::default())?;
+
+    fs::create_dir_all(target)?;
+    data.save(target)?;
+
+    let planet_names: Vec<String> = data
+        .planets
+        .records
+        .iter()
+        .map(|planet| planet.planet_name())
+        .collect();
+    let database =
+        DatabaseDat::generate_from_planets_and_year(&planet_names, data.conquest.game_year(), None);
+    fs::write(target.join("DATABASE.DAT"), database.to_bytes())?;
+
+    for name in ["MESSAGES.DAT", "RESULTS.DAT"] {
+        let path = target.join(name);
+        if !path.exists() {
+            fs::write(path, [])?;
+        }
+    }
+
     Ok(())
 }
 

@@ -159,6 +159,11 @@ What is still incomplete:
 - Multi-base starbase configurations (only single-base is fully understood)
 - Variable player_count edge cases (tested but could use more coverage)
 - ECGAME ANSI/startup preservation (useful but not the main blocker)
+- faithful manual-driven setup/starmap generation beyond the current flexible
+  builder
+- documented route-planning policy for threat-aware fleet travel
+- expansion beyond the current 4-player / 20-planet compatibility-oriented
+  data model
 
 ### ⏳ Milestone 4: Rust ECMAINT Replacement — IN PROGRESS
 
@@ -205,6 +210,8 @@ ones.
   path for fleet battles, bombardment, orbital supremacy, invade, and blitz
 - Combat regression coverage: structural tests now lock the canonical
   bombardment and fleet-battle paths without pretending to match original RNG
+- Report generation: broad `RESULTS.DAT` coverage now exists for combat,
+  scouting, colonization, guard/blockade, and merge/contact paths
 
 **Per-mechanic workflow:**
 1. Create mechanic-specific test scenario with `init_*` command
@@ -218,6 +225,29 @@ ones.
 - [x] Fleet movement: 100% deterministic match on preserved fixture path
 - [x] Economic tick: deterministic path implemented and fixture-covered
 - [x] Combat resolution: canonical deterministic model implemented and tested
+- [ ] Setup/starmap initialization: manual-faithful canonical initializer
+- [ ] Threat-aware routing: documented and implemented as a canonical Rust
+  extension above classic movement execution
+
+## Immediate Next Steps
+
+- write and maintain the setup/starmap rules in
+  [ec-setup-spec.md](/home/mag/dev/esterian_conquest/docs/ec-setup-spec.md)
+- audit the current builder against the documented player-count, map-size, and
+  initial-empire rules
+- write and maintain the routing policy in
+  [ec-movement-spec.md](/home/mag/dev/esterian_conquest/docs/ec-movement-spec.md)
+- keep route planning explicitly separate from recovered movement execution
+  semantics
+- decide whether the next setup step is:
+  - widening the shared record-count assumptions beyond the current 4-player
+    baseline
+  - or adding a canonical 4-player faithful initializer first and deferring
+    larger map tiers
+- keep the sysop/admin setup surface separate from the future player-client
+  surface, even if both reuse the same underlying Rust model
+- continue migrating old flat `ECUTIL`-style commands toward the `ec-cli sysop`
+  family while keeping compatibility aliases only where useful
 - [ ] Assault-path regression coverage expanded for invade and blitz edge cases
 - [ ] `maint-compare` acceptance policy updated to treat combat as structural,
   not byte-exact, parity

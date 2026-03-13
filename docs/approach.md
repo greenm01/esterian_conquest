@@ -86,6 +86,29 @@ The goal is:
 - promote only repeated deterministic effects into `CoreGameData`
 - use deep RE only after this loop stops yielding reusable rules
 
+9. Treat setup and map generation as gameplay semantics, not scaffolding
+
+- the manuals explicitly define galaxy size by player count and total solar
+  system count
+- the Rust builder is useful infrastructure, but it is not automatically the
+  same thing as a faithful EC game initializer
+- setup should therefore be refined as a manual-driven subsystem:
+  - map dimensions
+  - star count
+  - homeworld/start rules
+  - initial fleets and empire payloads
+- exact reproduction of the original hidden map RNG is not required to be
+  faithful; adherence to the documented setup rules is
+
+10. Separate recovered mechanics from canonical routing policy
+
+- movement execution rules should follow recovered deterministic behavior where
+  known
+- route selection and threat-aware navigation may be improved canonically in
+  Rust when the manuals do not define a detailed routing algorithm
+- smart pathfinding should be documented as a Rust policy layer, not implied to
+  be a recovered original mechanic
+
 ## What Counts As Success
 
 Short term:
@@ -175,7 +198,7 @@ Long term:
   goal and should be folded into the Rust clone once the local `ECGAME`
   harness is reliable enough
 
-9. Own the mechanics; do not reproduce the original RNG
+11. Own the mechanics; do not reproduce the original RNG
 
 - `ECMAINT` uses an internal RNG for combat resolution (fleet battles,
   bombardment ship losses) and rogue/autopilot AI decisions
@@ -202,7 +225,7 @@ Long term:
   constants into machine-readable KDL config rather than burying them inline
   forever in Rust code
 
-10. Preserve compatible gamestate even when behavior is canonicalized
+12. Preserve compatible gamestate even when behavior is canonicalized
 
 - the Rust engine is now far enough along that it should prefer
   **classic-compatible save directories** over brittle attempts to mimic every
@@ -221,7 +244,7 @@ Long term:
     the divergence is explicit, compatible, and more reproducible than the
     original hidden behavior
 
-11. Keep diplomacy and hostility separate
+13. Keep diplomacy and hostility separate
 
 - `enemy` is a stored diplomatic relation set by players in `ECGAME`
 - `hostile` is the broader maintenance/combat state that determines whether a

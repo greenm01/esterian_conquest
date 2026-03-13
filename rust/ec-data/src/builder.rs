@@ -30,6 +30,23 @@ pub struct GameStateBuilder {
     ipbm_count: u16,
 }
 
+/// Canonical manual-faithful 4-player setup parameters for the current Rust
+/// initializer tier.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CanonicalFourPlayerSetup {
+    pub year: u16,
+    pub homeworld_coords: [[u8; 2]; 4],
+}
+
+impl Default for CanonicalFourPlayerSetup {
+    fn default() -> Self {
+        Self {
+            year: 3000,
+            homeworld_coords: [[16, 13], [30, 6], [2, 25], [26, 26]],
+        }
+    }
+}
+
 /// Specification for a fleet order.
 #[derive(Debug, Clone)]
 pub struct FleetOrderSpec {
@@ -90,6 +107,19 @@ impl GameStateBuilder {
     /// Create a new builder with default settings.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Build the current canonical manual-faithful 4-player game start.
+    ///
+    /// This is intentionally separate from the generic compatibility builder.
+    pub fn build_canonical_four_player_start(
+        setup: CanonicalFourPlayerSetup,
+    ) -> Result<CoreGameData, GameStateMutationError> {
+        GameStateBuilder::new()
+            .with_player_count(4)
+            .with_year(setup.year)
+            .with_homeworld_coords(setup.homeworld_coords.to_vec())
+            .build_initialized_baseline()
     }
 
     /// Set the number of players (1-4).
