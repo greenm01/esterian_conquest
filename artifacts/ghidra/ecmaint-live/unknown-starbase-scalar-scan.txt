@@ -1,0 +1,88 @@
+# Unknown Starbase Scalar Scan
+
+- Focus: brute-force instruction scan for scalar/immediate uses of
+  the late starbase scratch offsets.
+
+## 0x3504
+
+- 0000:4171  MOV AL,[0x3504]
+- 0000:437f  CMP AL,byte ptr [0x3504]
+- 0000:456a  MOV AL,[0x3504]
+- 0000:480b  SUB byte ptr [BX + SI + 0x3504],AH
+
+## 0x350c
+
+- 0000:03cf  MOV AL,[0x350c]
+- 0000:4099  CMP byte ptr [0x350c],0x0
+- 0000:417a  MOV byte ptr [0x350c],0x0
+- 0000:4190  MOV byte ptr [0x350c],0x0
+- 0000:42ec  MOV byte ptr [0x350c],0x0
+
+## 0x350d
+
+- 0000:030c  MOV AL,[0x350d]
+- 0000:0c7a  MOV [0x350d],AL
+- 0000:34f8  MOV AL,[0x350d]
+- 0000:4127  MOV AL,[0x350d]
+- 0000:43a2  MOV AL,[0x350d]
+- 0000:8420  MOV AL,[0x350d]
+- 0000:f727  MOV AL,[0x350d]
+- 0000:f7eb  CMP AL,byte ptr [0x350d]
+
+## 0x350e
+
+- 0000:0332  MOV AL,[0x350e]
+- 0000:0ca4  MOV [0x350e],AL
+- 0000:3501  MOV AL,[0x350e]
+- 0000:414a  MOV AL,[0x350e]
+- 0000:43b1  MOV AL,[0x350e]
+- 0000:8429  MOV AL,[0x350e]
+- 0000:f72b  MOV AL,[0x350e]
+- 0000:f809  CMP AL,byte ptr [0x350e]
+
+## 0x351b
+
+- 0000:039a  MOV AX,[0x351b]
+- 0000:0cc9  MOV [0x351b],AX
+- 0000:3516  MOV CX,word ptr [0x351b]
+- 0000:40e7  MOV AX,[0x351b]
+- 0000:43c0  MOV AX,[0x351b]
+- 0000:4550  MOV [0x351b],AX
+- 0000:843e  MOV CX,word ptr [0x351b]
+
+## 0x351d
+
+- 0000:039d  MOV BX,word ptr [0x351d]
+- 0000:0ccc  MOV word ptr [0x351d],BX
+- 0000:351a  MOV SI,word ptr [0x351d]
+- 0000:40ea  MOV BX,word ptr [0x351d]
+- 0000:43c3  MOV BX,word ptr [0x351d]
+- 0000:4553  MOV word ptr [0x351d],BX
+- 0000:8442  MOV SI,word ptr [0x351d]
+
+## 0x351f
+
+- 0000:03a1  MOV DX,word ptr [0x351f]
+- 0000:0cd0  MOV word ptr [0x351f],DX
+- 0000:351e  MOV DI,word ptr [0x351f]
+- 0000:40ee  MOV DX,word ptr [0x351f]
+- 0000:43c7  MOV DX,word ptr [0x351f]
+- 0000:4557  MOV word ptr [0x351f],DX
+- 0000:8446  MOV DI,word ptr [0x351f]
+
+## 0x3521
+
+- 0000:417f  MOV byte ptr [0x3521],0x0
+- 0000:4195  MOV byte ptr [0x3521],0x0
+- 0000:ccea  MOV AL,[0x3521]
+- 0000:f812  MOV AL,[0x3521]
+- 0000:f8f2  MOV AL,[0x3521]
+- 0000:f9cf  MOV byte ptr [0x3521],0x0
+- 1000:0010  MOV byte ptr [0x3521],0x0
+
+## 0x3525
+
+- 0000:40c7  MOV AX,[0x3525]
+- 0000:4311  MOV AX,[0x3525]
+- 0000:4406  MOV AX,[0x3525]
+

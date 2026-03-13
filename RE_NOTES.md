@@ -4520,8 +4520,35 @@ Strong practical consequence:
       canonicalized summary payload, not ad hoc local data
     - the real remaining late-path unknowns are now narrower:
       - `3521`
-      - `3525`
       - exact caller-side `AX` / located-summary-slot relationship at `3fe8`
+- a second late starbase-specific block is now pinned down at
+  `0000:42d8..456e`
+  - it works from the same `3502` scratch block
+  - scans active summaries in a later loop
+  - requires candidate summary identity on:
+    - entry byte `+0x00 == [0x3504]`
+    - entry bytes `+0x01/+0x02 == [0x350d]/[0x350e]`
+    - entry byte `+0x05 == f(351b..351f)` via `0x3000:489d`
+  - rejects direct `+0x0A == [0x3502]` matches before taking the deeper path
+  - then decodes candidate summary `+0x06` through `0x2000:c067`
+  - requires:
+    - decoded kind byte `== 4`
+    - decoded local word at offset `+0x23` (`[BP-0x17]`) == `[0x3525]`
+    - decoded local flag byte at offset `+0x0a` (`[BP-0x30]`) == `0`
+  - practical consequence:
+    - `3525` is no longer an opaque late scratch word
+    - it behaves as the kind-`1` side comparison word paired against decoded
+      local `+0x23`, analogous to how earlier matcher logic compares candidate
+      decoded `+0x23` against base-side `[355A]`
+- `3521` is now narrowed, though not fully named:
+  - read by `0000:cce7..cd39` to select one of several small constant tables
+    written to `0x630..0x633`
+  - read again at `0000:f812` and passed to `0x3000:44b7` as a late
+    report/control selector
+  - practical consequence:
+    - `3521` behaves like a late starbase report-mode / variant byte, not a
+      generic summary payload field
+    - its exact semantic labels still need recovery
 - nearby raw strings after `0000:41a1` now show this region owns a wider
   starbase report family, not only the raw `unknown starbase` message:
   - `We have arrived at Starbase ... and are merging with the ... Fleet.`
@@ -4539,12 +4566,16 @@ Artifacts:
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-scratch-refs.txt`
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-strings.txt`
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-payload-producers.txt`
+- `artifacts/ghidra/ecmaint-live/unknown-starbase-scalar-scan.txt`
+- `artifacts/ghidra/ecmaint-live/unknown-starbase-late-ranges.txt`
 
 Tool:
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbasePredicate.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseScratchRefs.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseStrings.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbasePayloadProducers.java`
+- `tools/ghidra_scripts_tmp/ReportUnknownStarbaseScalarScan.java`
+- `tools/ghidra_scripts_tmp/ReportUnknownStarbaseLateRanges.java`
 
 `0x1000:d183` helper contract (first pass):
 

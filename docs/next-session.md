@@ -112,8 +112,13 @@ Priority order:
              common post-kind canonicalization pipeline
            - `350c` is the decoded selector/control byte copied out by the
              kind-`1` loader and checked by the late predicate
-           - the remaining late-path-only unknowns are now mainly `3521` and
-             `3525`
+           - `3525` is now narrowed further by the later block at
+             `42d8..456e`:
+             - candidate summary must match `3504`, `350d`, `350e`, and
+               `f(351b..351f)`
+             - then decoded candidate local `+0x23` must equal `[3525]`
+             - decoded candidate local flag `+0x0a` must be `0`
+           - `3521` behaves like a late report/control selector byte
          - nearby raw strings after `41a1` show this region also owns the
            wider starbase merge/guard report family:
            - arrival at starbase
@@ -135,7 +140,7 @@ Priority order:
            - the stable side effect is the selected-entry pair
            - the direct register return is only a boolean success gate
        - next target should now stay in `0000:3fcf..41a0`, especially:
-         - the caller-side meaning of `3521` and `3525`
+         - the exact semantic labels for `3521`
          - the exact CS-local report variants and which scratch fields choose
            them
 
@@ -178,7 +183,7 @@ Best immediate task:
   - the new concrete later target is `0000:3fcf..41a0`, immediately after that
     raw string
   - so the next capture/search should focus on:
-    - the caller-side meaning of `3521` and `3525`
+    - the exact semantic label for `3521`
     - the exact late starbase report variants around the raw strings after
       `41a1`
     - any dynamic confirmation of the caller-side `AX` / located-summary slot
