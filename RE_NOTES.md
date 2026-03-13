@@ -4504,6 +4504,24 @@ Strong practical consequence:
   - practical consequence:
     - these should currently be treated as late-path scratch/state fields, not
       reliable named globals in the raw import
+- the late report payload is now split more concretely:
+  - `350d` / `350e` are the first two decoded tag bytes from the shared
+    kind-`1` summary `+0x06` decoder
+  - `351b..351f` is the later 3-word payload group consumed by the same
+    kind-`1` dispatch path
+  - the common post-kind pipeline writes those fields directly at:
+    - `0c7a` -> `350d`
+    - `0ca4` -> `350e`
+    - `0cc9..0cd0` -> `351b..351f`
+  - `350c` is the decoded selector/control byte copied out by the kind-`1`
+    loader and later checked by the late starbase predicate
+  - practical consequence:
+    - the late starbase report block is consuming the shared kind-`1`
+      canonicalized summary payload, not ad hoc local data
+    - the real remaining late-path unknowns are now narrower:
+      - `3521`
+      - `3525`
+      - exact caller-side `AX` / located-summary-slot relationship at `3fe8`
 - nearby raw strings after `0000:41a1` now show this region owns a wider
   starbase report family, not only the raw `unknown starbase` message:
   - `We have arrived at Starbase ... and are merging with the ... Fleet.`
@@ -4520,11 +4538,13 @@ Artifacts:
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-predicate.txt`
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-scratch-refs.txt`
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-strings.txt`
+- `artifacts/ghidra/ecmaint-live/unknown-starbase-payload-producers.txt`
 
 Tool:
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbasePredicate.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseScratchRefs.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseStrings.java`
+- `tools/ghidra_scripts_tmp/ReportUnknownStarbasePayloadProducers.java`
 
 `0x1000:d183` helper contract (first pass):
 

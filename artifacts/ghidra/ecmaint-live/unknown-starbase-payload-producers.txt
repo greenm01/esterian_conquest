@@ -1,0 +1,130 @@
+# Unknown Starbase Payload Producers
+
+- Focus: where the late starbase report fields in `3502` are written
+  before `0000:3fcf..41a0` consumes them.
+
+## Kind-1 Loader Consumption
+
+0000:0307  CALLF 0x2000:c067                ; bytes=9a 17 37 95 28
+0000:030c  MOV AL,[0x350d]                  ; bytes=a0 0d 35
+0000:030f  XOR AH,AH                        ; bytes=30 e4
+0000:0311  XOR DX,DX                        ; bytes=31 d2
+0000:0313  CALLF 0x3000:4891                ; bytes=9a 51 11 74 33
+0000:0318  MOV CX,word ptr [0x350f]         ; bytes=8b 0e 0f 35
+0000:031c  MOV SI,word ptr [0x3511]         ; bytes=8b 36 11 35
+0000:0320  MOV DI,word ptr [0x3513]         ; bytes=8b 3e 13 35
+0000:0324  CALLF 0x3000:486b                ; bytes=9a 2b 11 74 33
+0000:0329  MOV word ptr [BP + -0x6],AX      ; bytes=89 46 fa
+0000:032c  MOV word ptr [BP + -0x4],BX      ; bytes=89 5e fc
+0000:032f  MOV word ptr [BP + -0x2],DX      ; bytes=89 56 fe
+0000:0332  MOV AL,[0x350e]                  ; bytes=a0 0e 35
+0000:0335  XOR AH,AH                        ; bytes=30 e4
+0000:0337  XOR DX,DX                        ; bytes=31 d2
+0000:0339  CALLF 0x3000:4891                ; bytes=9a 51 11 74 33
+0000:033e  MOV CX,word ptr [0x3515]         ; bytes=8b 0e 15 35
+0000:0342  MOV SI,word ptr [0x3517]         ; bytes=8b 36 17 35
+0000:0346  MOV DI,word ptr [0x3519]         ; bytes=8b 3e 19 35
+0000:034a  CALLF 0x3000:486b                ; bytes=9a 2b 11 74 33
+0000:034f  MOV word ptr [BP + -0x12],AX     ; bytes=89 46 ee
+0000:0352  MOV word ptr [BP + -0x10],BX     ; bytes=89 5e f0
+0000:0355  MOV word ptr [BP + -0xe],DX      ; bytes=89 56 f2
+0000:0358  MOV AL,[0x3522]                  ; bytes=a0 22 35
+0000:035b  XOR AH,AH                        ; bytes=30 e4
+0000:035d  XOR DX,DX                        ; bytes=31 d2
+0000:035f  CALLF 0x3000:4891                ; bytes=9a 51 11 74 33
+0000:0364  MOV CX,0x80                      ; bytes=b9 80 00
+0000:0367  XOR SI,SI                        ; bytes=31 f6
+0000:0369  XOR DI,DI                        ; bytes=31 ff
+0000:036b  CALLF 0x3000:486b                ; bytes=9a 2b 11 74 33
+0000:0370  MOV word ptr [BP + -0xc],AX      ; bytes=89 46 f4
+0000:0373  MOV word ptr [BP + -0xa],BX      ; bytes=89 5e f6
+0000:0376  MOV word ptr [BP + -0x8],DX      ; bytes=89 56 f8
+0000:0379  MOV AL,[0x3523]                  ; bytes=a0 23 35
+0000:037c  XOR AH,AH                        ; bytes=30 e4
+0000:037e  XOR DX,DX                        ; bytes=31 d2
+0000:0380  CALLF 0x3000:4891                ; bytes=9a 51 11 74 33
+0000:0385  MOV CX,0x80                      ; bytes=b9 80 00
+0000:0388  XOR SI,SI                        ; bytes=31 f6
+0000:038a  XOR DI,DI                        ; bytes=31 ff
+0000:038c  CALLF 0x3000:486b                ; bytes=9a 2b 11 74 33
+0000:0391  MOV word ptr [BP + -0x18],AX     ; bytes=89 46 e8
+0000:0394  MOV word ptr [BP + -0x16],BX     ; bytes=89 5e ea
+0000:0397  MOV word ptr [BP + -0x14],DX     ; bytes=89 56 ec
+0000:039a  MOV AX,[0x351b]                  ; bytes=a1 1b 35
+0000:039d  MOV BX,word ptr [0x351d]         ; bytes=8b 1e 1d 35
+0000:03a1  MOV DX,word ptr [0x351f]         ; bytes=8b 16 1f 35
+0000:03a5  MOV word ptr [BP + -0x24],AX     ; bytes=89 46 dc
+0000:03a8  MOV word ptr [BP + -0x22],BX     ; bytes=89 5e de
+0000:03ab  MOV word ptr [BP + -0x20],DX     ; bytes=89 56 e0
+0000:03ae  CMP byte ptr [0x3524],0x1        ; bytes=80 3e 24 35 01
+0000:03b3  JBE 0x0000:03ba                  ; bytes=76 05
+0000:03b5  MOV byte ptr [0x3524],0x1        ; bytes=c6 06 24 35 01
+0000:03ba  MOV AL,[0x3524]                  ; bytes=a0 24 35
+0000:03bd  XOR AH,AH                        ; bytes=30 e4
+0000:03bf  XOR DX,DX                        ; bytes=31 d2
+0000:03c1  CALLF 0x3000:4891                ; bytes=9a 51 11 74 33
+0000:03c6  MOV word ptr [BP + -0x2a],AX     ; bytes=89 46 d6
+0000:03c9  MOV word ptr [BP + -0x28],BX     ; bytes=89 5e d8
+0000:03cc  MOV word ptr [BP + -0x26],DX     ; bytes=89 56 da
+0000:03cf  MOV AL,[0x350c]                  ; bytes=a0 0c 35
+
+Interpretation:
+- `350d` / `350e` are the first two decoded tag bytes from the
+  shared kind-1 summary `+0x06` decoder
+- `351b..351f` is the later 3-word payload group consumed by the
+  same kind-1 dispatch path
+- `350c` is the decoded selector/control byte copied out by the
+  kind-1 loader and later checked by the late starbase predicate
+
+## Common Post-Kind Writeback
+
+0000:0c6c  MOV AX,word ptr [BP + -0x6]      ; bytes=8b 46 fa
+0000:0c6f  MOV BX,word ptr [BP + -0x4]      ; bytes=8b 5e fc
+0000:0c72  MOV DX,word ptr [BP + -0x2]      ; bytes=8b 56 fe
+0000:0c75  CALLF 0x3000:4895                ; bytes=9a 55 11 74 33
+0000:0c7a  MOV [0x350d],AL                  ; bytes=a2 0d 35
+0000:0c7d  MOV AX,word ptr [BP + -0x6]      ; bytes=8b 46 fa
+0000:0c80  MOV BX,word ptr [BP + -0x4]      ; bytes=8b 5e fc
+0000:0c83  MOV DX,word ptr [BP + -0x2]      ; bytes=8b 56 fe
+0000:0c86  CALLF 0x3000:4930                ; bytes=9a f0 11 74 33
+0000:0c8b  MOV [0x350f],AX                  ; bytes=a3 0f 35
+0000:0c8e  MOV word ptr [0x3511],BX         ; bytes=89 1e 11 35
+0000:0c92  MOV word ptr [0x3513],DX         ; bytes=89 16 13 35
+0000:0c96  MOV AX,word ptr [BP + -0x12]     ; bytes=8b 46 ee
+0000:0c99  MOV BX,word ptr [BP + -0x10]     ; bytes=8b 5e f0
+0000:0c9c  MOV DX,word ptr [BP + -0xe]      ; bytes=8b 56 f2
+0000:0c9f  CALLF 0x3000:4895                ; bytes=9a 55 11 74 33
+0000:0ca4  MOV [0x350e],AL                  ; bytes=a2 0e 35
+0000:0ca7  MOV AX,word ptr [BP + -0x12]     ; bytes=8b 46 ee
+0000:0caa  MOV BX,word ptr [BP + -0x10]     ; bytes=8b 5e f0
+0000:0cad  MOV DX,word ptr [BP + -0xe]      ; bytes=8b 56 f2
+0000:0cb0  CALLF 0x3000:4930                ; bytes=9a f0 11 74 33
+0000:0cb5  MOV [0x3515],AX                  ; bytes=a3 15 35
+0000:0cb8  MOV word ptr [0x3517],BX         ; bytes=89 1e 17 35
+0000:0cbc  MOV word ptr [0x3519],DX         ; bytes=89 16 19 35
+0000:0cc0  MOV AX,word ptr [BP + -0x24]     ; bytes=8b 46 dc
+0000:0cc3  MOV BX,word ptr [BP + -0x22]     ; bytes=8b 5e de
+0000:0cc6  MOV DX,word ptr [BP + -0x20]     ; bytes=8b 56 e0
+0000:0cc9  MOV [0x351b],AX                  ; bytes=a3 1b 35
+0000:0ccc  MOV word ptr [0x351d],BX         ; bytes=89 1e 1d 35
+0000:0cd0  MOV word ptr [0x351f],DX         ; bytes=89 16 1f 35
+0000:0cd4  JMP 0x0000:0ea6                  ; bytes=e9 cf 01
+
+Interpretation:
+- the common post-kind pipeline writes the late starbase report
+  payload fields directly:
+  - `350d` and `350e` from the first two canonicalized tuples
+  - `351b..351f` from the later 3-word payload group
+- this confirms the late starbase report block is consuming the
+  shared kind-1 canonicalized summary payload, not ad hoc local data
+
+## Remaining Late-Path-Only Fields
+
+- focused scalar scans still did not recover clean producer refs for:
+  - `3521`
+  - `3525`
+- practical consequence:
+  - `350d`, `350e`, and `351b..351f` are now traced back to the shared
+    kind-1 canonicalization pipeline
+  - `3521` and `3525` remain late-path scratch/state fields whose
+    caller-side meaning still needs targeted recovery

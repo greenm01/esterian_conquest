@@ -105,6 +105,15 @@ Priority order:
          - branch `40f7..410c` selects between two nearby CS-local string
            variants depending on whether `351b..351f` is zero
          - both failure/report exits clear `350c` / `3521`
+         - producer-side split is now tighter:
+           - `350d` / `350e` are the first two decoded tag bytes from the
+             shared kind-`1` summary `+0x06` decoder
+           - `351b..351f` is the later 3-word payload group from the same
+             common post-kind canonicalization pipeline
+           - `350c` is the decoded selector/control byte copied out by the
+             kind-`1` loader and checked by the late predicate
+           - the remaining late-path-only unknowns are now mainly `3521` and
+             `3525`
          - nearby raw strings after `41a1` show this region also owns the
            wider starbase merge/guard report family:
            - arrival at starbase
@@ -126,7 +135,7 @@ Priority order:
            - the stable side effect is the selected-entry pair
            - the direct register return is only a boolean success gate
        - next target should now stay in `0000:3fcf..41a0`, especially:
-         - the caller-side meaning of `350c`, `3521`, and `351b..351f`
+         - the caller-side meaning of `3521` and `3525`
          - the exact CS-local report variants and which scratch fields choose
            them
 
@@ -169,7 +178,7 @@ Best immediate task:
   - the new concrete later target is `0000:3fcf..41a0`, immediately after that
     raw string
   - so the next capture/search should focus on:
-    - the caller-side meaning of `350c`, `3521`, and `351b..351f`
+    - the caller-side meaning of `3521` and `3525`
     - the exact late starbase report variants around the raw strings after
       `41a1`
     - any dynamic confirmation of the caller-side `AX` / located-summary slot
