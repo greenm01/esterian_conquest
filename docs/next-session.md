@@ -137,11 +137,16 @@ Best immediate task:
 
 Recommended order:
 
-1. `FLEETS.DAT`
-   - remaining drift is now narrowly clustered on record offsets
-     `11/12` and `32/33`
-2. `PLANETS.DAT`
+1. `PLANETS.DAT`
    - explain the remaining repeated economy/homeworld payload clusters
+   - this is now the upstream target for the shipped sample
+2. `FLEETS.DAT`
+   - after current-known normalization, remaining fleet drift collapses to
+     offsets `11/12` and `32/33`
+   - those are already-mapped location/target coordinate fields
+   - practical implication:
+     - remaining `FLEETS.DAT` drift is derived from the sample’s planet /
+       homeworld state, not an independent queue
 3. `PLAYER.DAT`
    - promote only count/summary words that are supported by evidence
 4. `IPBM.DAT`

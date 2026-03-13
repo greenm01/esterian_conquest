@@ -4804,3 +4804,28 @@ Artifacts:
 
 Tool:
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseSelectorReturn.java`
+
+## Post-Starbase Transition Queue
+
+Current state after closing the Guard Starbase / `unknown starbase` blocker:
+
+- the preserved initialized fixture is now fully covered by the shared
+  current-known baseline sync
+- for the noisier shipped sample (`original/v1.5`), canonical drift after
+  current-known normalization now remains only in:
+  - `PLAYER.DAT`
+  - `PLANETS.DAT`
+  - `FLEETS.DAT`
+- `CONQUEST.DAT`, `SETUP.DAT`, `BASES.DAT`, and `IPBM.DAT` are already at the
+  canonical post-maint baseline after normalization
+
+Transition-queue implication:
+
+- the remaining `FLEETS.DAT` drift is not an independent queue
+  - after normalization it collapses to offsets:
+    - `0x0b/0x0c` current location
+    - `0x20/0x21` standing-order target
+  - practical consequence:
+    - fleet drift is downstream of the sample's planet/homeworld state
+    - the next initialized-to-post-maint rule discovery pass should start with
+      `PLANETS.DAT`, not another fleet-only dive
