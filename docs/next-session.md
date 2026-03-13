@@ -160,7 +160,7 @@ What is still incomplete:
 - Variable player_count edge cases (tested but could use more coverage)
 - ECGAME ANSI/startup preservation (useful but not the main blocker)
 
-### ⏳ Milestone 4: Rust ECMAINT Replacement — IN PROGRESS
+### ⏳ Milestone 4: Rust ECMAINT Replacement — IN PROGRESS (80%+ parity on all scenarios)
 
 **Definition:** Reimplement `ECMAINT.EXE` behavior in Rust with deterministic, reproducible outputs that match the original binary. Use the compliant generator (Milestone 3) as the test oracle harness.
 
@@ -354,20 +354,36 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 
 **Milestone 4 Phase 1:** Test harness complete — ✅ DONE  
 **Milestone 4 Phase 2:** Mechanics implementation — IN PROGRESS
-- Year advancement: ✅ 100% match
-- Build completion: ✅ **100% match** (10/10 files)
-- Fleet movement / colonization: ✅ **100% match** (fleet scenario + move scenario)
-- Econ scenario: ⏳ 50% (5/10) — involves fleet merging/deletion not yet implemented
 
-**187 tests passing**, 0 failing.
+**Parity results (live oracle, sequential runs):**
+- build: 10/10 ✅ 100%
+- fleet: 10/10 ✅ 100%
+- move:  10/10 ✅ 100%
+- econ:   8/10 ⏳ 80% — PLANETS.DAT (3 bytes) + DATABASE.DAT (1-2 bytes) blocked on rogue AI
 
-**Scenarios at 100% parity:**
-- build: 10/10 ✅
-- fleet: 10/10 ✅
-- move: 10/10 ✅
+**Remaining econ diffs — all rogue AI / autopilot on planet 14:**
+- `PLANETS.DAT planet 14`: factories_word, tax_rate, stardock changes from AI autopilot
+- `DATABASE.DAT record 14 off=0x1e`: `0x23 → 0x40+owner_slot` change linked to fleet-merge event
+- `DATABASE.DAT record 14 off=0x23`: army count mirror of planet 14 (varies between oracle runs)
+- Non-deterministic between oracle runs — rogue AI involves some stochastic behavior
+- Explicitly deferred to rogue AI / autopilot milestone
 
-**Next unresolved scenario:**
-- econ: 5/10 — FLEETS.DAT 254 bytes differ (fleet restructuring), CONQUEST/PLAYER/PLANETS/DATABASE also differ
+**Known-good mechanics:**
+- Year advancement ✅
+- Fleet movement (speed formula, transit flags, arrival) ✅
+- Fleet co-location merging (pre-merge, ROE=10, ID remapping, PLAYER chain update) ✅
+- Planet colonization (ColonizeWorld arrival, new-colony markers) ✅
+- Player planet stats recompute (raw[0x50] count, raw[0x52] prod sum) ✅
+- CONQUEST.DAT economic sim (0x0c..0x15 prod block, 0x1a..0x1b, 0x20..0x54) ✅
+- DATABASE.DAT fog-of-war discovery (orbit records, new colonies, pre-existing owned) ✅
+
+**~187 tests passing**, 0 failing.
+
+**Next priorities:**
+1. Investigate other scenario families (invade-heavy, fleet-battle, bombard, guard-starbase)
+   to find new non-rogue-AI mechanics to port
+2. Defer rogue AI until core mechanics are solid across all non-AI scenarios
+3. When all non-AI scenarios reach 100%, tackle rogue AI as a unit
 
 ---
 
