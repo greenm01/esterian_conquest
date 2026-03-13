@@ -5,3 +5,41 @@
 *.out
 *.bin
 MEMDUMP.BIN
+
+# Local temp binaries and reverse-engineering scratch output.
+$tmpfil$.exe
+bombard/
+capture/commission_menu.png
+artifacts/ghidra/
+original/v1.5/IPBM.DAT
+
+# Local Ghidra project/runtime caches.
+.ghidra/projects/*.rep/idata/
+.ghidra/xdg-config/
+
+# Python bytecode caches.
+tools/__pycache__/
+
+# Local one-off tooling and scratch scripts not part of the repo baseline.
+tools/dump_ecgame_memory.py
+tools/dump_memory_at_input.py
+tools/dump_planet_menu.py
+tools/ecgame_repl.py
+tools/find_ecgame_borland.py
+tools/find_ecgame_psp.py
+tools/run_ecgame_auto_commission.py
+tools/scan_ecgame_strings.py
+tools/take_ecgame_screenshot.py
+tools/test_auto_commission.py
+tools/test_commission_interactive.py
+tools/test_commission_screen.py
+tools/test_fossil_commission.py
+tools/test_serial_capture.py
+tools/test_stardock_commission.py
+tools/unlzexe
+tools/unlzexe_ecm
+
+# Local Ghidra script scratch area.
+tools/ghidra_scripts_tmp/
+tools/ghidra_scripts/Dump9D48.java
+tools/ghidra_scripts/FindMoveTokRefs.java
