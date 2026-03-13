@@ -4929,3 +4929,115 @@ Resolved replay-gap cause:
 - practical implication:
   - the earlier `replay-known` residuals were a scenario-construction issue,
     not missing per-scenario post-maint rules
+
+---
+
+## Economy tick / PLAYER.DAT autopilot investigation
+
+### Session: 2026-03-12
+
+Goal: understand what drives army and battery growth observed on Dust Bowl
+in the `original/v1.5` ECMAINT run (`armies: 142→161`, `batteries: 15→16`,
+`raw[0x0E]: 4→18`).
+
+#### Key finding: autopilot flag at PLAYER.DAT offset 0x6d
+
+`PLAYER.DAT` player-record offset `0x6d` (byte 109, the last byte of the
+110-byte record) is `0x01` for player 1 in `original/v1.5` and `0x00` in
+the canonical baseline.
+
+Controlled experiment:
+
+- took `original/v1.5`, cleared `PLAYER.DAT[0x6d] = 0` for player 1
+- ran ECMAINT
+- result: **no army or battery growth** on Dust Bowl
+  - `armies: 142 → 142` (unchanged)
+  - `batteries: 15 → 15` (unchanged)
+  - `raw[0x0E]: 4 → 3` (decremented by 1, no autopilot spending)
+  - factories: `100.0 → 200.0` (factory growth still happens)
+
+With original `PLAYER.DAT[0x6d] = 1` (autopilot on):
+- `armies: 142 → 161` (+19)
+- `batteries: 15 → 16` (+1)
+- `raw[0x0E]: 4 → 18` (+14, autopilot spent production points)
+
+Conclusion: **PLAYER.DAT offset 0x6d is the autopilot flag** (1 = on, 0 = off).
+When autopilot is on, ECMAINT acts as the AI player and spends production points
+to build planetary defenses (armies and ground batteries). This matches the
+player docs: "autopilot mode causes the computer to play your empire for you
+(mostly building your planetary defenses)."
+
+#### `raw[0x0E]` behavior isolated
+
+Without autopilot, `raw[0x0E]` simply decrements by 1 per tick (4→3 in this
+run). The autopilot path writes a different value because it spends production
+points through some accounting that touches this field. The field's true
+semantics remain unresolved, but:
+
+- it is NOT the empire-wide tax rate (that lives in PLAYER.DAT[0x51])
+- without autopilot it decrements by 1 per tick
+- with autopilot it gets updated by however much production was spent
+- it does not appear to be stored_goods (raw[0x0A..0x0E] is the 4-byte u32
+  stored_goods field; raw[0x0E] is a separate single byte)
+
+#### Factory doubling behavior
+
+In the `ec-econ-tax` experiment (canonical homeworld seed, `factories=100.0`,
+`potential=100`, player 1 `tax=65`, no autopilot):
+
+- tick 1: factories `100.0 → 200.0`, `raw[0x0E]: 12 → 7`
+- tick 2: factories `200.0 → 200.0`, `raw[0x0E]: 7 → 72`
+- tick 3: factories `200.0 → 400.0`, `raw[0x0E]: 72 → 4`
+- tick 4: factories `400.0 → 400.0`, `raw[0x0E]: 4 → 37`
+- tick 5: factories `400.0 → 400.0`, `raw[0x0E]: 37 → 69`
+- tick 6: factories `400.0 → 400.0`, `raw[0x0E]: 69 → 102`
+- tick 7: factories `400.0 → 800.0`, `raw[0x0E]: 102 → 3`
+
+Pattern: factories double on roughly every 2nd or 3rd tick, triggered when
+`raw[0x0E]` crosses some threshold. The `raw[0x0E]` value resets near 3–4
+after each factory doubling. The exact accumulator rule is not yet decoded.
+Note: factories grow well past `potential` (100) in this experiment —
+`potential` does not cap `current_production`; the game docs say production
+grows toward the maximum, implying the Real field tracks something that can
+exceed potential during growth phases.
+
+#### Economy tick: no growth on unjoined homeworld seeds
+
+Canonical baseline homeworld seeds (all 4 players, `factories=50.0`,
+`potential=100`, `armies=10`, `batteries=4`, player tax=0) show **zero
+PLANETS.DAT changes** across any number of ECMAINT ticks. This confirms:
+
+- tax=0 means no production points are generated, so no factory growth
+- homeworld seeds without an active human player (player active byte `0x00`)
+  are stable under ECMAINT
+
+#### Canonical baseline: player active byte
+
+`PLAYER.DAT` offset `0x00` of each player record:
+- `0x01` in original/v1.5 player 1 = active player with a name
+- `0x00` in canonical baseline = no player joined (slot inactive)
+
+This matches: the canonical baseline has 4 unjoined homeworld seeds and no
+active players, so ECMAINT produces no planet state changes beyond the year
+counter.
+
+#### CONFIRMED: PLANETS.DAT planet record tail layout (97-byte records)
+
+Cross-confirmed from multiple fixtures (`ecmaint-post`, `ecmaint-fleet-post`,
+`ecmaint-bombard-heavy-pre`, bombard field-isolation fixtures, and the
+`RESULTS.DAT` text report "15 ground batteries and 142 armies"):
+
+- **`raw[0x58]` = army count** (e.g. 10 for homeworld seed, 142 for Dust Bowl,
+  1 after fleet lands on unowned world, 0 for unowned/empty)
+- **`raw[0x5A]` = ground batteries** (e.g. 4 for homeworld seed, 15 for Dust
+  Bowl, 0 for unowned/empty)
+- `raw[0x5B]` = 0 in all known fixtures (unnamed, leave raw)
+
+Previously `raw[0x58]` was speculatively labeled `developed_value_raw()` and
+`raw[0x5A]` was labeled `likely_army_count_raw()`. Both labels were wrong.
+The accessor rename (`army_count_raw` → `raw[0x58]`, `ground_batteries_raw` →
+`raw[0x5A]`, `developed_value_raw` removed) was completed and all tests are
+green.
+
+Note: the bombard scenario fixture names `army0`/`army1` are misleading — they
+vary the **batteries** field (`0x5A`), not the army field (`0x58`).

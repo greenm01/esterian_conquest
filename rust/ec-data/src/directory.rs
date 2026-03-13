@@ -7,12 +7,12 @@ use crate::{
 };
 
 const CURRENT_KNOWN_POST_MAINT_CONQUEST_CONTROL_HEADER: [u8; 0x55] = [
-    0xb9, 0x0b, 0x04, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x64, 0x00, 0x64, 0x00, 0x64,
-    0x00, 0x64, 0x00, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x74, 0x33, 0x00, 0x00,
-    0x00, 0x00, 0x75, 0x03, 0x65, 0x20, 0x00, 0x00, 0x7e, 0x04, 0x20, 0x74, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3b, 0x86, 0xfe, 0xfc, 0x28, 0x8b,
-    0x01, 0x01, 0x01, 0x01, 0xff, 0x00, 0x00, 0x00, 0xc2, 0x00, 0x00, 0x08, 0x6f, 0x00, 0x01,
-    0x6f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x6a, 0x8d, 0x35,
+    0xb9, 0x0b, 0x04, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x64, 0x00, 0x64, 0x00, 0x64, 0x00,
+    0x64, 0x00, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x74, 0x33, 0x00, 0x00, 0x00, 0x00,
+    0x75, 0x03, 0x65, 0x20, 0x00, 0x00, 0x7e, 0x04, 0x20, 0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3b, 0x86, 0xfe, 0xfc, 0x28, 0x8b, 0x01, 0x01, 0x01, 0x01,
+    0xff, 0x00, 0x00, 0x00, 0xc2, 0x00, 0x00, 0x08, 0x6f, 0x00, 0x01, 0x6f, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x6a, 0x8d, 0x35,
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -96,18 +96,10 @@ pub enum GameDirectoryError {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GameStateMutationError {
-    MissingFleetRecord {
-        index_1_based: usize,
-    },
-    MissingIpbmRecord {
-        index_1_based: usize,
-    },
-    MissingPlanetRecord {
-        index_1_based: usize,
-    },
-    MissingPlayerRecord {
-        index_1_based: usize,
-    },
+    MissingFleetRecord { index_1_based: usize },
+    MissingIpbmRecord { index_1_based: usize },
+    MissingPlanetRecord { index_1_based: usize },
+    MissingPlayerRecord { index_1_based: usize },
 }
 
 impl std::fmt::Display for GameDirectoryError {
@@ -498,8 +490,7 @@ impl CoreGameData {
             if owner != 0 && !is_homeworld_seed {
                 errors.push(format!(
                     "PLANET[{}] expected unowned non-homeworld baseline, got owner {}",
-                    planet_index_1_based,
-                    owner
+                    planet_index_1_based, owner
                 ));
             }
 
@@ -507,9 +498,7 @@ impl CoreGameData {
                 if owner == 0 || owner > player_count {
                     errors.push(format!(
                         "PLANET[{}] homeworld seed expected owner 1..={}, got {}",
-                        planet_index_1_based,
-                        player_count,
-                        owner
+                        planet_index_1_based, player_count, owner
                     ));
                 }
                 if owner != 0 && record.ownership_status_raw() != 2 {
@@ -523,12 +512,12 @@ impl CoreGameData {
         }
 
         for player_record_index_1_based in 1..=player_count {
-            let owned_count = self.player_owned_planet_count_current_known(player_record_index_1_based);
+            let owned_count =
+                self.player_owned_planet_count_current_known(player_record_index_1_based);
             if owned_count != 1 {
                 errors.push(format!(
                     "PLAYER[{}] owned_planet_count expected 1, got {}",
-                    player_record_index_1_based,
-                    owned_count
+                    player_record_index_1_based, owned_count
                 ));
             }
         }
@@ -554,8 +543,7 @@ impl CoreGameData {
             if record.raw[0x03] != 135 {
                 errors.push(format!(
                     "PLANET[{}].header[3] expected 135 for homeworld seed, got {}",
-                    planet_index_1_based,
-                    record.raw[0x03]
+                    planet_index_1_based, record.raw[0x03]
                 ));
             }
             if record.ownership_status_raw() != 2 {
@@ -572,18 +560,18 @@ impl CoreGameData {
                     record.army_count_raw()
                 ));
             }
+            if record.ground_batteries_raw() != 4 {
+                errors.push(format!(
+                    "PLANET[{}].ground_batteries_raw expected 4 for homeworld seed, got {}",
+                    planet_index_1_based,
+                    record.ground_batteries_raw()
+                ));
+            }
             if record.planet_tax_rate_raw() != 12 {
                 errors.push(format!(
                     "PLANET[{}].planet_tax_rate expected 12 for homeworld seed, got {}",
                     planet_index_1_based,
                     record.planet_tax_rate_raw()
-                ));
-            }
-            if record.ground_batteries_raw() != 4 {
-                errors.push(format!(
-                    "PLANET[{}].ground_batteries expected 4 for homeworld seed, got {}",
-                    planet_index_1_based,
-                    record.ground_batteries_raw()
                 ));
             }
             if record.factories_raw() != [0, 0, 0, 0, 72, 134] {
@@ -607,15 +595,17 @@ impl CoreGameData {
                     record.population_raw()
                 ));
             }
-            if (0..10).any(|slot| record.build_count_raw(slot) != 0 || record.build_kind_raw(slot) != 0)
+            if (0..10)
+                .any(|slot| record.build_count_raw(slot) != 0 || record.build_kind_raw(slot) != 0)
             {
                 errors.push(format!(
                     "PLANET[{}] build queue expected all zeroes for homeworld seed",
                     planet_index_1_based
                 ));
             }
-            if (0..6).any(|slot| record.stardock_kind_raw(slot) != 0 || record.stardock_count_raw(slot) != 0)
-            {
+            if (0..6).any(|slot| {
+                record.stardock_kind_raw(slot) != 0 || record.stardock_count_raw(slot) != 0
+            }) {
                 errors.push(format!(
                     "PLANET[{}] stardock expected all zeroes for homeworld seed",
                     planet_index_1_based
@@ -671,7 +661,7 @@ impl CoreGameData {
             }
             if record.ground_batteries_raw() != 0 {
                 errors.push(format!(
-                    "PLANET[{}].ground_batteries expected 0 for unowned baseline, got {}",
+                    "PLANET[{}].ground_batteries_raw expected 0 for unowned baseline, got {}",
                     planet_index_1_based,
                     record.ground_batteries_raw()
                 ));
@@ -697,15 +687,17 @@ impl CoreGameData {
                     record.population_raw()
                 ));
             }
-            if (0..10).any(|slot| record.build_count_raw(slot) != 0 || record.build_kind_raw(slot) != 0)
+            if (0..10)
+                .any(|slot| record.build_count_raw(slot) != 0 || record.build_kind_raw(slot) != 0)
             {
                 errors.push(format!(
                     "PLANET[{}] build queue expected all zeroes for unowned baseline",
                     planet_index_1_based
                 ));
             }
-            if (0..6).any(|slot| record.stardock_kind_raw(slot) != 0 || record.stardock_count_raw(slot) != 0)
-            {
+            if (0..6).any(|slot| {
+                record.stardock_kind_raw(slot) != 0 || record.stardock_count_raw(slot) != 0
+            }) {
                 errors.push(format!(
                     "PLANET[{}] stardock expected all zeroes for unowned baseline",
                     planet_index_1_based
@@ -838,26 +830,31 @@ impl CoreGameData {
         let expected_fleet_count = player_count.saturating_mul(4);
         player_count > 0
             && self.fleets.records.len() == expected_fleet_count
-            && self.fleets.records.chunks_exact(4).enumerate().all(|(block_idx, group)| {
-                group.iter().enumerate().all(|(slot_idx, record)| {
-                    let expected_fleet_id = (block_idx * 4 + slot_idx + 1) as u8;
-                    let expected_local_slot = (slot_idx + 1) as u8;
-                    let expected_prev = if slot_idx == 0 {
-                        0
-                    } else {
-                        expected_fleet_id - 1
-                    };
-                    let expected_next = if slot_idx == 3 {
-                        0
-                    } else {
-                        expected_fleet_id + 1
-                    };
-                    record.fleet_id() == expected_fleet_id
-                        && record.local_slot() == expected_local_slot
-                        && record.previous_fleet_id() == expected_prev
-                        && record.next_fleet_id() == expected_next
+            && self
+                .fleets
+                .records
+                .chunks_exact(4)
+                .enumerate()
+                .all(|(block_idx, group)| {
+                    group.iter().enumerate().all(|(slot_idx, record)| {
+                        let expected_fleet_id = (block_idx * 4 + slot_idx + 1) as u8;
+                        let expected_local_slot = (slot_idx + 1) as u8;
+                        let expected_prev = if slot_idx == 0 {
+                            0
+                        } else {
+                            expected_fleet_id - 1
+                        };
+                        let expected_next = if slot_idx == 3 {
+                            0
+                        } else {
+                            expected_fleet_id + 1
+                        };
+                        record.fleet_id() == expected_fleet_id
+                            && record.local_slot() == expected_local_slot
+                            && record.previous_fleet_id() == expected_prev
+                            && record.next_fleet_id() == expected_next
+                    })
                 })
-            })
     }
 
     pub fn current_known_initialized_fleet_block_head_ids(&self) -> Vec<usize> {
@@ -1069,7 +1066,8 @@ impl CoreGameData {
 
         let homeworld_coords = self.player_homeworld_seed_coords_current_known();
         for block_idx in 0..player_count {
-            let Some(expected_coords) = homeworld_coords.get(block_idx).and_then(|coords| *coords) else {
+            let Some(expected_coords) = homeworld_coords.get(block_idx).and_then(|coords| *coords)
+            else {
                 continue;
             };
 
@@ -1115,7 +1113,8 @@ impl CoreGameData {
 
         let homeworld_coords = self.player_homeworld_seed_coords_current_known();
         for block_idx in 0..player_count {
-            let Some(expected_coords) = homeworld_coords.get(block_idx).and_then(|coords| *coords) else {
+            let Some(expected_coords) = homeworld_coords.get(block_idx).and_then(|coords| *coords)
+            else {
                 continue;
             };
             let fleet = &self.fleets.records[block_idx * 4];
@@ -1254,13 +1253,11 @@ impl CoreGameData {
         gate: u16,
         follow_on: u16,
     ) -> Result<(), GameStateMutationError> {
-        let record = self
-            .ipbm
-            .records
-            .get_mut(record_index_1_based - 1)
-            .ok_or(GameStateMutationError::MissingIpbmRecord {
+        let record = self.ipbm.records.get_mut(record_index_1_based - 1).ok_or(
+            GameStateMutationError::MissingIpbmRecord {
                 index_1_based: record_index_1_based,
-            })?;
+            },
+        )?;
         record.set_primary_word_raw(primary);
         record.set_owner_empire_raw(owner);
         record.set_gate_word_raw(gate);
@@ -1536,25 +1533,24 @@ impl CoreGameData {
     ) -> Vec<String> {
         let mut errors = Vec::new();
 
-        let summary =
-            match self.guard_starbase_linkage_summary_current_known(
-                player_record_index_1_based,
-                fleet_record_index_1_based,
-            ) {
-                Ok(summary) => summary,
-                Err(GameStateMutationError::MissingPlayerRecord { index_1_based }) => {
-                    errors.push(format!("PLAYER.DAT missing record {index_1_based}"));
-                    return errors;
-                }
-                Err(GameStateMutationError::MissingFleetRecord { index_1_based }) => {
-                    errors.push(format!("FLEETS.DAT missing record {index_1_based}"));
-                    return errors;
-                }
-                Err(other) => {
-                    errors.push(other.to_string());
-                    return errors;
-                }
-            };
+        let summary = match self.guard_starbase_linkage_summary_current_known(
+            player_record_index_1_based,
+            fleet_record_index_1_based,
+        ) {
+            Ok(summary) => summary,
+            Err(GameStateMutationError::MissingPlayerRecord { index_1_based }) => {
+                errors.push(format!("PLAYER.DAT missing record {index_1_based}"));
+                return errors;
+            }
+            Err(GameStateMutationError::MissingFleetRecord { index_1_based }) => {
+                errors.push(format!("FLEETS.DAT missing record {index_1_based}"));
+                return errors;
+            }
+            Err(other) => {
+                errors.push(other.to_string());
+                return errors;
+            }
+        };
 
         if summary.fleet_order != 0x04 {
             errors.push(format!(
@@ -1637,9 +1633,7 @@ impl CoreGameData {
         if summary.selected_base_owner_empire != Some(expected_owner_empire) {
             errors.push(format!(
                 "BASES[{}].owner_empire expected {}, got {:?}",
-                summary.guard_index,
-                expected_owner_empire,
-                summary.selected_base_owner_empire
+                summary.guard_index, expected_owner_empire, summary.selected_base_owner_empire
             ));
         }
 
@@ -1651,9 +1645,7 @@ impl CoreGameData {
             .records
             .iter()
             .enumerate()
-            .filter_map(|(idx, fleet)| {
-                (fleet.standing_order_code_raw() == 0x04).then_some(idx + 1)
-            })
+            .filter_map(|(idx, fleet)| (fleet.standing_order_code_raw() == 0x04).then_some(idx + 1))
             .collect()
     }
 
@@ -1684,12 +1676,10 @@ impl CoreGameData {
 
         let mut errors = Vec::new();
         for fleet_record_index_1_based in guarding_fleets {
-            errors.extend(
-                self.guard_starbase_linkage_errors_current_known(
-                    player_record_index_1_based,
-                    fleet_record_index_1_based,
-                ),
-            );
+            errors.extend(self.guard_starbase_linkage_errors_current_known(
+                player_record_index_1_based,
+                fleet_record_index_1_based,
+            ));
         }
         errors
     }
@@ -1737,7 +1727,9 @@ impl CoreGameData {
         let base1 = self.bases.records.first();
 
         CurrentKnownKeyWordSummary {
-            player_starbase_count: player1.map(|record| record.starbase_count_raw()).unwrap_or(0),
+            player_starbase_count: player1
+                .map(|record| record.starbase_count_raw())
+                .unwrap_or(0),
             player_ipbm_count: player1.map(|record| record.ipbm_count_raw()).unwrap_or(0),
             fleet1_local_slot: fleet1.map(|record| record.local_slot_word_raw()),
             fleet1_id: fleet1.map(|record| record.fleet_id_word_raw()),
@@ -1766,13 +1758,29 @@ impl CoreGameData {
 
     pub fn diff_counts_against(&self, other: &Self) -> Vec<CoreFileDiffCount> {
         [
-            ("PLAYER.DAT", self.player.to_bytes(), other.player.to_bytes()),
-            ("PLANETS.DAT", self.planets.to_bytes(), other.planets.to_bytes()),
-            ("FLEETS.DAT", self.fleets.to_bytes(), other.fleets.to_bytes()),
+            (
+                "PLAYER.DAT",
+                self.player.to_bytes(),
+                other.player.to_bytes(),
+            ),
+            (
+                "PLANETS.DAT",
+                self.planets.to_bytes(),
+                other.planets.to_bytes(),
+            ),
+            (
+                "FLEETS.DAT",
+                self.fleets.to_bytes(),
+                other.fleets.to_bytes(),
+            ),
             ("BASES.DAT", self.bases.to_bytes(), other.bases.to_bytes()),
             ("IPBM.DAT", self.ipbm.to_bytes(), other.ipbm.to_bytes()),
             ("SETUP.DAT", self.setup.to_bytes(), other.setup.to_bytes()),
-            ("CONQUEST.DAT", self.conquest.to_bytes(), other.conquest.to_bytes()),
+            (
+                "CONQUEST.DAT",
+                self.conquest.to_bytes(),
+                other.conquest.to_bytes(),
+            ),
         ]
         .into_iter()
         .map(|(name, current, other)| CoreFileDiffCount {
@@ -1784,13 +1792,29 @@ impl CoreGameData {
 
     pub fn diff_offsets_against(&self, other: &Self) -> Vec<CoreFileDiffOffsets> {
         [
-            ("PLAYER.DAT", self.player.to_bytes(), other.player.to_bytes()),
-            ("PLANETS.DAT", self.planets.to_bytes(), other.planets.to_bytes()),
-            ("FLEETS.DAT", self.fleets.to_bytes(), other.fleets.to_bytes()),
+            (
+                "PLAYER.DAT",
+                self.player.to_bytes(),
+                other.player.to_bytes(),
+            ),
+            (
+                "PLANETS.DAT",
+                self.planets.to_bytes(),
+                other.planets.to_bytes(),
+            ),
+            (
+                "FLEETS.DAT",
+                self.fleets.to_bytes(),
+                other.fleets.to_bytes(),
+            ),
             ("BASES.DAT", self.bases.to_bytes(), other.bases.to_bytes()),
             ("IPBM.DAT", self.ipbm.to_bytes(), other.ipbm.to_bytes()),
             ("SETUP.DAT", self.setup.to_bytes(), other.setup.to_bytes()),
-            ("CONQUEST.DAT", self.conquest.to_bytes(), other.conquest.to_bytes()),
+            (
+                "CONQUEST.DAT",
+                self.conquest.to_bytes(),
+                other.conquest.to_bytes(),
+            ),
         ]
         .into_iter()
         .map(|(name, current, other)| CoreFileDiffOffsets {

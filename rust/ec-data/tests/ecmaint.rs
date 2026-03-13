@@ -64,7 +64,10 @@ fn ecmaint_bombard_scenario_arrival_preserves_attack_order() {
     assert_eq!(arrive_fleet.current_speed(), 0x03);
     assert_eq!(arrive_fleet.current_location_coords_raw(), [0x0f, 0x0d]);
     assert_eq!(arrive_fleet.standing_order_code_raw(), 0x06);
-    assert_eq!(arrive_fleet.standing_order_target_coords_raw(), [0x0f, 0x0d]);
+    assert_eq!(
+        arrive_fleet.standing_order_target_coords_raw(),
+        [0x0f, 0x0d]
+    );
 }
 
 #[test]
@@ -86,7 +89,8 @@ fn ecmaint_bombard_scenario_second_pass_consumes_order_and_kills_attackers() {
     assert_eq!(post_fleet.cruiser_count(), 0x02);
     assert_eq!(post_fleet.destroyer_count(), 0x01);
 
-    let arrive_planets = PlanetDat::parse(&read_ecmaint_bombard_arrive_fixture("PLANETS.DAT")).unwrap();
+    let arrive_planets =
+        PlanetDat::parse(&read_ecmaint_bombard_arrive_fixture("PLANETS.DAT")).unwrap();
     let post_planets = PlanetDat::parse(&read_ecmaint_bombard_post_fixture("PLANETS.DAT")).unwrap();
     assert_eq!(arrive_planets.records[13].raw, post_planets.records[13].raw);
 }
@@ -109,27 +113,36 @@ fn ecmaint_bombard_zero_army_target_changes_planet_without_attacker_losses() {
     assert_eq!(post_fleet.cruiser_count(), 0x03);
     assert_eq!(post_fleet.destroyer_count(), 0x05);
 
-    let pre_planets = PlanetDat::parse(&read_ecmaint_bombard_army0_pre_fixture("PLANETS.DAT")).unwrap();
-    let post_planets = PlanetDat::parse(&read_ecmaint_bombard_army0_post_fixture("PLANETS.DAT")).unwrap();
+    let pre_planets =
+        PlanetDat::parse(&read_ecmaint_bombard_army0_pre_fixture("PLANETS.DAT")).unwrap();
+    let post_planets =
+        PlanetDat::parse(&read_ecmaint_bombard_army0_post_fixture("PLANETS.DAT")).unwrap();
     let pre_target = &pre_planets.records[13];
     let post_target = &post_planets.records[13];
 
-    assert_eq!(pre_target.likely_army_count_raw(), 0);
-    assert_eq!(post_target.likely_army_count_raw(), 0);
+    assert_eq!(pre_target.ground_batteries_raw(), 0);
+    assert_eq!(post_target.ground_batteries_raw(), 0);
     assert_eq!(pre_target.owner_empire_slot_raw(), 2);
     assert_eq!(post_target.owner_empire_slot_raw(), 2);
-    assert_eq!(pre_target.developed_value_raw(), 0x8e);
-    assert_eq!(post_target.developed_value_raw(), 0x8a);
+    assert_eq!(pre_target.army_count_raw(), 0x8e);
+    assert_eq!(post_target.army_count_raw(), 0x8a);
     assert_ne!(pre_target.raw, post_target.raw);
 
-    assert_eq!(read_ecmaint_bombard_army0_post_fixture("MESSAGES.DAT"), Vec::<u8>::new());
-    assert_eq!(read_ecmaint_bombard_army0_post_fixture("RESULTS.DAT"), Vec::<u8>::new());
+    assert_eq!(
+        read_ecmaint_bombard_army0_post_fixture("MESSAGES.DAT"),
+        Vec::<u8>::new()
+    );
+    assert_eq!(
+        read_ecmaint_bombard_army0_post_fixture("RESULTS.DAT"),
+        Vec::<u8>::new()
+    );
 }
 
 #[test]
 fn ecmaint_bombard_zero_army_zero_dev_target_changes_damage_pattern() {
     let pre = FleetDat::parse(&read_ecmaint_bombard_army0_dev0_pre_fixture("FLEETS.DAT")).unwrap();
-    let post = FleetDat::parse(&read_ecmaint_bombard_army0_dev0_post_fixture("FLEETS.DAT")).unwrap();
+    let post =
+        FleetDat::parse(&read_ecmaint_bombard_army0_dev0_post_fixture("FLEETS.DAT")).unwrap();
 
     let pre_fleet = &pre.records[2];
     let post_fleet = &post.records[2];
@@ -141,21 +154,29 @@ fn ecmaint_bombard_zero_army_zero_dev_target_changes_damage_pattern() {
     assert_eq!(post_fleet.cruiser_count(), 0x03);
     assert_eq!(post_fleet.destroyer_count(), 0x05);
 
-    let pre_planets = PlanetDat::parse(&read_ecmaint_bombard_army0_dev0_pre_fixture("PLANETS.DAT")).unwrap();
-    let post_planets = PlanetDat::parse(&read_ecmaint_bombard_army0_dev0_post_fixture("PLANETS.DAT")).unwrap();
+    let pre_planets =
+        PlanetDat::parse(&read_ecmaint_bombard_army0_dev0_pre_fixture("PLANETS.DAT")).unwrap();
+    let post_planets =
+        PlanetDat::parse(&read_ecmaint_bombard_army0_dev0_post_fixture("PLANETS.DAT")).unwrap();
     let pre_target = &pre_planets.records[13];
     let post_target = &post_planets.records[13];
 
-    assert_eq!(pre_target.developed_value_raw(), 0x00);
-    assert_eq!(post_target.developed_value_raw(), 0x00);
-    assert_eq!(pre_target.likely_army_count_raw(), 0x00);
-    assert_eq!(post_target.likely_army_count_raw(), 0x00);
+    assert_eq!(pre_target.army_count_raw(), 0x00);
+    assert_eq!(post_target.army_count_raw(), 0x00);
+    assert_eq!(pre_target.ground_batteries_raw(), 0x00);
+    assert_eq!(post_target.ground_batteries_raw(), 0x00);
     assert_eq!(pre_target.owner_empire_slot_raw(), 2);
     assert_eq!(post_target.owner_empire_slot_raw(), 2);
     assert_ne!(pre_target.raw, post_target.raw);
 
-    assert_eq!(read_ecmaint_bombard_army0_dev0_post_fixture("MESSAGES.DAT"), Vec::<u8>::new());
-    assert_eq!(read_ecmaint_bombard_army0_dev0_post_fixture("RESULTS.DAT"), Vec::<u8>::new());
+    assert_eq!(
+        read_ecmaint_bombard_army0_dev0_post_fixture("MESSAGES.DAT"),
+        Vec::<u8>::new()
+    );
+    assert_eq!(
+        read_ecmaint_bombard_army0_dev0_post_fixture("RESULTS.DAT"),
+        Vec::<u8>::new()
+    );
 }
 
 #[test]
@@ -176,27 +197,36 @@ fn ecmaint_bombard_one_army_target_causes_partial_attacker_losses() {
     assert_eq!(post_fleet.cruiser_count(), 0x02);
     assert_eq!(post_fleet.destroyer_count(), 0x02);
 
-    let pre_planets = PlanetDat::parse(&read_ecmaint_bombard_army1_pre_fixture("PLANETS.DAT")).unwrap();
-    let post_planets = PlanetDat::parse(&read_ecmaint_bombard_army1_post_fixture("PLANETS.DAT")).unwrap();
+    let pre_planets =
+        PlanetDat::parse(&read_ecmaint_bombard_army1_pre_fixture("PLANETS.DAT")).unwrap();
+    let post_planets =
+        PlanetDat::parse(&read_ecmaint_bombard_army1_post_fixture("PLANETS.DAT")).unwrap();
     let pre_target = &pre_planets.records[13];
     let post_target = &post_planets.records[13];
 
-    assert_eq!(pre_target.likely_army_count_raw(), 1);
-    assert_eq!(post_target.likely_army_count_raw(), 0);
+    assert_eq!(pre_target.ground_batteries_raw(), 1);
+    assert_eq!(post_target.ground_batteries_raw(), 0);
     assert_eq!(pre_target.owner_empire_slot_raw(), 2);
     assert_eq!(post_target.owner_empire_slot_raw(), 2);
-    assert_eq!(pre_target.developed_value_raw(), 0x8e);
-    assert_eq!(post_target.developed_value_raw(), 0x8d);
+    assert_eq!(pre_target.army_count_raw(), 0x8e);
+    assert_eq!(post_target.army_count_raw(), 0x8d);
     assert_ne!(pre_target.raw, post_target.raw);
 
-    assert_eq!(read_ecmaint_bombard_army1_post_fixture("MESSAGES.DAT"), Vec::<u8>::new());
-    assert_eq!(read_ecmaint_bombard_army1_post_fixture("RESULTS.DAT"), Vec::<u8>::new());
+    assert_eq!(
+        read_ecmaint_bombard_army1_post_fixture("MESSAGES.DAT"),
+        Vec::<u8>::new()
+    );
+    assert_eq!(
+        read_ecmaint_bombard_army1_post_fixture("RESULTS.DAT"),
+        Vec::<u8>::new()
+    );
 }
 
 #[test]
 fn ecmaint_bombard_one_army_zero_dev_target_changes_loss_profile() {
     let pre = FleetDat::parse(&read_ecmaint_bombard_army1_dev0_pre_fixture("FLEETS.DAT")).unwrap();
-    let post = FleetDat::parse(&read_ecmaint_bombard_army1_dev0_post_fixture("FLEETS.DAT")).unwrap();
+    let post =
+        FleetDat::parse(&read_ecmaint_bombard_army1_dev0_post_fixture("FLEETS.DAT")).unwrap();
 
     let pre_fleet = &pre.records[2];
     let post_fleet = &post.records[2];
@@ -211,27 +241,41 @@ fn ecmaint_bombard_one_army_zero_dev_target_changes_loss_profile() {
     assert_eq!(post_fleet.cruiser_count(), 0x02);
     assert_eq!(post_fleet.destroyer_count(), 0x04);
 
-    let pre_planets = PlanetDat::parse(&read_ecmaint_bombard_army1_dev0_pre_fixture("PLANETS.DAT")).unwrap();
-    let post_planets = PlanetDat::parse(&read_ecmaint_bombard_army1_dev0_post_fixture("PLANETS.DAT")).unwrap();
+    let pre_planets =
+        PlanetDat::parse(&read_ecmaint_bombard_army1_dev0_pre_fixture("PLANETS.DAT")).unwrap();
+    let post_planets =
+        PlanetDat::parse(&read_ecmaint_bombard_army1_dev0_post_fixture("PLANETS.DAT")).unwrap();
     let pre_target = &pre_planets.records[13];
     let post_target = &post_planets.records[13];
 
-    assert_eq!(pre_target.likely_army_count_raw(), 1);
-    assert_eq!(post_target.likely_army_count_raw(), 0);
-    assert_eq!(pre_target.developed_value_raw(), 0x00);
-    assert_eq!(post_target.developed_value_raw(), 0x00);
+    assert_eq!(pre_target.ground_batteries_raw(), 1);
+    assert_eq!(post_target.ground_batteries_raw(), 0);
+    assert_eq!(pre_target.army_count_raw(), 0x00);
+    assert_eq!(post_target.army_count_raw(), 0x00);
     assert_eq!(pre_target.owner_empire_slot_raw(), 2);
     assert_eq!(post_target.owner_empire_slot_raw(), 2);
     assert_ne!(pre_target.raw, post_target.raw);
 
-    assert_eq!(read_ecmaint_bombard_army1_dev0_post_fixture("MESSAGES.DAT"), Vec::<u8>::new());
-    assert_eq!(read_ecmaint_bombard_army1_dev0_post_fixture("RESULTS.DAT"), Vec::<u8>::new());
+    assert_eq!(
+        read_ecmaint_bombard_army1_dev0_post_fixture("MESSAGES.DAT"),
+        Vec::<u8>::new()
+    );
+    assert_eq!(
+        read_ecmaint_bombard_army1_dev0_post_fixture("RESULTS.DAT"),
+        Vec::<u8>::new()
+    );
 }
 
 #[test]
 fn ecmaint_bombard_byte_0e_increases_defender_damage_profile() {
-    let pre = FleetDat::parse(&read_ecmaint_bombard_army1_dev0_e0c_pre_fixture("FLEETS.DAT")).unwrap();
-    let post = FleetDat::parse(&read_ecmaint_bombard_army1_dev0_e0c_post_fixture("FLEETS.DAT")).unwrap();
+    let pre = FleetDat::parse(&read_ecmaint_bombard_army1_dev0_e0c_pre_fixture(
+        "FLEETS.DAT",
+    ))
+    .unwrap();
+    let post = FleetDat::parse(&read_ecmaint_bombard_army1_dev0_e0c_post_fixture(
+        "FLEETS.DAT",
+    ))
+    .unwrap();
 
     let pre_fleet = &pre.records[2];
     let post_fleet = &post.records[2];
@@ -246,28 +290,46 @@ fn ecmaint_bombard_byte_0e_increases_defender_damage_profile() {
     assert_eq!(post_fleet.cruiser_count(), 0x03);
     assert_eq!(post_fleet.destroyer_count(), 0x01);
 
-    let pre_planets = PlanetDat::parse(&read_ecmaint_bombard_army1_dev0_e0c_pre_fixture("PLANETS.DAT")).unwrap();
-    let post_planets = PlanetDat::parse(&read_ecmaint_bombard_army1_dev0_e0c_post_fixture("PLANETS.DAT")).unwrap();
+    let pre_planets = PlanetDat::parse(&read_ecmaint_bombard_army1_dev0_e0c_pre_fixture(
+        "PLANETS.DAT",
+    ))
+    .unwrap();
+    let post_planets = PlanetDat::parse(&read_ecmaint_bombard_army1_dev0_e0c_post_fixture(
+        "PLANETS.DAT",
+    ))
+    .unwrap();
     let pre_target = &pre_planets.records[13];
     let post_target = &post_planets.records[13];
 
     assert_eq!(pre_target.raw[0x0e], 0x0c);
-    assert_eq!(pre_target.likely_army_count_raw(), 1);
-    assert_eq!(pre_target.developed_value_raw(), 0x00);
-    assert_eq!(post_target.likely_army_count_raw(), 0);
-    assert_eq!(post_target.developed_value_raw(), 0x00);
+    assert_eq!(pre_target.ground_batteries_raw(), 1);
+    assert_eq!(pre_target.army_count_raw(), 0x00);
+    assert_eq!(post_target.ground_batteries_raw(), 0);
+    assert_eq!(post_target.army_count_raw(), 0x00);
     assert_eq!(post_target.raw[0x0e], 0x54);
     assert_eq!(post_target.owner_empire_slot_raw(), 2);
     assert_ne!(pre_target.raw, post_target.raw);
 
-    assert_eq!(read_ecmaint_bombard_army1_dev0_e0c_post_fixture("MESSAGES.DAT"), Vec::<u8>::new());
-    assert_eq!(read_ecmaint_bombard_army1_dev0_e0c_post_fixture("RESULTS.DAT"), Vec::<u8>::new());
+    assert_eq!(
+        read_ecmaint_bombard_army1_dev0_e0c_post_fixture("MESSAGES.DAT"),
+        Vec::<u8>::new()
+    );
+    assert_eq!(
+        read_ecmaint_bombard_army1_dev0_e0c_post_fixture("RESULTS.DAT"),
+        Vec::<u8>::new()
+    );
 }
 
 #[test]
 fn ecmaint_bombard_byte_08_changes_defender_loss_profile() {
-    let pre = FleetDat::parse(&read_ecmaint_bombard_army1_dev0_b08_pre_fixture("FLEETS.DAT")).unwrap();
-    let post = FleetDat::parse(&read_ecmaint_bombard_army1_dev0_b08_post_fixture("FLEETS.DAT")).unwrap();
+    let pre = FleetDat::parse(&read_ecmaint_bombard_army1_dev0_b08_pre_fixture(
+        "FLEETS.DAT",
+    ))
+    .unwrap();
+    let post = FleetDat::parse(&read_ecmaint_bombard_army1_dev0_b08_post_fixture(
+        "FLEETS.DAT",
+    ))
+    .unwrap();
 
     let pre_fleet = &pre.records[2];
     let post_fleet = &post.records[2];
@@ -282,27 +344,45 @@ fn ecmaint_bombard_byte_08_changes_defender_loss_profile() {
     assert_eq!(post_fleet.cruiser_count(), 0x01);
     assert_eq!(post_fleet.destroyer_count(), 0x03);
 
-    let pre_planets = PlanetDat::parse(&read_ecmaint_bombard_army1_dev0_b08_pre_fixture("PLANETS.DAT")).unwrap();
-    let post_planets = PlanetDat::parse(&read_ecmaint_bombard_army1_dev0_b08_post_fixture("PLANETS.DAT")).unwrap();
+    let pre_planets = PlanetDat::parse(&read_ecmaint_bombard_army1_dev0_b08_pre_fixture(
+        "PLANETS.DAT",
+    ))
+    .unwrap();
+    let post_planets = PlanetDat::parse(&read_ecmaint_bombard_army1_dev0_b08_post_fixture(
+        "PLANETS.DAT",
+    ))
+    .unwrap();
     let pre_target = &pre_planets.records[13];
     let post_target = &post_planets.records[13];
 
     assert_eq!(pre_target.raw[0x08], 0x00);
-    assert_eq!(pre_target.likely_army_count_raw(), 1);
-    assert_eq!(pre_target.developed_value_raw(), 0x00);
-    assert_eq!(post_target.likely_army_count_raw(), 0);
-    assert_eq!(post_target.developed_value_raw(), 0x00);
+    assert_eq!(pre_target.ground_batteries_raw(), 1);
+    assert_eq!(pre_target.army_count_raw(), 0x00);
+    assert_eq!(post_target.ground_batteries_raw(), 0);
+    assert_eq!(post_target.army_count_raw(), 0x00);
     assert_eq!(post_target.owner_empire_slot_raw(), 2);
     assert_ne!(pre_target.raw, post_target.raw);
 
-    assert_eq!(read_ecmaint_bombard_army1_dev0_b08_post_fixture("MESSAGES.DAT"), Vec::<u8>::new());
-    assert_eq!(read_ecmaint_bombard_army1_dev0_b08_post_fixture("RESULTS.DAT"), Vec::<u8>::new());
+    assert_eq!(
+        read_ecmaint_bombard_army1_dev0_b08_post_fixture("MESSAGES.DAT"),
+        Vec::<u8>::new()
+    );
+    assert_eq!(
+        read_ecmaint_bombard_army1_dev0_b08_post_fixture("RESULTS.DAT"),
+        Vec::<u8>::new()
+    );
 }
 
 #[test]
 fn ecmaint_bombard_byte_09_changes_attacker_loss_profile() {
-    let pre = FleetDat::parse(&read_ecmaint_bombard_army1_dev0_b09_pre_fixture("FLEETS.DAT")).unwrap();
-    let post = FleetDat::parse(&read_ecmaint_bombard_army1_dev0_b09_post_fixture("FLEETS.DAT")).unwrap();
+    let pre = FleetDat::parse(&read_ecmaint_bombard_army1_dev0_b09_pre_fixture(
+        "FLEETS.DAT",
+    ))
+    .unwrap();
+    let post = FleetDat::parse(&read_ecmaint_bombard_army1_dev0_b09_post_fixture(
+        "FLEETS.DAT",
+    ))
+    .unwrap();
 
     let pre_fleet = &pre.records[2];
     let post_fleet = &post.records[2];
@@ -317,27 +397,41 @@ fn ecmaint_bombard_byte_09_changes_attacker_loss_profile() {
     assert_eq!(post_fleet.cruiser_count(), 0x01);
     assert_eq!(post_fleet.destroyer_count(), 0x05);
 
-    let pre_planets = PlanetDat::parse(&read_ecmaint_bombard_army1_dev0_b09_pre_fixture("PLANETS.DAT")).unwrap();
-    let post_planets = PlanetDat::parse(&read_ecmaint_bombard_army1_dev0_b09_post_fixture("PLANETS.DAT")).unwrap();
+    let pre_planets = PlanetDat::parse(&read_ecmaint_bombard_army1_dev0_b09_pre_fixture(
+        "PLANETS.DAT",
+    ))
+    .unwrap();
+    let post_planets = PlanetDat::parse(&read_ecmaint_bombard_army1_dev0_b09_post_fixture(
+        "PLANETS.DAT",
+    ))
+    .unwrap();
     let pre_target = &pre_planets.records[13];
     let post_target = &post_planets.records[13];
 
     assert_eq!(pre_target.raw[0x09], 0x00);
-    assert_eq!(pre_target.likely_army_count_raw(), 1);
-    assert_eq!(pre_target.developed_value_raw(), 0x00);
-    assert_eq!(post_target.likely_army_count_raw(), 0);
-    assert_eq!(post_target.developed_value_raw(), 0x00);
+    assert_eq!(pre_target.ground_batteries_raw(), 1);
+    assert_eq!(pre_target.army_count_raw(), 0x00);
+    assert_eq!(post_target.ground_batteries_raw(), 0);
+    assert_eq!(post_target.army_count_raw(), 0x00);
     assert_eq!(post_target.owner_empire_slot_raw(), 2);
     assert_ne!(pre_target.raw, post_target.raw);
 
-    assert_eq!(read_ecmaint_bombard_army1_dev0_b09_post_fixture("MESSAGES.DAT"), Vec::<u8>::new());
-    assert_eq!(read_ecmaint_bombard_army1_dev0_b09_post_fixture("RESULTS.DAT"), Vec::<u8>::new());
+    assert_eq!(
+        read_ecmaint_bombard_army1_dev0_b09_post_fixture("MESSAGES.DAT"),
+        Vec::<u8>::new()
+    );
+    assert_eq!(
+        read_ecmaint_bombard_army1_dev0_b09_post_fixture("RESULTS.DAT"),
+        Vec::<u8>::new()
+    );
 }
 
 #[test]
 fn ecmaint_bombard_heavy_generates_combat_report() {
-    let pre_planets = PlanetDat::parse(&read_ecmaint_bombard_heavy_pre_fixture("PLANETS.DAT")).unwrap();
-    let post_planets = PlanetDat::parse(&read_ecmaint_bombard_heavy_post_fixture("PLANETS.DAT")).unwrap();
+    let pre_planets =
+        PlanetDat::parse(&read_ecmaint_bombard_heavy_pre_fixture("PLANETS.DAT")).unwrap();
+    let post_planets =
+        PlanetDat::parse(&read_ecmaint_bombard_heavy_post_fixture("PLANETS.DAT")).unwrap();
     let pre_target = &pre_planets.records[13];
     let post_target = &post_planets.records[13];
 
@@ -346,5 +440,8 @@ fn ecmaint_bombard_heavy_generates_combat_report() {
     assert_ne!(pre_target.raw, post_target.raw);
 
     let results = read_ecmaint_bombard_heavy_post_fixture("RESULTS.DAT");
-    assert!(!results.is_empty(), "RESULTS.DAT should contain the bombardment report");
+    assert!(
+        !results.is_empty(),
+        "RESULTS.DAT should contain the bombardment report"
+    );
 }

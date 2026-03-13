@@ -13,12 +13,13 @@ pub(crate) fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> 
     println!("Players:");
     for (idx, record) in data.player.records.iter().enumerate() {
         println!(
-            "  slot {}: owner_mode={} assigned_player_flag={} tax={} last_run_year={} summary={}",
+            "  slot {}: owner_mode={} assigned_player_flag={} tax={} stored_prod_pts={} autopilot={} summary={}",
             idx + 1,
             record.owner_mode_raw(),
             record.assigned_player_flag_raw(),
             record.tax_rate(),
-            record.last_run_year(),
+            record.stored_production_pts_raw(),
+            record.autopilot_flag(),
             record.ownership_summary()
         );
         println!("    starbase_count_raw={}", record.starbase_count_raw());
@@ -38,7 +39,6 @@ pub(crate) fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> 
             record.factories_word_raw(),
             record.derived_summary()
         );
-
     }
     println!("  ... {} total planet records", data.planets.records.len());
 
@@ -164,7 +164,10 @@ pub(crate) fn dump_headers(dir: &Path) -> Result<(), Box<dyn std::error::Error>>
     let conquest = ConquestDat::parse(&fs::read(dir.join("CONQUEST.DAT"))?)?;
 
     println!("Directory: {}", dir.display());
-    println!("SETUP.version={}", String::from_utf8_lossy(setup.version_tag()));
+    println!(
+        "SETUP.version={}",
+        String::from_utf8_lossy(setup.version_tag())
+    );
     println!("SETUP.option_prefix={:02x?}", setup.option_prefix());
     println!(
         "SETUP.com_irqs=[{}, {}, {}, {}]",
@@ -181,8 +184,14 @@ pub(crate) fn dump_headers(dir: &Path) -> Result<(), Box<dyn std::error::Error>>
         setup.com_hardware_flow_control_enabled(3).unwrap_or(false)
     );
     println!("SETUP.snoop_enabled={}", setup.snoop_enabled());
-    println!("SETUP.local_timeout_enabled={}", setup.local_timeout_enabled());
-    println!("SETUP.remote_timeout_enabled={}", setup.remote_timeout_enabled());
+    println!(
+        "SETUP.local_timeout_enabled={}",
+        setup.local_timeout_enabled()
+    );
+    println!(
+        "SETUP.remote_timeout_enabled={}",
+        setup.remote_timeout_enabled()
+    );
     println!(
         "SETUP.max_time_between_keys_minutes_raw={}",
         setup.max_time_between_keys_minutes_raw()
@@ -191,14 +200,20 @@ pub(crate) fn dump_headers(dir: &Path) -> Result<(), Box<dyn std::error::Error>>
         "SETUP.minimum_time_granted_minutes_raw={}",
         setup.minimum_time_granted_minutes_raw()
     );
-    println!("SETUP.purge_after_turns_raw={}", setup.purge_after_turns_raw());
+    println!(
+        "SETUP.purge_after_turns_raw={}",
+        setup.purge_after_turns_raw()
+    );
     println!(
         "SETUP.autopilot_inactive_turns_raw={}",
         setup.autopilot_inactive_turns_raw()
     );
     println!("CONQUEST.game_year={}", conquest.game_year());
     println!("CONQUEST.player_count={}", conquest.player_count());
-    println!("CONQUEST.player_config_word={:04x}", conquest.player_config_word());
+    println!(
+        "CONQUEST.player_config_word={:04x}",
+        conquest.player_config_word()
+    );
     println!(
         "CONQUEST.maintenance_schedule={:02x?}",
         conquest.maintenance_schedule_bytes()
@@ -210,7 +225,10 @@ pub(crate) fn dump_headers(dir: &Path) -> Result<(), Box<dyn std::error::Error>>
 }
 
 fn print_header_summary(setup: &SetupDat, conquest: &ConquestDat) {
-    println!("SETUP version: {}", String::from_utf8_lossy(setup.version_tag()));
+    println!(
+        "SETUP version: {}",
+        String::from_utf8_lossy(setup.version_tag())
+    );
     println!("SETUP option prefix: {:02x?}", setup.option_prefix());
     println!(
         "SETUP COM IRQs: [{}, {}, {}, {}]",
@@ -226,14 +244,25 @@ fn print_header_summary(setup: &SetupDat, conquest: &ConquestDat) {
         yes_no(setup.com_hardware_flow_control_enabled(2).unwrap_or(false)),
         yes_no(setup.com_hardware_flow_control_enabled(3).unwrap_or(false))
     );
-    println!("SETUP snoop enabled: {}", if setup.snoop_enabled() { "yes" } else { "no" });
+    println!(
+        "SETUP snoop enabled: {}",
+        if setup.snoop_enabled() { "yes" } else { "no" }
+    );
     println!(
         "SETUP local timeout enabled: {}",
-        if setup.local_timeout_enabled() { "yes" } else { "no" }
+        if setup.local_timeout_enabled() {
+            "yes"
+        } else {
+            "no"
+        }
     );
     println!(
         "SETUP remote timeout enabled: {}",
-        if setup.remote_timeout_enabled() { "yes" } else { "no" }
+        if setup.remote_timeout_enabled() {
+            "yes"
+        } else {
+            "no"
+        }
     );
     println!(
         "SETUP max time between keys (raw minutes): {}",
@@ -243,7 +272,10 @@ fn print_header_summary(setup: &SetupDat, conquest: &ConquestDat) {
         "SETUP minimum time granted (raw minutes): {}",
         setup.minimum_time_granted_minutes_raw()
     );
-    println!("SETUP purge after turns (raw): {}", setup.purge_after_turns_raw());
+    println!(
+        "SETUP purge after turns (raw): {}",
+        setup.purge_after_turns_raw()
+    );
     println!(
         "SETUP autopilot inactive turns (raw): {}",
         setup.autopilot_inactive_turns_raw()
@@ -264,11 +296,21 @@ fn print_header_summary(setup: &SetupDat, conquest: &ConquestDat) {
 fn ascii_trim(bytes: &[u8]) -> String {
     let text = bytes
         .iter()
-        .map(|b| if (32..127).contains(b) { *b as char } else { ' ' })
+        .map(|b| {
+            if (32..127).contains(b) {
+                *b as char
+            } else {
+                ' '
+            }
+        })
         .collect::<String>();
     text.trim().to_string()
 }
 
 fn yes_no(value: bool) -> &'static str {
-    if value { "Yes" } else { "No" }
+    if value {
+        "Yes"
+    } else {
+        "No"
+    }
 }

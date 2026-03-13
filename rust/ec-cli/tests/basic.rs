@@ -1,6 +1,6 @@
 mod common;
 
-use common::{run_ec_cli, run_ec_cli_in_dir, unique_temp_dir, cleanup_dir};
+use common::{cleanup_dir, run_ec_cli, run_ec_cli_in_dir, unique_temp_dir};
 use std::fs;
 
 #[test]
@@ -113,19 +113,31 @@ fn scenario_init_all_materializes_all_known_scenarios() {
     assert!(manifest.contains("guard-starbase"));
 
     let fleet_validate = run_ec_cli_in_dir(
-        &["validate", target.join("fleet-order").to_str().unwrap(), "fleet-order"],
+        &[
+            "validate",
+            target.join("fleet-order").to_str().unwrap(),
+            "fleet-order",
+        ],
         common::rust_workspace(),
     );
     assert!(fleet_validate.contains("Valid fleet-order scenario"));
 
     let build_validate = run_ec_cli_in_dir(
-        &["validate", target.join("planet-build").to_str().unwrap(), "planet-build"],
+        &[
+            "validate",
+            target.join("planet-build").to_str().unwrap(),
+            "planet-build",
+        ],
         common::rust_workspace(),
     );
     assert!(build_validate.contains("Valid planet-build scenario"));
 
     let starbase_validate = run_ec_cli_in_dir(
-        &["validate", target.join("guard-starbase").to_str().unwrap(), "guard-starbase"],
+        &[
+            "validate",
+            target.join("guard-starbase").to_str().unwrap(),
+            "guard-starbase",
+        ],
         common::rust_workspace(),
     );
     assert!(starbase_validate.contains("Valid guard-starbase scenario"));
@@ -187,7 +199,10 @@ fn core_init_current_known_baseline_materializes_valid_directory() {
     assert!(validate_stdout.contains("Valid core state"));
 
     let exact_stdout = run_ec_cli_in_dir(
-        &["core-validate-current-known-baseline", target.to_str().unwrap()],
+        &[
+            "core-validate-current-known-baseline",
+            target.to_str().unwrap(),
+        ],
         common::rust_workspace(),
     );
     assert!(exact_stdout.contains("Exact canonical current-known baseline match"));
@@ -211,7 +226,10 @@ fn core_init_current_known_baseline_accepts_original_source_snapshot() {
     assert!(stdout.contains("source snapshot: original/v1.5"));
 
     let stderr = common::run_ec_cli_failure_in_dir(
-        &["core-validate-current-known-baseline", target.to_str().unwrap()],
+        &[
+            "core-validate-current-known-baseline",
+            target.to_str().unwrap(),
+        ],
         common::rust_workspace(),
     );
     assert!(stderr.contains("canonical current-known post-maint baseline"));
@@ -243,7 +261,10 @@ fn core_report_canonical_transition_clusters_groups_original_sample_drift() {
     );
 
     let stdout = run_ec_cli_in_dir(
-        &["core-report-canonical-transition-clusters", target.to_str().unwrap()],
+        &[
+            "core-report-canonical-transition-clusters",
+            target.to_str().unwrap(),
+        ],
         common::rust_workspace(),
     );
     assert!(stdout.contains("Canonical Transition Clusters"));
@@ -252,7 +273,7 @@ fn core_report_canonical_transition_clusters_groups_original_sample_drift() {
     assert!(stdout.contains("PLANETS.DAT:"));
     assert!(stdout.contains("record 6 -> [0, 1, 2, 3, 8, 9"));
     assert!(stdout.contains("FLEETS.DAT:"));
-    assert!(stdout.contains("record 1 -> [11, 12, 32, 33]"));
+    assert!(stdout.contains("record 5 -> [11, 12, 32, 33]"));
     assert!(stdout.contains("CONQUEST.DAT: differing_offsets=[]"));
 
     cleanup_dir(&target);
@@ -272,7 +293,10 @@ fn core_report_canonical_transition_details_summarizes_differing_records() {
     );
 
     let stdout = run_ec_cli_in_dir(
-        &["core-report-canonical-transition-details", target.to_str().unwrap()],
+        &[
+            "core-report-canonical-transition-details",
+            target.to_str().unwrap(),
+        ],
         common::rust_workspace(),
     );
     assert!(stdout.contains("Canonical Transition Details"));

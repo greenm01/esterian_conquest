@@ -44,20 +44,23 @@ fn initialized_planets_expose_named_homeworld_seeds() {
 }
 
 #[test]
-fn planet_tail_fields_expose_owner_slot_and_likely_armies() {
+fn planet_tail_fields_expose_owner_slot_army_and_battery_fields() {
     let init = PlanetDat::parse(&read_initialized_fixture("PLANETS.DAT")).unwrap();
     assert_eq!(init.records[12].owner_empire_slot_raw(), 2);
     assert_eq!(init.records[12].ownership_status_raw(), 2);
-    assert_eq!(init.records[12].likely_army_count_raw(), 4);
+    assert_eq!(init.records[12].army_count_raw(), 10);
+    assert_eq!(init.records[12].ground_batteries_raw(), 4);
 
     assert_eq!(init.records[14].owner_empire_slot_raw(), 1);
     assert_eq!(init.records[14].ownership_status_raw(), 2);
-    assert_eq!(init.records[14].likely_army_count_raw(), 4);
+    assert_eq!(init.records[14].army_count_raw(), 10);
+    assert_eq!(init.records[14].ground_batteries_raw(), 4);
 
     let fleet_post = PlanetDat::parse(&read_ecmaint_fleet_post_fixture("PLANETS.DAT")).unwrap();
     assert_eq!(fleet_post.records[13].owner_empire_slot_raw(), 1);
     assert_eq!(fleet_post.records[13].ownership_status_raw(), 2);
-    assert_eq!(fleet_post.records[13].likely_army_count_raw(), 0);
+    assert_eq!(fleet_post.records[13].army_count_raw(), 1);
+    assert_eq!(fleet_post.records[13].ground_batteries_raw(), 0);
 }
 
 #[test]
@@ -111,7 +114,10 @@ fn f3_owner_fixture_exposes_rogue_and_player_controlled_empire_summaries() {
     assert_eq!(parsed.records[0].owner_mode_raw(), 0xff);
     assert_eq!(parsed.records[0].legacy_status_name_len_raw(), 6);
     assert_eq!(parsed.records[0].legacy_status_name_summary(), "Rogues");
-    assert_eq!(parsed.records[0].ownership_summary(), "rogue label='Rogues'");
+    assert_eq!(
+        parsed.records[0].ownership_summary(),
+        "rogue label='Rogues'"
+    );
 
     assert_eq!(parsed.records[1].assigned_player_flag_raw(), 1);
     assert_eq!(parsed.records[1].assigned_player_handle_summary(), "FOO");
@@ -150,7 +156,10 @@ fn round_trip_initialized_fleets_dat() {
         parsed.records[0].standing_order_kind(),
         FleetStandingOrderKind::GuardBlockadeWorld
     );
-    assert_eq!(parsed.records[0].standing_order_target_coords_raw(), [16, 13]);
+    assert_eq!(
+        parsed.records[0].standing_order_target_coords_raw(),
+        [16, 13]
+    );
     assert_eq!(
         parsed.records[0].standing_order_summary(),
         "Guard/blockade world in System (16,13)"
@@ -171,7 +180,10 @@ fn round_trip_initialized_fleets_dat() {
         parsed.records[2].standing_order_kind(),
         FleetStandingOrderKind::GuardBlockadeWorld
     );
-    assert_eq!(parsed.records[2].standing_order_target_coords_raw(), [16, 13]);
+    assert_eq!(
+        parsed.records[2].standing_order_target_coords_raw(),
+        [16, 13]
+    );
     assert_eq!(
         parsed.records[2].standing_order_summary(),
         "Guard/blockade world in System (16,13)"
@@ -181,13 +193,31 @@ fn round_trip_initialized_fleets_dat() {
 
 #[test]
 fn post_maintenance_matches_init_for_core_state_but_not_global_summaries() {
-    assert_eq!(read_initialized_fixture("PLAYER.DAT"), read_post_maint_fixture("PLAYER.DAT"));
-    assert_eq!(read_initialized_fixture("PLANETS.DAT"), read_post_maint_fixture("PLANETS.DAT"));
-    assert_eq!(read_initialized_fixture("FLEETS.DAT"), read_post_maint_fixture("FLEETS.DAT"));
-    assert_eq!(read_initialized_fixture("SETUP.DAT"), read_post_maint_fixture("SETUP.DAT"));
+    assert_eq!(
+        read_initialized_fixture("PLAYER.DAT"),
+        read_post_maint_fixture("PLAYER.DAT")
+    );
+    assert_eq!(
+        read_initialized_fixture("PLANETS.DAT"),
+        read_post_maint_fixture("PLANETS.DAT")
+    );
+    assert_eq!(
+        read_initialized_fixture("FLEETS.DAT"),
+        read_post_maint_fixture("FLEETS.DAT")
+    );
+    assert_eq!(
+        read_initialized_fixture("SETUP.DAT"),
+        read_post_maint_fixture("SETUP.DAT")
+    );
 
-    assert_ne!(read_initialized_fixture("CONQUEST.DAT"), read_post_maint_fixture("CONQUEST.DAT"));
-    assert_ne!(read_initialized_fixture("DATABASE.DAT"), read_post_maint_fixture("DATABASE.DAT"));
+    assert_ne!(
+        read_initialized_fixture("CONQUEST.DAT"),
+        read_post_maint_fixture("CONQUEST.DAT")
+    );
+    assert_ne!(
+        read_initialized_fixture("DATABASE.DAT"),
+        read_post_maint_fixture("DATABASE.DAT")
+    );
 }
 
 #[test]

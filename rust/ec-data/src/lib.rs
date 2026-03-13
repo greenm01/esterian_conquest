@@ -1,5 +1,5 @@
-pub const PLAYER_RECORD_SIZE: usize = 88;
-pub const PLAYER_RECORD_COUNT: usize = 5;
+pub const PLAYER_RECORD_SIZE: usize = 110;
+pub const PLAYER_RECORD_COUNT: usize = 4;
 pub const PLAYER_DAT_SIZE: usize = PLAYER_RECORD_SIZE * PLAYER_RECORD_COUNT;
 
 pub const PLANET_RECORD_SIZE: usize = 97;

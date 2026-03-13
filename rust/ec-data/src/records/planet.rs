@@ -1,5 +1,5 @@
 use crate::support::{copy_array, expect_size, ParseError};
-use crate::{PLANET_RECORD_COUNT, PLANET_RECORD_SIZE, PLANETS_DAT_SIZE};
+use crate::{PLANETS_DAT_SIZE, PLANET_RECORD_COUNT, PLANET_RECORD_SIZE};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanetRecord {
@@ -137,6 +137,8 @@ impl PlanetRecord {
         self.raw[0x5D] = value;
     }
 
+    /// Army count at offset 0x58.
+    /// 0x8E (142) for Dust Bowl, 0x0A (10) for other homeworlds, 0 for unowned.
     pub fn army_count_raw(&self) -> u8 {
         self.raw[0x58]
     }
@@ -145,6 +147,8 @@ impl PlanetRecord {
         self.raw[0x58] = value;
     }
 
+    /// Ground batteries at offset 0x5A.
+    /// 0x0F (15) for Dust Bowl, 0x04 (4) for other homeworlds, 0 for unowned.
     pub fn ground_batteries_raw(&self) -> u8 {
         self.raw[0x5A]
     }
@@ -152,7 +156,6 @@ impl PlanetRecord {
     pub fn set_ground_batteries_raw(&mut self, value: u8) {
         self.raw[0x5A] = value;
     }
-
 
     pub fn ownership_status_raw(&self) -> u8 {
         self.raw[0x5C]

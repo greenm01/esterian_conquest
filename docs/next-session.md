@@ -133,6 +133,44 @@ Escalate to deep RE only when:
 The current Guard Starbase / `unknown starbase` thread meets that bar. Do not
 use its depth as the default workflow for unrelated mechanics.
 
+## Recently Resolved
+
+### Autopilot flag — PLAYER.DAT offset 0x6d
+
+Controlled black-box experiment on `original/v1.5`:
+
+- clearing `PLAYER.DAT[0x6d] = 0` (player 1) eliminated all army and battery
+  growth on Dust Bowl across an ECMAINT run
+- with `PLAYER.DAT[0x6d] = 1` (original state), ECMAINT builds planetary
+  defenses on autopilot (armies +19, batteries +1 in that run)
+- confirmed: **`PLAYER.DAT` offset `0x6d` is the autopilot flag**
+  (1 = on, 0 = off); matches player docs: "mostly building your planetary
+  defenses"
+- `PLAYER.DAT` offset `0x00` is the player active/present flag
+  (1 = joined player, 0 = unjoined slot)
+
+### `raw[0x0E]` isolated behavior
+
+Without autopilot, `raw[0x0E]` on an owned planet decrements by 1 per tick.
+With autopilot on, it reflects autopilot production spending. Not yet fully
+decoded, but it is not the empire-wide tax rate (that is PLAYER.DAT[0x51]).
+
+### Factory growth behavior
+
+With a positive player tax rate, current_production (the factories Real at
+`raw[0x04..0x0A]`) doubles approximately every 2–3 ticks, with `raw[0x0E]`
+acting as an accumulator that resets near 3–4 after each doubling. The exact
+accumulator rule is not yet decoded. Current_production can exceed `potential`
+during growth.
+
+### Economy tick: unjoined homeworld seeds are stable
+
+Canonical baseline (tax=0, unjoined players) → zero PLANETS.DAT changes under
+ECMAINT, regardless of army/battery/factories values. Tax=0 means no
+production points, so no factory growth and no autopilot spending.
+
+---
+
 ## Current State
 
 What is strong:

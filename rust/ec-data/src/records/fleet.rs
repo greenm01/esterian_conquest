@@ -96,7 +96,11 @@ impl FleetStandingOrderKind {
 }
 
 impl FleetRecord {
-    pub fn new_zeroed() -> Self { Self { raw: [0; FLEET_RECORD_SIZE] } }
+    pub fn new_zeroed() -> Self {
+        Self {
+            raw: [0; FLEET_RECORD_SIZE],
+        }
+    }
 
     pub fn local_slot_word_raw(&self) -> u16 {
         u16::from_le_bytes([self.raw[0x00], self.raw[0x01]])
@@ -104,61 +108,105 @@ impl FleetRecord {
     pub fn set_local_slot_word_raw(&mut self, value: u16) {
         self.raw[0x00..0x02].copy_from_slice(&value.to_le_bytes());
     }
-    pub fn local_slot(&self) -> u8 { self.raw[0x00] }
-    pub fn owner_empire_raw(&self) -> u8 { self.raw[0x02] }
-    pub fn set_owner_empire_raw(&mut self, value: u8) { self.raw[0x02] = value; }
+    pub fn local_slot(&self) -> u8 {
+        self.raw[0x00]
+    }
+    pub fn owner_empire_raw(&self) -> u8 {
+        self.raw[0x02]
+    }
+    pub fn set_owner_empire_raw(&mut self, value: u8) {
+        self.raw[0x02] = value;
+    }
     pub fn next_fleet_link_word_raw(&self) -> u16 {
         u16::from_le_bytes([self.raw[0x03], self.raw[0x04]])
     }
     pub fn set_next_fleet_link_word_raw(&mut self, value: u16) {
         self.raw[0x03..0x05].copy_from_slice(&value.to_le_bytes());
     }
-    pub fn next_fleet_id(&self) -> u8 { self.raw[0x03] }
+    pub fn next_fleet_id(&self) -> u8 {
+        self.raw[0x03]
+    }
     pub fn fleet_id_word_raw(&self) -> u16 {
         u16::from_le_bytes([self.raw[0x05], self.raw[0x06]])
     }
     pub fn set_fleet_id_word_raw(&mut self, value: u16) {
         self.raw[0x05..0x07].copy_from_slice(&value.to_le_bytes());
     }
-    pub fn fleet_id(&self) -> u8 { self.raw[0x05] }
-    pub fn previous_fleet_id(&self) -> u8 { self.raw[0x07] }
-    pub fn set_previous_fleet_id(&mut self, value: u8) { self.raw[0x07] = value; }
-    pub fn max_speed(&self) -> u8 { self.raw[0x09] }
-    pub fn set_max_speed(&mut self, value: u8) { self.raw[0x09] = value; }
-    pub fn current_speed(&self) -> u8 { self.raw[0x0A] }
-    pub fn set_current_speed(&mut self, value: u8) { self.raw[0x0A] = value; }
-    pub fn current_location_coords_raw(&self) -> [u8; 2] { [self.raw[0x0B], self.raw[0x0C]] }
+    pub fn fleet_id(&self) -> u8 {
+        self.raw[0x05]
+    }
+    pub fn previous_fleet_id(&self) -> u8 {
+        self.raw[0x07]
+    }
+    pub fn set_previous_fleet_id(&mut self, value: u8) {
+        self.raw[0x07] = value;
+    }
+    pub fn max_speed(&self) -> u8 {
+        self.raw[0x09]
+    }
+    pub fn set_max_speed(&mut self, value: u8) {
+        self.raw[0x09] = value;
+    }
+    pub fn current_speed(&self) -> u8 {
+        self.raw[0x0A]
+    }
+    pub fn set_current_speed(&mut self, value: u8) {
+        self.raw[0x0A] = value;
+    }
+    pub fn current_location_coords_raw(&self) -> [u8; 2] {
+        [self.raw[0x0B], self.raw[0x0C]]
+    }
     pub fn set_current_location_coords_raw(&mut self, coords: [u8; 2]) {
         self.raw[0x0B] = coords[0];
         self.raw[0x0C] = coords[1];
     }
-    pub fn mission_param_bytes(&self) -> &[u8] { &self.raw[0x1F..=0x21] }
-    pub fn standing_order_code_raw(&self) -> u8 { self.raw[0x1F] }
-    pub fn set_standing_order_code_raw(&mut self, value: u8) { self.raw[0x1F] = value; }
+    pub fn mission_param_bytes(&self) -> &[u8] {
+        &self.raw[0x1F..=0x21]
+    }
+    pub fn standing_order_code_raw(&self) -> u8 {
+        self.raw[0x1F]
+    }
+    pub fn set_standing_order_code_raw(&mut self, value: u8) {
+        self.raw[0x1F] = value;
+    }
     pub fn standing_order_kind(&self) -> FleetStandingOrderKind {
         FleetStandingOrderKind::from_raw(self.standing_order_code_raw())
     }
-    pub fn standing_order_target_coords_raw(&self) -> [u8; 2] { [self.raw[0x20], self.raw[0x21]] }
+    pub fn standing_order_target_coords_raw(&self) -> [u8; 2] {
+        [self.raw[0x20], self.raw[0x21]]
+    }
     pub fn set_standing_order_target_coords_raw(&mut self, coords: [u8; 2]) {
         self.raw[0x20] = coords[0];
         self.raw[0x21] = coords[1];
     }
-    pub fn mission_aux_bytes(&self) -> [u8; 2] { [self.raw[0x22], self.raw[0x23]] }
-    pub fn guard_starbase_index_raw(&self) -> u8 { self.raw[0x22] }
-    pub fn guard_starbase_enable_raw(&self) -> u8 { self.raw[0x23] }
+    pub fn mission_aux_bytes(&self) -> [u8; 2] {
+        [self.raw[0x22], self.raw[0x23]]
+    }
+    pub fn guard_starbase_index_raw(&self) -> u8 {
+        self.raw[0x22]
+    }
+    pub fn guard_starbase_enable_raw(&self) -> u8 {
+        self.raw[0x23]
+    }
     pub fn set_mission_aux_bytes(&mut self, value: [u8; 2]) {
         self.raw[0x22] = value[0];
         self.raw[0x23] = value[1];
     }
-    pub fn tuple_a_payload_raw(&self) -> [u8; 5] { copy_array(&self.raw[0x0D..0x12]) }
+    pub fn tuple_a_payload_raw(&self) -> [u8; 5] {
+        copy_array(&self.raw[0x0D..0x12])
+    }
     pub fn set_tuple_a_payload_raw(&mut self, payload: [u8; 5]) {
         self.raw[0x0D..0x12].copy_from_slice(&payload);
     }
-    pub fn tuple_b_payload_raw(&self) -> [u8; 5] { copy_array(&self.raw[0x13..0x18]) }
+    pub fn tuple_b_payload_raw(&self) -> [u8; 5] {
+        copy_array(&self.raw[0x13..0x18])
+    }
     pub fn set_tuple_b_payload_raw(&mut self, payload: [u8; 5]) {
         self.raw[0x13..0x18].copy_from_slice(&payload);
     }
-    pub fn tuple_c_payload_raw(&self) -> [u8; 5] { copy_array(&self.raw[0x19..0x1E]) }
+    pub fn tuple_c_payload_raw(&self) -> [u8; 5] {
+        copy_array(&self.raw[0x19..0x1E])
+    }
     pub fn set_tuple_c_payload_raw(&mut self, payload: [u8; 5]) {
         self.raw[0x19..0x1E].copy_from_slice(&payload);
     }
@@ -171,7 +219,9 @@ impl FleetRecord {
             FleetStandingOrderKind::SeekHome => "Seek home".to_string(),
             FleetStandingOrderKind::PatrolSector => format!("Patrol Sector ({x},{y})"),
             FleetStandingOrderKind::GuardStarbase => format!("Guard starbase at Sector ({x},{y})"),
-            FleetStandingOrderKind::GuardBlockadeWorld => format!("Guard/blockade world in System ({x},{y})"),
+            FleetStandingOrderKind::GuardBlockadeWorld => {
+                format!("Guard/blockade world in System ({x},{y})")
+            }
             FleetStandingOrderKind::BombardWorld => format!("Bombard world in System ({x},{y})"),
             FleetStandingOrderKind::InvadeWorld => format!("Invade world in System ({x},{y})"),
             FleetStandingOrderKind::BlitzWorld => format!("Blitz world in System ({x},{y})"),
@@ -179,38 +229,62 @@ impl FleetRecord {
             FleetStandingOrderKind::ScoutSector => format!("Scout Sector ({x},{y})"),
             FleetStandingOrderKind::ScoutSolarSystem => format!("Scout solar system ({x},{y})"),
             FleetStandingOrderKind::ColonizeWorld => format!("Colonize world in System ({x},{y})"),
-            FleetStandingOrderKind::JoinAnotherFleet => format!("Join another fleet at raw target ({x},{y})"),
+            FleetStandingOrderKind::JoinAnotherFleet => {
+                format!("Join another fleet at raw target ({x},{y})")
+            }
             FleetStandingOrderKind::RendezvousSector => format!("Rendezvous at Sector ({x},{y})"),
             FleetStandingOrderKind::Salvage => format!("Salvage at Sector ({x},{y})"),
-            FleetStandingOrderKind::Unknown(code) => format!("Unknown order {code} target ({x},{y})"),
+            FleetStandingOrderKind::Unknown(code) => {
+                format!("Unknown order {code} target ({x},{y})")
+            }
         }
     }
 
-    pub fn scout_count(&self) -> u8 { self.raw[0x24] }
-    pub fn set_scout_count(&mut self, value: u8) { self.raw[0x24] = value; }
-    pub fn rules_of_engagement(&self) -> u8 { self.raw[0x25] }
-    pub fn set_rules_of_engagement(&mut self, value: u8) { self.raw[0x25] = value; }
-    pub fn battleship_count(&self) -> u16 { u16::from_le_bytes([self.raw[0x26], self.raw[0x27]]) }
+    pub fn scout_count(&self) -> u8 {
+        self.raw[0x24]
+    }
+    pub fn set_scout_count(&mut self, value: u8) {
+        self.raw[0x24] = value;
+    }
+    pub fn rules_of_engagement(&self) -> u8 {
+        self.raw[0x25]
+    }
+    pub fn set_rules_of_engagement(&mut self, value: u8) {
+        self.raw[0x25] = value;
+    }
+    pub fn battleship_count(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x26], self.raw[0x27]])
+    }
     pub fn set_battleship_count(&mut self, value: u16) {
         self.raw[0x26..0x28].copy_from_slice(&value.to_le_bytes());
     }
-    pub fn cruiser_count(&self) -> u16 { u16::from_le_bytes([self.raw[0x28], self.raw[0x29]]) }
+    pub fn cruiser_count(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x28], self.raw[0x29]])
+    }
     pub fn set_cruiser_count(&mut self, value: u16) {
         self.raw[0x28..0x2A].copy_from_slice(&value.to_le_bytes());
     }
-    pub fn destroyer_count(&self) -> u16 { u16::from_le_bytes([self.raw[0x2A], self.raw[0x2B]]) }
+    pub fn destroyer_count(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x2A], self.raw[0x2B]])
+    }
     pub fn set_destroyer_count(&mut self, value: u16) {
         self.raw[0x2A..0x2C].copy_from_slice(&value.to_le_bytes());
     }
-    pub fn troop_transport_count(&self) -> u16 { u16::from_le_bytes([self.raw[0x2C], self.raw[0x2D]]) }
+    pub fn troop_transport_count(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x2C], self.raw[0x2D]])
+    }
     pub fn set_troop_transport_count(&mut self, value: u16) {
         self.raw[0x2C..0x2E].copy_from_slice(&value.to_le_bytes());
     }
-    pub fn army_count(&self) -> u16 { u16::from_le_bytes([self.raw[0x2E], self.raw[0x2F]]) }
+    pub fn army_count(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x2E], self.raw[0x2F]])
+    }
     pub fn set_army_count(&mut self, value: u16) {
         self.raw[0x2E..0x30].copy_from_slice(&value.to_le_bytes());
     }
-    pub fn etac_count(&self) -> u16 { u16::from_le_bytes([self.raw[0x30], self.raw[0x31]]) }
+    pub fn etac_count(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x30], self.raw[0x31]])
+    }
     pub fn set_etac_count(&mut self, value: u16) {
         self.raw[0x30..0x32].copy_from_slice(&value.to_le_bytes());
     }
@@ -229,7 +303,11 @@ impl FleetRecord {
         .filter_map(|(label, count)| (count > 0).then(|| format!("{label}={count}")))
         .collect::<Vec<_>>();
 
-        if parts.is_empty() { "none".to_string() } else { parts.join(" ") }
+        if parts.is_empty() {
+            "none".to_string()
+        } else {
+            parts.join(" ")
+        }
     }
 }
 
@@ -250,12 +328,17 @@ impl FleetDat {
         Ok(Self {
             records: data
                 .chunks_exact(FLEET_RECORD_SIZE)
-                .map(|chunk| FleetRecord { raw: copy_array(chunk) })
+                .map(|chunk| FleetRecord {
+                    raw: copy_array(chunk),
+                })
                 .collect(),
         })
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        self.records.iter().flat_map(|record| record.raw).collect::<Vec<_>>()
+        self.records
+            .iter()
+            .flat_map(|record| record.raw)
+            .collect::<Vec<_>>()
     }
 }

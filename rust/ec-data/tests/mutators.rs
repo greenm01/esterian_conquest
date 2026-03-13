@@ -33,9 +33,9 @@ fn base_record_setters_can_recreate_known_valid_guard_starbase_record() {
     assert_eq!(
         record.raw,
         [
-            0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x10, 0x0D,
-            0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x81,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x0D, 0x01,
+            0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x10, 0x0D, 0x80,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x81, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x10, 0x0D, 0x01,
         ]
     );
 }
@@ -71,7 +71,9 @@ fn fleet_owner_empire_accessor_round_trips() {
 
 #[test]
 fn ipbm_record_setters_round_trip_structural_prefix_fields() {
-    let mut record = IpbmRecord { raw: [0u8; IPBM_RECORD_SIZE] };
+    let mut record = IpbmRecord {
+        raw: [0u8; IPBM_RECORD_SIZE],
+    };
     record.set_primary_word_raw(0x1234);
     record.set_owner_empire_raw(0x02);
     record.set_gate_word_raw(0x4567);
@@ -85,7 +87,9 @@ fn ipbm_record_setters_round_trip_structural_prefix_fields() {
 
 #[test]
 fn ipbm_record_setters_round_trip_structural_payload_groups() {
-    let mut record = IpbmRecord { raw: [0u8; IPBM_RECORD_SIZE] };
+    let mut record = IpbmRecord {
+        raw: [0u8; IPBM_RECORD_SIZE],
+    };
     record.set_tuple_a_tag_raw(0x11);
     record.set_tuple_b_tag_raw(0x22);
     record.set_tuple_a_payload_raw([1, 2, 3, 4, 5]);
@@ -161,7 +165,9 @@ fn can_set_purge_after_turns_raw() {
 
 #[test]
 fn planet_status_prefix_setter_preserves_hidden_tail_bytes() {
-    let mut record = PlanetRecord { raw: [0u8; PLANET_RECORD_SIZE] };
+    let mut record = PlanetRecord {
+        raw: [0u8; PLANET_RECORD_SIZE],
+    };
     record.raw[0x17..0x1D].copy_from_slice(&[1, 2, 3, 4, 5, 6]);
 
     record.set_status_or_name_prefix_raw("Unowned");
@@ -188,29 +194,44 @@ fn core_game_data_current_known_count_helpers_follow_player1_and_records() {
         },
         ipbm: IpbmDat {
             records: vec![
-                IpbmRecord { raw: [0u8; IPBM_RECORD_SIZE] },
-                IpbmRecord { raw: [0u8; IPBM_RECORD_SIZE] },
-                IpbmRecord { raw: [0u8; IPBM_RECORD_SIZE] },
+                IpbmRecord {
+                    raw: [0u8; IPBM_RECORD_SIZE],
+                },
+                IpbmRecord {
+                    raw: [0u8; IPBM_RECORD_SIZE],
+                },
+                IpbmRecord {
+                    raw: [0u8; IPBM_RECORD_SIZE],
+                },
             ],
         },
         setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
         conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
     };
     assert_eq!(data.player1_starbase_count_current_known(), 0);
-    assert_eq!(data.player_owned_planet_counts_current_known(), vec![1, 1, 1, 1, 0]);
+    assert_eq!(
+        data.player_owned_planet_counts_current_known(),
+        vec![1, 1, 1, 1]
+    );
     assert_eq!(
         data.player_homeworld_seed_coords_current_known(),
         vec![Some([16, 13]), Some([4, 13]), Some([6, 5]), Some([13, 5])]
     );
     assert_eq!(data.player1_owned_base_record_count_current_known(), 2);
-    assert_eq!(data.player_owned_base_record_counts_current_known(), vec![2, 1, 0, 0, 0]);
+    assert_eq!(
+        data.player_owned_base_record_counts_current_known(),
+        vec![2, 1, 0, 0]
+    );
     assert_eq!(data.player1_ipbm_count_current_known(), 0);
     let initial_errors = data.current_known_core_state_errors();
     assert_eq!(initial_errors.len(), 4);
-    assert!(initial_errors.contains(&"PLAYER[1]-owned BASES.DAT record count expected 0, got 2".to_string()));
+    assert!(initial_errors
+        .contains(&"PLAYER[1]-owned BASES.DAT record count expected 0, got 2".to_string()));
     assert!(initial_errors.contains(&"IPBM.DAT record count expected 0, got 3".to_string()));
-    assert!(initial_errors.contains(&"BASES.DAT expected empty auxiliary baseline, got 3 records".to_string()));
-    assert!(initial_errors.contains(&"IPBM.DAT expected empty auxiliary baseline, got 3 records".to_string()));
+    assert!(initial_errors
+        .contains(&"BASES.DAT expected empty auxiliary baseline, got 3 records".to_string()));
+    assert!(initial_errors
+        .contains(&"IPBM.DAT expected empty auxiliary baseline, got 3 records".to_string()));
 
     let player2_starbase_before = data.player.records[1].starbase_count_raw();
     let player3_starbase_before = data.player.records[2].starbase_count_raw();
@@ -218,14 +239,29 @@ fn core_game_data_current_known_count_helpers_follow_player1_and_records() {
     data.sync_player1_current_known_counts();
 
     assert_eq!(data.player.records[0].starbase_count_raw(), 2);
-    assert_eq!(data.player.records[1].starbase_count_raw(), player2_starbase_before);
-    assert_eq!(data.player.records[2].starbase_count_raw(), player3_starbase_before);
-    assert_eq!(data.player.records[3].starbase_count_raw(), player4_starbase_before);
+    assert_eq!(
+        data.player.records[1].starbase_count_raw(),
+        player2_starbase_before
+    );
+    assert_eq!(
+        data.player.records[2].starbase_count_raw(),
+        player3_starbase_before
+    );
+    assert_eq!(
+        data.player.records[3].starbase_count_raw(),
+        player4_starbase_before
+    );
     assert_eq!(data.player.records[0].ipbm_count_raw(), 3);
     assert_eq!(data.player1_starbase_count_current_known(), 2);
-    assert_eq!(data.player_owned_planet_counts_current_known(), vec![1, 1, 1, 1, 0]);
+    assert_eq!(
+        data.player_owned_planet_counts_current_known(),
+        vec![1, 1, 1, 1]
+    );
     assert_eq!(data.player1_owned_base_record_count_current_known(), 2);
-    assert_eq!(data.player_owned_base_record_counts_current_known(), vec![2, 1, 0, 0, 0]);
+    assert_eq!(
+        data.player_owned_base_record_counts_current_known(),
+        vec![2, 1, 0, 0]
+    );
     assert_eq!(data.player1_ipbm_count_current_known(), 3);
     let post_sync_errors = data.current_known_core_state_errors();
     assert_eq!(
@@ -307,16 +343,33 @@ fn core_game_data_initialized_fleet_block_helpers_match_known_fixtures() {
     };
 
     assert!(data.looks_like_initialized_fleet_blocks_current_known());
-    assert_eq!(data.current_known_initialized_fleet_block_head_ids(), vec![1, 5, 9, 13]);
-    assert!(data.current_known_initialized_fleet_block_errors().is_empty());
-    assert!(data.current_known_initialized_fleet_payload_errors().is_empty());
-    assert!(data.current_known_initialized_fleet_mission_errors().is_empty());
+    assert_eq!(
+        data.current_known_initialized_fleet_block_head_ids(),
+        vec![1, 5, 9, 13]
+    );
+    assert!(data
+        .current_known_initialized_fleet_block_errors()
+        .is_empty());
+    assert!(data
+        .current_known_initialized_fleet_payload_errors()
+        .is_empty());
+    assert!(data
+        .current_known_initialized_fleet_mission_errors()
+        .is_empty());
     assert!(data.current_known_homeworld_seed_errors().is_empty());
-    assert!(data.current_known_initialized_planet_ownership_errors().is_empty());
-    assert!(data.current_known_homeworld_seed_payload_errors().is_empty());
-    assert!(data.current_known_unowned_planet_payload_errors().is_empty());
+    assert!(data
+        .current_known_initialized_planet_ownership_errors()
+        .is_empty());
+    assert!(data
+        .current_known_homeworld_seed_payload_errors()
+        .is_empty());
+    assert!(data
+        .current_known_unowned_planet_payload_errors()
+        .is_empty());
     assert!(data.current_known_empty_auxiliary_state_errors().is_empty());
-    assert!(data.current_known_initialized_homeworld_alignment_errors().is_empty());
+    assert!(data
+        .current_known_initialized_homeworld_alignment_errors()
+        .is_empty());
     assert!(data.current_known_setup_baseline_errors().is_empty());
     assert!(data.current_known_conquest_baseline_errors().is_empty());
 }
@@ -377,7 +430,9 @@ fn core_game_data_initialized_fleet_payload_errors_catch_missing_tuple_markers()
 
     assert_eq!(
         data.current_known_initialized_fleet_payload_errors(),
-        vec!["FLEET[1].tuple_a_payload expected [128, 0, 0, 0, 0], got [0, 0, 0, 0, 0]".to_string()]
+        vec![
+            "FLEET[1].tuple_a_payload expected [128, 0, 0, 0, 0], got [0, 0, 0, 0, 0]".to_string()
+        ]
     );
 }
 
@@ -417,7 +472,9 @@ fn core_game_data_initialized_fleet_mission_errors_catch_wrong_aux_bytes() {
 
     assert_eq!(
         data.current_known_initialized_fleet_mission_errors(),
-        vec!["FLEET[1].mission_aux expected [1, 0] for initialized baseline, got [0, 1]".to_string()]
+        vec![
+            "FLEET[1].mission_aux expected [1, 0] for initialized baseline, got [0, 1]".to_string()
+        ]
     );
 }
 
@@ -507,7 +564,7 @@ fn core_game_data_homeworld_seed_payload_errors_catch_changed_army_marker() {
 
     assert_eq!(
         data.current_known_homeworld_seed_payload_errors(),
-        vec!["PLANET[15].likely_army_count expected 4 for homeworld seed, got 1".to_string()]
+        vec!["PLANET[15].ground_batteries_raw expected 4 for homeworld seed, got 1".to_string()]
     );
 }
 
@@ -547,7 +604,7 @@ fn core_game_data_unowned_planet_payload_errors_catch_owned_marker() {
 
     assert_eq!(
         data.current_known_unowned_planet_payload_errors(),
-        vec!["PLANET[1].likely_army_count expected 0 for unowned baseline, got 1".to_string()]
+        vec!["PLANET[1].ground_batteries_raw expected 0 for unowned baseline, got 1".to_string()]
     );
 }
 
@@ -640,8 +697,14 @@ fn core_game_data_sync_current_known_baseline_controls_and_counts_repairs_mutate
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
         planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
         fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
-        bases: BaseDat { records: vec![base1] },
-        ipbm: IpbmDat { records: vec![IpbmRecord { raw: [0u8; IPBM_RECORD_SIZE] }] },
+        bases: BaseDat {
+            records: vec![base1],
+        },
+        ipbm: IpbmDat {
+            records: vec![IpbmRecord {
+                raw: [0u8; IPBM_RECORD_SIZE],
+            }],
+        },
         setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
         conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
     };
@@ -680,9 +743,15 @@ fn core_game_data_sync_current_known_initialized_fleet_baseline_repairs_mutated_
     data.sync_current_known_initialized_fleet_baseline();
 
     assert!(data.looks_like_initialized_fleet_blocks_current_known());
-    assert!(data.current_known_initialized_fleet_payload_errors().is_empty());
-    assert!(data.current_known_initialized_fleet_mission_errors().is_empty());
-    assert!(data.current_known_initialized_homeworld_alignment_errors().is_empty());
+    assert!(data
+        .current_known_initialized_fleet_payload_errors()
+        .is_empty());
+    assert!(data
+        .current_known_initialized_fleet_mission_errors()
+        .is_empty());
+    assert!(data
+        .current_known_initialized_homeworld_alignment_errors()
+        .is_empty());
 }
 
 #[test]
@@ -699,12 +768,16 @@ fn core_game_data_sync_current_known_initialized_planet_payloads_repairs_mutated
 
     data.planets.records[14].set_planet_tax_rate_raw(3);
     data.planets.records[0].set_status_or_name_summary_raw("Broken");
-    data.planets.records[0].set_likely_army_count_raw(9);
+    data.planets.records[0].set_army_count_raw(9);
 
     data.sync_current_known_initialized_planet_payloads();
 
-    assert!(data.current_known_homeworld_seed_payload_errors().is_empty());
-    assert!(data.current_known_unowned_planet_payload_errors().is_empty());
+    assert!(data
+        .current_known_homeworld_seed_payload_errors()
+        .is_empty());
+    assert!(data
+        .current_known_unowned_planet_payload_errors()
+        .is_empty());
 }
 
 #[test]
@@ -723,7 +796,9 @@ fn core_game_data_sync_current_known_initialized_post_maint_baseline_repairs_com
     data.player.records[0].set_ipbm_count_raw(4);
     data.setup.raw[..5].copy_from_slice(b"BAD!!");
     data.bases.records.push(BaseRecord::new_zeroed());
-    data.ipbm.records.push(IpbmRecord { raw: [0u8; IPBM_RECORD_SIZE] });
+    data.ipbm.records.push(IpbmRecord {
+        raw: [0u8; IPBM_RECORD_SIZE],
+    });
     data.fleets.records.clear();
     data.fleets.records.push(FleetRecord::new_zeroed());
     data.planets.records[14].set_planet_tax_rate_raw(3);
@@ -733,12 +808,24 @@ fn core_game_data_sync_current_known_initialized_post_maint_baseline_repairs_com
 
     assert!(data.current_known_setup_baseline_errors().is_empty());
     assert!(data.current_known_conquest_baseline_errors().is_empty());
-    assert!(data.current_known_initialized_fleet_block_errors().is_empty());
-    assert!(data.current_known_initialized_fleet_payload_errors().is_empty());
-    assert!(data.current_known_initialized_fleet_mission_errors().is_empty());
-    assert!(data.current_known_initialized_homeworld_alignment_errors().is_empty());
-    assert!(data.current_known_homeworld_seed_payload_errors().is_empty());
-    assert!(data.current_known_unowned_planet_payload_errors().is_empty());
+    assert!(data
+        .current_known_initialized_fleet_block_errors()
+        .is_empty());
+    assert!(data
+        .current_known_initialized_fleet_payload_errors()
+        .is_empty());
+    assert!(data
+        .current_known_initialized_fleet_mission_errors()
+        .is_empty());
+    assert!(data
+        .current_known_initialized_homeworld_alignment_errors()
+        .is_empty());
+    assert!(data
+        .current_known_homeworld_seed_payload_errors()
+        .is_empty());
+    assert!(data
+        .current_known_unowned_planet_payload_errors()
+        .is_empty());
     assert!(data.current_known_empty_auxiliary_state_errors().is_empty());
 }
 
@@ -766,10 +853,9 @@ fn core_game_data_sync_current_known_initialized_post_maint_baseline_matches_can
         conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
     };
 
-    assert!(
-        data.exact_match_errors_against(&canonical, "canonical post-maint fixture")
-            .is_empty()
-    );
+    assert!(data
+        .exact_match_errors_against(&canonical, "canonical post-maint fixture")
+        .is_empty());
 }
 
 #[test]
@@ -801,8 +887,12 @@ fn core_game_data_current_known_baseline_diff_counts_detect_mutated_files() {
     data.planets.records[14].set_planet_tax_rate_raw(3);
 
     let diffs = data.current_known_baseline_diff_counts();
-    assert!(diffs.iter().any(|diff| diff.name == "SETUP.DAT" && diff.differing_bytes > clean_setup));
-    assert!(diffs.iter().any(|diff| diff.name == "PLANETS.DAT" && diff.differing_bytes > clean_planets));
+    assert!(diffs
+        .iter()
+        .any(|diff| diff.name == "SETUP.DAT" && diff.differing_bytes > clean_setup));
+    assert!(diffs
+        .iter()
+        .any(|diff| diff.name == "PLANETS.DAT" && diff.differing_bytes > clean_planets));
 }
 
 #[test]
@@ -894,7 +984,10 @@ fn core_game_data_can_apply_current_known_scenario_mutations() {
         .unwrap();
     assert_eq!(data.fleets.records[0].current_speed(), 0x03);
     assert_eq!(data.fleets.records[0].standing_order_code_raw(), 0x0C);
-    assert_eq!(data.fleets.records[0].standing_order_target_coords_raw(), [0x0F, 0x0D]);
+    assert_eq!(
+        data.fleets.records[0].standing_order_target_coords_raw(),
+        [0x0F, 0x0D]
+    );
     assert_eq!(aux, data.fleets.records[0].mission_aux_bytes());
 
     data.set_planet_build(15, 0x03, 0x01).unwrap();
@@ -904,11 +997,20 @@ fn core_game_data_can_apply_current_known_scenario_mutations() {
     data.set_guard_starbase_onebase([0x10, 0x0D]).unwrap();
     assert_eq!(data.player.records[0].starbase_count_raw(), 1);
     assert_eq!(data.fleets.records[0].standing_order_code_raw(), 0x04);
-    assert_eq!(data.fleets.records[0].standing_order_target_coords_raw(), [0x10, 0x0D]);
+    assert_eq!(
+        data.fleets.records[0].standing_order_target_coords_raw(),
+        [0x10, 0x0D]
+    );
     assert_eq!(data.fleets.records[0].mission_aux_bytes(), [0x01, 0x01]);
     assert_eq!(data.bases.records.len(), 1);
-    assert_eq!(data.bases.records[0].summary_word_raw(), data.fleets.records[0].local_slot_word_raw());
-    assert_eq!(data.bases.records[0].chain_word_raw(), data.fleets.records[0].fleet_id_word_raw());
+    assert_eq!(
+        data.bases.records[0].summary_word_raw(),
+        data.fleets.records[0].local_slot_word_raw()
+    );
+    assert_eq!(
+        data.bases.records[0].chain_word_raw(),
+        data.fleets.records[0].fleet_id_word_raw()
+    );
     assert_eq!(data.bases.records[0].coords_raw(), [0x10, 0x0D]);
 
     data.set_ipbm_zero_records(2);
@@ -962,7 +1064,9 @@ fn core_game_data_current_known_validation_helpers_match_known_fixtures() {
         setup: SetupDat::parse(&read_ecmaint_starbase_pre_fixture("SETUP.DAT")).unwrap(),
         conquest: ConquestDat::parse(&read_ecmaint_starbase_pre_fixture("CONQUEST.DAT")).unwrap(),
     };
-    assert!(starbase_data.guard_starbase_onebase_errors_current_known().is_empty());
+    assert!(starbase_data
+        .guard_starbase_onebase_errors_current_known()
+        .is_empty());
     assert_eq!(
         starbase_data.current_known_compliance_status(),
         CurrentKnownComplianceStatus {
@@ -990,7 +1094,9 @@ fn core_game_data_current_known_validation_helpers_match_known_fixtures() {
         }
     );
     assert_eq!(
-        starbase_data.guard_starbase_linkage_summary_current_known(1, 1).unwrap(),
+        starbase_data
+            .guard_starbase_linkage_summary_current_known(1, 1)
+            .unwrap(),
         CurrentKnownGuardStarbaseLinkageSummary {
             player_record_index_1_based: 1,
             fleet_record_index_1_based: 1,
@@ -1036,7 +1142,9 @@ fn core_game_data_current_known_validation_helpers_match_known_fixtures() {
         setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
         conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
     };
-    assert!(post_data.ipbm_count_length_errors_current_known().is_empty());
+    assert!(post_data
+        .ipbm_count_length_errors_current_known()
+        .is_empty());
     assert!(post_data
         .guarding_fleet_record_indexes_current_known()
         .is_empty());

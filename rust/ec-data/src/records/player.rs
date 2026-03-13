@@ -16,7 +16,7 @@ impl PlayerRecord {
     }
 
     pub fn handle_bytes(&self) -> &[u8] {
-        &self.raw[1..=0x1A]
+        &self.raw[1..0x1A]
     }
 
     pub fn empire_name_bytes(&self) -> &[u8] {
@@ -24,7 +24,7 @@ impl PlayerRecord {
     }
 
     pub fn assigned_player_flag_raw(&self) -> u8 {
-        self.raw[22]
+        self.raw[0]
     }
 
     pub fn legacy_status_name_max_len_raw(&self) -> u8 {
@@ -42,17 +42,17 @@ impl PlayerRecord {
     }
 
     pub fn assigned_player_handle_summary(&self) -> String {
-        trim_ascii_field(&self.raw[23..48])
+        trim_ascii_field(self.handle_bytes())
     }
 
     pub fn controlled_empire_name_len_raw(&self) -> u8 {
-        self.raw[49]
+        self.raw[27]
     }
 
     pub fn controlled_empire_name_summary(&self) -> String {
         let len = self.controlled_empire_name_len_raw() as usize;
-        let end = (50 + len).min(self.raw.len());
-        trim_ascii_field(&self.raw[50..end])
+        let end = (28 + len).min(self.raw.len());
+        trim_ascii_field(&self.raw[28..end])
     }
 
     pub fn ownership_summary(&self) -> String {
@@ -103,12 +103,36 @@ impl PlayerRecord {
         self.raw[0x49] = hi;
     }
 
-    pub fn last_run_year(&self) -> u16 {
+    /// Accumulated production points available to spend this round.
+    /// Confirmed from original/v1.5 player 1 state (value=3022, tax=65).
+    /// Previously misnamed `last_run_year`.
+    pub fn stored_production_pts_raw(&self) -> u16 {
         u16::from_le_bytes([self.raw[0x4E], self.raw[0x4F]])
     }
 
-    pub fn treasury(&self) -> u32 {
-        u32::from_le_bytes([self.raw[0x52], self.raw[0x53], self.raw[0x54], self.raw[0x55]])
+    /// Unknown u32 at 0x52. Observed as 100 in both the canonical baseline
+    /// and original/v1.5 regardless of player state. Likely a percentage cap
+    /// or production efficiency constant, not a treasury. Do not treat as
+    /// confirmed until further RE.
+    pub fn unknown_0x52_raw(&self) -> u32 {
+        u32::from_le_bytes([
+            self.raw[0x52],
+            self.raw[0x53],
+            self.raw[0x54],
+            self.raw[0x55],
+        ])
+    }
+
+    /// Autopilot flag. 1 = autopilot on (computer manages empire, mostly
+    /// builds planetary defenses). 0 = human player submitting orders.
+    /// Confirmed by black-box experiment: clearing this byte eliminates
+    /// all autopilot-driven army/battery growth in ECMAINT.
+    pub fn autopilot_flag(&self) -> u8 {
+        self.raw[0x6D]
+    }
+
+    pub fn set_autopilot_flag(&mut self, value: u8) {
+        self.raw[0x6D] = value;
     }
 }
 
