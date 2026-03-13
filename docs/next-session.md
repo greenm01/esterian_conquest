@@ -103,7 +103,12 @@ Priority order:
 
 2. Recover initialized-to-post-maint deterministic rules
    - the clean preserved initialized fixture is now fully covered
-   - next target is the noisier shipped sample in `original/v1.5`
+   - after current-known normalization, the noisier shipped sample in
+     `original/v1.5` now only differs from the canonical post-maint core
+     baseline in:
+     - `PLAYER.DAT`
+     - `PLANETS.DAT`
+     - `FLEETS.DAT`
    - use canonical post-maint diff output from normalized `original/v1.5`
    - promote only clearly reusable transition clusters into shared Rust rules
 
@@ -125,11 +130,16 @@ Best immediate task:
   directory
 - cluster the remaining deterministic byte deltas by file and field family
 - promote only the clearly reusable transition rules into `CoreGameData`
+- use:
+  - `cargo run -q -p ec-cli -- core-init-current-known-baseline original/v1.5 /tmp/ec-from-original`
+  - `cargo run -q -p ec-cli -- core-report-canonical-transition-clusters /tmp/ec-from-original`
+  to get a per-record queue for `PLAYER.DAT`, `PLANETS.DAT`, and `FLEETS.DAT`
 
 Recommended order:
 
-1. `CONQUEST.DAT`
-   - explain the remaining initialized-to-post-maint schedule/year drift first
+1. `FLEETS.DAT`
+   - remaining drift is now narrowly clustered on record offsets
+     `11/12` and `32/33`
 2. `PLANETS.DAT`
    - explain the remaining repeated economy/homeworld payload clusters
 3. `PLAYER.DAT`

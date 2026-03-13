@@ -230,6 +230,35 @@ fn core_init_current_known_baseline_accepts_original_source_snapshot() {
 }
 
 #[test]
+fn core_report_canonical_transition_clusters_groups_original_sample_drift() {
+    let target = unique_temp_dir("ec-cli-core-transition-clusters-original");
+
+    run_ec_cli_in_dir(
+        &[
+            "core-init-current-known-baseline",
+            "original/v1.5",
+            target.to_str().unwrap(),
+        ],
+        common::repo_root(),
+    );
+
+    let stdout = run_ec_cli_in_dir(
+        &["core-report-canonical-transition-clusters", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Canonical Transition Clusters"));
+    assert!(stdout.contains("PLAYER.DAT:"));
+    assert!(stdout.contains("record 1 -> [0, 1, 2, 3, 4, 5, 6, 7, 8"));
+    assert!(stdout.contains("PLANETS.DAT:"));
+    assert!(stdout.contains("record 6 -> [0, 1, 2, 3, 8, 9"));
+    assert!(stdout.contains("FLEETS.DAT:"));
+    assert!(stdout.contains("record 1 -> [11, 12, 32, 33]"));
+    assert!(stdout.contains("CONQUEST.DAT: differing_offsets=[]"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn core_diff_current_known_baseline_reports_mutated_files() {
     let target = unique_temp_dir("ec-cli-core-diff-current-known");
     common::copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);

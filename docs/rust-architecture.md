@@ -264,6 +264,15 @@ baseline:
   - `ec-cli core-init-current-known-baseline fixtures/ecutil-init/v1.5 <dir>`
     now yields a directory whose canonical diff against
     `fixtures/ecmaint-post/v1.5` is empty for every core `.DAT` file
+- for the noisier shipped sample, use:
+  - `ec-cli core-init-current-known-baseline original/v1.5 /tmp/ec-from-original`
+  - `ec-cli core-report-canonical-transition-clusters /tmp/ec-from-original`
+  - this groups the remaining canonical drift by record for `PLAYER.DAT`,
+    `PLANETS.DAT`, and `FLEETS.DAT`
+  - after the `CONQUEST.DAT` header sync milestone, those are now the only
+    remaining core-file drift surfaces for the normalized shipped sample
+  - this is now the preferred queue-building surface for the next
+    transition-rule RE phase
 - first concrete payoff:
   - the repeated `FLEETS.DAT` drift clusters were traced to missing initialized
     fleet owner-byte and tuple-marker semantics

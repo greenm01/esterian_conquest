@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::CoreGameData;
+use ec_data::{CoreGameData, FLEET_RECORD_SIZE, PLANET_RECORD_SIZE, PLAYER_RECORD_SIZE};
 
 use crate::support::paths::post_maint_fixture_dir;
 use crate::workspace::{copy_current_known_core_files, copy_top_level_files};
@@ -155,6 +155,55 @@ pub(crate) fn print_canonical_current_known_baseline_diff_offsets(
     }
 
     Ok(())
+}
+
+pub(crate) fn print_canonical_transition_clusters(
+    dir: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let data = CoreGameData::load(dir)?;
+    let baseline = CoreGameData::load(&post_maint_fixture_dir())?;
+    let diffs = data.diff_offsets_against(&baseline);
+
+    println!("Canonical Transition Clusters");
+    println!("  dir={}", dir.display());
+    for diff in diffs {
+        match diff.name {
+            "PLAYER.DAT" => print_record_clusters(diff.name, PLAYER_RECORD_SIZE, &diff.differing_offsets),
+            "PLANETS.DAT" => print_record_clusters(diff.name, PLANET_RECORD_SIZE, &diff.differing_offsets),
+            "FLEETS.DAT" => print_record_clusters(diff.name, FLEET_RECORD_SIZE, &diff.differing_offsets),
+            _ => println!("  {}: differing_offsets={:?}", diff.name, diff.differing_offsets),
+        }
+    }
+
+    Ok(())
+}
+
+fn print_record_clusters(name: &str, record_size: usize, offsets: &[usize]) {
+    println!("  {}:", name);
+    if offsets.is_empty() {
+        println!("    differing_offsets=[]");
+        return;
+    }
+
+    let mut current_record: Option<usize> = None;
+    let mut current_offsets: Vec<usize> = Vec::new();
+    for offset in offsets {
+        let record_index = offset / record_size + 1;
+        let record_offset = offset % record_size;
+        if current_record == Some(record_index) {
+            current_offsets.push(record_offset);
+        } else {
+            if let Some(record_index) = current_record {
+                println!("    record {} -> {:?}", record_index, current_offsets);
+            }
+            current_record = Some(record_index);
+            current_offsets = vec![record_offset];
+        }
+    }
+
+    if let Some(record_index) = current_record {
+        println!("    record {} -> {:?}", record_index, current_offsets);
+    }
 }
 
 pub(crate) fn validate_core_state(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
