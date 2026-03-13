@@ -268,43 +268,49 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 - ✅ Compares all .DAT files and reports parity per-file
 - ⚠️ Requires original ECMAINT.EXE to be present in input directory
 
-### Step 4: Implement Year Advancement — COMPLETE ✅
-**Decision:** Started with year advancement (simplest deterministic change)
+### Step 4: Implement Mechanics — IN PROGRESS
+
+#### Year Advancement — COMPLETE ✅
 - ✅ Year advances by exactly 1 per turn
 - ✅ Multi-turn advancement works correctly
-- ✅ Matches ECMAINT year progression in fleet fixture
+- ✅ All 183 tests pass (added maint_year.rs)
 
-**Next mechanics to implement:**
-1. Fleet movement (FLEETS.DAT position/speed changes)
-2. Player statistics (PLAYER.DAT field updates)
-3. Database regeneration (DATABASE.DAT updates)
+#### Fleet Movement — IN PROGRESS ⏳
+- ✅ Basic movement harness implemented
+- ✅ Uses RE_NOTES.md formula: distance = speed / 1.5
+- ⚠️ Complex field updates discovered:
+  - Position changes (0x0b-0x0c): x, y coordinates
+  - Tuple payload A (0x0d-0x11): Changes from [0,0,0,0,0] to [250,255,255,255,127]
+  - Link fields (0x17): Changes from 129 to 0
+  - Max speed (0x09): Changes 16→24
+- **Current parity on move scenario:** 80% (8/10 files match)
+- **Issue:** Move scenario requires 3 turns (year 3000→3003), comparison runs 1 turn
 
-### Step 5: Regression Test — COMPLETE ✅
-- ✅ Added `ec-data/tests/maint_year.rs` with 3 tests:
-  - `test_year_advancement_single_turn`
-  - `test_year_advancement_multiple_turns`
-  - `test_fleet_fixture_year_matches_post`
-- All 183 tests pass (180 existing + 3 new)
+**Next steps for fleet movement:**
+1. Implement turn-count detection for comparison
+2. Understand tuple payload changes (ETA? distance remaining?)
+3. Handle multi-turn scenarios correctly
+
+### Step 5: Regression Test — IN PROGRESS
+- ✅ Year advancement tests (3 tests)
+- ⏳ Fleet movement tests (pending full implementation)
+- ⏳ Multi-turn scenario tests (pending)
 
 ---
 
 ## Current Status
 
-**Milestone 4 Phase 1:** Test harness complete — ✅ DONE
-**Milestone 4 Phase 2:** First mechanic (year advancement) — ✅ DONE
-**Current parity:** 50% (5/10 files match on fleet scenario)
+**Milestone 4 Phase 1:** Test harness complete — ✅ DONE  
+**Milestone 4 Phase 2:** Mechanics implementation — IN PROGRESS
+- Year advancement: ✅ 100% match
+- Fleet movement: ⏳ 80% match (1 byte differ in FLEETS.DAT on 1-turn test)
 
-**Files with parity:**
-- ✅ SETUP.DAT (always matches - read-only)
-- ✅ BASES.DAT, IPBM.DAT (empty in this scenario)
-- ✅ MESSAGES.DAT, RESULTS.DAT (no content yet)
-
-**Files needing work:**
-- ⚠️ CONQUEST.DAT (50 bytes differ - header fields beyond year)
-- ⚠️ PLAYER.DAT (2 bytes differ - statistics)
-- ⚠️ PLANETS.DAT (18 bytes differ - unknown)
-- ⚠️ FLEETS.DAT (9 bytes differ - fleet movement)
-- ⚠️ DATABASE.DAT (109 bytes differ - needs full regeneration)
+**Parity by file (move scenario, 1 turn):**
+- ✅ SETUP.DAT, PLAYER.DAT, PLANETS.DAT (match)
+- ✅ BASES.DAT, IPBM.DAT (empty)
+- ✅ MESSAGES.DAT, RESULTS.DAT, DATABASE.DAT (match on 1-turn)
+- ⚠️ CONQUEST.DAT (1 byte - year difference due to 1 vs 3 turns)
+- ⚠️ FLEETS.DAT (1 byte - max_speed differs: 0x10 vs 0x12)
 
 ---
 

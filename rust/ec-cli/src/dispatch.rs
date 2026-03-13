@@ -242,11 +242,13 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
         }
         "maint-rust" => {
             let dir = next_dir(&mut args);
-            run_rust_maintenance(&dir)?;
+            let turns: u16 = args.next().and_then(|s| s.parse().ok()).unwrap_or(1);
+            run_rust_maintenance(&dir, turns)?;
         }
         "maint-compare" => {
             let dir = next_dir(&mut args);
-            compare_maintenance(&dir)?;
+            let turns: Option<u16> = args.next().and_then(|s| s.parse().ok());
+            compare_maintenance(&dir, turns)?;
         }
         "maintenance-days" => {
             let dir = next_dir(&mut args);
