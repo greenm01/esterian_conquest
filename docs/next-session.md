@@ -160,7 +160,7 @@ What is still incomplete:
 - Variable player_count edge cases (tested but could use more coverage)
 - ECGAME ANSI/startup preservation (useful but not the main blocker)
 
-### ⏳ Milestone 4: Rust ECMAINT Replacement — IN PROGRESS (80%+ parity on all scenarios)
+### ⏳ Milestone 4: Rust ECMAINT Replacement — IN PROGRESS
 
 **Definition:** Reimplement `ECMAINT.EXE` behavior in Rust with deterministic, reproducible outputs that match the original binary. Use the compliant generator (Milestone 3) as the test oracle harness.
 
@@ -191,16 +191,20 @@ What is still incomplete:
 - [ ] `ec-cli maint-compare <dir>` command that diffs Rust vs original outputs
 - [ ] At least one mechanic achieving 100% deterministic match
 
-#### Phase 2: Incremental Mechanic Porting — PENDING
+#### Phase 2: Incremental Mechanic Porting — IN PROGRESS
 
-**Goal:** Port mechanics one at a time, starting with simplest.
+**Goal:** Port mechanics one at a time, keeping deterministic mechanics
+byte-exact where possible and documenting canonical divergence for stochastic
+ones.
 
-**Priority order:**
-1. Build completion (deterministic queues, no randomness)
-2. Fleet movement (path logic, fuel consumption)
-3. Economic tick (resource math)
-4. Combat resolution (requires RNG understanding)
-5. AI behavior (most complex, defer until core mechanics solid)
+**Current implementation status:**
+- Build completion: implemented with fixture-backed regression coverage
+- Fleet movement: implemented with byte-exact fixture coverage
+- Economic tick / autopilot: implemented with fixture-backed regression coverage
+- Combat resolution: canonical deterministic combat is now the live Rust maint
+  path for fleet battles, bombardment, orbital supremacy, invade, and blitz
+- Combat regression coverage: structural tests now lock the canonical
+  bombardment and fleet-battle paths without pretending to match original RNG
 
 **Per-mechanic workflow:**
 1. Create mechanic-specific test scenario with `init_*` command
@@ -210,10 +214,13 @@ What is still incomplete:
 5. Add regression test locking in the behavior
 
 **Acceptance criteria:**
-- [ ] Build completion: 100% deterministic match
-- [ ] Fleet movement: 100% deterministic match  
-- [ ] Economic tick: 100% deterministic match
-- [ ] Combat resolution: documented RNG behavior, 100% match given same seed
+- [x] Build completion: 100% deterministic match on preserved fixture path
+- [x] Fleet movement: 100% deterministic match on preserved fixture path
+- [x] Economic tick: deterministic path implemented and fixture-covered
+- [x] Combat resolution: canonical deterministic model implemented and tested
+- [ ] Assault-path regression coverage expanded for invade and blitz edge cases
+- [ ] `maint-compare` acceptance policy updated to treat combat as structural,
+  not byte-exact, parity
 
 #### Phase 3: Cross-File Integrity Preservation — PENDING
 
@@ -248,6 +255,27 @@ What is still incomplete:
 ---
 
 ## Milestone 4 Implementation Plan
+
+### Current Combat State
+
+- [`docs/ec-combat-spec.md`](/home/mag/dev/esterian_conquest/docs/ec-combat-spec.md)
+  is now implemented in first-pass form inside
+  [`rust/ec-data/src/maint/combat.rs`](/home/mag/dev/esterian_conquest/rust/ec-data/src/maint/combat.rs)
+- the old placeholder combat logic in
+  [`rust/ec-data/src/maint/mod.rs`](/home/mag/dev/esterian_conquest/rust/ec-data/src/maint/mod.rs)
+  has been removed
+- ground batteries now use battleship-scale firepower per
+  [`original/v1.5/ECPLAYER.DOC`](/home/mag/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC)
+- combat regression coverage now exists in
+  [`rust/ec-data/tests/maint_combat.rs`](/home/mag/dev/esterian_conquest/rust/ec-data/tests/maint_combat.rs)
+  for:
+  - canonical bombardment order consumption and world damage
+  - canonical fleet-battle loser elimination without garbage ship counts
+- the remaining immediate combat work is not architecture; it is scenario and
+  balance coverage:
+  - clean invade/blitz-specific regression scenarios
+  - multi-empire same-system combat coverage
+  - report / `DATABASE.DAT` consequence coverage for combat events
 
 ### Step 1: Study Econ Fixture Pair ✅
 Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.

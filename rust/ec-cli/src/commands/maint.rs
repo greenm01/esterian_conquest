@@ -2,9 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use ec_data::{
-    run_maintenance_turn, BombardEvent, CoreGameData, DatabaseDat, MaintenanceEvents, PlanetDat,
-};
+use ec_data::{run_maintenance_turn, CoreGameData, DatabaseDat, MaintenanceEvents, PlanetDat};
 
 /// Run Rust maintenance on a game directory for specified number of turns
 pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::error::Error>> {

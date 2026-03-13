@@ -170,7 +170,7 @@ impl DatabaseDat {
         _game_year: u16,
         template: Option<&DatabaseDat>,
     ) -> Self {
-        let mut result = if let Some(t) = template {
+        let result = if let Some(t) = template {
             t.clone()
         } else {
             // Create a default template with "UNKNOWN" names

@@ -10,6 +10,8 @@ Current focus:
   and `ECMAINT`
 - expanding Rust from fixture copying toward scenario generation from decoded
   fields
+- replacing original RNG combat with a documented deterministic combat model in
+  Rust while keeping classic save compatibility
 
 Current milestone ladder:
 - `known accepted scenarios`: in progress and already useful

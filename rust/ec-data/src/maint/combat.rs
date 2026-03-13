@@ -38,7 +38,6 @@ const GROUND_AS_ARMY: u32 = 1;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum MissionClass {
-    Guard,
     Bombard,
     Invade,
     Blitz,
@@ -216,18 +215,6 @@ fn apply_hits_to_fleet(state: &mut FleetCombatState, mut hits: u32) {
         let destroyed = hits.min(state.counts[idx]);
         state.counts[idx] -= destroyed;
         hits -= destroyed;
-    }
-}
-
-fn mission_class(order: FleetStandingOrderKind) -> MissionClass {
-    match order {
-        FleetStandingOrderKind::GuardStarbase | FleetStandingOrderKind::GuardBlockadeWorld => {
-            MissionClass::Guard
-        }
-        FleetStandingOrderKind::BombardWorld => MissionClass::Bombard,
-        FleetStandingOrderKind::InvadeWorld => MissionClass::Invade,
-        FleetStandingOrderKind::BlitzWorld => MissionClass::Blitz,
-        _ => MissionClass::Other,
     }
 }
 
@@ -645,8 +632,7 @@ fn mission_priority(class: MissionClass) -> u8 {
         MissionClass::Blitz => 0,
         MissionClass::Invade => 1,
         MissionClass::Bombard => 2,
-        MissionClass::Guard => 3,
-        MissionClass::Other => 4,
+        MissionClass::Other => 3,
     }
 }
 

@@ -293,20 +293,6 @@ fn print_header_summary(setup: &SetupDat, conquest: &ConquestDat) {
     );
 }
 
-fn ascii_trim(bytes: &[u8]) -> String {
-    let text = bytes
-        .iter()
-        .map(|b| {
-            if (32..127).contains(b) {
-                *b as char
-            } else {
-                ' '
-            }
-        })
-        .collect::<String>();
-    text.trim().to_string()
-}
-
 fn yes_no(value: bool) -> &'static str {
     if value {
         "Yes"

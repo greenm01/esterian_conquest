@@ -126,6 +126,10 @@ Long term:
 
 - reimplement `ECMAINT` behavior in Rust with reproducible outputs
 - preserve compatibility with original save directories and reports
+- deterministic combat is now implemented as a canonical Rust replacement for
+  the original RNG-driven combat paths
+- combat acceptance is therefore structural and rule-based, not byte-exact to
+  any one oracle run
 
 5. Scenario DSL / KDL layer
 
@@ -192,6 +196,10 @@ Near-term acceptance rule:
 - for stochastic mechanics, "done" means: correct field structure, plausible
   magnitudes, and a documented canonical rule — not byte-exact match to any
   single oracle run
+- the combat spec in
+  [docs/ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/ec-combat-spec.md)
+  is no longer only aspirational; it now drives the live Rust maintenance path
+  and has dedicated regression coverage
 
 ## RE Workflow
 
