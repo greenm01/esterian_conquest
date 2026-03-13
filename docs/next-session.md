@@ -87,8 +87,13 @@ Priority order:
            `1000`
        - first-pass dumps of `1000:a26e` and `1000:0b51` look generic /
          report-oriented rather than starbase-specific
-       - next target should therefore stay on the later active-summary call
-         chain, but not those two callees in isolation
+       - the first genuinely starbase-specific later region is now
+         `0000:3fcf..41a0`, immediately after the raw
+         `Fleet assigned to an unknown starbase.` string
+       - that region compares summary bytes `+1`, `+2`, and `+5` against a
+         located kind-`1` entry and clears `350c` / `3521` on failure/report
+       - next target should now be that `0000:3fcf..41a0` region, especially
+         helper `0x1000:d183` and the nearby CS-local string pointers
 
 2. Recover initialized-to-post-maint deterministic rules
    - use canonical post-maint diff output from normalized `original/v1.5`
@@ -126,10 +131,12 @@ Best immediate task:
     look generic/report-oriented
   - the raw `unknown starbase` string exists at `0000:3f89`, but the raw-import
     xref pass found no direct references
-  - so the next capture/search should stay on the later active-summary call
-    chain and indirect message-emission path, not the base decode, raw kind-`1`
-    summary emission, immediate post-match handoff, or those first two generic
-    callees alone
+  - the new concrete later target is `0000:3fcf..41a0`, immediately after that
+    raw string
+  - so the next capture/search should focus on:
+    - what `0x1000:d183` returns into the located-summary index
+    - what the CS-local strings at `0x0a93..0x0b17` say
+    - how that region chooses between success/report/error paths
 - once those rules are recovered, promote them into `CoreGameData`
 
 Why this first:

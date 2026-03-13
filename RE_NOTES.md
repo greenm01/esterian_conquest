@@ -4429,3 +4429,55 @@ Result:
 Practical consequence:
 - the message is likely reached indirectly via a table/helper path, not via a
   direct code reference the raw import can see cleanly
+
+Starbase-specific later consumer after the raw `unknown starbase` string:
+
+Artifacts:
+- `artifacts/ghidra/ecmaint-live/unknown-starbase-region.txt`
+
+Tool:
+- `tools/ghidra_scripts_tmp/ReportUnknownStarbaseRegion.java`
+
+Recovered structure:
+- the raw string `Fleet assigned to an unknown starbase.` is immediately
+  followed by a real code region at `0000:3fcf..41a0`
+- that region operates directly on the kind-`1` scratch block rooted at
+  `0x3502`
+- entry behavior:
+  - clears local success flag `[BP-1] = 0`
+  - calls into `0x1000:d183` with source `0x3502`
+  - receives an index/result in `[BP-0x28]`
+- main comparison path (`0000:3ff4..40a4`):
+  - compares the current summary entry against the located entry on:
+    - summary byte `+0x01`
+    - summary byte `+0x02`
+    - summary byte `+0x05`
+  - then checks `byte ptr [0x350c] > 0`
+  - on success sets local success flag `[BP-1] = 1`
+- failure/report path (`0000:40a7..4184`):
+  - works from scratch block `0x3502`
+  - calls `0x2000:cb32`
+  - formats several CS-local string fragments via `0x3000:4202`,
+    `0x3000:428f`, and `0x2000:bec4`
+  - reads:
+    - `0x3525`
+    - tuple words `0x351b..0x351f`
+    - tag bytes `0x350d` and `0x350e`
+    - byte `0x3504`
+  - then clears:
+    - `0x350c`
+    - `0x3521`
+- no-match early exit (`0000:4186..4195`):
+  - calls `0x3000:159b` using CS:`0x0b17`
+  - then also clears `0x350c` and `0x3521`
+
+Strong practical consequence:
+- this `0000:3fcf..41a0` region is the first later consumer that looks
+  genuinely starbase-specific rather than generic
+- it is now the best current candidate for the later Guard Starbase
+  resolution/error-emission path behind the `unknown starbase` behavior
+- next highest-value step:
+  - name this region in Ghidra
+  - identify what `0x1000:d183` returns into `[BP-0x28]`
+  - decode the CS-local string pointers around `0x0a93`, `0x0abc`,
+    `0x0ae6`, `0x0aed`, `0x0af4`, `0x0af6`, `0x0af8`, and `0x0b17`
