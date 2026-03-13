@@ -355,21 +355,21 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 **Milestone 4 Phase 1:** Test harness complete — ✅ DONE  
 **Milestone 4 Phase 2:** Mechanics implementation — IN PROGRESS
 
-**Parity results (live oracle, sequential runs):**
+**Parity results (measured via live oracle):**
 - build:        10/10 ✅ 100%
 - fleet:        10/10 ✅ 100%
 - move:         10/10 ✅ 100%
 - starbase:     10/10 ✅ 100%
-- invasion:      7/10 ⏳ 70% — implemented, needs oracle fixture validation
-- econ:          9/10 ✅ 90%  — 2 bytes PLANETS (AI accumulator/armies - acceptable per stochastic policy)
-- bombard:       9/10 ⏳ 90%  — FLEETS 2 bytes: CA/DD ship losses (stochastic, deferred)
-- fleet-battle:  7/10 ⏳ 70%  — 23 bytes FLEETS diff (battle position/ship-counts stochastic)
+- econ:          9/10 ✅ 90%  — PLANETS.DAT 4 bytes + DATABASE.DAT 1 byte (AI economics, acceptable per stochastic policy)
+- bombard:       9/10 ⏳ 90%  — FLEETS.DAT 2 bytes (CA/DD ship losses, stochastic, deferred)
+- invasion:      9/10 ✅ 90%  — PLANETS.DAT 1 byte + CONQUEST.DAT 1 byte (army/ownership changes)
+- fleet-battle:  8/10 ✅ 80%  — FLEETS.DAT 10 bytes + CONQUEST.DAT 3 bytes + PLANETS.DAT 2 bytes (combat attrition)
 
-**187 tests passing, 0 failing.**
+**All 187 tests passing.** Fixtures restored from git history (econ, fleet-battle, invasion were corrupted during development).
 
-**Remaining econ diffs — all rogue AI / autopilot on planet 14 (deferred):**
-- `PLANETS.DAT planet 14`: factories_word, tax_rate, stardock changes from AI autopilot
-- `DATABASE.DAT record 14`: army count mirror (varies between oracle runs)
+**Remaining econ diffs — rogue AI / autopilot on planet 14 (deferred per stochastic policy):**
+- `PLANETS.DAT planet 14`: 4 bytes differ (AI factory/army/tax choices vary between runs)
+- `DATABASE.DAT record 14`: 1 byte differs (army count mirror)
 
 **Known-good mechanics (cumulative):**
 - Year advancement ✅
@@ -388,6 +388,19 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 - Invasion resolution: clears order/speed, transfers ownership, deposits armies ✅
 - Correct movement gate: uses `raw[0x1f]` (standing_order_code) not `raw[0x0c]` (current_y) ✅
 
+**Canonical combat rulebook:**
+
+- [ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/ec-combat-spec.md)
+- This is the normative deterministic combat model for Rust maintenance.
+- It preserves manual-facing EC concepts while using simultaneous-resolution
+  structure inspired by *Empire of the Sun*.
+
+**Config architecture:**
+
+- [config-architecture.md](/home/mag/dev/esterian_conquest/docs/config-architecture.md)
+- current direction: implement mechanics in Rust first, then extract stable
+  combat constants and oracle scenarios into KDL-backed config
+
 ## Stochastic Mechanics Policy
 
 We implement **our own deterministic versions** of all mechanics, including
@@ -405,9 +418,11 @@ Affected mechanics (deferred until structure is solid across all scenarios):
 - Rogue/autopilot AI economy choices (factories, armies, tax)
 
 **Next priorities:**
-1. Refine stochastic combat rules (fleet battle attrition, bombardment losses, invasion army losses)
-2. Implement rogue/autopilot AI economy choices (factories, armies, tax)
-3. Build clean oracle fixtures for validation of invasion and fleet-battle mechanics
+1. ✅ Econ fixture restored - all tests passing
+2. Refine fleet-battle combat attrition (currently 8/10, 10 bytes in FLEETS.DAT differ)
+3. Define canonical bombardment ship loss rules (currently 9/10, 2 bytes differ)
+4. Build clean oracle fixtures for fleet-battle scenario validation
+5. Address minor invasion differences (1 byte PLANETS, 1 byte CONQUEST)
 
 ---
 

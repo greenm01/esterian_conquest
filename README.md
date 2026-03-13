@@ -31,6 +31,8 @@ Docs:
 - `docs/approach.md`: preservation and porting strategy
 - `docs/fixtures.md`: fixture creation and usage workflow
 - `docs/ecmaint-plan.md`: current plan for reverse engineering the maintenance engine
+- `docs/ec-combat-spec.md`: canonical deterministic combat rules for the Rust port
+- `docs/config-architecture.md`: Rust-vs-KDL ownership and future config layering
 - `docs/ecmaint-combat-reference.md`: combat-oriented historical validation references
 - `docs/ghidra-workflow.md`: headless Ghidra install and ECMAINT analysis workflow
 - `docs/planet-report-reference.md`: coordinate-linked scouting/world stat references

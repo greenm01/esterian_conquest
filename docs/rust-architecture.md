@@ -413,3 +413,24 @@ Current expectation:
 If a KDL scenario/order layer is added later, it should sit on top of the
 internal Rust gamestate/order model after that model stabilizes. It should not
 drive the low-level layout design prematurely.
+
+For the ECMAINT replacement specifically, this same timing rule applies to
+combat and scenario config:
+
+- Rust first for mechanic implementation and compatibility behavior
+- KDL later for stable constants, setup presets, and oracle scenario
+  definitions
+
+The preferred ownership split is:
+
+- Rust code:
+  - maintenance phase ordering
+  - combat sequencing
+  - cross-file writeback
+  - classic `.DAT` compatibility rules
+- KDL config:
+  - canonical data tables once stable
+  - reusable setup presets
+  - named oracle scenarios
+
+See [config-architecture.md](/home/mag/dev/esterian_conquest/docs/config-architecture.md).

@@ -1,5 +1,7 @@
 //! Maintenance logic for ECMAINT.EXE mechanics.
 
+mod combat;
+
 use crate::{CoreGameData, FleetStandingOrderKind};
 
 /// A bombardment event: one fleet executed BombardWorld against one planet.
@@ -125,6 +127,25 @@ pub fn run_maintenance_turn(
         })
         .collect();
 
+    let blitz_ready: Vec<usize> = game_data
+        .fleets
+        .records
+        .iter()
+        .enumerate()
+        .filter_map(|(i, f)| {
+            if f.raw[0x19] == 0x80
+                && matches!(
+                    FleetStandingOrderKind::from_raw(f.standing_order_code_raw()),
+                    FleetStandingOrderKind::BlitzWorld
+                )
+            {
+                Some(i)
+            } else {
+                None
+            }
+        })
+        .collect();
+
     // Advance game year by 1
     let current_year = game_data.conquest.game_year();
     let new_year = current_year + 1;
@@ -143,7 +164,7 @@ pub fn run_maintenance_turn(
     // Detect and resolve fleet battles: when hostile fleets co-locate after movement,
     // surviving fleets get SeekHome orders (confirmed from fleet-battle oracle).
     // This runs after movement so all fleet positions are final for this turn.
-    process_fleet_battles(game_data)?;
+    combat::process_fleet_battles(game_data)?;
 
     // Apply colonization results to PLANETS.DAT and PLAYER.DAT
     process_colonizations(game_data, &colonization_events)?;
@@ -168,11 +189,8 @@ pub fn run_maintenance_turn(
 
     // Resolve bombardment for fleets that were already-arrived (raw[0x19]==0x80) at turn start.
     // Confirmed: bombardment executes on the tick AFTER transit-arrival, not same tick.
-    let bombard_events = process_bombardment(game_data, &bombard_ready)?;
-
-    // Resolve invasions for fleets that were already-arrived (raw[0x19]==0x80) at turn start.
-    // Invasion executes on the tick AFTER transit-arrival, similar to bombardment.
-    process_invasions(game_data, &invade_ready)?;
+    let bombard_events =
+        combat::process_planetary_assaults(game_data, &bombard_ready, &invade_ready, &blitz_ready)?;
 
     // Normalize CONQUEST.DAT header fields
     process_conquest_header(game_data, should_accumulate_conquest)?;

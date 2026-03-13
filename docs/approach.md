@@ -133,6 +133,12 @@ Long term:
   gamestate and order model stabilizes
 - treat KDL as a serialization layer over the compliant generator, not as the
   next reverse-engineering target
+- KDL is still a good long-term fit for stable machine-readable data:
+  - combat/entity constants
+  - setup and baseline presets
+  - oracle scenario definitions
+- Rust remains the authority for maintenance sequencing and classic save-file
+  compatibility; config should feed stable data tables, not replace the engine
 - long-term goal:
   - describe scenarios
   - describe per-turn player orders
@@ -174,6 +180,9 @@ Long term:
 - the original post-maint fixtures are still used to understand field
   ranges and change patterns; they are not used as a bit-level target for
   stochastic mechanics
+- once these canonical mechanics stabilize, prefer moving their stable
+  constants into machine-readable KDL config rather than burying them inline
+  forever in Rust code
 
 Near-term acceptance rule:
 
