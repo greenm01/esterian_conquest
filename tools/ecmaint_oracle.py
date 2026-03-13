@@ -134,6 +134,30 @@ def collect_diffs(before_dir: Path, after_dir: Path) -> list[FileDiff]:
     return diffs
 
 
+def collect_expected_diffs(expected_dir: Path, actual_dir: Path) -> list[FileDiff]:
+    diffs: list[FileDiff] = []
+    for name in TRACKED_FILES:
+        expected_path = expected_dir / name
+        actual_path = actual_dir / name
+        if not expected_path.exists() and not actual_path.exists():
+            continue
+        if not expected_path.exists() and name not in CORE_FILES and name != "DATABASE.DAT":
+            # Preserve scenario comparisons should ignore generated files that are
+            # not part of the preserved expected fixture, such as RANKINGS.TXT.
+            continue
+        expected = read_bytes(expected_path)
+        actual = read_bytes(actual_path)
+        diffs.append(
+            FileDiff(
+                name=name,
+                before_size=len(expected),
+                after_size=len(actual),
+                differing_offsets=diff_offsets(expected, actual),
+            )
+        )
+    return diffs
+
+
 def run_ecmaint(target: Path, extra_env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env.setdefault("SDL_VIDEODRIVER", "dummy")
@@ -272,11 +296,23 @@ def cmd_run(args: argparse.Namespace) -> int:
 def cmd_compare(args: argparse.Namespace) -> int:
     target = Path(args.target).resolve()
     expected = Path(args.expected).resolve()
-    diffs = collect_diffs(expected, target)
+    diffs = collect_expected_diffs(expected, target)
     print("ECMAINT oracle comparison")
     print(f"  target={target}")
     print(f"  expected={expected}")
     print_diff_summary("  file_diffs", diffs)
+    return 0
+
+
+def cmd_replay_preserved(args: argparse.Namespace) -> int:
+    scenario = require_known_scenario(args.scenario)
+    target = Path(args.target).resolve()
+    prepare_args = argparse.Namespace(target=str(target), source=str(scenario["pre"]))
+    cmd_prepare(prepare_args)
+    run_args = argparse.Namespace(target=str(target))
+    cmd_run(run_args)
+    compare_args = argparse.Namespace(target=str(target), expected=str(scenario["post"]))
+    cmd_compare(compare_args)
     return 0
 
 
@@ -346,6 +382,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional baseline directory for ec-cli scenario-init",
     )
     replay_known.set_defaults(func=cmd_replay_known)
+
+    replay_preserved = subparsers.add_parser(
+        "replay-preserved",
+        help="run ECMAINT from the preserved pre-maint fixture and compare to the preserved post fixture",
+    )
+    replay_preserved.add_argument("scenario", help="known scenario name")
+    replay_preserved.add_argument("target", help="working directory to create and run")
+    replay_preserved.set_defaults(func=cmd_replay_preserved)
 
     return parser
 

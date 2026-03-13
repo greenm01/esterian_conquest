@@ -47,6 +47,15 @@ python3 tools/ecmaint_oracle.py replay-known fleet-order /tmp/ecmaint-fleet-orac
 That materializes the known accepted pre-maint state, runs `ECMAINT`, and then
 compares the result against the preserved post-maint fixture.
 
+To validate the oracle path itself against preserved fixtures, use:
+
+```bash
+python3 tools/ecmaint_oracle.py replay-preserved fleet-order /tmp/ecmaint-fleet-pre-direct
+```
+
+That copies the preserved pre-maint fixture directly, runs `ECMAINT`, and
+compares the result against the preserved post-maint fixture.
+
 ### 1. Prepare the working directory
 
 ```bash

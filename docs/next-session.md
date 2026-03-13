@@ -35,6 +35,12 @@ Known replay harness:
 - `python3 tools/ecmaint_oracle.py replay-known planet-build /tmp/ecmaint-build-oracle`
 - `python3 tools/ecmaint_oracle.py replay-known guard-starbase /tmp/ecmaint-starbase-oracle`
 
+Preserved replay harness:
+
+- `python3 tools/ecmaint_oracle.py replay-preserved fleet-order /tmp/ecmaint-fleet-pre-direct`
+- `python3 tools/ecmaint_oracle.py replay-preserved planet-build /tmp/ecmaint-build-pre-direct`
+- `python3 tools/ecmaint_oracle.py replay-preserved guard-starbase /tmp/ecmaint-starbase-pre-direct`
+
 First concrete replay result:
 
 - `python3 tools/ecmaint_oracle.py replay-known fleet-order /tmp/ecmaint-fleet-oracle`
@@ -78,6 +84,20 @@ Replay queue update:
   - only residual drift:
     - `PLAYER.DAT`: `1` byte at offset `70`
   - this is currently lower priority than the isolated `planet-build` queue
+
+Preserved pre/post replay validation:
+
+- all three preserved pre-maint fixtures replay exactly to their preserved
+  post-maint fixtures under the oracle harness:
+  - `fleet-order`
+  - `planet-build`
+  - `guard-starbase`
+- the only extra generated output is `RANKINGS.TXT`, which is not part of the
+  preserved post fixtures
+- practical implication:
+  - the oracle harness is validated
+  - the remaining replay gaps are in the Rust-generated pre states, not in the
+    replay method
 
 Escalate to deep RE only when:
 
@@ -189,18 +209,14 @@ Priority order:
 
 ## Concrete Next Task
 
-Start with initialized-to-post-maint rule discovery, not more starbase deep RE.
+Start with the verified black-box oracle loop, not more starbase deep RE.
 
 Best immediate task:
 
-Use the black-box oracle loop for new mechanics first, not more deep RE.
-
-Best immediate task:
-
-- initialize a clean directory
-- submit one controlled order family
-- run `ECMAINT`
-- diff `.DAT` and report outputs
+- use `replay-preserved` to validate the oracle path for a mechanic family
+- use `replay-known` to measure the remaining gap in the Rust-generated
+  pre-maint state
+- promote those residual diffs into `CoreGameData`
 - only if that plateaus, return to static/dynamic RE
 
 Useful prep/oracle commands:

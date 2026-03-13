@@ -183,6 +183,14 @@ Known-scenario replay loop:
 3. use the same pattern for `planet-build` and `guard-starbase` before opening
    a new mechanic
 
+Preserved-fixture replay validation:
+
+1. `python3 tools/ecmaint_oracle.py replay-preserved fleet-order /tmp/ecmaint-fleet-pre-direct`
+2. confirm the preserved pre-maint fixture replays to the preserved post-maint
+   fixture exactly
+3. use `replay-known` to measure the remaining gap in the Rust-generated
+   pre-maint state, not to question the oracle harness itself
+
 Deep RE escalation criteria:
 
 - use static/dynamic RE when a blocker survives repeated black-box tests
