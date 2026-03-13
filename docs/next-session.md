@@ -264,6 +264,9 @@ ones.
 - the old placeholder combat logic in
   [`rust/ec-data/src/maint/mod.rs`](/home/mag/dev/esterian_conquest/rust/ec-data/src/maint/mod.rs)
   has been removed
+- [`rust/ec-cli/src/commands/maint.rs`](/home/mag/dev/esterian_conquest/rust/ec-cli/src/commands/maint.rs)
+  now treats combat-heavy scenarios in `maint-compare` as structural
+  comparisons rather than byte-exact failures
 - ground batteries now use battleship-scale firepower per
   [`original/v1.5/ECPLAYER.DOC`](/home/mag/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC)
 - combat regression coverage now exists in
@@ -271,11 +274,15 @@ ones.
   for:
   - canonical bombardment order consumption and world damage
   - canonical fleet-battle loser elimination without garbage ship counts
+  - canonical invade failure and blitz success/failure outcomes
+  - deterministic three-empire open-space contact resolution
+  - starbase-backed defender victory in orbital combat
 - the remaining immediate combat work is not architecture; it is scenario and
   balance coverage:
-  - clean invade/blitz-specific regression scenarios
-  - multi-empire same-system combat coverage
   - report / `DATABASE.DAT` consequence coverage for combat events
+  - same-tick arrival / mission-interaction coverage beyond the current direct
+    contact cases
+  - CLI/test coverage for `maint-compare` output classification itself
 
 ### Step 1: Study Econ Fixture Pair ✅
 Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
