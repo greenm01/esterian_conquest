@@ -166,6 +166,21 @@ fn compare_dat_files(rust_dir: &Path, oracle_dir: &Path) -> Result<(), Box<dyn s
                 max_diffs,
                 rust_data.len().max(oracle_data.len())
             );
+
+            // Show first few diffs for FLEETS.DAT
+            if *file == "FLEETS.DAT" && diff_count > 0 {
+                println!("    First 5 differences:");
+                let mut shown = 0;
+                for (i, (a, b)) in rust_data.iter().zip(oracle_data.iter()).enumerate() {
+                    if a != b && shown < 5 {
+                        let fleet_idx = if i >= 2 { (i - 2) / 54 } else { 0 };
+                        let field_off = if i >= 2 { (i - 2) % 54 } else { i };
+                        println!("      Offset 0x{:04x} (fleet {}, field 0x{:02x}): 0x{:02x} -> 0x{:02x}",
+                            i, fleet_idx, field_off, a, b);
+                        shown += 1;
+                    }
+                }
+            }
         }
     }
 
