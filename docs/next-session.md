@@ -122,6 +122,13 @@ Priority order:
                second late resolution/report loop:
                - it calls `0x2000:b9a7`
                - splits into two CS-local report families
+               - `b9a7 != 0` takes the smaller family and then calls
+                 `0x2000:d3bb`
+                 - best current label: merge/commit path
+               - `b9a7 == 0` takes the larger family, formats literal `3000`,
+                 and exits after clearing `3521` / `350c`
+                 - best current label: already-guarding / ship-limit
+                   abort-report path
                - the fallback path re-runs `0x1000:d183`, copies the selected
                  entry back through `0x2000:c151`, rewrites `351b..351f`, and
                  finalizes through `0x2000:c100`, `0x2000:c02a`, and
@@ -154,6 +161,9 @@ Priority order:
          - the exact CS-local report variants chosen across both late blocks
            (`3fcf..41a0` and `42d8..456e`)
          - which scratch fields and helper returns choose each variant
+         - exact runtime text bodies for the late CS-local report references
+           around `0x0d30` / `0x0d53`, which did not decode as plain raw-import
+           strings
 
 2. Recover initialized-to-post-maint deterministic rules
    - use canonical post-maint diff output from normalized `original/v1.5`

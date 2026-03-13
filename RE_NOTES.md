@@ -4545,7 +4545,17 @@ Strong practical consequence:
     - after a structural hit it calls `0x2000:b9a7`
     - that splits into two nearby CS-local report families around `0xd30` and
       `0xd53`
-    - both branches format report text around the same local candidate data
+    - the `b9a7 != 0` branch uses the smaller two-fragment family and then
+      calls `0x2000:d3bb`
+      - practical consequence:
+        - this is now best modeled as the merge/commit path after the deeper
+          structural match
+    - the `b9a7 == 0` branch uses the larger multi-fragment family, includes
+      a formatted literal `0x0bb8` (`3000`), and does not call `0x2000:d3bb`
+      before resetting `3521` / `350c`
+      - practical consequence:
+        - this is now best modeled as the already-guarding / ship-limit
+          abort-report path rather than a successful merge path
     - the fallback path at `451b..456e` emits an additional message, re-runs
       `0x1000:d183`, copies the selected entry back through `0x2000:c151`,
       rewrites `351b..351f`, then finalizes through `0x2000:c100`,
@@ -4576,6 +4586,13 @@ Strong practical consequence:
     - the remaining open part is the exact caller-side meaning of the scratch
       fields feeding those report variants, not whether this is the right late
       starbase path
+- a direct raw-import attempt to decode the later CS-local constants
+  `0x0d30`, `0x0d53`, etc. as counted strings does not yield printable text
+  - practical consequence:
+    - those constants should currently be treated as runtime-context-dependent
+      report references, not plain raw-import string blobs
+    - the useful static milestone is the branch-role split above, not the exact
+      text bodies yet
 
 Artifacts:
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-predicate.txt`
@@ -4585,12 +4602,14 @@ Artifacts:
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-scalar-scan.txt`
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-late-ranges.txt`
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-resolution-loop.txt`
+- `artifacts/ghidra/ecmaint-live/unknown-starbase-variant-strings.txt`
 
 Tool:
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbasePredicate.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseScratchRefs.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseStrings.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseResolutionLoop.java`
+- `tools/ghidra_scripts_tmp/ReportUnknownStarbaseVariantStrings.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbasePayloadProducers.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseScalarScan.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseLateRanges.java`

@@ -1,0 +1,65 @@
+# Unknown Starbase Variant Strings
+
+- Focus: CS-local counted strings used by the late starbase
+  report paths in `3fcf..41a0` and `42d8..456e`.
+
+## 0000:0d13
+
+- length: 17
+- text: t3<a2>d5<8b>F<ee><8b>^<f0><8b>V<f2><9a><f0><11>
+- bytes: 74 33 a2 64 35 8b 46 ee 8b 5e f0 8b 56 f2 9a f0 11
+
+## 0000:0d30
+
+- length: 111
+- text: 5<8b>F<dc><8b>^<de><8b>V<e0><a3>q5<89><1e>s5<89><16>u5<80><be><7f><f7><00>u<03><e9><e8><00><a0>c5<88><86><c1><f7><a0>d5<88><86><c2><f7><a1>e5<8b><1e>g5<8b><16>i5<89><86><c3><f7><89><9e><c5><f7><89><96><c7><f7><a1>k5<8b><1e>m5<8b><16>o5<89><86><c9><f7><89><9e><cb><f7><89><96><cd><f7><8b>F<dc><8b>^<de><8b>V<e0><89><86><cf><f7><89><9e><d1><f7><89><96><d3>
+- bytes: 35 8b 46 dc 8b 5e de 8b 56 e0 a3 71 35 89 1e 73 35 89 16 75 35 80 be 7f f7 00 75 03 e9 e8 00 a0 63 35 88 86 c1 f7 a0 64 35 88 86 c2 f7 a1 65 35 8b 1e 67 35 8b 16 69 35 89 86 c3 f7 89 9e c5 f7 89 96 c7 f7 a1 6b 35 8b 1e 6d 35 8b 16 6f 35 89 86 c9 f7 89 9e cb f7 89 96 cd f7 8b 46 dc 8b 5e de 8b 56 e0 89 86 cf f7 89 9e d1 f7 89 96 d3
+
+## 0000:0d4b
+
+- length: 117
+- text: <03><e9><e8><00><a0>c5<88><86><c1><f7><a0>d5<88><86><c2><f7><a1>e5<8b><1e>g5<8b><16>i5<89><86><c3><f7><89><9e><c5><f7><89><96><c7><f7><a1>k5<8b><1e>m5<8b><16>o5<89><86><c9><f7><89><9e><cb><f7><89><96><cd><f7><8b>F<dc><8b>^<de><8b>V<e0><89><86><cf><f7><89><9e><d1><f7><89><96><d3><f7><a0>c5<88><86><d6><f7><a0>d5<88><86><d7><f7><8b>F<dc><8b>^<de><8b>V<e0><9a>]<11>t3<88><86><d8><f7>
+- bytes: 03 e9 e8 00 a0 63 35 88 86 c1 f7 a0 64 35 88 86 c2 f7 a1 65 35 8b 1e 67 35 8b 16 69 35 89 86 c3 f7 89 9e c5 f7 89 96 c7 f7 a1 6b 35 8b 1e 6d 35 8b 16 6f 35 89 86 c9 f7 89 9e cb f7 89 96 cd f7 8b 46 dc 8b 5e de 8b 56 e0 89 86 cf f7 89 9e d1 f7 89 96 d3 f7 a0 63 35 88 86 d6 f7 a0 64 35 88 86 d7 f7 8b 46 dc 8b 5e de 8b 56 e0 9a 5d 11 74 33 88 86 d8 f7
+
+## 0000:0d53
+
+- length: 136
+- text: <86><c1><f7><a0>d5<88><86><c2><f7><a1>e5<8b><1e>g5<8b><16>i5<89><86><c3><f7><89><9e><c5><f7><89><96><c7><f7><a1>k5<8b><1e>m5<8b><16>o5<89><86><c9><f7><89><9e><cb><f7><89><96><cd><f7><8b>F<dc><8b>^<de><8b>V<e0><89><86><cf><f7><89><9e><d1><f7><89><96><d3><f7><a0>c5<88><86><d6><f7><a0>d5<88><86><d7><f7><8b>F<dc><8b>^<de><8b>V<e0><9a>]<11>t3<88><86><d8><f7><8b><86><f2><f7><d1><e0><d1><e0><c4>>r/<03><f8>&<c4>}<fc><89><be>v<f7><8c><86>x<f7><8b>
+- bytes: 86 c1 f7 a0 64 35 88 86 c2 f7 a1 65 35 8b 1e 67 35 8b 16 69 35 89 86 c3 f7 89 9e c5 f7 89 96 c7 f7 a1 6b 35 8b 1e 6d 35 8b 16 6f 35 89 86 c9 f7 89 9e cb f7 89 96 cd f7 8b 46 dc 8b 5e de 8b 56 e0 89 86 cf f7 89 9e d1 f7 89 96 d3 f7 a0 63 35 88 86 d6 f7 a0 64 35 88 86 d7 f7 8b 46 dc 8b 5e de 8b 56 e0 9a 5d 11 74 33 88 86 d8 f7 8b 86 f2 f7 d1 e0 d1 e0 c4 3e 72 2f 03 f8 26 c4 7d fc 89 be 76 f7 8c 86 78 f7 8b
+
+## 0000:0d68
+
+- length: 53
+- text: <89><86><c3><f7><89><9e><c5><f7><89><96><c7><f7><a1>k5<8b><1e>m5<8b><16>o5<89><86><c9><f7><89><9e><cb><f7><89><96><cd><f7><8b>F<dc><8b>^<de><8b>V<e0><89><86><cf><f7><89><9e><d1><f7><89>
+- bytes: 89 86 c3 f7 89 9e c5 f7 89 96 c7 f7 a1 6b 35 8b 1e 6d 35 8b 16 6f 35 89 86 c9 f7 89 9e cb f7 89 96 cd f7 8b 46 dc 8b 5e de 8b 56 e0 89 86 cf f7 89 9e d1 f7 89
+
+## 0000:0d85
+
+- length: 158
+- text: <cb><f7><89><96><cd><f7><8b>F<dc><8b>^<de><8b>V<e0><89><86><cf><f7><89><9e><d1><f7><89><96><d3><f7><a0>c5<88><86><d6><f7><a0>d5<88><86><d7><f7><8b>F<dc><8b>^<de><8b>V<e0><9a>]<11>t3<88><86><d8><f7><8b><86><f2><f7><d1><e0><d1><e0><c4>>r/<03><f8>&<c4>}<fc><89><be>v<f7><8c><86>x<f7><8b>F<dc><8b>^<de><8b>V<e0><9a>]<11>t3<83><fa><00>u<05>=<01><00>t<04><b0><00><eb><02><b0><01><c4><be>v<f7>&<88>E<05><8b>F<fa><8b>^<fc><8b>V<fe><9a>U<11>t3<c4><be>v<f7>&<88>E<01><8b>F<ee><8b>^<f0><8b>V<f2><9a>U<11>t
+- bytes: cb f7 89 96 cd f7 8b 46 dc 8b 5e de 8b 56 e0 89 86 cf f7 89 9e d1 f7 89 96 d3 f7 a0 63 35 88 86 d6 f7 a0 64 35 88 86 d7 f7 8b 46 dc 8b 5e de 8b 56 e0 9a 5d 11 74 33 88 86 d8 f7 8b 86 f2 f7 d1 e0 d1 e0 c4 3e 72 2f 03 f8 26 c4 7d fc 89 be 76 f7 8c 86 78 f7 8b 46 dc 8b 5e de 8b 56 e0 9a 5d 11 74 33 83 fa 00 75 05 3d 01 00 74 04 b0 00 eb 02 b0 01 c4 be 76 f7 26 88 45 05 8b 46 fa 8b 5e fc 8b 56 fe 9a 55 11 74 33 c4 be 76 f7 26 88 45 01 8b 46 ee 8b 5e f0 8b 56 f2 9a 55 11 74
+
+## 0000:0db3
+
+- length: 94
+- text: <de><8b>V<e0><9a>]<11>t3<88><86><d8><f7><8b><86><f2><f7><d1><e0><d1><e0><c4>>r/<03><f8>&<c4>}<fc><89><be>v<f7><8c><86>x<f7><8b>F<dc><8b>^<de><8b>V<e0><9a>]<11>t3<83><fa><00>u<05>=<01><00>t<04><b0><00><eb><02><b0><01><c4><be>v<f7>&<88>E<05><8b>F<fa><8b>^<fc><8b>V<fe><9a>U<11>t3<c4><be>v
+- bytes: de 8b 56 e0 9a 5d 11 74 33 88 86 d8 f7 8b 86 f2 f7 d1 e0 d1 e0 c4 3e 72 2f 03 f8 26 c4 7d fc 89 be 76 f7 8c 86 78 f7 8b 46 dc 8b 5e de 8b 56 e0 9a 5d 11 74 33 83 fa 00 75 05 3d 01 00 74 04 b0 00 eb 02 b0 01 c4 be 76 f7 26 88 45 05 8b 46 fa 8b 5e fc 8b 56 fe 9a 55 11 74 33 c4 be 76
+
+## 0000:0dc6
+
+- length: 224
+- text: <d1><e0><c4>>r/<03><f8>&<c4>}<fc><89><be>v<f7><8c><86>x<f7><8b>F<dc><8b>^<de><8b>V<e0><9a>]<11>t3<83><fa><00>u<05>=<01><00>t<04><b0><00><eb><02><b0><01><c4><be>v<f7>&<88>E<05><8b>F<fa><8b>^<fc><8b>V<fe><9a>U<11>t3<c4><be>v<f7>&<88>E<01><8b>F<ee><8b>^<f0><8b>V<f2><9a>U<11>t3<c4><be>v<f7>&<88>E<02><8d><be><b6><f7><16>W<9a><b0>7<95>(<eb>l<<03>uh<8b>F<fa><8b>^<fc><8b>V<fe><9a>U<11>t3<a2>A5<8b>F<fa><8b>^<fc><8b>V<fe><9a><f0><11>t3<a3>C5<89><1e>E5<89><16>G5<8b>F<ee><8b>^<f0><8b>V<f2><9a>U<11>t3<a2>B5<8b>F<ee><8b>^<f0><8b>V<f2><9a><f0><11>t3<a3>I5<89><1e>K5<89><16>M5<8b>F<dc><8b>^<de><8b>V<e0><a3>O5<89><1e>Q5<89><16>S5<8b>
+- bytes: d1 e0 c4 3e 72 2f 03 f8 26 c4 7d fc 89 be 76 f7 8c 86 78 f7 8b 46 dc 8b 5e de 8b 56 e0 9a 5d 11 74 33 83 fa 00 75 05 3d 01 00 74 04 b0 00 eb 02 b0 01 c4 be 76 f7 26 88 45 05 8b 46 fa 8b 5e fc 8b 56 fe 9a 55 11 74 33 c4 be 76 f7 26 88 45 01 8b 46 ee 8b 5e f0 8b 56 f2 9a 55 11 74 33 c4 be 76 f7 26 88 45 02 8d be b6 f7 16 57 9a b0 37 95 28 eb 6c 3c 03 75 68 8b 46 fa 8b 5e fc 8b 56 fe 9a 55 11 74 33 a2 41 35 8b 46 fa 8b 5e fc 8b 56 fe 9a f0 11 74 33 a3 43 35 89 1e 45 35 89 16 47 35 8b 46 ee 8b 5e f0 8b 56 f2 9a 55 11 74 33 a2 42 35 8b 46 ee 8b 5e f0 8b 56 f2 9a f0 11 74 33 a3 49 35 89 1e 4b 35 89 16 4d 35 8b 46 dc 8b 5e de 8b 56 e0 a3 4f 35 89 1e 51 35 89 16 53 35 8b
+
+## 0000:0e1a
+
+- length: 139
+- text: ^<f0><8b>V<f2><9a>U<11>t3<c4><be>v<f7>&<88>E<02><8d><be><b6><f7><16>W<9a><b0>7<95>(<eb>l<<03>uh<8b>F<fa><8b>^<fc><8b>V<fe><9a>U<11>t3<a2>A5<8b>F<fa><8b>^<fc><8b>V<fe><9a><f0><11>t3<a3>C5<89><1e>E5<89><16>G5<8b>F<ee><8b>^<f0><8b>V<f2><9a>U<11>t3<a2>B5<8b>F<ee><8b>^<f0><8b>V<f2><9a><f0><11>t3<a3>I5<89><1e>K5<89><16>M5<8b>F<dc><8b>^<de><8b>V<e0><a3>O5<89><1e>Q5<89><16>S5
+- bytes: 5e f0 8b 56 f2 9a 55 11 74 33 c4 be 76 f7 26 88 45 02 8d be b6 f7 16 57 9a b0 37 95 28 eb 6c 3c 03 75 68 8b 46 fa 8b 5e fc 8b 56 fe 9a 55 11 74 33 a2 41 35 8b 46 fa 8b 5e fc 8b 56 fe 9a f0 11 74 33 a3 43 35 89 1e 45 35 89 16 47 35 8b 46 ee 8b 5e f0 8b 56 f2 9a 55 11 74 33 a2 42 35 8b 46 ee 8b 5e f0 8b 56 f2 9a f0 11 74 33 a3 49 35 89 1e 4b 35 89 16 4d 35 8b 46 dc 8b 5e de 8b 56 e0 a3 4f 35 89 1e 51 35 89 16 53 35
+
+Interpretation:
+- `0xd30` / `0xd4b` belong to the `b9a7 != 0` branch
+- `0xd53` / `0xd68` / `0xd85` / `0xdb3` / `0xdc6` belong to the
+  `b9a7 == 0` branch
+- `0xe1a` is the later fallback message before re-running
+  `0x1000:d183`
