@@ -38,6 +38,7 @@ pub fn print_usage() {
     println!("  ec-cli guard-starbase-init [source_dir] <target_dir> <target_x> <target_y>");
     println!("  ec-cli guard-starbase-batch-init [source_dir] <target_root> <x:y> <x:y>...");
     println!("  ec-cli ipbm-report <dir>");
+    println!("  ec-cli player-tax <dir> <player_record> <rate>");
     println!("  ec-cli ipbm-zero <dir> <count>");
     println!("  ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>");
     println!("  ec-cli ipbm-validate <dir>");

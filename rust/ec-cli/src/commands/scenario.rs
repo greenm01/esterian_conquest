@@ -5,6 +5,7 @@ use ec_data::CoreGameData;
 
 use crate::commands::fleet_order::apply_fleet_order_scenario;
 use crate::commands::guard_starbase::apply_guard_starbase_scenario;
+use crate::commands::ipbm::{apply_ipbm_scenario, validate_ipbm_data};
 use crate::commands::planet_build::apply_planet_build_scenario;
 use crate::support::paths::repo_root;
 use crate::workspace::{copy_init_files, copy_pre_maint_replay_context_files};
@@ -14,11 +15,17 @@ pub(crate) enum KnownScenario {
     FleetOrder,
     PlanetBuild,
     GuardStarbase,
+    Ipbm,
 }
 
 impl KnownScenario {
-    pub(crate) fn all() -> [Self; 3] {
-        [Self::FleetOrder, Self::PlanetBuild, Self::GuardStarbase]
+    pub(crate) fn all() -> [Self; 4] {
+        [
+            Self::FleetOrder,
+            Self::PlanetBuild,
+            Self::GuardStarbase,
+            Self::Ipbm,
+        ]
     }
 
     pub(crate) fn name(self) -> &'static str {
@@ -26,6 +33,7 @@ impl KnownScenario {
             Self::FleetOrder => "fleet-order",
             Self::PlanetBuild => "planet-build",
             Self::GuardStarbase => "guard-starbase",
+            Self::Ipbm => "ipbm",
         }
     }
 
@@ -34,6 +42,7 @@ impl KnownScenario {
             "fleet-order" => Some(Self::FleetOrder),
             "planet-build" => Some(Self::PlanetBuild),
             "guard-starbase" => Some(Self::GuardStarbase),
+            "ipbm" => Some(Self::Ipbm),
             _ => None,
         }
     }
@@ -45,6 +54,7 @@ impl KnownScenario {
             Self::GuardStarbase => {
                 "accepted one-base guard-starbase fixture spanning PLAYER/FLEETS/BASES"
             }
+            Self::Ipbm => "accepted zero-record IPBM fixture",
         }
     }
 
@@ -54,6 +64,7 @@ impl KnownScenario {
             Self::FleetOrder => root.join("ecmaint-fleet-pre/v1.5"),
             Self::PlanetBuild => root.join("ecmaint-build-pre/v1.5"),
             Self::GuardStarbase => root.join("ecmaint-starbase-pre/v1.5"),
+            Self::Ipbm => root.join("ecmaint-post/v1.5"),
         }
     }
 
@@ -62,6 +73,7 @@ impl KnownScenario {
             Self::FleetOrder => &["FLEETS.DAT"],
             Self::PlanetBuild => &["PLANETS.DAT"],
             Self::GuardStarbase => &["PLAYER.DAT", "FLEETS.DAT", "BASES.DAT"],
+            Self::Ipbm => &["PLAYER.DAT", "IPBM.DAT"],
         }
     }
 }
@@ -74,6 +86,7 @@ pub(crate) fn apply_known_scenario(
         KnownScenario::FleetOrder => apply_fleet_order_scenario(dir),
         KnownScenario::PlanetBuild => apply_planet_build_scenario(dir),
         KnownScenario::GuardStarbase => apply_guard_starbase_scenario(dir),
+        KnownScenario::Ipbm => apply_ipbm_scenario(dir),
     }
 }
 
@@ -105,6 +118,7 @@ pub(crate) fn validate_known_scenario(
         KnownScenario::FleetOrder => validate_fleet_order_data(&data),
         KnownScenario::PlanetBuild => validate_planet_build_data(&data),
         KnownScenario::GuardStarbase => validate_guard_starbase_data(&data),
+        KnownScenario::Ipbm => validate_ipbm_data(&data),
     }
 }
 
@@ -119,6 +133,7 @@ pub(crate) fn validate_all_known_scenarios(
             KnownScenario::FleetOrder => validate_fleet_order_data(&data),
             KnownScenario::PlanetBuild => validate_planet_build_data(&data),
             KnownScenario::GuardStarbase => validate_guard_starbase_data(&data),
+            KnownScenario::Ipbm => validate_ipbm_data(&data),
         };
         match result {
             Ok(()) => {

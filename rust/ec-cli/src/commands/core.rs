@@ -728,6 +728,22 @@ pub(crate) fn init_canonical_current_known_baseline(
     Ok(())
 }
 
+pub(crate) fn set_player_tax_rate(
+    dir: &Path,
+    player_record_index_1_based: usize,
+    tax_rate: u8,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut data = CoreGameData::load(dir)?;
+    data.set_player_tax_rate(player_record_index_1_based, tax_rate)?;
+    data.save(dir)?;
+
+    println!(
+        "Player {} tax rate set to {}%",
+        player_record_index_1_based, tax_rate
+    );
+    Ok(())
+}
+
 fn seed_missing_current_known_core_files(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     for name in ["BASES.DAT", "IPBM.DAT"] {
         let path = dir.join(name);

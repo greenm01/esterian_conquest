@@ -121,23 +121,18 @@ impl PlanetRecord {
         self.raw[0x58]
     }
 
-    pub fn likely_army_count_raw(&self) -> u8 {
-        self.raw[0x5A]
-    }
-    pub fn set_likely_army_count_raw(&mut self, value: u8) {
-        self.raw[0x5A] = value;
+    pub fn set_army_count_raw(&mut self, value: u8) {
+        self.raw[0x58] = value;
     }
 
     pub fn ground_batteries_raw(&self) -> u8 {
         self.raw[0x5A]
     }
 
-    pub fn developed_value_raw(&self) -> u8 {
-        self.raw[0x58]
+    pub fn set_ground_batteries_raw(&mut self, value: u8) {
+        self.raw[0x5A] = value;
     }
-    pub fn set_developed_value_raw(&mut self, value: u8) {
-        self.raw[0x58] = value;
-    }
+
 
     pub fn ownership_status_raw(&self) -> u8 {
         self.raw[0x5C]
@@ -180,11 +175,11 @@ impl PlanetRecord {
                 self.ownership_status_raw()
             ));
         }
-        if self.likely_army_count_raw() != 0 {
-            parts.push(format!("likely_armies={}", self.likely_army_count_raw()));
+        if self.army_count_raw() != 0 {
+            parts.push(format!("armies={}", self.army_count_raw()));
         }
-        if self.developed_value_raw() != 0 {
-            parts.push(format!("dev58={}", self.developed_value_raw()));
+        if self.ground_batteries_raw() != 0 {
+            parts.push(format!("batteries={}", self.ground_batteries_raw()));
         }
         parts.join(" | ")
     }

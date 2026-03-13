@@ -7,9 +7,9 @@ use crate::commands::compliance::{print_compliance_batch_report, print_complianc
 use crate::commands::core::{
     init_current_known_baseline, print_canonical_current_known_baseline_diff,
     print_canonical_current_known_baseline_diff_offsets, print_canonical_transition_clusters,
-    print_canonical_transition_details, print_core_report,
-    print_current_known_baseline_diff, print_current_known_baseline_diff_offsets,
-    sync_canonical_current_known_baseline, sync_core_baseline, sync_core_counts,
+    print_canonical_transition_details, print_core_report, print_current_known_baseline_diff,
+    print_current_known_baseline_diff_offsets, set_player_tax_rate, sync_canonical_current_known_baseline,
+ sync_core_baseline, sync_core_counts,
     sync_current_known_baseline, sync_initialized_fleet_baseline,
     sync_initialized_planet_payloads, validate_core_state, validate_current_known_baseline_exact,
     init_canonical_current_known_baseline,
@@ -384,6 +384,18 @@ pub fn run_args(
             init_guard_starbase_onebase(&source, &target, target_x, target_y)?;
         }
         "ipbm-report" => print_ipbm_report(&next_dir(&mut args))?,
+        "player-tax" => {
+            let dir = next_dir(&mut args);
+            let Some(record_index) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(rate) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            set_player_tax_rate(&dir, record_index.parse()?, rate.parse()?)?;
+        }
         "ipbm-zero" => {
             let dir = next_dir(&mut args);
             let Some(count) = args.next() else {

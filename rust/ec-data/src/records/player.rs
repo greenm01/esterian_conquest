@@ -75,6 +75,10 @@ impl PlayerRecord {
         self.raw[0x51]
     }
 
+    pub fn set_tax_rate_raw(&mut self, value: u8) {
+        self.raw[0x51] = value;
+    }
+
     pub fn starbase_count_raw(&self) -> u16 {
         u16::from_le_bytes([self.raw[0x44], self.raw[0x45]])
     }

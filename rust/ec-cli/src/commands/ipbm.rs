@@ -105,6 +105,22 @@ pub(crate) fn init_ipbm_zero_records(
     Ok(())
 }
 
+pub(crate) fn apply_ipbm_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let mut data = CoreGameData::load(dir)?;
+    data.set_ipbm_zero_records(0);
+    data.save(dir)?;
+    Ok(())
+}
+
+pub(crate) fn validate_ipbm_data(data: &CoreGameData) -> Result<(), Box<dyn std::error::Error>> {
+    let errors = data.ipbm_count_length_errors_current_known();
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("\n").into())
+    }
+}
+
 pub(crate) fn init_ipbm_batch(
     source: &Path,
     target_root: &Path,

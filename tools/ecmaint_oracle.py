@@ -51,6 +51,10 @@ KNOWN_SCENARIOS = {
         "pre": ROOT / "fixtures" / "ecmaint-starbase-pre" / "v1.5",
         "post": ROOT / "fixtures" / "ecmaint-starbase-post" / "v1.5",
     },
+    "ipbm": {
+        "pre": ROOT / "fixtures" / "ecmaint-post" / "v1.5",
+        "post": ROOT / "fixtures" / "ecmaint-post" / "v1.5",
+    },
 }
 
 
@@ -233,6 +237,7 @@ def cmd_prepare(args: argparse.Namespace) -> int:
     source = Path(args.source).resolve()
     target = Path(args.target).resolve()
     copy_tree(source, target)
+    ensure_engine(target)
     snapshot_path = snapshot_dir(target, "prepared")
     print("Prepared ECMAINT oracle directory")
     print(f"  source={repo_relative(source)}")
@@ -241,6 +246,14 @@ def cmd_prepare(args: argparse.Namespace) -> int:
     print("  next step: submit player orders or mutate files, then run:")
     print(f"    python3 tools/ecmaint_oracle.py run {target}")
     return 0
+
+
+def ensure_engine(target: Path) -> None:
+    engine = target / "ECMAINT.EXE"
+    if not engine.exists():
+        source_engine = ROOT / "original" / "v1.5" / "ECMAINT.EXE"
+        if source_engine.exists():
+            shutil.copy2(source_engine, engine)
 
 
 def cmd_prepare_known(args: argparse.Namespace) -> int:
@@ -252,6 +265,7 @@ def cmd_prepare_known(args: argparse.Namespace) -> int:
         sys.stdout.write(result.stdout)
         sys.stderr.write(result.stderr)
         raise SystemExit(result.returncode)
+    ensure_engine(target)
     snapshot_path = snapshot_dir(target, "prepared")
     print(result.stdout.strip())
     print("Prepared known ECMAINT scenario directory")

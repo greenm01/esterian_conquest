@@ -391,8 +391,8 @@ impl CoreGameData {
                     record.set_stardock_kind_raw(slot, 0);
                 }
                 record.set_population_raw([0; 6]);
-                record.set_developed_value_raw(10);
-                record.set_likely_army_count_raw(4);
+                record.set_army_count_raw(10);
+                record.set_ground_batteries_raw(4);
                 record.set_ownership_status_raw(2);
             } else if owner == 0 {
                 record.set_status_or_name_prefix_raw("Unowned");
@@ -408,8 +408,8 @@ impl CoreGameData {
                     record.set_stardock_kind_raw(slot, 0);
                 }
                 record.set_population_raw([0; 6]);
-                record.set_developed_value_raw(0);
-                record.set_likely_army_count_raw(0);
+                record.set_army_count_raw(0);
+                record.set_ground_batteries_raw(0);
                 record.set_ownership_status_raw(0);
             }
         }
@@ -565,11 +565,11 @@ impl CoreGameData {
                     record.ownership_status_raw()
                 ));
             }
-            if record.developed_value_raw() != 10 {
+            if record.army_count_raw() != 10 {
                 errors.push(format!(
-                    "PLANET[{}].developed_value_raw expected 10 for homeworld seed, got {}",
+                    "PLANET[{}].army_count_raw expected 10 for homeworld seed, got {}",
                     planet_index_1_based,
-                    record.developed_value_raw()
+                    record.army_count_raw()
                 ));
             }
             if record.planet_tax_rate_raw() != 12 {
@@ -579,11 +579,11 @@ impl CoreGameData {
                     record.planet_tax_rate_raw()
                 ));
             }
-            if record.likely_army_count_raw() != 4 {
+            if record.ground_batteries_raw() != 4 {
                 errors.push(format!(
-                    "PLANET[{}].likely_army_count expected 4 for homeworld seed, got {}",
+                    "PLANET[{}].ground_batteries expected 4 for homeworld seed, got {}",
                     planet_index_1_based,
-                    record.likely_army_count_raw()
+                    record.ground_batteries_raw()
                 ));
             }
             if record.factories_raw() != [0, 0, 0, 0, 72, 134] {
@@ -655,11 +655,11 @@ impl CoreGameData {
                     record.ownership_status_raw()
                 ));
             }
-            if record.developed_value_raw() != 0 {
+            if record.army_count_raw() != 0 {
                 errors.push(format!(
-                    "PLANET[{}].developed_value_raw expected 0 for unowned baseline, got {}",
+                    "PLANET[{}].army_count_raw expected 0 for unowned baseline, got {}",
                     planet_index_1_based,
-                    record.developed_value_raw()
+                    record.army_count_raw()
                 ));
             }
             if record.planet_tax_rate_raw() != 0 {
@@ -669,11 +669,11 @@ impl CoreGameData {
                     record.planet_tax_rate_raw()
                 ));
             }
-            if record.likely_army_count_raw() != 0 {
+            if record.ground_batteries_raw() != 0 {
                 errors.push(format!(
-                    "PLANET[{}].likely_army_count expected 0 for unowned baseline, got {}",
+                    "PLANET[{}].ground_batteries expected 0 for unowned baseline, got {}",
                     planet_index_1_based,
-                    record.likely_army_count_raw()
+                    record.ground_batteries_raw()
                 ));
             }
             if record.factories_raw() != [0; 6] {
@@ -1804,8 +1804,29 @@ impl CoreGameData {
         self.diff_counts_against(other)
             .into_iter()
             .filter(|diff| diff.differing_bytes != 0)
-            .map(|diff| format!("{} differs by {} bytes from {}", diff.name, diff.differing_bytes, label))
+            .map(|diff| {
+                format!(
+                    "{} differs by {} bytes from {}",
+                    diff.name, diff.differing_bytes, label
+                )
+            })
             .collect()
+    }
+
+    pub fn set_player_tax_rate(
+        &mut self,
+        player_record_index_1_based: usize,
+        tax_rate: u8,
+    ) -> Result<(), GameStateMutationError> {
+        let record = self
+            .player
+            .records
+            .get_mut(player_record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingPlayerRecord {
+                index_1_based: player_record_index_1_based,
+            })?;
+        record.set_tax_rate_raw(tax_rate);
+        Ok(())
     }
 }
 
