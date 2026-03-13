@@ -44,6 +44,11 @@ fn maint_rust_econ_updates_database_owner_intel_from_post_combat_planet_state() 
     let unrelated_record = database.record(planet_idx, unrelated_player);
     assert_eq!(unrelated_record.planet_name_bytes(), b"UNKNOWN");
     assert_eq!(unrelated_record.raw[0x15], 0xff);
+    let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
+    assert!(
+        messages.is_empty(),
+        "MESSAGES.DAT should remain empty for current canonical maint output"
+    );
 
     cleanup_dir(&target);
 }
@@ -62,7 +67,206 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     assert!(!results.is_empty(), "RESULTS.DAT should contain battle summaries");
     let text = String::from_utf8_lossy(&results);
-    assert!(text.contains("Fleet battle at System("));
+    assert!(text.contains("Fleet battle report"));
+    assert!(text.contains("System("));
+    let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
+    assert!(
+        messages.is_empty(),
+        "MESSAGES.DAT should remain empty for current canonical maint output"
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_colonization_generates_results_report_from_colony_event() {
+    let target = unique_temp_dir("ec-cli-maint-rust-colonize");
+    copy_fixture_dir("fixtures/ecmaint-fleet-pre/v1.5", &target);
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    assert!(
+        !results.is_empty(),
+        "RESULTS.DAT should contain colonization summaries"
+    );
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("From colony mission in System("));
+    assert!(text.contains("successfully established"));
+    assert!(text.contains("Not Named Yet"));
+    let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
+    assert!(
+        messages.is_empty(),
+        "MESSAGES.DAT should remain empty for current canonical maint output"
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_colonization_blocked_by_owner_generates_report() {
+    let target = unique_temp_dir("ec-cli-maint-rust-colonize-blocked");
+    copy_fixture_dir("fixtures/ecmaint-fleet-pre/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let blocked = &mut game_data.planets.records[13];
+    blocked.set_owner_empire_slot_raw(2);
+    blocked.set_ownership_status_raw(2);
+    blocked.set_planet_name("TargetPrime");
+    blocked.set_army_count_raw(10);
+    game_data.save(&target).expect("mutated fixture should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    assert!(
+        !results.is_empty(),
+        "RESULTS.DAT should contain blocked colonization summaries"
+    );
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("From colony mission in System("));
+    assert!(text.contains("ot establish a colony on planet"));
+    assert!(text.contains("already occupie"));
+    assert!(text.contains("TargetPrime"));
+    assert!(text.contains("Empire #2"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_scout_sector_generates_results_report() {
+    let target = unique_temp_dir("ec-cli-maint-rust-scout-sector");
+    copy_fixture_dir("fixtures/ecmaint-fleet-pre/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let scout = &mut game_data.fleets.records[0];
+    scout.set_standing_order_code_raw(10);
+    scout.set_standing_order_target_coords_raw([15, 13]);
+    scout.set_scout_count(1);
+    scout.set_etac_count(0);
+    game_data.save(&target).expect("mutated fixture should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    assert!(!results.is_empty(), "RESULTS.DAT should contain scout summaries");
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("Scouting mission report"));
+    assert!(text.contains("beginning to scout this sector"));
+    assert!(text.contains("Sector(15,13)"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_scout_system_generates_results_report() {
+    let target = unique_temp_dir("ec-cli-maint-rust-scout-system");
+    copy_fixture_dir("fixtures/ecmaint-fleet-pre/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let scout = &mut game_data.fleets.records[0];
+    scout.set_standing_order_code_raw(11);
+    scout.set_standing_order_target_coords_raw([15, 13]);
+    scout.set_scout_count(1);
+    scout.set_etac_count(0);
+    game_data.save(&target).expect("mutated fixture should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    assert!(!results.is_empty(), "RESULTS.DAT should contain scout summaries");
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("Scouting mission report"));
+    assert!(text.contains("Owner:"));
+    assert!(text.contains("Ground batteries:"));
+    assert!(text.contains("System(15,13)"));
+
+    let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
+    let database_bytes = fs::read(target.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+    let viewer_record = database.record(13, 0);
+    assert_eq!(
+        viewer_record.planet_name_bytes(),
+        game_data.planets.records[13].planet_name().as_bytes()
+    );
+    assert_eq!(viewer_record.raw[0x15], game_data.planets.records[13].owner_empire_slot_raw());
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_view_world_generates_results_and_database_intel() {
+    let target = unique_temp_dir("ec-cli-maint-rust-view-world");
+    copy_fixture_dir("fixtures/ecmaint-fleet-pre/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let viewer = &mut game_data.fleets.records[0];
+    viewer.set_standing_order_code_raw(9);
+    viewer.set_standing_order_target_coords_raw([15, 13]);
+    viewer.set_scout_count(0);
+    viewer.set_etac_count(0);
+    game_data.save(&target).expect("mutated fixture should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("Viewing mission report"));
+    assert!(text.contains("long range"));
+    assert!(text.contains("potential"));
+
+    let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
+    let database_bytes = fs::read(target.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+    let viewer_record = database.record(13, 0);
+    assert_eq!(
+        viewer_record.planet_name_bytes(),
+        game_data.planets.records[13].planet_name().as_bytes()
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_battle_abort_generates_move_abort_report() {
+    let target = unique_temp_dir("ec-cli-maint-rust-battle-abort");
+    copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    game_data.fleets.records[0].set_standing_order_code_raw(1);
+    game_data.save(&target).expect("mutated fixture should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("Move mission report"));
+    assert!(text.contains("abort our mission") || text.contains("abort our"));
+    assert!(text.contains("seek safety"));
 
     cleanup_dir(&target);
 }

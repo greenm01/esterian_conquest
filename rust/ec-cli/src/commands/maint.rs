@@ -38,6 +38,12 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
         all_events
             .fleet_battle_events
             .extend(events.fleet_battle_events);
+        all_events
+            .colonization_events
+            .extend(events.colonization_events);
+        all_events
+            .mission_resolution_events
+            .extend(events.mission_resolution_events);
         println!("  Turn {}: year {}", turn, game_data.conquest.game_year());
     }
 

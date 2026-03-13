@@ -284,6 +284,41 @@ ones.
   - `bombard_events`
   - `fleet_battle_events`
   - `ownership_change_events`
+- colonization is now part of that same typed event/report path:
+  - [`rust/ec-data/src/maint/mod.rs`](/home/mag/dev/esterian_conquest/rust/ec-data/src/maint/mod.rs)
+    emits `colonization_events`
+  - [`rust/ec-cli/src/commands/reports.rs`](/home/mag/dev/esterian_conquest/rust/ec-cli/src/commands/reports.rs)
+    renders them into fixed-record `RESULTS.DAT`
+  - colonization outcomes now distinguish:
+    - successful colony establishment
+    - blocked-by-owner arrival at an already occupied world
+- the maintenance event surface now also has a generic mission-outcome backbone:
+  - `MissionResolutionEvent`
+  - `MissionResolutionKind`
+  - `MissionResolutionOutcome`
+- this is now populated for:
+  - `MoveOnly`
+  - `ViewWorld`
+  - `ColonizeWorld`
+  - `BombardWorld`
+  - `InvadeWorld`
+  - `BlitzWorld`
+  - `ScoutSector`
+  - `ScoutSolarSystem`
+- `ScoutSolarSystem` now also reuses the generic
+  `planet_intel_events` / `DATABASE.DAT` refresh path, so scout-system arrival
+  updates the acting empire's intel cache for the target world
+- `ViewWorld` now uses that same intel-refresh path and emits a viewing mission
+  report through the generic mission event surface
+- fleet battles now emit mission `Aborted` outcomes for the current
+  retreat-capable non-assault mission kinds supported by live maint:
+  - `MoveOnly`
+  - `ViewWorld`
+  - `ScoutSector`
+  - `ScoutSolarSystem`
+- current Rust maint policy is still to leave
+  [`MESSAGES.DAT`](/home/mag/dev/esterian_conquest/rust/ec-cli/src/commands/reports.rs)
+  empty, because every preserved post-maint fixture in the current corpus does so
 - ground batteries now use battleship-scale firepower per
   [`original/v1.5/ECPLAYER.DOC`](/home/mag/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC)
 - combat regression coverage now exists in
@@ -296,14 +331,18 @@ ones.
   - starbase-backed defender victory in orbital combat
   - assault event emission for combat intel refresh and ownership changes
   - CLI report generation coverage for fleet battles and captured planets
+  - CLI report generation coverage for colonization outcomes
+  - blocked colonization reporting for already occupied worlds
 - the remaining immediate combat work is not architecture; it is scenario and
   balance coverage:
   - same-tick arrival / mission-interaction coverage beyond the current direct
     contact cases
   - refine `RESULTS.DAT` formatting toward the original fixed-record idiom now
     that the deterministic event surface is in place
-  - decide whether `MESSAGES.DAT` needs its own canonical maint writer or
-    should stay empty until the original semantics are better mapped
+  - deepen scout/contact reporting beyond the current arrival/intel reports and
+    add true contact-identification follow-up events
+  - only revisit `MESSAGES.DAT` once a non-empty maint-generated sample is
+    recovered from oracle fixtures or historical session captures
   - add end-to-end `maint-compare` command coverage once the oracle-backed CLI
     test path is practical in normal test runs
 
@@ -508,24 +547,23 @@ Historical handoff detail:
 - preserve original `ECGAME` ANSI opening/menu/report screens for the Rust client
 - resume this once the local `ECGAME` harness is reliable enough or when UI preservation becomes the active milestone
 
-### ⏳ Milestone 5: Game Event System — PENDING
+### ⏳ Milestone 5: Game Event System — IN PROGRESS
 
-**Definition:** All ECMAINT mechanics emit typed `GameEvent` values instead of writing report strings inline. A single report-generation pass at the end converts the event log to MESSAGES.DAT / RESULTS.DAT / RANKINGS.TXT.
+**Definition:** ECMAINT mechanics emit typed maintenance/report events instead
+of writing report strings inline. A single report-generation pass at the end
+converts those events into `DATABASE.DAT`, `RESULTS.DAT`, and later any
+justified `MESSAGES.DAT` output.
 
 **Design sketch:**
 ```rust
-enum GameEvent {
-    FleetArrived { fleet_id, location, player },
+enum MaintEvent {
+    FleetBattleResolved { coords, participants, winner },
+    PlanetIntelRefreshed { planet_id, viewer },
+    PlanetOwnershipChanged { planet_id, from, to },
     ColonizationSucceeded { fleet_id, planet_id, player },
     ColonizationAborted { fleet_id, planet_id, owner, player },
-    CombatEngaged { attacker, defender, location, outcome },
-    FleetDestroyed { fleet_id, player },
-    PlanetInvaded { planet_id, attacker, defender, outcome },
-    BombardmentComplete { fleet_id, planet_id, armies_killed, factory_pct, goods_pct },
-    GuardArrival { fleet_id, planet_id, player },
     ScoutReport { fleet_id, planet_id, intel },
-    ShipCompleted { planet_id, player, ship_kind },
-    // ...
+    MissionResolved { fleet_id, mission, outcome },
 }
 ```
 
@@ -535,17 +573,36 @@ enum GameEvent {
 - Useful for a future Rust ECGAME client
 - Matches likely internal ECMAINT structure (templated report strings)
 
-**When to introduce:** Before porting any combat mechanic. Economic simulation (current work) does not generate reports, so the event system can be stubbed in as an empty accumulator now and filled in when combat is tackled.
+**Current state:**
+
+- combat maintenance now already emits:
+  - `bombard_events`
+  - `planet_intel_events`
+  - `ownership_change_events`
+  - `fleet_battle_events`
+- [`rust/ec-cli/src/commands/reports.rs`](/home/mag/dev/esterian_conquest/rust/ec-cli/src/commands/reports.rs)
+  now consumes that event surface to regenerate:
+  - `DATABASE.DAT`
+  - deterministic `RESULTS.DAT`
+- `MESSAGES.DAT` still remains empty in the canonical Rust path because the
+  current preserved maint corpus provides no non-empty maint-generated samples
 
 **Acceptance criteria:**
-- [ ] `GameEvent` enum defined in `ec-data/src/maint/`
-- [ ] All ported mechanics push events into a per-turn event buffer
-- [ ] Report generation pass consumes events → RESULTS.DAT / MESSAGES.DAT
-- [ ] No inline report string construction outside the report generation pass
+- [x] typed maintenance/report events exist in `ec-data/src/maint/`
+- [x] combat maintenance pushes events into a per-turn event buffer
+- [x] report-generation pass consumes events → `DATABASE.DAT` / `RESULTS.DAT`
+- [x] colonization outcomes emit first-class typed events
+- [x] blocked colonization emits a first-class typed event and report
+- [x] generic mission outcome events exist for current colonize / bombard / invade / blitz paths
+- [x] scout mission arrivals emit first-class typed events
+- [x] `ViewWorld` emits typed mission results and intel refresh
+- [x] battle-driven mission aborts emit typed outcomes for move/view/scout
+- [ ] scout intel/contact follow-up reports are modeled beyond arrival/intel
+- [ ] no inline report string construction outside the report generation pass
 
 ---
 
-### ⏳ Milestone 6: Reproduce ECMAINT Player Turn Reports — PENDING
+### ⏳ Milestone 6: Reproduce ECMAINT Player Turn Reports — IN PROGRESS
 
 **Definition:** Rust maintenance generates byte-exact MESSAGES.DAT and RESULTS.DAT content matching the original ECMAINT output for all scenario families.
 
@@ -560,11 +617,25 @@ enum GameEvent {
 
 **Known facts:**
 - RESULTS.DAT is non-empty for fleet-battle and invade scenarios (combat reports)
-- MESSAGES.DAT is empty in all known fixture post-states (player-to-player messages only?)
+- MESSAGES.DAT is empty in all known preserved maint post-states in the current
+  fixture corpus
 - Guard/blockade and econ-only turns produce empty RESULTS.DAT (no report generated)
 - Report format: Pascal-style length-prefixed strings, word-wrapped at ~72 chars, with stardate header
 - Reports are per-player: each player only sees reports about their own fleets/planets
 - The ec-logs are the best oracle for report text, triggers, and formatting before doing binary RE
+
+**Current state:**
+
+- Rust now writes deterministic fixed-record `RESULTS.DAT` output from typed
+  maintenance events
+- the report writer now follows the observed 84-byte record family more closely:
+  - family/type first byte
+  - fixed trailing bytes by report family
+  - multi-record chunking instead of single-record truncation
+- this is structural and stylistic progress, not byte-exact parity yet
+- the next additions should be event-driven reports for:
+  - scout/recon outcomes
+  - more mission-result categories beyond current combat summaries
 
 **Acceptance criteria:**
 - [ ] Byte-exact RESULTS.DAT match on fleet-battle scenario
@@ -572,3 +643,15 @@ enum GameEvent {
 - [ ] Byte-exact RESULTS.DAT match on bombard scenario (currently empty — verify)
 - [ ] All scenario families produce correct MESSAGES.DAT / RESULTS.DAT
 - [ ] Report format (word-wrap, stardate, sender/receiver addressing) matches original
+
+**Immediate next steps:**
+
+1. Add typed scout/contact follow-up events for reconnaissance intel and
+   first-contact style reporting beyond the current arrival/intel reports.
+2. Decide whether `JoinAnotherFleet` / `RendezvousSector` should become the
+   next non-combat mission families promoted into the generic mission-outcome
+  /report pipeline, or whether contact-identification should come first.
+3. Keep refining `RESULTS.DAT` family formatting against preserved fixtures and
+   historical session logs.
+4. Do not add a canonical `MESSAGES.DAT` writer until a non-empty maint-driven
+   sample is recovered.

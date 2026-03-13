@@ -1,9 +1,18 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::{CoreGameData, DatabaseDat, MaintenanceEvents, PlanetDat};
+use ec_data::{
+    CoreGameData, DatabaseDat, MaintenanceEvents, MissionResolutionKind, MissionResolutionOutcome,
+    PlanetDat,
+};
 
 const RESULTS_RECORD_SIZE: usize = 84;
+const RESULTS_TEXT_SIZE: usize = 75;
+const RESULTS_TAIL_BOMBARD: [u8; 8] = [0, 0, 0, 0, 0, 0, 185, 11];
+const RESULTS_TAIL_INVASION: [u8; 8] = [0, 0, 0, 0, 0, 0, 195, 11];
+const RESULTS_TAIL_FLEET: [u8; 8] = [0, 0, 7, 0, 0, 0, 194, 11];
+const RESULTS_TAIL_COLONIZATION: [u8; 8] = [0, 0, 0, 0, 0, 0, 184, 11];
+const RESULTS_TAIL_SCOUTING: [u8; 8] = [0, 0, 0, 0, 0, 0, 186, 11];
 
 /// Regenerate DATABASE.DAT from current PLANETS.DAT and CONQUEST.DAT year.
 ///
@@ -209,13 +218,27 @@ fn empire_label(game_data: &CoreGameData, empire_raw: u8) -> String {
     }
 }
 
-fn push_results_line(data: &mut Vec<u8>, line: &str) {
-    let mut record = [0u8; RESULTS_RECORD_SIZE];
-    let bytes = line.as_bytes();
-    let len = bytes.len().min(RESULTS_RECORD_SIZE - 1);
-    record[0] = 0x08;
-    record[1..1 + len].copy_from_slice(&bytes[..len]);
-    data.extend_from_slice(&record);
+fn push_results_chunked(data: &mut Vec<u8>, kind: u8, tail: [u8; 8], text: &str) {
+    let bytes = text.as_bytes();
+    if bytes.is_empty() {
+        return;
+    }
+    for chunk in bytes.chunks(RESULTS_TEXT_SIZE) {
+        let mut record = [0u8; RESULTS_RECORD_SIZE];
+        record[0] = kind;
+        record[1..1 + chunk.len()].copy_from_slice(chunk);
+        record[76..84].copy_from_slice(&tail);
+        data.extend_from_slice(&record);
+    }
+}
+
+fn mission_location_phrase(kind: MissionResolutionKind, coords: [u8; 2]) -> String {
+    let [x, y] = coords;
+    match kind {
+        MissionResolutionKind::ScoutSector
+        | MissionResolutionKind::MoveOnly => format!("Sector({x},{y})"),
+        _ => format!("System({x},{y})"),
+    }
 }
 
 pub(crate) fn regenerate_results_dat(
@@ -228,13 +251,17 @@ pub(crate) fn regenerate_results_dat(
     for event in &events.bombard_events {
         if let Some(planet) = game_data.planets.records.get(event.planet_idx) {
             let [x, y] = planet.coords_raw();
-            push_results_line(
+            let text = format!(
+                "From planet \"{}\" in System({x},{y}): Stardate 1/{}. We have been bombarded by {}.",
+                planet.planet_name(),
+                game_data.conquest.game_year(),
+                empire_label(game_data, event.attacker_empire_raw)
+            );
+            push_results_chunked(
                 &mut results,
-                &format!(
-                    "Bombardment at System({x},{y}) against planet \"{}\" by {}.",
-                    planet.planet_name(),
-                    empire_label(game_data, event.attacker_empire_raw)
-                ),
+                0x08,
+                RESULTS_TAIL_BOMBARD,
+                &text,
             );
         }
     }
@@ -251,9 +278,14 @@ pub(crate) fn regenerate_results_dat(
             Some(empire) => format!("winner {}", empire_label(game_data, empire)),
             None => "no clear winner".to_string(),
         };
-        push_results_line(
+        let text = format!(
+            "From your fleet in System({x},{y}): Fleet battle report. Participants: {participants}. Outcome: {outcome}."
+        );
+        push_results_chunked(
             &mut results,
-            &format!("Fleet battle at System({x},{y}): {participants}; {outcome}."),
+            0x06,
+            RESULTS_TAIL_FLEET,
+            &text,
         );
     }
 
@@ -265,15 +297,185 @@ pub(crate) fn regenerate_results_dat(
             } else {
                 empire_label(game_data, event.previous_owner_empire_raw)
             };
-            push_results_line(
-                &mut results,
-                &format!(
-                    "Planet \"{}\" in System({x},{y}) captured by {} from {}.",
-                    planet.planet_name(),
-                    empire_label(game_data, event.new_owner_empire_raw),
-                    from
-                ),
+            let text = format!(
+                "From planet \"{}\" in System({x},{y}): We have been invaded and captured by {} from {}.",
+                planet.planet_name(),
+                empire_label(game_data, event.new_owner_empire_raw),
+                from
             );
+            push_results_chunked(
+                &mut results,
+                0x0c,
+                RESULTS_TAIL_INVASION,
+                &text,
+            );
+        }
+    }
+
+    for event in &events.colonization_events {
+        match *event {
+            ec_data::ColonizationResolvedEvent::Succeeded {
+                planet_idx,
+                colonizer_empire_raw,
+                ..
+            } => {
+                if let Some(planet) = game_data.planets.records.get(planet_idx) {
+                    let [x, y] = planet.coords_raw();
+                    let text = format!(
+                        "From colony mission in System({x},{y}): We have successfully established a colony on planet \"{}\" for {}.",
+                        planet.planet_name(),
+                        empire_label(game_data, colonizer_empire_raw),
+                    );
+                    push_results_chunked(
+                        &mut results,
+                        0x09,
+                        RESULTS_TAIL_COLONIZATION,
+                        &text,
+                    );
+                }
+            }
+            ec_data::ColonizationResolvedEvent::BlockedByOwner {
+                planet_idx,
+                colonizer_empire_raw,
+                owner_empire_raw,
+                ..
+            } => {
+                if let Some(planet) = game_data.planets.records.get(planet_idx) {
+                    let [x, y] = planet.coords_raw();
+                    let text = format!(
+                        "From colony mission in System({x},{y}): {} could not establish a colony on planet \"{}\" because it is already occupied by {}.",
+                        empire_label(game_data, colonizer_empire_raw),
+                        planet.planet_name(),
+                        empire_label(game_data, owner_empire_raw),
+                    );
+                    push_results_chunked(
+                        &mut results,
+                        0x09,
+                        RESULTS_TAIL_COLONIZATION,
+                        &text,
+                    );
+                }
+            }
+        }
+    }
+
+    for event in &events.mission_resolution_events {
+        let Some(fleet) = game_data.fleets.records.get(event.fleet_idx) else {
+            continue;
+        };
+        let coords = event
+            .location_coords
+            .unwrap_or_else(|| fleet.current_location_coords_raw());
+        let [x, y] = coords;
+        match (event.kind, event.outcome) {
+            (MissionResolutionKind::MoveOnly, MissionResolutionOutcome::Succeeded) => {
+                let text = format!(
+                    "From your fleet in {}: Move mission report: We have arrived at our destination and await new orders.",
+                    mission_location_phrase(event.kind, coords)
+                );
+                push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
+            }
+            (MissionResolutionKind::MoveOnly, MissionResolutionOutcome::Aborted) => {
+                let destination = fleet.standing_order_target_coords_raw();
+                let [dx, dy] = destination;
+                let text = format!(
+                    "From your fleet in {}: Move mission report: Hostile action forced us to abort our mission and seek safety in System({dx},{dy}).",
+                    mission_location_phrase(event.kind, coords)
+                );
+                push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
+            }
+            (MissionResolutionKind::ViewWorld, MissionResolutionOutcome::Succeeded) => {
+                let text = if let Some(planet_idx) = event.planet_idx {
+                    if let Some(planet) = game_data.planets.records.get(planet_idx) {
+                        let ownership = if planet.owner_empire_slot_raw() == 0 {
+                            "unowned".to_string()
+                        } else {
+                            format!("owned by {}", empire_label(game_data, planet.owner_empire_slot_raw()))
+                        };
+                        format!(
+                            "From your fleet in System({x},{y}): Viewing mission report: We have entered System({x},{y}) and completed a long range analysis of planet \"{}\". The world is {} and has a potential of {} points. Until ordered otherwise, we will be moving out of the solar system.",
+                            planet.planet_name(),
+                            ownership,
+                            u16::from_le_bytes(planet.potential_production_raw()),
+                        )
+                    } else {
+                        format!(
+                            "From your fleet in System({x},{y}): Viewing mission report: We have entered System({x},{y}) and completed a long range viewing analysis."
+                        )
+                    }
+                } else {
+                    format!(
+                        "From your fleet in System({x},{y}): Viewing mission report: We have entered System({x},{y}) and completed a long range viewing analysis."
+                    )
+                };
+                push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
+            }
+            (MissionResolutionKind::ViewWorld, MissionResolutionOutcome::Failed) => {
+                let text = format!(
+                    "From your fleet in System({x},{y}): Viewing mission report: We found no world to analyze at the assigned destination."
+                );
+                push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
+            }
+            (MissionResolutionKind::ViewWorld, MissionResolutionOutcome::Aborted) => {
+                let text = format!(
+                    "From your fleet in System({x},{y}): Viewing mission report: We were attacked before the viewing mission could be completed and are aborting our assignment."
+                );
+                push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
+            }
+            (MissionResolutionKind::ScoutSector, MissionResolutionOutcome::Succeeded) => {
+                let text = format!(
+                    "From your fleet in Sector({x},{y}): Scouting mission report: We have arrived at our destination and are beginning to scout this sector."
+                );
+                push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
+            }
+            (MissionResolutionKind::ScoutSector, MissionResolutionOutcome::Aborted) => {
+                let text = format!(
+                    "From your fleet in Sector({x},{y}): Scouting mission report: Hostile action forced us to abort our scouting mission and withdraw."
+                );
+                push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
+            }
+            (MissionResolutionKind::ScoutSolarSystem, MissionResolutionOutcome::Succeeded) => {
+                let text = if let Some(planet) = game_data
+                    .planets
+                    .records
+                    .iter()
+                    .find(|planet| planet.coords_raw() == [x, y])
+                {
+                    let owner = if planet.owner_empire_slot_raw() == 0 {
+                        "Unowned world".to_string()
+                    } else {
+                        empire_label(game_data, planet.owner_empire_slot_raw())
+                    };
+                    let stardock_summary = if (0..10).any(|slot| planet.stardock_count_raw(slot) > 0)
+                    {
+                        "The planet's stardock contains ships."
+                    } else {
+                        "The planet's stardock appears to be empty."
+                    };
+                    format!(
+                        "From your fleet in System({x},{y}): Scouting mission report: We are in extended orbit around planet \"{}\". Owner: {}. Potential production: {} points. Stored goods: {} points. Armies: {}. Ground batteries: {}. {}",
+                        planet.planet_name(),
+                        owner,
+                        planet.potential_production_raw()[0],
+                        planet.stored_goods_raw(),
+                        planet.army_count_raw(),
+                        planet.ground_batteries_raw(),
+                        stardock_summary,
+                    )
+                } else {
+                    format!(
+                        "From your fleet in System({x},{y}): Scouting mission report: We have arrived at our destination and are beginning to scout this solar system."
+                    )
+                };
+                push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
+            }
+            (MissionResolutionKind::ScoutSolarSystem, MissionResolutionOutcome::Aborted) => {
+                let text = format!(
+                    "From your fleet in System({x},{y}): Scouting mission report: We were forced to break off our close reconnaissance and withdraw from the solar system."
+                );
+                push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
+            }
+            _ => {}
         }
     }
 

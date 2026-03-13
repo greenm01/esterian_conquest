@@ -1,6 +1,6 @@
 mod common;
 
-use ec_data::{run_maintenance_turn, CoreGameData};
+use ec_data::{run_maintenance_turn, CoreGameData, MissionResolutionKind, MissionResolutionOutcome};
 use std::path::Path;
 
 fn load_fixture(name: &str) -> CoreGameData {
@@ -81,6 +81,7 @@ fn canonical_bombardment_consumes_order_and_devastates_target() {
         .planet_intel_events
         .iter()
         .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 2));
+    assert!(events.colonization_events.is_empty());
 
     let attacker = &game_data.fleets.records[2];
     assert_eq!(attacker.current_location_coords_raw(), [15, 13]);
@@ -99,8 +100,9 @@ fn canonical_bombardment_consumes_order_and_devastates_target() {
 #[test]
 fn canonical_fleet_battle_removes_losers_without_garbage_counts() {
     let mut game_data = load_fixture("ecmaint-fleet-battle-pre");
+    game_data.fleets.records[0].set_standing_order_code_raw(1);
 
-    run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
 
     let loser_one = &game_data.fleets.records[0];
     let loser_two = &game_data.fleets.records[2];
@@ -119,6 +121,13 @@ fn canonical_fleet_battle_removes_losers_without_garbage_counts() {
     assert_eq!(loser_two.cruiser_count(), 0);
     assert_eq!(loser_two.destroyer_count(), 0);
     assert_eq!(loser_two.troop_transport_count(), 0);
+
+    assert!(events.mission_resolution_events.iter().any(|event| {
+        event.fleet_idx == 0
+            && event.kind == MissionResolutionKind::MoveOnly
+            && event.outcome == MissionResolutionOutcome::Aborted
+            && event.location_coords == Some([10, 10])
+    }));
 
     let survivor = &game_data.fleets.records[6];
     assert_eq!(survivor.current_location_coords_raw(), [10, 10]);
@@ -303,6 +312,7 @@ fn canonical_blitz_success_transfers_surviving_batteries() {
         .planet_intel_events
         .iter()
         .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 2));
+    assert!(events.colonization_events.is_empty());
 }
 
 #[test]

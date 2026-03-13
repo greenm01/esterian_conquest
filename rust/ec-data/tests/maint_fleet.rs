@@ -3,7 +3,10 @@
 //! Validates that the Rust maintenance implementation matches the original ECMAINT
 //! behavior on the fleet-scenario fixture pair.
 
-use ec_data::{run_maintenance_turn, CoreGameData};
+use ec_data::{
+    run_maintenance_turn, ColonizationResolvedEvent, CoreGameData, FleetStandingOrderKind,
+    MissionResolutionKind, MissionResolutionOutcome,
+};
 use std::path::Path;
 
 /// Helper to load a fixture directory.
@@ -142,4 +145,134 @@ fn test_colonization_planet_state() {
         "Not Named Yet",
         "Planet 13 should be named 'Not Named Yet' after colonization"
     );
+}
+
+#[test]
+fn test_colonization_emits_success_event() {
+    let mut game_data = load_fixture("ecmaint-fleet-pre");
+
+    let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
+
+    assert_eq!(events.colonization_events.len(), 1);
+    assert_eq!(
+        events.colonization_events[0],
+        ColonizationResolvedEvent::Succeeded {
+            fleet_idx: 0,
+            planet_idx: 13,
+            colonizer_empire_raw: 1,
+        }
+    );
+    assert!(events.mission_resolution_events.iter().any(|event| {
+        event.fleet_idx == 0
+            && event.kind == MissionResolutionKind::ColonizeWorld
+            && event.outcome == MissionResolutionOutcome::Succeeded
+            && event.planet_idx == Some(13)
+    }));
+}
+
+#[test]
+fn test_colonization_emits_blocked_event_for_occupied_world() {
+    let mut game_data = load_fixture("ecmaint-fleet-pre");
+    let target = &mut game_data.planets.records[13];
+    target.set_owner_empire_slot_raw(2);
+    target.set_ownership_status_raw(2);
+    target.set_planet_name("TargetPrime");
+    target.set_army_count_raw(10);
+
+    let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
+
+    assert_eq!(events.colonization_events.len(), 1);
+    assert_eq!(
+        events.colonization_events[0],
+        ColonizationResolvedEvent::BlockedByOwner {
+            fleet_idx: 0,
+            planet_idx: 13,
+            colonizer_empire_raw: 1,
+            owner_empire_raw: 2,
+        }
+    );
+    assert!(events.mission_resolution_events.iter().any(|event| {
+        event.fleet_idx == 0
+            && event.kind == MissionResolutionKind::ColonizeWorld
+            && event.outcome == MissionResolutionOutcome::Failed
+            && event.planet_idx == Some(13)
+    }));
+    let target = &game_data.planets.records[13];
+    assert_eq!(target.owner_empire_slot_raw(), 2);
+    assert_eq!(target.planet_name(), "TargetPrime");
+}
+
+#[test]
+fn test_scout_sector_arrival_emits_success_event() {
+    let mut game_data = load_fixture("ecmaint-fleet-pre");
+    let scout = &mut game_data.fleets.records[0];
+    scout.set_standing_order_code_raw(10);
+    scout.set_standing_order_target_coords_raw([15, 13]);
+    scout.set_scout_count(1);
+    scout.set_etac_count(0);
+
+    let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
+
+    assert!(events.colonization_events.is_empty());
+    assert!(events.mission_resolution_events.iter().any(|event| {
+        event.fleet_idx == 0
+            && event.kind == MissionResolutionKind::ScoutSector
+            && event.outcome == MissionResolutionOutcome::Succeeded
+            && event.planet_idx.is_none()
+    }));
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_kind(),
+        FleetStandingOrderKind::HoldPosition
+    );
+    assert_eq!(game_data.fleets.records[0].current_speed(), 0);
+}
+
+#[test]
+fn test_scout_system_arrival_emits_success_event() {
+    let mut game_data = load_fixture("ecmaint-fleet-pre");
+    let scout = &mut game_data.fleets.records[0];
+    scout.set_standing_order_code_raw(11);
+    scout.set_standing_order_target_coords_raw([15, 13]);
+    scout.set_scout_count(1);
+    scout.set_etac_count(0);
+
+    let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
+
+    assert!(events.colonization_events.is_empty());
+    assert_eq!(events.planet_intel_events.len(), 1);
+    assert_eq!(events.planet_intel_events[0].planet_idx, 13);
+    assert_eq!(events.planet_intel_events[0].viewer_empire_raw, 1);
+    assert!(events.mission_resolution_events.iter().any(|event| {
+        event.fleet_idx == 0
+            && event.kind == MissionResolutionKind::ScoutSolarSystem
+            && event.outcome == MissionResolutionOutcome::Succeeded
+            && event.planet_idx.is_none()
+    }));
+    assert_eq!(
+        game_data.fleets.records[0].current_location_coords_raw(),
+        [15, 13]
+    );
+}
+
+#[test]
+fn test_view_world_arrival_emits_success_and_intel_event() {
+    let mut game_data = load_fixture("ecmaint-fleet-pre");
+    let viewer = &mut game_data.fleets.records[0];
+    viewer.set_standing_order_code_raw(9);
+    viewer.set_standing_order_target_coords_raw([15, 13]);
+    viewer.set_scout_count(0);
+    viewer.set_etac_count(0);
+
+    let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
+
+    assert!(events.colonization_events.is_empty());
+    assert_eq!(events.planet_intel_events.len(), 1);
+    assert_eq!(events.planet_intel_events[0].planet_idx, 13);
+    assert_eq!(events.planet_intel_events[0].viewer_empire_raw, 1);
+    assert!(events.mission_resolution_events.iter().any(|event| {
+        event.fleet_idx == 0
+            && event.kind == MissionResolutionKind::ViewWorld
+            && event.outcome == MissionResolutionOutcome::Succeeded
+            && event.planet_idx == Some(13)
+    }));
 }

@@ -44,6 +44,71 @@ pub struct FleetBattleEvent {
     pub winner_empire_raw: Option<u8>,
 }
 
+/// The generic outcome class for a mission report.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MissionResolutionOutcome {
+    Succeeded,
+    Failed,
+    Aborted,
+}
+
+/// Mission kinds that currently participate in typed maintenance reporting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MissionResolutionKind {
+    MoveOnly,
+    ViewWorld,
+    ColonizeWorld,
+    BombardWorld,
+    InvadeWorld,
+    BlitzWorld,
+    ScoutSector,
+    ScoutSolarSystem,
+}
+
+/// A generic mission-resolution report event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MissionResolutionEvent {
+    /// Fleet index in FLEETS.DAT that attempted the mission.
+    pub fleet_idx: usize,
+    /// Empire that owned the acting fleet (1-based player index).
+    pub owner_empire_raw: u8,
+    /// Mission kind.
+    pub kind: MissionResolutionKind,
+    /// Resolved outcome class.
+    pub outcome: MissionResolutionOutcome,
+    /// Target planet index when the mission is planet-directed.
+    pub planet_idx: Option<usize>,
+    /// Coordinates where the mission resolved, if known.
+    pub location_coords: Option<[u8; 2]>,
+    /// Original mission target coordinates, if known.
+    pub target_coords: Option<[u8; 2]>,
+}
+
+/// A colonization outcome resolved during maintenance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ColonizationResolvedEvent {
+    /// The fleet established a new colony.
+    Succeeded {
+        /// Fleet index in FLEETS.DAT that completed the mission.
+        fleet_idx: usize,
+        /// Planet index (into PLANETS.DAT records) that was colonized.
+        planet_idx: usize,
+        /// Empire that established the colony (1-based player index).
+        colonizer_empire_raw: u8,
+    },
+    /// The fleet reached the target world but it was already occupied.
+    BlockedByOwner {
+        /// Fleet index in FLEETS.DAT that attempted the mission.
+        fleet_idx: usize,
+        /// Planet index (into PLANETS.DAT records) that blocked colonization.
+        planet_idx: usize,
+        /// Empire that attempted the colony mission (1-based player index).
+        colonizer_empire_raw: u8,
+        /// Current owner of the world (1-based player index).
+        owner_empire_raw: u8,
+    },
+}
+
 /// Events produced by a single maintenance turn, for use by callers
 /// (e.g. DATABASE.DAT regeneration in the CLI layer).
 #[derive(Debug, Default)]
@@ -56,14 +121,28 @@ pub struct MaintenanceEvents {
     pub ownership_change_events: Vec<PlanetOwnershipChangeEvent>,
     /// Fleet battle summaries for later reporting layers.
     pub fleet_battle_events: Vec<FleetBattleEvent>,
+    /// Successful colonization outcomes.
+    pub colonization_events: Vec<ColonizationResolvedEvent>,
+    /// Generic mission outcomes for report generation.
+    pub mission_resolution_events: Vec<MissionResolutionEvent>,
 }
 
 /// Event produced when a fleet completes a ColonizeWorld order.
+#[derive(Debug)]
 struct ColonizationEvent {
+    /// Fleet index in FLEETS.DAT that arrived.
+    fleet_idx: usize,
     /// Target coordinates where colonization occurred.
     coords: [u8; 2],
     /// Empire that colonized (owner_empire_raw from fleet record).
     owner_empire: u8,
+}
+
+#[derive(Debug, Default)]
+struct MovementEvents {
+    colonization_events: Vec<ColonizationEvent>,
+    planet_intel_events: Vec<PlanetIntelEvent>,
+    mission_resolution_events: Vec<MissionResolutionEvent>,
 }
 
 /// Run a single turn of maintenance processing.
@@ -196,15 +275,16 @@ pub fn run_maintenance_turn(
     process_fleet_merging(game_data)?;
 
     // Process fleet orders; collect side-effect events
-    let colonization_events = process_fleet_movement(game_data)?;
+    let movement_events = process_fleet_movement(game_data)?;
 
     // Detect and resolve fleet battles: when hostile fleets co-locate after movement,
     // surviving fleets get SeekHome orders (confirmed from fleet-battle oracle).
     // This runs after movement so all fleet positions are final for this turn.
-    let fleet_battle_events = combat::process_fleet_battles(game_data)?;
+    let fleet_battle_phase_events = combat::process_fleet_battles(game_data)?;
 
     // Apply colonization results to PLANETS.DAT and PLAYER.DAT
-    process_colonizations(game_data, &colonization_events)?;
+    let colonization_events =
+        process_colonizations(game_data, &movement_events.colonization_events)?;
 
     // Process build queues and track which planets had activity
     let planets_with_builds = process_build_completion(game_data)?;
@@ -232,11 +312,52 @@ pub fn run_maintenance_turn(
     // Normalize CONQUEST.DAT header fields
     process_conquest_header(game_data, should_accumulate_conquest)?;
 
+    let mut mission_resolution_events = movement_events.mission_resolution_events;
+    mission_resolution_events.extend(fleet_battle_phase_events.mission_resolution_events);
+    mission_resolution_events.extend(assault_events.mission_resolution_events);
+    for colonization in &colonization_events {
+        match *colonization {
+            ColonizationResolvedEvent::Succeeded {
+                fleet_idx,
+                planet_idx,
+                colonizer_empire_raw,
+            } => mission_resolution_events.push(MissionResolutionEvent {
+                fleet_idx,
+                owner_empire_raw: colonizer_empire_raw,
+                kind: MissionResolutionKind::ColonizeWorld,
+                outcome: MissionResolutionOutcome::Succeeded,
+                planet_idx: Some(planet_idx),
+                location_coords: Some(game_data.planets.records[planet_idx].coords_raw()),
+                target_coords: Some(game_data.planets.records[planet_idx].coords_raw()),
+            }),
+            ColonizationResolvedEvent::BlockedByOwner {
+                fleet_idx,
+                planet_idx,
+                colonizer_empire_raw,
+                ..
+            } => mission_resolution_events.push(MissionResolutionEvent {
+                fleet_idx,
+                owner_empire_raw: colonizer_empire_raw,
+                kind: MissionResolutionKind::ColonizeWorld,
+                outcome: MissionResolutionOutcome::Failed,
+                planet_idx: Some(planet_idx),
+                location_coords: Some(game_data.planets.records[planet_idx].coords_raw()),
+                target_coords: Some(game_data.planets.records[planet_idx].coords_raw()),
+            }),
+        }
+    }
+
     Ok(MaintenanceEvents {
         bombard_events: assault_events.bombard_events,
-        planet_intel_events: assault_events.planet_intel_events,
+        planet_intel_events: {
+            let mut events = movement_events.planet_intel_events;
+            events.extend(assault_events.planet_intel_events);
+            events
+        },
         ownership_change_events: assault_events.ownership_change_events,
-        fleet_battle_events,
+        fleet_battle_events: fleet_battle_phase_events.fleet_battle_events,
+        colonization_events,
+        mission_resolution_events,
     })
 }
 
@@ -250,9 +371,9 @@ pub fn run_maintenance_turn(
 /// Returns a list of colonization events for fleets that arrived with ColonizeWorld orders.
 fn process_fleet_movement(
     game_data: &mut CoreGameData,
-) -> Result<Vec<ColonizationEvent>, Box<dyn std::error::Error>> {
+) -> Result<MovementEvents, Box<dyn std::error::Error>> {
     let fleet_count = game_data.fleets.records.len();
-    let mut colonization_events = Vec::new();
+    let mut movement_events = MovementEvents::default();
 
     for i in 0..fleet_count {
         let (target_x, target_y, current_x, current_y, speed, order_kind, owner_empire) = {
@@ -281,16 +402,103 @@ fn process_fleet_movement(
             let arrived = process_single_fleet_movement(game_data, i)?;
 
             // If a ColonizeWorld fleet arrived, queue a colonization event
-            if arrived && matches!(order_kind, FleetStandingOrderKind::ColonizeWorld) {
-                colonization_events.push(ColonizationEvent {
-                    coords: [target_x, target_y],
-                    owner_empire,
-                });
+            if arrived {
+                match order_kind {
+                    FleetStandingOrderKind::ColonizeWorld => {
+                        movement_events.colonization_events.push(ColonizationEvent {
+                            fleet_idx: i,
+                            coords: [target_x, target_y],
+                            owner_empire,
+                        });
+                    }
+                    FleetStandingOrderKind::ScoutSector => {
+                        movement_events
+                            .mission_resolution_events
+                            .push(MissionResolutionEvent {
+                                fleet_idx: i,
+                                owner_empire_raw: owner_empire,
+                                kind: MissionResolutionKind::ScoutSector,
+                                outcome: MissionResolutionOutcome::Succeeded,
+                                planet_idx: None,
+                                location_coords: Some([target_x, target_y]),
+                                target_coords: Some([target_x, target_y]),
+                            });
+                    }
+                    FleetStandingOrderKind::ScoutSolarSystem => {
+                        if let Some(planet_idx) =
+                            game_data.planets.records.iter().position(|planet| {
+                                planet.coords_raw() == [target_x, target_y]
+                            })
+                        {
+                            movement_events
+                                .planet_intel_events
+                                .push(PlanetIntelEvent {
+                                    planet_idx,
+                                    viewer_empire_raw: owner_empire,
+                                });
+                        }
+                        movement_events
+                            .mission_resolution_events
+                            .push(MissionResolutionEvent {
+                                fleet_idx: i,
+                                owner_empire_raw: owner_empire,
+                                kind: MissionResolutionKind::ScoutSolarSystem,
+                                outcome: MissionResolutionOutcome::Succeeded,
+                                planet_idx: None,
+                                location_coords: Some([target_x, target_y]),
+                                target_coords: Some([target_x, target_y]),
+                            });
+                    }
+                    FleetStandingOrderKind::ViewWorld => {
+                        let planet_idx = game_data
+                            .planets
+                            .records
+                            .iter()
+                            .position(|planet| planet.coords_raw() == [target_x, target_y]);
+                        if let Some(planet_idx) = planet_idx {
+                            movement_events
+                                .planet_intel_events
+                                .push(PlanetIntelEvent {
+                                    planet_idx,
+                                    viewer_empire_raw: owner_empire,
+                                });
+                        }
+                        movement_events
+                            .mission_resolution_events
+                            .push(MissionResolutionEvent {
+                                fleet_idx: i,
+                                owner_empire_raw: owner_empire,
+                                kind: MissionResolutionKind::ViewWorld,
+                                outcome: if planet_idx.is_some() {
+                                    MissionResolutionOutcome::Succeeded
+                                } else {
+                                    MissionResolutionOutcome::Failed
+                                },
+                                planet_idx,
+                                location_coords: Some([target_x, target_y]),
+                                target_coords: Some([target_x, target_y]),
+                            });
+                    }
+                    FleetStandingOrderKind::MoveOnly => {
+                        movement_events
+                            .mission_resolution_events
+                            .push(MissionResolutionEvent {
+                                fleet_idx: i,
+                                owner_empire_raw: owner_empire,
+                                kind: MissionResolutionKind::MoveOnly,
+                                outcome: MissionResolutionOutcome::Succeeded,
+                                planet_idx: None,
+                                location_coords: Some([target_x, target_y]),
+                                target_coords: Some([target_x, target_y]),
+                            });
+                    }
+                    _ => {}
+                }
             }
         }
     }
 
-    Ok(colonization_events)
+    Ok(movement_events)
 }
 
 /// Process movement for a single fleet using the ECMAINT movement formula.
@@ -468,7 +676,8 @@ fn process_single_fleet_movement(
 fn process_colonizations(
     game_data: &mut CoreGameData,
     events: &[ColonizationEvent],
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<Vec<ColonizationResolvedEvent>, Box<dyn std::error::Error>> {
+    let mut resolved = Vec::new();
     for event in events {
         let [cx, cy] = event.coords;
 
@@ -512,11 +721,24 @@ fn process_colonizations(
                     game_data.player.records[player_idx].raw[0x52] =
                         current_score.saturating_add(1);
                 }
+
+                resolved.push(ColonizationResolvedEvent::Succeeded {
+                    fleet_idx: event.fleet_idx,
+                    planet_idx: idx,
+                    colonizer_empire_raw: event.owner_empire,
+                });
+            } else {
+                resolved.push(ColonizationResolvedEvent::BlockedByOwner {
+                    fleet_idx: event.fleet_idx,
+                    planet_idx: idx,
+                    colonizer_empire_raw: event.owner_empire,
+                    owner_empire_raw: planet.owner_empire_slot_raw(),
+                });
             }
         }
     }
 
-    Ok(())
+    Ok(resolved)
 }
 
 /// Merge co-located friendly fleets for players flagged for combat consolidation.

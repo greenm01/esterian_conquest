@@ -211,6 +211,45 @@ Default loop:
 4. Promote only strong repeated patterns into `CoreGameData`.
 5. Escalate to deep RE only if the rule still blocks generalization.
 
+## Event And Report Direction
+
+Maintenance-side player-visible consequences should be modeled as typed events
+first, and rendered into classic report files second.
+
+Current direction:
+
+- `ec-data` owns the event surface emitted by maintenance mechanics
+- `ec-cli` owns report-file regeneration (`DATABASE.DAT`, `RESULTS.DAT`, and
+  later any justified `MESSAGES.DAT` writer)
+- report formatting should not be embedded ad hoc inside mechanic code paths
+
+This applies beyond combat. The same event/report pipeline should eventually
+cover:
+
+- fleet encounters and retreats
+- bombardment, invasion, blitz, and starbase defense
+- colonization success/failure
+- scout reconnaissance and contact discovery
+- mission completion / mission denial outcomes
+
+Near-term policy:
+
+- continue broadening the typed maintenance event surface
+- keep pushing those events through a single report-generation pass
+- use the generic mission-outcome backbone for first-pass scout arrival reports
+  before implementing richer planet-intel reconnaissance reports
+- let `ScoutSolarSystem` reuse the existing `PlanetIntelEvent` /
+  `DATABASE.DAT` refresh path where the current maintenance model can already
+  support it
+- let `ViewWorld` use that same intel-refresh path rather than creating a
+  separate report-only branch
+- when combat forces a fleet off its standing orders, emit a typed mission
+  `Aborted` outcome from the battle phase instead of hiding that consequence
+  inside fleet-byte mutations alone
+- treat `RESULTS.DAT` as the active canonical maint report target
+- leave `MESSAGES.DAT` empty until a non-empty maint-generated sample is
+  recovered from fixtures, oracle runs, or historical session captures
+
 Default `ECMAINT` black-box loop for new mechanics:
 
 1. `python3 tools/ecmaint_oracle.py prepare <target_dir> [source_dir]`

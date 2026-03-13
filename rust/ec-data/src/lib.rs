@@ -30,8 +30,9 @@ pub use directory::{
     CurrentKnownKeyWordSummary, GameDirectoryError, GameStateMutationError,
 };
 pub use maint::{
-    run_maintenance_turn, run_maintenance_turns, BombardEvent, FleetBattleEvent,
-    MaintenanceEvents, PlanetIntelEvent, PlanetOwnershipChangeEvent,
+    run_maintenance_turn, run_maintenance_turns, BombardEvent, ColonizationResolvedEvent,
+    FleetBattleEvent, MaintenanceEvents, MissionResolutionEvent, MissionResolutionKind,
+    MissionResolutionOutcome, PlanetIntelEvent, PlanetOwnershipChangeEvent,
 };
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;
