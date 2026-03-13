@@ -27,9 +27,10 @@ use crate::commands::ipbm::{
     set_ipbm_zero_records, validate_ipbm,
 };
 use crate::commands::planet_build::{
-    init_planet_build_batch, init_planet_build_scenario, print_planet_build_report,
-    set_planet_build,
+    init_planet_build_batch, init_planet_build_scenario, init_planet_original, print_planet_build_report,
+    set_planet_build, set_planet_name, set_planet_owner, set_planet_potential, set_planet_stats,
 };
+
 use crate::commands::scenario::{
     apply_known_scenario, apply_known_scenarios, init_all_known_scenarios, init_known_scenario,
     init_known_replayable_scenario, init_known_scenario_chain,
@@ -332,6 +333,63 @@ pub fn run_args(
                 parse_u8_arg(&kind_raw, "build kind")?,
             )?;
         }
+        "planet-owner" => {
+            let dir = next_dir(&mut args);
+            let Some(record_index) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(owner) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            set_planet_owner(&dir, record_index.parse()?, owner.parse()?)?;
+        }
+        "planet-name" => {
+            let dir = next_dir(&mut args);
+            let Some(record_index) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(name) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            set_planet_name(&dir, record_index.parse()?, &name)?;
+        }
+        "planet-stats" => {
+            let dir = next_dir(&mut args);
+            let Some(record_index) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(armies) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(batteries) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            set_planet_stats(&dir, record_index.parse()?, armies.parse()?, batteries.parse()?)?;
+        }
+        "planet-potential" => {
+            let dir = next_dir(&mut args);
+            let Some(record_index) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(p1) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(p2) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            set_planet_potential(&dir, record_index.parse()?, p1.parse()?, p2.parse()?)?;
+        }
+        "planet-init-original" => init_planet_original(&next_dir(&mut args))?,
         "planet-build-report" => {
             let dir = next_dir(&mut args);
             let record_index_arg = args.next();

@@ -28,15 +28,17 @@ pub(crate) fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> 
     println!("Planets:");
     for (idx, record) in data.planets.records.iter().enumerate().take(5) {
         println!(
-            "  planet {:02}: coords={:02x?} hdr={:02x?} len={} text='{}' tail58={:02x?} summary='{}'",
+            "  planet {:02}: coords={:?} hdr={:02x?} len={} text='{}' tail58={:02x?} fact_word={:04x} summary='{}'",
             idx + 1,
             record.coords_raw(),
             record.header_bytes(),
             record.string_len(),
-            ascii_trim(record.status_or_name_bytes()),
-            &record.raw[0x58..=0x60],
+            record.status_or_name_summary(),
+            &record.raw[0x58..0x61],
+            record.factories_word_raw(),
             record.derived_summary()
         );
+
     }
     println!("  ... {} total planet records", data.planets.records.len());
 

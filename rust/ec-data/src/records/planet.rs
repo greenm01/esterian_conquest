@@ -42,6 +42,13 @@ impl PlanetRecord {
         self.raw[0x04..0x0A].copy_from_slice(&value);
     }
 
+    pub fn factories_word_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x08], self.raw[0x09]])
+    }
+    pub fn set_factories_word_raw(&mut self, value: u16) {
+        self.raw[0x08..0x0A].copy_from_slice(&value.to_le_bytes());
+    }
+
     pub fn stored_goods_raw(&self) -> u32 {
         u32::from_le_bytes(copy_array(&self.raw[0x0A..0x0E]))
     }
@@ -54,6 +61,19 @@ impl PlanetRecord {
     }
     pub fn set_planet_tax_rate_raw(&mut self, value: u8) {
         self.raw[0x0E] = value;
+    }
+
+    pub fn set_planet_name(&mut self, name: &str) {
+        let bytes = name.as_bytes();
+        let len = bytes.len().min(13);
+        self.raw[0x0F] = len as u8;
+        self.raw[0x10..0x1D].fill(0);
+        self.raw[0x10..0x10 + len].copy_from_slice(&bytes[..len]);
+    }
+
+    pub fn set_planet_name_buffer(&mut self, len: u8, buffer: &[u8; 13]) {
+        self.raw[0x0F] = len;
+        self.raw[0x10..0x1D].copy_from_slice(buffer);
     }
 
     pub fn set_status_or_name_summary_raw(&mut self, value: &str) {
@@ -152,6 +172,10 @@ impl PlanetRecord {
 
     pub fn is_named_homeworld_seed(&self) -> bool {
         self.status_or_name_summary() == "Not Named Yet"
+    }
+
+    pub fn is_homeworld_seed_ignoring_name(&self) -> bool {
+        self.ownership_status_raw() == 2 && self.owner_empire_slot_raw() != 0
     }
 
     pub fn derived_summary(&self) -> String {

@@ -30,6 +30,11 @@ pub fn print_usage() {
     println!("  ec-cli fleet-order-init <target_dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]");
     println!("  ec-cli fleet-order-batch-init <target_root> <fleet_record:speed:order:target_x:target_y[:aux0[:aux1]]>...");
     println!("  ec-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>");
+    println!("  ec-cli planet-owner <dir> <planet_record> <owner_slot>");
+    println!("  ec-cli planet-name <dir> <planet_record> <name>");
+    println!("  ec-cli planet-stats <dir> <planet_record> <armies> <batteries>");
+    println!("  ec-cli planet-potential <dir> <planet_record> <p1_raw> <p2_raw>");
+    println!("  ec-cli planet-init-original <dir>");
     println!("  ec-cli planet-build-report [dir] [planet_record]");
     println!("  ec-cli planet-build-init <target_dir> <planet_record> <build_slot_raw> <build_kind_raw>");
     println!("  ec-cli planet-build-batch-init <target_root> <planet_record:build_slot_raw:build_kind_raw>...");

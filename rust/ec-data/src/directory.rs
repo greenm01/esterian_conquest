@@ -376,7 +376,7 @@ impl CoreGameData {
 
         for record in &mut self.planets.records {
             let owner = record.owner_empire_slot_raw() as usize;
-            if record.is_named_homeworld_seed() && (1..=player_count).contains(&owner) {
+            if record.is_homeworld_seed_ignoring_name() && (1..=player_count).contains(&owner) {
                 record.set_potential_production_raw([100, 135]);
                 record.set_factories_raw([0, 0, 0, 0, 72, 134]);
                 record.set_stored_goods_raw(0);
@@ -453,7 +453,7 @@ impl CoreGameData {
                     .iter()
                     .find(|record| {
                         record.owner_empire_slot_raw() as usize == player_record_index_1_based
-                            && record.is_named_homeworld_seed()
+                            && record.is_homeworld_seed_ignoring_name()
                     })
                     .map(|record| record.coords_raw())
             })
@@ -471,7 +471,7 @@ impl CoreGameData {
                 .enumerate()
                 .filter(|(_, record)| {
                     record.owner_empire_slot_raw() as usize == player_record_index_1_based
-                        && record.is_named_homeworld_seed()
+                        && record.is_homeworld_seed_ignoring_name()
                 })
                 .map(|(idx, record)| (idx + 1, record.coords_raw()))
                 .collect::<Vec<_>>();
@@ -493,7 +493,7 @@ impl CoreGameData {
         for (idx, record) in self.planets.records.iter().enumerate() {
             let planet_index_1_based = idx + 1;
             let owner = record.owner_empire_slot_raw() as usize;
-            let is_homeworld_seed = record.is_named_homeworld_seed();
+            let is_homeworld_seed = record.is_homeworld_seed_ignoring_name();
 
             if owner != 0 && !is_homeworld_seed {
                 errors.push(format!(
@@ -540,7 +540,7 @@ impl CoreGameData {
         let mut errors = Vec::new();
 
         for (idx, record) in self.planets.records.iter().enumerate() {
-            if !record.is_named_homeworld_seed() {
+            if !record.is_homeworld_seed_ignoring_name() {
                 continue;
             }
             let planet_index_1_based = idx + 1;
@@ -630,7 +630,7 @@ impl CoreGameData {
         let mut errors = Vec::new();
 
         for (idx, record) in self.planets.records.iter().enumerate() {
-            if record.is_named_homeworld_seed() {
+            if record.is_homeworld_seed_ignoring_name() {
                 continue;
             }
             let planet_index_1_based = idx + 1;
