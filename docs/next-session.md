@@ -191,6 +191,15 @@ Priority order:
                PSP-owned dump exposes under the old `3000:` assumptions
              - next method should be runtime-segment-aware capture around the
                live consumer path, not more raw-dump carving
+           - same write-stop dump also shows why:
+             - `DS=39ab`, `SS=39ab`
+             - `DS:3502`, `DS:3521`, `DS:3525`, `DS:0630`, and `DS:6766` are
+               all zero there
+             - practical implication:
+               - the `INT 21h/AH=40` stop is too DOS-owned to expose the
+                 program-side late scratch directly
+               - next useful breakpoint must be before the DOS write, on the
+                 program-side report path
            - useful caller-side clue from the write-stop stack:
              - plausible far return pair `2895:27ac`
              - that matches the earlier live kind-`2` segment family

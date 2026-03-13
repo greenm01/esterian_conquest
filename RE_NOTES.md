@@ -4633,6 +4633,15 @@ Strong practical consequence:
       raw-import address model
     - the next useful method is a runtime-segment-aware capture around the
       live consumer path, not more raw-dump carving at the old `3000:` offsets
+  - probing the write-stop `DS`-relative state also clarifies why:
+    - at the same stop, `DS=39ab` and `SS=39ab`
+    - `DS:3502`, `DS:3521`, `DS:3525`, `DS:0630`, and `DS:6766` all read back
+      as zero
+  - practical consequence:
+    - the `INT 21h/AH=40` stop is too DOS-owned to expose the program-side late
+      scratch directly
+    - the next useful breakpoint must be before the DOS write, on the
+      program-side report path rather than inside DOS
   - the stack at that write stop also preserves a useful caller-side clue:
     - it contains a plausible far return pair `2895:27ac`
     - that segment matches the earlier live kind-`2` decode captures
