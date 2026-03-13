@@ -256,6 +256,12 @@ Near-term policy:
   bombardment, fleet battle, scouting/contact, merge, colonization, and mission
   outcome reporting should be modeled from the acting or affected empire's
   point of view rather than as a global debug narration
+- let destructive combat consequences become first-class events too; fleets and
+  starbases that are wiped out should emit explicit command-center loss reports
+  rather than being inferred indirectly from missing units
+- where richer specialized report events exist, prefer them over duplicate
+  generic mission-resolution text; invade/blitz should not generate two
+  parallel attacker-side reports for the same assault
 - treat `RESULTS.DAT` as the active canonical maint report target
 - leave `MESSAGES.DAT` empty until a non-empty maint-generated sample is
   recovered from fixtures, oracle runs, or historical session captures

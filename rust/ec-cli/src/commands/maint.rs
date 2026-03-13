@@ -42,11 +42,20 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
             .fleet_destroyed_events
             .extend(events.fleet_destroyed_events);
         all_events
+            .starbase_destroyed_events
+            .extend(events.starbase_destroyed_events);
+        all_events
+            .assault_report_events
+            .extend(events.assault_report_events);
+        all_events
             .scout_contact_events
             .extend(events.scout_contact_events);
         all_events
             .fleet_merge_events
             .extend(events.fleet_merge_events);
+        all_events
+            .join_host_events
+            .extend(events.join_host_events);
         all_events
             .colonization_events
             .extend(events.colonization_events);

@@ -31,6 +31,29 @@ pub struct BombardEvent {
     pub defender_army_losses: u8,
 }
 
+/// A ground-assault event for invade/blitz mission reporting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AssaultReportEvent {
+    /// Fleet mission kind that produced the assault.
+    pub kind: MissionResolutionKind,
+    /// Planet index (into PLANETS.DAT records) that was attacked.
+    pub planet_idx: usize,
+    /// Acting empire that should receive the attacker-side report.
+    pub attacker_empire_raw: u8,
+    /// Exact attacker fleet losses during the orbital/landing exchange.
+    pub attacker_ship_losses: ShipLosses,
+    /// Attacker ground losses.
+    pub attacker_army_losses: u32,
+    /// Attacker troop losses suffered in destroyed transports during landing.
+    pub transport_army_losses: u32,
+    /// Defender battery losses.
+    pub defender_battery_losses: u8,
+    /// Defender army losses.
+    pub defender_army_losses: u8,
+    /// Final mission outcome.
+    pub outcome: MissionResolutionOutcome,
+}
+
 /// A combat-triggered intel refresh for one player's DATABASE view of one planet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PlanetIntelEvent {
@@ -93,15 +116,37 @@ pub struct FleetDestroyedEvent {
     pub primary_enemy_empire_raw: Option<u8>,
 }
 
+/// A starbase was completely destroyed and command lost all contact with it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StarbaseDestroyedEvent {
+    /// Empire that receives the destruction report.
+    pub reporting_empire_raw: u8,
+    /// Starbase ID that was lost.
+    pub starbase_id: u8,
+    /// Coordinates of the loss.
+    pub coords: [u8; 2],
+    /// Initial observed hostile composition.
+    pub enemy_initial: ShipLosses,
+    /// Observed hostile losses before contact was lost.
+    pub enemy_losses: ShipLosses,
+    /// Hostile empire if a primary enemy can be named.
+    pub primary_enemy_empire_raw: Option<u8>,
+}
+
+/// A scout-style hostile contact report resolved during maintenance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContactReportSource {
+    FleetMission(MissionResolutionKind),
+    Starbase(u8),
+}
+
 /// A scout-style hostile contact report resolved during maintenance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ScoutContactEvent {
-    /// Fleet index in FLEETS.DAT that made the contact.
-    pub fleet_idx: usize,
     /// Empire that owns the observing fleet.
     pub viewer_empire_raw: u8,
-    /// Mission family under which the contact was reported.
-    pub mission_kind: MissionResolutionKind,
+    /// Fleet or starbase source that made the contact.
+    pub source: ContactReportSource,
     /// Coordinates where the contact occurred.
     pub coords: [u8; 2],
     /// Empire that was detected.
@@ -175,6 +220,7 @@ pub enum MissionResolutionOutcome {
 pub enum MissionResolutionKind {
     MoveOnly,
     ViewWorld,
+    GuardStarbase,
     GuardBlockadeWorld,
     JoinAnotherFleet,
     RendezvousSector,
@@ -244,6 +290,10 @@ pub struct MaintenanceEvents {
     pub fleet_battle_events: Vec<FleetBattleEvent>,
     /// Command-center reports for fleets that were totally destroyed.
     pub fleet_destroyed_events: Vec<FleetDestroyedEvent>,
+    /// Command-center reports for starbases that were totally destroyed.
+    pub starbase_destroyed_events: Vec<StarbaseDestroyedEvent>,
+    /// Attacker-side invade/blitz reports with bilateral ground losses.
+    pub assault_report_events: Vec<AssaultReportEvent>,
     /// Scout-style hostile contact reports.
     pub scout_contact_events: Vec<ScoutContactEvent>,
     /// Friendly merge reports for join/rendezvous outcomes.
@@ -488,6 +538,8 @@ pub fn run_maintenance_turn(
         ownership_change_events: assault_events.ownership_change_events,
         fleet_battle_events: fleet_battle_phase_events.fleet_battle_events,
         fleet_destroyed_events: fleet_battle_phase_events.fleet_destroyed_events,
+        starbase_destroyed_events: fleet_battle_phase_events.starbase_destroyed_events,
+        assault_report_events: assault_events.assault_report_events,
         scout_contact_events: fleet_battle_phase_events.scout_contact_events,
         fleet_merge_events: merge_events,
         join_host_events,
@@ -693,6 +745,37 @@ fn process_fleet_movement(
                                 } else {
                                     MissionResolutionOutcome::Failed
                                 },
+                                planet_idx,
+                                location_coords: Some([target_x, target_y]),
+                                target_coords: Some([target_x, target_y]),
+                            });
+                    }
+                    FleetStandingOrderKind::GuardStarbase => {
+                        movement_events
+                            .mission_resolution_events
+                            .push(MissionResolutionEvent {
+                                fleet_idx: i,
+                                owner_empire_raw: owner_empire,
+                                kind: MissionResolutionKind::GuardStarbase,
+                                outcome: MissionResolutionOutcome::Succeeded,
+                                planet_idx: None,
+                                location_coords: Some([target_x, target_y]),
+                                target_coords: Some([target_x, target_y]),
+                            });
+                    }
+                    FleetStandingOrderKind::GuardBlockadeWorld => {
+                        let planet_idx = game_data
+                            .planets
+                            .records
+                            .iter()
+                            .position(|planet| planet.coords_raw() == [target_x, target_y]);
+                        movement_events
+                            .mission_resolution_events
+                            .push(MissionResolutionEvent {
+                                fleet_idx: i,
+                                owner_empire_raw: owner_empire,
+                                kind: MissionResolutionKind::GuardBlockadeWorld,
+                                outcome: MissionResolutionOutcome::Succeeded,
                                 planet_idx,
                                 location_coords: Some([target_x, target_y]),
                                 target_coords: Some([target_x, target_y]),

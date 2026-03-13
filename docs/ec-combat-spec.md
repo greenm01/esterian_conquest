@@ -406,8 +406,15 @@ Landing battle targets armies only.
 
 ### Target priority: blitz
 
-Blitz skips deliberate orbital suppression. Defender batteries fire into the
-landing while the attacker attempts immediate army delivery.
+Blitz skips the full deliberate orbital-suppression program of an invasion, but
+it still includes a brief cover-fire / distraction step before the transports
+commit to the descent.
+
+The canonical blitz sequence is:
+
+1. a brief light cover-fire step from escorting combat ships against batteries
+2. landing under fire from any batteries that survive that cover fire
+3. immediate ground combat between landed attackers and defending armies
 
 Defender fire under blitz targets:
 
@@ -421,7 +428,8 @@ Attacker fire under blitz targets:
 2. batteries
 
 This makes blitz faster, riskier, and more dependent on army superiority, which
-matches the manuals.
+matches the manuals: combat ships help the drop, but they do not reduce the
+planet the way a full invade does.
 
 ## Fleet-Vs-Fleet Combat
 
@@ -769,13 +777,17 @@ It deliberately sacrifices safety for speed.
 ### Blitz rules
 
 - transports attempt immediate landing without waiting for all batteries to die
-- defender batteries fire during the landing
+- a blitz begins with one brief low-intensity cover-fire round against batteries
+- defender batteries that survive that cover fire fire during the landing
+- troops killed in destroyed transports during descent are tracked separately
+  from later surface-combat losses and should be reported as such
 - landed armies then fight defender armies in simultaneous ground combat
 - defender gets the blitz defense bonus in `CER`
 - attacker is expected to bring overwhelming army numbers
 
 The landing battle uses the ground `CER` table, including the blitz defense
-modifier.
+modifier, after both the cover-fire step and the battery-fire-on-landing step
+have resolved.
 
 Ownership changes only if the attacker clears all defending armies.
 

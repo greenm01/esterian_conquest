@@ -34,7 +34,7 @@ pub use maint::{
     FleetBattleEvent, FleetDestroyedEvent, FleetMergeEvent, JoinMissionHostEvent,
     MaintenanceEvents, MissionResolutionEvent, MissionResolutionKind,
     MissionResolutionOutcome, PlanetIntelEvent, PlanetOwnershipChangeEvent,
-    ScoutContactEvent, ShipLosses,
+    ContactReportSource, ScoutContactEvent, ShipLosses, StarbaseDestroyedEvent,
 };
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;

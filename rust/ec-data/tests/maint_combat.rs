@@ -1,6 +1,9 @@
 mod common;
 
-use ec_data::{run_maintenance_turn, CoreGameData, MissionResolutionKind, MissionResolutionOutcome};
+use ec_data::{
+    run_maintenance_turn, ContactReportSource, CoreGameData, MissionResolutionKind,
+    MissionResolutionOutcome,
+};
 use std::path::Path;
 
 fn load_fixture(name: &str) -> CoreGameData {
@@ -130,8 +133,9 @@ fn canonical_fleet_battle_removes_losers_without_garbage_counts() {
             && event.location_coords == Some([10, 10])
     }));
     assert!(events.scout_contact_events.iter().any(|event| {
-        event.fleet_idx == 0
-            && event.viewer_empire_raw == 1
+        event.viewer_empire_raw == 1
+            && event.source
+                == ContactReportSource::FleetMission(MissionResolutionKind::ScoutSector)
             && event.coords == [10, 10]
             && event.target_empire_raw == 2
     }));

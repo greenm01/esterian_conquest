@@ -99,6 +99,54 @@ fn maint_rust_destroyed_fleet_generates_lost_contact_report() {
 }
 
 #[test]
+fn maint_rust_destroyed_starbase_generates_lost_contact_report() {
+    let target = unique_temp_dir("ec-cli-maint-rust-lost-starbase");
+    copy_fixture_dir("fixtures/ecmaint-starbase-pre/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let starbase_coords = game_data.bases.records[0].coords_raw();
+    let attacker = &mut game_data.fleets.records[4];
+    attacker.set_current_location_coords_raw(starbase_coords);
+    attacker.set_standing_order_code_raw(1);
+    attacker.set_standing_order_target_coords_raw(starbase_coords);
+    attacker.set_current_speed(0);
+    attacker.raw[0x19] = 0x81;
+    attacker.set_rules_of_engagement(10);
+    attacker.set_destroyer_count(20);
+    attacker.set_cruiser_count(10);
+    attacker.set_battleship_count(5);
+    attacker.set_scout_count(0);
+    attacker.set_troop_transport_count(0);
+    attacker.set_etac_count(0);
+    game_data.save(&target).expect("mutated fixture should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("From Starbase"));
+    assert!(text.contains("alerting all fleets"));
+    assert!(text.contains("We lost all contact with Starbase"));
+    assert!(text.contains("burnt flight recorder"));
+
+    let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
+    assert_eq!(game_data.player.records[0].starbase_count_raw(), 0);
+    assert!(
+        game_data
+            .bases
+            .records
+            .iter()
+            .all(|base| !(base.coords_raw() == starbase_coords && base.owner_empire_raw() == 1 && base.active_flag_raw() != 0))
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_colonization_generates_results_report_from_colony_event() {
     let target = unique_temp_dir("ec-cli-maint-rust-colonize");
     copy_fixture_dir("fixtures/ecmaint-fleet-pre/v1.5", &target);
@@ -268,6 +316,62 @@ fn maint_rust_view_world_generates_results_and_database_intel() {
 }
 
 #[test]
+fn maint_rust_guard_starbase_generates_arrival_report() {
+    let target = unique_temp_dir("ec-cli-maint-rust-guard-starbase");
+    copy_fixture_dir("fixtures/ecmaint-starbase-pre/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let coords = game_data.bases.records[0].coords_raw();
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw([coords[0].saturating_sub(1), coords[1]]);
+    fleet.set_standing_order_code_raw(4);
+    fleet.set_standing_order_target_coords_raw(coords);
+    fleet.set_current_speed(3);
+    game_data.save(&target).expect("mutated fixture should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("Guard Starbase mission report"));
+    assert!(text.contains("guard/escort"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_guard_blockade_generates_arrival_report() {
+    let target = unique_temp_dir("ec-cli-maint-rust-guard-blockade");
+    copy_fixture_dir("fixtures/ecmaint-fleet-pre/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let guard = &mut game_data.fleets.records[0];
+    guard.set_standing_order_code_raw(5);
+    guard.set_standing_order_target_coords_raw([15, 13]);
+    guard.set_scout_count(0);
+    guard.set_etac_count(0);
+    game_data.save(&target).expect("mutated fixture should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("Guard/Blockade World mission report"));
+    assert!(text.contains("arrived at planet"));
+    assert!(text.contains("assignment"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_bombardment_generates_attacker_side_report() {
     let target = unique_temp_dir("ec-cli-maint-rust-bombard-report");
     copy_fixture_dir("fixtures/ecmaint-bombard-arrive/v1.5", &target);
@@ -332,6 +436,8 @@ fn maint_rust_invade_failure_generates_attacker_side_report() {
     let text = String::from_utf8_lossy(&results);
     assert!(text.contains("Invasion mission report"));
     assert!(text.contains("repulsed") || text.contains("landing was"));
+    assert!(text.contains("Friendly losses:"));
+    assert!(text.contains("Enemy losses:"));
 
     cleanup_dir(&target);
 }
@@ -352,7 +458,7 @@ fn maint_rust_blitz_success_generates_attacker_side_report() {
         *b"TargetPrimeet",
         [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05],
         1,
-        0,
+        1,
         0,
         2,
     );
@@ -366,9 +472,9 @@ fn maint_rust_blitz_success_generates_attacker_side_report() {
     attacker.set_scout_count(0);
     attacker.set_battleship_count(0);
     attacker.set_cruiser_count(0);
-    attacker.set_destroyer_count(2);
-    attacker.set_troop_transport_count(4);
-    attacker.set_army_count(8);
+    attacker.set_destroyer_count(1);
+    attacker.set_troop_transport_count(10);
+    attacker.set_army_count(30);
     attacker.set_etac_count(0);
     game_data.save(&target).expect("mutated fixture should save");
 
@@ -381,7 +487,10 @@ fn maint_rust_blitz_success_generates_attacker_side_report() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = String::from_utf8_lossy(&results);
     assert!(text.contains("Blitz mission report"));
-    assert!(text.contains("seized") || text.contains("hold the world"));
+    assert!(text.contains("Friendly losses:"));
+    assert!(text.contains("Enemy losses:"));
+    assert!(text.contains("during the landing"));
+    assert_eq!(text.matches("Blitz mission report").count(), 1);
 
     cleanup_dir(&target);
 }

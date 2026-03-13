@@ -276,6 +276,9 @@ ones.
   - `planet_intel_events`
   - `ownership_change_events`
   - `fleet_battle_events`
+  - `fleet_destroyed_events`
+  - `starbase_destroyed_events`
+  - `assault_report_events`
 - [`rust/ec-cli/src/commands/maint.rs`](/home/mag/dev/esterian_conquest/rust/ec-cli/src/commands/maint.rs)
   now regenerates combat-driven DATABASE intel from generic planet-intel
   events rather than a bombard-only special case
@@ -284,6 +287,9 @@ ones.
   - `bombard_events`
   - `fleet_battle_events`
   - `ownership_change_events`
+  - `fleet_destroyed_events`
+  - `starbase_destroyed_events`
+  - `assault_report_events`
 - colonization is now part of that same typed event/report path:
   - [`rust/ec-data/src/maint/mod.rs`](/home/mag/dev/esterian_conquest/rust/ec-data/src/maint/mod.rs)
     emits `colonization_events`
@@ -321,9 +327,12 @@ ones.
   writer renders as:
   - initial sensor contact
   - identified alien fleet summary
+- starbases now use that same contact-event pipeline and emit
+  `From Starbase N...` hostile contact reports before battle resolution
 - that contact-event family is now mission-aware and also drives:
   - `JoinAnotherFleet` contact reports
   - `RendezvousSector` contact reports
+  - `Guard Starbase` contact reports
   - `Guard/Blockade World` contact reports
 - `RendezvousSector` arrival now emits the classic waiting-style report, and
   friendly merge processing emits:
@@ -335,6 +344,17 @@ ones.
   empty, because every preserved post-maint fixture in the current corpus does so
 - ground batteries now use battleship-scale firepower per
   [`original/v1.5/ECPLAYER.DOC`](/home/mag/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC)
+- blitz sequencing and reporting now follow the manuals more closely:
+  - low-intensity cover fire first
+  - surviving batteries fire during the landing
+  - troop losses from destroyed transports are called out separately in the
+    attacker-side blitz report
+- invade/blitz attacker-side reports now carry bilateral loss summaries and
+  no longer duplicate the older generic mission-resolution wording
+- `Guard Starbase` and `Guard/Blockade World` arrival reports are now emitted
+  through the generic mission-resolution path
+- destroyed starbases are now removed from live state, decrement the owning
+  player's starbase count, and emit command-center "lost all contact" reports
 - combat regression coverage now exists in
   [`rust/ec-data/tests/maint_combat.rs`](/home/mag/dev/esterian_conquest/rust/ec-data/tests/maint_combat.rs)
   for:
@@ -659,6 +679,10 @@ enum MaintEvent {
   battery/army losses
 - completely destroyed fleets now emit a separate command-center style
   "We lost all contact..." report derived from typed combat events
+- invade/blitz attacker-side reports now carry typed bilateral loss data for
+  armies and batteries instead of only outcome text
+- blitz reports now explicitly call out troops lost in destroyed troop
+  transports on the way down when landing fire kills transports
 - the report writer now follows the observed 84-byte record family more closely:
   - family/type first byte
   - fixed trailing bytes by report family
@@ -681,10 +705,10 @@ enum MaintEvent {
 
 1. Keep tightening fog-of-war semantics by making more report/event families
    explicitly recipient-scoped instead of globally summarized.
-2. Add typed ground-loss payloads for invasion/blitz reports so attacker and
-   defender summaries can include bilateral army/battery losses, not only the
-   final outcome text.
-3. Keep refining `RESULTS.DAT` family formatting against preserved fixtures and
+2. Keep refining `RESULTS.DAT` family formatting against preserved fixtures and
    historical session logs.
+3. Consider whether starbase-destruction reports should become a first-class
+   event family, matching the historical "lost all contact with Starbase N"
+   wording once starbase attrition/removal is explicit in maint state.
 4. Do not add a canonical `MESSAGES.DAT` writer until a non-empty maint-driven
    sample is recovered.
