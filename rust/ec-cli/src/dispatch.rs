@@ -33,6 +33,7 @@ use crate::commands::planet_build::{
 };
 
 use crate::commands::bombard::{init_bombard, init_bombard_batch, set_bombard_onefleet};
+use crate::commands::econ::{init_econ, init_econ_batch, set_econ};
 use crate::commands::fleet_battle::{init_fleet_battle, init_fleet_battle_batch, set_fleet_battle};
 use crate::commands::invade::{init_invade, init_invade_batch, set_invade_onefleet};
 use crate::commands::scenario::{
@@ -52,9 +53,10 @@ use crate::commands::setup::{
 use crate::support::parse::{
     parse_optional_source_and_target, parse_optional_source_target_and_bombard_spec,
     parse_optional_source_target_and_coord_list, parse_optional_source_target_and_count,
-    parse_optional_source_target_and_count_list, parse_optional_source_target_and_invade_spec,
-    parse_optional_source_target_and_name, parse_optional_source_target_and_xy,
-    parse_target_and_bombard_spec_list, parse_target_and_fleet_battle_spec_list,
+    parse_optional_source_target_and_count_list, parse_optional_source_target_and_econ_spec,
+    parse_optional_source_target_and_invade_spec, parse_optional_source_target_and_name,
+    parse_optional_source_target_and_xy, parse_target_and_bombard_spec_list,
+    parse_target_and_econ_spec_list, parse_target_and_fleet_battle_spec_list,
     parse_target_and_fleet_spec, parse_target_and_fleet_spec_list,
     parse_target_and_invade_spec_list, parse_target_and_planet_spec,
     parse_target_and_planet_spec_list, parse_u16_arg, parse_u8_arg, parse_usize_1_based,
@@ -895,6 +897,103 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
                 return Ok(());
             };
             init_fleet_battle_batch(&source, &target_root, &specs)?;
+        }
+        "econ" => {
+            let dir = next_dir(&mut args);
+            let Some(target_x) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(target_y) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let bb = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u16_arg(v, "bb"))
+                .transpose()?
+                .unwrap_or(0); // BB not set in original econ scenario
+            let ca = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u16_arg(v, "ca"))
+                .transpose()?
+                .unwrap_or(50);
+            let dd = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u16_arg(v, "dd"))
+                .transpose()?
+                .unwrap_or(50);
+            let p14_x = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u8_arg(v, "p14_x"))
+                .transpose()?
+                .unwrap_or(15);
+            let p14_y = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u8_arg(v, "p14_y"))
+                .transpose()?
+                .unwrap_or(13);
+            let p14_armies = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u8_arg(v, "p14_armies"))
+                .transpose()?
+                .unwrap_or(142);
+            let p14_batteries = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u8_arg(v, "p14_batteries"))
+                .transpose()?
+                .unwrap_or(15);
+            set_econ(
+                &dir,
+                parse_u8_arg(&target_x, "target_x")?,
+                parse_u8_arg(&target_y, "target_y")?,
+                bb,
+                ca,
+                dd,
+                p14_x,
+                p14_y,
+                p14_armies,
+                p14_batteries,
+            )?;
+        }
+        "econ-init" => {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((source, target, x, y, bb, ca, dd, p14_x, p14_y, p14_armies, p14_batteries)) =
+                parse_optional_source_target_and_econ_spec(remaining, post_maint_fixture_dir())
+            else {
+                print_usage();
+                return Ok(());
+            };
+            init_econ(
+                &source,
+                &target,
+                x,
+                y,
+                bb,
+                ca,
+                dd,
+                p14_x,
+                p14_y,
+                p14_armies,
+                p14_batteries,
+            )?;
+        }
+        "econ-batch-init" => {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((source, target_root, specs)) =
+                parse_target_and_econ_spec_list(remaining, post_maint_fixture_dir())
+            else {
+                print_usage();
+                return Ok(());
+            };
+            init_econ_batch(&source, &target_root, &specs)?;
         }
         "scenario" => {
             let dir = next_dir(&mut args);

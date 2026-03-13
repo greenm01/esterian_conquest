@@ -62,3 +62,40 @@ fn scenario_init_replayable_econ_matches_exact_preserved_pre_fixture() {
 
     cleanup_dir(&target);
 }
+
+#[test]
+fn econ_init_recreates_known_valid_pre_fixture() {
+    let target = unique_temp_dir("ec-cli-econ-init-param");
+
+    // Recreate the fixture parameters: target=(15,13), BB=0, CA=50, DD=50, planet14=(15,13), armies=142, batteries=15
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "econ-init",
+            "fixtures/ecmaint-post/v1.5",
+            target.to_str().unwrap(),
+            "15",
+            "13", // target_x, target_y
+            "0",
+            "50",
+            "50", // bb, ca, dd
+            "15",
+            "13",
+            "142",
+            "15", // p14_x, p14_y, p14_armies, p14_batteries
+        ],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Econ directory initialized at"));
+
+    let fixture_pre = repo_root().join("fixtures/ecmaint-econ-pre/v1.5");
+    for name in ["FLEETS.DAT", "PLANETS.DAT"] {
+        let expected = fs::read(fixture_pre.join(name)).unwrap();
+        let actual = fs::read(target.join(name)).unwrap();
+        assert_eq!(
+            actual, expected,
+            "{name} does not match preserved econ pre-fixture via econ-init"
+        );
+    }
+
+    cleanup_dir(&target);
+}

@@ -1,6 +1,9 @@
+use std::fs;
 use std::path::Path;
 
 use ec_data::CoreGameData;
+
+use crate::workspace::copy_init_files;
 
 /// Apply the econ scenario to an already-initialized game directory.
 ///
@@ -16,22 +19,49 @@ use ec_data::CoreGameData;
 /// All record indices and constants here are scenario-specific; the general mutators live in
 /// ec-data and accept parameters.
 pub(crate) fn apply_econ_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    set_econ(
+        dir, 0x0f, 0x0d, // target_x, target_y (15,13)
+        0, 50, 50, // bb=0, ca=50, dd=50 (BB not set in original econ)
+        0x0f, 0x0d, 142, 15, // p14_x, p14_y, p14_armies, p14_batteries
+    )?;
+    println!("Applied scenario: econ");
+    Ok(())
+}
+
+/// Set up an econ scenario with parameterized coordinates and ship counts.
+///
+/// Parameters:
+/// - `target_x`, `target_y`: coordinates for fleet order and planet-14
+/// - `bb`, `ca`, `dd`: ship counts for fleet 3 (bombardment fleet)
+/// - `p14_x`, `p14_y`: Planet 14 coordinates
+/// - `p14_armies`, `p14_batteries`: Planet 14 defenses
+pub(crate) fn set_econ(
+    dir: &Path,
+    target_x: u8,
+    target_y: u8,
+    bb: u16,
+    ca: u16,
+    dd: u16,
+    p14_x: u8,
+    p14_y: u8,
+    p14_armies: u8,
+    p14_batteries: u8,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut data = CoreGameData::load(dir)?;
 
-    // Fleet 2 (empire=1, slot=3): BombardWorld order targeting (15,13), speed=3/3, CA=50, DD=50
+    // Fleet 2 (empire=1, slot=3): BombardWorld order targeting planet, speed=3/3
     {
         let f = &mut data.fleets.records[2];
         f.set_max_speed(3);
         f.set_current_speed(3);
         f.set_standing_order_code_raw(0x06); // BombardWorld
-        f.set_standing_order_target_coords_raw([0x0f, 0x0d]); // (15,13)
-        f.set_cruiser_count(50);
-        f.set_destroyer_count(50);
+        f.set_standing_order_target_coords_raw([target_x, target_y]);
+        f.set_battleship_count(bb);
+        f.set_cruiser_count(ca);
+        f.set_destroyer_count(dd);
     }
 
-    // Planet 14 (index 13): Dust Bowl-type target world at (15,13), owned by empire 2,
-    // armies=142, batteries=15, named "TargetPrime" (name buffer retains stale "et" suffix).
-    // Identical layout to the fleet-battle, bombard, and invade pre-fixtures.
+    // Planet 14 (index 13): Dust Bowl-type target world
     {
         let p = data
             .planets
@@ -39,22 +69,118 @@ pub(crate) fn apply_econ_scenario(dir: &Path) -> Result<(), Box<dyn std::error::
             .get_mut(13)
             .ok_or("planet record 14 missing")?;
         p.set_as_owned_target_world(
-            [0x0f, 0x0d],                               // coords (15,13)
+            [p14_x, p14_y],                             // coords
             [0x64, 0x87],                               // potential_production
             [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],       // factories
             0x04,                                       // tax_rate
             0x0b,                                       // name_len = 11
             *b"TargetPrimeet",                          // name_buffer (stale "et" suffix)
             [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05], // name_suffix_raw [1d..23]
-            0x8e,                                       // army_count = 142
-            0x0f,                                       // ground_batteries = 15
+            p14_armies,                                 // army_count
+            p14_batteries,                              // ground_batteries
             0x02,                                       // ownership_status
             0x02,                                       // owner_empire_slot
         );
     }
 
     data.save(dir)?;
-    println!("Applied scenario: econ");
+
+    println!(
+        "  FLEET[3]: order=0x06 (BombardWorld) tgt=({}, {}) speed=3/3 BB={} CA={} DD={}",
+        target_x, target_y, bb, ca, dd
+    );
+    println!(
+        "  PLANET[14]: ({}, {}) empire=2 armies={} batteries={}",
+        p14_x, p14_y, p14_armies, p14_batteries
+    );
+    Ok(())
+}
+
+/// Initialize an econ scenario directory from a source baseline.
+pub(crate) fn init_econ(
+    source: &Path,
+    target: &Path,
+    target_x: u8,
+    target_y: u8,
+    bb: u16,
+    ca: u16,
+    dd: u16,
+    p14_x: u8,
+    p14_y: u8,
+    p14_armies: u8,
+    p14_batteries: u8,
+) -> Result<(), Box<dyn std::error::Error>> {
+    copy_init_files(source, target)?;
+    set_econ(
+        target,
+        target_x,
+        target_y,
+        bb,
+        ca,
+        dd,
+        p14_x,
+        p14_y,
+        p14_armies,
+        p14_batteries,
+    )?;
+    println!("Econ directory initialized at {}", target.display());
+    Ok(())
+}
+
+/// Initialize a batch of econ scenario directories.
+///
+/// Spec format: x:y:bb:ca:dd:p14x:p14y:p14a:p14b
+pub(crate) fn init_econ_batch(
+    source: &Path,
+    target_root: &Path,
+    specs: &[(u8, u8, u16, u16, u16, u8, u8, u8, u8)],
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(target_root)?;
+    let mut manifest = String::new();
+    manifest.push_str("Econ batch\n");
+    manifest.push_str(&format!("source={}\n", source.display()));
+    manifest.push_str(&format!("target_root={}\n", target_root.display()));
+    manifest.push('\n');
+
+    for &(x, y, bb, ca, dd, p14x, p14y, p14a, p14b) in specs {
+        let name = format!(
+            "x{:02}-y{:02}-bb{}-ca{}-dd{}-p14x{:02}-p14y{:02}-p14a{}-p14b{}",
+            x, y, bb, ca, dd, p14x, p14y, p14a, p14b
+        );
+        let scenario_dir = target_root.join(&name);
+        init_econ(
+            source,
+            &scenario_dir,
+            x,
+            y,
+            bb,
+            ca,
+            dd,
+            p14x,
+            p14y,
+            p14a,
+            p14b,
+        )?;
+        manifest.push_str(&format!("{name}\n"));
+        manifest.push_str(&format!("  target=[{}, {}]\n", x, y));
+        manifest.push_str(&format!("  BB={} CA={} DD={}\n", bb, ca, dd));
+        manifest.push_str(&format!(
+            "  Planet14: [{}, {}] armies={} batteries={}\n",
+            p14x, p14y, p14a, p14b
+        ));
+        manifest.push_str(&format!("  dir={}\n", scenario_dir.display()));
+        manifest.push_str(&format!(
+            "  validate=ec-cli compliance-report {}\n\n",
+            scenario_dir.display()
+        ));
+    }
+
+    fs::write(target_root.join("ECON_BATCH.txt"), manifest)?;
+    println!(
+        "Initialized {} Econ directories under {}",
+        specs.len(),
+        target_root.display()
+    );
     Ok(())
 }
 

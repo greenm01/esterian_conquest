@@ -511,6 +511,88 @@ pub(crate) fn parse_target_and_fleet_battle_spec_list(
     }
 }
 
+pub(crate) fn parse_econ_spec(value: &str) -> Option<(u8, u8, u16, u16, u16, u8, u8, u8, u8)> {
+    let parts = value.split(':').collect::<Vec<_>>();
+    match parts.as_slice() {
+        [x, y, bb, ca, dd, p14x, p14y, p14a, p14b] => Some((
+            parse_u8_arg(x, "target_x").ok()?,
+            parse_u8_arg(y, "target_y").ok()?,
+            parse_u16_arg(bb, "bb").ok()?,
+            parse_u16_arg(ca, "ca").ok()?,
+            parse_u16_arg(dd, "dd").ok()?,
+            parse_u8_arg(p14x, "p14_x").ok()?,
+            parse_u8_arg(p14y, "p14_y").ok()?,
+            parse_u8_arg(p14a, "p14_armies").ok()?,
+            parse_u8_arg(p14b, "p14_batteries").ok()?,
+        )),
+        _ => None,
+    }
+}
+
+pub(crate) fn parse_optional_source_target_and_econ_spec(
+    args: Vec<String>,
+    default_source: PathBuf,
+) -> Option<(PathBuf, PathBuf, u8, u8, u16, u16, u16, u8, u8, u8, u8)> {
+    match args.as_slice() {
+        [target, x, y, bb, ca, dd, p14x, p14y, p14a, p14b] => Some((
+            default_source,
+            PathBuf::from(target),
+            parse_u8_arg(x, "target_x").ok()?,
+            parse_u8_arg(y, "target_y").ok()?,
+            parse_u16_arg(bb, "bb").ok()?,
+            parse_u16_arg(ca, "ca").ok()?,
+            parse_u16_arg(dd, "dd").ok()?,
+            parse_u8_arg(p14x, "p14_x").ok()?,
+            parse_u8_arg(p14y, "p14_y").ok()?,
+            parse_u8_arg(p14a, "p14_armies").ok()?,
+            parse_u8_arg(p14b, "p14_batteries").ok()?,
+        )),
+        [source, target, x, y, bb, ca, dd, p14x, p14y, p14a, p14b] => Some((
+            resolve_repo_path(source),
+            PathBuf::from(target),
+            parse_u8_arg(x, "target_x").ok()?,
+            parse_u8_arg(y, "target_y").ok()?,
+            parse_u16_arg(bb, "bb").ok()?,
+            parse_u16_arg(ca, "ca").ok()?,
+            parse_u16_arg(dd, "dd").ok()?,
+            parse_u8_arg(p14x, "p14_x").ok()?,
+            parse_u8_arg(p14y, "p14_y").ok()?,
+            parse_u8_arg(p14a, "p14_armies").ok()?,
+            parse_u8_arg(p14b, "p14_batteries").ok()?,
+        )),
+        _ => None,
+    }
+}
+
+pub(crate) fn parse_target_and_econ_spec_list(
+    args: Vec<String>,
+    default_source: PathBuf,
+) -> Option<(
+    PathBuf,
+    PathBuf,
+    Vec<(u8, u8, u16, u16, u16, u8, u8, u8, u8)>,
+)> {
+    match args.as_slice() {
+        [target_root, specs @ ..] if !specs.is_empty() => Some((
+            default_source,
+            PathBuf::from(target_root),
+            specs
+                .iter()
+                .map(|v| parse_econ_spec(v))
+                .collect::<Option<Vec<_>>>()?,
+        )),
+        [source, target_root, specs @ ..] if !specs.is_empty() => Some((
+            resolve_repo_path(source),
+            PathBuf::from(target_root),
+            specs
+                .iter()
+                .map(|v| parse_econ_spec(v))
+                .collect::<Option<Vec<_>>>()?,
+        )),
+        _ => None,
+    }
+}
+
 pub(crate) fn parse_planet_build_spec(value: &str) -> Option<(usize, u8, u8)> {
     let parts = value.split(':').collect::<Vec<_>>();
     match parts.as_slice() {

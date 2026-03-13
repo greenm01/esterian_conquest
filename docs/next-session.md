@@ -330,7 +330,7 @@ All known scenarios now have Rust generators and passing tests (commit `fd6c494`
 | bombard | ✅ | ✅ | `bombard-init`, `bombard-batch-init`, `bombard-onefleet` |
 | invade | ✅ | ✅ | `invade-init`, `invade-batch-init`, `invade-onefleet` |
 | fleet-battle | ✅ | ✅ | `fleet-battle-init`, `fleet-battle-batch-init`, `fleet-battle` |
-| econ | ❌ | ❌ | — |
+| econ | ✅ | ✅ | `econ-init`, `econ-batch-init`, `econ` |
 
 `bombard-init` accepts: `[source_dir] <target_dir> <target_x> <target_y> <ca> <dd>`
 `bombard-batch-init` accepts: `[source_dir] <target_root> <x:y:ca:dd> ...`
@@ -341,7 +341,12 @@ All known scenarios now have Rust generators and passing tests (commit `fd6c494`
 `fleet-battle-init` accepts: `[source_dir] <target_dir> <battle_x> <battle_y> <f0_roe> <f0_bb> <f0_ca> <f0_dd> <f2_ca> <f2_dd> <f4_sc> <f4_bb> <f4_ca> <f8_loc_x> <f8_loc_y> <f8_sc> <f8_bb> <f8_ca> <p14_x> <p14_y> <p14_armies> <p14_batteries>`
 `fleet-battle-batch-init` accepts: `[source_dir] <target_root> <bx:by:f0r:f0bb:f0ca:f0dd:f2ca:f2dd:f4sc:f4bb:f4ca:f8lx:f8ly:f8sc:f8bb:f8ca:p14x:p14y:p14a:p14b> ...`
 
-**Recommended next task:** Parameterize `econ` following the same pattern, or proceed to broader compliance generation if `econ` is lower priority.
+`econ-init` accepts: `[source_dir] <target_dir> <target_x> <target_y> <bb> <ca> <dd> <p14_x> <p14_y> <p14_armies> <p14_batteries>`
+`econ-batch-init` accepts: `[source_dir] <target_root> <x:y:bb:ca:dd:p14x:p14y:p14a:p14b> ...`
+
+**Milestone 2 complete!** All scenarios now have parameterized init commands.
+
+**Recommended next task:** Proceed to broader compliance generation or begin Milestone 3: general compliant gamestate generation.
 
 ## Canonical Baseline Tools
 

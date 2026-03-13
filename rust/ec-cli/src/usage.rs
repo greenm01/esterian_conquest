@@ -57,6 +57,9 @@ pub fn print_usage() {
     println!("  ec-cli fleet-battle <dir> <battle_x> <battle_y> [f0_roe] [f0_bb] [f0_ca] [f0_dd] [f2_ca] [f2_dd] [f4_sc] [f4_bb] [f4_ca] [f8_loc_x] [f8_loc_y] [f8_sc] [f8_bb] [f8_ca] [p14_x] [p14_y] [p14_armies] [p14_batteries]");
     println!("  ec-cli fleet-battle-init [source_dir] <target_dir> <battle_x> <battle_y> <f0_roe> <f0_bb> <f0_ca> <f0_dd> <f2_ca> <f2_dd> <f4_sc> <f4_bb> <f4_ca> <f8_loc_x> <f8_loc_y> <f8_sc> <f8_bb> <f8_ca> <p14_x> <p14_y> <p14_armies> <p14_batteries>");
     println!("  ec-cli fleet-battle-batch-init [source_dir] <target_root> <bx:by:f0r:f0bb:f0ca:f0dd:f2ca:f2dd:f4sc:f4bb:f4ca:f8lx:f8ly:f8sc:f8bb:f8ca:p14x:p14y:p14a:p14b> ...");
+    println!("  ec-cli econ <dir> <target_x> <target_y> [bb] [ca] [dd] [p14_x] [p14_y] [p14_armies] [p14_batteries]");
+    println!("  ec-cli econ-init [source_dir] <target_dir> <target_x> <target_y> <bb> <ca> <dd> <p14_x> <p14_y> <p14_armies> <p14_batteries>");
+    println!("  ec-cli econ-batch-init [source_dir] <target_root> <x:y:bb:ca:dd:p14x:p14y:p14a:p14b> ...");
     println!("  ec-cli ipbm-report <dir>");
     println!("  ec-cli player-tax <dir> <player_record> <rate>");
     println!("  ec-cli ipbm-zero <dir> <count>");
