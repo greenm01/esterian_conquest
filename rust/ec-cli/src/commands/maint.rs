@@ -2,20 +2,23 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use ec_data::CoreGameData;
+use ec_data::{run_maintenance_turn, CoreGameData};
 
-/// Run Rust maintenance on a game directory (no-op for now)
+/// Run Rust maintenance on a game directory
 pub fn run_rust_maintenance(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("Running Rust maintenance on: {}", dir.display());
 
     // Load the game state
     let mut game_data = CoreGameData::load(dir)?;
 
-    // TODO: Implement actual maintenance logic
-    // For now, just increment the year as a placeholder
-    let current_year = game_data.conquest.game_year();
-    game_data.conquest.set_game_year(current_year + 1);
-    println!("  Year advanced: {} -> {}", current_year, current_year + 1);
+    // Run maintenance logic
+    run_maintenance_turn(&mut game_data)?;
+
+    println!(
+        "  Year advanced: {} -> {}",
+        game_data.conquest.game_year() - 1,
+        game_data.conquest.game_year()
+    );
 
     // Save the modified state
     game_data.save(dir)?;

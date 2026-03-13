@@ -20,6 +20,7 @@ pub const DATABASE_DAT_SIZE: usize = DATABASE_RECORD_SIZE * DATABASE_RECORD_COUN
 pub const MAINTENANCE_DAY_ENABLED_CODES: [u8; 7] = [0x01, 0x01, 0xCA, 0x01, 0x0A, 0x01, 0x26];
 mod builder;
 mod directory;
+mod maint;
 mod records;
 mod support;
 
@@ -28,6 +29,7 @@ pub use directory::{
     CoreGameData, CurrentKnownComplianceStatus, CurrentKnownGuardStarbaseLinkageSummary,
     CurrentKnownKeyWordSummary, GameDirectoryError, GameStateMutationError,
 };
+pub use maint::{run_maintenance_turn, run_maintenance_turns};
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;
 pub use records::database::{DatabaseDat, DatabaseRecord};

@@ -268,18 +268,47 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 - ✅ Compares all .DAT files and reports parity per-file
 - ⚠️ Requires original ECMAINT.EXE to be present in input directory
 
-### Step 4: Implement First Mechanic — NEXT STEP
-**Decision:** Start with year advancement (simplest deterministic change)
-- Target: Rust year increment matches ECMAINT behavior exactly
-- Then move to fleet position updates in move scenario
+### Step 4: Implement Year Advancement — COMPLETE ✅
+**Decision:** Started with year advancement (simplest deterministic change)
+- ✅ Year advances by exactly 1 per turn
+- ✅ Multi-turn advancement works correctly
+- ✅ Matches ECMAINT year progression in fleet fixture
 
-### Step 5: Regression Test — PENDING
-- Add `ec-data/tests/maint_year.rs` locking in year advancement
-- Add `ec-data/tests/maint_move.rs` for fleet position changes
+**Next mechanics to implement:**
+1. Fleet movement (FLEETS.DAT position/speed changes)
+2. Player statistics (PLAYER.DAT field updates)
+3. Database regeneration (DATABASE.DAT updates)
+
+### Step 5: Regression Test — COMPLETE ✅
+- ✅ Added `ec-data/tests/maint_year.rs` with 3 tests:
+  - `test_year_advancement_single_turn`
+  - `test_year_advancement_multiple_turns`
+  - `test_fleet_fixture_year_matches_post`
+- All 183 tests pass (180 existing + 3 new)
 
 ---
 
-## Current State
+## Current Status
+
+**Milestone 4 Phase 1:** Test harness complete — ✅ DONE
+**Milestone 4 Phase 2:** First mechanic (year advancement) — ✅ DONE
+**Current parity:** 50% (5/10 files match on fleet scenario)
+
+**Files with parity:**
+- ✅ SETUP.DAT (always matches - read-only)
+- ✅ BASES.DAT, IPBM.DAT (empty in this scenario)
+- ✅ MESSAGES.DAT, RESULTS.DAT (no content yet)
+
+**Files needing work:**
+- ⚠️ CONQUEST.DAT (50 bytes differ - header fields beyond year)
+- ⚠️ PLAYER.DAT (2 bytes differ - statistics)
+- ⚠️ PLANETS.DAT (18 bytes differ - unknown)
+- ⚠️ FLEETS.DAT (9 bytes differ - fleet movement)
+- ⚠️ DATABASE.DAT (109 bytes differ - needs full regeneration)
+
+---
+
+## Canonical Baseline Tools
 
 - `cargo run -q -p ec-cli -- generate-gamestate <dir> <players> <year> [coords...]`
 - `cargo run -q -p ec-cli -- compliance-report <dir>`
