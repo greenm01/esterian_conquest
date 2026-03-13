@@ -1,0 +1,210 @@
+Mapped unknown-starbase late regions
+
+== 2000:2f70 ==
+Function: FUN_2000_2db3 @ 2000:2db3
+References:
+  <none>
+Instructions:
+  2000:2f53: MOV AX,0x1
+  2000:2f56: CMP AX,word ptr [BP + 0xce1e]
+  2000:2f5a: JLE 0x2000:2f5f
+  2000:2f5c: JMP 0x2000:2fe4
+  2000:2f5f: MOV word ptr [BP + -0x6],AX
+  2000:2f62: JMP 0x2000:2f67
+  2000:2f64: INC word ptr [BP + -0x6]
+  2000:2f67: LEA DI,[BP + 0xff78]
+  2000:2f6b: PUSH SS
+  2000:2f6c: PUSH DI
+  2000:2f6d: LEA DI,[BP + 0xce24]
+  2000:2f71: PUSH SS
+  2000:2f72: PUSH DI
+  2000:2f73: MOV AX,0x1
+  2000:2f76: PUSH AX
+  2000:2f77: LEA DI,[BP + 0xce20]
+  2000:2f7b: PUSH SS
+  2000:2f7c: PUSH DI
+  2000:2f7d: CALLF 0x3000:5065
+  2000:2f82: CALLF 0x3000:3be2
+  2000:2f87: OR AX,AX
+  2000:2f89: JNZ 0x2000:2f9c
+  2000:2f8b: CMP word ptr [BP + 0xce20],0x1
+  2000:2f90: JNZ 0x2000:2f9c
+  2000:2f92: CMP byte ptr [BP + -0x3],0x0
+  2000:2f96: JNZ 0x2000:2f9c
+  2000:2f98: MOV AL,0x0
+  2000:2f9a: JMP 0x2000:2f9e
+  2000:2f9c: MOV AL,0x1
+  2000:2f9e: MOV byte ptr [BP + -0x3],AL
+  2000:2fa1: LEA DI,[BP + 0xfef8]
+  2000:2fa5: PUSH SS
+  2000:2fa6: PUSH DI
+  2000:2fa7: LEA DI,[BP + 0xce24]
+  2000:2fab: PUSH SS
+  2000:2fac: PUSH DI
+  2000:2fad: MOV AX,0x1
+  2000:2fb0: PUSH AX
+  2000:2fb1: LEA DI,[BP + 0xce20]
+  2000:2fb5: PUSH SS
+  2000:2fb6: PUSH DI
+  2000:2fb7: CALLF 0x3000:506c
+  2000:2fbc: CALLF 0x3000:3be2
+  2000:2fc1: OR AX,AX
+  2000:2fc3: JNZ 0x2000:2fd6
+  2000:2fc5: CMP word ptr [BP + 0xce20],0x1
+  2000:2fca: JNZ 0x2000:2fd6
+  2000:2fcc: CMP byte ptr [BP + -0x3],0x0
+  2000:2fd0: JNZ 0x2000:2fd6
+
+== 2000:2fbc ==
+Function: FUN_2000_2db3 @ 2000:2db3
+References:
+  <none>
+Instructions:
+  2000:2f9c: MOV AL,0x1
+  2000:2f9e: MOV byte ptr [BP + -0x3],AL
+  2000:2fa1: LEA DI,[BP + 0xfef8]
+  2000:2fa5: PUSH SS
+  2000:2fa6: PUSH DI
+  2000:2fa7: LEA DI,[BP + 0xce24]
+  2000:2fab: PUSH SS
+  2000:2fac: PUSH DI
+  2000:2fad: MOV AX,0x1
+  2000:2fb0: PUSH AX
+  2000:2fb1: LEA DI,[BP + 0xce20]
+  2000:2fb5: PUSH SS
+  2000:2fb6: PUSH DI
+  2000:2fb7: CALLF 0x3000:506c
+  2000:2fbc: CALLF 0x3000:3be2
+  2000:2fc1: OR AX,AX
+  2000:2fc3: JNZ 0x2000:2fd6
+  2000:2fc5: CMP word ptr [BP + 0xce20],0x1
+  2000:2fca: JNZ 0x2000:2fd6
+  2000:2fcc: CMP byte ptr [BP + -0x3],0x0
+  2000:2fd0: JNZ 0x2000:2fd6
+  2000:2fd2: MOV AL,0x0
+  2000:2fd4: JMP 0x2000:2fd8
+  2000:2fd6: MOV AL,0x1
+  2000:2fd8: MOV byte ptr [BP + -0x3],AL
+  2000:2fdb: MOV AX,word ptr [BP + -0x6]
+  2000:2fde: CMP AX,word ptr [BP + 0xce1e]
+  2000:2fe2: JNZ 0x2000:2f64
+  2000:2fe4: LEA DI,[BP + 0xfef8]
+  2000:2fe8: PUSH SS
+  2000:2fe9: PUSH DI
+  2000:2fea: CALLF 0x3000:4ffb
+  2000:2fef: CALLF 0x3000:3be2
+  2000:2ff4: MOV word ptr [BP + -0x8],AX
+  2000:2ff7: LEA DI,[BP + 0xff78]
+  2000:2ffb: PUSH SS
+  2000:2ffc: PUSH DI
+  2000:2ffd: CALLF 0x3000:4ffb
+  2000:3002: CALLF 0x3000:3be2
+  2000:3007: MOV word ptr [BP + -0x8],AX
+  2000:300a: CMP byte ptr [BP + -0x3],0x0
+  2000:300e: JNZ 0x2000:3016
+  2000:3010: MOV byte ptr [BP + -0x2],0x1
+  2000:3014: JMP 0x2000:3083
+  2000:3016: CMP byte ptr [BP + -0x1],0x0
+  2000:301a: JZ 0x2000:3058
+  2000:301c: MOV DI,0x46cc
+
+== 2000:8630 ==
+Function: <none>
+References:
+  <none>
+Instructions:
+  2000:8612: CALLF 0x3000:1abc
+  2000:8617: CALLF 0x3000:1e88
+  2000:861c: PUSH AX
+  2000:861d: CALL 0x2000:6d9b
+  2000:8620: MOV byte ptr [BP + -0x2],AL
+  2000:8623: CMP byte ptr [BP + -0x2],0x0
+  2000:8627: JNZ 0x2000:8652
+  2000:8629: MOV DI,0x7ca1
+  2000:862c: PUSH CS
+  2000:862d: PUSH DI
+  2000:862e: CALLF 0x3000:159b
+  2000:8633: MOV DI,0x46cc
+  2000:8636: PUSH DS
+  2000:8637: PUSH DI
+  2000:8638: MOV DI,0x7ca1
+  2000:863b: PUSH CS
+  2000:863c: PUSH DI
+  2000:863d: XOR AX,AX
+  2000:863f: PUSH AX
+  2000:8640: CALLF 0x3000:4057
+  2000:8645: CALLF 0x3000:3f88
+  2000:864a: CALLF 0x3000:3be9
+  2000:864f: JMP 0x2000:8b3d
+  2000:8652: CALL 0x2000:1da6
+  2000:8655: CALL 0x2000:0c06
+  2000:8658: CALL 0x2000:2db3
+  2000:865b: CALL 0x2000:56be
+  2000:865e: CMP byte ptr [0x169a],0x0
+  2000:8663: JZ 0x2000:8668
+  2000:8665: CALL 0x2000:7659
+  2000:8668: MOV AX,[0x2f76]
+  2000:866b: MOV word ptr [BP + 0xff4a],AX
+  2000:866f: MOV AX,0x1
+  2000:8672: CMP AX,word ptr [BP + 0xff4a]
+  2000:8676: JA 0x2000:86a7
+  2000:8678: MOV word ptr [BP + -0x6],AX
+  2000:867b: JMP 0x2000:8680
+  2000:867d: INC word ptr [BP + -0x6]
+  2000:8680: MOV AX,word ptr [BP + -0x6]
+  2000:8683: SHL AX,0x1
+  2000:8685: SHL AX,0x1
+  2000:8687: LES DI,[0x2f72]
+  2000:868b: ADD DI,AX
+  2000:868d: LES DI,ES:[DI + -0x4]
+
+== 2000:865b ==
+Function: <none>
+References:
+  <none>
+Instructions:
+  2000:863b: PUSH CS
+  2000:863c: PUSH DI
+  2000:863d: XOR AX,AX
+  2000:863f: PUSH AX
+  2000:8640: CALLF 0x3000:4057
+  2000:8645: CALLF 0x3000:3f88
+  2000:864a: CALLF 0x3000:3be9
+  2000:864f: JMP 0x2000:8b3d
+  2000:8652: CALL 0x2000:1da6
+  2000:8655: CALL 0x2000:0c06
+  2000:8658: CALL 0x2000:2db3
+  2000:865b: CALL 0x2000:56be
+  2000:865e: CMP byte ptr [0x169a],0x0
+  2000:8663: JZ 0x2000:8668
+  2000:8665: CALL 0x2000:7659
+  2000:8668: MOV AX,[0x2f76]
+  2000:866b: MOV word ptr [BP + 0xff4a],AX
+  2000:866f: MOV AX,0x1
+  2000:8672: CMP AX,word ptr [BP + 0xff4a]
+  2000:8676: JA 0x2000:86a7
+  2000:8678: MOV word ptr [BP + -0x6],AX
+  2000:867b: JMP 0x2000:8680
+  2000:867d: INC word ptr [BP + -0x6]
+  2000:8680: MOV AX,word ptr [BP + -0x6]
+  2000:8683: SHL AX,0x1
+  2000:8685: SHL AX,0x1
+  2000:8687: LES DI,[0x2f72]
+  2000:868b: ADD DI,AX
+  2000:868d: LES DI,ES:[DI + -0x4]
+  2000:8691: MOV AL,byte ptr ES:[DI + 0x4]
+  2000:8695: CMP AL,0x3
+  2000:8697: JNZ 0x2000:869e
+  2000:8699: MOV byte ptr [0x635],0x1
+  2000:869e: MOV AX,word ptr [BP + -0x6]
+  2000:86a1: CMP AX,word ptr [BP + 0xff4a]
+  2000:86a5: JNZ 0x2000:867d
+  2000:86a7: MOV DI,0x3178
+  2000:86aa: PUSH DS
+  2000:86ab: PUSH DI
+  2000:86ac: MOV AX,0x36
+  2000:86af: PUSH AX
+  2000:86b0: CALLF 0x3000:4f7a
+  2000:86b5: CALLF 0x3000:3be2
+  2000:86ba: OR AX,AX
+

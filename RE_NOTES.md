@@ -4656,6 +4656,56 @@ Strong practical consequence:
       but not yet a proven breakpoint recipe
     - a direct probe at the derived late return-site address still did not hit,
       so this remains suggestive rather than confirmed
+  - that clue is now confirmed by a direct runtime capture at `2895:27ac`
+    - live stop:
+      - `CS=2895 EIP=27ac`
+      - `DS=3529`
+      - `SS=39ab`
+      - `AX=0001`
+      - `BX=0006`
+      - `CX=0065`
+    - practical consequence:
+      - segment `2895` is now a confirmed program-side late-path context, not
+        just a stack hint
+      - the write-stop caller clue was real
+  - however, that specific return site is already past the late scratch lifetime
+    for the `3502` block:
+    - `DS:3502` is zero at `2895:27ac`
+    - so this is a post-write / post-clear return point, not the pre-write
+      report-assembly point we still need
+  - `DS:0630` at the same stop is nonzero:
+    - `0d 05 05 12 01 00 00 05 01 00 16 07 05 0a 05 10`
+    - practical consequence:
+      - the later program-side path does preserve nontrivial report/control
+        state after the DOS write
+      - future runtime work should now search backwards from confirmed
+        `2895:27ac`, not from DOS `3374:*`
+  - the `2895:*` late-path code is now mapped back into the static live image
+    by matching the confirmed runtime bytes into `/tmp/ecmaint-debug/MEMDUMP.BIN`
+    - live `2895:2760` -> static `2000:2f70`
+    - live `2895:27ac` -> static `2000:2fbc`
+    - live `2895:7e20` -> static `2000:8630`
+    - live `2895:7e4b` -> static `2000:865b`
+  - practical consequence:
+    - the remaining runtime-only late path is no longer floating outside the
+      static model
+    - `2895:27ac` sits inside generic late helper `2000:2db3`
+    - caller `2895:7e4b` sits in the later top-level region around
+      `2000:8630..`
+  - that mapped static caller context is enough to set a stop condition on this
+    rabbit hole:
+    - `2000:8652` calls `2000:1da6`, `2000:0c06`, `2000:2db3`, and `2000:56be`
+      before iterating later summaries
+    - `2000:2db3` is generic late report/output plumbing, not the decisive
+      compliance predicate
+    - the remaining unresolved `3521` / report-variant semantics are therefore
+      on the UI/report side of the starbase path, not the accept/reject side
+  - strong methodological consequence:
+    - the deep RE blocker for Rust compliance is now satisfied
+    - preserve the recovered accept/reject structure from
+      `3fcf..41a0` and `42d8..456e`
+    - do **not** keep drilling on `3521` mode-text semantics unless the task is
+      explicit UI/report preservation
 
 Artifacts:
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-predicate.txt`
@@ -4668,9 +4718,11 @@ Artifacts:
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-variant-strings.txt`
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-mode-selector.txt`
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-variant-helper.txt`
+- `artifacts/ghidra/ecmaint-live/unknown-starbase-mapped-late-regions.txt`
 - `artifacts/ecmaint-kind2-debug/unknown-starbase-write/summary.txt`
 - `artifacts/ecmaint-kind2-debug/unknown-starbase-write/MEMDUMP.BIN`
 - `artifacts/ecmaint-kind2-debug/unknown-starbase-write/stack_at_write.txt`
+- `artifacts/ecmaint-kind2-debug/unknown-starbase-return-site/summary.txt`
 
 Tool:
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbasePredicate.java`
@@ -4680,7 +4732,9 @@ Tool:
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseVariantStrings.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseModeSelector.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseVariantHelper.java`
+- `tools/ghidra_scripts_tmp/ReportUnknownStarbaseMappedLateRegions.java`
 - `tools/capture_ecmaint_unknown_starbase_write_dump.py`
+- `tools/capture_ecmaint_unknown_starbase_return_site.py`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbasePayloadProducers.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseScalarScan.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseLateRanges.java`

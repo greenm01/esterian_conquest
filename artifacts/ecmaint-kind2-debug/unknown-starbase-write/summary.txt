@@ -5,5 +5,11 @@ Unknown-starbase write-stop dump
 MCBS:
 
 
+Stack at write stop:
+00000000: 65 00 29 35 2c fb ac 27 95 28 4c c9 ab 39 01 00  e.)5,..'.(L..9..
+00000010: 50 c9 ab 39 24 fa ab 39 04 00 01 00 00 00 07 55  P..9$..9.......U
+00000020: 4e 4b 4e 4f 57 4e 00 00 00 00 00 00 00 00 00 00  NKNOWN..........
+00000030: 00 00 00 ff 00 00 00 00 00 00 ff ff ff ff ff 00  ................
+
 ERRORS.TXT:
-03-12-2026 9:20pm -> Fleet assigned to an unknown starbase.
+03-12-2026 9:25pm -> Fleet assigned to an unknown starbase.

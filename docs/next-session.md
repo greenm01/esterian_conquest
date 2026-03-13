@@ -57,8 +57,8 @@ What is strong:
 What is still incomplete:
 
 - arbitrary `ECMAINT`-compliant gamestate generation
-- remaining `ECMAINT` cross-file linkage rules, especially the unresolved
-  `5EE4` fleet/base matcher semantics
+- remaining `ECMAINT` cross-file linkage rules beyond the now-complete
+  Guard Starbase blocker pass
 - deeper `IPBM` gameplay semantics beyond the currently mapped structure
 - reliable local `ECGAME` startup / ANSI preservation, which is useful but not
   the main blocker
@@ -67,166 +67,36 @@ What is still incomplete:
 
 Priority order:
 
-1. Finish `ECMAINT` `5EE4` fleet/base linkage semantics
-   - highest-value blocker for milestone 3
-   - remaining gap is around the kind-`1` / kind-`2` matcher and decoded
-     `3558/355A` keys
-   - this is the main blocker between accepted one-base scenarios and more
-     general compliant gamestate generation
-   - latest concrete anchor from the accepted one-base fixture:
-     - live matcher post-decode stop `CS=0824 EIP=0303`
-     - decoded base-side keys `[3558] = 1`, `[355A] = 1`
-     - decoded tuple/control bytes also line up with guard target
-       coordinates `(16,13)`
-     - practical implication:
-       - the accepted one-base case likely succeeds on the direct decoded-key
-         path (`candidate +0x0A == [3558]`)
-       - the structural candidate-decode path may not be needed in that case
-   - latest concrete narrowing from the failing `fleet[0x23] = 0` case:
-     - it still reaches the same live base-decode stop `CS=0824 EIP=0303`
-     - its base-side decode block is byte-for-byte identical to the accepted
-       one-base case
-     - practical implication:
-       - the `unknown starbase` discriminator is not in the base-side decoded
-         `3558/355A` object
-       - static fleet-branch mapping also shows `fleet[0x23]` is not read by
-         the kind-`1` summary emitter at `2000:6040..6368`
-       - the remaining rule must therefore be later than both:
-         - the base-side kind-`2` decode
-         - the fleet-side kind-`1` summary emission
-       - the new `0000:06AE..0800` dump shows kind `2` falls straight into the
-         generic post-kind canonicalization path; the special work there is for
-         kind `3`
-       - the first concrete later consumer is now `0000:1302..1361`, which:
-         - loops active summaries (`+0x03 != 0`)
-         - calls the shared loader `0000:02C0`
-         - then dispatches each active entry through two far calls in segment
-           `1000`
-       - first-pass dumps of `1000:a26e` and `1000:0b51` look generic /
-         report-oriented rather than starbase-specific
-       - the first genuinely starbase-specific later region is now
-         `0000:3fcf..41a0`, immediately after the raw
-         `Fleet assigned to an unknown starbase.` string
-       - that region is now tightened to a concrete late predicate:
-         - current summary index comes from caller arg `[BP+0x04]`
-         - located candidate summary slot comes from local `[BP-0x28]`
-         - success requires:
-           - located summary active (`+0x03 != 0`)
-           - current `+0x01 == located +0x01`
-           - current `+0x02 == located +0x02`
-           - current `+0x05 == located +0x05`
-           - `byte ptr [0x350c] > 0`
-         - on success it only sets local success flag `[BP-1] = 1`
-         - on failure/report it formats output from `3502` scratch fields
-           `3525`, `351b..351f`, `350d`, `350e`, and `3504`
-         - branch `40f7..410c` selects between two nearby CS-local string
-           variants depending on whether `351b..351f` is zero
-         - both failure/report exits clear `350c` / `3521`
-         - producer-side split is now tighter:
-           - `350d` / `350e` are the first two decoded tag bytes from the
-             shared kind-`1` summary `+0x06` decoder
-           - `351b..351f` is the later 3-word payload group from the same
-             common post-kind canonicalization pipeline
-           - `350c` is the decoded selector/control byte copied out by the
-             kind-`1` loader and checked by the late predicate
-           - `3525` is now narrowed further by the later block at
-             `42d8..456e`:
-             - candidate summary must match `3504`, `350d`, `350e`, and
-               `f(351b..351f)`
-             - then decoded candidate local `+0x23` must equal `[3525]`
-             - decoded candidate local flag `+0x0a` must be `0`
-             - after that structural hit, the same block now looks like a real
-               second late resolution/report loop:
-               - it calls `0x2000:b9a7`
-               - splits into two CS-local report families
-               - `b9a7 != 0` takes the smaller family and then calls
-                 `0x2000:d3bb`
-                 - best current label: merge/commit path
-               - `b9a7 == 0` takes the larger family, formats literal `3000`,
-                 and exits after clearing `3521` / `350c`
-                 - best current label: already-guarding / ship-limit
-                   abort-report path
-               - the fallback path re-runs `0x1000:d183`, copies the selected
-                 entry back through `0x2000:c151`, rewrites `351b..351f`, and
-                 finalizes through `0x2000:c100`, `0x2000:c02a`, and
-                 `0x2000:c2f0`
-               - it explicitly clears `3521` and `350c` before exit
-           - `3521` behaves like a late report/control selector byte and is
-             reset when the later report flow completes
-             - concrete later mode map now recovered:
-               - `6` -> writes `[10, 20, 30, 40]` to `0x630..0x633`
-               - `7` -> writes `[20, 25, 25, 30]`
-               - `8` -> writes `[0, 0, 0, 100]`
-             - those values later flow through `f812` / `f8f2`, which pass
-               `3521` and CS:`0x6766` to `0x3000:44b7` and only continue the
-               follow-on path on nonzero return
-             - best current label: late report-layout / variant mode byte
-         - nearby raw strings after `41a1` show this region also owns the
-           wider starbase merge/guard report family:
-           - arrival at starbase
-           - merging with fleet
-           - found fleet already guarding it
-           - cannot merge because fleet would exceed ship limit
-       - `0x1000:d183` is now narrowed to a candidate locator/selector:
-         - scans the `0x1712` table
-         - filters matching entries
-         - sorts multiple candidates
-         - returns success in `AL` and two selected bytes via output pointers
-         - the candidate index list is 1-based at local `FECC`
-         - the first real candidate slot is `FECE`
-         - the sort/swap block normalizes the winning candidate back into that
-           first slot
-         - the return block reads selected entry bytes `0x00` and `0x01` from
-           `FECE`
-         - practical implication:
-           - the stable side effect is the selected-entry pair
-           - the direct register return is only a boolean success gate
-       - next target should now stay in `0000:3fcf..41a0`, especially:
-         - the exact semantic labels for `3521`
-         - the exact CS-local report variants chosen across both late blocks
-           (`3fcf..41a0` and `42d8..456e`)
-         - the human-facing meaning of `3521` modes `6`, `7`, and `8`
-         - which scratch fields and helper returns choose each variant
-         - exact runtime text bodies for the late CS-local report references
-           around `0x0d30` / `0x0d53`, which did not decode as plain raw-import
-           strings
-         - the downstream `3521` consumer at `0x3000:44b7` also appears as
-           zero bytes in the current raw `MEMDUMP.BIN`, and so does `CS:6766`
-           - practical implication:
-             - remaining `3521` semantics now require runtime-aware capture
-               around the live consumer
-             - do not spend more time blindly carving the zeroed `3000:` range
-         - a runtime write-stop dump on the failing `unknown starbase` case now
-           confirms the same limit:
-           - at the `ERRORS.TXT` write stop (`AX=40d0`, `BX=0006`,
-             `CS=3374:EIP=1953`), `ERRORS.TXT` already contains
-             `Fleet assigned to an unknown starbase.`
-           - but the nominal raw-dump ranges for `3000:44b7`, `3000:6766`,
-             and even `0x3521` are still zero under the current linear model
-           - practical implication:
-             - the remaining selector semantics are outside what the current
-               PSP-owned dump exposes under the old `3000:` assumptions
-             - next method should be runtime-segment-aware capture around the
-               live consumer path, not more raw-dump carving
-           - same write-stop dump also shows why:
-             - `DS=39ab`, `SS=39ab`
-             - `DS:3502`, `DS:3521`, `DS:3525`, `DS:0630`, and `DS:6766` are
-               all zero there
-             - practical implication:
-               - the `INT 21h/AH=40` stop is too DOS-owned to expose the
-                 program-side late scratch directly
-               - next useful breakpoint must be before the DOS write, on the
-                 program-side report path
-           - useful caller-side clue from the write-stop stack:
-             - plausible far return pair `2895:27ac`
-             - that matches the earlier live kind-`2` segment family
-               (`2895:6060`, `2895:62e3`)
-             - the earlier live/static offset delta stays consistent at
-               `+0x5c5d`
-           - practical implication:
-             - future late-path breakpoint work should treat segment `2895`
-               plus that offset delta as the best current clue
-             - but it is still not a proven late-breakpoint recipe yet
+1. Treat the Guard Starbase / `unknown starbase` blocker pass as complete
+   - accepted one-base case uses direct decoded-key match on base-side
+     `[3558] = [355A] = 1`
+   - failing `fleet[0x23] = 0` case proves the discriminator is later than:
+     - base-side kind-2 decode
+     - fleet-side kind-1 summary emission
+   - decisive late accept/reject structure is now recovered:
+     - `0000:3fcf..41a0`
+       - success requires located summary active, current summary `+0x01`,
+         `+0x02`, and `+0x05` matching the located entry, and `350c > 0`
+     - `0000:42d8..456e`
+       - deeper structural match requires `3504`, `350d`, `350e`, and
+         `f(351b..351f)` plus decoded local `+0x23 == 3525` and decoded local
+         flag `+0x0a == 0`
+   - late report-only findings are also recovered:
+     - `3521` is a late report-layout / variant mode byte
+     - mode map:
+       - `6 -> [10, 20, 30, 40]`
+       - `7 -> [20, 25, 25, 30]`
+       - `8 -> [0, 0, 0, 100]`
+     - `b9a7 != 0` -> merge/commit path
+     - `b9a7 == 0` -> already-guarding / ship-limit abort-report path
+   - runtime-only late path is now mapped back into the static image:
+     - live `2895:27ac` -> static `2000:2fbc`
+     - live `2895:7e4b` -> static `2000:865b`
+   - stop condition:
+     - remaining unresolved `3521` mode-text semantics are on the UI/report
+       side, not the compliance side
+     - do not spend more deep RE time here unless the task is explicit
+       UI/report preservation
 
 2. Recover initialized-to-post-maint deterministic rules
    - use canonical post-maint diff output from normalized `original/v1.5`
@@ -242,43 +112,33 @@ Priority order:
 
 ## Concrete Next Task
 
-Start with `5EE4` rule discovery, not more Rust refactoring.
+Start with initialized-to-post-maint rule discovery, not more starbase deep RE.
 
 Best immediate task:
 
-- finish the unresolved base/fleet linkage semantics in the `ECMAINT` matcher
-- target the remaining kind-`1` / kind-`2` path around the decoded `+0x06`
-  helper keys and the `3558/355A` comparisons
-- specifically compare:
-  - the accepted one-base direct-key path
-  - a failing `unknown starbase` case
-  - the new narrowing is that the failing `fleet[0x23] = 0` case already has
-    the same base-side decoded keys as the accepted case
-  - static fleet-branch mapping also rules out `fleet[0x23]` as an input to
-    the emitted kind-`1` summary itself
-  - the immediate `0000:06AE..0800` handoff is mostly generic
-    canonicalization, not a starbase-specific decision block
-  - the next concrete consumer after generic sort/report staging is now
-    `0000:1302..1361`
-  - the first two segment-`1000` callees from that loop (`a26e`, `0b51`) now
-    look generic/report-oriented
-  - the raw `unknown starbase` string exists at `0000:3f89`, but the raw-import
-    xref pass found no direct references
-  - the new concrete later target is `0000:3fcf..41a0`, immediately after that
-    raw string
-  - so the next capture/search should focus on:
-    - the exact semantic label for `3521`
-    - the exact late starbase report variants around the raw strings after
-      `41a1`
-    - any dynamic confirmation of the caller-side `AX` / located-summary slot
-      relationship at `3fe8`
-- once those rules are recovered, promote them into `CoreGameData`
+- use the canonical baseline diff tools on a Rust-normalized `original/v1.5`
+  directory
+- cluster the remaining deterministic byte deltas by file and field family
+- promote only the clearly reusable transition rules into `CoreGameData`
+
+Recommended order:
+
+1. `CONQUEST.DAT`
+   - explain the remaining initialized-to-post-maint schedule/year drift first
+2. `PLANETS.DAT`
+   - explain the remaining repeated economy/homeworld payload clusters
+3. `PLAYER.DAT`
+   - promote only count/summary words that are supported by evidence
+4. `IPBM.DAT`
+   - move from structural validity toward real gameplay semantics
 
 Why this first:
 
+- the Guard Starbase blocker is complete enough for compliance work
 - Rust tooling is no longer the main bottleneck
-- this is the narrowest remaining RE gap with the biggest payoff
-- it should unlock broader compliant starbase/base/fleet generation
+- initialized-to-post-maint transition rules are the next shortest path toward
+  broader `ECMAINT`-compliant gamestate generation and eventually a Rust
+  `ECMAINT`
 
 ## Canonical Baseline Tools
 
