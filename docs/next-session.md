@@ -90,8 +90,21 @@ Priority order:
        - the first genuinely starbase-specific later region is now
          `0000:3fcf..41a0`, immediately after the raw
          `Fleet assigned to an unknown starbase.` string
-       - that region compares summary bytes `+1`, `+2`, and `+5` against a
-         located kind-`1` entry and clears `350c` / `3521` on failure/report
+       - that region is now tightened to a concrete late predicate:
+         - current summary index comes from caller arg `[BP+0x04]`
+         - located candidate summary slot comes from local `[BP-0x28]`
+         - success requires:
+           - located summary active (`+0x03 != 0`)
+           - current `+0x01 == located +0x01`
+           - current `+0x02 == located +0x02`
+           - current `+0x05 == located +0x05`
+           - `byte ptr [0x350c] > 0`
+         - on success it only sets local success flag `[BP-1] = 1`
+         - on failure/report it formats output from `3502` scratch fields
+           `3525`, `351b..351f`, `350d`, `350e`, and `3504`
+         - branch `40f7..410c` selects between two nearby CS-local string
+           variants depending on whether `351b..351f` is zero
+         - both failure/report exits clear `350c` / `3521`
        - `0x1000:d183` is now narrowed to a candidate locator/selector:
          - scans the `0x1712` table
          - filters matching entries
@@ -107,8 +120,8 @@ Priority order:
            - the stable side effect is the selected-entry pair
            - the direct register return is only a boolean success gate
        - next target should now stay in `0000:3fcf..41a0`, especially:
-         - the exact compare inputs in the `+1/+2/+5` success path
-         - the nearby indirect message/report path
+         - the caller-side meaning of `350c`, `3521`, and `351b..351f`
+         - the exact CS-local message fragments / report variants
 
 2. Recover initialized-to-post-maint deterministic rules
    - use canonical post-maint diff output from normalized `original/v1.5`
@@ -149,10 +162,12 @@ Best immediate task:
   - the new concrete later target is `0000:3fcf..41a0`, immediately after that
     raw string
   - so the next capture/search should focus on:
-    - the exact compare inputs and caller-side expectations after
-      `0x1000:d183`
-    - how `0000:3fcf..41a0` chooses between success/report/error paths
-    - the indirect message/report helpers used there
+    - the caller-side meaning of `350c`, `3521`, and `351b..351f`
+    - the exact CS-local message fragments / report variants around
+      `0x0a93`, `0x0abc`, `0x0ae6`, `0x0aed`, `0x0af4`, `0x0af6`,
+      `0x0af8`, and `0x0b17`
+    - any dynamic confirmation of the caller-side `AX` / located-summary slot
+      relationship at `3fe8`
 - once those rules are recovered, promote them into `CoreGameData`
 
 Why this first:

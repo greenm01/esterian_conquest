@@ -1,0 +1,218 @@
+# Unknown Starbase Predicate
+
+- Focus: late starbase-specific region `0000:3fcf..41a0`.
+- Goal: summarize the success predicate and the failure/report
+  payload fields after the selector helper `0x1000:d183`.
+
+## Selector Call And Gate
+
+0000:3fd9  MOV DI,0x3502                    ; bytes=bf 02 35
+0000:3fdc  PUSH DS                          ; bytes=1e
+0000:3fdd  PUSH DI                          ; bytes=57
+0000:3fde  LEA DI,[BP + -0x24]              ; bytes=8d 7e dc
+0000:3fe1  PUSH SS                          ; bytes=16
+0000:3fe2  PUSH DI                          ; bytes=57
+0000:3fe3  CALLF 0x1000:d183                ; bytes=9a 33 21 05 1b
+0000:3fe8  MOV word ptr [BP + -0x28],AX     ; bytes=89 46 d8
+0000:3feb  CMP word ptr [BP + -0x28],0x0    ; bytes=83 7e d8 00
+0000:3fef  JA 0x0000:3ff4                   ; bytes=77 03
+0000:3ff1  JMP 0x0000:4186                  ; bytes=e9 92 01
+0000:3ff4  MOV AX,word ptr [BP + -0x28]     ; bytes=8b 46 d8
+
+Interpretation:
+- source scratch block is `DS:3502`
+- `0x1000:d183` selects a candidate and returns selected-entry side
+  effects through its local list / output bytes
+- caller stores `AX` into local `[BP-0x28]` and rejects zero
+- later code treats `[BP-0x28]` as the located summary slot
+
+## Success Predicate
+
+0000:3ff4  MOV AX,word ptr [BP + -0x28]     ; bytes=8b 46 d8
+0000:3ff7  SHL AX,0x1                       ; bytes=d1 e0
+0000:3ff9  SHL AX,0x1                       ; bytes=d1 e0
+0000:3ffb  LES DI,[0x2f72]                  ; bytes=c4 3e 72 2f
+0000:3fff  ADD DI,AX                        ; bytes=03 f8
+0000:4001  LES DI,ES:[DI + -0x4]            ; bytes=26 c4 7d fc
+0000:4005  CMP byte ptr ES:[DI + 0x3],0x0   ; bytes=26 80 7d 03 00
+0000:400a  JNZ 0x0000:400f                  ; bytes=75 03
+0000:400c  JMP 0x0000:40a7                  ; bytes=e9 98 00
+0000:400f  MOV AX,word ptr [BP + 0x4]       ; bytes=8b 46 04
+0000:4012  SHL AX,0x1                       ; bytes=d1 e0
+0000:4014  SHL AX,0x1                       ; bytes=d1 e0
+0000:4016  LES DI,[0x2f72]                  ; bytes=c4 3e 72 2f
+0000:401a  ADD DI,AX                        ; bytes=03 f8
+0000:401c  LES DI,ES:[DI + -0x4]            ; bytes=26 c4 7d fc
+0000:4020  MOV DL,byte ptr ES:[DI + 0x1]    ; bytes=26 8a 55 01
+0000:4024  MOV AX,word ptr [BP + -0x28]     ; bytes=8b 46 d8
+0000:4027  SHL AX,0x1                       ; bytes=d1 e0
+0000:4029  SHL AX,0x1                       ; bytes=d1 e0
+0000:402b  LES DI,[0x2f72]                  ; bytes=c4 3e 72 2f
+0000:402f  ADD DI,AX                        ; bytes=03 f8
+0000:4031  LES DI,ES:[DI + -0x4]            ; bytes=26 c4 7d fc
+0000:4035  MOV AL,byte ptr ES:[DI + 0x1]    ; bytes=26 8a 45 01
+0000:4039  CMP AL,DL                        ; bytes=3a c2
+0000:403b  JNZ 0x0000:40a4                  ; bytes=75 67
+0000:403d  MOV AX,word ptr [BP + 0x4]       ; bytes=8b 46 04
+0000:4040  SHL AX,0x1                       ; bytes=d1 e0
+0000:4042  SHL AX,0x1                       ; bytes=d1 e0
+0000:4044  LES DI,[0x2f72]                  ; bytes=c4 3e 72 2f
+0000:4048  ADD DI,AX                        ; bytes=03 f8
+0000:404a  LES DI,ES:[DI + -0x4]            ; bytes=26 c4 7d fc
+0000:404e  MOV DL,byte ptr ES:[DI + 0x2]    ; bytes=26 8a 55 02
+0000:4052  MOV AX,word ptr [BP + -0x28]     ; bytes=8b 46 d8
+0000:4055  SHL AX,0x1                       ; bytes=d1 e0
+0000:4057  SHL AX,0x1                       ; bytes=d1 e0
+0000:4059  LES DI,[0x2f72]                  ; bytes=c4 3e 72 2f
+0000:405d  ADD DI,AX                        ; bytes=03 f8
+0000:405f  LES DI,ES:[DI + -0x4]            ; bytes=26 c4 7d fc
+0000:4063  MOV AL,byte ptr ES:[DI + 0x2]    ; bytes=26 8a 45 02
+0000:4067  CMP AL,DL                        ; bytes=3a c2
+0000:4069  JNZ 0x0000:40a4                  ; bytes=75 39
+0000:406b  MOV AX,word ptr [BP + -0x28]     ; bytes=8b 46 d8
+0000:406e  SHL AX,0x1                       ; bytes=d1 e0
+0000:4070  SHL AX,0x1                       ; bytes=d1 e0
+0000:4072  LES DI,[0x2f72]                  ; bytes=c4 3e 72 2f
+0000:4076  ADD DI,AX                        ; bytes=03 f8
+0000:4078  LES DI,ES:[DI + -0x4]            ; bytes=26 c4 7d fc
+0000:407c  MOV DL,byte ptr ES:[DI + 0x5]    ; bytes=26 8a 55 05
+0000:4080  MOV AX,word ptr [BP + 0x4]       ; bytes=8b 46 04
+0000:4083  SHL AX,0x1                       ; bytes=d1 e0
+0000:4085  SHL AX,0x1                       ; bytes=d1 e0
+0000:4087  LES DI,[0x2f72]                  ; bytes=c4 3e 72 2f
+0000:408b  ADD DI,AX                        ; bytes=03 f8
+0000:408d  LES DI,ES:[DI + -0x4]            ; bytes=26 c4 7d fc
+0000:4091  MOV AL,byte ptr ES:[DI + 0x5]    ; bytes=26 8a 45 05
+0000:4095  CMP AL,DL                        ; bytes=3a c2
+0000:4097  JNZ 0x0000:40a4                  ; bytes=75 0b
+0000:4099  CMP byte ptr [0x350c],0x0        ; bytes=80 3e 0c 35 00
+0000:409e  JBE 0x0000:40a4                  ; bytes=76 04
+0000:40a0  MOV byte ptr [BP + -0x1],0x1     ; bytes=c6 46 ff 01
+0000:40a4  JMP 0x0000:4184                  ; bytes=e9 dd 00
+
+Interpretation:
+- current active summary index comes from caller arg `[BP+0x04]`
+- located candidate summary index comes from local `[BP-0x28]`
+- success requires:
+  - located summary is active (`+0x03 != 0`)
+  - current `+0x01 == located +0x01`
+  - current `+0x02 == located +0x02`
+  - current `+0x05 == located +0x05`
+  - `byte ptr [0x350c] > 0`
+- on success the routine sets local success flag `[BP-1] = 1`
+
+## Failure / Report Payload
+
+0000:40a7  MOV DI,0x3502                    ; bytes=bf 02 35
+0000:40aa  PUSH DS                          ; bytes=1e
+0000:40ab  PUSH DI                          ; bytes=57
+0000:40ac  CALLF 0x2000:cb32                ; bytes=9a e2 41 95 28
+0000:40b1  LEA DI,[BP + 0xfdd8]             ; bytes=8d be d8 fd
+0000:40b5  PUSH SS                          ; bytes=16
+0000:40b6  PUSH DI                          ; bytes=57
+0000:40b7  MOV DI,0xa93                     ; bytes=bf 93 0a
+0000:40ba  PUSH CS                          ; bytes=0e
+0000:40bb  PUSH DI                          ; bytes=57
+0000:40bc  CALLF 0x3000:4202                ; bytes=9a c2 0a 74 33
+0000:40c1  LEA DI,[BP + 0xfed8]             ; bytes=8d be d8 fe
+0000:40c5  PUSH SS                          ; bytes=16
+0000:40c6  PUSH DI                          ; bytes=57
+0000:40c7  MOV AX,[0x3525]                  ; bytes=a1 25 35
+0000:40ca  XOR DX,DX                        ; bytes=31 d2
+0000:40cc  PUSH DX                          ; bytes=52
+0000:40cd  PUSH AX                          ; bytes=50
+0000:40ce  CALLF 0x3000:2d81                ; bytes=9a 41 09 44 32
+0000:40d3  CALLF 0x3000:428f                ; bytes=9a 4f 0b 74 33
+0000:40d8  CALLF 0x2000:bec4                ; bytes=9a 74 35 95 28
+0000:40dd  MOV DI,0xabc                     ; bytes=bf bc 0a
+0000:40e0  PUSH CS                          ; bytes=0e
+0000:40e1  PUSH DI                          ; bytes=57
+0000:40e2  CALLF 0x2000:bec4                ; bytes=9a 74 35 95 28
+0000:40e7  MOV AX,[0x351b]                  ; bytes=a1 1b 35
+0000:40ea  MOV BX,word ptr [0x351d]         ; bytes=8b 1e 1d 35
+0000:40ee  MOV DX,word ptr [0x351f]         ; bytes=8b 16 1f 35
+0000:40f2  CALLF 0x3000:489d                ; bytes=9a 5d 11 74 33
+0000:40f7  OR AX,DX                         ; bytes=09 d0
+0000:40f9  JNZ 0x0000:4107                  ; bytes=75 0c
+0000:40fb  MOV DI,0xae6                     ; bytes=bf e6 0a
+0000:40fe  PUSH CS                          ; bytes=0e
+0000:40ff  PUSH DI                          ; bytes=57
+0000:4100  CALLF 0x2000:bec4                ; bytes=9a 74 35 95 28
+0000:4105  JMP 0x0000:4111                  ; bytes=eb 0a
+0000:4107  MOV DI,0xaed                     ; bytes=bf ed 0a
+0000:410a  PUSH CS                          ; bytes=0e
+0000:410b  PUSH DI                          ; bytes=57
+0000:410c  CALLF 0x2000:bec4                ; bytes=9a 74 35 95 28
+0000:4111  LEA DI,[BP + 0xfdd8]             ; bytes=8d be d8 fd
+0000:4115  PUSH SS                          ; bytes=16
+0000:4116  PUSH DI                          ; bytes=57
+0000:4117  MOV DI,0xaf4                     ; bytes=bf f4 0a
+0000:411a  PUSH CS                          ; bytes=0e
+0000:411b  PUSH DI                          ; bytes=57
+0000:411c  CALLF 0x3000:4202                ; bytes=9a c2 0a 74 33
+0000:4121  LEA DI,[BP + 0xfed8]             ; bytes=8d be d8 fe
+0000:4125  PUSH SS                          ; bytes=16
+0000:4126  PUSH DI                          ; bytes=57
+0000:4127  MOV AL,[0x350d]                  ; bytes=a0 0d 35
+0000:412a  XOR AH,AH                        ; bytes=30 e4
+0000:412c  XOR DX,DX                        ; bytes=31 d2
+0000:412e  PUSH DX                          ; bytes=52
+0000:412f  PUSH AX                          ; bytes=50
+0000:4130  CALLF 0x3000:2d81                ; bytes=9a 41 09 44 32
+0000:4135  CALLF 0x3000:428f                ; bytes=9a 4f 0b 74 33
+0000:413a  MOV DI,0xaf6                     ; bytes=bf f6 0a
+0000:413d  PUSH CS                          ; bytes=0e
+0000:413e  PUSH DI                          ; bytes=57
+0000:413f  CALLF 0x3000:428f                ; bytes=9a 4f 0b 74 33
+0000:4144  LEA DI,[BP + 0xfcd8]             ; bytes=8d be d8 fc
+0000:4148  PUSH SS                          ; bytes=16
+0000:4149  PUSH DI                          ; bytes=57
+0000:414a  MOV AL,[0x350e]                  ; bytes=a0 0e 35
+0000:414d  XOR AH,AH                        ; bytes=30 e4
+0000:414f  XOR DX,DX                        ; bytes=31 d2
+0000:4151  PUSH DX                          ; bytes=52
+0000:4152  PUSH AX                          ; bytes=50
+0000:4153  CALLF 0x3000:2d81                ; bytes=9a 41 09 44 32
+0000:4158  CALLF 0x3000:428f                ; bytes=9a 4f 0b 74 33
+0000:415d  CALLF 0x2000:bec4                ; bytes=9a 74 35 95 28
+0000:4162  MOV DI,0xaf8                     ; bytes=bf f8 0a
+0000:4165  PUSH CS                          ; bytes=0e
+0000:4166  PUSH DI                          ; bytes=57
+0000:4167  CALLF 0x2000:bec4                ; bytes=9a 74 35 95 28
+0000:416c  CALLF 0x2000:c02a                ; bytes=9a da 36 95 28
+0000:4171  MOV AL,[0x3504]                  ; bytes=a0 04 35
+0000:4174  PUSH AX                          ; bytes=50
+0000:4175  CALLF 0x2000:c2f0                ; bytes=9a a0 39 95 28
+0000:417a  MOV byte ptr [0x350c],0x0        ; bytes=c6 06 0c 35 00
+0000:417f  MOV byte ptr [0x3521],0x0        ; bytes=c6 06 21 35 00
+0000:4184  JMP 0x0000:419a                  ; bytes=eb 14
+
+Interpretation:
+- failure/report path works from the same kind-1 scratch block `3502`
+- it formats output using scratch fields:
+  - `3525`
+  - `351b..351f`
+  - `350d`
+  - `350e`
+  - `3504`
+- the branch at `40f7..410c` selects between two nearby CS-local
+  string variants based on whether `351b..351f` is zero
+- both failure/report exits clear `350c` and `3521`
+
+## Early No-Match Exit
+
+0000:4186  MOV DI,0xb17                     ; bytes=bf 17 0b
+0000:4189  PUSH CS                          ; bytes=0e
+0000:418a  PUSH DI                          ; bytes=57
+0000:418b  CALLF 0x3000:159b                ; bytes=9a 0b 00 59 31
+0000:4190  MOV byte ptr [0x350c],0x0        ; bytes=c6 06 0c 35 00
+0000:4195  MOV byte ptr [0x3521],0x0        ; bytes=c6 06 21 35 00
+0000:419a  MOV AL,byte ptr [BP + -0x1]      ; bytes=8a 46 ff
+0000:419d  MOV SP,BP                        ; bytes=89 ec
+0000:419f  POP BP                           ; bytes=5d
+0000:41a0  RET 0x2                          ; bytes=c2 02 00
+
+Interpretation:
+- if the selector stage yields no candidate, the routine jumps here
+- this path emits one CS-local message through `0x3000:159b`
+- then also clears `350c` and `3521` before returning

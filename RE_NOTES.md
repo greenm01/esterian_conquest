@@ -4476,11 +4476,34 @@ Strong practical consequence:
   genuinely starbase-specific rather than generic
 - it is now the best current candidate for the later Guard Starbase
   resolution/error-emission path behind the `unknown starbase` behavior
-- next highest-value step:
-  - name this region in Ghidra
-  - identify what `0x1000:d183` returns into `[BP-0x28]`
-  - decode the CS-local string pointers around `0x0a93`, `0x0abc`,
-    `0x0ae6`, `0x0aed`, `0x0af4`, `0x0af6`, `0x0af8`, and `0x0b17`
+- the late predicate is now narrowed further:
+  - caller-side current summary index is `[BP+0x04]`
+  - located candidate summary slot is local `[BP-0x28]`
+  - success requires:
+    - located summary active (`+0x03 != 0`)
+    - current `+0x01 == located +0x01`
+    - current `+0x02 == located +0x02`
+    - current `+0x05 == located +0x05`
+    - `byte ptr [0x350c] > 0`
+  - on success the routine only sets local success flag `[BP-1] = 1`
+- the failure/report path is also now tightened:
+  - it formats output from kind-`1` scratch fields:
+    - `3525`
+    - `351b..351f`
+    - `350d`
+    - `350e`
+    - `3504`
+  - branch `40f7..410c` selects between two nearby CS-local string variants
+    depending on whether `351b..351f` is zero
+  - both failure/report exits clear `350c` and `3521`
+- early no-match path `4186..4195` emits a separate CS-local message through
+  `0x3000:159b`, then also clears `350c` and `3521`
+
+Artifacts:
+- `artifacts/ghidra/ecmaint-live/unknown-starbase-predicate.txt`
+
+Tool:
+- `tools/ghidra_scripts_tmp/ReportUnknownStarbasePredicate.java`
 
 `0x1000:d183` helper contract (first pass):
 
