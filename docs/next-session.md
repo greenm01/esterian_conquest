@@ -300,15 +300,19 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 - ✅ Build queue processing with production calculation
   - Production rate = factories_word + (potential_production / 2)
   - Finds empty stardock slot for completed ships
-- ✅ DATABASE.DAT regeneration from PLANETS.DAT with current year
+- ✅ DATABASE.DAT regeneration with name normalization
+  - Fixed name field offset (0x00, was incorrectly 0x01)
+  - Normalizes 'Unowned' and 'Not Named Yet' to 'UNKNOWN'
+  - Matches ECMAINT display name behavior
 - ✅ Clears build slot after completion
-- ⚠️ **Production formula:** Approximation, needs verification from fixtures
-- ⚠️ **DATABASE.DAT:** Regeneration differs from ECMAINT (753 vs 81 bytes)
+- ⚠️ **Production formula:** Approximation based on fixtures
+- ⚠️ **DATABASE.DAT:** 81 bytes differ (4 records with special intel updates)
 - **Current parity on build scenario (1 turn):** 70% (7/10 files match)
 - **Files differing in build scenario:**
   - CONQUEST.DAT (50 bytes - header updates beyond year)
-  - PLANETS.DAT (2 bytes - build completion improved from 6 bytes)
-  - DATABASE.DAT (753 bytes - regeneration needs tuning)
+  - PLANETS.DAT (2 bytes - build completion nearly perfect)
+  - DATABASE.DAT (81 bytes - 4 records with special handling)
+    - Records 14, 32, 44, 65 get full intel updates including year
 
 ### Step 5: Regression Test — IN PROGRESS
 - ✅ Year advancement tests (3 tests)
