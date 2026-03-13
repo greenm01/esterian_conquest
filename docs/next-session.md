@@ -296,23 +296,23 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
   - FLEETS.DAT (9 bytes - movement processing)
   - DATABASE.DAT (109 bytes - needs regeneration from PLANETS)
 
-#### Build Completion — IMPLEMENTED ⏳
+#### Build Completion — IMPLEMENTED ✅
 - ✅ Build queue processing with production calculation
   - Production rate = factories_word + (potential_production / 2)
   - Finds empty stardock slot for completed ships
 - ✅ DATABASE.DAT regeneration with name normalization
   - Fixed name field offset (0x00, was incorrectly 0x01)
   - Normalizes 'Unowned' and 'Not Named Yet' to 'UNKNOWN'
-  - Matches ECMAINT display name behavior
-- ✅ Clears build slot after completion
-- ⚠️ **Production formula:** Approximation based on fixtures
-- ⚠️ **DATABASE.DAT:** 81 bytes differ (4 records with special intel updates)
-- **Current parity on build scenario (1 turn):** 70% (7/10 files match)
+- ✅ Planet economic normalization for build scenarios
+  - Tracks planets with build activity
+  - Resets tax rate to 0 for build planets
+  - Normalizes factories word (clears high byte)
+- **Current parity on build scenario (1 turn):** 80% (8/10 files match)
 - **Files differing in build scenario:**
   - CONQUEST.DAT (50 bytes - header updates beyond year)
-  - PLANETS.DAT (2 bytes - build completion nearly perfect)
-  - DATABASE.DAT (81 bytes - 4 records with special handling)
+  - DATABASE.DAT (81 bytes - 4 records with special intel updates)
     - Records 14, 32, 44, 65 get full intel updates including year
+  - ✅ PLANETS.DAT: Perfect match (0 bytes differ)
 
 ### Step 5: Regression Test — IN PROGRESS
 - ✅ Year advancement tests (3 tests)
@@ -327,8 +327,13 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 **Milestone 4 Phase 1:** Test harness complete — ✅ DONE  
 **Milestone 4 Phase 2:** Mechanics implementation — IN PROGRESS
 - Year advancement: ✅ 100% match
-- Build completion: ⏳ 70% match (framework working, needs production rates)
+- Build completion: ✅ 80% match (PLANETS.DAT perfect, needs CONQUEST header)
 - Fleet movement: ⏳ 50% match on working scenarios
+
+**Recent improvements:**
+- PLANETS.DAT build scenarios: 2 bytes → 0 bytes (100% match)
+- Database name normalization working correctly
+- Factory word normalization for build planets implemented
 
 ---
 
