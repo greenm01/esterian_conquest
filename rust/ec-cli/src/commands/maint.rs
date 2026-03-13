@@ -98,13 +98,17 @@ fn regenerate_database_dat(
     //    and name_len=0.  ECMAINT stamps "Not Named Yet" + year.
     //    These correspond to each empire's orbital scan of homeworld planets.
     //
-    // 2. Colonized-planet records: after colonization, the colonizing player's record
-    //    (raw[0x15]=0xff in template, name="UNKNOWN") gets updated to "Not Named Yet" + year.
-    //    Detected by: planet is now owned ("Not Named Yet" in PLANETS.DAT with non-zero owner)
-    //    and the record's player_idx matches (owner - 1).
-    //
-    // In both cases: set name to "Not Named Yet", stamp year at 0x16-0x19 and 0x27-0x28,
-    // and set raw[0x15] to 0x01.  Preserve all other template bytes.
+    // 2. Owned-planet UNKNOWN records: player owns the planet but their DATABASE record
+    //    has scan_marker=0xff (UNKNOWN). ECMAINT populates it with the real planet name,
+    //    year, and full planet intel (pot_prod, armies, batteries).
+    //    This covers both:
+    //      a. Newly colonized planets (name="Not Named Yet") — raw[0x1e]=0x00, raw[0x15]=0x01
+    //      b. Pre-existing owned planets whose record was never populated — raw[0x1e]=0x40+owner_slot
+    //    The distinction is whether the planet name is "Not Named Yet" or a real name.
+    //    Confirmed from econ scenario:
+    //      - Record 33 (player 1 "foo", planet 13 "TargetPrime"): pre UNKNOWN, oracle populated.
+    //      - raw[0x15]=0x02 (owner_slot), raw[0x1e]=0x42 (0x40+2), name="TargetPrime".
+    //      - raw[0x1c]=pot_prod, raw[0x1d]=pot_prod, raw[0x23]=armies, raw[0x25]=batteries.
     if let Some(ref template_db) = template {
         let year_bytes = discovery_year.to_le_bytes();
 
@@ -118,21 +122,14 @@ fn regenerate_database_dat(
                 let is_orbit_record =
                     scan_marker >= 0x01 && scan_marker <= 0x04 && template_record.raw[0x00] == 0;
 
-                // Case 2: colonized-planet record — planet is now owned by this player
-                // Check if the planet has a "Not Named Yet" name and owner = player+1
+                // Case 2: owned-planet UNKNOWN record — player owns this planet but
+                // their DATABASE record is UNKNOWN (scan_marker=0xff).
                 let planet_owner = if planet < game_data.planets.records.len() {
                     game_data.planets.records[planet].owner_empire_slot_raw() as usize
                 } else {
                     0
                 };
-                let planet_name = if planet < game_data.planets.records.len() {
-                    game_data.planets.records[planet].planet_name()
-                } else {
-                    String::new()
-                };
-                let is_colonized_by_this_player = scan_marker == 0xff
-                    && planet_owner == player + 1
-                    && planet_name.eq_ignore_ascii_case("not named yet");
+                let is_owned_unknown = scan_marker == 0xff && planet_owner == player + 1;
 
                 if is_orbit_record {
                     // Homeworld orbit record: stamp name + year, preserve scan_marker
@@ -158,29 +155,53 @@ fn regenerate_database_dat(
                             new_database.records[record_idx].raw[0x1e] = 0x00;
                         }
                     }
-                } else if is_colonized_by_this_player {
-                    // Colonized-planet record: stamp name + year + planet intel
-                    new_database.records[record_idx].set_planet_name("Not Named Yet");
-                    new_database.records[record_idx].raw[0x15] = 0x01;
+                } else if is_owned_unknown {
+                    // Owned-planet UNKNOWN record: populate with real planet name + intel.
+                    let owner_slot = planet_owner as u8; // = player + 1
+                    let planet_name = if planet < game_data.planets.records.len() {
+                        game_data.planets.records[planet].planet_name()
+                    } else {
+                        String::new()
+                    };
+                    let is_new_colony = planet_name.eq_ignore_ascii_case("not named yet");
+
+                    new_database.records[record_idx].set_planet_name(&planet_name);
+                    // raw[0x15]: owner_slot for pre-existing planets; 0x01 for new colonies
+                    new_database.records[record_idx].raw[0x15] =
+                        if is_new_colony { 0x01 } else { owner_slot };
                     new_database.records[record_idx].raw[0x16] = year_bytes[0];
                     new_database.records[record_idx].raw[0x17] = year_bytes[1];
                     new_database.records[record_idx].raw[0x18] = year_bytes[0];
                     new_database.records[record_idx].raw[0x19] = year_bytes[1];
                     new_database.records[record_idx].raw[0x27] = year_bytes[0];
                     new_database.records[record_idx].raw[0x28] = year_bytes[1];
-                    // Write planet intel into 0xff-filled slots
-                    // 0x1c-0x1d: potential_production low byte + empire index
-                    // Confirmed from fleet-scenario fixture: 0x5f 0x01
+
                     if planet < game_data.planets.records.len() {
-                        let pot_prod_lo = game_data.planets.records[planet].raw[0x02];
+                        let p = &game_data.planets.records[planet];
+                        let pot_prod_lo = p.raw[0x02];
+                        let armies = p.army_count_raw();
+                        let batteries = p.ground_batteries_raw();
+
                         new_database.records[record_idx].raw[0x1c] = pot_prod_lo;
-                        new_database.records[record_idx].raw[0x1d] = (player + 1) as u8;
-                        new_database.records[record_idx].raw[0x1e] = 0x00;
+                        // raw[0x1d]: owner_slot for new colonies; pot_prod_lo for pre-existing
+                        // Confirmed: fleet new colony (slot=1) -> 0x01; econ TargetPrime -> 0x64
+                        new_database.records[record_idx].raw[0x1d] = if is_new_colony {
+                            owner_slot
+                        } else {
+                            pot_prod_lo
+                        };
+                        // raw[0x1e]: 0x00 for new colonies; 0x40+owner_slot for pre-existing
+                        // Confirmed: econ record 33 (TargetPrime, owner_slot=2) → 0x42=0x40+2
+                        new_database.records[record_idx].raw[0x1e] = if is_new_colony {
+                            0x00
+                        } else {
+                            0x40 + owner_slot
+                        };
                         new_database.records[record_idx].raw[0x1f] = 0x00;
-                        // 0x23: empire index; 0x24-0x26: zeroed
-                        new_database.records[record_idx].raw[0x23] = (player + 1) as u8;
+                        // 0x23: army count, 0x24: 0x00, 0x25: battery count, 0x26: 0x00
+                        new_database.records[record_idx].raw[0x23] = armies;
                         new_database.records[record_idx].raw[0x24] = 0x00;
-                        new_database.records[record_idx].raw[0x25] = 0x00;
+                        new_database.records[record_idx].raw[0x25] = batteries;
                         new_database.records[record_idx].raw[0x26] = 0x00;
                     }
                 }

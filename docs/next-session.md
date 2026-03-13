@@ -394,3 +394,68 @@ Historical handoff detail:
 
 - preserve original `ECGAME` ANSI opening/menu/report screens for the Rust client
 - resume this once the local `ECGAME` harness is reliable enough or when UI preservation becomes the active milestone
+
+### ⏳ Milestone 5: Game Event System — PENDING
+
+**Definition:** All ECMAINT mechanics emit typed `GameEvent` values instead of writing report strings inline. A single report-generation pass at the end converts the event log to MESSAGES.DAT / RESULTS.DAT / RANKINGS.TXT.
+
+**Design sketch:**
+```rust
+enum GameEvent {
+    FleetArrived { fleet_id, location, player },
+    ColonizationSucceeded { fleet_id, planet_id, player },
+    ColonizationAborted { fleet_id, planet_id, owner, player },
+    CombatEngaged { attacker, defender, location, outcome },
+    FleetDestroyed { fleet_id, player },
+    PlanetInvaded { planet_id, attacker, defender, outcome },
+    BombardmentComplete { fleet_id, planet_id, armies_killed, factory_pct, goods_pct },
+    GuardArrival { fleet_id, planet_id, player },
+    ScoutReport { fleet_id, planet_id, intel },
+    ShipCompleted { planet_id, player, ship_kind },
+    // ...
+}
+```
+
+**Benefits:**
+- One place for word-wrap, stardate formatting, Pascal string encoding
+- Event list is independently testable without touching binary format
+- Useful for a future Rust ECGAME client
+- Matches likely internal ECMAINT structure (templated report strings)
+
+**When to introduce:** Before porting any combat mechanic. Economic simulation (current work) does not generate reports, so the event system can be stubbed in as an empty accumulator now and filled in when combat is tackled.
+
+**Acceptance criteria:**
+- [ ] `GameEvent` enum defined in `ec-data/src/maint/`
+- [ ] All ported mechanics push events into a per-turn event buffer
+- [ ] Report generation pass consumes events → RESULTS.DAT / MESSAGES.DAT
+- [ ] No inline report string construction outside the report generation pass
+
+---
+
+### ⏳ Milestone 6: Reproduce ECMAINT Player Turn Reports — PENDING
+
+**Definition:** Rust maintenance generates byte-exact MESSAGES.DAT and RESULTS.DAT content matching the original ECMAINT output for all scenario families.
+
+**Context:** ECMAINT writes per-player turn reports into MESSAGES.DAT and RESULTS.DAT. ECGAME reads and displays these on player login. Built on top of the Milestone 5 game event system. The 2012 real-game player session logs in `original/v1.5/ec-logs-2012/` (ec2.txt–ec51.txt) are the primary human-readable source for what these reports look like and what triggers them. Reports cover:
+- Fleet movement arrivals ("We have arrived at our destination...")
+- Combat outcomes ("We were attacked by...", "We managed to destroy...")
+- Colonization results ("We have successfully terraformed...")
+- Guard/Blockade arrivals ("We are beginning our guarding/blockading assignment...")
+- Scouting intel ("We are in extended orbit around planet...")
+- Invasion outcomes ("We have been invaded and conquered...")
+- Bombardment results ("We have just concluded a bombing run...")
+
+**Known facts:**
+- RESULTS.DAT is non-empty for fleet-battle and invade-heavy scenarios (combat reports)
+- MESSAGES.DAT is empty in all known fixture post-states (player-to-player messages only?)
+- Guard/blockade and econ-only turns produce empty RESULTS.DAT (no report generated)
+- Report format: Pascal-style length-prefixed strings, word-wrapped at ~72 chars, with stardate header
+- Reports are per-player: each player only sees reports about their own fleets/planets
+- The ec-logs are the best oracle for report text, triggers, and formatting before doing binary RE
+
+**Acceptance criteria:**
+- [ ] Byte-exact RESULTS.DAT match on fleet-battle scenario
+- [ ] Byte-exact RESULTS.DAT match on invade-heavy scenario
+- [ ] Byte-exact RESULTS.DAT match on bombard scenario (currently empty — verify)
+- [ ] All scenario families produce correct MESSAGES.DAT / RESULTS.DAT
+- [ ] Report format (word-wrap, stardate, sender/receiver addressing) matches original

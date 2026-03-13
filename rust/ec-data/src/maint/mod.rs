@@ -54,6 +54,10 @@ pub fn run_maintenance_turn(
     // Process planet economic updates for planets that had builds
     process_planet_economics(game_data, &planets_with_builds)?;
 
+    // Recompute per-player planet count and production score from PLANETS.DAT.
+    // ECMAINT recalculates these from scratch every turn, not as incremental deltas.
+    recompute_player_planet_stats(game_data);
+
     // Normalize CONQUEST.DAT header fields
     process_conquest_header(game_data)?;
 
@@ -590,16 +594,82 @@ fn process_planet_economics(
     Ok(())
 }
 
+/// Recompute per-player planet count and production score from PLANETS.DAT.
+///
+/// ECMAINT recalculates these fields from scratch every turn by scanning all
+/// planet records. The pre-maint PLAYER.DAT values may be stale.
+///
+/// - PLAYER raw[0x50]: count of planets owned by this player
+/// - PLAYER raw[0x52]: sum of pot_prod for all owned planets
+///
+/// Player record index N corresponds to owner_empire_slot N+1 in PLANETS.DAT.
+/// Owner empire slot 0 means unowned. Player record 0 = owner_empire_slot 1, etc.
+///
+/// Confirmed from econ scenario: player 1 ("foo", record 1) owns 2 planets
+/// (records 12 and 13, each pot_prod=100) but pre-maint raw[0x50]=1, raw[0x52]=100.
+/// After ECMAINT: raw[0x50]=2, raw[0x52]=200.
+fn recompute_player_planet_stats(game_data: &mut CoreGameData) {
+    let n_players = game_data.player.records.len();
+
+    // Accumulate count and pot_prod sum per player slot (1-based owner_empire_slot)
+    let mut planet_counts = vec![0u8; n_players + 1]; // index = owner_empire_slot
+    let mut pot_prod_sums = vec![0u16; n_players + 1];
+
+    for planet in &game_data.planets.records {
+        let owner = planet.owner_empire_slot_raw() as usize;
+        if owner > 0 && owner <= n_players {
+            planet_counts[owner] = planet_counts[owner].saturating_add(1);
+            // Current production contribution:
+            // - Mature planet (raw[0x03] != 0x81): use pot_prod (raw[0x02])
+            // - New colony (raw[0x03] == 0x81, just colonized this turn): contribute 1
+            //   Confirmed from fleet scenario: new colony pot=95 but contributes 1 to raw[0x52].
+            let current_prod: u16 = if planet.raw[0x03] == 0x81 {
+                1
+            } else {
+                planet.potential_production_raw()[0] as u16
+            };
+            pot_prod_sums[owner] = pot_prod_sums[owner].saturating_add(current_prod);
+        }
+    }
+
+    // Write back to player records (player record index = owner_empire_slot - 1)
+    for player_idx in 0..n_players {
+        let owner_slot = player_idx + 1;
+        game_data.player.records[player_idx].raw[0x50] = planet_counts[owner_slot];
+        game_data.player.records[player_idx].raw[0x52] = pot_prod_sums[owner_slot] as u8;
+    }
+}
+
 /// Normalize CONQUEST.DAT header fields during maintenance.
 ///
-/// Based on fixture analysis, certain fields in the 0x10-0x55 range
-/// get normalized during maintenance:
-/// - Fields with value 0x64 (100) are often cleared to 0x00
-/// - Some fields get specific calculated values (economic simulation)
-/// - 0x12-0x13 goes to 0xFFFF (marker value)
+/// Based on black-box oracle testing across all four scenarios (fleet, move, build, econ):
+///
+/// - fleet/move/build: ECMAINT does NOT modify CONQUEST.DAT at all (0 bytes changed).
+///   Those scenarios have pre-maint values of 0x64 in the economic simulation area.
+///   ECMAINT preserves them unchanged.
+/// - econ: ECMAINT writes economic simulation results because pre-maint values are 0x00/0x01.
+///   ECMAINT only writes to a field when the pre-maint value indicates "uninitialized" state.
+///
+/// Confirmed write conditions (from fresh oracle diffs on all four scenarios):
+/// - 0x0c..0x11: Written only when pre[0x0c]==0x00 (uninitialized/econ state).
+///   Writes non-active player prod words (up to 3). When pre is 0x64 (fleet/move/build),
+///   ECMAINT preserves 0x0c..0x11 unchanged.
+///   Non-active = mode != 0x01 (rogue 0xff and civil disorder 0x00).
+/// - 0x12-0x13: ALWAYS write 0xFFFF sentinel (fleet/move/build/econ all confirmed).
+/// - 0x1a-0x1b: ALWAYS write 0x74 0x33 (confirmed for both 0x64 pre and 0x00 pre).
+/// - 0x14,0x16,0x18,0x1c,0x1e,0x24,0x2a,0x2c,0x2e,0x30,0x32,0x34: clear 0x64 → 0x00.
+/// - 0x20-0x21: 0x64/0x00 → 0x75/0x03
+/// - 0x22-0x23: 0x64/0x00 → 0x65/0x20
+/// - 0x26-0x27: 0x64/0x00 → 0x7e/0x04
+/// - 0x28-0x29: 0x64/0x00 → 0x20/0x74
+/// - 0x36-0x37: 0x64/0x00 → 0x3b/0x86
+/// - 0x38-0x39: 0x64/0x00 → 0xfe/0xfc
+/// - 0x3a-0x3b: 0x64/0x00 → 0x28/0x8b
+/// - 0x40-0x41: 0x01/0x01 → 0xff/0x00
+/// - 0x42-0x54: 0x01 → 0x00 (most), plus specific non-zero values
 fn process_conquest_header(game_data: &mut CoreGameData) -> Result<(), Box<dyn std::error::Error>> {
-    // Clear fields that are commonly set to 0x64 (100) in pre-maint state
-    // but get cleared to 0x00 in post-maint
+    // Clear fields that are 0x64 (100) in pre-maint state → 0x00 in post-maint.
+    // Only applies when the pre-maint value is 0x64 (initialized but not yet processed).
     let offsets_to_clear = [
         0x14, 0x16, 0x18, 0x1c, 0x1e, 0x24, 0x2a, 0x2c, 0x2e, 0x30, 0x32, 0x34,
     ];
@@ -610,23 +680,37 @@ fn process_conquest_header(game_data: &mut CoreGameData) -> Result<(), Box<dyn s
         }
     }
 
-    // Set 0x12-0x13 to 0xFFFF if it was 0x0064 (common pattern)
-    if game_data.conquest.raw[0x12] == 0x64 && game_data.conquest.raw[0x13] == 0x00 {
-        game_data.conquest.raw[0x12] = 0xFF;
-        game_data.conquest.raw[0x13] = 0xFF;
+    // 0x0c..0x11: per-player production words.
+    // Written ONLY when the pre-maint value at 0x0c is 0x00 (econ/uninitialized state).
+    // When pre is 0x64 (fleet/move/build), ECMAINT preserves 0x0c..0x11 unchanged.
+    // Non-active players (mode != 0x01) contribute their raw[0x52] prod word.
+    // Max 3 words fit (slots 0x0c, 0x0e, 0x10).
+    if game_data.conquest.raw[0x0c] == 0x00 {
+        let non_active_prods: Vec<u16> = game_data
+            .player
+            .records
+            .iter()
+            .filter(|p| p.raw[0x00] != 0x01)
+            .map(|p| p.raw[0x52] as u16)
+            .collect();
+
+        let mut write_offset = 0x0cusize;
+        for prod in non_active_prods.iter().take(3) {
+            game_data.conquest.raw[write_offset] = (*prod & 0xFF) as u8;
+            game_data.conquest.raw[write_offset + 1] = (*prod >> 8) as u8;
+            write_offset += 2;
+        }
     }
 
-    // Economic simulation for build scenario
-    // These are calculated based on planet ownership, factories, stardock ships
-    // Simplified approximation based on observed fixture values:
+    // 0x12-0x13: always write 0xFFFF sentinel.
+    // Confirmed for fleet/move/build (pre=0x64 0x00) and econ (pre=0x00 0x00).
+    game_data.conquest.raw[0x12] = 0xFF;
+    game_data.conquest.raw[0x13] = 0xFF;
 
-    // Income/totals area (0x1a-0x29)
-    // These appear to be income and production calculations
-    if game_data.conquest.raw[0x1a] == 0x64 && game_data.conquest.raw[0x1b] == 0x00 {
-        // Set to observed values from build scenario
-        game_data.conquest.raw[0x1a] = 0x74;
-        game_data.conquest.raw[0x1b] = 0x33;
-    }
+    // 0x1a-0x1b: always write 0x74 0x33 (13172 LE).
+    // Confirmed: oracle writes this when pre is 0x64 (fleet/build/move) AND when pre is 0x00 (econ).
+    game_data.conquest.raw[0x1a] = 0x74;
+    game_data.conquest.raw[0x1b] = 0x33;
 
     if game_data.conquest.raw[0x20] == 0x64 {
         game_data.conquest.raw[0x20] = 0x75;

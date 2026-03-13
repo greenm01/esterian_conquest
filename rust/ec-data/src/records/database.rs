@@ -184,17 +184,11 @@ impl DatabaseDat {
             default
         };
 
-        // Copy planet names from PLANETS.DAT
-        for (planet_idx, name) in planet_names.iter().enumerate().take(20) {
-            for player in 0..4 {
-                let record = result.record_mut(planet_idx, player);
-                record.set_planet_name(name);
-            }
-        }
-
-        // TODO: Embed CONQUEST.DAT year in homeworld records
-        // The year appears to be embedded at specific offsets in homeworld planet records
-        // This requires knowing which planets are homeworlds
+        // Planet names are NOT bulk-written here. Each player only knows about
+        // planets they have discovered. The CLI layer's discovery logic handles
+        // stamping names into specific records based on ownership and scan markers.
+        // Bulk-writing names here would incorrectly reveal undiscovered planets.
+        let _ = planet_names; // consumed by caller for discovery logic
 
         result
     }
