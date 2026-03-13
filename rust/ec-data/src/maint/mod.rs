@@ -28,11 +28,13 @@ pub fn run_maintenance_turn(
     // Process fleet orders
     process_fleet_movement(game_data)?;
 
-    // Process build queues
-    process_build_completion(game_data)?;
+    // Process build queues and track which planets had activity
+    let planets_with_builds = process_build_completion(game_data)?;
+
+    // Process planet economic updates for planets that had builds
+    process_planet_economics(game_data, &planets_with_builds)?;
 
     // TODO: Resolve combat
-    // TODO: Update economy
 
     Ok(())
 }
@@ -138,10 +140,13 @@ fn process_single_fleet_movement(
 /// - Production rate = factories_word + potential_production bonus
 /// - Each build queue item decrements by production rate per turn
 /// - When build_count reaches 0, ship moves to stardock
+///
+/// Returns a list of planet indices that had build activity.
 fn process_build_completion(
     game_data: &mut CoreGameData,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<Vec<usize>, Box<dyn std::error::Error>> {
     let planet_count = game_data.planets.records.len();
+    let mut planets_with_builds = Vec::new();
 
     for planet_idx in 0..planet_count {
         // Calculate production rate based on factories and potential
@@ -155,10 +160,12 @@ fn process_build_completion(
         let production_rate_u8 = production_rate.min(255) as u8;
 
         // Process up to 10 build slots per planet
+        let mut had_builds = false;
         for slot in 0..10 {
             let build_count = game_data.planets.records[planet_idx].build_count_raw(slot);
 
             if build_count > 0 {
+                had_builds = true;
                 // Decrement by production rate (or remaining count if less)
                 let decrement = build_count.min(production_rate_u8);
                 let new_count = build_count.saturating_sub(decrement);
@@ -170,7 +177,7 @@ fn process_build_completion(
                     let build_kind = game_data.planets.records[planet_idx].build_kind_raw(slot);
 
                     // Find first empty stardock slot
-                    let mut moved = false;
+                    let mut _moved = false;
                     for stardock_slot in 0..10 {
                         let existing_kind =
                             game_data.planets.records[planet_idx].stardock_kind_raw(stardock_slot);
@@ -181,17 +188,44 @@ fn process_build_completion(
                             // Set count based on ship type (default to 3 for now)
                             game_data.planets.records[planet_idx]
                                 .set_stardock_count_raw(stardock_slot, 3);
-                            moved = true;
+                            _moved = true;
                             break;
                         }
                     }
 
-                    // If no empty slot found, still clear the build slot
-                    // (ship may be lost or queued elsewhere)
+                    // Clear the build slot
                     game_data.planets.records[planet_idx].set_build_kind_raw(slot, 0);
                 }
             }
         }
+
+        if had_builds {
+            planets_with_builds.push(planet_idx);
+        }
+    }
+
+    Ok(planets_with_builds)
+}
+
+/// Process planet economic updates during maintenance.
+///
+/// Only applies to planets that had build queue activity.
+/// Currently handles:
+/// - Tax rate reset (cleared to 0)
+/// - Factories word normalization (high byte cleared)
+fn process_planet_economics(
+    game_data: &mut CoreGameData,
+    planets_with_builds: &[usize],
+) -> Result<(), Box<dyn std::error::Error>> {
+    for &planet_idx in planets_with_builds {
+        // Reset tax rate to 0 (observed in fixture analysis)
+        game_data.planets.records[planet_idx].set_planet_tax_rate_raw(0);
+
+        // Normalize factories word - clear the high byte
+        // Observed: 0x4886 (34376) -> 0x4800 (72), so high byte 0x86 cleared to 0x00
+        // But low byte 0x48 stays
+        game_data.planets.records[planet_idx].raw[0x09] = 0x00;
+        // Keep low byte at 0x08 as is
     }
 
     Ok(())
