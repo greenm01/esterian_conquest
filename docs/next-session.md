@@ -60,30 +60,26 @@ First concrete replay result:
 
 Replay queue update:
 
-- `planet-build` is now the cleanest next black-box queue
+- `planet-build` replay is now clean for core `.DAT` files
   - `python3 tools/ecmaint_oracle.py replay-known planet-build /tmp/ecmaint-build-oracle`
-  - clean `ECMAINT` run, no `ERRORS.TXT`
-  - residual drift is tightly isolated:
-    - `PLANETS.DAT`: `6` bytes, all in record `15`
-    - `DATABASE.DAT`: `1` byte
-  - current -> canonical post deltas on `PLANETS.DAT` record `15`:
-    - offset `0x09`: factory tail byte `134 -> 0`
-    - offset `0x0E`: tax `12 -> 0`
-    - offset `0x24`: build-count slot `3 -> 0`
-    - offset `0x2E`: build-kind slot `1 -> 0`
-    - offset `0x38`: developed-value byte `0 -> 3`
-    - offset `0x4C`: stardock-kind slot `0 -> 1`
-  - practical interpretation:
-    - this looks like a clean build-completion / queue-consumption /
-      stardock-emission transition
-    - it is a better immediate rule-discovery target than the broader
-      `fleet-order` replay gap
+  - `PLANETS.DAT`: zero diff against preserved post fixture
+  - only residual drift is the shared context gap: `CONQUEST.DAT` (year) + `DATABASE.DAT`
+    (year embedded in homeworld records) — see below
 
-- `guard-starbase` replay is nearly exact
-  - `python3 tools/ecmaint_oracle.py replay-known guard-starbase /tmp/ecmaint-starbase-oracle`
-  - only residual drift:
-    - `PLAYER.DAT`: `1` byte at offset `70`
-  - this is currently lower priority than the isolated `planet-build` queue
+- `guard-starbase` replay is now fully clean (zero diff against preserved fixture)
+
+Residual `replay-known` shared context gap:
+
+- All three `replay-known` runs still show residual drift in:
+  - `CONQUEST.DAT`: 1 byte (offset 0, the year word lo-byte)
+  - `DATABASE.DAT`: 12–15 bytes (same year word embedded in homeworld planet records)
+- Root cause: `replay-known` seeds from `ecmaint-post/v1.5` which has `game_year=3001`;
+  the preserved pre-maint fixtures have `game_year=3000`, so ECMAINT advances to 3001.
+  Our generated pre has year 3001, so ECMAINT advances to 3002.
+- `replay-preserved` produces zero diff for all three scenarios — confirming the
+  oracle harness is correct; the gap is entirely in the Rust-generated year value.
+- This is the already-documented shared context gap (`CONQUEST.DAT` + `DATABASE.DAT`).
+  No new per-scenario rules are blocked by it.
 
 Preserved pre/post replay validation:
 

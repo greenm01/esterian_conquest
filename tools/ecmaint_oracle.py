@@ -260,7 +260,7 @@ def cmd_prepare_known(args: argparse.Namespace) -> int:
     target = Path(args.target).resolve()
     source = Path(args.source).resolve() if args.source else DEFAULT_BASELINE
     require_known_scenario(args.scenario)
-    result = run_ec_cli(["scenario-init", str(source), str(target), args.scenario])
+    result = run_ec_cli(["scenario-init-replayable", str(source), str(target), args.scenario])
     if result.returncode != 0:
         sys.stdout.write(result.stdout)
         sys.stderr.write(result.stderr)
