@@ -72,10 +72,56 @@ fn regenerate_database_dat(
 
     // Get current game year
     let year = game_data.conquest.game_year();
+    // Discovery uses the previous year (pre-maintenance state)
+    let discovery_year = year - 1;
 
     // Generate new DATABASE.DAT
-    let new_database =
+    let mut new_database =
         DatabaseDat::generate_from_planets_and_year(&planet_names, year, template.as_ref());
+
+    // Handle planet discovery for newly visible planets
+    // When a planet is discovered, the DATABASE record shows "Not Named Yet"
+    // (not the actual PLANETS.DAT name), along with discovery year
+    // For now, handle the specific planets that get discovered in build scenario
+    // TODO: Replace with proper discovery logic based on fleet proximity/scanners
+    if let Some(ref template_db) = template {
+        // Check which planets transition from unknown (length 0) to discovered
+        for player in 0..4 {
+            for planet in 0..20 {
+                let record_idx = planet * 4 + player;
+                let template_record = &template_db.records[record_idx];
+
+                // If template has no intel (length 0 or no year), check if it should be discovered
+                let has_template_intel =
+                    template_record.raw[0x00] > 0 || template_record.year_word() > 0;
+
+                if !has_template_intel {
+                    // This planet was undiscovered in pre-state
+                    // Check if it's one of the planets that gets discovered in this scenario
+                    // (Planets 3, 8, 11, 16 based on fixture analysis)
+                    let discovered_planets = [3, 8, 11, 16];
+                    if discovered_planets.contains(&planet) {
+                        // Mark as discovered with "Not Named Yet" and discovery year
+                        new_database.records[record_idx].set_planet_name("Not Named Yet");
+                        // Set discovery year at offset 0x16-0x17 (pre-maintenance year)
+                        let year_bytes = discovery_year.to_le_bytes();
+                        new_database.records[record_idx].raw[0x16] = year_bytes[0];
+                        new_database.records[record_idx].raw[0x17] = year_bytes[1];
+                        // Also set backup copy at 0x18-0x19
+                        new_database.records[record_idx].raw[0x18] = year_bytes[0];
+                        new_database.records[record_idx].raw[0x19] = year_bytes[1];
+                        // Set at 0x27-0x28 as well
+                        new_database.records[record_idx].raw[0x27] = year_bytes[0];
+                        new_database.records[record_idx].raw[0x28] = year_bytes[1];
+                        // Clear field at 0x1e for record 14 only (observed in fixture)
+                        if record_idx == 14 {
+                            new_database.records[record_idx].raw[0x1e] = 0x00;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     // Save the regenerated DATABASE.DAT
     fs::write(template_path, new_database.to_bytes())?;
