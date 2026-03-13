@@ -51,6 +51,18 @@ At the start of a development or agent session, read these in order:
 5. [README.md](/home/mag/dev/esterian_conquest/README.md)
    Check current user-facing commands/workflows before changing the CLI surface.
 
+Before making gameplay or rules assumptions, also check the shipped game docs in
+[original/v1.5](/home/mag/dev/esterian_conquest/original/v1.5):
+
+- [ECREADME.DOC](/home/mag/dev/esterian_conquest/original/v1.5/ECREADME.DOC)
+- [ECPLAYER.DOC](/home/mag/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC)
+- [ECQSTART.DOC](/home/mag/dev/esterian_conquest/original/v1.5/ECQSTART.DOC)
+- [WHATSNEW.DOC](/home/mag/dev/esterian_conquest/original/v1.5/WHATSNEW.DOC)
+
+These docs shall be treated as a primary source for intended game behavior,
+startup conditions, turn structure, and user-facing mechanics. Agents shall
+check them before turning an observed pattern into a semantic claim.
+
 If the task is Ghidra-heavy, also check:
 
 - [docs/ghidra-workflow.md](/home/mag/dev/esterian_conquest/docs/ghidra-workflow.md)
@@ -77,6 +89,9 @@ If the task is DOSBox-heavy, also check:
   - the relevant stable doc, usually `docs/next-session.md` and/or `docs/approach.md`
 - prefer headless Ghidra scripts and reproducible artifacts over ad hoc manual notes
 - do not treat guessed semantics as settled; keep unknown fields raw until supported
+- agents shall check the shipped game docs in `original/v1.5/*.DOC` before
+  making gameplay/rules assumptions; binary RE and fixture diffs shall be
+  reconciled with the original docs rather than replacing them
 - agents shall use escalating RE depth:
   - start with Rust-generated scenarios, preserved fixtures, and black-box
     oracle testing against the original binaries
