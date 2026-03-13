@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use ec_data::{run_maintenance_turn, CoreGameData};
+use ec_data::{run_maintenance_turn, CoreGameData, DatabaseDat};
 
 /// Run Rust maintenance on a game directory for specified number of turns
 pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::error::Error>> {
@@ -32,7 +32,45 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
     // Save the modified state
     game_data.save(dir)?;
 
+    // Regenerate DATABASE.DAT from PLANETS.DAT
+    regenerate_database_dat(dir, &game_data)?;
+
     println!("Rust maintenance complete.");
+    Ok(())
+}
+
+/// Regenerate DATABASE.DAT from current PLANETS.DAT and CONQUEST.DAT year.
+fn regenerate_database_dat(
+    dir: &Path,
+    game_data: &CoreGameData,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Load existing DATABASE.DAT as template
+    let template_path = dir.join("DATABASE.DAT");
+    let template = if template_path.exists() {
+        let bytes = fs::read(&template_path)?;
+        DatabaseDat::parse(&bytes).ok()
+    } else {
+        None
+    };
+
+    // Extract planet names from PLANETS.DAT
+    let planet_names: Vec<String> = game_data
+        .planets
+        .records
+        .iter()
+        .map(|p| p.planet_name())
+        .collect();
+
+    // Get current game year
+    let year = game_data.conquest.game_year();
+
+    // Generate new DATABASE.DAT
+    let new_database =
+        DatabaseDat::generate_from_planets_and_year(&planet_names, year, template.as_ref());
+
+    // Save the regenerated DATABASE.DAT
+    fs::write(template_path, new_database.to_bytes())?;
+
     Ok(())
 }
 

@@ -134,36 +134,60 @@ fn process_single_fleet_movement(
 
 /// Process build queue completion for all planets.
 ///
-/// When a build queue item completes (count reaches 0 or below),
-/// the ship is moved to the stardock and the build slot is cleared.
+/// Build production is based on planet's industrial capacity:
+/// - Production rate = factories_word + potential_production bonus
+/// - Each build queue item decrements by production rate per turn
+/// - When build_count reaches 0, ship moves to stardock
 fn process_build_completion(
     game_data: &mut CoreGameData,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let planet_count = game_data.planets.records.len();
 
     for planet_idx in 0..planet_count {
-        // Check up to 10 build slots per planet
+        // Calculate production rate based on factories and potential
+        let factories = game_data.planets.records[planet_idx].factories_word_raw();
+        let potential =
+            u16::from_le_bytes(game_data.planets.records[planet_idx].potential_production_raw());
+
+        // Production = factories + (potential / 2) as simple approximation
+        // TODO: Verify exact formula from RE_NOTES or fixtures
+        let production_rate = factories + (potential / 2);
+        let production_rate_u8 = production_rate.min(255) as u8;
+
+        // Process up to 10 build slots per planet
         for slot in 0..10 {
             let build_count = game_data.planets.records[planet_idx].build_count_raw(slot);
 
-            // If build count is non-zero, decrement it (production progress)
-            // When it reaches 0, the build completes
             if build_count > 0 {
-                // TODO: Calculate production based on planet industry
-                // For now, just decrement by 1 per turn as a placeholder
-                let new_count = build_count.saturating_sub(1);
+                // Decrement by production rate (or remaining count if less)
+                let decrement = build_count.min(production_rate_u8);
+                let new_count = build_count.saturating_sub(decrement);
+
                 game_data.planets.records[planet_idx].set_build_count_raw(slot, new_count);
 
                 // If build completed (reached 0), move to stardock
-                if new_count == 0 && build_count > 0 {
+                if new_count == 0 {
                     let build_kind = game_data.planets.records[planet_idx].build_kind_raw(slot);
 
-                    // Move to stardock slot 0 (simplified - should find empty slot)
-                    // TODO: Find appropriate stardock slot
-                    game_data.planets.records[planet_idx].set_stardock_kind_raw(0, build_kind);
-                    game_data.planets.records[planet_idx].set_stardock_count_raw(0, 3); // Default count
+                    // Find first empty stardock slot
+                    let mut moved = false;
+                    for stardock_slot in 0..10 {
+                        let existing_kind =
+                            game_data.planets.records[planet_idx].stardock_kind_raw(stardock_slot);
+                        if existing_kind == 0 {
+                            // Empty slot found
+                            game_data.planets.records[planet_idx]
+                                .set_stardock_kind_raw(stardock_slot, build_kind);
+                            // Set count based on ship type (default to 3 for now)
+                            game_data.planets.records[planet_idx]
+                                .set_stardock_count_raw(stardock_slot, 3);
+                            moved = true;
+                            break;
+                        }
+                    }
 
-                    // Clear the build slot
+                    // If no empty slot found, still clear the build slot
+                    // (ship may be lost or queued elsewhere)
                     game_data.planets.records[planet_idx].set_build_kind_raw(slot, 0);
                 }
             }
