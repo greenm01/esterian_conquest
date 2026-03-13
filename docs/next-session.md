@@ -309,10 +309,23 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
   - Normalizes factories word (clears high byte)
 - **Current parity on build scenario (1 turn):** 80% (8/10 files match)
 - **Files differing in build scenario:**
-  - CONQUEST.DAT (50 bytes - header updates beyond year)
+  - CONQUEST.DAT (26 bytes - header economic fields need simulation)
   - DATABASE.DAT (81 bytes - 4 records with special intel updates)
     - Records 14, 32, 44, 65 get full intel updates including year
   - ✅ PLANETS.DAT: Perfect match (0 bytes differ)
+  - ✅ All other files match perfectly
+
+#### CONQUEST.DAT Header Updates — IN PROGRESS ⏳
+- ✅ Basic normalization implemented
+  - Clears 0x64 values to 0x00 at offsets 0x14, 0x16, 0x18, etc.
+  - Sets 0x12-0x13 to 0xFFFF marker
+  - Clears 0x01 values in 0x42-0x54 range
+- ⚠️ **Remaining 26 bytes:** Economic simulation fields
+  - Player treasury, income, expenses calculations
+  - Stardock ship counts and types
+  - Fleet status counters
+  - Requires full economic model implementation
+- **Improvement:** 50 bytes → 34 bytes → 26 bytes different
 
 ### Step 5: Regression Test — IN PROGRESS
 - ✅ Year advancement tests (3 tests)
@@ -327,12 +340,15 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 **Milestone 4 Phase 1:** Test harness complete — ✅ DONE  
 **Milestone 4 Phase 2:** Mechanics implementation — IN PROGRESS
 - Year advancement: ✅ 100% match
-- Build completion: ✅ 80% match (PLANETS.DAT perfect, needs CONQUEST header)
+- Build completion: ✅ 80% match (8/10 files, PLANETS.DAT perfect)
+- CONQUEST.DAT header: ⏳ 26 bytes differ (economic simulation needed)
+- DATABASE.DAT: ⏳ 81 bytes differ (4 special intel records)
 - Fleet movement: ⏳ 50% match on working scenarios
 
 **Recent improvements:**
-- PLANETS.DAT build scenarios: 2 bytes → 0 bytes (100% match)
-- Database name normalization working correctly
+- PLANETS.DAT: 100% match achieved ✅
+- CONQUEST.DAT: 50 → 34 → 26 bytes (48% improvement)
+- Database name normalization working
 - Factory word normalization for build planets implemented
 
 ---
