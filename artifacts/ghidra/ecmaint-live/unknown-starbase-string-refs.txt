@@ -1,0 +1,5 @@
+# Unknown Starbase String Refs
+
+- Raw string location from `strings -td /tmp/ecmaint-debug/MEMDUMP.BIN`:
+  `Fleet assigned to an unknown starbase.` at `0000:3f89`
+

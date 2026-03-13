@@ -1,0 +1,124 @@
+# Late Summary Callees
+
+- Focus: the segment-`1000` callees used by the later active-summary
+  consumer at `0000:1302..1361`.
+- Goal: identify which callee is more likely to drive starbase
+  resolution or the later `unknown starbase` path.
+
+## Window Around 1000:0b51
+
+1000:0b20  <no instruction>
+1000:0b21  <no instruction>
+1000:0b22  <no instruction>
+1000:0b23  MOV word ptr ES:[DI + 0x3],AX ; bytes=26 89 45 03
+1000:0b27  MOV word ptr ES:[DI + 0x5],BX ; bytes=26 89 5d 05
+1000:0b2b  MOV word ptr ES:[DI + 0x7],DX ; bytes=26 89 55 07
+1000:0b2f  LES DI,[BP + 0xff7c]         ; bytes=c4 be 7c ff
+1000:0b33  MOV AX,word ptr ES:[DI + 0x3] ; bytes=26 8b 45 03
+1000:0b37  MOV BX,word ptr ES:[DI + 0x5] ; bytes=26 8b 5d 05
+1000:0b3b  MOV DX,word ptr ES:[DI + 0x7] ; bytes=26 8b 55 07
+1000:0b3f  MOV CX,0x81                  ; bytes=b9 81 00
+1000:0b42  XOR SI,SI                    ; bytes=31 f6
+1000:0b44  XOR DI,DI                    ; bytes=31 ff
+1000:0b46  CALLF 0x3000:488d            ; bytes=9a 4d 11 74 33
+1000:0b4b  JNC 0x1000:0b63              ; bytes=73 16
+1000:0b4d  LES DI,[BP + 0xff7c]         ; bytes=c4 be 7c ff
+1000:0b51  MOV word ptr ES:[DI + 0x3],0x81 ; bytes=26 c7 45 03 81 00
+1000:0b57  MOV word ptr ES:[DI + 0x5],0x0 ; bytes=26 c7 45 05 00 00
+1000:0b5d  MOV word ptr ES:[DI + 0x7],0x0 ; bytes=26 c7 45 07 00 00
+1000:0b63  LES DI,[BP + 0xff7c]         ; bytes=c4 be 7c ff
+1000:0b67  MOV AL,byte ptr ES:[DI + 0x5d] ; bytes=26 8a 45 5d
+1000:0b6b  XOR AH,AH                    ; bytes=30 e4
+1000:0b6d  MOV DI,AX                    ; bytes=8b f8
+1000:0b6f  SHL DI,0x1                   ; bytes=d1 e7
+1000:0b71  SHL DI,0x1                   ; bytes=d1 e7
+1000:0b73  LES DI,[DI + 0x16ac]         ; bytes=c4 bd ac 16
+1000:0b77  MOV AL,byte ptr ES:[DI + 0x51] ; bytes=26 8a 45 51
+1000:0b7b  XOR AH,AH                    ; bytes=30 e4
+1000:0b7d  XOR DX,DX                    ; bytes=31 d2
+1000:0b7f  CALLF 0x3000:4891            ; bytes=9a 51 11 74 33
+1000:0b84  LES DI,[BP + 0xff7c]         ; bytes=c4 be 7c ff
+1000:0b88  MOV CX,word ptr ES:[DI + 0x3] ; bytes=26 8b 4d 03
+1000:0b8c  MOV SI,word ptr ES:[DI + 0x5] ; bytes=26 8b 75 05
+1000:0b90  MOV DI,word ptr ES:[DI + 0x7] ; bytes=26 8b 7d 07
+1000:0b94  CALLF 0x3000:487d            ; bytes=9a 3d 11 74 33
+1000:0b99  MOV CX,0x87                  ; bytes=b9 87 00
+1000:0b9c  XOR SI,SI                    ; bytes=31 f6
+1000:0b9e  MOV DI,0x4800                ; bytes=bf 00 48
+1000:0ba1  CALLF 0x3000:4883            ; bytes=9a 43 11 74 33
+1000:0ba6  MOV CX,word ptr [BP + -0xc]  ; bytes=8b 4e f4
+1000:0ba9  MOV SI,word ptr [BP + -0xa]  ; bytes=8b 76 f6
+1000:0bac  MOV DI,word ptr [BP + -0x8]  ; bytes=8b 7e f8
+1000:0baf  CALLF 0x3000:487d            ; bytes=9a 3d 11 74 33
+1000:0bb4  LES DI,[BP + 0xff7c]         ; bytes=c4 be 7c ff
+1000:0bb8  MOV CX,word ptr ES:[DI + 0x9] ; bytes=26 8b 4d 09
+1000:0bbc  MOV SI,word ptr ES:[DI + 0xb] ; bytes=26 8b 75 0b
+1000:0bc0  MOV DI,word ptr ES:[DI + 0xd] ; bytes=26 8b 7d 0d
+1000:0bc4  CALLF 0x3000:486b            ; bytes=9a 2b 11 74 33
+1000:0bc9  LES DI,[BP + 0xff7c]         ; bytes=c4 be 7c ff
+1000:0bcd  MOV word ptr ES:[DI + 0x9],AX ; bytes=26 89 45 09
+1000:0bd1  MOV word ptr ES:[DI + 0xb],BX ; bytes=26 89 5d 0b
+1000:0bd5  MOV word ptr ES:[DI + 0xd],DX ; bytes=26 89 55 0d
+1000:0bd9  LES DI,[BP + 0xff7c]         ; bytes=c4 be 7c ff
+1000:0bdd  MOV AX,word ptr ES:[DI + 0x9] ; bytes=26 8b 45 09
+
+## Window Around 1000:a26e
+
+1000:a230  <no instruction>
+1000:a231  INC word ptr [BP + -0x2]     ; bytes=ff 46 fe
+1000:a234  MOV AX,0xa                   ; bytes=b8 0a 00
+1000:a237  MUL word ptr [BP + -0x2]     ; bytes=f7 66 fe
+1000:a23a  MOV DI,word ptr [BP + 0x4]   ; bytes=8b 7e 04
+1000:a23d  LES DI,SS:[DI + 0xfe64]      ; bytes=36 c4 bd 64 fe
+1000:a242  ADD DI,AX                    ; bytes=03 f8
+1000:a244  MOV AL,byte ptr ES:[DI + -0xa] ; bytes=26 8a 45 f6
+1000:a248  CMP AL,0x1                   ; bytes=3c 01
+1000:a24a  JNZ 0x1000:a291              ; bytes=75 45
+1000:a24c  MOV DI,word ptr [BP + 0x4]   ; bytes=8b 7e 04
+1000:a24f  MOV AX,word ptr SS:[DI + -0x18] ; bytes=36 8b 45 e8
+1000:a253  MOV DX,word ptr SS:[DI + -0x16] ; bytes=36 8b 55 ea
+1000:a257  ADD AX,0x2                   ; bytes=05 02 00
+1000:a25a  ADC DX,0x0                   ; bytes=83 d2 00
+1000:a25d  MOV DI,word ptr [BP + 0x4]   ; bytes=8b 7e 04
+1000:a260  MOV word ptr SS:[DI + -0x18],AX ; bytes=36 89 45 e8
+1000:a264  MOV word ptr SS:[DI + -0x16],DX ; bytes=36 89 55 ea
+1000:a268  MOV DI,word ptr [BP + 0x4]   ; bytes=8b 7e 04
+1000:a26b  CMP byte ptr SS:[DI + 0xfe1c],0xa ; bytes=36 80 bd 1c fe 0a
+1000:a271  JNC 0x1000:a27c              ; bytes=73 09
+1000:a273  MOV DI,word ptr [BP + 0x4]   ; bytes=8b 7e 04
+1000:a276  MOV byte ptr SS:[DI + 0xfe1c],0xa ; bytes=36 c6 85 1c fe 0a
+1000:a27c  MOV DI,word ptr [BP + 0x4]   ; bytes=8b 7e 04
+1000:a27f  CMP byte ptr SS:[DI + -0x10],0x6 ; bytes=36 80 7d f0 06
+1000:a284  JBE 0x1000:a28e              ; bytes=76 08
+1000:a286  MOV DI,word ptr [BP + 0x4]   ; bytes=8b 7e 04
+1000:a289  MOV byte ptr SS:[DI + -0x10],0x6 ; bytes=36 c6 45 f0 06
+1000:a28e  JMP 0x1000:a447              ; bytes=e9 b6 01
+1000:a291  CMP AL,0x2                   ; bytes=3c 02
+1000:a293  JNZ 0x1000:a2da              ; bytes=75 45
+1000:a295  MOV DI,word ptr [BP + 0x4]   ; bytes=8b 7e 04
+1000:a298  MOV AX,word ptr SS:[DI + -0x18] ; bytes=36 8b 45 e8
+1000:a29c  MOV DX,word ptr SS:[DI + -0x16] ; bytes=36 8b 55 ea
+1000:a2a0  ADD AX,0x7                   ; bytes=05 07 00
+1000:a2a3  ADC DX,0x0                   ; bytes=83 d2 00
+1000:a2a6  MOV DI,word ptr [BP + 0x4]   ; bytes=8b 7e 04
+1000:a2a9  MOV word ptr SS:[DI + -0x18],AX ; bytes=36 89 45 e8
+1000:a2ad  MOV word ptr SS:[DI + -0x16],DX ; bytes=36 89 55 ea
+1000:a2b1  MOV DI,word ptr [BP + 0x4]   ; bytes=8b 7e 04
+1000:a2b4  CMP byte ptr SS:[DI + 0xfe1c],0xf ; bytes=36 80 bd 1c fe 0f
+1000:a2ba  JNC 0x1000:a2c5              ; bytes=73 09
+1000:a2bc  MOV DI,word ptr [BP + 0x4]   ; bytes=8b 7e 04
+1000:a2bf  MOV byte ptr SS:[DI + 0xfe1c],0xf ; bytes=36 c6 85 1c fe 0f
+1000:a2c5  MOV DI,word ptr [BP + 0x4]   ; bytes=8b 7e 04
+1000:a2c8  CMP byte ptr SS:[DI + -0x10],0x5 ; bytes=36 80 7d f0 05
+1000:a2cd  JBE 0x1000:a2d7              ; bytes=76 08
+1000:a2cf  MOV DI,word ptr [BP + 0x4]   ; bytes=8b 7e 04
+1000:a2d2  MOV byte ptr SS:[DI + -0x10],0x5 ; bytes=36 c6 45 f0 05
+1000:a2d7  JMP 0x1000:a447              ; bytes=e9 6d 01
+1000:a2da  CMP AL,0x3                   ; bytes=3c 03
+1000:a2dc  JNZ 0x1000:a323              ; bytes=75 45
+1000:a2de  MOV DI,word ptr [BP + 0x4]   ; bytes=8b 7e 04
+1000:a2e1  MOV AX,word ptr SS:[DI + -0x18] ; bytes=36 8b 45 e8
+1000:a2e5  MOV DX,word ptr SS:[DI + -0x16] ; bytes=36 8b 55 ea
+1000:a2e9  ADD AX,0x15                  ; bytes=05 15 00
+1000:a2ec  ADC DX,0x0                   ; bytes=83 d2 00
+1000:a2ef  MOV DI,word ptr [BP + 0x4]   ; bytes=8b 7e 04

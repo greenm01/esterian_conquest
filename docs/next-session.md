@@ -85,8 +85,10 @@ Priority order:
          - calls the shared loader `0000:02C0`
          - then dispatches each active entry through two far calls in segment
            `1000`
-       - next target should therefore be those later active-summary callees,
-         not the matcher/canonicalizer itself
+       - first-pass dumps of `1000:a26e` and `1000:0b51` look generic /
+         report-oriented rather than starbase-specific
+       - next target should therefore stay on the later active-summary call
+         chain, but not those two callees in isolation
 
 2. Recover initialized-to-post-maint deterministic rules
    - use canonical post-maint diff output from normalized `original/v1.5`
@@ -120,9 +122,14 @@ Best immediate task:
     canonicalization, not a starbase-specific decision block
   - the next concrete consumer after generic sort/report staging is now
     `0000:1302..1361`
-  - so the next capture/search should target the segment-`1000` callees from
-    that loop, not the base decode, raw kind-`1` summary emission, or the
-    immediate post-match handoff
+  - the first two segment-`1000` callees from that loop (`a26e`, `0b51`) now
+    look generic/report-oriented
+  - the raw `unknown starbase` string exists at `0000:3f89`, but the raw-import
+    xref pass found no direct references
+  - so the next capture/search should stay on the later active-summary call
+    chain and indirect message-emission path, not the base decode, raw kind-`1`
+    summary emission, immediate post-match handoff, or those first two generic
+    callees alone
 - once those rules are recovered, promote them into `CoreGameData`
 
 Why this first:

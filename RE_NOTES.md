@@ -4385,3 +4385,47 @@ Practical consequence:
 - next highest-value step: identify whether the segment-`1000` callees
   `a26e` and `0b51` are the starbase-resolution / error-emission path for
   active kind-`1` / kind-`2` summaries
+
+Late active-summary callee dump:
+
+Artifacts:
+- `artifacts/ghidra/ecmaint-live/late-summary-callees.txt`
+
+Tool:
+- `tools/ghidra_scripts_tmp/ReportLateSummaryCallees.java`
+
+First-pass read:
+- `1000:a26e` does not look starbase-specific
+  - it dispatches on a local byte value `1/2/3`
+  - increments a local 32-bit pair by small constants (`+2`, `+7`, `+0x15`)
+  - clamps local bytes to maxima like `0x0a`, `0x0f`, `0x06`, `0x05`
+  - this looks more like generic layout/ranking/scoring state than guard
+    resolution
+- `1000:0b51` also looks generic/report-oriented
+  - writes a fallback triple `0x81,0,0` into an object at `ES:[DI+3..7]`
+  - formats through `0x3000:487d` / `0x3000:486b`
+  - reads player-table state through `0x16ac`
+  - but does not obviously branch on Guard Starbase-specific fields
+
+Practical consequence:
+- the first two later segment-`1000` callees reached from the active-summary
+  loop do not yet look like the real `unknown starbase` discriminator
+- they are more plausibly generic post-processing/report helpers
+- next best target is still within the `0000:1302..1361` call chain, but not
+  these two callees in isolation
+
+Raw `unknown starbase` string anchor:
+
+Artifacts:
+- `artifacts/ghidra/ecmaint-live/unknown-starbase-string-refs.txt`
+
+Tool:
+- `tools/ghidra_scripts_tmp/ReportUnknownStarbaseStringRefs.java`
+
+Result:
+- raw string was found in `/tmp/ecmaint-debug/MEMDUMP.BIN` at `0000:3f89`
+- the raw-import xref pass still found no direct references to that address
+
+Practical consequence:
+- the message is likely reached indirectly via a table/helper path, not via a
+  direct code reference the raw import can see cleanly
