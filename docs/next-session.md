@@ -267,6 +267,23 @@ ones.
 - [`rust/ec-cli/src/commands/maint.rs`](/home/mag/dev/esterian_conquest/rust/ec-cli/src/commands/maint.rs)
   now treats combat-heavy scenarios in `maint-compare` as structural
   comparisons rather than byte-exact failures
+- `maint-rust` now has CLI regression coverage proving that combat aftermath is
+  carried into regenerated owner-side
+  [`DATABASE.DAT`](/home/mag/dev/esterian_conquest/rust/ec-cli/src/commands/maint.rs)
+  intel for the `econ` combat path
+- [`rust/ec-data/src/maint/mod.rs`](/home/mag/dev/esterian_conquest/rust/ec-data/src/maint/mod.rs)
+  now exposes a broader combat event surface:
+  - `planet_intel_events`
+  - `ownership_change_events`
+  - `fleet_battle_events`
+- [`rust/ec-cli/src/commands/maint.rs`](/home/mag/dev/esterian_conquest/rust/ec-cli/src/commands/maint.rs)
+  now regenerates combat-driven DATABASE intel from generic planet-intel
+  events rather than a bombard-only special case
+- [`rust/ec-cli/src/commands/maint.rs`](/home/mag/dev/esterian_conquest/rust/ec-cli/src/commands/maint.rs)
+  now also writes deterministic `RESULTS.DAT` summaries from:
+  - `bombard_events`
+  - `fleet_battle_events`
+  - `ownership_change_events`
 - ground batteries now use battleship-scale firepower per
   [`original/v1.5/ECPLAYER.DOC`](/home/mag/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC)
 - combat regression coverage now exists in
@@ -277,12 +294,18 @@ ones.
   - canonical invade failure and blitz success/failure outcomes
   - deterministic three-empire open-space contact resolution
   - starbase-backed defender victory in orbital combat
+  - assault event emission for combat intel refresh and ownership changes
+  - CLI report generation coverage for fleet battles and captured planets
 - the remaining immediate combat work is not architecture; it is scenario and
   balance coverage:
-  - report / `DATABASE.DAT` consequence coverage for combat events
   - same-tick arrival / mission-interaction coverage beyond the current direct
     contact cases
-  - CLI/test coverage for `maint-compare` output classification itself
+  - refine `RESULTS.DAT` formatting toward the original fixed-record idiom now
+    that the deterministic event surface is in place
+  - decide whether `MESSAGES.DAT` needs its own canonical maint writer or
+    should stay empty until the original semantics are better mapped
+  - add end-to-end `maint-compare` command coverage once the oracle-backed CLI
+    test path is practical in normal test runs
 
 ### Step 1: Study Econ Fixture Pair ✅
 Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.

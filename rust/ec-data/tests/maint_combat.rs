@@ -72,6 +72,15 @@ fn canonical_bombardment_consumes_order_and_devastates_target() {
     assert_eq!(events.bombard_events.len(), 1);
     assert_eq!(events.bombard_events[0].planet_idx, 13);
     assert_eq!(events.bombard_events[0].attacker_empire_raw, 1);
+    assert_eq!(events.planet_intel_events.len(), 2);
+    assert!(events
+        .planet_intel_events
+        .iter()
+        .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 1));
+    assert!(events
+        .planet_intel_events
+        .iter()
+        .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 2));
 
     let attacker = &game_data.fleets.records[2];
     assert_eq!(attacker.current_location_coords_raw(), [15, 13]);
@@ -271,7 +280,7 @@ fn canonical_blitz_success_transfers_surviving_batteries() {
         target.set_ground_batteries_raw(1);
     }
 
-    run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
 
     let attacker = &game_data.fleets.records[0];
     let target = &game_data.planets.records[13];
@@ -282,6 +291,18 @@ fn canonical_blitz_success_transfers_surviving_batteries() {
     assert_eq!(target.ownership_status_raw(), 2);
     assert_eq!(target.ground_batteries_raw(), 1);
     assert_eq!(target.army_count_raw(), 10);
+    assert_eq!(events.ownership_change_events.len(), 1);
+    assert_eq!(events.ownership_change_events[0].planet_idx, 13);
+    assert_eq!(events.ownership_change_events[0].previous_owner_empire_raw, 2);
+    assert_eq!(events.ownership_change_events[0].new_owner_empire_raw, 1);
+    assert!(events
+        .planet_intel_events
+        .iter()
+        .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 1));
+    assert!(events
+        .planet_intel_events
+        .iter()
+        .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 2));
 }
 
 #[test]

@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::{CoreGameData, FleetStandingOrderKind};
 
-use super::BombardEvent;
+use super::{BombardEvent, FleetBattleEvent, PlanetIntelEvent, PlanetOwnershipChangeEvent};
 
 const IDX_DD: usize = 0;
 const IDX_CA: usize = 1;
@@ -387,15 +387,21 @@ fn retreat_task_force(game_data: &mut CoreGameData, task_force: &TaskForce) {
 
 pub(crate) fn process_fleet_battles(
     game_data: &mut CoreGameData,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<Vec<FleetBattleEvent>, Box<dyn std::error::Error>> {
     let mut coord_set = HashSet::new();
     for fleet in &game_data.fleets.records {
         coord_set.insert(fleet.current_location_coords_raw());
     }
+    let mut events = Vec::new();
 
     for coords in coord_set {
         let mut task_forces = build_task_forces_at_location(game_data, coords);
-        if task_forces.iter().filter(|tf| tf.state.has_units()).count() < 2 {
+        let participants: Vec<u8> = task_forces
+            .iter()
+            .filter(|tf| tf.state.has_units())
+            .map(|tf| tf.empire)
+            .collect();
+        if participants.len() < 2 {
             continue;
         }
 
@@ -518,9 +524,31 @@ pub(crate) fn process_fleet_battles(
                 retreat_task_force(game_data, tf);
             }
         }
+        events.push(FleetBattleEvent {
+            coords,
+            participant_empires_raw: participants,
+            winner_empire_raw: winner_empire,
+        });
     }
 
-    Ok(())
+    Ok(events)
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct AssaultEvents {
+    pub bombard_events: Vec<BombardEvent>,
+    pub planet_intel_events: Vec<PlanetIntelEvent>,
+    pub ownership_change_events: Vec<PlanetOwnershipChangeEvent>,
+}
+
+fn push_planet_intel(events: &mut AssaultEvents, planet_idx: usize, viewer_empire_raw: u8) {
+    if viewer_empire_raw == 0 {
+        return;
+    }
+    events.planet_intel_events.push(PlanetIntelEvent {
+        planet_idx,
+        viewer_empire_raw,
+    });
 }
 
 fn clear_arrival_and_hold(game_data: &mut CoreGameData, fleet_indices: &[usize]) {
@@ -641,7 +669,7 @@ pub(crate) fn process_planetary_assaults(
     bombard_ready: &[usize],
     invade_ready: &[usize],
     blitz_ready: &[usize],
-) -> Result<Vec<BombardEvent>, Box<dyn std::error::Error>> {
+) -> Result<AssaultEvents, Box<dyn std::error::Error>> {
     let mut by_planet: BTreeMap<usize, BTreeMap<u8, Vec<usize>>> = BTreeMap::new();
     for &idx in bombard_ready.iter().chain(invade_ready).chain(blitz_ready) {
         let coords = game_data.fleets.records[idx].standing_order_target_coords_raw();
@@ -659,7 +687,7 @@ pub(crate) fn process_planetary_assaults(
     let invade_set: HashSet<usize> = invade_ready.iter().copied().collect();
     let blitz_set: HashSet<usize> = blitz_ready.iter().copied().collect();
 
-    let mut bombard_events = Vec::new();
+    let mut events = AssaultEvents::default();
 
     for (planet_idx, entrants) in by_planet {
         let Some(winner_empire) = select_orbital_supremacy_empire(game_data, planet_idx, &entrants) else {
@@ -705,14 +733,18 @@ pub(crate) fn process_planetary_assaults(
 
                 apply_planet_bombardment_damage(&mut game_data.planets.records[planet_idx], attacker_hits);
                 clear_arrival_and_hold(game_data, &winner_fleets);
-                bombard_events.push(BombardEvent {
+                events.bombard_events.push(BombardEvent {
                     planet_idx,
                     attacker_empire_raw: winner_empire,
                 });
+                push_planet_intel(&mut events, planet_idx, winner_empire);
+                let owner_after = game_data.planets.records[planet_idx].owner_empire_slot_raw();
+                push_planet_intel(&mut events, planet_idx, owner_after);
             }
             MissionClass::Invade => {
                 let state = fleet_state_from_records(game_data, &winner_fleets, 0);
                 let bombard_as = bombard_attack_as(&state);
+                let previous_owner = game_data.planets.records[planet_idx].owner_empire_slot_raw();
                 let planet = &game_data.planets.records[planet_idx];
                 let battery_as = planet.ground_batteries_raw() as u32 * GROUND_AS_BATTERY;
                 let attacker_cer = space_cer_percent(bombard_as, battery_as.max(1), state.is_mixed(), false);
@@ -755,6 +787,11 @@ pub(crate) fn process_planetary_assaults(
                         planet.set_ownership_status_raw(2);
                         planet.set_army_count_raw(attacker_survivors.min(255) as u8);
                         planet.set_ground_batteries_raw(0);
+                        events.ownership_change_events.push(PlanetOwnershipChangeEvent {
+                            planet_idx,
+                            previous_owner_empire_raw: previous_owner,
+                            new_owner_empire_raw: winner_empire,
+                        });
                     } else {
                         game_data.planets.records[planet_idx]
                             .set_army_count_raw(defender_survivors.min(255) as u8);
@@ -766,8 +803,13 @@ pub(crate) fn process_planetary_assaults(
                 }
 
                 clear_arrival_and_hold(game_data, &winner_fleets);
+                push_planet_intel(&mut events, planet_idx, winner_empire);
+                push_planet_intel(&mut events, planet_idx, previous_owner);
+                let owner_after = game_data.planets.records[planet_idx].owner_empire_slot_raw();
+                push_planet_intel(&mut events, planet_idx, owner_after);
             }
             MissionClass::Blitz => {
+                let previous_owner = game_data.planets.records[planet_idx].owner_empire_slot_raw();
                 let attacking_armies: u32 = winner_fleets
                     .iter()
                     .map(|idx| game_data.fleets.records[*idx].army_count() as u32)
@@ -813,16 +855,25 @@ pub(crate) fn process_planetary_assaults(
                     planet.set_ownership_status_raw(2);
                     planet.set_army_count_raw(attacker_survivors.min(255) as u8);
                     planet.set_ground_batteries_raw(batteries);
+                    events.ownership_change_events.push(PlanetOwnershipChangeEvent {
+                        planet_idx,
+                        previous_owner_empire_raw: previous_owner,
+                        new_owner_empire_raw: winner_empire,
+                    });
                 } else {
                     game_data.planets.records[planet_idx]
                         .set_army_count_raw(defender_survivors.min(255) as u8);
                 }
 
                 clear_arrival_and_hold(game_data, &winner_fleets);
+                push_planet_intel(&mut events, planet_idx, winner_empire);
+                push_planet_intel(&mut events, planet_idx, previous_owner);
+                let owner_after = game_data.planets.records[planet_idx].owner_empire_slot_raw();
+                push_planet_intel(&mut events, planet_idx, owner_after);
             }
             _ => {}
         }
     }
 
-    Ok(bombard_events)
+    Ok(events)
 }

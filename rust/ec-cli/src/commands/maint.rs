@@ -2,7 +2,9 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use ec_data::{run_maintenance_turn, CoreGameData, DatabaseDat, MaintenanceEvents, PlanetDat};
+use ec_data::{run_maintenance_turn, CoreGameData, MaintenanceEvents};
+
+use crate::commands::reports::{regenerate_database_dat, regenerate_results_dat};
 
 /// Run Rust maintenance on a game directory for specified number of turns
 pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::error::Error>> {
@@ -27,6 +29,15 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
     for turn in 1..=turns {
         let events = run_maintenance_turn(&mut game_data)?;
         all_events.bombard_events.extend(events.bombard_events);
+        all_events
+            .planet_intel_events
+            .extend(events.planet_intel_events);
+        all_events
+            .ownership_change_events
+            .extend(events.ownership_change_events);
+        all_events
+            .fleet_battle_events
+            .extend(events.fleet_battle_events);
         println!("  Turn {}: year {}", turn, game_data.conquest.game_year());
     }
 
@@ -41,272 +52,9 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
 
     // Regenerate DATABASE.DAT from PLANETS.DAT
     regenerate_database_dat(dir, &game_data, &pre_maint_planets, &all_events)?;
+    regenerate_results_dat(dir, &game_data, &all_events)?;
 
     println!("Rust maintenance complete.");
-    Ok(())
-}
-
-/// Regenerate DATABASE.DAT from current PLANETS.DAT and CONQUEST.DAT year.
-///
-/// `pre_maint_planets` is the planet state before maintenance ran, used to detect
-/// which planets had active build queues (which affects certain DATABASE fields).
-fn regenerate_database_dat(
-    dir: &Path,
-    game_data: &CoreGameData,
-    pre_maint_planets: &PlanetDat,
-    events: &MaintenanceEvents,
-) -> Result<(), Box<dyn std::error::Error>> {
-    // Load existing DATABASE.DAT as template
-    let template_path = dir.join("DATABASE.DAT");
-    let template = if template_path.exists() {
-        let bytes = fs::read(&template_path)?;
-        DatabaseDat::parse(&bytes).ok()
-    } else {
-        None
-    };
-
-    // Extract planet names from PLANETS.DAT and normalize them
-    // ECMAINT normalizes certain names to "UNKNOWN"
-    let planet_names: Vec<String> = game_data
-        .planets
-        .records
-        .iter()
-        .map(|p| {
-            let name = p.planet_name();
-            // Normalize names like ECMAINT does
-            if name.eq_ignore_ascii_case("unowned") || name.eq_ignore_ascii_case("not named yet") {
-                "UNKNOWN".to_string()
-            } else {
-                name
-            }
-        })
-        .collect();
-
-    // Get current game year
-    let year = game_data.conquest.game_year();
-    // Discovery uses the previous year (pre-maintenance state)
-    let discovery_year = year - 1;
-
-    // Generate new DATABASE.DAT
-    let mut new_database =
-        DatabaseDat::generate_from_planets_and_year(&planet_names, year, template.as_ref());
-
-    // Handle planet discovery for newly visible planets.
-    //
-    // DATABASE layout: record = player * 20 + planet (player is 0-indexed)
-    //
-    // Two classes of records get updated each turn:
-    //
-    // 1. Homeworld orbit records: template has raw[0x15]=0x01..0x04 (empire scan index)
-    //    and name_len=0.  ECMAINT stamps "Not Named Yet" + year.
-    //    These correspond to each empire's orbital scan of homeworld planets.
-    //
-    // 2. Owned-planet UNKNOWN records: player owns the planet but their DATABASE record
-    //    has scan_marker=0xff (UNKNOWN). ECMAINT populates it with the real planet name,
-    //    year, and full planet intel (pot_prod, armies, batteries).
-    //    This covers both:
-    //      a. Newly colonized planets (name="Not Named Yet") — raw[0x1e]=0x00, raw[0x15]=0x01
-    //      b. Pre-existing owned planets whose record was never populated — raw[0x1e]=0x40+owner_slot
-    //    The distinction is whether the planet name is "Not Named Yet" or a real name.
-    //    Confirmed from econ scenario:
-    //      - Record 33 (player 1 "foo", planet 13 "TargetPrime"): pre UNKNOWN, oracle populated.
-    //      - raw[0x15]=0x02 (owner_slot), raw[0x1e]=0x42 (0x40+2), name="TargetPrime".
-    //      - raw[0x1c]=pot_prod, raw[0x1d]=pot_prod, raw[0x23]=armies, raw[0x25]=batteries.
-    if let Some(ref template_db) = template {
-        let year_bytes = discovery_year.to_le_bytes();
-
-        for player in 0..4usize {
-            for planet in 0..20usize {
-                let record_idx = player * 20 + planet;
-                let template_record = &template_db.records[record_idx];
-                let scan_marker = template_record.raw[0x15];
-
-                // Case 1: orbit record — scan marker is 0x01..0x04 and no name yet
-                let is_orbit_record =
-                    scan_marker >= 0x01 && scan_marker <= 0x04 && template_record.raw[0x00] == 0;
-
-                // Case 2: owned-planet UNKNOWN record — player owns this planet but
-                // their DATABASE record is UNKNOWN (scan_marker=0xff).
-                let planet_owner = if planet < game_data.planets.records.len() {
-                    game_data.planets.records[planet].owner_empire_slot_raw() as usize
-                } else {
-                    0
-                };
-                let is_owned_unknown = scan_marker == 0xff && planet_owner == player + 1;
-
-                if is_orbit_record {
-                    // Homeworld orbit record: stamp name + year, preserve scan_marker
-                    new_database.records[record_idx].set_planet_name("Not Named Yet");
-                    // Keep original scan_marker (0x01..0x04) — do NOT overwrite with 0x01
-                    new_database.records[record_idx].raw[0x16] = year_bytes[0];
-                    new_database.records[record_idx].raw[0x17] = year_bytes[1];
-                    new_database.records[record_idx].raw[0x18] = year_bytes[0];
-                    new_database.records[record_idx].raw[0x19] = year_bytes[1];
-                    new_database.records[record_idx].raw[0x27] = year_bytes[0];
-                    new_database.records[record_idx].raw[0x28] = year_bytes[1];
-
-                    // If the planet had an active build queue in pre-maint state,
-                    // clear raw[0x1e] in the database record.
-                    // Confirmed from build-scenario fixture: planet 14 had build=3,
-                    // DATABASE record 14 0x1e=0x23 → 0x00 after maintenance.
-                    // In fleet scenario (no build queue), 0x1e is preserved.
-                    if planet < pre_maint_planets.records.len() {
-                        let had_build_queue = (0..10).any(|slot| {
-                            pre_maint_planets.records[planet].build_count_raw(slot) > 0
-                        });
-                        if had_build_queue {
-                            new_database.records[record_idx].raw[0x1e] = 0x00;
-                        }
-                    }
-
-                    // If the autopilot/rogue AI ran on this planet this turn, also
-                    // refresh the owner intel fields in the orbit record:
-                    //   raw[0x1e] = 0x40 + owner_slot
-                    //   raw[0x23] = post-maint army count
-                    //
-                    // Trigger: same condition as process_autopilot_ai — planet
-                    // flags==0x87 and the owning player is rogue (mode=0xff) or
-                    // has autopilot on (mode=0x01 and raw[0x6D]==0x01).
-                    //
-                    // Confirmed: econ fixture rec=14 (player=0/rogue, planet=14)
-                    // gets raw[0x1e] updated; rec=32 (player=1/human, planet=12)
-                    // does not because no AI ran on planet 12 that turn.
-                    if planet < game_data.planets.records.len()
-                        && game_data.planets.records[planet].raw[0x03] == 0x87
-                        && planet_owner > 0
-                        && planet_owner == player + 1
-                    {
-                        let player_mode = game_data.player.records[player].raw[0x00];
-                        let autopilot = game_data.player.records[player].raw[0x6D];
-                        let ai_ran =
-                            player_mode == 0xff || (player_mode == 0x01 && autopilot == 0x01);
-                        if ai_ran {
-                            let owner_slot = planet_owner as u8;
-                            let armies = game_data.planets.records[planet].army_count_raw();
-                            new_database.records[record_idx].raw[0x1e] = 0x40 + owner_slot;
-                            new_database.records[record_idx].raw[0x23] = armies;
-                        }
-                    }
-                } else if is_owned_unknown {
-                    // Owned-planet UNKNOWN record: populate with real planet name + intel.
-                    let owner_slot = planet_owner as u8; // = player + 1
-                    let planet_name = if planet < game_data.planets.records.len() {
-                        game_data.planets.records[planet].planet_name()
-                    } else {
-                        String::new()
-                    };
-                    let is_new_colony = planet_name.eq_ignore_ascii_case("not named yet");
-
-                    new_database.records[record_idx].set_planet_name(&planet_name);
-                    // raw[0x15]: owner_slot for pre-existing planets; 0x01 for new colonies
-                    new_database.records[record_idx].raw[0x15] =
-                        if is_new_colony { 0x01 } else { owner_slot };
-                    new_database.records[record_idx].raw[0x16] = year_bytes[0];
-                    new_database.records[record_idx].raw[0x17] = year_bytes[1];
-                    new_database.records[record_idx].raw[0x18] = year_bytes[0];
-                    new_database.records[record_idx].raw[0x19] = year_bytes[1];
-                    new_database.records[record_idx].raw[0x27] = year_bytes[0];
-                    new_database.records[record_idx].raw[0x28] = year_bytes[1];
-
-                    if planet < game_data.planets.records.len() {
-                        let p = &game_data.planets.records[planet];
-                        let pot_prod_lo = p.raw[0x02];
-                        let armies = p.army_count_raw();
-                        let batteries = p.ground_batteries_raw();
-
-                        new_database.records[record_idx].raw[0x1c] = pot_prod_lo;
-                        // raw[0x1d]: owner_slot for new colonies; pot_prod_lo for pre-existing
-                        // Confirmed: fleet new colony (slot=1) -> 0x01; econ TargetPrime -> 0x64
-                        new_database.records[record_idx].raw[0x1d] = if is_new_colony {
-                            owner_slot
-                        } else {
-                            pot_prod_lo
-                        };
-                        // raw[0x1e]: 0x00 for new colonies; 0x40+owner_slot for pre-existing
-                        // Confirmed: econ record 33 (TargetPrime, owner_slot=2) → 0x42=0x40+2
-                        new_database.records[record_idx].raw[0x1e] = if is_new_colony {
-                            0x00
-                        } else {
-                            0x40 + owner_slot
-                        };
-                        new_database.records[record_idx].raw[0x1f] = 0x00;
-                        // 0x23: army count, 0x24: 0x00, 0x25: battery count, 0x26: 0x00
-                        new_database.records[record_idx].raw[0x23] = armies;
-                        new_database.records[record_idx].raw[0x24] = 0x00;
-                        new_database.records[record_idx].raw[0x25] = batteries;
-                        new_database.records[record_idx].raw[0x26] = 0x00;
-                    }
-                }
-            }
-        }
-    }
-
-    // Update DATABASE.DAT records for bombarded planets.
-    //
-    // Confirmed from bombard-scenario oracle: when a BombardWorld fleet executes,
-    // the attacking player's and defending player's (planet owner's) DATABASE records
-    // for the bombarded planet are updated with full planet intel.
-    // raw[0x15] = planet's owner_slot; other players' records are NOT updated.
-    if let Some(ref _template_db) = template {
-        let year_bytes = discovery_year.to_le_bytes();
-        for event in &events.bombard_events {
-            let planet_idx = event.planet_idx;
-            if planet_idx >= game_data.planets.records.len() {
-                continue;
-            }
-            let planet = &game_data.planets.records[planet_idx];
-            let owner_slot = planet.owner_empire_slot_raw();
-            let pot_prod_lo = planet.raw[0x02];
-            let armies = planet.army_count_raw();
-            let batteries = planet.ground_batteries_raw();
-            let name_len = planet.raw[0x0F];
-            let planet_name: String = planet.raw[0x10..0x10 + name_len.min(13) as usize]
-                .iter()
-                .map(|&b| b as char)
-                .collect();
-
-            // Attacker: owner_empire_raw is 1-based → player index = owner_empire_raw - 1
-            let attacker_player = event.attacker_empire_raw.saturating_sub(1) as usize;
-            // Defender: planet owner_slot is 1-based → player index = owner_slot - 1
-            let defender_player = owner_slot.saturating_sub(1) as usize;
-
-            let update_record = |new_database: &mut DatabaseDat, record_idx: usize| {
-                new_database.records[record_idx].set_planet_name(&planet_name);
-                new_database.records[record_idx].raw[0x15] = owner_slot;
-                new_database.records[record_idx].raw[0x16] = year_bytes[0];
-                new_database.records[record_idx].raw[0x17] = year_bytes[1];
-                new_database.records[record_idx].raw[0x18] = year_bytes[0];
-                new_database.records[record_idx].raw[0x19] = year_bytes[1];
-                new_database.records[record_idx].raw[0x1c] = pot_prod_lo;
-                new_database.records[record_idx].raw[0x1d] = pot_prod_lo;
-                new_database.records[record_idx].raw[0x1e] = 0x23;
-                new_database.records[record_idx].raw[0x1f] = 0x00;
-                new_database.records[record_idx].raw[0x23] = armies;
-                new_database.records[record_idx].raw[0x24] = 0x00;
-                new_database.records[record_idx].raw[0x25] = batteries;
-                new_database.records[record_idx].raw[0x26] = 0x00;
-                new_database.records[record_idx].raw[0x27] = year_bytes[0];
-                new_database.records[record_idx].raw[0x28] = year_bytes[1];
-            };
-
-            // Update attacker's record
-            let atk_record = attacker_player * 20 + planet_idx;
-            if atk_record < new_database.records.len() {
-                update_record(&mut new_database, atk_record);
-            }
-            // Update defender's record (if different from attacker's)
-            if defender_player != attacker_player && owner_slot > 0 {
-                let def_record = defender_player * 20 + planet_idx;
-                if def_record < new_database.records.len() {
-                    update_record(&mut new_database, def_record);
-                }
-            }
-        }
-    }
-
-    // Save the regenerated DATABASE.DAT
-    fs::write(template_path, new_database.to_bytes())?;
-
     Ok(())
 }
 
@@ -599,4 +347,79 @@ fn compare_dat_files(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::{compare_policy_for_dir, is_structurally_accepted_diff, ComparePolicy};
+
+    #[test]
+    fn compare_policy_uses_canonical_combat_for_combat_heavy_scenarios() {
+        assert_eq!(
+            compare_policy_for_dir(Path::new("fixtures/ecmaint-fleet-battle-pre/v1.5")),
+            ComparePolicy::CanonicalCombat
+        );
+        assert_eq!(
+            compare_policy_for_dir(Path::new("fixtures/ecmaint-bombard-pre/v1.5")),
+            ComparePolicy::CanonicalCombat
+        );
+        assert_eq!(
+            compare_policy_for_dir(Path::new("fixtures/ecmaint-invade-pre/v1.5")),
+            ComparePolicy::CanonicalCombat
+        );
+        assert_eq!(
+            compare_policy_for_dir(Path::new("fixtures/ecmaint-econ-pre/v1.5")),
+            ComparePolicy::CanonicalCombat
+        );
+    }
+
+    #[test]
+    fn compare_policy_keeps_deterministic_scenarios_strict() {
+        assert_eq!(
+            compare_policy_for_dir(Path::new("fixtures/ecmaint-move-pre/v1.5")),
+            ComparePolicy::Strict
+        );
+        assert_eq!(
+            compare_policy_for_dir(Path::new("fixtures/ecmaint-build-pre/v1.5")),
+            ComparePolicy::Strict
+        );
+    }
+
+    #[test]
+    fn canonical_combat_acceptance_is_limited_to_combat_driven_files() {
+        assert!(is_structurally_accepted_diff(
+            ComparePolicy::CanonicalCombat,
+            "FLEETS.DAT"
+        ));
+        assert!(is_structurally_accepted_diff(
+            ComparePolicy::CanonicalCombat,
+            "PLANETS.DAT"
+        ));
+        assert!(is_structurally_accepted_diff(
+            ComparePolicy::CanonicalCombat,
+            "DATABASE.DAT"
+        ));
+        assert!(is_structurally_accepted_diff(
+            ComparePolicy::CanonicalCombat,
+            "MESSAGES.DAT"
+        ));
+        assert!(is_structurally_accepted_diff(
+            ComparePolicy::CanonicalCombat,
+            "RESULTS.DAT"
+        ));
+        assert!(!is_structurally_accepted_diff(
+            ComparePolicy::CanonicalCombat,
+            "PLAYER.DAT"
+        ));
+        assert!(!is_structurally_accepted_diff(
+            ComparePolicy::CanonicalCombat,
+            "CONQUEST.DAT"
+        ));
+        assert!(!is_structurally_accepted_diff(
+            ComparePolicy::Strict,
+            "FLEETS.DAT"
+        ));
+    }
 }
