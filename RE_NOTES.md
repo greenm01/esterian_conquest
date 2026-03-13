@@ -4481,3 +4481,53 @@ Strong practical consequence:
   - identify what `0x1000:d183` returns into `[BP-0x28]`
   - decode the CS-local string pointers around `0x0a93`, `0x0abc`,
     `0x0ae6`, `0x0aed`, `0x0af4`, `0x0af6`, `0x0af8`, and `0x0b17`
+
+`0x1000:d183` helper contract (first pass):
+
+Artifacts:
+- `artifacts/ghidra/ecmaint-live/unknown-starbase-helper.txt`
+
+Tool:
+- `tools/ghidra_scripts_tmp/ReportUnknownStarbaseHelper.java`
+
+Recovered structure:
+- `0x1000:d183` sits inside a larger helper at `1000:d166..d4fe`
+- entry behavior:
+  - copies a `0x36`-byte source object from the caller into local `BP-0x38`
+  - initializes:
+    - candidate count at `[BP+0xFBD6] = 0`
+    - candidate index list rooted at `[BP+0xFECC]`
+- primary scan (`1000:d1a0..d21f`):
+  - iterates entries through pointer table `0x1712`
+  - filters on entry owner byte `ES:[DI+0x5d] == [BP-0x36]`
+  - in mode `1` (`[BP+0x0e] == 1`), also requires:
+    - entry byte `0x00 == [BP-0x2d]`
+    - entry byte `0x01 == [BP-0x2c]`
+  - matching entry indexes are appended into the local list at `FECC`
+  - candidate count increments in `[BP+0xFBD6]`
+- if more than one candidate matched:
+  - the helper computes 3-word ranking tuples for each candidate into the local
+    array rooted at `FBD8`
+  - then sorts both the ranking tuples and the parallel candidate index list
+    (`FECC`) via the `0x3000:488d` comparison helper
+- return behavior (`1000:d4bc..d4fe`):
+  - if no candidates matched:
+    - returns `AL = 0`
+  - otherwise:
+    - returns `AL = 1`
+    - copies two bytes from the selected entry in the `0x1712` table through
+      the caller-supplied output pointers at `[BP+0x0a]` and `[BP+0x06]`
+      (entry bytes `0x00` and `0x01`)
+
+Current practical interpretation:
+- `0x1000:d183` is a candidate locator/selector, not a direct error emitter
+- for the later starbase-specific region at `0000:3fcf..41a0`, it returns:
+  - success/failure in `AL`
+  - a selected candidate index/count result in local scratch
+  - two selected bytes from the winning entry
+- this makes the later region's compare on summary bytes `+0x01` / `+0x02` /
+  `+0x05` more coherent: it is checking the current summary against a
+  best-matching located candidate, not scanning blindly
+- remaining unresolved point:
+  - the exact local slot used for the winning candidate index (`FECE`) still
+    needs a tighter read

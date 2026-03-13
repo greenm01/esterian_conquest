@@ -92,8 +92,14 @@ Priority order:
          `Fleet assigned to an unknown starbase.` string
        - that region compares summary bytes `+1`, `+2`, and `+5` against a
          located kind-`1` entry and clears `350c` / `3521` on failure/report
-       - next target should now be that `0000:3fcf..41a0` region, especially
-         helper `0x1000:d183` and the nearby CS-local string pointers
+       - `0x1000:d183` is now narrowed to a candidate locator/selector:
+         - scans the `0x1712` table
+         - filters matching entries
+         - sorts multiple candidates
+         - returns success in `AL` and two selected bytes via output pointers
+       - next target should now stay in `0000:3fcf..41a0`, especially:
+         - the exact winning-index slot used after `0x1000:d183`
+         - the nearby indirect message/report path
 
 2. Recover initialized-to-post-maint deterministic rules
    - use canonical post-maint diff output from normalized `original/v1.5`
@@ -134,9 +140,9 @@ Best immediate task:
   - the new concrete later target is `0000:3fcf..41a0`, immediately after that
     raw string
   - so the next capture/search should focus on:
-    - what `0x1000:d183` returns into the located-summary index
-    - what the CS-local strings at `0x0a93..0x0b17` say
-    - how that region chooses between success/report/error paths
+    - the exact winning-index slot and compare inputs after `0x1000:d183`
+    - how `0000:3fcf..41a0` chooses between success/report/error paths
+    - the indirect message/report helpers used there
 - once those rules are recovered, promote them into `CoreGameData`
 
 Why this first:
