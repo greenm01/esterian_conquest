@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use ec_data::CoreGameData;
 
 use crate::commands::bombard::{apply_bombard_scenario, validate_bombard_data};
+use crate::commands::econ::{apply_econ_scenario, validate_econ_data};
 use crate::commands::fleet_battle::{apply_fleet_battle_scenario, validate_fleet_battle_data};
 use crate::commands::fleet_order::{apply_fleet_order_scenario, apply_move_scenario};
 use crate::commands::guard_starbase::apply_guard_starbase_scenario;
@@ -23,9 +24,10 @@ pub(crate) enum KnownScenario {
     Bombard,
     FleetBattle,
     Invade,
+    Econ,
 }
 impl KnownScenario {
-    pub(crate) fn all() -> [Self; 8] {
+    pub(crate) fn all() -> [Self; 9] {
         [
             Self::FleetOrder,
             Self::PlanetBuild,
@@ -35,6 +37,7 @@ impl KnownScenario {
             Self::Bombard,
             Self::FleetBattle,
             Self::Invade,
+            Self::Econ,
         ]
     }
 
@@ -48,6 +51,7 @@ impl KnownScenario {
             Self::Bombard => "bombard",
             Self::FleetBattle => "fleet-battle",
             Self::Invade => "invade",
+            Self::Econ => "econ",
         }
     }
 
@@ -61,6 +65,7 @@ impl KnownScenario {
             "bombard" => Some(Self::Bombard),
             "fleet-battle" => Some(Self::FleetBattle),
             "invade" => Some(Self::Invade),
+            "econ" => Some(Self::Econ),
             _ => None,
         }
     }
@@ -81,6 +86,9 @@ impl KnownScenario {
             Self::Invade => {
                 "accepted heavy invasion scenario: fleet at (15,13) with armies, InvadeWorld order"
             }
+            Self::Econ => {
+                "accepted economy scenario: fleet 3 bombards planet 14 at (15,13), CA=50 DD=50"
+            }
         }
     }
 
@@ -95,6 +103,7 @@ impl KnownScenario {
             Self::Bombard => root.join("ecmaint-bombard-pre/v1.5"),
             Self::FleetBattle => root.join("ecmaint-fleet-battle-pre/v1.5"),
             Self::Invade => root.join("ecmaint-invade-heavy-pre/v1.5"),
+            Self::Econ => root.join("ecmaint-econ-pre/v1.5"),
         }
     }
 
@@ -108,6 +117,7 @@ impl KnownScenario {
             Self::Bombard => &["FLEETS.DAT", "PLANETS.DAT"],
             Self::FleetBattle => &["FLEETS.DAT", "PLANETS.DAT"],
             Self::Invade => &["FLEETS.DAT", "PLANETS.DAT"],
+            Self::Econ => &["FLEETS.DAT", "PLANETS.DAT"],
         }
     }
 }
@@ -125,6 +135,7 @@ pub(crate) fn apply_known_scenario(
         KnownScenario::Bombard => apply_bombard_scenario(dir),
         KnownScenario::FleetBattle => apply_fleet_battle_scenario(dir),
         KnownScenario::Invade => apply_invade_scenario(dir),
+        KnownScenario::Econ => apply_econ_scenario(dir),
     }
 }
 
@@ -161,6 +172,7 @@ pub(crate) fn validate_known_scenario(
         KnownScenario::Bombard => validate_bombard_data(&data),
         KnownScenario::FleetBattle => validate_fleet_battle_data(&data),
         KnownScenario::Invade => validate_invade_data(&data),
+        KnownScenario::Econ => validate_econ_data(&data),
     }
 }
 
@@ -178,6 +190,7 @@ pub(crate) fn validate_all_known_scenarios(dir: &Path) -> Result<(), Box<dyn std
             KnownScenario::Bombard => validate_bombard_data(&data),
             KnownScenario::FleetBattle => validate_fleet_battle_data(&data),
             KnownScenario::Invade => validate_invade_data(&data),
+            KnownScenario::Econ => validate_econ_data(&data),
         };
         match result {
             Ok(()) => {
