@@ -378,12 +378,14 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 - Fleet battle detection and rogue retreat (SeekHome to other fleet locations) ✅
 - MoveOnly arrival preserves speed/order (does not clear to Hold) ✅
 - Planet colonization (ColonizeWorld arrival, new-colony markers) ✅
+- Planet invasion (InvadeWorld: ownership transfer, army deposit, battery destruction) ✅
 - Player planet stats recompute (raw[0x50] count, raw[0x52] prod sum) ✅
 - CONQUEST.DAT economic sim (0x0c..0x15 prod block, 0x1a..0x1b, 0x20..0x54) ✅
 - DATABASE.DAT fog-of-war discovery (orbit, colonization, bombardment intel) ✅
 - PLAYER.DAT raw[0x46] starbase flag (set to 1 for starbase_count > 0) ✅
 - BombardWorld transit-arrival: fleet preserves order+speed, executes next tick ✅
 - Bombardment resolution: clears order/speed/raw[0x19]→0x81/arrival-payload ✅
+- Invasion resolution: clears order/speed, transfers ownership, deposits armies ✅
 - Correct movement gate: uses `raw[0x1f]` (standing_order_code) not `raw[0x0c]` (current_y) ✅
 
 ## Stochastic Mechanics Policy
@@ -403,9 +405,9 @@ Affected mechanics (deferred until structure is solid across all scenarios):
 - Rogue/autopilot AI economy choices (factories, armies, tax)
 
 **Next priorities:**
-1. invade: Build clean test fixture + implement invasion mechanics (planet ownership, army handling)
-2. fleet-battle: Optional - improve battle position accuracy (currently stochastic-diff acceptable)
-3. Once structural mechanics are solid, define stochastic combat rules as a unit
+1. Build clean invade test fixture to verify invasion parity with oracle
+2. Refine stochastic combat rules (fleet battle attrition, bombardment losses)
+3. Implement rogue/autopilot AI economy choices (factories, armies, tax)
 
 ---
 
