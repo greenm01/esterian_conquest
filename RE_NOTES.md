@@ -4832,6 +4832,12 @@ Transition-queue implication:
 - the new semantic transition-details report makes that dependency concrete:
   - current normalized shipped-sample homeworld seed / owned-world state still
     differs from the canonical post-maint topology
+  - important caution:
+    - coordinate differences alone are not strong evidence of a special
+      campaign progression state, because the starmap and empire homeworlds are
+      randomized per game
+    - treat the remaining coordinate drift as setup variance until a
+      non-coordinate payload/ownership rule is proven
   - examples:
     - current record 13 homeworld seed at `(6,12)` vs canonical `(4,13)`
     - current record 16 owned `Dust Bowl` world at `(16,13)` vs canonical

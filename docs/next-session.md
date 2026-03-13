@@ -109,8 +109,16 @@ Priority order:
      - `PLAYER.DAT`
      - `PLANETS.DAT`
      - `FLEETS.DAT`
+   - important interpretation:
+     - `original/v1.5` is not just a noisy initialized baseline
+     - but coordinate differences alone are not evidence of a special campaign
+       state, because the starmap and empire homeworlds are randomized per game
+     - treat remaining coordinate/topology drift as setup variance until a
+       non-coordinate rule is proven
    - use canonical post-maint diff output from normalized `original/v1.5`
-   - promote only clearly reusable transition clusters into shared Rust rules
+   - promote only clearly reusable clusters from it into shared Rust rules
+   - do not assume its remaining planet/fleet drift represents a deterministic
+     initialized-to-post-maint transition
 
 3. Expand `IPBM` from structural to semantic
    - the file is structurally mapped enough for Rust tooling
@@ -142,7 +150,8 @@ Recommended order:
    - this is now the upstream target for the shipped sample
    - the new transition-details report shows the shipped sample still has a
      different homeworld/unowned topology from the canonical post-maint
-     baseline
+     baseline, but the coordinates themselves may simply reflect randomized
+     setup
    - examples:
      - current record 13 homeworld seed at `(6,12)` vs canonical `(4,13)`
      - current record 16 `Dust Bowl` owned world at `(16,13)` vs canonical
