@@ -43,6 +43,11 @@ Default black-box oracle loop for new mechanics:
 - `python3 tools/ecmaint_oracle.py run /tmp/ecmaint-oracle`
 - inspect `.oracle/` snapshots plus the reported `.DAT`/report diff clusters
 
+Known scenario replay:
+- `python3 tools/ecmaint_oracle.py replay-known fleet-order /tmp/ecmaint-fleet-oracle`
+- `python3 tools/ecmaint_oracle.py replay-known planet-build /tmp/ecmaint-build-oracle`
+- `python3 tools/ecmaint_oracle.py replay-known guard-starbase /tmp/ecmaint-starbase-oracle`
+
 Current Rust milestone:
 - `ec-cli` is now split by feature area instead of letting `main.rs` keep
   growing:

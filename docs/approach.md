@@ -175,6 +175,14 @@ Default `ECMAINT` black-box loop for new mechanics:
 4. inspect the `.oracle/` snapshots plus the printed diff clusters
 5. promote only strong repeated rules into shared Rust logic
 
+Known-scenario replay loop:
+
+1. `python3 tools/ecmaint_oracle.py replay-known fleet-order /tmp/ecmaint-fleet-oracle`
+2. inspect the `.oracle/` snapshots and the comparison against the preserved
+   post-maint fixture
+3. use the same pattern for `planet-build` and `guard-starbase` before opening
+   a new mechanic
+
 Deep RE escalation criteria:
 
 - use static/dynamic RE when a blocker survives repeated black-box tests

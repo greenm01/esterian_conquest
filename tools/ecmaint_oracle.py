@@ -23,7 +23,35 @@ CORE_FILES = [
     "SETUP.DAT",
     "CONQUEST.DAT",
 ]
-REPORT_FILES = ["MESSAGES.DAT", "RESULTS.DAT", "RANKINGS.TXT", "ERRORS.TXT"]
+TRACKED_FILES = [
+    "PLAYER.DAT",
+    "PLANETS.DAT",
+    "FLEETS.DAT",
+    "BASES.DAT",
+    "IPBM.DAT",
+    "SETUP.DAT",
+    "CONQUEST.DAT",
+    "DATABASE.DAT",
+    "MESSAGES.DAT",
+    "RESULTS.DAT",
+    "RANKINGS.TXT",
+    "ERRORS.TXT",
+]
+
+KNOWN_SCENARIOS = {
+    "fleet-order": {
+        "pre": ROOT / "fixtures" / "ecmaint-fleet-pre" / "v1.5",
+        "post": ROOT / "fixtures" / "ecmaint-fleet-post" / "v1.5",
+    },
+    "planet-build": {
+        "pre": ROOT / "fixtures" / "ecmaint-build-pre" / "v1.5",
+        "post": ROOT / "fixtures" / "ecmaint-build-post" / "v1.5",
+    },
+    "guard-starbase": {
+        "pre": ROOT / "fixtures" / "ecmaint-starbase-pre" / "v1.5",
+        "post": ROOT / "fixtures" / "ecmaint-starbase-post" / "v1.5",
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -57,7 +85,7 @@ def snapshot_dir(target: Path, snapshot_name: str) -> Path:
     if snapshot_path.exists():
         shutil.rmtree(snapshot_path)
     snapshot_path.mkdir(parents=True, exist_ok=True)
-    for name in CORE_FILES + REPORT_FILES:
+    for name in TRACKED_FILES:
         source = target / name
         if source.exists():
             shutil.copy2(source, snapshot_path / name)
@@ -92,7 +120,7 @@ def summarize_clusters(offsets: list[int]) -> str:
 
 def collect_diffs(before_dir: Path, after_dir: Path) -> list[FileDiff]:
     diffs: list[FileDiff] = []
-    for name in CORE_FILES + REPORT_FILES:
+    for name in TRACKED_FILES:
         before = read_bytes(before_dir / name)
         after = read_bytes(after_dir / name)
         diffs.append(
@@ -151,6 +179,32 @@ def run_ecmaint(target: Path, extra_env: dict[str, str] | None = None) -> subpro
     return subprocess.run(cmd, env=env, text=True, capture_output=True)
 
 
+def run_ec_cli(args: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["cargo", "run", "-q", "-p", "ec-cli", "--", *args],
+        cwd=ROOT / "rust",
+        text=True,
+        capture_output=True,
+    )
+
+
+def require_known_scenario(name: str) -> dict[str, Path]:
+    if name not in KNOWN_SCENARIOS:
+        raise SystemExit(
+            f"unknown scenario: {name}. known scenarios: {', '.join(sorted(KNOWN_SCENARIOS))}"
+        )
+    return KNOWN_SCENARIOS[name]
+
+
+def print_diff_summary(label: str, diffs: list[FileDiff]) -> None:
+    print(label)
+    for diff in diffs:
+        print(
+            f"  {diff.name}: size {diff.before_size} -> {diff.after_size}, "
+            f"differing_bytes={diff.differing_bytes}, clusters={summarize_clusters(diff.differing_offsets)}"
+        )
+
+
 def cmd_prepare(args: argparse.Namespace) -> int:
     source = Path(args.source).resolve()
     target = Path(args.target).resolve()
@@ -162,6 +216,29 @@ def cmd_prepare(args: argparse.Namespace) -> int:
     print(f"  snapshot={snapshot_path}")
     print("  next step: submit player orders or mutate files, then run:")
     print(f"    python3 tools/ecmaint_oracle.py run {target}")
+    return 0
+
+
+def cmd_prepare_known(args: argparse.Namespace) -> int:
+    target = Path(args.target).resolve()
+    source = Path(args.source).resolve() if args.source else DEFAULT_BASELINE
+    require_known_scenario(args.scenario)
+    result = run_ec_cli(["scenario-init", str(source), str(target), args.scenario])
+    if result.returncode != 0:
+        sys.stdout.write(result.stdout)
+        sys.stderr.write(result.stderr)
+        raise SystemExit(result.returncode)
+    snapshot_path = snapshot_dir(target, "prepared")
+    print(result.stdout.strip())
+    print("Prepared known ECMAINT scenario directory")
+    print(f"  scenario={args.scenario}")
+    print(f"  source={repo_relative(source)}")
+    print(f"  target={target}")
+    print(f"  snapshot={snapshot_path}")
+    print(f"  expected_post={repo_relative(KNOWN_SCENARIOS[args.scenario]['post'])}")
+    print("  next step:")
+    print(f"    python3 tools/ecmaint_oracle.py run {target}")
+    print(f"    python3 tools/ecmaint_oracle.py compare {target} {KNOWN_SCENARIOS[args.scenario]['post']}")
     return 0
 
 
@@ -184,15 +261,35 @@ def cmd_run(args: argparse.Namespace) -> int:
     print(f"  before_snapshot={before_snapshot}")
     print(f"  after_snapshot={after_snapshot}")
     print(f"  dosbox_exit_code={result.returncode}")
-    for diff in diffs:
-        print(
-            f"  {diff.name}: size {diff.before_size} -> {diff.after_size}, "
-            f"differing_bytes={diff.differing_bytes}, clusters={summarize_clusters(diff.differing_offsets)}"
-        )
+    print_diff_summary("  file_diffs", diffs)
     if (target / "ERRORS.TXT").exists():
         first_line = (target / "ERRORS.TXT").read_text(errors="ignore").splitlines()[:1]
         if first_line:
             print(f"  ERRORS.TXT first line: {first_line[0]}")
+    return 0
+
+
+def cmd_compare(args: argparse.Namespace) -> int:
+    target = Path(args.target).resolve()
+    expected = Path(args.expected).resolve()
+    diffs = collect_diffs(expected, target)
+    print("ECMAINT oracle comparison")
+    print(f"  target={target}")
+    print(f"  expected={expected}")
+    print_diff_summary("  file_diffs", diffs)
+    return 0
+
+
+def cmd_replay_known(args: argparse.Namespace) -> int:
+    scenario = require_known_scenario(args.scenario)
+    source = Path(args.source).resolve() if args.source else DEFAULT_BASELINE
+    target = Path(args.target).resolve()
+    prepare_args = argparse.Namespace(scenario=args.scenario, source=str(source), target=str(target))
+    cmd_prepare_known(prepare_args)
+    run_args = argparse.Namespace(target=str(target))
+    cmd_run(run_args)
+    compare_args = argparse.Namespace(target=str(target), expected=str(scenario["post"]))
+    cmd_compare(compare_args)
     return 0
 
 
@@ -210,9 +307,45 @@ def build_parser() -> argparse.ArgumentParser:
     )
     prepare.set_defaults(func=cmd_prepare)
 
+    prepare_known = subparsers.add_parser(
+        "prepare-known",
+        help="materialize a known accepted pre-maint scenario through ec-cli",
+    )
+    prepare_known.add_argument("scenario", help="known scenario name")
+    prepare_known.add_argument("target", help="working directory to create")
+    prepare_known.add_argument(
+        "source",
+        nargs="?",
+        default=None,
+        help="optional baseline directory for ec-cli scenario-init",
+    )
+    prepare_known.set_defaults(func=cmd_prepare_known)
+
     run = subparsers.add_parser("run", help="snapshot, run ECMAINT, and diff results")
     run.add_argument("target", help="working directory to process in place")
     run.set_defaults(func=cmd_run)
+
+    compare = subparsers.add_parser(
+        "compare",
+        help="compare a directory against an expected post-maint fixture directory",
+    )
+    compare.add_argument("target", help="directory to inspect")
+    compare.add_argument("expected", help="expected post-maint directory")
+    compare.set_defaults(func=cmd_compare)
+
+    replay_known = subparsers.add_parser(
+        "replay-known",
+        help="materialize a known pre-maint scenario, run ECMAINT, and compare to its preserved post fixture",
+    )
+    replay_known.add_argument("scenario", help="known scenario name")
+    replay_known.add_argument("target", help="working directory to create and run")
+    replay_known.add_argument(
+        "source",
+        nargs="?",
+        default=None,
+        help="optional baseline directory for ec-cli scenario-init",
+    )
+    replay_known.set_defaults(func=cmd_replay_known)
 
     return parser
 

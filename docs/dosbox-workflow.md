@@ -38,6 +38,15 @@ python3 tools/ecmaint_oracle.py run /tmp/ecmaint-oracle
 That captures pre/post snapshots under `/tmp/ecmaint-oracle/.oracle/` and
 prints byte-diff clusters for the core `.DAT` files plus report files.
 
+For a known preserved scenario family, use the replay form:
+
+```bash
+python3 tools/ecmaint_oracle.py replay-known fleet-order /tmp/ecmaint-fleet-oracle
+```
+
+That materializes the known accepted pre-maint state, runs `ECMAINT`, and then
+compares the result against the preserved post-maint fixture.
+
 ### 1. Prepare the working directory
 
 ```bash

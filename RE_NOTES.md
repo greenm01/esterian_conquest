@@ -4848,3 +4848,35 @@ Transition-queue implication:
     - block 2 current `(6,12)` vs canonical `(4,13)`
     - block 3 current `(16,5)` vs canonical `(6,5)`
     - block 4 current `(7,4)` vs canonical `(13,5)`
+## Oracle-First Method Shift
+
+The project default is now:
+
+- initialize or materialize a controlled directory
+- submit one narrow order family or field mutation
+- run `ECMAINT` as the oracle
+- diff `.DAT`, `MESSAGES.DAT`, `RESULTS.DAT`, and `ERRORS.TXT`
+- promote only repeated deterministic effects into `CoreGameData`
+
+Repo harness:
+
+- `python3 tools/ecmaint_oracle.py prepare <target_dir> [source_dir]`
+- `python3 tools/ecmaint_oracle.py run <target_dir>`
+- `python3 tools/ecmaint_oracle.py replay-known <fleet-order|planet-build|guard-starbase> <target_dir>`
+
+First replay result:
+
+- `python3 tools/ecmaint_oracle.py replay-known fleet-order /tmp/ecmaint-fleet-oracle`
+  runs cleanly through `ECMAINT` and produces no `ERRORS.TXT`
+- but it does **not** land exactly on `fixtures/ecmaint-fleet-post/v1.5`
+- residual byte drift against the preserved post fixture:
+  - `PLAYER.DAT`: `2`
+  - `PLANETS.DAT`: `18`
+  - `FLEETS.DAT`: `9`
+  - `DATABASE.DAT`: `29`
+- practical implication:
+  - the current accepted `fleet-order` pre-maint generator is sufficient for
+    the known scenario validator, but it is not yet an exact replay of the
+    preserved campaign-state transition
+  - use these residual diffs as the next black-box rule queue instead of
+    assuming the preserved `fleet-order` pre state is fully exact

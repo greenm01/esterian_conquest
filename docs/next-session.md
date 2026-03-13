@@ -29,6 +29,29 @@ Default harness:
 - submit orders or mutate one narrow field family
 - `python3 tools/ecmaint_oracle.py run <target_dir>`
 
+Known replay harness:
+
+- `python3 tools/ecmaint_oracle.py replay-known fleet-order /tmp/ecmaint-fleet-oracle`
+- `python3 tools/ecmaint_oracle.py replay-known planet-build /tmp/ecmaint-build-oracle`
+- `python3 tools/ecmaint_oracle.py replay-known guard-starbase /tmp/ecmaint-starbase-oracle`
+
+First concrete replay result:
+
+- `python3 tools/ecmaint_oracle.py replay-known fleet-order /tmp/ecmaint-fleet-oracle`
+  runs cleanly through `ECMAINT`, but does **not** land exactly on the
+  preserved `fixtures/ecmaint-fleet-post/v1.5` directory
+- residual drift after the replay:
+  - `PLAYER.DAT`: `2` bytes
+  - `PLANETS.DAT`: `18` bytes
+  - `FLEETS.DAT`: `9` bytes
+  - `DATABASE.DAT`: `29` bytes
+- practical implication:
+  - our accepted pre-maint `fleet-order` generator is sufficient for the known
+    scenario validator, but it is not yet a full exact replay of the preserved
+    campaign-state transition
+  - use the oracle replay diffs as the next rule-discovery queue instead of
+    assuming the current pre-maint shape is exact
+
 Escalate to deep RE only when:
 
 - the path is blocking broader compliant gamestate generation
