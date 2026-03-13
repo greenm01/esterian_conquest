@@ -362,8 +362,8 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 - starbase:     10/10 ✅ 100%
 - econ:          8/10 ⏳ 80%  — blocked on rogue AI (deferred, stochastic)
 - bombard:       9/10 ⏳ 90%  — FLEETS 2 bytes: CA/DD ship losses (stochastic, deferred)
+- fleet-battle:  7/10 ⏳ 70%  — 23 bytes FLEETS diff (battle position/ship-counts stochastic)
 - invade:       TBD
-- fleet-battle: TBD
 
 **187 tests passing, 0 failing.**
 
@@ -375,6 +375,8 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 - Year advancement ✅
 - Fleet movement (speed formula, transit flags, arrival) ✅
 - Fleet co-location merging (pre-merge, ROE=10, ID remapping, PLAYER chain update) ✅
+- Fleet battle detection and rogue retreat (SeekHome to other fleet locations) ✅
+- MoveOnly arrival preserves speed/order (does not clear to Hold) ✅
 - Planet colonization (ColonizeWorld arrival, new-colony markers) ✅
 - Player planet stats recompute (raw[0x50] count, raw[0x52] prod sum) ✅
 - CONQUEST.DAT economic sim (0x0c..0x15 prod block, 0x1a..0x1b, 0x20..0x54) ✅
@@ -401,9 +403,9 @@ Affected mechanics (deferred until structure is solid across all scenarios):
 - Rogue/autopilot AI economy choices (factories, armies, tax)
 
 **Next priorities:**
-1. fleet-battle: FLEETS.DAT size wrong (594 vs 756 bytes) — fleet merging producing wrong count
-2. invade: PLAYER/PLANETS/FLEETS/DATABASE all have diffs — planet conquest + invasion mechanics
-3. Once structural mechanics are solid across all scenarios, define stochastic rules as a unit
+1. invade: Build clean test fixture + implement invasion mechanics (planet ownership, army handling)
+2. fleet-battle: Optional - improve battle position accuracy (currently stochastic-diff acceptable)
+3. Once structural mechanics are solid, define stochastic combat rules as a unit
 
 ---
 
