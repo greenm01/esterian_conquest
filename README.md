@@ -48,6 +48,12 @@ Known scenario replay:
 - `python3 tools/ecmaint_oracle.py replay-known planet-build /tmp/ecmaint-build-oracle`
 - `python3 tools/ecmaint_oracle.py replay-known guard-starbase /tmp/ecmaint-starbase-oracle`
 
+Exact replayable pre-maint directory init:
+- `ec-cli scenario-init-replayable [source_dir] <target_dir> <fleet-order|planet-build|guard-starbase>`
+- this overlays the shared preserved pre-maint `CONQUEST.DAT` / `DATABASE.DAT`
+  replay context on top of the existing scenario generator so the output
+  matches the preserved pre-maint fixture exactly for the known scenarios
+
 Preserved fixture replay validation:
 - `python3 tools/ecmaint_oracle.py replay-preserved fleet-order /tmp/ecmaint-fleet-pre-direct`
 - `python3 tools/ecmaint_oracle.py replay-preserved planet-build /tmp/ecmaint-build-pre-direct`

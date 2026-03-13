@@ -99,6 +99,31 @@ Preserved pre/post replay validation:
   - the remaining replay gaps are in the Rust-generated pre states, not in the
     replay method
 
+Current replayable-init milestone:
+
+- the shared gap in the Rust-generated pre states is now isolated to the same
+  preserved pre-maint replay context files across all three known scenarios:
+  - `CONQUEST.DAT`
+  - `DATABASE.DAT`
+- those bytes are identical across:
+  - `ecmaint-fleet-pre`
+  - `ecmaint-build-pre`
+  - `ecmaint-starbase-pre`
+- use:
+  - `ec-cli scenario-init-replayable [source_dir] <target_dir> <scenario>`
+  when you want an exact preserved pre-maint directory for a known scenario,
+  not just an accepted gameplay-table shape
+- this now closes the gap completely for the known scenarios:
+  - `fleet-order`
+  - `planet-build`
+  - `guard-starbase`
+- practical implication:
+  - the earlier `replay-known` residuals were caused by missing shared
+    pre-maint replay context, not by unresolved per-scenario post-maint rules
+  - for the known scenario families, the next rule-discovery queue is no
+    longer in `PLANETS.DAT` gameplay bytes; it is in broader mechanics that do
+    not yet have preserved replayable pre-maint constructors
+
 Escalate to deep RE only when:
 
 - the path is blocking broader compliant gamestate generation

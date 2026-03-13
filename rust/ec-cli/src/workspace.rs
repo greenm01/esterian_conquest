@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use crate::support::paths::{init_fixture_dir, post_maint_fixture_dir};
+use crate::support::paths::{init_fixture_dir, post_maint_fixture_dir, pre_maint_replay_context_fixture_dir};
 
 pub(crate) const INIT_FILES: &[&str] = &[
     "BASES.DAT",
@@ -25,6 +25,8 @@ pub(crate) const CURRENT_KNOWN_CORE_FILES: &[&str] = &[
     "SETUP.DAT",
     "CONQUEST.DAT",
 ];
+
+pub(crate) const PRE_MAINT_REPLAY_CONTEXT_FILES: &[&str] = &["CONQUEST.DAT", "DATABASE.DAT"];
 
 const ORIGINAL_FILES: &[&str] = &[
     "BASES.DAT",
@@ -62,6 +64,16 @@ pub fn copy_current_known_core_files(
     target: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     copy_named_files(source, target, CURRENT_KNOWN_CORE_FILES)
+}
+
+pub fn copy_pre_maint_replay_context_files(
+    target: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    copy_named_files(
+        &pre_maint_replay_context_fixture_dir(),
+        target,
+        PRE_MAINT_REPLAY_CONTEXT_FILES,
+    )
 }
 
 pub fn match_fixture_set(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {

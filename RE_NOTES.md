@@ -4907,3 +4907,25 @@ Further replay results:
   - practical implication:
     - Guard Starbase is now effectively out of the critical path for
       compliance work
+
+Resolved replay-gap cause:
+
+- comparing the Rust-generated known pre states directly against the preserved
+  pre fixtures showed that the gameplay tables already matched:
+  - `PLAYER.DAT`
+  - `PLANETS.DAT`
+  - `FLEETS.DAT`
+  - `BASES.DAT` where applicable
+- the only shared pre-maint gap across all three known scenarios was:
+  - `CONQUEST.DAT`
+  - `DATABASE.DAT`
+- that shared gap is identical across:
+  - `ecmaint-fleet-pre`
+  - `ecmaint-build-pre`
+  - `ecmaint-starbase-pre`
+- `ec-cli scenario-init-replayable [source_dir] <target_dir> <scenario>` now
+  overlays that shared pre-maint replay context and produces exact preserved
+  pre-maint directories for the known scenarios
+- practical implication:
+  - the earlier `replay-known` residuals were a scenario-construction issue,
+    not missing per-scenario post-maint rules

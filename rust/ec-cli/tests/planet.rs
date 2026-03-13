@@ -138,3 +138,33 @@ fn scenario_init_planet_build_materializes_runnable_directory() {
 
     cleanup_dir(&target);
 }
+
+#[test]
+fn scenario_init_replayable_planet_build_matches_exact_preserved_pre_fixture() {
+    let target = unique_temp_dir("ec-cli-planet-build-init-replayable");
+
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "scenario-init-replayable",
+            "fixtures/ecmaint-post/v1.5",
+            target.to_str().unwrap(),
+            "planet-build",
+        ],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Replayable scenario directory initialized at"));
+
+    for name in [
+        "PLAYER.DAT",
+        "PLANETS.DAT",
+        "FLEETS.DAT",
+        "SETUP.DAT",
+        "CONQUEST.DAT",
+        "DATABASE.DAT",
+    ] {
+        let expected = repo_root().join("fixtures/ecmaint-build-pre/v1.5").join(name);
+        assert_eq!(fs::read(target.join(name)).unwrap(), fs::read(expected).unwrap());
+    }
+
+    cleanup_dir(&target);
+}

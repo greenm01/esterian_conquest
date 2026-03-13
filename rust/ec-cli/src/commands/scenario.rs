@@ -7,7 +7,7 @@ use crate::commands::fleet_order::apply_fleet_order_scenario;
 use crate::commands::guard_starbase::apply_guard_starbase_scenario;
 use crate::commands::planet_build::apply_planet_build_scenario;
 use crate::support::paths::repo_root;
-use crate::workspace::copy_init_files;
+use crate::workspace::{copy_init_files, copy_pre_maint_replay_context_files};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum KnownScenario {
@@ -193,6 +193,18 @@ pub(crate) fn init_known_scenario(
     copy_init_files(source, target)?;
     apply_known_scenario(target, scenario)?;
     println!("Scenario directory initialized at {}", target.display());
+    Ok(())
+}
+
+pub(crate) fn init_known_replayable_scenario(
+    source: &Path,
+    target: &Path,
+    scenario: KnownScenario,
+) -> Result<(), Box<dyn std::error::Error>> {
+    copy_init_files(source, target)?;
+    copy_pre_maint_replay_context_files(target)?;
+    apply_known_scenario(target, scenario)?;
+    println!("Replayable scenario directory initialized at {}", target.display());
     Ok(())
 }
 

@@ -51,6 +51,7 @@ pub fn print_usage() {
     println!("  ec-cli scenario <dir> list");
     println!("  ec-cli scenario-init-all [source_dir] <target_root>");
     println!("  ec-cli scenario-init [source_dir] <target_dir> <fleet-order|planet-build|guard-starbase>");
+    println!("  ec-cli scenario-init-replayable [source_dir] <target_dir> <fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli scenario-init-compose [source_dir] <target_dir> <fleet-order|planet-build|guard-starbase>...");
     println!("  ec-cli validate <dir> <all|fleet-order|planet-build|guard-starbase>");
     println!("  ec-cli validate-preserved <dir> <all|fleet-order|planet-build|guard-starbase>");

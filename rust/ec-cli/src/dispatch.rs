@@ -32,7 +32,7 @@ use crate::commands::planet_build::{
 };
 use crate::commands::scenario::{
     apply_known_scenario, apply_known_scenarios, init_all_known_scenarios, init_known_scenario,
-    init_known_scenario_chain,
+    init_known_replayable_scenario, init_known_scenario_chain,
     print_known_scenario_details, print_known_scenarios, validate_all_known_scenarios,
     validate_all_preserved_scenarios, validate_known_scenario, validate_preserved_scenario,
     KnownScenario,
@@ -498,6 +498,19 @@ pub fn run_args(
             };
             match KnownScenario::parse(&scenario_name) {
                 Some(scenario) => init_known_scenario(&source, &target, scenario)?,
+                None => print_usage(),
+            }
+        }
+        "scenario-init-replayable" => {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((source, target, scenario_name)) =
+                parse_optional_source_target_and_name(remaining, post_maint_fixture_dir())
+            else {
+                print_usage();
+                return Ok(());
+            };
+            match KnownScenario::parse(&scenario_name) {
+                Some(scenario) => init_known_replayable_scenario(&source, &target, scenario)?,
                 None => print_usage(),
             }
         }
