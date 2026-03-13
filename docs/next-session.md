@@ -72,8 +72,16 @@ Priority order:
      - practical implication:
        - the `unknown starbase` discriminator is not in the base-side decoded
          `3558/355A` object
-       - the remaining rule must be later, in the candidate-side match path or
-         a follow-on guard/flag check
+       - static fleet-branch mapping also shows `fleet[0x23]` is not read by
+         the kind-`1` summary emitter at `2000:6040..6368`
+       - the remaining rule must therefore be later than both:
+         - the base-side kind-`2` decode
+         - the fleet-side kind-`1` summary emission
+       - the new `0000:06AE..0800` dump shows kind `2` falls straight into the
+         generic post-kind canonicalization path; the special work there is for
+         kind `3`
+       - next target should therefore be the later consumer of canonicalized
+         summaries that still has access to guard/order semantics
 
 2. Recover initialized-to-post-maint deterministic rules
    - use canonical post-maint diff output from normalized `original/v1.5`
@@ -101,8 +109,13 @@ Best immediate task:
   - a failing `unknown starbase` case
   - the new narrowing is that the failing `fleet[0x23] = 0` case already has
     the same base-side decoded keys as the accepted case
-  - so the next capture should target the candidate-side match path or the
-    later guard/flag check, not the base decode itself
+  - static fleet-branch mapping also rules out `fleet[0x23]` as an input to
+    the emitted kind-`1` summary itself
+  - the immediate `0000:06AE..0800` handoff is mostly generic
+    canonicalization, not a starbase-specific decision block
+  - so the next capture/search should target the later consumer of the
+    canonicalized summaries, not the base decode, raw kind-`1` summary
+    emission, or the immediate post-match handoff
 - once those rules are recovered, promote them into `CoreGameData`
 
 Why this first:

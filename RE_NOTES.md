@@ -4299,3 +4299,51 @@ Practical consequence:
   base-side decoded matcher object
 - the remaining discriminator must be later in the kind-`1` candidate-side
   match path or in a follow-on guard/flag check after the identical base decode
+
+Static consequence from the fleet-side emitter:
+- the `2000:6040..6368` kind-`1` summary emitter reads:
+  - fleet `0x00..0x01` into summary `+0x0A`
+  - fleet `0x05..0x06` into the follow-on summary `+0x06`
+  - fleet `0x0B` / `0x0C` into summary `+0x01` / `+0x02`
+  - fleet `0x19..0x1D` into the derived summary `+0x05`
+- it does **not** read fleet `0x22` or `0x23` while building the kind-`1`
+  summary entries
+- practical implication:
+  - the failing `fleet[0x23] = 0` case cannot be explained by a different
+    emitted kind-`1` summary shape from `2000:6040..6368`
+  - the remaining `unknown starbase` discriminator is later than:
+    - the base-side kind-`2` decode
+    - the fleet-side kind-`1` summary emission
+  - the next highest-value target is therefore the post-match guard/flag
+    resolution path rather than more matcher-key captures
+
+Immediate post-match handoff dump (`0000:06AE..0800`):
+
+Artifacts:
+- `artifacts/ghidra/ecmaint-live/kind2-post-match.txt`
+
+Tool:
+- `tools/ghidra_scripts_tmp/ReportKind2PostMatch.java`
+
+Recovered shape:
+- `0000:06AE` immediately jumps to `0000:079E`
+- the `0000:06B1..079A` block is a kind-`3` / `IPBM`-specific setup path:
+  - `CMP AL,0x3`
+  - decodes from `0x3538`
+  - seeds tuple locals used by the later shared pipeline
+- `0000:079E..` is the already-known common post-kind canonicalization path
+  beginning at the same `0000:07DA` cluster previously tied to summary
+  canonicalization
+
+Practical consequence:
+- the kind-`2` starbase path does not have a rich starbase-specific handoff
+  immediately after `0000:06AE`; it falls directly into the generic
+  canonicalization stage
+- combined with the identical base-side decode and the fact that fleet
+  `0x23` is not part of kind-`1` summary emission, the remaining
+  `unknown starbase` discriminator is now best modeled as later than:
+  - the base-side matcher decode
+  - the fleet-side summary emission
+  - the immediate post-match handoff into common canonicalization
+- next best target: the later consumer of canonicalized kind-`1` / kind-`2`
+  summaries that still has access to guard/order semantics
