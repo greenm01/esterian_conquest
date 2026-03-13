@@ -1,0 +1,100 @@
+LOG: Early LOG Init complete
+LOG: DOSBox-X's working directory: /home/mag/dev/esterian_conquest/fixtures/ecmaint-econ-pre/v1.5
+LOG: Logging init: beginning logging proper. This is the end of the early init logging
+LOG: Logging: No logfile was given. All further logging will be discarded.
+LOG: DOSBox-X version 2026.01.02 Commit 59915c1 (Linux SDL2 64-bit)
+LOG: Prevent capture: 0
+ERROR: Couldn't open /dev/input/event3: Permission denied
+ERROR: Couldn't open /dev/input/event5: Permission denied
+ERROR: Couldn't open /dev/input/event0: Permission denied
+ERROR: Couldn't open /dev/input/event2: Permission denied
+ERROR: Couldn't open /dev/input/event14: Permission denied
+ERROR: Couldn't open /dev/input/mouse2: Permission denied
+ERROR: Couldn't open /dev/input/event8: Permission denied
+ERROR: Couldn't open /dev/input/mouse0: Permission denied
+ERROR: Couldn't open /dev/input/event9: Permission denied
+ERROR: Couldn't open /dev/input/mouse1: Permission denied
+ERROR: Couldn't open /dev/input/event4: Permission denied
+ERROR: Couldn't open /dev/input/event19: Permission denied
+ERROR: Couldn't open /dev/input/mouse3: Permission denied
+ERROR: Couldn't open /dev/input/event6: Permission denied
+ERROR: Couldn't open /dev/input/event20: Permission denied
+ERROR: Couldn't open /dev/input/event21: Permission denied
+ERROR: Couldn't open /dev/input/mouse4: Permission denied
+LOG: SDL: version 2.32.62, Video dummy, Audio dummy
+LOG: Host keyboard layout is now  ()
+LOG: Mapper keyboard layout is now  ()
+ERROR: Couldn't open /dev/input/event3: Permission denied
+ERROR: Couldn't open /dev/input/event5: Permission denied
+ERROR: Couldn't open /dev/input/event0: Permission denied
+ERROR: Couldn't open /dev/input/event2: Permission denied
+ERROR: Couldn't open /dev/input/event14: Permission denied
+ERROR: Couldn't open /dev/input/mouse2: Permission denied
+ERROR: Couldn't open /dev/input/event8: Permission denied
+ERROR: Couldn't open /dev/input/mouse0: Permission denied
+ERROR: Couldn't open /dev/input/event9: Permission denied
+ERROR: Couldn't open /dev/input/mouse1: Permission denied
+ERROR: Couldn't open /dev/input/event4: Permission denied
+ERROR: Couldn't open /dev/input/event19: Permission denied
+ERROR: Couldn't open /dev/input/mouse3: Permission denied
+ERROR: Couldn't open /dev/input/event6: Permission denied
+ERROR: Couldn't open /dev/input/event20: Permission denied
+ERROR: Couldn't open /dev/input/event21: Permission denied
+ERROR: Couldn't open /dev/input/mouse4: Permission denied
+LOG: SDL2 reports desktop display mode 1024 x 768
+LOG: Configured windowposition: -
+LOG: SDL: Current window pixel format: SDL_PIXELFORMAT_RGB888
+LOG: SDL: You are running in 24 bpp mode, this will slow down things!
+LOG: Releasing keyboard
+LOG: Screen report: Method 'None' (-1.000 x -1.000 pixels) at (0.000 x 0.000) (-1.000 x -1.000 mm) (-0.039 x -0.039 in) (-1.000 x -1.000 DPI)
+LOG: ISA BCLK: 8333333.333Hz (25000000/3)
+LOG: monopal: green, 
+LOG: Active save slot: 1 [Empty]
+LOG: USING AVI+ZMBV
+LOG: Max 1073741824 sz 16384
+LOG: Final 16384
+LOG: Final arrangement: Below 4GB = 16384KB, Above 4GB = 0KB
+LOG: ALSA seq enum: id=0 name="System" ports=2 type="kernel"
+LOG: ALSA seq enum: id=14 name="Midi Through" ports=1 type="kernel"
+LOG: ALSA seq enum: id=128 name="Client-128" ports=0 type="user"
+LOG: ALSA seq enum: id=142 name="PipeWire-System" ports=1 type="user"
+LOG: ALSA seq enum: id=143 name="PipeWire-RT-Event" ports=1 type="user"
+LOG: SDLNet_TCP_Open: Couldn't connect to remote host
+LOG: TiMidity: can't open control connection (host=127.0.0.1, port=7777)
+LOG: MIDI:fluidsynth: SoundFont not specified, and no system SoundFont found
+LOG: MIDI:synth: Specify .SF2 sound font file with midiconfig=
+LOG: MT32: failed to locate ROMs.
+LOG: MT32 emulation requires the PCM and CONTROL ROM files.
+LOG: To eliminate this error message, check the DOSBox-X wiki.
+LOG: The ROM files are: CM32L_CONTROL.ROM and CM32L_PCM.ROM or MT32_CONTROL.ROM and MT32_PCM.ROM
+LOG: MIDI:Opened device:none
+LOG: VOODOO LFB now at d0000000
+LOG: Serial1: BASE 3f8h
+LOG: Serial2: BASE 2f8h
+LOG: Parallel1: BASE 378h
+LOG: MPU-401 Registering I/O ports as if IBM PC MPU-401 at base 330h
+LOG: Memory I/O complexity optimization enabled aka option 'memory io optimization 1'. If the game or demo is unable to draw to the screen properly, set the option to false.
+LOG: The 'scanline render on demand' option is available and may provide a modest boost in video render performance if set to true.
+LOG: Screen report: Method 'None' (-1.000 x -1.000 pixels) at (0.000 x 0.000) (-1.000 x -1.000 mm) (-0.039 x -0.039 in) (-1.000 x -1.000 DPI)
+LOG: Allocated APM BIOS pm entry point at f000:ce40
+LOG: Writing code to fce40
+LOG: Writing code to fce60
+LOG: Screen report: Method 'None' (-1.000 x -1.000 pixels) at (0.000 x 0.000) (-1.000 x -1.000 mm) (-0.039 x -0.039 in) (-1.000 x -1.000 DPI)
+LOG: ISA Plug & Play BIOS enabled
+LOG: VGA ROM BIOS init callback
+LOG: pixratio 1.000, dw false, dh false
+LOG: Aspect ratio: 640 x 480  xToY=1.333 yToX=0.750
+LOG: menuScale=1
+LOG: surface consider=640x480 final=640x480
+LOG: Screen report: Method 'None' (-1.000 x -1.000 pixels) at (0.000 x 0.000) (-1.000 x -1.000 mm) (-0.039 x -0.039 in) (-1.000 x -1.000 DPI)
+LOG: WARNING: No translation support (to host) for code page 0
+LOG: DOS keyboard layout loaded with main language code US for layout us
+LOG: COMMAND.COM env size:             720 bytes
+LOG: COMMAND.COM environment block:    0x0701 sz=0x002d
+LOG: COMMAND.COM main body (PSP):      0x072f sz=0x009a
+LOG: COMMAND.COM stack:                0x0749
+LOG: pixratio 1.350, dw false, dh false
+LOG: Aspect ratio: 720 x 540  xToY=1.333 yToX=0.750
+LOG: menuScale=1
+LOG: surface consider=720x400 final=720x400
+LOG: Screen report: Method 'None' (-1.000 x -1.000 pixels) at (0.000 x 0.000) (-1.000 x -1.000 mm) (-0.039 x -0.039 in) (-1.000 x -1.000 DPI)

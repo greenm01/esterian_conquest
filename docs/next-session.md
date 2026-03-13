@@ -361,7 +361,7 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 - move:         10/10 ✅ 100%
 - starbase:     10/10 ✅ 100%
 - invasion:      7/10 ⏳ 70% — implemented, needs oracle fixture validation
-- econ:          8/10 ⏳ 80%  — blocked on rogue AI (deferred, stochastic)
+- econ:          9/10 ✅ 90%  — 2 bytes PLANETS (AI accumulator/armies - acceptable per stochastic policy)
 - bombard:       9/10 ⏳ 90%  — FLEETS 2 bytes: CA/DD ship losses (stochastic, deferred)
 - fleet-battle:  7/10 ⏳ 70%  — 23 bytes FLEETS diff (battle position/ship-counts stochastic)
 
