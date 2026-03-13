@@ -349,6 +349,33 @@ fn maint_rust_join_merge_generates_join_report() {
 }
 
 #[test]
+fn maint_rust_rendezvous_merge_generates_absorbing_report() {
+    let target = unique_temp_dir("ec-cli-maint-rust-rendezvous-absorb");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    game_data.player.records[0].raw[0x00] = 0xff;
+    let coords = game_data.fleets.records[0].current_location_coords_raw();
+    game_data.fleets.records[0].set_standing_order_code_raw(14);
+    game_data.fleets.records[1].set_current_location_coords_raw(coords);
+    game_data.fleets.records[1].set_standing_order_code_raw(14);
+    game_data.save(&target).expect("mutated fixture should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("Rendezvous mission report"));
+    assert!(text.contains("absorbing the") || text.contains("merging with the"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_join_contact_uses_join_report_label() {
     let target = unique_temp_dir("ec-cli-maint-rust-join-contact");
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);

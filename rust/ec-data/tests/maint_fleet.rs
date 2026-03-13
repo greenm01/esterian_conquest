@@ -308,5 +308,28 @@ fn test_join_merge_emits_merge_event() {
         event.fleet_idx == 1
             && event.kind == MissionResolutionKind::JoinAnotherFleet
             && event.owner_empire_raw == 1
+            && !event.survivor_side
+    }));
+}
+
+#[test]
+fn test_rendezvous_merge_emits_survivor_absorption_event() {
+    let mut game_data = load_fixture("ecmaint-post");
+    game_data.player.records[0].raw[0x00] = 0xff;
+    let coords = game_data.fleets.records[0].current_location_coords_raw();
+    game_data.fleets.records[0].set_standing_order_code_raw(14);
+    game_data.fleets.records[1].set_current_location_coords_raw(coords);
+    game_data.fleets.records[1].set_standing_order_code_raw(14);
+
+    let survivor_id = game_data.fleets.records[0].fleet_id();
+    let absorbed_id = game_data.fleets.records[1].fleet_id();
+
+    let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
+
+    assert!(events.fleet_merge_events.iter().any(|event| {
+        event.kind == MissionResolutionKind::RendezvousSector
+            && event.survivor_side
+            && event.host_fleet_id == survivor_id
+            && event.absorbed_fleet_id == absorbed_id
     }));
 }

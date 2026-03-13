@@ -577,6 +577,10 @@ pub(crate) fn regenerate_results_dat(
                 "From your fleet in System({x},{y}): Join mission report: We have joined the {}th Fleet and are now merging with them.",
                 event.host_fleet_id
             ),
+            MissionResolutionKind::RendezvousSector if event.survivor_side => format!(
+                "From your fleet in Sector({x},{y}): Rendezvous mission report: We have arrived at the our rendezvous point and are absorbing the {}th Fleet.",
+                event.absorbed_fleet_id
+            ),
             MissionResolutionKind::RendezvousSector => format!(
                 "From your fleet in Sector({x},{y}): Rendezvous mission report: We have arrived at the our rendezvous point and are merging with the {}th Fleet.",
                 event.host_fleet_id

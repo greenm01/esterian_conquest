@@ -329,6 +329,7 @@ ones.
   friendly merge processing emits:
   - join-merge reports
   - rendezvous-merge reports
+  - survivor-side rendezvous absorption reports
 - current Rust maint policy is still to leave
   [`MESSAGES.DAT`](/home/mag/dev/esterian_conquest/rust/ec-cli/src/commands/reports.rs)
   empty, because every preserved post-maint fixture in the current corpus does so
@@ -616,7 +617,8 @@ enum MaintEvent {
 - [x] scout contact-identification reports exist for hostile fleet encounters
 - [x] join/rendezvous mission-result reporting is promoted into the typed
   event/report pipeline
-- [ ] join host-destruction and absorption edge reports are modeled
+- [x] survivor-side rendezvous absorption reports are modeled
+- [ ] join host-destruction / retarget reports are modeled
 - [ ] no inline report string construction outside the report generation pass
 
 ---
@@ -667,9 +669,8 @@ enum MaintEvent {
 
 1. Recover and model join-host-destroyed / mission-abandoned outcomes from the
    historical logs or fresh oracle scenarios.
-2. Recover and model rendezvous “absorbing the Nth Fleet” wording as distinct
-   from the current generic “merging with” path when the host/survivor side is
-   known.
+2. Recover and model join retarget wording when the intended host merges into a
+   different survivor before the joining fleet arrives.
 3. Keep refining `RESULTS.DAT` family formatting against preserved fixtures and
    historical session logs.
 4. Do not add a canonical `MESSAGES.DAT` writer until a non-empty maint-driven

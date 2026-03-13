@@ -76,8 +76,12 @@ pub struct FleetMergeEvent {
     pub kind: MissionResolutionKind,
     /// Host fleet ID that remained after the merge.
     pub host_fleet_id: u8,
+    /// Fleet ID that was absorbed/merged away.
+    pub absorbed_fleet_id: u8,
     /// Coordinates where the merge occurred.
     pub coords: [u8; 2],
+    /// Whether this is the survivor-side "absorbing" report.
+    pub survivor_side: bool,
 }
 
 /// The generic outcome class for a mission report.
@@ -886,8 +890,21 @@ fn process_fleet_merging(
                         owner_empire_raw: owner,
                         kind,
                         host_fleet_id: game_data.fleets.records[survivor_idx].fleet_id(),
+                        absorbed_fleet_id: game_data.fleets.records[fi].fleet_id(),
                         coords,
+                        survivor_side: false,
                     });
+                    if kind == MissionResolutionKind::RendezvousSector {
+                        merge_events.push(FleetMergeEvent {
+                            fleet_idx: survivor_idx,
+                            owner_empire_raw: owner,
+                            kind,
+                            host_fleet_id: game_data.fleets.records[survivor_idx].fleet_id(),
+                            absorbed_fleet_id: game_data.fleets.records[fi].fleet_id(),
+                            coords,
+                            survivor_side: true,
+                        });
+                    }
                 }
 
                 // Sum ship counts into survivor.
