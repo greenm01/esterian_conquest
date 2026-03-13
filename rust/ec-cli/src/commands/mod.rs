@@ -9,6 +9,7 @@ pub(crate) mod guard_starbase;
 pub(crate) mod inspect;
 pub(crate) mod invade;
 pub(crate) mod ipbm;
+pub(crate) mod maint;
 pub(crate) mod planet_build;
 pub(crate) mod scenario;
 pub(crate) mod setup;

@@ -160,21 +160,132 @@ What is still incomplete:
 - Variable player_count edge cases (tested but could use more coverage)
 - ECGAME ANSI/startup preservation (useful but not the main blocker)
 
-## Next Milestone: Rust ECMAINT Replacement
+### ⏳ Milestone 4: Rust ECMAINT Replacement — IN PROGRESS
 
-With Milestone 3 complete, the foundation is set for the ultimate goal: a full Rust reimplementation of ECMAINT. The path forward:
+**Definition:** Reimplement `ECMAINT.EXE` behavior in Rust with deterministic, reproducible outputs that match the original binary. Use the compliant generator (Milestone 3) as the test oracle harness.
 
-1. Use the compliant generator as the test oracle harness
-2. Port ECMAINT mechanics incrementally, validating against the original binary
-3. Eventually achieve 100% deterministic output match
+#### Phase 1: Mechanic Inventory and Test Harness — IN PROGRESS ⏳
+
+**Goal:** Identify all ECMAINT mechanics and establish the validation harness.
+
+**Mechanics to port (from `ECMAINT.EXE` analysis):**
+- Fleet movement resolution (order execution, pathfinding, arrival)
+- Combat resolution (fleet battles, starbase defense, IPBM interception)
+- Build completion (shipyard queues, industrial output)
+- Economic simulation (resource extraction, maintenance costs)
+- Starbase mechanics (guard orders, base construction)
+- IPBM flight and impact resolution
+- Planet ownership changes (invasion, bombardment)
+- AI / rogue empire behavior
+- Database and report generation (MESSAGES.DAT, RESULTS.DAT)
+
+**Test harness setup:**
+- Generate controlled pre-maint state with `GameStateBuilder`
+- Run both Rust maintenance and original `ECMAINT` on identical inputs
+- Compare output `.DAT` files byte-for-byte
+- Report parity percentage per mechanic
+
+**Acceptance criteria:**
+- [ ] Catalog all major ECMAINT mechanics with entry points
+- [ ] `ec-cli maint-rust <dir>` command that runs Rust maintenance
+- [ ] `ec-cli maint-compare <dir>` command that diffs Rust vs original outputs
+- [ ] At least one mechanic achieving 100% deterministic match
+
+#### Phase 2: Incremental Mechanic Porting — PENDING
+
+**Goal:** Port mechanics one at a time, starting with simplest.
+
+**Priority order:**
+1. Build completion (deterministic queues, no randomness)
+2. Fleet movement (path logic, fuel consumption)
+3. Economic tick (resource math)
+4. Combat resolution (requires RNG understanding)
+5. AI behavior (most complex, defer until core mechanics solid)
+
+**Per-mechanic workflow:**
+1. Create mechanic-specific test scenario with `init_*` command
+2. Implement in `ec-data/src/maint/<mechanic>.rs`
+3. Run `maint-compare` to measure parity
+4. Iterate until 100% match or document acceptable divergence
+5. Add regression test locking in the behavior
+
+**Acceptance criteria:**
+- [ ] Build completion: 100% deterministic match
+- [ ] Fleet movement: 100% deterministic match  
+- [ ] Economic tick: 100% deterministic match
+- [ ] Combat resolution: documented RNG behavior, 100% match given same seed
+
+#### Phase 3: Cross-File Integrity Preservation — PENDING
+
+**Goal:** Ensure all cross-file invariants from Milestone 3 are maintained during maintenance.
+
+**Critical linkages:**
+- PLAYER.starbase_count ↔ BASES.DAT record count
+- PLAYER.ipbm_count ↔ IPBM.DAT record count
+- FLEETS.DAT owner indices ↔ valid player range
+- PLANETS.DAT ownership ↔ player indices
+
+**Acceptance criteria:**
+- [ ] All M3 validators pass on post-maint state
+- [ ] No ECMAINT-style integrity errors generated
+- [ ] Round-trip test: pre-maint → Rust maint → ECMAINT accepts → post-maint matches
+
+#### Phase 4: Full Replacement and Parity — PENDING
+
+**Goal:** Rust maintenance achieves full functional parity with original.
+
+**Final validation:**
+- Run full oracle sweep (all 10 M3 configs) through Rust maint
+- Compare outputs: byte-exact match or documented acceptable differences
+- Performance: Rust maint runs in <10% of ECMAINT time (DOSBox overhead removed)
+
+**Acceptance criteria:**
+- [ ] 100% oracle acceptance on all M3 test configurations
+- [ ] Byte-exact or documented-acceptable output match
+- [ ] Performance target met
+- [ ] All 180+ tests pass plus new maint-specific tests
 
 ---
 
-## Canonical Baseline Tools
+## Milestone 4 Implementation Plan
+
+### Step 1: Study Econ Fixture Pair ✅
+Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
+
+**Findings:**
+- Econ scenario changes: year 3010→3012, FLEETS.DAT restructures (16→13 fleets)
+- Move scenario is cleaner: same fleet count (16), just position changes
+- CONQUEST.DAT and PLAYER.DAT both update during maintenance
+
+### Step 2: Add `maint-rust` Command Skeleton — COMPLETE ✅
+- ✅ New `rust/ec-cli/src/commands/maint.rs`
+- ✅ Implements `run_rust_maintenance()` - currently just increments year
+- ✅ Integrated into `ec-cli` dispatch and usage
+
+### Step 3: Add `maint-compare` Command — COMPLETE ✅
+- ✅ `compare_maintenance()` runs both Rust and original ECMAINT
+- ✅ Copies input dir to temp locations, runs both implementations
+- ✅ Compares all .DAT files and reports parity per-file
+- ⚠️ Requires original ECMAINT.EXE to be present in input directory
+
+### Step 4: Implement First Mechanic — NEXT STEP
+**Decision:** Start with year advancement (simplest deterministic change)
+- Target: Rust year increment matches ECMAINT behavior exactly
+- Then move to fleet position updates in move scenario
+
+### Step 5: Regression Test — PENDING
+- Add `ec-data/tests/maint_year.rs` locking in year advancement
+- Add `ec-data/tests/maint_move.rs` for fleet position changes
+
+---
+
+## Current State
 
 - `cargo run -q -p ec-cli -- generate-gamestate <dir> <players> <year> [coords...]`
 - `cargo run -q -p ec-cli -- compliance-report <dir>`
 - `cargo run -q -p ec-cli -- core-validate-current-known-baseline <dir>`
+- `cargo run -q -p ec-cli -- maint-rust <dir>` — Run Rust maintenance (WIP)
+- `cargo run -q -p ec-cli -- maint-compare <dir>` — Compare Rust vs ECMAINT output
 - `python3 tools/oracle_sweep.py`
 
 ## RE Focus Files

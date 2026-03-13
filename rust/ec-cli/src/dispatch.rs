@@ -38,6 +38,7 @@ use crate::commands::bombard::{init_bombard, init_bombard_batch, set_bombard_one
 use crate::commands::econ::{init_econ, init_econ_batch, set_econ};
 use crate::commands::fleet_battle::{init_fleet_battle, init_fleet_battle_batch, set_fleet_battle};
 use crate::commands::invade::{init_invade, init_invade_batch, set_invade_onefleet};
+use crate::commands::maint::{compare_maintenance, run_rust_maintenance};
 use crate::commands::scenario::{
     apply_known_scenario, apply_known_scenarios, init_all_known_scenarios,
     init_known_replayable_scenario, init_known_scenario, init_known_scenario_chain,
@@ -238,6 +239,14 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
                     eprintln!("Error generating gamestate: {}", e);
                 }
             }
+        }
+        "maint-rust" => {
+            let dir = next_dir(&mut args);
+            run_rust_maintenance(&dir)?;
+        }
+        "maint-compare" => {
+            let dir = next_dir(&mut args);
+            compare_maintenance(&dir)?;
         }
         "maintenance-days" => {
             let dir = next_dir(&mut args);
