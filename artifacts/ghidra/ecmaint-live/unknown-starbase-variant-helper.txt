@@ -1,0 +1,105 @@
+# Unknown Starbase Variant Helper
+
+- Focus: `0x3000:44b7` and the nearby `CS:6766` data passed
+  with `3521` by the later starbase path.
+
+## 3000:44b7..4560
+
+3000:44b7  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44b9  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44bb  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44bd  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44bf  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44c1  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44c3  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44c5  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44c7  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44c9  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44cb  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44cd  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44cf  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44d1  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44d3  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44d5  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44d7  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44d9  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44db  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44dd  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44df  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44e1  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44e3  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44e5  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44e7  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44e9  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44eb  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44ed  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44ef  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44f1  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44f3  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44f5  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44f7  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44f9  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44fb  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44fd  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:44ff  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4501  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4503  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4505  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4507  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4509  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:450b  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:450d  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:450f  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4511  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4513  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4515  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4517  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4519  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:451b  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:451d  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:451f  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4521  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4523  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4525  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4527  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4529  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:452b  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:452d  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:452f  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4531  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4533  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4535  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4537  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4539  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:453b  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:453d  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:453f  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4541  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4543  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4545  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4547  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4549  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:454b  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:454d  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:454f  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4551  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4553  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4555  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4557  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:4559  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:455b  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:455d  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+3000:455f  ADD byte ptr [BX + SI],AL        ; bytes=00 00
+
+## 3000:6766 Bytes
+
+3000:6766  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+3000:6776  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+3000:6786  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+3000:6796  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+3000:67a6  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+3000:67b6  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+Interpretation:
+- goal is to determine whether `3521` selects table rows,
+  threshold bands, or another variant class through this helper

@@ -4606,6 +4606,14 @@ Strong practical consequence:
       report references, not plain raw-import string blobs
     - the useful static milestone is the branch-role split above, not the exact
       text bodies yet
+- a focused raw-dump probe on the downstream `3521` consumer now confirms the
+  same limitation for `0x3000:44b7` and `CS:6766`
+  - in the current `MEMDUMP.BIN` raw import, both ranges are all zero bytes
+  - practical consequence:
+    - the remaining `3521` semantics cannot be recovered from the current raw
+      import alone
+    - the next method must be runtime-aware capture around the live consumer,
+      not more blind carving of the zeroed `3000:` range
 
 Artifacts:
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-predicate.txt`
@@ -4617,6 +4625,7 @@ Artifacts:
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-resolution-loop.txt`
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-variant-strings.txt`
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-mode-selector.txt`
+- `artifacts/ghidra/ecmaint-live/unknown-starbase-variant-helper.txt`
 
 Tool:
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbasePredicate.java`
@@ -4625,6 +4634,7 @@ Tool:
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseResolutionLoop.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseVariantStrings.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseModeSelector.java`
+- `tools/ghidra_scripts_tmp/ReportUnknownStarbaseVariantHelper.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbasePayloadProducers.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseScalarScan.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseLateRanges.java`

@@ -173,6 +173,12 @@ Priority order:
          - exact runtime text bodies for the late CS-local report references
            around `0x0d30` / `0x0d53`, which did not decode as plain raw-import
            strings
+         - the downstream `3521` consumer at `0x3000:44b7` also appears as
+           zero bytes in the current raw `MEMDUMP.BIN`, and so does `CS:6766`
+           - practical implication:
+             - remaining `3521` semantics now require runtime-aware capture
+               around the live consumer
+             - do not spend more time blindly carving the zeroed `3000:` range
 
 2. Recover initialized-to-post-maint deterministic rules
    - use canonical post-maint diff output from normalized `original/v1.5`
