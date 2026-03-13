@@ -275,26 +275,23 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 - ✅ Multi-turn advancement works correctly
 - ✅ All 183 tests pass (added maint_year.rs)
 
-#### Fleet Movement — IN PROGRESS ⏳
-- ✅ Basic movement harness implemented
-- ✅ Uses RE_NOTES.md formula: distance = speed / 1.5
-- ✅ Multi-turn support added to `maint-rust` and `maint-compare`
-- ⚠️ **Discovery:** Move scenario doesn't trigger ECMAINT properly (oracle shows 0 changes)
-- ⚠️ **Fleet scenario works:** ECMAINT processes correctly, year 3000→3001
-- ⚠️ Complex field updates in fleet scenario:
-  - Position changes (0x0b-0x0c): x, y coordinates
-  - Max speed (0x09): Changes 16→15 (decrease, not increase!)
-  - Tuple payload A (0x0d-0x11): Likely ETA/distance tracking
-  - Link fields (0x17): Changes from 129 to 128
-  - Invasion armies (0x08): Cleared from 3→0
-  - Order tail (0x1d): Changes from 0x0c→0x00
-- **Current parity on fleet scenario (1 turn):** 50% (5/10 files match)
-- **Files needing work in fleet scenario:**
-  - CONQUEST.DAT (51 bytes - header updates beyond year)
-  - PLAYER.DAT (2 bytes - player statistics)
-  - PLANETS.DAT (18 bytes - planet state changes)
-  - FLEETS.DAT (9 bytes - movement processing)
-  - DATABASE.DAT (109 bytes - needs regeneration from PLANETS)
+#### Fleet Movement and Colonization — COMPLETE ✅
+- ✅ Movement formula confirmed: **speed * 8/9 per turn** (sub-grid of 9 units/cell)
+  - Each turn: `sub_acc += speed * 8; int_move = sub_acc / 9; sub_acc %= 9`
+  - Fractional accumulator persisted in `raw[0x0f]`: encoding `(sub_acc - 9) * 2/3`
+  - Transit flags set when fleet starts moving but does not arrive same turn:
+    - `raw[0x0d]` → `0x7f`, `raw[0x0e]` → `0xc0`, `raw[0x10..0x12]` → `[0xff,0xff,0x7f]`
+    - `raw[0x19]` → `0x00` (departure flag cleared)
+  - On arrival: `raw[0x19]` → `0x80`, arrival payload set; transit flags NOT touched
+- ✅ On arrival: current_speed=0, order_code=0 (HoldPosition), tuple_c+raw[0x1e] set
+- ✅ ColonizeWorld arrival triggers planet colonization
+- ✅ Planet colonization: name→"Not Named Yet", owner set, army_count=1, raw[0x03]=0x81
+- ✅ Player.dat planet count and economic field updated on colonization
+- ✅ DATABASE.DAT orbit records updated with year stamp (data-driven, not hardcoded)
+- ✅ DATABASE.DAT colonized-planet record updated with planet intel
+- **Current parity on fleet scenario (1 turn):** ✅ **100% (10/10 files match)**
+- **Current parity on move scenario (3 turns):** ✅ **100% (10/10 files match)**
+- **5 regression tests in `ec-data/tests/maint_fleet.rs`**
 
 #### Build Completion — IMPLEMENTED ✅
 - ✅ Build queue processing with production calculation
@@ -323,8 +320,15 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 ### Step 5: Regression Test — IN PROGRESS
 - ✅ Year advancement tests (3 tests)
 - ✅ Multi-turn support tests (via CLI)
+- ✅ Fleet movement tests (5 tests in `ec-data/tests/maint_fleet.rs`)
 - ⏳ Build completion tests (pending)
-- ⏳ Fleet movement tests (pending full implementation)
+
+### Step 6: Bug fixes this session
+- ✅ `maint-compare`: copy `ECMAINT.EXE` from `original/v1.5/` if missing in oracle dir
+- ✅ `maint-compare`: pass `SDL_VIDEODRIVER=dummy` / `SDL_AUDIODRIVER=dummy` to prevent DOSBox window
+- ✅ Movement formula corrected: `speed * 8/9` (not `speed / 1.5`)
+- ✅ Transit flag bytes set correctly (`raw[0x0d]`, `0x0e`, `0x0f`, `0x10-0x12`, `0x19`)
+- ✅ `CONQUEST.DAT` `0x4a` guard fixed (independent of `0x4b` value)
 
 ---
 
@@ -334,14 +338,18 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 **Milestone 4 Phase 2:** Mechanics implementation — IN PROGRESS
 - Year advancement: ✅ 100% match
 - Build completion: ✅ **100% match** (10/10 files)
-  - ✅ PLANETS.DAT: 100% (0 bytes)
-  - ✅ DATABASE.DAT: 100% (0 bytes)  
-  - ✅ CONQUEST.DAT: 100% (0 bytes - economic simulation complete)
-- Fleet movement: ⏳ 50% match
+- Fleet movement / colonization: ✅ **100% match** (fleet scenario + move scenario)
+- Econ scenario: ⏳ 50% (5/10) — involves fleet merging/deletion not yet implemented
 
-**Major milestone achieved:**
-- ✅ Build scenario: **100% parity** - All 10 files match perfectly!
-- Build completion mechanics fully implemented and validated
+**187 tests passing**, 0 failing.
+
+**Scenarios at 100% parity:**
+- build: 10/10 ✅
+- fleet: 10/10 ✅
+- move: 10/10 ✅
+
+**Next unresolved scenario:**
+- econ: 5/10 — FLEETS.DAT 254 bytes differ (fleet restructuring), CONQUEST/PLAYER/PLANETS/DATABASE also differ
 
 ---
 

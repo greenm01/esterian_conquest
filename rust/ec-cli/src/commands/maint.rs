@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use ec_data::{run_maintenance_turn, CoreGameData, DatabaseDat};
+use ec_data::{run_maintenance_turn, CoreGameData, DatabaseDat, PlanetDat};
 
 /// Run Rust maintenance on a game directory for specified number of turns
 pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::error::Error>> {
@@ -16,6 +16,11 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
     // Load the game state
     let mut game_data = CoreGameData::load(dir)?;
     let start_year = game_data.conquest.game_year();
+
+    // Save a snapshot of the pre-maint planets so we can inspect build queues later.
+    // DATABASE.DAT regeneration needs to know which planets had active builds
+    // in order to clear the 0x1e field in the corresponding orbit records.
+    let pre_maint_planets = game_data.planets.clone();
 
     // Run maintenance logic for specified turns
     for turn in 1..=turns {
@@ -33,16 +38,20 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
     game_data.save(dir)?;
 
     // Regenerate DATABASE.DAT from PLANETS.DAT
-    regenerate_database_dat(dir, &game_data)?;
+    regenerate_database_dat(dir, &game_data, &pre_maint_planets)?;
 
     println!("Rust maintenance complete.");
     Ok(())
 }
 
 /// Regenerate DATABASE.DAT from current PLANETS.DAT and CONQUEST.DAT year.
+///
+/// `pre_maint_planets` is the planet state before maintenance ran, used to detect
+/// which planets had active build queues (which affects certain DATABASE fields).
 fn regenerate_database_dat(
     dir: &Path,
     game_data: &CoreGameData,
+    pre_maint_planets: &PlanetDat,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Load existing DATABASE.DAT as template
     let template_path = dir.join("DATABASE.DAT");
@@ -79,44 +88,100 @@ fn regenerate_database_dat(
     let mut new_database =
         DatabaseDat::generate_from_planets_and_year(&planet_names, year, template.as_ref());
 
-    // Handle planet discovery for newly visible planets
-    // When a planet is discovered, the DATABASE record shows "Not Named Yet"
-    // (not the actual PLANETS.DAT name), along with discovery year
-    // For now, handle the specific planets that get discovered in build scenario
-    // TODO: Replace with proper discovery logic based on fleet proximity/scanners
+    // Handle planet discovery for newly visible planets.
+    //
+    // DATABASE layout: record = player * 20 + planet (player is 0-indexed)
+    //
+    // Two classes of records get updated each turn:
+    //
+    // 1. Homeworld orbit records: template has raw[0x15]=0x01..0x04 (empire scan index)
+    //    and name_len=0.  ECMAINT stamps "Not Named Yet" + year.
+    //    These correspond to each empire's orbital scan of homeworld planets.
+    //
+    // 2. Colonized-planet records: after colonization, the colonizing player's record
+    //    (raw[0x15]=0xff in template, name="UNKNOWN") gets updated to "Not Named Yet" + year.
+    //    Detected by: planet is now owned ("Not Named Yet" in PLANETS.DAT with non-zero owner)
+    //    and the record's player_idx matches (owner - 1).
+    //
+    // In both cases: set name to "Not Named Yet", stamp year at 0x16-0x19 and 0x27-0x28,
+    // and set raw[0x15] to 0x01.  Preserve all other template bytes.
     if let Some(ref template_db) = template {
-        // Check which planets transition from unknown (length 0) to discovered
-        for player in 0..4 {
-            for planet in 0..20 {
-                let record_idx = planet * 4 + player;
+        let year_bytes = discovery_year.to_le_bytes();
+
+        for player in 0..4usize {
+            for planet in 0..20usize {
+                let record_idx = player * 20 + planet;
                 let template_record = &template_db.records[record_idx];
+                let scan_marker = template_record.raw[0x15];
 
-                // If template has no intel (length 0 or no year), check if it should be discovered
-                let has_template_intel =
-                    template_record.raw[0x00] > 0 || template_record.year_word() > 0;
+                // Case 1: orbit record — scan marker is 0x01..0x04 and no name yet
+                let is_orbit_record =
+                    scan_marker >= 0x01 && scan_marker <= 0x04 && template_record.raw[0x00] == 0;
 
-                if !has_template_intel {
-                    // This planet was undiscovered in pre-state
-                    // Check if it's one of the planets that gets discovered in this scenario
-                    // (Planets 3, 8, 11, 16 based on fixture analysis)
-                    let discovered_planets = [3, 8, 11, 16];
-                    if discovered_planets.contains(&planet) {
-                        // Mark as discovered with "Not Named Yet" and discovery year
-                        new_database.records[record_idx].set_planet_name("Not Named Yet");
-                        // Set discovery year at offset 0x16-0x17 (pre-maintenance year)
-                        let year_bytes = discovery_year.to_le_bytes();
-                        new_database.records[record_idx].raw[0x16] = year_bytes[0];
-                        new_database.records[record_idx].raw[0x17] = year_bytes[1];
-                        // Also set backup copy at 0x18-0x19
-                        new_database.records[record_idx].raw[0x18] = year_bytes[0];
-                        new_database.records[record_idx].raw[0x19] = year_bytes[1];
-                        // Set at 0x27-0x28 as well
-                        new_database.records[record_idx].raw[0x27] = year_bytes[0];
-                        new_database.records[record_idx].raw[0x28] = year_bytes[1];
-                        // Clear field at 0x1e for record 14 only (observed in fixture)
-                        if record_idx == 14 {
+                // Case 2: colonized-planet record — planet is now owned by this player
+                // Check if the planet has a "Not Named Yet" name and owner = player+1
+                let planet_owner = if planet < game_data.planets.records.len() {
+                    game_data.planets.records[planet].owner_empire_slot_raw() as usize
+                } else {
+                    0
+                };
+                let planet_name = if planet < game_data.planets.records.len() {
+                    game_data.planets.records[planet].planet_name()
+                } else {
+                    String::new()
+                };
+                let is_colonized_by_this_player = scan_marker == 0xff
+                    && planet_owner == player + 1
+                    && planet_name.eq_ignore_ascii_case("not named yet");
+
+                if is_orbit_record {
+                    // Homeworld orbit record: stamp name + year, preserve scan_marker
+                    new_database.records[record_idx].set_planet_name("Not Named Yet");
+                    // Keep original scan_marker (0x01..0x04) — do NOT overwrite with 0x01
+                    new_database.records[record_idx].raw[0x16] = year_bytes[0];
+                    new_database.records[record_idx].raw[0x17] = year_bytes[1];
+                    new_database.records[record_idx].raw[0x18] = year_bytes[0];
+                    new_database.records[record_idx].raw[0x19] = year_bytes[1];
+                    new_database.records[record_idx].raw[0x27] = year_bytes[0];
+                    new_database.records[record_idx].raw[0x28] = year_bytes[1];
+
+                    // If the planet had an active build queue in pre-maint state,
+                    // clear raw[0x1e] in the database record.
+                    // Confirmed from build-scenario fixture: planet 14 had build=3,
+                    // DATABASE record 14 0x1e=0x23 → 0x00 after maintenance.
+                    // In fleet scenario (no build queue), 0x1e is preserved.
+                    if planet < pre_maint_planets.records.len() {
+                        let had_build_queue = (0..10).any(|slot| {
+                            pre_maint_planets.records[planet].build_count_raw(slot) > 0
+                        });
+                        if had_build_queue {
                             new_database.records[record_idx].raw[0x1e] = 0x00;
                         }
+                    }
+                } else if is_colonized_by_this_player {
+                    // Colonized-planet record: stamp name + year + planet intel
+                    new_database.records[record_idx].set_planet_name("Not Named Yet");
+                    new_database.records[record_idx].raw[0x15] = 0x01;
+                    new_database.records[record_idx].raw[0x16] = year_bytes[0];
+                    new_database.records[record_idx].raw[0x17] = year_bytes[1];
+                    new_database.records[record_idx].raw[0x18] = year_bytes[0];
+                    new_database.records[record_idx].raw[0x19] = year_bytes[1];
+                    new_database.records[record_idx].raw[0x27] = year_bytes[0];
+                    new_database.records[record_idx].raw[0x28] = year_bytes[1];
+                    // Write planet intel into 0xff-filled slots
+                    // 0x1c-0x1d: potential_production low byte + empire index
+                    // Confirmed from fleet-scenario fixture: 0x5f 0x01
+                    if planet < game_data.planets.records.len() {
+                        let pot_prod_lo = game_data.planets.records[planet].raw[0x02];
+                        new_database.records[record_idx].raw[0x1c] = pot_prod_lo;
+                        new_database.records[record_idx].raw[0x1d] = (player + 1) as u8;
+                        new_database.records[record_idx].raw[0x1e] = 0x00;
+                        new_database.records[record_idx].raw[0x1f] = 0x00;
+                        // 0x23: empire index; 0x24-0x26: zeroed
+                        new_database.records[record_idx].raw[0x23] = (player + 1) as u8;
+                        new_database.records[record_idx].raw[0x24] = 0x00;
+                        new_database.records[record_idx].raw[0x25] = 0x00;
+                        new_database.records[record_idx].raw[0x26] = 0x00;
                     }
                 }
             }
@@ -133,12 +198,28 @@ fn regenerate_database_dat(
 pub fn run_original_ecmaint(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("Running original ECMAINT oracle on: {}", dir.display());
 
-    // Use the existing oracle harness via Python script
+    // Ensure ECMAINT.EXE is present — without it DOSBox opens an interactive window.
+    let engine_path = dir.join("ECMAINT.EXE");
+    if !engine_path.exists() {
+        let source_engine = std::path::Path::new("/home/mag/dev/esterian_conquest")
+            .join("original/v1.5/ECMAINT.EXE");
+        if source_engine.exists() {
+            fs::copy(&source_engine, &engine_path)?;
+        } else {
+            return Err("ECMAINT.EXE not found in dir or original/v1.5/".into());
+        }
+    }
+
+    // Use the existing oracle harness via Python script.
+    // Pass SDL_VIDEODRIVER=dummy and SDL_AUDIODRIVER=dummy explicitly so DOSBox
+    // runs headless even when called from a GUI environment.
     let output = Command::new("python3")
         .arg("tools/ecmaint_oracle.py")
         .arg("run")
         .arg(dir)
         .current_dir("/home/mag/dev/esterian_conquest")
+        .env("SDL_VIDEODRIVER", "dummy")
+        .env("SDL_AUDIODRIVER", "dummy")
         .output()?;
 
     if !output.status.success() {
