@@ -319,25 +319,29 @@ All known scenarios now have Rust generators and passing tests (commit `fd6c494`
 
 **Milestone 1 (Known accepted scenarios) is complete.**
 
-The next work is one of:
+**Milestone 2 parameterized init progress:**
 
-1. **Milestone 2 — Parameterized scenario generation**: replace the remaining
-   scenario-specific raw byte blobs (e.g. planet 14 raw assignment shared
-   across bombard/fleet-battle/invade/econ) with explicit parameterized field
-   builders; move from "recreate this one accepted shape" toward "generate
-   families of accepted shapes within known-safe constraints".
+| Scenario | `set_*_onefleet` / `init_*` | `*_batch_init` | CLI commands |
+|----------|---------------------------|----------------|--------------|
+| fleet-order | ✅ | ✅ | `fleet-order-init`, `fleet-order-batch-init` |
+| planet-build | ✅ | ✅ | `planet-build-init`, `planet-build-batch-init` |
+| guard-starbase | ✅ | ✅ | `guard-starbase-init`, `guard-starbase-batch-init` |
+| ipbm | ✅ | ✅ | `ipbm-init`, `ipbm-batch-init` |
+| bombard | ✅ | ✅ | `bombard-init`, `bombard-batch-init`, `bombard-onefleet` |
+| invade | ✅ | ✅ | `invade-init`, `invade-batch-init`, `invade-onefleet` |
+| fleet-battle | ✅ | ✅ | `fleet-battle-init`, `fleet-battle-batch-init`, `fleet-battle` |
+| econ | ❌ | ❌ | — |
 
-2. **Recover more `ECMAINT` cross-file linkage and integrity rules**: use the
-   controlled black-box loop (prepare → mutate → run → diff) to find rules
-   beyond the currently known scenario families.
+`bombard-init` accepts: `[source_dir] <target_dir> <target_x> <target_y> <ca> <dd>`
+`bombard-batch-init` accepts: `[source_dir] <target_root> <x:y:ca:dd> ...`
 
-3. **Expand `IPBM` from structural to semantic**: the file is structurally
-   mapped, but the gameplay semantics (targeting, resolution, ECMAINT handling)
-   are not yet encoded in Rust.
+`invade-init` accepts: `[source_dir] <target_dir> <target_x> <target_y> <sc> <bb> <ca> <dd> <tt> <armies>`
+`invade-batch-init` accepts: `[source_dir] <target_root> <x:y:sc:bb:ca:dd:tt:armies> ...`
 
-Recommended starting point: tackle Milestone 2 by parameterizing the shared
-planet-14 raw-blob pattern, which appears identically across four scenarios.
-That is the most concrete near-term DRY/DOD improvement.
+`fleet-battle-init` accepts: `[source_dir] <target_dir> <battle_x> <battle_y> <f0_roe> <f0_bb> <f0_ca> <f0_dd> <f2_ca> <f2_dd> <f4_sc> <f4_bb> <f4_ca> <f8_loc_x> <f8_loc_y> <f8_sc> <f8_bb> <f8_ca> <p14_x> <p14_y> <p14_armies> <p14_batteries>`
+`fleet-battle-batch-init` accepts: `[source_dir] <target_root> <bx:by:f0r:f0bb:f0ca:f0dd:f2ca:f2dd:f4sc:f4bb:f4ca:f8lx:f8ly:f8sc:f8bb:f8ca:p14x:p14y:p14a:p14b> ...`
+
+**Recommended next task:** Parameterize `econ` following the same pattern, or proceed to broader compliance generation if `econ` is lower priority.
 
 ## Canonical Baseline Tools
 

@@ -1,6 +1,9 @@
+use std::fs;
 use std::path::Path;
 
 use ec_data::CoreGameData;
+
+use crate::workspace::copy_init_files;
 
 /// Apply the fleet-battle scenario to an already-initialized game directory.
 ///
@@ -18,59 +21,102 @@ use ec_data::CoreGameData;
 /// All record indices and constants here are scenario-specific; the general mutators live in
 /// ec-data and accept parameters.
 pub(crate) fn apply_fleet_battle_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    set_fleet_battle(
+        dir, 0x0a, 0x0a, // battle_coords (10,10)
+        100, 50, 50, 50, // f0_roe, f0_bb, f0_ca, f0_dd
+        50, 50, // f2_ca, f2_dd
+        10, 100, 0, // f4_sc, f4_bb, f4_ca
+        9, 0x0a, 10, 1, 0, // f8_loc_x, f8_loc_y, f8_sc, f8_bb, f8_ca
+        0x0f, 0x0d, 142, 15, // p14_x, p14_y, p14_armies, p14_batteries
+    )?;
+    println!("Applied scenario: fleet-battle");
+    Ok(())
+}
+
+/// Set up a fleet-battle scenario with parameterized coordinates and ship counts.
+///
+/// Parameters:
+/// - `battle_x`, `battle_y`: coordinates where fleets gather for battle
+/// - `f0_roe`, `f0_bb`, `f0_ca`, `f0_dd`: Fleet 0 (empire 1, slot 1) RoE and ship counts
+/// - `f2_ca`, `f2_dd`: Fleet 2 (empire 1, slot 3) ship counts for bombard
+/// - `f4_sc`, `f4_bb`, `f4_ca`: Fleet 4 (empire 2, slot 1) ship counts
+/// - `f8_loc_x`, `f8_loc_y`: Fleet 8 (empire 3, slot 1) location (usually near battle)
+/// - `f8_sc`, `f8_bb`, `f8_ca`: Fleet 8 ship counts
+/// - `p14_x`, `p14_y`: Planet 14 coordinates
+/// - `p14_armies`, `p14_batteries`: Planet 14 defenses
+pub(crate) fn set_fleet_battle(
+    dir: &Path,
+    battle_x: u8,
+    battle_y: u8,
+    f0_roe: u8,
+    f0_bb: u16,
+    f0_ca: u16,
+    f0_dd: u16,
+    f2_ca: u16,
+    f2_dd: u16,
+    f4_sc: u8,
+    f4_bb: u16,
+    f4_ca: u16,
+    f8_loc_x: u8,
+    f8_loc_y: u8,
+    f8_sc: u8,
+    f8_bb: u16,
+    f8_ca: u16,
+    p14_x: u8,
+    p14_y: u8,
+    p14_armies: u8,
+    p14_batteries: u8,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut data = CoreGameData::load(dir)?;
 
-    // Fleet 0 (empire=1, slot=1): move to (10,10), RoE=100, BB=50, CA=50, DD=50
+    // Fleet 0 (empire=1, slot=1): moved to battle coords, with RoE and ship counts
     {
         let f = &mut data.fleets.records[0];
-        f.set_current_location_coords_raw([0x0a, 0x0a]);
-        f.set_standing_order_target_coords_raw([0x0a, 0x0a]);
-        f.set_rules_of_engagement(0x64);
-        f.set_battleship_count(50);
-        f.set_cruiser_count(50);
-        f.set_destroyer_count(50);
+        f.set_current_location_coords_raw([battle_x, battle_y]);
+        f.set_standing_order_target_coords_raw([battle_x, battle_y]);
+        f.set_rules_of_engagement(f0_roe);
+        f.set_battleship_count(f0_bb);
+        f.set_cruiser_count(f0_ca);
+        f.set_destroyer_count(f0_dd);
     }
 
-    // Fleet 2 (empire=1, slot=3): BombardWorld order targeting (15,13), speed=3/3, CA=50, DD=50
+    // Fleet 2 (empire=1, slot=3): BombardWorld order targeting planet 14, speed=3/3
     {
         let f = &mut data.fleets.records[2];
         f.set_max_speed(3);
         f.set_current_speed(3);
         f.set_standing_order_code_raw(0x06); // BombardWorld
-        f.set_standing_order_target_coords_raw([0x0f, 0x0d]);
-        f.set_cruiser_count(50);
-        f.set_destroyer_count(50);
+        f.set_standing_order_target_coords_raw([p14_x, p14_y]);
+        f.set_cruiser_count(f2_ca);
+        f.set_destroyer_count(f2_dd);
     }
 
-    // Fleet 4 (empire=2, slot=1): Patrol (0x03) at (10,10), speed=0/6, SC=10, BB=100, CA=0
+    // Fleet 4 (empire=2, slot=1): Patrol at battle coords, speed=0/6
     {
         let f = &mut data.fleets.records[4];
         f.set_max_speed(6);
-        f.set_current_location_coords_raw([0x0a, 0x0a]);
+        f.set_current_location_coords_raw([battle_x, battle_y]);
         f.set_standing_order_code_raw(0x03); // PatrolSector
-        f.set_standing_order_target_coords_raw([0x0a, 0x0a]);
-        f.set_scout_count(10);
-        f.set_battleship_count(100);
-        f.set_cruiser_count(0);
+        f.set_standing_order_target_coords_raw([battle_x, battle_y]);
+        f.set_scout_count(f4_sc);
+        f.set_battleship_count(f4_bb);
+        f.set_cruiser_count(f4_ca);
     }
 
-    // Fleet 8 (empire=3, slot=1): MoveOnly (0x01) to (10,10), speed=3/6, loc=(9,10),
-    // SC=10, BB=1, CA=0
+    // Fleet 8 (empire=3, slot=1): MoveOnly to battle coords, speed=3/6, at f8_loc
     {
         let f = &mut data.fleets.records[8];
         f.set_max_speed(6);
         f.set_current_speed(3);
-        f.set_current_location_coords_raw([0x09, 0x0a]);
+        f.set_current_location_coords_raw([f8_loc_x, f8_loc_y]);
         f.set_standing_order_code_raw(0x01); // MoveOnly
-        f.set_standing_order_target_coords_raw([0x0a, 0x0a]);
-        f.set_scout_count(10);
-        f.set_battleship_count(1);
-        f.set_cruiser_count(0);
+        f.set_standing_order_target_coords_raw([battle_x, battle_y]);
+        f.set_scout_count(f8_sc);
+        f.set_battleship_count(f8_bb);
+        f.set_cruiser_count(f8_ca);
     }
 
-    // Planet 14 (index 13): Dust Bowl-type target world at (15,13), owned by empire 2,
-    // armies=142, batteries=15, named "TargetPrime" (name buffer retains stale "et" suffix).
-    // Opaque bytes [02..03], [08..09], [0e], [1d..23] are fixture-specific; see RE_NOTES.
+    // Planet 14 (index 13): Dust Bowl-type target world at (p14_x, p14_y), owned by empire 2
     {
         let p = data
             .planets
@@ -78,22 +124,218 @@ pub(crate) fn apply_fleet_battle_scenario(dir: &Path) -> Result<(), Box<dyn std:
             .get_mut(13)
             .ok_or("planet record 14 missing")?;
         p.set_as_owned_target_world(
-            [0x0f, 0x0d],                               // coords (15,13)
+            [p14_x, p14_y],                             // coords
             [0x64, 0x87],                               // potential_production
             [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],       // factories
             0x04,                                       // tax_rate
             0x0b,                                       // name_len = 11
             *b"TargetPrimeet",                          // name_buffer (stale "et" suffix)
             [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05], // name_suffix_raw [1d..23]
-            0x8e,                                       // army_count = 142
-            0x0f,                                       // ground_batteries = 15
+            p14_armies,                                 // army_count
+            p14_batteries,                              // ground_batteries
             0x02,                                       // ownership_status
             0x02,                                       // owner_empire_slot
         );
     }
 
     data.save(dir)?;
-    println!("Applied scenario: fleet-battle");
+
+    println!(
+        "  FLEET[1]: loc=({}, {}) tgt=({}, {}) RoE={} BB={} CA={} DD={}",
+        battle_x, battle_y, battle_x, battle_y, f0_roe, f0_bb, f0_ca, f0_dd
+    );
+    println!(
+        "  FLEET[3]: order=0x06 (BombardWorld) tgt=({}, {}) speed=3/3 CA={} DD={}",
+        p14_x, p14_y, f2_ca, f2_dd
+    );
+    println!(
+        "  FLEET[5]: order=0x03 (PatrolSector) loc=({}, {}) speed=0/6 SC={} BB={} CA={}",
+        battle_x, battle_y, f4_sc, f4_bb, f4_ca
+    );
+    println!(
+        "  FLEET[9]: order=0x01 (MoveOnly) loc=({}, {}) tgt=({}, {}) speed=3/6 SC={} BB={} CA={}",
+        f8_loc_x, f8_loc_y, battle_x, battle_y, f8_sc, f8_bb, f8_ca
+    );
+    println!(
+        "  PLANET[14]: ({}, {}) empire=2 armies={} batteries={}",
+        p14_x, p14_y, p14_armies, p14_batteries
+    );
+    Ok(())
+}
+
+/// Initialize a fleet-battle scenario directory from a source baseline.
+pub(crate) fn init_fleet_battle(
+    source: &Path,
+    target: &Path,
+    battle_x: u8,
+    battle_y: u8,
+    f0_roe: u8,
+    f0_bb: u16,
+    f0_ca: u16,
+    f0_dd: u16,
+    f2_ca: u16,
+    f2_dd: u16,
+    f4_sc: u8,
+    f4_bb: u16,
+    f4_ca: u16,
+    f8_loc_x: u8,
+    f8_loc_y: u8,
+    f8_sc: u8,
+    f8_bb: u16,
+    f8_ca: u16,
+    p14_x: u8,
+    p14_y: u8,
+    p14_armies: u8,
+    p14_batteries: u8,
+) -> Result<(), Box<dyn std::error::Error>> {
+    copy_init_files(source, target)?;
+    set_fleet_battle(
+        target,
+        battle_x,
+        battle_y,
+        f0_roe,
+        f0_bb,
+        f0_ca,
+        f0_dd,
+        f2_ca,
+        f2_dd,
+        f4_sc,
+        f4_bb,
+        f4_ca,
+        f8_loc_x,
+        f8_loc_y,
+        f8_sc,
+        f8_bb,
+        f8_ca,
+        p14_x,
+        p14_y,
+        p14_armies,
+        p14_batteries,
+    )?;
+    println!("Fleet-battle directory initialized at {}", target.display());
+    Ok(())
+}
+
+/// Initialize a batch of fleet-battle scenario directories.
+///
+/// Spec format: battle_x:battle_y:f0_roe:f0_bb:f0_ca:f0_dd:f2_ca:f2_dd:f4_sc:f4_bb:f4_ca:f8_loc_x:f8_loc_y:f8_sc:f8_bb:f8_ca:p14_x:p14_y:p14_armies:p14_batteries
+pub(crate) fn init_fleet_battle_batch(
+    source: &Path,
+    target_root: &Path,
+    specs: &[(
+        u8,
+        u8,
+        u8,
+        u16,
+        u16,
+        u16,
+        u16,
+        u16,
+        u8,
+        u16,
+        u16,
+        u8,
+        u8,
+        u8,
+        u16,
+        u16,
+        u8,
+        u8,
+        u8,
+        u8,
+    )],
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(target_root)?;
+    let mut manifest = String::new();
+    manifest.push_str("Fleet-battle batch\n");
+    manifest.push_str(&format!("source={}\n", source.display()));
+    manifest.push_str(&format!("target_root={}\n", target_root.display()));
+    manifest.push('\n');
+
+    for &(
+        bx,
+        by,
+        f0r,
+        f0bb,
+        f0ca,
+        f0dd,
+        f2ca,
+        f2dd,
+        f4sc,
+        f4bb,
+        f4ca,
+        f8lx,
+        f8ly,
+        f8sc,
+        f8bb,
+        f8ca,
+        p14x,
+        p14y,
+        p14a,
+        p14b,
+    ) in specs
+    {
+        let name = format!(
+            "bx{:02}-by{:02}-f0r{}-f0bb{}-f0ca{}-f0dd{}-f2ca{}-f2dd{}-f4sc{}-f4bb{}-f4ca{}-f8lx{:02}-f8ly{:02}-f8sc{}-f8bb{}-f8ca{}-p14x{:02}-p14y{:02}-p14a{}-p14b{}",
+            bx, by, f0r, f0bb, f0ca, f0dd, f2ca, f2dd, f4sc, f4bb, f4ca, f8lx, f8ly, f8sc, f8bb, f8ca, p14x, p14y, p14a, p14b
+        );
+        let scenario_dir = target_root.join(&name);
+        init_fleet_battle(
+            source,
+            &scenario_dir,
+            bx,
+            by,
+            f0r,
+            f0bb,
+            f0ca,
+            f0dd,
+            f2ca,
+            f2dd,
+            f4sc,
+            f4bb,
+            f4ca,
+            f8lx,
+            f8ly,
+            f8sc,
+            f8bb,
+            f8ca,
+            p14x,
+            p14y,
+            p14a,
+            p14b,
+        )?;
+        manifest.push_str(&format!("{name}\n"));
+        manifest.push_str(&format!("  battle=[{}, {}]\n", bx, by));
+        manifest.push_str(&format!(
+            "  F0: RoE={} BB={} CA={} DD={}\n",
+            f0r, f0bb, f0ca, f0dd
+        ));
+        manifest.push_str(&format!(
+            "  F2: CA={} DD={} (bombards planet)\n",
+            f2ca, f2dd
+        ));
+        manifest.push_str(&format!("  F4: SC={} BB={} CA={}\n", f4sc, f4bb, f4ca));
+        manifest.push_str(&format!(
+            "  F8: loc=[{}, {}] SC={} BB={} CA={}\n",
+            f8lx, f8ly, f8sc, f8bb, f8ca
+        ));
+        manifest.push_str(&format!(
+            "  Planet14: [{}, {}] armies={} batteries={}\n",
+            p14x, p14y, p14a, p14b
+        ));
+        manifest.push_str(&format!("  dir={}\n", scenario_dir.display()));
+        manifest.push_str(&format!(
+            "  validate=ec-cli compliance-report {}\n\n",
+            scenario_dir.display()
+        ));
+    }
+
+    fs::write(target_root.join("FLEET_BATTLE_BATCH.txt"), manifest)?;
+    println!(
+        "Initialized {} fleet-battle directories under {}",
+        specs.len(),
+        target_root.display()
+    );
     Ok(())
 }
 

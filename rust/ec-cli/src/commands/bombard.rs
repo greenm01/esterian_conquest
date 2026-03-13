@@ -1,6 +1,9 @@
+use std::fs;
 use std::path::Path;
 
 use ec_data::CoreGameData;
+
+use crate::workspace::copy_init_files;
 
 /// Apply the bombard scenario to an already-initialized game directory.
 ///
@@ -13,21 +16,42 @@ use ec_data::CoreGameData;
 /// All record indices and constants here are scenario-specific; the general mutators
 /// (set_fleet_order, etc.) live in ec-data and accept parameters.
 pub(crate) fn apply_bombard_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    set_bombard_onefleet(dir, 0x0F, 0x0D, 3, 5)?;
+    println!("Applied scenario: bombard");
+    Ok(())
+}
+
+/// Set up a single bombard fleet order plus planet seed for parameterized use.
+///
+/// Parameters:
+/// - `target_x`, `target_y`: coordinates for fleet order and planet-14 clone's x-coord override
+/// - `ca`: cruiser count for fleet 3 (fixture default: 3)
+/// - `dd`: destroyer count for fleet 3 (fixture default: 5)
+///
+/// Scenario-specific constants (fleet 3, planet 13 → 14 clone) live here; general
+/// mutators live in ec-data.
+pub(crate) fn set_bombard_onefleet(
+    dir: &Path,
+    target_x: u8,
+    target_y: u8,
+    ca: u16,
+    dd: u16,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut data = CoreGameData::load(dir)?;
 
     // Fleet 3: set speed, order, target via the general mutator
-    data.set_fleet_order(3, 3, 0x06, [0x0F, 0x0D], None, None)
+    data.set_fleet_order(3, 3, 0x06, [target_x, target_y], None, None)
         .map_err(|e| e.to_string())?;
 
-    // Fleet 3: max_speed and ship counts observed in preserved fixture
+    // Fleet 3: max_speed and ship counts
     {
         let fleet3 = &mut data.fleets.records[2];
         fleet3.set_max_speed(3);
-        fleet3.set_cruiser_count(3);
-        fleet3.set_destroyer_count(5);
+        fleet3.set_cruiser_count(ca);
+        fleet3.set_destroyer_count(dd);
     }
 
-    // Planet 14: clone planet 13's raw record (empire 2 homeworld), change x-coord to 15
+    // Planet 14: clone planet 13's raw record (empire 2 homeworld), change coords
     {
         let template = data
             .planets
@@ -41,11 +65,68 @@ pub(crate) fn apply_bombard_scenario(dir: &Path) -> Result<(), Box<dyn std::erro
             .get_mut(13)
             .ok_or("planet record 14 missing")?;
         p14.raw = template;
-        p14.set_coords_raw([0x0F, 0x0D]); // (15,13)
+        p14.set_coords_raw([target_x, target_y]);
     }
 
     data.save(dir)?;
-    println!("Applied scenario: bombard");
+
+    println!(
+        "  FLEET[3].order = 0x06 (BombardWorld), target = ({}, {}), CA={}, DD={}",
+        target_x, target_y, ca, dd
+    );
+    println!(
+        "  PLANET[14]: homeworld clone empire=2, coords=({}, {})",
+        target_x, target_y
+    );
+    Ok(())
+}
+
+pub(crate) fn init_bombard(
+    source: &Path,
+    target: &Path,
+    target_x: u8,
+    target_y: u8,
+    ca: u16,
+    dd: u16,
+) -> Result<(), Box<dyn std::error::Error>> {
+    copy_init_files(source, target)?;
+    set_bombard_onefleet(target, target_x, target_y, ca, dd)?;
+    println!("Bombard directory initialized at {}", target.display());
+    Ok(())
+}
+
+pub(crate) fn init_bombard_batch(
+    source: &Path,
+    target_root: &Path,
+    specs: &[(u8, u8, u16, u16)],
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(target_root)?;
+    let mut manifest = String::new();
+    manifest.push_str("Bombard batch\n");
+    manifest.push_str(&format!("source={}\n", source.display()));
+    manifest.push_str(&format!("target_root={}\n", target_root.display()));
+    manifest.push('\n');
+
+    for &(target_x, target_y, ca, dd) in specs {
+        let name = format!("x{:02}-y{:02}-ca{}-dd{}", target_x, target_y, ca, dd);
+        let scenario_dir = target_root.join(&name);
+        init_bombard(source, &scenario_dir, target_x, target_y, ca, dd)?;
+        manifest.push_str(&format!("{name}\n"));
+        manifest.push_str(&format!("  target=[{}, {}]\n", target_x, target_y));
+        manifest.push_str(&format!("  CA={} DD={}\n", ca, dd));
+        manifest.push_str(&format!("  dir={}\n", scenario_dir.display()));
+        manifest.push_str(&format!(
+            "  validate=ec-cli compliance-report {}\n\n",
+            scenario_dir.display()
+        ));
+    }
+
+    fs::write(target_root.join("BOMBARD_BATCH.txt"), manifest)?;
+    println!(
+        "Initialized {} Bombard directories under {}",
+        specs.len(),
+        target_root.display()
+    );
     Ok(())
 }
 

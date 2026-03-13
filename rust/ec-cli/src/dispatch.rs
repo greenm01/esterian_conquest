@@ -5,14 +5,14 @@ use crate::commands::compare::{
 };
 use crate::commands::compliance::{print_compliance_batch_report, print_compliance_report};
 use crate::commands::core::{
-    init_current_known_baseline, print_canonical_current_known_baseline_diff,
+    init_canonical_current_known_baseline, init_current_known_baseline,
+    print_canonical_current_known_baseline_diff,
     print_canonical_current_known_baseline_diff_offsets, print_canonical_transition_clusters,
     print_canonical_transition_details, print_core_report, print_current_known_baseline_diff,
-    print_current_known_baseline_diff_offsets, set_player_tax_rate, sync_canonical_current_known_baseline,
- sync_core_baseline, sync_core_counts,
-    sync_current_known_baseline, sync_initialized_fleet_baseline,
-    sync_initialized_planet_payloads, validate_core_state, validate_current_known_baseline_exact,
-    init_canonical_current_known_baseline,
+    print_current_known_baseline_diff_offsets, set_player_tax_rate,
+    sync_canonical_current_known_baseline, sync_core_baseline, sync_core_counts,
+    sync_current_known_baseline, sync_initialized_fleet_baseline, sync_initialized_planet_payloads,
+    validate_core_state, validate_current_known_baseline_exact,
 };
 use crate::commands::fleet_order::{
     init_fleet_order_batch, init_fleet_order_scenario, print_fleet_order_report, set_fleet_order,
@@ -27,13 +27,17 @@ use crate::commands::ipbm::{
     set_ipbm_zero_records, validate_ipbm,
 };
 use crate::commands::planet_build::{
-    init_planet_build_batch, init_planet_build_scenario, init_planet_original, print_planet_build_report,
-    set_planet_build, set_planet_name, set_planet_owner, set_planet_potential, set_planet_stats,
+    init_planet_build_batch, init_planet_build_scenario, init_planet_original,
+    print_planet_build_report, set_planet_build, set_planet_name, set_planet_owner,
+    set_planet_potential, set_planet_stats,
 };
 
+use crate::commands::bombard::{init_bombard, init_bombard_batch, set_bombard_onefleet};
+use crate::commands::fleet_battle::{init_fleet_battle, init_fleet_battle_batch, set_fleet_battle};
+use crate::commands::invade::{init_invade, init_invade_batch, set_invade_onefleet};
 use crate::commands::scenario::{
-    apply_known_scenario, apply_known_scenarios, init_all_known_scenarios, init_known_scenario,
-    init_known_replayable_scenario, init_known_scenario_chain,
+    apply_known_scenario, apply_known_scenarios, init_all_known_scenarios,
+    init_known_replayable_scenario, init_known_scenario, init_known_scenario_chain,
     print_known_scenario_details, print_known_scenarios, validate_all_known_scenarios,
     validate_all_preserved_scenarios, validate_known_scenario, validate_preserved_scenario,
     KnownScenario,
@@ -42,15 +46,17 @@ use crate::commands::setup::{
     print_autopilot_after, print_com_irq, print_flow_control, print_local_timeout,
     print_maintenance_days, print_max_key_gap, print_minimum_time, print_port_setup,
     print_purge_after, print_remote_timeout, print_setup_programs, print_snoop,
-    set_autopilot_after, set_com_irq, set_flow_control, set_local_timeout,
-    set_maintenance_days, set_max_key_gap, set_minimum_time, set_purge_after,
-    set_remote_timeout, set_snoop,
+    set_autopilot_after, set_com_irq, set_flow_control, set_local_timeout, set_maintenance_days,
+    set_max_key_gap, set_minimum_time, set_purge_after, set_remote_timeout, set_snoop,
 };
 use crate::support::parse::{
-    parse_optional_source_and_target, parse_optional_source_target_and_coord_list,
-    parse_optional_source_target_and_count, parse_optional_source_target_and_count_list,
+    parse_optional_source_and_target, parse_optional_source_target_and_bombard_spec,
+    parse_optional_source_target_and_coord_list, parse_optional_source_target_and_count,
+    parse_optional_source_target_and_count_list, parse_optional_source_target_and_invade_spec,
     parse_optional_source_target_and_name, parse_optional_source_target_and_xy,
-    parse_target_and_fleet_spec, parse_target_and_fleet_spec_list, parse_target_and_planet_spec,
+    parse_target_and_bombard_spec_list, parse_target_and_fleet_battle_spec_list,
+    parse_target_and_fleet_spec, parse_target_and_fleet_spec_list,
+    parse_target_and_invade_spec_list, parse_target_and_planet_spec,
     parse_target_and_planet_spec_list, parse_u16_arg, parse_u8_arg, parse_usize_1_based,
 };
 use crate::support::paths::{default_fixture_dir, post_maint_fixture_dir, resolve_repo_path};
@@ -63,9 +69,7 @@ fn next_dir(args: &mut impl Iterator<Item = String>) -> PathBuf {
         .unwrap_or_else(default_fixture_dir)
 }
 
-pub fn run_args(
-    mut args: impl Iterator<Item = String>,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
     let Some(cmd) = args.next() else {
         print_usage();
         return Ok(());
@@ -282,7 +286,10 @@ pub fn run_args(
             let dir = next_dir(&mut args);
             let record_index_arg = args.next();
             let record_index = record_index_arg.as_deref().unwrap_or("1");
-            print_fleet_order_report(&dir, parse_usize_1_based(record_index, "fleet record index")?)?;
+            print_fleet_order_report(
+                &dir,
+                parse_usize_1_based(record_index, "fleet record index")?,
+            )?;
         }
         "fleet-order-init" => {
             let remaining = args.collect::<Vec<_>>();
@@ -371,7 +378,12 @@ pub fn run_args(
                 print_usage();
                 return Ok(());
             };
-            set_planet_stats(&dir, record_index.parse()?, armies.parse()?, batteries.parse()?)?;
+            set_planet_stats(
+                &dir,
+                record_index.parse()?,
+                armies.parse()?,
+                batteries.parse()?,
+            )?;
         }
         "planet-potential" => {
             let dir = next_dir(&mut args);
@@ -394,7 +406,10 @@ pub fn run_args(
             let dir = next_dir(&mut args);
             let record_index_arg = args.next();
             let record_index = record_index_arg.as_deref().unwrap_or("15");
-            print_planet_build_report(&dir, parse_usize_1_based(record_index, "planet record index")?)?;
+            print_planet_build_report(
+                &dir,
+                parse_usize_1_based(record_index, "planet record index")?,
+            )?;
         }
         "planet-build-init" => {
             let remaining = args.collect::<Vec<_>>();
@@ -404,7 +419,13 @@ pub fn run_args(
                 print_usage();
                 return Ok(());
             };
-            init_planet_build_scenario(&post_maint_fixture_dir(), &target, record_index, slot_raw, kind_raw)?;
+            init_planet_build_scenario(
+                &post_maint_fixture_dir(),
+                &target,
+                record_index,
+                slot_raw,
+                kind_raw,
+            )?;
         }
         "planet-build-batch-init" => {
             let remaining = args.collect::<Vec<_>>();
@@ -525,6 +546,356 @@ pub fn run_args(
             };
             init_ipbm_batch(&source, &target_root, &counts)?;
         }
+        "bombard-onefleet" => {
+            let dir = next_dir(&mut args);
+            let Some(target_x) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(target_y) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let ca = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u16_arg(v, "ca"))
+                .transpose()?
+                .unwrap_or(3);
+            let dd = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u16_arg(v, "dd"))
+                .transpose()?
+                .unwrap_or(5);
+            set_bombard_onefleet(
+                &dir,
+                parse_u8_arg(&target_x, "target_x")?,
+                parse_u8_arg(&target_y, "target_y")?,
+                ca,
+                dd,
+            )?;
+        }
+        "bombard-init" => {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((source, target, target_x, target_y, ca, dd)) =
+                parse_optional_source_target_and_bombard_spec(remaining, post_maint_fixture_dir())
+            else {
+                print_usage();
+                return Ok(());
+            };
+            init_bombard(&source, &target, target_x, target_y, ca, dd)?;
+        }
+        "bombard-batch-init" => {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((source, target_root, specs)) =
+                parse_target_and_bombard_spec_list(remaining, post_maint_fixture_dir())
+            else {
+                print_usage();
+                return Ok(());
+            };
+            init_bombard_batch(&source, &target_root, &specs)?;
+        }
+        "invade-onefleet" => {
+            let dir = next_dir(&mut args);
+            let Some(target_x) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(target_y) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let sc = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u8_arg(v, "sc"))
+                .transpose()?
+                .unwrap_or(100);
+            let bb = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u16_arg(v, "bb"))
+                .transpose()?
+                .unwrap_or(100);
+            let ca = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u16_arg(v, "ca"))
+                .transpose()?
+                .unwrap_or(50);
+            let dd = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u16_arg(v, "dd"))
+                .transpose()?
+                .unwrap_or(50);
+            let tt = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u16_arg(v, "tt"))
+                .transpose()?
+                .unwrap_or(50);
+            let armies = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u8_arg(v, "armies"))
+                .transpose()?
+                .unwrap_or(100);
+            set_invade_onefleet(
+                &dir,
+                parse_u8_arg(&target_x, "target_x")?,
+                parse_u8_arg(&target_y, "target_y")?,
+                sc,
+                bb,
+                ca,
+                dd,
+                tt,
+                armies,
+            )?;
+        }
+        "invade-init" => {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((source, target, x, y, sc, bb, ca, dd, tt, armies)) =
+                parse_optional_source_target_and_invade_spec(remaining, post_maint_fixture_dir())
+            else {
+                print_usage();
+                return Ok(());
+            };
+            init_invade(&source, &target, x, y, sc, bb, ca, dd, tt, armies)?;
+        }
+        "invade-batch-init" => {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((source, target_root, specs)) =
+                parse_target_and_invade_spec_list(remaining, post_maint_fixture_dir())
+            else {
+                print_usage();
+                return Ok(());
+            };
+            init_invade_batch(&source, &target_root, &specs)?;
+        }
+        "fleet-battle" => {
+            let dir = next_dir(&mut args);
+            let Some(battle_x) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(battle_y) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let battle_x_val = parse_u8_arg(&battle_x, "battle_x")?;
+            let battle_y_val = parse_u8_arg(&battle_y, "battle_y")?;
+            let f0_roe = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u8_arg(v, "f0_roe"))
+                .transpose()?
+                .unwrap_or(100);
+            let f0_bb = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u16_arg(v, "f0_bb"))
+                .transpose()?
+                .unwrap_or(50);
+            let f0_ca = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u16_arg(v, "f0_ca"))
+                .transpose()?
+                .unwrap_or(50);
+            let f0_dd = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u16_arg(v, "f0_dd"))
+                .transpose()?
+                .unwrap_or(50);
+            let f2_ca = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u16_arg(v, "f2_ca"))
+                .transpose()?
+                .unwrap_or(50);
+            let f2_dd = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u16_arg(v, "f2_dd"))
+                .transpose()?
+                .unwrap_or(50);
+            let f4_sc = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u8_arg(v, "f4_sc"))
+                .transpose()?
+                .unwrap_or(10);
+            let f4_bb = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u16_arg(v, "f4_bb"))
+                .transpose()?
+                .unwrap_or(100);
+            let f4_ca = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u16_arg(v, "f4_ca"))
+                .transpose()?
+                .unwrap_or(0);
+            let f8_loc_x = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u8_arg(v, "f8_loc_x"))
+                .transpose()?
+                .unwrap_or(9);
+            let f8_loc_y = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u8_arg(v, "f8_loc_y"))
+                .transpose()?
+                .unwrap_or(battle_y_val);
+            let f8_sc = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u8_arg(v, "f8_sc"))
+                .transpose()?
+                .unwrap_or(10);
+            let f8_bb = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u16_arg(v, "f8_bb"))
+                .transpose()?
+                .unwrap_or(1);
+            let f8_ca = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u16_arg(v, "f8_ca"))
+                .transpose()?
+                .unwrap_or(0);
+            let p14_x = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u8_arg(v, "p14_x"))
+                .transpose()?
+                .unwrap_or(15);
+            let p14_y = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u8_arg(v, "p14_y"))
+                .transpose()?
+                .unwrap_or(13);
+            let p14_armies = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u8_arg(v, "p14_armies"))
+                .transpose()?
+                .unwrap_or(142);
+            let p14_batteries = args
+                .next()
+                .as_deref()
+                .map(|v| parse_u8_arg(v, "p14_batteries"))
+                .transpose()?
+                .unwrap_or(15);
+            set_fleet_battle(
+                &dir,
+                battle_x_val,
+                battle_y_val,
+                f0_roe,
+                f0_bb,
+                f0_ca,
+                f0_dd,
+                f2_ca,
+                f2_dd,
+                f4_sc,
+                f4_bb,
+                f4_ca,
+                f8_loc_x,
+                f8_loc_y,
+                f8_sc,
+                f8_bb,
+                f8_ca,
+                p14_x,
+                p14_y,
+                p14_armies,
+                p14_batteries,
+            )?;
+        }
+        "fleet-battle-init" => {
+            let remaining = args.collect::<Vec<_>>();
+            // Parse: [source] <target> <battle_x> <battle_y> <f0_roe> <f0_bb> <f0_ca> <f0_dd> <f2_ca> <f2_dd> <f4_sc> <f4_bb> <f4_ca> <f8_loc_x> <f8_loc_y> <f8_sc> <f8_bb> <f8_ca> <p14_x> <p14_y> <p14_armies> <p14_batteries>
+            // Minimum: target battle_x battle_y (5 args)
+            if remaining.len() < 3 {
+                print_usage();
+                return Ok(());
+            }
+            let (source, target, args_slice) = if remaining.len() >= 22 {
+                // Full form with source
+                (
+                    resolve_repo_path(&remaining[0]),
+                    PathBuf::from(&remaining[1]),
+                    &remaining[2..],
+                )
+            } else {
+                // Short form with default source
+                (
+                    post_maint_fixture_dir(),
+                    PathBuf::from(&remaining[0]),
+                    &remaining[1..],
+                )
+            };
+            let battle_x = parse_u8_arg(&args_slice[0], "battle_x")?;
+            let battle_y = parse_u8_arg(&args_slice[1], "battle_y")?;
+            let f0_roe = parse_u8_arg(&args_slice[2], "f0_roe").unwrap_or(100);
+            let f0_bb = parse_u16_arg(&args_slice[3], "f0_bb").unwrap_or(50);
+            let f0_ca = parse_u16_arg(&args_slice[4], "f0_ca").unwrap_or(50);
+            let f0_dd = parse_u16_arg(&args_slice[5], "f0_dd").unwrap_or(50);
+            let f2_ca = parse_u16_arg(&args_slice[6], "f2_ca").unwrap_or(50);
+            let f2_dd = parse_u16_arg(&args_slice[7], "f2_dd").unwrap_or(50);
+            let f4_sc = parse_u8_arg(&args_slice[8], "f4_sc").unwrap_or(10);
+            let f4_bb = parse_u16_arg(&args_slice[9], "f4_bb").unwrap_or(100);
+            let f4_ca = parse_u16_arg(&args_slice[10], "f4_ca").unwrap_or(0);
+            let f8_loc_x = parse_u8_arg(&args_slice[11], "f8_loc_x").unwrap_or(9);
+            let f8_loc_y = parse_u8_arg(&args_slice[12], "f8_loc_y").unwrap_or(battle_y);
+            let f8_sc = parse_u8_arg(&args_slice[13], "f8_sc").unwrap_or(10);
+            let f8_bb = parse_u16_arg(&args_slice[14], "f8_bb").unwrap_or(1);
+            let f8_ca = parse_u16_arg(&args_slice[15], "f8_ca").unwrap_or(0);
+            let p14_x = parse_u8_arg(&args_slice[16], "p14_x").unwrap_or(15);
+            let p14_y = parse_u8_arg(&args_slice[17], "p14_y").unwrap_or(13);
+            let p14_armies = parse_u8_arg(&args_slice[18], "p14_armies").unwrap_or(142);
+            let p14_batteries = parse_u8_arg(&args_slice[19], "p14_batteries").unwrap_or(15);
+            init_fleet_battle(
+                &source,
+                &target,
+                battle_x,
+                battle_y,
+                f0_roe,
+                f0_bb,
+                f0_ca,
+                f0_dd,
+                f2_ca,
+                f2_dd,
+                f4_sc,
+                f4_bb,
+                f4_ca,
+                f8_loc_x,
+                f8_loc_y,
+                f8_sc,
+                f8_bb,
+                f8_ca,
+                p14_x,
+                p14_y,
+                p14_armies,
+                p14_batteries,
+            )?;
+        }
+        "fleet-battle-batch-init" => {
+            let remaining = args.collect::<Vec<_>>();
+            let Some((source, target_root, specs)) =
+                parse_target_and_fleet_battle_spec_list(remaining, post_maint_fixture_dir())
+            else {
+                print_usage();
+                return Ok(());
+            };
+            init_fleet_battle_batch(&source, &target_root, &specs)?;
+        }
         "scenario" => {
             let dir = next_dir(&mut args);
             let selector = args.next();
@@ -585,7 +956,8 @@ pub fn run_args(
             }
         }
         "scenario-init-compose" => {
-            let Some((source, target, scenarios)) = parse_scenario_chain_init_args(args.collect()) else {
+            let Some((source, target, scenarios)) = parse_scenario_chain_init_args(args.collect())
+            else {
                 print_usage();
                 return Ok(());
             };
@@ -642,10 +1014,14 @@ fn parse_known_scenarios(args: Vec<String>) -> Option<Vec<KnownScenario>> {
         return None;
     }
 
-    args.into_iter().map(|name| KnownScenario::parse(&name)).collect()
+    args.into_iter()
+        .map(|name| KnownScenario::parse(&name))
+        .collect()
 }
 
-fn parse_scenario_chain_init_args(args: Vec<String>) -> Option<(PathBuf, PathBuf, Vec<KnownScenario>)> {
+fn parse_scenario_chain_init_args(
+    args: Vec<String>,
+) -> Option<(PathBuf, PathBuf, Vec<KnownScenario>)> {
     match args.as_slice() {
         [target, scenario_names @ ..] if !scenario_names.is_empty() => Some((
             post_maint_fixture_dir(),

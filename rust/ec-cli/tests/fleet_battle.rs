@@ -67,3 +67,51 @@ fn scenario_init_replayable_fleet_battle_matches_exact_preserved_pre_fixture() {
 
     cleanup_dir(&target);
 }
+
+#[test]
+fn fleet_battle_init_recreates_known_valid_pre_fixture() {
+    let target = unique_temp_dir("ec-cli-fleet-battle-init-param");
+
+    // Recreate the fixture parameters: battle=(10,10), plus all fleet and planet specs
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "fleet-battle-init",
+            "fixtures/ecmaint-post/v1.5",
+            target.to_str().unwrap(),
+            "10",
+            "10",  // battle_x, battle_y
+            "100", // f0_roe
+            "50",
+            "50",
+            "50", // f0_bb, f0_ca, f0_dd
+            "50",
+            "50", // f2_ca, f2_dd
+            "10",
+            "100",
+            "0", // f4_sc, f4_bb, f4_ca
+            "9",
+            "10",
+            "10",
+            "1",
+            "0", // f8_loc_x, f8_loc_y, f8_sc, f8_bb, f8_ca
+            "15",
+            "13",
+            "142",
+            "15", // p14_x, p14_y, p14_armies, p14_batteries
+        ],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Fleet-battle directory initialized at"));
+
+    let fixture_pre = repo_root().join("fixtures/ecmaint-fleet-battle-pre/v1.5");
+    for name in ["FLEETS.DAT", "PLANETS.DAT"] {
+        let expected = fs::read(fixture_pre.join(name)).unwrap();
+        let actual = fs::read(target.join(name)).unwrap();
+        assert_eq!(
+            actual, expected,
+            "{name} does not match preserved fleet-battle pre-fixture via fleet-battle-init"
+        );
+    }
+
+    cleanup_dir(&target);
+}

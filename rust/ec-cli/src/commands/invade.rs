@@ -1,6 +1,9 @@
+use std::fs;
 use std::path::Path;
 
 use ec_data::CoreGameData;
+
+use crate::workspace::copy_init_files;
 
 /// Apply the invade scenario to an already-initialized game directory.
 ///
@@ -17,27 +20,46 @@ use ec_data::CoreGameData;
 /// All record indices and constants here are scenario-specific; the general mutators live in
 /// ec-data and accept parameters.
 pub(crate) fn apply_invade_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    set_invade_onefleet(dir, 0x0f, 0x0d, 100, 100, 50, 50, 50, 100)?;
+    println!("Applied scenario: invade");
+    Ok(())
+}
+
+/// Set up a single invade fleet order plus planet seed for parameterized use.
+///
+/// Parameters:
+/// - `target_x`, `target_y`: coordinates for fleet order and planet-14
+/// - `sc`, `bb`, `ca`, `dd`, `tt`: ship counts for fleet 3
+/// - `invasion_armies`: armies loaded on fleet 3 for invasion
+pub(crate) fn set_invade_onefleet(
+    dir: &Path,
+    target_x: u8,
+    target_y: u8,
+    sc: u8,
+    bb: u16,
+    ca: u16,
+    dd: u16,
+    tt: u16,
+    invasion_armies: u8,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut data = CoreGameData::load(dir)?;
 
-    // Fleet 2 (empire=1, slot=3): InvadeWorld order targeting (15,13), speed=3/3,
-    // army_count=100, SC=100, BB=100, CA=50, DD=50, TT=50
+    // Fleet 2 (empire=1, slot=3): InvadeWorld order targeting (target_x, target_y)
     {
         let f = &mut data.fleets.records[2];
-        f.set_invasion_army_count_raw(0x64); // 100 armies loaded for invasion
+        f.set_invasion_army_count_raw(invasion_armies);
         f.set_max_speed(3);
         f.set_current_speed(3);
-        f.set_standing_order_code_raw(0x0a); // InvadeWorld (empirically confirmed)
-        f.set_standing_order_target_coords_raw([0x0f, 0x0d]); // (15,13)
-        f.set_scout_count(100);
-        f.set_battleship_count(100);
-        f.set_cruiser_count(50);
-        f.set_destroyer_count(50);
-        f.set_troop_transport_count(50);
+        f.set_standing_order_code_raw(0x0a); // InvadeWorld
+        f.set_standing_order_target_coords_raw([target_x, target_y]);
+        f.set_scout_count(sc);
+        f.set_battleship_count(bb);
+        f.set_cruiser_count(ca);
+        f.set_destroyer_count(dd);
+        f.set_troop_transport_count(tt);
     }
 
-    // Planet 14 (index 13): Dust Bowl-type target world at (15,13), owned by empire 2,
-    // armies=142, batteries=15, named "TargetPrime" (name buffer retains stale "et" suffix).
-    // Identical layout to the fleet-battle and econ pre-fixtures.
+    // Planet 14 (index 13): Dust Bowl-type target world
     {
         let p = data
             .planets
@@ -45,7 +67,7 @@ pub(crate) fn apply_invade_scenario(dir: &Path) -> Result<(), Box<dyn std::error
             .get_mut(13)
             .ok_or("planet record 14 missing")?;
         p.set_as_owned_target_world(
-            [0x0f, 0x0d],                               // coords (15,13)
+            [target_x, target_y],
             [0x64, 0x87],                               // potential_production
             [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],       // factories
             0x04,                                       // tax_rate
@@ -60,7 +82,84 @@ pub(crate) fn apply_invade_scenario(dir: &Path) -> Result<(), Box<dyn std::error
     }
 
     data.save(dir)?;
-    println!("Applied scenario: invade");
+
+    println!(
+        "  FLEET[3].order=0x0a (InvadeWorld) tgt=({}, {}) army={} SC={} BB={} CA={} DD={} TT={}",
+        target_x, target_y, invasion_armies, sc, bb, ca, dd, tt
+    );
+    println!(
+        "  PLANET[14]: Dust Bowl target world at ({}, {})",
+        target_x, target_y
+    );
+    Ok(())
+}
+
+pub(crate) fn init_invade(
+    source: &Path,
+    target: &Path,
+    target_x: u8,
+    target_y: u8,
+    sc: u8,
+    bb: u16,
+    ca: u16,
+    dd: u16,
+    tt: u16,
+    invasion_armies: u8,
+) -> Result<(), Box<dyn std::error::Error>> {
+    copy_init_files(source, target)?;
+    set_invade_onefleet(
+        target,
+        target_x,
+        target_y,
+        sc,
+        bb,
+        ca,
+        dd,
+        tt,
+        invasion_armies,
+    )?;
+    println!("Invade directory initialized at {}", target.display());
+    Ok(())
+}
+
+pub(crate) fn init_invade_batch(
+    source: &Path,
+    target_root: &Path,
+    specs: &[(u8, u8, u8, u16, u16, u16, u16, u8)],
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(target_root)?;
+    let mut manifest = String::new();
+    manifest.push_str("Invade batch\n");
+    manifest.push_str(&format!("source={}\n", source.display()));
+    manifest.push_str(&format!("target_root={}\n", target_root.display()));
+    manifest.push('\n');
+
+    for &(x, y, sc, bb, ca, dd, tt, armies) in specs {
+        let name = format!(
+            "x{:02}-y{:02}-sc{}-bb{}-ca{}-dd{}-tt{}-a{}",
+            x, y, sc, bb, ca, dd, tt, armies
+        );
+        let scenario_dir = target_root.join(&name);
+        init_invade(source, &scenario_dir, x, y, sc, bb, ca, dd, tt, armies)?;
+        manifest.push_str(&format!("{name}\n"));
+        manifest.push_str(&format!("  target=[{}, {}]\n", x, y));
+        manifest.push_str(&format!(
+            "  SC={} BB={} CA={} DD={} TT={} armies={}\n",
+            sc, bb, ca, dd, tt, armies
+        ));
+        manifest.push_str(&format!("  dir={}\n", scenario_dir.display()));
+        manifest.push_str(&format!(
+            "  validate=ec-cli compliance-report {}\n\n",
+            scenario_dir.display()
+        ));
+    }
+
+    fs::write(target_root.join("INVADE_BATCH.txt"), manifest)?;
+    println!(
+        "Initialized {} Invade directories under {}",
+        specs.len(),
+        target_root.display()
+    );
     Ok(())
 }
 
