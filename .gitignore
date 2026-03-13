@@ -43,3 +43,7 @@ tools/unlzexe_ecm
 tools/ghidra_scripts_tmp/
 tools/ghidra_scripts/Dump9D48.java
 tools/ghidra_scripts/FindMoveTokRefs.java
+
+# Generated fixture/oracle byproducts.
+fixtures/**/.oracle/
+fixtures/**/*.SAV
