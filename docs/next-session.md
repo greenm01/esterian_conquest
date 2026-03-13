@@ -297,17 +297,18 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
   - DATABASE.DAT (109 bytes - needs regeneration from PLANETS)
 
 #### Build Completion — IMPLEMENTED ⏳
-- ✅ Basic build queue processing implemented
-- ✅ Decrements build_count by 1 per turn (placeholder)
-- ✅ Moves completed ships to stardock slot 0
+- ✅ Build queue processing with production calculation
+  - Production rate = factories_word + (potential_production / 2)
+  - Finds empty stardock slot for completed ships
+- ✅ DATABASE.DAT regeneration from PLANETS.DAT with current year
 - ✅ Clears build slot after completion
-- ⚠️ **Production rate:** Currently hardcoded to 1/turn, needs industry calculation
-- ⚠️ **Stardock slot:** Always uses slot 0, should find empty slot
+- ⚠️ **Production formula:** Approximation, needs verification from fixtures
+- ⚠️ **DATABASE.DAT:** Regeneration differs from ECMAINT (753 vs 81 bytes)
 - **Current parity on build scenario (1 turn):** 70% (7/10 files match)
 - **Files differing in build scenario:**
-  - CONQUEST.DAT (50 bytes - header updates)
-  - PLANETS.DAT (6 bytes - build completion changes as expected)
-  - DATABASE.DAT (81 bytes - needs regeneration from PLANETS)
+  - CONQUEST.DAT (50 bytes - header updates beyond year)
+  - PLANETS.DAT (2 bytes - build completion improved from 6 bytes)
+  - DATABASE.DAT (753 bytes - regeneration needs tuning)
 
 ### Step 5: Regression Test — IN PROGRESS
 - ✅ Year advancement tests (3 tests)
