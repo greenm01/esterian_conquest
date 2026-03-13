@@ -4633,6 +4633,20 @@ Strong practical consequence:
       raw-import address model
     - the next useful method is a runtime-segment-aware capture around the
       live consumer path, not more raw-dump carving at the old `3000:` offsets
+  - the stack at that write stop also preserves a useful caller-side clue:
+    - it contains a plausible far return pair `2895:27ac`
+    - that segment matches the earlier live kind-`2` decode captures
+      (`2895:6060`, `2895:62e3`)
+    - the earlier live/static offset delta remains consistent:
+      - `0000:0403 -> 2895:6060`
+      - `0000:0686 -> 2895:62e3`
+      - both give delta `+0x5c5d`
+  - practical consequence:
+    - future live breakpoint work on the late starbase path should treat
+      segment `2895` and the `+0x5c5d` offset delta as the best current clue,
+      but not yet a proven breakpoint recipe
+    - a direct probe at the derived late return-site address still did not hit,
+      so this remains suggestive rather than confirmed
 
 Artifacts:
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-predicate.txt`
@@ -4647,6 +4661,7 @@ Artifacts:
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-variant-helper.txt`
 - `artifacts/ecmaint-kind2-debug/unknown-starbase-write/summary.txt`
 - `artifacts/ecmaint-kind2-debug/unknown-starbase-write/MEMDUMP.BIN`
+- `artifacts/ecmaint-kind2-debug/unknown-starbase-write/stack_at_write.txt`
 
 Tool:
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbasePredicate.java`

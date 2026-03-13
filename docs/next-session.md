@@ -191,6 +191,16 @@ Priority order:
                PSP-owned dump exposes under the old `3000:` assumptions
              - next method should be runtime-segment-aware capture around the
                live consumer path, not more raw-dump carving
+           - useful caller-side clue from the write-stop stack:
+             - plausible far return pair `2895:27ac`
+             - that matches the earlier live kind-`2` segment family
+               (`2895:6060`, `2895:62e3`)
+             - the earlier live/static offset delta stays consistent at
+               `+0x5c5d`
+           - practical implication:
+             - future late-path breakpoint work should treat segment `2895`
+               plus that offset delta as the best current clue
+             - but it is still not a proven late-breakpoint recipe yet
 
 2. Recover initialized-to-post-maint deterministic rules
    - use canonical post-maint diff output from normalized `original/v1.5`
