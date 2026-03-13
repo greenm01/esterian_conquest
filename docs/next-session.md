@@ -355,6 +355,35 @@ ones.
   through the generic mission-resolution path
 - destroyed starbases are now removed from live state, decrement the owning
   player's starbase count, and emit command-center "lost all contact" reports
+- the combat spec now explicitly distinguishes:
+  - declared `enemy` status from `ECGAME` diplomacy
+  - broader `hostile` contact status for ROE/combat purposes
+- the project philosophy is now documented more explicitly in
+  [`docs/approach.md`](/home/mag/dev/esterian_conquest/docs/approach.md):
+  canonical Rust deviations are acceptable for unresolved/stochastic mechanics
+  when save compatibility remains intact and the rule stays faithful to the
+  manuals
+- the precedence rule is now explicit too:
+  - manuals are the semantic authority for gameplay rules
+  - original binaries are the compatibility oracle for save structure and
+    accepted directory state
+  - bit-perfect `ECMAINT` parity is not the goal when it conflicts with the
+    manuals or depends on hidden stochastic behavior
+- future architecture direction is now documented too:
+  - classic `.DAT` directories remain the compatibility boundary
+  - `CoreGameData` remains the canonical Rust model
+  - a future SQLite layer is acceptable as an additional storage/tooling
+    backend, but not as a replacement for `.DAT` compatibility
+- the combat spec now also records the next diplomacy/contact target:
+  - players should be able to declare `enemy`
+  - offensive action should automatically escalate both sides to `enemy`
+  - same-location fleet encounters should always generate intel reports
+  - enemy fleets that meet in one final location should engage automatically
+  - non-enemy fleets that meet should report contact without hostile action
+    unless attacked or otherwise made hostile by defensive rules
+- the combat spec also now states the current Rust-maint limitation clearly:
+  hostile combat is checked from final post-movement co-location, not from
+  true mid-path crossing/interception geometry
 - combat regression coverage now exists in
   [`rust/ec-data/tests/maint_combat.rs`](/home/mag/dev/esterian_conquest/rust/ec-data/tests/maint_combat.rs)
   for:

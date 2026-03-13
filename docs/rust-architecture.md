@@ -118,6 +118,16 @@ same workflow can use `ec_data::CoreGameData`.
 validator/normalizer logic should live on the data model when it reflects shared
 directory semantics rather than command-specific UI behavior.
 
+`CoreGameData` should also remain the canonical Rust boundary if additional
+storage backends are introduced later. A future SQLite layer can be useful for
+tooling, analytics, scenario catalogs, campaign history, or richer admin
+workflows, but it should be additive:
+
+- classic `.DAT` directories remain a first-class compatibility boundary
+- `CoreGameData` remains the canonical in-memory state
+- any future SQLite store should import/export through that same shared model
+- SQLite should not replace explicit classic file semantics inside `ec-data`
+
 The same rule now applies to current-known multi-file scenario mutations. If a
 transform expresses shared directory semantics rather than CLI interaction
 policy, it should live on `CoreGameData` and the CLI should only load, invoke,

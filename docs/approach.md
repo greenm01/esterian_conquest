@@ -14,11 +14,19 @@ The goal is:
 
 ## Principles
 
-1. Treat the DOS binaries as the spec
+1. Treat the original manuals as the semantic spec, and the DOS binaries as the
+   compatibility oracle
 
+- the shipped manuals define intended player-facing rules and mechanics
 - `ECGAME.EXE` is the player-facing command UI
 - `ECUTIL.EXE` is the sysop/configuration utility
 - `ECMAINT.EXE` is the yearly maintenance and simulation engine
+- when semantics and implementation quirks diverge:
+  - prefer the manuals for gameplay meaning
+  - prefer the binaries for file compatibility, accepted directory structure,
+    and proven cross-file invariants
+- do not chase byte-perfect parity if it would force Rust away from the
+  original documented rules without adding compatibility value
 
 2. Prefer confirmed behavior over guessed structure
 
@@ -96,6 +104,10 @@ Long term:
 - preserve the original player-facing ANSI presentation well enough to reuse
   or faithfully recreate important opening/menu/report screens in the Rust
   client
+- eventually support both:
+  - classic `.DAT` directory interchange with the DOS binaries
+  - a richer modern storage layer where useful, likely through SQLite
+    importing/exporting through the same canonical Rust state model
 
 ## Milestone Ladder
 
@@ -143,6 +155,8 @@ Long term:
   - oracle scenario definitions
 - Rust remains the authority for maintenance sequencing and classic save-file
   compatibility; config should feed stable data tables, not replace the engine
+- future storage layers should follow the same rule: they may sit beside the
+  classic `.DAT` flow, but not replace the compatibility boundary
 - long-term goal:
   - describe scenarios
   - describe per-turn player orders
@@ -188,14 +202,55 @@ Long term:
   constants into machine-readable KDL config rather than burying them inline
   forever in Rust code
 
+10. Preserve compatible gamestate even when behavior is canonicalized
+
+- the Rust engine is now far enough along that it should prefer
+  **classic-compatible save directories** over brittle attempts to mimic every
+  hidden stochastic or processing-order quirk of the original binaries
+- for unresolved or stochastic mechanics, a documented canonical Rust rule is
+  acceptable if:
+  - the resulting `.DAT` files remain loadable and sane in original `ECGAME`
+  - the resulting directories remain structurally acceptable to the original
+    maintenance/tooling workflow
+  - the rule is faithful to the player manuals and observed gameplay spirit
+  - the rule is deterministic, auditable, and regression-testable
+- this means:
+  - file compatibility remains strict
+  - deterministic mechanics should still match exactly where practical
+  - non-deterministic or under-recovered mechanics may reasonably diverge when
+    the divergence is explicit, compatible, and more reproducible than the
+    original hidden behavior
+
+11. Keep diplomacy and hostility separate
+
+- `enemy` is a stored diplomatic relation set by players in `ECGAME`
+- `hostile` is the broader maintenance/combat state that determines whether a
+  contact may escalate into battle
+- a contact can become hostile because:
+  - one side has declared the other an enemy
+  - one side attacks first
+  - one side enters another empire's defended solar system
+  - one side enters or leaves a blockaded world
+- if the original enemy/neutral bytes are not yet fully mapped, Rust should
+  still model the distinction in docs and code rather than collapsing both
+  concepts into one permanent shortcut
+
 Near-term acceptance rule:
 
 - a format/mechanic is not "done" until Rust can emit the relevant state and
   the original binaries accept it without integrity failures or unexpected
   normalization
+- the original `ECMAINT` oracle is therefore a compatibility and structure
+  oracle first, not a universal semantics oracle
+- bit-perfect post-maint parity is worth pursuing only when it supports the
+  manuals and the mechanic is deterministic enough for that target to be
+  meaningful
 - for stochastic mechanics, "done" means: correct field structure, plausible
   magnitudes, and a documented canonical rule — not byte-exact match to any
   single oracle run
+- for manual-driven mechanics whose original binary behavior is ambiguous,
+  opaque, or stochastic, strict adherence to the manuals is a better target
+  than reproducing one hidden implementation artifact
 - the combat spec in
   [docs/ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/ec-combat-spec.md)
   is no longer only aspirational; it now drives the live Rust maintenance path
@@ -262,6 +317,8 @@ Near-term policy:
 - where richer specialized report events exist, prefer them over duplicate
   generic mission-resolution text; invade/blitz should not generate two
   parallel attacker-side reports for the same assault
+- every fleet encounter should eventually emit an intel/contact event even if
+  no battle occurs; combat is only one possible consequence of contact
 - treat `RESULTS.DAT` as the active canonical maint report target
 - leave `MESSAGES.DAT` empty until a non-empty maint-generated sample is
   recovered from fixtures, oracle runs, or historical session captures

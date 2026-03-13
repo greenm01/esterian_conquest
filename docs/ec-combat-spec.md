@@ -169,6 +169,38 @@ This doctrine applies to:
 - simultaneous arrivals at a defended or blockaded world
 - multi-empire encounters in open space or orbit
 
+### Enemy vs hostile
+
+The original manuals distinguish between a player you have declared an
+`enemy` and a fleet that is currently `hostile` for combat purposes.
+
+From the manuals:
+
+- players may be declared `neutral` or `enemy` in `ECGAME`
+- fleets automatically attack fleets belonging to declared enemies when they
+  are encountered
+- fleets always fight back if attacked
+- fleets also attack when another player's fleets enter one of their solar
+  systems, or when another player's fleets try to enter or leave a world they
+  are blockading
+
+Canonical interpretation:
+
+- `enemy` is a stored diplomatic stance
+- `hostile` is the broader tactical category used by ROE and contact resolution
+- declared enemies are hostile on encounter
+- some contacts become hostile even without prior enemy declaration:
+  - entering an empire's solar system
+  - entering or leaving a world under blockade
+  - attacking first
+- attacking another player's fleet or planet should also escalate diplomacy:
+  once one empire initiates offensive action against another, both empires are
+  treated as enemies for later encounters unless some future diplomacy system
+  explicitly allows de-escalation
+
+This spec therefore uses `hostile` for combat eligibility and `enemy` only
+for the narrower diplomatic declaration concept.
+
 ### Shared contact rules
 
 When two or more hostile empires are present in the same location in the same
@@ -182,6 +214,10 @@ maintenance step:
 - combat rounds are resolved simultaneously between task forces, not in hidden
   initiative order
 - file order, fleet ID, and mission code never determine who fires first
+
+Any fleet encounter, whether hostile or not, should still generate a contact
+or intelligence report for the empires that observed it. Contact reporting is
+broader than combat reporting.
 
 ### Shared tie-break rules
 
@@ -584,6 +620,35 @@ After the open-space battle:
 - if no battle occurs because all ROE checks refuse engagement, fleets coexist
   only if diplomacy allows it; otherwise patrol/blockade interception forces a
   one-round pursuit-fire exchange
+
+### Crossing paths during movement
+
+The original manuals describe fleets as being encountered when they meet, but
+they do not spell out a precise sub-turn interception geometry for fleets whose
+movement paths merely cross between starting and ending sectors.
+
+Canonical Rust rule for now:
+
+- movement resolves first
+- hostile contact is then evaluated from the final post-movement board state
+- fleets engage if they occupy the same final location after movement
+- fleets do not currently engage solely because their movement paths crossed
+  between two different final locations in the same tick
+- if fleets occupy the same final location and are enemies, they should resolve
+  hostile contact automatically
+- if fleets occupy the same final location and are not enemies, they should
+  still generate encounter intel but should not perform hostile operations
+  unless one side attacks or a defensive hostility rule applies
+
+So:
+
+- same final sector or same final orbit this tick: contact may occur
+- one fleet passes through while the other departs and they end in different
+  places: no combat from path crossing alone
+
+This is intentionally narrower than a full interception geometry model. If
+later RE or oracle work proves true mid-path interception rules, this section
+should be revised explicitly rather than inferred from ROE alone.
 
 ## Simultaneous Arrival At A Planet
 
