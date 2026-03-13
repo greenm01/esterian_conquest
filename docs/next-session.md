@@ -48,6 +48,9 @@ What is strong:
   - materialize exact canonical post-maint core-baseline directories
   - validate current-known structural rules
   - validate exact canonical post-maint core-byte matches
+  - transform the preserved initialized fixture
+    [ecutil-init/v1.5](/home/mag/dev/esterian_conquest/fixtures/ecutil-init/v1.5)
+    all the way to the exact canonical post-maint core baseline
   - emit accepted scenario directories for:
     - `fleet-order`
     - `planet-build`
@@ -99,8 +102,10 @@ Priority order:
        UI/report preservation
 
 2. Recover initialized-to-post-maint deterministic rules
+   - the clean preserved initialized fixture is now fully covered
+   - next target is the noisier shipped sample in `original/v1.5`
    - use canonical post-maint diff output from normalized `original/v1.5`
-   - promote remaining deterministic byte clusters into shared Rust rules
+   - promote only clearly reusable transition clusters into shared Rust rules
 
 3. Expand `IPBM` from structural to semantic
    - the file is structurally mapped enough for Rust tooling

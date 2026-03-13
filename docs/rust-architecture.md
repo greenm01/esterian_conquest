@@ -257,10 +257,13 @@ baseline:
   normalization and reports either per-file differing-byte counts or exact byte
   offsets for the core `.DAT` set
 - this answers: "what would the current-known normalizer still change?"
-- this is useful specifically because the current-known normalizer is not yet
-  byte-complete; the diff report makes the remaining unexplained bytes visible,
-  and the offset report makes them actionable RE targets instead of hiding them
-  behind a boolean pass/fail
+- this is still useful because the current-known normalizer is only guaranteed
+  byte-complete for the preserved initialized -> post-maint baseline, not for
+  noisier shipped/sample states like `original/v1.5`
+- practical milestone:
+  - `ec-cli core-init-current-known-baseline fixtures/ecutil-init/v1.5 <dir>`
+    now yields a directory whose canonical diff against
+    `fixtures/ecmaint-post/v1.5` is empty for every core `.DAT` file
 - first concrete payoff:
   - the repeated `FLEETS.DAT` drift clusters were traced to missing initialized
     fleet owner-byte and tuple-marker semantics

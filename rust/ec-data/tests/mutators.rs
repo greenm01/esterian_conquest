@@ -743,6 +743,36 @@ fn core_game_data_sync_current_known_initialized_post_maint_baseline_repairs_com
 }
 
 #[test]
+fn core_game_data_sync_current_known_initialized_post_maint_baseline_matches_canonical_from_init() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_initialized_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_initialized_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_initialized_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_initialized_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_initialized_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_initialized_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_initialized_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    data.sync_current_known_initialized_post_maint_baseline();
+
+    let canonical = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    assert!(
+        data.exact_match_errors_against(&canonical, "canonical post-maint fixture")
+            .is_empty()
+    );
+}
+
+#[test]
 fn core_game_data_current_known_baseline_diff_counts_detect_mutated_files() {
     let mut data = CoreGameData {
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
