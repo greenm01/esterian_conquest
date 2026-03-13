@@ -17,6 +17,7 @@ struct ColonizationEvent {
 /// - Year advancement (+1 per turn)
 /// - Fleet movement (basic move orders)
 /// - Planet colonization (ColonizeWorld fleet arrivals)
+/// - Fleet co-location merging (friendly fleets at same coords merge into one)
 ///
 /// Note: DATABASE.DAT regeneration is handled separately in the CLI layer
 /// since it's not part of CoreGameData.
@@ -33,6 +34,13 @@ pub fn run_maintenance_turn(
     let current_year = game_data.conquest.game_year();
     let new_year = current_year + 1;
     game_data.conquest.set_game_year(new_year);
+
+    // Merge co-located friendly fleets BEFORE movement.
+    // Confirmed from econ fixture: the Bombard fleet (at 16,13 pre-move) is
+    // included in the merge even though it moves to (15,13) this turn.
+    // The merge runs before movement resolution, absorbing all same-position
+    // fleets for flagged players (PLAYER raw[0x00]==0xff).
+    process_fleet_merging(game_data)?;
 
     // Process fleet orders; collect side-effect events
     let colonization_events = process_fleet_movement(game_data)?;
@@ -303,6 +311,182 @@ fn process_colonizations(
                         current_score.saturating_add(1);
                 }
             }
+        }
+    }
+
+    Ok(())
+}
+
+/// Merge co-located friendly fleets for players flagged for combat consolidation.
+///
+/// **Trigger:** only players whose `PLAYER.DAT raw[0x00] == 0xff` have their
+/// fleets merged.  This byte is a combat-engagement flag set by ECGAME when the
+/// player has declared war or been flagged as a rogue aggressor.  Values
+/// `0x00`, `0x01`, `0x02`, etc. leave fleets untouched.
+///
+/// Confirmed by black-box oracle testing (econ/fleet-battle/invade-heavy fixtures):
+/// - Setting player 1 raw[0x00] to `0x00` prevents the merge entirely.
+/// - Only `0xff` triggers co-location merging.
+///
+/// **Merge rules (confirmed from econ-pre/post fixture pair):**
+/// - All fleets belonging to the flagged player at the same coordinates are
+///   merged into the lowest-indexed fleet at that location (the survivor).
+/// - Ship counts (BB, CA, DD, TT, ARMY, ET, scouts) are summed.
+/// - Surviving fleet's ROE is set to 10 (maximum aggression).
+/// - Surviving fleet's next_fleet_id (raw[0x03]) and prev_fleet_id (raw[0x07])
+///   chain links are cleared to 0x00.
+/// - Merged (removed) fleet records are deleted from the array.
+/// - After deletion all fleet ID fields are remapped: local_slot (raw[0x00]),
+///   fleet_id (raw[0x05]), next_fleet_id (raw[0x03]), prev_fleet_id (raw[0x07])
+///   are decremented by the count of removed slots before each position.
+/// - PLAYER.DAT first_fleet_id (raw[0x40]) and last_fleet_id (raw[0x42]) are
+///   updated for all players to reflect the remapped IDs.
+fn process_fleet_merging(game_data: &mut CoreGameData) -> Result<(), Box<dyn std::error::Error>> {
+    let fleet_count = game_data.fleets.records.len();
+    if fleet_count == 0 {
+        return Ok(());
+    }
+
+    // Build a list of which fleets should be removed (merged into another).
+    let mut to_remove: Vec<bool> = vec![false; fleet_count];
+
+    let player_count = game_data.player.records.len();
+    for player_idx in 0..player_count {
+        // Only merge fleets for players flagged with the combat-engagement byte 0xff.
+        if game_data.player.records[player_idx].raw[0x00] != 0xff {
+            continue;
+        }
+
+        let owner = (player_idx + 1) as u8;
+
+        // Collect fleet indices for this player, in order.
+        let player_fleet_indices: Vec<usize> = (0..fleet_count)
+            .filter(|&i| game_data.fleets.records[i].owner_empire_raw() == owner)
+            .collect();
+
+        // Group by coords: for each coord pair, the first fleet is the survivor.
+        let mut coord_to_survivor: std::collections::HashMap<[u8; 2], usize> =
+            std::collections::HashMap::new();
+
+        for &fi in &player_fleet_indices {
+            let coords = game_data.fleets.records[fi].current_location_coords_raw();
+            if let Some(&survivor_idx) = coord_to_survivor.get(&coords) {
+                // This fleet duplicates an existing location → merge into survivor.
+                to_remove[fi] = true;
+
+                // Sum ship counts into survivor.
+                let bb = game_data.fleets.records[fi].battleship_count();
+                let ca = game_data.fleets.records[fi].cruiser_count();
+                let dd = game_data.fleets.records[fi].destroyer_count();
+                let tt = game_data.fleets.records[fi].troop_transport_count();
+                let army = game_data.fleets.records[fi].army_count();
+                let et = game_data.fleets.records[fi].etac_count();
+                let sc = game_data.fleets.records[fi].scout_count();
+
+                let s = &mut game_data.fleets.records[survivor_idx];
+                s.set_battleship_count(s.battleship_count().saturating_add(bb));
+                s.set_cruiser_count(s.cruiser_count().saturating_add(ca));
+                s.set_destroyer_count(s.destroyer_count().saturating_add(dd));
+                s.set_troop_transport_count(s.troop_transport_count().saturating_add(tt));
+                s.set_army_count(s.army_count().saturating_add(army));
+                s.set_etac_count(s.etac_count().saturating_add(et));
+                s.set_scout_count(s.scout_count().saturating_add(sc));
+            } else {
+                coord_to_survivor.insert(coords, fi);
+            }
+        }
+
+        // Set ROE=10 and clear chain links on any survivor that absorbed other fleets.
+        for (&coords, &fi) in &coord_to_survivor {
+            let had_merges = player_fleet_indices.iter().any(|&other| {
+                other != fi
+                    && game_data.fleets.records[other].current_location_coords_raw() == coords
+            });
+
+            if had_merges {
+                game_data.fleets.records[fi].raw[0x03] = 0x00; // next_fleet_id
+                game_data.fleets.records[fi].raw[0x07] = 0x00; // prev_fleet_id
+                game_data.fleets.records[fi].set_rules_of_engagement(10);
+            }
+        }
+    }
+
+    // Build the new fleet list with removed fleets deleted.
+    // Track how many slots were removed before each original index (for ID remapping).
+    let removed_before: Vec<u8> = {
+        let mut count = 0u8;
+        (0..fleet_count)
+            .map(|i| {
+                let c = count;
+                if to_remove[i] {
+                    count += 1;
+                }
+                c
+            })
+            .collect()
+    };
+
+    // Remap a fleet ID (1-based): if it referred to a removed fleet, return 0;
+    // otherwise decrement by the number of removed slots before its original index.
+    let remap_id = |old_id: u8| -> u8 {
+        if old_id == 0 {
+            return 0;
+        }
+        let orig_idx = (old_id as usize).saturating_sub(1);
+        if orig_idx >= fleet_count || to_remove[orig_idx] {
+            0
+        } else {
+            old_id - removed_before[orig_idx]
+        }
+    };
+
+    // Rebuild the fleet array: keep only non-removed fleets, updating all ID fields.
+    let new_fleets: Vec<_> = game_data
+        .fleets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| !to_remove[*i])
+        .map(|(i, fleet)| {
+            let mut f = fleet.clone();
+            // local_slot (raw[0x00]): per-player 1-based slot index — NOT a global ID,
+            // does NOT change when fleets are removed from other players.
+            // fleet_id (raw[0x05]): 1-based global fleet ID — decremented by removed count.
+            f.raw[0x05] = fleet.raw[0x05].saturating_sub(removed_before[i]);
+            // next_fleet_id (raw[0x03]): 1-based global forward chain link
+            f.raw[0x03] = remap_id(fleet.raw[0x03]);
+            // prev_fleet_id (raw[0x07]): 1-based global backward chain link
+            f.raw[0x07] = remap_id(fleet.raw[0x07]);
+            f
+        })
+        .collect();
+
+    game_data.fleets.records = new_fleets;
+
+    // Update PLAYER.DAT fleet range fields for all players.
+    // raw[0x40] = first_fleet_id (1-based), raw[0x42] = last_fleet_id (1-based).
+    // When all of a player's extra fleets are merged into one, last_fleet_id
+    // remaps to 0 (because the original last fleet was removed). In that case,
+    // use the remapped first_fleet_id instead.
+    for player_idx in 0..game_data.player.records.len() {
+        let first_id = game_data.player.records[player_idx].raw[0x40];
+        let last_id = game_data.player.records[player_idx].raw[0x42];
+        let new_first = remap_id(first_id);
+        let new_last = remap_id(last_id);
+        game_data.player.records[player_idx].raw[0x40] = new_first;
+        // If last remaps to 0 but first is valid, the player's fleets all merged
+        // into one — use the survivor's (first's) id as last too.
+        game_data.player.records[player_idx].raw[0x42] = if new_last == 0 && new_first != 0 {
+            new_first
+        } else {
+            new_last
+        };
+
+        // raw[0x51]: set to 0x41 for players whose fleets were merged this turn.
+        // Observed consistently across econ/fleet-battle/invade-heavy post-fixtures:
+        // any 0xff-flagged player that had at least one merge gets raw[0x51]=0x41.
+        if game_data.player.records[player_idx].raw[0x00] == 0xff && new_last != last_id {
+            game_data.player.records[player_idx].raw[0x51] = 0x41;
         }
     }
 

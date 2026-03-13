@@ -293,6 +293,24 @@ Diff `ecmaint-econ-pre` vs `ecmaint-econ-post` to catalog exact changes.
 - **Current parity on move scenario (3 turns):** ✅ **100% (10/10 files match)**
 - **5 regression tests in `ec-data/tests/maint_fleet.rs`**
 
+#### Fleet Co-location Merging — IMPLEMENTED ✅
+- ✅ Trigger confirmed: `PLAYER.DAT raw[0x00] == 0xff` (combat-engagement flag set by ECGAME)
+  - Confirmed by black-box oracle: setting to `0x00/0x01/0x02/0xfe` all prevent merge
+  - Only `0xff` triggers co-location merging
+- ✅ Merge runs **before** fleet movement (Bombard fleet at same location is absorbed pre-move)
+- ✅ All co-located same-player fleets merged into lowest-indexed survivor
+- ✅ Ship counts (BB, CA, DD, TT, ARMY, ET, scouts) summed across all merged fleets
+- ✅ Survivor gets ROE=10, next/prev chain links cleared to 0x00
+- ✅ Removed fleet records deleted from array
+- ✅ Fleet ID fields remapped after deletion:
+  - `raw[0x05]` (global fleet_id): decremented by removed count
+  - `raw[0x03]` (next_fleet_id), `raw[0x07]` (prev_fleet_id): remapped via remap_id
+  - `raw[0x00]` (local_slot): NOT remapped — per-player 1-based, unchanged
+- ✅ PLAYER.DAT fleet range fields updated: `raw[0x40]` (first), `raw[0x42]` (last)
+  - When all extras merge into one, last = first (survivor ID)
+- ✅ PLAYER.DAT `raw[0x51]` set to 0x41 for players whose fleets were merged
+- **Current parity on econ scenario (1 turn):** 6/10 (FLEETS.DAT now matches ✅)
+
 #### Build Completion — IMPLEMENTED ✅
 - ✅ Build queue processing with production calculation
   - Production rate = factories_word + (potential_production / 2)
