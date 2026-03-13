@@ -7,6 +7,12 @@ pub struct PlanetRecord {
 }
 
 impl PlanetRecord {
+    pub fn new_zeroed() -> Self {
+        Self {
+            raw: [0; PLANET_RECORD_SIZE],
+        }
+    }
+
     pub fn header_bytes(&self) -> &[u8] {
         &self.raw[..3]
     }

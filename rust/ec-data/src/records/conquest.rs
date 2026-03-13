@@ -49,6 +49,17 @@ impl ConquestDat {
             .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
             .collect()
     }
+
+    /// Set the game year (offset 0x00..0x01, little-endian u16).
+    pub fn set_game_year(&mut self, year: u16) {
+        self.raw[0..2].copy_from_slice(&year.to_le_bytes());
+    }
+
+    /// Set the player count (offset 0x02).
+    pub fn set_player_count(&mut self, count: u8) {
+        self.raw[2] = count;
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         self.raw.to_vec()
     }

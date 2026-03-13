@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use ec_data::{CoreGameData, GameStateBuilder};
+
 use crate::commands::compare::{
     compare_all_preserved_scenarios, compare_dirs, compare_preserved_scenario,
 };
@@ -152,6 +154,90 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
                 return Ok(());
             };
             initialize_dir(&source, &target)?;
+        }
+        "generate-gamestate" => {
+            let target_dir = match args.next() {
+                Some(dir) => PathBuf::from(dir),
+                None => {
+                    print_usage();
+                    return Ok(());
+                }
+            };
+            let player_count: u8 = match args.next().and_then(|s| s.parse().ok()) {
+                Some(count) if count >= 1 && count <= 4 => count,
+                _ => {
+                    eprintln!("Error: player_count must be 1-4");
+                    print_usage();
+                    return Ok(());
+                }
+            };
+            let year: u16 = match args.next().and_then(|s| s.parse().ok()) {
+                Some(y) => y,
+                None => {
+                    eprintln!("Error: year must be a valid number");
+                    print_usage();
+                    return Ok(());
+                }
+            };
+
+            // Collect homeworld coordinates
+            let mut homeworld_coords = Vec::new();
+            for coord_str in args {
+                let parts: Vec<&str> = coord_str.split(':').collect();
+                if parts.len() != 2 {
+                    eprintln!("Error: homeworld coords must be in format x:y");
+                    print_usage();
+                    return Ok(());
+                }
+                let x: u8 = match parts[0].parse() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        eprintln!("Error: invalid x coordinate: {}", parts[0]);
+                        return Ok(());
+                    }
+                };
+                let y: u8 = match parts[1].parse() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        eprintln!("Error: invalid y coordinate: {}", parts[1]);
+                        return Ok(());
+                    }
+                };
+                homeworld_coords.push([x, y]);
+            }
+
+            // Ensure we have enough coords
+            while homeworld_coords.len() < player_count as usize {
+                homeworld_coords.push([0, 0]);
+            }
+            homeworld_coords.truncate(player_count as usize);
+
+            // Build and save the gamestate
+            let builder = GameStateBuilder::new()
+                .with_player_count(player_count)
+                .with_year(year)
+                .with_homeworld_coords(homeworld_coords);
+
+            match builder.build_and_save(&target_dir) {
+                Ok(()) => {
+                    println!("Generated gamestate at: {}", target_dir.display());
+
+                    // Validate with preflight
+                    let data = CoreGameData::load(&target_dir)?;
+                    let errors = data.ecmaint_preflight_errors();
+                    if errors.is_empty() {
+                        println!("Preflight validation: OK");
+                    } else {
+                        println!("Preflight validation errors:");
+                        for error in errors {
+                            println!("  - {}", error);
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error generating gamestate: {}", e);
+                }
+            }
         }
         "maintenance-days" => {
             let dir = next_dir(&mut args);

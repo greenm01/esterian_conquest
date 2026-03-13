@@ -7,6 +7,12 @@ pub struct PlayerRecord {
 }
 
 impl PlayerRecord {
+    pub fn new_zeroed() -> Self {
+        Self {
+            raw: [0; PLAYER_RECORD_SIZE],
+        }
+    }
+
     pub fn occupied_flag(&self) -> u8 {
         self.raw[0]
     }
@@ -133,6 +139,18 @@ impl PlayerRecord {
 
     pub fn set_autopilot_flag(&mut self, value: u8) {
         self.raw[0x6D] = value;
+    }
+
+    /// Set the occupied/present flag at offset 0x00.
+    /// This indicates whether a player slot is active (1) or unjoined (0).
+    pub fn set_occupied_flag(&mut self, value: u8) {
+        self.raw[0] = value;
+    }
+
+    /// Set the owner empire byte at offset 0x00.
+    /// Same as occupied_flag for player records.
+    pub fn set_owner_empire_raw(&mut self, value: u8) {
+        self.raw[0] = value;
     }
 }
 

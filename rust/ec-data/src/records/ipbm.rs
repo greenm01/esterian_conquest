@@ -7,6 +7,12 @@ pub struct IpbmRecord {
 }
 
 impl IpbmRecord {
+    pub fn new_zeroed() -> Self {
+        Self {
+            raw: [0; IPBM_RECORD_SIZE],
+        }
+    }
+
     pub fn primary_word_raw(&self) -> u16 {
         u16::from_le_bytes([self.raw[0x00], self.raw[0x01]])
     }

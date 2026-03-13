@@ -83,4 +83,5 @@ pub fn print_usage() {
     println!("  ec-cli match [dir]");
     println!("  ec-cli compare <left_dir> <right_dir>");
     println!("  ec-cli init [source_dir] <target_dir>");
+    println!("  ec-cli generate-gamestate <target_dir> <player_count> <year> [<homeworld_x>:<homeworld_y>...]");
 }
