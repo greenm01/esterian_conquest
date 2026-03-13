@@ -7,7 +7,10 @@ use crate::{CoreGameData, FleetStandingOrderKind};
 /// This is the Rust implementation of ECMAINT.EXE behavior.
 /// Currently implements:
 /// - Year advancement (+1 per turn)
-/// - Fleet movement (based on RE_NOTES.md movement formula)
+/// - Fleet movement (basic move orders)
+///
+/// Note: DATABASE.DAT regeneration is handled separately in the CLI layer
+/// since it's not part of CoreGameData.
 ///
 /// # Arguments
 /// * `game_data` - Mutable reference to the game state to modify
@@ -28,7 +31,6 @@ pub fn run_maintenance_turn(
     // TODO: Resolve combat
     // TODO: Complete builds
     // TODO: Update economy
-    // TODO: Regenerate DATABASE.DAT
 
     Ok(())
 }
