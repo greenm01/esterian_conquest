@@ -228,6 +228,7 @@ What is strong:
     - `move`
     - `bombard`
     - `fleet-battle`
+    - `invade`
 
 What is still incomplete:
 
@@ -303,19 +304,14 @@ Priority order:
 ## Concrete Next Task
 
 Scenarios `fleet-order`, `planet-build`, `guard-starbase`, `move`, `ipbm`,
-`bombard`, and `fleet-battle` now have Rust generators and passing tests.
-`bombard` and `fleet-battle` exact-match their preserved pre-maint fixtures for
-`FLEETS.DAT` and `PLANETS.DAT`.
+`bombard`, `fleet-battle`, and `invade` now have Rust generators and passing
+tests. `bombard`, `fleet-battle`, and `invade` exact-match their preserved
+pre-maint fixtures for `FLEETS.DAT` and `PLANETS.DAT`.
 
 The remaining non-deterministic scenarios still need pre-maint generators:
 
-1. **`invade-heavy`** — invasion pre-maint setup; follow the `bombard`/`fleet-battle`
-   pattern (analyze pre-fixture diff from canonical baseline, implement
-   `apply_invade_heavy_scenario`, add 3 tests)
-2. **`econ`** — economy tick; requires understanding the production/tax rule
+1. **`econ`** — economy tick; requires understanding the production/tax rule
    (raw[0x0e] and factories_word at raw[0x08..0x09])
-
-Best immediate task: **`invade-heavy` scenario** (same pattern as `fleet-battle`).
 
 ## Canonical Baseline Tools
 
