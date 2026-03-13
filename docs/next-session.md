@@ -179,6 +179,18 @@ Priority order:
              - remaining `3521` semantics now require runtime-aware capture
                around the live consumer
              - do not spend more time blindly carving the zeroed `3000:` range
+         - a runtime write-stop dump on the failing `unknown starbase` case now
+           confirms the same limit:
+           - at the `ERRORS.TXT` write stop (`AX=40d0`, `BX=0006`,
+             `CS=3374:EIP=1953`), `ERRORS.TXT` already contains
+             `Fleet assigned to an unknown starbase.`
+           - but the nominal raw-dump ranges for `3000:44b7`, `3000:6766`,
+             and even `0x3521` are still zero under the current linear model
+           - practical implication:
+             - the remaining selector semantics are outside what the current
+               PSP-owned dump exposes under the old `3000:` assumptions
+             - next method should be runtime-segment-aware capture around the
+               live consumer path, not more raw-dump carving
 
 2. Recover initialized-to-post-maint deterministic rules
    - use canonical post-maint diff output from normalized `original/v1.5`

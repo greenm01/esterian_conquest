@@ -4614,6 +4614,25 @@ Strong practical consequence:
       import alone
     - the next method must be runtime-aware capture around the live consumer,
       not more blind carving of the zeroed `3000:` range
+- a runtime-aware write-stop dump on the failing `unknown starbase` case
+  tightens that further
+  - using `BPINT 21 40`, the debugger now stops at the `ERRORS.TXT` write with:
+    - `CS=3374 EIP=1953`
+    - `AX=40d0`
+    - `BX=0006`
+  - `ERRORS.TXT` at that stop contains:
+    - `Fleet assigned to an unknown starbase.`
+  - but even in that late failing snapshot, the nominal raw-dump offsets for:
+    - `3000:44b7`
+    - `3000:6766`
+    - `0x3521`
+    still read as zero under the current linear mapping
+  - practical consequence:
+    - the remaining `3521` / `44b7` semantics are not just "later in time";
+      they are outside what this PSP-owned dump exposes under the current
+      raw-import address model
+    - the next useful method is a runtime-segment-aware capture around the
+      live consumer path, not more raw-dump carving at the old `3000:` offsets
 
 Artifacts:
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-predicate.txt`
@@ -4626,6 +4645,8 @@ Artifacts:
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-variant-strings.txt`
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-mode-selector.txt`
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-variant-helper.txt`
+- `artifacts/ecmaint-kind2-debug/unknown-starbase-write/summary.txt`
+- `artifacts/ecmaint-kind2-debug/unknown-starbase-write/MEMDUMP.BIN`
 
 Tool:
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbasePredicate.java`
@@ -4635,6 +4656,7 @@ Tool:
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseVariantStrings.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseModeSelector.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseVariantHelper.java`
+- `tools/capture_ecmaint_unknown_starbase_write_dump.py`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbasePayloadProducers.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseScalarScan.java`
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbaseLateRanges.java`
