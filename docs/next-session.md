@@ -105,6 +105,12 @@ Priority order:
          - branch `40f7..410c` selects between two nearby CS-local string
            variants depending on whether `351b..351f` is zero
          - both failure/report exits clear `350c` / `3521`
+         - nearby raw strings after `41a1` show this region also owns the
+           wider starbase merge/guard report family:
+           - arrival at starbase
+           - merging with fleet
+           - found fleet already guarding it
+           - cannot merge because fleet would exceed ship limit
        - `0x1000:d183` is now narrowed to a candidate locator/selector:
          - scans the `0x1712` table
          - filters matching entries
@@ -121,7 +127,8 @@ Priority order:
            - the direct register return is only a boolean success gate
        - next target should now stay in `0000:3fcf..41a0`, especially:
          - the caller-side meaning of `350c`, `3521`, and `351b..351f`
-         - the exact CS-local message fragments / report variants
+         - the exact CS-local report variants and which scratch fields choose
+           them
 
 2. Recover initialized-to-post-maint deterministic rules
    - use canonical post-maint diff output from normalized `original/v1.5`
@@ -163,9 +170,8 @@ Best immediate task:
     raw string
   - so the next capture/search should focus on:
     - the caller-side meaning of `350c`, `3521`, and `351b..351f`
-    - the exact CS-local message fragments / report variants around
-      `0x0a93`, `0x0abc`, `0x0ae6`, `0x0aed`, `0x0af4`, `0x0af6`,
-      `0x0af8`, and `0x0b17`
+    - the exact late starbase report variants around the raw strings after
+      `41a1`
     - any dynamic confirmation of the caller-side `AX` / located-summary slot
       relationship at `3fe8`
 - once those rules are recovered, promote them into `CoreGameData`

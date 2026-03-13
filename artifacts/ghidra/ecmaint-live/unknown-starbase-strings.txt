@@ -1,0 +1,49 @@
+# Unknown Starbase Strings
+
+- Focus: nearby raw string fragments and CS-local text anchors around
+  the late starbase report path.
+
+## 0000:3f89
+
+) and are awaiting new orders.&Fleet assigned to an unknown starbase.U<89><e5><81><ec>(<03><c6>F<ff><00><bf><02>5<1e>W<8d>~<dc><16>W<9a>3!<05><1b><89>F<d8><83>~<d8><00>w<03><e9><92><01><8b>F<d8><d1><e0><d1><e0><c4>>r/<03><f8>&<c4>}<fc>&<80>}<03><00>u<03><e9><98><00><8b>F<04><d1><e0><d1><e0><c4>>r/<03><f8>&<c4>}<fc>&<8a>U<01><8b>F<d8><d1><e0>
+
+## 0000:41a1
+
+<02><00><1c>We have arrived at Starbase <1a> and are merging with the <07> Fleet.<14> and have found the <1c> Fleet already guarding it. -However, since a fleet cannot have more tha
+
+## 0000:41e0
+
+et.<14> and have found the <1c> Fleet already guarding it. -However, since a fleet cannot have more than <12> ships, we cannot Smerge with them. We are therefore abortin
+
+## 0000:0a93
+
+<8b>V<fe><8b>N<f4><8b>v<f6><8b>~<f8><9a>1<11>t3<80><e6><7f>Y^_<9a>=<11>t3<8b>N<fa><8b>v<fc><8b>~<fe><9a>+<11>t3<89>F<fa><89>^<fc><89>V<fe><eb>Y<8b>F<c4><8b>^<c6><8b>V<c8><8b>N<ca><8b>v<cc><8b>~<ce><9a>C<11>t3RSP<8b>F<fa><8b>^<fc><8b>V<fe><8b>N<f4><8b>v<f6><8b>~<f8><9a>1<11>t3<80><e6><7f>Y^_<9a>=<11>t3RSP<8b>F<fa><8b>^<fc><8b>V<fe>Y^_<9a>1<11>t3<89>F<fa><89>^<fc><89>V<fe><8b>F<ee><8b>^<f0><8b>V<f2><8b>N<e8><8b>v<ea><8b>~<ec>
+
+## 0000:0abc
+
+3<89>F<fa><89>^<fc><89>V<fe><eb>Y<8b>F<c4><8b>^<c6><8b>V<c8><8b>N<ca><8b>v<cc><8b>~<ce><9a>C<11>t3RSP<8b>F<fa><8b>^<fc><8b>V<fe><8b>N<f4><8b>v<f6><8b>~<f8><9a>1<11>t3<80><e6><7f>Y^_<9a>=<11>t3RSP<8b>F<fa><8b>^<fc><8b>V<fe>Y^_<9a>1<11>t3<89>F<fa><89>^<fc><89>V<fe><8b>F<ee><8b>^<f0><8b>V<f2><8b>N<e8><8b>v<ea><8b>~<ec><9a>M<11>t3sU<8b>F<c4><8b>^<c6><8b>V<c8><8b>N<ca><8b>v<cc><8b>~<ce><9a>C<11>t3RSP<8b>F<ee><8b>^<f0><8b>V
+
+## 0000:0ae6
+
+^<fc><8b>V<fe><8b>N<f4><8b>v<f6><8b>~<f8><9a>1<11>t3<80><e6><7f>Y^_<9a>=<11>t3RSP<8b>F<fa><8b>^<fc><8b>V<fe>Y^_<9a>1<11>t3<89>F<fa><89>^<fc><89>V<fe><8b>F<ee><8b>^<f0><8b>V<f2><8b>N<e8><8b>v<ea><8b>~<ec><9a>M<11>t3sU<8b>F<c4><8b>^<c6><8b>V<c8><8b>N<ca><8b>v<cc><8b>~<ce><9a>C<11>t3RSP<8b>F<ee><8b>^<f0><8b>V<f2><8b>N<e8><8b>v<ea><8b>~<ec><9a>1<11>t3<80><e6><7f>Y^_<9a>=<11>t3<8b>N<ee><8b>v<f0><8b>~<f2><9a>+<11>t3<89>F
+
+## 0000:0aed
+
+<f4><8b>v<f6><8b>~<f8><9a>1<11>t3<80><e6><7f>Y^_<9a>=<11>t3RSP<8b>F<fa><8b>^<fc><8b>V<fe>Y^_<9a>1<11>t3<89>F<fa><89>^<fc><89>V<fe><8b>F<ee><8b>^<f0><8b>V<f2><8b>N<e8><8b>v<ea><8b>~<ec><9a>M<11>t3sU<8b>F<c4><8b>^<c6><8b>V<c8><8b>N<ca><8b>v<cc><8b>~<ce><9a>C<11>t3RSP<8b>F<ee><8b>^<f0><8b>V<f2><8b>N<e8><8b>v<ea><8b>~<ec><9a>1<11>t3<80><e6><7f>Y^_<9a>=<11>t3<8b>N<ee><8b>v<f0><8b>~<f2><9a>+<11>t3<89>F<ee><89>^<f0><89>V<f2>
+
+## 0000:0af4
+
+<9a>1<11>t3<80><e6><7f>Y^_<9a>=<11>t3RSP<8b>F<fa><8b>^<fc><8b>V<fe>Y^_<9a>1<11>t3<89>F<fa><89>^<fc><89>V<fe><8b>F<ee><8b>^<f0><8b>V<f2><8b>N<e8><8b>v<ea><8b>~<ec><9a>M<11>t3sU<8b>F<c4><8b>^<c6><8b>V<c8><8b>N<ca><8b>v<cc><8b>~<ce><9a>C<11>t3RSP<8b>F<ee><8b>^<f0><8b>V<f2><8b>N<e8><8b>v<ea><8b>~<ec><9a>1<11>t3<80><e6><7f>Y^_<9a>=<11>t3<8b>N<ee><8b>v<f0><8b>~<f2><9a>+<11>t3<89>F<ee><89>^<f0><89>V<f2><eb>Y<8b>F<c4><8b>^
+
+## 0000:0af6
+
+<11>t3<80><e6><7f>Y^_<9a>=<11>t3RSP<8b>F<fa><8b>^<fc><8b>V<fe>Y^_<9a>1<11>t3<89>F<fa><89>^<fc><89>V<fe><8b>F<ee><8b>^<f0><8b>V<f2><8b>N<e8><8b>v<ea><8b>~<ec><9a>M<11>t3sU<8b>F<c4><8b>^<c6><8b>V<c8><8b>N<ca><8b>v<cc><8b>~<ce><9a>C<11>t3RSP<8b>F<ee><8b>^<f0><8b>V<f2><8b>N<e8><8b>v<ea><8b>~<ec><9a>1<11>t3<80><e6><7f>Y^_<9a>=<11>t3<8b>N<ee><8b>v<f0><8b>~<f2><9a>+<11>t3<89>F<ee><89>^<f0><89>V<f2><eb>Y<8b>F<c4><8b>^<c6><8b>
+
+## 0000:0af8
+
+3<80><e6><7f>Y^_<9a>=<11>t3RSP<8b>F<fa><8b>^<fc><8b>V<fe>Y^_<9a>1<11>t3<89>F<fa><89>^<fc><89>V<fe><8b>F<ee><8b>^<f0><8b>V<f2><8b>N<e8><8b>v<ea><8b>~<ec><9a>M<11>t3sU<8b>F<c4><8b>^<c6><8b>V<c8><8b>N<ca><8b>v<cc><8b>~<ce><9a>C<11>t3RSP<8b>F<ee><8b>^<f0><8b>V<f2><8b>N<e8><8b>v<ea><8b>~<ec><9a>1<11>t3<80><e6><7f>Y^_<9a>=<11>t3<8b>N<ee><8b>v<f0><8b>~<f2><9a>+<11>t3<89>F<ee><89>^<f0><89>V<f2><eb>Y<8b>F<c4><8b>^<c6><8b>V<c8>
+
+## 0000:0b17
+
+3<89>F<fa><89>^<fc><89>V<fe><8b>F<ee><8b>^<f0><8b>V<f2><8b>N<e8><8b>v<ea><8b>~<ec><9a>M<11>t3sU<8b>F<c4><8b>^<c6><8b>V<c8><8b>N<ca><8b>v<cc><8b>~<ce><9a>C<11>t3RSP<8b>F<ee><8b>^<f0><8b>V<f2><8b>N<e8><8b>v<ea><8b>~<ec><9a>1<11>t3<80><e6><7f>Y^_<9a>=<11>t3<8b>N<ee><8b>v<f0><8b>~<f2><9a>+<11>t3<89>F<ee><89>^<f0><89>V<f2><eb>Y<8b>F<c4><8b>^<c6><8b>V<c8><8b>N<ca><8b>v<cc><8b>~<ce><9a>C<11>t3RSP<8b>F<ee><8b>^<f0><8b>V<f2><8b>N<e8><8b>v
+

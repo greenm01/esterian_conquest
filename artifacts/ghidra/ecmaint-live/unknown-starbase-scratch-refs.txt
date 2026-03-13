@@ -1,0 +1,41 @@
+# Unknown Starbase Scratch Refs
+
+- Focus: code references to the late starbase scratch fields used by
+  `0000:3fcf..41a0`.
+
+## 0000:3504
+
+- <no references>
+
+## 0000:350c
+
+- <no references>
+
+## 0000:350d
+
+- <no references>
+
+## 0000:350e
+
+- <no references>
+
+## 0000:351b
+
+- <no references>
+
+## 0000:351d
+
+- <no references>
+
+## 0000:351f
+
+- <no references>
+
+## 0000:3521
+
+- <no references>
+
+## 0000:3525
+
+- <no references>
+

@@ -4498,12 +4498,33 @@ Strong practical consequence:
   - both failure/report exits clear `350c` and `3521`
 - early no-match path `4186..4195` emits a separate CS-local message through
   `0x3000:159b`, then also clears `350c` and `3521`
+- a focused scalar-xref pass on `3504`, `350c`, `350d`, `350e`, `351b`,
+  `351d`, `351f`, `3521`, and `3525` found no clean raw-import references
+  outside this later region
+  - practical consequence:
+    - these should currently be treated as late-path scratch/state fields, not
+      reliable named globals in the raw import
+- nearby raw strings after `0000:41a1` now show this region owns a wider
+  starbase report family, not only the raw `unknown starbase` message:
+  - `We have arrived at Starbase ... and are merging with the ... Fleet.`
+  - `... and have found the ... Fleet already guarding it.`
+  - `However, since a fleet cannot have more than ... ships, we cannot merge`
+  - practical consequence:
+    - `0000:3fcf..41a0` is the late starbase resolution/report block for
+      guarding/merge outcomes more broadly
+    - the remaining open part is the exact caller-side meaning of the scratch
+      fields feeding those report variants, not whether this is the right late
+      starbase path
 
 Artifacts:
 - `artifacts/ghidra/ecmaint-live/unknown-starbase-predicate.txt`
+- `artifacts/ghidra/ecmaint-live/unknown-starbase-scratch-refs.txt`
+- `artifacts/ghidra/ecmaint-live/unknown-starbase-strings.txt`
 
 Tool:
 - `tools/ghidra_scripts_tmp/ReportUnknownStarbasePredicate.java`
+- `tools/ghidra_scripts_tmp/ReportUnknownStarbaseScratchRefs.java`
+- `tools/ghidra_scripts_tmp/ReportUnknownStarbaseStrings.java`
 
 `0x1000:d183` helper contract (first pass):
 
