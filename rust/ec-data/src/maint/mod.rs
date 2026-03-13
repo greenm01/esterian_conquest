@@ -28,8 +28,10 @@ pub fn run_maintenance_turn(
     // Process fleet orders
     process_fleet_movement(game_data)?;
 
+    // Process build queues
+    process_build_completion(game_data)?;
+
     // TODO: Resolve combat
-    // TODO: Complete builds
     // TODO: Update economy
 
     Ok(())
@@ -124,6 +126,47 @@ fn process_single_fleet_movement(
         // Check if arrived at target
         if new_x == target_x && new_y == target_y {
             game_data.fleets.records[fleet_idx].set_current_speed(0);
+        }
+    }
+
+    Ok(())
+}
+
+/// Process build queue completion for all planets.
+///
+/// When a build queue item completes (count reaches 0 or below),
+/// the ship is moved to the stardock and the build slot is cleared.
+fn process_build_completion(
+    game_data: &mut CoreGameData,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let planet_count = game_data.planets.records.len();
+
+    for planet_idx in 0..planet_count {
+        // Check up to 10 build slots per planet
+        for slot in 0..10 {
+            let build_count = game_data.planets.records[planet_idx].build_count_raw(slot);
+
+            // If build count is non-zero, decrement it (production progress)
+            // When it reaches 0, the build completes
+            if build_count > 0 {
+                // TODO: Calculate production based on planet industry
+                // For now, just decrement by 1 per turn as a placeholder
+                let new_count = build_count.saturating_sub(1);
+                game_data.planets.records[planet_idx].set_build_count_raw(slot, new_count);
+
+                // If build completed (reached 0), move to stardock
+                if new_count == 0 && build_count > 0 {
+                    let build_kind = game_data.planets.records[planet_idx].build_kind_raw(slot);
+
+                    // Move to stardock slot 0 (simplified - should find empty slot)
+                    // TODO: Find appropriate stardock slot
+                    game_data.planets.records[planet_idx].set_stardock_kind_raw(0, build_kind);
+                    game_data.planets.records[planet_idx].set_stardock_count_raw(0, 3); // Default count
+
+                    // Clear the build slot
+                    game_data.planets.records[planet_idx].set_build_kind_raw(slot, 0);
+                }
+            }
         }
     }
 
