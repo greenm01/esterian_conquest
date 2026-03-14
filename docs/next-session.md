@@ -40,7 +40,8 @@ All scenarios have `init_*` and `*_batch_init` CLI commands with parsers and reg
 
 #### Phase 1: DATABASE.DAT — COMPLETE ✅
 
-- Added `DatabaseDat` and `DatabaseRecord` types (80 records × 100 bytes = 8000 bytes)
+- Added `DatabaseDat` and `DatabaseRecord` types with dynamic
+  `player_count * planet_count` sizing
 - Implemented round-trip `parse()` / `to_bytes()`
 - Built generator that creates DATABASE.DAT from PLANETS.DAT + template
 - Wired into workspace init (replaces raw file copy)
@@ -60,7 +61,7 @@ All scenarios have `init_*` and `*_batch_init` CLI commands with parsers and reg
 #### Phase 3: General Gamestate Builder — COMPLETE ✅
 
 - `GameStateBuilder` with fluent API:
-  - `.with_player_count(n)` - 1-4 players
+  - `.with_player_count(n)` - 1-25 players
   - `.with_year(y)` - game year
   - `.with_homeworld_coords(coords)` - player homeworlds
   - `.with_fleet_order()`, `.with_planet_build()`, `.with_guard_starbase()` - order overlays
@@ -73,7 +74,7 @@ All scenarios have `init_*` and `*_batch_init` CLI commands with parsers and reg
 
 - Created `tools/oracle_sweep.py` for automated ECMAINT validation
 - Tested 10 diverse configurations:
-  - 1-4 players
+  - 1-25 players
   - Years 3000, 3001, 3050, 3100
   - Various homeworld coordinates
 - **100% ECMAINT acceptance rate**

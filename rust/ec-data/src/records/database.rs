@@ -129,8 +129,8 @@ impl DatabaseDat {
     }
 
     /// Get record index for a specific planet and player.
-    /// Layout: player 0-3, each has slots for planets 0-19.
-    /// Index = player * 20 + planet
+    /// Layout: players grouped by `planet_count`-sized slices.
+    /// Index = player * planet_count + planet
     pub fn record_index(planet_index: usize, player_index: usize, planet_count: usize) -> usize {
         player_index * planet_count + planet_index
     }
