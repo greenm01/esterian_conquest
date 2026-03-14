@@ -19,6 +19,8 @@ It can currently:
 - regenerate classic `DATABASE.DAT` and `RESULTS.DAT`
 - write a first-pass routed `MESSAGES.DAT` stream from recipient-scoped maint
   events
+- preserve existing classic player-mail `MESSAGES.DAT` payloads during
+  `rust-maint` when no routed maint messages are emitted
 - keep producing directories the original `ECMAINT` accepts
 
 Recent validation:
@@ -63,6 +65,9 @@ Primary goal:
   proven byte-for-byte original behavior
 - report wording and visibility can still be tightened when new `ECGAME` or
   manual evidence appears
+- exact classic `MESSAGES.DAT` mail/report format and routing semantics are
+  still only partially recovered; current Rust behavior preserves classic mail
+  but does not yet decode or reproduce it faithfully
 
 These are refinement tasks, not blockers for calling `rust-maint` a usable
 full-game engine.

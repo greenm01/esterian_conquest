@@ -5269,6 +5269,40 @@ This is the current repository example of the documented policy:
     - fleet defection after loss of all planets
     - emperor recognition / submission of remaining empires
 
+## `ECGAME` player mail / `MESSAGES.DAT` probe — Session 2026-03-14
+
+- Goal: determine whether player-to-player communication uses `MESSAGES.DAT`,
+  `RESULTS.DAT`, or another file, and whether mail is visible immediately or
+  only after maintenance.
+- Controlled findings from live `ECGAME` probing:
+  - self-sent and cross-player mail both persist in `MESSAGES.DAT`
+  - `RESULTS.DAT` remained empty during these communication-only probes
+  - a single short two-player message produced an `85`-byte `MESSAGES.DAT`
+    sample containing the literal body text
+  - a longer self-sent message sample produced a `680`-byte `MESSAGES.DAT`
+    file, divisible into `17` apparent `40`-byte records
+  - practical consequence:
+    - classic player mail format is not the same as the current Rust
+      maintenance `84`-byte report chunks
+    - the larger sample strongly suggests a compact mail-specific header/body
+      structure, with repeated short body records
+- Delivery timing finding:
+  - the recipient could not read the newly sent player-to-player message until
+    the next maintenance turn
+  - practical consequence:
+    - classic mail is maintenance-gated rather than immediate inbox delivery
+- Rust maintenance interaction finding:
+  - before the fix, `rust-maint` rewrote `MESSAGES.DAT` to empty on a directory
+    containing pending classic player mail if Rust had no maintenance messages
+    to emit
+  - after the fix, `rust-maint` preserves a non-empty existing
+    `MESSAGES.DAT` unchanged when the Rust-generated routed message stream is
+    empty
+  - practical consequence:
+    - current Rust can coexist with queued classic player mail without
+      destroying it
+    - exact classic mail decode / merge semantics remain open work
+
 ## Conservative campaign-end rules promoted into Rust — Session 2026-03-13
 
 - Manuals used:

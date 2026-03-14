@@ -1602,6 +1602,14 @@ pub(crate) fn regenerate_messages_dat(
         );
     }
 
-    fs::write(dir.join("MESSAGES.DAT"), messages)?;
+    let messages_path = dir.join("MESSAGES.DAT");
+    if messages.is_empty() && messages_path.exists() {
+        let existing = fs::read(&messages_path)?;
+        if !existing.is_empty() {
+            return Ok(());
+        }
+    }
+
+    fs::write(messages_path, messages)?;
     Ok(())
 }

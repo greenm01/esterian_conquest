@@ -408,6 +408,11 @@ Near-term policy:
 - this routed `MESSAGES.DAT` is a pragmatic Rust policy layer, not yet a claim
   that the original classic per-player on-disk routing format has been
   recovered
+- live `ECGAME` probing now confirms that classic player-to-player mail also
+  lives in `MESSAGES.DAT`, and that recipient visibility is maintenance-gated
+  rather than immediate
+- because of that overlap, `rust-maint` must preserve unknown existing classic
+  `MESSAGES.DAT` payloads when it has no routed maintenance messages to write
 - current limitation: `RESULTS.DAT` still remains the aggregate canonical maint
   report target, and `MESSAGES.DAT` routing is only a readable first-pass
   projection while exact classic per-player semantics remain unsettled

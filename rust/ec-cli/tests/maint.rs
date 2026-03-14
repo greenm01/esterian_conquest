@@ -564,6 +564,29 @@ fn maint_rust_colonization_generates_results_report_from_colony_event() {
 }
 
 #[test]
+fn maint_rust_preserves_existing_classic_player_mail_when_no_rust_messages_are_emitted() {
+    let target = unique_temp_dir("ec-cli-maint-rust-preserve-classic-mail");
+    copy_fixture_dir("fixtures/ecmaint-econ-pre/v1.5", &target);
+
+    let classic_mail = b"\x18this is a message to you\x00classic-payload".to_vec();
+    fs::write(target.join("MESSAGES.DAT"), &classic_mail).expect("should seed classic mail");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
+    assert_eq!(
+        messages, classic_mail,
+        "maint-rust should not erase pending classic player mail when it has no routed maint messages to add"
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_colonization_blocked_by_owner_generates_report() {
     let target = unique_temp_dir("ec-cli-maint-rust-colonize-blocked");
     copy_fixture_dir("fixtures/ecmaint-fleet-pre/v1.5", &target);
