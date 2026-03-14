@@ -6,9 +6,9 @@ use ec_data::{CoreGameData, DatabaseDat, build_player_starmap_projection};
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
 use crate::reports::ReportsPreview;
 use crate::screen::{
-    EmpireProfileScreen, EmpireStatusScreen, GeneralMenuScreen, MainMenuScreen, PlanetInfoScreen,
-    PartialStarmapScreen, RankingsScreen, RankingsView, ReportsScreen, Screen, ScreenFrame,
-    ScreenId, StartupScreen, StarmapScreen,
+    EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen, GeneralMenuScreen, MainMenuScreen,
+    PlanetInfoScreen, PartialStarmapScreen, RankingsScreen, RankingsView, ReportsScreen, Screen,
+    ScreenFrame, ScreenId, StartupScreen, StarmapScreen,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -34,6 +34,7 @@ pub struct App {
     starmap: StarmapScreen,
     partial_starmap: PartialStarmapScreen,
     planet_info: PlanetInfoScreen,
+    enemies: EnemiesScreen,
     empire_status: EmpireStatusScreen,
     empire_profile: EmpireProfileScreen,
     rankings: RankingsScreen,
@@ -44,6 +45,9 @@ pub struct App {
     partial_starmap_input: String,
     partial_starmap_error: Option<String>,
     partial_starmap_center: [u8; 2],
+    enemies_input: String,
+    enemies_status: Option<String>,
+    enemies_scroll_offset: usize,
     starmap_view_x: usize,
     starmap_view_y: usize,
     starmap_status: Option<String>,
@@ -94,6 +98,7 @@ impl App {
             starmap: StarmapScreen::new(),
             partial_starmap: PartialStarmapScreen::new(),
             planet_info: PlanetInfoScreen::new(),
+            enemies: EnemiesScreen::new(),
             empire_status: EmpireStatusScreen::new(),
             empire_profile: EmpireProfileScreen::new(),
             rankings: RankingsScreen::new(),
@@ -104,6 +109,9 @@ impl App {
             partial_starmap_input: "8,2".to_string(),
             partial_starmap_error: None,
             partial_starmap_center: [8, 2],
+            enemies_input: String::new(),
+            enemies_status: None,
+            enemies_scroll_offset: 0,
             starmap_view_x: 1,
             starmap_view_y: 1,
             starmap_status: None,
@@ -151,6 +159,14 @@ impl App {
                 &frame,
                 self.planet_info_selected.ok_or("planet info detail not selected")?,
             )?,
+            ScreenId::Enemies => self
+                .enemies
+                .render(
+                    &frame,
+                    &self.enemies_input,
+                    self.enemies_status.as_deref(),
+                    self.enemies_scroll_offset,
+                )?,
             ScreenId::EmpireStatus => self.empire_status.render(&frame)?,
             ScreenId::EmpireProfile => self.empire_profile.render(&frame)?,
             ScreenId::Rankings(RankingsView::Prompt) => self.rankings.render_prompt(&frame)?,
@@ -197,6 +213,7 @@ impl App {
             ScreenId::PartialStarmapView => self.partial_starmap.handle_view_key(key),
             ScreenId::PlanetInfoPrompt => self.handle_planet_info_prompt_key(key),
             ScreenId::PlanetInfoDetail => self.planet_info.handle_detail_key(key),
+            ScreenId::Enemies => self.enemies.handle_key(key),
             ScreenId::EmpireStatus => self.empire_status.handle_key(key),
             ScreenId::EmpireProfile => self.empire_profile.handle_key(key),
             ScreenId::Rankings(RankingsView::Prompt) => self.rankings.handle_prompt_key(key),
@@ -223,6 +240,30 @@ impl App {
         self.planet_info_error = None;
         self.planet_info_selected = None;
         self.current_screen = ScreenId::PlanetInfoPrompt;
+    }
+
+    pub fn open_enemies(&mut self) {
+        self.enemies_input.clear();
+        self.enemies_status = None;
+        self.enemies_scroll_offset = 0;
+        self.current_screen = ScreenId::Enemies;
+    }
+
+    pub fn scroll_enemies(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::Enemies {
+            return;
+        }
+        let total = self
+            .game_data
+            .player
+            .records
+            .len()
+            .saturating_sub(1);
+        let max_offset = total.saturating_sub(8);
+        self.enemies_scroll_offset = self
+            .enemies_scroll_offset
+            .saturating_add_signed(delta as isize)
+            .min(max_offset);
     }
 
     pub fn open_partial_starmap_prompt(&mut self) {
@@ -281,6 +322,67 @@ impl App {
         self.partial_starmap_center[1] = self.partial_starmap_center[1]
             .saturating_add_signed(dy)
             .clamp(1, map_size);
+    }
+
+    pub fn toggle_autopilot(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let player = &mut self.game_data.player.records[self.player.record_index_1_based - 1];
+        let next = if player.autopilot_flag() == 0 { 1 } else { 0 };
+        player.set_autopilot_flag(next);
+        self.game_data.save(&self.game_dir)?;
+        Ok(())
+    }
+
+    pub fn append_enemies_char(&mut self, ch: char) {
+        if self.current_screen == ScreenId::Enemies && self.enemies_input.len() < 2 {
+            self.enemies_input.push(ch);
+            self.enemies_status = None;
+        }
+    }
+
+    pub fn backspace_enemies_input(&mut self) {
+        if self.current_screen == ScreenId::Enemies {
+            self.enemies_input.pop();
+            self.enemies_status = None;
+        }
+    }
+
+    pub fn submit_enemies_input(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let Ok(empire_id) = self.enemies_input.parse::<u8>() else {
+            self.enemies_status = Some("Enter an empire number.".to_string());
+            return Ok(());
+        };
+        let max_empire = self.game_data.conquest.player_count();
+        if !(1..=max_empire).contains(&empire_id) {
+            self.enemies_status = Some(format!("Enter an empire number in 1..={max_empire}."));
+            return Ok(());
+        }
+        if empire_id as usize == self.player.record_index_1_based {
+            self.enemies_status = Some("You cannot target your own empire.".to_string());
+            return Ok(());
+        }
+        let current = self
+            .game_data
+            .stored_diplomatic_relation(self.player.record_index_1_based as u8, empire_id)
+            .unwrap_or(ec_data::DiplomaticRelation::Neutral);
+        let next = match current {
+            ec_data::DiplomaticRelation::Neutral => ec_data::DiplomaticRelation::Enemy,
+            ec_data::DiplomaticRelation::Enemy => ec_data::DiplomaticRelation::Neutral,
+        };
+        self.game_data.set_stored_diplomatic_relation(
+            self.player.record_index_1_based as u8,
+            empire_id,
+            next,
+        )?;
+        self.game_data.save(&self.game_dir)?;
+        self.enemies_status = Some(format!(
+            "Empire {empire_id} is now {}.",
+            match next {
+                ec_data::DiplomaticRelation::Enemy => "ENEMY",
+                ec_data::DiplomaticRelation::Neutral => "NEUTRAL",
+            }
+        ));
+        self.enemies_input.clear();
+        Ok(())
     }
 
     pub fn open_starmap(&mut self) {
@@ -408,6 +510,15 @@ impl App {
 
     pub fn selected_planet_info(&self) -> Option<usize> {
         self.planet_info_selected
+    }
+
+    pub fn current_autopilot_flag(&self) -> u8 {
+        self.game_data.player.records[self.player.record_index_1_based - 1].autopilot_flag()
+    }
+
+    pub fn current_relation_to(&self, empire_id: u8) -> Option<ec_data::DiplomaticRelation> {
+        self.game_data
+            .stored_diplomatic_relation(self.player.record_index_1_based as u8, empire_id)
     }
 
     fn handle_planet_info_prompt_key(

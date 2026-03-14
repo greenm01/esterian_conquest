@@ -14,9 +14,8 @@ const TOP_ROW: [MenuEntry<'static>; 2] = [
     MenuEntry::new(CMD_COL_3, "C", "ommunicate (send message)"),
 ];
 
-const ROW_1: [MenuEntry<'static>; 3] = [
-    MenuEntry::new(CMD_COL_1, "H", "elp with commands"),
-    MenuEntry::new(CMD_COL_2, "A", "utopilot ON/OFF"),
+const ROW_1_RIGHT: [MenuEntry<'static>; 2] = [
+    MenuEntry::new(CMD_COL_2, "A", ""),
     MenuEntry::new(CMD_COL_3, "R", "eview messages/results"),
 ];
 
@@ -47,14 +46,14 @@ impl GeneralMenuScreen {
 impl Screen for GeneralMenuScreen {
     fn render(
         &mut self,
-        _frame: &ScreenFrame<'_>,
+        frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_command_center(
             &mut buffer,
             "GENERAL COMMAND CENTER:",
             &TOP_ROW,
-            &[&ROW_1, &ROW_2, &ROW_3, &ROW_4],
+            &[&autopilot_row(frame), &ROW_2, &ROW_3, &ROW_4],
             "GENERAL COMMAND",
             "H Q X V I A S P M C R D O E",
         );
@@ -64,6 +63,8 @@ impl Screen for GeneralMenuScreen {
     fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Char('i') | KeyCode::Char('I') => Action::OpenPlanetInfoPrompt,
+            KeyCode::Char('a') | KeyCode::Char('A') => Action::ToggleAutopilot,
+            KeyCode::Char('e') | KeyCode::Char('E') => Action::OpenEnemies,
             KeyCode::Char('m') | KeyCode::Char('M') => Action::OpenStarmap,
             KeyCode::Char('v') | KeyCode::Char('V') => Action::OpenPartialStarmapPrompt,
             KeyCode::Char('s') | KeyCode::Char('S') => Action::OpenEmpireStatus,
@@ -76,4 +77,20 @@ impl Screen for GeneralMenuScreen {
             _ => Action::Noop,
         }
     }
+}
+
+fn autopilot_row(frame: &ScreenFrame<'_>) -> [MenuEntry<'static>; 3] {
+    let autopilot_label = if frame.game_data.player.records[frame.player.record_index_1_based - 1]
+        .autopilot_flag()
+        != 0
+    {
+        "utopilot OFF"
+    } else {
+        "utopilot ON"
+    };
+    [
+    MenuEntry::new(CMD_COL_1, "H", "elp with commands"),
+        MenuEntry::new(CMD_COL_2, "A", autopilot_label),
+        ROW_1_RIGHT[1],
+    ]
 }

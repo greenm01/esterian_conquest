@@ -25,8 +25,20 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             *app.current_screen_mut() = crate::screen::ScreenId::GeneralMenu;
             AppOutcome::Continue
         }
+        Action::OpenEnemies => {
+            app.open_enemies();
+            AppOutcome::Continue
+        }
         Action::OpenStarmap => {
             app.open_starmap();
+            AppOutcome::Continue
+        }
+        Action::ToggleAutopilot => match app.toggle_autopilot() {
+            Ok(()) => AppOutcome::Continue,
+            Err(_) => AppOutcome::Continue,
+        },
+        Action::ScrollEnemies(delta) => {
+            app.scroll_enemies(delta);
             AppOutcome::Continue
         }
         Action::BeginStarmapDump => {
@@ -61,6 +73,18 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.move_partial_starmap(dx, dy);
             AppOutcome::Continue
         }
+        Action::AppendEnemiesChar(ch) => {
+            app.append_enemies_char(ch);
+            AppOutcome::Continue
+        }
+        Action::BackspaceEnemiesInput => {
+            app.backspace_enemies_input();
+            AppOutcome::Continue
+        }
+        Action::SubmitEnemiesInput => match app.submit_enemies_input() {
+            Ok(()) => AppOutcome::Continue,
+            Err(_) => AppOutcome::Continue,
+        },
         Action::OpenPlanetInfoPrompt => {
             app.open_planet_info_prompt();
             AppOutcome::Continue

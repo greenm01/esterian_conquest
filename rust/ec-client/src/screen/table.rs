@@ -50,6 +50,30 @@ pub fn write_table_row(
     buffer.write_text(row, 0, &format_table_row(columns, cells), style);
 }
 
+pub fn write_table_window<'a>(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    columns: &[TableColumn<'a>],
+    rows: &[Vec<String>],
+    scroll_offset: usize,
+    visible_rows: usize,
+    header_style: crate::screen::CellStyle,
+    body_style: crate::screen::CellStyle,
+) {
+    write_table_header(buffer, start_row, columns, header_style);
+    buffer.write_text(
+        start_row + 1,
+        0,
+        &table_divider(columns),
+        crate::theme::classic::menu_style(),
+    );
+
+    for (idx, row_cells) in rows.iter().skip(scroll_offset).take(visible_rows).enumerate() {
+        let refs = row_cells.iter().map(String::as_str).collect::<Vec<_>>();
+        write_table_row(buffer, start_row + 2 + idx, columns, &refs, body_style);
+    }
+}
+
 pub fn table_divider(columns: &[TableColumn<'_>]) -> String {
     let mut out = String::new();
     for (idx, column) in columns.iter().enumerate() {

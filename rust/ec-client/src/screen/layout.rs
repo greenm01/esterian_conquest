@@ -7,6 +7,7 @@ pub const CMD_COL_1: usize = 2;
 pub const CMD_COL_2: usize = 26;
 pub const CMD_COL_3: usize = 50;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MenuEntry<'a> {
     pub col: usize,
     pub hotkey: &'a str,

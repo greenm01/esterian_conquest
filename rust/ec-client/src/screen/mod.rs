@@ -1,6 +1,7 @@
 mod buffer;
 mod empire_profile;
 mod empire_status;
+mod enemies;
 mod general_menu;
 mod layout;
 mod main_menu;
@@ -15,6 +16,7 @@ mod table;
 pub use buffer::{Cell, CellStyle, PlayfieldBuffer, RgbColor, StyledSpan};
 pub use empire_profile::EmpireProfileScreen;
 pub use empire_status::EmpireStatusScreen;
+pub use enemies::EnemiesScreen;
 pub use general_menu::GeneralMenuScreen;
 pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 pub use main_menu::MainMenuScreen;
@@ -43,6 +45,7 @@ pub enum ScreenId {
     PartialStarmapView,
     PlanetInfoPrompt,
     PlanetInfoDetail,
+    Enemies,
     EmpireStatus,
     EmpireProfile,
     Rankings(RankingsView),
