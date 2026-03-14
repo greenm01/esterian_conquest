@@ -96,6 +96,12 @@ The goal is:
   - star count
   - homeworld/start rules
   - initial fleets and empire payloads
+- default sysop/admin setup should preserve the original pre-join distinction:
+  - joinable new games are not the same thing as post-join campaign baselines
+  - `ECGAME` onboarding must see inactive player slots and `Not Named Yet`
+    homeworld seeds
+  - automated maint/oracle sweeps may still use a separate explicit
+    post-join-compatible baseline when that is the thing being tested
 - exact reproduction of the original hidden map RNG is not required to be
   faithful; adherence to the documented setup rules is
 

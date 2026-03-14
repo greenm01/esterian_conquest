@@ -88,3 +88,22 @@ fn builder_varies_player_count() {
         .expect("Should build successfully");
     assert_eq!(data4.fleets.records.len(), 16); // 4 players * 4 fleets
 }
+
+#[test]
+fn builder_can_create_joinable_new_game_baseline() {
+    let data = GameStateBuilder::new()
+        .with_player_count(2)
+        .build_joinable_new_game_baseline()
+        .expect("Should build successfully");
+
+    assert_eq!(data.player.records[0].owner_mode_raw(), 0);
+    assert_eq!(data.player.records[1].owner_mode_raw(), 0);
+    assert_eq!(data.player.records[0].autopilot_flag(), 0);
+    assert_eq!(data.player.records[0].fleet_chain_head_raw(), 1);
+    assert_eq!(data.player.records[1].fleet_chain_head_raw(), 5);
+    assert_eq!(data.planets.records[0].planet_name(), "Not Named Yet");
+    assert_eq!(data.planets.records[0].owner_empire_slot_raw(), 1);
+    assert_eq!(data.planets.records[0].army_count_raw(), 10);
+    assert_eq!(data.planets.records[0].ground_batteries_raw(), 4);
+    assert!(data.ecmaint_preflight_errors().is_empty());
+}

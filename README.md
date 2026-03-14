@@ -28,6 +28,7 @@ Today it can:
 
 - generate new classic-compatible games across the documented `4 / 9 / 16 / 25`
   player tiers
+- generate default `sysop new-game` directories as joinable `ECGAME` starts
 - run repeated maintenance turns through the Rust engine
 - handle movement, economy, scouting, contact reports, diplomacy, deterministic
   combat, conquest, civil disorder, fleet defection, and conservative emperor
@@ -132,6 +133,9 @@ cd rust
 cargo run -q -p ec-cli -- sysop new-game /tmp/ec-game --players 4 --seed 1515
 ```
 
+This default path now creates a joinable pre-player `ECGAME` start with
+inactive player slots and `Not Named Yet` homeworld seeds.
+
 Run Rust maintenance for a few turns:
 
 ```bash
@@ -160,6 +164,9 @@ New game from declarative setup:
 cd rust
 cargo run -q -p ec-cli -- sysop new-game /tmp/ec-game --config ec-data/config/setup.example.kdl
 ```
+
+The bundled example config uses `setup_mode="builder-compatible"` to produce
+the older post-join active-campaign baseline used by maint/oracle sweeps.
 
 Inspect a directory:
 

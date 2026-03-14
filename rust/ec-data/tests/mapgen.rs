@@ -1,4 +1,4 @@
-use ec_data::{build_seeded_new_game, generate_map};
+use ec_data::{build_seeded_initialized_game, build_seeded_new_game, generate_map};
 
 #[test]
 fn generated_map_is_seed_reproducible() {
@@ -53,10 +53,12 @@ fn seeded_new_game_populates_documented_planet_count_for_player_count() {
     assert_eq!(populated, 15);
 
     for idx in 0..3 {
-        assert_eq!(
-            data.planets.records[idx].owner_empire_slot_raw(),
-            (idx + 1) as u8
-        );
+        assert_eq!(data.player.records[idx].owner_mode_raw(), 0);
+        assert_eq!(data.player.records[idx].autopilot_flag(), 0);
+        assert_eq!(data.planets.records[idx].owner_empire_slot_raw(), (idx + 1) as u8);
+        assert_eq!(data.planets.records[idx].planet_name(), "Not Named Yet");
+        assert_eq!(data.planets.records[idx].army_count_raw(), 10);
+        assert_eq!(data.planets.records[idx].ground_batteries_raw(), 4);
         assert_eq!(data.planets.records[idx].potential_production_raw()[0], 100);
     }
 }
@@ -100,5 +102,16 @@ fn seeded_new_game_supports_nine_player_manual_tier() {
     assert_eq!(data.player.records.len(), 9);
     assert_eq!(data.planets.records.len(), 45);
     assert_eq!(data.fleets.records.len(), 36);
+    assert!(data.ecmaint_preflight_errors().is_empty());
+}
+
+#[test]
+fn seeded_initialized_game_retains_active_campaign_builder_semantics() {
+    let data =
+        build_seeded_initialized_game(4, 3000, 1515).expect("initialized seeded game should build");
+    assert_eq!(data.player.records[0].owner_mode_raw(), 1);
+    assert_eq!(data.player.records[0].autopilot_flag(), 1);
+    assert_eq!(data.planets.records[0].owner_empire_slot_raw(), 1);
+    assert_eq!(data.planets.records[0].planet_name(), "Player 1 HW");
     assert!(data.ecmaint_preflight_errors().is_empty());
 }

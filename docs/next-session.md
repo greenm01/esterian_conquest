@@ -22,6 +22,13 @@ It can currently:
 - preserve existing classic player-mail `MESSAGES.DAT` payloads during
   `rust-maint` when no routed maint messages are emitted
 - keep producing directories the original `ECMAINT` accepts
+- generate default `sysop new-game` directories as joinable `ECGAME` starts
+  again:
+  - inactive player slots
+  - `Not Named Yet` homeworld seeds
+  - pre-join fleet blocks at seeded homeworld coords
+- keep the older post-join active campaign baseline available through
+  `setup_mode="builder-compatible"` for maint/oracle sweeps and test fixtures
 
 Recent validation:
 
@@ -68,6 +75,8 @@ Primary goal:
 - exact classic `MESSAGES.DAT` mail/report format and routing semantics are
   still only partially recovered; current Rust behavior preserves classic mail
   but does not yet decode or reproduce it faithfully
+- live `ECGAME` confirmation is still needed that the restored default
+  joinable setup now triggers the full first-join naming/onboarding flow
 
 These are refinement tasks, not blockers for calling `rust-maint` a usable
 full-game engine.
@@ -102,14 +111,18 @@ First concrete work:
 
 ## Immediate Next Steps
 
-1. Keep running periodic seeded multi-turn `rust-maint` sweeps to guard against
+1. Verify the restored default `sysop new-game` path in live `ECGAME`:
+   - join as player 1
+   - confirm homeworld naming prompt appears
+   - confirm player 2 can also join cleanly afterward
+2. Keep running periodic seeded multi-turn `rust-maint` sweeps to guard against
    regressions while the UI/client work begins.
-2. Write a focused Rust `ECGAME` phase plan:
+3. Write a focused Rust `ECGAME` phase plan:
    - command center
    - reports and intel views
    - diplomacy screens
    - order-entry workflow
-3. Use the now-working DOSBox `ECGAME` harness to capture only the player-side
+4. Use the now-working DOSBox `ECGAME` harness to capture only the player-side
    screens and behaviors needed for the first Rust clone pass.
-4. Keep SQLite and turn-limit policy deferred. They are approved future
+5. Keep SQLite and turn-limit policy deferred. They are approved future
    architecture, not the current milestone.

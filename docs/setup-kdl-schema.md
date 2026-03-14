@@ -76,8 +76,9 @@ Recommended meanings:
 
 `setup_mode` exists so the first parser can distinguish:
 
-- the classic 4-player start package
-- the broader compatibility-oriented generated new-game path
+- the joinable default `ECGAME` new-game baseline
+- the broader compatibility-oriented post-join campaign baseline used for
+  maint/oracle sweeps
 
 ### `setup_options`
 
@@ -121,8 +122,10 @@ For the current Rust setup path:
 - `player_count` is explicit in KDL
 - the game engine supplies homeworld placement for the chosen player count
 - `seed` controls reproducible generated placement when present
-- `canonical-four-player` still requires `player_count = 4`, but placement
-  remains engine-generated rather than KDL-authored
+- `canonical-four-player` still requires `player_count = 4` and now means the
+  default joinable pre-player baseline
+- `builder-compatible` keeps the older initialized/post-join-compatible active
+  campaign baseline for automation and engine testing
 
 ## Example
 

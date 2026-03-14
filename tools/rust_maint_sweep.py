@@ -11,6 +11,10 @@ This script:
 It is intended as an end-to-end confidence check that Rust-produced live
 campaign state remains acceptable to the original toolchain after repeated
 maintenance, not just after initial setup.
+
+It therefore uses the explicit `builder-compatible` setup config rather than
+the default `sysop new-game` joinable baseline used for live `ECGAME`
+onboarding.
 """
 
 from __future__ import annotations
@@ -54,6 +58,8 @@ def generate_seeded_new_game(target_dir: Path, player_count: int, seed: int) -> 
             "sysop",
             "new-game",
             str(target_dir),
+            "--config",
+            "ec-data/config/setup.example.kdl",
             "--players",
             str(player_count),
             "--seed",

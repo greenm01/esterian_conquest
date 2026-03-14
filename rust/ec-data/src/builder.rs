@@ -4,6 +4,15 @@ use crate::{
 };
 use std::path::Path;
 
+const CURRENT_KNOWN_ECUTIL_INIT_CONQUEST_CONTROL_HEADER: [u8; 0x55] = [
+    0xb8, 0x0b, 0x04, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x64, 0x00, 0x64, 0x00, 0x64, 0x00,
+    0x64, 0x00, 0x64, 0x00, 0x64, 0x00, 0x64, 0x00, 0x64, 0x00, 0x64, 0x00, 0x64, 0x00, 0x64, 0x00,
+    0x64, 0x00, 0x64, 0x00, 0x64, 0x00, 0x64, 0x00, 0x64, 0x00, 0x64, 0x00, 0x64, 0x00, 0x64, 0x00,
+    0x64, 0x00, 0x64, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+    0x01, 0x01, 0x01, 0x01, 0xff,
+];
+
 /// Builder for creating arbitrary ECMAINT-compliant gamestate directories.
 ///
 /// This builder allows constructing gamestates from scratch with configurable
@@ -259,7 +268,7 @@ impl GameStateBuilder {
                     [100, 135],            // potential_production (default)
                     [0, 0, 0, 0, 72, 134], // factories (default)
                     0,                     // tax_rate
-                    14,                    // name_len ("Player X HW")
+                    b"Player 1 HW".len() as u8,
                     Self::name_buffer_for_player(player_idx),
                     [0; 7],                 // name_suffix_raw
                     1,                      // army_count
@@ -284,6 +293,76 @@ impl GameStateBuilder {
         }
 
         // Apply any additional orders
+        self.apply_orders(&mut data)?;
+
+        Ok(data)
+    }
+
+    /// Build a fresh joinable new-game baseline for `ECGAME`.
+    ///
+    /// This preserves the pre-join homeworld seed semantics from the
+    /// `ECUTIL`-initialized baseline:
+    /// - player slots remain unjoined/in-civil-disorder
+    /// - homeworld seeds remain `Not Named Yet`
+    /// - fleet blocks already exist at the seeded homeworld coords
+    pub fn build_joinable_new_game_baseline(&self) -> Result<CoreGameData, GameStateMutationError> {
+        let player_records = (0..self.player_count as usize)
+            .map(|_| PlayerRecord::new_zeroed())
+            .collect();
+        let planet_records = (0..planet_record_count_for_players(self.player_count))
+            .map(|_| PlanetRecord::new_zeroed())
+            .collect();
+
+        let mut data = CoreGameData {
+            player: PlayerDat {
+                records: player_records,
+            },
+            planets: PlanetDat {
+                records: planet_records,
+            },
+            fleets: FleetDat { records: vec![] },
+            bases: BaseDat { records: vec![] },
+            ipbm: IpbmDat { records: vec![] },
+            setup: SetupDat {
+                raw: [0; crate::SETUP_DAT_SIZE],
+            },
+            conquest: ConquestDat {
+                raw: [0; crate::CONQUEST_DAT_SIZE],
+            },
+        };
+
+        data.conquest.raw[..CURRENT_KNOWN_ECUTIL_INIT_CONQUEST_CONTROL_HEADER.len()]
+            .copy_from_slice(&CURRENT_KNOWN_ECUTIL_INIT_CONQUEST_CONTROL_HEADER);
+        data.conquest.set_game_year(self.game_year);
+        data.conquest.set_player_count(self.player_count);
+
+        data.setup.raw[..5].copy_from_slice(b"EC151");
+        data.setup.raw[5..13].copy_from_slice(&[4, 3, 4, 3, 1, 1, 1, 1]);
+        data.setup.set_snoop_enabled(true);
+        data.setup.set_max_time_between_keys_minutes_raw(10);
+        data.setup.set_remote_timeout_enabled(true);
+        data.setup.set_local_timeout_enabled(false);
+
+        for (idx, player) in data.player.records.iter_mut().enumerate() {
+            let homeworld_planet_index_1_based = idx + 1;
+            let fleet_start = idx * 4 + 1;
+            let fleet_end = fleet_start + 3;
+            seed_unjoined_player_slot(
+                player,
+                fleet_start as u16,
+                fleet_end as u16,
+                homeworld_planet_index_1_based as u8,
+                self.ipbm_count,
+            );
+        }
+
+        for (player_idx, coords) in self.homeworld_coords.iter().enumerate() {
+            if let Some(planet) = data.planets.records.get_mut(player_idx) {
+                seed_unjoined_homeworld_seed(planet, *coords, (player_idx + 1) as u8);
+            }
+        }
+
+        self.build_fleet_blocks(&mut data)?;
         self.apply_orders(&mut data)?;
 
         Ok(data)
@@ -421,4 +500,45 @@ impl GameStateBuilder {
 
 fn planet_record_count_for_players(player_count: u8) -> usize {
     (player_count as usize) * 5
+}
+
+fn seed_unjoined_player_slot(
+    player: &mut PlayerRecord,
+    fleet_start: u16,
+    fleet_end: u16,
+    homeworld_planet_index_1_based: u8,
+    ipbm_count: u16,
+) {
+    *player = PlayerRecord::new_zeroed();
+    player.raw[1..0x1A].fill(b' ');
+    player.raw[0x1A] = 0x18;
+    player.raw[0x1B] = 0x11;
+    player.raw[0x1C..0x1C + 17].copy_from_slice(b"In Civil Disorder");
+    player.raw[0x40..0x42].copy_from_slice(&fleet_start.to_le_bytes());
+    player.raw[0x42..0x44].copy_from_slice(&fleet_end.to_le_bytes());
+    player.raw[0x4C] = homeworld_planet_index_1_based;
+    player.raw[0x4D] = homeworld_planet_index_1_based;
+    player.raw[0x50] = 0x01;
+    player.raw[0x52..0x54].copy_from_slice(&100u16.to_le_bytes());
+    player.set_ipbm_count_raw(ipbm_count);
+}
+
+fn seed_unjoined_homeworld_seed(planet: &mut PlanetRecord, coords: [u8; 2], owner_empire_slot: u8) {
+    planet.set_as_owned_target_world(
+        coords,
+        [100, 135],
+        [0, 0, 0, 0, 72, 134],
+        12,
+        13,
+        {
+            let mut name = [0u8; 13];
+            name.copy_from_slice(b"Not Named Yet");
+            name
+        },
+        [0; 7],
+        10,
+        4,
+        2,
+        owner_empire_slot,
+    );
 }

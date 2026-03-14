@@ -36,6 +36,9 @@ fn sysop_can_init_canonical_four_player_start() {
     assert!(stdout.contains("Initialized new game"));
     assert!(stdout.contains("players=4"));
     assert!(target.join("DATABASE.DAT").exists());
+    let game_data = ec_data::CoreGameData::load(&target).expect("generated game should load");
+    assert_eq!(game_data.player.records[0].owner_mode_raw(), 0);
+    assert_eq!(game_data.planets.records[0].planet_name(), "Not Named Yet");
     cleanup_dir(&target);
 }
 

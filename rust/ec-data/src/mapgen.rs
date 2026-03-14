@@ -42,6 +42,28 @@ pub fn build_seeded_new_game(
         .with_player_count(player_count)
         .with_year(year)
         .with_homeworld_coords(generated.homeworld_coords.clone())
+        .build_joinable_new_game_baseline()?;
+
+    for (idx, world) in generated.neutral_worlds.iter().enumerate() {
+        let record_index = player_count as usize + idx;
+        if let Some(planet) = data.planets.records.get_mut(record_index) {
+            seed_unowned_world(planet, *world, record_index + 1);
+        }
+    }
+
+    Ok(data)
+}
+
+pub fn build_seeded_initialized_game(
+    player_count: u8,
+    year: u16,
+    seed: u64,
+) -> Result<CoreGameData, GameStateMutationError> {
+    let generated = generate_map(player_count, seed);
+    let mut data = GameStateBuilder::new()
+        .with_player_count(player_count)
+        .with_year(year)
+        .with_homeworld_coords(generated.homeworld_coords.clone())
         .build_initialized_baseline()?;
 
     for (idx, world) in generated.neutral_worlds.iter().enumerate() {

@@ -2,7 +2,7 @@ use std::fmt;
 use std::fs;
 use std::path::Path;
 
-use crate::{CoreGameData, DiplomaticRelation, build_seeded_new_game};
+use crate::{CoreGameData, DiplomaticRelation, build_seeded_initialized_game, build_seeded_new_game};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SetupMode {
@@ -221,10 +221,16 @@ impl SetupConfig {
     pub fn build_game_data(&self, runtime_seed: u64) -> Result<CoreGameData, SetupConfigError> {
         let seed = self.seed.unwrap_or(runtime_seed);
         let mut data = match self.setup_mode {
-            SetupMode::CanonicalFourPlayer | SetupMode::BuilderCompatible => {
+            SetupMode::CanonicalFourPlayer => {
                 build_seeded_new_game(self.player_count, self.year, seed)
                     .map_err(|err| SetupConfigError::Parse(err.to_string()))?
             }
+            SetupMode::BuilderCompatible => build_seeded_initialized_game(
+                self.player_count,
+                self.year,
+                seed,
+            )
+            .map_err(|err| SetupConfigError::Parse(err.to_string()))?,
         };
 
         data.setup.set_snoop_enabled(self.setup_options.snoop);

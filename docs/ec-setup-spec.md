@@ -190,10 +190,17 @@ Current behavior:
 - the generator enforces one planet per system by unique coordinates after
   homeworld placement
 - homeworlds keep the documented fixed starting production of `100`
+- the default `sysop new-game` path now materializes a joinable pre-player
+  baseline for `ECGAME`:
+  - inactive player slots
+  - `Not Named Yet` homeworld seeds
+  - pre-join fleet blocks already parked at those homeworld coords
 - neutral worlds are distributed by a fairness-scored generated map rather than
   by pure random placement
 - the data model and generator now cover the documented `4/9/16/25` setup
   tiers rather than only the old 4-player bridge case
+- the explicit `setup_mode="builder-compatible"` config path remains available
+  for tests/sweeps that need the older post-join active-campaign baseline
 - the seeded `sysop new-game` path now has broader oracle coverage:
   - `4/9/16/25` players
   - seeds `1515`, `2025`, `4242`

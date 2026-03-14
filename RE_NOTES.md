@@ -5066,6 +5066,47 @@ This matches: the canonical baseline has 4 unjoined homeworld seeds and no
 active players, so ECMAINT produces no planet state changes beyond the year
 counter.
 
+#### 2026-03-14: restore default joinable `sysop new-game` baseline
+
+The Rust setup path had drifted into using an already-materialized post-join
+campaign baseline for default `sysop new-game`, which made live `ECGAME`
+onboarding incomplete:
+
+- player slots looked active enough to trigger `game is full` / reserved-slot
+  behavior without manual patching
+- once join became possible, `ECGAME` still skipped the homeworld naming flow
+  because the Rust baseline had already named/owned those worlds
+
+Code change:
+
+- `build_seeded_new_game(...)` now builds a **joinable pre-player baseline**
+  again:
+  - `PLAYER.DAT[0x00] = 0x00` for all slots
+  - homeworld planets are `Not Named Yet` seeds with `tax=12`, `armies=10`,
+    `batteries=4`, `ownership_status=2`, and owner-slot tags retained
+  - player records now carry fixture-shaped pre-join fleet-range/homeworld-index
+    fields instead of active-empire state
+  - the `ECUTIL` init-style `CONQUEST.DAT` control header is now seeded instead
+    of a mostly-zero synthetic one
+- the previous post-join active-campaign baseline was preserved as a separate
+  Rust path via `build_seeded_initialized_game(...)` and
+  `setup_mode="builder-compatible"`
+
+Coverage added:
+
+- `ec-data` tests now lock in the joinable baseline semantics and keep the
+  old initialized baseline available explicitly
+- `ec-cli` `sysop` tests now assert that default `new-game` writes inactive
+  player slots with `Not Named Yet` homeworlds
+- maint/oracle automation was switched to the explicit builder-compatible setup
+  config so engine sweeps still start from an active campaign baseline
+
+Status:
+
+- `cargo test -q` is green after the split
+- still need one live `ECGAME` confirmation that the default generated
+  directory now triggers the full first-join naming flow without manual patching
+
 #### CONFIRMED: PLANETS.DAT planet record tail layout (97-byte records)
 
 Cross-confirmed from multiple fixtures (`ecmaint-post`, `ecmaint-fleet-post`,

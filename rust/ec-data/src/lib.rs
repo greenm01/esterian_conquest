@@ -43,7 +43,8 @@ pub use maint::{
     run_maintenance_turn_with_visible_hazards, run_maintenance_turns,
 };
 pub use mapgen::{
-    GeneratedMap, GeneratedWorld, build_seeded_new_game, generate_map, map_size_for_player_count,
+    GeneratedMap, GeneratedWorld, build_seeded_initialized_game, build_seeded_new_game,
+    generate_map, map_size_for_player_count,
 };
 pub use pathfinding::{
     PlannedRoute, RouteStep, VisibleHazardIntel, next_path_step, plan_route, plan_route_with_intel,
