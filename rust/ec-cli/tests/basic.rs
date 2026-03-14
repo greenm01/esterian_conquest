@@ -84,6 +84,24 @@ fn inspect_summarizes_core_directory_state() {
 }
 
 #[test]
+fn inspect_messages_decodes_classic_mail_sample() {
+    let target = unique_temp_dir("ec-cli-inspect-messages");
+    fs::write(
+        target.join("MESSAGES.DAT"),
+        b"\x18this is a message to you\x00\x6e\xf7E\x00\xc5\x0b\x00\x00\xc5\x0b\x012\x06\x01A\xcfx\xf7\x8a\x02\x06\x032BFr\xd4\x03\xc5\x0b\x1d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xb8\x0b\x01\x02",
+    )
+    .unwrap();
+
+    let stdout = run_ec_cli(&["inspect-messages", target.to_str().unwrap()]);
+    assert!(stdout.contains("MESSAGES.DAT bytes="));
+    assert!(stdout.contains("Subject: this is a message to you"));
+    assert!(stdout.contains("Printable runs:"));
+    assert!(stdout.contains("this is a message to you"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn compare_reports_expected_initialized_to_post_maint_shape() {
     let stdout = run_ec_cli(&[
         "compare",

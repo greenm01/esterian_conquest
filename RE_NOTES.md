@@ -5302,6 +5302,34 @@ This is the current repository example of the documented policy:
     - current Rust can coexist with queued classic player mail without
       destroying it
     - exact classic mail decode / merge semantics remain open work
+- Review / delete state finding:
+  - after recipient login, `ECGAME` presents new mail during login-time status
+    flow before the General Command Center review path
+  - the later `R>eview messages/results` path is therefore a review/archive
+    surface for undeleted items, not the primary first-delivery moment
+  - controlled unread/read/delete probes showed:
+    - `MESSAGES.DAT` stayed byte-for-byte unchanged across unread, read-only,
+      and read+delete states
+    - `RESULTS.DAT` stayed empty
+    - recipient `PLAYER.DAT` byte/word changes were:
+      - unread baseline:
+        - `0x30 = 0x01`
+        - `0x34 = 0x01`
+        - `0x4e..0x4f = 0x0bb8`
+      - read but not deleted:
+        - `0x30 = 0x01`
+        - `0x34 = 0x01`
+        - `0x4e..0x4f = 0x0bba`
+      - read and deleted:
+        - `0x30 = 0x00`
+        - `0x34 = 0x00`
+        - `0x4e..0x4f = 0x0bba`
+  - practical consequence:
+    - mail payload and mailbox state are separate concerns
+    - `PLAYER.DAT[0x4e..0x4f]` is a strong candidate for new/unseen message
+      presentation state
+    - `PLAYER.DAT[0x30]` and `PLAYER.DAT[0x34]` are strong candidates for
+      undeleted/reviewable-mail flags
 
 ## Conservative campaign-end rules promoted into Rust — Session 2026-03-13
 

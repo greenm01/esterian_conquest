@@ -21,7 +21,7 @@ use crate::commands::guard_starbase::{
     init_guard_starbase_batch, init_guard_starbase_onebase, print_guard_starbase_report,
     set_guard_starbase_onebase,
 };
-use crate::commands::inspect::{dump_headers, inspect_dir};
+use crate::commands::inspect::{dump_headers, inspect_dir, inspect_messages};
 use crate::commands::ipbm::{
     init_ipbm_batch, init_ipbm_zero_records, print_ipbm_report, set_ipbm_record_prefix,
     set_ipbm_zero_records, validate_ipbm,
@@ -81,6 +81,7 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
     match cmd.as_str() {
         "sysop" => run_sysop_args(args)?,
         "inspect" => inspect_dir(&next_dir(&mut args))?,
+        "inspect-messages" => inspect_messages(&next_dir(&mut args))?,
         "core-report" => print_core_report(&next_dir(&mut args))?,
         "core-diff-current-known-baseline" => {
             print_current_known_baseline_diff(&next_dir(&mut args))?

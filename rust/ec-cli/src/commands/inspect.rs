@@ -164,6 +164,47 @@ pub(crate) fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> 
     Ok(())
 }
 
+pub(crate) fn inspect_messages(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let path = dir.join("MESSAGES.DAT");
+    let bytes = fs::read(&path)?;
+
+    println!("Directory: {}", dir.display());
+    println!("MESSAGES.DAT bytes={}", bytes.len());
+
+    if bytes.is_empty() {
+        println!("MESSAGES.DAT is empty");
+        return Ok(());
+    }
+
+    if let Some(subject) = decode_pascal_ascii(&bytes) {
+        println!("Subject: {subject}");
+    }
+
+    let text_runs = printable_runs(&bytes, 6);
+    if !text_runs.is_empty() {
+        println!("Printable runs:");
+        for run in text_runs {
+            println!("  {run}");
+        }
+    }
+
+    if bytes.len() % 40 == 0 {
+        println!("Possible classic mail records: {} x 40-byte", bytes.len() / 40);
+        for (idx, record) in bytes.chunks_exact(40).enumerate() {
+            println!(
+                "  rec {:02}: {:02x?} text='{}'",
+                idx,
+                &record[..record.len().min(8)],
+                ascii_preview(record)
+            );
+        }
+    } else {
+        println!("Raw preview: {}", ascii_preview(&bytes[..bytes.len().min(80)]));
+    }
+
+    Ok(())
+}
+
 pub(crate) fn dump_headers(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
     let conquest = ConquestDat::parse(&fs::read(dir.join("CONQUEST.DAT"))?)?;
@@ -296,6 +337,56 @@ fn print_header_summary(setup: &SetupDat, conquest: &ConquestDat) {
         "CONQUEST first header words: {:04x?}",
         &conquest.header_words()[..8]
     );
+}
+
+fn decode_pascal_ascii(bytes: &[u8]) -> Option<String> {
+    let len = *bytes.first()? as usize;
+    if len == 0 || len + 1 > bytes.len() {
+        return None;
+    }
+    let candidate = &bytes[1..1 + len];
+    if candidate
+        .iter()
+        .all(|b| b.is_ascii_graphic() || *b == b' ')
+    {
+        Some(String::from_utf8_lossy(candidate).to_string())
+    } else {
+        None
+    }
+}
+
+fn printable_runs(bytes: &[u8], min_len: usize) -> Vec<String> {
+    let mut runs = Vec::new();
+    let mut current = Vec::new();
+
+    for &byte in bytes {
+        if byte.is_ascii_graphic() || byte == b' ' {
+            current.push(byte);
+        } else {
+            if current.len() >= min_len {
+                runs.push(String::from_utf8_lossy(&current).to_string());
+            }
+            current.clear();
+        }
+    }
+
+    if current.len() >= min_len {
+        runs.push(String::from_utf8_lossy(&current).to_string());
+    }
+
+    runs
+}
+
+fn ascii_preview(bytes: &[u8]) -> String {
+    bytes.iter()
+        .map(|byte| {
+            if byte.is_ascii_graphic() || *byte == b' ' {
+                char::from(*byte)
+            } else {
+                '.'
+            }
+        })
+        .collect()
 }
 
 fn yes_no(value: bool) -> &'static str {
