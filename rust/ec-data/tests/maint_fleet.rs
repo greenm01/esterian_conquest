@@ -248,10 +248,12 @@ fn test_blockading_foreign_world_escalates_to_enemy() {
 
     let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
 
-    assert!(events
-        .diplomatic_escalation_events
-        .iter()
-        .any(|event| event.left_empire_raw == 1 && event.right_empire_raw == 2));
+    assert!(
+        events
+            .diplomatic_escalation_events
+            .iter()
+            .any(|event| event.left_empire_raw == 1 && event.right_empire_raw == 2)
+    );
     assert_eq!(
         game_data.player.records[0].diplomatic_relation_toward(2),
         Some(DiplomaticRelation::Enemy)

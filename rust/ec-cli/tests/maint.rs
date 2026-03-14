@@ -1,14 +1,15 @@
 mod common;
 
 use common::{
-    cleanup_dir, copy_fixture_dir, run_ec_cli_failure_in_dir, run_ec_cli_in_dir, unique_temp_dir,
-    set_mutual_enemy_in_player_dat, write_mutual_enemy_diplomacy,
+    cleanup_dir, copy_fixture_dir, run_ec_cli_failure_in_dir, run_ec_cli_in_dir,
+    set_mutual_enemy_in_player_dat, unique_temp_dir, write_mutual_enemy_diplomacy,
 };
 use ec_data::{CoreGameData, DatabaseDat, GameStateBuilder, Order};
 use std::fs;
 
 fn decode_chunked_report(bytes: &[u8]) -> String {
-    bytes.chunks(84)
+    bytes
+        .chunks(84)
         .flat_map(|chunk| chunk.get(1..76).unwrap_or(&[]).iter().copied())
         .filter(|byte| *byte != 0)
         .map(char::from)
@@ -316,7 +317,9 @@ fn maint_rust_blockade_arrival_persists_enemy_relation_in_player_dat() {
     fleet.set_standing_order_target_coords_raw(coords);
     fleet.set_current_speed(3);
     fleet.raw[0x19] = 0x00;
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_ec_cli_in_dir(
         &["maint-rust", target.to_str().unwrap(), "1"],
@@ -1286,7 +1289,10 @@ fn maint_rust_reports_when_one_serious_contender_remains() {
     assert!(stdout.contains("Rust maintenance complete."));
 
     let post = CoreGameData::load(&target).expect("maint-rust output should load");
-    assert_eq!(post.campaign_outlook(), ec_data::CampaignOutlook::SoleContender(1));
+    assert_eq!(
+        post.campaign_outlook(),
+        ec_data::CampaignOutlook::SoleContender(1)
+    );
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let normalized = results
@@ -1343,7 +1349,10 @@ fn maint_rust_reports_emperor_recognition_when_only_stable_empire_remains() {
     assert!(stdout.contains("Rust maintenance complete."));
 
     let post = CoreGameData::load(&target).expect("maint-rust output should load");
-    assert_eq!(post.campaign_outcome(), ec_data::CampaignOutcome::RecognizedEmperor(1));
+    assert_eq!(
+        post.campaign_outcome(),
+        ec_data::CampaignOutcome::RecognizedEmperor(1)
+    );
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let normalized = results
@@ -1353,7 +1362,9 @@ fn maint_rust_reports_emperor_recognition_when_only_stable_empire_remains() {
         .map(char::from)
         .collect::<String>();
     assert!(
-        normalized.to_ascii_lowercase().contains("recognized as emperor"),
+        normalized
+            .to_ascii_lowercase()
+            .contains("recognized as emperor"),
         "RESULTS.DAT decoded text was: {:?}",
         normalized
     );
@@ -1408,7 +1419,9 @@ fn maint_rust_reports_fleet_defection_after_civil_disorder() {
         .map(char::from)
         .collect::<String>();
     assert!(
-        normalized.to_ascii_lowercase().contains("crews have defected"),
+        normalized
+            .to_ascii_lowercase()
+            .contains("crews have defected"),
         "RESULTS.DAT decoded text was: {:?}",
         normalized
     );
@@ -1454,7 +1467,8 @@ fn maint_rust_seeded_games_survive_five_turns_across_manual_player_tiers() {
             post.ecmaint_preflight_errors()
         );
 
-        let database_bytes = fs::read(target.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+        let database_bytes =
+            fs::read(target.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
         let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
         assert_eq!(
             database.records.len(),

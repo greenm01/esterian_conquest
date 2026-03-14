@@ -189,7 +189,10 @@ pub(crate) fn inspect_messages(dir: &Path) -> Result<(), Box<dyn std::error::Err
     }
 
     if bytes.len() % 40 == 0 {
-        println!("Possible classic mail records: {} x 40-byte", bytes.len() / 40);
+        println!(
+            "Possible classic mail records: {} x 40-byte",
+            bytes.len() / 40
+        );
         for (idx, record) in bytes.chunks_exact(40).enumerate() {
             println!(
                 "  rec {:02}: {:02x?} text='{}'",
@@ -199,7 +202,10 @@ pub(crate) fn inspect_messages(dir: &Path) -> Result<(), Box<dyn std::error::Err
             );
         }
     } else {
-        println!("Raw preview: {}", ascii_preview(&bytes[..bytes.len().min(80)]));
+        println!(
+            "Raw preview: {}",
+            ascii_preview(&bytes[..bytes.len().min(80)])
+        );
     }
 
     Ok(())
@@ -345,10 +351,7 @@ fn decode_pascal_ascii(bytes: &[u8]) -> Option<String> {
         return None;
     }
     let candidate = &bytes[1..1 + len];
-    if candidate
-        .iter()
-        .all(|b| b.is_ascii_graphic() || *b == b' ')
-    {
+    if candidate.iter().all(|b| b.is_ascii_graphic() || *b == b' ') {
         Some(String::from_utf8_lossy(candidate).to_string())
     } else {
         None
@@ -378,7 +381,8 @@ fn printable_runs(bytes: &[u8], min_len: usize) -> Vec<String> {
 }
 
 fn ascii_preview(bytes: &[u8]) -> String {
-    bytes.iter()
+    bytes
+        .iter()
         .map(|byte| {
             if byte.is_ascii_graphic() || *byte == b' ' {
                 char::from(*byte)

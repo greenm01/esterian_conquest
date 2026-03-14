@@ -2,7 +2,9 @@ use std::fmt;
 use std::fs;
 use std::path::Path;
 
-use crate::{CoreGameData, DiplomaticRelation, build_seeded_initialized_game, build_seeded_new_game};
+use crate::{
+    CoreGameData, DiplomaticRelation, build_seeded_initialized_game, build_seeded_new_game,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SetupMode {
@@ -225,12 +227,10 @@ impl SetupConfig {
                 build_seeded_new_game(self.player_count, self.year, seed)
                     .map_err(|err| SetupConfigError::Parse(err.to_string()))?
             }
-            SetupMode::BuilderCompatible => build_seeded_initialized_game(
-                self.player_count,
-                self.year,
-                seed,
-            )
-            .map_err(|err| SetupConfigError::Parse(err.to_string()))?,
+            SetupMode::BuilderCompatible => {
+                build_seeded_initialized_game(self.player_count, self.year, seed)
+                    .map_err(|err| SetupConfigError::Parse(err.to_string()))?
+            }
         };
 
         data.setup.set_snoop_enabled(self.setup_options.snoop);

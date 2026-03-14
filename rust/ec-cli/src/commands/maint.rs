@@ -3,8 +3,8 @@ use std::path::Path;
 use std::process::Command;
 
 use ec_data::{
-    CoreGameData, DatabaseDat, DiplomacyConfig, DiplomacyOverride, MaintenanceEvents,
-    VisibleHazardIntel, DiplomaticRelation, run_maintenance_turn, run_maintenance_turn_with_context,
+    CoreGameData, DatabaseDat, DiplomacyConfig, DiplomacyOverride, DiplomaticRelation,
+    MaintenanceEvents, VisibleHazardIntel, run_maintenance_turn, run_maintenance_turn_with_context,
     run_maintenance_turn_with_visible_hazards, visible_hazard_intel_from_database,
 };
 
@@ -115,7 +115,11 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
 
     // Save the modified state
     game_data.save(dir)?;
-    save_diplomacy_overrides_if_needed(dir, game_data.conquest.player_count(), &diplomacy_overrides)?;
+    save_diplomacy_overrides_if_needed(
+        dir,
+        game_data.conquest.player_count(),
+        &diplomacy_overrides,
+    )?;
 
     // Regenerate DATABASE.DAT from PLANETS.DAT
     regenerate_database_dat(dir, &game_data, &pre_maint_planets, &all_events)?;

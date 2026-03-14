@@ -1,4 +1,6 @@
-use ec_data::{CampaignOutcome, CampaignOutlook, CampaignState, GameStateBuilder, run_maintenance_turn};
+use ec_data::{
+    CampaignOutcome, CampaignOutlook, CampaignState, GameStateBuilder, run_maintenance_turn,
+};
 
 fn baseline_game() -> ec_data::CoreGameData {
     GameStateBuilder::new()
@@ -11,7 +13,10 @@ fn baseline_game() -> ec_data::CoreGameData {
 #[test]
 fn owned_planets_mean_stable_campaign_state() {
     let game_data = baseline_game();
-    assert_eq!(game_data.empire_campaign_state(1), Some(CampaignState::Stable));
+    assert_eq!(
+        game_data.empire_campaign_state(1),
+        Some(CampaignState::Stable)
+    );
     assert_eq!(game_data.campaign_contenders(), vec![1, 2, 3, 4]);
     assert_eq!(game_data.sole_contender(), None);
 }
@@ -123,7 +128,10 @@ fn rogue_and_civil_disorder_states_are_preserved() {
     game_data.player.records[0].set_owner_empire_raw(0xff);
     game_data.player.records[1].set_owner_empire_raw(0x00);
 
-    assert_eq!(game_data.empire_campaign_state(1), Some(CampaignState::Rogue));
+    assert_eq!(
+        game_data.empire_campaign_state(1),
+        Some(CampaignState::Rogue)
+    );
     assert_eq!(
         game_data.empire_campaign_state(2),
         Some(CampaignState::CivilDisorder)
@@ -185,8 +193,14 @@ fn sole_contender_is_reported_when_only_one_empire_can_still_contest() {
 
     assert_eq!(game_data.campaign_contenders(), vec![1]);
     assert_eq!(game_data.sole_contender(), Some(1));
-    assert_eq!(game_data.campaign_outlook(), CampaignOutlook::SoleContender(1));
-    assert_eq!(game_data.campaign_outcome(), CampaignOutcome::RecognizedEmperor(1));
+    assert_eq!(
+        game_data.campaign_outlook(),
+        CampaignOutlook::SoleContender(1)
+    );
+    assert_eq!(
+        game_data.campaign_outcome(),
+        CampaignOutcome::RecognizedEmperor(1)
+    );
 }
 
 #[test]
@@ -214,7 +228,10 @@ fn maintenance_emits_campaign_outlook_event_when_one_contender_remains() {
 
     let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
 
-    assert_eq!(game_data.campaign_outlook(), CampaignOutlook::SoleContender(1));
+    assert_eq!(
+        game_data.campaign_outlook(),
+        CampaignOutlook::SoleContender(1)
+    );
     assert_eq!(events.campaign_outlook_events.len(), 1);
     assert_eq!(events.campaign_outlook_events[0].empire_raw, 1);
 }
@@ -251,7 +268,10 @@ fn maintenance_emits_campaign_outcome_when_last_stable_contender_remains() {
 
     let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
 
-    assert_eq!(game_data.campaign_outcome(), CampaignOutcome::RecognizedEmperor(1));
+    assert_eq!(
+        game_data.campaign_outcome(),
+        CampaignOutcome::RecognizedEmperor(1)
+    );
     assert_eq!(events.campaign_outcome_events.len(), 1);
     assert_eq!(events.campaign_outcome_events[0].emperor_empire_raw, 1);
 }
@@ -273,7 +293,8 @@ fn civil_disorder_empire_loses_one_fleet_to_defection_each_turn() {
         }
     }
 
-    let first_events = run_maintenance_turn(&mut game_data).expect("first maintenance should succeed");
+    let first_events =
+        run_maintenance_turn(&mut game_data).expect("first maintenance should succeed");
     assert_eq!(first_events.civil_disorder_events.len(), 1);
     let fleet_count_after_collapse = game_data
         .fleets

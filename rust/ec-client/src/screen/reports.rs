@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::KeyEvent;
 
 use crate::app::Action;
 use crate::model::ReviewSummary;
@@ -62,15 +62,12 @@ impl Screen for ReportsScreen {
             &self.preview.message_lines,
         )?;
         row += 1;
-        draw_command_prompt(&mut buffer, row, "GENERAL COMMAND", "Q");
+        draw_command_prompt(&mut buffer, row, "GENERAL COMMAND", "SLAP A KEY");
         Ok(buffer)
     }
 
-    fn handle_key(&self, key: KeyEvent) -> Action {
-        match key.code {
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenGeneralMenu,
-            _ => Action::Noop,
-        }
+    fn handle_key(&self, _key: KeyEvent) -> Action {
+        Action::OpenGeneralMenu
     }
 }
 
