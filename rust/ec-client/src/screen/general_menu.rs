@@ -64,6 +64,7 @@ impl Screen for GeneralMenuScreen {
     fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Char('i') | KeyCode::Char('I') => Action::OpenPlanetInfoPrompt,
+            KeyCode::Char('m') | KeyCode::Char('M') => Action::OpenStarmap,
             KeyCode::Char('s') | KeyCode::Char('S') => Action::OpenEmpireStatus,
             KeyCode::Char('p') | KeyCode::Char('P') => Action::OpenEmpireProfile,
             KeyCode::Char('o') | KeyCode::Char('O') => {

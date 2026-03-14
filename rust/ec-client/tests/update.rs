@@ -15,6 +15,8 @@ fn apply_action_switches_between_client_screens() {
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
         player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
     })
     .expect("app should load");
 
@@ -37,6 +39,18 @@ fn apply_action_switches_between_client_screens() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenGeneralMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenStarmap),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::Starmap);
 
     assert_eq!(
         apply_action(&mut app, Action::OpenGeneralMenu),
@@ -101,6 +115,8 @@ fn apply_action_quit_exits_loop() {
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
         player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
     })
     .expect("app should load");
 

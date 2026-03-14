@@ -38,6 +38,7 @@ use crate::commands::economy::{init_tax_growth_probe, print_economy_report};
 use crate::commands::fleet_battle::{init_fleet_battle, init_fleet_battle_batch, set_fleet_battle};
 use crate::commands::invade::{init_invade, init_invade_batch, set_invade_onefleet};
 use crate::commands::maint::{compare_maintenance, run_rust_maintenance};
+use crate::commands::map_export::export_player_starmap;
 use crate::commands::scenario::{
     KnownScenario, apply_known_scenario, apply_known_scenarios, init_all_known_scenarios,
     init_known_replayable_scenario, init_known_scenario, init_known_scenario_chain,
@@ -180,6 +181,18 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
             let dir = next_dir(&mut args);
             let turns: Option<u16> = args.next().and_then(|s| s.parse().ok());
             compare_maintenance(&dir, turns)?;
+        }
+        "map-export" => {
+            let dir = next_dir(&mut args);
+            let Some(player) = args.next().and_then(|s| s.parse::<usize>().ok()) else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(output) = args.next().map(PathBuf::from) else {
+                print_usage();
+                return Ok(());
+            };
+            export_player_starmap(&dir, player, &output)?;
         }
         "maintenance-days" => {
             let dir = next_dir(&mut args);

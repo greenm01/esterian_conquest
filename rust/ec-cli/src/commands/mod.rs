@@ -11,6 +11,7 @@ pub(crate) mod inspect;
 pub(crate) mod invade;
 pub(crate) mod ipbm;
 pub(crate) mod maint;
+pub(crate) mod map_export;
 pub(crate) mod planet_build;
 pub(crate) mod reports;
 pub(crate) mod scenario;

@@ -115,6 +115,7 @@ That means:
 - starmap and database viewing
 - diplomacy/menu navigation
 - order entry and order review
+- map export/download from the galaxy map flow
 
 But it does not mean preserving every legacy interaction cost. The client can
 improve:

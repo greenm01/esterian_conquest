@@ -1,13 +1,14 @@
 use std::fs;
 use std::path::PathBuf;
 
-use ec_data::CoreGameData;
+use ec_data::{CoreGameData, DatabaseDat, build_player_starmap_projection};
 
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
 use crate::reports::ReportsPreview;
 use crate::screen::{
     EmpireProfileScreen, EmpireStatusScreen, GeneralMenuScreen, MainMenuScreen, PlanetInfoScreen,
     RankingsScreen, RankingsView, ReportsScreen, Screen, ScreenFrame, ScreenId, StartupScreen,
+    StarmapScreen,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -16,17 +17,21 @@ use crate::terminal::Terminal;
 pub struct AppConfig {
     pub game_dir: PathBuf,
     pub player_record_index_1_based: usize,
+    pub export_root: Option<PathBuf>,
+    pub queue_dir: Option<PathBuf>,
 }
 
 pub struct App {
     game_dir: PathBuf,
     game_data: CoreGameData,
+    database: DatabaseDat,
     player: PlayerContext,
     current_screen: ScreenId,
     startup_sequence: StartupSequence,
     startup: StartupScreen,
     main_menu: MainMenuScreen,
     general_menu: GeneralMenuScreen,
+    starmap: StarmapScreen,
     planet_info: PlanetInfoScreen,
     empire_status: EmpireStatusScreen,
     empire_profile: EmpireProfileScreen,
@@ -35,14 +40,26 @@ pub struct App {
     planet_info_input: String,
     planet_info_error: Option<String>,
     planet_info_selected: Option<usize>,
+    starmap_view_x: usize,
+    starmap_view_y: usize,
+    starmap_status: Option<String>,
+    starmap_capture_complete: bool,
+    export_root: PathBuf,
+    queue_dir: Option<PathBuf>,
 }
 
 impl App {
     pub fn load(config: AppConfig) -> Result<Self, Box<dyn std::error::Error>> {
-        let game_data = CoreGameData::load(&config.game_dir)?;
+        let game_dir = config.game_dir.clone();
+        let export_root = config
+            .export_root
+            .clone()
+            .unwrap_or_else(|| game_dir.join("exports"));
+        let game_data = CoreGameData::load(&game_dir)?;
+        let database = DatabaseDat::parse(&fs::read(game_dir.join("DATABASE.DAT"))?)?;
         let player = PlayerContext::from_game_data(&game_data, config.player_record_index_1_based)?;
-        let pending_results = file_nonempty(config.game_dir.join("RESULTS.DAT"));
-        let reports = ReportsPreview::load(&config.game_dir)?;
+        let pending_results = file_nonempty(game_dir.join("RESULTS.DAT"));
+        let reports = ReportsPreview::load(&game_dir)?;
         let main_menu_summary = MainMenuSummary::from_game_data(
             &game_data,
             config.player_record_index_1_based,
@@ -58,14 +75,16 @@ impl App {
         let startup_sequence = StartupSequence::new(&startup_summary);
 
         Ok(Self {
-            game_dir: config.game_dir,
+            game_dir,
             game_data,
+            database,
             player,
             current_screen: ScreenId::Startup(startup_sequence.current()),
             startup_sequence,
             startup: StartupScreen::new(startup_summary, reports.clone()),
             main_menu: MainMenuScreen::new(),
             general_menu: GeneralMenuScreen::new(),
+            starmap: StarmapScreen::new(),
             planet_info: PlanetInfoScreen::new(),
             empire_status: EmpireStatusScreen::new(),
             empire_profile: EmpireProfileScreen::new(),
@@ -74,6 +93,12 @@ impl App {
             planet_info_input: String::new(),
             planet_info_error: None,
             planet_info_selected: None,
+            starmap_view_x: 1,
+            starmap_view_y: 1,
+            starmap_status: None,
+            starmap_capture_complete: false,
+            export_root,
+            queue_dir: config.queue_dir,
         })
     }
 
@@ -91,6 +116,8 @@ impl App {
             ScreenId::Startup(phase) => self.startup.render_phase(&frame, phase)?,
             ScreenId::MainMenu => self.main_menu.render(&frame)?,
             ScreenId::GeneralMenu => self.general_menu.render(&frame)?,
+            ScreenId::Starmap if self.starmap_capture_complete => self.starmap.render_complete()?,
+            ScreenId::Starmap => self.starmap.render_prompt(self.starmap_status.as_deref())?,
             ScreenId::PlanetInfoPrompt => self
                 .planet_info
                 .render_prompt(&self.planet_info_input, self.planet_info_error.as_deref())?,
@@ -135,6 +162,10 @@ impl App {
             ScreenId::Startup(phase) => self.startup.handle_key(phase, key),
             ScreenId::MainMenu => self.main_menu.handle_key(key),
             ScreenId::GeneralMenu => self.general_menu.handle_key(key),
+            ScreenId::Starmap if self.starmap_capture_complete => {
+                self.starmap.handle_complete_key(key)
+            }
+            ScreenId::Starmap => self.starmap.handle_prompt_key(key),
             ScreenId::PlanetInfoPrompt => self.handle_planet_info_prompt_key(key),
             ScreenId::PlanetInfoDetail => self.planet_info.handle_detail_key(key),
             ScreenId::EmpireStatus => self.empire_status.handle_key(key),
@@ -163,6 +194,70 @@ impl App {
         self.planet_info_error = None;
         self.planet_info_selected = None;
         self.current_screen = ScreenId::PlanetInfoPrompt;
+    }
+
+    pub fn open_starmap(&mut self) {
+        self.starmap_view_x = 1;
+        self.starmap_view_y = 1;
+        self.starmap_status = None;
+        self.starmap_capture_complete = false;
+        self.current_screen = ScreenId::Starmap;
+    }
+
+    pub fn export_starmap(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let projection = build_player_starmap_projection(
+            &self.game_data,
+            &self.database,
+            self.player.record_index_1_based as u8,
+        );
+        std::fs::create_dir_all(&self.export_root)?;
+        let filename = format!(
+            "ECMAP-P{}-Y{}.TXT",
+            self.player.record_index_1_based,
+            self.game_data.conquest.game_year()
+        );
+        let export_path = self.export_root.join(&filename);
+        let csv_path = self.export_root.join(filename.replace(".TXT", ".CSV"));
+        let details_csv_path = self
+            .export_root
+            .join(filename.replace(".TXT", "-DETAILS.CSV"));
+        std::fs::write(&export_path, projection.render_ascii_export())?;
+        std::fs::write(&csv_path, projection.render_csv_export())?;
+        std::fs::write(&details_csv_path, projection.render_csv_details_export())?;
+        if let Some(queue_dir) = &self.queue_dir {
+            std::fs::create_dir_all(queue_dir)?;
+            std::fs::copy(&export_path, queue_dir.join(&filename))?;
+            std::fs::copy(&csv_path, queue_dir.join(csv_path.file_name().unwrap()))?;
+            std::fs::copy(
+                &details_csv_path,
+                queue_dir.join(details_csv_path.file_name().unwrap()),
+            )?;
+            self.starmap_status = Some(format!(
+                "Exported TXT + grid CSV + details CSV and queued copies in {}",
+                queue_dir.display()
+            ));
+        } else {
+            self.starmap_status = Some(format!(
+                "Exported {}, {}, and {}",
+                export_path.display(),
+                csv_path.display(),
+                details_csv_path.display()
+            ));
+        }
+        Ok(())
+    }
+
+    pub fn starmap_dump_text(&self) -> String {
+        build_player_starmap_projection(
+            &self.game_data,
+            &self.database,
+            self.player.record_index_1_based as u8,
+        )
+        .render_ascii_map()
+    }
+
+    pub fn finish_starmap_dump(&mut self) {
+        self.starmap_capture_complete = true;
     }
 
     pub fn append_planet_info_char(&mut self, ch: char) {

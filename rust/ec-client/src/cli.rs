@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
 use crate::app::{App, AppConfig, AppOutcome, apply_action};
+use crate::app::Action;
 use crate::terminal::Terminal;
 use crate::terminal::stdout::StdoutTerminal;
 
@@ -39,6 +40,13 @@ fn run_interactive_inner(
         app.render(terminal)?;
         let key = terminal.read_key()?;
         let action = app.handle_key(key);
+        if matches!(action, Action::BeginStarmapDump) {
+            let dump = app.starmap_dump_text();
+            terminal.dump_text_capture(&dump)?;
+            let _ = terminal.read_key()?;
+            app.finish_starmap_dump();
+            continue;
+        }
         let outcome = apply_action(app, action);
         if matches!(outcome, AppOutcome::Quit) {
             return Ok(());
@@ -49,6 +57,8 @@ fn run_interactive_inner(
 fn parse_args(args: &[String]) -> Result<AppConfig, Box<dyn std::error::Error>> {
     let mut dir = None;
     let mut player = None;
+    let mut export_root = std::env::var_os("EC_CLIENT_EXPORT_ROOT").map(PathBuf::from);
+    let mut queue_dir = std::env::var_os("EC_CLIENT_QUEUE_DIR").map(PathBuf::from);
 
     let mut idx = 1;
     while idx < args.len() {
@@ -65,6 +75,20 @@ fn parse_args(args: &[String]) -> Result<AppConfig, Box<dyn std::error::Error>> 
                     return Err("missing value for --player".into());
                 };
                 player = Some(value.parse::<usize>()?);
+                idx += 2;
+            }
+            "--export-root" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err("missing value for --export-root".into());
+                };
+                export_root = Some(PathBuf::from(value));
+                idx += 2;
+            }
+            "--queue-dir" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err("missing value for --queue-dir".into());
+                };
+                queue_dir = Some(PathBuf::from(value));
                 idx += 2;
             }
             "--help" | "-h" => {
@@ -87,10 +111,12 @@ fn parse_args(args: &[String]) -> Result<AppConfig, Box<dyn std::error::Error>> 
     Ok(AppConfig {
         game_dir: dir,
         player_record_index_1_based,
+        export_root,
+        queue_dir,
     })
 }
 
 fn print_usage() {
     println!("Usage:");
-    println!("  ec-client --dir <game_dir> --player <1-based empire index>");
+    println!("  ec-client --dir <game_dir> --player <1-based empire index> [--export-root <dir>] [--queue-dir <dir>]");
 }

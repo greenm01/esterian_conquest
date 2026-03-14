@@ -102,6 +102,31 @@ fn inspect_messages_decodes_classic_mail_sample() {
 }
 
 #[test]
+fn map_export_writes_printable_text_and_csv() {
+    let target = unique_temp_dir("ec-cli-map-export");
+    let out_txt = target.join("map.txt");
+
+    let stdout = run_ec_cli(&[
+        "map-export",
+        "fixtures/ecutil-init/v1.5",
+        "1",
+        out_txt.to_str().unwrap(),
+    ]);
+    assert!(stdout.contains("Exported player 1 starmap"));
+
+    let txt = fs::read_to_string(&out_txt).unwrap();
+    let csv = fs::read_to_string(target.join("map.csv")).unwrap();
+    let details_csv = fs::read_to_string(target.join("map-DETAILS.csv")).unwrap();
+    assert!(txt.contains("ESTERIAN CONQUEST STARMAP"));
+    assert!(txt.contains('*'));
+    assert!(csv.starts_with(",1,2,3"));
+    assert!(csv.contains(",*,"));
+    assert!(details_csv.contains("x,y,known_name"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn compare_reports_expected_initialized_to_post_maint_shape() {
     let stdout = run_ec_cli(&[
         "compare",

@@ -108,6 +108,9 @@ Planned direction:
 That client work is now documented in
 [docs/bbs_door_client_rust.md](docs/bbs_door_client_rust.md).
 
+Player map delivery and sysop staging are documented in
+[docs/sysop-map-exports.md](docs/sysop-map-exports.md).
+
 ## Quick Start
 
 Create a new game:
@@ -165,6 +168,13 @@ cd rust
 cargo run -q -p ec-cli -- inspect-messages /tmp/ec-game
 ```
 
+Export a player-safe printable starmap and companion CSV:
+
+```bash
+cd rust
+cargo run -q -p ec-cli -- map-export /tmp/ec-game 1 /tmp/ec-exports/ECMAP-P1-Y3000.TXT
+```
+
 Run the broader validation sweeps:
 
 ```bash
@@ -185,6 +195,7 @@ Useful supporting docs:
 - [docs/ec-combat-spec.md](docs/ec-combat-spec.md)
 - [docs/ec-movement-spec.md](docs/ec-movement-spec.md)
 - [docs/bbs_door_client_rust.md](docs/bbs_door_client_rust.md)
+- [docs/sysop-map-exports.md](docs/sysop-map-exports.md)
 - [docs/dosbox-workflow.md](docs/dosbox-workflow.md)
 
 ## Repository Layout

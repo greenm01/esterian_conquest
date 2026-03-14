@@ -73,6 +73,27 @@ impl Terminal for StdoutTerminal {
         }
     }
 
+    fn dump_text_capture(&mut self, text: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let mut stdout = io::stdout();
+        if stdout.is_terminal() {
+            execute!(
+                stdout,
+                SetBackgroundColor(Color::Black),
+                SetForegroundColor(Color::Grey),
+                Clear(ClearType::All),
+                MoveTo(0, 0),
+                Show
+            )?;
+            stdout.write_all(b"\x1b[0m")?;
+        }
+        stdout.write_all(text.as_bytes())?;
+        if !text.ends_with('\n') {
+            stdout.write_all(b"\n")?;
+        }
+        stdout.flush()?;
+        Ok(())
+    }
+
     fn clear_and_restore(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let mut stdout = io::stdout();
         if stdout.is_terminal() {

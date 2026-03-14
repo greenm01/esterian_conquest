@@ -8,6 +8,7 @@ mod planet_info;
 mod reports;
 mod rankings;
 mod startup;
+mod starmap;
 mod table;
 
 pub use buffer::{Cell, CellStyle, PlayfieldBuffer, RgbColor, StyledSpan};
@@ -20,6 +21,7 @@ pub use planet_info::{PlanetInfoScreen, parse_planet_coords};
 pub use rankings::{RankingsScreen, RankingsView};
 pub use reports::ReportsScreen;
 pub use startup::StartupScreen;
+pub use starmap::StarmapScreen;
 
 use std::path::Path;
 
@@ -34,6 +36,7 @@ pub enum ScreenId {
     Startup(StartupPhase),
     MainMenu,
     GeneralMenu,
+    Starmap,
     PlanetInfoPrompt,
     PlanetInfoDetail,
     EmpireStatus,

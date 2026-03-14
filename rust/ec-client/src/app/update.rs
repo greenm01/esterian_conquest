@@ -25,6 +25,15 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             *app.current_screen_mut() = crate::screen::ScreenId::GeneralMenu;
             AppOutcome::Continue
         }
+        Action::OpenStarmap => {
+            app.open_starmap();
+            AppOutcome::Continue
+        }
+        Action::BeginStarmapDump => AppOutcome::Continue,
+        Action::ExportStarmap => match app.export_starmap() {
+            Ok(()) => AppOutcome::Continue,
+            Err(_) => AppOutcome::Continue,
+        },
         Action::OpenPlanetInfoPrompt => {
             app.open_planet_info_prompt();
             AppOutcome::Continue
