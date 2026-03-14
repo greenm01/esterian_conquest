@@ -3,9 +3,10 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::model::ReviewSummary;
 use crate::reports::ReportsPreview;
-use crate::screen::layout::write_prompt;
-use crate::screen::{Screen, ScreenFrame};
-use crate::terminal::Terminal;
+use crate::screen::layout::{
+    draw_command_prompt, draw_status_line, draw_title_bar, new_playfield,
+};
+use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
 
 pub struct ReportsScreen {
@@ -22,54 +23,47 @@ impl ReportsScreen {
 impl Screen for ReportsScreen {
     fn render(
         &mut self,
-        terminal: &mut dyn Terminal,
         frame: &ScreenFrame<'_>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut lines = 0;
-        terminal.clear()?;
-        terminal.write_line(&classic::title_bar("MESSAGES / RESULTS REVIEW: ", 78))?;
-        lines += 1;
-        terminal.write_line("")?;
-        lines += 1;
-        terminal.write_line(&classic::status_line(
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        let mut row = 0;
+        draw_title_bar(&mut buffer, row, "MESSAGES / RESULTS REVIEW: ");
+        row += 2;
+        draw_status_line(
+            &mut buffer,
+            row,
             "Player: ",
             &format!(
                 "{}  Empire: {}",
-            frame.player.record_index_1_based,
-            display_or_unknown(&frame.player.empire_name)
+                frame.player.record_index_1_based,
+                display_or_unknown(&frame.player.empire_name)
             ),
-        ))?;
-        lines += 1;
-        terminal.write_line("")?;
-        lines += 1;
-        terminal.write_line("RESULTS.DAT")?;
-        lines += 1;
-        terminal.write_line("-----------")?;
-        lines += 1;
-        lines += write_section(
-            terminal,
+        );
+        row += 2;
+        buffer.write_text(row, 0, "RESULTS.DAT", classic::status_value_style());
+        row += 1;
+        buffer.write_text(row, 0, "-----------", classic::status_label_style());
+        row += 1;
+        row += write_section(
+            &mut buffer,
+            row,
             self.summary.reviewable_results,
             &self.preview.results_lines,
         )?;
-        terminal.write_line("")?;
-        lines += 1;
-        terminal.write_line("MESSAGES.DAT")?;
-        lines += 1;
-        terminal.write_line("------------")?;
-        lines += 1;
-        lines += write_section(
-            terminal,
+        row += 1;
+        buffer.write_text(row, 0, "MESSAGES.DAT", classic::status_value_style());
+        row += 1;
+        buffer.write_text(row, 0, "------------", classic::status_label_style());
+        row += 1;
+        row += write_section(
+            &mut buffer,
+            row,
             self.summary.reviewable_messages,
             &self.preview.message_lines,
         )?;
-        terminal.write_line("")?;
-        lines += 1;
-        write_prompt(
-            terminal,
-            lines,
-            &classic::command_prompt("GENERAL COMMAND", "Q"),
-        )?;
-        terminal.flush()
+        row += 1;
+        draw_command_prompt(&mut buffer, row, "GENERAL COMMAND", "Q");
+        Ok(buffer)
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {
@@ -81,27 +75,33 @@ impl Screen for ReportsScreen {
 }
 
 fn write_section(
-    terminal: &mut dyn Terminal,
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
     reviewable: bool,
     lines: &[String],
 ) -> Result<usize, Box<dyn std::error::Error>> {
     if !reviewable {
-        terminal.write_line("  <none currently reviewable>")?;
+        buffer.write_text(start_row, 0, "  <none currently reviewable>", classic::body_style());
         return Ok(1);
     }
 
     if lines.is_empty() {
-        terminal.write_line("  <none>")?;
+        buffer.write_text(start_row, 0, "  <none>", classic::body_style());
         return Ok(1);
     }
 
     let mut written = 0;
     for line in lines.iter().take(10) {
-        terminal.write_line(&format!("  {line}"))?;
+        buffer.write_text(start_row + written, 0, &format!("  {line}"), classic::body_style());
         written += 1;
     }
     if lines.len() > 10 {
-        terminal.write_line(&format!("  ... {} more line(s)", lines.len() - 10))?;
+        buffer.write_text(
+            start_row + written,
+            0,
+            &format!("  ... {} more line(s)", lines.len() - 10),
+            classic::body_style(),
+        );
         written += 1;
     }
     Ok(written)

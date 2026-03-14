@@ -1,6 +1,7 @@
 use std::io::{self, IsTerminal, Write};
 
 use crate::screen::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
+use crate::screen::{CellStyle, PlayfieldBuffer};
 use crate::terminal::Terminal;
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
@@ -10,43 +11,16 @@ use crossterm::{
     terminal::{self, Clear, ClearType},
 };
 
-pub struct StdoutTerminal {
-    lines: Vec<String>,
-    cursor: Option<(u16, u16)>,
-}
+pub struct StdoutTerminal;
 
 impl StdoutTerminal {
     pub fn new() -> Self {
-        Self {
-            lines: Vec::new(),
-            cursor: None,
-        }
+        Self
     }
 }
 
 impl Terminal for StdoutTerminal {
-    fn clear(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        self.lines.clear();
-        self.cursor = None;
-        Ok(())
-    }
-
-    fn write_line(&mut self, line: &str) -> Result<(), Box<dyn std::error::Error>> {
-        self.lines.push(line.to_string());
-        Ok(())
-    }
-
-    fn set_cursor(&mut self, column: u16, row: u16) -> Result<(), Box<dyn std::error::Error>> {
-        self.cursor = Some((column, row));
-        Ok(())
-    }
-
-    fn clear_cursor(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        self.cursor = None;
-        Ok(())
-    }
-
-    fn flush(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    fn render(&mut self, playfield: &PlayfieldBuffer) -> Result<(), Box<dyn std::error::Error>> {
         let mut stdout = io::stdout();
         if stdout.is_terminal() {
             let (term_width, term_height) = terminal::size()?;
@@ -65,15 +39,13 @@ impl Terminal for StdoutTerminal {
                 execute!(stdout, MoveTo(0, row))?;
                 stdout.write_all(blank_terminal_row.as_bytes())?;
             }
-            for row in 0..PLAYFIELD_HEIGHT {
+            for row in 0..playfield.height() {
                 execute!(stdout, MoveTo(offset_x, offset_y + row as u16))?;
                 stdout.write_all(blank_playfield.as_bytes())?;
-                if let Some(line) = self.lines.get(row) {
-                    execute!(stdout, MoveTo(offset_x, offset_y + row as u16))?;
-                    stdout.write_all(line.as_bytes())?;
-                }
+                execute!(stdout, MoveTo(offset_x, offset_y + row as u16))?;
+                stdout.write_all(render_ansi_row(playfield.row(row)).as_bytes())?;
             }
-            match self.cursor {
+            match playfield.cursor() {
                 Some((column, row)) => {
                     execute!(stdout, Show, MoveTo(offset_x + column, offset_y + row))?;
                 }
@@ -82,7 +54,8 @@ impl Terminal for StdoutTerminal {
                 }
             }
         } else {
-            for line in &self.lines {
+            for row in 0..playfield.height() {
+                let line = playfield.plain_line(row);
                 stdout.write_all(line.as_bytes())?;
                 stdout.write_all(b"\n")?;
             }
@@ -99,4 +72,32 @@ impl Terminal for StdoutTerminal {
             }
         }
     }
+}
+
+fn render_ansi_row(row: &[crate::screen::Cell]) -> String {
+    let mut output = String::new();
+    let mut current_style = None;
+
+    for cell in row {
+        if current_style != Some(cell.style) {
+            output.push_str(&ansi_style(cell.style));
+            current_style = Some(cell.style);
+        }
+        output.push(cell.ch);
+    }
+    output.push_str("\x1b[0m");
+    output
+}
+
+fn ansi_style(style: CellStyle) -> String {
+    let weight = if style.bold { "1" } else { "0" };
+    format!(
+        "\x1b[{weight};38;2;{};{};{};48;2;{};{};{}m",
+        style.fg.red,
+        style.fg.green,
+        style.fg.blue,
+        style.bg.red,
+        style.bg.green,
+        style.bg.blue
+    )
 }

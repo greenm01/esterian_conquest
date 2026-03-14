@@ -73,12 +73,13 @@ impl App {
             player: &self.player,
         };
 
-        match self.current_screen {
-            ScreenId::Startup(phase) => self.startup.render_phase(terminal, &frame, phase),
-            ScreenId::MainMenu => self.main_menu.render(terminal, &frame),
-            ScreenId::GeneralMenu => self.general_menu.render(terminal, &frame),
-            ScreenId::Reports => self.reports.render(terminal, &frame),
-        }
+        let playfield = match self.current_screen {
+            ScreenId::Startup(phase) => self.startup.render_phase(&frame, phase)?,
+            ScreenId::MainMenu => self.main_menu.render(&frame)?,
+            ScreenId::GeneralMenu => self.general_menu.render(&frame)?,
+            ScreenId::Reports => self.reports.render(&frame)?,
+        };
+        terminal.render(&playfield)
     }
 
     pub fn current_screen(&self) -> ScreenId {

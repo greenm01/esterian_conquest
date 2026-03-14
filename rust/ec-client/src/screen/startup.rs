@@ -2,10 +2,11 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::reports::ReportsPreview;
-use crate::screen::layout::write_prompt;
-use crate::screen::ScreenFrame;
+use crate::screen::layout::{
+    draw_centered_text, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
+};
+use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::startup::{StartupPhase, StartupSummary};
-use crate::terminal::Terminal;
 use crate::theme::classic;
 
 pub struct StartupScreen {
@@ -20,21 +21,20 @@ impl StartupScreen {
 
     pub fn render_phase(
         &mut self,
-        terminal: &mut dyn Terminal,
         frame: &ScreenFrame<'_>,
         phase: StartupPhase,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         match phase {
-            StartupPhase::Splash => self.render_splash(terminal, frame),
-            StartupPhase::Intro => self.render_intro(terminal),
-            StartupPhase::LoginSummary => self.render_login_summary(terminal, frame),
+            StartupPhase::Splash => self.render_splash(frame),
+            StartupPhase::Intro => self.render_intro(),
+            StartupPhase::LoginSummary => self.render_login_summary(frame),
             StartupPhase::Results => {
-                self.render_report_lines(terminal, frame, "PENDING RESULTS", &self.reports.results_lines)
+                self.render_report_lines(frame, "PENDING RESULTS", &self.reports.results_lines)
             }
             StartupPhase::Messages => {
-                self.render_report_lines(terminal, frame, "PENDING MESSAGES", &self.reports.message_lines)
+                self.render_report_lines(frame, "PENDING MESSAGES", &self.reports.message_lines)
             }
-            StartupPhase::Complete => Ok(()),
+            StartupPhase::Complete => Ok(new_playfield()),
         }
     }
 
@@ -46,190 +46,134 @@ impl StartupScreen {
         }
     }
 
-    fn render_splash(
-        &self,
-        terminal: &mut dyn Terminal,
-        _frame: &ScreenFrame<'_>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut lines = 0;
-        terminal.clear()?;
-        terminal.write_line("")?;
-        lines += 1;
-        terminal.write_line(&classic::centered_text("ESTERIAN CONQUEST", 78))?;
-        lines += 1;
-        terminal.write_line(&classic::centered_text("Ver 1.60", 78))?;
-        lines += 1;
-        terminal.write_line("")?;
-        lines += 1;
-        terminal.write_line("Welcome back to Esterian Conquest, Ver 1.60")?;
-        lines += 1;
-        terminal.write_line("-------------------------------------------------------------------------------")?;
-        lines += 1;
-        terminal.write_line("Use Ctrl-S throughout the game to pause and resume output.")?;
-        lines += 1;
-        terminal.write_line("Use Ctrl-X or Ctrl-K to abort most listings.")?;
-        lines += 1;
-        terminal.write_line("Copyright (C) 1990, 1991 by Bentley C. Griffith.")?;
-        lines += 1;
-        terminal.write_line("")?;
-        lines += 1;
-        write_prompt(terminal, lines, "View Introduction? Y/[N] ->")?;
-        terminal.flush()
+    fn render_splash(&self, _frame: &ScreenFrame<'_>) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        draw_centered_text(&mut buffer, 1, "ESTERIAN CONQUEST", classic::bright_style());
+        draw_centered_text(&mut buffer, 2, "Ver 1.60", classic::bright_style());
+        buffer.write_text(4, 0, "Welcome back to Esterian Conquest, Ver 1.60", classic::body_style());
+        buffer.write_text(5, 0, "-------------------------------------------------------------------------------", classic::body_style());
+        buffer.write_text(6, 0, "Use Ctrl-S throughout the game to pause and resume output.", classic::body_style());
+        buffer.write_text(7, 0, "Use Ctrl-X or Ctrl-K to abort most listings.", classic::body_style());
+        buffer.write_text(8, 0, "Copyright (C) 1990, 1991 by Bentley C. Griffith.", classic::body_style());
+        draw_plain_prompt(&mut buffer, 10, "View Introduction? Y/[N] ->");
+        Ok(buffer)
     }
 
-    fn render_intro(
-        &self,
-        terminal: &mut dyn Terminal,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut lines = 0;
-        terminal.clear()?;
-        terminal.write_line(&classic::centered_text("Esterian Conquest Ver 1.60", 78))?;
-        lines += 1;
-        terminal.write_line("")?;
-        lines += 1;
-        terminal.write_line("Beyond the mapped frontiers of the old Esterian dominion lies a small")?;
-        lines += 1;
-        terminal.write_line("galaxy of contested solar systems. The old masters are gone. Their")?;
-        lines += 1;
-        terminal.write_line("stations are silent, their patrols vanished, and their subjects left")?;
-        lines += 1;
-        terminal.write_line("with fleets, factories, and enough knowledge to build empires.")?;
-        lines += 1;
-        terminal.write_line("")?;
-        lines += 1;
-        terminal.write_line("You rise as one of the new Star Masters. From a single world and a few")?;
-        lines += 1;
-        terminal.write_line("small fleets, you must tax, build, scout, bargain, threaten, and")?;
-        lines += 1;
-        terminal.write_line("strike before rival powers can do the same. Some systems will join")?;
-        lines += 1;
-        terminal.write_line("your banner willingly. Others will require persuasion from orbit.")?;
-        lines += 1;
-        terminal.write_line("")?;
-        lines += 1;
-        terminal.write_line("Each maintenance marks the passage of a year. In that span, fleets")?;
-        lines += 1;
-        terminal.write_line("cross the dark between stars, colonies grow or starve, alliances turn")?;
-        lines += 1;
-        terminal.write_line("cold, and wars are decided by distance, industry, mathematics, and will.")?;
-        lines += 1;
-        terminal.write_line("")?;
-        lines += 1;
-        terminal.write_line("In profound respect and admiration to Bentley C. Griffith and his")?;
-        lines += 1;
-        terminal.write_line("fellow pioneers, who between 1990 and 1992 forged the enduring")?;
-        lines += 1;
-        terminal.write_line("legend of Esterian Conquest—a digital realm where star empires rose")?;
-        lines += 1;
-        terminal.write_line("and fell across BBS screens—and to the ancient dreamers, strategists,")?;
-        lines += 1;
-        terminal.write_line("and storytellers whose timeless visions of galactic dominion first")?;
-        lines += 1;
-        terminal.write_line("lit the way for every commander who still dares to claim worlds")?;
-        lines += 1;
-        terminal.write_line("among these endless stars.")?;
-        lines += 1;
-        terminal.write_line("")?;
-        lines += 1;
-        write_prompt(terminal, lines, "(Press Return) ")?;
-        terminal.flush()
+    fn render_intro(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        draw_centered_text(&mut buffer, 0, "Esterian Conquest Ver 1.60", classic::bright_style());
+        for (row, line) in INTRO_LINES.iter().enumerate() {
+            buffer.write_text(row + 2, 0, line, classic::body_style());
+        }
+        let last_row = (INTRO_LINES.len() + 1) as u16;
+        let last_col = INTRO_LINES
+            .last()
+            .map(|line| line.chars().count() as u16)
+            .unwrap_or(0);
+        buffer.set_cursor(last_col, last_row);
+        Ok(buffer)
     }
 
     fn render_login_summary(
         &self,
-        terminal: &mut dyn Terminal,
         frame: &ScreenFrame<'_>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut lines = 0;
-        terminal.clear()?;
-        terminal.write_line(&classic::title_bar("LOGIN STATUS: ", 78))?;
-        lines += 1;
-        terminal.write_line("")?;
-        lines += 1;
-        terminal.write_line(&classic::status_line(
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        draw_title_bar(&mut buffer, 0, "LOGIN STATUS: ");
+        draw_status_line(
+            &mut buffer,
+            2,
             "Empire: ",
             &format!(
                 "{}  Player {}",
-            display_or_unknown(&frame.player.empire_name),
-            frame.player.record_index_1_based
+                display_or_unknown(&frame.player.empire_name),
+                frame.player.record_index_1_based
             ),
-        ))?;
-        lines += 1;
-        terminal.write_line("")?;
-        lines += 1;
+        );
 
         if self.summary.pending_results {
-            terminal.write_line(&format!(
+            buffer.write_text(4, 0, &format!(
                 "You have {} report line(s) pending.",
                 self.summary.results_line_count
-            ))?;
+            ), classic::body_style());
         } else {
-            terminal.write_line("You have no reports pending.")?;
+            buffer.write_text(4, 0, "You have no reports pending.", classic::body_style());
         }
-        lines += 1;
 
         if self.summary.pending_messages {
-            terminal.write_line(&format!(
+            buffer.write_text(5, 0, &format!(
                 "You have undeleted messages: {} line(s) currently reviewable.",
                 self.summary.message_line_count
-            ))?;
+            ), classic::body_style());
         } else {
-            terminal.write_line("You have no undeleted messages.")?;
+            buffer.write_text(5, 0, "You have no undeleted messages.", classic::body_style());
         }
-        lines += 1;
 
-        terminal.write_line("")?;
-        lines += 1;
-        write_prompt(
-            terminal,
-            lines,
-            "Press any key to continue to the login-time review flow.",
-        )?;
-        terminal.flush()
+        draw_plain_prompt(&mut buffer, 7, "Press any key to continue to the login-time review flow.");
+        Ok(buffer)
     }
 
     fn render_report_lines(
         &self,
-        terminal: &mut dyn Terminal,
         frame: &ScreenFrame<'_>,
         title: &str,
         lines: &[String],
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut lines_written = 0;
-        terminal.clear()?;
-        terminal.write_line(&classic::title_bar(&format!("{title}: "), 78))?;
-        lines_written += 1;
-        terminal.write_line("")?;
-        lines_written += 1;
-        terminal.write_line(&classic::status_line(
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        let mut row = 0;
+        draw_title_bar(&mut buffer, row, &format!("{title}: "));
+        row += 2;
+        draw_status_line(
+            &mut buffer,
+            row,
             "Empire: ",
             &format!(
                 "{}  Player {}",
-            display_or_unknown(&frame.player.empire_name),
-            frame.player.record_index_1_based
+                display_or_unknown(&frame.player.empire_name),
+                frame.player.record_index_1_based
             ),
-        ))?;
-        lines_written += 1;
-        terminal.write_line("")?;
-        lines_written += 1;
+        );
+        row += 2;
 
         for line in lines.iter().take(12) {
-            terminal.write_line(line)?;
-            lines_written += 1;
+            buffer.write_text(row, 0, line, classic::body_style());
+            row += 1;
         }
         if lines.len() > 12 {
-            terminal.write_line("")?;
-            lines_written += 1;
-            terminal.write_line(&format!("... {} more line(s)", lines.len() - 12))?;
-            lines_written += 1;
+            row += 1;
+            buffer.write_text(
+                row,
+                0,
+                &format!("... {} more line(s)", lines.len() - 12),
+                classic::body_style(),
+            );
+            row += 1;
         }
 
-        terminal.write_line("")?;
-        lines_written += 1;
-        write_prompt(terminal, lines_written, "Press any key to continue.")?;
-        terminal.flush()
+        row += 1;
+        draw_plain_prompt(&mut buffer, row, "Press any key to continue.");
+        Ok(buffer)
     }
 }
+
+const INTRO_LINES: [&str; 16] = [
+    "Beyond the mapped frontiers of the old Esterian dominion lies a small galaxy",
+    "of contested solar systems. The old masters are gone. Their stations are",
+    "silent, their patrols vanished, and their subjects left with fleets,",
+    "factories, and enough knowledge to build empires.",
+    "",
+    "You rise as one of the new Star Masters. From a single world and a few small",
+    "fleets, you must tax, build, scout, bargain, threaten, and strike before",
+    "rival powers can do the same. Some systems will join your banner willingly.",
+    "Others will require persuasion from orbit.",
+    "",
+    "In profound respect and admiration to Bentley C. Griffith and his fellow",
+    "pioneers, who between 1990 and 1992 forged the enduring legend of Esterian",
+    "Conquest-a digital realm where star empires rose and fell across BBS",
+    "screens-and to the ancient dreamers, strategists, and storytellers whose",
+    "timeless visions of galactic dominion first lit the way for every commander",
+    "who still dares to claim worlds among these endless stars.",
+];
 
 fn display_or_unknown(value: &str) -> &str {
     if value.is_empty() { "<unknown>" } else { value }

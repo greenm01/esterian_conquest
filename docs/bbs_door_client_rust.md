@@ -140,7 +140,7 @@ ANSI policy:
 The client should treat the original UI as a fixed DOS playfield, not as a
 modern fluid terminal layout:
 
-- render into a fixed `80x25` playfield first
+- render into a fixed `80x20` playfield first
 - center that playfield inside larger terminals
 - keep menu bars, prompts, and reports positioned within that playfield
 - do not globally center-justify ordinary text blocks
@@ -165,6 +165,16 @@ Reasons:
 - CP437 art and exact menu placement matter
 - the current job is preserving a specific command/report flow, not building a
   generic terminal app shell
+
+The renderer should follow a small cell-buffer model closer to `tcell` than to
+widget-layout TUI frameworks:
+
+- keep one shared `80x20` playfield buffer of styled cells
+- let each screen write exact rows/columns into that buffer
+- centralize terminal painting, palette handling, and cursor placement
+- keep screen geometry screen-specific when the original layout is exact
+
+In other words: DRY the rendering pipeline, not the classic screen geometry.
 
 ## Transport Modes
 

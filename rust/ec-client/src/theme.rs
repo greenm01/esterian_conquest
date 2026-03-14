@@ -1,115 +1,46 @@
 pub mod classic {
-    const RESET: &str = "\x1b[0;38;2;192;192;192;48;2;0;0;0m";
-    const FG_WHITE_BG_BLUE: &str = "\x1b[0;38;2;224;224;224;48;2;0;0;170m";
-    const FG_BLACK_BG_WHITE: &str = "\x1b[0;38;2;0;0;0;48;2;224;224;224m";
-    const FG_WHITE_BG_BLACK: &str = "\x1b[0;38;2;192;192;192;48;2;0;0;0m";
-    const FG_YELLOW_BG_BLUE: &str = "\x1b[1;38;2;255;255;85;48;2;0;0;170m";
-    const FG_YELLOW_BG_BLACK: &str = "\x1b[1;38;2;255;255;85;48;2;0;0;0m";
-    const FG_BRIGHT_WHITE_BG_BLACK: &str = "\x1b[1;38;2;255;255;255;48;2;0;0;0m";
-    const FG_GREY_BG_BLACK: &str = "\x1b[0;38;2;192;192;192;48;2;0;0;0m";
+    use crate::screen::{CellStyle, RgbColor};
 
-    #[derive(Clone, Copy)]
-    pub struct MenuEntry<'a> {
-        pub hotkey: &'a str,
-        pub label: &'a str,
-        pub width: usize,
+    const BLACK: RgbColor = RgbColor::new(0, 0, 0);
+    const DOS_BLUE: RgbColor = RgbColor::new(0, 0, 170);
+    const LIGHT_GREY: RgbColor = RgbColor::new(224, 224, 224);
+    const BODY_GREY: RgbColor = RgbColor::new(192, 192, 192);
+    const YELLOW: RgbColor = RgbColor::new(255, 255, 85);
+    const BRIGHT_WHITE: RgbColor = RgbColor::new(255, 255, 255);
+
+    pub const fn body_style() -> CellStyle {
+        CellStyle::new(BODY_GREY, BLACK, false)
     }
 
-    impl<'a> MenuEntry<'a> {
-        pub const fn new(hotkey: &'a str, label: &'a str, width: usize) -> Self {
-            Self {
-                hotkey,
-                label,
-                width,
-            }
-        }
+    pub const fn title_style() -> CellStyle {
+        CellStyle::new(BLACK, LIGHT_GREY, false)
     }
 
-    pub fn title_bar(title: &str, width: usize) -> String {
-        let padding = width.saturating_sub(title.len());
-        format!(
-            "{FG_BLACK_BG_WHITE}{title}{FG_WHITE_BG_BLUE}{:padding$}{RESET}",
-            "",
-            padding = padding
-        )
+    pub const fn menu_style() -> CellStyle {
+        CellStyle::new(LIGHT_GREY, DOS_BLUE, false)
     }
 
-    pub fn menu_row(entries: &[MenuEntry<'_>]) -> String {
-        let mut line = String::from(FG_WHITE_BG_BLUE);
-        line.push_str("  ");
-        for entry in entries {
-            line.push_str(&format_menu_entry(*entry));
-        }
-        let used_width = 2 + entries
-            .iter()
-            .map(|entry| entry.width)
-            .sum::<usize>();
-        let padding = 78usize.saturating_sub(used_width);
-        line.push_str(&" ".repeat(padding));
-        line.push_str(RESET);
-        line
+    pub const fn menu_hotkey_style() -> CellStyle {
+        CellStyle::new(YELLOW, DOS_BLUE, true)
     }
 
-    pub fn command_prompt(label: &str, keys: &str) -> String {
-        format!(
-            "{FG_BLACK_BG_WHITE}{label}{FG_WHITE_BG_BLACK} <-{FG_YELLOW_BG_BLACK}{keys}{FG_WHITE_BG_BLACK}-> {RESET}"
-        )
+    pub const fn prompt_style() -> CellStyle {
+        CellStyle::new(BODY_GREY, BLACK, false)
     }
 
-    pub fn status_line(label: &str, value: &str) -> String {
-        format!("{FG_GREY_BG_BLACK}{label}{FG_BRIGHT_WHITE_BG_BLACK}{value}{RESET}")
+    pub const fn prompt_hotkey_style() -> CellStyle {
+        CellStyle::new(YELLOW, BLACK, true)
     }
 
-    pub fn splash_logo_lines() -> Vec<String> {
-        vec![
-            format!("{FG_BRIGHT_WHITE_BG_BLACK}ESTERIAN{RESET}"),
-            format!("{FG_BRIGHT_WHITE_BG_BLACK}CONQUEST{RESET}"),
-        ]
+    pub const fn bright_style() -> CellStyle {
+        CellStyle::new(BRIGHT_WHITE, BLACK, true)
     }
 
-    pub fn centered_text(text: &str, width: usize) -> String {
-        let padding = width.saturating_sub(visible_width(text)) / 2;
-        format!("{}{text}", " ".repeat(padding))
+    pub const fn status_label_style() -> CellStyle {
+        CellStyle::new(BODY_GREY, BLACK, false)
     }
 
-    fn format_menu_entry(entry: MenuEntry<'_>) -> String {
-        if entry.width == 0 || (entry.hotkey.is_empty() && entry.label.is_empty()) {
-            return String::new();
-        }
-        let body = format!(">{}", entry.label);
-        let used = entry.hotkey.len() + body.len();
-        let padding = entry.width.saturating_sub(used);
-        format!(
-            "{FG_YELLOW_BG_BLUE}{hotkey}{FG_WHITE_BG_BLUE}{body}{:padding$}",
-            "",
-            hotkey = entry.hotkey,
-            body = body,
-            padding = padding
-        )
-    }
-
-    fn visible_width(text: &str) -> usize {
-        let bytes = text.as_bytes();
-        let mut idx = 0;
-        let mut width = 0;
-        while idx < bytes.len() {
-            if bytes[idx] == 0x1b {
-                idx += 1;
-                if idx < bytes.len() && bytes[idx] == b'[' {
-                    idx += 1;
-                    while idx < bytes.len() {
-                        let byte = bytes[idx];
-                        idx += 1;
-                        if byte.is_ascii_alphabetic() {
-                            break;
-                        }
-                    }
-                }
-                continue;
-            }
-            width += 1;
-            idx += 1;
-        }
-        width
+    pub const fn status_value_style() -> CellStyle {
+        CellStyle::new(BRIGHT_WHITE, BLACK, true)
     }
 }
