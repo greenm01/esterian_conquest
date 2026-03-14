@@ -308,6 +308,14 @@ Long term:
     - effective surrender or submission of the remaining empires
 - the contiguous layout from `0x54..=0x6C` now lets Rust treat that table as a
   25-slot diplomacy surface, matching the documented maximum player count
+- the current conservative Rust implementation now does two things:
+  - an empire with no planets and no recovery path falls into civil disorder
+  - once already in civil disorder and still planetless, it loses one fleet to
+    defection per maintenance turn
+- the current conservative emperor-recognition rule is:
+  - if exactly one serious contender remains and that empire is still `Stable`
+    (owns planets), Rust recognizes it as emperor
+  - a sole remaining `MarginalExistence` empire is not yet emperor
 
 Near-term acceptance rule:
 

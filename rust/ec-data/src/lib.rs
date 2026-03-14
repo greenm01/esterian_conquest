@@ -29,16 +29,17 @@ pub use config::{
     SetupOptionsConfig,
 };
 pub use directory::{
-    CampaignOutlook, CampaignState, CoreGameData, CurrentKnownComplianceStatus,
+    CampaignOutcome, CampaignOutlook, CampaignState, CoreGameData, CurrentKnownComplianceStatus,
     CurrentKnownGuardStarbaseLinkageSummary, CurrentKnownKeyWordSummary, GameDirectoryError,
     GameStateMutationError,
 };
 pub use maint::{
-    BombardEvent, CampaignOutlookEvent, CivilDisorderEvent, ColonizationResolvedEvent,
-    ContactReportSource, DiplomacyOverride, FleetBattleEvent, FleetDestroyedEvent,
-    FleetMergeEvent, JoinMissionHostEvent, MaintenanceEvents, Mission, MissionEvent,
-    MissionOutcome, PlanetIntelEvent, PlanetOwnershipChangeEvent, ScoutContactEvent, ShipLosses,
-    StarbaseDestroyedEvent, run_maintenance_turn, run_maintenance_turn_with_context,
+    BombardEvent, CampaignOutcomeEvent, CampaignOutlookEvent, CivilDisorderEvent,
+    ColonizationResolvedEvent, ContactReportSource, DiplomacyOverride, FleetBattleEvent,
+    FleetDefectionEvent, FleetDestroyedEvent, FleetMergeEvent, JoinMissionHostEvent,
+    MaintenanceEvents, Mission, MissionEvent, MissionOutcome, PlanetIntelEvent,
+    PlanetOwnershipChangeEvent, ScoutContactEvent, ShipLosses, StarbaseDestroyedEvent,
+    run_maintenance_turn, run_maintenance_turn_with_context,
     run_maintenance_turn_with_visible_hazards, run_maintenance_turns,
 };
 pub use mapgen::{

@@ -120,6 +120,21 @@ impl CampaignOutlook {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CampaignOutcome {
+    Ongoing,
+    RecognizedEmperor(u8),
+}
+
+impl CampaignOutcome {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Ongoing => "ongoing",
+            Self::RecognizedEmperor(_) => "recognized_emperor",
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum GameDirectoryError {
     Io {
@@ -331,6 +346,20 @@ impl CoreGameData {
         match self.sole_contender() {
             Some(empire_raw) => CampaignOutlook::SoleContender(empire_raw),
             None => CampaignOutlook::Contested,
+        }
+    }
+
+    pub fn campaign_outcome(&self) -> CampaignOutcome {
+        match self.sole_contender() {
+            Some(empire_raw)
+                if matches!(
+                    self.empire_campaign_state(empire_raw),
+                    Some(CampaignState::Stable)
+                ) =>
+            {
+                CampaignOutcome::RecognizedEmperor(empire_raw)
+            }
+            _ => CampaignOutcome::Ongoing,
         }
     }
 

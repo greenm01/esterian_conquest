@@ -440,6 +440,22 @@ pub(crate) fn regenerate_results_dat(
         push_results_chunked(&mut results, 0x06, RESULTS_TAIL_FLEET, &text);
     }
 
+    for event in &events.campaign_outcome_events {
+        let text = format!(
+            "From your Fleet Command Center: {} has now been recognized as Emperor. No other stable empire remains capable of contesting the throne.",
+            empire_label(game_data, event.emperor_empire_raw),
+        );
+        push_results_chunked(&mut results, 0x06, RESULTS_TAIL_FLEET, &text);
+    }
+
+    for event in &events.fleet_defection_events {
+        let text = format!(
+            "From your Fleet Command Center: We have lost all contact with the {}th Fleet. In the chaos of civil disorder, the surviving crews have defected and no longer answer to central command.",
+            event.fleet_id,
+        );
+        push_results_chunked(&mut results, 0x06, RESULTS_TAIL_FLEET, &text);
+    }
+
     for event in &events.assault_report_events {
         let Some(planet) = game_data.planets.records.get(event.planet_idx) else {
             continue;

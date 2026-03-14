@@ -281,6 +281,17 @@ pub struct CampaignOutlookEvent {
     pub empire_raw: u8,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CampaignOutcomeEvent {
+    pub emperor_empire_raw: u8,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FleetDefectionEvent {
+    pub reporting_empire_raw: u8,
+    pub fleet_id: u8,
+}
+
 /// A colonization outcome resolved during maintenance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColonizationResolvedEvent {
@@ -340,6 +351,10 @@ pub struct MaintenanceEvents {
     pub civil_disorder_events: Vec<CivilDisorderEvent>,
     /// A new sole remaining serious contender emerged this turn.
     pub campaign_outlook_events: Vec<CampaignOutlookEvent>,
+    /// A stable sole contender is now recognized as emperor.
+    pub campaign_outcome_events: Vec<CampaignOutcomeEvent>,
+    /// A civil-disorder empire lost another fleet to defection.
+    pub fleet_defection_events: Vec<FleetDefectionEvent>,
 }
 
 /// Event produced when a fleet completes a ColonizeWorld order.
@@ -454,6 +469,7 @@ pub fn run_maintenance_turn_with_context(
         .collect();
 
     let initial_campaign_outlook = game_data.campaign_outlook();
+    let initial_campaign_outcome = game_data.campaign_outcome();
 
     // InvadeWorld execution: a InvadeWorld fleet that had raw[0x19]==0x80 at start of turn
     // executes this turn. Snapshot indices now, before movement mutates raw[0x19].
@@ -537,11 +553,15 @@ pub fn run_maintenance_turn_with_context(
     // falls into civil disorder. This preserves the empire slot and matches
     // the observed "In Civil Disorder" state already used by classic data.
     let civil_disorder_events = apply_campaign_state_transitions(game_data);
+    let fleet_defection_events =
+        apply_civil_disorder_fleet_defections(game_data, &civil_disorder_events)?;
     let campaign_outlook_events = detect_campaign_outlook_events(
         initial_campaign_outlook,
         game_data.campaign_outlook(),
         &civil_disorder_events,
     );
+    let campaign_outcome_events =
+        detect_campaign_outcome_events(initial_campaign_outcome, game_data.campaign_outcome());
 
     // Update PLAYER.DAT raw[0x46]: set to 0x01 for any player with starbase_count > 0.
     // Confirmed from starbase fixture: player 0 (starbase_count=1) gets raw[0x46]=0x01 after maint.
@@ -612,6 +632,8 @@ pub fn run_maintenance_turn_with_context(
         diplomatic_escalation_events: movement_events.diplomatic_escalation_events,
         civil_disorder_events,
         campaign_outlook_events,
+        campaign_outcome_events,
+        fleet_defection_events,
     };
 
     apply_stored_diplomatic_escalations(game_data, &events)?;
@@ -629,6 +651,169 @@ fn detect_campaign_outlook_events(
             vec![CampaignOutlookEvent { empire_raw }]
         }
         _ => Vec::new(),
+    }
+}
+
+fn detect_campaign_outcome_events(
+    _before: crate::CampaignOutcome,
+    after: crate::CampaignOutcome,
+) -> Vec<CampaignOutcomeEvent> {
+    match after {
+        crate::CampaignOutcome::RecognizedEmperor(emperor_empire_raw) => {
+            vec![CampaignOutcomeEvent { emperor_empire_raw }]
+        }
+        _ => Vec::new(),
+    }
+}
+
+fn apply_civil_disorder_fleet_defections(
+    game_data: &mut CoreGameData,
+    newly_disordered: &[CivilDisorderEvent],
+) -> Result<Vec<FleetDefectionEvent>, Box<dyn std::error::Error>> {
+    let mut to_remove = vec![false; game_data.fleets.records.len()];
+    let mut events = Vec::new();
+
+    for empire_raw in 1..=game_data.player.records.len() as u8 {
+        let Some(player) = game_data
+            .player
+            .records
+            .get(empire_raw.saturating_sub(1) as usize)
+        else {
+            continue;
+        };
+        if player.owner_mode_raw() != 0x00 {
+            continue;
+        }
+        if newly_disordered
+            .iter()
+            .any(|event| event.reporting_empire_raw == empire_raw)
+        {
+            continue;
+        }
+        if game_data
+            .planets
+            .records
+            .iter()
+            .any(|planet| planet.owner_empire_slot_raw() == empire_raw)
+        {
+            continue;
+        }
+
+        let candidate = game_data
+            .fleets
+            .records
+            .iter()
+            .enumerate()
+            .filter(|(_, fleet)| fleet.owner_empire_raw() == empire_raw && fleet_has_presence(fleet))
+            .max_by_key(|(_, fleet)| fleet.fleet_id());
+
+        if let Some((fleet_idx, fleet)) = candidate {
+            to_remove[fleet_idx] = true;
+            events.push(FleetDefectionEvent {
+                reporting_empire_raw: empire_raw,
+                fleet_id: fleet.fleet_id(),
+            });
+        }
+    }
+
+    if to_remove.iter().any(|remove| *remove) {
+        remove_selected_fleets(game_data, &to_remove);
+    }
+
+    Ok(events)
+}
+
+fn fleet_has_presence(fleet: &crate::FleetRecord) -> bool {
+    fleet.scout_count() > 0
+        || fleet.battleship_count() > 0
+        || fleet.cruiser_count() > 0
+        || fleet.destroyer_count() > 0
+        || fleet.troop_transport_count() > 0
+        || fleet.army_count() > 0
+        || fleet.etac_count() > 0
+}
+
+fn remove_selected_fleets(game_data: &mut CoreGameData, to_remove: &[bool]) {
+    let fleet_count = game_data.fleets.records.len();
+    if fleet_count == 0 || to_remove.len() != fleet_count {
+        return;
+    }
+
+    let pre_removal_owner: Vec<u8> = game_data
+        .fleets
+        .records
+        .iter()
+        .map(|f| f.owner_empire_raw())
+        .collect();
+    let pre_removal_fleet_id: Vec<u8> = game_data
+        .fleets
+        .records
+        .iter()
+        .map(|f| f.fleet_id())
+        .collect();
+
+    let removed_before: Vec<u8> = {
+        let mut count = 0u8;
+        (0..fleet_count)
+            .map(|i| {
+                let current = count;
+                if to_remove[i] {
+                    count = count.saturating_add(1);
+                }
+                current
+            })
+            .collect()
+    };
+
+    let remap_id = |old_id: u8| -> u8 {
+        if old_id == 0 {
+            return 0;
+        }
+        let orig_idx = (old_id as usize).saturating_sub(1);
+        if orig_idx >= fleet_count || to_remove[orig_idx] {
+            0
+        } else {
+            old_id.saturating_sub(removed_before[orig_idx])
+        }
+    };
+
+    let new_fleets: Vec<_> = game_data
+        .fleets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| !to_remove[*i])
+        .map(|(i, fleet)| {
+            let mut f = fleet.clone();
+            f.raw[0x05] = fleet.raw[0x05].saturating_sub(removed_before[i]);
+            f.raw[0x03] = remap_id(fleet.raw[0x03]);
+            f.raw[0x07] = remap_id(fleet.raw[0x07]);
+            f
+        })
+        .collect();
+    game_data.fleets.records = new_fleets;
+
+    for player_idx in 0..game_data.player.records.len() {
+        let owner_raw = (player_idx + 1) as u8;
+        let first_id = game_data.player.records[player_idx].raw[0x40];
+        let last_id = game_data.player.records[player_idx].raw[0x42];
+        let new_first = remap_id(first_id);
+        let new_last = remap_id(last_id);
+        game_data.player.records[player_idx].raw[0x40] = new_first;
+        game_data.player.records[player_idx].raw[0x42] = if new_last == 0 && new_first != 0 {
+            let mut max_new_id: u8 = new_first;
+            for orig_idx in 0..fleet_count {
+                if pre_removal_owner[orig_idx] == owner_raw && !to_remove[orig_idx] {
+                    let mapped = remap_id(pre_removal_fleet_id[orig_idx]);
+                    if mapped > max_new_id {
+                        max_new_id = mapped;
+                    }
+                }
+            }
+            max_new_id
+        } else {
+            new_last
+        };
     }
 }
 

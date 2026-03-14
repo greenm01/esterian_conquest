@@ -247,14 +247,19 @@ What is strong:
     `In Civil Disorder`
   - this preserves the empire slot and matches the classic civil-disorder
     state already visible in preserved logs
-  - this is an intentionally conservative first pass, not a full recovered
-    long-term fleet-defection model yet
+  - once already in civil disorder and still without planets, the empire now
+    loses one fleet to defection per maintenance turn
 - `ec-data` now also exposes a conservative campaign outlook:
   - `Contested`
   - `SoleContender(empire_raw)`
-  - this is intentionally not yet the same thing as final emperor recognition
   - `maint-rust` now also emits a conservative Fleet Command Center report
     when one empire stands as the sole remaining serious contender
+  - `ec-data` now also exposes a conservative campaign outcome:
+    - `Ongoing`
+    - `RecognizedEmperor(empire_raw)`
+  - Rust recognizes an emperor only when the sole remaining serious contender
+    is still `Stable` (owns planets)
+  - `maint-rust` now also emits an emperor-recognition report
 - the larger-tier `DATABASE.DAT` refresh path no longer hard-codes a 20-planet
   index stride:
   - scout/view `planet_intel_events` now use the real dynamic `planet_count`
@@ -393,8 +398,10 @@ ones.
   KDL/sysop path is becoming the canonical admin surface
 - defer turn-limit work until a future SQLite-backed campaign layer exists
 - continue the end-to-end campaign pass:
-  - empire-recognition / end-state rules that stay faithful to the manuals
-  - later, fleet-defection behavior beyond the first civil-disorder transition
+  - keep pressure on emperor-recognition / end-state rules as more evidence
+    appears
+  - refine fleet-defection behavior if stronger classic evidence appears beyond
+    the current one-fleet-per-turn conservative rule
 - [ ] Assault-path regression coverage expanded for invade and blitz edge cases
 - [ ] `maint-compare` acceptance policy updated to treat combat as structural,
   not byte-exact, parity

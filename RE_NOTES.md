@@ -5268,3 +5268,29 @@ This is the current repository example of the documented policy:
     - annihilation
     - fleet defection after loss of all planets
     - emperor recognition / submission of remaining empires
+
+## Conservative campaign-end rules promoted into Rust — Session 2026-03-13
+
+- Manuals used:
+  - `ECPLAYER.DOC` losing rule: fleets start to defect after loss of all
+    planets unless another planet can be recaptured
+  - `ECPLAYER.DOC` / `ECQSTART.DOC` victory rule: one empire is recognized as
+    emperor after all other serious contenders are gone
+- Existing RE constraint preserved:
+  - `mode=0x00` civil-disorder slots do **not** automatically become rogue
+  - therefore Rust should not model defections as a hidden auto-rogue
+    conversion
+- Promoted conservative Rust rules:
+  1. active empires with no planets and no recovery path transition to
+     `In Civil Disorder`
+  2. once already in civil disorder and still planetless, an empire loses one
+     surviving fleet to defection per maintenance turn
+  3. if exactly one serious contender remains and that empire is still
+     `Stable`, Rust recognizes it as emperor
+- Notes:
+  - this is intentionally deterministic and compatibility-safe
+  - it is not claimed as a byte-exact reproduction of original hidden
+    campaign-end internals
+  - if stronger classic evidence appears later, fleet-defection cadence and
+    emperor-recognition detail can be refined without changing the overall
+    architecture
