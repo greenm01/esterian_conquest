@@ -15,6 +15,7 @@ pub const MAINTENANCE_DAY_ENABLED_CODES: [u8; 7] = [0x01, 0x01, 0xCA, 0x01, 0x0A
 mod builder;
 mod config;
 mod directory;
+mod economy;
 mod maint;
 mod mapgen;
 mod pathfinding;
@@ -34,6 +35,7 @@ pub use directory::{
     EmpirePlanetEconomyRow, EmpireProductionRankingRow, EmpireProductionRankingSort,
     EmpireUnitSummary, GameDirectoryError, GameStateMutationError,
 };
+pub use economy::{build_capacity, yearly_growth_delta, yearly_tax_revenue};
 pub use maint::{
     BombardEvent, CampaignOutcomeEvent, CampaignOutlookEvent, CivilDisorderEvent,
     ColonizationResolvedEvent, ContactReportSource, DiplomacyOverride, FleetBattleEvent,

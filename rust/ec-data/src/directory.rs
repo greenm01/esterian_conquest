@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::{
     BaseDat, BaseRecord, ConquestDat, DiplomaticRelation, FleetDat, FleetRecord, IPBM_RECORD_SIZE,
     IpbmDat, IpbmRecord, ParseError, PlanetDat, PlayerDat, ProductionItemKind, SetupDat,
+    build_capacity, yearly_growth_delta, yearly_tax_revenue,
 };
 
 const CURRENT_KNOWN_POST_MAINT_CONQUEST_CONTROL_HEADER: [u8; 0x55] = [
@@ -119,8 +120,11 @@ pub struct EmpirePlanetEconomyRow {
     pub planet_name: String,
     pub present_production: u16,
     pub potential_production: u16,
-    pub stored_goods: u32,
-    pub economy_marker_raw: u8,
+    pub stored_production_points: u32,
+    pub yearly_tax_revenue: u32,
+    pub yearly_growth_delta: u16,
+    pub build_capacity: u16,
+    pub has_friendly_starbase: bool,
     pub armies: u8,
     pub ground_batteries: u8,
     pub is_homeworld_seed: bool,
@@ -366,18 +370,14 @@ impl CoreGameData {
             .player
             .records
             .get(player_record_index_1_based - 1)
-            .map(|record| u32::from(record.tax_rate()))
+            .map(|record| record.tax_rate())
             .unwrap_or(0);
 
         self.planets
             .records
             .iter()
             .filter(|record| record.owner_empire_slot_raw() as usize == player_record_index_1_based)
-            .filter_map(|record| {
-                record
-                    .present_production_points()
-                    .map(|points| (u32::from(points) * tax_rate) / 100)
-            })
+            .filter_map(|record| record.present_production_points().map(|points| yearly_tax_revenue(points, tax_rate)))
             .sum()
     }
 
@@ -571,20 +571,51 @@ impl CoreGameData {
             .enumerate()
             .filter(|(_, record)| record.owner_empire_slot_raw() as usize == player_record_index_1_based)
             .filter_map(|(idx, record)| {
+                let present_production = record.present_production_points()?;
+                let tax_rate = self
+                    .player
+                    .records
+                    .get(player_record_index_1_based - 1)
+                    .map(|player| player.tax_rate())
+                    .unwrap_or(0);
+                let has_friendly_starbase = self.planet_has_friendly_starbase(
+                    player_record_index_1_based as u8,
+                    record.coords_raw(),
+                );
                 Some(EmpirePlanetEconomyRow {
                     planet_record_index_1_based: idx + 1,
                     coords: record.coords_raw(),
                     planet_name: record.status_or_name_summary(),
-                    present_production: record.present_production_points()?,
+                    present_production,
                     potential_production: record.potential_production_points(),
-                    stored_goods: record.stored_production_points(),
-                    economy_marker_raw: record.economy_marker_raw(),
+                    stored_production_points: record.stored_production_points(),
+                    yearly_tax_revenue: yearly_tax_revenue(present_production, tax_rate),
+                    yearly_growth_delta: yearly_growth_delta(
+                        present_production,
+                        record.potential_production_points(),
+                        tax_rate,
+                        has_friendly_starbase,
+                    ),
+                    build_capacity: build_capacity(present_production, has_friendly_starbase),
+                    has_friendly_starbase,
                     armies: record.army_count_raw(),
                     ground_batteries: record.ground_batteries_raw(),
                     is_homeworld_seed: record.is_homeworld_seed_ignoring_name(),
                 })
             })
             .collect()
+    }
+
+    pub fn planet_has_friendly_starbase(
+        &self,
+        owner_empire_raw: u8,
+        coords: [u8; 2],
+    ) -> bool {
+        self.bases.records.iter().any(|base| {
+            base.owner_empire_raw() == owner_empire_raw
+                && base.coords_raw() == coords
+                && base.active_flag_raw() != 0
+        })
     }
 
     pub fn empire_present_production_current_known(

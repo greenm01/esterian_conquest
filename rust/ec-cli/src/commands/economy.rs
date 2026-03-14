@@ -134,23 +134,26 @@ pub(crate) fn print_economy_report(
     );
     println!("  planets:");
     println!(
-        "    {:>3} {:>7} {:<13} {:>7} {:>9} {:>6} {:>6} {:>4} {:>4}",
-        "rec", "coords", "name", "present", "potential", "stored", "econ0e", "army", "bat"
+        "    {:>3} {:>7} {:<13} {:>7} {:>9} {:>6} {:>6} {:>6} {:>5} {:>4} {:>4}",
+        "rec", "coords", "name", "present", "potential", "stored", "rev", "grow", "cap", "army", "bat"
     );
     for row in data.empire_planet_economy_rows(player_record_index_1_based) {
         let [x, y] = row.coords;
         println!(
-            "    {:>3} ({:02},{:02}) {:<13} {:>7} {:>9} {:>6} {:>6} {:>4} {:>4}{}",
+            "    {:>3} ({:02},{:02}) {:<13} {:>7} {:>9} {:>6} {:>6} {:>6} {:>5} {:>4} {:>4}{}{}",
             row.planet_record_index_1_based,
             x,
             y,
             row.planet_name,
             row.present_production,
             row.potential_production,
-            row.stored_goods,
-            row.economy_marker_raw,
+            row.stored_production_points,
+            row.yearly_tax_revenue,
+            row.yearly_growth_delta,
+            row.build_capacity,
             row.armies,
             row.ground_batteries,
+            if row.has_friendly_starbase { " starbase" } else { "" },
             if row.is_homeworld_seed { " homeworld" } else { "" }
         );
     }

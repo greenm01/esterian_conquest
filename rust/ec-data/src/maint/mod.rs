@@ -3,8 +3,8 @@
 mod combat;
 
 use crate::{
-    CoreGameData, DiplomaticRelation, Order, VisibleHazardIntel, next_path_step,
-    plan_route_with_intel,
+    CoreGameData, DiplomaticRelation, Order, VisibleHazardIntel, build_capacity,
+    next_path_step, plan_route_with_intel, yearly_growth_delta, yearly_tax_revenue,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -1652,16 +1652,15 @@ fn process_build_completion(
         let current_production = game_data.planets.records[planet_idx]
             .present_production_points()
             .unwrap_or(0);
-        let spend_capacity = if owner_empire != 0
-            && planet_has_friendly_starbase(
-                game_data,
-                owner_empire,
-                game_data.planets.records[planet_idx].coords_raw(),
-            ) {
-            current_production.saturating_mul(5)
-        } else {
-            current_production
-        };
+        let spend_capacity = build_capacity(
+            current_production,
+            owner_empire != 0
+                && planet_has_friendly_starbase(
+                    game_data,
+                    owner_empire,
+                    game_data.planets.records[planet_idx].coords_raw(),
+                ),
+        );
         let production_rate_u8 = spend_capacity.min(255) as u8;
 
         // Process up to 10 build slots per planet
@@ -1780,29 +1779,6 @@ fn planet_has_friendly_starbase(
             && base.coords_raw() == coords
             && base.active_flag_raw() != 0
     })
-}
-
-fn yearly_tax_revenue(current_production: u16, tax_rate: u8) -> u32 {
-    (u32::from(current_production) * u32::from(tax_rate)) / 100
-}
-
-fn yearly_growth_delta(
-    current_production: u16,
-    potential_production: u16,
-    tax_rate: u8,
-    has_starbase: bool,
-) -> u16 {
-    if current_production >= potential_production {
-        return 0;
-    }
-
-    let gap = potential_production - current_production;
-    let tax_headroom = 100u16.saturating_sub(u16::from(tax_rate.min(95)));
-    let mut growth = ((u32::from(gap) * u32::from(tax_headroom)) + 399) / 400;
-    if has_starbase {
-        growth += growth.div_ceil(2);
-    }
-    growth.max(1).min(u32::from(gap)) as u16
 }
 
 /// Process autopilot / rogue AI planet economics.
