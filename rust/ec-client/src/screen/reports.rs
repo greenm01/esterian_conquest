@@ -45,9 +45,9 @@ impl Screen for ReportsScreen {
             ),
         );
         row += 2;
-        buffer.write_text(row, 0, "RESULTS.DAT", classic::status_value_style());
+        buffer.write_text(row, 0, "REPORTS", classic::status_value_style());
         row += 1;
-        buffer.write_text(row, 0, "-----------", classic::status_label_style());
+        buffer.write_text(row, 0, "-------", classic::status_label_style());
         row += 1;
         row += write_section(
             &mut buffer,
@@ -56,9 +56,9 @@ impl Screen for ReportsScreen {
             &self.preview.results_lines,
         )?;
         row += 1;
-        buffer.write_text(row, 0, "MESSAGES.DAT", classic::status_value_style());
+        buffer.write_text(row, 0, "MESSAGES", classic::status_value_style());
         row += 1;
-        buffer.write_text(row, 0, "------------", classic::status_label_style());
+        buffer.write_text(row, 0, "--------", classic::status_label_style());
         row += 1;
         row += write_section(
             &mut buffer,
