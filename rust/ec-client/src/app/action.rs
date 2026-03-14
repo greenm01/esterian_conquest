@@ -6,6 +6,7 @@ pub enum Action {
     OpenStartupIntro,
     OpenMainMenu,
     OpenGeneralMenu,
+    OpenGeneralHelp,
     OpenStarmap,
     OpenPartialStarmapPrompt,
     OpenEnemies,

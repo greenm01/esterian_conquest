@@ -25,6 +25,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             *app.current_screen_mut() = crate::screen::ScreenId::GeneralMenu;
             AppOutcome::Continue
         }
+        Action::OpenGeneralHelp => {
+            *app.current_screen_mut() = crate::screen::ScreenId::GeneralHelp;
+            AppOutcome::Continue
+        }
         Action::OpenEnemies => {
             app.open_enemies();
             AppOutcome::Continue

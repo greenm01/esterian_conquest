@@ -11,6 +11,7 @@ use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
 use crate::reports::{ReportsPreview, clear_report_files};
 use crate::screen::{
     DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
+    GeneralHelpScreen,
     GeneralMenuScreen, MainMenuScreen, MessageComposeScreen, PlanetInfoScreen,
     PartialStarmapScreen, RankingsScreen, RankingsView, ReportsScreen, Screen, ScreenFrame,
     ScreenId, StartupScreen, StarmapScreen,
@@ -36,6 +37,7 @@ pub struct App {
     startup: StartupScreen,
     main_menu: MainMenuScreen,
     general_menu: GeneralMenuScreen,
+    general_help: GeneralHelpScreen,
     starmap: StarmapScreen,
     partial_starmap: PartialStarmapScreen,
     planet_info: PlanetInfoScreen,
@@ -116,6 +118,7 @@ impl App {
             startup: StartupScreen::new(startup_summary, reports.clone()),
             main_menu: MainMenuScreen::new(),
             general_menu: GeneralMenuScreen::new(),
+            general_help: GeneralHelpScreen::new(),
             starmap: StarmapScreen::new(),
             partial_starmap: PartialStarmapScreen::new(),
             planet_info: PlanetInfoScreen::new(),
@@ -175,6 +178,7 @@ impl App {
             ScreenId::Startup(phase) => self.startup.render_phase(&frame, phase)?,
             ScreenId::MainMenu => self.main_menu.render(&frame)?,
             ScreenId::GeneralMenu => self.general_menu.render(&frame)?,
+            ScreenId::GeneralHelp => self.general_help.render(&frame)?,
             ScreenId::Starmap if self.starmap_capture_complete => self.starmap.render_complete()?,
             ScreenId::Starmap if self.starmap_dump_active => self.starmap.render_dump_page(
                 &self.starmap_dump_lines,
@@ -282,6 +286,7 @@ impl App {
             ScreenId::Startup(phase) => self.startup.handle_key(phase, key),
             ScreenId::MainMenu => self.main_menu.handle_key(key),
             ScreenId::GeneralMenu => self.general_menu.handle_key(key),
+            ScreenId::GeneralHelp => self.general_help.handle_key(key),
             ScreenId::Starmap if self.starmap_capture_complete => {
                 self.starmap.handle_complete_key(key)
             }

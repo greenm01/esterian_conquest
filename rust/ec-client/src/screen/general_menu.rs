@@ -62,6 +62,7 @@ impl Screen for GeneralMenuScreen {
 
     fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
+            KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenGeneralHelp,
             KeyCode::Char('i') | KeyCode::Char('I') => Action::OpenPlanetInfoPrompt,
             KeyCode::Char('a') | KeyCode::Char('A') => Action::ToggleAutopilot,
             KeyCode::Char('c') | KeyCode::Char('C') => Action::OpenComposeMessageRecipient,

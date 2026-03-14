@@ -4,6 +4,7 @@ mod empire_status;
 mod delete_reviewables;
 mod enemies;
 mod general_menu;
+mod general_help;
 mod layout;
 mod main_menu;
 mod message_compose;
@@ -22,6 +23,7 @@ pub use delete_reviewables::DeleteReviewablesScreen;
 pub(crate) use enemies::ENEMIES_VISIBLE_ROWS;
 pub use enemies::EnemiesScreen;
 pub use general_menu::GeneralMenuScreen;
+pub use general_help::GeneralHelpScreen;
 pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 pub use main_menu::MainMenuScreen;
 pub(crate) use message_compose::{
@@ -48,6 +50,7 @@ pub enum ScreenId {
     Startup(StartupPhase),
     MainMenu,
     GeneralMenu,
+    GeneralHelp,
     Starmap,
     PartialStarmapPrompt,
     PartialStarmapView,

@@ -150,6 +150,9 @@ First concrete work:
    - reports and intel views
    - diplomacy screens
    - order-entry workflow
+   - defer real `X`/expert-mode behavior until the remaining command/menu
+     surfaces are finished; implement it as a final menu-verbosity pass rather
+     than a premature partial toggle
 4. Keep tightening original production semantics for player-facing screens:
    - empire profile / rankings / planet info should use classic terms like
      `Present Production`, `Potential Production`, and `Total Available Points`

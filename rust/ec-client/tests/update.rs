@@ -88,6 +88,18 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
 
     assert_eq!(
+        apply_action(&mut app, Action::OpenGeneralHelp),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::GeneralHelp);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenGeneralMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
+
+    assert_eq!(
         apply_action(&mut app, Action::OpenPlanetInfoPrompt),
         AppOutcome::Continue
     );
