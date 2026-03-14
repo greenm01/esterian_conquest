@@ -12,6 +12,8 @@ fn baseline_game() -> ec_data::CoreGameData {
 fn owned_planets_mean_stable_campaign_state() {
     let game_data = baseline_game();
     assert_eq!(game_data.empire_campaign_state(1), Some(CampaignState::Stable));
+    assert_eq!(game_data.campaign_contenders(), vec![1, 2, 3, 4]);
+    assert_eq!(game_data.sole_contender(), None);
 }
 
 #[test]
@@ -156,4 +158,31 @@ fn maintenance_moves_empire_without_recovery_path_into_civil_disorder() {
         game_data.empire_campaign_state(1),
         Some(CampaignState::CivilDisorder)
     );
+}
+
+#[test]
+fn sole_contender_is_reported_when_only_one_empire_can_still_contest() {
+    let mut game_data = baseline_game();
+    for empire_raw in 2..=4u8 {
+        for planet in &mut game_data.planets.records {
+            if planet.owner_empire_slot_raw() == empire_raw {
+                planet.set_owner_empire_slot_raw(0);
+                planet.set_ownership_status_raw(0);
+            }
+        }
+        for fleet in &mut game_data.fleets.records {
+            if fleet.owner_empire_raw() == empire_raw {
+                fleet.set_etac_count(0);
+                fleet.set_troop_transport_count(0);
+                fleet.set_army_count(0);
+                fleet.set_destroyer_count(0);
+                fleet.set_cruiser_count(0);
+                fleet.set_battleship_count(0);
+                fleet.set_scout_count(0);
+            }
+        }
+    }
+
+    assert_eq!(game_data.campaign_contenders(), vec![1]);
+    assert_eq!(game_data.sole_contender(), Some(1));
 }

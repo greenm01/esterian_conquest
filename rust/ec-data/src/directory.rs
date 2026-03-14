@@ -288,6 +288,30 @@ impl CoreGameData {
         }
     }
 
+    pub fn campaign_contenders(&self) -> Vec<u8> {
+        (1..=self.player.records.len() as u8)
+            .filter(|empire_raw| {
+                matches!(
+                    self.empire_campaign_state(*empire_raw),
+                    Some(
+                        CampaignState::Stable
+                            | CampaignState::MarginalExistence
+                            | CampaignState::Rogue
+                    )
+                )
+            })
+            .collect()
+    }
+
+    pub fn sole_contender(&self) -> Option<u8> {
+        let contenders = self.campaign_contenders();
+        if contenders.len() == 1 {
+            contenders.first().copied()
+        } else {
+            None
+        }
+    }
+
     pub fn current_known_core_state_errors(&self) -> Vec<String> {
         let mut errors = Vec::new();
         let expected_ipbm = self.player1_ipbm_count_current_known();
