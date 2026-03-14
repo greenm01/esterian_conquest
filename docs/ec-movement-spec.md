@@ -141,6 +141,9 @@ Current Rust implementation status:
 - the live maint path now accepts owner-scoped visible hazards and the CLI
   derives first-pass foreign-world hazard intel from each empire's
   `DATABASE.DAT` view
+- the live visible-hazard path now also derives hostile blockade hazards for an
+  empire's own worlds from current gamestate, because that information is
+  player-visible without consulting hidden foreign-space intel
 - only visible intel should feed the planner; unknown foreign worlds remain
   invisible to routing until discovered
 - combat/contact handling now also has an explicit hostility decision seam

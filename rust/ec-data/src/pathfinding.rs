@@ -67,6 +67,13 @@ pub fn visible_hazard_intel_from_database(
     let mut intel = VisibleHazardIntel::default();
     let viewer_idx = viewer_empire_raw.saturating_sub(1) as usize;
     let planet_count = game_data.planets.records.len();
+    let viewer_owned_worlds: HashSet<[u8; 2]> = game_data
+        .planets
+        .records
+        .iter()
+        .filter(|planet| planet.owner_empire_slot_raw() == viewer_empire_raw)
+        .map(|planet| planet.coords_raw())
+        .collect();
 
     for planet_idx in 0..planet_count {
         let record_idx = DatabaseDat::record_index(planet_idx, viewer_idx, planet_count);
@@ -92,6 +99,19 @@ pub fn visible_hazard_intel_from_database(
 
         if record.raw[0x1c] == 100 || record.raw[0x1d] == 100 {
             intel.hostile_homeworlds.insert(coords);
+        }
+    }
+
+    for fleet in &game_data.fleets.records {
+        if fleet.owner_empire_raw() == 0 || fleet.owner_empire_raw() == viewer_empire_raw {
+            continue;
+        }
+        if fleet.standing_order_kind() != Order::GuardBlockadeWorld {
+            continue;
+        }
+        let coords = fleet.current_location_coords_raw();
+        if viewer_owned_worlds.contains(&coords) {
+            intel.hostile_blockades.insert(coords);
         }
     }
 
