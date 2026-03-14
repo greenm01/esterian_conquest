@@ -4,6 +4,7 @@ mod empire_status;
 mod general_menu;
 mod layout;
 mod main_menu;
+mod planet_info;
 mod reports;
 mod rankings;
 mod startup;
@@ -15,6 +16,7 @@ pub use empire_status::EmpireStatusScreen;
 pub use general_menu::GeneralMenuScreen;
 pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 pub use main_menu::MainMenuScreen;
+pub use planet_info::{PlanetInfoScreen, parse_planet_coords};
 pub use rankings::{RankingsScreen, RankingsView};
 pub use reports::ReportsScreen;
 pub use startup::StartupScreen;
@@ -32,6 +34,8 @@ pub enum ScreenId {
     Startup(StartupPhase),
     MainMenu,
     GeneralMenu,
+    PlanetInfoPrompt,
+    PlanetInfoDetail,
     EmpireStatus,
     EmpireProfile,
     Rankings(RankingsView),

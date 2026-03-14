@@ -25,6 +25,22 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             *app.current_screen_mut() = crate::screen::ScreenId::GeneralMenu;
             AppOutcome::Continue
         }
+        Action::OpenPlanetInfoPrompt => {
+            app.open_planet_info_prompt();
+            AppOutcome::Continue
+        }
+        Action::AppendPlanetInfoChar(ch) => {
+            app.append_planet_info_char(ch);
+            AppOutcome::Continue
+        }
+        Action::BackspacePlanetInfoInput => {
+            app.backspace_planet_info_input();
+            AppOutcome::Continue
+        }
+        Action::SubmitPlanetInfoPrompt => {
+            app.submit_planet_info_prompt();
+            AppOutcome::Continue
+        }
         Action::OpenEmpireStatus => {
             *app.current_screen_mut() = crate::screen::ScreenId::EmpireStatus;
             AppOutcome::Continue

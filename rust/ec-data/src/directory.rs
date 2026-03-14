@@ -625,6 +625,13 @@ impl CoreGameData {
         self.empire_present_production(player_record_index_1_based)
     }
 
+    pub fn planet_record_index_at_coords(&self, coords: [u8; 2]) -> Option<usize> {
+        self.planets
+            .records
+            .iter()
+            .position(|planet| planet.coords_raw() == coords)
+    }
+
     pub fn empire_potential_production_current_known(
         &self,
         player_record_index_1_based: usize,

@@ -45,6 +45,20 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
 
     assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetInfoPrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
+    assert_eq!(app.planet_info_input(), "16,13");
+
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitPlanetInfoPrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetInfoDetail);
+    assert_eq!(app.selected_planet_info(), Some(14));
+
+    assert_eq!(
         apply_action(&mut app, Action::OpenReports),
         AppOutcome::Continue
     );

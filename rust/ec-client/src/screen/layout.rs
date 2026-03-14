@@ -3,6 +3,9 @@ use crate::theme::classic;
 
 pub const PLAYFIELD_WIDTH: usize = 80;
 pub const PLAYFIELD_HEIGHT: usize = 20;
+pub const CMD_COL_1: usize = 2;
+pub const CMD_COL_2: usize = 26;
+pub const CMD_COL_3: usize = 50;
 
 pub struct MenuEntry<'a> {
     pub col: usize,
@@ -30,6 +33,24 @@ pub fn draw_menu_row(buffer: &mut PlayfieldBuffer, row: usize, entries: &[MenuEn
     for entry in entries {
         draw_menu_entry(buffer, row, entry.col, entry.hotkey, entry.label);
     }
+}
+
+pub fn draw_command_center(
+    buffer: &mut PlayfieldBuffer,
+    title: &str,
+    top_row_entries: &[MenuEntry<'_>],
+    rows: &[&[MenuEntry<'_>]],
+    prompt_label: &str,
+    prompt_keys: &str,
+) {
+    draw_title_bar(buffer, 0, title);
+    for entry in top_row_entries {
+        draw_menu_entry(buffer, 0, entry.col, entry.hotkey, entry.label);
+    }
+    for (idx, row_entries) in rows.iter().enumerate() {
+        draw_menu_row(buffer, idx + 1, row_entries);
+    }
+    draw_command_prompt(buffer, rows.len() + 1, prompt_label, prompt_keys);
 }
 
 pub fn draw_menu_entry(
@@ -95,7 +116,8 @@ pub fn draw_command_prompt(
     buffer.set_cursor(cursor_col as u16, row as u16);
 }
 
-pub fn draw_plain_prompt(buffer: &mut PlayfieldBuffer, row: usize, prompt: &str) {
+pub fn draw_plain_prompt(buffer: &mut PlayfieldBuffer, row: usize, prompt: &str) -> usize {
     let cursor_col = buffer.write_text(row, 0, prompt, classic::prompt_style());
     buffer.set_cursor(cursor_col as u16, row as u16);
+    cursor_col
 }
