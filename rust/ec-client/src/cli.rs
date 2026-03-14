@@ -38,7 +38,7 @@ fn run_interactive_inner(
         app.render(terminal)?;
         let key = terminal.read_key()?;
         let action = app.handle_key(key);
-        let outcome = apply_action(app.current_screen_mut(), action);
+        let outcome = apply_action(app, action);
         if matches!(outcome, AppOutcome::Quit) {
             return Ok(());
         }

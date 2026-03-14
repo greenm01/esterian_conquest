@@ -1,17 +1,16 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
-use crate::model::MainMenuSummary;
+use crate::screen::layout::write_prompt;
 use crate::screen::{Screen, ScreenFrame};
 use crate::terminal::Terminal;
+use crate::theme::classic::{self, MenuEntry};
 
-pub struct MainMenuScreen {
-    summary: MainMenuSummary,
-}
+pub struct MainMenuScreen;
 
 impl MainMenuScreen {
-    pub fn new(summary: MainMenuSummary) -> Self {
-        Self { summary }
+    pub fn new() -> Self {
+        Self
     }
 }
 
@@ -19,53 +18,36 @@ impl Screen for MainMenuScreen {
     fn render(
         &mut self,
         terminal: &mut dyn Terminal,
-        frame: &ScreenFrame<'_>,
+        _frame: &ScreenFrame<'_>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         terminal.clear()?;
-        terminal.write_line("ESTERIAN CONQUEST")?;
-        terminal.write_line("=================")?;
+        terminal.write_line(&classic::title_bar("MAIN MENU: ", 78))?;
+        terminal.write_line(&classic::menu_row(&[
+            MenuEntry::new("H", "elp with commands", 22),
+            MenuEntry::new("G", "ENERAL COMMAND MENU...", 27),
+            MenuEntry::new("B", "rief Empire Report", 23),
+        ]))?;
+        terminal.write_line(&classic::menu_row(&[
+            MenuEntry::new("Q", "uit back to BBS", 22),
+            MenuEntry::new("P", "LANET COMMAND MENU...", 27),
+            MenuEntry::new("I", "nfo about a Planet", 23),
+        ]))?;
+        terminal.write_line(&classic::menu_row(&[
+            MenuEntry::new("X", "pert mode ON/OFF", 22),
+            MenuEntry::new("F", "LEET COMMAND MENU...", 27),
+            MenuEntry::new("D", "etailed Empire Report", 23),
+        ]))?;
+        terminal.write_line(&classic::menu_row(&[
+            MenuEntry::new("V", "iew Partial Map", 22),
+            MenuEntry::new("T", "otal Planet Database", 27),
+            MenuEntry::new("", "", 23),
+        ]))?;
         terminal.write_line("")?;
-        terminal.write_line(&format!(
-            "Player {}  Handle: {}  Empire: {}",
-            frame.player.record_index_1_based,
-            display_or_unknown(&frame.player.handle),
-            display_or_unknown(&frame.player.empire_name)
-        ))?;
-        terminal.write_line(&format!(
-            "Game year {}  Players {}  Directory {}",
-            self.summary.game_year,
-            self.summary.player_count,
-            frame.game_dir.display()
-        ))?;
-        terminal.write_line("")?;
-        terminal.write_line("MAIN MENU COMMANDS")?;
-        terminal.write_line("------------------")?;
-        terminal.write_line("  G  GENERAL COMMAND MENU")?;
-        terminal.write_line("  P  PLANET COMMAND MENU")?;
-        terminal.write_line("  F  FLEET COMMAND MENU")?;
-        terminal.write_line("  B  Brief Empire Report")?;
-        terminal.write_line("  D  Detailed Empire Report")?;
-        terminal.write_line("  T  Total Planet Database")?;
-        terminal.write_line("  A  ANSI color ON/OFF")?;
-        terminal.write_line("  Q  Quit")?;
-        terminal.write_line("")?;
-        terminal.write_line("CURRENT SUMMARY")?;
-        terminal.write_line("----------------")?;
-        terminal.write_line(&format!("  Owned planets: {}", self.summary.owned_planets))?;
-        terminal.write_line(&format!("  Owned fleets:  {}", self.summary.owned_fleets))?;
-        terminal.write_line(&format!(
-            "  Pending messages: {}",
-            yes_no(self.summary.pending_messages)
-        ))?;
-        terminal.write_line(&format!(
-            "  Pending results:  {}",
-            yes_no(self.summary.pending_results)
-        ))?;
-        terminal.write_line("")?;
-        terminal.write_line("STATUS")?;
-        terminal.write_line("------")?;
-        terminal.write_line("  G opens the General Command menu.")?;
-        terminal.write_line("  Q exits. Other commands are placeholders in this first pass.")?;
+        write_prompt(
+            terminal,
+            6,
+            &classic::command_prompt("MAIN COMMAND", "H Q X V G P F T I B D"),
+        )?;
         terminal.flush()
     }
 
@@ -76,12 +58,4 @@ impl Screen for MainMenuScreen {
             _ => Action::Noop,
         }
     }
-}
-
-fn yes_no(value: bool) -> &'static str {
-    if value { "yes" } else { "no" }
-}
-
-fn display_or_unknown(value: &str) -> &str {
-    if value.is_empty() { "<unknown>" } else { value }
 }

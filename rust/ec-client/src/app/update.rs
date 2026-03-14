@@ -1,5 +1,5 @@
 use crate::app::action::Action;
-use crate::screen::ScreenId;
+use crate::app::state::App;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AppOutcome {
@@ -7,18 +7,26 @@ pub enum AppOutcome {
     Quit,
 }
 
-pub fn apply_action(current: &mut ScreenId, action: Action) -> AppOutcome {
+pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
     match action {
+        Action::AdvanceStartup => {
+            app.advance_startup();
+            AppOutcome::Continue
+        }
+        Action::OpenStartupIntro => {
+            app.open_startup_intro();
+            AppOutcome::Continue
+        }
         Action::OpenMainMenu => {
-            *current = ScreenId::MainMenu;
+            *app.current_screen_mut() = crate::screen::ScreenId::MainMenu;
             AppOutcome::Continue
         }
         Action::OpenGeneralMenu => {
-            *current = ScreenId::GeneralMenu;
+            *app.current_screen_mut() = crate::screen::ScreenId::GeneralMenu;
             AppOutcome::Continue
         }
         Action::OpenReports => {
-            *current = ScreenId::Reports;
+            *app.current_screen_mut() = crate::screen::ScreenId::Reports;
             AppOutcome::Continue
         }
         Action::Quit => AppOutcome::Quit,

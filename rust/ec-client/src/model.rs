@@ -23,6 +23,12 @@ pub struct GeneralMenuSummary {
     pub pending_results: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReviewSummary {
+    pub reviewable_messages: bool,
+    pub reviewable_results: bool,
+}
+
 impl PlayerContext {
     pub fn from_game_data(
         game_data: &CoreGameData,
@@ -86,6 +92,15 @@ impl GeneralMenuSummary {
         Self {
             pending_messages: summary.pending_messages,
             pending_results: summary.pending_results,
+        }
+    }
+}
+
+impl ReviewSummary {
+    pub fn from_main_menu(summary: &MainMenuSummary) -> Self {
+        Self {
+            reviewable_messages: summary.pending_messages,
+            reviewable_results: summary.pending_results,
         }
     }
 }

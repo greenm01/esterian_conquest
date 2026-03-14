@@ -1,32 +1,70 @@
-use ec_client::app::{Action, AppOutcome, apply_action};
+use std::path::PathBuf;
+
+use ec_client::app::{Action, AppConfig, AppOutcome, apply_action, App};
 use ec_client::screen::ScreenId;
+use ec_client::startup::StartupPhase;
+
+fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
 
 #[test]
 fn apply_action_switches_between_client_screens() {
-    let mut screen = ScreenId::MainMenu;
+    let fixture_dir = repo_root().join("fixtures/ecutil-init/v1.5");
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+    })
+    .expect("app should load");
+
+    assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::Splash));
 
     assert_eq!(
-        apply_action(&mut screen, Action::OpenGeneralMenu),
+        apply_action(&mut app, Action::OpenStartupIntro),
         AppOutcome::Continue
     );
-    assert_eq!(screen, ScreenId::GeneralMenu);
+    assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::Intro));
 
     assert_eq!(
-        apply_action(&mut screen, Action::OpenReports),
+        apply_action(&mut app, Action::AdvanceStartup),
         AppOutcome::Continue
     );
-    assert_eq!(screen, ScreenId::Reports);
+    assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::LoginSummary));
 
     assert_eq!(
-        apply_action(&mut screen, Action::OpenMainMenu),
+        apply_action(&mut app, Action::AdvanceStartup),
         AppOutcome::Continue
     );
-    assert_eq!(screen, ScreenId::MainMenu);
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenGeneralMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenReports),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::Reports);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenMainMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
 }
 
 #[test]
 fn apply_action_quit_exits_loop() {
-    let mut screen = ScreenId::MainMenu;
-    assert_eq!(apply_action(&mut screen, Action::Quit), AppOutcome::Quit);
-    assert_eq!(screen, ScreenId::MainMenu);
+    let fixture_dir = repo_root().join("fixtures/ecutil-init/v1.5");
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+    })
+    .expect("app should load");
+
+    assert_eq!(apply_action(&mut app, Action::Quit), AppOutcome::Quit);
+    assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::Splash));
 }

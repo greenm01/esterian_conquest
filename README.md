@@ -9,6 +9,18 @@ past that stage: the Rust engine can generate classic-compatible game
 directories, run maintenance for full campaigns, and stay accepted by the
 original DOS toolchain under the project's actual compatibility standard.
 
+## Premise
+
+Beyond the mapped frontiers of the old Esterian dominion lies a small galaxy
+of contested solar systems. The old masters are gone. Their stations are
+silent, their patrols vanished, and their subjects left with fleets,
+factories, and enough knowledge to build empires.
+
+`v1.6` treats that classic premise seriously. The goal is not to reboot the
+game into something unrecognizable, but to carry Esterian Conquest forward:
+preserve its campaign feel, menus, reports, and BBS-era drama while replacing
+the original DOS constraints with a modern Rust implementation.
+
 ## What This Repo Is Doing
 
 Three things at once:

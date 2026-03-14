@@ -97,6 +97,9 @@ Initial scope:
 - do not invent a surrender UI action; the manuals describe surrender as a
   campaign outcome, and live `ECGAME` evidence shows no General Command
   surrender option
+- for the Rust client, present official maintenance/results reports before
+  player-to-player mail so reports reveal outcomes before social commentary can
+  spoil them
 
 First concrete work:
 

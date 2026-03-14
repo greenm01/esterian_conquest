@@ -41,6 +41,12 @@ Initial target:
 The local client is the fastest path to replacing `ECGAME` behavior without
 adding door-file and telnet complexity too early.
 
+Current versioning direction:
+
+- preserve late-classic `v1.5` behavior and flow as the source baseline
+- present the Rust continuation line as `Esterian Conquest v1.6`
+- avoid framing the Rust client as `EC 2.0`
+
 ## Architecture Boundary
 
 Keep the current crate responsibilities:
@@ -123,6 +129,24 @@ The best near-term target is:
 - faithful menu and report structure
 - cleaner local-terminal ergonomics
 - ANSI/CP437 presentation where it matters
+
+ANSI policy:
+
+- local `ec-client` should assume ANSI/CP437 output and render in color by default
+- do not keep a plain-text local mode as a first-class UI target
+- if future door compatibility needs the historical `ANSI color ON/OFF` prompt,
+  keep that as an optional door-mode shim rather than the default `v1.6` flow
+
+The client should treat the original UI as a fixed DOS playfield, not as a
+modern fluid terminal layout:
+
+- render into a fixed `80x25` playfield first
+- center that playfield inside larger terminals
+- keep menu bars, prompts, and reports positioned within that playfield
+- do not globally center-justify ordinary text blocks
+- use a real command-line cursor when the client is waiting for input
+- do not add spinner-style idle animation; static prompt state is closer to
+  the original feel
 
 ## Rendering Stack
 
@@ -247,6 +271,10 @@ Near-term client rule:
 
 - preserve classic queued mail if present
 - display Rust maintenance reports through the same player-facing workflow
+- present maintenance/results reports before player mail, both on login and in
+  later review flows
+- keep player mail after reports so social commentary does not spoil
+  maintenance outcomes before the official report stream is seen
 - keep review/delete semantics explicit in client state handling
 
 ## Preserved Client Assets

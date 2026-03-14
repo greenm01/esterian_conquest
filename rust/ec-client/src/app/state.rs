@@ -3,11 +3,13 @@ use std::path::PathBuf;
 
 use ec_data::CoreGameData;
 
-use crate::model::{GeneralMenuSummary, MainMenuSummary, PlayerContext};
+use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
 use crate::reports::ReportsPreview;
 use crate::screen::{
     GeneralMenuScreen, MainMenuScreen, ReportsScreen, Screen, ScreenFrame, ScreenId,
+    StartupScreen,
 };
+use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,6 +23,8 @@ pub struct App {
     game_data: CoreGameData,
     player: PlayerContext,
     current_screen: ScreenId,
+    startup_sequence: StartupSequence,
+    startup: StartupScreen,
     main_menu: MainMenuScreen,
     general_menu: GeneralMenuScreen,
     reports: ReportsScreen,
@@ -31,22 +35,31 @@ impl App {
         let game_data = CoreGameData::load(&config.game_dir)?;
         let player = PlayerContext::from_game_data(&game_data, config.player_record_index_1_based)?;
         let pending_results = file_nonempty(config.game_dir.join("RESULTS.DAT"));
+        let reports = ReportsPreview::load(&config.game_dir)?;
         let main_menu_summary = MainMenuSummary::from_game_data(
             &game_data,
             config.player_record_index_1_based,
             pending_results,
         );
-        let general_menu_summary = GeneralMenuSummary::from_main_menu(&main_menu_summary);
-        let reports = ReportsPreview::load(&config.game_dir)?;
+        let review_summary = ReviewSummary::from_main_menu(&main_menu_summary);
+        let startup_summary = StartupSummary::from_reports(
+            main_menu_summary.game_year,
+            main_menu_summary.pending_results,
+            main_menu_summary.pending_messages,
+            &reports,
+        );
+        let startup_sequence = StartupSequence::new(&startup_summary);
 
         Ok(Self {
             game_dir: config.game_dir,
             game_data,
             player,
-            current_screen: ScreenId::MainMenu,
-            main_menu: MainMenuScreen::new(main_menu_summary),
-            general_menu: GeneralMenuScreen::new(general_menu_summary),
-            reports: ReportsScreen::new(reports),
+            current_screen: ScreenId::Startup(startup_sequence.current()),
+            startup_sequence,
+            startup: StartupScreen::new(startup_summary, reports.clone()),
+            main_menu: MainMenuScreen::new(),
+            general_menu: GeneralMenuScreen::new(),
+            reports: ReportsScreen::new(reports, review_summary),
         })
     }
 
@@ -61,6 +74,7 @@ impl App {
         };
 
         match self.current_screen {
+            ScreenId::Startup(phase) => self.startup.render_phase(terminal, &frame, phase),
             ScreenId::MainMenu => self.main_menu.render(terminal, &frame),
             ScreenId::GeneralMenu => self.general_menu.render(terminal, &frame),
             ScreenId::Reports => self.reports.render(terminal, &frame),
@@ -75,8 +89,22 @@ impl App {
         &mut self.current_screen
     }
 
+    pub fn advance_startup(&mut self) {
+        let next = self.startup_sequence.advance();
+        self.current_screen = match next {
+            StartupPhase::Complete => ScreenId::MainMenu,
+            phase => ScreenId::Startup(phase),
+        };
+    }
+
+    pub fn open_startup_intro(&mut self) {
+        let next = self.startup_sequence.open_intro();
+        self.current_screen = ScreenId::Startup(next);
+    }
+
     pub fn handle_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
         match self.current_screen {
+            ScreenId::Startup(phase) => self.startup.handle_key(phase, key),
             ScreenId::MainMenu => self.main_menu.handle_key(key),
             ScreenId::GeneralMenu => self.general_menu.handle_key(key),
             ScreenId::Reports => self.reports.handle_key(key),

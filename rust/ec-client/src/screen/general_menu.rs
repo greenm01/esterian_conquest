@@ -1,17 +1,16 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
-use crate::model::GeneralMenuSummary;
+use crate::screen::layout::write_prompt;
 use crate::screen::{Screen, ScreenFrame};
 use crate::terminal::Terminal;
+use crate::theme::classic;
 
-pub struct GeneralMenuScreen {
-    summary: GeneralMenuSummary,
-}
+pub struct GeneralMenuScreen;
 
 impl GeneralMenuScreen {
-    pub fn new(summary: GeneralMenuSummary) -> Self {
-        Self { summary }
+    pub fn new() -> Self {
+        Self
     }
 }
 
@@ -19,47 +18,36 @@ impl Screen for GeneralMenuScreen {
     fn render(
         &mut self,
         terminal: &mut dyn Terminal,
-        frame: &ScreenFrame<'_>,
+        _frame: &ScreenFrame<'_>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         terminal.clear()?;
-        terminal.write_line("GENERAL COMMAND CENTER")?;
-        terminal.write_line("======================")?;
-        terminal.write_line("")?;
-        terminal.write_line(&format!(
-            "Player {}  Empire: {}",
-            frame.player.record_index_1_based,
-            display_or_unknown(&frame.player.empire_name)
+        terminal.write_line(&general_title_row())?;
+        terminal.write_line(&general_row_exact(
+            ("H", "elp with commands"),
+            ("A", "utopilot ON/OFF"),
+            ("R", "eview messages/results"),
         ))?;
-        terminal.write_line(&format!("Directory {}", frame.game_dir.display()))?;
-        terminal.write_line("")?;
-        terminal.write_line("COMMANDS")?;
-        terminal.write_line("--------")?;
-        terminal.write_line("  A  Autopilot ON/OFF")?;
-        terminal.write_line("  S  Status, your")?;
-        terminal.write_line("  P  Profile of your empire")?;
-        terminal.write_line("  M  Map of the galaxy")?;
-        terminal.write_line("  C  Communicate (send message)")?;
-        terminal.write_line("  O  Other empires (rankings)")?;
-        terminal.write_line("  E  Enemies, declare or list")?;
-        terminal.write_line("  R  Review messages/results")?;
-        terminal.write_line("  D  Delete ALL messages/results")?;
-        terminal.write_line("  Q  Back to Main Menu")?;
-        terminal.write_line("")?;
-        terminal.write_line("CURRENT REVIEW STATE")?;
-        terminal.write_line("--------------------")?;
-        terminal.write_line(&format!(
-            "  Pending messages: {}",
-            yes_no(self.summary.pending_messages)
+        terminal.write_line(&general_row_exact(
+            ("Q", "uit to main menu"),
+            ("S", "tatus, your"),
+            ("D", "elete ALL messages/results"),
         ))?;
-        terminal.write_line(&format!(
-            "  Pending results:  {}",
-            yes_no(self.summary.pending_results)
+        terminal.write_line(&general_row_exact(
+            ("X", "pert mode ON/OFF"),
+            ("P", "rofile of your empire"),
+            ("O", "ther empires (rankings)"),
+        ))?;
+        terminal.write_line(&general_row_exact(
+            ("V", "iew Partial Starmap"),
+            ("M", "ap of the galaxy"),
+            ("E", "nemies, declare or list"),
         ))?;
         terminal.write_line("")?;
-        terminal.write_line("STATUS")?;
-        terminal.write_line("------")?;
-        terminal.write_line("  R opens the first reports/messages preview.")?;
-        terminal.write_line("  Other commands are still placeholders in this pass.")?;
+        write_prompt(
+            terminal,
+            6,
+            &classic::command_prompt("GENERAL COMMAND", "H Q X V I A S P M C R D O E"),
+        )?;
         terminal.flush()
     }
 
@@ -72,10 +60,67 @@ impl Screen for GeneralMenuScreen {
     }
 }
 
-fn yes_no(value: bool) -> &'static str {
-    if value { "yes" } else { "no" }
+fn general_title_row() -> String {
+    let title = "\x1b[0;38;2;0;0;0;48;2;224;224;224mGENERAL COMMAND CENTER:";
+    let left = pad_visible(&styled_menu_item("I", "nfo about a Planet"), 28);
+    let right = pad_visible(&styled_menu_item("C", "ommunicate (send message)"), 30);
+    format!(
+        "{title}\x1b[0;38;2;224;224;224;48;2;0;0;170m  {left}     {right}\x1b[0;38;2;192;192;192;48;2;0;0;0m",
+        title = title,
+        left = left,
+        right = right
+    )
 }
 
-fn display_or_unknown(value: &str) -> &str {
-    if value.is_empty() { "<unknown>" } else { value }
+fn general_row_exact(
+    a: (&str, &str),
+    b: (&str, &str),
+    c: (&str, &str),
+) -> String {
+    let a = pad_visible(&styled_menu_item(a.0, a.1), 22);
+    let b = pad_visible(&styled_menu_item(b.0, b.1), 28);
+    let c = pad_visible(&styled_menu_item(c.0, c.1), 26);
+    format!(
+        "\x1b[0;38;2;224;224;224;48;2;0;0;170m  {a}  {b}{c}\x1b[0;38;2;192;192;192;48;2;0;0;0m",
+        a = a,
+        b = b,
+        c = c
+    )
+}
+
+fn styled_menu_item(hotkey: &str, label: &str) -> String {
+    format!(
+        "\x1b[1;38;2;255;255;85;48;2;0;0;170m{hotkey}\x1b[0;38;2;224;224;224;48;2;0;0;170m>{label}"
+    )
+}
+
+fn pad_visible(text: &str, width: usize) -> String {
+    let visible = visible_width(text);
+    let padding = width.saturating_sub(visible);
+    format!("{text}{}", " ".repeat(padding))
+}
+
+fn visible_width(text: &str) -> usize {
+    let bytes = text.as_bytes();
+    let mut idx = 0;
+    let mut width = 0;
+    while idx < bytes.len() {
+        if bytes[idx] == 0x1b {
+            idx += 1;
+            if idx < bytes.len() && bytes[idx] == b'[' {
+                idx += 1;
+                while idx < bytes.len() {
+                    let byte = bytes[idx];
+                    idx += 1;
+                    if byte.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            }
+            continue;
+        }
+        width += 1;
+        idx += 1;
+    }
+    width
 }

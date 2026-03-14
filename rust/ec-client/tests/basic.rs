@@ -6,7 +6,7 @@ fn repo_root() -> PathBuf {
 }
 
 #[test]
-fn client_renders_main_menu_shell_from_fixture() {
+fn client_renders_startup_splash_from_fixture() {
     let fixture_dir = repo_root().join("fixtures/ecutil-init/v1.5");
     let output = Command::new(env!("CARGO_BIN_EXE_ec-client"))
         .args([
@@ -26,8 +26,8 @@ fn client_renders_main_menu_shell_from_fixture() {
     );
 
     let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
-    assert!(stdout.contains("ESTERIAN CONQUEST"));
-    assert!(stdout.contains("MAIN MENU COMMANDS"));
-    assert!(stdout.contains("GENERAL COMMAND MENU"));
-    assert!(stdout.contains("Brief Empire Report"));
+    assert!(stdout.contains("ESTERIAN"));
+    assert!(stdout.contains("CONQUEST"));
+    assert!(stdout.contains("Welcome back to Esterian Conquest, Ver 1.60"));
+    assert!(stdout.contains("View Introduction? Y/[N] ->"));
 }
