@@ -1,128 +1,100 @@
 # esterian_conquest
 
-Preservation and reimplementation workspace for Esterian Conquest v1.5.
+![Esterian Conquest banner](capture/ec_v1.5_banner.png)
 
-The project started as a file-format and oracle-compliance effort. It has now
-crossed the more important line: `rust-maint` can run full Esterian Conquest
-campaigns end to end while continuing to write classic-compatible `.DAT`
-directories that the original DOS tools still accept.
+Rust preservation and reimplementation work for Esterian Conquest v1.5.
 
-## What This Project Is
+This project started as a file-format and reverse-engineering effort. It is now
+past that stage: the Rust engine can generate classic-compatible game
+directories, run maintenance for full campaigns, and stay accepted by the
+original DOS toolchain under the project's actual compatibility standard.
 
-This repository has three jobs:
+## What This Repo Is Doing
 
-- preserve the original DOS game, manuals, logs, and binaries
-- reverse engineer the game rules and on-disk formats
-- build a faithful modern Rust implementation without breaking classic save
-  compatibility
+Three things at once:
 
-The compatibility boundary is still the original game directory. Rust is not
-trying to replace the `.DAT` files with a private format and call that done.
-The point is to keep proving faithfulness against the original game.
+- preserving the original DOS game, manuals, logs, and binaries
+- reverse engineering the rules and on-disk formats
+- building a modern Rust replacement without giving up classic `.DAT`
+  interoperability
+
+The key project rule is simple:
+
+- the manuals are the gameplay spec
+- the original binaries are the compatibility oracle
+- the classic game directory is still the interchange boundary
+
+That does not mean "byte-identical to one historical run." It means the Rust
+side must remain loadable, sane, and acceptable to the original tools while
+allowing documented canonical Rust behavior where the original internals are
+hidden, stochastic, or not worth cloning literally.
 
 ## Current Status
 
-The Rust side is no longer just a scenario generator.
+The engine milestone is effectively complete by project criteria.
 
-Today it can:
+Today the Rust side can:
 
-- generate new classic-compatible games across the documented `4 / 9 / 16 / 25`
-  player tiers
-- generate default `sysop new-game` directories as joinable `ECGAME` starts
+- generate joinable new games across the documented `4 / 9 / 16 / 25` player
+  tiers
 - run repeated maintenance turns through the Rust engine
-- handle movement, economy, scouting, contact reports, diplomacy, deterministic
-  combat, conquest, civil disorder, fleet defection, and conservative emperor
-  recognition
-- regenerate classic report and database files
-- keep producing directories the original `ECMAINT` accepts
+- handle movement, economy, scouting, diplomacy, conquest, civil disorder,
+  fleet defection, and campaign-end recognition
+- write classic-compatible `PLAYER.DAT`, `PLANETS.DAT`, `FLEETS.DAT`,
+  `CONQUEST.DAT`, `SETUP.DAT`, `DATABASE.DAT`, `RESULTS.DAT`
+- preserve classic player mail in `MESSAGES.DAT`
+- produce directories the original `ECMAINT` still accepts
+- create default `sysop new-game` directories that `ECGAME` can actually join
+  through the original onboarding flow
 
-Recent end-to-end validation:
+Recent validation:
 
-- seeded `sysop new-game` outputs pass the original `ECMAINT` oracle
-- repeated `maint-rust` output after multiple turns also passes the original
-  `ECMAINT` oracle
-- current multi-turn sweep result: `8/8` passes across `4/9/16/25` players and
-  seeds `1515/2025` for `3` Rust maint turns each
+- `python3 tools/oracle_sweep.py --mode seeded`
+  - current result: `12/12` passes
+- `python3 tools/rust_maint_sweep.py --turns 3`
+  - current result: `8/8` passes
+- `cargo test -q`
+  - current workspace status: green
 
-In practical terms: Rust maint can now run real EC games, not just one-turn
-fixtures.
+In plain terms: Rust is no longer just a scenario generator or fixture toy. It
+can run real Esterian Conquest campaigns while staying interoperable with the
+original game files.
 
-## Where Rust Intentionally Differs From The Oracle
+## Where Rust Intentionally Differs
 
-This project does not treat byte-for-byte parity with one historical
-`ECMAINT.EXE` run as the highest good.
+This project does not treat strict historical byte-for-byte reproduction as the
+goal.
 
-We follow a stricter rule:
+Known intentional differences include:
 
-- manuals are the semantic authority
-- DOS binaries are the compatibility oracle
-- hidden or stochastic internals may be reimplemented canonically if the result
-  stays faithful to the manuals and keeps classic gamestate compatibility
+- deterministic Rust combat instead of the original hidden RNG
+- conservative explicit campaign-end handling
+- Rust-native report wording where exact original text is not required for
+  compatibility
 
-That matters most in these areas:
+Those differences are allowed by the project approach as long as the result
+remains faithful to the manuals and compatible with the original `.DAT`
+boundary.
 
-- combat is deterministic in Rust, not driven by the original hidden RNG
-- campaign-end behavior is conservative and explicit in Rust rather than guessed
-  from opaque binary state
-- route planning is allowed to be smarter than undocumented original internals,
-  while still respecting fog of war
+For the detailed rationale, see [docs/approach.md](docs/approach.md).
 
-### Combat
+## Next Phase
 
-The original game uses internal randomness for fleet battles, bombardment
-losses, and related resolution. Matching that exactly would require reproducing
-hidden RNG state and fragile processing quirks, which is the wrong target for a
-preservation-grade reimplementation.
+The next major step is the player client.
 
-So Rust uses a documented deterministic combat system instead.
+The engine/admin side is now strong enough that the project should shift from
+"can Rust maintain a game?" to "can Rust replace `ECGAME` well?"
 
-The current combat model is deliberately influenced by *Empire of the Sun*:
+Planned direction:
 
-- simultaneous exchange rather than brittle file-order firing
-- clearer orbital and ground-combat phases
-- deterministic bilateral loss accounting
-- campaign reports that remain readable and auditable
+- keep `ec-data` as the canonical engine/state layer
+- keep `ec-cli` as the sysop/admin/oracle tool
+- add a Rust player client crate for the `ECGAME` replacement
+- start with a local terminal client first
+- add BBS door support after the player workflow is solid
 
-That is an intentional design choice. We chose it because it produces stable,
-testable outcomes while preserving the spirit of EC’s large-scale strategic
-combat better than trying to mimic one opaque RNG stream.
-
-See [docs/ec-combat-spec.md](docs/ec-combat-spec.md).
-
-### Campaign-End Rules
-
-The manuals talk about surrender, fleet defection, and recognition of an
-emperor, but `ECGAME` does not expose a surrender command in the General
-Command menu.
-
-Rust therefore models campaign end as maintenance/state logic, not as an
-invented UI action.
-
-Current conservative rules:
-
-- an empire with no planets and no recovery path falls into civil disorder
-- once already in civil disorder and still planetless, it loses one fleet to
-  defection per maintenance turn
-- if exactly one serious contender remains and that empire is still stable and
-  planet-owning, Rust recognizes it as emperor
-
-These rules are documented, deterministic, and compatible. They can still be
-refined later if stronger original evidence appears.
-
-## Why `.DAT` Compatibility Still Matters
-
-The project is only interesting if the Rust engine can keep proving itself
-against the original game.
-
-That means:
-
-- `.DAT` compatibility remains mandatory
-- original `ECMAINT` remains part of the validation story
-- original `ECGAME` remains useful as a viewer and black-box check
-
-Future storage work such as SQLite is still on the table, but only as an
-additional Rust-native layer. It does not replace the classic game directory as
-the compatibility boundary.
+That client work is now documented in
+[docs/bbs_door_client_rust.md](docs/bbs_door_client_rust.md).
 
 ## Quick Start
 
@@ -136,7 +108,7 @@ cargo run -q -p ec-cli -- sysop new-game /tmp/ec-game --players 4 --seed 1515
 This default path now creates a joinable pre-player `ECGAME` start with
 inactive player slots and `Not Named Yet` homeworld seeds.
 
-Run Rust maintenance for a few turns:
+Run Rust maintenance:
 
 ```bash
 cd rust
@@ -149,61 +121,68 @@ Run the original oracle against that directory:
 python3 tools/ecmaint_oracle.py run /tmp/ec-game
 ```
 
-Run the broader sweeps:
+Launch original `ECGAME` locally in DOSBox-X:
 
 ```bash
-python3 tools/oracle_sweep.py --mode seeded
-python3 tools/rust_maint_sweep.py --turns 3
+tools/run_ecgame.sh /tmp/ec-game 1
 ```
 
 ## Useful Commands
 
-New game from declarative setup:
+New game from declarative config:
 
 ```bash
 cd rust
 cargo run -q -p ec-cli -- sysop new-game /tmp/ec-game --config ec-data/config/setup.example.kdl
 ```
 
-The bundled example config uses `setup_mode="builder-compatible"` to produce
-the older post-join active-campaign baseline used by maint/oracle sweeps.
+The bundled example config uses `setup_mode="builder-compatible"` for the
+active-campaign baseline used by the maint/oracle sweeps.
 
-Inspect a directory:
+Inspect a game directory:
 
 ```bash
 cd rust
 cargo run -q -p ec-cli -- core-report /tmp/ec-game
 ```
 
-Launch original `ECGAME` locally in DOSBox-X:
+Inspect classic player mail:
 
 ```bash
-tools/run_ecgame.sh /path/to/game_dir
+cd rust
+cargo run -q -p ec-cli -- inspect-messages /tmp/ec-game
 ```
 
-## Documentation
+Run the broader validation sweeps:
 
-Start here:
+```bash
+python3 tools/oracle_sweep.py --mode seeded
+python3 tools/rust_maint_sweep.py --turns 3
+```
+
+## Read First
 
 - [docs/approach.md](docs/approach.md)
 - [docs/next-session.md](docs/next-session.md)
 - [docs/rust-architecture.md](docs/rust-architecture.md)
 
-Key design docs:
+Useful supporting docs:
 
-- [docs/ec-combat-spec.md](docs/ec-combat-spec.md)
 - [docs/ec-setup-spec.md](docs/ec-setup-spec.md)
+- [docs/ec-combat-spec.md](docs/ec-combat-spec.md)
 - [docs/ec-movement-spec.md](docs/ec-movement-spec.md)
-- [docs/config-architecture.md](docs/config-architecture.md)
+- [docs/bbs_door_client_rust.md](docs/bbs_door_client_rust.md)
 - [docs/dosbox-workflow.md](docs/dosbox-workflow.md)
 
 ## Repository Layout
 
-- `original/` original EC 1.5 materials used for preservation and validation
-- `docs/` stable engineering and rules docs
-- `RE_NOTES.md` chronological reverse-engineering notebook
-- `rust/` Rust workspace (`ec-data`, `ec-cli`, tests)
-- `tools/` oracle, DOSBox, and analysis helpers
+- `original/`: original EC 1.5 materials used as primary sources and oracle
+  artifacts
+- `docs/`: stable engineering, RE, and design docs
+- `RE_NOTES.md`: chronological reverse-engineering notebook
+- `rust/ec-data`: canonical Rust state/model/engine crate
+- `rust/ec-cli`: sysop/admin/oracle/inspection CLI
+- `tools/`: oracle runners, DOSBox helpers, and analysis scripts
 
 ## License
 
