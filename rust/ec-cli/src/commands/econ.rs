@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::CoreGameData;
+use ec_data::{CoreGameData, Order};
 
 use crate::workspace::copy_init_files;
 
@@ -54,7 +54,7 @@ pub(crate) fn set_econ(
         let f = &mut data.fleets.records[2];
         f.set_max_speed(3);
         f.set_current_speed(3);
-        f.set_standing_order_code_raw(0x06); // BombardWorld
+        f.set_standing_order_kind(Order::BombardWorld);
         f.set_standing_order_target_coords_raw([target_x, target_y]);
         f.set_battleship_count(bb);
         f.set_cruiser_count(ca);
@@ -86,7 +86,7 @@ pub(crate) fn set_econ(
     data.save(dir)?;
 
     println!(
-        "  FLEET[3]: order=0x06 (BombardWorld) tgt=({}, {}) speed=3/3 BB={} CA={} DD={}",
+        "  FLEET[3]: order=BombardWorld tgt=({}, {}) speed=3/3 BB={} CA={} DD={}",
         target_x, target_y, bb, ca, dd
     );
     println!(

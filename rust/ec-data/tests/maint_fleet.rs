@@ -205,7 +205,7 @@ fn test_colonization_emits_blocked_event_for_occupied_world() {
 fn test_scout_sector_arrival_emits_success_event() {
     let mut game_data = load_fixture("ecmaint-fleet-pre");
     let scout = &mut game_data.fleets.records[0];
-    scout.set_standing_order_code_raw(10);
+    scout.set_standing_order_kind(Order::ScoutSector);
     scout.set_standing_order_target_coords_raw([15, 13]);
     scout.set_scout_count(1);
     scout.set_etac_count(0);
@@ -230,7 +230,7 @@ fn test_scout_sector_arrival_emits_success_event() {
 fn test_scout_system_arrival_emits_success_event() {
     let mut game_data = load_fixture("ecmaint-fleet-pre");
     let scout = &mut game_data.fleets.records[0];
-    scout.set_standing_order_code_raw(11);
+    scout.set_standing_order_kind(Order::ScoutSolarSystem);
     scout.set_standing_order_target_coords_raw([15, 13]);
     scout.set_scout_count(1);
     scout.set_etac_count(0);
@@ -257,7 +257,7 @@ fn test_scout_system_arrival_emits_success_event() {
 fn test_view_world_arrival_emits_success_and_intel_event() {
     let mut game_data = load_fixture("ecmaint-fleet-pre");
     let viewer = &mut game_data.fleets.records[0];
-    viewer.set_standing_order_code_raw(9);
+    viewer.set_standing_order_kind(Order::ViewWorld);
     viewer.set_standing_order_target_coords_raw([15, 13]);
     viewer.set_scout_count(0);
     viewer.set_etac_count(0);
@@ -280,7 +280,7 @@ fn test_view_world_arrival_emits_success_and_intel_event() {
 fn test_rendezvous_arrival_emits_waiting_event() {
     let mut game_data = load_fixture("ecmaint-fleet-pre");
     let fleet = &mut game_data.fleets.records[0];
-    fleet.set_standing_order_code_raw(14);
+    fleet.set_standing_order_kind(Order::RendezvousSector);
     fleet.set_standing_order_target_coords_raw([15, 13]);
 
     let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
@@ -299,7 +299,7 @@ fn test_join_merge_emits_merge_event() {
     game_data.player.records[0].raw[0x00] = 0xff;
     let coords = game_data.fleets.records[0].current_location_coords_raw();
     game_data.fleets.records[1].set_current_location_coords_raw(coords);
-    game_data.fleets.records[1].set_standing_order_code_raw(13);
+    game_data.fleets.records[1].set_standing_order_kind(Order::JoinAnotherFleet);
 
     let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
 
@@ -316,9 +316,9 @@ fn test_rendezvous_merge_emits_survivor_absorption_event() {
     let mut game_data = load_fixture("ecmaint-post");
     game_data.player.records[0].raw[0x00] = 0xff;
     let coords = game_data.fleets.records[0].current_location_coords_raw();
-    game_data.fleets.records[0].set_standing_order_code_raw(14);
+    game_data.fleets.records[0].set_standing_order_kind(Order::RendezvousSector);
     game_data.fleets.records[1].set_current_location_coords_raw(coords);
-    game_data.fleets.records[1].set_standing_order_code_raw(14);
+    game_data.fleets.records[1].set_standing_order_kind(Order::RendezvousSector);
 
     let survivor_id = game_data.fleets.records[0].fleet_id();
     let absorbed_id = game_data.fleets.records[1].fleet_id();

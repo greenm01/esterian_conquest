@@ -1,6 +1,6 @@
 mod common;
 
-use ec_data::{ContactReportSource, CoreGameData, Mission, MissionOutcome, run_maintenance_turn};
+use ec_data::{ContactReportSource, CoreGameData, Mission, MissionOutcome, Order, run_maintenance_turn};
 use std::path::Path;
 
 fn load_fixture(name: &str) -> CoreGameData {
@@ -107,7 +107,7 @@ fn canonical_bombardment_consumes_order_and_devastates_target() {
 #[test]
 fn canonical_fleet_battle_removes_losers_without_garbage_counts() {
     let mut game_data = load_fixture("ecmaint-fleet-battle-pre");
-    game_data.fleets.records[0].set_standing_order_code_raw(10);
+    game_data.fleets.records[0].set_standing_order_kind(Order::ScoutSector);
     game_data.fleets.records[0].set_scout_count(1);
 
     let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
@@ -163,7 +163,7 @@ fn canonical_three_empire_open_space_battle_resolves_deterministically() {
 
     let fleet_a = &mut game_data.fleets.records[0];
     fleet_a.set_current_location_coords_raw([15, 13]);
-    fleet_a.set_standing_order_code_raw(0);
+    fleet_a.set_standing_order_kind(Order::HoldPosition);
     fleet_a.set_destroyer_count(1);
     fleet_a.set_cruiser_count(0);
     fleet_a.set_battleship_count(0);
@@ -175,7 +175,7 @@ fn canonical_three_empire_open_space_battle_resolves_deterministically() {
 
     let fleet_b = &mut game_data.fleets.records[4];
     fleet_b.set_current_location_coords_raw([15, 13]);
-    fleet_b.set_standing_order_code_raw(0);
+    fleet_b.set_standing_order_kind(Order::HoldPosition);
     fleet_b.set_destroyer_count(1);
     fleet_b.set_cruiser_count(0);
     fleet_b.set_battleship_count(0);
@@ -187,7 +187,7 @@ fn canonical_three_empire_open_space_battle_resolves_deterministically() {
 
     let fleet_c = &mut game_data.fleets.records[8];
     fleet_c.set_current_location_coords_raw([15, 13]);
-    fleet_c.set_standing_order_code_raw(0);
+    fleet_c.set_standing_order_kind(Order::HoldPosition);
     fleet_c.set_destroyer_count(0);
     fleet_c.set_cruiser_count(0);
     fleet_c.set_battleship_count(1);
@@ -224,7 +224,7 @@ fn canonical_starbase_defender_repels_orbital_attacker() {
 
     let defender = &mut game_data.fleets.records[0];
     defender.set_current_location_coords_raw([16, 13]);
-    defender.set_standing_order_code_raw(4);
+    defender.set_standing_order_kind(Order::GuardStarbase);
     defender.set_standing_order_target_coords_raw([16, 13]);
     defender.set_cruiser_count(1);
     defender.set_destroyer_count(0);
@@ -237,7 +237,7 @@ fn canonical_starbase_defender_repels_orbital_attacker() {
 
     let attacker = &mut game_data.fleets.records[4];
     attacker.set_current_location_coords_raw([16, 13]);
-    attacker.set_standing_order_code_raw(0);
+    attacker.set_standing_order_kind(Order::HoldPosition);
     attacker.set_standing_order_target_coords_raw([16, 13]);
     attacker.set_cruiser_count(1);
     attacker.set_destroyer_count(0);

@@ -626,7 +626,7 @@ fn process_join_host_updates(
             .unwrap_or(false);
         if !host_exists || !host_viable {
             let coords = fleet.current_location_coords_raw();
-            fleet.set_standing_order_code_raw(0);
+            fleet.set_standing_order_kind(Order::HoldPosition);
             fleet.set_current_speed(0);
             fleet.set_standing_order_target_coords_raw(coords);
             fleet.set_join_host_fleet_id_raw(0);
@@ -885,7 +885,7 @@ fn process_single_fleet_movement(
     if dx_total == 0 && dy_total == 0 {
         // Already at target - clear speed and order
         game_data.fleets.records[fleet_idx].set_current_speed(0);
-        game_data.fleets.records[fleet_idx].set_standing_order_code_raw(0);
+        game_data.fleets.records[fleet_idx].set_standing_order_kind(Order::HoldPosition);
         return Ok(true);
     }
 
@@ -939,7 +939,7 @@ fn process_single_fleet_movement(
         if !preserves_order_on_arrival {
             // Arrivals that execute and complete: clear speed and order immediately.
             game_data.fleets.records[fleet_idx].set_current_speed(0);
-            game_data.fleets.records[fleet_idx].set_standing_order_code_raw(0);
+            game_data.fleets.records[fleet_idx].set_standing_order_kind(Order::HoldPosition);
         }
         // Orders that preserve state on arrival: bombardment/invasion execute next tick;
         // MoveOnly stays in place with speed and order preserved.

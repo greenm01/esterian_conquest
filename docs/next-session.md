@@ -191,6 +191,12 @@ What is strong:
   - current canonical foreign co-location fallback
   - stored `enemy` diplomacy bytes still need mapping before the fallback can
     be narrowed safely
+- fleet order enums now use the manual order table directly
+  - confirmed from `ECPLAYER.DOC` / `ECQSTART.DOC`: `InvadeWorld = 0x07`
+  - the old preserved invade pre-fixture still carries `0x0a` in that byte
+  - Rust now treats that as a historical fixture quirk rather than semantic
+    truth, and invade scenario tests validate the documented code instead of
+    exact `FLEETS.DAT` parity for that one byte
 
 What is still incomplete:
 

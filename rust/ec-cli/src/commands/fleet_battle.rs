@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::CoreGameData;
+use ec_data::{CoreGameData, Order};
 
 use crate::workspace::copy_init_files;
 
@@ -85,7 +85,7 @@ pub(crate) fn set_fleet_battle(
         let f = &mut data.fleets.records[2];
         f.set_max_speed(3);
         f.set_current_speed(3);
-        f.set_standing_order_code_raw(0x06); // BombardWorld
+        f.set_standing_order_kind(Order::BombardWorld);
         f.set_standing_order_target_coords_raw([p14_x, p14_y]);
         f.set_cruiser_count(f2_ca);
         f.set_destroyer_count(f2_dd);
@@ -96,7 +96,7 @@ pub(crate) fn set_fleet_battle(
         let f = &mut data.fleets.records[4];
         f.set_max_speed(6);
         f.set_current_location_coords_raw([battle_x, battle_y]);
-        f.set_standing_order_code_raw(0x03); // PatrolSector
+        f.set_standing_order_kind(Order::PatrolSector);
         f.set_standing_order_target_coords_raw([battle_x, battle_y]);
         f.set_scout_count(f4_sc);
         f.set_battleship_count(f4_bb);
@@ -109,7 +109,7 @@ pub(crate) fn set_fleet_battle(
         f.set_max_speed(6);
         f.set_current_speed(3);
         f.set_current_location_coords_raw([f8_loc_x, f8_loc_y]);
-        f.set_standing_order_code_raw(0x01); // MoveOnly
+        f.set_standing_order_kind(Order::MoveOnly);
         f.set_standing_order_target_coords_raw([battle_x, battle_y]);
         f.set_scout_count(f8_sc);
         f.set_battleship_count(f8_bb);
@@ -145,15 +145,15 @@ pub(crate) fn set_fleet_battle(
         battle_x, battle_y, battle_x, battle_y, f0_roe, f0_bb, f0_ca, f0_dd
     );
     println!(
-        "  FLEET[3]: order=0x06 (BombardWorld) tgt=({}, {}) speed=3/3 CA={} DD={}",
+        "  FLEET[3]: order=BombardWorld tgt=({}, {}) speed=3/3 CA={} DD={}",
         p14_x, p14_y, f2_ca, f2_dd
     );
     println!(
-        "  FLEET[5]: order=0x03 (PatrolSector) loc=({}, {}) speed=0/6 SC={} BB={} CA={}",
+        "  FLEET[5]: order=PatrolSector loc=({}, {}) speed=0/6 SC={} BB={} CA={}",
         battle_x, battle_y, f4_sc, f4_bb, f4_ca
     );
     println!(
-        "  FLEET[9]: order=0x01 (MoveOnly) loc=({}, {}) tgt=({}, {}) speed=3/6 SC={} BB={} CA={}",
+        "  FLEET[9]: order=MoveOnly loc=({}, {}) tgt=({}, {}) speed=3/6 SC={} BB={} CA={}",
         f8_loc_x, f8_loc_y, battle_x, battle_y, f8_sc, f8_bb, f8_ca
     );
     println!(

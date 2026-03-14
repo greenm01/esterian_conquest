@@ -1,7 +1,7 @@
 mod common;
 
 use common::{cleanup_dir, copy_fixture_dir, run_ec_cli_in_dir, unique_temp_dir};
-use ec_data::{CoreGameData, DatabaseDat, GameStateBuilder};
+use ec_data::{CoreGameData, DatabaseDat, GameStateBuilder, Order};
 use std::fs;
 
 #[test]
@@ -114,7 +114,7 @@ fn maint_rust_destroyed_starbase_generates_lost_contact_report() {
     let starbase_coords = game_data.bases.records[0].coords_raw();
     let attacker = &mut game_data.fleets.records[4];
     attacker.set_current_location_coords_raw(starbase_coords);
-    attacker.set_standing_order_code_raw(1);
+    attacker.set_standing_order_kind(Order::MoveOnly);
     attacker.set_standing_order_target_coords_raw(starbase_coords);
     attacker.set_current_speed(0);
     attacker.raw[0x19] = 0x81;
@@ -229,7 +229,7 @@ fn maint_rust_scout_sector_generates_results_report() {
 
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
     let scout = &mut game_data.fleets.records[0];
-    scout.set_standing_order_code_raw(10);
+    scout.set_standing_order_kind(Order::ScoutSector);
     scout.set_standing_order_target_coords_raw([15, 13]);
     scout.set_scout_count(1);
     scout.set_etac_count(0);
@@ -263,7 +263,7 @@ fn maint_rust_scout_system_generates_results_report() {
 
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
     let scout = &mut game_data.fleets.records[0];
-    scout.set_standing_order_code_raw(11);
+    scout.set_standing_order_kind(Order::ScoutSolarSystem);
     scout.set_standing_order_target_coords_raw([15, 13]);
     scout.set_scout_count(1);
     scout.set_etac_count(0);
@@ -311,7 +311,7 @@ fn maint_rust_view_world_generates_results_and_database_intel() {
 
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
     let viewer = &mut game_data.fleets.records[0];
-    viewer.set_standing_order_code_raw(9);
+    viewer.set_standing_order_kind(Order::ViewWorld);
     viewer.set_standing_order_target_coords_raw([15, 13]);
     viewer.set_scout_count(0);
     viewer.set_etac_count(0);
@@ -363,13 +363,13 @@ fn maint_rust_refreshes_database_between_turns_for_route_hazards() {
 
     let scout = &mut game_data.fleets.records[0];
     scout.set_current_location_coords_raw([2, 2]);
-    scout.set_standing_order_code_raw(11);
+    scout.set_standing_order_kind(Order::ScoutSolarSystem);
     scout.set_standing_order_target_coords_raw([4, 2]);
     scout.set_current_speed(3);
 
     let mover = &mut game_data.fleets.records[1];
     mover.set_current_location_coords_raw([0, 2]);
-    mover.set_standing_order_code_raw(1);
+    mover.set_standing_order_kind(Order::MoveOnly);
     mover.set_standing_order_target_coords_raw([6, 2]);
     mover.set_current_speed(3);
 
@@ -421,7 +421,7 @@ fn maint_rust_guard_starbase_generates_arrival_report() {
     let coords = game_data.bases.records[0].coords_raw();
     let fleet = &mut game_data.fleets.records[0];
     fleet.set_current_location_coords_raw([coords[0].saturating_sub(1), coords[1]]);
-    fleet.set_standing_order_code_raw(4);
+    fleet.set_standing_order_kind(Order::GuardStarbase);
     fleet.set_standing_order_target_coords_raw(coords);
     fleet.set_current_speed(3);
     game_data
@@ -449,7 +449,7 @@ fn maint_rust_guard_blockade_generates_arrival_report() {
 
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
     let guard = &mut game_data.fleets.records[0];
-    guard.set_standing_order_code_raw(5);
+    guard.set_standing_order_kind(Order::GuardBlockadeWorld);
     guard.set_standing_order_target_coords_raw([15, 13]);
     guard.set_scout_count(0);
     guard.set_etac_count(0);
@@ -513,7 +513,7 @@ fn maint_rust_invade_failure_generates_attacker_side_report() {
     );
     let attacker = &mut game_data.fleets.records[0];
     attacker.set_current_location_coords_raw([15, 13]);
-    attacker.set_standing_order_code_raw(7);
+    attacker.set_standing_order_kind(Order::InvadeWorld);
     attacker.set_standing_order_target_coords_raw([15, 13]);
     attacker.set_current_speed(3);
     attacker.raw[0x19] = 0x80;
@@ -567,7 +567,7 @@ fn maint_rust_blitz_success_generates_attacker_side_report() {
     );
     let attacker = &mut game_data.fleets.records[0];
     attacker.set_current_location_coords_raw([15, 13]);
-    attacker.set_standing_order_code_raw(8);
+    attacker.set_standing_order_kind(Order::BlitzWorld);
     attacker.set_standing_order_target_coords_raw([15, 13]);
     attacker.set_current_speed(3);
     attacker.raw[0x19] = 0x80;
@@ -606,7 +606,7 @@ fn maint_rust_battle_abort_generates_move_abort_report() {
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
 
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
-    game_data.fleets.records[0].set_standing_order_code_raw(1);
+    game_data.fleets.records[0].set_standing_order_kind(Order::MoveOnly);
     game_data
         .save(&target)
         .expect("mutated fixture should save");
@@ -632,7 +632,7 @@ fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
 
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
-    game_data.fleets.records[0].set_standing_order_code_raw(10);
+    game_data.fleets.records[0].set_standing_order_kind(Order::ScoutSector);
     game_data
         .save(&target)
         .expect("mutated fixture should save");
@@ -661,7 +661,7 @@ fn maint_rust_rendezvous_arrival_generates_waiting_report() {
 
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
     let fleet = &mut game_data.fleets.records[0];
-    fleet.set_standing_order_code_raw(14);
+    fleet.set_standing_order_kind(Order::RendezvousSector);
     fleet.set_standing_order_target_coords_raw([15, 13]);
     game_data
         .save(&target)
@@ -690,7 +690,7 @@ fn maint_rust_join_merge_generates_join_report() {
     game_data.player.records[0].raw[0x00] = 0xff;
     let coords = game_data.fleets.records[0].current_location_coords_raw();
     game_data.fleets.records[1].set_current_location_coords_raw(coords);
-    game_data.fleets.records[1].set_standing_order_code_raw(13);
+    game_data.fleets.records[1].set_standing_order_kind(Order::JoinAnotherFleet);
     game_data
         .save(&target)
         .expect("mutated fixture should save");
@@ -717,9 +717,9 @@ fn maint_rust_rendezvous_merge_generates_absorbing_report() {
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
     game_data.player.records[0].raw[0x00] = 0xff;
     let coords = game_data.fleets.records[0].current_location_coords_raw();
-    game_data.fleets.records[0].set_standing_order_code_raw(14);
+    game_data.fleets.records[0].set_standing_order_kind(Order::RendezvousSector);
     game_data.fleets.records[1].set_current_location_coords_raw(coords);
-    game_data.fleets.records[1].set_standing_order_code_raw(14);
+    game_data.fleets.records[1].set_standing_order_kind(Order::RendezvousSector);
     game_data
         .save(&target)
         .expect("mutated fixture should save");
@@ -744,7 +744,7 @@ fn maint_rust_join_contact_uses_join_report_label() {
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
 
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
-    game_data.fleets.records[0].set_standing_order_code_raw(13);
+    game_data.fleets.records[0].set_standing_order_kind(Order::JoinAnotherFleet);
     game_data
         .save(&target)
         .expect("mutated fixture should save");
@@ -769,7 +769,7 @@ fn maint_rust_guard_contact_uses_guard_report_label() {
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
 
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
-    game_data.fleets.records[0].set_standing_order_code_raw(5);
+    game_data.fleets.records[0].set_standing_order_kind(Order::GuardBlockadeWorld);
     game_data
         .save(&target)
         .expect("mutated fixture should save");

@@ -1,21 +1,17 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::CoreGameData;
+use ec_data::{CoreGameData, Order};
 
 use crate::workspace::copy_init_files;
 
 /// Apply the invade scenario to an already-initialized game directory.
 ///
 /// Fixture-specific constants for this scenario:
-/// - Fleet 3 (empire=1, slot=3, index=2): InvadeWorld (0x0a) order, speed=3/3,
+/// - Fleet 3 (empire=1, slot=3, index=2): InvadeWorld order, speed=3/3,
 ///   target (15,13), invasion_army_count=100, SC=100, BB=100, CA=50, DD=50, TT=50
 /// - Planet 14 (index=13): set via set_as_owned_target_world (Dust Bowl-type seeded world
 ///   at (15,13), owned by empire 2, armies=142, batteries=15)
-///
-/// Order code 0x0a is empirically confirmed as InvadeWorld from fixture analysis.
-/// The Rust fleet enum labels this code differently (guessed from docs); use
-/// set_standing_order_code_raw directly until the enum is corrected.
 ///
 /// All record indices and constants here are scenario-specific; the general mutators live in
 /// ec-data and accept parameters.
@@ -50,7 +46,7 @@ pub(crate) fn set_invade_onefleet(
         f.set_invasion_army_count_raw(invasion_armies);
         f.set_max_speed(3);
         f.set_current_speed(3);
-        f.set_standing_order_code_raw(0x0a); // InvadeWorld
+        f.set_standing_order_kind(Order::InvadeWorld);
         f.set_standing_order_target_coords_raw([target_x, target_y]);
         f.set_scout_count(sc);
         f.set_battleship_count(bb);
@@ -84,7 +80,7 @@ pub(crate) fn set_invade_onefleet(
     data.save(dir)?;
 
     println!(
-        "  FLEET[3].order=0x0a (InvadeWorld) tgt=({}, {}) army={} SC={} BB={} CA={} DD={} TT={}",
+        "  FLEET[3].order=InvadeWorld tgt=({}, {}) army={} SC={} BB={} CA={} DD={} TT={}",
         target_x, target_y, invasion_armies, sc, bb, ca, dd, tt
     );
     println!(
@@ -189,9 +185,9 @@ pub(crate) fn validate_invade_data(data: &CoreGameData) -> Result<(), Box<dyn st
                     f.current_speed()
                 ));
             }
-            if f.standing_order_code_raw() != 0x0a {
+            if f.standing_order_code_raw() != 0x07 {
                 errors.push(format!(
-                    "FLEET[3].order expected 0x0a (InvadeWorld), got {:#04x}",
+                    "FLEET[3].order expected 0x07 (InvadeWorld), got {:#04x}",
                     f.standing_order_code_raw()
                 ));
             }
@@ -271,7 +267,7 @@ pub(crate) fn validate_invade_data(data: &CoreGameData) -> Result<(), Box<dyn st
     if errors.is_empty() {
         println!("Valid invade scenario");
         println!(
-            "  FLEET[3]: order=0x0a (InvadeWorld) tgt=(15,13) speed=3/3 army=100 SC=100 BB=100 CA=50 DD=50 TT=50"
+            "  FLEET[3]: order=0x07 (InvadeWorld) tgt=(15,13) speed=3/3 army=100 SC=100 BB=100 CA=50 DD=50 TT=50"
         );
         println!("  PLANET[14]: (15,13) empire=2 armies=142 batteries=15");
         Ok(())

@@ -5176,3 +5176,34 @@ changes the army count. These are not new rules; they follow from the existing
 - Multi-planet AI behavior when a rogue/autopilot player owns more than one
   homeworld-type planet (tested briefly: the same per-planet rule applies
   independently to each `flags==0x87` planet)
+
+### Fleet order table: manuals over preserved invade pre-fixture
+
+`ECPLAYER.DOC` and `ECQSTART.DOC` both give the fleet order table explicitly:
+
+- `0x06 = BombardWorld`
+- `0x07 = InvadeWorld`
+- `0x08 = BlitzWorld`
+- `0x09 = ViewWorld`
+- `0x0a = ScoutSector`
+- `0x0b = ScoutSolarSystem`
+- `0x0c = ColonizeWorld`
+- `0x0d = JoinAnotherFleet`
+- `0x0e = RendezvousSector`
+- `0x0f = Salvage`
+
+The preserved `fixtures/ecmaint-invade-pre/v1.5/FLEETS.DAT` still carries
+`raw[0x1f] = 0x0a` on the invade fleet. Rust now treats that byte as a
+historical fixture quirk rather than semantic truth:
+
+- the `Order` enum follows the manuals (`InvadeWorld = 0x07`)
+- invade scenario generators now emit `0x07`
+- invade scenario tests no longer require exact `FLEETS.DAT` parity for that
+  conflicting byte
+
+This is the current repository example of the documented policy:
+
+- manuals are authoritative for gameplay semantics
+- preserved fixtures/oracle remain authoritative for compatibility and file
+  structure, unless a fixture byte directly conflicts with explicit manual
+  semantics and does not buy compatibility

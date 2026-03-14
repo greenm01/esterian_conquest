@@ -461,7 +461,7 @@ fn core_game_data_initialized_fleet_mission_errors_catch_wrong_order_code() {
         conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
     };
 
-    data.fleets.records[0].set_standing_order_code_raw(4);
+    data.fleets.records[0].set_standing_order_kind(crate::Order::GuardStarbase);
 
     assert_eq!(
         data.current_known_initialized_fleet_mission_errors(),

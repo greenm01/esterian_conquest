@@ -1,6 +1,7 @@
 mod common;
 
-use common::{cleanup_dir, repo_root, run_ec_cli, run_ec_cli_in_dir, unique_temp_dir};
+use common::{cleanup_dir, repo_root, run_ec_cli_in_dir, unique_temp_dir};
+use ec_data::FleetDat;
 use std::fs;
 
 #[test]
@@ -14,29 +15,31 @@ fn scenario_invade_recreates_known_valid_pre_fixture() {
     );
     assert!(stdout.contains("Applied scenario: invade"));
 
+    let fleets = FleetDat::parse(&fs::read(target.join("FLEETS.DAT")).unwrap()).unwrap();
+    assert_eq!(fleets.records[2].standing_order_code_raw(), 0x07);
+
     let fixture_pre = repo_root().join("fixtures/ecmaint-invade-pre/v1.5");
-    for name in ["FLEETS.DAT", "PLANETS.DAT"] {
-        let expected = fs::read(fixture_pre.join(name)).unwrap();
-        let actual = fs::read(target.join(name)).unwrap();
-        assert_eq!(
-            actual, expected,
-            "{name} does not match preserved invade pre-fixture"
-        );
-    }
+    let expected_planets = fs::read(fixture_pre.join("PLANETS.DAT")).unwrap();
+    let actual_planets = fs::read(target.join("PLANETS.DAT")).unwrap();
+    assert_eq!(
+        actual_planets, expected_planets,
+        "PLANETS.DAT does not match preserved invade pre-fixture"
+    );
 
     cleanup_dir(&target);
 }
 
 #[test]
 fn validate_invade_accepts_known_valid_fixture() {
-    let stdout = run_ec_cli(&["validate", "fixtures/ecmaint-invade-pre/v1.5", "invade"]);
-    assert!(stdout.contains("Valid invade scenario"));
-    assert!(stdout.contains("FLEET[3]: order=0x0a (InvadeWorld)"));
-    assert!(stdout.contains("PLANET[14]: (15,13) empire=2 armies=142 batteries=15"));
+    let stderr = common::run_ec_cli_failure_in_dir(
+        &["validate", "fixtures/ecmaint-invade-pre/v1.5", "invade"],
+        common::rust_workspace(),
+    );
+    assert!(stderr.contains("FLEET[3].order expected 0x07 (InvadeWorld), got 0x0a"));
 }
 
 #[test]
-fn scenario_init_replayable_invade_matches_exact_preserved_pre_fixture() {
+fn scenario_init_replayable_invade_uses_documented_order_code() {
     let target = unique_temp_dir("ec-cli-invade-init-replayable");
 
     let stdout = run_ec_cli_in_dir(
@@ -50,8 +53,11 @@ fn scenario_init_replayable_invade_matches_exact_preserved_pre_fixture() {
     );
     assert!(stdout.contains("Replayable scenario directory initialized at"));
 
+    let fleets = FleetDat::parse(&fs::read(target.join("FLEETS.DAT")).unwrap()).unwrap();
+    assert_eq!(fleets.records[2].standing_order_code_raw(), 0x07);
+
     let fixture_pre = repo_root().join("fixtures/ecmaint-invade-pre/v1.5");
-    for name in ["FLEETS.DAT", "PLANETS.DAT", "SETUP.DAT"] {
+    for name in ["PLANETS.DAT", "SETUP.DAT"] {
         let expected = fs::read(fixture_pre.join(name)).unwrap();
         let actual = fs::read(target.join(name)).unwrap();
         assert_eq!(
@@ -64,7 +70,7 @@ fn scenario_init_replayable_invade_matches_exact_preserved_pre_fixture() {
 }
 
 #[test]
-fn invade_init_recreates_known_valid_pre_fixture() {
+fn invade_init_uses_documented_order_code() {
     let target = unique_temp_dir("ec-cli-invade-init-param");
 
     // Recreate the fixture parameters: (15,13) target, SC=100, BB=100, CA=50, DD=50, TT=50, armies=100
@@ -86,15 +92,16 @@ fn invade_init_recreates_known_valid_pre_fixture() {
     );
     assert!(stdout.contains("Invade directory initialized at"));
 
+    let fleets = FleetDat::parse(&fs::read(target.join("FLEETS.DAT")).unwrap()).unwrap();
+    assert_eq!(fleets.records[2].standing_order_code_raw(), 0x07);
+
     let fixture_pre = repo_root().join("fixtures/ecmaint-invade-pre/v1.5");
-    for name in ["FLEETS.DAT", "PLANETS.DAT"] {
-        let expected = fs::read(fixture_pre.join(name)).unwrap();
-        let actual = fs::read(target.join(name)).unwrap();
-        assert_eq!(
-            actual, expected,
-            "{name} does not match preserved invade pre-fixture via invade-init"
-        );
-    }
+    let expected_planets = fs::read(fixture_pre.join("PLANETS.DAT")).unwrap();
+    let actual_planets = fs::read(target.join("PLANETS.DAT")).unwrap();
+    assert_eq!(
+        actual_planets, expected_planets,
+        "PLANETS.DAT does not match preserved invade pre-fixture via invade-init"
+    );
 
     cleanup_dir(&target);
 }

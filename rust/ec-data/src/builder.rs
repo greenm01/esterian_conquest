@@ -317,7 +317,7 @@ impl GameStateBuilder {
                 record.set_tuple_a_payload_raw([0x80, 0, 0, 0, 0]);
                 record.set_tuple_b_payload_raw([0x80, 0, 0, 0, 0]);
                 record.set_tuple_c_payload_raw([0x81, 0, 0, 0, 0]);
-                record.set_standing_order_code_raw(5); // Default: no order
+                record.set_standing_order_kind(crate::Order::GuardBlockadeWorld);
                 record.set_standing_order_target_coords_raw(coords);
                 record.set_mission_aux_bytes([1, 0]);
                 record.set_scout_count(0);

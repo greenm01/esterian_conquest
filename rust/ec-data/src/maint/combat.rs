@@ -516,12 +516,12 @@ fn retreat_task_force(game_data: &mut CoreGameData, task_force: &TaskForce) {
             && fleet.etac_count() == 0
         {
             fleet.set_current_speed(0);
-            fleet.set_standing_order_code_raw(0);
+            fleet.set_standing_order_kind(Order::HoldPosition);
             fleet.set_rules_of_engagement(0);
             continue;
         }
 
-        fleet.set_standing_order_code_raw(0x02);
+        fleet.set_standing_order_kind(Order::SeekHome);
         fleet.set_standing_order_target_coords_raw(retreat_target);
         fleet.set_current_speed(fleet.max_speed().min(3).max(1));
         fleet.raw[0x0d] = 0x7f;
@@ -953,7 +953,7 @@ fn mission_kind_for_fleet(
 fn clear_arrival_and_hold(game_data: &mut CoreGameData, fleet_indices: &[usize]) {
     for &idx in fleet_indices {
         let fleet = &mut game_data.fleets.records[idx];
-        fleet.set_standing_order_code_raw(0);
+        fleet.set_standing_order_kind(Order::HoldPosition);
         fleet.set_current_speed(0);
         fleet.raw[0x19] = 0x81;
         fleet.raw[0x1a] = 0x00;

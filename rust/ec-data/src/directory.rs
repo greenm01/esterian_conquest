@@ -344,7 +344,7 @@ impl CoreGameData {
                 record.set_tuple_a_payload_raw([0x80, 0, 0, 0, 0]);
                 record.set_tuple_b_payload_raw([0x80, 0, 0, 0, 0]);
                 record.set_tuple_c_payload_raw([0x81, 0, 0, 0, 0]);
-                record.set_standing_order_code_raw(5);
+                record.set_standing_order_kind(crate::Order::GuardBlockadeWorld);
                 record.set_standing_order_target_coords_raw(coords);
                 record.set_mission_aux_bytes([1, 0]);
                 record.set_scout_count(0);
@@ -1216,7 +1216,7 @@ impl CoreGameData {
                 index_1_based: fleet_index_1_based,
             },
         )?;
-        fleet.set_standing_order_code_raw(0x04);
+        fleet.set_standing_order_kind(crate::Order::GuardStarbase);
         fleet.set_standing_order_target_coords_raw(target);
         fleet.set_mission_aux_bytes([0x01, 0x01]);
 
