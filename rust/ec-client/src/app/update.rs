@@ -37,6 +37,26 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_compose_message_recipient();
             AppOutcome::Continue
         }
+        Action::OpenComposeMessageSubject => {
+            app.open_compose_message_subject();
+            AppOutcome::Continue
+        }
+        Action::OpenComposeMessageBody => {
+            app.open_compose_message_body();
+            AppOutcome::Continue
+        }
+        Action::OpenComposeMessageOutbox => {
+            app.open_compose_message_outbox();
+            AppOutcome::Continue
+        }
+        Action::OpenComposeMessageDiscardConfirm => {
+            app.open_compose_message_discard_confirm();
+            AppOutcome::Continue
+        }
+        Action::OpenComposeMessageSendConfirm => {
+            app.open_compose_message_send_confirm();
+            AppOutcome::Continue
+        }
         Action::OpenStarmap => {
             app.open_starmap();
             AppOutcome::Continue
@@ -51,6 +71,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         }
         Action::ScrollComposeRecipients(delta) => {
             app.scroll_compose_recipients(delta);
+            AppOutcome::Continue
+        }
+        Action::ScrollComposeOutbox(delta) => {
+            app.scroll_compose_outbox(delta);
             AppOutcome::Continue
         }
         Action::BeginStarmapDump => {
@@ -113,6 +137,18 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.submit_compose_recipient();
             AppOutcome::Continue
         }
+        Action::AppendComposeSubjectChar(ch) => {
+            app.append_compose_subject_char(ch);
+            AppOutcome::Continue
+        }
+        Action::BackspaceComposeSubject => {
+            app.backspace_compose_subject();
+            AppOutcome::Continue
+        }
+        Action::SubmitComposeSubject => {
+            app.submit_compose_subject();
+            AppOutcome::Continue
+        }
         Action::AppendComposeBodyChar(ch) => {
             app.append_compose_body_char(ch);
             AppOutcome::Continue
@@ -121,11 +157,59 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.backspace_compose_body();
             AppOutcome::Continue
         }
+        Action::DeleteComposeBodyChar => {
+            app.delete_compose_body_char();
+            AppOutcome::Continue
+        }
         Action::InsertComposeNewline => {
             app.insert_compose_newline();
             AppOutcome::Continue
         }
+        Action::MoveComposeBodyCursorLeft => {
+            app.move_compose_body_cursor_left();
+            AppOutcome::Continue
+        }
+        Action::MoveComposeBodyCursorRight => {
+            app.move_compose_body_cursor_right();
+            AppOutcome::Continue
+        }
+        Action::MoveComposeBodyCursorUp => {
+            app.move_compose_body_cursor_up();
+            AppOutcome::Continue
+        }
+        Action::MoveComposeBodyCursorDown => {
+            app.move_compose_body_cursor_down();
+            AppOutcome::Continue
+        }
+        Action::MoveComposeBodyCursorHome => {
+            app.move_compose_body_cursor_home();
+            AppOutcome::Continue
+        }
+        Action::MoveComposeBodyCursorEnd => {
+            app.move_compose_body_cursor_end();
+            AppOutcome::Continue
+        }
         Action::SendComposedMessage => match app.send_composed_message() {
+            Ok(()) => AppOutcome::Continue,
+            Err(_) => AppOutcome::Continue,
+        },
+        Action::AppendComposeOutboxChar(ch) => {
+            app.append_compose_outbox_char(ch);
+            AppOutcome::Continue
+        }
+        Action::BackspaceComposeOutboxInput => {
+            app.backspace_compose_outbox_input();
+            AppOutcome::Continue
+        }
+        Action::DeleteQueuedComposeMessage => match app.delete_queued_compose_message() {
+            Ok(()) => AppOutcome::Continue,
+            Err(_) => AppOutcome::Continue,
+        },
+        Action::ConfirmDiscardComposedMessage => {
+            app.confirm_discard_composed_message();
+            AppOutcome::Continue
+        }
+        Action::ConfirmSendComposedMessage => match app.send_composed_message() {
             Ok(()) => AppOutcome::Continue,
             Err(_) => AppOutcome::Continue,
         },

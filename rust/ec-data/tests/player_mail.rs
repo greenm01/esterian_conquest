@@ -23,6 +23,7 @@ fn player_mail_queue_round_trips_multiline_body() {
         sender_empire_id: 1,
         recipient_empire_id: 2,
         year: 3000,
+        subject: "hello".to_string(),
         body: "hello there\nsecond line".to_string(),
     };
 

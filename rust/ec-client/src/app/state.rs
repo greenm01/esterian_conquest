@@ -2,8 +2,9 @@ use std::fs;
 use std::path::PathBuf;
 
 use ec_data::{
-    CoreGameData, DatabaseDat, QueuedPlayerMail, append_mail_queue,
+    CoreGameData, DatabaseDat, QueuedPlayerMail, append_mail_queue, load_mail_queue,
     build_player_starmap_projection,
+    save_mail_queue,
 };
 
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
@@ -59,8 +60,14 @@ pub struct App {
     compose_recipient_status: Option<String>,
     compose_recipient_scroll_offset: usize,
     compose_recipient_empire: Option<u8>,
+    compose_subject: String,
+    compose_subject_status: Option<String>,
     compose_body: String,
+    compose_body_cursor: usize,
     compose_body_status: Option<String>,
+    compose_outbox_input: String,
+    compose_outbox_status: Option<String>,
+    compose_outbox_scroll_offset: usize,
     compose_sent_status: Option<String>,
     starmap_view_x: usize,
     starmap_view_y: usize,
@@ -133,8 +140,14 @@ impl App {
             compose_recipient_status: None,
             compose_recipient_scroll_offset: 0,
             compose_recipient_empire: None,
+            compose_subject: String::new(),
+            compose_subject_status: None,
             compose_body: String::new(),
+            compose_body_cursor: 0,
             compose_body_status: None,
+            compose_outbox_input: String::new(),
+            compose_outbox_status: None,
+            compose_outbox_scroll_offset: 0,
             compose_sent_status: None,
             starmap_view_x: 1,
             starmap_view_y: 1,
@@ -200,10 +213,32 @@ impl App {
                 self.compose_recipient_status.as_deref(),
                 self.compose_recipient_scroll_offset,
             )?,
+            ScreenId::ComposeMessageSubject => self.message_compose.render_subject(
+                &compose_recipient_label(&self.game_data, self.compose_recipient_empire),
+                &self.compose_subject,
+                self.compose_subject_status.as_deref(),
+            )?,
             ScreenId::ComposeMessageBody => self.message_compose.render_body(
                 &compose_recipient_label(&self.game_data, self.compose_recipient_empire),
+                &self.compose_subject,
                 &self.compose_body,
+                self.compose_body_cursor,
                 self.compose_body_status.as_deref(),
+            )?,
+            ScreenId::ComposeMessageOutbox => self.message_compose.render_outbox(
+                &self.compose_outbox_queue()?,
+                &self.compose_outbox_input,
+                self.compose_outbox_status.as_deref(),
+                self.compose_outbox_scroll_offset,
+                &self.game_data,
+            )?,
+            ScreenId::ComposeMessageDiscardConfirm => {
+                self.message_compose.render_discard_confirm()?
+            }
+            ScreenId::ComposeMessageSendConfirm => self.message_compose.render_send_confirm(
+                &compose_recipient_label(&self.game_data, self.compose_recipient_empire),
+                &self.compose_subject,
+                &self.compose_body,
             )?,
             ScreenId::ComposeMessageSent => self.message_compose.render_sent(
                 self.compose_sent_status
@@ -259,7 +294,15 @@ impl App {
             ScreenId::Enemies => self.enemies.handle_key(key),
             ScreenId::DeleteReviewables => self.delete_reviewables.handle_key(key),
             ScreenId::ComposeMessageRecipient => self.message_compose.handle_recipient_key(key),
+            ScreenId::ComposeMessageSubject => self.message_compose.handle_subject_key(key),
             ScreenId::ComposeMessageBody => self.message_compose.handle_body_key(key),
+            ScreenId::ComposeMessageOutbox => self.message_compose.handle_outbox_key(key),
+            ScreenId::ComposeMessageDiscardConfirm => {
+                self.message_compose.handle_discard_confirm_key(key)
+            }
+            ScreenId::ComposeMessageSendConfirm => {
+                self.message_compose.handle_send_confirm_key(key)
+            }
             ScreenId::ComposeMessageSent => self.message_compose.handle_sent_key(key),
             ScreenId::EmpireStatus => self.empire_status.handle_key(key),
             ScreenId::EmpireProfile => self.empire_profile.handle_key(key),
@@ -306,10 +349,58 @@ impl App {
         self.compose_recipient_status = None;
         self.compose_recipient_scroll_offset = 0;
         self.compose_recipient_empire = None;
+        self.compose_subject.clear();
+        self.compose_subject_status = None;
         self.compose_body.clear();
+        self.compose_body_cursor = 0;
         self.compose_body_status = None;
+        self.compose_outbox_input.clear();
+        self.compose_outbox_status = None;
+        self.compose_outbox_scroll_offset = 0;
         self.compose_sent_status = None;
         self.current_screen = ScreenId::ComposeMessageRecipient;
+    }
+
+    pub fn open_compose_message_subject(&mut self) {
+        if self.compose_recipient_empire.is_none() {
+            self.open_compose_message_recipient();
+            return;
+        }
+        self.compose_subject_status = None;
+        self.current_screen = ScreenId::ComposeMessageSubject;
+    }
+
+    pub fn open_compose_message_body(&mut self) {
+        if self.compose_recipient_empire.is_none() {
+            self.open_compose_message_recipient();
+            return;
+        }
+        self.compose_body_status = None;
+        self.current_screen = ScreenId::ComposeMessageBody;
+    }
+
+    pub fn open_compose_message_outbox(&mut self) {
+        self.compose_outbox_input.clear();
+        self.compose_outbox_status = None;
+        self.compose_outbox_scroll_offset = 0;
+        self.current_screen = ScreenId::ComposeMessageOutbox;
+    }
+
+    pub fn open_compose_message_discard_confirm(&mut self) {
+        if self.current_screen == ScreenId::ComposeMessageBody {
+            self.current_screen = ScreenId::ComposeMessageDiscardConfirm;
+        }
+    }
+
+    pub fn open_compose_message_send_confirm(&mut self) {
+        if self.current_screen == ScreenId::ComposeMessageBody {
+            let body = self.compose_body.trim();
+            if body.is_empty() {
+                self.compose_body_status = Some("Message body cannot be empty.".to_string());
+                return;
+            }
+            self.current_screen = ScreenId::ComposeMessageSendConfirm;
+        }
     }
 
     pub fn scroll_enemies(&mut self, delta: i8) {
@@ -467,7 +558,7 @@ impl App {
             .records
             .len()
             .saturating_sub(1);
-        let max_offset = total.saturating_sub(8);
+        let max_offset = total.saturating_sub(crate::screen::RECIPIENT_VISIBLE_ROWS);
         self.compose_recipient_scroll_offset = self
             .compose_recipient_scroll_offset
             .saturating_add_signed(delta as isize)
@@ -497,34 +588,131 @@ impl App {
             return;
         }
         self.compose_recipient_empire = Some(empire_id);
+        self.compose_subject.clear();
+        self.compose_subject_status = None;
         self.compose_body.clear();
+        self.compose_body_cursor = 0;
+        self.compose_body_status = None;
+        self.current_screen = ScreenId::ComposeMessageSubject;
+    }
+
+    pub fn append_compose_subject_char(&mut self, ch: char) {
+        if self.current_screen == ScreenId::ComposeMessageSubject
+            && self.compose_subject.chars().count() < crate::screen::COMPOSE_SUBJECT_LIMIT
+        {
+            self.compose_subject.push(ch);
+            self.compose_subject_status = None;
+        }
+    }
+
+    pub fn backspace_compose_subject(&mut self) {
+        if self.current_screen == ScreenId::ComposeMessageSubject {
+            self.compose_subject.pop();
+            self.compose_subject_status = None;
+        }
+    }
+
+    pub fn submit_compose_subject(&mut self) {
+        if self.current_screen != ScreenId::ComposeMessageSubject {
+            return;
+        }
+        self.compose_body_cursor = self.compose_body.chars().count();
         self.compose_body_status = None;
         self.current_screen = ScreenId::ComposeMessageBody;
     }
 
+    pub fn confirm_discard_composed_message(&mut self) {
+        self.open_compose_message_recipient();
+    }
+
     pub fn append_compose_body_char(&mut self, ch: char) {
-        if self.current_screen == ScreenId::ComposeMessageBody && self.compose_body.len() < 2000 {
-            self.compose_body.push(ch);
+        if self.current_screen == ScreenId::ComposeMessageBody
+            && self.compose_body.chars().count() < crate::screen::COMPOSE_BODY_LIMIT
+        {
+            insert_char_at(&mut self.compose_body, self.compose_body_cursor, ch);
+            self.compose_body_cursor += 1;
             self.compose_body_status = None;
+        } else if self.current_screen == ScreenId::ComposeMessageBody {
+            self.compose_body_status = Some(format!(
+                "Message length limit is {} characters.",
+                crate::screen::COMPOSE_BODY_LIMIT
+            ));
         }
     }
 
     pub fn backspace_compose_body(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody {
-            self.compose_body.pop();
+            if self.compose_body_cursor > 0 {
+                remove_char_before(&mut self.compose_body, self.compose_body_cursor);
+                self.compose_body_cursor -= 1;
+            }
+            self.compose_body_status = None;
+        }
+    }
+
+    pub fn delete_compose_body_char(&mut self) {
+        if self.current_screen == ScreenId::ComposeMessageBody {
+            remove_char_at(&mut self.compose_body, self.compose_body_cursor);
             self.compose_body_status = None;
         }
     }
 
     pub fn insert_compose_newline(&mut self) {
-        if self.current_screen == ScreenId::ComposeMessageBody && self.compose_body.len() < 2000 {
-            self.compose_body.push('\n');
+        if self.current_screen == ScreenId::ComposeMessageBody
+            && self.compose_body.chars().count() < crate::screen::COMPOSE_BODY_LIMIT
+        {
+            insert_char_at(&mut self.compose_body, self.compose_body_cursor, '\n');
+            self.compose_body_cursor += 1;
             self.compose_body_status = None;
+        } else if self.current_screen == ScreenId::ComposeMessageBody {
+            self.compose_body_status = Some(format!(
+                "Message length limit is {} characters.",
+                crate::screen::COMPOSE_BODY_LIMIT
+            ));
+        }
+    }
+
+    pub fn move_compose_body_cursor_left(&mut self) {
+        if self.current_screen == ScreenId::ComposeMessageBody {
+            self.compose_body_cursor = self.compose_body_cursor.saturating_sub(1);
+        }
+    }
+
+    pub fn move_compose_body_cursor_right(&mut self) {
+        if self.current_screen == ScreenId::ComposeMessageBody {
+            self.compose_body_cursor =
+                (self.compose_body_cursor + 1).min(self.compose_body.chars().count());
+        }
+    }
+
+    pub fn move_compose_body_cursor_home(&mut self) {
+        if self.current_screen == ScreenId::ComposeMessageBody {
+            self.compose_body_cursor = line_start_index(&self.compose_body, self.compose_body_cursor);
+        }
+    }
+
+    pub fn move_compose_body_cursor_end(&mut self) {
+        if self.current_screen == ScreenId::ComposeMessageBody {
+            self.compose_body_cursor = line_end_index(&self.compose_body, self.compose_body_cursor);
+        }
+    }
+
+    pub fn move_compose_body_cursor_up(&mut self) {
+        if self.current_screen == ScreenId::ComposeMessageBody {
+            self.compose_body_cursor =
+                vertical_cursor_target(&self.compose_body, self.compose_body_cursor, -1);
+        }
+    }
+
+    pub fn move_compose_body_cursor_down(&mut self) {
+        if self.current_screen == ScreenId::ComposeMessageBody {
+            self.compose_body_cursor =
+                vertical_cursor_target(&self.compose_body, self.compose_body_cursor, 1);
         }
     }
 
     pub fn send_composed_message(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        if self.current_screen != ScreenId::ComposeMessageBody {
+        if self.current_screen != ScreenId::ComposeMessageSendConfirm {
             return Ok(());
         }
         let Some(recipient_empire_id) = self.compose_recipient_empire else {
@@ -542,6 +730,7 @@ impl App {
                 sender_empire_id: self.player.record_index_1_based as u8,
                 recipient_empire_id,
                 year: self.game_data.conquest.game_year(),
+                subject: self.compose_subject.trim().to_string(),
                 body: body.to_string(),
             },
         )?;
@@ -549,6 +738,71 @@ impl App {
             "Message queued for Empire {recipient_empire_id}. It will be delivered after turn maintenance."
         ));
         self.current_screen = ScreenId::ComposeMessageSent;
+        Ok(())
+    }
+
+    pub fn scroll_compose_outbox(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::ComposeMessageOutbox {
+            return;
+        }
+        let total = self.compose_outbox_queue_len();
+        let max_offset = total.saturating_sub(crate::screen::OUTBOX_VISIBLE_ROWS);
+        self.compose_outbox_scroll_offset = self
+            .compose_outbox_scroll_offset
+            .saturating_add_signed(delta as isize)
+            .min(max_offset);
+    }
+
+    pub fn append_compose_outbox_char(&mut self, ch: char) {
+        if self.current_screen == ScreenId::ComposeMessageOutbox && self.compose_outbox_input.len() < 2
+        {
+            self.compose_outbox_input.push(ch);
+            self.compose_outbox_status = None;
+        }
+    }
+
+    pub fn backspace_compose_outbox_input(&mut self) {
+        if self.current_screen == ScreenId::ComposeMessageOutbox {
+            self.compose_outbox_input.pop();
+            self.compose_outbox_status = None;
+        }
+    }
+
+    pub fn delete_queued_compose_message(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if self.current_screen != ScreenId::ComposeMessageOutbox {
+            return Ok(());
+        }
+        let Ok(queue_no) = self.compose_outbox_input.parse::<usize>() else {
+            self.compose_outbox_status = Some("Enter a queued message number.".to_string());
+            return Ok(());
+        };
+        if queue_no == 0 {
+            self.compose_outbox_status = Some("Enter a queued message number.".to_string());
+            return Ok(());
+        }
+
+        let sender_empire_id = self.player.record_index_1_based as u8;
+        let mut queue = load_mail_queue(&self.game_dir)?;
+        let own_indexes = queue
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, mail)| (mail.sender_empire_id == sender_empire_id).then_some(idx))
+            .collect::<Vec<_>>();
+        let Some(queue_index) = own_indexes.get(queue_no - 1).copied() else {
+            self.compose_outbox_status = Some(format!(
+                "Enter a queued message number in 1..={}.",
+                own_indexes.len()
+            ));
+            return Ok(());
+        };
+
+        queue.remove(queue_index);
+        save_mail_queue(&self.game_dir, &queue)?;
+        self.compose_outbox_input.clear();
+        self.compose_outbox_status = Some(format!("Queued message {:02} deleted.", queue_no));
+
+        let max_offset = own_indexes.len().saturating_sub(1).saturating_sub(crate::screen::OUTBOX_VISIBLE_ROWS);
+        self.compose_outbox_scroll_offset = self.compose_outbox_scroll_offset.min(max_offset);
         Ok(())
     }
 
@@ -716,6 +970,18 @@ impl App {
         self.enemies_scroll_offset
     }
 
+    fn compose_outbox_queue(&self) -> Result<Vec<QueuedPlayerMail>, Box<dyn std::error::Error>> {
+        let sender_empire_id = self.player.record_index_1_based as u8;
+        Ok(load_mail_queue(&self.game_dir)?
+            .into_iter()
+            .filter(|mail| mail.sender_empire_id == sender_empire_id)
+            .collect())
+    }
+
+    fn compose_outbox_queue_len(&self) -> usize {
+        self.compose_outbox_queue().map(|queue| queue.len()).unwrap_or(0)
+    }
+
     fn handle_planet_info_prompt_key(
         &self,
         key: crossterm::event::KeyEvent,
@@ -755,4 +1021,88 @@ fn file_nonempty(path: PathBuf) -> bool {
     fs::metadata(path)
         .map(|meta| meta.len() > 0)
         .unwrap_or(false)
+}
+
+fn char_to_byte_index(body: &str, char_index: usize) -> usize {
+    if char_index == 0 {
+        return 0;
+    }
+    body.char_indices()
+        .nth(char_index)
+        .map(|(idx, _)| idx)
+        .unwrap_or(body.len())
+}
+
+fn insert_char_at(body: &mut String, cursor_index: usize, ch: char) {
+    let byte_index = char_to_byte_index(body, cursor_index);
+    body.insert(byte_index, ch);
+}
+
+fn remove_char_before(body: &mut String, cursor_index: usize) {
+    if cursor_index == 0 {
+        return;
+    }
+    let start = char_to_byte_index(body, cursor_index - 1);
+    let end = char_to_byte_index(body, cursor_index);
+    body.replace_range(start..end, "");
+}
+
+fn remove_char_at(body: &mut String, cursor_index: usize) {
+    let char_count = body.chars().count();
+    if cursor_index >= char_count {
+        return;
+    }
+    let start = char_to_byte_index(body, cursor_index);
+    let end = char_to_byte_index(body, cursor_index + 1);
+    body.replace_range(start..end, "");
+}
+
+fn line_start_index(body: &str, cursor_index: usize) -> usize {
+    let chars = body.chars().collect::<Vec<_>>();
+    let mut start = cursor_index.min(chars.len());
+    while start > 0 && chars[start - 1] != '\n' {
+        start -= 1;
+    }
+    start
+}
+
+fn line_end_index(body: &str, cursor_index: usize) -> usize {
+    let chars = body.chars().collect::<Vec<_>>();
+    let mut end = cursor_index.min(chars.len());
+    while end < chars.len() && chars[end] != '\n' {
+        end += 1;
+    }
+    end
+}
+
+fn vertical_cursor_target(body: &str, cursor_index: usize, delta: isize) -> usize {
+    let chars = body.chars().collect::<Vec<_>>();
+    let cursor = cursor_index.min(chars.len());
+    let line_start = line_start_index(body, cursor);
+    let line_end = line_end_index(body, cursor);
+    let column = cursor.saturating_sub(line_start);
+
+    let target_line_start = if delta < 0 {
+        if line_start == 0 {
+            return cursor;
+        }
+        let prev_end = line_start - 1;
+        let mut prev_start = prev_end;
+        while prev_start > 0 && chars[prev_start - 1] != '\n' {
+            prev_start -= 1;
+        }
+        prev_start
+    } else {
+        if line_end == chars.len() {
+            return cursor;
+        }
+        line_end + 1
+    };
+
+    let mut target_line_end = target_line_start;
+    while target_line_end < chars.len() && chars[target_line_end] != '\n' {
+        target_line_end += 1;
+    }
+    let target_len = target_line_end.saturating_sub(target_line_start);
+    target_line_start + column.min(target_len)
 }

@@ -1604,11 +1604,17 @@ pub(crate) fn regenerate_messages_dat(
 
     let queued_mail = load_mail_queue(dir)?;
     for mail in &queued_mail {
+        let subject = if mail.subject.trim().is_empty() {
+            "No Subject".to_string()
+        } else {
+            mail.subject.trim().to_string()
+        };
         let text = format!(
-            "From {} (game year {}): {}",
+            "From {} (game year {}):\nSubject: {}\n{}",
             empire_label(game_data, mail.sender_empire_id),
             mail.year,
-            mail.body.replace('\n', " "),
+            subject,
+            mail.body.trim(),
         );
         push_routed_message_chunked(
             &mut messages,

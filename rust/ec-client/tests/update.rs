@@ -287,6 +287,19 @@ fn apply_action_queues_composed_message() {
         apply_action(&mut app, Action::SubmitComposeRecipient),
         AppOutcome::Continue
     );
+    assert_eq!(app.current_screen(), ScreenId::ComposeMessageSubject);
+    assert_eq!(
+        apply_action(&mut app, Action::AppendComposeSubjectChar('H')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendComposeSubjectChar('i')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitComposeSubject),
+        AppOutcome::Continue
+    );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageBody);
     assert_eq!(
         apply_action(&mut app, Action::AppendComposeBodyChar('H')),
@@ -297,12 +310,111 @@ fn apply_action_queues_composed_message() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SendComposedMessage),
+        apply_action(&mut app, Action::OpenComposeMessageSendConfirm),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::ComposeMessageSendConfirm);
+    assert_eq!(
+        apply_action(&mut app, Action::ConfirmSendComposedMessage),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageSent);
     let queue = ec_data::load_mail_queue(&fixture_dir).expect("load queued mail");
     assert_eq!(queue.len(), 1);
     assert_eq!(queue[0].recipient_empire_id, 2);
+    assert_eq!(queue[0].subject, "Hi");
     assert_eq!(queue[0].body, "Hi");
+}
+
+#[test]
+fn apply_action_deletes_queued_message_from_outbox() {
+    let fixture_dir = temp_game_copy();
+    ec_data::append_mail_queue(
+        &fixture_dir,
+        &ec_data::QueuedPlayerMail {
+            sender_empire_id: 1,
+            recipient_empire_id: 2,
+            year: 3000,
+            subject: "Test".to_string(),
+            body: "Queued".to_string(),
+        },
+    )
+    .expect("seed queued mail");
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenComposeMessageOutbox),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::ComposeMessageOutbox);
+    assert_eq!(
+        apply_action(&mut app, Action::AppendComposeOutboxChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::DeleteQueuedComposeMessage),
+        AppOutcome::Continue
+    );
+
+    let queue = ec_data::load_mail_queue(&fixture_dir).expect("load queue after delete");
+    assert!(queue.is_empty());
+}
+
+#[test]
+fn apply_action_confirms_before_discarding_composed_message() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenComposeMessageRecipient),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendComposeRecipientChar('2')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitComposeRecipient),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitComposeSubject),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::ComposeMessageBody);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenComposeMessageDiscardConfirm),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::ComposeMessageDiscardConfirm);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenComposeMessageBody),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::ComposeMessageBody);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenComposeMessageDiscardConfirm),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::ConfirmDiscardComposedMessage),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::ComposeMessageRecipient);
 }

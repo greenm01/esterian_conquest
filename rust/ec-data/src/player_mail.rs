@@ -8,6 +8,7 @@ pub struct QueuedPlayerMail {
     pub sender_empire_id: u8,
     pub recipient_empire_id: u8,
     pub year: u16,
+    pub subject: String,
     pub body: String,
 }
 
@@ -23,17 +24,19 @@ pub fn load_mail_queue(dir: &Path) -> Result<Vec<QueuedPlayerMail>, Box<dyn std:
     let text = fs::read_to_string(path)?;
     let mut out = Vec::new();
     for line in text.lines().filter(|line| !line.trim().is_empty()) {
-        let mut parts = line.splitn(4, '\t');
-        let Some(sender) = parts.next() else { continue };
-        let Some(recipient) = parts.next() else {
-            continue;
+        let parts = line.split('\t').collect::<Vec<_>>();
+        let (sender, recipient, year, subject, body) = match parts.as_slice() {
+            [sender, recipient, year, body] => (*sender, *recipient, *year, "", *body),
+            [sender, recipient, year, subject, body] => {
+                (*sender, *recipient, *year, *subject, *body)
+            }
+            _ => continue,
         };
-        let Some(year) = parts.next() else { continue };
-        let Some(body) = parts.next() else { continue };
         out.push(QueuedPlayerMail {
             sender_empire_id: sender.parse()?,
             recipient_empire_id: recipient.parse()?,
             year: year.parse()?,
+            subject: unescape_field(subject),
             body: unescape_field(body),
         });
     }
@@ -44,20 +47,35 @@ pub fn append_mail_queue(
     dir: &Path,
     mail: &QueuedPlayerMail,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let mut queue = load_mail_queue(dir)?;
+    queue.push(mail.clone());
+    save_mail_queue(dir, &queue)
+}
+
+pub fn save_mail_queue(
+    dir: &Path,
+    queue: &[QueuedPlayerMail],
+) -> Result<(), Box<dyn std::error::Error>> {
     let path = queue_path(dir);
-    let mut existing = if path.exists() {
-        fs::read_to_string(&path)?
-    } else {
-        String::new()
-    };
-    existing.push_str(&format!(
-        "{}\t{}\t{}\t{}\n",
-        mail.sender_empire_id,
-        mail.recipient_empire_id,
-        mail.year,
-        escape_field(&mail.body)
-    ));
-    fs::write(path, existing)?;
+    if queue.is_empty() {
+        if path.exists() {
+            fs::remove_file(path)?;
+        }
+        return Ok(());
+    }
+
+    let mut text = String::new();
+    for mail in queue {
+        text.push_str(&format!(
+            "{}\t{}\t{}\t{}\t{}\n",
+            mail.sender_empire_id,
+            mail.recipient_empire_id,
+            mail.year,
+            escape_field(&mail.subject),
+            escape_field(&mail.body)
+        ));
+    }
+    fs::write(path, text)?;
     Ok(())
 }
 

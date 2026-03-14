@@ -24,6 +24,9 @@ pub use enemies::EnemiesScreen;
 pub use general_menu::GeneralMenuScreen;
 pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 pub use main_menu::MainMenuScreen;
+pub(crate) use message_compose::{
+    COMPOSE_BODY_LIMIT, COMPOSE_SUBJECT_LIMIT, OUTBOX_VISIBLE_ROWS, RECIPIENT_VISIBLE_ROWS,
+};
 pub use message_compose::MessageComposeScreen;
 pub use planet_info::{PlanetInfoScreen, parse_planet_coords};
 pub use partial_starmap::PartialStarmapScreen;
@@ -53,7 +56,11 @@ pub enum ScreenId {
     Enemies,
     DeleteReviewables,
     ComposeMessageRecipient,
+    ComposeMessageSubject,
     ComposeMessageBody,
+    ComposeMessageOutbox,
+    ComposeMessageDiscardConfirm,
+    ComposeMessageSendConfirm,
     ComposeMessageSent,
     EmpireStatus,
     EmpireProfile,

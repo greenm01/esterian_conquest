@@ -104,6 +104,7 @@ pub fn draw_command_prompt(
     label: &str,
     keys: &str,
 ) {
+    buffer.fill_row(row, classic::prompt_style());
     let cursor_col = buffer.write_spans(
         row,
         0,
@@ -118,6 +119,7 @@ pub fn draw_command_prompt(
 }
 
 pub fn draw_plain_prompt(buffer: &mut PlayfieldBuffer, row: usize, prompt: &str) -> usize {
+    buffer.fill_row(row, classic::prompt_style());
     let cursor_col = buffer.write_text(row, 0, prompt, classic::prompt_style());
     buffer.set_cursor(cursor_col as u16, row as u16);
     cursor_col
