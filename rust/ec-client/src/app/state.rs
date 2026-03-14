@@ -7,14 +7,16 @@ use ec_data::{
     save_mail_queue,
 };
 
+use crate::app::Action;
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
 use crate::reports::{ReportsPreview, clear_report_files};
 use crate::screen::{
-    DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
+    CommandMenu, DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
     GeneralHelpScreen,
-    GeneralMenuScreen, MainMenuScreen, MessageComposeScreen, PlanetInfoScreen,
-    PartialStarmapScreen, RankingsScreen, RankingsView, ReportsScreen, Screen, ScreenFrame,
-    ScreenId, StartupScreen, StarmapScreen,
+    GeneralMenuScreen, MainMenuScreen, MessageComposeScreen, PlanetHelpScreen, PlanetInfoScreen,
+    PlanetListMode, PlanetListScreen, PlanetListSort, PlanetMenuScreen, PartialStarmapScreen,
+    RankingsScreen, RankingsView, ReportsScreen, Screen, ScreenFrame, ScreenId, StartupScreen,
+    StarmapScreen,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -38,6 +40,9 @@ pub struct App {
     main_menu: MainMenuScreen,
     general_menu: GeneralMenuScreen,
     general_help: GeneralHelpScreen,
+    planet_menu: PlanetMenuScreen,
+    planet_help: PlanetHelpScreen,
+    planet_list: PlanetListScreen,
     starmap: StarmapScreen,
     partial_starmap: PartialStarmapScreen,
     planet_info: PlanetInfoScreen,
@@ -54,6 +59,7 @@ pub struct App {
     partial_starmap_input: String,
     partial_starmap_error: Option<String>,
     partial_starmap_center: [u8; 2],
+    command_return_menu: CommandMenu,
     enemies_input: String,
     enemies_status: Option<String>,
     enemies_scroll_offset: usize,
@@ -71,6 +77,9 @@ pub struct App {
     compose_outbox_status: Option<String>,
     compose_outbox_scroll_offset: usize,
     compose_sent_status: Option<String>,
+    planet_list_sort_status: Option<String>,
+    planet_brief_scroll_offset: usize,
+    planet_detail_index: usize,
     starmap_view_x: usize,
     starmap_view_y: usize,
     starmap_status: Option<String>,
@@ -119,6 +128,9 @@ impl App {
             main_menu: MainMenuScreen::new(),
             general_menu: GeneralMenuScreen::new(),
             general_help: GeneralHelpScreen::new(),
+            planet_menu: PlanetMenuScreen::new(),
+            planet_help: PlanetHelpScreen::new(),
+            planet_list: PlanetListScreen::new(),
             starmap: StarmapScreen::new(),
             partial_starmap: PartialStarmapScreen::new(),
             planet_info: PlanetInfoScreen::new(),
@@ -135,6 +147,7 @@ impl App {
             partial_starmap_input: "8,2".to_string(),
             partial_starmap_error: None,
             partial_starmap_center: [8, 2],
+            command_return_menu: CommandMenu::General,
             enemies_input: String::new(),
             enemies_status: None,
             enemies_scroll_offset: 0,
@@ -152,6 +165,9 @@ impl App {
             compose_outbox_status: None,
             compose_outbox_scroll_offset: 0,
             compose_sent_status: None,
+            planet_list_sort_status: None,
+            planet_brief_scroll_offset: 0,
+            planet_detail_index: 0,
             starmap_view_x: 1,
             starmap_view_y: 1,
             starmap_status: None,
@@ -179,6 +195,21 @@ impl App {
             ScreenId::MainMenu => self.main_menu.render(&frame)?,
             ScreenId::GeneralMenu => self.general_menu.render(&frame)?,
             ScreenId::GeneralHelp => self.general_help.render(&frame)?,
+            ScreenId::PlanetMenu => self.planet_menu.render(&frame)?,
+            ScreenId::PlanetHelp => self.planet_help.render(&frame)?,
+            ScreenId::PlanetListSortPrompt(mode) => self
+                .planet_list
+                .render_sort_prompt(mode, self.planet_list_sort_status.as_deref())?,
+            ScreenId::PlanetBriefList(sort) => self.planet_list.render_brief_list(
+                &self.sorted_planet_rows(sort),
+                sort,
+                self.planet_brief_scroll_offset,
+            )?,
+            ScreenId::PlanetDetailList(sort) => self.planet_list.render_detail(
+                &frame,
+                &self.sorted_planet_rows(sort),
+                self.planet_detail_index,
+            )?,
             ScreenId::Starmap if self.starmap_capture_complete => self.starmap.render_complete()?,
             ScreenId::Starmap if self.starmap_dump_active => self.starmap.render_dump_page(
                 &self.starmap_dump_lines,
@@ -187,7 +218,11 @@ impl App {
             ScreenId::Starmap => self.starmap.render_prompt(self.starmap_status.as_deref())?,
             ScreenId::PartialStarmapPrompt => self
                 .partial_starmap
-                .render_prompt(&self.partial_starmap_input, self.partial_starmap_error.as_deref())?,
+                .render_prompt(
+                    &self.partial_starmap_input,
+                    self.partial_starmap_error.as_deref(),
+                    self.command_return_menu,
+                )?,
             ScreenId::PartialStarmapView => self.partial_starmap.render_view(
                 &frame,
                 &self.database,
@@ -195,10 +230,15 @@ impl App {
             )?,
             ScreenId::PlanetInfoPrompt => self
                 .planet_info
-                .render_prompt(&self.planet_info_input, self.planet_info_error.as_deref())?,
+                .render_prompt(
+                    &self.planet_info_input,
+                    self.planet_info_error.as_deref(),
+                    self.command_return_menu,
+                )?,
             ScreenId::PlanetInfoDetail => self.planet_info.render_detail(
                 &frame,
                 self.planet_info_selected.ok_or("planet info detail not selected")?,
+                self.command_return_menu,
             )?,
             ScreenId::Enemies => self
                 .enemies
@@ -281,12 +321,74 @@ impl App {
         self.current_screen = ScreenId::Startup(next);
     }
 
+    pub fn open_planet_menu(&mut self) {
+        self.command_return_menu = CommandMenu::Planet;
+        self.current_screen = ScreenId::PlanetMenu;
+    }
+
+    pub fn open_planet_help(&mut self) {
+        self.current_screen = ScreenId::PlanetHelp;
+    }
+
+    pub fn open_planet_list_sort_prompt(&mut self, mode: PlanetListMode) {
+        self.planet_list_sort_status = None;
+        self.current_screen = ScreenId::PlanetListSortPrompt(mode);
+    }
+
+    pub fn submit_planet_list_sort(&mut self, mode: PlanetListMode, sort: PlanetListSort) {
+        self.planet_list_sort_status = None;
+        self.planet_brief_scroll_offset = 0;
+        self.planet_detail_index = 0;
+        self.current_screen = match mode {
+            PlanetListMode::Brief => ScreenId::PlanetBriefList(sort),
+            PlanetListMode::Detail => ScreenId::PlanetDetailList(sort),
+            PlanetListMode::Stub(_) => ScreenId::PlanetMenu,
+        };
+    }
+
+    pub fn scroll_planet_brief(&mut self, delta: i8) {
+        let ScreenId::PlanetBriefList(sort) = self.current_screen else {
+            return;
+        };
+        let total = self.sorted_planet_rows(sort).len();
+        let max_offset = total.saturating_sub(crate::screen::PLANET_BRIEF_VISIBLE_ROWS);
+        self.planet_brief_scroll_offset = self
+            .planet_brief_scroll_offset
+            .saturating_add_signed(delta as isize)
+            .min(max_offset);
+    }
+
+    pub fn move_planet_detail(&mut self, delta: i8) {
+        let ScreenId::PlanetDetailList(sort) = self.current_screen else {
+            return;
+        };
+        let total = self.sorted_planet_rows(sort).len();
+        if total == 0 {
+            self.planet_detail_index = 0;
+            return;
+        }
+        self.planet_detail_index = match delta {
+            i8::MIN => 0,
+            i8::MAX => total - 1,
+            _ => self
+                .planet_detail_index
+                .saturating_add_signed(delta as isize)
+                .min(total - 1),
+        };
+    }
+
     pub fn handle_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
         match self.current_screen {
             ScreenId::Startup(phase) => self.startup.handle_key(phase, key),
             ScreenId::MainMenu => self.main_menu.handle_key(key),
             ScreenId::GeneralMenu => self.general_menu.handle_key(key),
             ScreenId::GeneralHelp => self.general_help.handle_key(key),
+            ScreenId::PlanetMenu => self.planet_menu.handle_key(key),
+            ScreenId::PlanetHelp => self.planet_help.handle_key(key),
+            ScreenId::PlanetListSortPrompt(PlanetListMode::Stub(_)) => Action::OpenPlanetMenu,
+            ScreenId::PlanetListSortPrompt(_) => self.planet_list.handle_sort_prompt_key(key),
+            ScreenId::PlanetBriefList(_) => self.planet_list.handle_brief_key(key),
+            ScreenId::PlanetDetailList(_) => self.planet_list.handle_detail_key(key),
             ScreenId::Starmap if self.starmap_capture_complete => {
                 self.starmap.handle_complete_key(key)
             }
@@ -317,7 +419,8 @@ impl App {
         }
     }
 
-    pub fn open_planet_info_prompt(&mut self) {
+    pub fn open_planet_info_prompt(&mut self, menu: CommandMenu) {
+        self.command_return_menu = menu;
         self.planet_info_input = self
             .game_data
             .planets
@@ -425,7 +528,8 @@ impl App {
             .min(max_offset);
     }
 
-    pub fn open_partial_starmap_prompt(&mut self) {
+    pub fn open_partial_starmap_prompt(&mut self, menu: CommandMenu) {
+        self.command_return_menu = menu;
         let default = self
             .game_data
             .planets
@@ -441,6 +545,13 @@ impl App {
         self.partial_starmap_error = None;
         self.partial_starmap_center = default;
         self.current_screen = ScreenId::PartialStarmapPrompt;
+    }
+
+    pub fn return_to_command_menu(&mut self) {
+        self.current_screen = match self.command_return_menu {
+            CommandMenu::General => ScreenId::GeneralMenu,
+            CommandMenu::Planet => ScreenId::PlanetMenu,
+        };
     }
 
     pub fn append_partial_starmap_char(&mut self, ch: char) {
@@ -973,6 +1084,24 @@ impl App {
 
     pub fn enemies_scroll_offset(&self) -> usize {
         self.enemies_scroll_offset
+    }
+
+    fn sorted_planet_rows(&self, sort: PlanetListSort) -> Vec<ec_data::EmpirePlanetEconomyRow> {
+        let mut rows = self
+            .game_data
+            .empire_planet_economy_rows(self.player.record_index_1_based);
+        rows.sort_by(|left, right| match sort {
+            PlanetListSort::CurrentProduction => right
+                .present_production
+                .cmp(&left.present_production)
+                .then_with(|| left.coords.cmp(&right.coords)),
+            PlanetListSort::Location => left.coords.cmp(&right.coords),
+            PlanetListSort::PotentialProduction => right
+                .potential_production
+                .cmp(&left.potential_production)
+                .then_with(|| left.coords.cmp(&right.coords)),
+        });
+        rows
     }
 
     fn compose_outbox_queue(&self) -> Result<Vec<QueuedPlayerMail>, Box<dyn std::error::Error>> {

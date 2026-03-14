@@ -2,7 +2,7 @@ use crossterm::event::KeyEvent;
 
 use crate::app::Action;
 use crate::screen::layout::{draw_command_prompt, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield};
-use crate::screen::{PlayfieldBuffer, ScreenFrame};
+use crate::screen::{CommandMenu, PlayfieldBuffer, ScreenFrame};
 
 pub struct PlanetInfoScreen;
 
@@ -15,6 +15,7 @@ impl PlanetInfoScreen {
         &mut self,
         input: &str,
         error: Option<&str>,
+        menu: CommandMenu,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "INFO ABOUT A PLANET:");
@@ -27,7 +28,7 @@ impl PlanetInfoScreen {
         if let Some(error) = error {
             draw_status_line(&mut buffer, 4, "Error: ", error);
         }
-        draw_command_prompt(&mut buffer, 6, "GENERAL COMMAND", "Q");
+        draw_command_prompt(&mut buffer, 6, command_label(menu), "Q");
         buffer.set_cursor(cursor_col as u16, 2);
         Ok(buffer)
     }
@@ -36,6 +37,7 @@ impl PlanetInfoScreen {
         &mut self,
         frame: &ScreenFrame<'_>,
         planet_idx: usize,
+        menu: CommandMenu,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let planet = frame
             .game_data
@@ -91,7 +93,7 @@ impl PlanetInfoScreen {
             "Starbase in Orbit: ",
             if has_starbase { "YES" } else { "NO" },
         );
-        draw_command_prompt(&mut buffer, 17, "GENERAL COMMAND", "SLAP A KEY");
+        draw_command_prompt(&mut buffer, 17, command_label(menu), "SLAP A KEY");
         Ok(buffer)
     }
 
@@ -100,7 +102,14 @@ impl PlanetInfoScreen {
     }
 
     pub fn handle_detail_key(&self, _key: KeyEvent) -> Action {
-        Action::OpenGeneralMenu
+        Action::ReturnToCommandMenu
+    }
+}
+
+fn command_label(menu: CommandMenu) -> &'static str {
+    match menu {
+        CommandMenu::General => "GENERAL COMMAND",
+        CommandMenu::Planet => "PLANET COMMAND",
     }
 }
 

@@ -1,9 +1,8 @@
 use crossterm::event::KeyEvent;
 
 use crate::app::Action;
-use crate::screen::layout::{draw_command_prompt, draw_title_bar, new_playfield};
+use crate::screen::layout::{draw_help_panel, new_playfield};
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
-use crate::theme::classic;
 
 pub struct GeneralHelpScreen;
 
@@ -35,24 +34,13 @@ impl Screen for GeneralHelpScreen {
         _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, "GENERAL COMMAND HELP:");
-
-        buffer.fill_row(2, classic::help_header_style());
-        buffer.write_text(
-            2,
-            0,
+        draw_help_panel(
+            &mut buffer,
+            "GENERAL COMMAND HELP:",
             "Help - General Command Center command descriptions:",
-            classic::help_header_style(),
+            &HELP_LINES,
+            "GENERAL COMMAND",
         );
-
-        for row in 3..16 {
-            buffer.fill_row(row, classic::help_panel_style());
-        }
-        for (idx, line) in HELP_LINES.iter().enumerate() {
-            buffer.write_text(3 + idx, 0, line, classic::help_panel_style());
-        }
-
-        draw_command_prompt(&mut buffer, 19, "GENERAL COMMAND", "SLAP A KEY");
         Ok(buffer)
     }
 

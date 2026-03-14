@@ -5,7 +5,7 @@ use crate::app::Action;
 use crate::screen::layout::{
     draw_command_prompt, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
 };
-use crate::screen::{PlayfieldBuffer, ScreenFrame, StyledSpan};
+use crate::screen::{CommandMenu, PlayfieldBuffer, ScreenFrame, StyledSpan};
 use crate::theme::classic;
 
 pub struct PartialStarmapScreen;
@@ -19,6 +19,7 @@ impl PartialStarmapScreen {
         &mut self,
         input: &str,
         error: Option<&str>,
+        menu: CommandMenu,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "VIEW PARTIAL STARMAP:");
@@ -27,7 +28,7 @@ impl PartialStarmapScreen {
         if let Some(error) = error {
             draw_status_line(&mut buffer, 4, "Error: ", error);
         }
-        draw_command_prompt(&mut buffer, 6, "GENERAL COMMAND", "Q");
+        draw_command_prompt(&mut buffer, 6, command_label(menu), "Q");
         buffer.set_cursor(cursor_col as u16, 2);
         Ok(buffer)
     }
@@ -138,7 +139,7 @@ impl PartialStarmapScreen {
 
     pub fn handle_prompt_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenGeneralMenu,
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::ReturnToCommandMenu,
             KeyCode::Enter => Action::SubmitPartialStarmapPrompt,
             KeyCode::Backspace => Action::BackspacePartialStarmapInput,
             KeyCode::Char(ch)
@@ -169,9 +170,16 @@ impl PartialStarmapScreen {
             KeyCode::Char('1') => Action::MovePartialStarmap(-1, -1),
             KeyCode::Char('3') => Action::MovePartialStarmap(1, -1),
             KeyCode::Enter | KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
-                Action::OpenGeneralMenu
+                Action::ReturnToCommandMenu
             }
             _ => Action::Noop,
         }
+    }
+}
+
+fn command_label(menu: CommandMenu) -> &'static str {
+    match menu {
+        CommandMenu::General => "GENERAL COMMAND",
+        CommandMenu::Planet => "PLANET COMMAND",
     }
 }

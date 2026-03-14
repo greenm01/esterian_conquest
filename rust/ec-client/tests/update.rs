@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use ec_client::app::{Action, AppConfig, AppOutcome, App, apply_action};
-use ec_client::screen::{RankingsView, ScreenId};
+use ec_client::screen::{CommandMenu, PlanetListMode, PlanetListSort, RankingsView, ScreenId};
 use ec_client::startup::StartupPhase;
 use ec_data::{DiplomaticRelation, EmpireProductionRankingSort};
 
@@ -94,13 +94,52 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::GeneralHelp);
 
     assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetHelp),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetHelp);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::SubmitPlanetListSort(
+                PlanetListMode::Brief,
+                PlanetListSort::CurrentProduction
+            )
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::PlanetBriefList(PlanetListSort::CurrentProduction)
+    );
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::SubmitPlanetListSort(PlanetListMode::Detail, PlanetListSort::Location)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::PlanetDetailList(PlanetListSort::Location)
+    );
+
+    assert_eq!(
         apply_action(&mut app, Action::OpenGeneralMenu),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetInfoPrompt),
+        apply_action(&mut app, Action::OpenPlanetInfoPrompt(CommandMenu::General)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
@@ -114,7 +153,7 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.selected_planet_info(), Some(14));
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPartialStarmapPrompt),
+        apply_action(&mut app, Action::OpenPartialStarmapPrompt(CommandMenu::General)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapPrompt);

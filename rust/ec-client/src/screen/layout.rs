@@ -124,3 +124,25 @@ pub fn draw_plain_prompt(buffer: &mut PlayfieldBuffer, row: usize, prompt: &str)
     buffer.set_cursor(cursor_col as u16, row as u16);
     cursor_col
 }
+
+pub fn draw_help_panel(
+    buffer: &mut PlayfieldBuffer,
+    title: &str,
+    header: &str,
+    lines: &[&str],
+    prompt_label: &str,
+) {
+    draw_title_bar(buffer, 0, title);
+    buffer.fill_row(2, classic::help_header_style());
+    buffer.write_text(2, 0, header, classic::help_header_style());
+    for row in 3..19 {
+        buffer.fill_row(row, classic::help_panel_style());
+    }
+    for (idx, line) in lines.iter().enumerate() {
+        if 3 + idx >= 19 {
+            break;
+        }
+        buffer.write_text(3 + idx, 0, line, classic::help_panel_style());
+    }
+    draw_command_prompt(buffer, 19, prompt_label, "SLAP A KEY");
+}

@@ -4,7 +4,7 @@ use crate::app::Action;
 use crate::screen::layout::{
     CMD_COL_1, CMD_COL_2, CMD_COL_3, MenuEntry, draw_command_center, new_playfield,
 };
-use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
+use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use ec_data::EmpireProductionRankingSort;
 
 pub struct GeneralMenuScreen;
@@ -63,12 +63,16 @@ impl Screen for GeneralMenuScreen {
     fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenGeneralHelp,
-            KeyCode::Char('i') | KeyCode::Char('I') => Action::OpenPlanetInfoPrompt,
+            KeyCode::Char('i') | KeyCode::Char('I') => {
+                Action::OpenPlanetInfoPrompt(CommandMenu::General)
+            }
             KeyCode::Char('a') | KeyCode::Char('A') => Action::ToggleAutopilot,
             KeyCode::Char('c') | KeyCode::Char('C') => Action::OpenComposeMessageRecipient,
             KeyCode::Char('e') | KeyCode::Char('E') => Action::OpenEnemies,
             KeyCode::Char('m') | KeyCode::Char('M') => Action::OpenStarmap,
-            KeyCode::Char('v') | KeyCode::Char('V') => Action::OpenPartialStarmapPrompt,
+            KeyCode::Char('v') | KeyCode::Char('V') => {
+                Action::OpenPartialStarmapPrompt(CommandMenu::General)
+            }
             KeyCode::Char('s') | KeyCode::Char('S') => Action::OpenEmpireStatus,
             KeyCode::Char('p') | KeyCode::Char('P') => Action::OpenEmpireProfile,
             KeyCode::Char('d') | KeyCode::Char('D') => Action::OpenDeleteReviewables,

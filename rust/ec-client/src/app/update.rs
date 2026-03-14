@@ -29,6 +29,26 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             *app.current_screen_mut() = crate::screen::ScreenId::GeneralHelp;
             AppOutcome::Continue
         }
+        Action::OpenPlanetMenu => {
+            app.open_planet_menu();
+            AppOutcome::Continue
+        }
+        Action::OpenPlanetHelp => {
+            app.open_planet_help();
+            AppOutcome::Continue
+        }
+        Action::ReturnToCommandMenu => {
+            app.return_to_command_menu();
+            AppOutcome::Continue
+        }
+        Action::OpenPlanetListSortPrompt(mode) => {
+            app.open_planet_list_sort_prompt(mode);
+            AppOutcome::Continue
+        }
+        Action::SubmitPlanetListSort(mode, sort) => {
+            app.submit_planet_list_sort(mode, sort);
+            AppOutcome::Continue
+        }
         Action::OpenEnemies => {
             app.open_enemies();
             AppOutcome::Continue
@@ -73,6 +93,14 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.scroll_enemies(delta);
             AppOutcome::Continue
         }
+        Action::ScrollPlanetBrief(delta) => {
+            app.scroll_planet_brief(delta);
+            AppOutcome::Continue
+        }
+        Action::MovePlanetDetail(delta) => {
+            app.move_planet_detail(delta);
+            AppOutcome::Continue
+        }
         Action::ScrollComposeRecipients(delta) => {
             app.scroll_compose_recipients(delta);
             AppOutcome::Continue
@@ -93,8 +121,8 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             Ok(()) => AppOutcome::Continue,
             Err(_) => AppOutcome::Continue,
         },
-        Action::OpenPartialStarmapPrompt => {
-            app.open_partial_starmap_prompt();
+        Action::OpenPartialStarmapPrompt(menu) => {
+            app.open_partial_starmap_prompt(menu);
             AppOutcome::Continue
         }
         Action::AppendPartialStarmapChar(ch) => {
@@ -217,8 +245,8 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             Ok(()) => AppOutcome::Continue,
             Err(_) => AppOutcome::Continue,
         },
-        Action::OpenPlanetInfoPrompt => {
-            app.open_planet_info_prompt();
+        Action::OpenPlanetInfoPrompt(menu) => {
+            app.open_planet_info_prompt(menu);
             AppOutcome::Continue
         }
         Action::AppendPlanetInfoChar(ch) => {

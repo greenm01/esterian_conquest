@@ -1,4 +1,5 @@
 use ec_data::EmpireProductionRankingSort;
+use crate::screen::{CommandMenu, PlanetListMode, PlanetListSort};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
@@ -7,8 +8,13 @@ pub enum Action {
     OpenMainMenu,
     OpenGeneralMenu,
     OpenGeneralHelp,
+    OpenPlanetMenu,
+    OpenPlanetHelp,
+    OpenPlanetListSortPrompt(PlanetListMode),
+    SubmitPlanetListSort(PlanetListMode, PlanetListSort),
+    ReturnToCommandMenu,
     OpenStarmap,
-    OpenPartialStarmapPrompt,
+    OpenPartialStarmapPrompt(CommandMenu),
     OpenEnemies,
     OpenDeleteReviewables,
     OpenComposeMessageRecipient,
@@ -22,6 +28,8 @@ pub enum Action {
     ExportStarmap,
     ToggleAutopilot,
     ScrollEnemies(i8),
+    ScrollPlanetBrief(i8),
+    MovePlanetDetail(i8),
     ScrollComposeRecipients(i8),
     ScrollComposeOutbox(i8),
     AppendPartialStarmapChar(char),
@@ -54,7 +62,7 @@ pub enum Action {
     DeleteQueuedComposeMessage,
     ConfirmDiscardComposedMessage,
     ConfirmSendComposedMessage,
-    OpenPlanetInfoPrompt,
+    OpenPlanetInfoPrompt(CommandMenu),
     AppendPlanetInfoChar(char),
     BackspacePlanetInfoInput,
     SubmitPlanetInfoPrompt,

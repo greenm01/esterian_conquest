@@ -47,6 +47,7 @@ impl Screen for MainMenuScreen {
     fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Char('g') | KeyCode::Char('G') => Action::OpenGeneralMenu,
+            KeyCode::Char('p') | KeyCode::Char('P') => Action::OpenPlanetMenu,
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::Quit,
             _ => Action::Noop,
         }

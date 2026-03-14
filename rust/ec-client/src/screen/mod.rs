@@ -8,7 +8,10 @@ mod general_help;
 mod layout;
 mod main_menu;
 mod message_compose;
+mod planet_help;
 mod planet_info;
+mod planet_list;
+mod planet_menu;
 mod partial_starmap;
 mod reports;
 mod rankings;
@@ -30,7 +33,11 @@ pub(crate) use message_compose::{
     COMPOSE_BODY_LIMIT, COMPOSE_SUBJECT_LIMIT, OUTBOX_VISIBLE_ROWS, RECIPIENT_VISIBLE_ROWS,
 };
 pub use message_compose::MessageComposeScreen;
+pub use planet_help::PlanetHelpScreen;
 pub use planet_info::{PlanetInfoScreen, parse_planet_coords};
+pub(crate) use planet_list::PLANET_BRIEF_VISIBLE_ROWS;
+pub use planet_list::{PlanetListMode, PlanetListScreen, PlanetListSort};
+pub use planet_menu::PlanetMenuScreen;
 pub use partial_starmap::PartialStarmapScreen;
 pub use rankings::{RankingsScreen, RankingsView};
 pub use reports::ReportsScreen;
@@ -51,6 +58,11 @@ pub enum ScreenId {
     MainMenu,
     GeneralMenu,
     GeneralHelp,
+    PlanetMenu,
+    PlanetHelp,
+    PlanetListSortPrompt(PlanetListMode),
+    PlanetBriefList(PlanetListSort),
+    PlanetDetailList(PlanetListSort),
     Starmap,
     PartialStarmapPrompt,
     PartialStarmapView,
@@ -69,6 +81,12 @@ pub enum ScreenId {
     EmpireProfile,
     Rankings(RankingsView),
     Reports,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CommandMenu {
+    General,
+    Planet,
 }
 
 pub struct ScreenFrame<'a> {
