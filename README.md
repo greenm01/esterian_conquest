@@ -51,6 +51,9 @@ Default black-box oracle loop for new mechanics:
 - submit one controlled order family or mutate one narrow field family
 - `python3 tools/ecmaint_oracle.py run /tmp/ecmaint-oracle`
 - inspect `.oracle/` snapshots plus the reported `.DAT`/report diff clusters
+- broader compliance sweeps:
+  - `python3 tools/oracle_sweep.py`
+  - `python3 tools/oracle_sweep.py --mode seeded`
 
 Sysop/admin setup surface:
 - `ec-cli sysop new-game <target_dir> [--players <1-25>] [--seed <u64>]`
@@ -67,8 +70,8 @@ declarative KDL config.
 
 Rust-only diplomacy override during maint:
 - if `<game_dir>/diplomacy.kdl` exists, `ec-cli maint-rust` will use it as a
-  temporary declared-enemy source until the original `PLAYER.DAT` diplomacy
-  bytes are mapped
+  temporary declared-enemy source only where the recovered classic
+  `PLAYER.DAT` diplomacy slots do not yet cover the case
 - example file: `rust/ec-data/config/diplomacy.example.kdl`
 
 Best-known local ECGAME launch:

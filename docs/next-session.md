@@ -128,6 +128,7 @@ Success rate: 100.0%
 6. **Oracle validation:**
    ```bash
    python3 tools/oracle_sweep.py
+   python3 tools/oracle_sweep.py --mode seeded
    ```
 
 4. **All 180 tests pass** (175 existing + 5 new builder tests)
@@ -154,6 +155,7 @@ Default harness:
 Oracle sweep for Milestone 3:
 
 - `python3 tools/oracle_sweep.py`
+- `python3 tools/oracle_sweep.py --mode seeded`
 
 ---
 
@@ -169,6 +171,12 @@ What is strong:
 - **100% ECMAINT acceptance rate** on diverse generated gamestates
 - the seeded `sysop new-game --players 4 --seed 1515` path now also survives an
   original `ECMAINT` oracle run with zero file diffs
+- the broader seeded sysop new-game path now also has automated oracle
+  coverage:
+  - `python3 tools/oracle_sweep.py --mode seeded`
+  - `4/9/16/25` players
+  - seeds `1515`, `2025`, `4242`
+  - current result: `12/12` zero-diff ECMAINT oracle passes
 - the KDL-backed `sysop new-game --config rust/ec-data/config/setup.example.kdl`
   path also survives an original `ECMAINT` oracle run with zero file diffs
 - the generated `9`, `16`, and `25` player setup tiers now also survive the
@@ -219,7 +227,8 @@ What is still incomplete:
 - Multi-base starbase configurations (only single-base is fully understood)
 - Variable player_count edge cases (tested but could use more coverage)
 - ECGAME ANSI/startup preservation (useful but not the main blocker)
-- broader oracle sweep coverage of the seeded starmap path across more seeds
+- broader oracle sweep coverage of the seeded starmap path across more seeds is
+  now automated in `tools/oracle_sweep.py --mode seeded`
 - deeper owner-scoped route hazards beyond first-pass `DATABASE.DAT` world intel
 - deeper playtesting/tuning of the new larger-tier starmap generator
 - widening the recovered stored enemy/neutral mapping beyond the first
@@ -308,10 +317,10 @@ ones.
 
 ## Immediate Next Steps
 
-- run the new seeded `sysop new-game` path through the original `ECMAINT`
-  oracle and confirm structural acceptance
-- run a broader seeded oracle sweep for `9/16/25` player setup tiers rather
-  than only single-point validation
+- keep running the new seeded `sysop new-game` path through the original
+  `ECMAINT` oracle as the generator changes
+- extend the seeded oracle sweep over time with additional seeds and setup
+  variants when mapgen/routing changes
 - write and maintain the routing policy in
   [ec-movement-spec.md](/home/mag/dev/esterian_conquest/docs/ec-movement-spec.md)
 - keep route planning explicitly separate from recovered movement execution

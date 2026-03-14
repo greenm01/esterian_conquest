@@ -175,32 +175,37 @@ The setup roadmap is now split differently:
 
 ## Current Generated Path
 
-The Rust sysop path now has a first seeded generator for the current
-compatibility tier:
+The Rust sysop path now has a seeded generator for the documented player
+tiers:
 
-- `ec-cli sysop new-game <target_dir> [--players <1-4>] [--seed <u64>]`
+- `ec-cli sysop new-game <target_dir> [--players <1-25>] [--seed <u64>]`
 - `ec-cli sysop new-game <target_dir> --config rust/ec-data/config/setup.example.kdl`
 
 Current behavior:
 
 - homeworld placement is engine-generated rather than KDL-authored
 - the generated map is seed-reproducible
-- the generator populates exactly `5 * player_count` planets within the current
-  20-record compatibility model
+- the generator populates exactly `5 * player_count` planets for the active
+  player count
 - the generator enforces one planet per system by unique coordinates after
   homeworld placement
 - homeworlds keep the documented fixed starting production of `100`
 - neutral worlds are distributed by a fairness-scored generated map rather than
   by pure random placement
-- for `1..=4` players, the generated map uses the documented `18 x 18` tier as
-  its placement space even though the underlying record model has not yet been
-  widened to the larger manual tiers
+- the data model and generator now cover the documented `4/9/16/25` setup
+  tiers rather than only the old 4-player bridge case
+- the seeded `sysop new-game` path now has broader oracle coverage:
+  - `4/9/16/25` players
+  - seeds `1515`, `2025`, `4242`
+  - `12/12` ECMAINT oracle passes via
+    `python3 tools/oracle_sweep.py --mode seeded`
 
 This is a deliberate bridge:
 
 - more manual-faithful than fixed sysop-authored homeworld coordinates
-- still compatible with the current 4-player / 20-planet Rust data model
-- already accepted by the original `ECMAINT` oracle in a seeded 4-player test
+- still interoperable with the classic `.DAT` compatibility boundary
+- already accepted by the original `ECMAINT` oracle across multiple seeds and
+  all currently supported manual player tiers
 
 ## Non-Goals
 
