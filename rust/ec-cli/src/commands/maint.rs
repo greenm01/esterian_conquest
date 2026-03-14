@@ -372,7 +372,6 @@ fn save_diplomacy_overrides_if_needed(
     let directives = diplomacy_overrides
         .iter()
         .copied()
-        .filter(|directive| directive.from_empire_raw > 4 || directive.to_empire_raw > 4)
         .map(|directive| ec_data::DiplomacyDirective {
             from_empire_raw: directive.from_empire_raw,
             to_empire_raw: directive.to_empire_raw,
