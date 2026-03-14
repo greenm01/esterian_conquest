@@ -1,7 +1,7 @@
 mod common;
 
 use common::{cleanup_dir, copy_fixture_dir, run_ec_cli_in_dir, unique_temp_dir};
-use ec_data::{CoreGameData, DatabaseDat};
+use ec_data::{CoreGameData, DatabaseDat, GameStateBuilder};
 use std::fs;
 
 #[test]
@@ -339,6 +339,75 @@ fn maint_rust_view_world_generates_results_and_database_intel() {
         viewer_record.planet_name_bytes(),
         game_data.planets.records[13].planet_name().as_bytes()
     );
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_refreshes_database_between_turns_for_route_hazards() {
+    let target = unique_temp_dir("ec-cli-maint-rust-routing-refresh");
+
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3000)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let foreign_world = &mut game_data.planets.records[4];
+    foreign_world.set_coords_raw([4, 2]);
+    foreign_world.set_owner_empire_slot_raw(2);
+    foreign_world.set_ownership_status_raw(2);
+    foreign_world.set_planet_name("TargetPrime");
+    foreign_world.set_ground_batteries_raw(3);
+    foreign_world.set_army_count_raw(9);
+
+    let scout = &mut game_data.fleets.records[0];
+    scout.set_current_location_coords_raw([2, 2]);
+    scout.set_standing_order_code_raw(11);
+    scout.set_standing_order_target_coords_raw([4, 2]);
+    scout.set_current_speed(3);
+
+    let mover = &mut game_data.fleets.records[1];
+    mover.set_current_location_coords_raw([0, 2]);
+    mover.set_standing_order_code_raw(1);
+    mover.set_standing_order_target_coords_raw([6, 2]);
+    mover.set_current_speed(3);
+
+    game_data.save(&target).expect("baseline should save");
+
+    let database = DatabaseDat::generate_from_planets_and_year(
+        &game_data
+            .planets
+            .records
+            .iter()
+            .map(|planet| planet.planet_name())
+            .collect::<Vec<_>>(),
+        game_data.conquest.game_year(),
+        game_data.conquest.player_count() as usize,
+        None,
+    );
+    fs::write(target.join("DATABASE.DAT"), database.to_bytes()).expect("DATABASE.DAT should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "2"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Turn 1: year 3001"));
+    assert!(stdout.contains("Turn 2: year 3002"));
+
+    let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
+    let mover_location = game_data.fleets.records[1].current_location_coords_raw();
+    assert_ne!(
+        mover_location,
+        [4, 2],
+        "second-turn routing should avoid the now-known foreign world"
+    );
+
+    let database_bytes = fs::read(target.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+    let viewer_record = database.record(4, 0, game_data.planets.records.len());
+    assert_eq!(viewer_record.planet_name_bytes(), b"TargetPrime");
+    assert_eq!(viewer_record.raw[0x15], 2);
 
     cleanup_dir(&target);
 }

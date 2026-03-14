@@ -154,7 +154,7 @@ fn round_trip_initialized_fleets_dat() {
     assert_eq!(parsed.records[0].standing_order_code_raw(), 5);
     assert_eq!(
         parsed.records[0].standing_order_kind(),
-        FleetStandingOrderKind::GuardBlockadeWorld
+        Order::GuardBlockadeWorld
     );
     assert_eq!(
         parsed.records[0].standing_order_target_coords_raw(),
@@ -178,7 +178,7 @@ fn round_trip_initialized_fleets_dat() {
     assert_eq!(parsed.records[2].standing_order_code_raw(), 5);
     assert_eq!(
         parsed.records[2].standing_order_kind(),
-        FleetStandingOrderKind::GuardBlockadeWorld
+        Order::GuardBlockadeWorld
     );
     assert_eq!(
         parsed.records[2].standing_order_target_coords_raw(),

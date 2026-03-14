@@ -88,13 +88,20 @@ Use shortest-path routing with additive penalties for known danger:
 - enemy-owned solar systems
 - known starbases
 - active blockades
-- recently observed hostile fleet concentrations
-- sectors where hostile contact is likely or confirmed
+- known hostile homeworlds
+
+Do not treat transient deep-space fleet sightings as durable route hazards by
+default. A fleet sighting in open space is perishable intel; by the time the
+moving fleet reaches that sector, the observed force may already be gone.
+Pathfinding should therefore avoid building stable route penalties from open
+space contact reports alone.
 
 Suggested policy:
 
 - hard-avoid hostile systems for civilian or non-combat transit where possible
 - soft-penalize risky sectors for scouts and movement missions
+- ignore transient deep-space sightings unless a later, explicitly documented
+  policy introduces a very short-lived penalty
 - allow direct hostile routing when the target mission is itself hostile:
   - bombard
   - invade
@@ -121,9 +128,10 @@ Threat-aware routing must preserve fog of war.
 - the planner may use:
   - visible world ownership
   - visible starbases
-  - known hostile fleets
   - known blockades
   - stored diplomatic hostility
+- the planner should not treat deep-space fleet sightings as stable hazards by
+  default
 - the planner must not "cheat" by consulting unseen foreign planets, fleets,
   or defenses
 

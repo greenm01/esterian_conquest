@@ -2,8 +2,8 @@ use std::fs;
 use std::path::Path;
 
 use ec_data::{
-    ContactReportSource, CoreGameData, DatabaseDat, MaintenanceEvents, MissionResolutionKind,
-    MissionResolutionOutcome, PlanetDat, ShipLosses,
+    ContactReportSource, CoreGameData, DatabaseDat, MaintenanceEvents, Mission, MissionOutcome,
+    PlanetDat, ShipLosses,
 };
 
 const RESULTS_RECORD_SIZE: usize = 84;
@@ -238,23 +238,23 @@ fn push_results_chunked(data: &mut Vec<u8>, kind: u8, tail: [u8; 8], text: &str)
     }
 }
 
-fn mission_location_phrase(kind: MissionResolutionKind, coords: [u8; 2]) -> String {
+fn mission_location_phrase(kind: Mission, coords: [u8; 2]) -> String {
     let [x, y] = coords;
     match kind {
-        MissionResolutionKind::ScoutSector | MissionResolutionKind::MoveOnly => {
+        Mission::ScoutSector | Mission::MoveOnly => {
             format!("Sector({x},{y})")
         }
         _ => format!("System({x},{y})"),
     }
 }
 
-fn mission_report_label(kind: MissionResolutionKind) -> &'static str {
+fn mission_report_label(kind: Mission) -> &'static str {
     match kind {
-        MissionResolutionKind::GuardStarbase => "Guard Starbase mission report",
-        MissionResolutionKind::JoinAnotherFleet => "Join mission report",
-        MissionResolutionKind::RendezvousSector => "Rendezvous mission report",
-        MissionResolutionKind::GuardBlockadeWorld => "Guard/Blockade World mission report",
-        MissionResolutionKind::ViewWorld => "Viewing mission report",
+        Mission::GuardStarbase => "Guard Starbase mission report",
+        Mission::JoinAnotherFleet => "Join mission report",
+        Mission::RendezvousSector => "Rendezvous mission report",
+        Mission::GuardBlockadeWorld => "Guard/Blockade World mission report",
+        Mission::ViewWorld => "Viewing mission report",
         _ => "Scouting mission report",
     }
 }
@@ -448,7 +448,7 @@ pub(crate) fn regenerate_results_dat(
                 .to_string()
         };
         let text = match (event.kind, event.outcome) {
-            (MissionResolutionKind::InvadeWorld, MissionResolutionOutcome::Succeeded) => format!(
+            (Mission::InvadeWorld, MissionOutcome::Succeeded) => format!(
                 "From your fleet in System({x},{y}): Invasion mission report: Our armies have captured planet \"{}\". Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
                 planet.planet_name(),
                 ship_losses,
@@ -456,21 +456,21 @@ pub(crate) fn regenerate_results_dat(
                 event.defender_battery_losses,
                 event.defender_army_losses,
             ),
-            (MissionResolutionKind::InvadeWorld, MissionResolutionOutcome::Failed) => format!(
+            (Mission::InvadeWorld, MissionOutcome::Failed) => format!(
                 "From your fleet in System({x},{y}): Invasion mission report: The landing was repulsed. Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
                 ship_losses,
                 event.attacker_army_losses,
                 event.defender_battery_losses,
                 event.defender_army_losses,
             ),
-            (MissionResolutionKind::InvadeWorld, MissionResolutionOutcome::Aborted) => format!(
+            (Mission::InvadeWorld, MissionOutcome::Aborted) => format!(
                 "From your fleet in System({x},{y}): Invasion mission report: Enemy ground batteries prevented a landing. Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
                 ship_losses,
                 event.attacker_army_losses,
                 event.defender_battery_losses,
                 event.defender_army_losses,
             ),
-            (MissionResolutionKind::BlitzWorld, MissionResolutionOutcome::Succeeded) => format!(
+            (Mission::BlitzWorld, MissionOutcome::Succeeded) => format!(
                 "From your fleet in System({x},{y}): Blitz mission report: We have seized planet \"{}\" in a fast assault.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
                 planet.planet_name(),
                 blitz_cover_note,
@@ -480,7 +480,7 @@ pub(crate) fn regenerate_results_dat(
                 event.defender_army_losses,
                 transport_note,
             ),
-            (MissionResolutionKind::BlitzWorld, MissionResolutionOutcome::Failed) => format!(
+            (Mission::BlitzWorld, MissionOutcome::Failed) => format!(
                 "From your fleet in System({x},{y}): Blitz mission report: The blitz attack failed.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
                 blitz_cover_note,
                 ship_losses,
@@ -579,7 +579,7 @@ pub(crate) fn regenerate_results_dat(
         }
     }
 
-    for event in &events.mission_resolution_events {
+    for event in &events.mission_events {
         let Some(fleet) = game_data.fleets.records.get(event.fleet_idx) else {
             continue;
         };
@@ -588,20 +588,20 @@ pub(crate) fn regenerate_results_dat(
             .unwrap_or_else(|| fleet.current_location_coords_raw());
         let [x, y] = coords;
         match (event.kind, event.outcome) {
-            (MissionResolutionKind::MoveOnly, MissionResolutionOutcome::Succeeded) => {
+            (Mission::MoveOnly, MissionOutcome::Succeeded) => {
                 let text = format!(
                     "From your fleet in {}: Move mission report: We have arrived at our destination and await new orders.",
                     mission_location_phrase(event.kind, coords)
                 );
                 push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
             }
-            (MissionResolutionKind::RendezvousSector, MissionResolutionOutcome::Succeeded) => {
+            (Mission::RendezvousSector, MissionOutcome::Succeeded) => {
                 let text = format!(
                     "From your fleet in Sector({x},{y}): Rendezvous mission report: We have arrived at the our rendezvous point and are waiting for more fleets to arrive."
                 );
                 push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
             }
-            (MissionResolutionKind::GuardStarbase, MissionResolutionOutcome::Succeeded) => {
+            (Mission::GuardStarbase, MissionOutcome::Succeeded) => {
                 let starbase_text = game_data
                     .bases
                     .records
@@ -618,7 +618,7 @@ pub(crate) fn regenerate_results_dat(
                 );
                 push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
             }
-            (MissionResolutionKind::GuardBlockadeWorld, MissionResolutionOutcome::Succeeded) => {
+            (Mission::GuardBlockadeWorld, MissionOutcome::Succeeded) => {
                 let text = if let Some(planet_idx) = event.planet_idx {
                     if let Some(planet) = game_data.planets.records.get(planet_idx) {
                         format!(
@@ -637,7 +637,7 @@ pub(crate) fn regenerate_results_dat(
                 };
                 push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
             }
-            (MissionResolutionKind::MoveOnly, MissionResolutionOutcome::Aborted) => {
+            (Mission::MoveOnly, MissionOutcome::Aborted) => {
                 let destination = fleet.standing_order_target_coords_raw();
                 let [dx, dy] = destination;
                 let text = format!(
@@ -646,7 +646,7 @@ pub(crate) fn regenerate_results_dat(
                 );
                 push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
             }
-            (MissionResolutionKind::ViewWorld, MissionResolutionOutcome::Succeeded) => {
+            (Mission::ViewWorld, MissionOutcome::Succeeded) => {
                 let text = if let Some(planet_idx) = event.planet_idx {
                     if let Some(planet) = game_data.planets.records.get(planet_idx) {
                         let ownership = if planet.owner_empire_slot_raw() == 0 {
@@ -675,13 +675,13 @@ pub(crate) fn regenerate_results_dat(
                 };
                 push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
             }
-            (MissionResolutionKind::ViewWorld, MissionResolutionOutcome::Failed) => {
+            (Mission::ViewWorld, MissionOutcome::Failed) => {
                 let text = format!(
                     "From your fleet in System({x},{y}): Viewing mission report: We found no world to analyze at the assigned destination."
                 );
                 push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
             }
-            (MissionResolutionKind::ViewWorld, MissionResolutionOutcome::Aborted) => {
+            (Mission::ViewWorld, MissionOutcome::Aborted) => {
                 let retreat = event
                     .target_coords
                     .map(|coords| {
@@ -693,7 +693,7 @@ pub(crate) fn regenerate_results_dat(
                 );
                 push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
             }
-            (MissionResolutionKind::BombardWorld, MissionResolutionOutcome::Succeeded) => {
+            (Mission::BombardWorld, MissionOutcome::Succeeded) => {
                 let bombard_event = events.bombard_events.iter().find(|bombard| {
                     bombard.planet_idx == event.planet_idx.unwrap_or(usize::MAX)
                         && bombard.attacker_empire_raw == event.owner_empire_raw
@@ -723,14 +723,14 @@ pub(crate) fn regenerate_results_dat(
                 };
                 push_results_chunked(&mut results, 0x08, RESULTS_TAIL_BOMBARD, &text);
             }
-            (MissionResolutionKind::InvadeWorld, _) | (MissionResolutionKind::BlitzWorld, _) => {}
-            (MissionResolutionKind::ScoutSector, MissionResolutionOutcome::Succeeded) => {
+            (Mission::InvadeWorld, _) | (Mission::BlitzWorld, _) => {}
+            (Mission::ScoutSector, MissionOutcome::Succeeded) => {
                 let text = format!(
                     "From your fleet in Sector({x},{y}): Scouting mission report: We have arrived at our destination and are beginning to scout this sector."
                 );
                 push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
             }
-            (MissionResolutionKind::ScoutSector, MissionResolutionOutcome::Aborted) => {
+            (Mission::ScoutSector, MissionOutcome::Aborted) => {
                 let retreat = event
                     .target_coords
                     .map(|coords| {
@@ -742,7 +742,7 @@ pub(crate) fn regenerate_results_dat(
                 );
                 push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
             }
-            (MissionResolutionKind::ScoutSolarSystem, MissionResolutionOutcome::Succeeded) => {
+            (Mission::ScoutSolarSystem, MissionOutcome::Succeeded) => {
                 let text = if let Some(planet) = game_data
                     .planets
                     .records
@@ -777,7 +777,7 @@ pub(crate) fn regenerate_results_dat(
                 };
                 push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &text);
             }
-            (MissionResolutionKind::ScoutSolarSystem, MissionResolutionOutcome::Aborted) => {
+            (Mission::ScoutSolarSystem, MissionOutcome::Aborted) => {
                 let retreat = event
                     .target_coords
                     .map(|coords| {
@@ -796,15 +796,15 @@ pub(crate) fn regenerate_results_dat(
     for event in &events.fleet_merge_events {
         let [x, y] = event.coords;
         let text = match event.kind {
-            MissionResolutionKind::JoinAnotherFleet => format!(
+            Mission::JoinAnotherFleet => format!(
                 "From your fleet in System({x},{y}): Join mission report: We have joined the {}th Fleet and are now merging with them.",
                 event.host_fleet_id
             ),
-            MissionResolutionKind::RendezvousSector if event.survivor_side => format!(
+            Mission::RendezvousSector if event.survivor_side => format!(
                 "From your fleet in Sector({x},{y}): Rendezvous mission report: We have arrived at the our rendezvous point and are absorbing the {}th Fleet.",
                 event.absorbed_fleet_id
             ),
-            MissionResolutionKind::RendezvousSector => format!(
+            Mission::RendezvousSector => format!(
                 "From your fleet in Sector({x},{y}): Rendezvous mission report: We have arrived at the our rendezvous point and are merging with the {}th Fleet.",
                 event.host_fleet_id
             ),

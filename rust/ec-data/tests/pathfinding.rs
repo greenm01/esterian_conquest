@@ -1,5 +1,5 @@
 use ec_data::{
-    DatabaseDat, GameStateBuilder, VisibleHazardIntel, plan_route, plan_route_with_intel,
+    DatabaseDat, GameStateBuilder, Order, VisibleHazardIntel, plan_route, plan_route_with_intel,
     run_maintenance_turn, run_maintenance_turn_with_visible_hazards,
     visible_hazard_intel_from_database,
 };
@@ -14,7 +14,7 @@ fn pathfinder_prefers_direct_route_when_space_is_safe() {
 
     let fleet = &mut game_data.fleets.records[0];
     fleet.set_current_location_coords_raw([2, 2]);
-    fleet.set_standing_order_code_raw(1);
+    fleet.set_standing_order_kind(Order::MoveOnly);
     fleet.set_standing_order_target_coords_raw([6, 2]);
     fleet.set_current_speed(3);
 
@@ -34,7 +34,7 @@ fn pathfinder_avoids_foreign_guarded_system_when_alternate_route_exists() {
 
     let fleet = &mut game_data.fleets.records[0];
     fleet.set_current_location_coords_raw([2, 2]);
-    fleet.set_standing_order_code_raw(1);
+    fleet.set_standing_order_kind(Order::MoveOnly);
     fleet.set_standing_order_target_coords_raw([6, 2]);
     fleet.set_current_speed(3);
 
@@ -56,7 +56,7 @@ fn maintenance_preserves_fog_of_war_and_uses_direct_route_without_visible_intel(
 
     let fleet = &mut game_data.fleets.records[0];
     fleet.set_current_location_coords_raw([2, 2]);
-    fleet.set_standing_order_code_raw(1);
+    fleet.set_standing_order_kind(Order::MoveOnly);
     fleet.set_standing_order_target_coords_raw([6, 2]);
     fleet.set_current_speed(3);
 
@@ -102,7 +102,7 @@ fn maintenance_avoids_known_foreign_world_when_visible_hazard_intel_is_supplied(
 
     let fleet = &mut game_data.fleets.records[0];
     fleet.set_current_location_coords_raw([2, 2]);
-    fleet.set_standing_order_code_raw(1);
+    fleet.set_standing_order_kind(Order::MoveOnly);
     fleet.set_standing_order_target_coords_raw([6, 2]);
     fleet.set_current_speed(3);
 

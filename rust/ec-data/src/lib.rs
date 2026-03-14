@@ -31,9 +31,9 @@ pub use directory::{
 };
 pub use maint::{
     BombardEvent, ColonizationResolvedEvent, ContactReportSource, FleetBattleEvent,
-    FleetDestroyedEvent, FleetMergeEvent, JoinMissionHostEvent, MaintenanceEvents,
-    MissionResolutionEvent, MissionResolutionKind, MissionResolutionOutcome, PlanetIntelEvent,
-    PlanetOwnershipChangeEvent, ScoutContactEvent, ShipLosses, StarbaseDestroyedEvent,
+    FleetDestroyedEvent, FleetMergeEvent, JoinMissionHostEvent, MaintenanceEvents, Mission,
+    MissionEvent, MissionOutcome, PlanetIntelEvent, PlanetOwnershipChangeEvent, ScoutContactEvent,
+    ShipLosses, StarbaseDestroyedEvent,
     run_maintenance_turn, run_maintenance_turn_with_visible_hazards, run_maintenance_turns,
 };
 pub use mapgen::{
@@ -46,7 +46,7 @@ pub use pathfinding::{
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;
 pub use records::database::{DatabaseDat, DatabaseRecord};
-pub use records::fleet::{FleetDat, FleetRecord, FleetStandingOrderKind};
+pub use records::fleet::{FleetDat, FleetRecord, Order};
 pub use records::ipbm::{IpbmDat, IpbmRecord};
 pub use records::planet::{PlanetDat, PlanetRecord};
 pub use records::player::{PlayerDat, PlayerRecord};

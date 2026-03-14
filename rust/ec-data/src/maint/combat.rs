@@ -8,12 +8,12 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use crate::{CoreGameData, FleetStandingOrderKind};
+use crate::{CoreGameData, Order};
 
 use super::{
     AssaultReportEvent, BombardEvent, ContactReportSource, FleetBattleEvent, FleetDestroyedEvent,
-    MissionResolutionEvent, MissionResolutionKind, MissionResolutionOutcome, PlanetIntelEvent,
-    PlanetOwnershipChangeEvent, ScoutContactEvent, ShipLosses, StarbaseDestroyedEvent,
+    Mission, MissionEvent, MissionOutcome, PlanetIntelEvent, PlanetOwnershipChangeEvent,
+    ScoutContactEvent, ShipLosses, StarbaseDestroyedEvent,
 };
 
 const IDX_DD: usize = 0;
@@ -245,9 +245,7 @@ fn task_force_role(
     let guarding = fleet_indices.iter().any(|&idx| {
         matches!(
             game_data.fleets.records[idx].standing_order_kind(),
-            FleetStandingOrderKind::PatrolSector
-                | FleetStandingOrderKind::GuardStarbase
-                | FleetStandingOrderKind::GuardBlockadeWorld
+            Order::PatrolSector | Order::GuardStarbase | Order::GuardBlockadeWorld
         )
     });
     if guarding {
@@ -675,7 +673,7 @@ pub(crate) fn process_fleet_battles(
             }
         }
 
-        let pre_retreat_orders: HashMap<usize, FleetStandingOrderKind> = task_forces
+        let pre_retreat_orders: HashMap<usize, Order> = task_forces
             .iter()
             .flat_map(|tf| tf.fleet_indices.iter().copied())
             .map(|idx| (idx, game_data.fleets.records[idx].standing_order_kind()))
@@ -690,12 +688,12 @@ pub(crate) fn process_fleet_battles(
                     {
                         let fleet = &game_data.fleets.records[idx];
                         events
-                            .mission_resolution_events
-                            .push(MissionResolutionEvent {
+                            .mission_events
+                            .push(MissionEvent {
                                 fleet_idx: idx,
                                 owner_empire_raw: fleet.owner_empire_raw(),
                                 kind,
-                                outcome: MissionResolutionOutcome::Aborted,
+                                outcome: MissionOutcome::Aborted,
                                 planet_idx: None,
                                 location_coords: Some(coords),
                                 target_coords: Some(fleet.standing_order_target_coords_raw()),
@@ -804,30 +802,28 @@ pub(crate) struct FleetBattlePhaseEvents {
     pub fleet_destroyed_events: Vec<FleetDestroyedEvent>,
     pub starbase_destroyed_events: Vec<StarbaseDestroyedEvent>,
     pub scout_contact_events: Vec<ScoutContactEvent>,
-    pub mission_resolution_events: Vec<MissionResolutionEvent>,
+    pub mission_events: Vec<MissionEvent>,
 }
 
-fn mission_kind_for_order(order: Option<FleetStandingOrderKind>) -> Option<MissionResolutionKind> {
+fn mission_kind_for_order(order: Option<Order>) -> Option<Mission> {
     match order? {
-        FleetStandingOrderKind::MoveOnly => Some(MissionResolutionKind::MoveOnly),
-        FleetStandingOrderKind::ViewWorld => Some(MissionResolutionKind::ViewWorld),
-        FleetStandingOrderKind::GuardStarbase => Some(MissionResolutionKind::GuardStarbase),
-        FleetStandingOrderKind::ScoutSector => Some(MissionResolutionKind::ScoutSector),
-        FleetStandingOrderKind::ScoutSolarSystem => Some(MissionResolutionKind::ScoutSolarSystem),
+        Order::MoveOnly => Some(Mission::MoveOnly),
+        Order::ViewWorld => Some(Mission::ViewWorld),
+        Order::GuardStarbase => Some(Mission::GuardStarbase),
+        Order::ScoutSector => Some(Mission::ScoutSector),
+        Order::ScoutSolarSystem => Some(Mission::ScoutSolarSystem),
         _ => None,
     }
 }
 
-fn contact_reporting_kind(order: FleetStandingOrderKind) -> Option<MissionResolutionKind> {
+fn contact_reporting_kind(order: Order) -> Option<Mission> {
     match order {
-        FleetStandingOrderKind::ScoutSector => Some(MissionResolutionKind::ScoutSector),
-        FleetStandingOrderKind::ScoutSolarSystem => Some(MissionResolutionKind::ScoutSolarSystem),
-        FleetStandingOrderKind::GuardStarbase => Some(MissionResolutionKind::GuardStarbase),
-        FleetStandingOrderKind::JoinAnotherFleet => Some(MissionResolutionKind::JoinAnotherFleet),
-        FleetStandingOrderKind::RendezvousSector => Some(MissionResolutionKind::RendezvousSector),
-        FleetStandingOrderKind::GuardBlockadeWorld => {
-            Some(MissionResolutionKind::GuardBlockadeWorld)
-        }
+        Order::ScoutSector => Some(Mission::ScoutSector),
+        Order::ScoutSolarSystem => Some(Mission::ScoutSolarSystem),
+        Order::GuardStarbase => Some(Mission::GuardStarbase),
+        Order::JoinAnotherFleet => Some(Mission::JoinAnotherFleet),
+        Order::RendezvousSector => Some(Mission::RendezvousSector),
+        Order::GuardBlockadeWorld => Some(Mission::GuardBlockadeWorld),
         _ => None,
     }
 }
@@ -846,7 +842,7 @@ pub(crate) struct AssaultEvents {
     pub assault_report_events: Vec<AssaultReportEvent>,
     pub planet_intel_events: Vec<PlanetIntelEvent>,
     pub ownership_change_events: Vec<PlanetOwnershipChangeEvent>,
-    pub mission_resolution_events: Vec<MissionResolutionEvent>,
+    pub mission_events: Vec<MissionEvent>,
 }
 
 fn push_planet_intel(events: &mut AssaultEvents, planet_idx: usize, viewer_empire_raw: u8) {
@@ -864,13 +860,13 @@ fn mission_kind_for_fleet(
     bombard_set: &HashSet<usize>,
     invade_set: &HashSet<usize>,
     blitz_set: &HashSet<usize>,
-) -> Option<MissionResolutionKind> {
+) -> Option<Mission> {
     if blitz_set.contains(&fleet) {
-        Some(MissionResolutionKind::BlitzWorld)
+        Some(Mission::BlitzWorld)
     } else if invade_set.contains(&fleet) {
-        Some(MissionResolutionKind::InvadeWorld)
+        Some(Mission::InvadeWorld)
     } else if bombard_set.contains(&fleet) {
-        Some(MissionResolutionKind::BombardWorld)
+        Some(Mission::BombardWorld)
     } else {
         None
     }
@@ -956,7 +952,7 @@ fn select_orbital_supremacy_empire(
             let state = fleet_state_from_records(game_data, fleet_indices, starbases);
             let retreating = fleet_indices.iter().all(|&idx| {
                 game_data.fleets.records[idx].standing_order_kind()
-                    == FleetStandingOrderKind::SeekHome
+                    == Order::SeekHome
                     && game_data.fleets.records[idx].current_speed() > 0
             });
             (empire, state.total_combat_as(), retreating)
@@ -1034,12 +1030,12 @@ pub(crate) fn process_planetary_assaults(
                         mission_kind_for_fleet(fleet_idx, &bombard_set, &invade_set, &blitz_set)
                     {
                         events
-                            .mission_resolution_events
-                            .push(MissionResolutionEvent {
+                            .mission_events
+                            .push(MissionEvent {
                                 fleet_idx,
                                 owner_empire_raw: *empire,
                                 kind,
-                                outcome: MissionResolutionOutcome::Aborted,
+                                outcome: MissionOutcome::Aborted,
                                 planet_idx: Some(planet_idx),
                                 location_coords: Some(
                                     game_data.planets.records[planet_idx].coords_raw(),
@@ -1113,12 +1109,12 @@ pub(crate) fn process_planetary_assaults(
                 for &fleet_idx in &winner_fleets {
                     if bombard_set.contains(&fleet_idx) {
                         events
-                            .mission_resolution_events
-                            .push(MissionResolutionEvent {
+                            .mission_events
+                            .push(MissionEvent {
                                 fleet_idx,
                                 owner_empire_raw: winner_empire,
-                                kind: MissionResolutionKind::BombardWorld,
-                                outcome: MissionResolutionOutcome::Succeeded,
+                                kind: Mission::BombardWorld,
+                                outcome: MissionOutcome::Succeeded,
                                 planet_idx: Some(planet_idx),
                                 location_coords: Some(
                                     game_data.planets.records[planet_idx].coords_raw(),
@@ -1223,12 +1219,12 @@ pub(crate) fn process_planetary_assaults(
                         for &fleet_idx in &winner_fleets {
                             if invade_set.contains(&fleet_idx) {
                                 events
-                                    .mission_resolution_events
-                                    .push(MissionResolutionEvent {
+                                    .mission_events
+                                    .push(MissionEvent {
                                         fleet_idx,
                                         owner_empire_raw: winner_empire,
-                                        kind: MissionResolutionKind::InvadeWorld,
-                                        outcome: MissionResolutionOutcome::Succeeded,
+                                        kind: Mission::InvadeWorld,
+                                        outcome: MissionOutcome::Succeeded,
                                         planet_idx: Some(planet_idx),
                                         location_coords: Some(
                                             game_data.planets.records[planet_idx].coords_raw(),
@@ -1240,7 +1236,7 @@ pub(crate) fn process_planetary_assaults(
                             }
                         }
                         events.assault_report_events.push(AssaultReportEvent {
-                            kind: MissionResolutionKind::InvadeWorld,
+                            kind: Mission::InvadeWorld,
                             planet_idx,
                             attacker_empire_raw: winner_empire,
                             attacker_ship_losses: ship_losses_from_states(&before, &after),
@@ -1249,7 +1245,7 @@ pub(crate) fn process_planetary_assaults(
                             transport_army_losses: 0,
                             defender_battery_losses,
                             defender_army_losses,
-                            outcome: MissionResolutionOutcome::Succeeded,
+                            outcome: MissionOutcome::Succeeded,
                         });
                     } else {
                         game_data.planets.records[planet_idx]
@@ -1257,12 +1253,12 @@ pub(crate) fn process_planetary_assaults(
                         for &fleet_idx in &winner_fleets {
                             if invade_set.contains(&fleet_idx) {
                                 events
-                                    .mission_resolution_events
-                                    .push(MissionResolutionEvent {
+                                    .mission_events
+                                    .push(MissionEvent {
                                         fleet_idx,
                                         owner_empire_raw: winner_empire,
-                                        kind: MissionResolutionKind::InvadeWorld,
-                                        outcome: MissionResolutionOutcome::Failed,
+                                        kind: Mission::InvadeWorld,
+                                        outcome: MissionOutcome::Failed,
                                         planet_idx: Some(planet_idx),
                                         location_coords: Some(
                                             game_data.planets.records[planet_idx].coords_raw(),
@@ -1274,7 +1270,7 @@ pub(crate) fn process_planetary_assaults(
                             }
                         }
                         events.assault_report_events.push(AssaultReportEvent {
-                            kind: MissionResolutionKind::InvadeWorld,
+                            kind: Mission::InvadeWorld,
                             planet_idx,
                             attacker_empire_raw: winner_empire,
                             attacker_ship_losses: ship_losses_from_states(&before, &after),
@@ -1282,7 +1278,7 @@ pub(crate) fn process_planetary_assaults(
                             transport_army_losses: 0,
                             defender_battery_losses,
                             defender_army_losses,
-                            outcome: MissionResolutionOutcome::Failed,
+                            outcome: MissionOutcome::Failed,
                         });
                     }
                 } else {
@@ -1292,12 +1288,12 @@ pub(crate) fn process_planetary_assaults(
                     for &fleet_idx in &winner_fleets {
                         if invade_set.contains(&fleet_idx) {
                             events
-                                .mission_resolution_events
-                                .push(MissionResolutionEvent {
+                                .mission_events
+                                .push(MissionEvent {
                                     fleet_idx,
                                     owner_empire_raw: winner_empire,
-                                    kind: MissionResolutionKind::InvadeWorld,
-                                    outcome: MissionResolutionOutcome::Aborted,
+                                    kind: Mission::InvadeWorld,
+                                    outcome: MissionOutcome::Aborted,
                                     planet_idx: Some(planet_idx),
                                     location_coords: Some(
                                         game_data.planets.records[planet_idx].coords_raw(),
@@ -1309,7 +1305,7 @@ pub(crate) fn process_planetary_assaults(
                         }
                     }
                     events.assault_report_events.push(AssaultReportEvent {
-                        kind: MissionResolutionKind::InvadeWorld,
+                        kind: Mission::InvadeWorld,
                         planet_idx,
                         attacker_empire_raw: winner_empire,
                         attacker_ship_losses: ship_losses_from_states(&before, &after),
@@ -1319,7 +1315,7 @@ pub(crate) fn process_planetary_assaults(
                             game_data.planets.records[planet_idx].ground_batteries_raw(),
                         ),
                         defender_army_losses: 0,
-                        outcome: MissionResolutionOutcome::Aborted,
+                        outcome: MissionOutcome::Aborted,
                     });
                 }
 
@@ -1414,12 +1410,12 @@ pub(crate) fn process_planetary_assaults(
                     for &fleet_idx in &winner_fleets {
                         if blitz_set.contains(&fleet_idx) {
                             events
-                                .mission_resolution_events
-                                .push(MissionResolutionEvent {
+                                .mission_events
+                                .push(MissionEvent {
                                     fleet_idx,
                                     owner_empire_raw: winner_empire,
-                                    kind: MissionResolutionKind::BlitzWorld,
-                                    outcome: MissionResolutionOutcome::Succeeded,
+                                    kind: Mission::BlitzWorld,
+                                    outcome: MissionOutcome::Succeeded,
                                     planet_idx: Some(planet_idx),
                                     location_coords: Some(
                                         game_data.planets.records[planet_idx].coords_raw(),
@@ -1431,7 +1427,7 @@ pub(crate) fn process_planetary_assaults(
                         }
                     }
                     events.assault_report_events.push(AssaultReportEvent {
-                        kind: MissionResolutionKind::BlitzWorld,
+                        kind: Mission::BlitzWorld,
                         planet_idx,
                         attacker_empire_raw: winner_empire,
                         attacker_ship_losses: ship_losses,
@@ -1439,7 +1435,7 @@ pub(crate) fn process_planetary_assaults(
                         transport_army_losses: ship_losses.transports,
                         defender_battery_losses,
                         defender_army_losses,
-                        outcome: MissionResolutionOutcome::Succeeded,
+                        outcome: MissionOutcome::Succeeded,
                     });
                 } else {
                     game_data.planets.records[planet_idx]
@@ -1447,12 +1443,12 @@ pub(crate) fn process_planetary_assaults(
                     for &fleet_idx in &winner_fleets {
                         if blitz_set.contains(&fleet_idx) {
                             events
-                                .mission_resolution_events
-                                .push(MissionResolutionEvent {
+                                .mission_events
+                                .push(MissionEvent {
                                     fleet_idx,
                                     owner_empire_raw: winner_empire,
-                                    kind: MissionResolutionKind::BlitzWorld,
-                                    outcome: MissionResolutionOutcome::Failed,
+                                    kind: Mission::BlitzWorld,
+                                    outcome: MissionOutcome::Failed,
                                     planet_idx: Some(planet_idx),
                                     location_coords: Some(
                                         game_data.planets.records[planet_idx].coords_raw(),
@@ -1464,7 +1460,7 @@ pub(crate) fn process_planetary_assaults(
                         }
                     }
                     events.assault_report_events.push(AssaultReportEvent {
-                        kind: MissionResolutionKind::BlitzWorld,
+                        kind: Mission::BlitzWorld,
                         planet_idx,
                         attacker_empire_raw: winner_empire,
                         attacker_ship_losses: ship_losses,
@@ -1472,7 +1468,7 @@ pub(crate) fn process_planetary_assaults(
                         transport_army_losses: ship_losses.transports,
                         defender_battery_losses,
                         defender_army_losses,
-                        outcome: MissionResolutionOutcome::Failed,
+                        outcome: MissionOutcome::Failed,
                     });
                 }
 

@@ -21,7 +21,7 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
     // Load the game state
     let mut game_data = CoreGameData::load(dir)?;
     let start_year = game_data.conquest.game_year();
-    let database = load_database_dat_if_present(dir)?;
+    let mut database = load_database_dat_if_present(dir)?;
 
     // Save a snapshot of the pre-maint planets so we can inspect build queues later.
     // DATABASE.DAT regeneration needs to know which planets had active builds
@@ -69,9 +69,13 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
         all_events
             .colonization_events
             .extend(events.colonization_events);
-        all_events
-            .mission_resolution_events
-            .extend(events.mission_resolution_events);
+        all_events.mission_events.extend(events.mission_events);
+
+        if database.is_some() {
+            regenerate_database_dat(dir, &game_data, &pre_maint_planets, &all_events)?;
+            database = load_database_dat_if_present(dir)?;
+        }
+
         println!("  Turn {}: year {}", turn, game_data.conquest.game_year());
     }
 

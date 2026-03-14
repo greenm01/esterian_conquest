@@ -4,8 +4,7 @@
 //! behavior on the fleet-scenario fixture pair.
 
 use ec_data::{
-    ColonizationResolvedEvent, CoreGameData, FleetStandingOrderKind, MissionResolutionKind,
-    MissionResolutionOutcome, run_maintenance_turn,
+    ColonizationResolvedEvent, CoreGameData, Mission, MissionOutcome, Order, run_maintenance_turn,
 };
 use std::path::Path;
 
@@ -162,10 +161,10 @@ fn test_colonization_emits_success_event() {
             colonizer_empire_raw: 1,
         }
     );
-    assert!(events.mission_resolution_events.iter().any(|event| {
+    assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 0
-            && event.kind == MissionResolutionKind::ColonizeWorld
-            && event.outcome == MissionResolutionOutcome::Succeeded
+            && event.kind == Mission::ColonizeWorld
+            && event.outcome == MissionOutcome::Succeeded
             && event.planet_idx == Some(13)
     }));
 }
@@ -191,10 +190,10 @@ fn test_colonization_emits_blocked_event_for_occupied_world() {
             owner_empire_raw: 2,
         }
     );
-    assert!(events.mission_resolution_events.iter().any(|event| {
+    assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 0
-            && event.kind == MissionResolutionKind::ColonizeWorld
-            && event.outcome == MissionResolutionOutcome::Failed
+            && event.kind == Mission::ColonizeWorld
+            && event.outcome == MissionOutcome::Failed
             && event.planet_idx == Some(13)
     }));
     let target = &game_data.planets.records[13];
@@ -214,15 +213,15 @@ fn test_scout_sector_arrival_emits_success_event() {
     let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
 
     assert!(events.colonization_events.is_empty());
-    assert!(events.mission_resolution_events.iter().any(|event| {
+    assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 0
-            && event.kind == MissionResolutionKind::ScoutSector
-            && event.outcome == MissionResolutionOutcome::Succeeded
+            && event.kind == Mission::ScoutSector
+            && event.outcome == MissionOutcome::Succeeded
             && event.planet_idx.is_none()
     }));
     assert_eq!(
         game_data.fleets.records[0].standing_order_kind(),
-        FleetStandingOrderKind::HoldPosition
+        Order::HoldPosition
     );
     assert_eq!(game_data.fleets.records[0].current_speed(), 0);
 }
@@ -242,10 +241,10 @@ fn test_scout_system_arrival_emits_success_event() {
     assert_eq!(events.planet_intel_events.len(), 1);
     assert_eq!(events.planet_intel_events[0].planet_idx, 13);
     assert_eq!(events.planet_intel_events[0].viewer_empire_raw, 1);
-    assert!(events.mission_resolution_events.iter().any(|event| {
+    assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 0
-            && event.kind == MissionResolutionKind::ScoutSolarSystem
-            && event.outcome == MissionResolutionOutcome::Succeeded
+            && event.kind == Mission::ScoutSolarSystem
+            && event.outcome == MissionOutcome::Succeeded
             && event.planet_idx.is_none()
     }));
     assert_eq!(
@@ -269,10 +268,10 @@ fn test_view_world_arrival_emits_success_and_intel_event() {
     assert_eq!(events.planet_intel_events.len(), 1);
     assert_eq!(events.planet_intel_events[0].planet_idx, 13);
     assert_eq!(events.planet_intel_events[0].viewer_empire_raw, 1);
-    assert!(events.mission_resolution_events.iter().any(|event| {
+    assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 0
-            && event.kind == MissionResolutionKind::ViewWorld
-            && event.outcome == MissionResolutionOutcome::Succeeded
+            && event.kind == Mission::ViewWorld
+            && event.outcome == MissionOutcome::Succeeded
             && event.planet_idx == Some(13)
     }));
 }
@@ -286,10 +285,10 @@ fn test_rendezvous_arrival_emits_waiting_event() {
 
     let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
 
-    assert!(events.mission_resolution_events.iter().any(|event| {
+    assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 0
-            && event.kind == MissionResolutionKind::RendezvousSector
-            && event.outcome == MissionResolutionOutcome::Succeeded
+            && event.kind == Mission::RendezvousSector
+            && event.outcome == MissionOutcome::Succeeded
             && event.location_coords == Some([15, 13])
     }));
 }
@@ -306,7 +305,7 @@ fn test_join_merge_emits_merge_event() {
 
     assert!(events.fleet_merge_events.iter().any(|event| {
         event.fleet_idx == 1
-            && event.kind == MissionResolutionKind::JoinAnotherFleet
+            && event.kind == Mission::JoinAnotherFleet
             && event.owner_empire_raw == 1
             && !event.survivor_side
     }));
@@ -327,7 +326,7 @@ fn test_rendezvous_merge_emits_survivor_absorption_event() {
     let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
 
     assert!(events.fleet_merge_events.iter().any(|event| {
-        event.kind == MissionResolutionKind::RendezvousSector
+        event.kind == Mission::RendezvousSector
             && event.survivor_side
             && event.host_fleet_id == survivor_id
             && event.absorbed_fleet_id == absorbed_id

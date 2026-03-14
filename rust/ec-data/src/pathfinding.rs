@@ -1,9 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 
-use crate::{
-    CoreGameData, DatabaseDat, FleetRecord, FleetStandingOrderKind, map_size_for_player_count,
-};
+use crate::{CoreGameData, DatabaseDat, FleetRecord, Order, map_size_for_player_count};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RouteStep {
@@ -17,10 +15,19 @@ pub struct PlannedRoute {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct VisibleHazardIntel {
+    /// Fixed foreign worlds known to the routing empire.
     pub foreign_worlds: HashSet<[u8; 2]>,
+    /// Fixed foreign starbases known to the routing empire.
     pub foreign_starbases: HashSet<[u8; 2]>,
+    /// Optional short-lived fleet contacts.
+    ///
+    /// Canonical policy does not populate this from routine deep-space
+    /// sightings by default, because those contacts are too transient to be a
+    /// durable route hazard.
     pub foreign_fleets: HashSet<[u8; 2]>,
+    /// Known blockade locations.
     pub hostile_blockades: HashSet<[u8; 2]>,
+    /// Known hostile homeworlds.
     pub hostile_homeworlds: HashSet<[u8; 2]>,
 }
 
@@ -169,18 +176,18 @@ const BLOCKADE_COST: u32 = 80;
 const HOMEWORLD_COST: u32 = 45;
 const HARD_BLOCK_COST: u32 = u32::MAX / 4;
 
-fn order_uses_pathfinding(order: FleetStandingOrderKind) -> bool {
+fn order_uses_pathfinding(order: Order) -> bool {
     matches!(
         order,
-        FleetStandingOrderKind::MoveOnly
-            | FleetStandingOrderKind::SeekHome
-            | FleetStandingOrderKind::PatrolSector
-            | FleetStandingOrderKind::ViewWorld
-            | FleetStandingOrderKind::ScoutSector
-            | FleetStandingOrderKind::ScoutSolarSystem
-            | FleetStandingOrderKind::ColonizeWorld
-            | FleetStandingOrderKind::JoinAnotherFleet
-            | FleetStandingOrderKind::RendezvousSector
+        Order::MoveOnly
+            | Order::SeekHome
+            | Order::PatrolSector
+            | Order::ViewWorld
+            | Order::ScoutSector
+            | Order::ScoutSolarSystem
+            | Order::ColonizeWorld
+            | Order::JoinAnotherFleet
+            | Order::RendezvousSector
     )
 }
 
@@ -212,7 +219,7 @@ fn neighbors(coords: [u8; 2], map_size: u8) -> impl Iterator<Item = [u8; 2]> {
 
 fn sector_cost(
     _fleet: &FleetRecord,
-    order: FleetStandingOrderKind,
+    order: Order,
     final_goal: [u8; 2],
     coords: [u8; 2],
     intel: &VisibleHazardIntel,
@@ -223,11 +230,11 @@ fn sector_cost(
 
     let hostile_targeting = matches!(
         order,
-        FleetStandingOrderKind::BombardWorld
-            | FleetStandingOrderKind::InvadeWorld
-            | FleetStandingOrderKind::BlitzWorld
-            | FleetStandingOrderKind::GuardBlockadeWorld
-            | FleetStandingOrderKind::GuardStarbase
+        Order::BombardWorld
+            | Order::InvadeWorld
+            | Order::BlitzWorld
+            | Order::GuardBlockadeWorld
+            | Order::GuardStarbase
     );
 
     let mut cost = BASE_STEP_COST;

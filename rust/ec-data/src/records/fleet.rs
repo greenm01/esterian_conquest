@@ -7,7 +7,7 @@ pub struct FleetRecord {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FleetStandingOrderKind {
+pub enum Order {
     HoldPosition,
     MoveOnly,
     SeekHome,
@@ -27,7 +27,7 @@ pub enum FleetStandingOrderKind {
     Unknown(u8),
 }
 
-impl FleetStandingOrderKind {
+impl Order {
     pub fn from_raw(raw: u8) -> Self {
         match raw {
             0 => Self::HoldPosition,
@@ -47,6 +47,28 @@ impl FleetStandingOrderKind {
             14 => Self::RendezvousSector,
             15 => Self::Salvage,
             other => Self::Unknown(other),
+        }
+    }
+
+    pub fn to_raw(self) -> u8 {
+        match self {
+            Self::HoldPosition => 0,
+            Self::MoveOnly => 1,
+            Self::SeekHome => 2,
+            Self::PatrolSector => 3,
+            Self::GuardStarbase => 4,
+            Self::GuardBlockadeWorld => 5,
+            Self::BombardWorld => 6,
+            Self::InvadeWorld => 7,
+            Self::BlitzWorld => 8,
+            Self::ViewWorld => 9,
+            Self::ScoutSector => 10,
+            Self::ScoutSolarSystem => 11,
+            Self::ColonizeWorld => 12,
+            Self::JoinAnotherFleet => 13,
+            Self::RendezvousSector => 14,
+            Self::Salvage => 15,
+            Self::Unknown(raw) => raw,
         }
     }
 
@@ -178,8 +200,11 @@ impl FleetRecord {
     pub fn set_standing_order_code_raw(&mut self, value: u8) {
         self.raw[0x1F] = value;
     }
-    pub fn standing_order_kind(&self) -> FleetStandingOrderKind {
-        FleetStandingOrderKind::from_raw(self.standing_order_code_raw())
+    pub fn set_standing_order_kind(&mut self, value: Order) {
+        self.set_standing_order_code_raw(value.to_raw());
+    }
+    pub fn standing_order_kind(&self) -> Order {
+        Order::from_raw(self.standing_order_code_raw())
     }
     pub fn standing_order_target_coords_raw(&self) -> [u8; 2] {
         [self.raw[0x20], self.raw[0x21]]
@@ -229,27 +254,27 @@ impl FleetRecord {
     pub fn standing_order_summary(&self) -> String {
         let [x, y] = self.standing_order_target_coords_raw();
         match self.standing_order_kind() {
-            FleetStandingOrderKind::HoldPosition => "Hold position".to_string(),
-            FleetStandingOrderKind::MoveOnly => format!("Move fleet to Sector ({x},{y})"),
-            FleetStandingOrderKind::SeekHome => "Seek home".to_string(),
-            FleetStandingOrderKind::PatrolSector => format!("Patrol Sector ({x},{y})"),
-            FleetStandingOrderKind::GuardStarbase => format!("Guard starbase at Sector ({x},{y})"),
-            FleetStandingOrderKind::GuardBlockadeWorld => {
+            Order::HoldPosition => "Hold position".to_string(),
+            Order::MoveOnly => format!("Move fleet to Sector ({x},{y})"),
+            Order::SeekHome => "Seek home".to_string(),
+            Order::PatrolSector => format!("Patrol Sector ({x},{y})"),
+            Order::GuardStarbase => format!("Guard starbase at Sector ({x},{y})"),
+            Order::GuardBlockadeWorld => {
                 format!("Guard/blockade world in System ({x},{y})")
             }
-            FleetStandingOrderKind::BombardWorld => format!("Bombard world in System ({x},{y})"),
-            FleetStandingOrderKind::InvadeWorld => format!("Invade world in System ({x},{y})"),
-            FleetStandingOrderKind::BlitzWorld => format!("Blitz world in System ({x},{y})"),
-            FleetStandingOrderKind::ViewWorld => format!("View world in System ({x},{y})"),
-            FleetStandingOrderKind::ScoutSector => format!("Scout Sector ({x},{y})"),
-            FleetStandingOrderKind::ScoutSolarSystem => format!("Scout solar system ({x},{y})"),
-            FleetStandingOrderKind::ColonizeWorld => format!("Colonize world in System ({x},{y})"),
-            FleetStandingOrderKind::JoinAnotherFleet => {
+            Order::BombardWorld => format!("Bombard world in System ({x},{y})"),
+            Order::InvadeWorld => format!("Invade world in System ({x},{y})"),
+            Order::BlitzWorld => format!("Blitz world in System ({x},{y})"),
+            Order::ViewWorld => format!("View world in System ({x},{y})"),
+            Order::ScoutSector => format!("Scout Sector ({x},{y})"),
+            Order::ScoutSolarSystem => format!("Scout solar system ({x},{y})"),
+            Order::ColonizeWorld => format!("Colonize world in System ({x},{y})"),
+            Order::JoinAnotherFleet => {
                 format!("Join another fleet at raw target ({x},{y})")
             }
-            FleetStandingOrderKind::RendezvousSector => format!("Rendezvous at Sector ({x},{y})"),
-            FleetStandingOrderKind::Salvage => format!("Salvage at Sector ({x},{y})"),
-            FleetStandingOrderKind::Unknown(code) => {
+            Order::RendezvousSector => format!("Rendezvous at Sector ({x},{y})"),
+            Order::Salvage => format!("Salvage at Sector ({x},{y})"),
+            Order::Unknown(code) => {
                 format!("Unknown order {code} target ({x},{y})")
             }
         }
