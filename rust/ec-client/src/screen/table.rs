@@ -72,6 +72,15 @@ pub fn write_table_window<'a>(
         let refs = row_cells.iter().map(String::as_str).collect::<Vec<_>>();
         write_table_row(buffer, start_row + 2 + idx, columns, &refs, body_style);
     }
+
+    write_scroll_indicator(
+        buffer,
+        start_row + 2,
+        visible_rows,
+        rows.len(),
+        scroll_offset,
+        body_style,
+    );
 }
 
 pub fn table_divider(columns: &[TableColumn<'_>]) -> String {
@@ -87,6 +96,48 @@ pub fn table_divider(columns: &[TableColumn<'_>]) -> String {
 
 pub fn format_empire_id(empire_id: u8) -> String {
     format!("{empire_id:02}")
+}
+
+fn write_scroll_indicator(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    visible_rows: usize,
+    total_rows: usize,
+    scroll_offset: usize,
+    style: crate::screen::CellStyle,
+) {
+    if total_rows <= visible_rows || visible_rows == 0 || buffer.width() == 0 {
+        return;
+    }
+
+    let displayed_rows = usize::min(visible_rows, total_rows.saturating_sub(scroll_offset));
+    if displayed_rows < 3 {
+        return;
+    }
+
+    let col = buffer.width() - 1;
+    let last_row = start_row + displayed_rows - 1;
+    let track_style = crate::theme::classic::menu_style();
+    let track_top = start_row + 1;
+    let track_bottom = last_row.saturating_sub(1);
+
+    buffer.write_text(start_row, col, "^", style);
+    buffer.write_text(last_row, col, "v", style);
+
+    for row in track_top..=track_bottom {
+        buffer.write_text(row, col, "|", track_style);
+    }
+
+    let max_offset = total_rows.saturating_sub(visible_rows);
+    let thumb_top = track_top;
+    let thumb_bottom = track_bottom;
+    let thumb_span = thumb_bottom.saturating_sub(thumb_top);
+    let thumb_row = if max_offset == 0 || thumb_span == 0 {
+        thumb_top
+    } else {
+        thumb_top + (scroll_offset * thumb_span) / max_offset
+    };
+    buffer.write_text(thumb_row, col, "#", style);
 }
 
 fn header_cells<'a>(columns: &'a [TableColumn<'a>]) -> Vec<&'a str> {

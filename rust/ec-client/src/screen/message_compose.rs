@@ -7,6 +7,7 @@ use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 
 pub struct MessageComposeScreen;
+const RECIPIENT_VISIBLE_ROWS: usize = 10;
 
 const RECIPIENT_COLUMNS: [TableColumn<'static>; 2] = [
     TableColumn::right("ID", 3),
@@ -49,17 +50,18 @@ impl MessageComposeScreen {
             &RECIPIENT_COLUMNS,
             &rows,
             scroll_offset,
-            8,
+            RECIPIENT_VISIBLE_ROWS,
             classic::status_value_style(),
             classic::status_value_style(),
         );
+        let prompt_row = 17;
         let prompt = format!("Enter recipient empire number: {input}");
-        let cursor_col = draw_plain_prompt(&mut buffer, 15, &prompt);
+        let cursor_col = draw_plain_prompt(&mut buffer, prompt_row, &prompt);
         if let Some(status) = status {
-            buffer.write_text(17, 0, status, classic::status_value_style());
+            buffer.write_text(18, 0, status, classic::status_value_style());
         }
         draw_command_prompt(&mut buffer, 19, "GENERAL COMMAND", "ARROWS J K Q");
-        buffer.set_cursor(cursor_col as u16, 15);
+        buffer.set_cursor(cursor_col as u16, prompt_row as u16);
         Ok(buffer)
     }
 

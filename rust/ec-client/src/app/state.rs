@@ -322,7 +322,7 @@ impl App {
             .records
             .len()
             .saturating_sub(1);
-        let max_offset = total.saturating_sub(8);
+        let max_offset = total.saturating_sub(crate::screen::ENEMIES_VISIBLE_ROWS);
         self.enemies_scroll_offset = self
             .enemies_scroll_offset
             .saturating_add_signed(delta as isize)
@@ -710,6 +710,10 @@ impl App {
     pub fn current_relation_to(&self, empire_id: u8) -> Option<ec_data::DiplomaticRelation> {
         self.game_data
             .stored_diplomatic_relation(self.player.record_index_1_based as u8, empire_id)
+    }
+
+    pub fn enemies_scroll_offset(&self) -> usize {
+        self.enemies_scroll_offset
     }
 
     fn handle_planet_info_prompt_key(

@@ -202,6 +202,33 @@ fn apply_action_toggles_autopilot_and_enemy_relation() {
 }
 
 #[test]
+fn apply_action_clamps_enemies_scroll_to_visible_window() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenEnemies),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::Enemies);
+
+    for _ in 0..50 {
+        assert_eq!(
+            apply_action(&mut app, Action::ScrollEnemies(1)),
+            AppOutcome::Continue
+        );
+    }
+
+    assert_eq!(app.enemies_scroll_offset(), 0);
+}
+
+#[test]
 fn apply_action_deletes_reviewables() {
     let fixture_dir = temp_game_copy();
     std::fs::write(fixture_dir.join("RESULTS.DAT"), b"test results").expect("seed results");

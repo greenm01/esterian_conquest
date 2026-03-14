@@ -19,6 +19,7 @@ pub use buffer::{Cell, CellStyle, PlayfieldBuffer, RgbColor, StyledSpan};
 pub use empire_profile::EmpireProfileScreen;
 pub use empire_status::EmpireStatusScreen;
 pub use delete_reviewables::DeleteReviewablesScreen;
+pub(crate) use enemies::ENEMIES_VISIBLE_ROWS;
 pub use enemies::EnemiesScreen;
 pub use general_menu::GeneralMenuScreen;
 pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};

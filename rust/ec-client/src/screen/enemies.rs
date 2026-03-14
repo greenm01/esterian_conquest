@@ -8,6 +8,7 @@ use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 
 pub struct EnemiesScreen;
+pub(crate) const ENEMIES_VISIBLE_ROWS: usize = 11;
 
 const ENEMIES_COLUMNS: [TableColumn<'static>; 3] = [
     TableColumn::right("ID", 3),
@@ -78,7 +79,7 @@ impl EnemiesScreen {
             &ENEMIES_COLUMNS,
             &rows,
             scroll_offset,
-            11,
+            ENEMIES_VISIBLE_ROWS,
             classic::status_value_style(),
             classic::status_value_style(),
         );
