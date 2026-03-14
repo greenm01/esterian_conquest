@@ -71,6 +71,13 @@ struct TaskForce {
     role: BattleRole,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum HostilityReason {
+    DefendedSystemEntry,
+    BlockadeOrGuardContact,
+    CanonicalFallback,
+}
+
 impl FleetCombatState {
     fn total_combat_as(&self) -> u32 {
         self.counts[IDX_DD] * AS_DD
@@ -255,6 +262,51 @@ fn task_force_role(
     } else {
         BattleRole::Neutral
     }
+}
+
+fn has_guard_contact_order(game_data: &CoreGameData, fleet_indices: &[usize]) -> bool {
+    fleet_indices.iter().any(|&idx| {
+        matches!(
+            game_data.fleets.records[idx].standing_order_kind(),
+            Order::GuardStarbase | Order::GuardBlockadeWorld
+        )
+    })
+}
+
+fn hostility_reason_between(
+    game_data: &CoreGameData,
+    coords: [u8; 2],
+    left: &TaskForce,
+    right: &TaskForce,
+) -> Option<HostilityReason> {
+    if left.empire == right.empire {
+        return None;
+    }
+
+    if let Some(planet) = game_data
+        .planets
+        .records
+        .iter()
+        .find(|p| p.coords_raw() == coords)
+    {
+        let owner = planet.owner_empire_slot_raw();
+        if owner != 0 && (owner == left.empire || owner == right.empire) {
+            return Some(HostilityReason::DefendedSystemEntry);
+        }
+    }
+
+    if has_guard_contact_order(game_data, &left.fleet_indices)
+        || has_guard_contact_order(game_data, &right.fleet_indices)
+        || left.state.counts[IDX_SB] > 0
+        || right.state.counts[IDX_SB] > 0
+    {
+        return Some(HostilityReason::BlockadeOrGuardContact);
+    }
+
+    // Until the stored enemy/neutral diplomacy bytes are mapped, preserve the
+    // current canonical combat behavior for foreign co-location rather than
+    // silently suppressing battles.
+    Some(HostilityReason::CanonicalFallback)
 }
 
 fn starbase_count_at(game_data: &CoreGameData, coords: [u8; 2], owner: u8) -> u32 {
@@ -502,6 +554,16 @@ pub(crate) fn process_fleet_battles(
             continue;
         }
 
+        let has_hostile_pair = task_forces.iter().enumerate().any(|(i, left)| {
+            task_forces
+                .iter()
+                .skip(i + 1)
+                .any(|right| hostility_reason_between(game_data, coords, left, right).is_some())
+        });
+        if !has_hostile_pair {
+            continue;
+        }
+
         let planet_owner = game_data
             .planets
             .records
@@ -516,7 +578,17 @@ pub(crate) fn process_fleet_battles(
 
         for tf in &task_forces {
             let target_empire =
-                empire_target_priority(tf.empire, tf.role, &task_forces, planet_owner);
+                empire_target_priority(tf.empire, tf.role, &task_forces, planet_owner).filter(
+                    |target_empire| {
+                        task_forces
+                            .iter()
+                            .find(|other| other.empire == *target_empire)
+                            .and_then(|other| {
+                                hostility_reason_between(game_data, coords, tf, other)
+                            })
+                            .is_some()
+                    },
+                );
             let Some(target_empire) = target_empire else {
                 continue;
             };
@@ -607,7 +679,13 @@ pub(crate) fn process_fleet_battles(
                 }
 
                 let target = empire_target_priority(tf.empire, tf.role, &task_forces, planet_owner);
-                let Some(target_empire) = target else {
+                let Some(target_empire) = target.filter(|target_empire| {
+                    task_forces
+                        .iter()
+                        .find(|other| other.empire == *target_empire)
+                        .and_then(|other| hostility_reason_between(game_data, coords, tf, other))
+                        .is_some()
+                }) else {
                     continue;
                 };
                 let starbase_bonus = tf.state.counts[IDX_SB] > 0 && tf.state.fresh[IDX_SB] > 0;

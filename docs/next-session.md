@@ -183,6 +183,14 @@ What is strong:
   - accepts explicit visible hazard intel for A* routing
   - derives first-pass foreign-world hazards from each empire's
     `DATABASE.DAT` view during Rust maintenance
+  - refreshes that visible hazard view between maint turns
+  - routes on fixed hazards only, not transient deep-space fleet sightings
+- the contact/combat path now has an explicit hostility predicate seam:
+  - defended system entry
+  - blockade / guard contact
+  - current canonical foreign co-location fallback
+  - stored `enemy` diplomacy bytes still need mapping before the fallback can
+    be narrowed safely
 
 What is still incomplete:
 

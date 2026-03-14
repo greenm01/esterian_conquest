@@ -143,6 +143,11 @@ Current Rust implementation status:
   `DATABASE.DAT` view
 - only visible intel should feed the planner; unknown foreign worlds remain
   invisible to routing until discovered
+- combat/contact handling now also has an explicit hostility decision seam
+  rather than burying that choice inside the battle loop
+- the stored `enemy` diplomacy bytes are still unmapped, so the current
+  hostility predicate preserves the existing canonical foreign co-location
+  fallback until that diplomacy state is recovered
 
 ## Compatibility Rule
 
