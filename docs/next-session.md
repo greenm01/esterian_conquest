@@ -11,8 +11,8 @@ Primary milestone:
 - use the original DOS binaries as the acceptance oracle
 - use that compliant generator as the bridge toward a Rust `ECMAINT`
   replacement
-- finish the remaining campaign-end semantics so Rust maint can run a full
-  game end to end without inventing unsupported `ECGAME` UI flows
+- keep the now end-to-end-capable Rust maintenance engine honest with repeated
+  oracle validation and refine only where stronger classic evidence appears
 
 ## Milestone Status
 

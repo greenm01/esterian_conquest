@@ -23,12 +23,16 @@ Current focus:
   fields
 - replacing original RNG combat with a documented deterministic combat model in
   Rust while keeping classic save compatibility
+- validating repeated Rust maintenance output against the original `ECMAINT`
+  oracle across multi-turn campaign-style runs
 
 Current milestone ladder:
-- `known accepted scenarios`: in progress and already useful
-- `parameterized scenario generation`: started, but incomplete
-- `general compliant gamestate generation`: not there yet
-- `full Rust ECMAINT replacement`: later milestone after the above
+- `known accepted scenarios`: complete
+- `parameterized scenario generation`: complete
+- `general compliant gamestate generation`: complete
+- `full Rust ECMAINT replacement`: implemented conservatively and already
+  validated across repeated maint turns; future work is refinement, not a
+  missing engine tier
 - `scenario DSL / KDL layer`: defer until the internal Rust gamestate/order
   model stabilizes; add it as a serialization layer on top of the compliant
   generator rather than as the next RE milestone
