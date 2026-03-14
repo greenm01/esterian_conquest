@@ -8,6 +8,7 @@ pub enum Action {
     OpenGeneralMenu,
     OpenStarmap,
     BeginStarmapDump,
+    AdvanceStarmapPage,
     ExportStarmap,
     OpenPlanetInfoPrompt,
     AppendPlanetInfoChar(char),

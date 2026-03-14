@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
-use crate::screen::layout::{draw_command_prompt, draw_plain_prompt, draw_title_bar, new_playfield};
+use crate::screen::layout::{draw_command_prompt, draw_title_bar, new_playfield};
 use crate::screen::PlayfieldBuffer;
 use crate::theme::classic;
 
@@ -60,8 +60,22 @@ impl StarmapScreen {
             "Turn off screen capture in your telnet client now.",
             classic::status_value_style(),
         );
-        let cursor_col = draw_plain_prompt(&mut buffer, 8, "GENERAL COMMAND <-SLAP A KEY-> ");
-        buffer.set_cursor(cursor_col as u16, 8);
+        draw_command_prompt(&mut buffer, 8, "GENERAL COMMAND", "SLAP A KEY");
+        Ok(buffer)
+    }
+
+    pub fn render_dump_page(
+        &mut self,
+        lines: &[String],
+        offset: usize,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        const PAGE_LINES: usize = 16;
+        let mut buffer = new_playfield();
+        draw_title_bar(&mut buffer, 0, "MAP OF THE GALAXY:");
+        for (row, line) in lines.iter().skip(offset).take(PAGE_LINES).enumerate() {
+            buffer.write_text(2 + row, 0, line, classic::body_style());
+        }
+        draw_command_prompt(&mut buffer, 19, "GALAXY MAP", "SLAP A KEY");
         Ok(buffer)
     }
 
@@ -75,5 +89,12 @@ impl StarmapScreen {
 
     pub fn handle_complete_key(&self, _key: KeyEvent) -> Action {
         Action::OpenGeneralMenu
+    }
+
+    pub fn handle_dump_key(&self, key: KeyEvent) -> Action {
+        match key.code {
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenGeneralMenu,
+            _ => Action::AdvanceStarmapPage,
+        }
     }
 }

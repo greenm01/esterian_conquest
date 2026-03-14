@@ -29,7 +29,14 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_starmap();
             AppOutcome::Continue
         }
-        Action::BeginStarmapDump => AppOutcome::Continue,
+        Action::BeginStarmapDump => {
+            app.begin_starmap_dump();
+            AppOutcome::Continue
+        }
+        Action::AdvanceStarmapPage => {
+            app.advance_starmap_page();
+            AppOutcome::Continue
+        }
         Action::ExportStarmap => match app.export_starmap() {
             Ok(()) => AppOutcome::Continue,
             Err(_) => AppOutcome::Continue,

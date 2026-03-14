@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
 use crate::app::{App, AppConfig, AppOutcome, apply_action};
-use crate::app::Action;
 use crate::terminal::Terminal;
 use crate::terminal::stdout::StdoutTerminal;
 
@@ -40,13 +39,6 @@ fn run_interactive_inner(
         app.render(terminal)?;
         let key = terminal.read_key()?;
         let action = app.handle_key(key);
-        if matches!(action, Action::BeginStarmapDump) {
-            let dump = app.starmap_dump_text();
-            terminal.dump_text_capture(&dump)?;
-            let _ = terminal.read_key()?;
-            app.finish_starmap_dump();
-            continue;
-        }
         let outcome = apply_action(app, action);
         if matches!(outcome, AppOutcome::Quit) {
             return Ok(());

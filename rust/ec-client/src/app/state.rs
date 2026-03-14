@@ -43,6 +43,9 @@ pub struct App {
     starmap_view_x: usize,
     starmap_view_y: usize,
     starmap_status: Option<String>,
+    starmap_dump_lines: Vec<String>,
+    starmap_dump_offset: usize,
+    starmap_dump_active: bool,
     starmap_capture_complete: bool,
     export_root: PathBuf,
     queue_dir: Option<PathBuf>,
@@ -96,6 +99,9 @@ impl App {
             starmap_view_x: 1,
             starmap_view_y: 1,
             starmap_status: None,
+            starmap_dump_lines: Vec::new(),
+            starmap_dump_offset: 0,
+            starmap_dump_active: false,
             starmap_capture_complete: false,
             export_root,
             queue_dir: config.queue_dir,
@@ -117,6 +123,10 @@ impl App {
             ScreenId::MainMenu => self.main_menu.render(&frame)?,
             ScreenId::GeneralMenu => self.general_menu.render(&frame)?,
             ScreenId::Starmap if self.starmap_capture_complete => self.starmap.render_complete()?,
+            ScreenId::Starmap if self.starmap_dump_active => self.starmap.render_dump_page(
+                &self.starmap_dump_lines,
+                self.starmap_dump_offset,
+            )?,
             ScreenId::Starmap => self.starmap.render_prompt(self.starmap_status.as_deref())?,
             ScreenId::PlanetInfoPrompt => self
                 .planet_info
@@ -165,6 +175,7 @@ impl App {
             ScreenId::Starmap if self.starmap_capture_complete => {
                 self.starmap.handle_complete_key(key)
             }
+            ScreenId::Starmap if self.starmap_dump_active => self.starmap.handle_dump_key(key),
             ScreenId::Starmap => self.starmap.handle_prompt_key(key),
             ScreenId::PlanetInfoPrompt => self.handle_planet_info_prompt_key(key),
             ScreenId::PlanetInfoDetail => self.planet_info.handle_detail_key(key),
@@ -200,6 +211,9 @@ impl App {
         self.starmap_view_x = 1;
         self.starmap_view_y = 1;
         self.starmap_status = None;
+        self.starmap_dump_lines.clear();
+        self.starmap_dump_offset = 0;
+        self.starmap_dump_active = false;
         self.starmap_capture_complete = false;
         self.current_screen = ScreenId::Starmap;
     }
@@ -256,8 +270,29 @@ impl App {
         .render_ascii_map()
     }
 
-    pub fn finish_starmap_dump(&mut self) {
-        self.starmap_capture_complete = true;
+    pub fn begin_starmap_dump(&mut self) {
+        self.starmap_dump_lines = self
+            .starmap_dump_text()
+            .lines()
+            .map(|line| line.to_string())
+            .collect();
+        self.starmap_dump_offset = 0;
+        self.starmap_dump_active = true;
+        self.starmap_capture_complete = false;
+    }
+
+    pub fn advance_starmap_page(&mut self) {
+        const PAGE_LINES: usize = 16;
+        if !self.starmap_dump_active {
+            return;
+        }
+        let next_offset = self.starmap_dump_offset.saturating_add(PAGE_LINES);
+        if next_offset >= self.starmap_dump_lines.len() {
+            self.starmap_dump_active = false;
+            self.starmap_capture_complete = true;
+        } else {
+            self.starmap_dump_offset = next_offset;
+        }
     }
 
     pub fn append_planet_info_char(&mut self, ch: char) {
