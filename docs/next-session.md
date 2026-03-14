@@ -253,6 +253,8 @@ ones.
   surface, even if both reuse the same underlying Rust model
 - continue migrating old flat `ECUTIL`-style commands toward the `ec-cli sysop`
   family while keeping compatibility aliases only where useful
+- design the first `setup.kdl` schema so sysop/new-game setup can become
+  declarative instead of growing more CLI-only flags
 - [ ] Assault-path regression coverage expanded for invade and blitz edge cases
 - [ ] `maint-compare` acceptance policy updated to treat combat as structural,
   not byte-exact, parity

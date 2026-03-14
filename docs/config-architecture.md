@@ -10,6 +10,7 @@ The Rust port should eventually use config files extensively for:
 - stable combat/entity constants
 - setup and baseline presets
 - oracle scenario definitions
+- sysop/admin game setup
 
 KDL is the preferred format for those machine-readable config surfaces.
 
@@ -31,6 +32,7 @@ The layers are:
 3. KDL config
 - machine-readable stable data tables and presets
 - loaded by Rust after the internal model for that area is stable
+- preferred long-term source for durable sysop/setup intent
 
 If there is drift between docs and KDL, the docs win until both config and code
 are updated together.
@@ -50,6 +52,13 @@ Approved long-term KDL categories:
   - initialized baselines
   - test scenario overlays
   - combat fixture seeds
+- sysop setup
+  - player count
+  - game year
+  - maintenance days
+  - setup/program options
+  - homeworld coordinates
+  - startup presets and map-generation choices
 - oracle scenarios
   - named scenario definitions
   - source baseline
@@ -85,6 +94,14 @@ When KDL is introduced, prefer:
 - `rust/ec-data/config/combat.kdl`
 - `rust/ec-data/config/setup.kdl`
 - `rust/ec-data/config/scenarios/*.kdl`
+
+For sysop/admin setup, prefer the ownership split:
+
+- KDL stores durable setup intent
+- `ec-cli sysop` validates and materializes that config into classic `.DAT`
+  directories
+- a future TUI may edit the same config/model, but should not become the only
+  place where setup exists
 
 The first expected config extraction is combat constants and oracle scenarios,
 not a full generalized scenario DSL.

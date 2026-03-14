@@ -109,6 +109,21 @@ The goal is:
 - smart pathfinding should be documented as a Rust policy layer, not implied to
   be a recovered original mechanic
 
+11. Prefer declarative sysop config over endless setup flags
+
+- `ECUTIL`-style setup/admin data is mostly declarative and should eventually
+  live in KDL rather than only in one-off command flags
+- the long-term source of truth for new-game/setup presets should therefore be
+  machine-readable config:
+  - player count
+  - year
+  - maintenance schedule
+  - sysop options
+  - homeworld placement
+  - setup mode / starting-state presets
+- CLI and future TUI surfaces should act as frontends over that config and the
+  shared Rust model, not as the only place where setup can be expressed
+
 ## What Counts As Success
 
 Short term:
@@ -198,7 +213,7 @@ Long term:
   goal and should be folded into the Rust clone once the local `ECGAME`
   harness is reliable enough
 
-11. Own the mechanics; do not reproduce the original RNG
+12. Own the mechanics; do not reproduce the original RNG
 
 - `ECMAINT` uses an internal RNG for combat resolution (fleet battles,
   bombardment ship losses) and rogue/autopilot AI decisions
@@ -225,7 +240,7 @@ Long term:
   constants into machine-readable KDL config rather than burying them inline
   forever in Rust code
 
-12. Preserve compatible gamestate even when behavior is canonicalized
+13. Preserve compatible gamestate even when behavior is canonicalized
 
 - the Rust engine is now far enough along that it should prefer
   **classic-compatible save directories** over brittle attempts to mimic every
@@ -244,7 +259,7 @@ Long term:
     the divergence is explicit, compatible, and more reproducible than the
     original hidden behavior
 
-13. Keep diplomacy and hostility separate
+14. Keep diplomacy and hostility separate
 
 - `enemy` is a stored diplomatic relation set by players in `ECGAME`
 - `hostile` is the broader maintenance/combat state that determines whether a
