@@ -206,13 +206,12 @@ pub fn generate_database_dat(target: &Path) -> Result<(), Box<dyn std::error::Er
     let game_year = conquest.game_year();
 
     // Generate DATABASE.DAT
-    let database =
-        DatabaseDat::generate_from_planets_and_year(
-            &planet_names,
-            game_year,
-            conquest.player_count() as usize,
-            Some(&template),
-        );
+    let database = DatabaseDat::generate_from_planets_and_year(
+        &planet_names,
+        game_year,
+        conquest.player_count() as usize,
+        Some(&template),
+    );
 
     // Write to target
     fs::write(target.join("DATABASE.DAT"), database.to_bytes())?;

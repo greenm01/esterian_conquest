@@ -204,10 +204,16 @@ for the narrower diplomatic declaration concept.
 Current implementation note:
 
 - Rust now has a typed stored-diplomacy seam for this distinction
-- the actual persisted `PLAYER.DAT` bytes for enemy/neutral status are still
-  unresolved
-- until those bytes are mapped, the live engine still preserves a canonical
-  foreign co-location fallback after applying the manual defensive triggers
+- the classic 4-player `PLAYER.DAT` enemy/neutral bytes are now partially
+  mapped:
+  - `PLAYER.DAT[player].raw[0x54 + (target_empire_raw - 1)]`
+  - `0x00 = neutral`
+  - `0x01 = enemy`
+- the live Rust path may therefore use a `diplomacy.kdl` sidecar as a
+  temporary declared-enemy source only for player-count tiers or edge cases the
+  recovered classic layout does not yet cover
+- foreign co-location alone should produce contact reports, not automatic
+  combat
 
 ### Shared contact rules
 

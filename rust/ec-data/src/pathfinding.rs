@@ -283,6 +283,9 @@ fn reconstruct_route(
     }
     coords.reverse();
     PlannedRoute {
-        steps: coords.into_iter().map(|coords| RouteStep { coords }).collect(),
+        steps: coords
+            .into_iter()
+            .map(|coords| RouteStep { coords })
+            .collect(),
     }
 }

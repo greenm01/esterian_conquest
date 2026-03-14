@@ -53,13 +53,12 @@ pub(crate) fn init_new_game_with_seed(
         .iter()
         .map(|planet| planet.planet_name())
         .collect();
-    let database =
-        DatabaseDat::generate_from_planets_and_year(
-            &planet_names,
-            data.conquest.game_year(),
-            data.conquest.player_count() as usize,
-            None,
-        );
+    let database = DatabaseDat::generate_from_planets_and_year(
+        &planet_names,
+        data.conquest.game_year(),
+        data.conquest.player_count() as usize,
+        None,
+    );
     fs::write(target.join("DATABASE.DAT"), database.to_bytes())?;
 
     for name in ["MESSAGES.DAT", "RESULTS.DAT"] {
@@ -95,13 +94,12 @@ pub(crate) fn init_new_game_from_config(
         .iter()
         .map(|planet| planet.planet_name())
         .collect();
-    let database =
-        DatabaseDat::generate_from_planets_and_year(
-            &planet_names,
-            data.conquest.game_year(),
-            data.conquest.player_count() as usize,
-            None,
-        );
+    let database = DatabaseDat::generate_from_planets_and_year(
+        &planet_names,
+        data.conquest.game_year(),
+        data.conquest.player_count() as usize,
+        None,
+    );
     fs::write(target.join("DATABASE.DAT"), database.to_bytes())?;
 
     for name in ["MESSAGES.DAT", "RESULTS.DAT"] {

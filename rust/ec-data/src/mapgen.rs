@@ -701,11 +701,7 @@ fn homeworld_regions(player_count: u8, map_size: u8) -> Vec<HomeworldRegion> {
     }
 }
 
-fn grid_homeworld_regions(
-    player_count: usize,
-    low: u8,
-    high: u8,
-) -> Vec<HomeworldRegion> {
+fn grid_homeworld_regions(player_count: usize, low: u8, high: u8) -> Vec<HomeworldRegion> {
     let cols = (player_count as f32).sqrt().ceil() as usize;
     let rows = player_count.div_ceil(cols);
     let usable_width = (high.saturating_sub(low) as usize).max(cols);

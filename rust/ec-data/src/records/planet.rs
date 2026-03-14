@@ -1,5 +1,5 @@
-use crate::support::{ParseError, copy_array};
 use crate::PLANET_RECORD_SIZE;
+use crate::support::{ParseError, copy_array};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanetRecord {

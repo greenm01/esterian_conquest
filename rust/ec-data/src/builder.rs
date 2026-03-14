@@ -206,14 +206,20 @@ impl GameStateBuilder {
     /// - Setup and Conquest headers set
     /// - Empty auxiliary files (BASES.DAT, IPBM.DAT)
     pub fn build_initialized_baseline(&self) -> Result<CoreGameData, GameStateMutationError> {
-        let player_records =
-            (0..self.player_count as usize).map(|_| PlayerRecord::new_zeroed()).collect();
-        let planet_records =
-            (0..planet_record_count_for_players(self.player_count)).map(|_| PlanetRecord::new_zeroed()).collect();
+        let player_records = (0..self.player_count as usize)
+            .map(|_| PlayerRecord::new_zeroed())
+            .collect();
+        let planet_records = (0..planet_record_count_for_players(self.player_count))
+            .map(|_| PlanetRecord::new_zeroed())
+            .collect();
 
         let mut data = CoreGameData {
-            player: PlayerDat { records: player_records },
-            planets: PlanetDat { records: planet_records },
+            player: PlayerDat {
+                records: player_records,
+            },
+            planets: PlanetDat {
+                records: planet_records,
+            },
             fleets: FleetDat { records: vec![] },
             bases: BaseDat { records: vec![] },
             ipbm: IpbmDat { records: vec![] },

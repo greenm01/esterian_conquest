@@ -268,9 +268,16 @@ Long term:
   - one side attacks first
   - one side enters another empire's defended solar system
   - one side enters or leaves a blockaded world
-- if the original enemy/neutral bytes are not yet fully mapped, Rust should
-  still model the distinction in docs and code rather than collapsing both
-  concepts into one permanent shortcut
+- Rust should model the distinction in docs and code rather than collapsing
+  both concepts into one permanent shortcut
+- where classic `PLAYER.DAT` diplomacy bytes are known, they are authoritative
+- a modern sidecar such as `diplomacy.kdl` is acceptable only as a fallback for
+  player-count tiers or edge cases that the recovered classic layout does not
+  yet cover
+- the first recovered mapping is now live:
+  - `PLAYER.DAT[player].raw[0x54 + (target_empire_raw - 1)]`
+  - `0x00 = neutral`
+  - `0x01 = enemy`
 
 Near-term acceptance rule:
 

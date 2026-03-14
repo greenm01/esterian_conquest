@@ -191,12 +191,18 @@ What is strong:
   - defended system entry
   - blockade / guard contact
   - plain foreign co-location now reports contact but does not force combat
-- `ec-data` now exposes a typed stored-diplomacy seam, but the `PLAYER.DAT`
+- `ec-data` now exposes a typed stored-diplomacy seam, and the `PLAYER.DAT`
   enemy/neutral bytes are now partially mapped from live `ECGAME`:
   - `PLAYER.DAT[player].raw[0x54 + (target_empire_raw - 1)]`
   - `0x00 = neutral`
   - `0x01 = enemy`
   - confirmed directly for player 1 declaring empire 2 enemy (`0x55`)
+- the local plain-`ECGAME` DOSBox harness is now stable enough for focused
+  menu-driven black-box checks when needed:
+  - full 32-line WWIV `CHAIN.TXT`
+  - plain `ECGAME`
+  - local-console fields `remote=0`, `user baud=0`, `COM port=0`,
+    `COM baud=0`
 - fleet encounter reporting is now broader than combat-only scouting:
   - generic fleet-on-fleet contact reports are emitted even when the observing
     fleet was not on a scout order
@@ -216,8 +222,9 @@ What is still incomplete:
 - broader oracle sweep coverage of the seeded starmap path across more seeds
 - deeper owner-scoped route hazards beyond first-pass `DATABASE.DAT` world intel
 - deeper playtesting/tuning of the new larger-tier starmap generator
-- mapping the original stored enemy/neutral bytes in `PLAYER.DAT`, so the
-  temporary `diplomacy.kdl` sidecar can eventually be retired for all player
+- widening the recovered stored enemy/neutral mapping beyond the first
+  confirmed classic slot pattern, so the temporary `diplomacy.kdl` sidecar can
+  eventually be retired for all player
   counts and edge cases
 - local `ECGAME` launch is still not fully reliable everywhere, but the
   current best-known path is now documented and wrapped in

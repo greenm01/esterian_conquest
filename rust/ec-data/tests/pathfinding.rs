@@ -68,7 +68,10 @@ fn maintenance_preserves_fog_of_war_and_uses_direct_route_without_visible_intel(
 
     run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
 
-    assert_eq!(game_data.fleets.records[0].current_location_coords_raw(), [4, 2]);
+    assert_eq!(
+        game_data.fleets.records[0].current_location_coords_raw(),
+        [4, 2]
+    );
 }
 
 #[test]
@@ -81,7 +84,8 @@ fn visible_hazard_intel_derives_known_foreign_worlds_from_database_view() {
     game_data.planets.records[4].set_coords_raw([4, 2]);
 
     let planet_count = game_data.planets.records.len();
-    let mut database = DatabaseDat::new_zeroed((game_data.conquest.player_count() as usize) * planet_count);
+    let mut database =
+        DatabaseDat::new_zeroed((game_data.conquest.player_count() as usize) * planet_count);
     let record = database.record_mut(4, 0, planet_count);
     record.set_planet_name("Prime");
     record.raw[0x15] = 2;
@@ -106,11 +110,15 @@ fn maintenance_avoids_known_foreign_world_when_visible_hazard_intel_is_supplied(
     fleet.set_standing_order_target_coords_raw([6, 2]);
     fleet.set_current_speed(3);
 
-    let mut hazards = vec![VisibleHazardIntel::default(); game_data.conquest.player_count() as usize];
+    let mut hazards =
+        vec![VisibleHazardIntel::default(); game_data.conquest.player_count() as usize];
     hazards[0].foreign_worlds.insert([4, 2]);
 
     run_maintenance_turn_with_visible_hazards(&mut game_data, &hazards)
         .expect("maintenance should succeed");
 
-    assert_ne!(game_data.fleets.records[0].current_location_coords_raw(), [4, 2]);
+    assert_ne!(
+        game_data.fleets.records[0].current_location_coords_raw(),
+        [4, 2]
+    );
 }

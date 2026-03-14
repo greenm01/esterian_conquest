@@ -94,7 +94,9 @@ pub struct DatabaseDat {
 impl DatabaseDat {
     pub fn new_zeroed(record_count: usize) -> Self {
         Self {
-            records: (0..record_count).map(|_| DatabaseRecord::new_zeroed()).collect(),
+            records: (0..record_count)
+                .map(|_| DatabaseRecord::new_zeroed())
+                .collect(),
         }
     }
 
@@ -145,7 +147,12 @@ impl DatabaseDat {
     }
 
     /// Get reference to a specific planet/player record.
-    pub fn record(&self, planet_index: usize, player_index: usize, planet_count: usize) -> &DatabaseRecord {
+    pub fn record(
+        &self,
+        planet_index: usize,
+        player_index: usize,
+        planet_count: usize,
+    ) -> &DatabaseRecord {
         let idx = Self::record_index(planet_index, player_index, planet_count);
         &self.records[idx]
     }
@@ -163,7 +170,8 @@ impl DatabaseDat {
         template: Option<&DatabaseDat>,
     ) -> Self {
         let expected_record_count = player_count * planet_names.len();
-        let result = if let Some(t) = template.filter(|t| t.records.len() == expected_record_count) {
+        let result = if let Some(t) = template.filter(|t| t.records.len() == expected_record_count)
+        {
             t.clone()
         } else {
             // Create a default template with "UNKNOWN" names
