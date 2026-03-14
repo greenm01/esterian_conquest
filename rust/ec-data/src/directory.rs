@@ -2,8 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::{
-    BaseDat, BaseRecord, ConquestDat, FleetDat, FleetRecord, IpbmDat, IpbmRecord, ParseError,
-    PlanetDat, PlayerDat, SetupDat, IPBM_RECORD_SIZE,
+    BaseDat, BaseRecord, ConquestDat, FleetDat, FleetRecord, IPBM_RECORD_SIZE, IpbmDat, IpbmRecord,
+    ParseError, PlanetDat, PlayerDat, SetupDat,
 };
 
 const CURRENT_KNOWN_POST_MAINT_CONQUEST_CONTROL_HEADER: [u8; 0x55] = [

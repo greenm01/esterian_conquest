@@ -19,25 +19,30 @@ pub const DATABASE_RECORD_COUNT: usize = 80;
 pub const DATABASE_DAT_SIZE: usize = DATABASE_RECORD_SIZE * DATABASE_RECORD_COUNT;
 pub const MAINTENANCE_DAY_ENABLED_CODES: [u8; 7] = [0x01, 0x01, 0xCA, 0x01, 0x0A, 0x01, 0x26];
 mod builder;
+mod config;
 mod directory;
 mod maint;
+mod mapgen;
 mod records;
 mod support;
 
 pub use builder::{
-    CanonicalFourPlayerSetup, FleetOrderSpec, GameStateBuilder, GuardStarbaseSpec,
-    PlanetBuildSpec,
+    CanonicalFourPlayerSetup, FleetOrderSpec, GameStateBuilder, GuardStarbaseSpec, PlanetBuildSpec,
 };
+pub use config::{SetupConfig, SetupConfigError, SetupMode, SetupOptionsConfig};
 pub use directory::{
     CoreGameData, CurrentKnownComplianceStatus, CurrentKnownGuardStarbaseLinkageSummary,
     CurrentKnownKeyWordSummary, GameDirectoryError, GameStateMutationError,
 };
 pub use maint::{
-    run_maintenance_turn, run_maintenance_turns, BombardEvent, ColonizationResolvedEvent,
-    FleetBattleEvent, FleetDestroyedEvent, FleetMergeEvent, JoinMissionHostEvent,
-    MaintenanceEvents, MissionResolutionEvent, MissionResolutionKind,
-    MissionResolutionOutcome, PlanetIntelEvent, PlanetOwnershipChangeEvent,
-    ContactReportSource, ScoutContactEvent, ShipLosses, StarbaseDestroyedEvent,
+    BombardEvent, ColonizationResolvedEvent, ContactReportSource, FleetBattleEvent,
+    FleetDestroyedEvent, FleetMergeEvent, JoinMissionHostEvent, MaintenanceEvents,
+    MissionResolutionEvent, MissionResolutionKind, MissionResolutionOutcome, PlanetIntelEvent,
+    PlanetOwnershipChangeEvent, ScoutContactEvent, ShipLosses, StarbaseDestroyedEvent,
+    run_maintenance_turn, run_maintenance_turns,
+};
+pub use mapgen::{
+    GeneratedMap, GeneratedWorld, build_seeded_new_game, generate_map, map_size_for_player_count,
 };
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;

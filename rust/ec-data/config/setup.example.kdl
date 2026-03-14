@@ -1,0 +1,20 @@
+game player_count=4 year=3000 setup_mode="builder-compatible" seed=1515
+
+setup_options snoop=#true local_timeout=#false remote_timeout=#true max_key_gap_minutes=10 minimum_time_minutes=0 purge_after_turns=0 autopilot_after_turns=0
+
+port_setup {
+  com port="com1" irq=4 hardware_flow_control=#true
+  com port="com2" irq=3 hardware_flow_control=#true
+  com port="com3" irq=4 hardware_flow_control=#true
+  com port="com4" irq=3 hardware_flow_control=#true
+}
+
+maintenance_days {
+  day "sun"
+  day "mon"
+  day "tue"
+  day "wed"
+  day "thu"
+  day "fri"
+  day "sat"
+}

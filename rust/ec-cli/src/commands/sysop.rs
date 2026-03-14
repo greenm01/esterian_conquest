@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
 use crate::commands::setup::{
-    init_canonical_four_player_start, init_new_game, print_autopilot_after, print_com_irq, print_flow_control,
+    init_canonical_four_player_start, init_new_game, init_new_game_from_config,
+    init_new_game_with_seed, print_autopilot_after, print_com_irq, print_flow_control,
     print_local_timeout, print_maintenance_days, print_max_key_gap, print_minimum_time,
     print_port_setup, print_purge_after, print_remote_timeout, print_setup_programs, print_snoop,
     set_autopilot_after, set_com_irq, set_flow_control, set_local_timeout, set_maintenance_days,
@@ -97,23 +98,63 @@ fn generate_gamestate_from_args(
     Ok(())
 }
 
-fn parse_new_game_player_count(args: &[String]) -> Result<u8, String> {
-    if args.is_empty() {
-        return Ok(4);
+fn parse_player_count_value(value: &str) -> Result<u8, String> {
+    let player_count: u8 = value
+        .parse()
+        .map_err(|_| format!("invalid player count: {value}"))?;
+    if (1..=4).contains(&player_count) {
+        Ok(player_count)
+    } else {
+        Err(format!("player_count must be 1-4, got {player_count}"))
+    }
+}
+
+fn parse_seed_value(value: &str) -> Result<u64, String> {
+    value
+        .parse()
+        .map_err(|_| format!("seed must be a valid unsigned integer, got {value}"))
+}
+
+fn parse_new_game_options(
+    args: &[String],
+) -> Result<(Option<u8>, Option<PathBuf>, Option<u64>), String> {
+    let mut player_count = None;
+    let mut config_path = None;
+    let mut seed = None;
+    let mut idx = 0;
+    while idx < args.len() {
+        match args[idx].as_str() {
+            "--players" | "-p" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err("missing value for --players".to_string());
+                };
+                player_count = Some(parse_player_count_value(value)?);
+                idx += 2;
+            }
+            "--config" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err("missing value for --config".to_string());
+                };
+                config_path = Some(resolve_repo_path(value));
+                idx += 2;
+            }
+            "--seed" => {
+                let Some(value) = args.get(idx + 1) else {
+                    return Err("missing value for --seed".to_string());
+                };
+                seed = Some(parse_seed_value(value)?);
+                idx += 2;
+            }
+            _ => {
+                return Err(
+                    "usage: sysop new-game <target_dir> [--players N] [--config path] [--seed N]"
+                        .to_string(),
+                );
+            }
+        }
     }
 
-    if args.len() == 2 && (args[0] == "--players" || args[0] == "-p") {
-        let player_count: u8 = args[1]
-            .parse()
-            .map_err(|_| format!("invalid player count: {}", args[1]))?;
-        if (1..=4).contains(&player_count) {
-            Ok(player_count)
-        } else {
-            Err(format!("player_count must be 1-4, got {player_count}"))
-        }
-    } else {
-        Err("usage: sysop new-game <target_dir> [--players N]".to_string())
-    }
+    Ok((Some(player_count.unwrap_or(4)), config_path, seed))
 }
 
 pub(crate) fn run_sysop_args(
@@ -132,26 +173,50 @@ pub(crate) fn run_sysop_args(
                 return Ok(());
             };
             let remaining = args.collect::<Vec<_>>();
-            let player_count = match parse_new_game_player_count(&remaining) {
-                Ok(count) => count,
+            let (player_count, config_path, seed) = match parse_new_game_options(&remaining) {
+                Ok(options) => options,
                 Err(message) => {
                     eprintln!("Error: {message}");
                     print_usage();
                     return Ok(());
                 }
             };
-            if player_count == 4 && cmd == "init-canonical-four-player-start" {
+            if let Some(config_path) = config_path {
+                init_new_game_from_config(&target_dir, &config_path, player_count, seed)?;
+                println!(
+                    "Initialized new game at: {} (config={}{}{}{}{})",
+                    target_dir.display(),
+                    config_path.display(),
+                    if player_count.is_some() {
+                        ", players="
+                    } else {
+                        ""
+                    },
+                    player_count
+                        .map(|count| count.to_string())
+                        .unwrap_or_default(),
+                    if seed.is_some() { ", seed=" } else { "" },
+                    seed.map(|value| value.to_string()).unwrap_or_default()
+                );
+            } else if player_count == Some(4) && cmd == "init-canonical-four-player-start" {
                 init_canonical_four_player_start(&target_dir)?;
                 println!(
                     "Initialized canonical four-player start at: {}",
                     target_dir.display()
                 );
             } else {
-                init_new_game(&target_dir, player_count)?;
+                let player_count = player_count.expect("player count should be present");
+                if let Some(seed) = seed {
+                    init_new_game_with_seed(&target_dir, player_count, seed)?;
+                } else {
+                    init_new_game(&target_dir, player_count)?;
+                }
                 println!(
-                    "Initialized new game at: {} (players={})",
+                    "Initialized new game at: {} (players={}{}{})",
                     target_dir.display(),
-                    player_count
+                    player_count,
+                    if seed.is_some() { ", seed=" } else { "" },
+                    seed.map(|value| value.to_string()).unwrap_or_default()
                 );
             }
         }

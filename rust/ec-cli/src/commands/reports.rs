@@ -2,8 +2,8 @@ use std::fs;
 use std::path::Path;
 
 use ec_data::{
-    ContactReportSource, CoreGameData, DatabaseDat, MaintenanceEvents,
-    MissionResolutionKind, MissionResolutionOutcome, PlanetDat, ShipLosses,
+    ContactReportSource, CoreGameData, DatabaseDat, MaintenanceEvents, MissionResolutionKind,
+    MissionResolutionOutcome, PlanetDat, ShipLosses,
 };
 
 const RESULTS_RECORD_SIZE: usize = 84;
@@ -235,8 +235,9 @@ fn push_results_chunked(data: &mut Vec<u8>, kind: u8, tail: [u8; 8], text: &str)
 fn mission_location_phrase(kind: MissionResolutionKind, coords: [u8; 2]) -> String {
     let [x, y] = coords;
     match kind {
-        MissionResolutionKind::ScoutSector
-        | MissionResolutionKind::MoveOnly => format!("Sector({x},{y})"),
+        MissionResolutionKind::ScoutSector | MissionResolutionKind::MoveOnly => {
+            format!("Sector({x},{y})")
+        }
         _ => format!("System({x},{y})"),
     }
 }
@@ -286,13 +287,14 @@ fn coords_system_text(coords: [u8; 2]) -> String {
     format!("System({x},{y})")
 }
 
-fn nearest_owned_destination_text(game_data: &CoreGameData, empire_raw: u8, coords: [u8; 2]) -> String {
-    if let Some(planet) = game_data
-        .planets
-        .records
-        .iter()
-        .find(|planet| planet.coords_raw() == coords && planet.owner_empire_slot_raw() == empire_raw)
-    {
+fn nearest_owned_destination_text(
+    game_data: &CoreGameData,
+    empire_raw: u8,
+    coords: [u8; 2],
+) -> String {
+    if let Some(planet) = game_data.planets.records.iter().find(|planet| {
+        planet.coords_raw() == coords && planet.owner_empire_slot_raw() == empire_raw
+    }) {
         format!(
             "planet \"{}\", located in {}",
             planet.planet_name(),
@@ -351,12 +353,7 @@ pub(crate) fn regenerate_results_dat(
                 event.defender_battery_losses,
                 event.defender_army_losses,
             );
-            push_results_chunked(
-                &mut results,
-                0x08,
-                RESULTS_TAIL_BOMBARD,
-                &text,
-            );
+            push_results_chunked(&mut results, 0x08, RESULTS_TAIL_BOMBARD, &text);
         }
     }
 
@@ -378,12 +375,7 @@ pub(crate) fn regenerate_results_dat(
             ship_loss_summary(event.friendly_losses),
             ship_loss_summary(event.enemy_losses),
         );
-        push_results_chunked(
-            &mut results,
-            0x06,
-            RESULTS_TAIL_FLEET,
-            &text,
-        );
+        push_results_chunked(&mut results, 0x06, RESULTS_TAIL_FLEET, &text);
     }
 
     for event in &events.fleet_destroyed_events {
@@ -540,12 +532,7 @@ pub(crate) fn regenerate_results_dat(
                 empire_label(game_data, event.new_owner_empire_raw),
                 from
             );
-            push_results_chunked(
-                &mut results,
-                0x0c,
-                RESULTS_TAIL_INVASION,
-                &text,
-            );
+            push_results_chunked(&mut results, 0x0c, RESULTS_TAIL_INVASION, &text);
         }
     }
 
@@ -563,12 +550,7 @@ pub(crate) fn regenerate_results_dat(
                         planet.planet_name(),
                         empire_label(game_data, colonizer_empire_raw),
                     );
-                    push_results_chunked(
-                        &mut results,
-                        0x09,
-                        RESULTS_TAIL_COLONIZATION,
-                        &text,
-                    );
+                    push_results_chunked(&mut results, 0x09, RESULTS_TAIL_COLONIZATION, &text);
                 }
             }
             ec_data::ColonizationResolvedEvent::BlockedByOwner {
@@ -585,12 +567,7 @@ pub(crate) fn regenerate_results_dat(
                         planet.planet_name(),
                         empire_label(game_data, owner_empire_raw),
                     );
-                    push_results_chunked(
-                        &mut results,
-                        0x09,
-                        RESULTS_TAIL_COLONIZATION,
-                        &text,
-                    );
+                    push_results_chunked(&mut results, 0x09, RESULTS_TAIL_COLONIZATION, &text);
                 }
             }
         }
@@ -669,7 +646,10 @@ pub(crate) fn regenerate_results_dat(
                         let ownership = if planet.owner_empire_slot_raw() == 0 {
                             "unowned".to_string()
                         } else {
-                            format!("owned by {}", empire_label(game_data, planet.owner_empire_slot_raw()))
+                            format!(
+                                "owned by {}",
+                                empire_label(game_data, planet.owner_empire_slot_raw())
+                            )
                         };
                         format!(
                             "From your fleet in System({x},{y}): Viewing mission report: We have entered System({x},{y}) and completed a long range analysis of planet \"{}\". The world is {} and has a potential of {} points. Until ordered otherwise, we will be moving out of the solar system.",
@@ -698,7 +678,9 @@ pub(crate) fn regenerate_results_dat(
             (MissionResolutionKind::ViewWorld, MissionResolutionOutcome::Aborted) => {
                 let retreat = event
                     .target_coords
-                    .map(|coords| nearest_owned_destination_text(game_data, event.owner_empire_raw, coords))
+                    .map(|coords| {
+                        nearest_owned_destination_text(game_data, event.owner_empire_raw, coords)
+                    })
                     .unwrap_or_else(|| "the nearest friendly controlled solar system".to_string());
                 let text = format!(
                     "From your fleet in System({x},{y}): Viewing mission report: We were attacked before the viewing mission could be completed. We are aborting our assignment and seeking safety at {retreat}."
@@ -715,8 +697,12 @@ pub(crate) fn regenerate_results_dat(
                         format!(
                             "From your fleet in System({x},{y}): Bombardment mission report: We have concluded our bombing run against planet \"{}\". Friendly losses: {}. Observed enemy losses: {} ground batteries and {} armies.",
                             planet.planet_name(),
-                            bombard_event.map(|e| ship_loss_summary(e.attacker_losses)).unwrap_or_else(|| "no ship losses".to_string()),
-                            bombard_event.map(|e| e.defender_battery_losses).unwrap_or(0),
+                            bombard_event
+                                .map(|e| ship_loss_summary(e.attacker_losses))
+                                .unwrap_or_else(|| "no ship losses".to_string()),
+                            bombard_event
+                                .map(|e| e.defender_battery_losses)
+                                .unwrap_or(0),
                             bombard_event.map(|e| e.defender_army_losses).unwrap_or(0),
                         )
                     } else {
@@ -731,8 +717,7 @@ pub(crate) fn regenerate_results_dat(
                 };
                 push_results_chunked(&mut results, 0x08, RESULTS_TAIL_BOMBARD, &text);
             }
-            (MissionResolutionKind::InvadeWorld, _)
-            | (MissionResolutionKind::BlitzWorld, _) => {}
+            (MissionResolutionKind::InvadeWorld, _) | (MissionResolutionKind::BlitzWorld, _) => {}
             (MissionResolutionKind::ScoutSector, MissionResolutionOutcome::Succeeded) => {
                 let text = format!(
                     "From your fleet in Sector({x},{y}): Scouting mission report: We have arrived at our destination and are beginning to scout this sector."
@@ -742,7 +727,9 @@ pub(crate) fn regenerate_results_dat(
             (MissionResolutionKind::ScoutSector, MissionResolutionOutcome::Aborted) => {
                 let retreat = event
                     .target_coords
-                    .map(|coords| nearest_owned_destination_text(game_data, event.owner_empire_raw, coords))
+                    .map(|coords| {
+                        nearest_owned_destination_text(game_data, event.owner_empire_raw, coords)
+                    })
                     .unwrap_or_else(|| "the nearest friendly controlled solar system".to_string());
                 let text = format!(
                     "From your fleet in Sector({x},{y}): Scouting mission report: Hostile action forced us to abort our scouting mission and withdraw toward {retreat}."
@@ -761,12 +748,12 @@ pub(crate) fn regenerate_results_dat(
                     } else {
                         empire_label(game_data, planet.owner_empire_slot_raw())
                     };
-                    let stardock_summary = if (0..10).any(|slot| planet.stardock_count_raw(slot) > 0)
-                    {
-                        "The planet's stardock contains ships."
-                    } else {
-                        "The planet's stardock appears to be empty."
-                    };
+                    let stardock_summary =
+                        if (0..10).any(|slot| planet.stardock_count_raw(slot) > 0) {
+                            "The planet's stardock contains ships."
+                        } else {
+                            "The planet's stardock appears to be empty."
+                        };
                     format!(
                         "From your fleet in System({x},{y}): Scouting mission report: We are in extended orbit around planet \"{}\". Owner: {}. Potential production: {} points. Stored goods: {} points. Armies: {}. Ground batteries: {}. {}",
                         planet.planet_name(),
@@ -787,7 +774,9 @@ pub(crate) fn regenerate_results_dat(
             (MissionResolutionKind::ScoutSolarSystem, MissionResolutionOutcome::Aborted) => {
                 let retreat = event
                     .target_coords
-                    .map(|coords| nearest_owned_destination_text(game_data, event.owner_empire_raw, coords))
+                    .map(|coords| {
+                        nearest_owned_destination_text(game_data, event.owner_empire_raw, coords)
+                    })
                     .unwrap_or_else(|| "the nearest friendly controlled solar system".to_string());
                 let text = format!(
                     "From your fleet in System({x},{y}): Scouting mission report: We were forced to break off our close reconnaissance and withdraw toward {retreat}."

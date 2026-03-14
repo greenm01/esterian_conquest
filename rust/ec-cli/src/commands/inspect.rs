@@ -294,9 +294,5 @@ fn print_header_summary(setup: &SetupDat, conquest: &ConquestDat) {
 }
 
 fn yes_no(value: bool) -> &'static str {
-    if value {
-        "Yes"
-    } else {
-        "No"
-    }
+    if value { "Yes" } else { "No" }
 }

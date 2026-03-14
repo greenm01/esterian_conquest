@@ -31,12 +31,14 @@ Current top-level contents:
 
 Docs:
 - `docs/approach.md`: preservation and porting strategy
+- `docs/setup-kdl-schema.md`: first schema for declarative sysop/setup config
 - `docs/fixtures.md`: fixture creation and usage workflow
 - `docs/ecmaint-plan.md`: current plan for reverse engineering the maintenance engine
 - `docs/ec-combat-spec.md`: canonical deterministic combat rules for the Rust port
 - `docs/config-architecture.md`: Rust-vs-KDL ownership and future config layering
 - `docs/ecmaint-combat-reference.md`: combat-oriented historical validation references
 - `docs/ec-setup-spec.md`: manual-driven setup and starmap rules for Rust
+- `docs/starmap-generation-spec.md`: fair homeworld placement and planet distribution algorithm
 - `docs/ec-movement-spec.md`: classic movement semantics and canonical routing policy
 - `docs/ghidra-workflow.md`: headless Ghidra install and ECMAINT analysis workflow
 - `docs/planet-report-reference.md`: coordinate-linked scouting/world stat references
@@ -50,7 +52,8 @@ Default black-box oracle loop for new mechanics:
 - inspect `.oracle/` snapshots plus the reported `.DAT`/report diff clusters
 
 Sysop/admin setup surface:
-- `ec-cli sysop new-game <target_dir> [--players <1-4>]`
+- `ec-cli sysop new-game <target_dir> [--players <1-4>] [--seed <u64>]`
+- `ec-cli sysop new-game <target_dir> --config rust/ec-data/config/setup.example.kdl`
 - `ec-cli sysop generate-gamestate <target_dir> <player_count> <year> [<homeworld_x>:<homeworld_y>...]`
 - `ec-cli sysop setup-programs [dir]`
 - `ec-cli sysop port-setup [dir]`
@@ -58,7 +61,8 @@ Sysop/admin setup surface:
 - `ec-cli sysop maintenance-days <dir> set <sun|mon|...>`
 
 The older flat setup commands remain available as compatibility aliases, but
-new admin/setup work should prefer the `sysop` command family.
+new admin/setup work should prefer the `sysop` command family and, over time,
+declarative KDL config.
 
 Known scenario replay:
 - `python3 tools/ecmaint_oracle.py replay-known fleet-order /tmp/ecmaint-fleet-oracle`

@@ -66,8 +66,8 @@ new experiment can be expressed as an ordered combination of known scenario
 transforms, prefer extending that workflow instead of adding a one-off wrapper
 command.
 
-`ec-data` and `ec-tui` tests now live under crate `tests/` directories instead
-of source-file `#[cfg(test)]` modules.
+`ec-data` tests now live under crate `tests/` directories instead of
+source-file `#[cfg(test)]` modules.
 
 `ec-data` integration tests are now also split by concern instead of one large
 `regression.rs` file:

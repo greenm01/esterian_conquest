@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use ec_data::{run_maintenance_turn, CoreGameData, MaintenanceEvents};
+use ec_data::{CoreGameData, MaintenanceEvents, run_maintenance_turn};
 
 use crate::commands::reports::{regenerate_database_dat, regenerate_results_dat};
 
@@ -53,9 +53,7 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
         all_events
             .fleet_merge_events
             .extend(events.fleet_merge_events);
-        all_events
-            .join_host_events
-            .extend(events.join_host_events);
+        all_events.join_host_events.extend(events.join_host_events);
         all_events
             .colonization_events
             .extend(events.colonization_events);
@@ -328,8 +326,10 @@ fn compare_dat_files(
                     if a != b && shown < 5 {
                         let fleet_idx = if i >= 2 { (i - 2) / 54 } else { 0 };
                         let field_off = if i >= 2 { (i - 2) % 54 } else { i };
-                        println!("      Offset 0x{:04x} (fleet {}, field 0x{:02x}): 0x{:02x} -> 0x{:02x}",
-                            i, fleet_idx, field_off, a, b);
+                        println!(
+                            "      Offset 0x{:04x} (fleet {}, field 0x{:02x}): 0x{:02x} -> 0x{:02x}",
+                            i, fleet_idx, field_off, a, b
+                        );
                         shown += 1;
                     }
                 }
@@ -377,7 +377,7 @@ fn compare_dat_files(
 mod tests {
     use std::path::Path;
 
-    use super::{compare_policy_for_dir, is_structurally_accepted_diff, ComparePolicy};
+    use super::{ComparePolicy, compare_policy_for_dir, is_structurally_accepted_diff};
 
     #[test]
     fn compare_policy_uses_canonical_combat_for_combat_heavy_scenarios() {

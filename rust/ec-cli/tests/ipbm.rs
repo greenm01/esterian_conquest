@@ -40,7 +40,10 @@ fn ipbm_record_set_updates_known_structural_prefix_fields() {
     let target = unique_temp_dir("ec-cli-ipbm-record-set");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
 
-    run_ec_cli_in_dir(&["ipbm-zero", target.to_str().unwrap(), "1"], common::rust_workspace());
+    run_ec_cli_in_dir(
+        &["ipbm-zero", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
     let stdout = run_ec_cli_in_dir(
         &[
             "ipbm-record-set",
@@ -78,7 +81,10 @@ fn ipbm_validate_rejects_count_length_mismatch() {
     let target = unique_temp_dir("ec-cli-ipbm-invalid");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
 
-    run_ec_cli_in_dir(&["ipbm-zero", target.to_str().unwrap(), "2"], common::rust_workspace());
+    run_ec_cli_in_dir(
+        &["ipbm-zero", target.to_str().unwrap(), "2"],
+        common::rust_workspace(),
+    );
     fs::write(target.join("IPBM.DAT"), vec![0u8; 32]).unwrap();
 
     let stderr = common::run_ec_cli_failure_in_dir(

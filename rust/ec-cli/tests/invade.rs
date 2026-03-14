@@ -29,11 +29,7 @@ fn scenario_invade_recreates_known_valid_pre_fixture() {
 
 #[test]
 fn validate_invade_accepts_known_valid_fixture() {
-    let stdout = run_ec_cli(&[
-        "validate",
-        "fixtures/ecmaint-invade-pre/v1.5",
-        "invade",
-    ]);
+    let stdout = run_ec_cli(&["validate", "fixtures/ecmaint-invade-pre/v1.5", "invade"]);
     assert!(stdout.contains("Valid invade scenario"));
     assert!(stdout.contains("FLEET[3]: order=0x0a (InvadeWorld)"));
     assert!(stdout.contains("PLANET[14]: (15,13) empire=2 armies=142 batteries=15"));

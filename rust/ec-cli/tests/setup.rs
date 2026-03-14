@@ -8,7 +8,15 @@ fn maintenance_days_set_rewrites_conquest_schedule() {
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
 
     let stdout = run_ec_cli_in_dir(
-        &["maintenance-days", target.to_str().unwrap(), "set", "sun", "tue", "thu", "sat"],
+        &[
+            "maintenance-days",
+            target.to_str().unwrap(),
+            "set",
+            "sun",
+            "tue",
+            "thu",
+            "sat",
+        ],
         common::rust_workspace(),
     );
     assert!(stdout.contains("sun=yes mon=no tue=yes wed=no thu=yes fri=no sat=yes"));

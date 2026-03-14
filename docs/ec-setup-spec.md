@@ -66,13 +66,29 @@ The total number of solar systems is:
 
 - `5 * player_count`
 
+Since each solar system contains one planet, the total number of planets is
+also:
+
+- `5 * player_count`
+
+That means the documented galaxy totals are:
+
+- `4 players -> 20 planets`
+- `9 players -> 45 planets`
+- `16 players -> 80 planets`
+- `25 players -> 125 planets`
+
 The positions of solar systems are randomly generated at game start.
 
 This implies:
 
 - star-system count is a first-class gameplay rule, not a scenario convenience
+- planet count is a first-class gameplay rule, not a tuning suggestion
 - a faithful Rust setup flow needs explicit map-generation rules, not just
   hand-placed known scenarios
+
+The intended map-generation algorithm is documented separately in
+[starmap-generation-spec.md](/home/mag/dev/esterian_conquest/docs/starmap-generation-spec.md).
 
 ## Planet And Empire Start Rules
 
@@ -167,6 +183,30 @@ The setup roadmap should separate two deliverables:
 
 That keeps the current compliant workflow intact while making room for a more
 faithful initializer later.
+
+## Current Generated Path
+
+The Rust sysop path now has a first seeded generator for the current
+compatibility tier:
+
+- `ec-cli sysop new-game <target_dir> [--players <1-4>] [--seed <u64>]`
+- `ec-cli sysop new-game <target_dir> --config rust/ec-data/config/setup.example.kdl`
+
+Current behavior:
+
+- homeworld placement is engine-generated rather than KDL-authored
+- the generated map is seed-reproducible
+- the generator populates exactly `5 * player_count` planets within the current
+  20-record compatibility model
+- for `1..=4` players, the generated map uses the documented `18 x 18` tier as
+  its placement space even though the underlying record model has not yet been
+  widened to the larger manual tiers
+
+This is a deliberate bridge:
+
+- more manual-faithful than fixed sysop-authored homeworld coordinates
+- still compatible with the current 4-player / 20-planet Rust data model
+- already accepted by the original `ECMAINT` oracle in a seeded 4-player test
 
 ## Non-Goals
 

@@ -55,6 +55,58 @@ fn sysop_new_game_accepts_player_count_flag() {
 }
 
 #[test]
+fn sysop_new_game_accepts_kdl_config() {
+    let target = unique_temp_dir("ec-cli-sysop-new-game-config");
+    let stdout = run_ec_cli(&[
+        "sysop",
+        "new-game",
+        target.to_str().unwrap(),
+        "--config",
+        "rust/ec-data/config/setup.example.kdl",
+    ]);
+    assert!(stdout.contains("Initialized new game"));
+    assert!(stdout.contains("setup.example.kdl"));
+    assert!(target.join("DATABASE.DAT").exists());
+    cleanup_dir(&target);
+}
+
+#[test]
+fn sysop_new_game_allows_player_override_over_kdl() {
+    let target = unique_temp_dir("ec-cli-sysop-new-game-config-override");
+    let stdout = run_ec_cli(&[
+        "sysop",
+        "new-game",
+        target.to_str().unwrap(),
+        "--config",
+        "rust/ec-data/config/setup.example.kdl",
+        "--players",
+        "2",
+    ]);
+    assert!(stdout.contains("Initialized new game"));
+    assert!(stdout.contains("setup.example.kdl"));
+    assert!(stdout.contains("players=2"));
+    assert!(target.join("DATABASE.DAT").exists());
+    cleanup_dir(&target);
+}
+
+#[test]
+fn sysop_new_game_accepts_seed_and_reports_it() {
+    let target = unique_temp_dir("ec-cli-sysop-new-game-seed");
+    let stdout = run_ec_cli(&[
+        "sysop",
+        "new-game",
+        target.to_str().unwrap(),
+        "--players",
+        "4",
+        "--seed",
+        "1515",
+    ]);
+    assert!(stdout.contains("Initialized new game"));
+    assert!(stdout.contains("seed=1515"));
+    cleanup_dir(&target);
+}
+
+#[test]
 fn sysop_generate_gamestate_writes_preflight_clean_directory() {
     let target = unique_temp_dir("ec-cli-sysop-generate");
     let stdout = run_ec_cli(&[

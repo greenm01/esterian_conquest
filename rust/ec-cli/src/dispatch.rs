@@ -38,17 +38,15 @@ use crate::commands::fleet_battle::{init_fleet_battle, init_fleet_battle_batch, 
 use crate::commands::invade::{init_invade, init_invade_batch, set_invade_onefleet};
 use crate::commands::maint::{compare_maintenance, run_rust_maintenance};
 use crate::commands::scenario::{
-    apply_known_scenario, apply_known_scenarios, init_all_known_scenarios,
+    KnownScenario, apply_known_scenario, apply_known_scenarios, init_all_known_scenarios,
     init_known_replayable_scenario, init_known_scenario, init_known_scenario_chain,
     print_known_scenario_details, print_known_scenarios, validate_all_known_scenarios,
     validate_all_preserved_scenarios, validate_known_scenario, validate_preserved_scenario,
-    KnownScenario,
 };
 use crate::commands::setup::{
-    init_canonical_four_player_start,
-    print_autopilot_after, print_com_irq, print_flow_control, print_local_timeout,
-    print_maintenance_days, print_max_key_gap, print_minimum_time, print_port_setup,
-    print_purge_after, print_remote_timeout, print_setup_programs, print_snoop,
+    init_canonical_four_player_start, print_autopilot_after, print_com_irq, print_flow_control,
+    print_local_timeout, print_maintenance_days, print_max_key_gap, print_minimum_time,
+    print_port_setup, print_purge_after, print_remote_timeout, print_setup_programs, print_snoop,
     set_autopilot_after, set_com_irq, set_flow_control, set_local_timeout, set_maintenance_days,
     set_max_key_gap, set_minimum_time, set_purge_after, set_remote_timeout, set_snoop,
 };
@@ -62,7 +60,7 @@ use crate::support::parse::{
     parse_target_and_econ_spec_list, parse_target_and_fleet_battle_spec_list,
     parse_target_and_fleet_spec, parse_target_and_fleet_spec_list,
     parse_target_and_invade_spec_list, parse_target_and_planet_spec,
-    parse_target_and_planet_spec_list, parse_u16_arg, parse_u8_arg, parse_usize_1_based,
+    parse_target_and_planet_spec_list, parse_u8_arg, parse_u16_arg, parse_usize_1_based,
 };
 use crate::support::paths::{default_fixture_dir, post_maint_fixture_dir, resolve_repo_path};
 use crate::usage::print_usage;
@@ -157,7 +155,9 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
             };
             initialize_dir(&source, &target)?;
         }
-        "generate-gamestate" => run_sysop_args(std::iter::once("generate-gamestate".to_string()).chain(args))?,
+        "generate-gamestate" => {
+            run_sysop_args(std::iter::once("generate-gamestate".to_string()).chain(args))?
+        }
         "init-canonical-four-player-start" => {
             let Some(target_dir) = args.next().map(PathBuf::from) else {
                 print_usage();

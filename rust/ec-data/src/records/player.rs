@@ -1,4 +1,4 @@
-use crate::support::{copy_array, expect_size, trim_ascii_field, ParseError};
+use crate::support::{ParseError, copy_array, expect_size, trim_ascii_field};
 use crate::{PLAYER_DAT_SIZE, PLAYER_RECORD_COUNT, PLAYER_RECORD_SIZE};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

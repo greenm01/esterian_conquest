@@ -2,10 +2,9 @@ use ec_data::{CanonicalFourPlayerSetup, GameStateBuilder};
 
 #[test]
 fn canonical_four_player_start_matches_documented_opening_shape() {
-    let data = GameStateBuilder::build_canonical_four_player_start(
-        CanonicalFourPlayerSetup::default(),
-    )
-    .expect("canonical four-player start should build");
+    let data =
+        GameStateBuilder::build_canonical_four_player_start(CanonicalFourPlayerSetup::default())
+            .expect("canonical four-player start should build");
 
     assert_eq!(data.conquest.game_year(), 3000);
     assert_eq!(data.conquest.player_count(), 4);

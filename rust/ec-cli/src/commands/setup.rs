@@ -1,7 +1,8 @@
 use std::fs;
 use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use ec_data::{CanonicalFourPlayerSetup, ConquestDat, DatabaseDat, GameStateBuilder, SetupDat};
+use ec_data::{ConquestDat, DatabaseDat, SetupConfig, SetupDat, build_seeded_new_game};
 
 pub(crate) fn print_maintenance_days(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let conquest = ConquestDat::parse(&fs::read(dir.join("CONQUEST.DAT"))?)?;
@@ -33,14 +34,15 @@ pub(crate) fn init_new_game(
     target: &Path,
     player_count: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data = if player_count == 4 {
-        GameStateBuilder::build_canonical_four_player_start(CanonicalFourPlayerSetup::default())?
-    } else {
-        GameStateBuilder::new()
-            .with_player_count(player_count)
-            .with_year(3000)
-            .build_initialized_baseline()?
-    };
+    init_new_game_with_seed(target, player_count, runtime_seed())
+}
+
+pub(crate) fn init_new_game_with_seed(
+    target: &Path,
+    player_count: u8,
+    seed: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let data = build_seeded_new_game(player_count, 3000, seed)?;
 
     fs::create_dir_all(target)?;
     data.save(target)?;
@@ -63,6 +65,50 @@ pub(crate) fn init_new_game(
     }
 
     Ok(())
+}
+
+pub(crate) fn init_new_game_from_config(
+    target: &Path,
+    config_path: &Path,
+    player_count_override: Option<u8>,
+    seed_override: Option<u64>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let config = SetupConfig::load_kdl(config_path)?;
+    let config = if let Some(player_count) = player_count_override {
+        config.with_player_count_override(player_count)?
+    } else {
+        config
+    };
+    let data = config.build_game_data(seed_override.unwrap_or_else(runtime_seed))?;
+
+    fs::create_dir_all(target)?;
+    data.save(target)?;
+
+    let planet_names: Vec<String> = data
+        .planets
+        .records
+        .iter()
+        .map(|planet| planet.planet_name())
+        .collect();
+    let database =
+        DatabaseDat::generate_from_planets_and_year(&planet_names, data.conquest.game_year(), None);
+    fs::write(target.join("DATABASE.DAT"), database.to_bytes())?;
+
+    for name in ["MESSAGES.DAT", "RESULTS.DAT"] {
+        let path = target.join(name);
+        if !path.exists() {
+            fs::write(path, [])?;
+        }
+    }
+
+    Ok(())
+}
+
+fn runtime_seed() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos() as u64)
+        .unwrap_or(0xEC15_1515_0000_0001)
 }
 
 pub(crate) fn set_maintenance_days(
@@ -375,9 +421,5 @@ fn com_index(port_name: &str) -> Option<usize> {
 }
 
 fn yes_no(value: bool) -> &'static str {
-    if value {
-        "Yes"
-    } else {
-        "No"
-    }
+    if value { "Yes" } else { "No" }
 }

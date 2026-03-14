@@ -42,7 +42,6 @@ The goal is:
 
 - `ec-data`: binary formats and typed accessors
 - `ec-cli`: std-only scripting and verification interface
-- `ec-tui`: user-facing terminal UI
 - keep the Rust implementation data-oriented:
   - explicit record/file data
   - focused free functions or small impl blocks
@@ -119,7 +118,7 @@ The goal is:
   - year
   - maintenance schedule
   - sysop options
-  - homeworld placement
+  - optional map-generation seed
   - setup mode / starting-state presets
 - CLI and future TUI surfaces should act as frontends over that config and the
   shared Rust model, not as the only place where setup can be expressed

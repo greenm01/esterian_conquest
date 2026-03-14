@@ -110,12 +110,22 @@ Success rate: 100.0%
    ec-cli sysop new-game /tmp/game --players 4
    ```
 
-3. **Validate compliance:**
+3. **Start a game from declarative setup config:**
+   ```bash
+   ec-cli sysop new-game /tmp/game --config rust/ec-data/config/setup.example.kdl
+   ```
+
+4. **Start a reproducible generated game with an explicit seed:**
+   ```bash
+   ec-cli sysop new-game /tmp/game --players 4 --seed 1515
+   ```
+
+5. **Validate compliance:**
    ```bash
    ec-cli compliance-report /tmp/game
    ```
 
-4. **Oracle validation:**
+6. **Oracle validation:**
    ```bash
    python3 tools/oracle_sweep.py
    ```
@@ -157,6 +167,10 @@ What is strong:
 - DATABASE.DAT is now generated from PLANETS.DAT (not copied), closing the replay drift gap
 - All 9 known scenario families work with exact fixture matching
 - **100% ECMAINT acceptance rate** on diverse generated gamestates
+- the seeded `sysop new-game --players 4 --seed 1515` path now also survives an
+  original `ECMAINT` oracle run with zero file diffs
+- the KDL-backed `sysop new-game --config rust/ec-data/config/setup.example.kdl`
+  path also survives an original `ECMAINT` oracle run with zero file diffs
 
 What is still incomplete:
 
@@ -164,8 +178,10 @@ What is still incomplete:
 - Multi-base starbase configurations (only single-base is fully understood)
 - Variable player_count edge cases (tested but could use more coverage)
 - ECGAME ANSI/startup preservation (useful but not the main blocker)
-- faithful manual-driven setup/starmap generation beyond the current flexible
-  builder
+- full oracle validation of the new seeded starmap path against original
+  `ECMAINT` acceptance
+- widening the seeded generator beyond the current 1-4 player / 20-record
+  compatibility tier
 - documented route-planning policy for threat-aware fleet travel
 - expansion beyond the current 4-player / 20-planet compatibility-oriented
   data model
@@ -236,17 +252,17 @@ ones.
 
 ## Immediate Next Steps
 
-- write and maintain the setup/starmap rules in
-  [ec-setup-spec.md](/home/mag/dev/esterian_conquest/docs/ec-setup-spec.md)
-- audit the current builder against the documented player-count, map-size, and
-  initial-empire rules
+- run the new seeded `sysop new-game` path through the original `ECMAINT`
+  oracle and confirm structural acceptance
+- decide whether the current 1-4 player generated path should hard-clamp to
+  the documented `18 x 18` tier or remain a compatibility-only sub-tier until
+  the larger record model lands
 - write and maintain the routing policy in
   [ec-movement-spec.md](/home/mag/dev/esterian_conquest/docs/ec-movement-spec.md)
 - keep route planning explicitly separate from recovered movement execution
   semantics
-- decide whether the next setup step is:
-  - widening the shared record-count assumptions beyond the current 4-player
-    baseline
+- widen the shared record-count assumptions beyond the current 4-player
+  baseline when the setup/storage layer is ready
   - or adding a canonical 4-player faithful initializer first and deferring
     larger map tiers
 - keep the sysop/admin setup surface separate from the future player-client
@@ -255,6 +271,8 @@ ones.
   family while keeping compatibility aliases only where useful
 - design the first `setup.kdl` schema so sysop/new-game setup can become
   declarative instead of growing more CLI-only flags
+- keep `ec-tui` deleted; do not reintroduce a half-supported setup UI while the
+  KDL/sysop path is becoming the canonical admin surface
 - [ ] Assault-path regression coverage expanded for invade and blitz edge cases
 - [ ] `maint-compare` acceptance policy updated to treat combat as structural,
   not byte-exact, parity

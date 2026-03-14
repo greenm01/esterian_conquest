@@ -270,7 +270,9 @@ pub(crate) fn validate_invade_data(data: &CoreGameData) -> Result<(), Box<dyn st
 
     if errors.is_empty() {
         println!("Valid invade scenario");
-        println!("  FLEET[3]: order=0x0a (InvadeWorld) tgt=(15,13) speed=3/3 army=100 SC=100 BB=100 CA=50 DD=50 TT=50");
+        println!(
+            "  FLEET[3]: order=0x0a (InvadeWorld) tgt=(15,13) speed=3/3 army=100 SC=100 BB=100 CA=50 DD=50 TT=50"
+        );
         println!("  PLANET[14]: (15,13) empire=2 armies=142 batteries=15");
         Ok(())
     } else {

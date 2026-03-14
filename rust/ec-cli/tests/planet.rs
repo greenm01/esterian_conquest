@@ -1,6 +1,8 @@
 mod common;
 
-use common::{cleanup_dir, copy_fixture_dir, repo_root, run_ec_cli, run_ec_cli_in_dir, unique_temp_dir};
+use common::{
+    cleanup_dir, copy_fixture_dir, repo_root, run_ec_cli, run_ec_cli_in_dir, unique_temp_dir,
+};
 use std::fs;
 
 #[test]
@@ -9,7 +11,13 @@ fn planet_build_recreates_known_valid_build_pre_fixture() {
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
 
     let stdout = run_ec_cli_in_dir(
-        &["planet-build", target.to_str().unwrap(), "15", "0x03", "0x01"],
+        &[
+            "planet-build",
+            target.to_str().unwrap(),
+            "15",
+            "0x03",
+            "0x01",
+        ],
         common::rust_workspace(),
     );
     assert!(stdout.contains("Planet record 15 updated: build_slot=0x03 build_kind=0x01"));
@@ -23,7 +31,11 @@ fn planet_build_recreates_known_valid_build_pre_fixture() {
 
 #[test]
 fn planet_build_report_prints_known_fixture_fields() {
-    let stdout = run_ec_cli(&["planet-build-report", "fixtures/ecmaint-build-pre/v1.5", "15"]);
+    let stdout = run_ec_cli(&[
+        "planet-build-report",
+        "fixtures/ecmaint-build-pre/v1.5",
+        "15",
+    ]);
     assert!(stdout.contains("Planet Build Report"));
     assert!(stdout.contains("record=15"));
     assert!(stdout.contains("build_slot=0x03"));
@@ -37,7 +49,13 @@ fn planet_build_init_materializes_parameterized_directory() {
     let target = unique_temp_dir("ec-cli-planet-build-init-params");
 
     let stdout = run_ec_cli_in_dir(
-        &["planet-build-init", target.to_str().unwrap(), "15", "0x03", "0x01"],
+        &[
+            "planet-build-init",
+            target.to_str().unwrap(),
+            "15",
+            "0x03",
+            "0x01",
+        ],
         common::rust_workspace(),
     );
     assert!(stdout.contains("Planet-build directory initialized at"));
@@ -71,7 +89,11 @@ fn planet_build_batch_init_materializes_multiple_directories() {
     assert!(manifest.contains("p12-s02-k04"));
 
     let validate = run_ec_cli_in_dir(
-        &["validate", target.join("p15-s03-k01").to_str().unwrap(), "planet-build"],
+        &[
+            "validate",
+            target.join("p15-s03-k01").to_str().unwrap(),
+            "planet-build",
+        ],
         common::rust_workspace(),
     );
     assert!(validate.contains("Valid planet-build scenario"));
@@ -99,7 +121,11 @@ fn scenario_planet_build_recreates_known_valid_build_pre_fixture() {
 
 #[test]
 fn validate_planet_build_accepts_known_valid_fixture() {
-    let stdout = run_ec_cli(&["validate", "fixtures/ecmaint-build-pre/v1.5", "planet-build"]);
+    let stdout = run_ec_cli(&[
+        "validate",
+        "fixtures/ecmaint-build-pre/v1.5",
+        "planet-build",
+    ]);
     assert!(stdout.contains("Valid planet-build scenario"));
     assert!(stdout.contains("PLANET[15].build_kind = 0x01"));
 }
@@ -133,8 +159,14 @@ fn scenario_init_planet_build_materializes_runnable_directory() {
     let expected_planets = repo_root().join("fixtures/ecmaint-build-pre/v1.5/PLANETS.DAT");
     let expected_fleets = repo_root().join("fixtures/ecmaint-post/v1.5/FLEETS.DAT");
 
-    assert_eq!(fs::read(target.join("PLANETS.DAT")).unwrap(), fs::read(expected_planets).unwrap());
-    assert_eq!(fs::read(target.join("FLEETS.DAT")).unwrap(), fs::read(expected_fleets).unwrap());
+    assert_eq!(
+        fs::read(target.join("PLANETS.DAT")).unwrap(),
+        fs::read(expected_planets).unwrap()
+    );
+    assert_eq!(
+        fs::read(target.join("FLEETS.DAT")).unwrap(),
+        fs::read(expected_fleets).unwrap()
+    );
 
     cleanup_dir(&target);
 }
@@ -162,8 +194,13 @@ fn scenario_init_replayable_planet_build_matches_exact_preserved_pre_fixture() {
         "CONQUEST.DAT",
         "DATABASE.DAT",
     ] {
-        let expected = repo_root().join("fixtures/ecmaint-build-pre/v1.5").join(name);
-        assert_eq!(fs::read(target.join(name)).unwrap(), fs::read(expected).unwrap());
+        let expected = repo_root()
+            .join("fixtures/ecmaint-build-pre/v1.5")
+            .join(name);
+        assert_eq!(
+            fs::read(target.join(name)).unwrap(),
+            fs::read(expected).unwrap()
+        );
     }
 
     cleanup_dir(&target);

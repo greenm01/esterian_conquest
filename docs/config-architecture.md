@@ -57,7 +57,8 @@ Approved long-term KDL categories:
   - game year
   - maintenance days
   - setup/program options
-  - homeworld coordinates
+  - optional map-generation seed
+  - startup map-generation policy
   - startup presets and map-generation choices
 - oracle scenarios
   - named scenario definitions
@@ -94,6 +95,7 @@ When KDL is introduced, prefer:
 - `rust/ec-data/config/combat.kdl`
 - `rust/ec-data/config/setup.kdl`
 - `rust/ec-data/config/scenarios/*.kdl`
+- schema and examples documented in `docs/`
 
 For sysop/admin setup, prefer the ownership split:
 
@@ -105,3 +107,8 @@ For sysop/admin setup, prefer the ownership split:
 
 The first expected config extraction is combat constants and oracle scenarios,
 not a full generalized scenario DSL.
+
+The first concrete sysop/setup target is now documented in
+[setup-kdl-schema.md](/home/mag/dev/esterian_conquest/docs/setup-kdl-schema.md)
+with a matching sample file at
+[`rust/ec-data/config/setup.example.kdl`](/home/mag/dev/esterian_conquest/rust/ec-data/config/setup.example.kdl).

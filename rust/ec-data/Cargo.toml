@@ -6,3 +6,5 @@ edition = "2024"
 [lib]
 path = "src/lib.rs"
 
+[dependencies]
+kdl = "6"

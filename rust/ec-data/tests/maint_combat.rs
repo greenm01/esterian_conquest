@@ -1,8 +1,8 @@
 mod common;
 
 use ec_data::{
-    run_maintenance_turn, ContactReportSource, CoreGameData, MissionResolutionKind,
-    MissionResolutionOutcome,
+    ContactReportSource, CoreGameData, MissionResolutionKind, MissionResolutionOutcome,
+    run_maintenance_turn,
 };
 use std::path::Path;
 
@@ -76,14 +76,18 @@ fn canonical_bombardment_consumes_order_and_devastates_target() {
     assert_eq!(events.bombard_events[0].planet_idx, 13);
     assert_eq!(events.bombard_events[0].attacker_empire_raw, 1);
     assert_eq!(events.planet_intel_events.len(), 2);
-    assert!(events
-        .planet_intel_events
-        .iter()
-        .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 1));
-    assert!(events
-        .planet_intel_events
-        .iter()
-        .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 2));
+    assert!(
+        events
+            .planet_intel_events
+            .iter()
+            .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 1)
+    );
+    assert!(
+        events
+            .planet_intel_events
+            .iter()
+            .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 2)
+    );
     assert!(events.colonization_events.is_empty());
 
     let attacker = &game_data.fleets.records[2];
@@ -94,7 +98,10 @@ fn canonical_bombardment_consumes_order_and_devastates_target() {
     assert_eq!(attacker.destroyer_count(), 0);
 
     let post_target = &game_data.planets.records[13];
-    assert_eq!(post_target.owner_empire_slot_raw(), pre_target.owner_empire_slot_raw());
+    assert_eq!(
+        post_target.owner_empire_slot_raw(),
+        pre_target.owner_empire_slot_raw()
+    );
     assert_eq!(post_target.army_count_raw(), 5);
     assert_eq!(post_target.ground_batteries_raw(), 0);
     assert!(post_target.army_count_raw() < pre_target.army_count_raw());
@@ -134,8 +141,7 @@ fn canonical_fleet_battle_removes_losers_without_garbage_counts() {
     }));
     assert!(events.scout_contact_events.iter().any(|event| {
         event.viewer_empire_raw == 1
-            && event.source
-                == ContactReportSource::FleetMission(MissionResolutionKind::ScoutSector)
+            && event.source == ContactReportSource::FleetMission(MissionResolutionKind::ScoutSector)
             && event.coords == [10, 10]
             && event.target_empire_raw == 2
     }));
@@ -313,16 +319,23 @@ fn canonical_blitz_success_transfers_surviving_batteries() {
     assert_eq!(target.army_count_raw(), 10);
     assert_eq!(events.ownership_change_events.len(), 1);
     assert_eq!(events.ownership_change_events[0].planet_idx, 13);
-    assert_eq!(events.ownership_change_events[0].previous_owner_empire_raw, 2);
+    assert_eq!(
+        events.ownership_change_events[0].previous_owner_empire_raw,
+        2
+    );
     assert_eq!(events.ownership_change_events[0].new_owner_empire_raw, 1);
-    assert!(events
-        .planet_intel_events
-        .iter()
-        .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 1));
-    assert!(events
-        .planet_intel_events
-        .iter()
-        .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 2));
+    assert!(
+        events
+            .planet_intel_events
+            .iter()
+            .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 1)
+    );
+    assert!(
+        events
+            .planet_intel_events
+            .iter()
+            .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 2)
+    );
     assert!(events.colonization_events.is_empty());
 }
 

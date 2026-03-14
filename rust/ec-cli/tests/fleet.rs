@@ -1,6 +1,8 @@
 mod common;
 
-use common::{cleanup_dir, copy_fixture_dir, repo_root, run_ec_cli, run_ec_cli_in_dir, unique_temp_dir};
+use common::{
+    cleanup_dir, copy_fixture_dir, repo_root, run_ec_cli, run_ec_cli_in_dir, unique_temp_dir,
+};
 use std::fs;
 
 #[test]
@@ -9,7 +11,15 @@ fn fleet_order_recreates_known_valid_fleet_pre_fixture() {
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
 
     let stdout = run_ec_cli_in_dir(
-        &["fleet-order", target.to_str().unwrap(), "1", "3", "12", "15", "13"],
+        &[
+            "fleet-order",
+            target.to_str().unwrap(),
+            "1",
+            "3",
+            "12",
+            "15",
+            "13",
+        ],
         common::rust_workspace(),
     );
     assert!(stdout.contains("Fleet record 1 updated: speed=3 order=0x0c target=(15, 13)"));
@@ -36,7 +46,15 @@ fn fleet_order_init_materializes_parameterized_directory() {
     let target = unique_temp_dir("ec-cli-fleet-order-init-params");
 
     let stdout = run_ec_cli_in_dir(
-        &["fleet-order-init", target.to_str().unwrap(), "1", "3", "0x0c", "15", "13"],
+        &[
+            "fleet-order-init",
+            target.to_str().unwrap(),
+            "1",
+            "3",
+            "0x0c",
+            "15",
+            "13",
+        ],
         common::rust_workspace(),
     );
     assert!(stdout.contains("Fleet-order directory initialized at"));
@@ -70,7 +88,11 @@ fn fleet_order_batch_init_materializes_multiple_directories() {
     assert!(manifest.contains("r01-s02-o0c-x10-y09"));
 
     let validate = run_ec_cli_in_dir(
-        &["validate", target.join("r01-s03-o0c-x15-y13").to_str().unwrap(), "fleet-order"],
+        &[
+            "validate",
+            target.join("r01-s03-o0c-x15-y13").to_str().unwrap(),
+            "fleet-order",
+        ],
         common::rust_workspace(),
     );
     assert!(validate.contains("Valid fleet-order scenario"));
@@ -143,8 +165,14 @@ fn scenario_init_fleet_order_materializes_runnable_directory() {
     let expected_fleets = repo_root().join("fixtures/ecmaint-fleet-pre/v1.5/FLEETS.DAT");
     let expected_planets = repo_root().join("fixtures/ecmaint-post/v1.5/PLANETS.DAT");
 
-    assert_eq!(fs::read(target.join("FLEETS.DAT")).unwrap(), fs::read(expected_fleets).unwrap());
-    assert_eq!(fs::read(target.join("PLANETS.DAT")).unwrap(), fs::read(expected_planets).unwrap());
+    assert_eq!(
+        fs::read(target.join("FLEETS.DAT")).unwrap(),
+        fs::read(expected_fleets).unwrap()
+    );
+    assert_eq!(
+        fs::read(target.join("PLANETS.DAT")).unwrap(),
+        fs::read(expected_planets).unwrap()
+    );
 
     cleanup_dir(&target);
 }
@@ -172,8 +200,13 @@ fn scenario_init_replayable_fleet_order_matches_exact_preserved_pre_fixture() {
         "CONQUEST.DAT",
         "DATABASE.DAT",
     ] {
-        let expected = repo_root().join("fixtures/ecmaint-fleet-pre/v1.5").join(name);
-        assert_eq!(fs::read(target.join(name)).unwrap(), fs::read(expected).unwrap());
+        let expected = repo_root()
+            .join("fixtures/ecmaint-fleet-pre/v1.5")
+            .join(name);
+        assert_eq!(
+            fs::read(target.join(name)).unwrap(),
+            fs::read(expected).unwrap()
+        );
     }
 
     cleanup_dir(&target);

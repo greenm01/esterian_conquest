@@ -1,4 +1,4 @@
-use crate::support::{copy_array, ParseError};
+use crate::support::{ParseError, copy_array};
 
 pub const DATABASE_RECORD_SIZE: usize = 100;
 pub const DATABASE_RECORD_COUNT: usize = 80;

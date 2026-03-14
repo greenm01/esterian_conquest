@@ -613,7 +613,10 @@ fn process_join_host_updates(
         }
 
         let host_exists = current_fleet_ids.contains(&host_id);
-        let host_viable = current_host_viability.get(&host_id).copied().unwrap_or(false);
+        let host_viable = current_host_viability
+            .get(&host_id)
+            .copied()
+            .unwrap_or(false);
         if !host_exists || !host_viable {
             let coords = fleet.current_location_coords_raw();
             fleet.set_standing_order_code_raw(0);
@@ -696,17 +699,16 @@ fn process_fleet_movement(
                             });
                     }
                     FleetStandingOrderKind::ScoutSolarSystem => {
-                        if let Some(planet_idx) =
-                            game_data.planets.records.iter().position(|planet| {
-                                planet.coords_raw() == [target_x, target_y]
-                            })
+                        if let Some(planet_idx) = game_data
+                            .planets
+                            .records
+                            .iter()
+                            .position(|planet| planet.coords_raw() == [target_x, target_y])
                         {
-                            movement_events
-                                .planet_intel_events
-                                .push(PlanetIntelEvent {
-                                    planet_idx,
-                                    viewer_empire_raw: owner_empire,
-                                });
+                            movement_events.planet_intel_events.push(PlanetIntelEvent {
+                                planet_idx,
+                                viewer_empire_raw: owner_empire,
+                            });
                         }
                         movement_events
                             .mission_resolution_events
@@ -727,12 +729,10 @@ fn process_fleet_movement(
                             .iter()
                             .position(|planet| planet.coords_raw() == [target_x, target_y]);
                         if let Some(planet_idx) = planet_idx {
-                            movement_events
-                                .planet_intel_events
-                                .push(PlanetIntelEvent {
-                                    planet_idx,
-                                    viewer_empire_raw: owner_empire,
-                                });
+                            movement_events.planet_intel_events.push(PlanetIntelEvent {
+                                planet_idx,
+                                viewer_empire_raw: owner_empire,
+                            });
                         }
                         movement_events
                             .mission_resolution_events
@@ -1133,8 +1133,12 @@ fn process_fleet_merging(
 
                 let merging_order = game_data.fleets.records[fi].standing_order_kind();
                 let merge_kind = match merging_order {
-                    FleetStandingOrderKind::JoinAnotherFleet => Some(MissionResolutionKind::JoinAnotherFleet),
-                    FleetStandingOrderKind::RendezvousSector => Some(MissionResolutionKind::RendezvousSector),
+                    FleetStandingOrderKind::JoinAnotherFleet => {
+                        Some(MissionResolutionKind::JoinAnotherFleet)
+                    }
+                    FleetStandingOrderKind::RendezvousSector => {
+                        Some(MissionResolutionKind::RendezvousSector)
+                    }
                     _ => None,
                 };
                 if let Some(kind) = merge_kind {

@@ -36,7 +36,10 @@ fn maint_rust_econ_updates_database_owner_intel_from_post_combat_planet_state() 
     assert_eq!(owner_record.raw[0x15], planet.owner_empire_slot_raw());
     assert_eq!(owner_record.raw[0x16], year_bytes[0]);
     assert_eq!(owner_record.raw[0x17], year_bytes[1]);
-    assert_eq!(owner_record.raw[0x1e], 0x40 + planet.owner_empire_slot_raw());
+    assert_eq!(
+        owner_record.raw[0x1e],
+        0x40 + planet.owner_empire_slot_raw()
+    );
     assert_eq!(owner_record.raw[0x23], planet.army_count_raw());
     assert_eq!(owner_record.raw[0x25], planet.ground_batteries_raw());
 
@@ -65,7 +68,10 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    assert!(!results.is_empty(), "RESULTS.DAT should contain battle summaries");
+    assert!(
+        !results.is_empty(),
+        "RESULTS.DAT should contain battle summaries"
+    );
     let text = String::from_utf8_lossy(&results);
     assert!(text.contains("Fleet battle report"));
     assert!(text.contains("System("));
@@ -118,7 +124,9 @@ fn maint_rust_destroyed_starbase_generates_lost_contact_report() {
     attacker.set_scout_count(0);
     attacker.set_troop_transport_count(0);
     attacker.set_etac_count(0);
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_ec_cli_in_dir(
         &["maint-rust", target.to_str().unwrap(), "1"],
@@ -140,7 +148,9 @@ fn maint_rust_destroyed_starbase_generates_lost_contact_report() {
             .bases
             .records
             .iter()
-            .all(|base| !(base.coords_raw() == starbase_coords && base.owner_empire_raw() == 1 && base.active_flag_raw() != 0))
+            .all(|base| !(base.coords_raw() == starbase_coords
+                && base.owner_empire_raw() == 1
+                && base.active_flag_raw() != 0))
     );
 
     cleanup_dir(&target);
@@ -186,7 +196,9 @@ fn maint_rust_colonization_blocked_by_owner_generates_report() {
     blocked.set_ownership_status_raw(2);
     blocked.set_planet_name("TargetPrime");
     blocked.set_army_count_raw(10);
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_ec_cli_in_dir(
         &["maint-rust", target.to_str().unwrap(), "1"],
@@ -220,7 +232,9 @@ fn maint_rust_scout_sector_generates_results_report() {
     scout.set_standing_order_target_coords_raw([15, 13]);
     scout.set_scout_count(1);
     scout.set_etac_count(0);
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_ec_cli_in_dir(
         &["maint-rust", target.to_str().unwrap(), "1"],
@@ -229,7 +243,10 @@ fn maint_rust_scout_sector_generates_results_report() {
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    assert!(!results.is_empty(), "RESULTS.DAT should contain scout summaries");
+    assert!(
+        !results.is_empty(),
+        "RESULTS.DAT should contain scout summaries"
+    );
     let text = String::from_utf8_lossy(&results);
     assert!(text.contains("Scouting mission report"));
     assert!(text.contains("beginning to scout this sector"));
@@ -249,7 +266,9 @@ fn maint_rust_scout_system_generates_results_report() {
     scout.set_standing_order_target_coords_raw([15, 13]);
     scout.set_scout_count(1);
     scout.set_etac_count(0);
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_ec_cli_in_dir(
         &["maint-rust", target.to_str().unwrap(), "1"],
@@ -258,7 +277,10 @@ fn maint_rust_scout_system_generates_results_report() {
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    assert!(!results.is_empty(), "RESULTS.DAT should contain scout summaries");
+    assert!(
+        !results.is_empty(),
+        "RESULTS.DAT should contain scout summaries"
+    );
     let text = String::from_utf8_lossy(&results);
     assert!(text.contains("Scouting mission report"));
     assert!(text.contains("Owner:"));
@@ -273,7 +295,10 @@ fn maint_rust_scout_system_generates_results_report() {
         viewer_record.planet_name_bytes(),
         game_data.planets.records[13].planet_name().as_bytes()
     );
-    assert_eq!(viewer_record.raw[0x15], game_data.planets.records[13].owner_empire_slot_raw());
+    assert_eq!(
+        viewer_record.raw[0x15],
+        game_data.planets.records[13].owner_empire_slot_raw()
+    );
 
     cleanup_dir(&target);
 }
@@ -289,7 +314,9 @@ fn maint_rust_view_world_generates_results_and_database_intel() {
     viewer.set_standing_order_target_coords_raw([15, 13]);
     viewer.set_scout_count(0);
     viewer.set_etac_count(0);
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_ec_cli_in_dir(
         &["maint-rust", target.to_str().unwrap(), "1"],
@@ -327,7 +354,9 @@ fn maint_rust_guard_starbase_generates_arrival_report() {
     fleet.set_standing_order_code_raw(4);
     fleet.set_standing_order_target_coords_raw(coords);
     fleet.set_current_speed(3);
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_ec_cli_in_dir(
         &["maint-rust", target.to_str().unwrap(), "1"],
@@ -354,7 +383,9 @@ fn maint_rust_guard_blockade_generates_arrival_report() {
     guard.set_standing_order_target_coords_raw([15, 13]);
     guard.set_scout_count(0);
     guard.set_etac_count(0);
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_ec_cli_in_dir(
         &["maint-rust", target.to_str().unwrap(), "1"],
@@ -424,7 +455,9 @@ fn maint_rust_invade_failure_generates_attacker_side_report() {
     attacker.set_troop_transport_count(2);
     attacker.set_army_count(2);
     attacker.set_etac_count(0);
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_ec_cli_in_dir(
         &["maint-rust", target.to_str().unwrap(), "1"],
@@ -476,7 +509,9 @@ fn maint_rust_blitz_success_generates_attacker_side_report() {
     attacker.set_troop_transport_count(10);
     attacker.set_army_count(30);
     attacker.set_etac_count(0);
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_ec_cli_in_dir(
         &["maint-rust", target.to_str().unwrap(), "1"],
@@ -502,7 +537,9 @@ fn maint_rust_battle_abort_generates_move_abort_report() {
 
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
     game_data.fleets.records[0].set_standing_order_code_raw(1);
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_ec_cli_in_dir(
         &["maint-rust", target.to_str().unwrap(), "1"],
@@ -526,7 +563,9 @@ fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
 
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
     game_data.fleets.records[0].set_standing_order_code_raw(10);
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_ec_cli_in_dir(
         &["maint-rust", target.to_str().unwrap(), "1"],
@@ -554,7 +593,9 @@ fn maint_rust_rendezvous_arrival_generates_waiting_report() {
     let fleet = &mut game_data.fleets.records[0];
     fleet.set_standing_order_code_raw(14);
     fleet.set_standing_order_target_coords_raw([15, 13]);
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_ec_cli_in_dir(
         &["maint-rust", target.to_str().unwrap(), "1"],
@@ -580,7 +621,9 @@ fn maint_rust_join_merge_generates_join_report() {
     let coords = game_data.fleets.records[0].current_location_coords_raw();
     game_data.fleets.records[1].set_current_location_coords_raw(coords);
     game_data.fleets.records[1].set_standing_order_code_raw(13);
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_ec_cli_in_dir(
         &["maint-rust", target.to_str().unwrap(), "1"],
@@ -607,7 +650,9 @@ fn maint_rust_rendezvous_merge_generates_absorbing_report() {
     game_data.fleets.records[0].set_standing_order_code_raw(14);
     game_data.fleets.records[1].set_current_location_coords_raw(coords);
     game_data.fleets.records[1].set_standing_order_code_raw(14);
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_ec_cli_in_dir(
         &["maint-rust", target.to_str().unwrap(), "1"],
@@ -630,7 +675,9 @@ fn maint_rust_join_contact_uses_join_report_label() {
 
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
     game_data.fleets.records[0].set_standing_order_code_raw(13);
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_ec_cli_in_dir(
         &["maint-rust", target.to_str().unwrap(), "1"],
@@ -653,7 +700,9 @@ fn maint_rust_guard_contact_uses_guard_report_label() {
 
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
     game_data.fleets.records[0].set_standing_order_code_raw(5);
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_ec_cli_in_dir(
         &["maint-rust", target.to_str().unwrap(), "1"],

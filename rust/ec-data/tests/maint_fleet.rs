@@ -4,8 +4,8 @@
 //! behavior on the fleet-scenario fixture pair.
 
 use ec_data::{
-    run_maintenance_turn, ColonizationResolvedEvent, CoreGameData, FleetStandingOrderKind,
-    MissionResolutionKind, MissionResolutionOutcome,
+    ColonizationResolvedEvent, CoreGameData, FleetStandingOrderKind, MissionResolutionKind,
+    MissionResolutionOutcome, run_maintenance_turn,
 };
 use std::path::Path;
 

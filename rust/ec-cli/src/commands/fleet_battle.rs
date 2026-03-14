@@ -277,7 +277,26 @@ pub(crate) fn init_fleet_battle_batch(
     {
         let name = format!(
             "bx{:02}-by{:02}-f0r{}-f0bb{}-f0ca{}-f0dd{}-f2ca{}-f2dd{}-f4sc{}-f4bb{}-f4ca{}-f8lx{:02}-f8ly{:02}-f8sc{}-f8bb{}-f8ca{}-p14x{:02}-p14y{:02}-p14a{}-p14b{}",
-            bx, by, f0r, f0bb, f0ca, f0dd, f2ca, f2dd, f4sc, f4bb, f4ca, f8lx, f8ly, f8sc, f8bb, f8ca, p14x, p14y, p14a, p14b
+            bx,
+            by,
+            f0r,
+            f0bb,
+            f0ca,
+            f0dd,
+            f2ca,
+            f2dd,
+            f4sc,
+            f4bb,
+            f4ca,
+            f8lx,
+            f8ly,
+            f8sc,
+            f8bb,
+            f8ca,
+            p14x,
+            p14y,
+            p14a,
+            p14b
         );
         let scenario_dir = target_root.join(&name);
         init_fleet_battle(
