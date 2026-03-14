@@ -6,6 +6,7 @@ mod enemies;
 mod general_menu;
 mod layout;
 mod main_menu;
+mod message_compose;
 mod planet_info;
 mod partial_starmap;
 mod reports;
@@ -22,6 +23,7 @@ pub use enemies::EnemiesScreen;
 pub use general_menu::GeneralMenuScreen;
 pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 pub use main_menu::MainMenuScreen;
+pub use message_compose::MessageComposeScreen;
 pub use planet_info::{PlanetInfoScreen, parse_planet_coords};
 pub use partial_starmap::PartialStarmapScreen;
 pub use rankings::{RankingsScreen, RankingsView};
@@ -49,6 +51,9 @@ pub enum ScreenId {
     PlanetInfoDetail,
     Enemies,
     DeleteReviewables,
+    ComposeMessageRecipient,
+    ComposeMessageBody,
+    ComposeMessageSent,
     EmpireStatus,
     EmpireProfile,
     Rankings(RankingsView),

@@ -3,7 +3,7 @@ use std::path::Path;
 
 use ec_data::{
     ContactReportSource, CoreGameData, DatabaseDat, MaintenanceEvents, Mission, MissionOutcome,
-    PlanetDat, ShipLosses,
+    PlanetDat, ShipLosses, clear_mail_queue, load_mail_queue,
 };
 
 const RESULTS_RECORD_SIZE: usize = 84;
@@ -904,7 +904,7 @@ pub(crate) fn regenerate_results_dat(
 
 pub(crate) fn regenerate_messages_dat(
     dir: &Path,
-    game_data: &CoreGameData,
+    game_data: &mut CoreGameData,
     events: &MaintenanceEvents,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut messages = Vec::new();
@@ -1602,7 +1602,39 @@ pub(crate) fn regenerate_messages_dat(
         );
     }
 
+    let queued_mail = load_mail_queue(dir)?;
+    for mail in &queued_mail {
+        let text = format!(
+            "From {} (game year {}): {}",
+            empire_label(game_data, mail.sender_empire_id),
+            mail.year,
+            mail.body.replace('\n', " "),
+        );
+        push_routed_message_chunked(
+            &mut messages,
+            game_data,
+            mail.recipient_empire_id,
+            0x08,
+            RESULTS_TAIL_BOMBARD,
+            &text,
+        );
+        if let Some(player) = game_data
+            .player
+            .records
+            .get_mut(mail.recipient_empire_id.saturating_sub(1) as usize)
+        {
+            player.raw[0x30] = 1;
+            player.raw[0x34] = 1;
+        }
+    }
+
     let messages_path = dir.join("MESSAGES.DAT");
+    if !queued_mail.is_empty() && messages_path.exists() {
+        let existing = fs::read(&messages_path)?;
+        if !existing.is_empty() && existing.len() % 84 != 0 {
+            return Ok(());
+        }
+    }
     if messages.is_empty() && messages_path.exists() {
         let existing = fs::read(&messages_path)?;
         if !existing.is_empty() {
@@ -1611,5 +1643,8 @@ pub(crate) fn regenerate_messages_dat(
     }
 
     fs::write(messages_path, messages)?;
+    if !queued_mail.is_empty() {
+        clear_mail_queue(dir)?;
+    }
     Ok(())
 }

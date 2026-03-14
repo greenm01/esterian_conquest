@@ -235,3 +235,47 @@ fn apply_action_deletes_reviewables() {
         Vec::<u8>::new()
     );
 }
+
+#[test]
+fn apply_action_queues_composed_message() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenComposeMessageRecipient),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::ComposeMessageRecipient);
+    assert_eq!(
+        apply_action(&mut app, Action::AppendComposeRecipientChar('2')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitComposeRecipient),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::ComposeMessageBody);
+    assert_eq!(
+        apply_action(&mut app, Action::AppendComposeBodyChar('H')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendComposeBodyChar('i')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SendComposedMessage),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::ComposeMessageSent);
+    let queue = ec_data::load_mail_queue(&fixture_dir).expect("load queued mail");
+    assert_eq!(queue.len(), 1);
+    assert_eq!(queue[0].recipient_empire_id, 2);
+    assert_eq!(queue[0].body, "Hi");
+}

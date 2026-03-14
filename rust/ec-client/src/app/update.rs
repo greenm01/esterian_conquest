@@ -33,6 +33,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_delete_reviewables();
             AppOutcome::Continue
         }
+        Action::OpenComposeMessageRecipient => {
+            app.open_compose_message_recipient();
+            AppOutcome::Continue
+        }
         Action::OpenStarmap => {
             app.open_starmap();
             AppOutcome::Continue
@@ -43,6 +47,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         },
         Action::ScrollEnemies(delta) => {
             app.scroll_enemies(delta);
+            AppOutcome::Continue
+        }
+        Action::ScrollComposeRecipients(delta) => {
+            app.scroll_compose_recipients(delta);
             AppOutcome::Continue
         }
         Action::BeginStarmapDump => {
@@ -90,6 +98,34 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             Err(_) => AppOutcome::Continue,
         },
         Action::ConfirmDeleteReviewables => match app.delete_reviewables() {
+            Ok(()) => AppOutcome::Continue,
+            Err(_) => AppOutcome::Continue,
+        },
+        Action::AppendComposeRecipientChar(ch) => {
+            app.append_compose_recipient_char(ch);
+            AppOutcome::Continue
+        }
+        Action::BackspaceComposeRecipient => {
+            app.backspace_compose_recipient();
+            AppOutcome::Continue
+        }
+        Action::SubmitComposeRecipient => {
+            app.submit_compose_recipient();
+            AppOutcome::Continue
+        }
+        Action::AppendComposeBodyChar(ch) => {
+            app.append_compose_body_char(ch);
+            AppOutcome::Continue
+        }
+        Action::BackspaceComposeBody => {
+            app.backspace_compose_body();
+            AppOutcome::Continue
+        }
+        Action::InsertComposeNewline => {
+            app.insert_compose_newline();
+            AppOutcome::Continue
+        }
+        Action::SendComposedMessage => match app.send_composed_message() {
             Ok(()) => AppOutcome::Continue,
             Err(_) => AppOutcome::Continue,
         },

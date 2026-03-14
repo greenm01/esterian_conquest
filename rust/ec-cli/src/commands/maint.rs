@@ -113,18 +113,19 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
         game_data.conquest.game_year()
     );
 
-    // Save the modified state
+    // Regenerate DATABASE.DAT and message/report surfaces.
+    regenerate_database_dat(dir, &game_data, &pre_maint_planets, &all_events)?;
+    regenerate_results_dat(dir, &game_data, &all_events)?;
+    regenerate_messages_dat(dir, &mut game_data, &all_events)?;
+
+    // Save the modified state after report/message regeneration, since routed
+    // mail delivery may update player mailbox flags.
     game_data.save(dir)?;
     save_diplomacy_overrides_if_needed(
         dir,
         game_data.conquest.player_count(),
         &diplomacy_overrides,
     )?;
-
-    // Regenerate DATABASE.DAT from PLANETS.DAT
-    regenerate_database_dat(dir, &game_data, &pre_maint_planets, &all_events)?;
-    regenerate_results_dat(dir, &game_data, &all_events)?;
-    regenerate_messages_dat(dir, &game_data, &all_events)?;
 
     println!("Rust maintenance complete.");
     Ok(())

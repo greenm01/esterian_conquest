@@ -64,6 +64,7 @@ impl Screen for GeneralMenuScreen {
         match key.code {
             KeyCode::Char('i') | KeyCode::Char('I') => Action::OpenPlanetInfoPrompt,
             KeyCode::Char('a') | KeyCode::Char('A') => Action::ToggleAutopilot,
+            KeyCode::Char('c') | KeyCode::Char('C') => Action::OpenComposeMessageRecipient,
             KeyCode::Char('e') | KeyCode::Char('E') => Action::OpenEnemies,
             KeyCode::Char('m') | KeyCode::Char('M') => Action::OpenStarmap,
             KeyCode::Char('v') | KeyCode::Char('V') => Action::OpenPartialStarmapPrompt,

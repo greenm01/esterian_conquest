@@ -85,6 +85,10 @@ pub fn table_divider(columns: &[TableColumn<'_>]) -> String {
     out
 }
 
+pub fn format_empire_id(empire_id: u8) -> String {
+    format!("{empire_id:02}")
+}
+
 fn header_cells<'a>(columns: &'a [TableColumn<'a>]) -> Vec<&'a str> {
     columns.iter().map(|column| column.header).collect()
 }

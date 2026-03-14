@@ -2,7 +2,9 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{draw_command_prompt, draw_title_bar, new_playfield};
-use crate::screen::table::{TableColumn, table_divider, write_table_header, write_table_row};
+use crate::screen::table::{
+    format_empire_id, table_divider, TableColumn, write_table_header, write_table_row,
+};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 use ec_data::{DiplomaticRelation, EmpireProductionRankingSort};
@@ -64,15 +66,18 @@ impl RankingsScreen {
             } else {
                 diplomacy_status(viewer.diplomatic_relation_toward(row.empire_id)).to_string()
             };
+            let empire_id = format_empire_id(row.empire_id);
+            let planets_owned = row.planets_owned.to_string();
+            let current_production = row.current_production.to_string();
             write_table_row(
                 &mut buffer,
                 row_idx + 4,
                 &RANKINGS_COLUMNS,
                 &[
                     &row.empire_name,
-                    &row.empire_id.to_string(),
-                    &row.planets_owned.to_string(),
-                    &row.current_production.to_string(),
+                    &empire_id,
+                    &planets_owned,
+                    &current_production,
                     &status,
                 ],
                 classic::status_value_style(),

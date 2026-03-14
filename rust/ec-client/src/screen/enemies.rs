@@ -3,7 +3,7 @@ use ec_data::DiplomaticRelation;
 
 use crate::app::Action;
 use crate::screen::layout::{draw_command_prompt, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield};
-use crate::screen::table::{TableColumn, write_table_window};
+use crate::screen::table::{format_empire_id, TableColumn, write_table_window};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 
@@ -62,7 +62,7 @@ impl EnemiesScreen {
             .into_iter()
             .map(|(empire_id, name, relation)| {
                 vec![
-                    empire_id.to_string(),
+                    format_empire_id(empire_id),
                     name,
                     match relation {
                         DiplomaticRelation::Enemy => "ENEMY".to_string(),

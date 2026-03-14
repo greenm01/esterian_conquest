@@ -1,14 +1,18 @@
 use std::fs;
 use std::path::PathBuf;
 
-use ec_data::{CoreGameData, DatabaseDat, build_player_starmap_projection};
+use ec_data::{
+    CoreGameData, DatabaseDat, QueuedPlayerMail, append_mail_queue,
+    build_player_starmap_projection,
+};
 
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
 use crate::reports::{ReportsPreview, clear_report_files};
 use crate::screen::{
     DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
-    GeneralMenuScreen, MainMenuScreen, PlanetInfoScreen, PartialStarmapScreen, RankingsScreen,
-    RankingsView, ReportsScreen, Screen, ScreenFrame, ScreenId, StartupScreen, StarmapScreen,
+    GeneralMenuScreen, MainMenuScreen, MessageComposeScreen, PlanetInfoScreen,
+    PartialStarmapScreen, RankingsScreen, RankingsView, ReportsScreen, Screen, ScreenFrame,
+    ScreenId, StartupScreen, StarmapScreen,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -36,6 +40,7 @@ pub struct App {
     planet_info: PlanetInfoScreen,
     enemies: EnemiesScreen,
     delete_reviewables: DeleteReviewablesScreen,
+    message_compose: MessageComposeScreen,
     empire_status: EmpireStatusScreen,
     empire_profile: EmpireProfileScreen,
     rankings: RankingsScreen,
@@ -50,6 +55,13 @@ pub struct App {
     enemies_status: Option<String>,
     enemies_scroll_offset: usize,
     delete_reviewables_status: Option<String>,
+    compose_recipient_input: String,
+    compose_recipient_status: Option<String>,
+    compose_recipient_scroll_offset: usize,
+    compose_recipient_empire: Option<u8>,
+    compose_body: String,
+    compose_body_status: Option<String>,
+    compose_sent_status: Option<String>,
     starmap_view_x: usize,
     starmap_view_y: usize,
     starmap_status: Option<String>,
@@ -102,6 +114,7 @@ impl App {
             planet_info: PlanetInfoScreen::new(),
             enemies: EnemiesScreen::new(),
             delete_reviewables: DeleteReviewablesScreen::new(),
+            message_compose: MessageComposeScreen::new(),
             empire_status: EmpireStatusScreen::new(),
             empire_profile: EmpireProfileScreen::new(),
             rankings: RankingsScreen::new(),
@@ -116,6 +129,13 @@ impl App {
             enemies_status: None,
             enemies_scroll_offset: 0,
             delete_reviewables_status: None,
+            compose_recipient_input: String::new(),
+            compose_recipient_status: None,
+            compose_recipient_scroll_offset: 0,
+            compose_recipient_empire: None,
+            compose_body: String::new(),
+            compose_body_status: None,
+            compose_sent_status: None,
             starmap_view_x: 1,
             starmap_view_y: 1,
             starmap_status: None,
@@ -174,6 +194,22 @@ impl App {
             ScreenId::DeleteReviewables => self
                 .delete_reviewables
                 .render(self.delete_reviewables_status.as_deref())?,
+            ScreenId::ComposeMessageRecipient => self.message_compose.render_recipient(
+                &frame,
+                &self.compose_recipient_input,
+                self.compose_recipient_status.as_deref(),
+                self.compose_recipient_scroll_offset,
+            )?,
+            ScreenId::ComposeMessageBody => self.message_compose.render_body(
+                &compose_recipient_label(&self.game_data, self.compose_recipient_empire),
+                &self.compose_body,
+                self.compose_body_status.as_deref(),
+            )?,
+            ScreenId::ComposeMessageSent => self.message_compose.render_sent(
+                self.compose_sent_status
+                    .as_deref()
+                    .unwrap_or("Message queued."),
+            )?,
             ScreenId::EmpireStatus => self.empire_status.render(&frame)?,
             ScreenId::EmpireProfile => self.empire_profile.render(&frame)?,
             ScreenId::Rankings(RankingsView::Prompt) => self.rankings.render_prompt(&frame)?,
@@ -222,6 +258,9 @@ impl App {
             ScreenId::PlanetInfoDetail => self.planet_info.handle_detail_key(key),
             ScreenId::Enemies => self.enemies.handle_key(key),
             ScreenId::DeleteReviewables => self.delete_reviewables.handle_key(key),
+            ScreenId::ComposeMessageRecipient => self.message_compose.handle_recipient_key(key),
+            ScreenId::ComposeMessageBody => self.message_compose.handle_body_key(key),
+            ScreenId::ComposeMessageSent => self.message_compose.handle_sent_key(key),
             ScreenId::EmpireStatus => self.empire_status.handle_key(key),
             ScreenId::EmpireProfile => self.empire_profile.handle_key(key),
             ScreenId::Rankings(RankingsView::Prompt) => self.rankings.handle_prompt_key(key),
@@ -260,6 +299,17 @@ impl App {
     pub fn open_delete_reviewables(&mut self) {
         self.delete_reviewables_status = None;
         self.current_screen = ScreenId::DeleteReviewables;
+    }
+
+    pub fn open_compose_message_recipient(&mut self) {
+        self.compose_recipient_input.clear();
+        self.compose_recipient_status = None;
+        self.compose_recipient_scroll_offset = 0;
+        self.compose_recipient_empire = None;
+        self.compose_body.clear();
+        self.compose_body_status = None;
+        self.compose_sent_status = None;
+        self.current_screen = ScreenId::ComposeMessageRecipient;
     }
 
     pub fn scroll_enemies(&mut self, delta: i8) {
@@ -395,6 +445,110 @@ impl App {
             }
         ));
         self.enemies_input.clear();
+        Ok(())
+    }
+
+    pub fn append_compose_recipient_char(&mut self, ch: char) {
+        if self.current_screen == ScreenId::ComposeMessageRecipient
+            && self.compose_recipient_input.len() < 2
+        {
+            self.compose_recipient_input.push(ch);
+            self.compose_recipient_status = None;
+        }
+    }
+
+    pub fn scroll_compose_recipients(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::ComposeMessageRecipient {
+            return;
+        }
+        let total = self
+            .game_data
+            .player
+            .records
+            .len()
+            .saturating_sub(1);
+        let max_offset = total.saturating_sub(8);
+        self.compose_recipient_scroll_offset = self
+            .compose_recipient_scroll_offset
+            .saturating_add_signed(delta as isize)
+            .min(max_offset);
+    }
+
+    pub fn backspace_compose_recipient(&mut self) {
+        if self.current_screen == ScreenId::ComposeMessageRecipient {
+            self.compose_recipient_input.pop();
+            self.compose_recipient_status = None;
+        }
+    }
+
+    pub fn submit_compose_recipient(&mut self) {
+        let Ok(empire_id) = self.compose_recipient_input.parse::<u8>() else {
+            self.compose_recipient_status = Some("Enter an empire number.".to_string());
+            return;
+        };
+        let max_empire = self.game_data.conquest.player_count();
+        if !(1..=max_empire).contains(&empire_id) {
+            self.compose_recipient_status =
+                Some(format!("Enter an empire number in 1..={max_empire}."));
+            return;
+        }
+        if empire_id as usize == self.player.record_index_1_based {
+            self.compose_recipient_status = Some("You cannot message your own empire.".to_string());
+            return;
+        }
+        self.compose_recipient_empire = Some(empire_id);
+        self.compose_body.clear();
+        self.compose_body_status = None;
+        self.current_screen = ScreenId::ComposeMessageBody;
+    }
+
+    pub fn append_compose_body_char(&mut self, ch: char) {
+        if self.current_screen == ScreenId::ComposeMessageBody && self.compose_body.len() < 2000 {
+            self.compose_body.push(ch);
+            self.compose_body_status = None;
+        }
+    }
+
+    pub fn backspace_compose_body(&mut self) {
+        if self.current_screen == ScreenId::ComposeMessageBody {
+            self.compose_body.pop();
+            self.compose_body_status = None;
+        }
+    }
+
+    pub fn insert_compose_newline(&mut self) {
+        if self.current_screen == ScreenId::ComposeMessageBody && self.compose_body.len() < 2000 {
+            self.compose_body.push('\n');
+            self.compose_body_status = None;
+        }
+    }
+
+    pub fn send_composed_message(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if self.current_screen != ScreenId::ComposeMessageBody {
+            return Ok(());
+        }
+        let Some(recipient_empire_id) = self.compose_recipient_empire else {
+            self.compose_body_status = Some("Choose a recipient first.".to_string());
+            return Ok(());
+        };
+        let body = self.compose_body.trim();
+        if body.is_empty() {
+            self.compose_body_status = Some("Message body cannot be empty.".to_string());
+            return Ok(());
+        }
+        append_mail_queue(
+            &self.game_dir,
+            &QueuedPlayerMail {
+                sender_empire_id: self.player.record_index_1_based as u8,
+                recipient_empire_id,
+                year: self.game_data.conquest.game_year(),
+                body: body.to_string(),
+            },
+        )?;
+        self.compose_sent_status = Some(format!(
+            "Message queued for Empire {recipient_empire_id}. It will be delivered after turn maintenance."
+        ));
+        self.current_screen = ScreenId::ComposeMessageSent;
         Ok(())
     }
 
@@ -578,6 +732,19 @@ impl App {
             _ => crate::app::Action::Noop,
         }
     }
+}
+
+fn compose_recipient_label(game_data: &CoreGameData, empire_id: Option<u8>) -> String {
+    let Some(empire_id) = empire_id else {
+        return "<unknown>".to_string();
+    };
+    let Some(player) = game_data.player.records.get(empire_id.saturating_sub(1) as usize) else {
+        return format!("Empire {empire_id}");
+    };
+    let name = player.controlled_empire_name_summary();
+    let fallback = player.legacy_status_name_summary();
+    let display = if !name.is_empty() { name } else { fallback };
+    format!("Empire {empire_id} ({display})")
 }
 
 fn file_nonempty(path: PathBuf) -> bool {

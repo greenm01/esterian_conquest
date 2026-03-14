@@ -19,6 +19,7 @@ mod economy;
 mod maint;
 mod mapgen;
 mod pathfinding;
+mod player_mail;
 mod records;
 mod starmap;
 mod support;
@@ -54,6 +55,7 @@ pub use pathfinding::{
     PlannedRoute, RouteStep, VisibleHazardIntel, next_path_step, plan_route, plan_route_with_intel,
     visible_hazard_intel_from_database,
 };
+pub use player_mail::{QueuedPlayerMail, append_mail_queue, clear_mail_queue, load_mail_queue};
 pub use starmap::{PlayerStarmapProjection, PlayerStarmapWorld, build_player_starmap_projection};
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;
