@@ -65,6 +65,7 @@ Default black-box oracle loop for new mechanics:
 - broader compliance sweeps:
   - `python3 tools/oracle_sweep.py`
   - `python3 tools/oracle_sweep.py --mode seeded`
+  - `python3 tools/rust_maint_sweep.py --turns 3`
 
 Sysop/admin setup surface:
 - `ec-cli sysop new-game <target_dir> [--players <1-25>] [--seed <u64>]`

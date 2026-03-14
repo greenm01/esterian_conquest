@@ -1375,3 +1375,50 @@ fn maint_rust_reports_fleet_defection_after_civil_disorder() {
 
     cleanup_dir(&target);
 }
+
+#[test]
+fn maint_rust_seeded_games_survive_five_turns_across_manual_player_tiers() {
+    for (player_count, seed) in [(4u8, 1515u64), (9, 2025), (16, 4242), (25, 5151)] {
+        let target = unique_temp_dir(&format!("ec-cli-maint-rust-multiturn-{player_count}p"));
+
+        let stdout = run_ec_cli_in_dir(
+            &[
+                "sysop",
+                "new-game",
+                target.to_str().unwrap(),
+                "--players",
+                &player_count.to_string(),
+                "--seed",
+                &seed.to_string(),
+            ],
+            common::rust_workspace(),
+        );
+        assert!(
+            stdout.contains("Initialized new game at:"),
+            "sysop new-game stdout was: {stdout:?}"
+        );
+
+        let stdout = run_ec_cli_in_dir(
+            &["maint-rust", target.to_str().unwrap(), "5"],
+            common::rust_workspace(),
+        );
+        assert!(stdout.contains("Rust maintenance complete."));
+
+        let post = CoreGameData::load(&target).expect("multi-turn maint output should load");
+        assert_eq!(post.conquest.game_year(), 3005);
+        assert!(
+            post.ecmaint_preflight_errors().is_empty(),
+            "preflight errors after five turns for {player_count} players: {:?}",
+            post.ecmaint_preflight_errors()
+        );
+
+        let database_bytes = fs::read(target.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+        let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+        assert_eq!(
+            database.records.len(),
+            post.player.records.len() * post.planets.records.len()
+        );
+
+        cleanup_dir(&target);
+    }
+}

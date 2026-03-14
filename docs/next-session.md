@@ -184,6 +184,13 @@ What is strong:
   path also survives an original `ECMAINT` oracle run with zero file diffs
 - the generated `9`, `16`, and `25` player setup tiers now also survive the
   original `ECMAINT` oracle with zero file diffs
+- the workspace now also has an explicit multi-turn Rust maintenance oracle
+  sweep:
+  - `python3 tools/rust_maint_sweep.py --turns 3`
+  - this generates seeded games, runs `maint-rust` repeatedly, then confirms
+    the resulting directories are still accepted by the original `ECMAINT`
+  - current result: `8/8` passes across `4/9/16/25` players and seeds
+    `1515/2025` for `3` Rust maint turns each
 - the current generated starmap path now includes:
   - region-based homeworld placement
   - fairness-scored reroll selection
@@ -402,6 +409,8 @@ ones.
     appears
   - refine fleet-defection behavior if stronger classic evidence appears beyond
     the current one-fleet-per-turn conservative rule
+- keep the new multi-turn Rust maintenance sweep in the loop when campaign or
+  routing rules change
 - [ ] Assault-path regression coverage expanded for invade and blitz edge cases
 - [ ] `maint-compare` acceptance policy updated to treat combat as structural,
   not byte-exact, parity
