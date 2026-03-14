@@ -107,7 +107,7 @@ Success rate: 100.0%
 
 2. **Start a default new game quickly:**
    ```bash
-   ec-cli sysop new-game /tmp/game --players 4
+   ec-cli sysop new-game /tmp/game --players 25
    ```
 
 3. **Start a game from declarative setup config:**
@@ -171,6 +171,13 @@ What is strong:
   original `ECMAINT` oracle run with zero file diffs
 - the KDL-backed `sysop new-game --config rust/ec-data/config/setup.example.kdl`
   path also survives an original `ECMAINT` oracle run with zero file diffs
+- the generated `9`, `16`, and `25` player setup tiers now also survive the
+  original `ECMAINT` oracle with zero file diffs
+- the current generated starmap path now includes:
+  - region-based homeworld placement
+  - fairness-scored reroll selection
+  - structured neutral-world production
+  - one-planet-per-system enforcement
 
 What is still incomplete:
 
@@ -178,13 +185,9 @@ What is still incomplete:
 - Multi-base starbase configurations (only single-base is fully understood)
 - Variable player_count edge cases (tested but could use more coverage)
 - ECGAME ANSI/startup preservation (useful but not the main blocker)
-- full oracle validation of the new seeded starmap path against original
-  `ECMAINT` acceptance
-- widening the seeded generator beyond the current 1-4 player / 20-record
-  compatibility tier
+- broader oracle sweep coverage of the seeded starmap path across more seeds
 - documented route-planning policy for threat-aware fleet travel
-- expansion beyond the current 4-player / 20-planet compatibility-oriented
-  data model
+- deeper playtesting/tuning of the new larger-tier starmap generator
 
 ### ⏳ Milestone 4: Rust ECMAINT Replacement — IN PROGRESS
 
@@ -246,7 +249,7 @@ ones.
 - [x] Fleet movement: 100% deterministic match on preserved fixture path
 - [x] Economic tick: deterministic path implemented and fixture-covered
 - [x] Combat resolution: canonical deterministic model implemented and tested
-- [ ] Setup/starmap initialization: manual-faithful canonical initializer
+- [x] Setup/starmap initialization: manual-faithful canonical initializer
 - [ ] Threat-aware routing: documented and implemented as a canonical Rust
   extension above classic movement execution
 
@@ -254,9 +257,8 @@ ones.
 
 - run the new seeded `sysop new-game` path through the original `ECMAINT`
   oracle and confirm structural acceptance
-- decide whether the current 1-4 player generated path should hard-clamp to
-  the documented `18 x 18` tier or remain a compatibility-only sub-tier until
-  the larger record model lands
+- run a broader seeded oracle sweep for `9/16/25` player setup tiers rather
+  than only single-point validation
 - write and maintain the routing policy in
   [ec-movement-spec.md](/home/mag/dev/esterian_conquest/docs/ec-movement-spec.md)
 - keep route planning explicitly separate from recovered movement execution

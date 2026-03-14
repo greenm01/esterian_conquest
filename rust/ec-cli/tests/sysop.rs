@@ -107,6 +107,24 @@ fn sysop_new_game_accepts_seed_and_reports_it() {
 }
 
 #[test]
+fn sysop_new_game_accepts_manual_nine_player_tier() {
+    let target = unique_temp_dir("ec-cli-sysop-new-game-nine");
+    let stdout = run_ec_cli(&[
+        "sysop",
+        "new-game",
+        target.to_str().unwrap(),
+        "--players",
+        "9",
+        "--seed",
+        "2025",
+    ]);
+    assert!(stdout.contains("Initialized new game"));
+    assert!(stdout.contains("players=9"));
+    assert!(target.join("PLAYER.DAT").exists());
+    cleanup_dir(&target);
+}
+
+#[test]
 fn sysop_generate_gamestate_writes_preflight_clean_directory() {
     let target = unique_temp_dir("ec-cli-sysop-generate");
     let stdout = run_ec_cli(&[

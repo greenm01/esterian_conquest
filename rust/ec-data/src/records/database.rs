@@ -1,13 +1,11 @@
 use crate::support::{ParseError, copy_array};
 
 pub const DATABASE_RECORD_SIZE: usize = 100;
-pub const DATABASE_RECORD_COUNT: usize = 80;
-pub const DATABASE_DAT_SIZE: usize = DATABASE_RECORD_SIZE * DATABASE_RECORD_COUNT;
 
 /// A single DATABASE.DAT record (100 bytes).
 ///
-/// DATABASE.DAT contains 80 records of 100 bytes each (8000 bytes total).
-/// Structure: 20 planets × 4 player intel slots = 80 records.
+/// DATABASE.DAT contains `player_count * planet_count` records of 100 bytes each.
+/// Structure: `planet_count` planets × `player_count` player intel slots.
 /// Each record caches planet display information and derived intel for one player's view.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DatabaseRecord {
@@ -87,25 +85,25 @@ impl DatabaseRecord {
     }
 }
 
-/// The complete DATABASE.DAT file (80 records, 8000 bytes).
+/// The complete DATABASE.DAT file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DatabaseDat {
-    pub records: [DatabaseRecord; DATABASE_RECORD_COUNT],
+    pub records: Vec<DatabaseRecord>,
 }
 
 impl DatabaseDat {
-    pub fn new_zeroed() -> Self {
+    pub fn new_zeroed(record_count: usize) -> Self {
         Self {
-            records: std::array::from_fn(|_| DatabaseRecord::new_zeroed()),
+            records: (0..record_count).map(|_| DatabaseRecord::new_zeroed()).collect(),
         }
     }
 
     /// Parse DATABASE.DAT from bytes.
     pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
-        if data.len() != DATABASE_DAT_SIZE {
-            return Err(ParseError::WrongSize {
+        if data.len() % DATABASE_RECORD_SIZE != 0 {
+            return Err(ParseError::WrongRecordMultiple {
                 file_type: "DATABASE.DAT",
-                expected: DATABASE_DAT_SIZE,
+                record_size: DATABASE_RECORD_SIZE,
                 actual: data.len(),
             });
         }
@@ -117,19 +115,7 @@ impl DatabaseDat {
             })
             .collect();
 
-        // Convert Vec to fixed-size array
-        let records_array: [DatabaseRecord; DATABASE_RECORD_COUNT] =
-            records
-                .try_into()
-                .map_err(|_| ParseError::WrongRecordMultiple {
-                    file_type: "DATABASE.DAT",
-                    record_size: DATABASE_RECORD_SIZE,
-                    actual: data.len(),
-                })?;
-
-        Ok(Self {
-            records: records_array,
-        })
+        Ok(Self { records })
     }
 
     /// Serialize DATABASE.DAT to bytes.
@@ -143,19 +129,24 @@ impl DatabaseDat {
     /// Get record index for a specific planet and player.
     /// Layout: player 0-3, each has slots for planets 0-19.
     /// Index = player * 20 + planet
-    pub fn record_index(planet_index: usize, player_index: usize) -> usize {
-        player_index * PLANET_RECORD_COUNT + planet_index
+    pub fn record_index(planet_index: usize, player_index: usize, planet_count: usize) -> usize {
+        player_index * planet_count + planet_index
     }
 
     /// Get mutable reference to a specific planet/player record.
-    pub fn record_mut(&mut self, planet_index: usize, player_index: usize) -> &mut DatabaseRecord {
-        let idx = Self::record_index(planet_index, player_index);
+    pub fn record_mut(
+        &mut self,
+        planet_index: usize,
+        player_index: usize,
+        planet_count: usize,
+    ) -> &mut DatabaseRecord {
+        let idx = Self::record_index(planet_index, player_index, planet_count);
         &mut self.records[idx]
     }
 
     /// Get reference to a specific planet/player record.
-    pub fn record(&self, planet_index: usize, player_index: usize) -> &DatabaseRecord {
-        let idx = Self::record_index(planet_index, player_index);
+    pub fn record(&self, planet_index: usize, player_index: usize, planet_count: usize) -> &DatabaseRecord {
+        let idx = Self::record_index(planet_index, player_index, planet_count);
         &self.records[idx]
     }
 
@@ -168,16 +159,18 @@ impl DatabaseDat {
     pub fn generate_from_planets_and_year(
         planet_names: &[String],
         _game_year: u16,
+        player_count: usize,
         template: Option<&DatabaseDat>,
     ) -> Self {
-        let result = if let Some(t) = template {
+        let expected_record_count = player_count * planet_names.len();
+        let result = if let Some(t) = template.filter(|t| t.records.len() == expected_record_count) {
             t.clone()
         } else {
             // Create a default template with "UNKNOWN" names
-            let mut default = Self::new_zeroed();
-            for player in 0..4 {
-                for planet in 0..20 {
-                    let record = default.record_mut(planet, player);
+            let mut default = Self::new_zeroed(expected_record_count);
+            for player in 0..player_count {
+                for planet in 0..planet_names.len() {
+                    let record = default.record_mut(planet, player, planet_names.len());
                     record.set_planet_name("UNKNOWN");
                 }
             }
@@ -193,6 +186,3 @@ impl DatabaseDat {
         result
     }
 }
-
-// Import constant from parent module
-const PLANET_RECORD_COUNT: usize = 20;

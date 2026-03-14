@@ -1,10 +1,6 @@
 pub const PLAYER_RECORD_SIZE: usize = 110;
-pub const PLAYER_RECORD_COUNT: usize = 4;
-pub const PLAYER_DAT_SIZE: usize = PLAYER_RECORD_SIZE * PLAYER_RECORD_COUNT;
 
 pub const PLANET_RECORD_SIZE: usize = 97;
-pub const PLANET_RECORD_COUNT: usize = 20;
-pub const PLANETS_DAT_SIZE: usize = PLANET_RECORD_SIZE * PLANET_RECORD_COUNT;
 
 pub const FLEET_RECORD_SIZE: usize = 54;
 pub const INITIALIZED_FLEET_RECORD_COUNT: usize = 16;
@@ -15,8 +11,6 @@ pub const IPBM_RECORD_SIZE: usize = 32;
 pub const SETUP_DAT_SIZE: usize = 522;
 pub const CONQUEST_DAT_SIZE: usize = 2085;
 pub const DATABASE_RECORD_SIZE: usize = 100;
-pub const DATABASE_RECORD_COUNT: usize = 80;
-pub const DATABASE_DAT_SIZE: usize = DATABASE_RECORD_SIZE * DATABASE_RECORD_COUNT;
 pub const MAINTENANCE_DAY_ENABLED_CODES: [u8; 7] = [0x01, 0x01, 0xCA, 0x01, 0x0A, 0x01, 0x26];
 mod builder;
 mod config;

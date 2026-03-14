@@ -26,9 +26,9 @@ fn generate_gamestate_from_args(
         return Ok(());
     };
     let player_count: u8 = match args.next().and_then(|s| s.parse().ok()) {
-        Some(count) if (1..=4).contains(&count) => count,
+        Some(count) if (1..=25).contains(&count) => count,
         _ => {
-            eprintln!("Error: player_count must be 1-4");
+            eprintln!("Error: player_count must be 1-25");
             print_usage();
             return Ok(());
         }
@@ -102,10 +102,10 @@ fn parse_player_count_value(value: &str) -> Result<u8, String> {
     let player_count: u8 = value
         .parse()
         .map_err(|_| format!("invalid player count: {value}"))?;
-    if (1..=4).contains(&player_count) {
+    if (1..=25).contains(&player_count) {
         Ok(player_count)
     } else {
-        Err(format!("player_count must be 1-4, got {player_count}"))
+        Err(format!("player_count must be 1-25, got {player_count}"))
     }
 }
 

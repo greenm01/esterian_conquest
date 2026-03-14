@@ -1925,6 +1925,9 @@ impl CoreGameData {
         // PLAYER ipbm_count ↔ IPBM.DAT length
         errors.extend(self.ipbm_count_length_errors_current_known());
 
+        // Player/planet table lengths
+        errors.extend(self.record_count_errors());
+
         // Fleet owner validation
         errors.extend(self.fleet_owner_errors());
 
@@ -1958,10 +1961,33 @@ impl CoreGameData {
         }
 
         let player_count = self.conquest.player_count();
-        if player_count == 0 || player_count > 4 {
+        if player_count == 0 || player_count > 25 {
             errors.push(format!(
-                "CONQUEST.DAT.player_count {} out of range (1-4)",
+                "CONQUEST.DAT.player_count {} out of range (1-25)",
                 player_count
+            ));
+        }
+
+        errors
+    }
+
+    fn record_count_errors(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+        let player_count = self.conquest.player_count() as usize;
+        let expected_planets = player_count.saturating_mul(5);
+
+        if self.player.records.len() != player_count {
+            errors.push(format!(
+                "PLAYER.DAT record count expected {}, got {}",
+                player_count,
+                self.player.records.len()
+            ));
+        }
+        if self.planets.records.len() != expected_planets {
+            errors.push(format!(
+                "PLANETS.DAT record count expected {}, got {}",
+                expected_planets,
+                self.planets.records.len()
             ));
         }
 

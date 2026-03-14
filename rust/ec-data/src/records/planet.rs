@@ -1,5 +1,5 @@
-use crate::support::{ParseError, copy_array, expect_size};
-use crate::{PLANET_RECORD_COUNT, PLANET_RECORD_SIZE, PLANETS_DAT_SIZE};
+use crate::support::{ParseError, copy_array};
+use crate::PLANET_RECORD_SIZE;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanetRecord {
@@ -286,20 +286,25 @@ impl PlanetRecord {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanetDat {
-    pub records: [PlanetRecord; PLANET_RECORD_COUNT],
+    pub records: Vec<PlanetRecord>,
 }
 
 impl PlanetDat {
     pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
-        expect_size(data, PLANETS_DAT_SIZE, "PLANETS.DAT")?;
+        if data.len() % PLANET_RECORD_SIZE != 0 {
+            return Err(ParseError::WrongRecordMultiple {
+                file_type: "PLANETS.DAT",
+                record_size: PLANET_RECORD_SIZE,
+                actual: data.len(),
+            });
+        }
         Ok(Self {
-            records: std::array::from_fn(|idx| {
-                let start = idx * PLANET_RECORD_SIZE;
-                let end = start + PLANET_RECORD_SIZE;
-                PlanetRecord {
-                    raw: copy_array(&data[start..end]),
-                }
-            }),
+            records: data
+                .chunks_exact(PLANET_RECORD_SIZE)
+                .map(|chunk| PlanetRecord {
+                    raw: copy_array(chunk),
+                })
+                .collect(),
         })
     }
 

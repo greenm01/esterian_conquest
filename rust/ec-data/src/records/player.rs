@@ -1,5 +1,5 @@
-use crate::support::{ParseError, copy_array, expect_size, trim_ascii_field};
-use crate::{PLAYER_DAT_SIZE, PLAYER_RECORD_COUNT, PLAYER_RECORD_SIZE};
+use crate::support::{ParseError, copy_array, trim_ascii_field};
+use crate::PLAYER_RECORD_SIZE;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlayerRecord {
@@ -156,20 +156,25 @@ impl PlayerRecord {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlayerDat {
-    pub records: [PlayerRecord; PLAYER_RECORD_COUNT],
+    pub records: Vec<PlayerRecord>,
 }
 
 impl PlayerDat {
     pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
-        expect_size(data, PLAYER_DAT_SIZE, "PLAYER.DAT")?;
+        if data.len() % PLAYER_RECORD_SIZE != 0 {
+            return Err(ParseError::WrongRecordMultiple {
+                file_type: "PLAYER.DAT",
+                record_size: PLAYER_RECORD_SIZE,
+                actual: data.len(),
+            });
+        }
         Ok(Self {
-            records: std::array::from_fn(|idx| {
-                let start = idx * PLAYER_RECORD_SIZE;
-                let end = start + PLAYER_RECORD_SIZE;
-                PlayerRecord {
-                    raw: copy_array(&data[start..end]),
-                }
-            }),
+            records: data
+                .chunks_exact(PLAYER_RECORD_SIZE)
+                .map(|chunk| PlayerRecord {
+                    raw: copy_array(chunk),
+                })
+                .collect(),
         })
     }
 

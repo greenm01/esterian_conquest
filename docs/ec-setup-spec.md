@@ -148,41 +148,30 @@ Refine setup in this order:
 The current Rust setup/builder layer is a compatibility-oriented baseline
 constructor, not yet a faithful full EC game initializer.
 
-Current hard boundaries in `ec-data`:
+Recent Rust changes removed the old fixed `4 player / 20 planet` storage cap:
 
-- [`lib.rs`](/home/mag/dev/esterian_conquest/rust/ec-data/src/lib.rs)
-  defines:
-  - `PLAYER_RECORD_COUNT = 4`
-  - `PLANET_RECORD_COUNT = 20`
-- [`builder.rs`](/home/mag/dev/esterian_conquest/rust/ec-data/src/builder.rs)
-  clamps `with_player_count()` to `1..=4`
-- [`directory.rs`](/home/mag/dev/esterian_conquest/rust/ec-data/src/directory.rs)
-  rejects `CONQUEST.DAT.player_count > 4` in current preflight validation
+- `PLAYER.DAT`, `PLANETS.DAT`, and `DATABASE.DAT` now use dynamic record counts
+- setup generation now supports the documented `4`, `9`, `16`, and `25`
+  player tiers in one shared path
+- current preflight validation now accepts `1..=25` players and enforces the
+  `5 * player_count` planet rule
 
-Those choices are consistent with the current milestone:
+Those changes are now sufficient for the manuals' full player-count tier model
+at the setup/storage level.
 
-- reconstruct and validate the known 4-player preserved baseline
-- generate classic-compatible directories accepted by original maintenance
-- port mechanics incrementally from that known-good footing
+So the current code should now be understood as:
 
-They are not yet sufficient for the manuals' full setup model.
-
-So the current code should be understood as:
-
-- good compatibility infrastructure
-- good test harness infrastructure
-- not yet the final manual-faithful game-start implementation
+- compatible setup/storage infrastructure for all documented player-count tiers
+- a manual-faithful generated new-game path
+- still open to later tuning of map shape and pathfinding policy, but no longer
+  blocked on fixed-size file assumptions
 
 ## Audit Consequences
 
-The setup roadmap should separate two deliverables:
+The setup roadmap is now split differently:
 
-1. preserve and stabilize the current 4-player compatibility builder
-2. expand the data model and initializer toward the manual-driven player-count
-   tiers and star-map rules
-
-That keeps the current compliant workflow intact while making room for a more
-faithful initializer later.
+1. preserve the accepted generated setup path across all documented player-count tiers
+2. refine the quality of map generation and later movement/pathfinding on top of that base
 
 ## Current Generated Path
 
@@ -198,6 +187,11 @@ Current behavior:
 - the generated map is seed-reproducible
 - the generator populates exactly `5 * player_count` planets within the current
   20-record compatibility model
+- the generator enforces one planet per system by unique coordinates after
+  homeworld placement
+- homeworlds keep the documented fixed starting production of `100`
+- neutral worlds are distributed by a fairness-scored generated map rather than
+  by pure random placement
 - for `1..=4` players, the generated map uses the documented `18 x 18` tier as
   its placement space even though the underlying record model has not yet been
   widened to the larger manual tiers

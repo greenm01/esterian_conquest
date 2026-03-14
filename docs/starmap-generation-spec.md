@@ -166,18 +166,22 @@ This gives both:
 - reproducibility for testing/admin work
 - randomness for ordinary new games
 
-## First Implementation Scope
+## Current Implementation Scope
 
-The first Rust implementation does not need full Perlin + Voronoi + scoring in
-one pass.
+The current Rust implementation now covers the intended first-tier generator:
 
-Reasonable staging:
+1. deterministic fair homeworld placement for the current `1..=4` compatibility tier
+2. region-based homeworld placement with quadrant/sector ownership seeds
+3. region-aware neutral-planet placement after homeworld placement
+4. fairness scoring and reroll selection
+5. noise-shaped density weighting for frontier placement
+6. explicit one-planet-per-system enforcement by unique coordinates
 
-1. deterministic fair homeworld placement for the current 4-player model
-2. basic region-aware neutral-planet placement
-3. fairness scoring and reroll
-4. richer Voronoi + noise density shaping
-5. larger manual player-count tiers
+Still pending after this tier:
+
+1. richer void/corridor shaping beyond the current lightweight noise field
+2. deeper reachable-production graph scoring for larger galaxies
+3. future tuning of region/frontier weights based on playtesting rather than only oracle acceptance
 
 ## Relationship To KDL
 

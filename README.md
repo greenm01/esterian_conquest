@@ -52,7 +52,7 @@ Default black-box oracle loop for new mechanics:
 - inspect `.oracle/` snapshots plus the reported `.DAT`/report diff clusters
 
 Sysop/admin setup surface:
-- `ec-cli sysop new-game <target_dir> [--players <1-4>] [--seed <u64>]`
+- `ec-cli sysop new-game <target_dir> [--players <1-25>] [--seed <u64>]`
 - `ec-cli sysop new-game <target_dir> --config rust/ec-data/config/setup.example.kdl`
 - `ec-cli sysop generate-gamestate <target_dir> <player_count> <year> [<homeworld_x>:<homeworld_y>...]`
 - `ec-cli sysop setup-programs [dir]`

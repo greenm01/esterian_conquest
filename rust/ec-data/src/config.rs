@@ -191,9 +191,9 @@ impl SetupConfig {
         mut self,
         player_count: u8,
     ) -> Result<Self, SetupConfigError> {
-        if !(1..=4).contains(&player_count) {
+        if !(1..=25).contains(&player_count) {
             return Err(SetupConfigError::Parse(format!(
-                "player_count must be 1-4, got {player_count}"
+                "player_count must be 1-25, got {player_count}"
             )));
         }
 
@@ -244,9 +244,9 @@ impl SetupConfig {
     }
 
     pub fn validate(self) -> Result<Self, SetupConfigError> {
-        if !(1..=4).contains(&self.player_count) {
+        if !(1..=25).contains(&self.player_count) {
             return Err(SetupConfigError::Parse(format!(
-                "player_count must be in 1..=4, got {}",
+                "player_count must be in 1..=25, got {}",
                 self.player_count
             )));
         }

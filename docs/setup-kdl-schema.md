@@ -63,7 +63,7 @@ Optional properties:
 Recommended meanings:
 
 - `player_count`
-  - current Rust-compatible range: `1..=4`
+  - current Rust-compatible range: `1..=25`
   - long-term manual tiers: `4`, `9`, `16`, `25`
 - `year`
   - starting game year, normally `3000`

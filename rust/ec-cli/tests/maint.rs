@@ -31,7 +31,7 @@ fn maint_rust_econ_updates_database_owner_intel_from_post_combat_planet_state() 
     let owner_player = planet.owner_empire_slot_raw().saturating_sub(1) as usize;
     let planet_name = planet.planet_name();
 
-    let owner_record = database.record(planet_idx, owner_player);
+    let owner_record = database.record(planet_idx, owner_player, game_data.planets.records.len());
     assert_eq!(owner_record.planet_name_bytes(), planet_name.as_bytes());
     assert_eq!(owner_record.raw[0x15], planet.owner_empire_slot_raw());
     assert_eq!(owner_record.raw[0x16], year_bytes[0]);
@@ -44,7 +44,8 @@ fn maint_rust_econ_updates_database_owner_intel_from_post_combat_planet_state() 
     assert_eq!(owner_record.raw[0x25], planet.ground_batteries_raw());
 
     let unrelated_player = (owner_player + 1) % 4;
-    let unrelated_record = database.record(planet_idx, unrelated_player);
+    let unrelated_record =
+        database.record(planet_idx, unrelated_player, game_data.planets.records.len());
     assert_eq!(unrelated_record.planet_name_bytes(), b"UNKNOWN");
     assert_eq!(unrelated_record.raw[0x15], 0xff);
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
@@ -290,7 +291,7 @@ fn maint_rust_scout_system_generates_results_report() {
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
     let database_bytes = fs::read(target.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
     let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
-    let viewer_record = database.record(13, 0);
+    let viewer_record = database.record(13, 0, game_data.planets.records.len());
     assert_eq!(
         viewer_record.planet_name_bytes(),
         game_data.planets.records[13].planet_name().as_bytes()
@@ -333,7 +334,7 @@ fn maint_rust_view_world_generates_results_and_database_intel() {
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
     let database_bytes = fs::read(target.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
     let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
-    let viewer_record = database.record(13, 0);
+    let viewer_record = database.record(13, 0, game_data.planets.records.len());
     assert_eq!(
         viewer_record.planet_name_bytes(),
         game_data.planets.records[13].planet_name().as_bytes()

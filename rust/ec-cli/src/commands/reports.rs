@@ -48,15 +48,21 @@ pub(crate) fn regenerate_database_dat(
 
     let year = game_data.conquest.game_year();
     let discovery_year = year - 1;
-    let mut new_database =
-        DatabaseDat::generate_from_planets_and_year(&planet_names, year, template.as_ref());
+    let player_count = game_data.conquest.player_count() as usize;
+    let planet_count = game_data.planets.records.len();
+    let mut new_database = DatabaseDat::generate_from_planets_and_year(
+        &planet_names,
+        year,
+        player_count,
+        template.as_ref(),
+    );
 
     if let Some(ref template_db) = template {
         let year_bytes = discovery_year.to_le_bytes();
 
-        for player in 0..4usize {
-            for planet in 0..20usize {
-                let record_idx = player * 20 + planet;
+        for player in 0..player_count {
+            for planet in 0..planet_count {
+                let record_idx = player * planet_count + planet;
                 let template_record = &template_db.records[record_idx];
                 let scan_marker = template_record.raw[0x15];
                 let is_orbit_record =

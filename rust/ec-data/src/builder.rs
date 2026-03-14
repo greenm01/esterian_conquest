@@ -122,9 +122,9 @@ impl GameStateBuilder {
             .build_initialized_baseline()
     }
 
-    /// Set the number of players (1-4).
+    /// Set the number of players.
     pub fn with_player_count(mut self, count: u8) -> Self {
-        self.player_count = count.clamp(1, 4);
+        self.player_count = count.clamp(1, 25);
         // Adjust homeworld coords to match player count
         while self.homeworld_coords.len() < self.player_count as usize {
             self.homeworld_coords.push([0, 0]);
@@ -142,7 +142,7 @@ impl GameStateBuilder {
     /// Set homeworld coordinates for all players.
     pub fn with_homeworld_coords(mut self, coords: Vec<[u8; 2]>) -> Self {
         self.homeworld_coords = coords;
-        self.player_count = self.homeworld_coords.len().clamp(1, 4) as u8;
+        self.player_count = self.homeworld_coords.len().clamp(1, 25) as u8;
         self
     }
 
@@ -206,18 +206,14 @@ impl GameStateBuilder {
     /// - Setup and Conquest headers set
     /// - Empty auxiliary files (BASES.DAT, IPBM.DAT)
     pub fn build_initialized_baseline(&self) -> Result<CoreGameData, GameStateMutationError> {
-        // Create zeroed records for fixed-size arrays
-        let player_records: [PlayerRecord; 4] = std::array::from_fn(|_| PlayerRecord::new_zeroed());
-        let planet_records: [PlanetRecord; 20] =
-            std::array::from_fn(|_| PlanetRecord::new_zeroed());
+        let player_records =
+            (0..self.player_count as usize).map(|_| PlayerRecord::new_zeroed()).collect();
+        let planet_records =
+            (0..planet_record_count_for_players(self.player_count)).map(|_| PlanetRecord::new_zeroed()).collect();
 
         let mut data = CoreGameData {
-            player: PlayerDat {
-                records: player_records,
-            },
-            planets: PlanetDat {
-                records: planet_records,
-            },
+            player: PlayerDat { records: player_records },
+            planets: PlanetDat { records: planet_records },
             fleets: FleetDat { records: vec![] },
             bases: BaseDat { records: vec![] },
             ipbm: IpbmDat { records: vec![] },
@@ -243,19 +239,14 @@ impl GameStateBuilder {
 
         // Configure player records
         for (idx, player) in data.player.records.iter_mut().enumerate() {
-            if idx < self.player_count as usize {
-                // Set flag at offset 0 to indicate player is present
-                player.set_owner_empire_raw((idx + 1) as u8);
-                player.set_tax_rate_raw(0);
-                player.set_ipbm_count_raw(self.ipbm_count);
-                // Set autopilot based on player index (player 1 = on, others = off)
-                player.set_autopilot_flag(if idx == 0 { 1 } else { 0 });
-            }
+            player.set_owner_empire_raw((idx + 1) as u8);
+            player.set_tax_rate_raw(0);
+            player.set_ipbm_count_raw(self.ipbm_count);
+            player.set_autopilot_flag(if idx == 0 { 1 } else { 0 });
         }
 
         // Configure homeworld planets
         for (player_idx, coords) in self.homeworld_coords.iter().enumerate() {
-            // Use planets 0-3 for players 1-4 homeworlds
             if let Some(planet) = data.planets.records.get_mut(player_idx) {
                 planet.set_as_owned_target_world(
                     *coords,
@@ -405,6 +396,7 @@ impl GameStateBuilder {
         let database = DatabaseDat::generate_from_planets_and_year(
             &planet_names,
             self.game_year,
+            self.player_count as usize,
             None, // Use default template
         );
         fs::write(target.join("DATABASE.DAT"), database.to_bytes())?;
@@ -419,4 +411,8 @@ impl GameStateBuilder {
 
         Ok(())
     }
+}
+
+fn planet_record_count_for_players(player_count: u8) -> usize {
+    (player_count as usize) * 5
 }

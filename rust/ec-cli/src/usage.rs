@@ -3,7 +3,7 @@ pub fn print_usage() {
     println!("  ec-cli inspect [dir]");
     println!("  ec-cli sysop <subcommand> ...");
     println!(
-        "  ec-cli sysop new-game <target_dir> [--players <1-4>] [--config <setup.kdl>] [--seed <u64>]"
+        "  ec-cli sysop new-game <target_dir> [--players <1-25>] [--config <setup.kdl>] [--seed <u64>]"
     );
     println!(
         "  ec-cli sysop generate-gamestate <target_dir> <player_count> <year> [<homeworld_x>:<homeworld_y>...]"
