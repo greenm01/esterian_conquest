@@ -2,8 +2,10 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_data::QueuedPlayerMail;
 
 use crate::app::Action;
-use crate::screen::layout::{draw_command_prompt, draw_plain_prompt, draw_title_bar, new_playfield};
-use crate::screen::table::{format_empire_id, TableColumn, write_table_window};
+use crate::screen::layout::{
+    draw_command_prompt, draw_plain_prompt, draw_title_bar, new_playfield,
+};
+use crate::screen::table::{format_empire_id, write_table_window, TableColumn};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 
@@ -13,10 +15,8 @@ pub(crate) const OUTBOX_VISIBLE_ROWS: usize = 9;
 pub(crate) const COMPOSE_SUBJECT_LIMIT: usize = 60;
 pub(crate) const COMPOSE_BODY_LIMIT: usize = 1000;
 
-const RECIPIENT_COLUMNS: [TableColumn<'static>; 2] = [
-    TableColumn::right("ID", 3),
-    TableColumn::left("Empire", 28),
-];
+const RECIPIENT_COLUMNS: [TableColumn<'static>; 2] =
+    [TableColumn::right("ID", 3), TableColumn::left("Empire", 28)];
 
 const OUTBOX_COLUMNS: [TableColumn<'static>; 3] = [
     TableColumn::right("No", 3),
@@ -89,7 +89,12 @@ impl MessageComposeScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "COMMUNICATE (SEND MESSAGE):");
-        buffer.write_text(2, 0, &format!("To: {recipient_label}"), classic::status_value_style());
+        buffer.write_text(
+            2,
+            0,
+            &format!("To: {recipient_label}"),
+            classic::status_value_style(),
+        );
         let prompt = format!("Enter message subject: {subject}");
         let cursor_col = draw_plain_prompt(&mut buffer, 4, &prompt);
         if let Some(status) = status {
@@ -110,10 +115,25 @@ impl MessageComposeScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "COMMUNICATE (SEND MESSAGE):");
-        buffer.write_text(1, 0, &format!("To: {recipient_label}"), classic::status_value_style());
-        buffer.write_text(2, 0, &format!("Subject: {subject}"), classic::status_value_style());
+        buffer.write_text(
+            1,
+            0,
+            &format!("To: {recipient_label}"),
+            classic::status_value_style(),
+        );
+        buffer.write_text(
+            2,
+            0,
+            &format!("Subject: {subject}"),
+            classic::status_value_style(),
+        );
         buffer.write_text(3, 0, "Ctrl-E send  Ctrl-X cancel", classic::body_style());
-        buffer.write_text(4, 0, "-------------------------------------------------------------------------------", classic::menu_style());
+        buffer.write_text(
+            4,
+            0,
+            "-------------------------------------------------------------------------------",
+            classic::menu_style(),
+        );
 
         let wrapped = wrap_body_segments(body, 79);
         let visible = 11usize;
@@ -159,11 +179,23 @@ impl MessageComposeScreen {
         Ok(buffer)
     }
 
-    pub fn render_discard_confirm(&mut self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+    pub fn render_discard_confirm(
+        &mut self,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "COMMUNICATE (SEND MESSAGE):");
-        buffer.write_text(4, 0, "Discard this unsent message draft?", classic::status_value_style());
-        buffer.write_text(6, 0, "Press Y to discard it, or any other key to keep editing.", classic::body_style());
+        buffer.write_text(
+            4,
+            0,
+            "Discard this unsent message draft?",
+            classic::status_value_style(),
+        );
+        buffer.write_text(
+            6,
+            0,
+            "Press Y to discard it, or any other key to keep editing.",
+            classic::body_style(),
+        );
         draw_command_prompt(&mut buffer, 19, "GENERAL COMMAND", "Y N");
         Ok(buffer)
     }
@@ -178,7 +210,12 @@ impl MessageComposeScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "COMMUNICATE (SEND MESSAGE):");
-        buffer.write_text(2, 0, "Queued messages awaiting turn maintenance:", classic::body_style());
+        buffer.write_text(
+            2,
+            0,
+            "Queued messages awaiting turn maintenance:",
+            classic::body_style(),
+        );
         let rows = queue
             .iter()
             .enumerate()
@@ -225,8 +262,12 @@ impl MessageComposeScreen {
 
     pub fn handle_recipient_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => Action::ScrollComposeRecipients(-1),
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => Action::ScrollComposeRecipients(1),
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                Action::ScrollComposeRecipients(-1)
+            }
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                Action::ScrollComposeRecipients(1)
+            }
             KeyCode::PageUp => Action::ScrollComposeRecipients(-8),
             KeyCode::PageDown => Action::ScrollComposeRecipients(8),
             KeyCode::Char('d') | KeyCode::Char('D') => Action::OpenComposeMessageOutbox,
@@ -240,7 +281,9 @@ impl MessageComposeScreen {
 
     pub fn handle_subject_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenComposeMessageRecipient,
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                Action::OpenComposeMessageRecipient
+            }
             KeyCode::Enter => Action::SubmitComposeSubject,
             KeyCode::Backspace => Action::BackspaceComposeSubject,
             KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -252,8 +295,16 @@ impl MessageComposeScreen {
 
     pub fn handle_body_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Char('e') | KeyCode::Char('E') if key.modifiers.contains(KeyModifiers::CONTROL) => Action::OpenComposeMessageSendConfirm,
-            KeyCode::Char('x') | KeyCode::Char('X') if key.modifiers.contains(KeyModifiers::CONTROL) => Action::OpenComposeMessageDiscardConfirm,
+            KeyCode::Char('e') | KeyCode::Char('E')
+                if key.modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                Action::OpenComposeMessageSendConfirm
+            }
+            KeyCode::Char('x') | KeyCode::Char('X')
+                if key.modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                Action::OpenComposeMessageDiscardConfirm
+            }
             KeyCode::Left => Action::MoveComposeBodyCursorLeft,
             KeyCode::Right => Action::MoveComposeBodyCursorRight,
             KeyCode::Up => Action::MoveComposeBodyCursorUp,
@@ -263,7 +314,9 @@ impl MessageComposeScreen {
             KeyCode::Backspace => Action::BackspaceComposeBody,
             KeyCode::Delete => Action::DeleteComposeBodyChar,
             KeyCode::Enter => Action::InsertComposeNewline,
-            KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::CONTROL) => Action::AppendComposeBodyChar(ch),
+            KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+                Action::AppendComposeBodyChar(ch)
+            }
             _ => Action::Noop,
         }
     }
@@ -284,11 +337,17 @@ impl MessageComposeScreen {
 
     pub fn handle_outbox_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => Action::ScrollComposeOutbox(-1),
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => Action::ScrollComposeOutbox(1),
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                Action::ScrollComposeOutbox(-1)
+            }
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                Action::ScrollComposeOutbox(1)
+            }
             KeyCode::PageUp => Action::ScrollComposeOutbox(-8),
             KeyCode::PageDown => Action::ScrollComposeOutbox(8),
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenComposeMessageRecipient,
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                Action::OpenComposeMessageRecipient
+            }
             KeyCode::Enter => Action::DeleteQueuedComposeMessage,
             KeyCode::Backspace => Action::BackspaceComposeOutboxInput,
             KeyCode::Char(ch) if ch.is_ascii_digit() => Action::AppendComposeOutboxChar(ch),
@@ -381,11 +440,17 @@ fn visible_window_start(total: usize, visible: usize, cursor_segment: usize) -> 
         return 0;
     }
     let max_start = total - visible;
-    cursor_segment.saturating_sub(visible.saturating_sub(1)).min(max_start)
+    cursor_segment
+        .saturating_sub(visible.saturating_sub(1))
+        .min(max_start)
 }
 
 fn compose_empire_label(game_data: &ec_data::CoreGameData, empire_id: u8) -> String {
-    let Some(player) = game_data.player.records.get(empire_id.saturating_sub(1) as usize) else {
+    let Some(player) = game_data
+        .player
+        .records
+        .get(empire_id.saturating_sub(1) as usize)
+    else {
         return format!("Empire {empire_id:02}");
     };
     let name = player.controlled_empire_name_summary();

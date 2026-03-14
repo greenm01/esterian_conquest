@@ -2,8 +2,10 @@ use crossterm::event::{KeyCode, KeyEvent};
 use ec_data::EmpirePlanetEconomyRow;
 
 use crate::app::Action;
-use crate::screen::layout::{draw_command_prompt, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield};
-use crate::screen::table::{TableColumn, write_table_window};
+use crate::screen::layout::{
+    draw_command_prompt, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
+};
+use crate::screen::table::{write_table_window, TableColumn};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 
@@ -85,7 +87,10 @@ impl PlanetListScreen {
                 vec![
                     row.planet_name.clone(),
                     format!("({:>2},{:>2})", row.coords[0], row.coords[1]),
-                    format!("{:>3} of {:>3}", row.present_production, row.potential_production),
+                    format!(
+                        "{:>3} of {:>3}",
+                        row.present_production, row.potential_production
+                    ),
                     row.stored_production_points.to_string(),
                     row.armies.to_string(),
                     row.ground_batteries.to_string(),
@@ -112,16 +117,14 @@ impl PlanetListScreen {
         rows: &[EmpirePlanetEconomyRow],
         selected_index: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let row = rows.get(selected_index).ok_or("planet detail row missing")?;
+        let row = rows
+            .get(selected_index)
+            .ok_or("planet detail row missing")?;
         let mut buffer = new_playfield();
         draw_title_bar(
             &mut buffer,
             0,
-            &format!(
-                "PLANET DETAIL {}/{}:",
-                selected_index + 1,
-                rows.len()
-            ),
+            &format!("PLANET DETAIL {}/{}:", selected_index + 1, rows.len()),
         );
         let efficiency = if row.potential_production == 0 {
             0.0
@@ -212,7 +215,11 @@ impl PlanetListScreen {
             &mut buffer,
             15,
             "Friendly Starbase: ",
-            if row.has_friendly_starbase { "YES" } else { "NO" },
+            if row.has_friendly_starbase {
+                "YES"
+            } else {
+                "NO"
+            },
         );
         draw_status_line(&mut buffer, 16, "Status: ", &planet_status(row, &status));
         draw_command_prompt(&mut buffer, 19, "PLANET COMMAND", "ARROWS J K Q");
@@ -230,12 +237,10 @@ impl PlanetListScreen {
             KeyCode::Char('l') | KeyCode::Char('L') => {
                 Action::SubmitPlanetListSort(PlanetListMode::Brief, PlanetListSort::Location)
             }
-            KeyCode::Char('p') | KeyCode::Char('P') => {
-                Action::SubmitPlanetListSort(
-                    PlanetListMode::Brief,
-                    PlanetListSort::PotentialProduction,
-                )
-            }
+            KeyCode::Char('p') | KeyCode::Char('P') => Action::SubmitPlanetListSort(
+                PlanetListMode::Brief,
+                PlanetListSort::PotentialProduction,
+            ),
             KeyCode::Char('a') | KeyCode::Char('A') | KeyCode::Esc => Action::OpenPlanetMenu,
             _ => Action::Noop,
         }

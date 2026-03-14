@@ -46,7 +46,12 @@ impl Screen for EmpireStatusScreen {
             "Campaign state: ",
             campaign_state_label(frame.game_data.empire_campaign_state(empire_raw)),
         );
-        draw_status_line(&mut buffer, 7, "Tax rate: ", &format!("{}%", player.tax_rate()));
+        draw_status_line(
+            &mut buffer,
+            7,
+            "Tax rate: ",
+            &format!("{}%", player.tax_rate()),
+        );
         draw_status_line(
             &mut buffer,
             8,
@@ -78,7 +83,11 @@ impl Screen for EmpireStatusScreen {
             &mut buffer,
             11,
             "Autopilot: ",
-            if player.autopilot_flag() != 0 { "ON" } else { "OFF" },
+            if player.autopilot_flag() != 0 {
+                "ON"
+            } else {
+                "OFF"
+            },
         );
         draw_command_prompt(&mut buffer, 13, "GENERAL COMMAND", "SLAP A KEY");
         Ok(buffer)
@@ -102,5 +111,9 @@ fn campaign_state_label(state: Option<ec_data::CampaignState>) -> &'static str {
 }
 
 fn display_or_unknown(value: &str) -> &str {
-    if value.is_empty() { "<unknown>" } else { value }
+    if value.is_empty() {
+        "<unknown>"
+    } else {
+        value
+    }
 }

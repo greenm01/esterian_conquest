@@ -2,9 +2,11 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    CMD_COL_1, CMD_COL_2, CMD_COL_3, MenuEntry, draw_command_center, new_playfield,
+    draw_command_center, new_playfield, MenuEntry, CMD_COL_1, CMD_COL_2, CMD_COL_3,
 };
-use crate::screen::{CommandMenu, PlanetListMode, PlanetListSort, PlayfieldBuffer, Screen, ScreenFrame};
+use crate::screen::{
+    CommandMenu, PlanetListMode, PlanetListSort, PlayfieldBuffer, Screen, ScreenFrame,
+};
 
 pub struct PlanetMenuScreen;
 
@@ -78,15 +80,21 @@ impl Screen for PlanetMenuScreen {
                 PlanetListSort::CurrentProduction,
             ),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenMainMenu,
-            KeyCode::Char('c') | KeyCode::Char('C')
-            | KeyCode::Char('a') | KeyCode::Char('A')
-            | KeyCode::Char('b') | KeyCode::Char('B')
-            | KeyCode::Char('s') | KeyCode::Char('S')
-            | KeyCode::Char('l') | KeyCode::Char('L')
-            | KeyCode::Char('u') | KeyCode::Char('U')
-            | KeyCode::Char('x') | KeyCode::Char('X') => Action::OpenPlanetListSortPrompt(
-                PlanetListMode::Stub(planet_stub_label(key.code).unwrap_or("")),
-            ),
+            KeyCode::Char('b') | KeyCode::Char('B') => Action::OpenPlanetBuildMenu,
+            KeyCode::Char('c')
+            | KeyCode::Char('C')
+            | KeyCode::Char('a')
+            | KeyCode::Char('A')
+            | KeyCode::Char('s')
+            | KeyCode::Char('S')
+            | KeyCode::Char('l')
+            | KeyCode::Char('L')
+            | KeyCode::Char('u')
+            | KeyCode::Char('U')
+            | KeyCode::Char('x')
+            | KeyCode::Char('X') => Action::OpenPlanetListSortPrompt(PlanetListMode::Stub(
+                planet_stub_label(key.code).unwrap_or(""),
+            )),
             KeyCode::Char('t') | KeyCode::Char('T') => Action::OpenPlanetTaxPrompt,
             _ => Action::Noop,
         }
@@ -97,11 +105,18 @@ fn planet_stub_label(code: KeyCode) -> Option<&'static str> {
     match code {
         KeyCode::Char('c') | KeyCode::Char('C') => Some("Commission menu not implemented yet."),
         KeyCode::Char('a') | KeyCode::Char('A') => Some("Auto-commission is not implemented yet."),
-        KeyCode::Char('b') | KeyCode::Char('B') => Some("Build menu is not implemented yet."),
-        KeyCode::Char('s') | KeyCode::Char('S') => Some("Scorch-planet orders are not implemented yet."),
-        KeyCode::Char('l') | KeyCode::Char('L') => Some("Transport loading is not implemented yet."),
-        KeyCode::Char('u') | KeyCode::Char('U') => Some("Transport unloading is not implemented yet."),
-        KeyCode::Char('x') | KeyCode::Char('X') => Some("Expert mode will follow after all command menus are finished."),
+        KeyCode::Char('s') | KeyCode::Char('S') => {
+            Some("Scorch-planet orders are not implemented yet.")
+        }
+        KeyCode::Char('l') | KeyCode::Char('L') => {
+            Some("Transport loading is not implemented yet.")
+        }
+        KeyCode::Char('u') | KeyCode::Char('U') => {
+            Some("Transport unloading is not implemented yet.")
+        }
+        KeyCode::Char('x') | KeyCode::Char('X') => {
+            Some("Expert mode will follow after all command menus are finished.")
+        }
         _ => None,
     }
 }

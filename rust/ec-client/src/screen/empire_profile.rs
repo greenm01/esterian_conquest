@@ -1,7 +1,9 @@
 use crossterm::event::KeyEvent;
 
 use crate::app::Action;
-use crate::screen::layout::{draw_command_prompt, draw_centered_text, draw_title_bar, new_playfield};
+use crate::screen::layout::{
+    draw_centered_text, draw_command_prompt, draw_title_bar, new_playfield,
+};
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
 
@@ -20,21 +22,18 @@ impl Screen for EmpireProfileScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let player_idx = frame.player.record_index_1_based;
         let player = &frame.game_data.player.records[player_idx - 1];
-        let economy = frame
-            .game_data
-            .empire_economy_summary(player_idx);
-        let active = frame
-            .game_data
-            .empire_active_duty_summary(player_idx);
-        let stardock = frame
-            .game_data
-            .empire_stardock_summary(player_idx);
+        let economy = frame.game_data.empire_economy_summary(player_idx);
+        let active = frame.game_data.empire_active_duty_summary(player_idx);
+        let stardock = frame.game_data.empire_stardock_summary(player_idx);
 
         let mut buffer = new_playfield();
         draw_title_bar(
             &mut buffer,
             0,
-            &format!("Empire Name: {}", display_or_unknown(&frame.player.empire_name)),
+            &format!(
+                "Empire Name: {}",
+                display_or_unknown(&frame.player.empire_name)
+            ),
         );
 
         write_stat_pair(
@@ -91,8 +90,20 @@ impl Screen for EmpireProfileScreen {
             classic::menu_hotkey_style(),
         );
 
-        write_unit_line(&mut buffer, 9, "Destroyers", active.destroyers, stardock.destroyers);
-        write_unit_line(&mut buffer, 10, "Cruisers", active.cruisers, stardock.cruisers);
+        write_unit_line(
+            &mut buffer,
+            9,
+            "Destroyers",
+            active.destroyers,
+            stardock.destroyers,
+        );
+        write_unit_line(
+            &mut buffer,
+            10,
+            "Cruisers",
+            active.cruisers,
+            stardock.cruisers,
+        );
         write_unit_line(
             &mut buffer,
             11,
@@ -109,7 +120,13 @@ impl Screen for EmpireProfileScreen {
             stardock.transports,
         );
         write_unit_line(&mut buffer, 14, "ETACs", active.etacs, stardock.etacs);
-        write_unit_line(&mut buffer, 15, "StarBases", active.starbases, stardock.starbases);
+        write_unit_line(
+            &mut buffer,
+            15,
+            "StarBases",
+            active.starbases,
+            stardock.starbases,
+        );
         buffer.write_text(
             16,
             0,
@@ -191,5 +208,9 @@ fn ordinal_rank(rank: usize) -> String {
 }
 
 fn display_or_unknown(value: &str) -> &str {
-    if value.is_empty() { "<unnamed>" } else { value }
+    if value.is_empty() {
+        "<unnamed>"
+    } else {
+        value
+    }
 }

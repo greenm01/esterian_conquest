@@ -3,7 +3,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::screen::layout::{draw_command_prompt, draw_title_bar, new_playfield};
 use crate::screen::table::{
-    format_empire_id, table_divider, TableColumn, write_table_header, write_table_row,
+    format_empire_id, table_divider, write_table_header, write_table_row, TableColumn,
 };
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
@@ -57,8 +57,18 @@ impl RankingsScreen {
 
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "OTHER EMPIRES (RANKINGS):");
-        write_table_header(&mut buffer, 2, &RANKINGS_COLUMNS, classic::status_value_style());
-        buffer.write_text(3, 0, &table_divider(&RANKINGS_COLUMNS), classic::menu_style());
+        write_table_header(
+            &mut buffer,
+            2,
+            &RANKINGS_COLUMNS,
+            classic::status_value_style(),
+        );
+        buffer.write_text(
+            3,
+            0,
+            &table_divider(&RANKINGS_COLUMNS),
+            classic::menu_style(),
+        );
 
         for (row_idx, row) in rows.into_iter().take(12).enumerate() {
             let status = if row.empire_id as usize == viewer_idx {

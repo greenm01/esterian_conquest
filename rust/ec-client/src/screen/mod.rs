@@ -1,50 +1,57 @@
 mod buffer;
+mod delete_reviewables;
 mod empire_profile;
 mod empire_status;
-mod delete_reviewables;
 mod enemies;
-mod general_menu;
 mod general_help;
+mod general_menu;
 mod layout;
 mod main_menu;
 mod message_compose;
+mod partial_starmap;
+mod planet_build;
 mod planet_help;
 mod planet_info;
 mod planet_list;
 mod planet_menu;
 mod planet_tax;
-mod partial_starmap;
-mod reports;
 mod rankings;
-mod startup;
+mod reports;
 mod starmap;
+mod startup;
 mod table;
 
 pub use buffer::{Cell, CellStyle, PlayfieldBuffer, RgbColor, StyledSpan};
+pub use delete_reviewables::DeleteReviewablesScreen;
 pub use empire_profile::EmpireProfileScreen;
 pub use empire_status::EmpireStatusScreen;
-pub use delete_reviewables::DeleteReviewablesScreen;
-pub(crate) use enemies::ENEMIES_VISIBLE_ROWS;
 pub use enemies::EnemiesScreen;
-pub use general_menu::GeneralMenuScreen;
+pub(crate) use enemies::ENEMIES_VISIBLE_ROWS;
 pub use general_help::GeneralHelpScreen;
+pub use general_menu::GeneralMenuScreen;
 pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 pub use main_menu::MainMenuScreen;
+pub use message_compose::MessageComposeScreen;
 pub(crate) use message_compose::{
     COMPOSE_BODY_LIMIT, COMPOSE_SUBJECT_LIMIT, OUTBOX_VISIBLE_ROWS, RECIPIENT_VISIBLE_ROWS,
 };
-pub use message_compose::MessageComposeScreen;
+pub use partial_starmap::PartialStarmapScreen;
+pub(crate) use planet_build::PLANET_BUILD_LIST_VISIBLE_ROWS;
+pub use planet_build::{
+    build_kind_name, build_order_summary, build_unit_spec, build_unit_spec_by_kind, infer_quantity,
+    max_quantity, BuildUnitSpec, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildOrder,
+    PlanetBuildScreen,
+};
 pub use planet_help::PlanetHelpScreen;
-pub use planet_info::{PlanetInfoScreen, parse_planet_coords};
+pub use planet_info::{parse_planet_coords, PlanetInfoScreen};
 pub(crate) use planet_list::PLANET_BRIEF_VISIBLE_ROWS;
 pub use planet_list::{PlanetListMode, PlanetListScreen, PlanetListSort};
 pub use planet_menu::PlanetMenuScreen;
 pub use planet_tax::PlanetTaxScreen;
-pub use partial_starmap::PartialStarmapScreen;
 pub use rankings::{RankingsScreen, RankingsView};
 pub use reports::ReportsScreen;
-pub use startup::StartupScreen;
 pub use starmap::StarmapScreen;
+pub use startup::StartupScreen;
 
 use std::path::Path;
 
@@ -62,6 +69,12 @@ pub enum ScreenId {
     GeneralHelp,
     PlanetMenu,
     PlanetHelp,
+    PlanetBuildMenu,
+    PlanetBuildReview,
+    PlanetBuildList,
+    PlanetBuildAbortConfirm,
+    PlanetBuildSpecify,
+    PlanetBuildQuantity,
     PlanetListSortPrompt(PlanetListMode),
     PlanetBriefList(PlanetListSort),
     PlanetDetailList(PlanetListSort),
@@ -91,6 +104,7 @@ pub enum ScreenId {
 pub enum CommandMenu {
     General,
     Planet,
+    PlanetBuild,
 }
 
 pub struct ScreenFrame<'a> {

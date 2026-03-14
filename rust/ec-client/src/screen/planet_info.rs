@@ -1,7 +1,9 @@
 use crossterm::event::KeyEvent;
 
 use crate::app::Action;
-use crate::screen::layout::{draw_command_prompt, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield};
+use crate::screen::layout::{
+    draw_command_prompt, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
+};
 use crate::screen::{CommandMenu, PlayfieldBuffer, ScreenFrame};
 
 pub struct PlanetInfoScreen;
@@ -20,11 +22,7 @@ impl PlanetInfoScreen {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "INFO ABOUT A PLANET:");
         let prompt = format!("Enter coordinates of the planet to view (x,y): {input}");
-        let cursor_col = draw_plain_prompt(
-            &mut buffer,
-            2,
-            &prompt,
-        );
+        let cursor_col = draw_plain_prompt(&mut buffer, 2, &prompt);
         if let Some(error) = error {
             draw_status_line(&mut buffer, 4, "Error: ", error);
         }
@@ -71,7 +69,12 @@ impl PlanetInfoScreen {
         draw_status_line(&mut buffer, 4, "Owner: ", &owner_label);
         draw_status_line(&mut buffer, 5, "State: ", &state_label);
         draw_status_line(&mut buffer, 7, "Present Production: ", &present.to_string());
-        draw_status_line(&mut buffer, 8, "Potential Production: ", &potential.to_string());
+        draw_status_line(
+            &mut buffer,
+            8,
+            "Potential Production: ",
+            &potential.to_string(),
+        );
         draw_status_line(&mut buffer, 9, "Efficiency: ", &format!("{efficiency:.1}%"));
         draw_status_line(
             &mut buffer,
@@ -79,14 +82,24 @@ impl PlanetInfoScreen {
             "Stored Production Points: ",
             &planet.stored_production_points().to_string(),
         );
-        draw_status_line(&mut buffer, 12, "Armies: ", &planet.army_count_raw().to_string());
+        draw_status_line(
+            &mut buffer,
+            12,
+            "Armies: ",
+            &planet.army_count_raw().to_string(),
+        );
         draw_status_line(
             &mut buffer,
             13,
             "Ground Batteries: ",
             &planet.ground_batteries_raw().to_string(),
         );
-        draw_status_line(&mut buffer, 14, "Stardock Units: ", &stardock_units.to_string());
+        draw_status_line(
+            &mut buffer,
+            14,
+            "Stardock Units: ",
+            &stardock_units.to_string(),
+        );
         draw_status_line(
             &mut buffer,
             15,
@@ -110,6 +123,7 @@ fn command_label(menu: CommandMenu) -> &'static str {
     match menu {
         CommandMenu::General => "GENERAL COMMAND",
         CommandMenu::Planet => "PLANET COMMAND",
+        CommandMenu::PlanetBuild => "BUILD COMMAND",
     }
 }
 

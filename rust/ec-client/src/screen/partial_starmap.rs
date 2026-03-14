@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use ec_data::{DatabaseDat, build_player_starmap_projection};
+use ec_data::{build_player_starmap_projection, DatabaseDat};
 
 use crate::app::Action;
 use crate::screen::layout::{
@@ -39,8 +39,11 @@ impl PartialStarmapScreen {
         database: &DatabaseDat,
         center: [u8; 2],
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let projection =
-            build_player_starmap_projection(frame.game_data, database, frame.player.record_index_1_based as u8);
+        let projection = build_player_starmap_projection(
+            frame.game_data,
+            database,
+            frame.player.record_index_1_based as u8,
+        );
         let mut buffer = new_playfield();
         let title = format!("Map Center at Sector ({},{})", center[0], center[1]);
         draw_title_bar(&mut buffer, 0, &title);
@@ -63,7 +66,12 @@ impl PartialStarmapScreen {
 
         for y in start_y..=end_y {
             let screen_row = 17 - (y - start_y);
-            buffer.write_text(screen_row, 0, &format!("{y:>2} "), classic::status_value_style());
+            buffer.write_text(
+                screen_row,
+                0,
+                &format!("{y:>2} "),
+                classic::status_value_style(),
+            );
             buffer.write_text(screen_row, 3, "|", classic::status_value_style());
             buffer.write_text(screen_row, 55, "|", classic::status_value_style());
             for x in start_x..=end_x {
@@ -79,7 +87,12 @@ impl PartialStarmapScreen {
 
         let center_col = 5 + (center[0] as usize - start_x) * 3;
         let center_row = 17 - (center[1] as usize - start_y);
-        buffer.write_text(center_row, 4, &"-".repeat(51), classic::map_crosshair_style());
+        buffer.write_text(
+            center_row,
+            4,
+            &"-".repeat(51),
+            classic::map_crosshair_style(),
+        );
         for row in 1..=17 {
             buffer.write_text(row, center_col, "|", classic::map_crosshair_style());
         }
@@ -106,10 +119,18 @@ impl PartialStarmapScreen {
                 None if world.known_name.is_some()
                     || world.known_potential_production.is_some()
                     || world.known_armies.is_some()
-                    || world.known_ground_batteries.is_some() => '*',
+                    || world.known_ground_batteries.is_some() =>
+                {
+                    '*'
+                }
                 None => '?',
             };
-            buffer.write_text(screen_row, screen_col, &symbol.to_string(), classic::bright_style());
+            buffer.write_text(
+                screen_row,
+                screen_col,
+                &symbol.to_string(),
+                classic::bright_style(),
+            );
         }
 
         buffer.write_text(1, 58, "\".\"= Empty Sector", classic::body_style());
@@ -181,5 +202,6 @@ fn command_label(menu: CommandMenu) -> &'static str {
     match menu {
         CommandMenu::General => "GENERAL COMMAND",
         CommandMenu::Planet => "PLANET COMMAND",
+        CommandMenu::PlanetBuild => "BUILD COMMAND",
     }
 }

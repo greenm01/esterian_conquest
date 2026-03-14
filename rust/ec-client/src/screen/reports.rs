@@ -3,9 +3,7 @@ use crossterm::event::KeyEvent;
 use crate::app::Action;
 use crate::model::ReviewSummary;
 use crate::reports::ReportsPreview;
-use crate::screen::layout::{
-    draw_command_prompt, draw_status_line, draw_title_bar, new_playfield,
-};
+use crate::screen::layout::{draw_command_prompt, draw_status_line, draw_title_bar, new_playfield};
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
 
@@ -83,7 +81,12 @@ fn write_section(
     lines: &[String],
 ) -> Result<usize, Box<dyn std::error::Error>> {
     if !reviewable {
-        buffer.write_text(start_row, 0, "  <none currently reviewable>", classic::body_style());
+        buffer.write_text(
+            start_row,
+            0,
+            "  <none currently reviewable>",
+            classic::body_style(),
+        );
         return Ok(1);
     }
 
@@ -94,7 +97,12 @@ fn write_section(
 
     let mut written = 0;
     for line in lines.iter().take(10) {
-        buffer.write_text(start_row + written, 0, &format!("  {line}"), classic::body_style());
+        buffer.write_text(
+            start_row + written,
+            0,
+            &format!("  {line}"),
+            classic::body_style(),
+        );
         written += 1;
     }
     if lines.len() > 10 {
@@ -110,5 +118,9 @@ fn write_section(
 }
 
 fn display_or_unknown(value: &str) -> &str {
-    if value.is_empty() { "<unknown>" } else { value }
+    if value.is_empty() {
+        "<unknown>"
+    } else {
+        value
+    }
 }

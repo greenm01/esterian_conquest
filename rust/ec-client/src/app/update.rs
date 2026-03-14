@@ -37,6 +37,26 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_planet_help();
             AppOutcome::Continue
         }
+        Action::OpenPlanetBuildMenu => {
+            app.open_planet_build_menu();
+            AppOutcome::Continue
+        }
+        Action::OpenPlanetBuildReview => {
+            app.open_planet_build_review();
+            AppOutcome::Continue
+        }
+        Action::OpenPlanetBuildList => {
+            app.open_planet_build_list();
+            AppOutcome::Continue
+        }
+        Action::OpenPlanetBuildAbortConfirm => {
+            app.open_planet_build_abort_confirm();
+            AppOutcome::Continue
+        }
+        Action::OpenPlanetBuildSpecify => {
+            app.open_planet_build_specify();
+            AppOutcome::Continue
+        }
         Action::OpenPlanetTaxPrompt => {
             app.open_planet_tax_prompt();
             AppOutcome::Continue
@@ -101,6 +121,14 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.scroll_planet_brief(delta);
             AppOutcome::Continue
         }
+        Action::ScrollPlanetBuildList(delta) => {
+            app.scroll_planet_build_list(delta);
+            AppOutcome::Continue
+        }
+        Action::MovePlanetBuild(delta) => {
+            app.move_planet_build(delta);
+            AppOutcome::Continue
+        }
         Action::MovePlanetDetail(delta) => {
             app.move_planet_detail(delta);
             AppOutcome::Continue
@@ -114,6 +142,34 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             AppOutcome::Continue
         }
         Action::SubmitPlanetTax => match app.submit_planet_tax() {
+            Ok(()) => AppOutcome::Continue,
+            Err(_) => AppOutcome::Continue,
+        },
+        Action::AppendPlanetBuildUnitChar(ch) => {
+            app.append_planet_build_unit_char(ch);
+            AppOutcome::Continue
+        }
+        Action::BackspacePlanetBuildUnitInput => {
+            app.backspace_planet_build_unit_input();
+            AppOutcome::Continue
+        }
+        Action::SubmitPlanetBuildUnit => {
+            app.submit_planet_build_unit();
+            AppOutcome::Continue
+        }
+        Action::AppendPlanetBuildQuantityChar(ch) => {
+            app.append_planet_build_quantity_char(ch);
+            AppOutcome::Continue
+        }
+        Action::BackspacePlanetBuildQuantityInput => {
+            app.backspace_planet_build_quantity_input();
+            AppOutcome::Continue
+        }
+        Action::SubmitPlanetBuildQuantity => match app.submit_planet_build_quantity() {
+            Ok(()) => AppOutcome::Continue,
+            Err(_) => AppOutcome::Continue,
+        },
+        Action::ConfirmPlanetBuildAbort => match app.abort_current_planet_builds() {
             Ok(()) => AppOutcome::Continue,
             Err(_) => AppOutcome::Continue,
         },

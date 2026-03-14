@@ -3,16 +3,18 @@ use std::path::PathBuf;
 
 use ec_data::{
     append_mail_queue, build_player_starmap_projection, load_mail_queue, save_mail_queue,
-    CoreGameData, DatabaseDat, QueuedPlayerMail,
+    CoreGameData, DatabaseDat, ProductionItemKind, QueuedPlayerMail,
 };
 
 use crate::app::Action;
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
 use crate::reports::{clear_report_files, ReportsPreview};
 use crate::screen::{
-    CommandMenu, DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
+    build_order_summary, build_unit_spec, build_unit_spec_by_kind, max_quantity, CommandMenu,
+    DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
     GeneralHelpScreen, GeneralMenuScreen, MainMenuScreen, MessageComposeScreen,
-    PartialStarmapScreen, PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen,
+    PartialStarmapScreen, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildOrder,
+    PlanetBuildScreen, PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen,
     PlanetListSort, PlanetMenuScreen, PlanetTaxScreen, RankingsScreen, RankingsView, ReportsScreen,
     Screen, ScreenFrame, ScreenId, StarmapScreen, StartupScreen,
 };
@@ -40,6 +42,7 @@ pub struct App {
     general_help: GeneralHelpScreen,
     planet_menu: PlanetMenuScreen,
     planet_help: PlanetHelpScreen,
+    planet_build: PlanetBuildScreen,
     planet_list: PlanetListScreen,
     planet_tax: PlanetTaxScreen,
     starmap: StarmapScreen,
@@ -79,6 +82,14 @@ pub struct App {
     planet_list_sort_status: Option<String>,
     planet_brief_scroll_offset: usize,
     planet_detail_index: usize,
+    planet_build_index: usize,
+    planet_build_status: Option<String>,
+    planet_build_unit_input: String,
+    planet_build_unit_status: Option<String>,
+    planet_build_quantity_input: String,
+    planet_build_quantity_status: Option<String>,
+    planet_build_selected_kind: Option<ProductionItemKind>,
+    planet_build_list_scroll_offset: usize,
     planet_tax_input: String,
     planet_tax_status: Option<String>,
     starmap_view_x: usize,
@@ -131,6 +142,7 @@ impl App {
             general_help: GeneralHelpScreen::new(),
             planet_menu: PlanetMenuScreen::new(),
             planet_help: PlanetHelpScreen::new(),
+            planet_build: PlanetBuildScreen::new(),
             planet_list: PlanetListScreen::new(),
             planet_tax: PlanetTaxScreen::new(),
             starmap: StarmapScreen::new(),
@@ -170,6 +182,14 @@ impl App {
             planet_list_sort_status: None,
             planet_brief_scroll_offset: 0,
             planet_detail_index: 0,
+            planet_build_index: 0,
+            planet_build_status: None,
+            planet_build_unit_input: String::new(),
+            planet_build_unit_status: None,
+            planet_build_quantity_input: String::new(),
+            planet_build_quantity_status: None,
+            planet_build_selected_kind: None,
+            planet_build_list_scroll_offset: 0,
             planet_tax_input: "50".to_string(),
             planet_tax_status: None,
             starmap_view_x: 1,
@@ -201,6 +221,40 @@ impl App {
             ScreenId::GeneralHelp => self.general_help.render(&frame)?,
             ScreenId::PlanetMenu => self.planet_menu.render(&frame)?,
             ScreenId::PlanetHelp => self.planet_help.render(&frame)?,
+            ScreenId::PlanetBuildMenu => self.planet_build.render_menu(
+                &self.current_planet_build_view()?,
+                &self.current_planet_build_orders(),
+                self.planet_build_status.as_deref(),
+            )?,
+            ScreenId::PlanetBuildReview => self.planet_build.render_review(
+                &self.current_planet_build_view()?,
+                &self.current_planet_build_orders(),
+            )?,
+            ScreenId::PlanetBuildList => self.planet_build.render_list(
+                &self.planet_build_list_rows(),
+                self.planet_build_list_scroll_offset,
+            )?,
+            ScreenId::PlanetBuildAbortConfirm => self
+                .planet_build
+                .render_abort_confirm(&self.current_build_planet_row()?)?,
+            ScreenId::PlanetBuildSpecify => self.planet_build.render_specify(
+                &self.current_planet_build_view()?,
+                &self.current_planet_build_orders(),
+                &self.planet_build_unit_input,
+                self.planet_build_unit_status.as_deref(),
+            )?,
+            ScreenId::PlanetBuildQuantity => self.planet_build.render_quantity_prompt(
+                &self.current_planet_build_view()?,
+                &self.current_planet_build_orders(),
+                build_unit_spec_by_kind(
+                    self.planet_build_selected_kind
+                        .ok_or("planet build kind not selected")?,
+                )
+                .ok_or("planet build unit missing")?,
+                self.current_planet_build_max_quantity()?,
+                &self.planet_build_quantity_input,
+                self.planet_build_quantity_status.as_deref(),
+            )?,
             ScreenId::PlanetListSortPrompt(mode) => self
                 .planet_list
                 .render_sort_prompt(mode, self.planet_list_sort_status.as_deref())?,
@@ -344,6 +398,47 @@ impl App {
         self.current_screen = ScreenId::PlanetHelp;
     }
 
+    pub fn open_planet_build_menu(&mut self) {
+        self.command_return_menu = CommandMenu::PlanetBuild;
+        self.planet_build_status = None;
+        self.planet_build_unit_input.clear();
+        self.planet_build_unit_status = None;
+        self.planet_build_quantity_input.clear();
+        self.planet_build_quantity_status = None;
+        self.planet_build_selected_kind = None;
+        self.planet_build_list_scroll_offset = 0;
+        let total = self.build_planet_rows().len();
+        if total == 0 {
+            self.planet_build_index = 0;
+            self.planet_build_status = Some("No owned planets available for building.".to_string());
+        } else {
+            self.planet_build_index = self.planet_build_index.min(total - 1);
+        }
+        self.current_screen = ScreenId::PlanetBuildMenu;
+    }
+
+    pub fn open_planet_build_review(&mut self) {
+        self.current_screen = ScreenId::PlanetBuildReview;
+    }
+
+    pub fn open_planet_build_list(&mut self) {
+        self.planet_build_list_scroll_offset = 0;
+        self.current_screen = ScreenId::PlanetBuildList;
+    }
+
+    pub fn open_planet_build_abort_confirm(&mut self) {
+        self.current_screen = ScreenId::PlanetBuildAbortConfirm;
+    }
+
+    pub fn open_planet_build_specify(&mut self) {
+        self.planet_build_unit_input.clear();
+        self.planet_build_unit_status = None;
+        self.planet_build_quantity_input.clear();
+        self.planet_build_quantity_status = None;
+        self.planet_build_selected_kind = None;
+        self.current_screen = ScreenId::PlanetBuildSpecify;
+    }
+
     pub fn open_planet_tax_prompt(&mut self) {
         self.planet_tax_input = String::new();
         self.planet_tax_status = None;
@@ -397,6 +492,165 @@ impl App {
         };
     }
 
+    pub fn move_planet_build(&mut self, delta: i8) {
+        let total = self.build_planet_rows().len();
+        if total == 0 {
+            self.planet_build_index = 0;
+            return;
+        }
+        self.planet_build_index = self
+            .planet_build_index
+            .saturating_add_signed(delta as isize)
+            .min(total - 1);
+        self.planet_build_status = None;
+    }
+
+    pub fn scroll_planet_build_list(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::PlanetBuildList {
+            return;
+        }
+        let total = self.planet_build_list_rows().len();
+        let max_offset = total.saturating_sub(crate::screen::PLANET_BUILD_LIST_VISIBLE_ROWS);
+        self.planet_build_list_scroll_offset = self
+            .planet_build_list_scroll_offset
+            .saturating_add_signed(delta as isize)
+            .min(max_offset);
+    }
+
+    pub fn append_planet_build_unit_char(&mut self, ch: char) {
+        if self.current_screen == ScreenId::PlanetBuildSpecify
+            && self.planet_build_unit_input.len() < 2
+        {
+            self.planet_build_unit_input.push(ch);
+            self.planet_build_unit_status = None;
+        }
+    }
+
+    pub fn backspace_planet_build_unit_input(&mut self) {
+        if self.current_screen == ScreenId::PlanetBuildSpecify {
+            self.planet_build_unit_input.pop();
+            self.planet_build_unit_status = None;
+        }
+    }
+
+    pub fn submit_planet_build_unit(&mut self) {
+        let raw = self.planet_build_unit_input.trim();
+        let number = if raw.is_empty() {
+            0
+        } else if let Ok(value) = raw.parse::<u8>() {
+            value
+        } else {
+            self.planet_build_unit_status = Some("Enter a valid unit number.".to_string());
+            return;
+        };
+
+        if number == 0 {
+            self.current_screen = ScreenId::PlanetBuildMenu;
+            return;
+        }
+
+        let Some(unit) = build_unit_spec(number) else {
+            self.planet_build_unit_status = Some("That unit is not available.".to_string());
+            return;
+        };
+
+        let Ok(max_qty) = self.current_planet_build_max_quantity_for(unit.kind) else {
+            self.planet_build_unit_status = Some("No points are available to spend.".to_string());
+            return;
+        };
+        if max_qty == 0 {
+            self.planet_build_unit_status = Some("No points are available to spend.".to_string());
+            return;
+        }
+
+        self.planet_build_selected_kind = Some(unit.kind);
+        self.planet_build_quantity_input.clear();
+        self.planet_build_quantity_status = None;
+        self.current_screen = ScreenId::PlanetBuildQuantity;
+    }
+
+    pub fn append_planet_build_quantity_char(&mut self, ch: char) {
+        if self.current_screen == ScreenId::PlanetBuildQuantity
+            && self.planet_build_quantity_input.len() < 3
+        {
+            self.planet_build_quantity_input.push(ch);
+            self.planet_build_quantity_status = None;
+        }
+    }
+
+    pub fn backspace_planet_build_quantity_input(&mut self) {
+        if self.current_screen == ScreenId::PlanetBuildQuantity {
+            self.planet_build_quantity_input.pop();
+            self.planet_build_quantity_status = None;
+        }
+    }
+
+    pub fn submit_planet_build_quantity(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(kind) = self.planet_build_selected_kind else {
+            self.current_screen = ScreenId::PlanetBuildSpecify;
+            return Ok(());
+        };
+        let Some(unit) = build_unit_spec_by_kind(kind) else {
+            self.current_screen = ScreenId::PlanetBuildSpecify;
+            return Ok(());
+        };
+        let max_qty = self.current_planet_build_max_quantity_for(kind)?;
+        if max_qty == 0 {
+            self.planet_build_quantity_status =
+                Some("No points are available to spend.".to_string());
+            return Ok(());
+        }
+
+        let qty = if self.planet_build_quantity_input.trim().is_empty() {
+            max_qty
+        } else {
+            match self.planet_build_quantity_input.trim().parse::<u32>() {
+                Ok(value) => value,
+                Err(_) => {
+                    self.planet_build_quantity_status = Some("Enter a valid quantity.".to_string());
+                    return Ok(());
+                }
+            }
+        };
+
+        if qty == 0 {
+            self.current_screen = ScreenId::PlanetBuildSpecify;
+            self.planet_build_quantity_input.clear();
+            return Ok(());
+        }
+        if qty > max_qty {
+            self.planet_build_quantity_status =
+                Some(format!("Enter a quantity from 0 to {}.", max_qty));
+            return Ok(());
+        }
+
+        let points = qty.saturating_mul(unit.cost);
+        let planet_record = self.current_build_planet_row()?.planet_record_index_1_based;
+        self.game_data.append_planet_build_order(
+            planet_record,
+            points.min(u32::from(u8::MAX)) as u8,
+            production_item_kind_raw(kind),
+        )?;
+        self.game_data.save(&self.game_dir)?;
+        self.planet_build_unit_input.clear();
+        self.planet_build_unit_status = Some(format!("Queued {} {}.", qty, unit.label));
+        self.planet_build_quantity_input.clear();
+        self.planet_build_quantity_status = None;
+        self.planet_build_selected_kind = None;
+        self.current_screen = ScreenId::PlanetBuildSpecify;
+        Ok(())
+    }
+
+    pub fn abort_current_planet_builds(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let row = self.current_build_planet_row()?;
+        self.game_data
+            .clear_planet_build_queue(row.planet_record_index_1_based)?;
+        self.game_data.save(&self.game_dir)?;
+        self.planet_build_status = Some("Build orders aborted.".to_string());
+        self.current_screen = ScreenId::PlanetBuildMenu;
+        Ok(())
+    }
+
     pub fn append_planet_tax_char(&mut self, ch: char) {
         if self.current_screen == ScreenId::PlanetTaxPrompt && self.planet_tax_input.len() < 3 {
             self.planet_tax_input.push(ch);
@@ -446,6 +700,12 @@ impl App {
             ScreenId::GeneralHelp => self.general_help.handle_key(key),
             ScreenId::PlanetMenu => self.planet_menu.handle_key(key),
             ScreenId::PlanetHelp => self.planet_help.handle_key(key),
+            ScreenId::PlanetBuildMenu => self.planet_build.handle_menu_key(key),
+            ScreenId::PlanetBuildReview => self.planet_build.handle_review_key(key),
+            ScreenId::PlanetBuildList => self.planet_build.handle_list_key(key),
+            ScreenId::PlanetBuildAbortConfirm => self.planet_build.handle_abort_key(key),
+            ScreenId::PlanetBuildSpecify => self.planet_build.handle_specify_key(key),
+            ScreenId::PlanetBuildQuantity => self.planet_build.handle_quantity_key(key),
             ScreenId::PlanetListSortPrompt(PlanetListMode::Stub(_)) => Action::OpenPlanetMenu,
             ScreenId::PlanetListSortPrompt(_) => self.planet_list.handle_sort_prompt_key(key),
             ScreenId::PlanetBriefList(_) => self.planet_list.handle_brief_key(key),
@@ -609,6 +869,7 @@ impl App {
         self.current_screen = match self.command_return_menu {
             CommandMenu::General => ScreenId::GeneralMenu,
             CommandMenu::Planet => ScreenId::PlanetMenu,
+            CommandMenu::PlanetBuild => ScreenId::PlanetBuildMenu,
         };
     }
 
@@ -1163,6 +1424,128 @@ impl App {
         rows
     }
 
+    fn build_planet_rows(&self) -> Vec<ec_data::EmpirePlanetEconomyRow> {
+        self.sorted_planet_rows(PlanetListSort::CurrentProduction)
+    }
+
+    fn current_build_planet_row(
+        &self,
+    ) -> Result<ec_data::EmpirePlanetEconomyRow, Box<dyn std::error::Error>> {
+        self.build_planet_rows()
+            .get(self.planet_build_index)
+            .cloned()
+            .ok_or_else(|| "current build planet missing".into())
+    }
+
+    fn current_planet_build_orders(&self) -> Vec<PlanetBuildOrder> {
+        let Ok(row) = self.current_build_planet_row() else {
+            return vec![];
+        };
+        let Some(record) = self
+            .game_data
+            .planets
+            .records
+            .get(row.planet_record_index_1_based - 1)
+        else {
+            return vec![];
+        };
+        (0..10)
+            .filter_map(|slot| {
+                let points = record.build_count_raw(slot);
+                let kind_raw = record.build_kind_raw(slot);
+                if points == 0 || kind_raw == 0 {
+                    None
+                } else {
+                    Some(PlanetBuildOrder {
+                        kind: ProductionItemKind::from_raw(kind_raw),
+                        points_remaining: points,
+                    })
+                }
+            })
+            .collect()
+    }
+
+    fn current_planet_build_view(&self) -> Result<PlanetBuildMenuView, Box<dyn std::error::Error>> {
+        let row = self.current_build_planet_row()?;
+        let committed_points =
+            self.current_build_committed_points(row.planet_record_index_1_based)?;
+        let available_points = u32::from(row.build_capacity)
+            .min(row.stored_production_points.min(u32::from(u16::MAX)));
+        let points_left = available_points.saturating_sub(committed_points);
+        Ok(PlanetBuildMenuView {
+            row,
+            committed_points,
+            available_points,
+            points_left,
+        })
+    }
+
+    fn current_build_committed_points(
+        &self,
+        planet_record_index_1_based: usize,
+    ) -> Result<u32, Box<dyn std::error::Error>> {
+        let record = self
+            .game_data
+            .planets
+            .records
+            .get(planet_record_index_1_based - 1)
+            .ok_or("planet record missing")?;
+        Ok((0..10)
+            .map(|slot| u32::from(record.build_count_raw(slot)))
+            .sum::<u32>())
+    }
+
+    fn current_planet_build_max_quantity(&self) -> Result<u32, Box<dyn std::error::Error>> {
+        let kind = self
+            .planet_build_selected_kind
+            .ok_or("planet build kind missing")?;
+        self.current_planet_build_max_quantity_for(kind)
+    }
+
+    fn current_planet_build_max_quantity_for(
+        &self,
+        kind: ProductionItemKind,
+    ) -> Result<u32, Box<dyn std::error::Error>> {
+        let view = self.current_planet_build_view()?;
+        let unit = build_unit_spec_by_kind(kind).ok_or("unit spec missing")?;
+        Ok(max_quantity(view.points_left, unit.cost))
+    }
+
+    fn planet_build_list_rows(&self) -> Vec<PlanetBuildListRow> {
+        self.build_planet_rows()
+            .into_iter()
+            .map(|row| {
+                let build_summary = self
+                    .game_data
+                    .planets
+                    .records
+                    .get(row.planet_record_index_1_based - 1)
+                    .and_then(|record| {
+                        let points_remaining = record.build_count_raw(0);
+                        let kind_raw = record.build_kind_raw(0);
+                        if points_remaining == 0 || kind_raw == 0 {
+                            None
+                        } else {
+                            Some(build_order_summary(PlanetBuildOrder {
+                                kind: ProductionItemKind::from_raw(kind_raw),
+                                points_remaining,
+                            }))
+                        }
+                    })
+                    .unwrap_or_else(|| "<none>".to_string());
+                let points_committed = self
+                    .current_build_committed_points(row.planet_record_index_1_based)
+                    .unwrap_or(0);
+                PlanetBuildListRow {
+                    planet_name: row.planet_name,
+                    coords: row.coords,
+                    build_summary,
+                    points_committed,
+                }
+            })
+            .collect()
+    }
+
     fn compose_outbox_queue(&self) -> Result<Vec<QueuedPlayerMail>, Box<dyn std::error::Error>> {
         let sender_empire_id = self.player.record_index_1_based as u8;
         Ok(load_mail_queue(&self.game_dir)?
@@ -1211,6 +1594,21 @@ fn compose_recipient_label(game_data: &CoreGameData, empire_id: Option<u8>) -> S
     let fallback = player.legacy_status_name_summary();
     let display = if !name.is_empty() { name } else { fallback };
     format!("Empire {empire_id} ({display})")
+}
+
+fn production_item_kind_raw(kind: ProductionItemKind) -> u8 {
+    match kind {
+        ProductionItemKind::Destroyer => 1,
+        ProductionItemKind::Cruiser => 2,
+        ProductionItemKind::Battleship => 3,
+        ProductionItemKind::Scout => 4,
+        ProductionItemKind::Transport => 5,
+        ProductionItemKind::Etac => 6,
+        ProductionItemKind::GroundBattery => 7,
+        ProductionItemKind::Army => 8,
+        ProductionItemKind::Starbase => 9,
+        ProductionItemKind::Unknown(raw) => raw,
+    }
 }
 
 fn file_nonempty(path: PathBuf) -> bool {

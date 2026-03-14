@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    CMD_COL_1, CMD_COL_2, CMD_COL_3, MenuEntry, draw_command_center, new_playfield,
+    draw_command_center, new_playfield, MenuEntry, CMD_COL_1, CMD_COL_2, CMD_COL_3,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use ec_data::EmpireProductionRankingSort;
@@ -96,7 +96,7 @@ fn autopilot_row(frame: &ScreenFrame<'_>) -> [MenuEntry<'static>; 3] {
         "utopilot ON"
     };
     [
-    MenuEntry::new(CMD_COL_1, "H", "elp with commands"),
+        MenuEntry::new(CMD_COL_1, "H", "elp with commands"),
         MenuEntry::new(CMD_COL_2, "A", autopilot_label),
         ROW_1_RIGHT[1],
     ]

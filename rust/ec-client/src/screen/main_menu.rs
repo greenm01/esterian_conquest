@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    MenuEntry, draw_command_prompt, draw_menu_row, draw_title_bar, new_playfield,
+    draw_command_prompt, draw_menu_row, draw_title_bar, new_playfield, MenuEntry,
 };
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
 
@@ -21,25 +21,41 @@ impl Screen for MainMenuScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "MAIN MENU: ");
-        draw_menu_row(&mut buffer, 1, &[
-            MenuEntry::new(2, "H", "elp with commands"),
-            MenuEntry::new(24, "G", "ENERAL COMMAND MENU..."),
-            MenuEntry::new(53, "B", "rief Empire Report"),
-        ]);
-        draw_menu_row(&mut buffer, 2, &[
-            MenuEntry::new(2, "Q", "uit back to BBS"),
-            MenuEntry::new(24, "P", "LANET COMMAND MENU..."),
-            MenuEntry::new(53, "I", "nfo about a Planet"),
-        ]);
-        draw_menu_row(&mut buffer, 3, &[
-            MenuEntry::new(2, "X", "pert mode ON/OFF"),
-            MenuEntry::new(24, "F", "LEET COMMAND MENU..."),
-            MenuEntry::new(53, "D", "etailed Empire Report"),
-        ]);
-        draw_menu_row(&mut buffer, 4, &[
-            MenuEntry::new(2, "V", "iew Partial Map"),
-            MenuEntry::new(24, "T", "otal Planet Database"),
-        ]);
+        draw_menu_row(
+            &mut buffer,
+            1,
+            &[
+                MenuEntry::new(2, "H", "elp with commands"),
+                MenuEntry::new(24, "G", "ENERAL COMMAND MENU..."),
+                MenuEntry::new(53, "B", "rief Empire Report"),
+            ],
+        );
+        draw_menu_row(
+            &mut buffer,
+            2,
+            &[
+                MenuEntry::new(2, "Q", "uit back to BBS"),
+                MenuEntry::new(24, "P", "LANET COMMAND MENU..."),
+                MenuEntry::new(53, "I", "nfo about a Planet"),
+            ],
+        );
+        draw_menu_row(
+            &mut buffer,
+            3,
+            &[
+                MenuEntry::new(2, "X", "pert mode ON/OFF"),
+                MenuEntry::new(24, "F", "LEET COMMAND MENU..."),
+                MenuEntry::new(53, "D", "etailed Empire Report"),
+            ],
+        );
+        draw_menu_row(
+            &mut buffer,
+            4,
+            &[
+                MenuEntry::new(2, "V", "iew Partial Map"),
+                MenuEntry::new(24, "T", "otal Planet Database"),
+            ],
+        );
         draw_command_prompt(&mut buffer, 5, "MAIN COMMAND", "H Q X V G P F T I B D");
         Ok(buffer)
     }

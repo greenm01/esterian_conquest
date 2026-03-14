@@ -72,12 +72,7 @@ pub fn draw_menu_entry(
     );
 }
 
-pub fn draw_status_line(
-    buffer: &mut PlayfieldBuffer,
-    row: usize,
-    label: &str,
-    value: &str,
-) {
+pub fn draw_status_line(buffer: &mut PlayfieldBuffer, row: usize, label: &str, value: &str) {
     buffer.write_spans(
         row,
         0,
@@ -98,14 +93,9 @@ pub fn draw_centered_text(
     buffer.write_text(row, col, text, style);
 }
 
-pub fn draw_command_prompt(
-    buffer: &mut PlayfieldBuffer,
-    row: usize,
-    label: &str,
-    keys: &str,
-) {
+pub fn draw_command_prompt(buffer: &mut PlayfieldBuffer, row: usize, label: &str, keys: &str) {
     buffer.fill_row(row, classic::prompt_style());
-    let cursor_col = buffer.write_spans(
+    buffer.write_spans(
         row,
         0,
         &[
@@ -115,7 +105,6 @@ pub fn draw_command_prompt(
             StyledSpan::new("-> ", classic::prompt_style()),
         ],
     );
-    buffer.set_cursor(cursor_col as u16, row as u16);
 }
 
 pub fn draw_plain_prompt(buffer: &mut PlayfieldBuffer, row: usize, prompt: &str) -> usize {

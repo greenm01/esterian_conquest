@@ -2,9 +2,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::{
-    BaseDat, BaseRecord, ConquestDat, DiplomaticRelation, FleetDat, FleetRecord, IPBM_RECORD_SIZE,
-    IpbmDat, IpbmRecord, ParseError, PlanetDat, PlayerDat, ProductionItemKind, SetupDat,
-    build_capacity, yearly_growth_delta, yearly_tax_revenue,
+    build_capacity, yearly_growth_delta, yearly_tax_revenue, BaseDat, BaseRecord, ConquestDat,
+    DiplomaticRelation, FleetDat, FleetRecord, IpbmDat, IpbmRecord, ParseError, PlanetDat,
+    PlayerDat, ProductionItemKind, SetupDat, IPBM_RECORD_SIZE,
 };
 
 const CURRENT_KNOWN_POST_MAINT_CONQUEST_CONTROL_HEADER: [u8; 0x55] = [
@@ -213,6 +213,7 @@ pub enum GameStateMutationError {
     MissingIpbmRecord { index_1_based: usize },
     MissingPlanetRecord { index_1_based: usize },
     MissingPlayerRecord { index_1_based: usize },
+    PlanetBuildQueueFull { index_1_based: usize },
 }
 
 impl std::fmt::Display for GameDirectoryError {
@@ -247,6 +248,9 @@ impl std::fmt::Display for GameStateMutationError {
             }
             Self::MissingPlayerRecord { index_1_based } => {
                 write!(f, "missing player record {}", index_1_based)
+            }
+            Self::PlanetBuildQueueFull { index_1_based } => {
+                write!(f, "build queue full for planet record {}", index_1_based)
             }
         }
     }
@@ -323,10 +327,7 @@ impl CoreGameData {
             .count()
     }
 
-    pub fn player_ipbm_count_current_known(
-        &self,
-        player_record_index_1_based: usize,
-    ) -> usize {
+    pub fn player_ipbm_count_current_known(&self, player_record_index_1_based: usize) -> usize {
         self.player
             .records
             .get(player_record_index_1_based - 1)
@@ -338,10 +339,7 @@ impl CoreGameData {
         self.player_ipbm_count_current_known(1)
     }
 
-    pub fn empire_present_production(
-        &self,
-        player_record_index_1_based: usize,
-    ) -> u16 {
+    pub fn empire_present_production(&self, player_record_index_1_based: usize) -> u16 {
         self.planets
             .records
             .iter()
@@ -350,10 +348,7 @@ impl CoreGameData {
             .sum()
     }
 
-    pub fn empire_potential_production(
-        &self,
-        player_record_index_1_based: usize,
-    ) -> u16 {
+    pub fn empire_potential_production(&self, player_record_index_1_based: usize) -> u16 {
         self.planets
             .records
             .iter()
@@ -362,10 +357,7 @@ impl CoreGameData {
             .sum()
     }
 
-    pub fn empire_available_production_points(
-        &self,
-        player_record_index_1_based: usize,
-    ) -> u32 {
+    pub fn empire_available_production_points(&self, player_record_index_1_based: usize) -> u32 {
         let tax_rate = self
             .player
             .records
@@ -377,14 +369,15 @@ impl CoreGameData {
             .records
             .iter()
             .filter(|record| record.owner_empire_slot_raw() as usize == player_record_index_1_based)
-            .filter_map(|record| record.present_production_points().map(|points| yearly_tax_revenue(points, tax_rate)))
+            .filter_map(|record| {
+                record
+                    .present_production_points()
+                    .map(|points| yearly_tax_revenue(points, tax_rate))
+            })
             .sum()
     }
 
-    pub fn empire_efficiency_percent(
-        &self,
-        player_record_index_1_based: usize,
-    ) -> f64 {
+    pub fn empire_efficiency_percent(&self, player_record_index_1_based: usize) -> f64 {
         let potential = self.empire_potential_production(player_record_index_1_based);
         if potential == 0 {
             return 0.0;
@@ -412,10 +405,7 @@ impl CoreGameData {
             .count()
     }
 
-    pub fn empire_rank_by_present_production(
-        &self,
-        player_record_index_1_based: usize,
-    ) -> usize {
+    pub fn empire_rank_by_present_production(&self, player_record_index_1_based: usize) -> usize {
         let own = self.empire_present_production(player_record_index_1_based);
         1 + (1..=self.player.records.len())
             .filter(|&idx| idx != player_record_index_1_based)
@@ -434,13 +424,16 @@ impl CoreGameData {
             .map(|record| record.tax_rate())
             .unwrap_or(0);
         EmpireEconomySummary {
-            owned_planets: self.player_owned_planet_count_current_known(player_record_index_1_based),
+            owned_planets: self
+                .player_owned_planet_count_current_known(player_record_index_1_based),
             present_production: self.empire_present_production(player_record_index_1_based),
             potential_production: self.empire_potential_production(player_record_index_1_based),
-            total_available_points: self.empire_available_production_points(player_record_index_1_based),
+            total_available_points: self
+                .empire_available_production_points(player_record_index_1_based),
             efficiency_percent: self.empire_efficiency_percent(player_record_index_1_based),
             rank_by_planets: self.empire_rank_by_planets_current_known(player_record_index_1_based),
-            rank_by_present_production: self.empire_rank_by_present_production(player_record_index_1_based),
+            rank_by_present_production: self
+                .empire_rank_by_present_production(player_record_index_1_based),
             tax_rate,
             max_fleets_and_bases: 500,
             current_fleets_and_bases: self
@@ -467,8 +460,8 @@ impl CoreGameData {
             summary.etacs += u32::from(fleet.etac_count());
         }
 
-        summary.starbases = self.player_owned_base_record_count_current_known(player_record_index_1_based)
-            as u32;
+        summary.starbases =
+            self.player_owned_base_record_count_current_known(player_record_index_1_based) as u32;
 
         for planet in &self.planets.records {
             if planet.owner_empire_slot_raw() != empire_raw {
@@ -481,10 +474,7 @@ impl CoreGameData {
         summary
     }
 
-    pub fn empire_stardock_summary(
-        &self,
-        player_record_index_1_based: usize,
-    ) -> EmpireUnitSummary {
+    pub fn empire_stardock_summary(&self, player_record_index_1_based: usize) -> EmpireUnitSummary {
         let empire_raw = player_record_index_1_based as u8;
         let mut summary = EmpireUnitSummary::default();
 
@@ -569,7 +559,9 @@ impl CoreGameData {
             .records
             .iter()
             .enumerate()
-            .filter(|(_, record)| record.owner_empire_slot_raw() as usize == player_record_index_1_based)
+            .filter(|(_, record)| {
+                record.owner_empire_slot_raw() as usize == player_record_index_1_based
+            })
             .filter_map(|(idx, record)| {
                 let present_production = record.present_production_points()?;
                 let tax_rate = self
@@ -606,11 +598,7 @@ impl CoreGameData {
             .collect()
     }
 
-    pub fn planet_has_friendly_starbase(
-        &self,
-        owner_empire_raw: u8,
-        coords: [u8; 2],
-    ) -> bool {
+    pub fn planet_has_friendly_starbase(&self, owner_empire_raw: u8, coords: [u8; 2]) -> bool {
         self.bases.records.iter().any(|base| {
             base.owner_empire_raw() == owner_empire_raw
                 && base.coords_raw() == coords
@@ -1771,6 +1759,59 @@ impl CoreGameData {
         record.set_build_count_raw(0, slot_raw);
         record.set_build_kind_raw(0, kind_raw);
         Ok(())
+    }
+
+    pub fn clear_planet_build_queue(
+        &mut self,
+        record_index_1_based: usize,
+    ) -> Result<(), GameStateMutationError> {
+        let record = self
+            .planets
+            .records
+            .get_mut(record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingPlanetRecord {
+                index_1_based: record_index_1_based,
+            })?;
+        for slot in 0..10 {
+            record.set_build_count_raw(slot, 0);
+            record.set_build_kind_raw(slot, 0);
+        }
+        Ok(())
+    }
+
+    /// Append a build order to the first empty slot in the planet's build queue.
+    /// Returns an error if all 10 slots are already occupied.
+    pub fn append_planet_build_order(
+        &mut self,
+        record_index_1_based: usize,
+        points_remaining_raw: u8,
+        kind_raw: u8,
+    ) -> Result<(), GameStateMutationError> {
+        let record = self
+            .planets
+            .records
+            .get_mut(record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingPlanetRecord {
+                index_1_based: record_index_1_based,
+            })?;
+        let slot = (0..10)
+            .find(|&s| record.build_count_raw(s) == 0 && record.build_kind_raw(s) == 0)
+            .ok_or(GameStateMutationError::PlanetBuildQueueFull {
+                index_1_based: record_index_1_based,
+            })?;
+        record.set_build_count_raw(slot, points_remaining_raw);
+        record.set_build_kind_raw(slot, kind_raw);
+        Ok(())
+    }
+
+    pub fn replace_planet_build_queue_with_single_order(
+        &mut self,
+        record_index_1_based: usize,
+        points_remaining_raw: u8,
+        kind_raw: u8,
+    ) -> Result<(), GameStateMutationError> {
+        self.clear_planet_build_queue(record_index_1_based)?;
+        self.set_planet_build(record_index_1_based, points_remaining_raw, kind_raw)
     }
 
     /// Set a guard-starbase order on the specified fleet, update the owning player's starbase

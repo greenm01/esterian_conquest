@@ -106,6 +106,36 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::PlanetHelp);
 
     assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetBuildMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetBuildReview),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildReview);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetBuildList),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildList);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetBuildAbortConfirm),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildAbortConfirm);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetBuildSpecify),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildSpecify);
+
+    assert_eq!(
         apply_action(&mut app, Action::OpenPlanetTaxPrompt),
         AppOutcome::Continue
     );

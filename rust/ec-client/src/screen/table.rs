@@ -37,7 +37,12 @@ pub fn write_table_header(
     columns: &[TableColumn<'_>],
     style: crate::screen::CellStyle,
 ) {
-    buffer.write_text(row, 0, &format_table_row(columns, &header_cells(columns)), style);
+    buffer.write_text(
+        row,
+        0,
+        &format_table_row(columns, &header_cells(columns)),
+        style,
+    );
 }
 
 pub fn write_table_row(
@@ -68,7 +73,12 @@ pub fn write_table_window<'a>(
         crate::theme::classic::menu_style(),
     );
 
-    for (idx, row_cells) in rows.iter().skip(scroll_offset).take(visible_rows).enumerate() {
+    for (idx, row_cells) in rows
+        .iter()
+        .skip(scroll_offset)
+        .take(visible_rows)
+        .enumerate()
+    {
         let refs = row_cells.iter().map(String::as_str).collect::<Vec<_>>();
         write_table_row(buffer, start_row + 2 + idx, columns, &refs, body_style);
     }

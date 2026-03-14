@@ -40,28 +40,63 @@ impl StartupScreen {
 
     pub fn handle_key(&self, phase: StartupPhase, key: KeyEvent) -> Action {
         match (phase, key.code) {
-            (StartupPhase::Splash, KeyCode::Char('y') | KeyCode::Char('Y')) => Action::OpenStartupIntro,
+            (StartupPhase::Splash, KeyCode::Char('y') | KeyCode::Char('Y')) => {
+                Action::OpenStartupIntro
+            }
             (_, KeyCode::Char('q') | KeyCode::Char('Q')) => Action::Quit,
             _ => Action::AdvanceStartup,
         }
     }
 
-    fn render_splash(&self, _frame: &ScreenFrame<'_>) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+    fn render_splash(
+        &self,
+        _frame: &ScreenFrame<'_>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_centered_text(&mut buffer, 1, "ESTERIAN CONQUEST", classic::bright_style());
         draw_centered_text(&mut buffer, 2, "Ver 1.60", classic::bright_style());
-        buffer.write_text(4, 0, "Welcome back to Esterian Conquest, Ver 1.60", classic::body_style());
-        buffer.write_text(5, 0, "-------------------------------------------------------------------------------", classic::body_style());
-        buffer.write_text(6, 0, "Use Ctrl-S throughout the game to pause and resume output.", classic::body_style());
-        buffer.write_text(7, 0, "Use Ctrl-X or Ctrl-K to abort most listings.", classic::body_style());
-        buffer.write_text(8, 0, "Copyright (C) 1990, 1991 by Bentley C. Griffith.", classic::body_style());
+        buffer.write_text(
+            4,
+            0,
+            "Welcome back to Esterian Conquest, Ver 1.60",
+            classic::body_style(),
+        );
+        buffer.write_text(
+            5,
+            0,
+            "-------------------------------------------------------------------------------",
+            classic::body_style(),
+        );
+        buffer.write_text(
+            6,
+            0,
+            "Use Ctrl-S throughout the game to pause and resume output.",
+            classic::body_style(),
+        );
+        buffer.write_text(
+            7,
+            0,
+            "Use Ctrl-X or Ctrl-K to abort most listings.",
+            classic::body_style(),
+        );
+        buffer.write_text(
+            8,
+            0,
+            "Copyright (C) 1990, 1991 by Bentley C. Griffith.",
+            classic::body_style(),
+        );
         draw_plain_prompt(&mut buffer, 10, "View Introduction? Y/[N] ->");
         Ok(buffer)
     }
 
     fn render_intro(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        draw_centered_text(&mut buffer, 0, "Esterian Conquest Ver 1.60", classic::bright_style());
+        draw_centered_text(
+            &mut buffer,
+            0,
+            "Esterian Conquest Ver 1.60",
+            classic::bright_style(),
+        );
         for (row, line) in INTRO_LINES.iter().enumerate() {
             buffer.write_text(row + 2, 0, line, classic::body_style());
         }
@@ -92,24 +127,43 @@ impl StartupScreen {
         );
 
         if self.summary.pending_results {
-            buffer.write_text(4, 0, &format!(
-                "You have {} report line(s) pending.",
-                self.summary.results_line_count
-            ), classic::body_style());
+            buffer.write_text(
+                4,
+                0,
+                &format!(
+                    "You have {} report line(s) pending.",
+                    self.summary.results_line_count
+                ),
+                classic::body_style(),
+            );
         } else {
             buffer.write_text(4, 0, "You have no reports pending.", classic::body_style());
         }
 
         if self.summary.pending_messages {
-            buffer.write_text(5, 0, &format!(
-                "You have undeleted messages: {} line(s) currently reviewable.",
-                self.summary.message_line_count
-            ), classic::body_style());
+            buffer.write_text(
+                5,
+                0,
+                &format!(
+                    "You have undeleted messages: {} line(s) currently reviewable.",
+                    self.summary.message_line_count
+                ),
+                classic::body_style(),
+            );
         } else {
-            buffer.write_text(5, 0, "You have no undeleted messages.", classic::body_style());
+            buffer.write_text(
+                5,
+                0,
+                "You have no undeleted messages.",
+                classic::body_style(),
+            );
         }
 
-        draw_plain_prompt(&mut buffer, 7, "Press any key to continue to the login-time review flow.");
+        draw_plain_prompt(
+            &mut buffer,
+            7,
+            "Press any key to continue to the login-time review flow.",
+        );
         Ok(buffer)
     }
 
@@ -176,5 +230,9 @@ const INTRO_LINES: [&str; 16] = [
 ];
 
 fn display_or_unknown(value: &str) -> &str {
-    if value.is_empty() { "<unknown>" } else { value }
+    if value.is_empty() {
+        "<unknown>"
+    } else {
+        value
+    }
 }

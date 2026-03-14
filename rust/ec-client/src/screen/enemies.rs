@@ -2,8 +2,10 @@ use crossterm::event::{KeyCode, KeyEvent};
 use ec_data::DiplomaticRelation;
 
 use crate::app::Action;
-use crate::screen::layout::{draw_command_prompt, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield};
-use crate::screen::table::{format_empire_id, TableColumn, write_table_window};
+use crate::screen::layout::{
+    draw_command_prompt, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
+};
+use crate::screen::table::{format_empire_id, write_table_window, TableColumn};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 

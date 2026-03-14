@@ -29,21 +29,25 @@ impl PlanetTaxScreen {
             "Taxes in excess of 65% may actually REDUCE your planets'",
         );
         draw_centered_warning(&mut buffer, 6, "productivities!");
-        // Render: "Enter your empire's tax rate as an integer value (0 - 100): [50] -> _"
-        // [50] shows the current rate as the default; user types a new value after ->
-        let prefix = "Enter your empire's tax rate as an integer value (0 - 100): [";
+        let prefix = "Empire tax rate (0 - 100): [";
         let prefix_col = draw_plain_prompt(&mut buffer, 10, prefix);
-        let default_col = prefix_col
-            + buffer.write_text(10, prefix_col, current_tax, classic::prompt_hotkey_style());
-        let arrow_col =
-            default_col + buffer.write_text(10, default_col, "] -> ", classic::prompt_style());
-        let cursor_col =
-            arrow_col + buffer.write_text(10, arrow_col, input, classic::prompt_hotkey_style());
+        let default_start = prefix_col;
+        let default_end = default_start
+            + buffer.write_text(
+                10,
+                default_start,
+                current_tax,
+                classic::prompt_hotkey_style(),
+            );
+        let suffix_start =
+            default_end + buffer.write_text(10, default_end, "] -> ", classic::prompt_style());
+        let input_end = suffix_start
+            + buffer.write_text(10, suffix_start, input, classic::prompt_hotkey_style());
         if let Some(status) = status {
             draw_status_line(&mut buffer, 12, "Error: ", status);
         }
         draw_command_prompt(&mut buffer, 19, "PLANET COMMAND", "ENTER Q");
-        buffer.set_cursor(cursor_col as u16, 10);
+        buffer.set_cursor(input_end as u16, 10);
         Ok(buffer)
     }
 
