@@ -119,6 +119,53 @@ fn maint_rust_uses_stored_player_diplomacy_without_sidecar() {
 }
 
 #[test]
+fn maint_rust_blockade_arrival_persists_enemy_relation_in_player_dat() {
+    let target = unique_temp_dir("ec-cli-maint-rust-blockade-escalation");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let coords = game_data
+        .planets
+        .records
+        .iter()
+        .find(|planet| planet.owner_empire_slot_raw() == 2)
+        .map(|planet| planet.coords_raw())
+        .expect("fixture should contain an empire 2 world");
+
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw([coords[0].saturating_add(1), coords[1]]);
+    fleet.set_standing_order_kind(Order::GuardBlockadeWorld);
+    fleet.set_standing_order_target_coords_raw(coords);
+    fleet.set_current_speed(3);
+    fleet.raw[0x19] = 0x00;
+    game_data.save(&target).expect("mutated fixture should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
+    assert_eq!(
+        game_data.player.records[0].diplomatic_relation_toward(2),
+        Some(ec_data::DiplomaticRelation::Enemy)
+    );
+    assert_eq!(
+        game_data.player.records[1].diplomatic_relation_toward(1),
+        Some(ec_data::DiplomaticRelation::Enemy)
+    );
+
+    let diplomacy_sidecar = target.join("diplomacy.kdl");
+    assert!(
+        !diplomacy_sidecar.exists(),
+        "blockade escalation should persist directly into PLAYER.DAT"
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_without_enemy_declaration_reports_contact_without_forcing_battle() {
     let target = unique_temp_dir("ec-cli-maint-rust-peaceful-contact");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);

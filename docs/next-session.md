@@ -207,6 +207,10 @@ What is strong:
   - `0x00 = neutral`
   - `0x01 = enemy`
   - confirmed directly for player 1 declaring empire 2 enemy (`0x55`)
+- `maint-rust` now has CLI regression coverage proving both:
+  - stored `PLAYER.DAT` diplomacy is honored without requiring
+    `diplomacy.kdl`
+  - blockade-triggered escalation persists back into `PLAYER.DAT`
 - the local plain-`ECGAME` DOSBox harness is now stable enough for focused
   menu-driven black-box checks when needed:
   - full 32-line WWIV `CHAIN.TXT`
