@@ -24,24 +24,28 @@ mod support;
 pub use builder::{
     CanonicalFourPlayerSetup, FleetOrderSpec, GameStateBuilder, GuardStarbaseSpec, PlanetBuildSpec,
 };
-pub use config::{SetupConfig, SetupConfigError, SetupMode, SetupOptionsConfig};
+pub use config::{
+    DiplomacyConfig, DiplomacyDirective, SetupConfig, SetupConfigError, SetupMode,
+    SetupOptionsConfig,
+};
 pub use directory::{
     CoreGameData, CurrentKnownComplianceStatus, CurrentKnownGuardStarbaseLinkageSummary,
     CurrentKnownKeyWordSummary, GameDirectoryError, GameStateMutationError,
 };
 pub use maint::{
-    BombardEvent, ColonizationResolvedEvent, ContactReportSource, FleetBattleEvent,
-    FleetDestroyedEvent, FleetMergeEvent, JoinMissionHostEvent, MaintenanceEvents, Mission,
-    MissionEvent, MissionOutcome, PlanetIntelEvent, PlanetOwnershipChangeEvent, ScoutContactEvent,
-    ShipLosses, StarbaseDestroyedEvent,
-    run_maintenance_turn, run_maintenance_turn_with_visible_hazards, run_maintenance_turns,
+    BombardEvent, ColonizationResolvedEvent, ContactReportSource, DiplomacyOverride,
+    FleetBattleEvent, FleetDestroyedEvent, FleetMergeEvent, JoinMissionHostEvent,
+    MaintenanceEvents, Mission, MissionEvent, MissionOutcome, PlanetIntelEvent,
+    PlanetOwnershipChangeEvent, ScoutContactEvent, ShipLosses, StarbaseDestroyedEvent,
+    run_maintenance_turn, run_maintenance_turn_with_context,
+    run_maintenance_turn_with_visible_hazards, run_maintenance_turns,
 };
 pub use mapgen::{
     GeneratedMap, GeneratedWorld, build_seeded_new_game, generate_map, map_size_for_player_count,
 };
 pub use pathfinding::{
-    PlannedRoute, RouteStep, VisibleHazardIntel, next_path_step, plan_route,
-    plan_route_with_intel, visible_hazard_intel_from_database,
+    PlannedRoute, RouteStep, VisibleHazardIntel, next_path_step, plan_route, plan_route_with_intel,
+    visible_hazard_intel_from_database,
 };
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;

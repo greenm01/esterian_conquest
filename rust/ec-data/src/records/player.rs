@@ -1,5 +1,5 @@
-use crate::support::{ParseError, copy_array, trim_ascii_field};
 use crate::PLAYER_RECORD_SIZE;
+use crate::support::{ParseError, copy_array, trim_ascii_field};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiplomaticRelation {
@@ -122,10 +122,11 @@ impl PlayerRecord {
         u16::from_le_bytes([self.raw[0x4E], self.raw[0x4F]])
     }
 
-    /// Unknown u32 at 0x52. Observed as 100 in both the canonical baseline
-    /// and original/v1.5 regardless of player state. Likely a percentage cap
-    /// or production efficiency constant, not a treasury. Do not treat as
-    /// confirmed until further RE.
+    /// Unknown u16/u32-adjacent region beginning at 0x52. Current evidence:
+    /// - `0x52..0x53` still appear to be a stable small constant in preserved
+    ///   starts
+    /// - `0x54..0x57` now map to per-empire diplomacy flags
+    /// Do not treat the full 32-bit span as one settled field anymore.
     pub fn unknown_0x52_raw(&self) -> u32 {
         u32::from_le_bytes([
             self.raw[0x52],
@@ -159,15 +160,41 @@ impl PlayerRecord {
         self.raw[0] = value;
     }
 
-    /// Stored diplomatic relation toward another empire, if the raw bytes have
-    /// been mapped. This remains unresolved in the classic `PLAYER.DAT`
-    /// layout, so callers must handle `None` and fall back to documented
-    /// hostility rules.
-    pub fn diplomatic_relation_toward(
-        &self,
-        _other_empire_raw: u8,
-    ) -> Option<DiplomaticRelation> {
-        None
+    /// Stored diplomatic relation toward another empire.
+    ///
+    /// Black-box confirmation from live `ECGAME` diplomacy menu:
+    /// player 1 declaring empire 2 an enemy flips player-record byte `0x55`
+    /// from `0x00 -> 0x01`, while the surrounding `0x54..0x57` bytes behave
+    /// like one slot per empire.
+    ///
+    /// Current mapping:
+    /// - `raw[0x54 + (other_empire_raw - 1)]`
+    /// - `0x00 = Neutral`
+    /// - `0x01 = Enemy`
+    pub fn diplomatic_relation_toward(&self, other_empire_raw: u8) -> Option<DiplomaticRelation> {
+        if !(1..=4).contains(&other_empire_raw) {
+            return None;
+        }
+        match self.raw[0x54 + other_empire_raw as usize - 1] {
+            0x00 => Some(DiplomaticRelation::Neutral),
+            0x01 => Some(DiplomaticRelation::Enemy),
+            _ => None,
+        }
+    }
+
+    pub fn set_diplomatic_relation_toward(
+        &mut self,
+        other_empire_raw: u8,
+        relation: DiplomaticRelation,
+    ) -> bool {
+        if !(1..=4).contains(&other_empire_raw) {
+            return false;
+        }
+        self.raw[0x54 + other_empire_raw as usize - 1] = match relation {
+            DiplomaticRelation::Neutral => 0x00,
+            DiplomaticRelation::Enemy => 0x01,
+        };
+        true
     }
 }
 

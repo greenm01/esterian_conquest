@@ -2,8 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::{
-    BaseDat, BaseRecord, ConquestDat, DiplomaticRelation, FleetDat, FleetRecord,
-    IPBM_RECORD_SIZE, IpbmDat, IpbmRecord, ParseError, PlanetDat, PlayerDat, SetupDat,
+    BaseDat, BaseRecord, ConquestDat, DiplomaticRelation, FleetDat, FleetRecord, IPBM_RECORD_SIZE,
+    IpbmDat, IpbmRecord, ParseError, PlanetDat, PlayerDat, SetupDat,
 };
 
 const CURRENT_KNOWN_POST_MAINT_CONQUEST_CONTROL_HEADER: [u8; 0x55] = [
@@ -1880,6 +1880,27 @@ impl CoreGameData {
             .records
             .get(from_empire_raw.saturating_sub(1) as usize)
             .and_then(|record| record.diplomatic_relation_toward(to_empire_raw))
+    }
+
+    pub fn set_stored_diplomatic_relation(
+        &mut self,
+        from_empire_raw: u8,
+        to_empire_raw: u8,
+        relation: DiplomaticRelation,
+    ) -> Result<bool, GameStateMutationError> {
+        if from_empire_raw == 0 || to_empire_raw == 0 || from_empire_raw == to_empire_raw {
+            return Ok(false);
+        }
+        let Some(record) = self
+            .player
+            .records
+            .get_mut(from_empire_raw.saturating_sub(1) as usize)
+        else {
+            return Err(GameStateMutationError::MissingPlayerRecord {
+                index_1_based: from_empire_raw as usize,
+            });
+        };
+        Ok(record.set_diplomatic_relation_toward(to_empire_raw, relation))
     }
 }
 

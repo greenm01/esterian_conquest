@@ -80,3 +80,11 @@ pub fn copy_dir_files(source: &Path, target: &Path) {
         fs::copy(entry.path(), target.join(entry.file_name())).unwrap();
     }
 }
+
+pub fn write_mutual_enemy_diplomacy(target: &Path, left: u8, right: u8) {
+    let text = format!(
+        "relation from={} to={} status=\"enemy\"\nrelation from={} to={} status=\"enemy\"\n",
+        left, right, right, left
+    );
+    fs::write(target.join("diplomacy.kdl"), text).unwrap();
+}

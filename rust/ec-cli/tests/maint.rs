@@ -1,6 +1,9 @@
 mod common;
 
-use common::{cleanup_dir, copy_fixture_dir, run_ec_cli_in_dir, unique_temp_dir};
+use common::{
+    cleanup_dir, copy_fixture_dir, run_ec_cli_failure_in_dir, run_ec_cli_in_dir, unique_temp_dir,
+    write_mutual_enemy_diplomacy,
+};
 use ec_data::{CoreGameData, DatabaseDat, GameStateBuilder, Order};
 use std::fs;
 
@@ -44,8 +47,11 @@ fn maint_rust_econ_updates_database_owner_intel_from_post_combat_planet_state() 
     assert_eq!(owner_record.raw[0x25], planet.ground_batteries_raw());
 
     let unrelated_player = (owner_player + 1) % 4;
-    let unrelated_record =
-        database.record(planet_idx, unrelated_player, game_data.planets.records.len());
+    let unrelated_record = database.record(
+        planet_idx,
+        unrelated_player,
+        game_data.planets.records.len(),
+    );
     assert_eq!(unrelated_record.planet_name_bytes(), b"UNKNOWN");
     assert_eq!(unrelated_record.raw[0x15], 0xff);
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
@@ -61,6 +67,7 @@ fn maint_rust_econ_updates_database_owner_intel_from_post_combat_planet_state() 
 fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     let target = unique_temp_dir("ec-cli-maint-rust-fleet-battle");
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
+    write_mutual_enemy_diplomacy(&target, 1, 2);
 
     let stdout = run_ec_cli_in_dir(
         &["maint-rust", target.to_str().unwrap(), "1"],
@@ -86,9 +93,83 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
 }
 
 #[test]
+fn maint_rust_without_enemy_declaration_reports_contact_without_forcing_battle() {
+    let target = unique_temp_dir("ec-cli-maint-rust-peaceful-contact");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let fleet_a = &mut game_data.fleets.records[0];
+    fleet_a.set_current_location_coords_raw([8, 8]);
+    fleet_a.set_standing_order_kind(Order::ScoutSector);
+    fleet_a.set_standing_order_target_coords_raw([8, 8]);
+    fleet_a.set_current_speed(0);
+    fleet_a.raw[0x19] = 0x81;
+    fleet_a.set_destroyer_count(1);
+    fleet_a.set_cruiser_count(0);
+    fleet_a.set_battleship_count(0);
+    fleet_a.set_troop_transport_count(0);
+    fleet_a.set_army_count(0);
+    fleet_a.set_scout_count(1);
+    fleet_a.set_etac_count(0);
+    fleet_a.set_rules_of_engagement(10);
+
+    let fleet_b = &mut game_data.fleets.records[4];
+    fleet_b.set_current_location_coords_raw([8, 8]);
+    fleet_b.set_standing_order_kind(Order::HoldPosition);
+    fleet_b.set_standing_order_target_coords_raw([8, 8]);
+    fleet_b.set_current_speed(0);
+    fleet_b.raw[0x19] = 0x81;
+    fleet_b.set_destroyer_count(1);
+    fleet_b.set_cruiser_count(0);
+    fleet_b.set_battleship_count(0);
+    fleet_b.set_troop_transport_count(0);
+    fleet_b.set_army_count(0);
+    fleet_b.set_scout_count(0);
+    fleet_b.set_etac_count(0);
+    fleet_b.set_rules_of_engagement(10);
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("Sensor contact") || text.contains("contact shows"));
+    assert!(!text.contains("Fleet battle report"));
+    assert!(!text.contains("We lost all contact"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_rejects_invalid_diplomacy_sidecar() {
+    let target = unique_temp_dir("ec-cli-maint-rust-invalid-diplomacy");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+    fs::write(
+        target.join("diplomacy.kdl"),
+        "relation from=1 to=99 status=\"enemy\"\n",
+    )
+    .expect("invalid diplomacy.kdl should write");
+
+    let stderr = run_ec_cli_failure_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stderr.contains("1..=4") || stderr.contains("1..=25"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_destroyed_fleet_generates_lost_contact_report() {
     let target = unique_temp_dir("ec-cli-maint-rust-lost-contact");
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
+    write_mutual_enemy_diplomacy(&target, 1, 2);
 
     let stdout = run_ec_cli_in_dir(
         &["maint-rust", target.to_str().unwrap(), "1"],
@@ -604,6 +685,7 @@ fn maint_rust_blitz_success_generates_attacker_side_report() {
 fn maint_rust_battle_abort_generates_move_abort_report() {
     let target = unique_temp_dir("ec-cli-maint-rust-battle-abort");
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
+    write_mutual_enemy_diplomacy(&target, 1, 2);
 
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
     game_data.fleets.records[0].set_standing_order_kind(Order::MoveOnly);
@@ -630,6 +712,7 @@ fn maint_rust_battle_abort_generates_move_abort_report() {
 fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
     let target = unique_temp_dir("ec-cli-maint-rust-scout-abort");
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
+    write_mutual_enemy_diplomacy(&target, 1, 2);
 
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
     game_data.fleets.records[0].set_standing_order_kind(Order::ScoutSector);

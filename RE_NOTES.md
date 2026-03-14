@@ -186,6 +186,20 @@ Important detail:
     - `ERRORS.TXT` stopped being regenerated on launch
     - this confirms the old parser failure was the dropfile shape, not missing
       game data
+- `ECGAME` diplomacy byte mapping is now partially confirmed from a live menu
+  run:
+  - declaring empire `2` an enemy as player `1` changed exactly one relevant
+    byte when compared against the same post-session neutral state:
+    - player record `1`
+    - offset `0x55`
+    - `0x00 -> 0x01`
+  - surrounding bytes in player 1's record:
+    - neutral: `0x54..0x57 = 00 00 00 00`
+    - enemy #2: `0x54..0x57 = 00 01 00 00`
+  - current inferred mapping:
+    - `PLAYER.DAT[player].raw[0x54 + (target_empire_raw - 1)]`
+    - `0x00 = neutral`
+    - `0x01 = enemy`
 - A second repo-level harness bug was also fixed: multiple old `ECGAME` pexpect scripts were building argv correctly, then breaking it with `pexpect.spawn(" ".join(cmd), ...)`.
 - Practical effect: `-c "DEBUGBOX ECGAME.EXE /L"` lost its quoting boundary and `/L` was being parsed by DOSBox-X itself instead of reaching `ECGAME`.
 - Fresh evidence from the corrected boot-dump run:

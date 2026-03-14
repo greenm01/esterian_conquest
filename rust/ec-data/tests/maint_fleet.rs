@@ -4,7 +4,8 @@
 //! behavior on the fleet-scenario fixture pair.
 
 use ec_data::{
-    ColonizationResolvedEvent, CoreGameData, Mission, MissionOutcome, Order, run_maintenance_turn,
+    ColonizationResolvedEvent, CoreGameData, DiplomaticRelation, Mission, MissionOutcome, Order,
+    run_maintenance_turn,
 };
 use std::path::Path;
 
@@ -224,6 +225,46 @@ fn test_scout_sector_arrival_emits_success_event() {
         Order::HoldPosition
     );
     assert_eq!(game_data.fleets.records[0].current_speed(), 0);
+}
+
+#[test]
+fn test_blockading_foreign_world_escalates_to_enemy() {
+    let mut game_data = load_fixture("ecmaint-post");
+    let (planet_idx, coords) = game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() == 2)
+        .map(|(idx, planet)| (idx, planet.coords_raw()))
+        .expect("fixture should contain an empire 2 world");
+
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw([coords[0].saturating_add(1), coords[1]]);
+    fleet.set_standing_order_kind(Order::GuardBlockadeWorld);
+    fleet.set_standing_order_target_coords_raw(coords);
+    fleet.set_current_speed(3);
+    fleet.raw[0x19] = 0x00;
+
+    let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
+
+    assert!(events
+        .diplomatic_escalation_events
+        .iter()
+        .any(|event| event.left_empire_raw == 1 && event.right_empire_raw == 2));
+    assert_eq!(
+        game_data.player.records[0].diplomatic_relation_toward(2),
+        Some(DiplomaticRelation::Enemy)
+    );
+    assert_eq!(
+        game_data.player.records[1].diplomatic_relation_toward(1),
+        Some(DiplomaticRelation::Enemy)
+    );
+    assert!(events.mission_events.iter().any(|event| {
+        event.kind == Mission::GuardBlockadeWorld
+            && event.owner_empire_raw == 1
+            && event.planet_idx == Some(planet_idx)
+    }));
 }
 
 #[test]

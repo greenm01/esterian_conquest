@@ -2,7 +2,7 @@ use std::fmt;
 use std::fs;
 use std::path::Path;
 
-use crate::{CoreGameData, build_seeded_new_game};
+use crate::{CoreGameData, DiplomaticRelation, build_seeded_new_game};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SetupMode {
@@ -59,6 +59,18 @@ pub struct SetupConfig {
     pub setup_options: SetupOptionsConfig,
     pub port_setup: PortSetupConfig,
     pub maintenance_days: [bool; 7],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DiplomacyDirective {
+    pub from_empire_raw: u8,
+    pub to_empire_raw: u8,
+    pub relation: DiplomaticRelation,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct DiplomacyConfig {
+    pub directives: Vec<DiplomacyDirective>,
 }
 
 #[derive(Debug)]
@@ -291,6 +303,90 @@ impl SetupConfig {
                 return Err(SetupConfigError::Parse(format!(
                     "COM IRQ values must be in 0..=7, got {}",
                     irq
+                )));
+            }
+        }
+
+        Ok(self)
+    }
+}
+
+impl DiplomacyConfig {
+    pub fn parse_kdl_str(input: &str) -> Result<Self, SetupConfigError> {
+        let document: kdl::KdlDocument = input
+            .parse()
+            .map_err(|err| SetupConfigError::Parse(format!("invalid KDL: {err}")))?;
+
+        let mut directives = Vec::new();
+        for node in document.nodes() {
+            if node.name().value() != "relation" {
+                continue;
+            }
+
+            let relation = match prop_string(node, "status")?.as_str() {
+                "enemy" => DiplomaticRelation::Enemy,
+                "neutral" => DiplomaticRelation::Neutral,
+                other => {
+                    return Err(SetupConfigError::Parse(format!(
+                        "unknown diplomacy status: {other}"
+                    )));
+                }
+            };
+
+            directives.push(DiplomacyDirective {
+                from_empire_raw: prop_u8(node, "from")?,
+                to_empire_raw: prop_u8(node, "to")?,
+                relation,
+            });
+        }
+
+        Ok(Self { directives })
+    }
+
+    pub fn load_kdl(path: &Path) -> Result<Self, SetupConfigError> {
+        let text = fs::read_to_string(path)?;
+        Self::parse_kdl_str(&text)
+    }
+
+    pub fn to_kdl_string(&self) -> String {
+        let mut text = String::new();
+        for directive in &self.directives {
+            let status = match directive.relation {
+                DiplomaticRelation::Neutral => "neutral",
+                DiplomaticRelation::Enemy => "enemy",
+            };
+            text.push_str(&format!(
+                "relation from={} to={} status=\"{}\"\n",
+                directive.from_empire_raw, directive.to_empire_raw, status
+            ));
+        }
+        text
+    }
+
+    pub fn validate_for_player_count(self, player_count: u8) -> Result<Self, SetupConfigError> {
+        let mut seen = std::collections::BTreeSet::new();
+        for directive in &self.directives {
+            if directive.from_empire_raw == 0 || directive.from_empire_raw > player_count {
+                return Err(SetupConfigError::Parse(format!(
+                    "diplomacy relation 'from' must be in 1..={player_count}, got {}",
+                    directive.from_empire_raw
+                )));
+            }
+            if directive.to_empire_raw == 0 || directive.to_empire_raw > player_count {
+                return Err(SetupConfigError::Parse(format!(
+                    "diplomacy relation 'to' must be in 1..={player_count}, got {}",
+                    directive.to_empire_raw
+                )));
+            }
+            if directive.from_empire_raw == directive.to_empire_raw {
+                return Err(SetupConfigError::Parse(
+                    "diplomacy relation cannot target the same empire".to_string(),
+                ));
+            }
+            if !seen.insert((directive.from_empire_raw, directive.to_empire_raw)) {
+                return Err(SetupConfigError::Parse(format!(
+                    "duplicate diplomacy relation from empire {} to {}",
+                    directive.from_empire_raw, directive.to_empire_raw
                 )));
             }
         }

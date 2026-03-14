@@ -192,7 +192,11 @@ What is strong:
   - blockade / guard contact
   - plain foreign co-location now reports contact but does not force combat
 - `ec-data` now exposes a typed stored-diplomacy seam, but the `PLAYER.DAT`
-  enemy/neutral bytes remain unresolved
+  enemy/neutral bytes are now partially mapped from live `ECGAME`:
+  - `PLAYER.DAT[player].raw[0x54 + (target_empire_raw - 1)]`
+  - `0x00 = neutral`
+  - `0x01 = enemy`
+  - confirmed directly for player 1 declaring empire 2 enemy (`0x55`)
 - fleet encounter reporting is now broader than combat-only scouting:
   - generic fleet-on-fleet contact reports are emitted even when the observing
     fleet was not on a scout order
@@ -213,7 +217,8 @@ What is still incomplete:
 - deeper owner-scoped route hazards beyond first-pass `DATABASE.DAT` world intel
 - deeper playtesting/tuning of the new larger-tier starmap generator
 - mapping the original stored enemy/neutral bytes in `PLAYER.DAT`, so the
-  temporary `diplomacy.kdl` sidecar can eventually be retired
+  temporary `diplomacy.kdl` sidecar can eventually be retired for all player
+  counts and edge cases
 - local `ECGAME` launch is still not fully reliable everywhere, but the
   current best-known path is now documented and wrapped in
   `tools/run_ecgame.sh`:

@@ -1,6 +1,9 @@
 mod common;
 
-use ec_data::{ContactReportSource, CoreGameData, Mission, MissionOutcome, Order, run_maintenance_turn};
+use ec_data::{
+    ContactReportSource, CoreGameData, DiplomacyOverride, Mission, MissionOutcome, Order,
+    run_maintenance_turn, run_maintenance_turn_with_context,
+};
 use std::path::Path;
 
 fn load_fixture(name: &str) -> CoreGameData {
@@ -62,6 +65,21 @@ fn add_active_starbase(game_data: &mut CoreGameData, owner: u8, coords: [u8; 2])
     game_data.bases.records.push(base);
 }
 
+fn mutual_enemy_overrides(left: u8, right: u8) -> [DiplomacyOverride; 2] {
+    [
+        DiplomacyOverride {
+            from_empire_raw: left,
+            to_empire_raw: right,
+            relation: ec_data::DiplomaticRelation::Enemy,
+        },
+        DiplomacyOverride {
+            from_empire_raw: right,
+            to_empire_raw: left,
+            relation: ec_data::DiplomaticRelation::Enemy,
+        },
+    ]
+}
+
 #[test]
 fn canonical_bombardment_consumes_order_and_devastates_target() {
     let mut game_data = load_fixture("ecmaint-bombard-arrive");
@@ -102,15 +120,46 @@ fn canonical_bombardment_consumes_order_and_devastates_target() {
     assert_eq!(post_target.army_count_raw(), 5);
     assert_eq!(post_target.ground_batteries_raw(), 0);
     assert!(post_target.army_count_raw() < pre_target.army_count_raw());
+    assert_eq!(
+        game_data.player.records[0].diplomatic_relation_toward(2),
+        Some(ec_data::DiplomaticRelation::Enemy)
+    );
+    assert_eq!(
+        game_data.player.records[1].diplomatic_relation_toward(1),
+        Some(ec_data::DiplomaticRelation::Enemy)
+    );
 }
 
 #[test]
-fn canonical_fleet_battle_removes_losers_without_garbage_counts() {
+fn foreign_contact_without_enemy_declaration_reports_but_does_not_force_battle() {
     let mut game_data = load_fixture("ecmaint-fleet-battle-pre");
     game_data.fleets.records[0].set_standing_order_kind(Order::ScoutSector);
     game_data.fleets.records[0].set_scout_count(1);
 
     let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+
+    assert_eq!(events.fleet_battle_events.len(), 0);
+    assert!(events.fleet_destroyed_events.is_empty());
+    assert!(events.scout_contact_events.iter().any(|event| {
+        event.viewer_empire_raw == 1
+            && event.source == ContactReportSource::FleetMission(Mission::ScoutSector)
+            && event.coords == [10, 10]
+            && event.target_empire_raw == 2
+    }));
+    assert!(events.mission_events.iter().all(|event| {
+        !(event.kind == Mission::ScoutSector && event.outcome == MissionOutcome::Aborted)
+    }));
+}
+
+#[test]
+fn declared_enemy_fleet_battle_removes_losers_without_garbage_counts() {
+    let mut game_data = load_fixture("ecmaint-fleet-battle-pre");
+    game_data.fleets.records[0].set_standing_order_kind(Order::ScoutSector);
+    game_data.fleets.records[0].set_scout_count(1);
+    let diplomacy = mutual_enemy_overrides(1, 2);
+
+    let events = run_maintenance_turn_with_context(&mut game_data, &[], &diplomacy)
+        .expect("maintenance should succeed");
 
     let loser_one = &game_data.fleets.records[0];
     let loser_two = &game_data.fleets.records[2];
@@ -202,7 +251,17 @@ fn canonical_three_empire_open_space_battle_resolves_deterministically() {
     fleet_c.set_etac_count(0);
     fleet_c.set_rules_of_engagement(6);
 
-    run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+    let diplomacy = [
+        mutual_enemy_overrides(1, 2),
+        mutual_enemy_overrides(1, 3),
+        mutual_enemy_overrides(2, 3),
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>();
+
+    run_maintenance_turn_with_context(&mut game_data, &[], &diplomacy)
+        .expect("maintenance should succeed");
 
     let fleet_a = &game_data.fleets.records[0];
     let fleet_b = &game_data.fleets.records[4];

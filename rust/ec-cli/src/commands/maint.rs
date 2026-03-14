@@ -3,7 +3,8 @@ use std::path::Path;
 use std::process::Command;
 
 use ec_data::{
-    CoreGameData, DatabaseDat, MaintenanceEvents, VisibleHazardIntel, run_maintenance_turn,
+    CoreGameData, DatabaseDat, DiplomacyConfig, DiplomacyOverride, MaintenanceEvents,
+    VisibleHazardIntel, DiplomaticRelation, run_maintenance_turn, run_maintenance_turn_with_context,
     run_maintenance_turn_with_visible_hazards, visible_hazard_intel_from_database,
 };
 
@@ -22,6 +23,7 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
     let mut game_data = CoreGameData::load(dir)?;
     let start_year = game_data.conquest.game_year();
     let mut database = load_database_dat_if_present(dir)?;
+    let mut diplomacy_overrides = load_diplomacy_overrides_if_present(dir, &game_data)?;
 
     // Save a snapshot of the pre-maint planets so we can inspect build queues later.
     // DATABASE.DAT regeneration needs to know which planets had active builds
@@ -35,10 +37,16 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
             .as_ref()
             .map(|db| visible_hazards_from_database(&game_data, db))
             .unwrap_or_default();
-        let events = if visible_hazards.is_empty() {
+        let events = if visible_hazards.is_empty() && diplomacy_overrides.is_empty() {
             run_maintenance_turn(&mut game_data)?
-        } else {
+        } else if diplomacy_overrides.is_empty() {
             run_maintenance_turn_with_visible_hazards(&mut game_data, &visible_hazards)?
+        } else {
+            run_maintenance_turn_with_context(
+                &mut game_data,
+                &visible_hazards,
+                &diplomacy_overrides,
+            )?
         };
         all_events.bombard_events.extend(events.bombard_events);
         all_events
@@ -70,6 +78,11 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
             .colonization_events
             .extend(events.colonization_events);
         all_events.mission_events.extend(events.mission_events);
+        all_events
+            .diplomatic_escalation_events
+            .extend(events.diplomatic_escalation_events);
+
+        apply_diplomatic_escalations(&mut game_data, &mut diplomacy_overrides, &all_events)?;
 
         if database.is_some() {
             regenerate_database_dat(dir, &game_data, &pre_maint_planets, &all_events)?;
@@ -87,6 +100,7 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
 
     // Save the modified state
     game_data.save(dir)?;
+    save_diplomacy_overrides_if_needed(dir, game_data.conquest.player_count(), &diplomacy_overrides)?;
 
     // Regenerate DATABASE.DAT from PLANETS.DAT
     regenerate_database_dat(dir, &game_data, &pre_maint_planets, &all_events)?;
@@ -236,13 +250,145 @@ fn copy_directory(src: &Path, dst: &Path) -> Result<(), Box<dyn std::error::Erro
     Ok(())
 }
 
-fn load_database_dat_if_present(dir: &Path) -> Result<Option<DatabaseDat>, Box<dyn std::error::Error>> {
+fn load_database_dat_if_present(
+    dir: &Path,
+) -> Result<Option<DatabaseDat>, Box<dyn std::error::Error>> {
     let path = dir.join("DATABASE.DAT");
     if !path.exists() {
         return Ok(None);
     }
     let bytes = fs::read(path)?;
     Ok(Some(DatabaseDat::parse(&bytes)?))
+}
+
+fn load_diplomacy_overrides_if_present(
+    dir: &Path,
+    game_data: &CoreGameData,
+) -> Result<Vec<DiplomacyOverride>, Box<dyn std::error::Error>> {
+    let path = dir.join("diplomacy.kdl");
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let config = DiplomacyConfig::load_kdl(&path)?
+        .validate_for_player_count(game_data.player.records.len() as u8)?;
+    Ok(config
+        .directives
+        .into_iter()
+        .map(|directive| DiplomacyOverride {
+            from_empire_raw: directive.from_empire_raw,
+            to_empire_raw: directive.to_empire_raw,
+            relation: directive.relation,
+        })
+        .collect())
+}
+
+fn apply_diplomatic_escalations(
+    game_data: &mut CoreGameData,
+    diplomacy_overrides: &mut Vec<DiplomacyOverride>,
+    events: &MaintenanceEvents,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut pairs = Vec::new();
+
+    for event in &events.fleet_battle_events {
+        for &enemy_empire_raw in &event.enemy_empires_raw {
+            pairs.push((event.reporting_empire_raw, enemy_empire_raw));
+        }
+    }
+
+    for event in &events.bombard_events {
+        if event.defender_empire_raw != 0 {
+            pairs.push((event.attacker_empire_raw, event.defender_empire_raw));
+        }
+    }
+
+    for event in &events.assault_report_events {
+        if event.defender_empire_raw != 0 {
+            pairs.push((event.attacker_empire_raw, event.defender_empire_raw));
+        }
+    }
+
+    for (left, right) in pairs {
+        escalate_pair(game_data, diplomacy_overrides, left, right)?;
+    }
+
+    Ok(())
+}
+
+fn escalate_pair(
+    game_data: &mut CoreGameData,
+    diplomacy_overrides: &mut Vec<DiplomacyOverride>,
+    left: u8,
+    right: u8,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if left == 0 || right == 0 || left == right {
+        return Ok(());
+    }
+    apply_one_way_escalation(game_data, diplomacy_overrides, left, right)?;
+    apply_one_way_escalation(game_data, diplomacy_overrides, right, left)?;
+    Ok(())
+}
+
+fn apply_one_way_escalation(
+    game_data: &mut CoreGameData,
+    diplomacy_overrides: &mut Vec<DiplomacyOverride>,
+    from: u8,
+    to: u8,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if matches!(
+        game_data.stored_diplomatic_relation(from, to),
+        Some(DiplomaticRelation::Enemy)
+    ) {
+        return Ok(());
+    }
+
+    if game_data.set_stored_diplomatic_relation(from, to, DiplomaticRelation::Enemy)? {
+        return Ok(());
+    }
+
+    if let Some(existing) = diplomacy_overrides
+        .iter_mut()
+        .find(|directive| directive.from_empire_raw == from && directive.to_empire_raw == to)
+    {
+        existing.relation = DiplomaticRelation::Enemy;
+        return Ok(());
+    }
+
+    diplomacy_overrides.push(DiplomacyOverride {
+        from_empire_raw: from,
+        to_empire_raw: to,
+        relation: DiplomaticRelation::Enemy,
+    });
+    Ok(())
+}
+
+fn save_diplomacy_overrides_if_needed(
+    dir: &Path,
+    player_count: u8,
+    diplomacy_overrides: &[DiplomacyOverride],
+) -> Result<(), Box<dyn std::error::Error>> {
+    let path = dir.join("diplomacy.kdl");
+    let directives = diplomacy_overrides
+        .iter()
+        .copied()
+        .filter(|directive| directive.from_empire_raw > 4 || directive.to_empire_raw > 4)
+        .map(|directive| ec_data::DiplomacyDirective {
+            from_empire_raw: directive.from_empire_raw,
+            to_empire_raw: directive.to_empire_raw,
+            relation: directive.relation,
+        })
+        .collect::<Vec<_>>();
+
+    if directives.is_empty() {
+        if path.exists() {
+            fs::write(path, [])?;
+        }
+        return Ok(());
+    }
+
+    let config = DiplomacyConfig { directives }.validate_for_player_count(player_count)?;
+    fs::write(path, config.to_kdl_string())?;
+    Ok(())
 }
 
 fn visible_hazards_from_database(
