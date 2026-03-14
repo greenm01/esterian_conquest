@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use ec_data::{CoreGameData, DiplomaticRelation};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -87,4 +88,15 @@ pub fn write_mutual_enemy_diplomacy(target: &Path, left: u8, right: u8) {
         left, right, right, left
     );
     fs::write(target.join("diplomacy.kdl"), text).unwrap();
+}
+
+pub fn set_mutual_enemy_in_player_dat(target: &Path, left: u8, right: u8) {
+    let mut game_data = CoreGameData::load(target).unwrap();
+    game_data
+        .set_stored_diplomatic_relation(left, right, DiplomaticRelation::Enemy)
+        .unwrap();
+    game_data
+        .set_stored_diplomatic_relation(right, left, DiplomaticRelation::Enemy)
+        .unwrap();
+    game_data.save(target).unwrap();
 }

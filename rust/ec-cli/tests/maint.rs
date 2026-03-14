@@ -2,7 +2,7 @@ mod common;
 
 use common::{
     cleanup_dir, copy_fixture_dir, run_ec_cli_failure_in_dir, run_ec_cli_in_dir, unique_temp_dir,
-    write_mutual_enemy_diplomacy,
+    set_mutual_enemy_in_player_dat, write_mutual_enemy_diplomacy,
 };
 use ec_data::{CoreGameData, DatabaseDat, GameStateBuilder, Order};
 use std::fs;
@@ -87,6 +87,32 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     assert!(
         messages.is_empty(),
         "MESSAGES.DAT should remain empty for current canonical maint output"
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_uses_stored_player_diplomacy_without_sidecar() {
+    let target = unique_temp_dir("ec-cli-maint-rust-player-diplomacy");
+    copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
+    set_mutual_enemy_in_player_dat(&target, 1, 2);
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("Fleet battle report"));
+    assert!(text.contains("We lost all contact") || text.contains("held the field"));
+
+    let diplomacy_sidecar = target.join("diplomacy.kdl");
+    assert!(
+        !diplomacy_sidecar.exists(),
+        "stored PLAYER.DAT diplomacy should not require a sidecar"
     );
 
     cleanup_dir(&target);
