@@ -202,7 +202,7 @@ What is strong:
   - blockade / guard contact
   - plain foreign co-location now reports contact but does not force combat
 - `ec-data` now exposes a typed stored-diplomacy seam, and the `PLAYER.DAT`
-  enemy/neutral bytes are now partially mapped from live `ECGAME`:
+  enemy/neutral bytes are now mapped as a contiguous table:
   - `PLAYER.DAT[player].raw[0x54 + (target_empire_raw - 1)]`
   - `0x00 = neutral`
   - `0x01 = enemy`
@@ -211,6 +211,8 @@ What is strong:
   - stored `PLAYER.DAT` diplomacy is honored without requiring
     `diplomacy.kdl`
   - blockade-triggered escalation persists back into `PLAYER.DAT`
+  - larger-tier sidecar declarations are absorbed into `PLAYER.DAT` and clear
+    the sidecar when they are persistable
 - the local plain-`ECGAME` DOSBox harness is now stable enough for focused
   menu-driven black-box checks when needed:
   - full 32-line WWIV `CHAIN.TXT`
@@ -237,10 +239,9 @@ What is still incomplete:
   now automated in `tools/oracle_sweep.py --mode seeded`
 - deeper owner-scoped route hazards beyond first-pass `DATABASE.DAT` world intel
 - deeper playtesting/tuning of the new larger-tier starmap generator
-- widening the recovered stored enemy/neutral mapping beyond the first
-  confirmed classic slot pattern, so the temporary `diplomacy.kdl` sidecar can
-  eventually be retired for all player
-  counts and edge cases
+- more live `ECGAME` confirmation of additional diplomacy slots beyond the
+  first directly observed case, even though the contiguous `0x54..=0x6C` layout
+  now supports the full documented 25-player range in Rust
 - local `ECGAME` launch is still not fully reliable everywhere, but the
   current best-known path is now documented and wrapped in
   `tools/run_ecgame.sh`:

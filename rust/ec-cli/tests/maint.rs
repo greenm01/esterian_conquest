@@ -239,6 +239,52 @@ fn maint_rust_rejects_invalid_diplomacy_sidecar() {
 }
 
 #[test]
+fn maint_rust_persists_sidecar_diplomacy_into_player_dat_for_large_games() {
+    let target = unique_temp_dir("ec-cli-maint-rust-sidecar-persist-nine");
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "sysop",
+            "new-game",
+            target.to_str().unwrap(),
+            "--players",
+            "9",
+            "--seed",
+            "1515",
+        ],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("seed=1515"));
+
+    write_mutual_enemy_diplomacy(&target, 1, 9);
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
+    assert_eq!(
+        game_data.player.records[0].diplomatic_relation_toward(9),
+        Some(ec_data::DiplomaticRelation::Enemy)
+    );
+    assert_eq!(
+        game_data.player.records[8].diplomatic_relation_toward(1),
+        Some(ec_data::DiplomaticRelation::Enemy)
+    );
+
+    let diplomacy_sidecar = target.join("diplomacy.kdl");
+    let sidecar_text =
+        fs::read_to_string(&diplomacy_sidecar).expect("diplomacy.kdl should still exist");
+    assert!(
+        sidecar_text.trim().is_empty(),
+        "persistable diplomacy should migrate into PLAYER.DAT and clear the sidecar"
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_destroyed_fleet_generates_lost_contact_report() {
     let target = unique_temp_dir("ec-cli-maint-rust-lost-contact");
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);

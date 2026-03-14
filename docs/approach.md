@@ -278,6 +278,8 @@ Long term:
   - `PLAYER.DAT[player].raw[0x54 + (target_empire_raw - 1)]`
   - `0x00 = neutral`
   - `0x01 = enemy`
+- the contiguous layout from `0x54..=0x6C` now lets Rust treat that table as a
+  25-slot diplomacy surface, matching the documented maximum player count
 
 Near-term acceptance rule:
 

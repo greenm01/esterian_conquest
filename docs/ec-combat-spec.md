@@ -204,14 +204,16 @@ for the narrower diplomatic declaration concept.
 Current implementation note:
 
 - Rust now has a typed stored-diplomacy seam for this distinction
-- the classic 4-player `PLAYER.DAT` enemy/neutral bytes are now partially
-  mapped:
+- the classic `PLAYER.DAT` enemy/neutral bytes are now mapped as a contiguous
+  table:
   - `PLAYER.DAT[player].raw[0x54 + (target_empire_raw - 1)]`
   - `0x00 = neutral`
   - `0x01 = enemy`
-- the live Rust path may therefore use a `diplomacy.kdl` sidecar as a
-  temporary declared-enemy source only for player-count tiers or edge cases the
-  recovered classic layout does not yet cover
+- the contiguous `0x54..=0x6C` span provides 25 diplomacy slots, which matches
+  the documented maximum player count
+- the live Rust path may therefore use a `diplomacy.kdl` sidecar only as a
+  migration/fallback source; persistable relations are absorbed into
+  `PLAYER.DAT` during maintenance
 - foreign co-location alone should produce contact reports, not automatic
   combat
 

@@ -149,15 +149,16 @@ Current Rust implementation status:
 - combat/contact handling now also has an explicit hostility decision seam
   rather than burying that choice inside the battle loop
 - `ec-data` now exposes a typed stored-diplomacy seam, and the classic
-  4-player `PLAYER.DAT` enemy/neutral bytes are now partially mapped:
+  `PLAYER.DAT` enemy/neutral bytes are now mapped as a contiguous table:
   - `PLAYER.DAT[player].raw[0x54 + (target_empire_raw - 1)]`
   - `0x00 = neutral`
   - `0x01 = enemy`
+- the contiguous `0x54..=0x6C` span provides 25 diplomacy slots
 - the live Rust path now also accepts a `diplomacy.kdl` sidecar in the game
-  directory as a temporary declared-enemy source only where the recovered
-  classic layout does not yet cover the case
+  directory as a migration/fallback source; persistable relations are absorbed
+  into `PLAYER.DAT`
 - the current hostility predicate therefore uses:
-  - declared-enemy status from stored bytes, where the classic layout is known
+  - declared-enemy status from stored bytes
   - declared-enemy status from `diplomacy.kdl`, if present
   - defensive/manual hostility triggers
 - foreign co-location by itself should generate contact intel but not force

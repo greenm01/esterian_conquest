@@ -70,8 +70,9 @@ declarative KDL config.
 
 Rust-only diplomacy override during maint:
 - if `<game_dir>/diplomacy.kdl` exists, `ec-cli maint-rust` will use it as a
-  temporary declared-enemy source only where the recovered classic
-  `PLAYER.DAT` diplomacy slots do not yet cover the case
+  migration/fallback source for declared enemies
+- persistable relations are now absorbed into classic `PLAYER.DAT` diplomacy
+  slots during maint, including larger player-count tiers up to `25`
 - example file: `rust/ec-data/config/diplomacy.example.kdl`
 
 Best-known local ECGAME launch:

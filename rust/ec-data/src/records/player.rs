@@ -171,8 +171,12 @@ impl PlayerRecord {
     /// - `raw[0x54 + (other_empire_raw - 1)]`
     /// - `0x00 = Neutral`
     /// - `0x01 = Enemy`
+    ///
+    /// The player record is 110 bytes long and the known autopilot flag is at
+    /// `0x6D`, so the contiguous range `0x54..=0x6C` cleanly provides 25
+    /// diplomacy slots for the documented maximum of 25 players.
     pub fn diplomatic_relation_toward(&self, other_empire_raw: u8) -> Option<DiplomaticRelation> {
-        if !(1..=4).contains(&other_empire_raw) {
+        if !(1..=25).contains(&other_empire_raw) {
             return None;
         }
         match self.raw[0x54 + other_empire_raw as usize - 1] {
@@ -187,7 +191,7 @@ impl PlayerRecord {
         other_empire_raw: u8,
         relation: DiplomaticRelation,
     ) -> bool {
-        if !(1..=4).contains(&other_empire_raw) {
+        if !(1..=25).contains(&other_empire_raw) {
             return false;
         }
         self.raw[0x54 + other_empire_raw as usize - 1] = match relation {

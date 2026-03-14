@@ -24,6 +24,7 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
     let start_year = game_data.conquest.game_year();
     let mut database = load_database_dat_if_present(dir)?;
     let mut diplomacy_overrides = load_diplomacy_overrides_if_present(dir, &game_data)?;
+    absorb_persistable_diplomacy_overrides(&mut game_data, &mut diplomacy_overrides)?;
 
     // Save a snapshot of the pre-maint planets so we can inspect build queues later.
     // DATABASE.DAT regeneration needs to know which planets had active builds
@@ -388,6 +389,25 @@ fn save_diplomacy_overrides_if_needed(
 
     let config = DiplomacyConfig { directives }.validate_for_player_count(player_count)?;
     fs::write(path, config.to_kdl_string())?;
+    Ok(())
+}
+
+fn absorb_persistable_diplomacy_overrides(
+    game_data: &mut CoreGameData,
+    diplomacy_overrides: &mut Vec<DiplomacyOverride>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut remaining = Vec::with_capacity(diplomacy_overrides.len());
+    for directive in diplomacy_overrides.drain(..) {
+        if game_data.set_stored_diplomatic_relation(
+            directive.from_empire_raw,
+            directive.to_empire_raw,
+            directive.relation,
+        )? {
+            continue;
+        }
+        remaining.push(directive);
+    }
+    *diplomacy_overrides = remaining;
     Ok(())
 }
 
