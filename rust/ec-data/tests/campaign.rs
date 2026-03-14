@@ -145,11 +145,13 @@ fn maintenance_moves_empire_without_recovery_path_into_civil_disorder() {
         }
     }
 
-    run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
 
     let player = &game_data.player.records[0];
     assert_eq!(player.owner_mode_raw(), 0x00);
     assert_eq!(player.legacy_status_name_summary(), "In Civil Disorder");
+    assert_eq!(events.civil_disorder_events.len(), 1);
+    assert_eq!(events.civil_disorder_events[0].reporting_empire_raw, 1);
     assert_eq!(
         game_data.empire_campaign_state(1),
         Some(CampaignState::CivilDisorder)

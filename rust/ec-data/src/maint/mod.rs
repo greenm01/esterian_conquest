@@ -270,6 +270,12 @@ pub struct DiplomaticEscalationEvent {
     pub right_empire_raw: u8,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CivilDisorderEvent {
+    pub reporting_empire_raw: u8,
+    pub prior_label: String,
+}
+
 /// A colonization outcome resolved during maintenance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColonizationResolvedEvent {
@@ -325,6 +331,8 @@ pub struct MaintenanceEvents {
     pub mission_events: Vec<MissionEvent>,
     /// Diplomatic escalations caused by hostile action during maint.
     pub diplomatic_escalation_events: Vec<DiplomaticEscalationEvent>,
+    /// Empires that fell into civil disorder this turn.
+    pub civil_disorder_events: Vec<CivilDisorderEvent>,
 }
 
 /// Event produced when a fleet completes a ColonizeWorld order.
@@ -519,7 +527,7 @@ pub fn run_maintenance_turn_with_context(
     // A player who has lost all planets and has no realistic recovery path
     // falls into civil disorder. This preserves the empire slot and matches
     // the observed "In Civil Disorder" state already used by classic data.
-    apply_campaign_state_transitions(game_data);
+    let civil_disorder_events = apply_campaign_state_transitions(game_data);
 
     // Update PLAYER.DAT raw[0x46]: set to 0x01 for any player with starbase_count > 0.
     // Confirmed from starbase fixture: player 0 (starbase_count=1) gets raw[0x46]=0x01 after maint.
@@ -588,6 +596,7 @@ pub fn run_maintenance_turn_with_context(
         colonization_events,
         mission_events,
         diplomatic_escalation_events: movement_events.diplomatic_escalation_events,
+        civil_disorder_events,
     };
 
     apply_stored_diplomatic_escalations(game_data, &events)?;
@@ -1624,8 +1633,9 @@ fn recompute_player_planet_stats(game_data: &mut CoreGameData) {
     }
 }
 
-fn apply_campaign_state_transitions(game_data: &mut CoreGameData) {
+fn apply_campaign_state_transitions(game_data: &mut CoreGameData) -> Vec<CivilDisorderEvent> {
     let player_count = game_data.player.records.len() as u8;
+    let mut events = Vec::new();
     for empire_raw in 1..=player_count {
         let Some(state) = game_data.empire_campaign_state(empire_raw) else {
             continue;
@@ -1637,11 +1647,23 @@ fn apply_campaign_state_transitions(game_data: &mut CoreGameData) {
                 .get_mut(empire_raw.saturating_sub(1) as usize)
             {
                 if player.owner_mode_raw() == 0x01 {
+                    let prior_label = if !player.controlled_empire_name_summary().is_empty() {
+                        player.controlled_empire_name_summary()
+                    } else if !player.assigned_player_handle_summary().is_empty() {
+                        player.assigned_player_handle_summary()
+                    } else {
+                        format!("Empire #{empire_raw}")
+                    };
                     player.set_civil_disorder_mode();
+                    events.push(CivilDisorderEvent {
+                        reporting_empire_raw: empire_raw,
+                        prior_label,
+                    });
                 }
             }
         }
     }
+    events
 }
 
 /// Update PLAYER.DAT raw[0x46] starbase presence flag.

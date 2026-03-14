@@ -34,9 +34,9 @@ pub use directory::{
     GameStateMutationError,
 };
 pub use maint::{
-    BombardEvent, ColonizationResolvedEvent, ContactReportSource, DiplomacyOverride,
-    FleetBattleEvent, FleetDestroyedEvent, FleetMergeEvent, JoinMissionHostEvent,
-    MaintenanceEvents, Mission, MissionEvent, MissionOutcome, PlanetIntelEvent,
+    BombardEvent, CivilDisorderEvent, ColonizationResolvedEvent, ContactReportSource,
+    DiplomacyOverride, FleetBattleEvent, FleetDestroyedEvent, FleetMergeEvent,
+    JoinMissionHostEvent, MaintenanceEvents, Mission, MissionEvent, MissionOutcome, PlanetIntelEvent,
     PlanetOwnershipChangeEvent, ScoutContactEvent, ShipLosses, StarbaseDestroyedEvent,
     run_maintenance_turn, run_maintenance_turn_with_context,
     run_maintenance_turn_with_visible_hazards, run_maintenance_turns,

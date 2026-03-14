@@ -2,6 +2,17 @@
 
 Preservation and reverse-engineering workspace for Esterian Conquest v1.5.
 
+## License
+
+The new source code and tooling in this repository are licensed under the MIT
+License. See [LICENSE](LICENSE).
+
+The original Esterian Conquest DOS binaries, data files, manuals, logs, and
+other preserved game materials remain original works of Bently C. Griffith and
+their original rights holders. Their inclusion here is for preservation,
+research, and compatibility work; they are not relicensed under MIT by this
+repository.
+
 Current focus:
 - documenting the original DOS game behavior and file formats
 - preserving confirmed reverse-engineering findings

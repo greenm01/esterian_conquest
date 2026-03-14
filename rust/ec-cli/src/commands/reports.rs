@@ -424,6 +424,14 @@ pub(crate) fn regenerate_results_dat(
         push_results_chunked(&mut results, 0x06, RESULTS_TAIL_FLEET, &text);
     }
 
+    for event in &events.civil_disorder_events {
+        let text = format!(
+            "From your Fleet Command Center: With all of our controlled worlds lost and no immediate means of recovery, the empire of \"{}\" has fallen into civil disorder. Remaining forces are scattered and unreliable.",
+            event.prior_label,
+        );
+        push_results_chunked(&mut results, 0x06, RESULTS_TAIL_FLEET, &text);
+    }
+
     for event in &events.assault_report_events {
         let Some(planet) = game_data.planets.records.get(event.planet_idx) else {
             continue;
