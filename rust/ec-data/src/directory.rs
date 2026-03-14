@@ -1781,6 +1781,44 @@ impl CoreGameData {
 
     /// Append a build order to the first empty slot in the planet's build queue.
     /// Returns an error if all 10 slots are already occupied.
+    /// Count how many stardock slots are available for a planet, accounting for
+    /// both currently occupied stardock slots and pending build queue entries
+    /// that will eventually need a stardock slot on completion (ships and
+    /// starbases only — armies and ground batteries go directly to the planet).
+    pub fn planet_free_stardock_slots(
+        &self,
+        record_index_1_based: usize,
+    ) -> Result<usize, GameStateMutationError> {
+        let record = self.planets.records.get(record_index_1_based - 1).ok_or(
+            GameStateMutationError::MissingPlanetRecord {
+                index_1_based: record_index_1_based,
+            },
+        )?;
+
+        let occupied_stardock = (0..10)
+            .filter(|&s| record.stardock_kind_raw(s) != 0)
+            .count();
+
+        // Pending build queue slots for unit kinds that will need a stardock slot.
+        let pending_ship_slots = (0..10)
+            .filter(|&s| {
+                let count = record.build_count_raw(s);
+                let kind = record.build_kind_raw(s);
+                if count == 0 || kind == 0 {
+                    return false;
+                }
+                // Armies (8) and ground batteries (7) go direct to planet.
+                !matches!(
+                    ProductionItemKind::from_raw(kind),
+                    ProductionItemKind::Army | ProductionItemKind::GroundBattery
+                )
+            })
+            .count();
+
+        let reserved = occupied_stardock + pending_ship_slots;
+        Ok(10usize.saturating_sub(reserved))
+    }
+
     pub fn append_planet_build_order(
         &mut self,
         record_index_1_based: usize,

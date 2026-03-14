@@ -354,19 +354,49 @@ impl PlanetBuildScreen {
 
     pub fn render_abort_confirm(
         &mut self,
-        row: &EmpirePlanetEconomyRow,
+        view: &PlanetBuildMenuView,
+        orders: &[PlanetBuildOrder],
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "BUILD COMMAND:");
-        let cursor_col = draw_plain_prompt(
-            &mut buffer,
-            6,
+        let style = classic::status_value_style();
+
+        buffer.write_text(
+            2,
+            0,
             &format!(
-                "Confirm: Abort the build orders for \"{}\" at ({},{})? Y/[N] -> ",
-                row.planet_name, row.coords[0], row.coords[1]
+                "Abort all build orders for \"{}\" at ({},{}).",
+                view.row.planet_name, view.row.coords[0], view.row.coords[1]
             ),
+            style,
         );
-        buffer.set_cursor(cursor_col as u16, 6);
+
+        if orders.is_empty() {
+            buffer.write_text(4, 0, "No build orders are queued.", style);
+        } else {
+            buffer.write_text(4, 0, "Queued orders to be cancelled:", style);
+            for (i, order) in orders.iter().enumerate() {
+                buffer.write_text(
+                    5 + i,
+                    2,
+                    &format!("- {}", build_order_summary(*order)),
+                    style,
+                );
+            }
+        }
+
+        buffer.write_text(
+            12,
+            0,
+            &format!(
+                "All {} committed points will be fully refunded.",
+                view.committed_points
+            ),
+            classic::prompt_hotkey_style(),
+        );
+
+        let cursor_col = draw_plain_prompt(&mut buffer, 14, "Cancel these orders? Y/[N] -> ");
+        buffer.set_cursor(cursor_col as u16, 14);
         draw_command_prompt(&mut buffer, 19, "BUILD COMMAND", "Y N");
         Ok(buffer)
     }

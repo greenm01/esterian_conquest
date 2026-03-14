@@ -210,6 +210,40 @@ autopilot/rogue-AI maintenance path. For that reason:
 - this raw byte should not be used as a stable player-facing tax source until
   the original semantics are fully decoded
 
+## Unit Build Completion and Stardock Policy
+
+When a build queue slot reaches zero points remaining during maintenance, the
+completed units are dispatched based on their kind:
+
+### Ships and starbases → stardock
+
+Destroyers, cruisers, battleships, scouts, troop transports, ETACs, and
+starbases (kinds 1–6, 9) are staged in the planet's stardock slots awaiting
+commission.
+
+- They must be commissioned by the player before they can be used.
+- Uncommissioned ships in stardock can be destroyed by a bombardment mission.
+- This matches the manual: "Bombard a world: destroy its production and anything
+  orbiting the world, including recently built ships stored in stardock."
+
+### Armies and ground batteries → direct to planet
+
+Armies (kind 8) and ground batteries (kind 7) are surface and ground defensive
+units. On build completion they are added directly to the planet's army count
+and ground battery count respectively. They do **not** enter stardock.
+
+Rationale:
+- The manual never mentions armies or batteries being stored in stardock or
+  requiring commission. Stardock is explicitly a ship staging area.
+- Commission is a fleet-building concept; you commission ships into fleets.
+  Armies are loaded onto troop transports separately. Batteries are fixed.
+- Armies and batteries deployed to the planet surface cannot be wiped out by
+  a bombardment targeting stardocked ships. They are already on the ground,
+  defending the planet.
+- Treating them as stardocked units would mean a player could lose an entire
+  army build to a bombardment before ever using them, which contradicts the
+  manual's framing of armies as planet defenders.
+
 ## Validation Status
 
 The current canonical model is backed by:

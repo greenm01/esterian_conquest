@@ -3,9 +3,9 @@
 mod combat;
 
 use crate::{
-    CoreGameData, DiplomaticRelation, Order, VisibleHazardIntel, build_capacity,
-    next_path_step, plan_route_with_intel, yearly_growth_delta, yearly_high_tax_penalty,
-    yearly_tax_revenue,
+    build_capacity, next_path_step, plan_route_with_intel, yearly_growth_delta,
+    yearly_high_tax_penalty, yearly_tax_revenue, CoreGameData, DiplomaticRelation, Order,
+    ProductionItemKind, VisibleHazardIntel,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -1677,28 +1677,48 @@ fn process_build_completion(
 
                 game_data.planets.records[planet_idx].set_build_count_raw(slot, new_count);
 
-                // If build completed (reached 0), move to stardock
+                // If build completed (reached 0), dispatch by unit kind.
+                // Armies and ground batteries are surface/defensive units: they go
+                // directly onto the planet and never enter stardock. Stardock is
+                // reserved for ships (kinds 1-6) and starbases (kind 9), which must
+                // be commissioned before use and can be destroyed by bombardment
+                // while sitting uncommissioned.
                 if new_count == 0 {
                     let build_kind = game_data.planets.records[planet_idx].build_kind_raw(slot);
+                    // decrement == original build_count when new_count == 0
+                    let points_spent = u32::from(decrement);
 
-                    // Find first empty stardock slot
-                    let mut _moved = false;
-                    for stardock_slot in 0..10 {
-                        let existing_kind =
-                            game_data.planets.records[planet_idx].stardock_kind_raw(stardock_slot);
-                        if existing_kind == 0 {
-                            // Empty slot found
+                    match ProductionItemKind::from_raw(build_kind) {
+                        ProductionItemKind::Army => {
+                            let qty = ((points_spent / 2).max(1)).min(u32::from(u8::MAX)) as u8;
+                            let current = game_data.planets.records[planet_idx].army_count_raw();
                             game_data.planets.records[planet_idx]
-                                .set_stardock_kind_raw(stardock_slot, build_kind);
-                            // Set count based on ship type (default to 3 for now)
+                                .set_army_count_raw(current.saturating_add(qty));
+                        }
+                        ProductionItemKind::GroundBattery => {
+                            let qty = ((points_spent / 20).max(1)).min(u32::from(u8::MAX)) as u8;
+                            let current =
+                                game_data.planets.records[planet_idx].ground_batteries_raw();
                             game_data.planets.records[planet_idx]
-                                .set_stardock_count_raw(stardock_slot, 3);
-                            _moved = true;
-                            break;
+                                .set_ground_batteries_raw(current.saturating_add(qty));
+                        }
+                        _ => {
+                            // Ships and starbases stage in stardock awaiting commission.
+                            for stardock_slot in 0..10 {
+                                let existing_kind = game_data.planets.records[planet_idx]
+                                    .stardock_kind_raw(stardock_slot);
+                                if existing_kind == 0 {
+                                    game_data.planets.records[planet_idx]
+                                        .set_stardock_kind_raw(stardock_slot, build_kind);
+                                    game_data.planets.records[planet_idx]
+                                        .set_stardock_count_raw(stardock_slot, 3);
+                                    break;
+                                }
+                            }
                         }
                     }
 
-                    // Clear the build slot
+                    // Clear the build slot.
                     game_data.planets.records[planet_idx].set_build_kind_raw(slot, 0);
                 }
             }
@@ -1745,8 +1765,8 @@ fn process_planet_economics(
         let current_production = game_data.planets.records[planet_idx]
             .present_production_points()
             .unwrap_or(0);
-        let potential_production = game_data.planets.records[planet_idx]
-            .potential_production_points();
+        let potential_production =
+            game_data.planets.records[planet_idx].potential_production_points();
         let has_starbase = planet_has_friendly_starbase(
             game_data,
             owner_empire,

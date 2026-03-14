@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use ec_data::{
     append_mail_queue, build_player_starmap_projection, load_mail_queue, save_mail_queue,
-    CoreGameData, DatabaseDat, ProductionItemKind, QueuedPlayerMail,
+    CoreGameData, DatabaseDat, GameStateMutationError, ProductionItemKind, QueuedPlayerMail,
 };
 
 use crate::app::Action;
@@ -234,9 +234,10 @@ impl App {
                 &self.planet_build_list_rows(),
                 self.planet_build_list_scroll_offset,
             )?,
-            ScreenId::PlanetBuildAbortConfirm => self
-                .planet_build
-                .render_abort_confirm(&self.current_build_planet_row()?)?,
+            ScreenId::PlanetBuildAbortConfirm => self.planet_build.render_abort_confirm(
+                &self.current_planet_build_view()?,
+                &self.current_planet_build_orders(),
+            )?,
             ScreenId::PlanetBuildSpecify => self.planet_build.render_specify(
                 &self.current_planet_build_view()?,
                 &self.current_planet_build_orders(),
@@ -624,13 +625,38 @@ impl App {
             return Ok(());
         }
 
-        let points = qty.saturating_mul(unit.cost);
         let planet_record = self.current_build_planet_row()?.planet_record_index_1_based;
-        self.game_data.append_planet_build_order(
+
+        // Armies and ground batteries go directly to the planet — no stardock needed.
+        // For all other kinds (ships, starbases), each queued order will need one
+        // stardock slot on completion. Warn and cap if the stardock is full.
+        let needs_stardock = !matches!(
+            kind,
+            ProductionItemKind::Army | ProductionItemKind::GroundBattery
+        );
+        if needs_stardock {
+            let free = self.game_data.planet_free_stardock_slots(planet_record)?;
+            if free == 0 {
+                self.planet_build_quantity_status =
+                    Some("Stardock is full — commission ships first to free space.".to_string());
+                return Ok(());
+            }
+        }
+
+        let points = qty.saturating_mul(unit.cost);
+        match self.game_data.append_planet_build_order(
             planet_record,
             points.min(u32::from(u8::MAX)) as u8,
             production_item_kind_raw(kind),
-        )?;
+        ) {
+            Ok(()) => {}
+            Err(GameStateMutationError::PlanetBuildQueueFull { .. }) => {
+                self.planet_build_quantity_status =
+                    Some("Build queue is full (10 orders maximum).".to_string());
+                return Ok(());
+            }
+            Err(e) => return Err(e.into()),
+        }
         self.game_data.save(&self.game_dir)?;
         self.planet_build_unit_input.clear();
         self.planet_build_unit_status = Some(format!("Queued {} {}.", qty, unit.label));
