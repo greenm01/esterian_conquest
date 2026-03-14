@@ -25,6 +25,70 @@ ECMAINT modifies files **in-place** and creates `.SAV` backup copies. Always
 copy your fixture files to a `/tmp/` working directory before running ECMAINT.
 Never run ECMAINT directly against repo fixture directories.
 
+## Best-Known ECGAME Launch
+
+For `ECGAME`, the current best-known local recipe is:
+
+1. initialize a real game directory first
+2. place a full WWIV-style `CHAIN.TXT` in that same game directory
+3. mount that game directory as `C:`
+4. run plain `ECGAME`
+
+Use:
+
+```bash
+tools/run_ecgame.sh /path/to/game_dir [player_number]
+```
+
+Important rules:
+
+- prefer `CHAIN.TXT` over `DOOR.SYS` for local launch attempts
+- run plain `ECGAME`, not `ECGAME /L`
+- do not rely on `ECGAME C:\CHAIN.TXT`
+- keep `CHAIN.TXT` in the mounted working directory itself
+- if the host path contains spaces, the helper now creates a temporary symlink
+  automatically before mounting it in DOSBox-X
+
+If the default video backend is wrong for your desktop, override it:
+
+```bash
+SDL_VIDEODRIVER_OVERRIDE=x11 tools/run_ecgame.sh /path/to/game_dir
+```
+
+or:
+
+```bash
+SDL_VIDEODRIVER_OVERRIDE=wayland tools/run_ecgame.sh /path/to/game_dir
+```
+
+Public corroboration for this path:
+
+- modern BBS operators have reported getting Esterian Conquest running under
+  `DOSBox-X` with `CHAIN.TXT`, while `DOOR.SYS`/`DORINFO1.DEF` were less
+  reliable
+- WWIV door docs also note that older doors often require `CHAIN.TXT` to be
+  copied directly into the door game directory before launch
+
+What actually worked locally:
+
+- `ECGAME` still returned to `C:\>` when using a synthetic local `CHAIN.TXT`
+  with remote-style modem values
+- the turning point was switching `CHAIN.TXT` to true local-console settings:
+  - line 15 `remote = 0`
+  - line 20 `user baud = 0`
+  - line 21 `COM port = 0`
+  - line 31 `COM baud = 0`
+- after that change:
+  - DOS saw the generated `CHAIN.TXT`
+  - the old `ERRORS.TXT` line `could not find a Door File in path: \N`
+    disappeared
+  - `CHAIN.TXT` was therefore accepted by the parser
+
+This is the main local-play rule to preserve:
+
+- for local console play, use a WWIV-style `CHAIN.TXT` with local values, not
+  remote modem values
+
 ## Standard Procedure
 
 For most new mechanics, prefer the repo harness first:

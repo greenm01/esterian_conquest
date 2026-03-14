@@ -187,11 +187,10 @@ What is strong:
   - routes on fixed hazards only, not transient deep-space fleet sightings
 - the contact/combat path now has an explicit hostility predicate seam:
   - declared enemy, if the persisted relation can be recovered
+  - declared enemy from a Rust `diplomacy.kdl` sidecar, if present
   - defended system entry
   - blockade / guard contact
-  - current canonical foreign co-location fallback
-  - stored `enemy` diplomacy bytes still need mapping before the fallback can
-    be narrowed safely
+  - plain foreign co-location now reports contact but does not force combat
 - `ec-data` now exposes a typed stored-diplomacy seam, but the `PLAYER.DAT`
   enemy/neutral bytes remain unresolved
 - fleet encounter reporting is now broader than combat-only scouting:
@@ -213,6 +212,23 @@ What is still incomplete:
 - broader oracle sweep coverage of the seeded starmap path across more seeds
 - deeper owner-scoped route hazards beyond first-pass `DATABASE.DAT` world intel
 - deeper playtesting/tuning of the new larger-tier starmap generator
+- mapping the original stored enemy/neutral bytes in `PLAYER.DAT`, so the
+  temporary `diplomacy.kdl` sidecar can eventually be retired
+- local `ECGAME` launch is still not fully reliable everywhere, but the
+  current best-known path is now documented and wrapped in
+  `tools/run_ecgame.sh`:
+  - normalized WWIV-style `CHAIN.TXT`
+  - mounted game directory as `C:`
+  - plain `ECGAME`
+  - no `/L`
+  - no `ECGAME C:\\CHAIN.TXT`
+  - true local-console `CHAIN.TXT` values:
+    - remote `0`
+    - user baud `0`
+    - COM port `0`
+    - COM baud `0`
+  - the old `could not find a Door File in path: \\N` failure was caused by
+    remote-style modem values in the local dropfile
 
 ### ⏳ Milestone 4: Rust ECMAINT Replacement — IN PROGRESS
 

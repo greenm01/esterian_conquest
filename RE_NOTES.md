@@ -170,6 +170,22 @@ Important detail:
 - Minimal synthetic `CHAIN.TXT` files were rejected as invalid.
 - A complete 32-line `CHAIN.TXT` format was required to clear the initial parser gate.
 - Repo helper scripts now normalize this through `tools/ecgame_dropfiles.py`, which writes the known local `CHAIN.TXT` shape with explicit DOS CRLF line endings.
+- Final local-play correction:
+  - the successful local `CHAIN.TXT` shape also needed true local-console
+    values, not remote/modem defaults
+  - specifically:
+    - line 15 `remote = 0`
+    - line 20 `user baud = 0`
+    - line 21 `COM port = 0`
+    - line 31 `COM baud = 0`
+  - before that correction, `ECGAME` wrote:
+    - `ECGAME: could not find a Door File in path: \N`
+  - after that correction:
+    - DOS `type chain.txt` confirmed the new file was visible in the mounted
+      directory
+    - `ERRORS.TXT` stopped being regenerated on launch
+    - this confirms the old parser failure was the dropfile shape, not missing
+      game data
 - A second repo-level harness bug was also fixed: multiple old `ECGAME` pexpect scripts were building argv correctly, then breaking it with `pexpect.spawn(" ".join(cmd), ...)`.
 - Practical effect: `-c "DEBUGBOX ECGAME.EXE /L"` lost its quoting boundary and `/L` was being parsed by DOSBox-X itself instead of reaching `ECGAME`.
 - Fresh evidence from the corrected boot-dump run:
@@ -181,6 +197,8 @@ Important detail:
 - Current best local-launch rule:
   - use plain `ECGAME` / `ECGAME.EXE` with normalized `CHAIN.TXT` present in the game directory
   - do **not** rely on `/L` for local play on this build
+  - for local console play, `CHAIN.TXT` must use local `0` baud/COM values,
+    not remote modem values
 - Corrected no-`/L` `DEBUGBOX` probing now proves the plain startup path really does enter the game process:
   - with `BPINT 21 3D` armed, `DEBUGBOX ECGAME.EXE` hits the first DOS open breakpoint
   - `DOS MCBS` at that stop shows:

@@ -40,6 +40,7 @@ Docs:
 - `docs/ec-setup-spec.md`: manual-driven setup and starmap rules for Rust
 - `docs/starmap-generation-spec.md`: fair homeworld placement and planet distribution algorithm
 - `docs/ec-movement-spec.md`: classic movement semantics and canonical routing policy
+- `docs/dosbox-workflow.md`: best-known DOSBox-X workflow for `ECMAINT` and local `ECGAME`
 - `docs/ghidra-workflow.md`: headless Ghidra install and ECMAINT analysis workflow
 - `docs/planet-report-reference.md`: coordinate-linked scouting/world stat references
 - `docs/rust-architecture.md`: Rust module layout and data-oriented design notes
@@ -63,6 +64,20 @@ Sysop/admin setup surface:
 The older flat setup commands remain available as compatibility aliases, but
 new admin/setup work should prefer the `sysop` command family and, over time,
 declarative KDL config.
+
+Rust-only diplomacy override during maint:
+- if `<game_dir>/diplomacy.kdl` exists, `ec-cli maint-rust` will use it as a
+  temporary declared-enemy source until the original `PLAYER.DAT` diplomacy
+  bytes are mapped
+- example file: `rust/ec-data/config/diplomacy.example.kdl`
+
+Best-known local ECGAME launch:
+- `tools/run_ecgame.sh /path/to/game_dir [player_number]`
+- this writes a normalized WWIV-style `CHAIN.TXT` into the mounted game dir and
+  runs plain `ECGAME` under `DOSBox-X`
+- prefer this over `ECGAME /L` or `ECGAME C:\\CHAIN.TXT`
+- for local console play, the helper now uses `0` baud / `0` COM-port values
+  in `CHAIN.TXT` rather than remote modem settings
 
 Known scenario replay:
 - `python3 tools/ecmaint_oracle.py replay-known fleet-order /tmp/ecmaint-fleet-oracle`
