@@ -2,7 +2,10 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use ec_data::{CoreGameData, MaintenanceEvents, run_maintenance_turn};
+use ec_data::{
+    CoreGameData, DatabaseDat, MaintenanceEvents, VisibleHazardIntel, run_maintenance_turn,
+    run_maintenance_turn_with_visible_hazards, visible_hazard_intel_from_database,
+};
 
 use crate::commands::reports::{regenerate_database_dat, regenerate_results_dat};
 
@@ -18,6 +21,7 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
     // Load the game state
     let mut game_data = CoreGameData::load(dir)?;
     let start_year = game_data.conquest.game_year();
+    let database = load_database_dat_if_present(dir)?;
 
     // Save a snapshot of the pre-maint planets so we can inspect build queues later.
     // DATABASE.DAT regeneration needs to know which planets had active builds
@@ -27,7 +31,15 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
     // Run maintenance logic for specified turns, accumulating events across all turns.
     let mut all_events = MaintenanceEvents::default();
     for turn in 1..=turns {
-        let events = run_maintenance_turn(&mut game_data)?;
+        let visible_hazards = database
+            .as_ref()
+            .map(|db| visible_hazards_from_database(&game_data, db))
+            .unwrap_or_default();
+        let events = if visible_hazards.is_empty() {
+            run_maintenance_turn(&mut game_data)?
+        } else {
+            run_maintenance_turn_with_visible_hazards(&mut game_data, &visible_hazards)?
+        };
         all_events.bombard_events.extend(events.bombard_events);
         all_events
             .planet_intel_events
@@ -218,6 +230,24 @@ fn copy_directory(src: &Path, dst: &Path) -> Result<(), Box<dyn std::error::Erro
     }
 
     Ok(())
+}
+
+fn load_database_dat_if_present(dir: &Path) -> Result<Option<DatabaseDat>, Box<dyn std::error::Error>> {
+    let path = dir.join("DATABASE.DAT");
+    if !path.exists() {
+        return Ok(None);
+    }
+    let bytes = fs::read(path)?;
+    Ok(Some(DatabaseDat::parse(&bytes)?))
+}
+
+fn visible_hazards_from_database(
+    game_data: &CoreGameData,
+    database: &DatabaseDat,
+) -> Vec<VisibleHazardIntel> {
+    (1..=game_data.conquest.player_count())
+        .map(|empire_raw| visible_hazard_intel_from_database(game_data, database, empire_raw))
+        .collect()
 }
 
 /// Compare .DAT files between two directories

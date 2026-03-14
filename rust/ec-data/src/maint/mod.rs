@@ -2,7 +2,9 @@
 
 mod combat;
 
-use crate::{CoreGameData, FleetStandingOrderKind};
+use crate::{
+    CoreGameData, FleetStandingOrderKind, VisibleHazardIntel, next_path_step, plan_route_with_intel,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct ShipLosses {
@@ -344,6 +346,13 @@ struct MovementEvents {
 pub fn run_maintenance_turn(
     game_data: &mut CoreGameData,
 ) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
+    run_maintenance_turn_with_visible_hazards(game_data, &[])
+}
+
+pub fn run_maintenance_turn_with_visible_hazards(
+    game_data: &mut CoreGameData,
+    visible_hazards_by_empire: &[VisibleHazardIntel],
+) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
     // CONQUEST.DAT 0x0c/0x3d accumulation trigger — snapshot BEFORE processing.
     // ECMAINT increments production total (0x0c += 100) and turn counter (0x3d += 1)
     // only when raw[0x0c] == 0x64 at the start of the turn.
@@ -454,7 +463,7 @@ pub fn run_maintenance_turn(
     let merge_events = process_fleet_merging(game_data)?;
 
     // Process fleet orders; collect side-effect events
-    let movement_events = process_fleet_movement(game_data)?;
+    let movement_events = process_fleet_movement(game_data, visible_hazards_by_empire)?;
 
     // Detect and resolve fleet battles: when hostile fleets co-locate after movement,
     // surviving fleets get SeekHome orders (confirmed from fleet-battle oracle).
@@ -645,6 +654,7 @@ fn process_join_host_updates(
 /// Returns a list of colonization events for fleets that arrived with ColonizeWorld orders.
 fn process_fleet_movement(
     game_data: &mut CoreGameData,
+    visible_hazards_by_empire: &[VisibleHazardIntel],
 ) -> Result<MovementEvents, Box<dyn std::error::Error>> {
     let fleet_count = game_data.fleets.records.len();
     let mut movement_events = MovementEvents::default();
@@ -673,7 +683,8 @@ fn process_fleet_movement(
             speed > 0 && order_code != 0x00 && (target_x != current_x || target_y != current_y);
 
         if should_move {
-            let arrived = process_single_fleet_movement(game_data, i)?;
+            let arrived =
+                process_single_fleet_movement(game_data, i, visible_hazards_by_empire)?;
 
             // If a ColonizeWorld fleet arrived, queue a colonization event
             if arrived {
@@ -849,9 +860,10 @@ fn process_fleet_movement(
 fn process_single_fleet_movement(
     game_data: &mut CoreGameData,
     fleet_idx: usize,
+    visible_hazards_by_empire: &[VisibleHazardIntel],
 ) -> Result<bool, Box<dyn std::error::Error>> {
     // Get fleet data first, then release the borrow
-    let (current_x, current_y, target_x, target_y, speed, is_at_rest, raw_0f) = {
+    let (current_x, current_y, target_x, target_y, speed, is_at_rest, raw_0f, owner_empire_raw) = {
         let fleet = &game_data.fleets.records[fleet_idx];
         (
             fleet.current_location_coords_raw()[0],
@@ -861,6 +873,7 @@ fn process_single_fleet_movement(
             fleet.current_speed(),
             fleet.raw[0x0d] == 0x80, // 0x80 = at rest, 0x7f = in transit
             fleet.raw[0x0f],
+            fleet.owner_empire_raw(),
         )
     };
 
@@ -894,25 +907,19 @@ fn process_single_fleet_movement(
     let sub_acc_new = sub_acc_prev + (speed as u32) * 8;
     let sub_acc_after = sub_acc_new % 9;
 
-    // Compute integer grid units to move along each axis.
-    // Use the Euclidean distance to distribute movement correctly.
-    let dist_sq = (dx_total * dx_total + dy_total * dy_total) as f64;
-    let dist = dist_sq.sqrt();
     let int_move = (sub_acc_new / 9) as i32;
-
-    // Cap movement at remaining distance (don't overshoot).
-    let actual_move = (int_move as f64).min(dist);
-
-    let new_x = if dist > 0.0 {
-        (current_x as f64 + dx_total as f64 * actual_move / dist).round() as u8
-    } else {
-        current_x
-    };
-    let new_y = if dist > 0.0 {
-        (current_y as f64 + dy_total as f64 * actual_move / dist).round() as u8
-    } else {
-        current_y
-    };
+    let hazard_intel = visible_hazards_by_empire
+        .get(owner_empire_raw.saturating_sub(1) as usize)
+        .cloned()
+        .unwrap_or_default();
+    let [new_x, new_y] = planned_next_position(
+        game_data,
+        fleet_idx,
+        [current_x, current_y],
+        [target_x, target_y],
+        int_move,
+        &hazard_intel,
+    );
 
     // Update fleet position
     game_data.fleets.records[fleet_idx].set_current_location_coords_raw([new_x, new_y]);
@@ -973,6 +980,49 @@ fn process_single_fleet_movement(
     game_data.fleets.records[fleet_idx].raw[0x0f] = new_0f as u8;
 
     Ok(false)
+}
+
+fn planned_next_position(
+    game_data: &CoreGameData,
+    fleet_idx: usize,
+    current: [u8; 2],
+    target: [u8; 2],
+    int_move: i32,
+    hazard_intel: &VisibleHazardIntel,
+) -> [u8; 2] {
+    if int_move <= 0 {
+        return current;
+    }
+
+    if let Some(route) = plan_route_with_intel(game_data, fleet_idx, hazard_intel) {
+        if let Some(coords) = next_path_step(&route, int_move as usize) {
+            if route.steps.len() > 2 && coords != target {
+                return coords;
+            }
+        }
+    }
+
+    straight_line_next_position(current, target, int_move)
+}
+
+fn straight_line_next_position(current: [u8; 2], target: [u8; 2], int_move: i32) -> [u8; 2] {
+    let dx_total = target[0] as i32 - current[0] as i32;
+    let dy_total = target[1] as i32 - current[1] as i32;
+    let dist_sq = (dx_total * dx_total + dy_total * dy_total) as f64;
+    let dist = dist_sq.sqrt();
+    let actual_move = (int_move as f64).min(dist);
+
+    let new_x = if dist > 0.0 {
+        (current[0] as f64 + dx_total as f64 * actual_move / dist).round() as u8
+    } else {
+        current[0]
+    };
+    let new_y = if dist > 0.0 {
+        (current[1] as f64 + dy_total as f64 * actual_move / dist).round() as u8
+    } else {
+        current[1]
+    };
+    [new_x, new_y]
 }
 
 /// Apply colonization events to PLANETS.DAT and PLAYER.DAT.

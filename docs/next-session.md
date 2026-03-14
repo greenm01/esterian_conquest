@@ -178,6 +178,11 @@ What is strong:
   - fairness-scored reroll selection
   - structured neutral-world production
   - one-planet-per-system enforcement
+- the current route-planning path now:
+  - preserves fog of war by refusing to consult hidden global-state hazards
+  - accepts explicit visible hazard intel for A* routing
+  - derives first-pass foreign-world hazards from each empire's
+    `DATABASE.DAT` view during Rust maintenance
 
 What is still incomplete:
 
@@ -186,7 +191,7 @@ What is still incomplete:
 - Variable player_count edge cases (tested but could use more coverage)
 - ECGAME ANSI/startup preservation (useful but not the main blocker)
 - broader oracle sweep coverage of the seeded starmap path across more seeds
-- documented route-planning policy for threat-aware fleet travel
+- deeper owner-scoped route hazards beyond first-pass `DATABASE.DAT` world intel
 - deeper playtesting/tuning of the new larger-tier starmap generator
 
 ### ⏳ Milestone 4: Rust ECMAINT Replacement — IN PROGRESS

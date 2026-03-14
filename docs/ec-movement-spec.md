@@ -112,6 +112,30 @@ The intended long-term routing engine is:
 This should be implemented as a route-planning layer above the current movement
 formula, not as a replacement for the movement execution rules themselves.
 
+## Fog Of War Rule
+
+Threat-aware routing must preserve fog of war.
+
+- route costs must be derived from player-visible intel, not hidden global
+  truth from the whole gamestate
+- the planner may use:
+  - visible world ownership
+  - visible starbases
+  - known hostile fleets
+  - known blockades
+  - stored diplomatic hostility
+- the planner must not "cheat" by consulting unseen foreign planets, fleets,
+  or defenses
+
+Current Rust implementation status:
+
+- the `ec-data` pathfinder now accepts explicit visible hazard intel as input
+- the live maint path now accepts owner-scoped visible hazards and the CLI
+  derives first-pass foreign-world hazard intel from each empire's
+  `DATABASE.DAT` view
+- only visible intel should feed the planner; unknown foreign worlds remain
+  invisible to routing until discovered
+
 ## Compatibility Rule
 
 Threat-aware routing may change which sectors a Rust-controlled fleet chooses to
