@@ -1,6 +1,7 @@
 use ec_data::{
-    BaseDat, ConquestDat, CoreGameData, EmpireProductionRankingSort, FleetDat, IpbmDat, PlanetDat,
-    PlanetRecord, PlayerDat, PlayerRecord, SetupDat, decode_real48,
+    BaseDat, BaseRecord, ConquestDat, CoreGameData, EmpireProductionRankingSort, FleetDat,
+    IpbmDat, PlanetDat, PlanetRecord, PlayerDat, PlayerRecord, SetupDat, build_seeded_new_game,
+    decode_real48, encode_real48, run_maintenance_turn,
 };
 
 fn zeroed_setup() -> SetupDat {
@@ -9,6 +10,14 @@ fn zeroed_setup() -> SetupDat {
 
 fn zeroed_conquest() -> ConquestDat {
     ConquestDat::parse(&vec![0; ec_data::CONQUEST_DAT_SIZE]).expect("zeroed conquest should parse")
+}
+
+fn configured_conquest(player_count: u8) -> ConquestDat {
+    let mut conquest = zeroed_conquest();
+    conquest.set_game_year(3000);
+    conquest.set_player_count(player_count);
+    conquest.set_maintenance_schedule_enabled([true; 7]);
+    conquest
 }
 
 fn player_with_empire_name(name: &str, tax_rate: u8, stored_points: u16) -> PlayerRecord {
@@ -56,6 +65,7 @@ fn owned_homeworld_seed(
         armies,
         batteries,
     );
+    record.set_potential_production_raw([potential_production, 0x87]);
     record.set_ownership_status_raw(2);
     record
 }
@@ -74,7 +84,16 @@ fn decode_real48_matches_current_known_homeworld_values() {
 }
 
 #[test]
-fn current_known_empire_economy_helpers_use_classic_production_terms() {
+fn encode_real48_round_trips_common_production_values() {
+    for points in [0.0, 1.0, 25.0, 50.0, 75.0, 100.0] {
+        let encoded = encode_real48(points).expect("real should encode");
+        let decoded = decode_real48(encoded).expect("real should decode");
+        assert!((decoded - points).abs() < 0.001, "expected {points}, got {decoded}");
+    }
+}
+
+#[test]
+fn empire_economy_helpers_use_classic_production_terms() {
     let mut player1 = player_with_empire_name("Alpha", 50, 0);
     let mut player2 = player_with_empire_name("Beta", 60, 20);
     player1.set_owner_empire_raw(1);
@@ -98,7 +117,7 @@ fn current_known_empire_economy_helpers_use_classic_production_terms() {
         conquest: zeroed_conquest(),
     };
 
-    let economy = game.empire_economy_summary_current_known(1);
+    let economy = game.empire_economy_summary(1);
     assert_eq!(economy.owned_planets, 2);
     assert_eq!(economy.present_production, 125);
     assert_eq!(economy.potential_production, 150);
@@ -107,9 +126,7 @@ fn current_known_empire_economy_helpers_use_classic_production_terms() {
     assert_eq!(economy.rank_by_planets, 1);
     assert_eq!(economy.rank_by_present_production, 2);
 
-    let rankings = game.empire_production_ranking_rows_current_known(
-        EmpireProductionRankingSort::Production,
-    );
+    let rankings = game.empire_production_ranking_rows(EmpireProductionRankingSort::Production);
     assert_eq!(rankings[0].empire_name, "Beta");
     assert_eq!(rankings[0].current_production, 200);
     assert_eq!(rankings[1].empire_name, "Alpha");
@@ -117,7 +134,7 @@ fn current_known_empire_economy_helpers_use_classic_production_terms() {
 }
 
 #[test]
-fn current_known_total_available_points_matches_first_turn_tax_budget() {
+fn total_available_points_matches_first_turn_tax_budget() {
     let mut player = player_with_empire_name("Alpha", 50, 0);
     player.set_owner_empire_raw(1);
 
@@ -141,12 +158,120 @@ fn current_known_total_available_points_matches_first_turn_tax_budget() {
         conquest: zeroed_conquest(),
     };
 
-    assert_eq!(game.empire_present_production_current_known(1), 100);
-    assert_eq!(game.empire_total_available_points_current_known(1), 50);
+    assert_eq!(game.empire_present_production(1), 100);
+    assert_eq!(game.empire_available_production_points(1), 50);
 }
 
 #[test]
-fn current_known_homeworld_present_production_clamps_to_potential() {
+fn homeworld_present_production_clamps_to_potential() {
     let planet = owned_homeworld_seed(1, 100, [0x00, 0x00, 0x00, 0x00, 0x48, 0x86], 10, 4);
-    assert_eq!(planet.present_production_points_current_known(), Some(100));
+    assert_eq!(planet.present_production_points(), Some(100));
+}
+
+#[test]
+fn maintenance_recomputes_player_production_from_present_production() {
+    let mut game = build_seeded_new_game(4, 3000, 1515).expect("seeded game should build");
+    run_maintenance_turn(&mut game).expect("maintenance should succeed");
+    assert_eq!(game.player.records[0].raw[0x52], 100);
+}
+
+#[test]
+fn maintenance_adds_tax_revenue_and_grows_planets_faster_under_lower_tax() {
+    let mut low_tax = player_with_empire_name("Alpha", 25, 0);
+    low_tax.set_owner_empire_raw(1);
+    let mut high_tax = low_tax.clone();
+    high_tax.set_tax_rate_raw(80);
+
+    let colony = owned_planet(1, 100, encode_real48(25.0).unwrap(), 0, 1, 0);
+
+    let mut low_game = CoreGameData {
+        player: PlayerDat {
+            records: vec![low_tax],
+        },
+        planets: PlanetDat {
+            records: vec![colony.clone()],
+        },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: zeroed_setup(),
+        conquest: configured_conquest(1),
+    };
+    let mut high_game = CoreGameData {
+        player: PlayerDat {
+            records: vec![high_tax],
+        },
+        planets: PlanetDat {
+            records: vec![colony],
+        },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: zeroed_setup(),
+        conquest: configured_conquest(1),
+    };
+
+    run_maintenance_turn(&mut low_game).expect("maintenance should succeed");
+    run_maintenance_turn(&mut high_game).expect("maintenance should succeed");
+
+    let low_planet = &low_game.planets.records[0];
+    let high_planet = &high_game.planets.records[0];
+    assert_eq!(low_planet.stored_goods_raw(), 6);
+    assert_eq!(high_planet.stored_goods_raw(), 20);
+    assert!(
+        low_planet.present_production_points().unwrap()
+            > high_planet.present_production_points().unwrap()
+    );
+}
+
+#[test]
+fn maintenance_starbase_growth_bonus_accelerates_planet_development() {
+    let mut player = player_with_empire_name("Alpha", 50, 0);
+    player.set_owner_empire_raw(1);
+
+    let colony = owned_planet(1, 100, encode_real48(50.0).unwrap(), 0, 3, 1);
+    let mut with_base = CoreGameData {
+        player: PlayerDat {
+            records: vec![player.clone()],
+        },
+        planets: PlanetDat {
+            records: vec![colony.clone()],
+        },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat {
+            records: vec![{
+                let mut base = BaseRecord::new_zeroed();
+                base.set_active_flag_raw(1);
+                base.set_owner_empire_raw(1);
+                base.set_coords_raw([0, 0]);
+                base
+            }],
+        },
+        ipbm: IpbmDat { records: vec![] },
+        setup: zeroed_setup(),
+        conquest: configured_conquest(1),
+    };
+    with_base.planets.records[0].set_coords_raw([0, 0]);
+
+    let mut without_base = CoreGameData {
+        player: PlayerDat { records: vec![player] },
+        planets: PlanetDat { records: vec![colony] },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: zeroed_setup(),
+        conquest: configured_conquest(1),
+    };
+
+    run_maintenance_turn(&mut with_base).expect("maintenance should succeed");
+    run_maintenance_turn(&mut without_base).expect("maintenance should succeed");
+
+    assert!(
+        with_base.planets.records[0]
+            .present_production_points()
+            .unwrap()
+            > without_base.planets.records[0]
+                .present_production_points()
+                .unwrap()
+    );
 }

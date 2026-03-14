@@ -31,8 +31,8 @@ pub use config::{
 pub use directory::{
     CampaignOutcome, CampaignOutlook, CampaignState, CoreGameData, CurrentKnownComplianceStatus,
     CurrentKnownGuardStarbaseLinkageSummary, CurrentKnownKeyWordSummary, EmpireEconomySummary,
-    EmpireProductionRankingRow, EmpireProductionRankingSort, EmpireUnitSummary, GameDirectoryError,
-    GameStateMutationError,
+    EmpirePlanetEconomyRow, EmpireProductionRankingRow, EmpireProductionRankingSort,
+    EmpireUnitSummary, GameDirectoryError, GameStateMutationError,
 };
 pub use maint::{
     BombardEvent, CampaignOutcomeEvent, CampaignOutlookEvent, CivilDisorderEvent,
@@ -59,4 +59,4 @@ pub use records::ipbm::{IpbmDat, IpbmRecord};
 pub use records::planet::{PlanetDat, PlanetRecord, ProductionItemKind};
 pub use records::player::{DiplomaticRelation, PlayerDat, PlayerRecord};
 pub use records::setup::SetupDat;
-pub use support::{ParseError, decode_real48};
+pub use support::{ParseError, decode_real48, encode_real48};

@@ -22,13 +22,13 @@ impl Screen for EmpireProfileScreen {
         let player = &frame.game_data.player.records[player_idx - 1];
         let economy = frame
             .game_data
-            .empire_economy_summary_current_known(player_idx);
+            .empire_economy_summary(player_idx);
         let active = frame
             .game_data
-            .empire_active_duty_summary_current_known(player_idx);
+            .empire_active_duty_summary(player_idx);
         let stardock = frame
             .game_data
-            .empire_stardock_summary_current_known(player_idx);
+            .empire_stardock_summary(player_idx);
 
         let mut buffer = new_playfield();
         draw_title_bar(

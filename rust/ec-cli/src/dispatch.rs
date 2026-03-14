@@ -34,6 +34,7 @@ use crate::commands::planet_build::{
 
 use crate::commands::bombard::{init_bombard, init_bombard_batch, set_bombard_onefleet};
 use crate::commands::econ::{init_econ, init_econ_batch, set_econ};
+use crate::commands::economy::{init_tax_growth_probe, print_economy_report};
 use crate::commands::fleet_battle::{init_fleet_battle, init_fleet_battle_batch, set_fleet_battle};
 use crate::commands::invade::{init_invade, init_invade_batch, set_invade_onefleet};
 use crate::commands::maint::{compare_maintenance, run_rust_maintenance};
@@ -1021,6 +1022,29 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
                 return Ok(());
             };
             init_econ_batch(&source, &target_root, &specs)?;
+        }
+        "economy-report" => {
+            let dir = next_dir(&mut args);
+            let player_record_index_1_based = args
+                .next()
+                .map(|value| value.parse::<usize>())
+                .transpose()?
+                .unwrap_or(1);
+            print_economy_report(&dir, player_record_index_1_based)?;
+        }
+        "economy-tax-probe-init" => {
+            let dir = next_dir(&mut args);
+            let player_record_index_1_based = args
+                .next()
+                .map(|value| value.parse::<usize>())
+                .transpose()?
+                .unwrap_or(1);
+            let tax_rate = args
+                .next()
+                .map(|value| value.parse::<u8>())
+                .transpose()?
+                .unwrap_or(50);
+            init_tax_growth_probe(&dir, player_record_index_1_based, tax_rate)?;
         }
         "scenario" => {
             let dir = next_dir(&mut args);

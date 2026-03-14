@@ -113,6 +113,20 @@ pub struct EmpireProductionRankingRow {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EmpirePlanetEconomyRow {
+    pub planet_record_index_1_based: usize,
+    pub coords: [u8; 2],
+    pub planet_name: String,
+    pub present_production: u16,
+    pub potential_production: u16,
+    pub stored_goods: u32,
+    pub economy_marker_raw: u8,
+    pub armies: u8,
+    pub ground_batteries: u8,
+    pub is_homeworld_seed: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CoreFileDiffCount {
     pub name: &'static str,
     pub differing_bytes: usize,
@@ -320,7 +334,7 @@ impl CoreGameData {
         self.player_ipbm_count_current_known(1)
     }
 
-    pub fn empire_present_production_current_known(
+    pub fn empire_present_production(
         &self,
         player_record_index_1_based: usize,
     ) -> u16 {
@@ -328,11 +342,11 @@ impl CoreGameData {
             .records
             .iter()
             .filter(|record| record.owner_empire_slot_raw() as usize == player_record_index_1_based)
-            .filter_map(|record| record.present_production_points_current_known())
+            .filter_map(|record| record.present_production_points())
             .sum()
     }
 
-    pub fn empire_potential_production_current_known(
+    pub fn empire_potential_production(
         &self,
         player_record_index_1_based: usize,
     ) -> u16 {
@@ -340,11 +354,11 @@ impl CoreGameData {
             .records
             .iter()
             .filter(|record| record.owner_empire_slot_raw() as usize == player_record_index_1_based)
-            .map(|record| record.potential_production_points_current_known())
+            .map(|record| record.potential_production_points())
             .sum()
     }
 
-    pub fn empire_total_available_points_current_known(
+    pub fn empire_available_production_points(
         &self,
         player_record_index_1_based: usize,
     ) -> u32 {
@@ -361,21 +375,21 @@ impl CoreGameData {
             .filter(|record| record.owner_empire_slot_raw() as usize == player_record_index_1_based)
             .filter_map(|record| {
                 record
-                    .present_production_points_current_known()
+                    .present_production_points()
                     .map(|points| (u32::from(points) * tax_rate) / 100)
             })
             .sum()
     }
 
-    pub fn empire_efficiency_percent_current_known(
+    pub fn empire_efficiency_percent(
         &self,
         player_record_index_1_based: usize,
     ) -> f64 {
-        let potential = self.empire_potential_production_current_known(player_record_index_1_based);
+        let potential = self.empire_potential_production(player_record_index_1_based);
         if potential == 0 {
             return 0.0;
         }
-        let present = self.empire_present_production_current_known(player_record_index_1_based);
+        let present = self.empire_present_production(player_record_index_1_based);
         (present as f64 / potential as f64) * 100.0
     }
 
@@ -398,18 +412,18 @@ impl CoreGameData {
             .count()
     }
 
-    pub fn empire_rank_by_present_production_current_known(
+    pub fn empire_rank_by_present_production(
         &self,
         player_record_index_1_based: usize,
     ) -> usize {
-        let own = self.empire_present_production_current_known(player_record_index_1_based);
+        let own = self.empire_present_production(player_record_index_1_based);
         1 + (1..=self.player.records.len())
             .filter(|&idx| idx != player_record_index_1_based)
-            .filter(|&idx| self.empire_present_production_current_known(idx) > own)
+            .filter(|&idx| self.empire_present_production(idx) > own)
             .count()
     }
 
-    pub fn empire_economy_summary_current_known(
+    pub fn empire_economy_summary(
         &self,
         player_record_index_1_based: usize,
     ) -> EmpireEconomySummary {
@@ -421,17 +435,12 @@ impl CoreGameData {
             .unwrap_or(0);
         EmpireEconomySummary {
             owned_planets: self.player_owned_planet_count_current_known(player_record_index_1_based),
-            present_production: self
-                .empire_present_production_current_known(player_record_index_1_based),
-            potential_production: self
-                .empire_potential_production_current_known(player_record_index_1_based),
-            total_available_points: self
-                .empire_total_available_points_current_known(player_record_index_1_based),
-            efficiency_percent: self
-                .empire_efficiency_percent_current_known(player_record_index_1_based),
+            present_production: self.empire_present_production(player_record_index_1_based),
+            potential_production: self.empire_potential_production(player_record_index_1_based),
+            total_available_points: self.empire_available_production_points(player_record_index_1_based),
+            efficiency_percent: self.empire_efficiency_percent(player_record_index_1_based),
             rank_by_planets: self.empire_rank_by_planets_current_known(player_record_index_1_based),
-            rank_by_present_production: self
-                .empire_rank_by_present_production_current_known(player_record_index_1_based),
+            rank_by_present_production: self.empire_rank_by_present_production(player_record_index_1_based),
             tax_rate,
             max_fleets_and_bases: 500,
             current_fleets_and_bases: self
@@ -439,7 +448,7 @@ impl CoreGameData {
         }
     }
 
-    pub fn empire_active_duty_summary_current_known(
+    pub fn empire_active_duty_summary(
         &self,
         player_record_index_1_based: usize,
     ) -> EmpireUnitSummary {
@@ -472,7 +481,7 @@ impl CoreGameData {
         summary
     }
 
-    pub fn empire_stardock_summary_current_known(
+    pub fn empire_stardock_summary(
         &self,
         player_record_index_1_based: usize,
     ) -> EmpireUnitSummary {
@@ -508,7 +517,7 @@ impl CoreGameData {
         summary
     }
 
-    pub fn empire_production_ranking_rows_current_known(
+    pub fn empire_production_ranking_rows(
         &self,
         sort: EmpireProductionRankingSort,
     ) -> Vec<EmpireProductionRankingRow> {
@@ -521,7 +530,7 @@ impl CoreGameData {
                 empire_id: (idx + 1) as u8,
                 empire_name: empire_name_for_rankings(record),
                 planets_owned: self.player_owned_planet_count_current_known(idx + 1),
-                current_production: self.empire_present_production_current_known(idx + 1),
+                current_production: self.empire_present_production(idx + 1),
             })
             .collect::<Vec<_>>();
 
@@ -550,6 +559,95 @@ impl CoreGameData {
         }
 
         rows
+    }
+
+    pub fn empire_planet_economy_rows(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> Vec<EmpirePlanetEconomyRow> {
+        self.planets
+            .records
+            .iter()
+            .enumerate()
+            .filter(|(_, record)| record.owner_empire_slot_raw() as usize == player_record_index_1_based)
+            .filter_map(|(idx, record)| {
+                Some(EmpirePlanetEconomyRow {
+                    planet_record_index_1_based: idx + 1,
+                    coords: record.coords_raw(),
+                    planet_name: record.status_or_name_summary(),
+                    present_production: record.present_production_points()?,
+                    potential_production: record.potential_production_points(),
+                    stored_goods: record.stored_production_points(),
+                    economy_marker_raw: record.economy_marker_raw(),
+                    armies: record.army_count_raw(),
+                    ground_batteries: record.ground_batteries_raw(),
+                    is_homeworld_seed: record.is_homeworld_seed_ignoring_name(),
+                })
+            })
+            .collect()
+    }
+
+    pub fn empire_present_production_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> u16 {
+        self.empire_present_production(player_record_index_1_based)
+    }
+
+    pub fn empire_potential_production_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> u16 {
+        self.empire_potential_production(player_record_index_1_based)
+    }
+
+    pub fn empire_total_available_points_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> u32 {
+        self.empire_available_production_points(player_record_index_1_based)
+    }
+
+    pub fn empire_efficiency_percent_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> f64 {
+        self.empire_efficiency_percent(player_record_index_1_based)
+    }
+
+    pub fn empire_rank_by_present_production_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> usize {
+        self.empire_rank_by_present_production(player_record_index_1_based)
+    }
+
+    pub fn empire_economy_summary_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> EmpireEconomySummary {
+        self.empire_economy_summary(player_record_index_1_based)
+    }
+
+    pub fn empire_active_duty_summary_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> EmpireUnitSummary {
+        self.empire_active_duty_summary(player_record_index_1_based)
+    }
+
+    pub fn empire_stardock_summary_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> EmpireUnitSummary {
+        self.empire_stardock_summary(player_record_index_1_based)
+    }
+
+    pub fn empire_production_ranking_rows_current_known(
+        &self,
+        sort: EmpireProductionRankingSort,
+    ) -> Vec<EmpireProductionRankingRow> {
+        self.empire_production_ranking_rows(sort)
     }
 
     pub fn empire_campaign_state(&self, empire_raw: u8) -> Option<CampaignState> {
@@ -820,7 +918,7 @@ impl CoreGameData {
                 record.set_potential_production_raw([100, 135]);
                 record.set_factories_raw([0, 0, 0, 0, 72, 134]);
                 record.set_stored_goods_raw(0);
-                record.set_planet_tax_rate_raw(12);
+                record.set_economy_marker_raw(12);
                 record.set_status_or_name_summary_raw("Not Named Yet");
                 for slot in 0..10 {
                     record.set_build_count_raw(slot, 0);
@@ -836,7 +934,7 @@ impl CoreGameData {
                 record.set_ownership_status_raw(2);
             } else if owner == 0 {
                 record.set_status_or_name_prefix_raw("Unowned");
-                record.set_planet_tax_rate_raw(0);
+                record.set_economy_marker_raw(0);
                 record.set_factories_raw([0; 6]);
                 record.set_stored_goods_raw(0);
                 for slot in 0..10 {
@@ -1015,11 +1113,11 @@ impl CoreGameData {
                     record.ground_batteries_raw()
                 ));
             }
-            if record.planet_tax_rate_raw() != 12 {
+            if record.economy_marker_raw() != 12 {
                 errors.push(format!(
-                    "PLANET[{}].planet_tax_rate expected 12 for homeworld seed, got {}",
+                    "PLANET[{}].economy_marker_raw expected 12 for homeworld seed, got {}",
                     planet_index_1_based,
-                    record.planet_tax_rate_raw()
+                    record.economy_marker_raw()
                 ));
             }
             if record.factories_raw() != [0, 0, 0, 0, 72, 134] {
@@ -1100,11 +1198,11 @@ impl CoreGameData {
                     record.army_count_raw()
                 ));
             }
-            if record.planet_tax_rate_raw() != 0 {
+            if record.economy_marker_raw() != 0 {
                 errors.push(format!(
-                    "PLANET[{}].planet_tax_rate expected 0 for unowned baseline, got {}",
+                    "PLANET[{}].economy_marker_raw expected 0 for unowned baseline, got {}",
                     planet_index_1_based,
-                    record.planet_tax_rate_raw()
+                    record.economy_marker_raw()
                 ));
             }
             if record.ground_batteries_raw() != 0 {

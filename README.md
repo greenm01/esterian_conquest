@@ -181,6 +181,7 @@ python3 tools/rust_maint_sweep.py --turns 3
 Useful supporting docs:
 
 - [docs/ec-setup-spec.md](docs/ec-setup-spec.md)
+- [docs/economics.md](docs/economics.md)
 - [docs/ec-combat-spec.md](docs/ec-combat-spec.md)
 - [docs/ec-movement-spec.md](docs/ec-movement-spec.md)
 - [docs/bbs_door_client_rust.md](docs/bbs_door_client_rust.md)

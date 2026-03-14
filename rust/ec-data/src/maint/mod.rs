@@ -704,7 +704,9 @@ fn apply_civil_disorder_fleet_defections(
             .records
             .iter()
             .enumerate()
-            .filter(|(_, fleet)| fleet.owner_empire_raw() == empire_raw && fleet_has_presence(fleet))
+            .filter(|(_, fleet)| {
+                fleet.owner_empire_raw() == empire_raw && fleet_has_presence(fleet)
+            })
             .max_by_key(|(_, fleet)| fleet.fleet_id());
 
         if let Some((fleet_idx, fleet)) = candidate {
@@ -1634,7 +1636,7 @@ fn process_fleet_merging(
 /// Process build queue completion for all planets.
 ///
 /// Build production is based on planet's industrial capacity:
-/// - Production rate = factories_word + potential_production bonus
+/// - Production rate = current production, with a starbase multiplier
 /// - Each build queue item decrements by production rate per turn
 /// - When build_count reaches 0, ship moves to stardock
 ///
@@ -1646,15 +1648,21 @@ fn process_build_completion(
     let mut planets_with_builds = Vec::new();
 
     for planet_idx in 0..planet_count {
-        // Calculate production rate based on factories and potential
-        let factories = game_data.planets.records[planet_idx].factories_word_raw();
-        let potential =
-            u16::from_le_bytes(game_data.planets.records[planet_idx].potential_production_raw());
-
-        // Production = factories + (potential / 2) as simple approximation
-        // TODO: Verify exact formula from RE_NOTES or fixtures
-        let production_rate = factories + (potential / 2);
-        let production_rate_u8 = production_rate.min(255) as u8;
+        let owner_empire = game_data.planets.records[planet_idx].owner_empire_slot_raw();
+        let current_production = game_data.planets.records[planet_idx]
+            .present_production_points()
+            .unwrap_or(0);
+        let spend_capacity = if owner_empire != 0
+            && planet_has_friendly_starbase(
+                game_data,
+                owner_empire,
+                game_data.planets.records[planet_idx].coords_raw(),
+            ) {
+            current_production.saturating_mul(5)
+        } else {
+            current_production
+        };
+        let production_rate_u8 = spend_capacity.min(255) as u8;
 
         // Process up to 10 build slots per planet
         let mut had_builds = false;
@@ -1706,26 +1714,95 @@ fn process_build_completion(
 
 /// Process planet economic updates during maintenance.
 ///
-/// Only applies to planets that had build queue activity.
-/// Currently handles:
-/// - Tax rate reset (cleared to 0)
-/// - Factories word normalization (high byte cleared)
+/// Canonical Rust economy rule:
+/// - every owned planet uses the empire-wide tax rate
+/// - taxed revenue is added to the planet's stored production pool
+/// - current production grows toward potential every year
+/// - lower taxes accelerate growth
+/// - a friendly starbase on the planet boosts both growth and build capacity
 fn process_planet_economics(
     game_data: &mut CoreGameData,
-    planets_with_builds: &[usize],
+    _planets_with_builds: &[usize],
 ) -> Result<(), Box<dyn std::error::Error>> {
-    for &planet_idx in planets_with_builds {
-        // Reset tax rate to 0 (observed in fixture analysis)
-        game_data.planets.records[planet_idx].set_planet_tax_rate_raw(0);
+    for planet_idx in 0..game_data.planets.records.len() {
+        let owner_empire = game_data.planets.records[planet_idx].owner_empire_slot_raw();
+        if owner_empire == 0 {
+            continue;
+        }
+        let Some(player) = game_data
+            .player
+            .records
+            .get(owner_empire.saturating_sub(1) as usize)
+        else {
+            continue;
+        };
+        if matches!(player.owner_mode_raw(), 0x00 | 0xff) {
+            continue;
+        }
 
-        // Normalize factories word - clear the high byte
-        // Observed: 0x4886 (34376) -> 0x4800 (72), so high byte 0x86 cleared to 0x00
-        // But low byte 0x48 stays
-        game_data.planets.records[planet_idx].raw[0x09] = 0x00;
-        // Keep low byte at 0x08 as is
+        let tax_rate = player.tax_rate();
+        let current_production = game_data.planets.records[planet_idx]
+            .present_production_points()
+            .unwrap_or(0);
+        let potential_production = game_data.planets.records[planet_idx]
+            .potential_production_points();
+        let has_starbase = planet_has_friendly_starbase(
+            game_data,
+            owner_empire,
+            game_data.planets.records[planet_idx].coords_raw(),
+        );
+
+        let revenue = yearly_tax_revenue(current_production, tax_rate);
+        let growth = yearly_growth_delta(
+            current_production,
+            potential_production,
+            tax_rate,
+            has_starbase,
+        );
+
+        let planet = &mut game_data.planets.records[planet_idx];
+        planet.set_economy_marker_raw(tax_rate);
+        planet.set_stored_goods_raw(planet.stored_goods_raw().saturating_add(revenue));
+        let new_current_production = current_production.saturating_add(growth).min(potential_production);
+        let _ = planet.set_present_production_points(new_current_production);
     }
 
     Ok(())
+}
+
+fn planet_has_friendly_starbase(
+    game_data: &CoreGameData,
+    owner_empire_raw: u8,
+    coords: [u8; 2],
+) -> bool {
+    game_data.bases.records.iter().any(|base| {
+        base.owner_empire_raw() == owner_empire_raw
+            && base.coords_raw() == coords
+            && base.active_flag_raw() != 0
+    })
+}
+
+fn yearly_tax_revenue(current_production: u16, tax_rate: u8) -> u32 {
+    (u32::from(current_production) * u32::from(tax_rate)) / 100
+}
+
+fn yearly_growth_delta(
+    current_production: u16,
+    potential_production: u16,
+    tax_rate: u8,
+    has_starbase: bool,
+) -> u16 {
+    if current_production >= potential_production {
+        return 0;
+    }
+
+    let gap = potential_production - current_production;
+    let tax_headroom = 100u16.saturating_sub(u16::from(tax_rate.min(95)));
+    let mut growth = ((u32::from(gap) * u32::from(tax_headroom)) + 399) / 400;
+    if has_starbase {
+        growth += growth.div_ceil(2);
+    }
+    growth.max(1).min(u32::from(gap)) as u16
 }
 
 /// Process autopilot / rogue AI planet economics.
@@ -1806,14 +1883,15 @@ pub fn process_autopilot_ai(
 /// planet records. The pre-maint PLAYER.DAT values may be stale.
 ///
 /// - PLAYER raw[0x50]: count of planets owned by this player
-/// - PLAYER raw[0x52]: sum of pot_prod for all owned planets
+/// - PLAYER raw[0x52]: sum of current production for all owned planets
 ///
 /// Player record index N corresponds to owner_empire_slot N+1 in PLANETS.DAT.
 /// Owner empire slot 0 means unowned. Player record 0 = owner_empire_slot 1, etc.
 ///
-/// Confirmed from econ scenario: player 1 ("foo", record 1) owns 2 planets
-/// (records 12 and 13, each pot_prod=100) but pre-maint raw[0x50]=1, raw[0x52]=100.
-/// After ECMAINT: raw[0x50]=2, raw[0x52]=200.
+/// Current-known model:
+/// - newly colonized worlds (`raw[0x03] == 0x81`) contribute `1`
+/// - mature worlds contribute their current/present production
+/// - joinable homeworld seeds present at full potential from the start
 fn recompute_player_planet_stats(game_data: &mut CoreGameData) {
     let n_players = game_data.player.records.len();
 
@@ -1825,14 +1903,10 @@ fn recompute_player_planet_stats(game_data: &mut CoreGameData) {
         let owner = planet.owner_empire_slot_raw() as usize;
         if owner > 0 && owner <= n_players {
             planet_counts[owner] = planet_counts[owner].saturating_add(1);
-            // Current production contribution:
-            // - Mature planet (raw[0x03] != 0x81): use pot_prod (raw[0x02])
-            // - New colony (raw[0x03] == 0x81, just colonized this turn): contribute 1
-            //   Confirmed from fleet scenario: new colony pot=95 but contributes 1 to raw[0x52].
             let current_prod: u16 = if planet.raw[0x03] == 0x81 {
                 1
             } else {
-                planet.potential_production_raw()[0] as u16
+                planet.present_production_points().unwrap_or(0)
             };
             pot_prod_sums[owner] = pot_prod_sums[owner].saturating_add(current_prod);
         }
@@ -1853,7 +1927,10 @@ fn apply_campaign_state_transitions(game_data: &mut CoreGameData) -> Vec<CivilDi
         let Some(state) = game_data.empire_campaign_state(empire_raw) else {
             continue;
         };
-        if matches!(state, crate::CampaignState::DefectionRisk | crate::CampaignState::Defeated) {
+        if matches!(
+            state,
+            crate::CampaignState::DefectionRisk | crate::CampaignState::Defeated
+        ) {
             if let Some(player) = game_data
                 .player
                 .records

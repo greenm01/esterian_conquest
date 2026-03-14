@@ -597,7 +597,7 @@ fn core_game_data_homeworld_seed_payload_errors_catch_changed_tax_rate() {
 
     assert_eq!(
         data.current_known_homeworld_seed_payload_errors(),
-        vec!["PLANET[15].planet_tax_rate expected 12 for homeworld seed, got 11".to_string()]
+        vec!["PLANET[15].economy_marker_raw expected 12 for homeworld seed, got 11".to_string()]
     );
 }
 
@@ -782,7 +782,7 @@ fn core_game_data_sync_current_known_initialized_planet_payloads_repairs_mutated
         conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
     };
 
-    data.planets.records[14].set_planet_tax_rate_raw(3);
+    data.planets.records[14].set_economy_marker_raw(3);
     data.planets.records[0].set_status_or_name_summary_raw("Broken");
     data.planets.records[0].set_army_count_raw(9);
 
@@ -819,7 +819,7 @@ fn core_game_data_sync_current_known_initialized_post_maint_baseline_repairs_com
     });
     data.fleets.records.clear();
     data.fleets.records.push(FleetRecord::new_zeroed());
-    data.planets.records[14].set_planet_tax_rate_raw(3);
+    data.planets.records[14].set_economy_marker_raw(3);
     data.planets.records[0].set_status_or_name_summary_raw("Broken");
 
     data.sync_current_known_initialized_post_maint_baseline();
@@ -909,7 +909,7 @@ fn core_game_data_current_known_baseline_diff_counts_detect_mutated_files() {
     assert_eq!(clean_setup, 0);
 
     data.setup.raw[..5].copy_from_slice(b"BAD!!");
-    data.planets.records[14].set_planet_tax_rate_raw(3);
+    data.planets.records[14].set_economy_marker_raw(3);
 
     let diffs = data.current_known_baseline_diff_counts();
     assert!(
@@ -951,7 +951,7 @@ fn core_game_data_current_known_baseline_diff_offsets_pinpoint_mutated_bytes() {
         .clone();
 
     data.setup.raw[..5].copy_from_slice(b"BAD!!");
-    data.planets.records[14].set_planet_tax_rate_raw(3);
+    data.planets.records[14].set_economy_marker_raw(3);
 
     let diffs = data.current_known_baseline_diff_offsets();
     let setup_offsets = &diffs

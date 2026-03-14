@@ -32,6 +32,13 @@ The goal is:
 
 - only name fields after they are supported by diffs, screenshots, docs, or repeated observation
 - keep unknown bytes raw until they are mapped with confidence
+- when the original UI exposes a higher-level semantic label, prefer that
+  player-facing term over a lower-level storage nickname:
+  - for example, Rust may still carry internal economic field names like
+    `factories` while RE is in progress
+  - but player/client surfaces should ultimately align to classic terms like
+    `Present Production`, `Potential Production`, and `Total Available Points`
+    once those semantics are confirmed
 
 3. Separate stable docs from lab notes
 
@@ -139,6 +146,27 @@ The goal is:
   future SQLite layer exists
 - any future SQLite adoption should sit beside the `.DAT` flow, not replace
   the classic compliance boundary
+
+13. Own manual-defined economy semantics when replay probing stalls
+
+- the manuals clearly define the important economy tradeoff:
+  - empire-wide tax generates yearly production points
+  - newly colonized planets start below maximum production
+  - lower taxes improve development speed
+  - starbases accelerate planetary growth
+- if the original `ECMAINT` replay path is awkward to mutate for a narrow
+  economy experiment, prefer a documented canonical Rust growth rule over
+  indefinite harness fighting
+- that rule should remain:
+  - simple
+  - explicit
+  - monotonic with respect to tax pressure and growth
+  - auditable in tests
+- original-binary evidence should still refine the rule when available, but
+  the project does not need to freeze on economy progress waiting for perfect
+  replay coverage
+- the current canonical Rust economy rule is documented in
+  [docs/economics.md](/home/mag/dev/esterian_conquest/docs/economics.md)
 
 ## What Counts As Success
 

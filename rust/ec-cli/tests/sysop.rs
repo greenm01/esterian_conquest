@@ -39,6 +39,9 @@ fn sysop_can_init_canonical_four_player_start() {
     let game_data = ec_data::CoreGameData::load(&target).expect("generated game should load");
     assert_eq!(game_data.player.records[0].owner_mode_raw(), 0);
     assert_eq!(game_data.planets.records[0].planet_name(), "Not Named Yet");
+    assert_eq!(game_data.player.records[0].tax_rate(), 50);
+    assert_eq!(game_data.planets.records[0].economy_marker_raw(), 50);
+    assert_eq!(game_data.planets.records[0].present_production_points(), Some(100));
     cleanup_dir(&target);
 }
 

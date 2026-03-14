@@ -81,3 +81,43 @@ pub fn decode_real48(data: [u8; 6]) -> Option<f64> {
     let fractional = mantissa as f64 / ((1u64 << 39) as f64);
     Some(sign * (1.0 + fractional) * 2f64.powi(i32::from(exponent) - 129))
 }
+
+pub fn encode_real48(value: f64) -> Option<[u8; 6]> {
+    if !value.is_finite() {
+        return None;
+    }
+    if value == 0.0 {
+        return Some([0; 6]);
+    }
+
+    let sign_bit = if value.is_sign_negative() { 0x80 } else { 0x00 };
+    let abs = value.abs();
+    let exponent_unbiased = abs.log2().floor() as i32;
+    let normalized = abs / 2f64.powi(exponent_unbiased);
+    if !(1.0..2.0).contains(&normalized) {
+        return None;
+    }
+
+    let mut exponent = exponent_unbiased + 129;
+    if !(1..=255).contains(&exponent) {
+        return None;
+    }
+
+    let mut mantissa = ((normalized - 1.0) * ((1u64 << 39) as f64)).round() as u64;
+    if mantissa == (1u64 << 39) {
+        mantissa = 0;
+        exponent += 1;
+        if exponent > 255 {
+            return None;
+        }
+    }
+
+    Some([
+        (mantissa & 0xff) as u8,
+        ((mantissa >> 8) & 0xff) as u8,
+        ((mantissa >> 16) & 0xff) as u8,
+        ((mantissa >> 24) & 0xff) as u8,
+        (((mantissa >> 32) & 0x7f) as u8) | sign_bit,
+        exponent as u8,
+    ])
+}

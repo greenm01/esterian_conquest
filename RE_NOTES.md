@@ -1,5 +1,36 @@
 # Esterian Conquest v1.5 RE Notes
 
+## Session 2026-03-14 - Canonical planet growth rule adopted
+
+- Rechecked the shipped docs:
+  - empire tax rate is player/empire-wide, not per-planet
+  - yearly tax revenue comes from current production
+  - lower taxes help colonies develop current production faster
+  - starbases improve growth and build capacity
+- Built a dedicated mixed-production probe surface:
+  - `ec-cli economy-tax-probe-init`
+  - `ec-cli economy-report`
+  - `tools/economy_tax_probe.py`
+- The existing `ECMAINT /R` replay harness is still awkward for mutated economy
+  experiments:
+  - preserved replay fixtures advance correctly
+  - once a directory is materially mutated for tax/growth probing, the current
+    replay path can collapse to a no-op even when the directory still loads
+    and passes basic oracle acceptance
+- Adopted a documented canonical Rust rule in
+  `rust/ec-data/src/maint/mod.rs`:
+  - apply empire-wide tax to every owned active planet
+  - add yearly tax revenue to `stored_goods_raw`
+  - grow current production toward potential each year
+  - lower tax => faster growth
+  - friendly starbase => growth bonus and higher build capacity
+  - civil-disorder fixture baselines are excluded so preserved maint fixtures
+    remain stable
+- Added focused regression coverage in `rust/ec-data/tests/production.rs`:
+  - Real48 encode/decode round-trips common production values
+  - lower tax produces faster colony growth than high tax
+  - starbases accelerate colony growth
+
 ## RE Policy: Stochastic Mechanics
 
 `ECMAINT` uses an internal RNG for combat (fleet battles, bombardment losses)
@@ -5397,3 +5428,32 @@ This is the current repository example of the documented policy:
   - if stronger classic evidence appears later, fleet-defection cadence and
     emperor-recognition detail can be refined without changing the overall
     architecture
+## Session 2026-03-14 - setup economy seeds and mixed-tax probe
+
+- Rewrote builder-generated starting economy payloads to encode the intended
+  semantics directly instead of relying on player-facing correction:
+  - generated homeworlds now seed with present production `100`
+  - generated starting empire tax is `50%`
+  - initialized builder baselines now also start with `10` armies and `4`
+    ground batteries on homeworlds
+- Kept the older `current_known_*` homeworld seed validators intact because
+  they are still anchored to preserved historical fixture payloads
+  (`12%` / `50-production`) and should not be silently reinterpreted as the
+  new canonical builder target.
+- Ran `tools/economy_tax_probe.py` against mixed-production directories at
+  `25 / 50 / 65 / 80%` empire-wide tax:
+  - the original `ECMAINT` oracle still produced zero diffs on those mutated
+    directories, so it remains unusable as a practical growth oracle for this
+    path
+  - the canonical Rust rule behaved as intended:
+    - lower tax -> faster production growth
+    - higher tax -> more immediate stored production points
+- Important raw-field finding from the Rust probe:
+  - `PLANETS.DAT raw[0x0E]` is not a stable "planet tax rate" field after
+    maintenance
+  - on the homeworld it was overwritten to `4` by the existing
+    autopilot/rogue-AI maintenance path
+  - treat `planet_tax_rate_raw()` as a legacy/raw label for now, not a settled
+    player-facing semantic field
+  - Rust code has now been renamed toward `economy_marker_raw()` to make that
+    uncertainty explicit

@@ -4,6 +4,9 @@ use crate::{
 };
 use std::path::Path;
 
+const HOMEWORLD_PRESENT_PRODUCTION_RAW: [u8; 6] = [0, 0, 0, 0, 72, 135];
+const DEFAULT_EMPIRE_TAX_RATE: u8 = 50;
+
 const CURRENT_KNOWN_ECUTIL_INIT_CONQUEST_CONTROL_HEADER: [u8; 0x55] = [
     0xb8, 0x0b, 0x04, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x64, 0x00, 0x64, 0x00, 0x64, 0x00,
     0x64, 0x00, 0x64, 0x00, 0x64, 0x00, 0x64, 0x00, 0x64, 0x00, 0x64, 0x00, 0x64, 0x00, 0x64, 0x00,
@@ -255,7 +258,7 @@ impl GameStateBuilder {
         // Configure player records
         for (idx, player) in data.player.records.iter_mut().enumerate() {
             player.set_owner_empire_raw((idx + 1) as u8);
-            player.set_tax_rate_raw(0);
+            player.set_tax_rate_raw(DEFAULT_EMPIRE_TAX_RATE);
             player.set_ipbm_count_raw(self.ipbm_count);
             player.set_autopilot_flag(if idx == 0 { 1 } else { 0 });
         }
@@ -265,15 +268,15 @@ impl GameStateBuilder {
             if let Some(planet) = data.planets.records.get_mut(player_idx) {
                 planet.set_as_owned_target_world(
                     *coords,
-                    [100, 135],            // potential_production (default)
-                    [0, 0, 0, 0, 72, 134], // factories (default)
-                    0,                     // tax_rate
+                    [100, 135],                    // potential_production (default)
+                    HOMEWORLD_PRESENT_PRODUCTION_RAW, // current production = 100
+                    DEFAULT_EMPIRE_TAX_RATE,       // economy marker (seeded to empire tax)
                     b"Player 1 HW".len() as u8,
                     Self::name_buffer_for_player(player_idx),
-                    [0; 7],                 // name_suffix_raw
-                    1,                      // army_count
-                    1,                      // ground_batteries
-                    2,                      // ownership_status
+                    [0; 7],                      // name_suffix_raw
+                    10,                          // army_count
+                    4,                           // ground_batteries
+                    2,                           // ownership_status
                     (player_idx + 1) as u8, // owner_empire_slot
                 );
             }
@@ -520,6 +523,7 @@ fn seed_unjoined_player_slot(
     player.raw[0x4D] = homeworld_planet_index_1_based;
     player.raw[0x50] = 0x01;
     player.raw[0x52..0x54].copy_from_slice(&100u16.to_le_bytes());
+    player.set_tax_rate_raw(DEFAULT_EMPIRE_TAX_RATE);
     player.set_ipbm_count_raw(ipbm_count);
 }
 
@@ -527,8 +531,8 @@ fn seed_unjoined_homeworld_seed(planet: &mut PlanetRecord, coords: [u8; 2], owne
     planet.set_as_owned_target_world(
         coords,
         [100, 135],
-        [0, 0, 0, 0, 72, 134],
-        12,
+        HOMEWORLD_PRESENT_PRODUCTION_RAW,
+        DEFAULT_EMPIRE_TAX_RATE,
         13,
         {
             let mut name = [0u8; 13];

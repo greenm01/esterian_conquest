@@ -15,6 +15,9 @@ fn builder_creates_valid_gamestate() {
     // Validate with preflight
     let errors = data.ecmaint_preflight_errors();
     assert!(errors.is_empty(), "Preflight errors: {:?}", errors);
+    assert_eq!(data.player.records[0].tax_rate(), 50);
+    assert_eq!(data.planets.records[0].present_production_points(), Some(100));
+    assert_eq!(data.planets.records[0].economy_marker_raw(), 50);
 }
 
 #[test]
@@ -105,5 +108,8 @@ fn builder_can_create_joinable_new_game_baseline() {
     assert_eq!(data.planets.records[0].owner_empire_slot_raw(), 1);
     assert_eq!(data.planets.records[0].army_count_raw(), 10);
     assert_eq!(data.planets.records[0].ground_batteries_raw(), 4);
+    assert_eq!(data.player.records[0].tax_rate(), 50);
+    assert_eq!(data.planets.records[0].economy_marker_raw(), 50);
+    assert_eq!(data.planets.records[0].present_production_points(), Some(100));
     assert!(data.ecmaint_preflight_errors().is_empty());
 }

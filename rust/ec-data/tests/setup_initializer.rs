@@ -20,8 +20,10 @@ fn canonical_four_player_start_matches_documented_opening_shape() {
         assert_eq!(planet.coords_raw(), coords);
         assert_eq!(planet.owner_empire_slot_raw(), (idx + 1) as u8);
         assert_eq!(planet.ownership_status_raw(), 2);
-        assert_eq!(planet.army_count_raw(), 1);
-        assert_eq!(planet.ground_batteries_raw(), 1);
+        assert_eq!(planet.army_count_raw(), 10);
+        assert_eq!(planet.ground_batteries_raw(), 4);
+        assert_eq!(planet.economy_marker_raw(), 50);
+        assert_eq!(planet.present_production_points(), Some(100));
     }
 
     for player_idx in 0..4 {

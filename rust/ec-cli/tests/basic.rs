@@ -336,7 +336,7 @@ fn core_diff_current_known_baseline_reports_mutated_files() {
 
     let mut data = ec_data::CoreGameData::load(&target).unwrap();
     data.setup.raw[..5].copy_from_slice(b"BAD!!");
-    data.planets.records[14].set_planet_tax_rate_raw(3);
+    data.planets.records[14].set_economy_marker_raw(3);
     data.save(&target).unwrap();
 
     let stdout = run_ec_cli_in_dir(
@@ -357,7 +357,7 @@ fn core_diff_current_known_baseline_offsets_reports_mutated_offsets() {
 
     let mut data = ec_data::CoreGameData::load(&target).unwrap();
     data.setup.raw[..5].copy_from_slice(b"BAD!!");
-    data.planets.records[14].set_planet_tax_rate_raw(3);
+    data.planets.records[14].set_economy_marker_raw(3);
     data.save(&target).unwrap();
 
     let stdout = run_ec_cli_in_dir(
@@ -409,7 +409,7 @@ fn core_diff_canonical_current_known_baseline_offsets_reports_mutated_offsets() 
 
     let mut data = ec_data::CoreGameData::load(&target).unwrap();
     data.setup.raw[..5].copy_from_slice(b"BAD!!");
-    data.planets.records[14].set_planet_tax_rate_raw(3);
+    data.planets.records[14].set_economy_marker_raw(3);
     data.save(&target).unwrap();
 
     let stdout = run_ec_cli_in_dir(

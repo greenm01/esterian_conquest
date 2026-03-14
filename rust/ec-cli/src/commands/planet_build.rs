@@ -162,7 +162,7 @@ pub(crate) fn init_planet_original(dir: &Path) -> Result<(), Box<dyn std::error:
         record.set_factories_word_raw(fact_word);
         record.set_army_count_raw(if idx == 16 { 142 } else { 10 });
         record.set_ground_batteries_raw(if idx == 16 { 15 } else { 4 });
-        record.set_planet_tax_rate_raw(tax);
+        record.set_economy_marker_raw(tax);
     }
 
     // Unowned planets

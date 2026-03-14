@@ -1,5 +1,5 @@
 use crate::PLANET_RECORD_SIZE;
-use crate::support::{ParseError, copy_array, decode_real48};
+use crate::support::{ParseError, copy_array, decode_real48, encode_real48};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProductionItemKind {
@@ -84,16 +84,26 @@ impl PlanetRecord {
         self.raw[0x04..0x0A].copy_from_slice(&value);
     }
 
-    pub fn potential_production_points_current_known(&self) -> u16 {
+    pub fn potential_production_points(&self) -> u16 {
         self.raw[0x02] as u16
     }
 
-    pub fn present_production_points_current_known(&self) -> Option<u16> {
+    pub fn present_production_points(&self) -> Option<u16> {
         let decoded = decode_real48(self.factories_raw()).map(|value| value.round().max(0.0) as u16)?;
         if self.is_homeworld_seed_ignoring_name() {
-            Some(decoded.max(self.potential_production_points_current_known()))
+            Some(decoded.max(self.potential_production_points()))
         } else {
             Some(decoded)
+        }
+    }
+
+    pub fn set_present_production_points(&mut self, value: u16) -> bool {
+        match encode_real48(f64::from(value)) {
+            Some(encoded) => {
+                self.set_factories_raw(encoded);
+                true
+            }
+            None => false,
         }
     }
 
@@ -111,10 +121,26 @@ impl PlanetRecord {
         self.raw[0x0A..0x0E].copy_from_slice(&value.to_le_bytes());
     }
 
-    pub fn planet_tax_rate_raw(&self) -> u8 {
+    pub fn stored_production_points(&self) -> u32 {
+        self.stored_goods_raw()
+    }
+
+    pub fn set_stored_production_points(&mut self, value: u32) {
+        self.set_stored_goods_raw(value);
+    }
+
+    pub fn potential_production_points_current_known(&self) -> u16 {
+        self.potential_production_points()
+    }
+
+    pub fn present_production_points_current_known(&self) -> Option<u16> {
+        self.present_production_points()
+    }
+
+    pub fn economy_marker_raw(&self) -> u8 {
         self.raw[0x0E]
     }
-    pub fn set_planet_tax_rate_raw(&mut self, value: u8) {
+    pub fn set_economy_marker_raw(&mut self, value: u8) {
         self.raw[0x0E] = value;
     }
 
@@ -206,7 +232,7 @@ impl PlanetRecord {
     /// - coords [0x00..0x01]
     /// - potential_production [0x02..0x03]
     /// - factories (6 bytes) [0x04..0x09]
-    /// - tax_rate [0x0e]
+    /// - economy marker byte [0x0e]
     /// - planet name (len + 13-byte buffer) [0x0f..0x1c]
     /// - name_suffix_raw (7 bytes) [0x1d..0x23]
     /// - army_count [0x58], ground_batteries [0x5a]
@@ -220,7 +246,7 @@ impl PlanetRecord {
         coords: [u8; 2],
         potential_production: [u8; 2],
         factories: [u8; 6],
-        tax_rate: u8,
+        economy_marker: u8,
         name_len: u8,
         name_buffer: [u8; 13],
         name_suffix_raw: [u8; 7],
@@ -234,7 +260,7 @@ impl PlanetRecord {
         self.raw[0x01] = coords[1];
         self.set_potential_production_raw(potential_production);
         self.set_factories_raw(factories);
-        self.raw[0x0E] = tax_rate;
+        self.raw[0x0E] = economy_marker;
         self.set_planet_name_buffer(name_len, &name_buffer);
         self.set_name_suffix_raw(name_suffix_raw);
         self.raw[0x58] = army_count;
@@ -298,7 +324,9 @@ impl PlanetRecord {
     }
 
     pub fn is_homeworld_seed_ignoring_name(&self) -> bool {
-        self.ownership_status_raw() == 2 && self.owner_empire_slot_raw() != 0
+        self.ownership_status_raw() == 2
+            && self.owner_empire_slot_raw() != 0
+            && self.raw[0x03] == 0x87
     }
 
     pub fn derived_summary(&self) -> String {

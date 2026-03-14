@@ -51,9 +51,7 @@ impl RankingsScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let viewer_idx = frame.player.record_index_1_based;
         let viewer = &frame.game_data.player.records[viewer_idx - 1];
-        let rows = frame
-            .game_data
-            .empire_production_ranking_rows_current_known(sort);
+        let rows = frame.game_data.empire_production_ranking_rows(sort);
 
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "OTHER EMPIRES (RANKINGS):");

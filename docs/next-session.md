@@ -63,9 +63,34 @@ Primary goal:
 - `ECGAME` local DOSBox launch is now documented and working with the corrected
   local-console `CHAIN.TXT` settings in
   [`docs/dosbox-workflow.md`](/home/mag/dev/esterian_conquest/docs/dosbox-workflow.md)
+- planet economy now has an explicit canonical Rust rule where the original
+  replay oracle is still awkward to probe directly:
+  - empire-wide tax sets yearly revenue on every owned planet
+  - lower tax accelerates current-production growth toward potential
+  - starbases boost growth and build capacity
+  - civil-disorder baselines are left alone so preserved maint fixtures stay
+    stable
+- the canonical economy rule is now documented in
+  [economics.md](/home/mag/dev/esterian_conquest/docs/economics.md)
+- builder-generated starts now encode the intended opening economy directly:
+  - homeworld current production starts at `100`
+  - default empire tax starts at `50%`
+  - canonical initialized homeworlds start with `10` armies and `4` batteries
 
 ## Biggest Remaining Engine Questions
 
+- player-facing production semantics are not fully decoded yet:
+  - original `ECGAME` exposes `Present Production`, `Potential Production`,
+    `Total Available Points`, and empire/planet production rankings
+  - Rust still has raw/RE-facing economic field names like `factories` for
+    underlying Borland Pascal `Real` storage
+  - next engine/UI alignment work should decode and expose the original
+    production semantics instead of leaking raw field names into client screens
+- `PLANETS.DAT raw[0x0E]` is not a settled planet-tax field:
+  - mixed-tax Rust probes show it being overwritten during the existing
+    autopilot/rogue AI path
+  - do not treat `planet_tax_rate_raw()` as a stable player-facing semantic
+    field after maintenance until that byte is fully decoded
 - emperor-recognition details may still need refinement if stronger classic
   evidence appears
 - fleet-defection cadence is currently conservative and deterministic, not
@@ -125,7 +150,15 @@ First concrete work:
    - reports and intel views
    - diplomacy screens
    - order-entry workflow
-4. Use the now-working DOSBox `ECGAME` harness to capture only the player-side
+4. Keep tightening original production semantics for player-facing screens:
+   - empire profile / rankings / planet info should use classic terms like
+     `Present Production`, `Potential Production`, and `Total Available Points`
+   - do not expose raw internal names like `factories` in the client UI
+   - if stronger oracle evidence appears, refine the canonical Rust growth
+     formula rather than reintroducing placeholder arithmetic
+   - decode or rename the overloaded per-planet `raw[0x0E]` byte before using
+     it for more player-facing economy output
+5. Use the now-working DOSBox `ECGAME` harness to capture only the player-side
    screens and behaviors needed for the first Rust clone pass.
-5. Keep SQLite and turn-limit policy deferred. They are approved future
+6. Keep SQLite and turn-limit policy deferred. They are approved future
    architecture, not the current milestone.

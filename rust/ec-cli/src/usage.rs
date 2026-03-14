@@ -106,6 +106,8 @@ pub fn print_usage() {
     println!(
         "  ec-cli econ-batch-init [source_dir] <target_root> <x:y:bb:ca:dd:p14x:p14y:p14a:p14b> ..."
     );
+    println!("  ec-cli economy-report [dir] [player_record]");
+    println!("  ec-cli economy-tax-probe-init [dir] [player_record] [tax_rate]");
     println!("  ec-cli ipbm-report <dir>");
     println!("  ec-cli player-tax <dir> <player_record> <rate>");
     println!("  ec-cli ipbm-zero <dir> <count>");
