@@ -39,6 +39,12 @@ impl MessageComposeScreen {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "COMMUNICATE (SEND MESSAGE):");
         buffer.write_text(2, 0, "Available empires:", classic::body_style());
+        buffer.write_text(
+            3,
+            0,
+            "Press D to review or delete queued outgoing messages.",
+            classic::body_style(),
+        );
         let rows = frame
             .game_data
             .player
@@ -56,7 +62,7 @@ impl MessageComposeScreen {
             .collect::<Vec<_>>();
         write_table_window(
             &mut buffer,
-            4,
+            5,
             &RECIPIENT_COLUMNS,
             &rows,
             scroll_offset,
@@ -64,11 +70,11 @@ impl MessageComposeScreen {
             classic::status_value_style(),
             classic::status_value_style(),
         );
-        let prompt_row = 17;
+        let prompt_row = 18;
         let prompt = format!("Enter recipient empire number: {input}");
         let cursor_col = draw_plain_prompt(&mut buffer, prompt_row, &prompt);
         if let Some(status) = status {
-            buffer.write_text(18, 0, status, classic::status_value_style());
+            buffer.write_text(17, 0, status, classic::status_value_style());
         }
         draw_command_prompt(&mut buffer, 19, "GENERAL COMMAND", "ARROWS J K D Q");
         buffer.set_cursor(cursor_col as u16, prompt_row as u16);
