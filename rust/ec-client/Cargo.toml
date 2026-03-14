@@ -1,0 +1,12 @@
+[package]
+name = "ec-client"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "ec-client"
+path = "src/main.rs"
+
+[dependencies]
+crossterm = "0.28"
+ec-data = { path = "../ec-data" }

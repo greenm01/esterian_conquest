@@ -187,6 +187,27 @@ The important point is separation:
 - `ec-data` decides state semantics
 - rendering stays isolated from rules
 
+### Client Loop Style
+
+Use a reducer-style action/update/render loop inspired by SAM, but do not turn
+that into a framework.
+
+Recommended shape:
+
+- screen renders current state
+- key input maps to an `Action`
+- one update path applies that action to app state
+- the app renders again from the new state
+
+That gives the useful part of SAM:
+
+- explicit actions
+- one-way state transitions
+- render-from-state discipline
+
+Without adding unnecessary ceremony like a formal acceptor/next-action
+framework for what is currently a local terminal state machine.
+
 ## Immediate Feature Slice
 
 The first usable Rust client does not need full parity on day one.
