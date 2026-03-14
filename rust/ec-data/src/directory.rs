@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     BaseDat, BaseRecord, ConquestDat, DiplomaticRelation, FleetDat, FleetRecord, IPBM_RECORD_SIZE,
-    IpbmDat, IpbmRecord, ParseError, PlanetDat, PlayerDat, SetupDat,
+    IpbmDat, IpbmRecord, ParseError, PlanetDat, PlayerDat, ProductionItemKind, SetupDat,
 };
 
 const CURRENT_KNOWN_POST_MAINT_CONQUEST_CONTROL_HEADER: [u8; 0x55] = [
@@ -68,6 +68,48 @@ pub struct CurrentKnownGuardStarbaseLinkageSummary {
     pub selected_base_coords: Option<[u8; 2]>,
     pub selected_base_trailing_coords: Option<[u8; 2]>,
     pub selected_base_owner_empire: Option<u8>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct EmpireUnitSummary {
+    pub destroyers: u32,
+    pub cruisers: u32,
+    pub battleships: u32,
+    pub scouts: u32,
+    pub transports: u32,
+    pub etacs: u32,
+    pub starbases: u32,
+    pub armies: u32,
+    pub ground_batteries: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct EmpireEconomySummary {
+    pub owned_planets: usize,
+    pub present_production: u16,
+    pub potential_production: u16,
+    pub total_available_points: u32,
+    pub efficiency_percent: f64,
+    pub rank_by_planets: usize,
+    pub rank_by_present_production: usize,
+    pub tax_rate: u8,
+    pub max_fleets_and_bases: usize,
+    pub current_fleets_and_bases: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EmpireProductionRankingSort {
+    Id,
+    Production,
+    NumberOfPlanets,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EmpireProductionRankingRow {
+    pub empire_id: u8,
+    pub empire_name: String,
+    pub planets_owned: usize,
+    pub current_production: u16,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -252,12 +294,262 @@ impl CoreGameData {
             .count()
     }
 
-    pub fn player1_ipbm_count_current_known(&self) -> usize {
+    pub fn player_owned_fleet_count_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> usize {
+        self.fleets
+            .records
+            .iter()
+            .filter(|record| record.owner_empire_raw() as usize == player_record_index_1_based)
+            .count()
+    }
+
+    pub fn player_ipbm_count_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> usize {
         self.player
             .records
-            .first()
+            .get(player_record_index_1_based - 1)
             .map(|record| record.ipbm_count_raw() as usize)
             .unwrap_or(0)
+    }
+
+    pub fn player1_ipbm_count_current_known(&self) -> usize {
+        self.player_ipbm_count_current_known(1)
+    }
+
+    pub fn empire_present_production_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> u16 {
+        self.planets
+            .records
+            .iter()
+            .filter(|record| record.owner_empire_slot_raw() as usize == player_record_index_1_based)
+            .filter_map(|record| record.present_production_points_current_known())
+            .sum()
+    }
+
+    pub fn empire_potential_production_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> u16 {
+        self.planets
+            .records
+            .iter()
+            .filter(|record| record.owner_empire_slot_raw() as usize == player_record_index_1_based)
+            .map(|record| record.potential_production_points_current_known())
+            .sum()
+    }
+
+    pub fn empire_total_available_points_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> u32 {
+        let tax_rate = self
+            .player
+            .records
+            .get(player_record_index_1_based - 1)
+            .map(|record| u32::from(record.tax_rate()))
+            .unwrap_or(0);
+
+        self.planets
+            .records
+            .iter()
+            .filter(|record| record.owner_empire_slot_raw() as usize == player_record_index_1_based)
+            .filter_map(|record| {
+                record
+                    .present_production_points_current_known()
+                    .map(|points| (u32::from(points) * tax_rate) / 100)
+            })
+            .sum()
+    }
+
+    pub fn empire_efficiency_percent_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> f64 {
+        let potential = self.empire_potential_production_current_known(player_record_index_1_based);
+        if potential == 0 {
+            return 0.0;
+        }
+        let present = self.empire_present_production_current_known(player_record_index_1_based);
+        (present as f64 / potential as f64) * 100.0
+    }
+
+    pub fn empire_current_fleets_and_bases_count_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> usize {
+        self.player_owned_fleet_count_current_known(player_record_index_1_based)
+            + self.player_owned_base_record_count_current_known(player_record_index_1_based)
+    }
+
+    pub fn empire_rank_by_planets_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> usize {
+        let own = self.player_owned_planet_count_current_known(player_record_index_1_based);
+        1 + (1..=self.player.records.len())
+            .filter(|&idx| idx != player_record_index_1_based)
+            .filter(|&idx| self.player_owned_planet_count_current_known(idx) > own)
+            .count()
+    }
+
+    pub fn empire_rank_by_present_production_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> usize {
+        let own = self.empire_present_production_current_known(player_record_index_1_based);
+        1 + (1..=self.player.records.len())
+            .filter(|&idx| idx != player_record_index_1_based)
+            .filter(|&idx| self.empire_present_production_current_known(idx) > own)
+            .count()
+    }
+
+    pub fn empire_economy_summary_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> EmpireEconomySummary {
+        let tax_rate = self
+            .player
+            .records
+            .get(player_record_index_1_based - 1)
+            .map(|record| record.tax_rate())
+            .unwrap_or(0);
+        EmpireEconomySummary {
+            owned_planets: self.player_owned_planet_count_current_known(player_record_index_1_based),
+            present_production: self
+                .empire_present_production_current_known(player_record_index_1_based),
+            potential_production: self
+                .empire_potential_production_current_known(player_record_index_1_based),
+            total_available_points: self
+                .empire_total_available_points_current_known(player_record_index_1_based),
+            efficiency_percent: self
+                .empire_efficiency_percent_current_known(player_record_index_1_based),
+            rank_by_planets: self.empire_rank_by_planets_current_known(player_record_index_1_based),
+            rank_by_present_production: self
+                .empire_rank_by_present_production_current_known(player_record_index_1_based),
+            tax_rate,
+            max_fleets_and_bases: 500,
+            current_fleets_and_bases: self
+                .empire_current_fleets_and_bases_count_current_known(player_record_index_1_based),
+        }
+    }
+
+    pub fn empire_active_duty_summary_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> EmpireUnitSummary {
+        let empire_raw = player_record_index_1_based as u8;
+        let mut summary = EmpireUnitSummary::default();
+
+        for fleet in &self.fleets.records {
+            if fleet.owner_empire_raw() != empire_raw {
+                continue;
+            }
+            summary.destroyers += u32::from(fleet.destroyer_count());
+            summary.cruisers += u32::from(fleet.cruiser_count());
+            summary.battleships += u32::from(fleet.battleship_count());
+            summary.scouts += u32::from(fleet.scout_count());
+            summary.transports += u32::from(fleet.troop_transport_count());
+            summary.etacs += u32::from(fleet.etac_count());
+        }
+
+        summary.starbases = self.player_owned_base_record_count_current_known(player_record_index_1_based)
+            as u32;
+
+        for planet in &self.planets.records {
+            if planet.owner_empire_slot_raw() != empire_raw {
+                continue;
+            }
+            summary.armies += u32::from(planet.army_count_raw());
+            summary.ground_batteries += u32::from(planet.ground_batteries_raw());
+        }
+
+        summary
+    }
+
+    pub fn empire_stardock_summary_current_known(
+        &self,
+        player_record_index_1_based: usize,
+    ) -> EmpireUnitSummary {
+        let empire_raw = player_record_index_1_based as u8;
+        let mut summary = EmpireUnitSummary::default();
+
+        for planet in &self.planets.records {
+            if planet.owner_empire_slot_raw() != empire_raw {
+                continue;
+            }
+            for slot in 0..10 {
+                let count = u32::from(planet.stardock_count_raw(slot));
+                if count == 0 {
+                    continue;
+                }
+                match planet.stardock_item_kind_current_known(slot) {
+                    ProductionItemKind::Destroyer => summary.destroyers += count,
+                    ProductionItemKind::Cruiser => summary.cruisers += count,
+                    ProductionItemKind::Battleship => summary.battleships += count,
+                    ProductionItemKind::Scout => summary.scouts += count,
+                    ProductionItemKind::Transport => summary.transports += count,
+                    ProductionItemKind::Etac => summary.etacs += count,
+                    ProductionItemKind::Starbase => summary.starbases += count,
+                    ProductionItemKind::GroundBattery => {
+                        summary.ground_batteries += count;
+                    }
+                    ProductionItemKind::Army => summary.armies += count,
+                    ProductionItemKind::Unknown(_) => {}
+                }
+            }
+        }
+
+        summary
+    }
+
+    pub fn empire_production_ranking_rows_current_known(
+        &self,
+        sort: EmpireProductionRankingSort,
+    ) -> Vec<EmpireProductionRankingRow> {
+        let mut rows = self
+            .player
+            .records
+            .iter()
+            .enumerate()
+            .map(|(idx, record)| EmpireProductionRankingRow {
+                empire_id: (idx + 1) as u8,
+                empire_name: empire_name_for_rankings(record),
+                planets_owned: self.player_owned_planet_count_current_known(idx + 1),
+                current_production: self.empire_present_production_current_known(idx + 1),
+            })
+            .collect::<Vec<_>>();
+
+        match sort {
+            EmpireProductionRankingSort::Id => {
+                rows.sort_by_key(|row| row.empire_id);
+            }
+            EmpireProductionRankingSort::Production => {
+                rows.sort_by(|left, right| {
+                    right
+                        .current_production
+                        .cmp(&left.current_production)
+                        .then_with(|| right.planets_owned.cmp(&left.planets_owned))
+                        .then_with(|| left.empire_id.cmp(&right.empire_id))
+                });
+            }
+            EmpireProductionRankingSort::NumberOfPlanets => {
+                rows.sort_by(|left, right| {
+                    right
+                        .planets_owned
+                        .cmp(&left.planets_owned)
+                        .then_with(|| right.current_production.cmp(&left.current_production))
+                        .then_with(|| left.empire_id.cmp(&right.empire_id))
+                });
+            }
+        }
+
+        rows
     }
 
     pub fn empire_campaign_state(&self, empire_raw: u8) -> Option<CampaignState> {
@@ -2280,6 +2572,20 @@ impl CoreGameData {
         }
 
         errors
+    }
+}
+
+fn empire_name_for_rankings(record: &crate::PlayerRecord) -> String {
+    let empire = record.controlled_empire_name_summary();
+    if !empire.is_empty() {
+        return empire;
+    }
+
+    let legacy = record.legacy_status_name_summary();
+    if !legacy.is_empty() {
+        legacy
+    } else {
+        "Unknown".to_string()
     }
 }
 

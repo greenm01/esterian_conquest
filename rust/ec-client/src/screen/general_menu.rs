@@ -5,6 +5,7 @@ use crate::screen::layout::{
     MenuEntry, draw_command_prompt, draw_menu_entry, draw_menu_row, draw_title_bar, new_playfield,
 };
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
+use ec_data::EmpireProductionRankingSort;
 
 pub struct GeneralMenuScreen;
 
@@ -49,6 +50,11 @@ impl Screen for GeneralMenuScreen {
 
     fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
+            KeyCode::Char('s') | KeyCode::Char('S') => Action::OpenEmpireStatus,
+            KeyCode::Char('p') | KeyCode::Char('P') => Action::OpenEmpireProfile,
+            KeyCode::Char('o') | KeyCode::Char('O') => {
+                Action::OpenRankingsTable(EmpireProductionRankingSort::Production)
+            }
             KeyCode::Char('r') | KeyCode::Char('R') => Action::OpenReports,
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenMainMenu,
             _ => Action::Noop,

@@ -27,7 +27,8 @@ fn run_interactive(
     enable_raw_mode()?;
     let result = run_interactive_inner(app, terminal);
     disable_raw_mode()?;
-    result
+    let cleanup_result = terminal.clear_and_restore();
+    result.and(cleanup_result)
 }
 
 fn run_interactive_inner(

@@ -6,8 +6,8 @@ use ec_data::CoreGameData;
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
 use crate::reports::ReportsPreview;
 use crate::screen::{
-    GeneralMenuScreen, MainMenuScreen, ReportsScreen, Screen, ScreenFrame, ScreenId,
-    StartupScreen,
+    EmpireProfileScreen, EmpireStatusScreen, GeneralMenuScreen, MainMenuScreen, RankingsScreen,
+    RankingsView, ReportsScreen, Screen, ScreenFrame, ScreenId, StartupScreen,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -27,6 +27,9 @@ pub struct App {
     startup: StartupScreen,
     main_menu: MainMenuScreen,
     general_menu: GeneralMenuScreen,
+    empire_status: EmpireStatusScreen,
+    empire_profile: EmpireProfileScreen,
+    rankings: RankingsScreen,
     reports: ReportsScreen,
 }
 
@@ -59,6 +62,9 @@ impl App {
             startup: StartupScreen::new(startup_summary, reports.clone()),
             main_menu: MainMenuScreen::new(),
             general_menu: GeneralMenuScreen::new(),
+            empire_status: EmpireStatusScreen::new(),
+            empire_profile: EmpireProfileScreen::new(),
+            rankings: RankingsScreen::new(),
             reports: ReportsScreen::new(reports, review_summary),
         })
     }
@@ -77,6 +83,12 @@ impl App {
             ScreenId::Startup(phase) => self.startup.render_phase(&frame, phase)?,
             ScreenId::MainMenu => self.main_menu.render(&frame)?,
             ScreenId::GeneralMenu => self.general_menu.render(&frame)?,
+            ScreenId::EmpireStatus => self.empire_status.render(&frame)?,
+            ScreenId::EmpireProfile => self.empire_profile.render(&frame)?,
+            ScreenId::Rankings(RankingsView::Prompt) => self.rankings.render_prompt(&frame)?,
+            ScreenId::Rankings(RankingsView::Table(sort)) => {
+                self.rankings.render_table(&frame, sort)?
+            }
             ScreenId::Reports => self.reports.render(&frame)?,
         };
         terminal.render(&playfield)
@@ -108,6 +120,10 @@ impl App {
             ScreenId::Startup(phase) => self.startup.handle_key(phase, key),
             ScreenId::MainMenu => self.main_menu.handle_key(key),
             ScreenId::GeneralMenu => self.general_menu.handle_key(key),
+            ScreenId::EmpireStatus => self.empire_status.handle_key(key),
+            ScreenId::EmpireProfile => self.empire_profile.handle_key(key),
+            ScreenId::Rankings(RankingsView::Prompt) => self.rankings.handle_prompt_key(key),
+            ScreenId::Rankings(RankingsView::Table(_)) => self.rankings.handle_table_key(key),
             ScreenId::Reports => self.reports.handle_key(key),
         }
     }

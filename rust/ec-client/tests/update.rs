@@ -1,8 +1,9 @@
 use std::path::PathBuf;
 
-use ec_client::app::{Action, AppConfig, AppOutcome, apply_action, App};
-use ec_client::screen::ScreenId;
+use ec_client::app::{Action, AppConfig, AppOutcome, App, apply_action};
+use ec_client::screen::{RankingsView, ScreenId};
 use ec_client::startup::StartupPhase;
+use ec_data::EmpireProductionRankingSort;
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -48,6 +49,30 @@ fn apply_action_switches_between_client_screens() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::Reports);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenEmpireStatus),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::EmpireStatus);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenEmpireProfile),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::EmpireProfile);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::OpenRankingsTable(EmpireProductionRankingSort::Production)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Rankings(RankingsView::Table(EmpireProductionRankingSort::Production))
+    );
 
     assert_eq!(
         apply_action(&mut app, Action::OpenMainMenu),

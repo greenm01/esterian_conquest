@@ -1,5 +1,36 @@
 use crate::PLANET_RECORD_SIZE;
-use crate::support::{ParseError, copy_array};
+use crate::support::{ParseError, copy_array, decode_real48};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProductionItemKind {
+    Destroyer,
+    Cruiser,
+    Battleship,
+    Scout,
+    Transport,
+    Etac,
+    GroundBattery,
+    Army,
+    Starbase,
+    Unknown(u8),
+}
+
+impl ProductionItemKind {
+    pub fn from_raw(raw: u8) -> Self {
+        match raw {
+            1 => Self::Destroyer,
+            2 => Self::Cruiser,
+            3 => Self::Battleship,
+            4 => Self::Scout,
+            5 => Self::Transport,
+            6 => Self::Etac,
+            7 => Self::GroundBattery,
+            8 => Self::Army,
+            9 => Self::Starbase,
+            other => Self::Unknown(other),
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanetRecord {
@@ -51,6 +82,19 @@ impl PlanetRecord {
     }
     pub fn set_factories_raw(&mut self, value: [u8; 6]) {
         self.raw[0x04..0x0A].copy_from_slice(&value);
+    }
+
+    pub fn potential_production_points_current_known(&self) -> u16 {
+        self.raw[0x02] as u16
+    }
+
+    pub fn present_production_points_current_known(&self) -> Option<u16> {
+        let decoded = decode_real48(self.factories_raw()).map(|value| value.round().max(0.0) as u16)?;
+        if self.is_homeworld_seed_ignoring_name() {
+            Some(decoded.max(self.potential_production_points_current_known()))
+        } else {
+            Some(decoded)
+        }
     }
 
     pub fn factories_word_raw(&self) -> u16 {
@@ -135,6 +179,10 @@ impl PlanetRecord {
 
     pub fn stardock_kind_raw(&self, slot: usize) -> u8 {
         self.raw[0x4C + slot]
+    }
+
+    pub fn stardock_item_kind_current_known(&self, slot: usize) -> ProductionItemKind {
+        ProductionItemKind::from_raw(self.stardock_kind_raw(slot))
     }
 
     pub fn set_stardock_count_raw(&mut self, slot: usize, value: u16) {

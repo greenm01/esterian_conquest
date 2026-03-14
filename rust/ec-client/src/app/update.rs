@@ -25,6 +25,24 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             *app.current_screen_mut() = crate::screen::ScreenId::GeneralMenu;
             AppOutcome::Continue
         }
+        Action::OpenEmpireStatus => {
+            *app.current_screen_mut() = crate::screen::ScreenId::EmpireStatus;
+            AppOutcome::Continue
+        }
+        Action::OpenEmpireProfile => {
+            *app.current_screen_mut() = crate::screen::ScreenId::EmpireProfile;
+            AppOutcome::Continue
+        }
+        Action::OpenRankingsPrompt => {
+            *app.current_screen_mut() =
+                crate::screen::ScreenId::Rankings(crate::screen::RankingsView::Prompt);
+            AppOutcome::Continue
+        }
+        Action::OpenRankingsTable(sort) => {
+            *app.current_screen_mut() =
+                crate::screen::ScreenId::Rankings(crate::screen::RankingsView::Table(sort));
+            AppOutcome::Continue
+        }
         Action::OpenReports => {
             *app.current_screen_mut() = crate::screen::ScreenId::Reports;
             AppOutcome::Continue

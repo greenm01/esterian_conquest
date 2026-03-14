@@ -30,7 +30,8 @@ pub use config::{
 };
 pub use directory::{
     CampaignOutcome, CampaignOutlook, CampaignState, CoreGameData, CurrentKnownComplianceStatus,
-    CurrentKnownGuardStarbaseLinkageSummary, CurrentKnownKeyWordSummary, GameDirectoryError,
+    CurrentKnownGuardStarbaseLinkageSummary, CurrentKnownKeyWordSummary, EmpireEconomySummary,
+    EmpireProductionRankingRow, EmpireProductionRankingSort, EmpireUnitSummary, GameDirectoryError,
     GameStateMutationError,
 };
 pub use maint::{
@@ -55,7 +56,7 @@ pub use records::conquest::ConquestDat;
 pub use records::database::{DatabaseDat, DatabaseRecord};
 pub use records::fleet::{FleetDat, FleetRecord, Order};
 pub use records::ipbm::{IpbmDat, IpbmRecord};
-pub use records::planet::{PlanetDat, PlanetRecord};
+pub use records::planet::{PlanetDat, PlanetRecord, ProductionItemKind};
 pub use records::player::{DiplomaticRelation, PlayerDat, PlayerRecord};
 pub use records::setup::SetupDat;
-pub use support::ParseError;
+pub use support::{ParseError, decode_real48};

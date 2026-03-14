@@ -72,6 +72,23 @@ impl Terminal for StdoutTerminal {
             }
         }
     }
+
+    fn clear_and_restore(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let mut stdout = io::stdout();
+        if stdout.is_terminal() {
+            execute!(
+                stdout,
+                SetBackgroundColor(Color::Black),
+                SetForegroundColor(Color::Grey),
+                Clear(ClearType::All),
+                MoveTo(0, 0),
+                Show
+            )?;
+            stdout.write_all(b"\x1b[0m")?;
+            stdout.flush()?;
+        }
+        Ok(())
+    }
 }
 
 fn render_ansi_row(row: &[crate::screen::Cell]) -> String {
