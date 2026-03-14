@@ -21,6 +21,25 @@ pub fn yearly_growth_delta(
     growth.max(1).min(u32::from(gap)) as u16
 }
 
+pub fn yearly_high_tax_penalty(
+    present_production: u16,
+    empire_tax_rate: u8,
+    has_friendly_starbase: bool,
+) -> u16 {
+    if present_production == 0 {
+        return 0;
+    }
+
+    let safe_tax = if has_friendly_starbase { 70 } else { 65 };
+    if empire_tax_rate <= safe_tax {
+        return 0;
+    }
+
+    let overtax = u16::from(empire_tax_rate - safe_tax);
+    let penalty = ((u32::from(present_production) * u32::from(overtax)) + 499) / 500;
+    penalty.max(1).min(u32::from(present_production)) as u16
+}
+
 pub fn build_capacity(present_production: u16, has_friendly_starbase: bool) -> u16 {
     if has_friendly_starbase {
         present_production.saturating_mul(5)

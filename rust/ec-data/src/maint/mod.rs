@@ -4,7 +4,8 @@ mod combat;
 
 use crate::{
     CoreGameData, DiplomaticRelation, Order, VisibleHazardIntel, build_capacity,
-    next_path_step, plan_route_with_intel, yearly_growth_delta, yearly_tax_revenue,
+    next_path_step, plan_route_with_intel, yearly_growth_delta, yearly_high_tax_penalty,
+    yearly_tax_revenue,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -1718,6 +1719,7 @@ fn process_build_completion(
 /// - taxed revenue is added to the planet's stored production pool
 /// - current production grows toward potential every year
 /// - lower taxes accelerate growth
+/// - taxes above the safe threshold can directly reduce present production
 /// - a friendly starbase on the planet boosts both growth and build capacity
 fn process_planet_economics(
     game_data: &mut CoreGameData,
@@ -1758,11 +1760,15 @@ fn process_planet_economics(
             tax_rate,
             has_starbase,
         );
+        let penalty = yearly_high_tax_penalty(current_production, tax_rate, has_starbase);
 
         let planet = &mut game_data.planets.records[planet_idx];
         planet.set_economy_marker_raw(tax_rate);
         planet.set_stored_goods_raw(planet.stored_goods_raw().saturating_add(revenue));
-        let new_current_production = current_production.saturating_add(growth).min(potential_production);
+        let new_current_production = current_production
+            .saturating_add(growth)
+            .saturating_sub(penalty)
+            .min(potential_production);
         let _ = planet.set_present_production_points(new_current_production);
     }
 

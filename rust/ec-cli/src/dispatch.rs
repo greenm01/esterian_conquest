@@ -29,7 +29,7 @@ use crate::commands::ipbm::{
 use crate::commands::planet_build::{
     init_planet_build_batch, init_planet_build_scenario, init_planet_original,
     print_planet_build_report, set_planet_build, set_planet_name, set_planet_owner,
-    set_planet_potential, set_planet_stats,
+    set_planet_potential, set_planet_stats, set_planet_stored,
 };
 
 use crate::commands::bombard::{init_bombard, init_bombard_batch, set_bombard_onefleet};
@@ -443,6 +443,18 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
                 return Ok(());
             };
             set_planet_potential(&dir, record_index.parse()?, p1.parse()?, p2.parse()?)?;
+        }
+        "planet-stored" => {
+            let dir = next_dir(&mut args);
+            let Some(record_index) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(points) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            set_planet_stored(&dir, record_index.parse()?, points.parse()?)?;
         }
         "planet-init-original" => init_planet_original(&next_dir(&mut args))?,
         "planet-build-report" => {

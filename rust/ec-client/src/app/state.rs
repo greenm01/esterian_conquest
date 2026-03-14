@@ -14,9 +14,9 @@ use crate::screen::{
     CommandMenu, DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
     GeneralHelpScreen,
     GeneralMenuScreen, MainMenuScreen, MessageComposeScreen, PlanetHelpScreen, PlanetInfoScreen,
-    PlanetListMode, PlanetListScreen, PlanetListSort, PlanetMenuScreen, PartialStarmapScreen,
-    RankingsScreen, RankingsView, ReportsScreen, Screen, ScreenFrame, ScreenId, StartupScreen,
-    StarmapScreen,
+    PlanetListMode, PlanetListScreen, PlanetListSort, PlanetMenuScreen, PlanetTaxScreen,
+    PartialStarmapScreen, RankingsScreen, RankingsView, ReportsScreen, Screen, ScreenFrame,
+    ScreenId, StartupScreen, StarmapScreen,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -43,6 +43,7 @@ pub struct App {
     planet_menu: PlanetMenuScreen,
     planet_help: PlanetHelpScreen,
     planet_list: PlanetListScreen,
+    planet_tax: PlanetTaxScreen,
     starmap: StarmapScreen,
     partial_starmap: PartialStarmapScreen,
     planet_info: PlanetInfoScreen,
@@ -80,6 +81,8 @@ pub struct App {
     planet_list_sort_status: Option<String>,
     planet_brief_scroll_offset: usize,
     planet_detail_index: usize,
+    planet_tax_input: String,
+    planet_tax_status: Option<String>,
     starmap_view_x: usize,
     starmap_view_y: usize,
     starmap_status: Option<String>,
@@ -131,6 +134,7 @@ impl App {
             planet_menu: PlanetMenuScreen::new(),
             planet_help: PlanetHelpScreen::new(),
             planet_list: PlanetListScreen::new(),
+            planet_tax: PlanetTaxScreen::new(),
             starmap: StarmapScreen::new(),
             partial_starmap: PartialStarmapScreen::new(),
             planet_info: PlanetInfoScreen::new(),
@@ -168,6 +172,8 @@ impl App {
             planet_list_sort_status: None,
             planet_brief_scroll_offset: 0,
             planet_detail_index: 0,
+            planet_tax_input: "50".to_string(),
+            planet_tax_status: None,
             starmap_view_x: 1,
             starmap_view_y: 1,
             starmap_status: None,
@@ -209,6 +215,14 @@ impl App {
                 &frame,
                 &self.sorted_planet_rows(sort),
                 self.planet_detail_index,
+            )?,
+            ScreenId::PlanetTaxPrompt => self
+                .planet_tax
+                .render_prompt(&self.planet_tax_input, self.planet_tax_status.as_deref())?,
+            ScreenId::PlanetTaxDone => self.planet_tax.render_done(
+                self.planet_tax_status
+                    .as_deref()
+                    .unwrap_or("Tax rate updated."),
             )?,
             ScreenId::Starmap if self.starmap_capture_complete => self.starmap.render_complete()?,
             ScreenId::Starmap if self.starmap_dump_active => self.starmap.render_dump_page(
@@ -330,6 +344,13 @@ impl App {
         self.current_screen = ScreenId::PlanetHelp;
     }
 
+    pub fn open_planet_tax_prompt(&mut self) {
+        let current = self.game_data.player.records[self.player.record_index_1_based - 1].tax_rate();
+        self.planet_tax_input = current.to_string();
+        self.planet_tax_status = None;
+        self.current_screen = ScreenId::PlanetTaxPrompt;
+    }
+
     pub fn open_planet_list_sort_prompt(&mut self, mode: PlanetListMode) {
         self.planet_list_sort_status = None;
         self.current_screen = ScreenId::PlanetListSortPrompt(mode);
@@ -377,6 +398,46 @@ impl App {
         };
     }
 
+    pub fn append_planet_tax_char(&mut self, ch: char) {
+        if self.current_screen == ScreenId::PlanetTaxPrompt && self.planet_tax_input.len() < 3 {
+            self.planet_tax_input.push(ch);
+            self.planet_tax_status = None;
+        }
+    }
+
+    pub fn backspace_planet_tax_input(&mut self) {
+        if self.current_screen == ScreenId::PlanetTaxPrompt {
+            self.planet_tax_input.pop();
+            self.planet_tax_status = None;
+        }
+    }
+
+    pub fn submit_planet_tax(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let raw = self.planet_tax_input.trim();
+        let parsed = if raw.is_empty() {
+            self.game_data.player.records[self.player.record_index_1_based - 1].tax_rate()
+        } else {
+            match raw.parse::<u8>() {
+                Ok(value) => value,
+                Err(_) => {
+                    self.planet_tax_status = Some("Enter an integer tax rate from 0 to 100.".to_string());
+                    return Ok(());
+                }
+            }
+        };
+        if parsed > 100 {
+            self.planet_tax_status = Some("Enter an integer tax rate from 0 to 100.".to_string());
+            return Ok(());
+        }
+        self.game_data
+            .set_player_tax_rate(self.player.record_index_1_based, parsed)?;
+        self.game_data.save(&self.game_dir)?;
+        self.planet_tax_input = parsed.to_string();
+        self.planet_tax_status = Some(format!("Empire tax rate set to {parsed}%."));
+        self.current_screen = ScreenId::PlanetTaxDone;
+        Ok(())
+    }
+
     pub fn handle_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
         match self.current_screen {
             ScreenId::Startup(phase) => self.startup.handle_key(phase, key),
@@ -389,6 +450,8 @@ impl App {
             ScreenId::PlanetListSortPrompt(_) => self.planet_list.handle_sort_prompt_key(key),
             ScreenId::PlanetBriefList(_) => self.planet_list.handle_brief_key(key),
             ScreenId::PlanetDetailList(_) => self.planet_list.handle_detail_key(key),
+            ScreenId::PlanetTaxPrompt => self.planet_tax.handle_prompt_key(key),
+            ScreenId::PlanetTaxDone => self.planet_tax.handle_done_key(key),
             ScreenId::Starmap if self.starmap_capture_complete => {
                 self.starmap.handle_complete_key(key)
             }

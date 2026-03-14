@@ -111,6 +111,27 @@ pub(crate) fn set_planet_potential(
     Ok(())
 }
 
+pub(crate) fn set_planet_stored(
+    dir: &Path,
+    record_index_1_based: usize,
+    points: u32,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut data = CoreGameData::load(dir)?;
+    let record = data
+        .planets
+        .records
+        .get_mut(record_index_1_based - 1)
+        .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
+    record.set_stored_production_points(points);
+    data.save(dir)?;
+
+    println!(
+        "Planet record {} stored production points set to {}",
+        record_index_1_based, points
+    );
+    Ok(())
+}
+
 pub(crate) fn init_planet_original(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let mut data = CoreGameData::load(dir)?;
 

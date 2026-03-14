@@ -5457,3 +5457,9 @@ This is the current repository example of the documented policy:
     player-facing semantic field
   - Rust code has now been renamed toward `economy_marker_raw()` to make that
     uncertainty explicit
+- 2026-03-14: updated the canonical Rust economy rule to match the manuals'
+  stronger tax warning more closely. Taxes above `65%` now apply a direct
+  present-production penalty during maintenance; friendly starbase worlds
+  tolerate up to `70%` before that penalty begins. This keeps the already
+  implemented growth-slowdown rule, but adds the manual-backed "production may
+  suffer" effect that was previously missing.

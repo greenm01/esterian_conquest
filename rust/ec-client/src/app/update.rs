@@ -37,6 +37,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_planet_help();
             AppOutcome::Continue
         }
+        Action::OpenPlanetTaxPrompt => {
+            app.open_planet_tax_prompt();
+            AppOutcome::Continue
+        }
         Action::ReturnToCommandMenu => {
             app.return_to_command_menu();
             AppOutcome::Continue
@@ -101,6 +105,18 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.move_planet_detail(delta);
             AppOutcome::Continue
         }
+        Action::AppendPlanetTaxChar(ch) => {
+            app.append_planet_tax_char(ch);
+            AppOutcome::Continue
+        }
+        Action::BackspacePlanetTaxInput => {
+            app.backspace_planet_tax_input();
+            AppOutcome::Continue
+        }
+        Action::SubmitPlanetTax => match app.submit_planet_tax() {
+            Ok(()) => AppOutcome::Continue,
+            Err(_) => AppOutcome::Continue,
+        },
         Action::ScrollComposeRecipients(delta) => {
             app.scroll_compose_recipients(delta);
             AppOutcome::Continue

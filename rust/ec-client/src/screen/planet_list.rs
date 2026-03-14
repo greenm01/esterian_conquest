@@ -256,12 +256,16 @@ impl PlanetListScreen {
 
     pub fn handle_detail_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Up => Action::MovePlanetDetail(-1),
-            KeyCode::Down => Action::MovePlanetDetail(1),
+            KeyCode::Up | KeyCode::Left => Action::MovePlanetDetail(-1),
+            KeyCode::Down | KeyCode::Right => Action::MovePlanetDetail(1),
             KeyCode::Home => Action::MovePlanetDetail(i8::MIN),
             KeyCode::End => Action::MovePlanetDetail(i8::MAX),
-            KeyCode::Char('k') | KeyCode::Char('K') => Action::MovePlanetDetail(-1),
-            KeyCode::Char('j') | KeyCode::Char('J') => Action::MovePlanetDetail(1),
+            KeyCode::Char('k') | KeyCode::Char('K') | KeyCode::Char('h') | KeyCode::Char('H') => {
+                Action::MovePlanetDetail(-1)
+            }
+            KeyCode::Char('j') | KeyCode::Char('J') | KeyCode::Char('l') | KeyCode::Char('L') => {
+                Action::MovePlanetDetail(1)
+            }
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenPlanetMenu,
             _ => Action::Noop,
         }

@@ -36,7 +36,7 @@ Important manual-facing claims:
 - taxes generate yearly production points for spending
 - newly colonized planets begin below maximum production
 - lower taxes improve planetary development
-- taxes above roughly `65%` risk harming long-term production
+- taxes above roughly `65%` can directly harm current production
 - starbases:
   - help planets endure tax burden better
   - let planets spend up to `5x` current production on builds
@@ -89,7 +89,7 @@ Empire `Total Available Points` for the player-facing summary is:
 
 This is the current turn’s spendable build budget, not a raw stored-goods sum.
 
-## Present Production Growth
+## Present Production Growth And Tax Pressure
 
 Each maintenance turn, every owned active planet grows toward its potential
 production.
@@ -121,15 +121,36 @@ The canonical Rust rule is:
 
 `present_production = min(present_production + growth, potential_production)`
 
+7. Apply a high-tax penalty when empire tax exceeds the safe threshold:
+
+- safe threshold without starbase: `65%`
+- safe threshold with friendly starbase: `70%`
+
+`overtax = empire_tax_rate - safe_threshold`
+
+`penalty = ceil(present_production * overtax / 500)`
+
+Clamp the penalty:
+
+- minimum penalty is `1` when tax exceeds the threshold and production is nonzero
+- penalty may not exceed current present production
+
+Final yearly result:
+
+`present_production = min(present_production + growth, potential_production) - penalty`
+
 ### Effects of This Rule
 
 - lower tax produces faster long-term development
 - higher tax produces more immediate revenue but slower growth
+- taxes above `65%` can directly reduce present production
+- starbase worlds tolerate up to `70%` before the direct penalty begins
 - growth slows naturally as a planet approaches potential
 - starbase worlds recover/develop faster than non-starbase worlds
 
-This matches the manuals’ intended tradeoff without pretending the original
-binary’s hidden growth curve is fully recovered.
+This brings the canonical Rust rule into closer compliance with the manuals’
+explicit warning that production may suffer above `65%`, while still keeping
+the curve simple and auditable.
 
 ## Starbase Effects
 

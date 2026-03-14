@@ -37,7 +37,7 @@ pub use directory::{
     EmpirePlanetEconomyRow, EmpireProductionRankingRow, EmpireProductionRankingSort,
     EmpireUnitSummary, GameDirectoryError, GameStateMutationError,
 };
-pub use economy::{build_capacity, yearly_growth_delta, yearly_tax_revenue};
+pub use economy::{build_capacity, yearly_growth_delta, yearly_high_tax_penalty, yearly_tax_revenue};
 pub use maint::{
     BombardEvent, CampaignOutcomeEvent, CampaignOutlookEvent, CivilDisorderEvent,
     ColonizationResolvedEvent, ContactReportSource, DiplomacyOverride, FleetBattleEvent,

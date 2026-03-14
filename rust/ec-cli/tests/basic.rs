@@ -1,6 +1,7 @@
 mod common;
 
 use common::{cleanup_dir, run_ec_cli, run_ec_cli_in_dir, unique_temp_dir};
+use ec_data::CoreGameData;
 use std::fs;
 
 #[test]
@@ -122,6 +123,28 @@ fn map_export_writes_printable_text_and_csv() {
     assert!(csv.starts_with(",1,2,3"));
     assert!(csv.contains(",*,"));
     assert!(details_csv.contains("x,y,known_name"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn planet_stored_sets_stored_production_points() {
+    let target = unique_temp_dir("ec-cli-planet-stored");
+    common::copy_fixture_dir("fixtures/ecutil-init/v1.5", &target);
+
+    let stdout = run_ec_cli(&[
+        "planet-stored",
+        target.to_str().unwrap(),
+        "1",
+        "50",
+    ]);
+    assert!(stdout.contains("stored production points set to 50"));
+
+    let game_data = CoreGameData::load(&target).unwrap();
+    assert_eq!(
+        game_data.planets.records[0].stored_production_points(),
+        50
+    );
 
     cleanup_dir(&target);
 }

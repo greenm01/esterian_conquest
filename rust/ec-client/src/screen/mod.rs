@@ -12,6 +12,7 @@ mod planet_help;
 mod planet_info;
 mod planet_list;
 mod planet_menu;
+mod planet_tax;
 mod partial_starmap;
 mod reports;
 mod rankings;
@@ -38,6 +39,7 @@ pub use planet_info::{PlanetInfoScreen, parse_planet_coords};
 pub(crate) use planet_list::PLANET_BRIEF_VISIBLE_ROWS;
 pub use planet_list::{PlanetListMode, PlanetListScreen, PlanetListSort};
 pub use planet_menu::PlanetMenuScreen;
+pub use planet_tax::PlanetTaxScreen;
 pub use partial_starmap::PartialStarmapScreen;
 pub use rankings::{RankingsScreen, RankingsView};
 pub use reports::ReportsScreen;
@@ -63,6 +65,8 @@ pub enum ScreenId {
     PlanetListSortPrompt(PlanetListMode),
     PlanetBriefList(PlanetListSort),
     PlanetDetailList(PlanetListSort),
+    PlanetTaxPrompt,
+    PlanetTaxDone,
     Starmap,
     PartialStarmapPrompt,
     PartialStarmapView,

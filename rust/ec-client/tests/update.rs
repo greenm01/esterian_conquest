@@ -106,6 +106,34 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::PlanetHelp);
 
     assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetTaxPrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetTaxPrompt);
+
+    assert_eq!(
+        apply_action(&mut app, Action::BackspacePlanetTaxInput),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::BackspacePlanetTaxInput),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendPlanetTaxChar('6')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendPlanetTaxChar('5')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitPlanetTax),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetTaxDone);
+
+    assert_eq!(
         apply_action(
             &mut app,
             Action::SubmitPlanetListSort(

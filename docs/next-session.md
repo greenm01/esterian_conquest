@@ -67,6 +67,7 @@ Primary goal:
   replay oracle is still awkward to probe directly:
   - empire-wide tax sets yearly revenue on every owned planet
   - lower tax accelerates current-production growth toward potential
+  - taxes above `65%` can now directly reduce present production
   - starbases boost growth and build capacity
   - civil-disorder baselines are left alone so preserved maint fixtures stay
     stable

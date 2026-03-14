@@ -81,13 +81,13 @@ impl Screen for PlanetMenuScreen {
             KeyCode::Char('c') | KeyCode::Char('C')
             | KeyCode::Char('a') | KeyCode::Char('A')
             | KeyCode::Char('b') | KeyCode::Char('B')
-            | KeyCode::Char('t') | KeyCode::Char('T')
             | KeyCode::Char('s') | KeyCode::Char('S')
             | KeyCode::Char('l') | KeyCode::Char('L')
             | KeyCode::Char('u') | KeyCode::Char('U')
             | KeyCode::Char('x') | KeyCode::Char('X') => Action::OpenPlanetListSortPrompt(
                 PlanetListMode::Stub(planet_stub_label(key.code).unwrap_or("")),
             ),
+            KeyCode::Char('t') | KeyCode::Char('T') => Action::OpenPlanetTaxPrompt,
             _ => Action::Noop,
         }
     }
@@ -98,7 +98,6 @@ fn planet_stub_label(code: KeyCode) -> Option<&'static str> {
         KeyCode::Char('c') | KeyCode::Char('C') => Some("Commission menu not implemented yet."),
         KeyCode::Char('a') | KeyCode::Char('A') => Some("Auto-commission is not implemented yet."),
         KeyCode::Char('b') | KeyCode::Char('B') => Some("Build menu is not implemented yet."),
-        KeyCode::Char('t') | KeyCode::Char('T') => Some("Empire tax changes are not implemented yet."),
         KeyCode::Char('s') | KeyCode::Char('S') => Some("Scorch-planet orders are not implemented yet."),
         KeyCode::Char('l') | KeyCode::Char('L') => Some("Transport loading is not implemented yet."),
         KeyCode::Char('u') | KeyCode::Char('U') => Some("Transport unloading is not implemented yet."),

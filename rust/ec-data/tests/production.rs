@@ -275,3 +275,58 @@ fn maintenance_starbase_growth_bonus_accelerates_planet_development() {
                 .unwrap()
     );
 }
+
+#[test]
+fn maintenance_high_tax_above_65_can_reduce_present_production() {
+    let mut player = player_with_empire_name("Alpha", 80, 0);
+    player.set_owner_empire_raw(1);
+
+    let colony = owned_planet(1, 100, encode_real48(25.0).unwrap(), 0, 1, 0);
+    let mut game = CoreGameData {
+        player: PlayerDat { records: vec![player] },
+        planets: PlanetDat { records: vec![colony] },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: zeroed_setup(),
+        conquest: configured_conquest(1),
+    };
+
+    run_maintenance_turn(&mut game).expect("maintenance should succeed");
+
+    let planet = &game.planets.records[0];
+    assert_eq!(planet.stored_goods_raw(), 20);
+    assert_eq!(planet.present_production_points().unwrap(), 28);
+}
+
+#[test]
+fn maintenance_starbase_worlds_tolerate_tax_up_to_70_without_penalty() {
+    let mut player = player_with_empire_name("Alpha", 70, 0);
+    player.set_owner_empire_raw(1);
+
+    let colony = owned_planet(1, 100, encode_real48(50.0).unwrap(), 0, 3, 1);
+    let mut game = CoreGameData {
+        player: PlayerDat { records: vec![player] },
+        planets: PlanetDat { records: vec![colony] },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat {
+            records: vec![{
+                let mut base = BaseRecord::new_zeroed();
+                base.set_active_flag_raw(1);
+                base.set_owner_empire_raw(1);
+                base.set_coords_raw([0, 0]);
+                base
+            }],
+        },
+        ipbm: IpbmDat { records: vec![] },
+        setup: zeroed_setup(),
+        conquest: configured_conquest(1),
+    };
+    game.planets.records[0].set_coords_raw([0, 0]);
+
+    run_maintenance_turn(&mut game).expect("maintenance should succeed");
+
+    let planet = &game.planets.records[0];
+    assert_eq!(planet.stored_goods_raw(), 35);
+    assert_eq!(planet.present_production_points().unwrap(), 56);
+}
