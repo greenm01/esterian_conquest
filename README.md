@@ -1,6 +1,202 @@
 # esterian_conquest
 
-Preservation and reverse-engineering workspace for Esterian Conquest v1.5.
+Preservation and reimplementation workspace for Esterian Conquest v1.5.
+
+The project started as a file-format and oracle-compliance effort. It has now
+crossed the more important line: `rust-maint` can run full Esterian Conquest
+campaigns end to end while continuing to write classic-compatible `.DAT`
+directories that the original DOS tools still accept.
+
+## What This Project Is
+
+This repository has three jobs:
+
+- preserve the original DOS game, manuals, logs, and binaries
+- reverse engineer the game rules and on-disk formats
+- build a faithful modern Rust implementation without breaking classic save
+  compatibility
+
+The compatibility boundary is still the original game directory. Rust is not
+trying to replace the `.DAT` files with a private format and call that done.
+The point is to keep proving faithfulness against the original game.
+
+## Current Status
+
+The Rust side is no longer just a scenario generator.
+
+Today it can:
+
+- generate new classic-compatible games across the documented `4 / 9 / 16 / 25`
+  player tiers
+- run repeated maintenance turns through the Rust engine
+- handle movement, economy, scouting, contact reports, diplomacy, deterministic
+  combat, conquest, civil disorder, fleet defection, and conservative emperor
+  recognition
+- regenerate classic report and database files
+- keep producing directories the original `ECMAINT` accepts
+
+Recent end-to-end validation:
+
+- seeded `sysop new-game` outputs pass the original `ECMAINT` oracle
+- repeated `maint-rust` output after multiple turns also passes the original
+  `ECMAINT` oracle
+- current multi-turn sweep result: `8/8` passes across `4/9/16/25` players and
+  seeds `1515/2025` for `3` Rust maint turns each
+
+In practical terms: Rust maint can now run real EC games, not just one-turn
+fixtures.
+
+## Where Rust Intentionally Differs From The Oracle
+
+This project does not treat byte-for-byte parity with one historical
+`ECMAINT.EXE` run as the highest good.
+
+We follow a stricter rule:
+
+- manuals are the semantic authority
+- DOS binaries are the compatibility oracle
+- hidden or stochastic internals may be reimplemented canonically if the result
+  stays faithful to the manuals and keeps classic gamestate compatibility
+
+That matters most in these areas:
+
+- combat is deterministic in Rust, not driven by the original hidden RNG
+- campaign-end behavior is conservative and explicit in Rust rather than guessed
+  from opaque binary state
+- route planning is allowed to be smarter than undocumented original internals,
+  while still respecting fog of war
+
+### Combat
+
+The original game uses internal randomness for fleet battles, bombardment
+losses, and related resolution. Matching that exactly would require reproducing
+hidden RNG state and fragile processing quirks, which is the wrong target for a
+preservation-grade reimplementation.
+
+So Rust uses a documented deterministic combat system instead.
+
+The current combat model is deliberately influenced by *Empire of the Sun*:
+
+- simultaneous exchange rather than brittle file-order firing
+- clearer orbital and ground-combat phases
+- deterministic bilateral loss accounting
+- campaign reports that remain readable and auditable
+
+That is an intentional design choice. We chose it because it produces stable,
+testable outcomes while preserving the spirit of EC’s large-scale strategic
+combat better than trying to mimic one opaque RNG stream.
+
+See [docs/ec-combat-spec.md](docs/ec-combat-spec.md).
+
+### Campaign-End Rules
+
+The manuals talk about surrender, fleet defection, and recognition of an
+emperor, but `ECGAME` does not expose a surrender command in the General
+Command menu.
+
+Rust therefore models campaign end as maintenance/state logic, not as an
+invented UI action.
+
+Current conservative rules:
+
+- an empire with no planets and no recovery path falls into civil disorder
+- once already in civil disorder and still planetless, it loses one fleet to
+  defection per maintenance turn
+- if exactly one serious contender remains and that empire is still stable and
+  planet-owning, Rust recognizes it as emperor
+
+These rules are documented, deterministic, and compatible. They can still be
+refined later if stronger original evidence appears.
+
+## Why `.DAT` Compatibility Still Matters
+
+The project is only interesting if the Rust engine can keep proving itself
+against the original game.
+
+That means:
+
+- `.DAT` compatibility remains mandatory
+- original `ECMAINT` remains part of the validation story
+- original `ECGAME` remains useful as a viewer and black-box check
+
+Future storage work such as SQLite is still on the table, but only as an
+additional Rust-native layer. It does not replace the classic game directory as
+the compatibility boundary.
+
+## Quick Start
+
+Create a new game:
+
+```bash
+cd rust
+cargo run -q -p ec-cli -- sysop new-game /tmp/ec-game --players 4 --seed 1515
+```
+
+Run Rust maintenance for a few turns:
+
+```bash
+cd rust
+cargo run -q -p ec-cli -- maint-rust /tmp/ec-game 3
+```
+
+Run the original oracle against that directory:
+
+```bash
+python3 tools/ecmaint_oracle.py run /tmp/ec-game
+```
+
+Run the broader sweeps:
+
+```bash
+python3 tools/oracle_sweep.py --mode seeded
+python3 tools/rust_maint_sweep.py --turns 3
+```
+
+## Useful Commands
+
+New game from declarative setup:
+
+```bash
+cd rust
+cargo run -q -p ec-cli -- sysop new-game /tmp/ec-game --config ec-data/config/setup.example.kdl
+```
+
+Inspect a directory:
+
+```bash
+cd rust
+cargo run -q -p ec-cli -- core-report /tmp/ec-game
+```
+
+Launch original `ECGAME` locally in DOSBox-X:
+
+```bash
+tools/run_ecgame.sh /path/to/game_dir
+```
+
+## Documentation
+
+Start here:
+
+- [docs/approach.md](docs/approach.md)
+- [docs/next-session.md](docs/next-session.md)
+- [docs/rust-architecture.md](docs/rust-architecture.md)
+
+Key design docs:
+
+- [docs/ec-combat-spec.md](docs/ec-combat-spec.md)
+- [docs/ec-setup-spec.md](docs/ec-setup-spec.md)
+- [docs/ec-movement-spec.md](docs/ec-movement-spec.md)
+- [docs/config-architecture.md](docs/config-architecture.md)
+- [docs/dosbox-workflow.md](docs/dosbox-workflow.md)
+
+## Repository Layout
+
+- `original/` original EC 1.5 materials used for preservation and validation
+- `docs/` stable engineering and rules docs
+- `RE_NOTES.md` chronological reverse-engineering notebook
+- `rust/` Rust workspace (`ec-data`, `ec-cli`, tests)
+- `tools/` oracle, DOSBox, and analysis helpers
 
 ## License
 
@@ -12,206 +208,3 @@ other preserved game materials remain original works of Bently C. Griffith and
 their original rights holders. Their inclusion here is for preservation,
 research, and compatibility work; they are not relicensed under MIT by this
 repository.
-
-Current focus:
-- documenting the original DOS game behavior and file formats
-- preserving confirmed reverse-engineering findings
-- building a Rust compatibility/preservation toolchain
-- making Rust-generated gamestate files 100% compliant with the original game
-  and `ECMAINT`
-- expanding Rust from fixture copying toward scenario generation from decoded
-  fields
-- replacing original RNG combat with a documented deterministic combat model in
-  Rust while keeping classic save compatibility
-- validating repeated Rust maintenance output against the original `ECMAINT`
-  oracle across multi-turn campaign-style runs
-
-Current milestone ladder:
-- `known accepted scenarios`: complete
-- `parameterized scenario generation`: complete
-- `general compliant gamestate generation`: complete
-- `full Rust ECMAINT replacement`: implemented conservatively and already
-  validated across repeated maint turns; future work is refinement, not a
-  missing engine tier
-- `scenario DSL / KDL layer`: defer until the internal Rust gamestate/order
-  model stabilizes; add it as a serialization layer on top of the compliant
-  generator rather than as the next RE milestone
-
-Current top-level contents:
-- `original/`: local snapshot of original EC 1.5 files used for preservation and testing
-- `docs/`: stable project docs for approach, fixtures, and ECMAINT planning
-- `RE_NOTES.md`: working reverse-engineering notes
-- `rust/`: preservation-oriented Rust workspace
-- `tools/`: unpacking and analysis helpers used during investigation
-
-Docs:
-- `docs/approach.md`: preservation and porting strategy
-- `docs/setup-kdl-schema.md`: first schema for declarative sysop/setup config
-- `docs/fixtures.md`: fixture creation and usage workflow
-- `docs/ecmaint-plan.md`: current plan for reverse engineering the maintenance engine
-- `docs/ec-combat-spec.md`: canonical deterministic combat rules for the Rust port
-- `docs/config-architecture.md`: Rust-vs-KDL ownership and future config layering
-- `docs/ecmaint-combat-reference.md`: combat-oriented historical validation references
-- `docs/ec-setup-spec.md`: manual-driven setup and starmap rules for Rust
-- `docs/starmap-generation-spec.md`: fair homeworld placement and planet distribution algorithm
-- `docs/ec-movement-spec.md`: classic movement semantics and canonical routing policy
-- `docs/dosbox-workflow.md`: best-known DOSBox-X workflow for `ECMAINT` and local `ECGAME`
-- `docs/ghidra-workflow.md`: headless Ghidra install and ECMAINT analysis workflow
-- `docs/planet-report-reference.md`: coordinate-linked scouting/world stat references
-- `docs/rust-architecture.md`: Rust module layout and data-oriented design notes
-- `docs/next-session.md`: exact restart point for the next ECMAINT experiment
-
-Default black-box oracle loop for new mechanics:
-- `python3 tools/ecmaint_oracle.py prepare /tmp/ecmaint-oracle [source_dir]`
-- submit one controlled order family or mutate one narrow field family
-- `python3 tools/ecmaint_oracle.py run /tmp/ecmaint-oracle`
-- inspect `.oracle/` snapshots plus the reported `.DAT`/report diff clusters
-- broader compliance sweeps:
-  - `python3 tools/oracle_sweep.py`
-  - `python3 tools/oracle_sweep.py --mode seeded`
-  - `python3 tools/rust_maint_sweep.py --turns 3`
-
-Sysop/admin setup surface:
-- `ec-cli sysop new-game <target_dir> [--players <1-25>] [--seed <u64>]`
-- `ec-cli sysop new-game <target_dir> --config rust/ec-data/config/setup.example.kdl`
-- `ec-cli sysop generate-gamestate <target_dir> <player_count> <year> [<homeworld_x>:<homeworld_y>...]`
-- `ec-cli sysop setup-programs [dir]`
-- `ec-cli sysop port-setup [dir]`
-- `ec-cli sysop snoop <dir> <on|off>`
-- `ec-cli sysop maintenance-days <dir> set <sun|mon|...>`
-
-The older flat setup commands remain available as compatibility aliases, but
-new admin/setup work should prefer the `sysop` command family and, over time,
-declarative KDL config.
-
-Rust-only diplomacy override during maint:
-- if `<game_dir>/diplomacy.kdl` exists, `ec-cli maint-rust` will use it as a
-  migration/fallback source for declared enemies
-- persistable relations are now absorbed into classic `PLAYER.DAT` diplomacy
-  slots during maint, including larger player-count tiers up to `25`
-- example file: `rust/ec-data/config/diplomacy.example.kdl`
-
-Best-known local ECGAME launch:
-- `tools/run_ecgame.sh /path/to/game_dir [player_number]`
-- this writes a normalized WWIV-style `CHAIN.TXT` into the mounted game dir and
-  runs plain `ECGAME` under `DOSBox-X`
-- prefer this over `ECGAME /L` or `ECGAME C:\\CHAIN.TXT`
-- for local console play, the helper now uses `0` baud / `0` COM-port values
-  in `CHAIN.TXT` rather than remote modem settings
-
-Known scenario replay:
-- `python3 tools/ecmaint_oracle.py replay-known fleet-order /tmp/ecmaint-fleet-oracle`
-- `python3 tools/ecmaint_oracle.py replay-known planet-build /tmp/ecmaint-build-oracle`
-- `python3 tools/ecmaint_oracle.py replay-known guard-starbase /tmp/ecmaint-starbase-oracle`
-
-Exact replayable pre-maint directory init:
-- `ec-cli scenario-init-replayable [source_dir] <target_dir> <fleet-order|planet-build|guard-starbase>`
-- this overlays the shared preserved pre-maint `CONQUEST.DAT` / `DATABASE.DAT`
-  replay context on top of the existing scenario generator so the output
-  matches the preserved pre-maint fixture exactly for the known scenarios
-
-Preserved fixture replay validation:
-- `python3 tools/ecmaint_oracle.py replay-preserved fleet-order /tmp/ecmaint-fleet-pre-direct`
-- `python3 tools/ecmaint_oracle.py replay-preserved planet-build /tmp/ecmaint-build-pre-direct`
-- `python3 tools/ecmaint_oracle.py replay-preserved guard-starbase /tmp/ecmaint-starbase-pre-direct`
-
-Current Rust milestone:
-- `ec-cli` is now split by feature area instead of letting `main.rs` keep
-  growing:
-  - `src/commands/fleet_order.rs`
-  - `src/commands/planet_build.rs`
-  - `src/commands/guard_starbase.rs`
-  - `src/commands/ipbm.rs`
-- `cargo test -p ec-cli` now verifies that Rust can rewrite a compliant
-  `fixtures/ecmaint-post/v1.5` snapshot into two preserved accepted pre-maint
-  scenarios using decoded fields instead of wholesale fixture replacement:
-  - `ec-cli fleet-order ...` reproduces `fixtures/ecmaint-fleet-pre/v1.5/FLEETS.DAT`
-  - `ec-cli planet-build ...` reproduces `fixtures/ecmaint-build-pre/v1.5/PLANETS.DAT`
-  - `ec-cli scenario <dir> fleet-order` and `ec-cli scenario <dir> planet-build`
-    now expose those same accepted rewrites as named scenario commands
-  - `ec-cli validate <dir> fleet-order` and `ec-cli validate <dir> planet-build`
-    check the currently-known accepted field values for those preserved
-    scenarios
-  - `ec-cli scenario-init [source_dir] <target_dir> fleet-order`
-    and `... planet-build` materialize runnable scenario directories from a
-    compliant baseline in one command
-- Rust can also now emit an accepted Guard Starbase scenario from the same
-  compliant baseline:
-  - `ec-cli scenario <dir> guard-starbase`
-  - verified against `fixtures/ecmaint-starbase-pre/v1.5` for `PLAYER.DAT`,
-    `FLEETS.DAT`, and `BASES.DAT`
-  - the `BASES.DAT` output now comes from named `BaseRecord` field setters,
-    not a raw 35-byte template constant
-- Rust can now also validate the currently-known accepted one-base Guard
-  Starbase shape directly:
-  - `ec-cli validate <dir> guard-starbase`
-  - this validator now checks the explicit one-base linkage keys across
-    `PLAYER.DAT`, `FLEETS.DAT`, and `BASES.DAT` instead of only comparing one
-    accepted base record byte-for-byte
-- Rust now also has a safe parameterized one-base Guard Starbase writer:
-  - `ec-cli guard-starbase-onebase <dir> <target_x> <target_y>`
-  - keeps the current known-good linkage keys fixed while varying the guard
-    target/base coordinates
-- Rust now also has a starbase-linkage inspection command:
-  - `ec-cli guard-starbase-report <dir>`
-  - prints the current player/fleet/base linkage words and the validator
-    verdict for quick ECMAINT experiment setup
-- Rust now also has a one-command parameterized directory initializer:
-  - `ec-cli guard-starbase-init [source_dir] <target_dir> <target_x> <target_y>`
-  - defaults to the compliant `fixtures/ecmaint-post/v1.5` baseline when
-    `source_dir` is omitted
-- Rust now also has a batch coordinate-variant starbase initializer:
-  - `ec-cli guard-starbase-batch-init [source_dir] <target_root> <x:y> <x:y>...`
-  - writes multiple ECMAINT-ready one-base Guard Starbase directories plus a
-    manifest in one run
-- Rust now also has the first practical `IPBM.DAT` controls:
-  - `ec-cli ipbm-report <dir>`
-  - `ec-cli ipbm-zero <dir> <count>`
-  - `ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>`
-  - `ec-cli ipbm-validate <dir>`
-  - `ec-cli ipbm-init [source_dir] <target_dir> <count>`
-  - `ec-cli ipbm-batch-init [source_dir] <target_root> <count> <count>...`
-  - these are enough to inspect and satisfy the currently-known
-    `PLAYER[0x48]` / `IPBM.DAT` count-length gate from Rust and to start
-    emitting non-zero structural record prefixes
-  - `ec-data::IpbmRecord` now also exposes the currently mapped tuple tags,
-    tuple payload groups, and trailing control bytes, and `ec-cli ipbm-report`
-    prints them
-- Rust now also has a combined integrity-focused inspection command:
-  - `ec-cli compliance-report <dir>`
-  - `ec-cli compliance-batch-report <root>`
-  - this summarizes the current Guard Starbase linkage verdict, the current
-    `IPBM` count/length verdict, and the most relevant key words in one pass
-  - the batch form scans a directory of generated scenarios and prints a
-    concise per-directory compliance summary
-  - the batch form now covers `fleet-order`, `planet-build`,
-    `guard-starbase`, and `ipbm`
-- `ec-cli validate <dir> all` now classifies a directory against all currently
-  known accepted scenarios and reports which ones match
-- Rust now also has parameterized fleet/build inspection and init commands:
-  - `ec-cli fleet-order-report [dir] [fleet_record]`
-  - `ec-cli fleet-order-init <target_dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]`
-  - `ec-cli fleet-order-batch-init <target_root> <fleet_record:speed:order:target_x:target_y[:aux0[:aux1]]>...`
-  - `ec-cli planet-build-report [dir] [planet_record]`
-  - `ec-cli planet-build-init <target_dir> <planet_record> <build_slot_raw> <build_kind_raw>`
-  - `ec-cli planet-build-batch-init <target_root> <planet_record:build_slot_raw:build_kind_raw>...`
-  - these default to the compliant `fixtures/ecmaint-post/v1.5` baseline and
-    make the fleet/build paths consistent with the existing starbase/IPBM
-    report/init workflow
-  - the new batch forms materialize multiple parameterized directories plus
-    manifests in one run
-- `ec-cli validate-preserved <dir> <scenario>` now checks exact byte-for-byte
-  agreement with the preserved accepted fixture files for that scenario
-- `ec-cli compare-preserved <dir> <scenario>` now reports scenario-focused
-  byte diffs against the preserved accepted fixture files
-- `ec-cli scenario original/v1.5 list` now prints the current Rust-side
-  scenario catalog
-- `ec-cli scenario original/v1.5 show <scenario>` now prints the preserved
-  fixture path and exact-match files for a known scenario
-- `ec-cli scenario-init-all [source_dir] <target_root>` now materializes all
-  currently-known accepted scenario directories in one run
-- Rust can now materialize a runnable Guard Starbase scenario directory from a
-  compliant baseline in one command:
-  - `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`
-  - if `source_dir` is omitted, `scenario-init` now correctly defaults to the
-    compliant `fixtures/ecmaint-post/v1.5` baseline
