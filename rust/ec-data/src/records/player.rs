@@ -67,6 +67,21 @@ impl PlayerRecord {
         trim_ascii_field(&self.raw[28..end])
     }
 
+    pub fn set_legacy_status_name_raw(&mut self, value: &str) {
+        let bytes = value.as_bytes();
+        let len = bytes.len().min(self.raw.len().saturating_sub(28));
+        self.raw[26] = len as u8;
+        self.raw[27] = len as u8;
+        self.raw[28..].fill(0);
+        self.raw[28..28 + len].copy_from_slice(&bytes[..len]);
+    }
+
+    pub fn set_civil_disorder_mode(&mut self) {
+        self.set_owner_empire_raw(0x00);
+        self.raw[1..0x1A].fill(0);
+        self.set_legacy_status_name_raw("In Civil Disorder");
+    }
+
     pub fn ownership_summary(&self) -> String {
         let legacy = self.legacy_status_name_summary();
         let handle = self.assigned_player_handle_summary();

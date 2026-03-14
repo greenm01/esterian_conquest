@@ -516,6 +516,11 @@ pub fn run_maintenance_turn_with_context(
     // ECMAINT recalculates these from scratch every turn, not as incremental deltas.
     recompute_player_planet_stats(game_data);
 
+    // A player who has lost all planets and has no realistic recovery path
+    // falls into civil disorder. This preserves the empire slot and matches
+    // the observed "In Civil Disorder" state already used by classic data.
+    apply_campaign_state_transitions(game_data);
+
     // Update PLAYER.DAT raw[0x46]: set to 0x01 for any player with starbase_count > 0.
     // Confirmed from starbase fixture: player 0 (starbase_count=1) gets raw[0x46]=0x01 after maint.
     update_player_starbase_flag(game_data);
@@ -1616,6 +1621,26 @@ fn recompute_player_planet_stats(game_data: &mut CoreGameData) {
         let owner_slot = player_idx + 1;
         game_data.player.records[player_idx].raw[0x50] = planet_counts[owner_slot];
         game_data.player.records[player_idx].raw[0x52] = pot_prod_sums[owner_slot] as u8;
+    }
+}
+
+fn apply_campaign_state_transitions(game_data: &mut CoreGameData) {
+    let player_count = game_data.player.records.len() as u8;
+    for empire_raw in 1..=player_count {
+        let Some(state) = game_data.empire_campaign_state(empire_raw) else {
+            continue;
+        };
+        if matches!(state, crate::CampaignState::DefectionRisk | crate::CampaignState::Defeated) {
+            if let Some(player) = game_data
+                .player
+                .records
+                .get_mut(empire_raw.saturating_sub(1) as usize)
+            {
+                if player.owner_mode_raw() == 0x01 {
+                    player.set_civil_disorder_mode();
+                }
+            }
+        }
     }
 }
 

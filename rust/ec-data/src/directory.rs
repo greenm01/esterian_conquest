@@ -82,6 +82,16 @@ pub struct CoreFileDiffOffsets {
     pub differing_offsets: Vec<usize>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CampaignState {
+    CivilDisorder,
+    Rogue,
+    Stable,
+    MarginalExistence,
+    DefectionRisk,
+    Defeated,
+}
+
 #[derive(Debug)]
 pub enum GameDirectoryError {
     Io {
@@ -205,6 +215,64 @@ impl CoreGameData {
             .first()
             .map(|record| record.ipbm_count_raw() as usize)
             .unwrap_or(0)
+    }
+
+    pub fn empire_campaign_state(&self, empire_raw: u8) -> Option<CampaignState> {
+        let player_idx = empire_raw.checked_sub(1)? as usize;
+        let player = self.player.records.get(player_idx)?;
+
+        match player.owner_mode_raw() {
+            0x00 => return Some(CampaignState::CivilDisorder),
+            0xff => return Some(CampaignState::Rogue),
+            0x01 => {}
+            _ => {}
+        }
+
+        let owned_planets = self
+            .planets
+            .records
+            .iter()
+            .filter(|planet| planet.owner_empire_slot_raw() == empire_raw)
+            .count();
+        if owned_planets > 0 {
+            return Some(CampaignState::Stable);
+        }
+
+        let mut has_any_fleet_presence = false;
+        let mut can_recover_planet = false;
+
+        for fleet in &self.fleets.records {
+            if fleet.owner_empire_raw() != empire_raw {
+                continue;
+            }
+
+            let has_presence = fleet.scout_count() > 0
+                || fleet.battleship_count() > 0
+                || fleet.cruiser_count() > 0
+                || fleet.destroyer_count() > 0
+                || fleet.troop_transport_count() > 0
+                || fleet.army_count() > 0
+                || fleet.etac_count() > 0;
+            if !has_presence {
+                continue;
+            }
+            has_any_fleet_presence = true;
+
+            if fleet.etac_count() > 0
+                || (fleet.troop_transport_count() > 0 && fleet.army_count() > 0)
+            {
+                can_recover_planet = true;
+                break;
+            }
+        }
+
+        if can_recover_planet {
+            Some(CampaignState::MarginalExistence)
+        } else if has_any_fleet_presence {
+            Some(CampaignState::DefectionRisk)
+        } else {
+            Some(CampaignState::Defeated)
+        }
     }
 
     pub fn current_known_core_state_errors(&self) -> Vec<String> {

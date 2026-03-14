@@ -29,8 +29,9 @@ pub use config::{
     SetupOptionsConfig,
 };
 pub use directory::{
-    CoreGameData, CurrentKnownComplianceStatus, CurrentKnownGuardStarbaseLinkageSummary,
-    CurrentKnownKeyWordSummary, GameDirectoryError, GameStateMutationError,
+    CampaignState, CoreGameData, CurrentKnownComplianceStatus,
+    CurrentKnownGuardStarbaseLinkageSummary, CurrentKnownKeyWordSummary, GameDirectoryError,
+    GameStateMutationError,
 };
 pub use maint::{
     BombardEvent, ColonizationResolvedEvent, ContactReportSource, DiplomacyOverride,

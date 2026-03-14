@@ -216,6 +216,31 @@ What is strong:
     the sidecar when they are persistable
   - larger-tier direct stored diplomacy also works without a sidecar in the
     live `maint-rust` path (`9`-player coverage)
+- surrender is now better understood:
+  - the manuals describe surrender / acknowledgement of an emperor as the
+    campaign victory condition
+  - the documented `ECGAME` General Command menu does not include a surrender
+    action
+  - a live `ECGAME` menu check confirms there is no visible surrender command
+  - Rust should therefore model surrender as campaign state, not as a missing
+    menu item to recreate
+- `ec-data` now has a first campaign-state evaluator for each empire:
+  - `Stable`
+  - `MarginalExistence`
+  - `DefectionRisk`
+  - `Defeated`
+  - plus preserved slot modes `CivilDisorder` and `Rogue`
+  - the evaluator follows the manuals' distinction that an empire with no
+    planets can still rebuild if it retains either:
+    - an `ETAC`, or
+    - loaded troop transports carrying armies
+- maintenance now applies a first conservative campaign-state transition:
+  - an active empire in `DefectionRisk` or `Defeated` is moved to
+    `In Civil Disorder`
+  - this preserves the empire slot and matches the classic civil-disorder
+    state already visible in preserved logs
+  - this is an intentionally conservative first pass, not a full recovered
+    long-term fleet-defection model yet
 - the larger-tier `DATABASE.DAT` refresh path no longer hard-codes a 20-planet
   index stride:
   - scout/view `planet_intel_events` now use the real dynamic `planet_count`
@@ -875,3 +900,8 @@ enum MaintEvent {
    wording once starbase attrition/removal is explicit in maint state.
 4. Do not add a canonical `MESSAGES.DAT` writer until a non-empty maint-driven
    sample is recovered.
+5. Make victory/defeat a first-class maint milestone:
+   - refine the current civil-disorder transition into a fuller
+     fleet-defection model if new evidence appears
+   - define how emperor recognition is represented in Rust campaign state
+   - do not invent a surrender command in `ECGAME` without new evidence

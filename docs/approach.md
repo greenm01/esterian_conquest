@@ -278,6 +278,23 @@ Long term:
   - `PLAYER.DAT[player].raw[0x54 + (target_empire_raw - 1)]`
   - `0x00 = neutral`
   - `0x01 = enemy`
+
+15. Treat surrender as campaign state, not an assumed `ECGAME` command
+
+- the manuals describe surrender and acknowledgement of an emperor as the
+  political victory condition
+- the documented `ECGAME` General Command menu does not include a surrender or
+  resign action
+- a live `ECGAME` menu check now confirms that absence
+- therefore Rust should not invent a surrender UI command unless stronger
+  evidence appears
+- the Rust model should instead separate:
+  - mechanical defeat:
+    - destruction of armies, fleets, and planets
+    - fleet defection after loss of all planets
+  - political victory:
+    - recognition of one empire as emperor
+    - effective surrender or submission of the remaining empires
 - the contiguous layout from `0x54..=0x6C` now lets Rust treat that table as a
   25-slot diplomacy surface, matching the documented maximum player count
 

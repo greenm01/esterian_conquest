@@ -5239,3 +5239,32 @@ This is the current repository example of the documented policy:
 - preserved fixtures/oracle remain authoritative for compatibility and file
   structure, unless a fixture byte directly conflicts with explicit manual
   semantics and does not buy compatibility
+
+## `ECGAME` surrender UI check — Session 2026-03-13
+
+- Goal: determine whether `ECGAME` exposes an explicit surrender/resign action
+  or whether surrender exists only as a campaign/rules concept.
+- Sources checked:
+  - `original/v1.5/ECPLAYER.DOC`
+  - `original/v1.5/ECQSTART.DOC`
+  - live `ECGAME` General Command Center capture
+- Manual findings:
+  - both manuals describe winning by having the other players surrender and
+    acknowledge you as Emperor
+  - `ECPLAYER.DOC` documents the General Command menu options as:
+    - autopilot
+    - summaries/reports
+    - declare neutral/enemy
+    - message command center
+  - no surrender/resign command is documented there
+- Live UI finding:
+  - the General Command Center screenshot confirms no visible surrender or
+    resign option
+- Conclusion:
+  - surrender exists as a campaign-state concept in the rules, not as a
+    currently observed `ECGAME` command
+  - Rust should not invent a surrender menu flow without stronger evidence
+  - the real missing implementation area is campaign-end state:
+    - annihilation
+    - fleet defection after loss of all planets
+    - emperor recognition / submission of remaining empires
