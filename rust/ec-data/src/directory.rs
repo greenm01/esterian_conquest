@@ -92,6 +92,19 @@ pub enum CampaignState {
     Defeated,
 }
 
+impl CampaignState {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::CivilDisorder => "civil_disorder",
+            Self::Rogue => "rogue",
+            Self::Stable => "stable",
+            Self::MarginalExistence => "marginal_existence",
+            Self::DefectionRisk => "defection_risk",
+            Self::Defeated => "defeated",
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum GameDirectoryError {
     Io {

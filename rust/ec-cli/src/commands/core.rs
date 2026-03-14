@@ -83,9 +83,14 @@ pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Er
     println!("  player1_ipbm_count={}", ipbm_total);
 
     for (idx, record) in data.player.records.iter().enumerate() {
+        let campaign_state = data
+            .empire_campaign_state((idx + 1) as u8)
+            .map(|state| state.as_str())
+            .unwrap_or("unknown");
         println!(
-            "  player {:02}: owned_planet_count={} homeworld_seed_coords={:?} owned_base_count={} starbase_count_word_raw={} ipbm_count_word_raw={} fleet_chain_head_raw={}",
+            "  player {:02}: campaign_state={} owned_planet_count={} homeworld_seed_coords={:?} owned_base_count={} starbase_count_word_raw={} ipbm_count_word_raw={} fleet_chain_head_raw={}",
             idx + 1,
+            campaign_state,
             player_owned_planet_counts[idx],
             player_homeworld_seed_coords.get(idx).copied().flatten(),
             player_owned_base_counts[idx],

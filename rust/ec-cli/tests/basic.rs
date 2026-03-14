@@ -76,6 +76,7 @@ fn inspect_summarizes_core_directory_state() {
     let stdout = run_ec_cli(&["inspect", "fixtures/ecmaint-post/v1.5"]);
     assert!(stdout.contains("Directory:"));
     assert!(stdout.contains("Players:"));
+    assert!(stdout.contains("campaign_state="));
     assert!(stdout.contains("Planets:"));
     assert!(stdout.contains("Fleets:"));
     assert!(stdout.contains("Bases:"));

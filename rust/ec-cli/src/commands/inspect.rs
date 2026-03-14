@@ -12,14 +12,19 @@ pub(crate) fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> 
 
     println!("Players:");
     for (idx, record) in data.player.records.iter().enumerate() {
+        let campaign_state = data
+            .empire_campaign_state((idx + 1) as u8)
+            .map(|state| state.as_str())
+            .unwrap_or("unknown");
         println!(
-            "  slot {}: owner_mode={} assigned_player_flag={} tax={} stored_prod_pts={} autopilot={} summary={}",
+            "  slot {}: owner_mode={} assigned_player_flag={} tax={} stored_prod_pts={} autopilot={} campaign_state={} summary={}",
             idx + 1,
             record.owner_mode_raw(),
             record.assigned_player_flag_raw(),
             record.tax_rate(),
             record.stored_production_pts_raw(),
             record.autopilot_flag(),
+            campaign_state,
             record.ownership_summary()
         );
         println!("    starbase_count_raw={}", record.starbase_count_raw());

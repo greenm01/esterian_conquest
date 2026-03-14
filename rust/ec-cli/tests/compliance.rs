@@ -36,7 +36,7 @@ fn core_report_summarizes_known_post_fixture_counts() {
     assert!(stdout.contains("player1_starbase_count=0"));
     assert!(stdout.contains("player1_owned_base_record_count=0"));
     assert!(stdout.contains("player1_ipbm_count=0"));
-    assert!(stdout.contains("player 01: owned_planet_count=1 homeworld_seed_coords=Some([16, 13]) owned_base_count=0 starbase_count_word_raw=0 ipbm_count_word_raw=0 fleet_chain_head_raw=1"));
+    assert!(stdout.contains("player 01: campaign_state=civil_disorder owned_planet_count=1 homeworld_seed_coords=Some([16, 13]) owned_base_count=0 starbase_count_word_raw=0 ipbm_count_word_raw=0 fleet_chain_head_raw=1"));
 }
 
 #[test]
