@@ -4,11 +4,11 @@ use std::path::PathBuf;
 use ec_data::{CoreGameData, DatabaseDat, build_player_starmap_projection};
 
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
-use crate::reports::ReportsPreview;
+use crate::reports::{ReportsPreview, clear_report_files};
 use crate::screen::{
-    EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen, GeneralMenuScreen, MainMenuScreen,
-    PlanetInfoScreen, PartialStarmapScreen, RankingsScreen, RankingsView, ReportsScreen, Screen,
-    ScreenFrame, ScreenId, StartupScreen, StarmapScreen,
+    DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
+    GeneralMenuScreen, MainMenuScreen, PlanetInfoScreen, PartialStarmapScreen, RankingsScreen,
+    RankingsView, ReportsScreen, Screen, ScreenFrame, ScreenId, StartupScreen, StarmapScreen,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -35,6 +35,7 @@ pub struct App {
     partial_starmap: PartialStarmapScreen,
     planet_info: PlanetInfoScreen,
     enemies: EnemiesScreen,
+    delete_reviewables: DeleteReviewablesScreen,
     empire_status: EmpireStatusScreen,
     empire_profile: EmpireProfileScreen,
     rankings: RankingsScreen,
@@ -48,6 +49,7 @@ pub struct App {
     enemies_input: String,
     enemies_status: Option<String>,
     enemies_scroll_offset: usize,
+    delete_reviewables_status: Option<String>,
     starmap_view_x: usize,
     starmap_view_y: usize,
     starmap_status: Option<String>,
@@ -99,6 +101,7 @@ impl App {
             partial_starmap: PartialStarmapScreen::new(),
             planet_info: PlanetInfoScreen::new(),
             enemies: EnemiesScreen::new(),
+            delete_reviewables: DeleteReviewablesScreen::new(),
             empire_status: EmpireStatusScreen::new(),
             empire_profile: EmpireProfileScreen::new(),
             rankings: RankingsScreen::new(),
@@ -112,6 +115,7 @@ impl App {
             enemies_input: String::new(),
             enemies_status: None,
             enemies_scroll_offset: 0,
+            delete_reviewables_status: None,
             starmap_view_x: 1,
             starmap_view_y: 1,
             starmap_status: None,
@@ -167,6 +171,9 @@ impl App {
                     self.enemies_status.as_deref(),
                     self.enemies_scroll_offset,
                 )?,
+            ScreenId::DeleteReviewables => self
+                .delete_reviewables
+                .render(self.delete_reviewables_status.as_deref())?,
             ScreenId::EmpireStatus => self.empire_status.render(&frame)?,
             ScreenId::EmpireProfile => self.empire_profile.render(&frame)?,
             ScreenId::Rankings(RankingsView::Prompt) => self.rankings.render_prompt(&frame)?,
@@ -214,6 +221,7 @@ impl App {
             ScreenId::PlanetInfoPrompt => self.handle_planet_info_prompt_key(key),
             ScreenId::PlanetInfoDetail => self.planet_info.handle_detail_key(key),
             ScreenId::Enemies => self.enemies.handle_key(key),
+            ScreenId::DeleteReviewables => self.delete_reviewables.handle_key(key),
             ScreenId::EmpireStatus => self.empire_status.handle_key(key),
             ScreenId::EmpireProfile => self.empire_profile.handle_key(key),
             ScreenId::Rankings(RankingsView::Prompt) => self.rankings.handle_prompt_key(key),
@@ -247,6 +255,11 @@ impl App {
         self.enemies_status = None;
         self.enemies_scroll_offset = 0;
         self.current_screen = ScreenId::Enemies;
+    }
+
+    pub fn open_delete_reviewables(&mut self) {
+        self.delete_reviewables_status = None;
+        self.current_screen = ScreenId::DeleteReviewables;
     }
 
     pub fn scroll_enemies(&mut self, delta: i8) {
@@ -382,6 +395,30 @@ impl App {
             }
         ));
         self.enemies_input.clear();
+        Ok(())
+    }
+
+    pub fn delete_reviewables(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        clear_report_files(&self.game_dir)?;
+        if let Some(player) = self
+            .game_data
+            .player
+            .records
+            .get_mut(self.player.record_index_1_based - 1)
+        {
+            player.raw[0x30] = 0;
+            player.raw[0x34] = 0;
+        }
+        self.game_data.save(&self.game_dir)?;
+        let refreshed = ReportsPreview::load(&self.game_dir)?;
+        let summary = MainMenuSummary::from_game_data(
+            &self.game_data,
+            self.player.record_index_1_based,
+            false,
+        );
+        self.reports
+            .replace(refreshed, ReviewSummary::from_main_menu(&summary));
+        self.delete_reviewables_status = Some("Messages and results deleted.".to_string());
         Ok(())
     }
 

@@ -18,6 +18,11 @@ impl ReportsScreen {
     pub fn new(preview: ReportsPreview, summary: ReviewSummary) -> Self {
         Self { preview, summary }
     }
+
+    pub fn replace(&mut self, preview: ReportsPreview, summary: ReviewSummary) {
+        self.preview = preview;
+        self.summary = summary;
+    }
 }
 
 impl Screen for ReportsScreen {

@@ -18,6 +18,12 @@ impl ReportsPreview {
     }
 }
 
+pub fn clear_report_files(game_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    fs::write(game_dir.join("RESULTS.DAT"), [])?;
+    fs::write(game_dir.join("MESSAGES.DAT"), [])?;
+    Ok(())
+}
+
 fn decode_report_file(path: &Path) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let bytes = fs::read(path)?;
     if bytes.is_empty() {

@@ -29,6 +29,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_enemies();
             AppOutcome::Continue
         }
+        Action::OpenDeleteReviewables => {
+            app.open_delete_reviewables();
+            AppOutcome::Continue
+        }
         Action::OpenStarmap => {
             app.open_starmap();
             AppOutcome::Continue
@@ -82,6 +86,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             AppOutcome::Continue
         }
         Action::SubmitEnemiesInput => match app.submit_enemies_input() {
+            Ok(()) => AppOutcome::Continue,
+            Err(_) => AppOutcome::Continue,
+        },
+        Action::ConfirmDeleteReviewables => match app.delete_reviewables() {
             Ok(()) => AppOutcome::Continue,
             Err(_) => AppOutcome::Continue,
         },

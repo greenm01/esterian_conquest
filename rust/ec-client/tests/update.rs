@@ -200,3 +200,38 @@ fn apply_action_toggles_autopilot_and_enemy_relation() {
     );
     assert_eq!(app.current_relation_to(2), Some(DiplomaticRelation::Enemy));
 }
+
+#[test]
+fn apply_action_deletes_reviewables() {
+    let fixture_dir = temp_game_copy();
+    std::fs::write(fixture_dir.join("RESULTS.DAT"), b"test results").expect("seed results");
+    std::fs::write(fixture_dir.join("MESSAGES.DAT"), b"test messages").expect("seed messages");
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenDeleteReviewables),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::DeleteReviewables);
+
+    assert_eq!(
+        apply_action(&mut app, Action::ConfirmDeleteReviewables),
+        AppOutcome::Continue
+    );
+
+    assert_eq!(
+        std::fs::read(fixture_dir.join("RESULTS.DAT")).expect("read results"),
+        Vec::<u8>::new()
+    );
+    assert_eq!(
+        std::fs::read(fixture_dir.join("MESSAGES.DAT")).expect("read messages"),
+        Vec::<u8>::new()
+    );
+}

@@ -1,6 +1,7 @@
 mod buffer;
 mod empire_profile;
 mod empire_status;
+mod delete_reviewables;
 mod enemies;
 mod general_menu;
 mod layout;
@@ -16,6 +17,7 @@ mod table;
 pub use buffer::{Cell, CellStyle, PlayfieldBuffer, RgbColor, StyledSpan};
 pub use empire_profile::EmpireProfileScreen;
 pub use empire_status::EmpireStatusScreen;
+pub use delete_reviewables::DeleteReviewablesScreen;
 pub use enemies::EnemiesScreen;
 pub use general_menu::GeneralMenuScreen;
 pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
@@ -46,6 +48,7 @@ pub enum ScreenId {
     PlanetInfoPrompt,
     PlanetInfoDetail,
     Enemies,
+    DeleteReviewables,
     EmpireStatus,
     EmpireProfile,
     Rankings(RankingsView),

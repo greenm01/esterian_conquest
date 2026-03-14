@@ -69,6 +69,7 @@ impl Screen for GeneralMenuScreen {
             KeyCode::Char('v') | KeyCode::Char('V') => Action::OpenPartialStarmapPrompt,
             KeyCode::Char('s') | KeyCode::Char('S') => Action::OpenEmpireStatus,
             KeyCode::Char('p') | KeyCode::Char('P') => Action::OpenEmpireProfile,
+            KeyCode::Char('d') | KeyCode::Char('D') => Action::OpenDeleteReviewables,
             KeyCode::Char('o') | KeyCode::Char('O') => {
                 Action::OpenRankingsTable(EmpireProductionRankingSort::Production)
             }
