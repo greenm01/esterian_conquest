@@ -119,6 +119,81 @@ fn maint_rust_uses_stored_player_diplomacy_without_sidecar() {
 }
 
 #[test]
+fn maint_rust_uses_stored_player_diplomacy_without_sidecar_for_large_games() {
+    let target = unique_temp_dir("ec-cli-maint-rust-player-diplomacy-nine");
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "sysop",
+            "new-game",
+            target.to_str().unwrap(),
+            "--players",
+            "9",
+            "--seed",
+            "1515",
+        ],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("seed=1515"));
+
+    let mut game_data = CoreGameData::load(&target).expect("generated game should load");
+    let fleet_a = &mut game_data.fleets.records[0];
+    fleet_a.set_current_location_coords_raw([8, 8]);
+    fleet_a.set_standing_order_kind(Order::ScoutSector);
+    fleet_a.set_standing_order_target_coords_raw([8, 8]);
+    fleet_a.set_current_speed(0);
+    fleet_a.raw[0x19] = 0x81;
+    fleet_a.set_destroyer_count(1);
+    fleet_a.set_cruiser_count(0);
+    fleet_a.set_battleship_count(0);
+    fleet_a.set_troop_transport_count(0);
+    fleet_a.set_army_count(0);
+    fleet_a.set_scout_count(1);
+    fleet_a.set_etac_count(0);
+    fleet_a.set_rules_of_engagement(10);
+
+    let fleet_b = &mut game_data.fleets.records[(8 * 4) as usize];
+    fleet_b.set_current_location_coords_raw([8, 8]);
+    fleet_b.set_standing_order_kind(Order::HoldPosition);
+    fleet_b.set_standing_order_target_coords_raw([8, 8]);
+    fleet_b.set_current_speed(0);
+    fleet_b.raw[0x19] = 0x81;
+    fleet_b.set_destroyer_count(1);
+    fleet_b.set_cruiser_count(0);
+    fleet_b.set_battleship_count(0);
+    fleet_b.set_troop_transport_count(0);
+    fleet_b.set_army_count(0);
+    fleet_b.set_scout_count(0);
+    fleet_b.set_etac_count(0);
+    fleet_b.set_rules_of_engagement(10);
+
+    game_data
+        .set_stored_diplomatic_relation(1, 9, ec_data::DiplomaticRelation::Enemy)
+        .expect("player 1 -> 9 diplomacy should set");
+    game_data
+        .set_stored_diplomatic_relation(9, 1, ec_data::DiplomaticRelation::Enemy)
+        .expect("player 9 -> 1 diplomacy should set");
+    game_data.save(&target).expect("mutated game should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("Fleet battle report"));
+
+    let diplomacy_sidecar = target.join("diplomacy.kdl");
+    assert!(
+        !diplomacy_sidecar.exists(),
+        "stored PLAYER.DAT diplomacy should cover larger tiers without a sidecar"
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_blockade_arrival_persists_enemy_relation_in_player_dat() {
     let target = unique_temp_dir("ec-cli-maint-rust-blockade-escalation");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);

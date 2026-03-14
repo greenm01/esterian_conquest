@@ -213,6 +213,8 @@ What is strong:
   - blockade-triggered escalation persists back into `PLAYER.DAT`
   - larger-tier sidecar declarations are absorbed into `PLAYER.DAT` and clear
     the sidecar when they are persistable
+  - larger-tier direct stored diplomacy also works without a sidecar in the
+    live `maint-rust` path (`9`-player coverage)
 - the local plain-`ECGAME` DOSBox harness is now stable enough for focused
   menu-driven black-box checks when needed:
   - full 32-line WWIV `CHAIN.TXT`
