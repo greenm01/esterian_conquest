@@ -7,6 +7,8 @@ pub mod classic {
     const BODY_GREY: RgbColor = RgbColor::new(192, 192, 192);
     const YELLOW: RgbColor = RgbColor::new(255, 255, 85);
     const BRIGHT_WHITE: RgbColor = RgbColor::new(255, 255, 255);
+    const DOS_RED: RgbColor = RgbColor::new(170, 0, 0);
+    const DOS_GREEN: RgbColor = RgbColor::new(0, 170, 0);
 
     pub const fn body_style() -> CellStyle {
         CellStyle::new(BODY_GREY, BLACK, false)
@@ -41,6 +43,22 @@ pub mod classic {
     }
 
     pub const fn status_value_style() -> CellStyle {
+        CellStyle::new(BRIGHT_WHITE, BLACK, true)
+    }
+
+    pub const fn alert_style() -> CellStyle {
+        CellStyle::new(BRIGHT_WHITE, DOS_RED, true)
+    }
+
+    pub const fn map_dot_style() -> CellStyle {
+        CellStyle::new(DOS_GREEN, BLACK, false)
+    }
+
+    pub const fn map_crosshair_style() -> CellStyle {
+        CellStyle::new(DOS_RED, BLACK, true)
+    }
+
+    pub const fn map_center_style() -> CellStyle {
         CellStyle::new(BRIGHT_WHITE, BLACK, true)
     }
 }

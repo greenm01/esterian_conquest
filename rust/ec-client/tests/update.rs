@@ -73,6 +73,18 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.selected_planet_info(), Some(14));
 
     assert_eq!(
+        apply_action(&mut app, Action::OpenPartialStarmapPrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PartialStarmapPrompt);
+
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitPartialStarmapPrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
+
+    assert_eq!(
         apply_action(&mut app, Action::OpenReports),
         AppOutcome::Continue
     );

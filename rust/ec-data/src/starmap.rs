@@ -230,7 +230,12 @@ pub fn build_player_starmap_projection(
         .map(|(planet_index, planet)| {
             let db_record = database.record(planet_index, viewer_index, planet_count);
             let known_name = decode_known_name(db_record);
-            let known_owner_empire_id = decode_known_owner_empire_id(db_record, game_data);
+            let actual_owner_empire_id = planet.owner_empire_slot_raw();
+            let known_owner_empire_id = if actual_owner_empire_id == viewer_empire_id {
+                Some(viewer_empire_id)
+            } else {
+                decode_known_owner_empire_id(db_record, game_data)
+            };
             let known_owner_empire_name = known_owner_empire_id.map(|empire_id| {
                 game_data.player.records[empire_id as usize - 1].controlled_empire_name_summary()
             });

@@ -41,6 +41,26 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             Ok(()) => AppOutcome::Continue,
             Err(_) => AppOutcome::Continue,
         },
+        Action::OpenPartialStarmapPrompt => {
+            app.open_partial_starmap_prompt();
+            AppOutcome::Continue
+        }
+        Action::AppendPartialStarmapChar(ch) => {
+            app.append_partial_starmap_char(ch);
+            AppOutcome::Continue
+        }
+        Action::BackspacePartialStarmapInput => {
+            app.backspace_partial_starmap_input();
+            AppOutcome::Continue
+        }
+        Action::SubmitPartialStarmapPrompt => {
+            app.submit_partial_starmap_prompt();
+            AppOutcome::Continue
+        }
+        Action::MovePartialStarmap(dx, dy) => {
+            app.move_partial_starmap(dx, dy);
+            AppOutcome::Continue
+        }
         Action::OpenPlanetInfoPrompt => {
             app.open_planet_info_prompt();
             AppOutcome::Continue

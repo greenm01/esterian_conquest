@@ -42,6 +42,56 @@ fn player_starmap_projection_shows_full_geometry_but_only_known_details() {
 }
 
 #[test]
+fn player_starmap_projection_always_marks_owned_worlds_as_owned() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3000)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    game_data.planets.records[0].set_coords_raw([5, 2]);
+    game_data.planets.records[0].set_owner_empire_slot_raw(1);
+
+    let planet_count = game_data.planets.records.len();
+    let database =
+        DatabaseDat::new_zeroed((game_data.conquest.player_count() as usize) * planet_count);
+
+    let projection = build_player_starmap_projection(&game_data, &database, 1);
+    let home = projection
+        .worlds
+        .iter()
+        .find(|world| world.coords == [5, 2])
+        .expect("owned world should exist");
+
+    assert_eq!(home.known_owner_empire_id, Some(1));
+}
+
+#[test]
+fn player_starmap_projection_uses_database_intel_for_known_foreign_owner() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3000)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    game_data.planets.records[1].set_coords_raw([10, 15]);
+    game_data.planets.records[1].set_owner_empire_slot_raw(2);
+
+    let planet_count = game_data.planets.records.len();
+    let mut database =
+        DatabaseDat::new_zeroed((game_data.conquest.player_count() as usize) * planet_count);
+    let record = database.record_mut(1, 0, planet_count);
+    record.raw[0x15] = 2;
+
+    let projection = build_player_starmap_projection(&game_data, &database, 1);
+    let foreign = projection
+        .worlds
+        .iter()
+        .find(|world| world.coords == [10, 15])
+        .expect("foreign world should exist");
+
+    assert_eq!(foreign.known_owner_empire_id, Some(2));
+}
+
+#[test]
 fn ascii_map_export_uses_printable_paged_grid() {
     for (width, height, expect_formfeed) in [(18, 18, false), (27, 27, true), (36, 36, true), (45, 45, true)] {
         let projection = ec_data::PlayerStarmapProjection {

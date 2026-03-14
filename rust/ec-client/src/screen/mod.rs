@@ -5,6 +5,7 @@ mod general_menu;
 mod layout;
 mod main_menu;
 mod planet_info;
+mod partial_starmap;
 mod reports;
 mod rankings;
 mod startup;
@@ -18,6 +19,7 @@ pub use general_menu::GeneralMenuScreen;
 pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 pub use main_menu::MainMenuScreen;
 pub use planet_info::{PlanetInfoScreen, parse_planet_coords};
+pub use partial_starmap::PartialStarmapScreen;
 pub use rankings::{RankingsScreen, RankingsView};
 pub use reports::ReportsScreen;
 pub use startup::StartupScreen;
@@ -37,6 +39,8 @@ pub enum ScreenId {
     MainMenu,
     GeneralMenu,
     Starmap,
+    PartialStarmapPrompt,
+    PartialStarmapView,
     PlanetInfoPrompt,
     PlanetInfoDetail,
     EmpireStatus,
