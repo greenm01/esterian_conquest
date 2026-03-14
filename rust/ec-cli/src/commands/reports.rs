@@ -432,6 +432,14 @@ pub(crate) fn regenerate_results_dat(
         push_results_chunked(&mut results, 0x06, RESULTS_TAIL_FLEET, &text);
     }
 
+    for event in &events.campaign_outlook_events {
+        let text = format!(
+            "From your Fleet Command Center: {} now stands as the sole remaining serious contender for the imperial throne. Other empires may still persist, but none currently appear capable of challenging our claim.",
+            empire_label(game_data, event.empire_raw),
+        );
+        push_results_chunked(&mut results, 0x06, RESULTS_TAIL_FLEET, &text);
+    }
+
     for event in &events.assault_report_events {
         let Some(planet) = game_data.planets.records.get(event.planet_idx) else {
             continue;

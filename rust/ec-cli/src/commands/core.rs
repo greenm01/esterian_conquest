@@ -21,6 +21,7 @@ pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Er
     let initialized_fleet_block_head_ids = data.current_known_initialized_fleet_block_head_ids();
     let campaign_contenders = data.campaign_contenders();
     let sole_contender = data.sole_contender();
+    let campaign_outlook = data.campaign_outlook();
 
     println!("Core State Report");
     println!("  dir={}", dir.display());
@@ -83,6 +84,7 @@ pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Er
     println!("  player1_starbase_count={}", starbase_total);
     println!("  player1_owned_base_record_count={}", owned_base_total);
     println!("  player1_ipbm_count={}", ipbm_total);
+    println!("  campaign_outlook={}", campaign_outlook.as_str());
     println!("  campaign_contenders={:?}", campaign_contenders);
     println!("  sole_contender={:?}", sole_contender);
 

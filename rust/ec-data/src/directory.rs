@@ -105,6 +105,21 @@ impl CampaignState {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CampaignOutlook {
+    Contested,
+    SoleContender(u8),
+}
+
+impl CampaignOutlook {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Contested => "contested",
+            Self::SoleContender(_) => "sole_contender",
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum GameDirectoryError {
     Io {
@@ -309,6 +324,13 @@ impl CoreGameData {
             contenders.first().copied()
         } else {
             None
+        }
+    }
+
+    pub fn campaign_outlook(&self) -> CampaignOutlook {
+        match self.sole_contender() {
+            Some(empire_raw) => CampaignOutlook::SoleContender(empire_raw),
+            None => CampaignOutlook::Contested,
         }
     }
 

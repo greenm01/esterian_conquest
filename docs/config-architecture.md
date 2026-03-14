@@ -14,6 +14,18 @@ The Rust port should eventually use config files extensively for:
 
 KDL is the preferred format for those machine-readable config surfaces.
 
+This does not mean every new Rust-only piece of persistent state should become
+another KDL sidecar. The intended long-term split is:
+
+- KDL for authored setup/config/scenario input
+- classic `.DAT` files for compatibility with the original game
+- a future per-game SQLite database for Rust-native campaign metadata,
+  historical turn state, and policy extensions that do not belong in classic
+  files
+
+Until that SQLite layer exists, Rust-only campaign policy such as turn limits
+should remain deferred rather than forcing more live runtime sidecars into KDL.
+
 ## Ownership Boundaries
 
 The layers are:

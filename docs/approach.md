@@ -123,6 +123,17 @@ The goal is:
 - CLI and future TUI surfaces should act as frontends over that config and the
   shared Rust model, not as the only place where setup can be expressed
 
+12. Keep end-to-end Rust maintenance ahead of storage polish
+
+- the immediate engineering target is a full-game-capable Rust maintenance
+  engine with classic `.DAT` fidelity
+- modern storage work is approved, but it is not the current blocker
+- KDL should remain focused on authored setup/config/scenario input
+- turn limits and other Rust-only campaign policy should be deferred until a
+  future SQLite layer exists
+- any future SQLite adoption should sit beside the `.DAT` flow, not replace
+  the classic compliance boundary
+
 ## What Counts As Success
 
 Short term:
@@ -212,7 +223,7 @@ Long term:
   goal and should be folded into the Rust clone once the local `ECGAME`
   harness is reliable enough
 
-12. Own the mechanics; do not reproduce the original RNG
+13. Own the mechanics; do not reproduce the original RNG
 
 - `ECMAINT` uses an internal RNG for combat resolution (fleet battles,
   bombardment ship losses) and rogue/autopilot AI decisions
@@ -239,7 +250,7 @@ Long term:
   constants into machine-readable KDL config rather than burying them inline
   forever in Rust code
 
-13. Preserve compatible gamestate even when behavior is canonicalized
+14. Preserve compatible gamestate even when behavior is canonicalized
 
 - the Rust engine is now far enough along that it should prefer
   **classic-compatible save directories** over brittle attempts to mimic every

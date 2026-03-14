@@ -85,6 +85,9 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
         all_events
             .civil_disorder_events
             .extend(events.civil_disorder_events);
+        all_events
+            .campaign_outlook_events
+            .extend(events.campaign_outlook_events);
 
         apply_diplomatic_escalations(&mut game_data, &mut diplomacy_overrides, &all_events)?;
 

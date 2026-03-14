@@ -11,6 +11,8 @@ Primary milestone:
 - use the original DOS binaries as the acceptance oracle
 - use that compliant generator as the bridge toward a Rust `ECMAINT`
   replacement
+- finish the remaining campaign-end semantics so Rust maint can run a full
+  game end to end without inventing unsupported `ECGAME` UI flows
 
 ## Milestone Status
 
@@ -224,6 +226,12 @@ What is strong:
   - a live `ECGAME` menu check confirms there is no visible surrender command
   - Rust should therefore model surrender as campaign state, not as a missing
     menu item to recreate
+- storage direction is now explicit enough to stop blocking on it:
+  - `.DAT` remains the compliance boundary
+  - KDL remains authored setup/config/scenario input
+  - future per-game SQLite is the approved home for Rust-native campaign
+    metadata and policy extensions
+  - turn-limit support is therefore deferred until that SQLite layer exists
 - `ec-data` now has a first campaign-state evaluator for each empire:
   - `Stable`
   - `MarginalExistence`
@@ -241,6 +249,12 @@ What is strong:
     state already visible in preserved logs
   - this is an intentionally conservative first pass, not a full recovered
     long-term fleet-defection model yet
+- `ec-data` now also exposes a conservative campaign outlook:
+  - `Contested`
+  - `SoleContender(empire_raw)`
+  - this is intentionally not yet the same thing as final emperor recognition
+  - `maint-rust` now also emits a conservative Fleet Command Center report
+    when one empire stands as the sole remaining serious contender
 - the larger-tier `DATABASE.DAT` refresh path no longer hard-codes a 20-planet
   index stride:
   - scout/view `planet_intel_events` now use the real dynamic `planet_count`
@@ -377,6 +391,10 @@ ones.
   declarative instead of growing more CLI-only flags
 - keep `ec-tui` deleted; do not reintroduce a half-supported setup UI while the
   KDL/sysop path is becoming the canonical admin surface
+- defer turn-limit work until a future SQLite-backed campaign layer exists
+- continue the end-to-end campaign pass:
+  - empire-recognition / end-state rules that stay faithful to the manuals
+  - later, fleet-defection behavior beyond the first civil-disorder transition
 - [ ] Assault-path regression coverage expanded for invade and blitz edge cases
 - [ ] `maint-compare` acceptance policy updated to treat combat as structural,
   not byte-exact, parity

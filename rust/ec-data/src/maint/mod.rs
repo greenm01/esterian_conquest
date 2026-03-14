@@ -276,6 +276,11 @@ pub struct CivilDisorderEvent {
     pub prior_label: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CampaignOutlookEvent {
+    pub empire_raw: u8,
+}
+
 /// A colonization outcome resolved during maintenance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColonizationResolvedEvent {
@@ -333,6 +338,8 @@ pub struct MaintenanceEvents {
     pub diplomatic_escalation_events: Vec<DiplomaticEscalationEvent>,
     /// Empires that fell into civil disorder this turn.
     pub civil_disorder_events: Vec<CivilDisorderEvent>,
+    /// A new sole remaining serious contender emerged this turn.
+    pub campaign_outlook_events: Vec<CampaignOutlookEvent>,
 }
 
 /// Event produced when a fleet completes a ColonizeWorld order.
@@ -446,6 +453,8 @@ pub fn run_maintenance_turn_with_context(
         })
         .collect();
 
+    let initial_campaign_outlook = game_data.campaign_outlook();
+
     // InvadeWorld execution: a InvadeWorld fleet that had raw[0x19]==0x80 at start of turn
     // executes this turn. Snapshot indices now, before movement mutates raw[0x19].
     let invade_ready: Vec<usize> = game_data
@@ -528,6 +537,11 @@ pub fn run_maintenance_turn_with_context(
     // falls into civil disorder. This preserves the empire slot and matches
     // the observed "In Civil Disorder" state already used by classic data.
     let civil_disorder_events = apply_campaign_state_transitions(game_data);
+    let campaign_outlook_events = detect_campaign_outlook_events(
+        initial_campaign_outlook,
+        game_data.campaign_outlook(),
+        &civil_disorder_events,
+    );
 
     // Update PLAYER.DAT raw[0x46]: set to 0x01 for any player with starbase_count > 0.
     // Confirmed from starbase fixture: player 0 (starbase_count=1) gets raw[0x46]=0x01 after maint.
@@ -597,11 +611,25 @@ pub fn run_maintenance_turn_with_context(
         mission_events,
         diplomatic_escalation_events: movement_events.diplomatic_escalation_events,
         civil_disorder_events,
+        campaign_outlook_events,
     };
 
     apply_stored_diplomatic_escalations(game_data, &events)?;
 
     Ok(events)
+}
+
+fn detect_campaign_outlook_events(
+    _before: crate::CampaignOutlook,
+    after: crate::CampaignOutlook,
+    _civil_disorder_events: &[CivilDisorderEvent],
+) -> Vec<CampaignOutlookEvent> {
+    match after {
+        crate::CampaignOutlook::SoleContender(empire_raw) => {
+            vec![CampaignOutlookEvent { empire_raw }]
+        }
+        _ => Vec::new(),
+    }
 }
 
 fn apply_stored_diplomatic_escalations(

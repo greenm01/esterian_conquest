@@ -133,6 +133,18 @@ transform expresses shared directory semantics rather than CLI interaction
 policy, it should live on `CoreGameData` and the CLI should only load, invoke,
 save, and report.
 
+Current storage direction should respect the same boundary:
+
+- `CoreGameData` remains the canonical in-memory state
+- classic `.DAT` files remain the required compatibility projection
+- KDL remains the preferred authored input layer for setup/scenario intent
+- future Rust-native per-game persistence should be additive and likely live in
+  SQLite beside the classic directory, not as a replacement for `.DAT`
+
+That future storage work is approved, but it is not the current milestone. The
+current engine goal is still a full-game-capable Rust maintenance path that can
+run campaigns end to end while staying `.DAT`-compatible.
+
 The same should be true for setup and routing once those surfaces mature:
 
 - a faithful game initializer should live on the shared model side, not as a

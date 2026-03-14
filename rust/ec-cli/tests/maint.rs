@@ -1208,3 +1208,60 @@ fn maint_rust_reports_empire_falling_into_civil_disorder() {
 
     cleanup_dir(&target);
 }
+
+#[test]
+fn maint_rust_reports_when_one_serious_contender_remains() {
+    let target = unique_temp_dir("ec-cli-maint-rust-campaign-outlook");
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3000)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    for empire_raw in 2..=4u8 {
+        for planet in &mut game_data.planets.records {
+            if planet.owner_empire_slot_raw() == empire_raw {
+                planet.set_owner_empire_slot_raw(0);
+                planet.set_ownership_status_raw(0);
+            }
+        }
+        for fleet in &mut game_data.fleets.records {
+            if fleet.owner_empire_raw() == empire_raw {
+                fleet.set_etac_count(0);
+                fleet.set_troop_transport_count(0);
+                fleet.set_army_count(0);
+                fleet.set_destroyer_count(0);
+                fleet.set_cruiser_count(0);
+                fleet.set_battleship_count(0);
+                fleet.set_scout_count(0);
+            }
+        }
+    }
+    game_data.save(&target).expect("mutated game should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let post = CoreGameData::load(&target).expect("maint-rust output should load");
+    assert_eq!(post.campaign_outlook(), ec_data::CampaignOutlook::SoleContender(1));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let normalized = results
+        .chunks(84)
+        .flat_map(|chunk| chunk.get(1..76).unwrap_or(&[]).iter().copied())
+        .filter(|byte| *byte != 0)
+        .map(char::from)
+        .collect::<String>();
+    assert!(
+        normalized
+            .to_ascii_lowercase()
+            .contains("sole remaining serious contender"),
+        "RESULTS.DAT decoded text was: {:?}",
+        normalized
+    );
+
+    cleanup_dir(&target);
+}
