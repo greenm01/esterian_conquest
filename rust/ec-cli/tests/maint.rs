@@ -7,6 +7,14 @@ use common::{
 use ec_data::{CoreGameData, DatabaseDat, GameStateBuilder, Order};
 use std::fs;
 
+fn decode_chunked_report(bytes: &[u8]) -> String {
+    bytes.chunks(84)
+        .flat_map(|chunk| chunk.get(1..76).unwrap_or(&[]).iter().copied())
+        .filter(|byte| *byte != 0)
+        .map(char::from)
+        .collect::<String>()
+}
+
 #[test]
 fn maint_rust_econ_updates_database_owner_intel_from_post_combat_planet_state() {
     let target = unique_temp_dir("ec-cli-maint-rust-econ");
@@ -55,10 +63,7 @@ fn maint_rust_econ_updates_database_owner_intel_from_post_combat_planet_state() 
     assert_eq!(unrelated_record.planet_name_bytes(), b"UNKNOWN");
     assert_eq!(unrelated_record.raw[0x15], 0xff);
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
-    assert!(
-        messages.is_empty(),
-        "MESSAGES.DAT should remain empty for current canonical maint output"
-    );
+    assert!(messages.is_empty(), "MESSAGES.DAT should remain empty here");
 
     cleanup_dir(&target);
 }
@@ -84,10 +89,13 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     assert!(text.contains("Fleet battle report"));
     assert!(text.contains("System("));
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
+    let text = decode_chunked_report(&messages);
     assert!(
-        messages.is_empty(),
-        "MESSAGES.DAT should remain empty for current canonical maint output"
+        text.contains("Fleet battle report"),
+        "MESSAGES.DAT decoded text was: {:?}",
+        text
     );
+    assert!(text.contains("For Empire #"));
 
     cleanup_dir(&target);
 }
@@ -544,10 +552,13 @@ fn maint_rust_colonization_generates_results_report_from_colony_event() {
     assert!(text.contains("successfully established"));
     assert!(text.contains("Not Named Yet"));
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
+    let message_text = decode_chunked_report(&messages);
     assert!(
-        messages.is_empty(),
-        "MESSAGES.DAT should remain empty for current canonical maint output"
+        message_text.contains("successfully established"),
+        "MESSAGES.DAT decoded text was: {:?}",
+        message_text
     );
+    assert!(message_text.contains("For Empire #"));
 
     cleanup_dir(&target);
 }

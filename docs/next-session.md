@@ -17,6 +17,8 @@ It can currently:
   deterministic combat, conquest, civil disorder, fleet defection, and
   conservative emperor recognition
 - regenerate classic `DATABASE.DAT` and `RESULTS.DAT`
+- write a first-pass routed `MESSAGES.DAT` stream from recipient-scoped maint
+  events
 - keep producing directories the original `ECMAINT` accepts
 
 Recent validation:

@@ -8,7 +8,9 @@ use ec_data::{
     run_maintenance_turn_with_visible_hazards, visible_hazard_intel_from_database,
 };
 
-use crate::commands::reports::{regenerate_database_dat, regenerate_results_dat};
+use crate::commands::reports::{
+    regenerate_database_dat, regenerate_messages_dat, regenerate_results_dat,
+};
 
 /// Run Rust maintenance on a game directory for specified number of turns
 pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::error::Error>> {
@@ -118,6 +120,7 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
     // Regenerate DATABASE.DAT from PLANETS.DAT
     regenerate_database_dat(dir, &game_data, &pre_maint_planets, &all_events)?;
     regenerate_results_dat(dir, &game_data, &all_events)?;
+    regenerate_messages_dat(dir, &game_data, &all_events)?;
 
     println!("Rust maintenance complete.");
     Ok(())

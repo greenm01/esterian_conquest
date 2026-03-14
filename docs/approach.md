@@ -402,11 +402,15 @@ Near-term policy:
 - every fleet encounter should eventually emit an intel/contact event even if
   no battle occurs; combat is only one possible consequence of contact
 - treat `RESULTS.DAT` as the active canonical maint report target
-- leave `MESSAGES.DAT` empty until a non-empty maint-generated sample is
-  recovered from fixtures, oracle runs, or historical session captures
-- current limitation: the Rust port still writes one aggregate `RESULTS.DAT`
-  stream for maintenance, even when the underlying events are recipient-scoped;
-  exact classic per-player report routing remains a later report-layer task
+- `MESSAGES.DAT` now carries a first-pass Rust-only routed message stream built
+  from recipient-scoped maintenance events, using the same chunked record shape
+  as `RESULTS.DAT` plus explicit recipient prefixes
+- this routed `MESSAGES.DAT` is a pragmatic Rust policy layer, not yet a claim
+  that the original classic per-player on-disk routing format has been
+  recovered
+- current limitation: `RESULTS.DAT` still remains the aggregate canonical maint
+  report target, and `MESSAGES.DAT` routing is only a readable first-pass
+  projection while exact classic per-player semantics remain unsettled
 
 Default `ECMAINT` black-box loop for new mechanics:
 
