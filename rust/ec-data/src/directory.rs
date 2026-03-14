@@ -2,8 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::{
-    BaseDat, BaseRecord, ConquestDat, FleetDat, FleetRecord, IPBM_RECORD_SIZE, IpbmDat, IpbmRecord,
-    ParseError, PlanetDat, PlayerDat, SetupDat,
+    BaseDat, BaseRecord, ConquestDat, DiplomaticRelation, FleetDat, FleetRecord,
+    IPBM_RECORD_SIZE, IpbmDat, IpbmRecord, ParseError, PlanetDat, PlayerDat, SetupDat,
 };
 
 const CURRENT_KNOWN_POST_MAINT_CONQUEST_CONTROL_HEADER: [u8; 0x55] = [
@@ -1862,6 +1862,24 @@ impl CoreGameData {
             })?;
         record.set_tax_rate_raw(tax_rate);
         Ok(())
+    }
+
+    /// Returns the stored diplomatic relation from one empire toward another
+    /// when the backing `PLAYER.DAT` bytes are mapped. At present that field
+    /// mapping is still unresolved, so callers generally receive `None` and
+    /// must rely on documented manual hostility triggers instead.
+    pub fn stored_diplomatic_relation(
+        &self,
+        from_empire_raw: u8,
+        to_empire_raw: u8,
+    ) -> Option<DiplomaticRelation> {
+        if from_empire_raw == 0 || to_empire_raw == 0 || from_empire_raw == to_empire_raw {
+            return None;
+        }
+        self.player
+            .records
+            .get(from_empire_raw.saturating_sub(1) as usize)
+            .and_then(|record| record.diplomatic_relation_toward(to_empire_raw))
     }
 }
 

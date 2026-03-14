@@ -142,6 +142,11 @@ fn canonical_fleet_battle_removes_losers_without_garbage_counts() {
             && event.coords == [10, 10]
             && event.target_empire_raw == 2
     }));
+    assert!(events.scout_contact_events.iter().any(|event| {
+        matches!(event.source, ContactReportSource::Fleet(_))
+            && event.coords == [10, 10]
+            && event.viewer_empire_raw != 1
+    }));
 
     let survivor = &game_data.fleets.records[6];
     assert_eq!(survivor.current_location_coords_raw(), [10, 10]);

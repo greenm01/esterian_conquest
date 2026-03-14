@@ -186,11 +186,17 @@ What is strong:
   - refreshes that visible hazard view between maint turns
   - routes on fixed hazards only, not transient deep-space fleet sightings
 - the contact/combat path now has an explicit hostility predicate seam:
+  - declared enemy, if the persisted relation can be recovered
   - defended system entry
   - blockade / guard contact
   - current canonical foreign co-location fallback
   - stored `enemy` diplomacy bytes still need mapping before the fallback can
     be narrowed safely
+- `ec-data` now exposes a typed stored-diplomacy seam, but the `PLAYER.DAT`
+  enemy/neutral bytes remain unresolved
+- fleet encounter reporting is now broader than combat-only scouting:
+  - generic fleet-on-fleet contact reports are emitted even when the observing
+    fleet was not on a scout order
 - fleet order enums now use the manual order table directly
   - confirmed from `ECPLAYER.DOC` / `ECQSTART.DOC`: `InvadeWorld = 0x07`
   - the old preserved invade pre-fixture still carries `0x0a` in that byte

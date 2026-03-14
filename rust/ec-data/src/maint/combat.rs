@@ -8,7 +8,7 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use crate::{CoreGameData, Order};
+use crate::{CoreGameData, DiplomaticRelation, Order};
 
 use super::{
     AssaultReportEvent, BombardEvent, ContactReportSource, FleetBattleEvent, FleetDestroyedEvent,
@@ -73,6 +73,7 @@ struct TaskForce {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum HostilityReason {
+    DeclaredEnemy,
     DefendedSystemEntry,
     BlockadeOrGuardContact,
     CanonicalFallback,
@@ -283,6 +284,16 @@ fn hostility_reason_between(
         return None;
     }
 
+    if matches!(
+        game_data.stored_diplomatic_relation(left.empire, right.empire),
+        Some(DiplomaticRelation::Enemy)
+    ) || matches!(
+        game_data.stored_diplomatic_relation(right.empire, left.empire),
+        Some(DiplomaticRelation::Enemy)
+    ) {
+        return Some(HostilityReason::DeclaredEnemy);
+    }
+
     if let Some(planet) = game_data
         .planets
         .records
@@ -307,6 +318,49 @@ fn hostility_reason_between(
     // current canonical combat behavior for foreign co-location rather than
     // silently suppressing battles.
     Some(HostilityReason::CanonicalFallback)
+}
+
+fn push_contact_event_for_task_force(
+    events: &mut FleetBattlePhaseEvents,
+    game_data: &CoreGameData,
+    coords: [u8; 2],
+    task_force: &TaskForce,
+    target_empire: u8,
+    target_state: &FleetCombatState,
+) {
+    let (small_vessels, medium_vessels, large_vessels) = vessel_size_summary(target_state);
+
+    for &idx in &task_force.fleet_indices {
+        let fleet = &game_data.fleets.records[idx];
+        let source = contact_reporting_kind(fleet.standing_order_kind())
+            .map(ContactReportSource::FleetMission)
+            .unwrap_or(ContactReportSource::Fleet(fleet.fleet_id()));
+        events.scout_contact_events.push(ScoutContactEvent {
+            viewer_empire_raw: fleet.owner_empire_raw(),
+            source,
+            coords,
+            target_empire_raw: target_empire,
+            small_vessels,
+            medium_vessels,
+            large_vessels,
+        });
+    }
+
+    for base in game_data.bases.records.iter().filter(|base| {
+        base.coords_raw() == coords
+            && base.owner_empire_raw() == task_force.empire
+            && base.active_flag_raw() != 0
+    }) {
+        events.scout_contact_events.push(ScoutContactEvent {
+            viewer_empire_raw: task_force.empire,
+            source: ContactReportSource::Starbase(base.base_id_raw()),
+            coords,
+            target_empire_raw: target_empire,
+            small_vessels,
+            medium_vessels,
+            large_vessels,
+        });
+    }
 }
 
 fn starbase_count_at(game_data: &CoreGameData, coords: [u8; 2], owner: u8) -> u32 {
@@ -554,6 +608,36 @@ pub(crate) fn process_fleet_battles(
             continue;
         }
 
+        let original_states: HashMap<u8, FleetCombatState> = task_forces
+            .iter()
+            .map(|tf| (tf.empire, tf.state.clone()))
+            .collect();
+
+        for (i, left) in task_forces.iter().enumerate() {
+            for right in task_forces.iter().skip(i + 1) {
+                if left.empire == right.empire || !left.state.has_units() || !right.state.has_units()
+                {
+                    continue;
+                }
+                push_contact_event_for_task_force(
+                    &mut events,
+                    game_data,
+                    coords,
+                    left,
+                    right.empire,
+                    &right.state,
+                );
+                push_contact_event_for_task_force(
+                    &mut events,
+                    game_data,
+                    coords,
+                    right,
+                    left.empire,
+                    &left.state,
+                );
+            }
+        }
+
         let has_hostile_pair = task_forces.iter().enumerate().any(|(i, left)| {
             task_forces
                 .iter()
@@ -570,63 +654,6 @@ pub(crate) fn process_fleet_battles(
             .iter()
             .find(|p| p.coords_raw() == coords)
             .map(|p| p.owner_empire_slot_raw());
-
-        let original_states: HashMap<u8, FleetCombatState> = task_forces
-            .iter()
-            .map(|tf| (tf.empire, tf.state.clone()))
-            .collect();
-
-        for tf in &task_forces {
-            let target_empire =
-                empire_target_priority(tf.empire, tf.role, &task_forces, planet_owner).filter(
-                    |target_empire| {
-                        task_forces
-                            .iter()
-                            .find(|other| other.empire == *target_empire)
-                            .and_then(|other| {
-                                hostility_reason_between(game_data, coords, tf, other)
-                            })
-                            .is_some()
-                    },
-                );
-            let Some(target_empire) = target_empire else {
-                continue;
-            };
-            let Some(target_state) = original_states.get(&target_empire) else {
-                continue;
-            };
-            let (small_vessels, medium_vessels, large_vessels) = vessel_size_summary(target_state);
-            for &idx in &tf.fleet_indices {
-                let order = game_data.fleets.records[idx].standing_order_kind();
-                let Some(mission_kind) = contact_reporting_kind(order) else {
-                    continue;
-                };
-                events.scout_contact_events.push(ScoutContactEvent {
-                    viewer_empire_raw: game_data.fleets.records[idx].owner_empire_raw(),
-                    source: ContactReportSource::FleetMission(mission_kind),
-                    coords,
-                    target_empire_raw: target_empire,
-                    small_vessels,
-                    medium_vessels,
-                    large_vessels,
-                });
-            }
-            for base in game_data.bases.records.iter().filter(|base| {
-                base.coords_raw() == coords
-                    && base.owner_empire_raw() == tf.empire
-                    && base.active_flag_raw() != 0
-            }) {
-                events.scout_contact_events.push(ScoutContactEvent {
-                    viewer_empire_raw: tf.empire,
-                    source: ContactReportSource::Starbase(base.base_id_raw()),
-                    coords,
-                    target_empire_raw: target_empire,
-                    small_vessels,
-                    medium_vessels,
-                    large_vessels,
-                });
-            }
-        }
 
         for _round in 0..3 {
             let active: Vec<u8> = task_forces

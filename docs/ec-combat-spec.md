@@ -201,6 +201,14 @@ Canonical interpretation:
 This spec therefore uses `hostile` for combat eligibility and `enemy` only
 for the narrower diplomatic declaration concept.
 
+Current implementation note:
+
+- Rust now has a typed stored-diplomacy seam for this distinction
+- the actual persisted `PLAYER.DAT` bytes for enemy/neutral status are still
+  unresolved
+- until those bytes are mapped, the live engine still preserves a canonical
+  foreign co-location fallback after applying the manual defensive triggers
+
 ### Shared contact rules
 
 When two or more hostile empires are present in the same location in the same

@@ -145,9 +145,15 @@ Current Rust implementation status:
   invisible to routing until discovered
 - combat/contact handling now also has an explicit hostility decision seam
   rather than burying that choice inside the battle loop
-- the stored `enemy` diplomacy bytes are still unmapped, so the current
-  hostility predicate preserves the existing canonical foreign co-location
-  fallback until that diplomacy state is recovered
+- `ec-data` now exposes a typed stored-diplomacy seam, but the underlying
+  `PLAYER.DAT` enemy/neutral bytes are still unmapped
+- the current hostility predicate therefore uses:
+  - declared-enemy status if it can ever be recovered from storage
+  - defensive/manual hostility triggers
+  - the current canonical foreign co-location fallback until persistence is
+    recovered
+- fleet encounters now generate contact/intel reports even when the encounter
+  source is not a scout mission
 
 ## Compatibility Rule
 

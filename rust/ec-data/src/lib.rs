@@ -49,6 +49,6 @@ pub use records::database::{DatabaseDat, DatabaseRecord};
 pub use records::fleet::{FleetDat, FleetRecord, Order};
 pub use records::ipbm::{IpbmDat, IpbmRecord};
 pub use records::planet::{PlanetDat, PlanetRecord};
-pub use records::player::{PlayerDat, PlayerRecord};
+pub use records::player::{DiplomaticRelation, PlayerDat, PlayerRecord};
 pub use records::setup::SetupDat;
 pub use support::ParseError;

@@ -1,6 +1,12 @@
 use crate::support::{ParseError, copy_array, trim_ascii_field};
 use crate::PLAYER_RECORD_SIZE;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiplomaticRelation {
+    Neutral,
+    Enemy,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlayerRecord {
     pub raw: [u8; PLAYER_RECORD_SIZE],
@@ -151,6 +157,17 @@ impl PlayerRecord {
     /// Same as occupied_flag for player records.
     pub fn set_owner_empire_raw(&mut self, value: u8) {
         self.raw[0] = value;
+    }
+
+    /// Stored diplomatic relation toward another empire, if the raw bytes have
+    /// been mapped. This remains unresolved in the classic `PLAYER.DAT`
+    /// layout, so callers must handle `None` and fall back to documented
+    /// hostility rules.
+    pub fn diplomatic_relation_toward(
+        &self,
+        _other_empire_raw: u8,
+    ) -> Option<DiplomaticRelation> {
+        None
     }
 }
 

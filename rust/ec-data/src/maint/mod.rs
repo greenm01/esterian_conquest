@@ -137,6 +137,7 @@ pub struct StarbaseDestroyedEvent {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ContactReportSource {
     FleetMission(Mission),
+    Fleet(u8),
     Starbase(u8),
 }
 

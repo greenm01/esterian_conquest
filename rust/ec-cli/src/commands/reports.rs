@@ -511,6 +511,13 @@ pub(crate) fn regenerate_results_dat(
                 );
                 push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &identified_text);
             }
+            ContactReportSource::Fleet(fleet_id) => {
+                let identified_text = format!(
+                    "From Fleet {fleet_id} in System({x},{y}): Contact report: We have encountered an alien fleet in System({x},{y}). It belongs to {}. Their fleet contains {size_summary} of unknown type.",
+                    empire_label(game_data, event.target_empire_raw),
+                );
+                push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &identified_text);
+            }
             ContactReportSource::Starbase(starbase_id) => {
                 let identified_text = format!(
                     "From Starbase {starbase_id}, located in System({x},{y}): We have located and identified an alien fleet in System({x},{y}). It is {}. Their fleet contains {size_summary} of unknown type. We are alerting all fleets in the area.",
