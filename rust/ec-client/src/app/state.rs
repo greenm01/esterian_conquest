@@ -2,21 +2,19 @@ use std::fs;
 use std::path::PathBuf;
 
 use ec_data::{
-    CoreGameData, DatabaseDat, QueuedPlayerMail, append_mail_queue, load_mail_queue,
-    build_player_starmap_projection,
-    save_mail_queue,
+    append_mail_queue, build_player_starmap_projection, load_mail_queue, save_mail_queue,
+    CoreGameData, DatabaseDat, QueuedPlayerMail,
 };
 
 use crate::app::Action;
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
-use crate::reports::{ReportsPreview, clear_report_files};
+use crate::reports::{clear_report_files, ReportsPreview};
 use crate::screen::{
     CommandMenu, DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
-    GeneralHelpScreen,
-    GeneralMenuScreen, MainMenuScreen, MessageComposeScreen, PlanetHelpScreen, PlanetInfoScreen,
-    PlanetListMode, PlanetListScreen, PlanetListSort, PlanetMenuScreen, PlanetTaxScreen,
-    PartialStarmapScreen, RankingsScreen, RankingsView, ReportsScreen, Screen, ScreenFrame,
-    ScreenId, StartupScreen, StarmapScreen,
+    GeneralHelpScreen, GeneralMenuScreen, MainMenuScreen, MessageComposeScreen,
+    PartialStarmapScreen, PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen,
+    PlanetListSort, PlanetMenuScreen, PlanetTaxScreen, RankingsScreen, RankingsView, ReportsScreen,
+    Screen, ScreenFrame, ScreenId, StarmapScreen, StartupScreen,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -216,52 +214,54 @@ impl App {
                 &self.sorted_planet_rows(sort),
                 self.planet_detail_index,
             )?,
-            ScreenId::PlanetTaxPrompt => self
-                .planet_tax
-                .render_prompt(&self.planet_tax_input, self.planet_tax_status.as_deref())?,
+            ScreenId::PlanetTaxPrompt => {
+                let current_tax = self.game_data.player.records
+                    [self.player.record_index_1_based - 1]
+                    .tax_rate()
+                    .to_string();
+                self.planet_tax.render_prompt(
+                    &current_tax,
+                    &self.planet_tax_input,
+                    self.planet_tax_status.as_deref(),
+                )?
+            }
             ScreenId::PlanetTaxDone => self.planet_tax.render_done(
                 self.planet_tax_status
                     .as_deref()
                     .unwrap_or("Tax rate updated."),
             )?,
             ScreenId::Starmap if self.starmap_capture_complete => self.starmap.render_complete()?,
-            ScreenId::Starmap if self.starmap_dump_active => self.starmap.render_dump_page(
-                &self.starmap_dump_lines,
-                self.starmap_dump_offset,
-            )?,
+            ScreenId::Starmap if self.starmap_dump_active => self
+                .starmap
+                .render_dump_page(&self.starmap_dump_lines, self.starmap_dump_offset)?,
             ScreenId::Starmap => self.starmap.render_prompt(self.starmap_status.as_deref())?,
-            ScreenId::PartialStarmapPrompt => self
-                .partial_starmap
-                .render_prompt(
-                    &self.partial_starmap_input,
-                    self.partial_starmap_error.as_deref(),
-                    self.command_return_menu,
-                )?,
+            ScreenId::PartialStarmapPrompt => self.partial_starmap.render_prompt(
+                &self.partial_starmap_input,
+                self.partial_starmap_error.as_deref(),
+                self.command_return_menu,
+            )?,
             ScreenId::PartialStarmapView => self.partial_starmap.render_view(
                 &frame,
                 &self.database,
                 self.partial_starmap_center,
             )?,
-            ScreenId::PlanetInfoPrompt => self
-                .planet_info
-                .render_prompt(
-                    &self.planet_info_input,
-                    self.planet_info_error.as_deref(),
-                    self.command_return_menu,
-                )?,
-            ScreenId::PlanetInfoDetail => self.planet_info.render_detail(
-                &frame,
-                self.planet_info_selected.ok_or("planet info detail not selected")?,
+            ScreenId::PlanetInfoPrompt => self.planet_info.render_prompt(
+                &self.planet_info_input,
+                self.planet_info_error.as_deref(),
                 self.command_return_menu,
             )?,
-            ScreenId::Enemies => self
-                .enemies
-                .render(
-                    &frame,
-                    &self.enemies_input,
-                    self.enemies_status.as_deref(),
-                    self.enemies_scroll_offset,
-                )?,
+            ScreenId::PlanetInfoDetail => self.planet_info.render_detail(
+                &frame,
+                self.planet_info_selected
+                    .ok_or("planet info detail not selected")?,
+                self.command_return_menu,
+            )?,
+            ScreenId::Enemies => self.enemies.render(
+                &frame,
+                &self.enemies_input,
+                self.enemies_status.as_deref(),
+                self.enemies_scroll_offset,
+            )?,
             ScreenId::DeleteReviewables => self
                 .delete_reviewables
                 .render(self.delete_reviewables_status.as_deref())?,
@@ -345,8 +345,7 @@ impl App {
     }
 
     pub fn open_planet_tax_prompt(&mut self) {
-        let current = self.game_data.player.records[self.player.record_index_1_based - 1].tax_rate();
-        self.planet_tax_input = current.to_string();
+        self.planet_tax_input = String::new();
         self.planet_tax_status = None;
         self.current_screen = ScreenId::PlanetTaxPrompt;
     }
@@ -420,7 +419,8 @@ impl App {
             match raw.parse::<u8>() {
                 Ok(value) => value,
                 Err(_) => {
-                    self.planet_tax_status = Some("Enter an integer tax rate from 0 to 100.".to_string());
+                    self.planet_tax_status =
+                        Some("Enter an integer tax rate from 0 to 100.".to_string());
                     return Ok(());
                 }
             }
@@ -578,12 +578,7 @@ impl App {
         if self.current_screen != ScreenId::Enemies {
             return;
         }
-        let total = self
-            .game_data
-            .player
-            .records
-            .len()
-            .saturating_sub(1);
+        let total = self.game_data.player.records.len().saturating_sub(1);
         let max_offset = total.saturating_sub(crate::screen::ENEMIES_VISIBLE_ROWS);
         self.enemies_scroll_offset = self
             .enemies_scroll_offset
@@ -618,7 +613,9 @@ impl App {
     }
 
     pub fn append_partial_starmap_char(&mut self, ch: char) {
-        if self.current_screen == ScreenId::PartialStarmapPrompt && self.partial_starmap_input.len() < 16 {
+        if self.current_screen == ScreenId::PartialStarmapPrompt
+            && self.partial_starmap_input.len() < 16
+        {
             self.partial_starmap_input.push(ch);
             self.partial_starmap_error = None;
         }
@@ -638,8 +635,7 @@ impl App {
         };
         let map_size = ec_data::map_size_for_player_count(self.game_data.conquest.player_count());
         if coords[0] == 0 || coords[1] == 0 || coords[0] > map_size || coords[1] > map_size {
-            self.partial_starmap_error =
-                Some(format!("Enter coordinates within 1..{map_size}"));
+            self.partial_starmap_error = Some(format!("Enter coordinates within 1..{map_size}"));
             return;
         }
         self.partial_starmap_center = coords;
@@ -731,12 +727,7 @@ impl App {
         if self.current_screen != ScreenId::ComposeMessageRecipient {
             return;
         }
-        let total = self
-            .game_data
-            .player
-            .records
-            .len()
-            .saturating_sub(1);
+        let total = self.game_data.player.records.len().saturating_sub(1);
         let max_offset = total.saturating_sub(crate::screen::RECIPIENT_VISIBLE_ROWS);
         self.compose_recipient_scroll_offset = self
             .compose_recipient_scroll_offset
@@ -866,7 +857,8 @@ impl App {
 
     pub fn move_compose_body_cursor_home(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody {
-            self.compose_body_cursor = line_start_index(&self.compose_body, self.compose_body_cursor);
+            self.compose_body_cursor =
+                line_start_index(&self.compose_body, self.compose_body_cursor);
         }
     }
 
@@ -933,7 +925,8 @@ impl App {
     }
 
     pub fn append_compose_outbox_char(&mut self, ch: char) {
-        if self.current_screen == ScreenId::ComposeMessageOutbox && self.compose_outbox_input.len() < 2
+        if self.current_screen == ScreenId::ComposeMessageOutbox
+            && self.compose_outbox_input.len() < 2
         {
             self.compose_outbox_input.push(ch);
             self.compose_outbox_status = None;
@@ -980,7 +973,10 @@ impl App {
         self.compose_outbox_input.clear();
         self.compose_outbox_status = Some(format!("Queued message {:02} deleted.", queue_no));
 
-        let max_offset = own_indexes.len().saturating_sub(1).saturating_sub(crate::screen::OUTBOX_VISIBLE_ROWS);
+        let max_offset = own_indexes
+            .len()
+            .saturating_sub(1)
+            .saturating_sub(crate::screen::OUTBOX_VISIBLE_ROWS);
         self.compose_outbox_scroll_offset = self.compose_outbox_scroll_offset.min(max_offset);
         Ok(())
     }
@@ -1176,13 +1172,12 @@ impl App {
     }
 
     fn compose_outbox_queue_len(&self) -> usize {
-        self.compose_outbox_queue().map(|queue| queue.len()).unwrap_or(0)
+        self.compose_outbox_queue()
+            .map(|queue| queue.len())
+            .unwrap_or(0)
     }
 
-    fn handle_planet_info_prompt_key(
-        &self,
-        key: crossterm::event::KeyEvent,
-    ) -> crate::app::Action {
+    fn handle_planet_info_prompt_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
         use crossterm::event::KeyCode;
 
         match key.code {
@@ -1205,7 +1200,11 @@ fn compose_recipient_label(game_data: &CoreGameData, empire_id: Option<u8>) -> S
     let Some(empire_id) = empire_id else {
         return "<unknown>".to_string();
     };
-    let Some(player) = game_data.player.records.get(empire_id.saturating_sub(1) as usize) else {
+    let Some(player) = game_data
+        .player
+        .records
+        .get(empire_id.saturating_sub(1) as usize)
+    else {
         return format!("Empire {empire_id}");
     };
     let name = player.controlled_empire_name_summary();

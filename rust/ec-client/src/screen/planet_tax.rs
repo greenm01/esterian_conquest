@@ -1,7 +1,9 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
-use crate::screen::layout::{draw_command_prompt, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield};
+use crate::screen::layout::{
+    draw_command_prompt, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
+};
 use crate::screen::PlayfieldBuffer;
 use crate::theme::classic;
 
@@ -14,6 +16,7 @@ impl PlanetTaxScreen {
 
     pub fn render_prompt(
         &mut self,
+        current_tax: &str,
         input: &str,
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
@@ -26,15 +29,21 @@ impl PlanetTaxScreen {
             "Taxes in excess of 65% may actually REDUCE your planets'",
         );
         draw_centered_warning(&mut buffer, 6, "productivities!");
+        // Render: "Enter your empire's tax rate as an integer value (0 - 100): [50] -> _"
+        // [50] shows the current rate as the default; user types a new value after ->
         let prefix = "Enter your empire's tax rate as an integer value (0 - 100): [";
         let prefix_col = draw_plain_prompt(&mut buffer, 10, prefix);
-        let input_col = buffer.write_text(10, prefix_col, input, classic::prompt_hotkey_style());
-        buffer.write_text(10, input_col, "] -> ", classic::prompt_style());
+        let default_col = prefix_col
+            + buffer.write_text(10, prefix_col, current_tax, classic::prompt_hotkey_style());
+        let arrow_col =
+            default_col + buffer.write_text(10, default_col, "] -> ", classic::prompt_style());
+        let cursor_col =
+            arrow_col + buffer.write_text(10, arrow_col, input, classic::prompt_hotkey_style());
         if let Some(status) = status {
             draw_status_line(&mut buffer, 12, "Error: ", status);
         }
         draw_command_prompt(&mut buffer, 19, "PLANET COMMAND", "ENTER Q");
-        buffer.set_cursor(input_col as u16, 10);
+        buffer.set_cursor(cursor_col as u16, 10);
         Ok(buffer)
     }
 
