@@ -194,7 +194,7 @@ pub(crate) fn regenerate_database_dat(
                 new_database.records[record_idx].raw[0x28] = year_bytes[1];
             };
 
-            let record_idx = viewer_player * 20 + planet_idx;
+            let record_idx = DatabaseDat::record_index(planet_idx, viewer_player, planet_count);
             if record_idx < new_database.records.len() {
                 update_record(&mut new_database, record_idx);
             }

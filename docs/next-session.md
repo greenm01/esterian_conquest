@@ -215,6 +215,11 @@ What is strong:
     the sidecar when they are persistable
   - larger-tier direct stored diplomacy also works without a sidecar in the
     live `maint-rust` path (`9`-player coverage)
+- the larger-tier `DATABASE.DAT` refresh path no longer hard-codes a 20-planet
+  index stride:
+  - scout/view `planet_intel_events` now use the real dynamic `planet_count`
+  - live CLI regression now covers 9-player scout intel refresh into the
+    correct viewer slot
 - the local plain-`ECGAME` DOSBox harness is now stable enough for focused
   menu-driven black-box checks when needed:
   - full 32-line WWIV `CHAIN.TXT`
