@@ -249,6 +249,26 @@ Near-term client rule:
 - display Rust maintenance reports through the same player-facing workflow
 - keep review/delete semantics explicit in client state handling
 
+## Preserved Client Assets
+
+The Rust client now has a stronger reference set for the original intro and
+first-time flow under [artifacts/ecgame-client](../artifacts/ecgame-client):
+
+- [intro-sequence.txt](../artifacts/ecgame-client/intro-sequence.txt)
+  - text-flow reference assembled from earlier preserved captures
+- [archive-2022/2022-07-23-NEW-GAME.txt](../artifacts/ecgame-client/archive-2022/2022-07-23-NEW-GAME.txt)
+  - richer escape-sequence transcript of the intro/new-game flow
+- [archive-2022/ansi/first-time-menu.ans](../artifacts/ecgame-client/archive-2022/ansi/first-time-menu.ans)
+- [archive-2022/ansi/ftj-join.ans](../artifacts/ecgame-client/archive-2022/ansi/ftj-join.ans)
+- [archive-2022/ansi/post-join-first-menu.ans](../artifacts/ecgame-client/archive-2022/ansi/post-join-first-menu.ans)
+
+These should be treated as the current best reference set for:
+
+- splash/logo timing and composition
+- first-time join flow
+- pre-main-menu report presentation
+- first-menu layout after join
+
 ## Suggested Near-Term Milestones
 
 ### Milestone 1: Client Skeleton

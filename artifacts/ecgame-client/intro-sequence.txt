@@ -1,0 +1,254 @@
+ECGAME intro-to-main-menu reference
+===================================
+
+This artifact is built from preserved historical text captures.
+It is a text-flow reference for the Rust player client, not a raw ANSI byte stream.
+
+Sources:
+- original/v1.5/EC-Screenshots-v1.11/2022-05-01-credits.txt
+- original/v1.5/EC-Screenshots-v1.11/2022-05-01-intro.txt
+- original/v1.5/ec-logs-2012/ec11.txt
+
+CREDITS TEXT
+------------
+Esterian Conquest Ver 1.11
+───────────────────────────────────────────────────────────────────────────────
+ Copyright (C) 1990, 1991 by Bentley C. Griffith.  All rights reserved.
+ Original Beta testing done on The MATRIX BBS - Birmingham, Alabama.
+
+ Currently supporting: PCBoard, GAP, RBBS, QBBS, FoReM, RA, Wildcat!,
+ SpitFire, and WWIV.  Soon to support OPUS BBS software.
+
+ If you have any questions or suggestions concerning Esterian Conquest,
+ feel free to write to:
+                        ATTN: ESTERIAN CONQUEST(tm)
+                        Griffith International
+                        P.O. Box 530703
+                        Birmingham, AL 35253
+
+ or leave electronic mail on The MATRIX, 24 hours/7 days. Numbers are:
+ area code (205): 323-2016, 323-1828, 323-2031, 323-2032 and 251-2344
+
+ A special thanks to the following people (in aphabetical order):
+          Joel Cohen      Blake Miller       Todd Simmons
+          Tom Egan        Rocky Rawlins      William Smith
+
+INTRO TEXT
+----------
+Esterian Conquest Ver 1.11
+
+   Somewhere between Andromeda and the Milky Way lies a cluster of stars
+containing humanoid and other life forms.  After centuries of rule, the
+race of Esterians has mysteriously vanished leaving this small galaxy in a
+state of anarchy.  Each of the once supressed civilizations, now armed with the
+modern technology of the Esterians and old fashioned greed, seeks to control
+the cluster of stars and rule all other civilizations.
+   Esterian Conquest is a game for 4 to 25 players.  Each player is considered
+to be a ruler of a young stellar empire.  The object of the game is to rule a
+small galaxy by colonizing and/or conquering other worlds.  Initially, each
+player has one world and a few small fleets of starships.  As ruler of your
+empire, you must decide how heavily to tax your population, order your planets
+to build starships, and send your fleets onto missions.
+   Each game turn represents one year of game time and is the time from the
+end of one maintenance to the end of the next.  Maintenance is typically run
+from one to seven times weekly, depending on how the sysop has the game set.
+Between each maintenance, players may give orders to their fleets and planets,
+send messages to each other, etc.  Players may change standing orders to any
+fleet or planet at any time.  However, if maintenance has run since the orders
+were given, he may find his fleets in new locations as they travel towards
+their destinations during maintenance.
+
+INTRO FLOW THROUGH MAIN MENU
+----------------------------
+**************
+                                *            *
+                                * Jump Start *
+                                *            *
+                                **************
+ 
+ 
+                                 ************
+                                 *          *
+                                 * PRESENTS *
+                                 *          *
+                                 ************
+ 
+ 
+  o     #######   ###### ########  #######  ######    ##    #####    ###  ##
+    .  ##       ##         ##     ##       ##   ##   ##   ##   ##   #### ##
+      ####      #####     ##     ####     ######    ##   #######   ## ####   .
+     ##            ##    ##     ##       ## ##     ##   ##   ##   ##  ###
+ .  #######  ######     ##     #######  ##   ##   ##   ##   ##   ##   ##
+
+   *   ######   #####    ###  ##   #####   ##   ##  #######   ###### ########
+     ##       ##   ##   #### ##  ##   ##  ##   ##  ##       ##         ##  .
+  . ##       ##   ##   ## ####  ##   ##  ##   ##  ####      #####     ##
+   ##       ##   ##   ##  ###  ## # ##  ##   ##  ##            ##    ##      .
+   ######   #####    ##   ##   ######   #####   #######  ######     ##
+                                 ##
+                       .                       Ver 1.50 
+        .                                                   .      .
+
+Compliments of your Sysop, Ray Kvalheim.
+Registration # 110039
+
+(Press Return) 
+
+
+Welcome back to Esterian Conquest, Ver 1.50
+-------------------------------------------------------------------------------
+Use Ctrl-S throughout the game to pause and resume output.
+Use Ctrl-X or Ctrl-K to abort most listings.
+
+View Introduction? Y/[N] -> 
+
+
+
+
+, you are "zzzzrrr", (Empire #1)
+
+The year is: 3013 A.D.
+
+Last year on: 3012 A.D.
+
+You have 238 minutes left to play.
+
+Autopilot is off.
+
+(Press Return) 
+
+
+
+
+
+
+You have undeleted reports. View them? [Y]es, <N>o, <NS> (non-stop) -> 
+
+
+Reports: Current game year is 3013 A.D.
+
+
+ -> From your 1st Fleet, located in System(4,24)            Stardate: 4/3012
+ -> Colonization mission report: We have entered System(4,24) and have 
+ -> determined that aliens are already living on the world found within! We 
+ -> have gone ahead and performed a long range viewing analysis and have 
+ -> determined that the world is owned by "In Civil Disorder", (Empire #8) 
+ -> and has a potential of 100 points. We are aborting our mission and are 
+ -> leaving the alien solar system.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 1st Fleet, located in System(4,24)            Stardate: 4/3012
+ -> Move mission report: We were attacked by the 3rd Fleet of "In Civil 
+ -> Disorder", (Empire #8) in System(4,24). Our force contained 1 cruiser 
+ -> and 1 ETAC ship. Alien force contained 1 destroyer. The aliens fled 
+ -> before us. No alien ships were destroyed. Luckily, we suffered no 
+ -> losses. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 1st Fleet, located in Sector(4,24)           Stardate: 14/3012
+ -> Move mission report: We have arrived at our destination and are 
+ -> awaiting new orders.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 6th Fleet, located in System(25,22)          Stardate: 14/3012
+ -> Scouting mission report: We are in extended orbit around planet "Fran" 
+ -> and have compiled the following data:
+ ->   Owned by: "Melody Lake", (Empire #2)
+ ->   Potential production: 100 points
+ ->   Estimated present production: 100 points
+ ->   Estimated amount of stored goods: 51 points
+ ->   Number of armies: 15
+ ->   Number of ground batteries: 5
+ -> Scanning the planet's stardock, we detected 2 cruisers. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 11th Fleet, located in System(23,17)         Stardate: 30/3012
+ -> Scouting mission report: We are in extended orbit around planet "Perch" 
+ -> and have compiled the following data:
+ ->   Owned by: "Melody Lake", (Empire #2)
+ ->   Potential production: 58 points
+ ->   Estimated present production: 25 points
+ ->   Estimated amount of stored goods: 13 points
+ ->   Number of armies: 4
+ ->   Number of ground batteries: 0
+ -> Scanning the planet's stardock, we detected 2 destroyers. 
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 8th Fleet, located in System(12,2)           Stardate: 42/3012
+ -> Colonization mission report: We have arrived at our target world, 
+ -> successfully terraformed it, and have started a new colony. We await 
+ -> new orders...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 9th Fleet, located in System(3,13)           Stardate: 49/3012
+ -> Scouting mission report: We are in extended orbit around the world in 
+ -> System(3,13). The world is unowned but has a potential value of 90 
+ -> points.
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+There are more reports. Continue? [Y]es, <N>o, <NS> (non-stop) -> 
+ -> From your 5th Fleet, located in System(3,13)           Stardate: 52/3012
+ -> Colonization mission report: We have arrived at our target world, 
+ -> successfully terraformed it, and have started a new colony. We await 
+ -> new orders...
+ -> <end of transmission>
+
+Delete this report Y/[N] -> y
+
+Results deleted.
+
+All reports seen.
+
+You have a world in the solar system at X=12, Y=2. Its current production 
+
+level is 1 out of a possible 80 points, (1% efficiency).
+
+Name this world (20 characters or less) -> syncSyncTERM
+
+"SyncTERM" <- Is this correct? Y/[N] -> y
+
+
+
+
+
+You have a world in the solar system at X=3, Y=13. Its current production 
+
+level is 1 out of a possible 90 points, (1% efficiency).
+
+Name this world (20 characters or less) -> exciter
+
+"exciter" <- Is this correct? Y/[N] -> y
+
+
+
+
+
+
+ 
+MAIN MENU:              
+  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database
+  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet
+  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report
+  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report
+
+MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D-> f
