@@ -368,6 +368,7 @@ impl App {
         let frame = ScreenFrame {
             game_dir: &self.game_dir,
             game_data: &self.game_data,
+            database: &self.database,
             player: &self.player,
         };
 
@@ -3550,24 +3551,24 @@ impl App {
                         .known_owner_empire_id
                         .map(|empire_id| format!("Empire {:02}", empire_id))
                 })
-                .unwrap_or_else(|| "UNKNOWN".to_string());
+                .unwrap_or_else(|| "?".to_string());
             PlanetDatabaseRow {
                 planet_record_index_1_based: world.planet_record_index_1_based,
                 coords: world.coords,
-                name_label: world.known_name.unwrap_or_else(|| "UNKNOWN".to_string()),
+                name_label: world.known_name.unwrap_or_else(|| "?".to_string()),
                 owner_label,
                 potential_label: world
                     .known_potential_production
                     .map(|value| value.to_string())
-                    .unwrap_or_else(|| "-".to_string()),
+                    .unwrap_or_else(|| "?".to_string()),
                 armies_label: world
                     .known_armies
                     .map(|value| value.to_string())
-                    .unwrap_or_else(|| "-".to_string()),
+                    .unwrap_or_else(|| "?".to_string()),
                 batteries_label: world
                     .known_ground_batteries
                     .map(|value| value.to_string())
-                    .unwrap_or_else(|| "-".to_string()),
+                    .unwrap_or_else(|| "?".to_string()),
                 intel_label,
             }
         })

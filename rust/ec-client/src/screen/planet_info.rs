@@ -1,4 +1,5 @@
 use crossterm::event::KeyEvent;
+use ec_data::build_player_starmap_projection;
 
 use crate::app::Action;
 use crate::screen::layout::{
@@ -48,6 +49,10 @@ impl PlanetInfoScreen {
         planet_idx: usize,
         menu: CommandMenu,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        if menu != CommandMenu::Planet {
+            return self.render_intel_detail(frame, planet_idx, menu);
+        }
+
         let planet = frame
             .game_data
             .planets
@@ -117,6 +122,95 @@ impl PlanetInfoScreen {
             "Starbase in Orbit: ",
             if has_starbase { "YES" } else { "NO" },
         );
+        draw_command_prompt(&mut buffer, 17, command_menu_label(menu), "SLAP A KEY");
+        Ok(buffer)
+    }
+
+    fn render_intel_detail(
+        &mut self,
+        frame: &ScreenFrame<'_>,
+        planet_idx: usize,
+        menu: CommandMenu,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let projection = build_player_starmap_projection(
+            frame.game_data,
+            frame.database,
+            frame.player.record_index_1_based as u8,
+        );
+        let world = projection
+            .worlds
+            .into_iter()
+            .find(|world| world.planet_record_index_1_based == planet_idx + 1)
+            .ok_or("planet intel detail missing")?;
+
+        let mut buffer = new_playfield();
+        draw_title_bar(&mut buffer, 0, "INFO ABOUT A PLANET:");
+        draw_status_line(
+            &mut buffer,
+            2,
+            "Coordinates: ",
+            &format!("X={}, Y={}", world.coords[0], world.coords[1]),
+        );
+        draw_status_line(
+            &mut buffer,
+            3,
+            "Planet: ",
+            world.known_name.as_deref().unwrap_or("?"),
+        );
+        draw_status_line(
+            &mut buffer,
+            4,
+            "Owner: ",
+            &world
+                .known_owner_empire_name
+                .or_else(|| {
+                    world
+                        .known_owner_empire_id
+                        .map(|id| format!("Empire #{id}"))
+                })
+                .unwrap_or_else(|| "?".to_string()),
+        );
+        draw_status_line(&mut buffer, 5, "State: ", "?");
+        draw_status_line(
+            &mut buffer,
+            7,
+            "Present Production: ",
+            &world
+                .known_potential_production
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| "?".to_string()),
+        );
+        draw_status_line(
+            &mut buffer,
+            8,
+            "Potential Production: ",
+            &world
+                .known_potential_production
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| "?".to_string()),
+        );
+        draw_status_line(&mut buffer, 9, "Efficiency: ", "?");
+        draw_status_line(&mut buffer, 10, "Stored Production Points: ", "?");
+        draw_status_line(
+            &mut buffer,
+            12,
+            "Armies: ",
+            &world
+                .known_armies
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| "?".to_string()),
+        );
+        draw_status_line(
+            &mut buffer,
+            13,
+            "Ground Batteries: ",
+            &world
+                .known_ground_batteries
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| "?".to_string()),
+        );
+        draw_status_line(&mut buffer, 14, "Stardock Units: ", "?");
+        draw_status_line(&mut buffer, 15, "Starbase in Orbit: ", "?");
         draw_command_prompt(&mut buffer, 17, command_menu_label(menu), "SLAP A KEY");
         Ok(buffer)
     }

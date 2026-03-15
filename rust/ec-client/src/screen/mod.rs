@@ -91,7 +91,7 @@ pub(crate) use table::format_fleet_number;
 use std::path::Path;
 
 use crossterm::event::KeyEvent;
-use ec_data::CoreGameData;
+use ec_data::{CoreGameData, DatabaseDat};
 
 use crate::app::Action;
 use crate::model::PlayerContext;
@@ -185,6 +185,7 @@ pub fn command_menu_label(menu: CommandMenu) -> &'static str {
 pub struct ScreenFrame<'a> {
     pub game_dir: &'a Path,
     pub game_data: &'a CoreGameData,
+    pub database: &'a DatabaseDat,
     pub player: &'a PlayerContext,
 }
 
