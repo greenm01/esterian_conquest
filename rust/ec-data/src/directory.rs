@@ -227,6 +227,14 @@ pub enum CommissionResult {
     Starbase { base_record_index_1_based: usize },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct AutoCommissionSummary {
+    pub ships_commissioned: u32,
+    pub starbases_commissioned: usize,
+    pub planets_used: usize,
+    pub fleets_created: usize,
+}
+
 impl std::fmt::Display for GameDirectoryError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -2075,6 +2083,93 @@ impl CoreGameData {
             planet.set_stardock_kind_raw(slot_0_based, 0);
         }
         Ok(result)
+    }
+
+    pub fn auto_commission_all_stardock_units(
+        &mut self,
+        player_index_1_based: usize,
+    ) -> Result<AutoCommissionSummary, GameStateMutationError> {
+        let owner_empire = player_index_1_based as u8;
+        let mut summary = AutoCommissionSummary::default();
+        let planet_indices: Vec<usize> = self
+            .planets
+            .records
+            .iter()
+            .enumerate()
+            .filter(|(_, planet)| planet.owner_empire_slot_raw() == owner_empire)
+            .map(|(idx, _)| idx + 1)
+            .collect();
+
+        for planet_index_1_based in planet_indices {
+            let Some(planet) = self.planets.records.get(planet_index_1_based - 1) else {
+                return Err(GameStateMutationError::MissingPlanetRecord {
+                    index_1_based: planet_index_1_based,
+                });
+            };
+            let mut ship_slots = Vec::new();
+            let mut starbase_slots = Vec::new();
+            let mut ship_count = 0u32;
+            for slot in 0..10 {
+                let count = u32::from(planet.stardock_count_raw(slot));
+                if count == 0 {
+                    continue;
+                }
+                match ProductionItemKind::from_raw(planet.stardock_kind_raw(slot)) {
+                    ProductionItemKind::Destroyer
+                    | ProductionItemKind::Cruiser
+                    | ProductionItemKind::Battleship
+                    | ProductionItemKind::Scout
+                    | ProductionItemKind::Transport
+                    | ProductionItemKind::Etac => {
+                        ship_slots.push(slot);
+                        ship_count = ship_count.saturating_add(count);
+                    }
+                    ProductionItemKind::Starbase => {
+                        starbase_slots.push(slot);
+                    }
+                    _ => {}
+                }
+            }
+            if ship_slots.is_empty() && starbase_slots.is_empty() {
+                continue;
+            }
+
+            summary.planets_used += 1;
+
+            if !ship_slots.is_empty() {
+                match self.commission_planet_stardock_slots(
+                    player_index_1_based,
+                    planet_index_1_based,
+                    &ship_slots,
+                )? {
+                    CommissionResult::Fleet { .. } => {
+                        summary.fleets_created += 1;
+                        summary.ships_commissioned =
+                            summary.ships_commissioned.saturating_add(ship_count);
+                    }
+                    CommissionResult::Starbase { .. } => {
+                        return Err(GameStateMutationError::InvalidCommissionSelection);
+                    }
+                }
+            }
+
+            for slot in starbase_slots {
+                match self.commission_planet_stardock_slot(
+                    player_index_1_based,
+                    planet_index_1_based,
+                    slot,
+                )? {
+                    CommissionResult::Starbase { .. } => {
+                        summary.starbases_commissioned += 1;
+                    }
+                    CommissionResult::Fleet { .. } => {
+                        return Err(GameStateMutationError::InvalidCommissionSelection);
+                    }
+                }
+            }
+        }
+
+        Ok(summary)
     }
 
     pub fn replace_planet_build_queue_with_single_order(

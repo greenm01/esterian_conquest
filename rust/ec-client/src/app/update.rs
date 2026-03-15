@@ -37,6 +37,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_planet_help();
             AppOutcome::Continue
         }
+        Action::OpenPlanetAutoCommissionConfirm => {
+            app.open_planet_auto_commission_confirm();
+            AppOutcome::Continue
+        }
         Action::OpenPlanetCommissionMenu => {
             app.open_planet_commission_menu();
             AppOutcome::Continue
@@ -230,6 +234,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             Err(_) => AppOutcome::Continue,
         },
         Action::ConfirmPlanetBuildAbort => match app.abort_current_planet_builds() {
+            Ok(()) => AppOutcome::Continue,
+            Err(_) => AppOutcome::Continue,
+        },
+        Action::ConfirmPlanetAutoCommission => match app.confirm_planet_auto_commission() {
             Ok(()) => AppOutcome::Continue,
             Err(_) => AppOutcome::Continue,
         },

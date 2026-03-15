@@ -167,6 +167,66 @@ fn commission_starbase_from_stardock_appends_base_and_clears_slot() {
 }
 
 #[test]
+fn auto_commission_all_stardock_units_creates_fleets_and_bases() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+
+    let mut planet_one = PlanetRecord::new_zeroed();
+    planet_one.set_owner_empire_slot_raw(1);
+    planet_one.set_coords_raw([6, 5]);
+    planet_one.set_stardock_kind_raw(0, 1);
+    planet_one.set_stardock_count_raw(0, 2);
+    planet_one.set_stardock_kind_raw(1, 4);
+    planet_one.set_stardock_count_raw(1, 3);
+    planet_one.set_stardock_kind_raw(2, 9);
+    planet_one.set_stardock_count_raw(2, 1);
+
+    let mut planet_two = PlanetRecord::new_zeroed();
+    planet_two.set_owner_empire_slot_raw(1);
+    planet_two.set_coords_raw([7, 6]);
+    planet_two.set_stardock_kind_raw(0, 2);
+    planet_two.set_stardock_count_raw(0, 1);
+
+    let mut planet_three = PlanetRecord::new_zeroed();
+    planet_three.set_owner_empire_slot_raw(1);
+    planet_three.set_coords_raw([8, 7]);
+    planet_three.set_stardock_kind_raw(0, 9);
+    planet_three.set_stardock_count_raw(0, 1);
+
+    let mut data = CoreGameData {
+        player: PlayerDat { records: vec![player] },
+        planets: PlanetDat {
+            records: vec![planet_one, planet_two, planet_three],
+        },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    let summary = data.auto_commission_all_stardock_units(1).unwrap();
+    assert_eq!(
+        summary,
+        AutoCommissionSummary {
+            ships_commissioned: 6,
+            starbases_commissioned: 2,
+            planets_used: 3,
+            fleets_created: 2,
+        }
+    );
+    assert_eq!(data.fleets.records.len(), 2);
+    assert_eq!(data.planets.records[0].stardock_kind_raw(0), 0);
+    assert_eq!(data.planets.records[0].stardock_kind_raw(1), 0);
+    assert_eq!(data.planets.records[0].stardock_kind_raw(2), 0);
+    assert_eq!(data.planets.records[0].stardock_count_raw(2), 0);
+    assert_eq!(data.planets.records[1].stardock_kind_raw(0), 0);
+    assert_eq!(data.planets.records[2].stardock_kind_raw(0), 0);
+    assert_eq!(data.planets.records[2].stardock_count_raw(0), 0);
+    assert_eq!(data.bases.records.len(), 2);
+}
+
+#[test]
 fn ipbm_record_setters_round_trip_structural_prefix_fields() {
     let mut record = IpbmRecord {
         raw: [0u8; IPBM_RECORD_SIZE],

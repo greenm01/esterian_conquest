@@ -4,8 +4,8 @@ use std::path::PathBuf;
 
 use ec_data::{
     append_mail_queue, build_player_starmap_projection, load_mail_queue, save_mail_queue,
-    CommissionResult, CoreGameData, DatabaseDat, GameStateMutationError, ProductionItemKind,
-    QueuedPlayerMail,
+    AutoCommissionSummary, CommissionResult, CoreGameData, DatabaseDat,
+    GameStateMutationError, ProductionItemKind, QueuedPlayerMail,
 };
 
 use crate::app::Action;
@@ -15,11 +15,12 @@ use crate::screen::{
     build_unit_spec, build_unit_spec_by_kind, max_quantity, BuildHelpScreen, CommandMenu,
     DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
     GeneralHelpScreen, GeneralMenuScreen, MainMenuScreen, MessageComposeScreen,
-    PartialStarmapScreen, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView,
-    PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionRow, PlanetCommissionScreen,
-    PlanetCommissionView, PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen,
-    PlanetListSort, PlanetMenuScreen, PlanetTaxScreen, RankingsScreen, RankingsView,
-    ReportsScreen, Screen, ScreenFrame, ScreenId, StarmapScreen, StartupScreen,
+    PartialStarmapScreen, PlanetAutoCommissionScreen, PlanetBuildChangeRow, PlanetBuildListRow,
+    PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionRow,
+    PlanetCommissionScreen, PlanetCommissionView, PlanetHelpScreen, PlanetInfoScreen,
+    PlanetListMode, PlanetListScreen, PlanetListSort, PlanetMenuScreen, PlanetTaxScreen,
+    RankingsScreen, RankingsView, ReportsScreen, Screen, ScreenFrame, ScreenId, StarmapScreen,
+    StartupScreen,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -45,6 +46,7 @@ pub struct App {
     general_help: GeneralHelpScreen,
     planet_menu: PlanetMenuScreen,
     planet_help: PlanetHelpScreen,
+    planet_auto_commission: PlanetAutoCommissionScreen,
     planet_commission: PlanetCommissionScreen,
     build_help: BuildHelpScreen,
     planet_build: PlanetBuildScreen,
@@ -96,6 +98,7 @@ pub struct App {
     planet_commission_scroll_offset: usize,
     planet_commission_selected_slots: BTreeSet<usize>,
     planet_commission_status: Option<String>,
+    planet_auto_commission_status: Option<String>,
     planet_build_index: usize,
     planet_build_status: Option<String>,
     planet_build_unit_input: String,
@@ -160,6 +163,7 @@ impl App {
             general_help: GeneralHelpScreen::new(),
             planet_menu: PlanetMenuScreen::new(),
             planet_help: PlanetHelpScreen::new(),
+            planet_auto_commission: PlanetAutoCommissionScreen::new(),
             planet_commission: PlanetCommissionScreen::new(),
             build_help: BuildHelpScreen::new(),
             planet_build: PlanetBuildScreen::new(),
@@ -211,6 +215,7 @@ impl App {
             planet_commission_scroll_offset: 0,
             planet_commission_selected_slots: BTreeSet::new(),
             planet_commission_status: None,
+            planet_auto_commission_status: None,
             planet_build_index: 0,
             planet_build_status: None,
             planet_build_unit_input: String::new(),
@@ -254,6 +259,14 @@ impl App {
             ScreenId::GeneralHelp => self.general_help.render(&frame)?,
             ScreenId::PlanetMenu => self.planet_menu.render(&frame)?,
             ScreenId::PlanetHelp => self.planet_help.render(&frame)?,
+            ScreenId::PlanetAutoCommissionConfirm => {
+                self.planet_auto_commission.render_confirm()?
+            }
+            ScreenId::PlanetAutoCommissionDone => self.planet_auto_commission.render_done(
+                self.planet_auto_commission_status
+                    .as_deref()
+                    .unwrap_or("Auto-commission complete."),
+            )?,
             ScreenId::PlanetCommissionMenu => self.planet_commission.render_menu(
                 &self.current_planet_commission_view()?,
                 self.planet_commission_scroll_offset,
@@ -449,6 +462,17 @@ impl App {
 
     pub fn open_planet_help(&mut self) {
         self.current_screen = ScreenId::PlanetHelp;
+    }
+
+    pub fn open_planet_auto_commission_confirm(&mut self) {
+        self.planet_auto_commission_status = None;
+        if self.commission_planet_rows().is_empty() {
+            self.planet_auto_commission_status =
+                Some("No ships or starbases are waiting in stardock.".to_string());
+            self.current_screen = ScreenId::PlanetAutoCommissionDone;
+        } else {
+            self.current_screen = ScreenId::PlanetAutoCommissionConfirm;
+        }
     }
 
     pub fn open_planet_commission_menu(&mut self) {
@@ -737,6 +761,19 @@ impl App {
             }
         }
         self.planet_commission_selected_slots.clear();
+        Ok(())
+    }
+
+    pub fn confirm_planet_auto_commission(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if self.current_screen != ScreenId::PlanetAutoCommissionConfirm {
+            return Ok(());
+        }
+        let summary = self
+            .game_data
+            .auto_commission_all_stardock_units(self.player.record_index_1_based)?;
+        self.game_data.save(&self.game_dir)?;
+        self.planet_auto_commission_status = Some(format_auto_commission_status(summary));
+        self.current_screen = ScreenId::PlanetAutoCommissionDone;
         Ok(())
     }
 
@@ -1053,6 +1090,8 @@ impl App {
             ScreenId::GeneralHelp => self.general_help.handle_key(key),
             ScreenId::PlanetMenu => self.planet_menu.handle_key(key),
             ScreenId::PlanetHelp => self.planet_help.handle_key(key),
+            ScreenId::PlanetAutoCommissionConfirm => self.planet_auto_commission.handle_key(key),
+            ScreenId::PlanetAutoCommissionDone => Action::OpenPlanetMenu,
             ScreenId::PlanetCommissionMenu => self.planet_commission.handle_key(key),
             ScreenId::PlanetBuildHelp => self.build_help.handle_key(key),
             ScreenId::PlanetBuildMenu => self.planet_build.handle_menu_key(key),
@@ -2241,6 +2280,16 @@ fn char_to_byte_index(body: &str, char_index: usize) -> usize {
         .nth(char_index)
         .map(|(idx, _)| idx)
         .unwrap_or(body.len())
+}
+
+fn format_auto_commission_status(summary: AutoCommissionSummary) -> String {
+    format!(
+        "Commissioned {} ships into {} new fleets and {} starbases from {} planets.",
+        summary.ships_commissioned,
+        summary.fleets_created,
+        summary.starbases_commissioned,
+        summary.planets_used
+    )
 }
 
 fn insert_char_at(body: &mut String, cursor_index: usize, ch: char) {

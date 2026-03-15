@@ -10,6 +10,7 @@ mod layout;
 mod main_menu;
 mod message_compose;
 mod partial_starmap;
+mod planet_auto_commission;
 mod planet_build;
 mod planet_commission;
 mod planet_help;
@@ -39,6 +40,7 @@ pub(crate) use message_compose::{
     COMPOSE_BODY_LIMIT, COMPOSE_SUBJECT_LIMIT, OUTBOX_VISIBLE_ROWS, RECIPIENT_VISIBLE_ROWS,
 };
 pub use partial_starmap::PartialStarmapScreen;
+pub use planet_auto_commission::PlanetAutoCommissionScreen;
 pub use planet_build::{
     build_kind_name, build_order_summary, build_unit_spec, build_unit_spec_by_kind, infer_quantity,
     max_quantity, BuildUnitSpec, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView,
@@ -74,6 +76,8 @@ pub enum ScreenId {
     GeneralHelp,
     PlanetMenu,
     PlanetHelp,
+    PlanetAutoCommissionConfirm,
+    PlanetAutoCommissionDone,
     PlanetBuildMenu,
     PlanetBuildHelp,
     PlanetBuildReview,

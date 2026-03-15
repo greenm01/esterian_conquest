@@ -32,7 +32,7 @@ pub use config::{
     SetupOptionsConfig,
 };
 pub use directory::{
-    CampaignOutcome, CampaignOutlook, CampaignState, CommissionResult, CoreGameData,
+    AutoCommissionSummary, CampaignOutcome, CampaignOutlook, CampaignState, CommissionResult, CoreGameData,
     CurrentKnownComplianceStatus, CurrentKnownGuardStarbaseLinkageSummary,
     CurrentKnownKeyWordSummary, EmpireEconomySummary, EmpirePlanetEconomyRow,
     EmpireProductionRankingRow, EmpireProductionRankingSort, EmpireUnitSummary, GameDirectoryError,
