@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use ec_data::{
     append_mail_queue, build_player_starmap_projection, load_mail_queue, save_mail_queue,
     AutoCommissionSummary, CommissionResult, CoreGameData, DatabaseDat,
-    GameStateMutationError, ProductionItemKind, QueuedPlayerMail,
+    GameStateMutationError, PlayerStarmapWorld, ProductionItemKind, QueuedPlayerMail,
 };
 
 use crate::app::Action;
@@ -17,11 +17,11 @@ use crate::screen::{
     GeneralHelpScreen, GeneralMenuScreen, MainMenuScreen, MessageComposeScreen,
     PartialStarmapScreen, PlanetAutoCommissionScreen, PlanetBuildChangeRow, PlanetBuildListRow,
     PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionRow,
-    PlanetCommissionScreen, PlanetCommissionView, PlanetHelpScreen, PlanetInfoScreen,
-    PlanetListMode, PlanetListScreen, PlanetListSort, PlanetMenuScreen, PlanetTaxScreen,
-    PlanetTransportFleetRow, PlanetTransportMode, PlanetTransportPlanetRow, PlanetTransportScreen,
-    RankingsScreen, RankingsView, ReportsScreen, Screen, ScreenFrame, ScreenId, StarmapScreen,
-    StartupScreen,
+    PlanetCommissionScreen, PlanetCommissionView, PlanetDatabaseRow, PlanetDatabaseScreen,
+    PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen, PlanetListSort,
+    PlanetMenuScreen, PlanetTaxScreen, PlanetTransportFleetRow, PlanetTransportMode,
+    PlanetTransportPlanetRow, PlanetTransportScreen, RankingsScreen, RankingsView, ReportsScreen,
+    Screen, ScreenFrame, ScreenId, StarmapScreen, StartupScreen,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -56,6 +56,7 @@ pub struct App {
     planet_tax: PlanetTaxScreen,
     starmap: StarmapScreen,
     partial_starmap: PartialStarmapScreen,
+    planet_database: PlanetDatabaseScreen,
     planet_info: PlanetInfoScreen,
     enemies: EnemiesScreen,
     delete_reviewables: DeleteReviewablesScreen,
@@ -95,6 +96,9 @@ pub struct App {
     planet_brief_scroll_offset: usize,
     planet_brief_cursor: usize,
     planet_detail_index: usize,
+    planet_database_scroll_offset: usize,
+    planet_database_cursor: usize,
+    planet_database_detail_index: usize,
     planet_commission_index: usize,
     planet_commission_cursor: usize,
     planet_commission_scroll_offset: usize,
@@ -182,6 +186,7 @@ impl App {
             planet_tax: PlanetTaxScreen::new(),
             starmap: StarmapScreen::new(),
             partial_starmap: PartialStarmapScreen::new(),
+            planet_database: PlanetDatabaseScreen::new(),
             planet_info: PlanetInfoScreen::new(),
             enemies: EnemiesScreen::new(),
             delete_reviewables: DeleteReviewablesScreen::new(),
@@ -221,6 +226,9 @@ impl App {
             planet_brief_scroll_offset: 0,
             planet_brief_cursor: 0,
             planet_detail_index: 0,
+            planet_database_scroll_offset: 0,
+            planet_database_cursor: 0,
+            planet_database_detail_index: 0,
             planet_commission_index: 0,
             planet_commission_cursor: 0,
             planet_commission_scroll_offset: 0,
@@ -412,6 +420,23 @@ impl App {
                 &self.database,
                 self.partial_starmap_center,
             )?,
+            ScreenId::PlanetDatabaseList => self.planet_database.render_list(
+                &self.planet_database_rows(),
+                self.planet_database_scroll_offset,
+                self.planet_database_cursor,
+                self.command_return_menu,
+            )?,
+            ScreenId::PlanetDatabaseDetail => {
+                let rows = self.planet_database_rows();
+                let row = rows
+                    .get(self.planet_database_detail_index)
+                    .ok_or("planet database row missing")?;
+                self.planet_database.render_detail(
+                    row,
+                    self.planet_database_detail_index,
+                    rows.len(),
+                )?
+            }
             ScreenId::PlanetInfoPrompt => self.planet_info.render_prompt(
                 &self.planet_info_input,
                 self.planet_info_error.as_deref(),
@@ -670,6 +695,29 @@ impl App {
         self.current_screen = ScreenId::PlanetTaxPrompt;
     }
 
+    pub fn open_planet_database(&mut self) {
+        if !matches!(
+            self.current_screen,
+            ScreenId::PlanetDatabaseList | ScreenId::PlanetDatabaseDetail
+        ) {
+            self.command_return_menu = self.origin_command_menu();
+            self.planet_database_scroll_offset = 0;
+            self.planet_database_cursor = 0;
+            self.planet_database_detail_index = 0;
+        }
+        self.current_screen = ScreenId::PlanetDatabaseList;
+    }
+
+    pub fn open_planet_database_detail(&mut self) {
+        let total = self.planet_database_rows().len();
+        if total == 0 {
+            self.current_screen = ScreenId::PlanetDatabaseList;
+            return;
+        }
+        self.planet_database_detail_index = self.planet_database_cursor.min(total - 1);
+        self.current_screen = ScreenId::PlanetDatabaseDetail;
+    }
+
     pub fn open_planet_list_sort_prompt(&mut self, mode: PlanetListMode) {
         self.planet_list_sort_status = None;
         self.current_screen = ScreenId::PlanetListSortPrompt(mode);
@@ -734,6 +782,49 @@ impl App {
                 .saturating_add_signed(delta as isize)
                 .min(total - 1),
         };
+    }
+
+    pub fn move_planet_database_list(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::PlanetDatabaseList {
+            return;
+        }
+        let total = self.planet_database_rows().len();
+        if total == 0 {
+            self.planet_database_cursor = 0;
+            return;
+        }
+        let next = self.planet_database_cursor as isize + delta as isize;
+        self.planet_database_cursor = next.rem_euclid(total as isize) as usize;
+        sync_scroll_to_cursor(
+            &mut self.planet_database_scroll_offset,
+            self.planet_database_cursor,
+            crate::screen::PLANET_DATABASE_VISIBLE_ROWS,
+        );
+    }
+
+    pub fn move_planet_database_detail(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::PlanetDatabaseDetail {
+            return;
+        }
+        let total = self.planet_database_rows().len();
+        if total == 0 {
+            self.planet_database_detail_index = 0;
+            return;
+        }
+        self.planet_database_detail_index = match delta {
+            i8::MIN => 0,
+            i8::MAX => total - 1,
+            _ => self
+                .planet_database_detail_index
+                .saturating_add_signed(delta as isize)
+                .min(total - 1),
+        };
+        self.planet_database_cursor = self.planet_database_detail_index;
+        sync_scroll_to_cursor(
+            &mut self.planet_database_scroll_offset,
+            self.planet_database_cursor,
+            crate::screen::PLANET_DATABASE_VISIBLE_ROWS,
+        );
     }
 
     pub fn move_planet_build(&mut self, delta: i8) {
@@ -1414,6 +1505,8 @@ impl App {
             ScreenId::Starmap => self.starmap.handle_prompt_key(key),
             ScreenId::PartialStarmapPrompt => self.partial_starmap.handle_prompt_key(key),
             ScreenId::PartialStarmapView => self.partial_starmap.handle_view_key(key),
+            ScreenId::PlanetDatabaseList => self.planet_database.handle_list_key(key),
+            ScreenId::PlanetDatabaseDetail => self.planet_database.handle_detail_key(key),
             ScreenId::PlanetInfoPrompt => self.handle_planet_info_prompt_key(key),
             ScreenId::PlanetInfoDetail => self.planet_info.handle_detail_key(key),
             ScreenId::Enemies => self.enemies.handle_key(key),
@@ -1616,7 +1709,9 @@ impl App {
 
     fn origin_command_menu(&self) -> CommandMenu {
         match self.current_screen {
-            ScreenId::MainMenu => CommandMenu::Main,
+            ScreenId::MainMenu | ScreenId::PlanetDatabaseList | ScreenId::PlanetDatabaseDetail => {
+                CommandMenu::Main
+            }
             ScreenId::GeneralMenu
             | ScreenId::GeneralHelp
             | ScreenId::Enemies
@@ -1655,8 +1750,11 @@ impl App {
             | ScreenId::PlanetBuildAbortConfirm
             | ScreenId::PlanetBuildSpecify
             | ScreenId::PlanetBuildQuantity => CommandMenu::PlanetBuild,
-            ScreenId::Startup(_) | ScreenId::PartialStarmapPrompt | ScreenId::PartialStarmapView
-            | ScreenId::PlanetInfoPrompt | ScreenId::PlanetInfoDetail => self.command_return_menu,
+            ScreenId::Startup(_)
+            | ScreenId::PartialStarmapPrompt
+            | ScreenId::PartialStarmapView
+            | ScreenId::PlanetInfoPrompt
+            | ScreenId::PlanetInfoDetail => self.command_return_menu,
         }
     }
 
@@ -2298,6 +2396,60 @@ impl App {
         rows
     }
 
+    fn planet_database_rows(&self) -> Vec<PlanetDatabaseRow> {
+        let mut rows = build_player_starmap_projection(
+            &self.game_data,
+            &self.database,
+            self.player.record_index_1_based as u8,
+        )
+        .worlds
+        .into_iter()
+        .filter(|world| {
+            world.known_name.is_some()
+                || world.known_owner_empire_name.is_some()
+                || world.known_owner_empire_id.is_some()
+                || world.known_potential_production.is_some()
+                || world.known_armies.is_some()
+                || world.known_ground_batteries.is_some()
+        })
+        .map(|world| {
+            let intel_label = planet_database_intel_label(&world);
+            let owner_label = world
+                .known_owner_empire_name
+                .as_deref()
+                .filter(|name| !name.is_empty())
+                .map(str::to_string)
+                .or_else(|| {
+                    world
+                        .known_owner_empire_id
+                        .map(|empire_id| format!("Empire {:02}", empire_id))
+                })
+                .unwrap_or_else(|| "UNKNOWN".to_string());
+            PlanetDatabaseRow {
+                planet_record_index_1_based: world.planet_record_index_1_based,
+                coords: world.coords,
+                name_label: world.known_name.unwrap_or_else(|| "UNKNOWN".to_string()),
+                owner_label,
+                potential_label: world
+                    .known_potential_production
+                    .map(|value| value.to_string())
+                    .unwrap_or_else(|| "-".to_string()),
+                armies_label: world
+                    .known_armies
+                    .map(|value| value.to_string())
+                    .unwrap_or_else(|| "-".to_string()),
+                batteries_label: world
+                    .known_ground_batteries
+                    .map(|value| value.to_string())
+                    .unwrap_or_else(|| "-".to_string()),
+                intel_label,
+            }
+        })
+        .collect::<Vec<_>>();
+        rows.sort_by_key(|row| row.coords);
+        rows
+    }
+
     fn build_planet_rows(&self) -> Vec<ec_data::EmpirePlanetEconomyRow> {
         self.sorted_planet_rows(PlanetListSort::CurrentProduction)
     }
@@ -2752,6 +2904,27 @@ impl App {
             }
             _ => crate::app::Action::Noop,
         }
+    }
+}
+
+fn planet_database_intel_label(world: &PlayerStarmapWorld) -> String {
+    let mut labels = Vec::new();
+    if world.known_name.is_some() {
+        labels.push("name");
+    }
+    if world.known_owner_empire_id.is_some() || world.known_owner_empire_name.is_some() {
+        labels.push("owner");
+    }
+    if world.known_potential_production.is_some() {
+        labels.push("prod");
+    }
+    if world.known_armies.is_some() || world.known_ground_batteries.is_some() {
+        labels.push("defense");
+    }
+    if labels.is_empty() {
+        "partial contact".to_string()
+    } else {
+        labels.join(", ")
     }
 }
 

@@ -171,6 +171,18 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::PlanetTaxPrompt);
 
     assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetDatabase),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseList);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetDatabaseDetail),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseDetail);
+
+    assert_eq!(
         apply_action(&mut app, Action::BackspacePlanetTaxInput),
         AppOutcome::Continue
     );
@@ -385,6 +397,31 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
     assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::ReturnToCommandMenu);
+    assert_eq!(
+        apply_action(&mut app, Action::ReturnToCommandMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+
+    assert_eq!(app.handle_key(key(KeyCode::Char('t'))), Action::OpenPlanetDatabase);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetDatabase),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseList);
+    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::OpenPlanetDatabaseDetail);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetDatabaseDetail),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseDetail);
+    assert_eq!(app.handle_key(key(KeyCode::Char('q'))), Action::OpenPlanetDatabase);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetDatabase),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseList);
+    assert_eq!(app.handle_key(key(KeyCode::Char('q'))), Action::ReturnToCommandMenu);
     assert_eq!(
         apply_action(&mut app, Action::ReturnToCommandMenu),
         AppOutcome::Continue

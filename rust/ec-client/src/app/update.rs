@@ -89,6 +89,14 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_planet_tax_prompt();
             AppOutcome::Continue
         }
+        Action::OpenPlanetDatabase => {
+            app.open_planet_database();
+            AppOutcome::Continue
+        }
+        Action::OpenPlanetDatabaseDetail => {
+            app.open_planet_database_detail();
+            AppOutcome::Continue
+        }
         Action::ReturnToCommandMenu => {
             app.return_to_command_menu();
             AppOutcome::Continue
@@ -227,6 +235,14 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         },
         Action::MovePlanetDetail(delta) => {
             app.move_planet_detail(delta);
+            AppOutcome::Continue
+        }
+        Action::MovePlanetDatabaseList(delta) => {
+            app.move_planet_database_list(delta);
+            AppOutcome::Continue
+        }
+        Action::MovePlanetDatabaseDetail(delta) => {
+            app.move_planet_database_detail(delta);
             AppOutcome::Continue
         }
         Action::AppendPlanetTaxChar(ch) => {

@@ -10,6 +10,7 @@ mod layout;
 mod main_menu;
 mod message_compose;
 mod partial_starmap;
+mod planet_database;
 mod planet_auto_commission;
 mod planet_build;
 mod planet_commission;
@@ -41,6 +42,7 @@ pub(crate) use message_compose::{
     COMPOSE_BODY_LIMIT, COMPOSE_SUBJECT_LIMIT, OUTBOX_VISIBLE_ROWS, RECIPIENT_VISIBLE_ROWS,
 };
 pub use partial_starmap::PartialStarmapScreen;
+pub use planet_database::{PlanetDatabaseRow, PlanetDatabaseScreen};
 pub use planet_auto_commission::PlanetAutoCommissionScreen;
 pub use planet_build::{
     build_kind_name, build_order_summary, build_unit_spec, build_unit_spec_by_kind, infer_quantity,
@@ -50,6 +52,7 @@ pub use planet_build::{
 pub use planet_commission::{PlanetCommissionRow, PlanetCommissionScreen, PlanetCommissionView};
 pub(crate) use planet_build::{PLANET_BUILD_CHANGE_VISIBLE_ROWS, PLANET_BUILD_LIST_VISIBLE_ROWS};
 pub(crate) use planet_commission::PLANET_COMMISSION_VISIBLE_ROWS;
+pub(crate) use planet_database::PLANET_DATABASE_VISIBLE_ROWS;
 pub(crate) use planet_transport::PLANET_TRANSPORT_VISIBLE_ROWS;
 pub use planet_help::PlanetHelpScreen;
 pub use planet_info::{parse_planet_coords, PlanetInfoScreen};
@@ -102,6 +105,8 @@ pub enum ScreenId {
     Starmap,
     PartialStarmapPrompt,
     PartialStarmapView,
+    PlanetDatabaseList,
+    PlanetDatabaseDetail,
     PlanetInfoPrompt,
     PlanetInfoDetail,
     Enemies,

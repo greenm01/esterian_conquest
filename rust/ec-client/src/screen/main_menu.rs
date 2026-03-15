@@ -68,6 +68,7 @@ impl Screen for MainMenuScreen {
             KeyCode::Char('i') | KeyCode::Char('I') => Action::OpenPlanetInfoPrompt(CommandMenu::Main),
             KeyCode::Char('p') | KeyCode::Char('P') => Action::OpenPlanetMenu,
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::Quit,
+            KeyCode::Char('t') | KeyCode::Char('T') => Action::OpenPlanetDatabase,
             KeyCode::Char('v') | KeyCode::Char('V') => {
                 Action::OpenPartialStarmapPrompt(CommandMenu::Main)
             }
