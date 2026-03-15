@@ -79,6 +79,9 @@ Today the Rust side can:
   `CONQUEST.DAT`, `SETUP.DAT`, `DATABASE.DAT`, `RESULTS.DAT`
 - preserve classic player mail in `MESSAGES.DAT`
 - produce directories the original `ECMAINT` still accepts
+- persist active campaigns in bundled `ecgame.db`
+- run `ec-client` and `maint-rust` against SQLite runtime state instead of
+  directly mutating classic `.DAT` files
 - create default `sysop new-game` directories that `ECGAME` can actually join
   through the original onboarding flow
 - provide a growing Rust player client with working startup flow and real
@@ -141,9 +144,10 @@ Current emphasis:
 - modernize only where the original UI was clearly hostile or obsolete
   (for example map export and terminal-safe compose flows)
 - build the local terminal client first, then carry that into BBS door support
-- keep startup art asset-driven:
-  - BBS splash and EC splash sources now come from KDL-configured files
-  - the Rust client still owns pacing, 80x20 rendering, and flow control
+- keep startup presentation inside the fixed client playfield:
+  - built-in ASCII splash
+  - paged in-client intro text
+  - no raw ANSI dump path during normal `ec-client` startup
 
 That client work is now documented in
 [docs/bbs_door_client_rust.md](docs/bbs_door_client_rust.md).
@@ -170,6 +174,9 @@ cd rust
 cargo run -q -p ec-cli -- maint-rust /tmp/ec-game 3
 ```
 
+`maint-rust` now reads and writes the campaign's `ecgame.db`. Classic `.DAT`
+directories are imported/exported through the CLI compatibility bridge.
+
 Run the original oracle against that directory:
 
 ```bash
@@ -188,6 +195,10 @@ Run the Rust client:
 cd rust
 cargo run -q -p ec-client -- --dir /tmp/ec-game --player 1
 ```
+
+`ec-client` now loads campaign state from `ecgame.db`. Fresh Rust-created games
+seed that DB automatically. If you mutate a classic directory outside the
+SQLite path, run `db-import` before launching the client or `maint-rust`.
 
 ## Useful Commands
 
@@ -238,6 +249,11 @@ Export the latest `ecgame.db` snapshot back to a classic-compatible directory:
 cd rust
 cargo run -q -p ec-cli -- db-export /tmp/ec-game /tmp/ec-game-exported
 ```
+
+The intended boundary is:
+
+- `ec-client` and `maint-rust` operate on `ecgame.db`
+- `db-import` and `db-export` are the explicit classic `.DAT` bridge
 
 Run the broader validation sweeps:
 

@@ -1,8 +1,9 @@
 mod common;
 
 use common::{
-    cleanup_dir, copy_fixture_dir, run_ec_cli_failure_in_dir, run_ec_cli_in_dir,
-    set_mutual_enemy_in_player_dat, unique_temp_dir, write_mutual_enemy_diplomacy,
+    cleanup_dir, copy_fixture_dir, run_ec_cli_in_dir, run_maint_rust_failure_after_import,
+    run_maint_rust_with_export, set_mutual_enemy_in_player_dat, unique_temp_dir,
+    write_mutual_enemy_diplomacy,
 };
 use ec_data::{CoreGameData, DatabaseDat, GameStateBuilder, Order};
 use std::fs;
@@ -21,10 +22,7 @@ fn maint_rust_econ_updates_database_owner_intel_from_post_combat_planet_state() 
     let target = unique_temp_dir("ec-cli-maint-rust-econ");
     copy_fixture_dir("fixtures/ecmaint-econ-pre/v1.5", &target);
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Running Rust maintenance on:"));
     assert!(stdout.contains("Rust maintenance complete."));
 
@@ -75,10 +73,7 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
     write_mutual_enemy_diplomacy(&target, 1, 2);
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -107,10 +102,7 @@ fn maint_rust_uses_stored_player_diplomacy_without_sidecar() {
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
     set_mutual_enemy_in_player_dat(&target, 1, 2);
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -133,10 +125,7 @@ fn maint_rust_absorbs_small_game_sidecar_diplomacy_into_player_dat() {
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
     write_mutual_enemy_diplomacy(&target, 1, 2);
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
@@ -218,10 +207,7 @@ fn maint_rust_uses_stored_player_diplomacy_without_sidecar_for_large_games() {
         .expect("player 9 -> 1 diplomacy should set");
     game_data.save(&target).expect("mutated game should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -274,10 +260,7 @@ fn maint_rust_updates_large_game_database_from_scout_intel_event() {
     scout.raw[0x19] = 0x00;
     game_data.save(&target).expect("mutated game should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
@@ -321,10 +304,7 @@ fn maint_rust_blockade_arrival_persists_enemy_relation_in_player_dat() {
         .save(&target)
         .expect("mutated fixture should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
@@ -385,10 +365,7 @@ fn maint_rust_without_enemy_declaration_reports_contact_without_forcing_battle()
         .save(&target)
         .expect("mutated fixture should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -410,10 +387,7 @@ fn maint_rust_rejects_invalid_diplomacy_sidecar() {
     )
     .expect("invalid diplomacy.kdl should write");
 
-    let stderr = run_ec_cli_failure_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stderr = run_maint_rust_failure_after_import(&target, 1);
     assert!(stderr.contains("1..=4") || stderr.contains("1..=25"));
 
     cleanup_dir(&target);
@@ -440,10 +414,7 @@ fn maint_rust_persists_sidecar_diplomacy_into_player_dat_for_large_games() {
 
     write_mutual_enemy_diplomacy(&target, 1, 9);
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
@@ -473,10 +444,7 @@ fn maint_rust_destroyed_fleet_generates_lost_contact_report() {
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
     write_mutual_enemy_diplomacy(&target, 1, 2);
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -512,10 +480,7 @@ fn maint_rust_destroyed_starbase_generates_lost_contact_report() {
         .save(&target)
         .expect("mutated fixture should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -545,10 +510,7 @@ fn maint_rust_colonization_generates_results_report_from_colony_event() {
     let target = unique_temp_dir("ec-cli-maint-rust-colonize");
     copy_fixture_dir("fixtures/ecmaint-fleet-pre/v1.5", &target);
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -580,10 +542,7 @@ fn maint_rust_preserves_existing_classic_player_mail_when_no_rust_messages_are_e
     let classic_mail = b"\x18this is a message to you\x00classic-payload".to_vec();
     fs::write(target.join("MESSAGES.DAT"), &classic_mail).expect("should seed classic mail");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
@@ -610,10 +569,7 @@ fn maint_rust_colonization_blocked_by_owner_generates_report() {
         .save(&target)
         .expect("mutated fixture should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -646,10 +602,7 @@ fn maint_rust_scout_sector_generates_results_report() {
         .save(&target)
         .expect("mutated fixture should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -680,10 +633,7 @@ fn maint_rust_scout_system_generates_results_report() {
         .save(&target)
         .expect("mutated fixture should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -728,10 +678,7 @@ fn maint_rust_view_world_generates_results_and_database_intel() {
         .save(&target)
         .expect("mutated fixture should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -797,10 +744,7 @@ fn maint_rust_refreshes_database_between_turns_for_route_hazards() {
     );
     fs::write(target.join("DATABASE.DAT"), database.to_bytes()).expect("DATABASE.DAT should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "2"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 2);
     assert!(stdout.contains("Turn 1: year 3001"));
     assert!(stdout.contains("Turn 2: year 3002"));
 
@@ -837,10 +781,7 @@ fn maint_rust_guard_starbase_generates_arrival_report() {
         .save(&target)
         .expect("mutated fixture should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -866,10 +807,7 @@ fn maint_rust_guard_blockade_generates_arrival_report() {
         .save(&target)
         .expect("mutated fixture should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -886,10 +824,7 @@ fn maint_rust_bombardment_generates_attacker_side_report() {
     let target = unique_temp_dir("ec-cli-maint-rust-bombard-report");
     copy_fixture_dir("fixtures/ecmaint-bombard-arrive/v1.5", &target);
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -938,10 +873,7 @@ fn maint_rust_invade_failure_generates_attacker_side_report() {
         .save(&target)
         .expect("mutated fixture should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -992,10 +924,7 @@ fn maint_rust_blitz_success_generates_attacker_side_report() {
         .save(&target)
         .expect("mutated fixture should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -1021,10 +950,7 @@ fn maint_rust_battle_abort_generates_move_abort_report() {
         .save(&target)
         .expect("mutated fixture should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -1048,10 +974,7 @@ fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
         .save(&target)
         .expect("mutated fixture should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -1078,10 +1001,7 @@ fn maint_rust_rendezvous_arrival_generates_waiting_report() {
         .save(&target)
         .expect("mutated fixture should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -1106,10 +1026,7 @@ fn maint_rust_join_merge_generates_join_report() {
         .save(&target)
         .expect("mutated fixture should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -1135,10 +1052,7 @@ fn maint_rust_rendezvous_merge_generates_absorbing_report() {
         .save(&target)
         .expect("mutated fixture should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -1160,10 +1074,7 @@ fn maint_rust_join_contact_uses_join_report_label() {
         .save(&target)
         .expect("mutated fixture should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -1185,10 +1096,7 @@ fn maint_rust_guard_contact_uses_guard_report_label() {
         .save(&target)
         .expect("mutated fixture should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
@@ -1223,10 +1131,7 @@ fn maint_rust_reports_empire_falling_into_civil_disorder() {
     }
     game_data.save(&target).expect("mutated game should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let post = CoreGameData::load(&target).expect("maint-rust output should load");
@@ -1282,10 +1187,7 @@ fn maint_rust_reports_when_one_serious_contender_remains() {
     }
     game_data.save(&target).expect("mutated game should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let post = CoreGameData::load(&target).expect("maint-rust output should load");
@@ -1342,10 +1244,7 @@ fn maint_rust_reports_emperor_recognition_when_only_stable_empire_remains() {
     }
     game_data.save(&target).expect("mutated game should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "1"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let post = CoreGameData::load(&target).expect("maint-rust output should load");
@@ -1396,10 +1295,7 @@ fn maint_rust_reports_fleet_defection_after_civil_disorder() {
     }
     game_data.save(&target).expect("mutated game should save");
 
-    let stdout = run_ec_cli_in_dir(
-        &["maint-rust", target.to_str().unwrap(), "2"],
-        common::rust_workspace(),
-    );
+    let stdout = run_maint_rust_with_export(&target, 2);
     assert!(stdout.contains("Rust maintenance complete."));
 
     let post = CoreGameData::load(&target).expect("maint-rust output should load");
@@ -1453,10 +1349,7 @@ fn maint_rust_seeded_games_survive_five_turns_across_manual_player_tiers() {
             "sysop new-game stdout was: {stdout:?}"
         );
 
-        let stdout = run_ec_cli_in_dir(
-            &["maint-rust", target.to_str().unwrap(), "5"],
-            common::rust_workspace(),
-        );
+        let stdout = run_maint_rust_with_export(&target, 5);
         assert!(stdout.contains("Rust maintenance complete."));
 
         let post = CoreGameData::load(&target).expect("multi-turn maint output should load");

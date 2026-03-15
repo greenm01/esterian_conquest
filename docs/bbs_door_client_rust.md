@@ -99,6 +99,11 @@ Current storage rules:
 - default campaign DB filename: `ecgame.db`
 - SQLite must be bundled/self-hosted in the compiled Rust build
 - no external SQLite runtime dependency should be required
+- `ec-client` should load/save runtime state from `ecgame.db` only
+- Rust maintenance should also run against `ecgame.db` and save the next
+  snapshot there
+- classic `.DAT` directories should enter or leave the Rust runtime only
+  through explicit CLI import/export workflows
 - unresolved or partially decoded classic outputs may still live in
   compatibility-oriented tables while the normalized Rust-native model matures
 - total planet database / Main / General intel views should be free to consume

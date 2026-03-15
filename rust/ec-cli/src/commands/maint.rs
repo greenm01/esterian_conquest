@@ -3,13 +3,14 @@ use std::path::Path;
 use std::process::Command;
 
 use ec_data::{
-    CoreGameData, DatabaseDat, DiplomacyConfig, DiplomacyOverride, DiplomaticRelation,
-    MaintenanceEvents, VisibleHazardIntel, run_maintenance_turn, run_maintenance_turn_with_context,
-    run_maintenance_turn_with_visible_hazards, visible_hazard_intel_from_database,
+    CampaignStore, CoreGameData, DatabaseDat, DiplomacyConfig, DiplomacyOverride,
+    DiplomaticRelation, MaintenanceEvents, VisibleHazardIntel, run_maintenance_turn,
+    run_maintenance_turn_with_context, run_maintenance_turn_with_visible_hazards,
+    visible_hazard_intel_from_database,
 };
 
 use crate::commands::reports::{
-    regenerate_database_dat, regenerate_messages_dat, regenerate_results_dat,
+    build_database_dat, build_messages_dat, build_results_dat,
 };
 
 /// Run Rust maintenance on a game directory for specified number of turns
@@ -21,10 +22,16 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
         if turns == 1 { "" } else { "s" }
     );
 
-    // Load the game state
-    let mut game_data = CoreGameData::load(dir)?;
+    let campaign_store = CampaignStore::open_default_in_dir(dir)?;
+    let runtime_state = campaign_store
+        .load_latest_runtime_state()?
+        .ok_or("campaign store has no snapshots; import with ec-cli db-import first")?;
+
+    let mut game_data = runtime_state.game_data;
     let start_year = game_data.conquest.game_year();
-    let mut database = load_database_dat_if_present(dir)?;
+    let mut database = runtime_state.database;
+    let existing_messages = runtime_state.messages_bytes;
+    let queued_mail = runtime_state.queued_mail;
     let mut diplomacy_overrides = load_diplomacy_overrides_if_present(dir, &game_data)?;
     absorb_persistable_diplomacy_overrides(&mut game_data, &mut diplomacy_overrides)?;
 
@@ -36,10 +43,7 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
     // Run maintenance logic for specified turns, accumulating events across all turns.
     let mut all_events = MaintenanceEvents::default();
     for turn in 1..=turns {
-        let visible_hazards = database
-            .as_ref()
-            .map(|db| visible_hazards_from_database(&game_data, db))
-            .unwrap_or_default();
+        let visible_hazards = visible_hazards_from_database(&game_data, &database);
         let events = if visible_hazards.is_empty() && diplomacy_overrides.is_empty() {
             run_maintenance_turn(&mut game_data)?
         } else if diplomacy_overrides.is_empty() {
@@ -99,10 +103,7 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
 
         apply_diplomatic_escalations(&mut game_data, &mut diplomacy_overrides, &all_events)?;
 
-        if database.is_some() {
-            regenerate_database_dat(dir, &game_data, &pre_maint_planets, &all_events)?;
-            database = load_database_dat_if_present(dir)?;
-        }
+        database = build_database_dat(&game_data, &pre_maint_planets, &all_events, Some(&database));
 
         println!("  Turn {}: year {}", turn, game_data.conquest.game_year());
     }
@@ -113,14 +114,16 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
         game_data.conquest.game_year()
     );
 
-    // Regenerate DATABASE.DAT and message/report surfaces.
-    regenerate_database_dat(dir, &game_data, &pre_maint_planets, &all_events)?;
-    regenerate_results_dat(dir, &game_data, &all_events)?;
-    regenerate_messages_dat(dir, &mut game_data, &all_events)?;
-
-    // Save the modified state after report/message regeneration, since routed
-    // mail delivery may update player mailbox flags.
-    game_data.save(dir)?;
+    let results_bytes = build_results_dat(&game_data, &all_events);
+    let messages_bytes =
+        build_messages_dat(&mut game_data, &all_events, &queued_mail, &existing_messages)?;
+    campaign_store.save_runtime_state(
+        &game_data,
+        &database,
+        &results_bytes,
+        &messages_bytes,
+        &Vec::new(),
+    )?;
     save_diplomacy_overrides_if_needed(
         dir,
         game_data.conquest.player_count(),
@@ -225,7 +228,9 @@ pub fn compare_maintenance(
 
     // Run Rust maintenance for N turns
     println!("=== Running Rust maintenance ({} turns) ===", turns_to_run);
+    CampaignStore::open_default_in_dir(&rust_dir)?.import_directory_snapshot(&rust_dir)?;
     run_rust_maintenance(&rust_dir, turns_to_run)?;
+    CampaignStore::open_default_in_dir(&rust_dir)?.export_latest_snapshot_to_dir(&rust_dir)?;
     println!();
 
     // Run original ECMAINT N times
@@ -269,17 +274,6 @@ fn copy_directory(src: &Path, dst: &Path) -> Result<(), Box<dyn std::error::Erro
     }
 
     Ok(())
-}
-
-fn load_database_dat_if_present(
-    dir: &Path,
-) -> Result<Option<DatabaseDat>, Box<dyn std::error::Error>> {
-    let path = dir.join("DATABASE.DAT");
-    if !path.exists() {
-        return Ok(None);
-    }
-    let bytes = fs::read(path)?;
-    Ok(Some(DatabaseDat::parse(&bytes)?))
 }
 
 fn load_diplomacy_overrides_if_present(

@@ -145,9 +145,9 @@ impl CampaignStore {
 
     pub fn import_directory_snapshot(&self, dir: &Path) -> Result<i64, CampaignStoreError> {
         let game_data = CoreGameData::load(dir)?;
-        let database = DatabaseDat::parse(&read_path(dir.join("DATABASE.DAT"))?)?;
-        let results_bytes = read_path(dir.join("RESULTS.DAT"))?;
-        let messages_bytes = read_path(dir.join("MESSAGES.DAT"))?;
+        let database = load_database_snapshot_or_default(dir, &game_data)?;
+        let results_bytes = read_optional_path(dir.join("RESULTS.DAT"))?;
+        let messages_bytes = read_optional_path(dir.join("MESSAGES.DAT"))?;
         let queued_mail = load_mail_queue_file(dir)?;
         self.save_runtime_state(
             &game_data,
@@ -652,8 +652,12 @@ fn intel_snapshot_row_fingerprint(
     )
 }
 
-fn read_path(path: PathBuf) -> Result<Vec<u8>, CampaignStoreError> {
-    fs::read(&path).map_err(|source| CampaignStoreError::Io { path, source })
+fn read_optional_path(path: PathBuf) -> Result<Vec<u8>, CampaignStoreError> {
+    match fs::read(&path) {
+        Ok(bytes) => Ok(bytes),
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(source) => Err(CampaignStoreError::Io { path, source }),
+    }
 }
 
 fn write_path(path: PathBuf, bytes: &[u8]) -> Result<(), CampaignStoreError> {
@@ -669,6 +673,40 @@ fn load_mail_queue_file(dir: &Path) -> Result<Vec<QueuedPlayerMail>, CampaignSto
         path,
         source: std::io::Error::other(err.to_string()),
     })
+}
+
+fn load_database_snapshot_or_default(
+    dir: &Path,
+    game_data: &CoreGameData,
+) -> Result<DatabaseDat, CampaignStoreError> {
+    let path = dir.join("DATABASE.DAT");
+    match fs::read(&path) {
+        Ok(bytes) => Ok(DatabaseDat::parse(&bytes)?),
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
+            let planet_names = game_data
+                .planets
+                .records
+                .iter()
+                .map(|planet| {
+                    let name = planet.planet_name();
+                    if name.eq_ignore_ascii_case("unowned")
+                        || name.eq_ignore_ascii_case("not named yet")
+                    {
+                        "UNKNOWN".to_string()
+                    } else {
+                        name
+                    }
+                })
+                .collect::<Vec<_>>();
+            Ok(DatabaseDat::generate_from_planets_and_year(
+                &planet_names,
+                game_data.conquest.game_year(),
+                game_data.conquest.player_count() as usize,
+                None,
+            ))
+        }
+        Err(source) => Err(CampaignStoreError::Io { path, source }),
+    }
 }
 
 fn write_queued_mail_rows(

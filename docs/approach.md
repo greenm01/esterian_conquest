@@ -172,6 +172,10 @@ For the Rust `ECGAME` clone, preserve the original pre-menu player flow too:
   - `CoreGameData` remains the canonical in-memory model
   - `ecgame.db` is the first-class persisted campaign store
   - classic `.DAT` files remain import/export projections and oracle artifacts
+  - `ec-client` and Rust maintenance should operate on SQLite runtime state,
+    not on live `.DAT` mutation paths
+  - `ec-cli db-import` / `db-export` are the explicit compatibility bridge for
+    classic directories
   - unresolved or partially decoded classic outputs may still be preserved in
     compatibility-oriented SQLite tables while the Rust-native model matures
 - SQLite must be bundled/self-hosted in the compiled Rust application; sysops

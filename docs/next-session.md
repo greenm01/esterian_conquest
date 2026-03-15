@@ -135,6 +135,12 @@ Primary goal:
   joinable setup now triggers the full first-join naming/onboarding flow
 - SQLite-backed campaign persistence is now started:
   - each campaign uses a bundled/self-hosted `ecgame.db`
+  - `ec-client` now loads/saves runtime state from `ecgame.db`
+  - `maint-rust` now also runs against `ecgame.db` and stores its next
+    snapshot there
+  - classic `.DAT` import/export is now an explicit `ec-cli` bridge rather
+    than the live runtime path for the client or Rust maintenance
+  - Rust-created new games now seed `ecgame.db` automatically
   - the store keeps normalized record-set snapshots plus compatibility/export
     payloads for unresolved classic outputs
   - the total planet database now has a path for SQLite-backed `Last Intel`
@@ -211,7 +217,13 @@ Treat the login/startup side as one explicit pre-command-center pipeline:
      - joined-player report/message/naming flow
 2. Keep running periodic seeded multi-turn `rust-maint` sweeps to guard against
    regressions while the UI/client work begins.
-3. Write a focused Rust `ECGAME` phase plan:
+3. Tighten the remaining CLI/storage boundary:
+   - identify which `ec-cli` mutators still operate directly on classic `.DAT`
+   - decide which should become SQLite-native next and which should remain
+     explicit compatibility tooling
+   - keep the rule that only explicit CLI import/export paths bridge classic
+     directories into the runtime
+4. Write a focused Rust `ECGAME` phase plan:
    - command center
    - reports and intel views
    - diplomacy screens

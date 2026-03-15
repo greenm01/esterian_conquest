@@ -52,6 +52,41 @@ pub fn run_ec_cli_failure_in_dir(args: &[&str], current_dir: PathBuf) -> String 
     String::from_utf8(output.stderr).expect("stderr should be utf-8")
 }
 
+pub fn import_campaign_db(target: &Path) {
+    run_ec_cli_in_dir(&["db-import", target.to_str().unwrap()], rust_workspace());
+}
+
+pub fn export_campaign_db(source_dir: &Path, target_dir: &Path) {
+    run_ec_cli_in_dir(
+        &[
+            "db-export",
+            source_dir.to_str().unwrap(),
+            target_dir.to_str().unwrap(),
+        ],
+        rust_workspace(),
+    );
+}
+
+pub fn run_maint_rust_with_export(target: &Path, turns: u16) -> String {
+    import_campaign_db(target);
+    let turns = turns.to_string();
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), &turns],
+        rust_workspace(),
+    );
+    export_campaign_db(target, target);
+    stdout
+}
+
+pub fn run_maint_rust_failure_after_import(target: &Path, turns: u16) -> String {
+    import_campaign_db(target);
+    let turns = turns.to_string();
+    run_ec_cli_failure_in_dir(
+        &["maint-rust", target.to_str().unwrap(), &turns],
+        rust_workspace(),
+    )
+}
+
 pub fn unique_temp_dir(prefix: &str) -> PathBuf {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)

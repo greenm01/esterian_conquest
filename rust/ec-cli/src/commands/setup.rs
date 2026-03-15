@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use ec_data::{ConquestDat, DatabaseDat, SetupConfig, SetupDat, build_seeded_new_game};
+use ec_data::{CampaignStore, ConquestDat, DatabaseDat, SetupConfig, SetupDat, build_seeded_new_game};
 
 pub(crate) fn print_maintenance_days(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let conquest = ConquestDat::parse(&fs::read(dir.join("CONQUEST.DAT"))?)?;
@@ -68,6 +68,8 @@ pub(crate) fn init_new_game_with_seed(
         }
     }
 
+    CampaignStore::open_default_in_dir(target)?.import_directory_snapshot(target)?;
+
     Ok(())
 }
 
@@ -108,6 +110,8 @@ pub(crate) fn init_new_game_from_config(
             fs::write(path, [])?;
         }
     }
+
+    CampaignStore::open_default_in_dir(target)?.import_directory_snapshot(target)?;
 
     Ok(())
 }

@@ -1,9 +1,6 @@
-use std::fs;
-use std::path::Path;
-
 use ec_data::{
     ContactReportSource, CoreGameData, DatabaseDat, MaintenanceEvents, Mission, MissionOutcome,
-    PlanetDat, ShipLosses, clear_mail_queue, load_mail_queue,
+    PlanetDat, QueuedPlayerMail, ShipLosses,
 };
 
 const RESULTS_RECORD_SIZE: usize = 84;
@@ -18,19 +15,14 @@ const RESULTS_TAIL_SCOUTING: [u8; 8] = [0, 0, 0, 0, 0, 0, 186, 11];
 ///
 /// `pre_maint_planets` is the planet state before maintenance ran, used to detect
 /// which planets had active build queues (which affects certain DATABASE fields).
-pub(crate) fn regenerate_database_dat(
-    dir: &Path,
+pub(crate) fn build_database_dat(
     game_data: &CoreGameData,
     pre_maint_planets: &PlanetDat,
     events: &MaintenanceEvents,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let template_path = dir.join("DATABASE.DAT");
-    let template = if template_path.exists() {
-        let bytes = fs::read(&template_path)?;
-        DatabaseDat::parse(&bytes).ok()
-    } else {
-        None
-    };
+    template: Option<&DatabaseDat>,
+) -> DatabaseDat {
+    let template = template.cloned();
+    let template = template.as_ref();
 
     let planet_names: Vec<String> = game_data
         .planets
@@ -54,10 +46,10 @@ pub(crate) fn regenerate_database_dat(
         &planet_names,
         year,
         player_count,
-        template.as_ref(),
+        template,
     );
 
-    if let Some(ref template_db) = template {
+    if let Some(template_db) = template {
         let year_bytes = discovery_year.to_le_bytes();
 
         for player in 0..player_count {
@@ -156,7 +148,7 @@ pub(crate) fn regenerate_database_dat(
         }
     }
 
-    if let Some(ref _template_db) = template {
+    if template.is_some() {
         let year_bytes = discovery_year.to_le_bytes();
         for event in &events.planet_intel_events {
             let planet_idx = event.planet_idx;
@@ -201,8 +193,7 @@ pub(crate) fn regenerate_database_dat(
         }
     }
 
-    fs::write(template_path, new_database.to_bytes())?;
-    Ok(())
+    new_database
 }
 
 fn empire_label(game_data: &CoreGameData, empire_raw: u8) -> String {
@@ -357,11 +348,10 @@ fn ship_loss_summary(losses: ShipLosses) -> String {
     }
 }
 
-pub(crate) fn regenerate_results_dat(
-    dir: &Path,
+pub(crate) fn build_results_dat(
     game_data: &CoreGameData,
     events: &MaintenanceEvents,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Vec<u8> {
     let mut results = Vec::new();
 
     for event in &events.bombard_events {
@@ -898,15 +888,15 @@ pub(crate) fn regenerate_results_dat(
         push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
     }
 
-    fs::write(dir.join("RESULTS.DAT"), results)?;
-    Ok(())
+    results
 }
 
-pub(crate) fn regenerate_messages_dat(
-    dir: &Path,
+pub(crate) fn build_messages_dat(
     game_data: &mut CoreGameData,
     events: &MaintenanceEvents,
-) -> Result<(), Box<dyn std::error::Error>> {
+    queued_mail: &[QueuedPlayerMail],
+    existing_messages: &[u8],
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut messages = Vec::new();
 
     for event in &events.bombard_events {
@@ -1602,8 +1592,7 @@ pub(crate) fn regenerate_messages_dat(
         );
     }
 
-    let queued_mail = load_mail_queue(dir)?;
-    for mail in &queued_mail {
+    for mail in queued_mail {
         let subject = if mail.subject.trim().is_empty() {
             "No Subject".to_string()
         } else {
@@ -1634,23 +1623,13 @@ pub(crate) fn regenerate_messages_dat(
         }
     }
 
-    let messages_path = dir.join("MESSAGES.DAT");
-    if !queued_mail.is_empty() && messages_path.exists() {
-        let existing = fs::read(&messages_path)?;
-        if !existing.is_empty() && existing.len() % 84 != 0 {
-            return Ok(());
-        }
+    if !queued_mail.is_empty() && !existing_messages.is_empty() && existing_messages.len() % 84 != 0
+    {
+        return Ok(existing_messages.to_vec());
     }
-    if messages.is_empty() && messages_path.exists() {
-        let existing = fs::read(&messages_path)?;
-        if !existing.is_empty() {
-            return Ok(());
-        }
+    if messages.is_empty() && !existing_messages.is_empty() {
+        return Ok(existing_messages.to_vec());
     }
 
-    fs::write(messages_path, messages)?;
-    if !queued_mail.is_empty() {
-        clear_mail_queue(dir)?;
-    }
-    Ok(())
+    Ok(messages)
 }
