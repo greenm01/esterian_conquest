@@ -3,36 +3,35 @@ use std::fs;
 use std::path::PathBuf;
 
 use ec_data::{
-    append_mail_queue, build_player_starmap_projection, load_mail_queue, save_mail_queue,
-    plan_route, AutoCommissionSummary, CommissionResult, CoreGameData, DatabaseDat,
-    FleetDetachSelection, GameStateMutationError, PlayerStarmapWorld, ProductionItemKind,
-    QueuedPlayerMail,
+    AutoCommissionSummary, CommissionResult, CoreGameData, DatabaseDat, FleetDetachSelection,
+    GameStateMutationError, PlayerStarmapWorld, ProductionItemKind, QueuedPlayerMail,
+    append_mail_queue, build_player_starmap_projection, load_mail_queue, plan_route,
+    save_mail_queue,
 };
 
 use crate::app::Action;
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
-use crate::reports::{clear_report_files, ReportsPreview};
+use crate::reports::{ReportsPreview, clear_report_files};
 use crate::screen::{
-    build_unit_spec, build_unit_spec_by_kind, max_quantity, BuildHelpScreen, CommandMenu,
-    DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
-    FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen, FleetHelpScreen,
-    FleetListMode, FleetListScreen, FleetMenuScreen, FleetReviewScreen, FleetRoeScreen, FleetRow,
-    FirstTimeEmpiresScreen, FirstTimeHelpScreen, FirstTimeIntroScreen, FirstTimeMenuScreen,
-    GeneralHelpScreen, GeneralMenuScreen, MainMenuScreen, MessageComposeScreen,
-    PartialStarmapScreen, PlanetAutoCommissionScreen, PlanetBuildChangeRow, PlanetBuildListRow,
-    PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionRow,
-    PlanetCommissionScreen, PlanetCommissionView, PlanetDatabaseRow, PlanetDatabaseScreen,
-    PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen, PlanetListSort,
-    PlanetMenuScreen, PlanetTaxScreen, PlanetTransportFleetRow, PlanetTransportMode,
-    PlanetTransportPlanetRow, PlanetTransportScreen, RankingsScreen, ReportsScreen, Screen,
-    ScreenFrame, ScreenId, StarmapScreen, StartupScreen, FIRST_TIME_INTRO_PAGE_COUNT,
-    STARTUP_SPLASH_PAGE_COUNT,
+    BuildHelpScreen, CommandMenu, DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen,
+    EnemiesScreen, FIRST_TIME_INTRO_PAGE_COUNT, FirstTimeEmpiresScreen, FirstTimeHelpScreen,
+    FirstTimeIntroScreen, FirstTimeMenuScreen, FleetDetachMode, FleetDetachScreen, FleetEtaMode,
+    FleetEtaScreen, FleetHelpScreen, FleetListMode, FleetListScreen, FleetMenuScreen,
+    FleetReviewScreen, FleetRoeScreen, FleetRow, GeneralHelpScreen, GeneralMenuScreen,
+    MainMenuScreen, MessageComposeScreen, PartialStarmapScreen, PlanetAutoCommissionScreen,
+    PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildOrder,
+    PlanetBuildScreen, PlanetCommissionRow, PlanetCommissionScreen, PlanetCommissionView,
+    PlanetDatabaseRow, PlanetDatabaseScreen, PlanetHelpScreen, PlanetInfoScreen, PlanetListMode,
+    PlanetListScreen, PlanetListSort, PlanetMenuScreen, PlanetTaxScreen, PlanetTransportFleetRow,
+    PlanetTransportMode, PlanetTransportPlanetRow, PlanetTransportScreen, RankingsScreen,
+    ReportsScreen, STARTUP_SPLASH_PAGE_COUNT, Screen, ScreenFrame, ScreenId, StarmapScreen,
+    StartupScreen, build_unit_spec, build_unit_spec_by_kind, max_quantity,
     render_first_time_homeworld_confirm, render_first_time_homeworld_name,
     render_first_time_join_confirm, render_first_time_join_name,
     render_first_time_join_name_confirm, render_first_time_join_no_pending,
     render_first_time_join_summary,
 };
-use crate::startup::{StartupArt, StartupArtConfig, StartupPhase, StartupSequence, StartupSummary};
+use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -41,7 +40,6 @@ pub struct AppConfig {
     pub player_record_index_1_based: usize,
     pub export_root: Option<PathBuf>,
     pub queue_dir: Option<PathBuf>,
-    pub startup_config: Option<PathBuf>,
 }
 
 pub struct App {
@@ -191,29 +189,6 @@ pub struct App {
     first_time_homeworld_name: String,
 }
 
-struct StartupAssets {
-    bbs_splash: StartupArt,
-    ec_game_splash: StartupArt,
-}
-
-fn load_startup_assets(
-    override_path: Option<&std::path::Path>,
-) -> Result<StartupAssets, Box<dyn std::error::Error>> {
-    let config_path = override_path
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("EC_CLIENT_STARTUP_CONFIG").map(PathBuf::from))
-        .unwrap_or_else(default_startup_config_path);
-    let config = StartupArtConfig::load_kdl(&config_path)?;
-    Ok(StartupAssets {
-        bbs_splash: StartupArt::load(&config.bbs_art_path)?,
-        ec_game_splash: StartupArt::load(&config.ec_game_art_path)?,
-    })
-}
-
-fn default_startup_config_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("config/startup.default.kdl")
-}
-
 impl App {
     pub fn load(config: AppConfig) -> Result<Self, Box<dyn std::error::Error>> {
         let game_dir = config.game_dir.clone();
@@ -239,8 +214,6 @@ impl App {
             &reports,
         );
         let startup_sequence = StartupSequence::new(&startup_summary, player.is_joined);
-        let startup_assets = load_startup_assets(config.startup_config.as_deref())?;
-
         Ok(Self {
             game_dir,
             game_data,
@@ -248,12 +221,7 @@ impl App {
             player,
             current_screen: ScreenId::Startup(startup_sequence.current()),
             startup_sequence,
-            startup: StartupScreen::new(
-                startup_summary,
-                reports.clone(),
-                startup_assets.bbs_splash,
-                startup_assets.ec_game_splash,
-            ),
+            startup: StartupScreen::new(startup_summary, reports.clone()),
             first_time_menu: FirstTimeMenuScreen::new(),
             first_time_help: FirstTimeHelpScreen::new(),
             first_time_empires: FirstTimeEmpiresScreen::new(),
@@ -405,14 +373,12 @@ impl App {
         };
 
         let playfield = match self.current_screen {
-            ScreenId::Startup(phase) => self
-                .startup
-                .render_phase(
-                    &frame,
-                    phase,
-                    self.startup_splash_page,
-                    self.startup_intro_page,
-                )?,
+            ScreenId::Startup(phase) => self.startup.render_phase(
+                &frame,
+                phase,
+                self.startup_splash_page,
+                self.startup_intro_page,
+            )?,
             ScreenId::FirstTimeMenu => self
                 .first_time_menu
                 .render(self.first_time_status.as_deref())?,
@@ -514,31 +480,35 @@ impl App {
                     .as_deref()
                     .unwrap_or("Auto-commission complete."),
             )?,
-            ScreenId::PlanetTransportPlanetSelect(mode) => self.planet_transport.render_planet_select(
-                mode,
-                &self.planet_transport_planet_rows(mode),
-                self.planet_transport_planet_scroll_offset,
-                self.planet_transport_planet_cursor,
-                self.planet_transport_status.as_deref(),
-            )?,
-            ScreenId::PlanetTransportFleetSelect(mode) => self.planet_transport.render_fleet_select(
-                mode,
-                &self.current_planet_transport_planet_row(mode)?,
-                &self.current_planet_transport_fleet_rows(mode)?,
-                self.planet_transport_fleet_scroll_offset,
-                self.planet_transport_fleet_cursor,
-                &self.planet_transport_qty_input,
-                self.planet_transport_status.as_deref(),
-            )?,
-            ScreenId::PlanetTransportQuantityPrompt(mode) => self
-                .planet_transport
-                .render_quantity_prompt(
+            ScreenId::PlanetTransportPlanetSelect(mode) => {
+                self.planet_transport.render_planet_select(
+                    mode,
+                    &self.planet_transport_planet_rows(mode),
+                    self.planet_transport_planet_scroll_offset,
+                    self.planet_transport_planet_cursor,
+                    self.planet_transport_status.as_deref(),
+                )?
+            }
+            ScreenId::PlanetTransportFleetSelect(mode) => {
+                self.planet_transport.render_fleet_select(
+                    mode,
+                    &self.current_planet_transport_planet_row(mode)?,
+                    &self.current_planet_transport_fleet_rows(mode)?,
+                    self.planet_transport_fleet_scroll_offset,
+                    self.planet_transport_fleet_cursor,
+                    &self.planet_transport_qty_input,
+                    self.planet_transport_status.as_deref(),
+                )?
+            }
+            ScreenId::PlanetTransportQuantityPrompt(mode) => {
+                self.planet_transport.render_quantity_prompt(
                     mode,
                     &self.current_planet_transport_planet_row(mode)?,
                     &self.current_planet_transport_fleet_row(mode)?,
                     &self.planet_transport_qty_input,
                     self.planet_transport_status.as_deref(),
-                )?,
+                )?
+            }
             ScreenId::PlanetTransportDone(mode) => self.planet_transport.render_done(
                 mode,
                 self.planet_transport_status
@@ -720,19 +690,19 @@ impl App {
                     .as_deref()
                     .unwrap_or("Message queued."),
             )?,
-            ScreenId::EmpireStatus => {
-                self.empire_status
-                    .render_with_menu(&frame, self.command_return_menu)?
-            }
-            ScreenId::EmpireProfile => {
-                self.empire_profile
-                    .render_with_menu(&frame, self.command_return_menu)?
-            }
+            ScreenId::EmpireStatus => self
+                .empire_status
+                .render_with_menu(&frame, self.command_return_menu)?,
+            ScreenId::EmpireProfile => self
+                .empire_profile
+                .render_with_menu(&frame, self.command_return_menu)?,
             ScreenId::Rankings(sort) => {
                 self.rankings
                     .render_table(&frame, sort, self.command_return_menu)?
             }
-            ScreenId::Reports => self.reports.render_with_menu(&frame, self.command_return_menu)?,
+            ScreenId::Reports => self
+                .reports
+                .render_with_menu(&frame, self.command_return_menu)?,
         };
         terminal.render(&playfield)
     }
@@ -760,6 +730,20 @@ impl App {
             self.startup_splash_page += 1;
             return;
         }
+        if self.current_screen == ScreenId::Startup(StartupPhase::Splash) {
+            let next = self.startup_sequence.skip_intro();
+            self.current_screen = match next {
+                StartupPhase::Complete => {
+                    if self.player.is_joined {
+                        ScreenId::MainMenu
+                    } else {
+                        ScreenId::FirstTimeMenu
+                    }
+                }
+                phase => ScreenId::Startup(phase),
+            };
+            return;
+        }
         if self.current_screen == ScreenId::Startup(StartupPhase::Intro)
             && self.startup_intro_page + 1 < crate::screen::STARTUP_INTRO_PAGE_COUNT
         {
@@ -780,7 +764,6 @@ impl App {
     }
 
     pub fn open_startup_intro(&mut self) {
-        self.startup_splash_page = STARTUP_SPLASH_PAGE_COUNT.saturating_sub(1);
         self.startup_intro_page = 0;
         let next = self.startup_sequence.open_intro();
         self.current_screen = ScreenId::Startup(next);
@@ -813,10 +796,7 @@ impl App {
     }
 
     pub fn show_first_time_ansi_notice(&mut self) {
-        self.first_time_status = Some(
-            "ANSI stays on. The stars look better in color."
-                .to_string(),
-        );
+        self.first_time_status = Some("ANSI stays on. The stars look better in color.".to_string());
         self.current_screen = ScreenId::FirstTimeMenu;
     }
 
@@ -851,7 +831,8 @@ impl App {
             ScreenId::FirstTimeJoinEmpireName => {
                 let value = self.first_time_input.trim();
                 if value.is_empty() {
-                    self.first_time_status = Some("Empire names need at least one visible character.".to_string());
+                    self.first_time_status =
+                        Some("Empire names need at least one visible character.".to_string());
                     return;
                 }
                 self.first_time_status = None;
@@ -862,7 +843,8 @@ impl App {
             ScreenId::FirstTimeHomeworldName => {
                 let value = self.first_time_input.trim();
                 if value.is_empty() {
-                    self.first_time_status = Some("Homeworld names need at least one visible character.".to_string());
+                    self.first_time_status =
+                        Some("Homeworld names need at least one visible character.".to_string());
                     return;
                 }
                 self.first_time_status = None;
@@ -1321,7 +1303,9 @@ impl App {
     }
 
     pub fn move_fleet_eta_select(&mut self, delta: i8) {
-        if self.current_screen != ScreenId::FleetEta || self.fleet_eta_mode != FleetEtaMode::SelectingFleet {
+        if self.current_screen != ScreenId::FleetEta
+            || self.fleet_eta_mode != FleetEtaMode::SelectingFleet
+        {
             return;
         }
         let total = self.fleet_rows().len();
@@ -1403,9 +1387,11 @@ impl App {
                 }
             }
             FleetEtaMode::ConfirmingSystemEntry => {
-                if matches!(ch, 'y' | 'Y' | 'n' | 'N') && self.fleet_eta_include_system_input.is_empty()
+                if matches!(ch, 'y' | 'Y' | 'n' | 'N')
+                    && self.fleet_eta_include_system_input.is_empty()
                 {
-                    self.fleet_eta_include_system_input.push(ch.to_ascii_uppercase());
+                    self.fleet_eta_include_system_input
+                        .push(ch.to_ascii_uppercase());
                     self.fleet_eta_status = None;
                 }
             }
@@ -1474,7 +1460,8 @@ impl App {
                 let target_fleet_id = match self.fleet_roe_select_input.trim().parse::<u16>() {
                     Ok(value) => value,
                     Err(_) => {
-                        self.fleet_roe_status = Some("Enter a fleet number from the table.".to_string());
+                        self.fleet_roe_status =
+                            Some("Enter a fleet number from the table.".to_string());
                         return Ok(());
                     }
                 };
@@ -1482,8 +1469,9 @@ impl App {
                     .iter()
                     .position(|row| row.fleet_number == target_fleet_id)
                 else {
-                    self.fleet_roe_status =
-                        Some(format!("Fleet #{target_fleet_id} is not in your fleet list."));
+                    self.fleet_roe_status = Some(format!(
+                        "Fleet #{target_fleet_id} is not in your fleet list."
+                    ));
                     return Ok(());
                 };
                 self.fleet_roe_cursor = index;
@@ -1529,8 +1517,7 @@ impl App {
             || fleet.cruiser_count() > 0
             || fleet.battleship_count() > 0;
         if !has_combat_ships && parsed != 0 {
-            self.fleet_roe_status =
-                Some("Non-combat fleets must use ROE 0.".to_string());
+            self.fleet_roe_status = Some("Non-combat fleets must use ROE 0.".to_string());
             return Ok(());
         }
         fleet.set_rules_of_engagement(parsed);
@@ -1561,9 +1548,13 @@ impl App {
                         return Ok(());
                     }
                 };
-                let Some(index) = rows.iter().position(|row| row.fleet_number == target_fleet_id) else {
-                    self.fleet_detach_status =
-                        Some(format!("Fleet #{target_fleet_id} is not in your fleet list."));
+                let Some(index) = rows
+                    .iter()
+                    .position(|row| row.fleet_number == target_fleet_id)
+                else {
+                    self.fleet_detach_status = Some(format!(
+                        "Fleet #{target_fleet_id} is not in your fleet list."
+                    ));
                     return Ok(());
                 };
                 self.fleet_detach_cursor = index;
@@ -1612,28 +1603,32 @@ impl App {
                 match self.fleet_detach_mode {
                     FleetDetachMode::EnteringBattleships => {
                         if value > record.battleship_count() {
-                            self.fleet_detach_status = Some("Enter a value from 0 to the table limit.".to_string());
+                            self.fleet_detach_status =
+                                Some("Enter a value from 0 to the table limit.".to_string());
                             return Ok(());
                         }
                         self.fleet_detach_selection.battleships = value;
                     }
                     FleetDetachMode::EnteringCruisers => {
                         if value > record.cruiser_count() {
-                            self.fleet_detach_status = Some("Enter a value from 0 to the table limit.".to_string());
+                            self.fleet_detach_status =
+                                Some("Enter a value from 0 to the table limit.".to_string());
                             return Ok(());
                         }
                         self.fleet_detach_selection.cruisers = value;
                     }
                     FleetDetachMode::EnteringDestroyers => {
                         if value > record.destroyer_count() {
-                            self.fleet_detach_status = Some("Enter a value from 0 to the table limit.".to_string());
+                            self.fleet_detach_status =
+                                Some("Enter a value from 0 to the table limit.".to_string());
                             return Ok(());
                         }
                         self.fleet_detach_selection.destroyers = value;
                     }
                     FleetDetachMode::EnteringFullTransports => {
                         if value > record.army_count() {
-                            self.fleet_detach_status = Some("Enter a value from 0 to the table limit.".to_string());
+                            self.fleet_detach_status =
+                                Some("Enter a value from 0 to the table limit.".to_string());
                             return Ok(());
                         }
                         self.fleet_detach_selection.full_transports = value;
@@ -1643,21 +1638,24 @@ impl App {
                             .troop_transport_count()
                             .saturating_sub(record.army_count());
                         if value > available {
-                            self.fleet_detach_status = Some("Enter a value from 0 to the table limit.".to_string());
+                            self.fleet_detach_status =
+                                Some("Enter a value from 0 to the table limit.".to_string());
                             return Ok(());
                         }
                         self.fleet_detach_selection.empty_transports = value;
                     }
                     FleetDetachMode::EnteringScouts => {
                         if value > u16::from(record.scout_count()) {
-                            self.fleet_detach_status = Some("Enter a value from 0 to the table limit.".to_string());
+                            self.fleet_detach_status =
+                                Some("Enter a value from 0 to the table limit.".to_string());
                             return Ok(());
                         }
                         self.fleet_detach_selection.scouts = value as u8;
                     }
                     FleetDetachMode::EnteringEtacs => {
                         if value > record.etac_count() {
-                            self.fleet_detach_status = Some("Enter a value from 0 to the table limit.".to_string());
+                            self.fleet_detach_status =
+                                Some("Enter a value from 0 to the table limit.".to_string());
                             return Ok(());
                         }
                         self.fleet_detach_selection.etacs = value;
@@ -1666,7 +1664,8 @@ impl App {
                 }
                 self.fleet_detach_input.clear();
                 self.fleet_detach_status = None;
-                if let Some(next_mode) = self.next_fleet_detach_prompt_mode(self.fleet_detach_mode) {
+                if let Some(next_mode) = self.next_fleet_detach_prompt_mode(self.fleet_detach_mode)
+                {
                     self.fleet_detach_mode = next_mode;
                 } else if self.fleet_detach_selection.total_ships() == 0 {
                     self.fleet_detach_status = Some("Detach at least one ship.".to_string());
@@ -1750,12 +1749,17 @@ impl App {
                     let target_fleet_id = match self.fleet_eta_select_input.trim().parse::<u16>() {
                         Ok(value) => value,
                         Err(_) => {
-                            self.fleet_eta_status = Some("Enter a fleet number from the table.".to_string());
+                            self.fleet_eta_status =
+                                Some("Enter a fleet number from the table.".to_string());
                             return;
                         }
                     };
-                    let Some(index) = rows.iter().position(|row| row.fleet_number == target_fleet_id) else {
-                        self.fleet_eta_status = Some("Enter a fleet number from the table.".to_string());
+                    let Some(index) = rows
+                        .iter()
+                        .position(|row| row.fleet_number == target_fleet_id)
+                    else {
+                        self.fleet_eta_status =
+                            Some("Enter a fleet number from the table.".to_string());
                         return;
                     };
                     self.fleet_eta_cursor = index;
@@ -1773,9 +1777,10 @@ impl App {
             }
             FleetEtaMode::EnteringDestination => {
                 let default_destination = self.fleet_eta_default_destination();
-                let Some(destination) =
-                    resolve_default_coords_input(&self.fleet_eta_destination_input, default_destination)
-                else {
+                let Some(destination) = resolve_default_coords_input(
+                    &self.fleet_eta_destination_input,
+                    default_destination,
+                ) else {
                     self.fleet_eta_status = Some("Enter coordinates like 10,13".to_string());
                     return;
                 };
@@ -1802,7 +1807,8 @@ impl App {
                     self.fleet_eta_default_destination(),
                 )
                 .unwrap_or(self.fleet_eta_default_destination());
-                let result = self.calculate_fleet_eta_message(selected_row, destination, include_system);
+                let result =
+                    self.calculate_fleet_eta_message(selected_row, destination, include_system);
                 self.fleet_eta_status = Some(result);
                 self.fleet_eta_include_system_input.clear();
                 self.fleet_eta_mode = FleetEtaMode::ShowingResult;
@@ -1904,14 +1910,12 @@ impl App {
         } else if self.planet_commission_cursor
             >= self.planet_commission_scroll_offset + crate::screen::PLANET_COMMISSION_VISIBLE_ROWS
         {
-            self.planet_commission_scroll_offset = self.planet_commission_cursor + 1
-                - crate::screen::PLANET_COMMISSION_VISIBLE_ROWS;
+            self.planet_commission_scroll_offset =
+                self.planet_commission_cursor + 1 - crate::screen::PLANET_COMMISSION_VISIBLE_ROWS;
         }
     }
 
-    pub fn commission_selected_stardock_row(
-        &mut self,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn commission_selected_stardock_row(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if self.current_screen != ScreenId::PlanetCommissionMenu {
             return Ok(());
         }
@@ -1924,11 +1928,16 @@ impl App {
             vec![current_row.slot_0_based]
         } else {
             rows.iter()
-                .filter(|row| self.planet_commission_selected_slots.contains(&row.slot_0_based))
+                .filter(|row| {
+                    self.planet_commission_selected_slots
+                        .contains(&row.slot_0_based)
+                })
                 .map(|row| row.slot_0_based)
                 .collect()
         };
-        let planet_record = self.current_commission_planet_row()?.planet_record_index_1_based;
+        let planet_record = self
+            .current_commission_planet_row()?
+            .planet_record_index_1_based;
         let result = match self.game_data.commission_planet_stardock_slots(
             self.player.record_index_1_based,
             planet_record,
@@ -2029,14 +2038,14 @@ impl App {
         self.planet_transport_fleet_scroll_offset = 0;
         self.planet_transport_qty_input.clear();
         self.planet_transport_status = None;
-        if self.current_planet_transport_fleet_rows(mode).unwrap_or_default().is_empty() {
+        if self
+            .current_planet_transport_fleet_rows(mode)
+            .unwrap_or_default()
+            .is_empty()
+        {
             self.planet_transport_status = Some(match mode {
-                PlanetTransportMode::Load => {
-                    "No fleets here can take more armies.".to_string()
-                }
-                PlanetTransportMode::Unload => {
-                    "No fleets here have loaded armies.".to_string()
-                }
+                PlanetTransportMode::Load => "No fleets here can take more armies.".to_string(),
+                PlanetTransportMode::Unload => "No fleets here have loaded armies.".to_string(),
             });
             self.current_screen = ScreenId::PlanetTransportPlanetSelect(mode);
         } else {
@@ -2048,7 +2057,8 @@ impl App {
         let ScreenId::PlanetTransportFleetSelect(mode) = self.current_screen else {
             return;
         };
-        let total = self.current_planet_transport_fleet_rows(mode)
+        let total = self
+            .current_planet_transport_fleet_rows(mode)
             .map(|rows| rows.len())
             .unwrap_or(0);
         if total == 0 {
@@ -2079,8 +2089,7 @@ impl App {
         if matches!(
             self.current_screen,
             ScreenId::PlanetTransportFleetSelect(_) | ScreenId::PlanetTransportQuantityPrompt(_)
-        )
-            && self.planet_transport_qty_input.len() < 3
+        ) && self.planet_transport_qty_input.len() < 3
         {
             self.planet_transport_qty_input.push(ch);
             self.planet_transport_status = None;
@@ -2111,7 +2120,10 @@ impl App {
                     format!("Fleet {} cannot take any more armies.", fleet.fleet_number)
                 }
                 PlanetTransportMode::Unload => {
-                    format!("Fleet {} has no loaded armies to unload.", fleet.fleet_number)
+                    format!(
+                        "Fleet {} has no loaded armies to unload.",
+                        fleet.fleet_number
+                    )
                 }
             });
             self.current_screen = ScreenId::PlanetTransportFleetSelect(mode);
@@ -2123,15 +2135,13 @@ impl App {
             match self.planet_transport_qty_input.trim().parse::<u16>() {
                 Ok(value) if value > 0 => value,
                 _ => {
-                    self.planet_transport_status =
-                        Some("Enter a positive army count.".to_string());
+                    self.planet_transport_status = Some("Enter a positive army count.".to_string());
                     return Ok(());
                 }
             }
         };
         if qty > max_qty {
-            self.planet_transport_status =
-                Some(format!("Enter a value from 1 to {max_qty}."));
+            self.planet_transport_status = Some(format!("Enter a value from 1 to {max_qty}."));
             return Ok(());
         }
         let planet = self.current_planet_transport_planet_row(mode)?;
@@ -2172,15 +2182,17 @@ impl App {
             .ok_or("transport planet row missing after submit")?;
         let eligible_fleets = self.planet_transport_eligible_fleet_rows_for_planet(mode, &base_row);
         if !eligible_fleets.is_empty() {
-            self.planet_transport_fleet_cursor =
-                self.planet_transport_fleet_cursor.min(eligible_fleets.len() - 1);
+            self.planet_transport_fleet_cursor = self
+                .planet_transport_fleet_cursor
+                .min(eligible_fleets.len() - 1);
             self.current_screen = ScreenId::PlanetTransportFleetSelect(mode);
         } else {
             let planet_rows = self.planet_transport_planet_rows(mode);
             self.planet_transport_selected_planet_record = None;
             if !planet_rows.is_empty() {
-                self.planet_transport_planet_cursor =
-                    self.planet_transport_planet_cursor.min(planet_rows.len() - 1);
+                self.planet_transport_planet_cursor = self
+                    .planet_transport_planet_cursor
+                    .min(planet_rows.len() - 1);
                 self.current_screen = ScreenId::PlanetTransportPlanetSelect(mode);
             } else {
                 self.planet_transport_status = None;
@@ -2202,9 +2214,11 @@ impl App {
             .planet_commission_selected_slots
             .contains(&row.slot_0_based)
         {
-            self.planet_commission_selected_slots.remove(&row.slot_0_based);
+            self.planet_commission_selected_slots
+                .remove(&row.slot_0_based);
         } else {
-            self.planet_commission_selected_slots.insert(row.slot_0_based);
+            self.planet_commission_selected_slots
+                .insert(row.slot_0_based);
         }
         self.planet_commission_status = None;
     }
@@ -2503,8 +2517,9 @@ impl App {
                 if self.startup_splash_page + 1 < STARTUP_SPLASH_PAGE_COUNT =>
             {
                 match key.code {
-                    crossterm::event::KeyCode::Char('q')
-                    | crossterm::event::KeyCode::Char('Q') => Action::Quit,
+                    crossterm::event::KeyCode::Char('q') | crossterm::event::KeyCode::Char('Q') => {
+                        Action::Quit
+                    }
                     _ => Action::AdvanceStartup,
                 }
             }
@@ -2512,25 +2527,30 @@ impl App {
             ScreenId::FirstTimeMenu => self.first_time_menu.handle_key(key),
             ScreenId::FirstTimeHelp => self.first_time_help.handle_key(key),
             ScreenId::FirstTimeEmpires => self.first_time_empires.handle_key(key),
-            ScreenId::FirstTimeIntro if self.first_time_intro_page + 1 < FIRST_TIME_INTRO_PAGE_COUNT => {
+            ScreenId::FirstTimeIntro
+                if self.first_time_intro_page + 1 < FIRST_TIME_INTRO_PAGE_COUNT =>
+            {
                 Action::AdvanceStartup
             }
             ScreenId::FirstTimeIntro => self.first_time_intro.handle_key(key),
             ScreenId::FirstTimeJoinConfirm => match key.code {
-                crossterm::event::KeyCode::Char('y')
-                | crossterm::event::KeyCode::Char('Y') => Action::AcceptFirstTimePrompt,
+                crossterm::event::KeyCode::Char('y') | crossterm::event::KeyCode::Char('Y') => {
+                    Action::AcceptFirstTimePrompt
+                }
                 crossterm::event::KeyCode::Char('n')
                 | crossterm::event::KeyCode::Char('N')
                 | crossterm::event::KeyCode::Esc => Action::RejectFirstTimePrompt,
                 _ => Action::Noop,
             },
-            ScreenId::FirstTimeJoinEmpireName | ScreenId::FirstTimeHomeworldName => match key.code {
-                crossterm::event::KeyCode::Char(ch) => Action::AppendFirstTimeInputChar(ch),
-                crossterm::event::KeyCode::Backspace => Action::BackspaceFirstTimeInput,
-                crossterm::event::KeyCode::Enter => Action::SubmitFirstTimeInput,
-                crossterm::event::KeyCode::Esc => Action::OpenFirstTimeMenu,
-                _ => Action::Noop,
-            },
+            ScreenId::FirstTimeJoinEmpireName | ScreenId::FirstTimeHomeworldName => {
+                match key.code {
+                    crossterm::event::KeyCode::Char(ch) => Action::AppendFirstTimeInputChar(ch),
+                    crossterm::event::KeyCode::Backspace => Action::BackspaceFirstTimeInput,
+                    crossterm::event::KeyCode::Enter => Action::SubmitFirstTimeInput,
+                    crossterm::event::KeyCode::Esc => Action::OpenFirstTimeMenu,
+                    _ => Action::Noop,
+                }
+            }
             ScreenId::FirstTimeJoinEmpireConfirm => match key.code {
                 crossterm::event::KeyCode::Enter
                 | crossterm::event::KeyCode::Char('y')
@@ -2545,8 +2565,9 @@ impl App {
                 _ => Action::Noop,
             },
             ScreenId::FirstTimeHomeworldConfirm => match key.code {
-                crossterm::event::KeyCode::Char('y')
-                | crossterm::event::KeyCode::Char('Y') => Action::AcceptFirstTimePrompt,
+                crossterm::event::KeyCode::Char('y') | crossterm::event::KeyCode::Char('Y') => {
+                    Action::AcceptFirstTimePrompt
+                }
                 crossterm::event::KeyCode::Enter
                 | crossterm::event::KeyCode::Char('n')
                 | crossterm::event::KeyCode::Char('N')
@@ -2568,7 +2589,9 @@ impl App {
             ScreenId::PlanetAutoCommissionConfirm => self.planet_auto_commission.handle_key(key),
             ScreenId::PlanetAutoCommissionDone => Action::OpenPlanetMenu,
             ScreenId::PlanetCommissionMenu => self.planet_commission.handle_key(key),
-            ScreenId::PlanetTransportPlanetSelect(_) => self.planet_transport.handle_planet_key(key),
+            ScreenId::PlanetTransportPlanetSelect(_) => {
+                self.planet_transport.handle_planet_key(key)
+            }
             ScreenId::PlanetTransportFleetSelect(_) => self.planet_transport.handle_fleet_key(key),
             ScreenId::PlanetTransportQuantityPrompt(_) => {
                 self.planet_transport.handle_quantity_key(key)
@@ -2774,9 +2797,7 @@ impl App {
 
     fn origin_command_menu(&self) -> CommandMenu {
         match self.current_screen {
-            ScreenId::MainMenu
-            | ScreenId::PlanetDatabaseList
-            | ScreenId::PlanetDatabaseDetail => {
+            ScreenId::MainMenu | ScreenId::PlanetDatabaseList | ScreenId::PlanetDatabaseDetail => {
                 CommandMenu::Main
             }
             ScreenId::FleetHelp
@@ -3420,9 +3441,10 @@ impl App {
     }
 
     pub fn submit_planet_info_prompt(&mut self) {
-        let Some(coords) =
-            resolve_default_coords_input(&self.planet_info_input, self.default_planet_prompt_coords())
-        else {
+        let Some(coords) = resolve_default_coords_input(
+            &self.planet_info_input,
+            self.default_planet_prompt_coords(),
+        ) else {
             self.planet_info_error = Some("Enter coordinates like 5,2".to_string());
             return;
         };
@@ -3508,7 +3530,9 @@ impl App {
             .records
             .iter()
             .enumerate()
-            .filter(|(_, fleet)| fleet.owner_empire_raw() as usize == self.player.record_index_1_based)
+            .filter(|(_, fleet)| {
+                fleet.owner_empire_raw() as usize == self.player.record_index_1_based
+            })
             .map(|(idx, fleet)| FleetRow {
                 fleet_record_index_1_based: idx + 1,
                 fleet_number: fleet.local_slot_word_raw(),
@@ -3696,9 +3720,9 @@ impl App {
             })
             .map(|(idx, fleet)| {
                 let available_qty = match mode {
-                    PlanetTransportMode::Load => {
-                        fleet.troop_transport_count().saturating_sub(fleet.army_count())
-                    }
+                    PlanetTransportMode::Load => fleet
+                        .troop_transport_count()
+                        .saturating_sub(fleet.army_count()),
                     PlanetTransportMode::Unload => fleet
                         .army_count()
                         .min(u16::from(u8::MAX.saturating_sub(row.armies))),
@@ -3781,8 +3805,8 @@ impl App {
         self.build_planet_rows()
             .into_iter()
             .map(|row| {
-                let available_points =
-                    u32::from(row.build_capacity).min(row.stored_production_points.min(u32::from(u16::MAX)));
+                let available_points = u32::from(row.build_capacity)
+                    .min(row.stored_production_points.min(u32::from(u16::MAX)));
                 let committed_points = self
                     .current_build_committed_points(row.planet_record_index_1_based)
                     .unwrap_or(0);
@@ -4042,10 +4066,14 @@ impl App {
 
         if self.fleet_roe_editing {
             match key.code {
-                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => crate::app::Action::OpenFleetRoeSelect,
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    crate::app::Action::OpenFleetRoeSelect
+                }
                 KeyCode::Enter => crate::app::Action::SubmitFleetRoe,
                 KeyCode::Backspace => crate::app::Action::BackspaceFleetRoeInput,
-                KeyCode::Char(ch) if ch.is_ascii_digit() => crate::app::Action::AppendFleetRoeChar(ch),
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    crate::app::Action::AppendFleetRoeChar(ch)
+                }
                 _ => crate::app::Action::Noop,
             }
         } else {
@@ -4060,7 +4088,9 @@ impl App {
                 KeyCode::PageDown => crate::app::Action::MoveFleetRoeSelect(8),
                 KeyCode::Enter => crate::app::Action::SubmitFleetRoe,
                 KeyCode::Backspace => crate::app::Action::BackspaceFleetRoeInput,
-                KeyCode::Char(ch) if ch.is_ascii_digit() => crate::app::Action::AppendFleetRoeChar(ch),
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    crate::app::Action::AppendFleetRoeChar(ch)
+                }
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     crate::app::Action::OpenFleetMenu
                 }
@@ -4084,7 +4114,9 @@ impl App {
                 KeyCode::PageDown => crate::app::Action::MoveFleetDetachSelect(8),
                 KeyCode::Enter => crate::app::Action::SubmitFleetDetach,
                 KeyCode::Backspace => crate::app::Action::BackspaceFleetDetachInput,
-                KeyCode::Char(ch) if ch.is_ascii_digit() => crate::app::Action::AppendFleetDetachChar(ch),
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    crate::app::Action::AppendFleetDetachChar(ch)
+                }
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     crate::app::Action::OpenFleetMenu
                 }
@@ -4096,7 +4128,9 @@ impl App {
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     crate::app::Action::OpenFleetDetach
                 }
-                KeyCode::Char(ch) if ch.is_ascii_digit() => crate::app::Action::AppendFleetDetachChar(ch),
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    crate::app::Action::AppendFleetDetachChar(ch)
+                }
                 _ => crate::app::Action::Noop,
             },
         }
@@ -4158,24 +4192,27 @@ impl App {
                 "Detach ships from fleet # ".to_string(),
                 format_fleet_number_for_rows(fleet_number, rows),
             ),
-            FleetDetachMode::EnteringBattleships => (
-                "Battleships to detach ".to_string(),
-                "0".to_string(),
-            ),
-            FleetDetachMode::EnteringCruisers => ("Cruisers to detach ".to_string(), "0".to_string()),
+            FleetDetachMode::EnteringBattleships => {
+                ("Battleships to detach ".to_string(), "0".to_string())
+            }
+            FleetDetachMode::EnteringCruisers => {
+                ("Cruisers to detach ".to_string(), "0".to_string())
+            }
             FleetDetachMode::EnteringDestroyers => {
                 ("Destroyers to detach ".to_string(), "0".to_string())
             }
-            FleetDetachMode::EnteringFullTransports => (
-                "FULL transports to detach ".to_string(),
-                "0".to_string(),
-            ),
-            FleetDetachMode::EnteringEmptyTransports => (
-                "EMPTY transports to detach ".to_string(),
-                "0".to_string(),
-            ),
-            FleetDetachMode::EnteringScouts => ("Scout ships to detach ".to_string(), "0".to_string()),
-            FleetDetachMode::EnteringEtacs => ("ETAC ships to detach ".to_string(), "0".to_string()),
+            FleetDetachMode::EnteringFullTransports => {
+                ("FULL transports to detach ".to_string(), "0".to_string())
+            }
+            FleetDetachMode::EnteringEmptyTransports => {
+                ("EMPTY transports to detach ".to_string(), "0".to_string())
+            }
+            FleetDetachMode::EnteringScouts => {
+                ("Scout ships to detach ".to_string(), "0".to_string())
+            }
+            FleetDetachMode::EnteringEtacs => {
+                ("ETAC ships to detach ".to_string(), "0".to_string())
+            }
             FleetDetachMode::AdjustingDonorSpeed => (
                 format!(
                     "Fleet #{} new speed ",
@@ -4291,12 +4328,10 @@ impl App {
                 .destroyer_count()
                 .saturating_sub(self.fleet_detach_selection.destroyers),
         );
-        donor_after.set_troop_transport_count(
-            donor_after.troop_transport_count().saturating_sub(
-                self.fleet_detach_selection.full_transports
-                    + self.fleet_detach_selection.empty_transports,
-            ),
-        );
+        donor_after.set_troop_transport_count(donor_after.troop_transport_count().saturating_sub(
+            self.fleet_detach_selection.full_transports
+                + self.fleet_detach_selection.empty_transports,
+        ));
         donor_after.set_army_count(
             donor_after
                 .army_count()
@@ -4345,12 +4380,10 @@ impl App {
                 .destroyer_count()
                 .saturating_sub(self.fleet_detach_selection.destroyers),
         );
-        donor_after.set_troop_transport_count(
-            donor_after.troop_transport_count().saturating_sub(
-                self.fleet_detach_selection.full_transports
-                    + self.fleet_detach_selection.empty_transports,
-            ),
-        );
+        donor_after.set_troop_transport_count(donor_after.troop_transport_count().saturating_sub(
+            self.fleet_detach_selection.full_transports
+                + self.fleet_detach_selection.empty_transports,
+        ));
         donor_after.set_army_count(
             donor_after
                 .army_count()
@@ -4402,7 +4435,9 @@ impl App {
                 KeyCode::PageDown => crate::app::Action::MoveFleetEtaSelect(8),
                 KeyCode::Enter => crate::app::Action::SubmitFleetEta,
                 KeyCode::Backspace => crate::app::Action::BackspaceFleetEtaInput,
-                KeyCode::Char(ch) if ch.is_ascii_digit() => crate::app::Action::AppendFleetEtaChar(ch),
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    crate::app::Action::AppendFleetEtaChar(ch)
+                }
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     crate::app::Action::OpenFleetMenu
                 }
@@ -4411,10 +4446,11 @@ impl App {
             FleetEtaMode::EnteringDestination => match key.code {
                 KeyCode::Enter => crate::app::Action::SubmitFleetEta,
                 KeyCode::Backspace => crate::app::Action::BackspaceFleetEtaInput,
-                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => crate::app::Action::OpenFleetEta,
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    crate::app::Action::OpenFleetEta
+                }
                 KeyCode::Char(ch)
-                    if ch.is_ascii_digit()
-                        || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']') =>
+                    if ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']') =>
                 {
                     crate::app::Action::AppendFleetEtaChar(ch)
                 }
@@ -4423,7 +4459,9 @@ impl App {
             FleetEtaMode::ConfirmingSystemEntry => match key.code {
                 KeyCode::Enter => crate::app::Action::SubmitFleetEta,
                 KeyCode::Backspace => crate::app::Action::BackspaceFleetEtaInput,
-                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => crate::app::Action::OpenFleetEta,
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    crate::app::Action::OpenFleetEta
+                }
                 KeyCode::Char(ch) if matches!(ch, 'y' | 'Y' | 'n' | 'N') => {
                     crate::app::Action::AppendFleetEtaChar(ch)
                 }
@@ -4439,14 +4477,19 @@ impl App {
     }
 
     fn sync_fleet_eta_cursor_to_input(&mut self) {
-        if self.current_screen != ScreenId::FleetEta || self.fleet_eta_mode != FleetEtaMode::SelectingFleet {
+        if self.current_screen != ScreenId::FleetEta
+            || self.fleet_eta_mode != FleetEtaMode::SelectingFleet
+        {
             return;
         }
         let Ok(target_fleet_id) = self.fleet_eta_select_input.trim().parse::<u16>() else {
             return;
         };
         let rows = self.fleet_rows();
-        let Some(index) = rows.iter().position(|row| row.fleet_number == target_fleet_id) else {
+        let Some(index) = rows
+            .iter()
+            .position(|row| row.fleet_number == target_fleet_id)
+        else {
             return;
         };
         self.fleet_eta_cursor = index;
@@ -4527,7 +4570,11 @@ impl App {
                     format!(
                         "Empire {:>2}: JOINED  {}{}",
                         slot,
-                        if empire.is_empty() { "Empire".to_string() } else { empire },
+                        if empire.is_empty() {
+                            "Empire".to_string()
+                        } else {
+                            empire
+                        },
                         if handle.is_empty() {
                             String::new()
                         } else {
@@ -4535,13 +4582,18 @@ impl App {
                         }
                     )
                 } else {
-                    format!("Empire {:>2}: OPEN    Available for a new Star Master", slot)
+                    format!(
+                        "Empire {:>2}: OPEN    Available for a new Star Master",
+                        slot
+                    )
                 }
             })
             .collect()
     }
 
-    fn first_time_homeworld_summary(&self) -> Result<([u8; 2], u16, u16), Box<dyn std::error::Error>> {
+    fn first_time_homeworld_summary(
+        &self,
+    ) -> Result<([u8; 2], u16, u16), Box<dyn std::error::Error>> {
         let planet_index = self
             .game_data
             .player
@@ -4557,7 +4609,9 @@ impl App {
             .ok_or("homeworld planet missing for first-time prompt")?;
         Ok((
             planet.coords_raw(),
-            planet.present_production_points().unwrap_or(planet.potential_production_points()),
+            planet
+                .present_production_points()
+                .unwrap_or(planet.potential_production_points()),
             planet.potential_production_points(),
         ))
     }
@@ -4583,7 +4637,8 @@ impl App {
     }
 
     fn refresh_player_context(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        self.player = PlayerContext::from_game_data(&self.game_data, self.player.record_index_1_based)?;
+        self.player =
+            PlayerContext::from_game_data(&self.game_data, self.player.record_index_1_based)?;
         let refreshed = ReportsPreview::load(&self.game_dir)?;
         let summary = MainMenuSummary::from_game_data(
             &self.game_data,

@@ -72,16 +72,14 @@ For the Rust `ECGAME` clone, preserve the original pre-menu player flow too:
 
 - do not treat startup as only a splash or logo
 - model the full pre-command-center path explicitly:
-  - BBS/sysop splash
-  - EC intro animation
+  - EC ASCII splash
+  - EC intro text
   - first-time onboarding or joined-player review flow
   - then the first command center menu
 - keep ownership boundaries clear:
-  - BBS splash is sysop-configurable and should not be hardwired as game lore
-  - EC intro remains part of the game/client identity and should live in
-    Rust-owned repo assets rather than a sysop-edited file
-  - both startup art sources should be selected declaratively through KDL
-    config, with the client owning playback, pacing, and 80x20 rendering
+  - startup presentation is game-owned and should live in the Rust client
+  - keep the splash and intro stable inside the `80x20` client model instead
+    of delegating startup art to a sysop config path
   - when the original game asks for homeworld naming or new-colony naming before
     returning to the menus, treat that as part of the same login/entry pipeline
 - preserve the classic sequence while modernizing friction where useful:

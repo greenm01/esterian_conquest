@@ -41,6 +41,10 @@ pub mod classic {
         CellStyle::new(BRIGHT_WHITE, BLACK, true)
     }
 
+    pub const fn logo_style() -> CellStyle {
+        CellStyle::new(YELLOW, BLACK, true)
+    }
+
     pub const fn status_label_style() -> CellStyle {
         CellStyle::new(BODY_GREY, BLACK, false)
     }

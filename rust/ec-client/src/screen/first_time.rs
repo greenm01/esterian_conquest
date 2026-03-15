@@ -2,8 +2,8 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_command_line_default_input, draw_command_prompt, draw_help_panel, draw_plain_prompt,
-    draw_status_line, draw_title_bar, new_playfield, MenuEntry,
+    MenuEntry, draw_command_line_default_input, draw_command_prompt, draw_help_panel,
+    draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
 };
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
@@ -168,7 +168,12 @@ pub fn render_first_time_join_summary(
         &format!("Commander, you are \"{empire_name}\", (Empire #{empire_id})"),
         classic::body_style(),
     );
-    buffer.write_text(4, 0, &format!("The year is: {year} A.D."), classic::body_style());
+    buffer.write_text(
+        4,
+        0,
+        &format!("The year is: {year} A.D."),
+        classic::body_style(),
+    );
     buffer.write_text(6, 0, "Last year on: NEVER", classic::body_style());
     buffer.write_text(
         8,
@@ -285,27 +290,10 @@ impl FirstTimeIntroScreen {
         &mut self,
         page: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
-        crate::screen::layout::draw_centered_text(
-            &mut buffer,
-            0,
-            "Esterian Conquest Ver 1.60",
-            classic::bright_style(),
-        );
-        let lines = FIRST_TIME_INTRO_PAGES
-            .get(page)
-            .copied()
-            .unwrap_or(FIRST_TIME_INTRO_PAGES.last().copied().unwrap_or(&[]));
-        for (row, line) in lines.iter().enumerate() {
-            buffer.write_text(row + 2, 0, line, classic::body_style());
-        }
-        let prompt = if page + 1 < FIRST_TIME_INTRO_PAGES.len() {
-            "Press any key for the next section."
-        } else {
-            "Press any key to return to the First Time Menu."
-        };
-        draw_plain_prompt(&mut buffer, 19, prompt);
-        Ok(buffer)
+        crate::screen::startup::render_game_intro_page(
+            page,
+            "Press any key to return to the First Time Menu.",
+        )
     }
 }
 
@@ -322,35 +310,4 @@ impl Screen for FirstTimeIntroScreen {
     }
 }
 
-pub const FIRST_TIME_INTRO_PAGE_COUNT: usize = FIRST_TIME_INTRO_PAGES.len();
-
-const FIRST_TIME_INTRO_PAGE_1: [&str; 14] = [
-    "Beyond the mapped frontiers of the old Esterian dominion lies a small",
-    "galaxy of contested solar systems. The old masters are gone. Their",
-    "stations are silent, their patrols vanished, and their subjects left",
-    "with fleets, factories, and enough knowledge to build empires.",
-    "",
-    "You rise as one of the new Star Masters. From a single world and a few",
-    "small fleets, you must tax, build, scout, bargain, threaten, and",
-    "strike before rival powers can do the same. Some systems will join",
-    "your banner willingly. Others will require persuasion from orbit.",
-    "",
-    "Each maintenance marks the passage of a year. In that span, fleets",
-    "cross the dark between stars, colonies grow or starve, alliances turn",
-    "cold, and wars are decided by distance, industry, mathematics, and",
-    "will.",
-];
-
-const FIRST_TIME_INTRO_PAGE_2: [&str; 8] = [
-    "In profound respect and admiration to Bentley C. Griffith and his",
-    "fellow pioneers, who between 1990 and 1992 forged the enduring legend",
-    "of Esterian Conquest-a digital realm where star empires rose and fell",
-    "across BBS screens-and to the ancient dreamers, strategists, and",
-    "storytellers whose timeless visions of galactic dominion first lit the",
-    "way for every commander who still dares to claim worlds among these",
-    "endless stars.",
-    "",
-];
-
-const FIRST_TIME_INTRO_PAGES: [&[&str]; 2] =
-    [&FIRST_TIME_INTRO_PAGE_1, &FIRST_TIME_INTRO_PAGE_2];
+pub const FIRST_TIME_INTRO_PAGE_COUNT: usize = crate::screen::startup::STARTUP_INTRO_PAGE_COUNT;

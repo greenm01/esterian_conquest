@@ -315,12 +315,11 @@ These should be treated as the current best reference set for:
 
 Current startup-art policy:
 
-- BBS splash source should be sysop-configurable through KDL-selected asset files
-- EC-owned splash/intro source should live in repo-owned assets, also selected
-  through startup KDL config
-- playback timing, ANSI parsing, and `80x20` projection remain client code
-- until curated startup art lands, placeholder file-backed splash assets are
-  preferable to pretending one raw captured ANSI dump already renders correctly
+- startup now uses one built-in ASCII EC splash screen plus in-client intro
+  pages
+- keep startup inside the fixed `80x20` client model
+- do not route startup through external ANSI assets or startup-specific KDL
+  config unless a later art system is deliberately reintroduced
 
 ## Suggested Near-Term Milestones
 

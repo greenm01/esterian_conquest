@@ -51,7 +51,6 @@ fn parse_args(args: &[String]) -> Result<AppConfig, Box<dyn std::error::Error>> 
     let mut player = None;
     let mut export_root = std::env::var_os("EC_CLIENT_EXPORT_ROOT").map(PathBuf::from);
     let mut queue_dir = std::env::var_os("EC_CLIENT_QUEUE_DIR").map(PathBuf::from);
-    let mut startup_config = std::env::var_os("EC_CLIENT_STARTUP_CONFIG").map(PathBuf::from);
 
     let mut idx = 1;
     while idx < args.len() {
@@ -84,13 +83,6 @@ fn parse_args(args: &[String]) -> Result<AppConfig, Box<dyn std::error::Error>> 
                 queue_dir = Some(PathBuf::from(value));
                 idx += 2;
             }
-            "--startup-config" => {
-                let Some(value) = args.get(idx + 1) else {
-                    return Err("missing value for --startup-config".into());
-                };
-                startup_config = Some(PathBuf::from(value));
-                idx += 2;
-            }
             "--help" | "-h" => {
                 print_usage();
                 std::process::exit(0);
@@ -113,11 +105,12 @@ fn parse_args(args: &[String]) -> Result<AppConfig, Box<dyn std::error::Error>> 
         player_record_index_1_based,
         export_root,
         queue_dir,
-        startup_config,
     })
 }
 
 fn print_usage() {
     println!("Usage:");
-    println!("  ec-client --dir <game_dir> --player <1-based empire index> [--export-root <dir>] [--queue-dir <dir>] [--startup-config <kdl>]");
+    println!(
+        "  ec-client --dir <game_dir> --player <1-based empire index> [--export-root <dir>] [--queue-dir <dir>]"
+    );
 }

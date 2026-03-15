@@ -2,34 +2,19 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::reports::ReportsPreview;
-use crate::screen::layout::{
-    draw_centered_text, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
-};
+use crate::screen::layout::{draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
-use crate::startup::StartupArt;
 use crate::startup::{StartupPhase, StartupSummary};
 use crate::theme::classic;
 
 pub struct StartupScreen {
     summary: StartupSummary,
     reports: ReportsPreview,
-    bbs_splash: StartupArt,
-    ec_game_splash: StartupArt,
 }
 
 impl StartupScreen {
-    pub fn new(
-        summary: StartupSummary,
-        reports: ReportsPreview,
-        bbs_splash: StartupArt,
-        ec_game_splash: StartupArt,
-    ) -> Self {
-        Self {
-            summary,
-            reports,
-            bbs_splash,
-            ec_game_splash,
-        }
+    pub fn new(summary: StartupSummary, reports: ReportsPreview) -> Self {
+        Self { summary, reports }
     }
 
     pub fn render_phase(
@@ -66,37 +51,32 @@ impl StartupScreen {
     fn render_splash(
         &self,
         _frame: &ScreenFrame<'_>,
-        splash_page: usize,
+        _splash_page: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        match splash_page {
-            0 => self.render_art_page(&self.bbs_splash, "Slap a key."),
-            1 => self.render_art_page(&self.ec_game_splash, "Slap a key."),
-            _ => self.render_intro_prompt_page(),
-        }
-    }
-
-    fn render_intro(&self, intro_page: usize) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        draw_centered_text(
-            &mut buffer,
-            0,
-            "Esterian Conquest Ver 1.60",
+        let version = version_title();
+        let logo_width = INTRO_LOGO.iter().map(|line| line.len()).max().unwrap_or(0);
+        let logo_left = 80usize.saturating_sub(logo_width) / 2;
+        let block_height = INTRO_LOGO.len() + 3 + 1;
+        let start_row = (19usize.saturating_sub(block_height)) / 2;
+        for (row, line) in INTRO_LOGO.iter().enumerate() {
+            buffer.write_text(row + start_row, logo_left, line, classic::logo_style());
+        }
+        buffer.write_text(
+            start_row + INTRO_LOGO.len() + 3,
+            logo_left,
+            &version,
             classic::bright_style(),
         );
-        let lines = INTRO_PAGES
-            .get(intro_page)
-            .copied()
-            .unwrap_or(INTRO_PAGES.last().copied().unwrap_or(&[]));
-        for (row, line) in lines.iter().enumerate() {
-            buffer.write_text(row + 2, 0, line, classic::body_style());
-        }
-        let prompt = if intro_page + 1 < INTRO_PAGES.len() {
-            "Slap a key for the next section."
-        } else {
-            "Slap a key."
-        };
-        draw_plain_prompt(&mut buffer, 19, prompt);
+        draw_plain_prompt(&mut buffer, 19, "View the game introduction? Y/[N] -> ");
         Ok(buffer)
+    }
+
+    fn render_intro(
+        &self,
+        intro_page: usize,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        render_game_intro_page(intro_page, "Slap a key.")
     }
 
     fn render_login_summary(
@@ -200,61 +180,84 @@ impl StartupScreen {
     }
 }
 
-impl StartupScreen {
-    fn render_art_page(
-        &self,
-        art: &StartupArt,
-        prompt: &str,
-    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = art.render();
-        draw_plain_prompt(&mut buffer, 19, prompt);
-        Ok(buffer)
-    }
+pub const STARTUP_INTRO_PAGE_COUNT: usize = INTRO_PAGES.len();
+pub const STARTUP_SPLASH_PAGE_COUNT: usize = 1;
+pub const GAME_VERSION: &str = "1.60";
 
-    fn render_intro_prompt_page(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = self.ec_game_splash.render();
-        draw_plain_prompt(&mut buffer, 19, "View Introduction? Y/[N] ->");
-        Ok(buffer)
-    }
+pub fn version_title() -> String {
+    format!("Esterian Conquest Ver {GAME_VERSION}")
 }
 
-pub const STARTUP_INTRO_PAGE_COUNT: usize = INTRO_PAGES.len();
-pub const STARTUP_SPLASH_PAGE_COUNT: usize = 3;
+pub fn render_game_intro_page(
+    intro_page: usize,
+    final_prompt: &str,
+) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+    let mut buffer = new_playfield();
+    let text_start_row = 2;
+    let lines = INTRO_PAGES
+        .get(intro_page)
+        .copied()
+        .unwrap_or(INTRO_PAGES.last().copied().unwrap_or(&[]));
+    for (row, line) in lines.iter().enumerate() {
+        buffer.write_text(row + text_start_row, 1, line, classic::body_style());
+    }
+    if intro_page + 1 == INTRO_PAGES.len() {
+        let version_row = text_start_row + lines.len() + 3;
+        if version_row < 19 {
+            buffer.write_text(version_row, 1, &version_title(), classic::bright_style());
+        }
+    }
+    let prompt = if intro_page + 1 < INTRO_PAGES.len() {
+        "Slap a key for the next section."
+    } else {
+        final_prompt
+    };
+    draw_plain_prompt(&mut buffer, 19, prompt);
+    Ok(buffer)
+}
 
-const INTRO_PAGE_1: [&str; 14] = [
-    "Beyond the mapped frontiers of the old Esterian dominion lies a small",
-    "galaxy of contested solar systems. The old masters are gone. Their",
-    "stations are silent, their patrols vanished, and their subjects left",
-    "with fleets, factories, and enough knowledge to build empires.",
+const INTRO_LOGO: [&str; 11] = [
+    "  o     #######   ###### ########  #######  ######    ##    #####    ###  ##",
+    "    .  ##       ##         ##     ##       ##   ##   ##   ##   ##   #### ##",
+    "      ####      #####     ##     ####     ######    ##   #######   ## ####   .",
+    "     ##            ##    ##     ##       ## ##     ##   ##   ##   ##  ###",
+    " .  #######  ######     ##     #######  ##   ##   ##   ##   ##   ##   ##",
     "",
-    "You rise as one of the new Star Masters. From a single world and a few",
-    "small fleets, you must tax, build, scout, bargain, threaten, and",
-    "strike before rival powers can do the same. Some systems will join",
-    "your banner willingly. Others will require persuasion from orbit.",
-    "",
-    "Each maintenance marks the passage of a year. In that span, fleets",
-    "cross the dark between stars, colonies grow or starve, alliances turn",
-    "cold, and wars are decided by distance, industry, mathematics, and",
-    "will.",
+    "   *   ######   #####    ###  ##   #####   ##   ##  #######   ###### ########",
+    "     ##       ##   ##   #### ##  ##   ##  ##   ##  ##       ##         ##  .",
+    "  . ##       ##   ##   ## ####  ##   ##  ##   ##  ####      #####     ##",
+    "   ##       ##   ##   ##  ###  ## # ##  ##   ##  ##            ##    ##      .",
+    "   ######   #####    ##   ##   ######   #####   #######  ######     ##",
 ];
 
-const INTRO_PAGE_2: [&str; 8] = [
-    "In profound respect and admiration to Bentley C. Griffith and his",
-    "fellow pioneers, who between 1990 and 1992 forged the enduring legend",
-    "of Esterian Conquest-a digital realm where star empires rose and fell",
-    "across BBS screens-and to the ancient dreamers, strategists, and",
-    "storytellers whose timeless visions of galactic dominion first lit the",
-    "way for every commander who still dares to claim worlds among these",
-    "endless stars.",
+const INTRO_PAGE_1: [&str; 13] = [
+    "Beyond the mapped frontiers of the old Esterian dominion lies a small galaxy of",
+    "contested solar systems. The old masters are gone. Their stations are silent,",
+    "their patrols vanished, and their subjects left with fleets, factories, and",
+    "enough knowledge to build empires.",
+    "",
+    "You rise as one of the new Star Masters. From a single world and a few small",
+    "fleets, you must tax, build, scout, bargain, threaten, and strike before rival",
+    "powers can do the same. Some systems will join your banner willingly. Others",
+    "will require persuasion from orbit.",
+    "",
+    "Each maintenance marks the passage of a year. In that span, fleets cross the",
+    "dark between stars, colonies grow or starve, alliances turn cold, and wars are",
+    "decided by distance, industry, mathematics, and will.",
+];
+
+const INTRO_PAGE_2: [&str; 7] = [
+    "",
+    "In profound respect and admiration to Bentley C. Griffith and his fellow",
+    "pioneers, who between 1990 and 1992 forged the enduring legend of Esterian",
+    "Conquest, and to the ancient dreamers, strategists, and storytellers whose",
+    "timeless visions of galactic dominion still light the way among these stars.",
+    "",
     "",
 ];
 
 const INTRO_PAGES: [&[&str]; 2] = [&INTRO_PAGE_1, &INTRO_PAGE_2];
 
 fn display_or_unknown(value: &str) -> &str {
-    if value.is_empty() {
-        "<unknown>"
-    } else {
-        value
-    }
+    if value.is_empty() { "<unknown>" } else { value }
 }

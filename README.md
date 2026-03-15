@@ -182,11 +182,11 @@ Launch original `ECGAME` locally in DOSBox-X:
 tools/run_ecgame.sh /tmp/ec-game 1
 ```
 
-Run the Rust client with an alternate startup-art config:
+Run the Rust client:
 
 ```bash
 cd rust
-cargo run -q -p ec-client -- --dir /tmp/ec-game --player 1 --startup-config ec-client/config/startup.default.kdl
+cargo run -q -p ec-client -- --dir /tmp/ec-game --player 1
 ```
 
 ## Useful Commands
@@ -201,8 +201,8 @@ cargo run -q -p ec-cli -- sysop new-game /tmp/ec-game --config ec-data/config/se
 The bundled example config uses `setup_mode="builder-compatible"` for the
 active-campaign baseline used by the maint/oracle sweeps.
 
-The bundled `ec-client/config/startup.default.kdl` controls the startup splash
-asset paths for the Rust client.
+The Rust client now uses a built-in ASCII splash followed by the in-client intro
+pages.
 
 Inspect a game directory:
 

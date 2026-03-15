@@ -169,16 +169,8 @@ First concrete work:
 
 Treat the login/startup side as one explicit pre-command-center pipeline:
 
-- BBS splash is sysop-owned/configurable
-  - keep The Battle Field as the default preset
-  - source it from startup KDL config instead of hardcoded Rust strings
-- the classic EC ANSI intro is game-owned
-  - keep EC-specific ANSI art in Rust-owned repo assets
-  - starfield
-  - ship
-  - red-line animation
-  - select the asset path through the same startup KDL config, but keep flow
-    control and rendering in the client
+- show the built-in EC ASCII splash first
+- then show the in-client text intro pages
 - after the intro, branch by player state before any command center opens
   - unjoined player:
     - first-time help/list/join flow
@@ -197,8 +189,8 @@ Treat the login/startup side as one explicit pre-command-center pipeline:
    - confirm homeworld naming prompt appears
    - confirm player 2 can also join cleanly afterward
    - capture the exact handoff between:
-     - BBS splash
-     - EC intro
+     - ASCII splash
+     - intro text pages
      - first-time menu
      - joined-player report/message/naming flow
 2. Keep running periodic seeded multi-turn `rust-maint` sweeps to guard against

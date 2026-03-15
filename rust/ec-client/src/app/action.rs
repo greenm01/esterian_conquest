@@ -1,4 +1,6 @@
-use crate::screen::{CommandMenu, FleetListMode, PlanetListMode, PlanetListSort, PlanetTransportMode};
+use crate::screen::{
+    CommandMenu, FleetListMode, PlanetListMode, PlanetListSort, PlanetTransportMode,
+};
 use ec_data::EmpireProductionRankingSort;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

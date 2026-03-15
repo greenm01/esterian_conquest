@@ -49,7 +49,9 @@ impl StartupSequence {
         Self {
             current: StartupPhase::Splash,
             show_login_review: is_joined,
-            show_results: is_joined && summary.pending_results && !summary.results_line_count.eq(&0),
+            show_results: is_joined
+                && summary.pending_results
+                && !summary.results_line_count.eq(&0),
             show_messages: is_joined
                 && summary.pending_messages
                 && !summary.message_line_count.eq(&0),
@@ -62,7 +64,8 @@ impl StartupSequence {
 
     pub fn advance(&mut self) -> StartupPhase {
         self.current = match self.current {
-            StartupPhase::Splash | StartupPhase::Intro => {
+            StartupPhase::Splash => StartupPhase::Intro,
+            StartupPhase::Intro => {
                 if self.show_login_review {
                     StartupPhase::LoginSummary
                 } else {
@@ -92,6 +95,15 @@ impl StartupSequence {
 
     pub fn open_intro(&mut self) -> StartupPhase {
         self.current = StartupPhase::Intro;
+        self.current
+    }
+
+    pub fn skip_intro(&mut self) -> StartupPhase {
+        self.current = if self.show_login_review {
+            StartupPhase::LoginSummary
+        } else {
+            StartupPhase::Complete
+        };
         self.current
     }
 }

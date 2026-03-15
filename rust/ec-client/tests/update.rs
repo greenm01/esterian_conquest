@@ -3,10 +3,10 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ec_client::app::{Action, AppConfig, AppOutcome, App, apply_action};
+use ec_client::app::{Action, App, AppConfig, AppOutcome, apply_action};
 use ec_client::screen::{
-    CommandMenu, FleetListMode, FleetRoeScreen, FleetRow, PlanetBuildMenuView,
-    PlanetBuildOrder, PlanetBuildScreen, PlanetListMode, PlanetListSort, ScreenId,
+    CommandMenu, FleetListMode, FleetRoeScreen, FleetRow, PlanetBuildMenuView, PlanetBuildOrder,
+    PlanetBuildScreen, PlanetListMode, PlanetListSort, ScreenId,
 };
 use ec_client::startup::StartupPhase;
 use ec_client::terminal::Terminal;
@@ -133,11 +133,13 @@ fn apply_action_switches_between_client_screens() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
-        startup_config: None,
     })
     .expect("app should load");
 
-    assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::Splash));
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Splash)
+    );
 
     assert_eq!(
         apply_action(&mut app, Action::OpenStartupIntro),
@@ -155,7 +157,10 @@ fn apply_action_switches_between_client_screens() {
         apply_action(&mut app, Action::AdvanceStartup),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::LoginSummary));
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::LoginSummary)
+    );
 
     assert_eq!(
         apply_action(&mut app, Action::AdvanceStartup),
@@ -168,7 +173,7 @@ fn apply_action_switches_between_client_screens() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
-    
+
     // Continue on the joined-player surface after startup.
     assert_eq!(
         apply_action(&mut app, Action::OpenMainMenu),
@@ -216,7 +221,10 @@ fn apply_action_switches_between_client_screens() {
         apply_action(&mut app, Action::OpenFleetList(FleetListMode::Brief)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetList(FleetListMode::Brief));
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::FleetList(FleetListMode::Brief)
+    );
 
     assert_eq!(
         apply_action(&mut app, Action::OpenFleetReview),
@@ -345,10 +353,7 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(
         apply_action(
             &mut app,
-            Action::SubmitPlanetListSort(
-                PlanetListMode::Brief,
-                PlanetListSort::CurrentProduction
-            )
+            Action::SubmitPlanetListSort(PlanetListMode::Brief, PlanetListSort::CurrentProduction)
         ),
         AppOutcome::Continue
     );
@@ -390,7 +395,10 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.selected_planet_info(), Some(14));
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPartialStarmapPrompt(CommandMenu::General)),
+        apply_action(
+            &mut app,
+            Action::OpenPartialStarmapPrompt(CommandMenu::General)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapPrompt);
@@ -446,11 +454,13 @@ fn first_time_menu_branch_opens_help_intro_and_empire_list() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
-        startup_config: None,
     })
     .expect("app should load");
 
-    assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::Splash));
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Splash)
+    );
 
     advance_to_first_time_menu(&mut app);
     assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
@@ -482,17 +492,13 @@ fn first_time_startup_skips_joined_player_login_summary() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
-        startup_config: None,
     })
     .expect("app should load");
 
-    assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::Splash));
-
-    apply_action(&mut app, Action::AdvanceStartup);
-    assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::Splash));
-
-    apply_action(&mut app, Action::AdvanceStartup);
-    assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::Splash));
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Splash)
+    );
 
     apply_action(&mut app, Action::AdvanceStartup);
     assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
@@ -506,7 +512,6 @@ fn first_time_join_flow_updates_player_and_homeworld_then_enters_main_menu() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
-        startup_config: None,
     })
     .expect("app should load");
 
@@ -589,12 +594,14 @@ fn apply_action_quit_exits_loop() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
-        startup_config: None,
     })
     .expect("app should load");
 
     assert_eq!(apply_action(&mut app, Action::Quit), AppOutcome::Quit);
-    assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::Splash));
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Splash)
+    );
 }
 
 #[test]
@@ -605,33 +612,44 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
-        startup_config: None,
     })
     .expect("app should load");
 
     advance_to_main_menu(&mut app);
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
 
-    assert_eq!(app.handle_key(key(KeyCode::Char('b'))), Action::OpenEmpireStatus);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('b'))),
+        Action::OpenEmpireStatus
+    );
     assert_eq!(
         apply_action(&mut app, Action::OpenEmpireStatus),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::EmpireStatus);
-    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::ReturnToCommandMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        Action::ReturnToCommandMenu
+    );
     assert_eq!(
         apply_action(&mut app, Action::ReturnToCommandMenu),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
 
-    assert_eq!(app.handle_key(key(KeyCode::Char('f'))), Action::OpenFleetMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('f'))),
+        Action::OpenFleetMenu
+    );
     assert_eq!(
         apply_action(&mut app, Action::OpenFleetMenu),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
-    assert_eq!(app.handle_key(key(KeyCode::Char('h'))), Action::OpenFleetHelp);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('h'))),
+        Action::OpenFleetHelp
+    );
     assert_eq!(
         apply_action(&mut app, Action::OpenFleetHelp),
         AppOutcome::Continue
@@ -652,7 +670,10 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
-    assert_eq!(app.handle_key(key(KeyCode::Char('q'))), Action::ReturnToCommandMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
+        Action::ReturnToCommandMenu
+    );
     assert_eq!(
         apply_action(&mut app, Action::ReturnToCommandMenu),
         AppOutcome::Continue
@@ -663,7 +684,10 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         Action::OpenPartialStarmapPrompt(CommandMenu::Fleet)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenPartialStarmapPrompt(CommandMenu::Fleet)),
+        apply_action(
+            &mut app,
+            Action::OpenPartialStarmapPrompt(CommandMenu::Fleet)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapPrompt);
@@ -672,7 +696,10 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
-    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::ReturnToCommandMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        Action::ReturnToCommandMenu
+    );
     assert_eq!(
         apply_action(&mut app, Action::ReturnToCommandMenu),
         AppOutcome::Continue
@@ -703,7 +730,10 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     );
     assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
     assert_eq!(app.current_fleet_roe_by_id(1), Some(4));
-    assert_eq!(app.handle_key(key(KeyCode::Char('q'))), Action::OpenFleetMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
+        Action::OpenFleetMenu
+    );
     assert_eq!(
         apply_action(&mut app, Action::OpenFleetMenu),
         AppOutcome::Continue
@@ -718,7 +748,10 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetEta);
-    assert_eq!(app.handle_key(key(KeyCode::Char('q'))), Action::OpenFleetMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
+        Action::OpenFleetMenu
+    );
     assert_eq!(
         apply_action(&mut app, Action::OpenFleetMenu),
         AppOutcome::Continue
@@ -732,20 +765,29 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         apply_action(&mut app, Action::OpenFleetList(FleetListMode::Brief)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetList(FleetListMode::Brief));
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::FleetList(FleetListMode::Brief)
+    );
     assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::OpenFleetReview);
     assert_eq!(
         apply_action(&mut app, Action::OpenFleetReview),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetReview);
-    assert_eq!(app.handle_key(key(KeyCode::Char('q'))), Action::OpenFleetMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
+        Action::OpenFleetMenu
+    );
     assert_eq!(
         apply_action(&mut app, Action::OpenFleetMenu),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
-    assert_eq!(app.handle_key(key(KeyCode::Char('q'))), Action::OpenMainMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
+        Action::OpenMainMenu
+    );
     assert_eq!(
         apply_action(&mut app, Action::OpenMainMenu),
         AppOutcome::Continue
@@ -761,7 +803,10 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
-    assert_eq!(app.handle_key(key(KeyCode::Char('q'))), Action::ReturnToCommandMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
+        Action::ReturnToCommandMenu
+    );
     assert_eq!(
         apply_action(&mut app, Action::ReturnToCommandMenu),
         AppOutcome::Continue
@@ -778,7 +823,10 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetInfoDetail);
-    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::ReturnToCommandMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        Action::ReturnToCommandMenu
+    );
     assert_eq!(
         apply_action(&mut app, Action::ReturnToCommandMenu),
         AppOutcome::Continue
@@ -790,7 +838,10 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         Action::OpenPartialStarmapPrompt(CommandMenu::Main)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenPartialStarmapPrompt(CommandMenu::Main)),
+        apply_action(
+            &mut app,
+            Action::OpenPartialStarmapPrompt(CommandMenu::Main)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapPrompt);
@@ -799,32 +850,47 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
-    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::ReturnToCommandMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        Action::ReturnToCommandMenu
+    );
     assert_eq!(
         apply_action(&mut app, Action::ReturnToCommandMenu),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
 
-    assert_eq!(app.handle_key(key(KeyCode::Char('t'))), Action::OpenPlanetDatabase);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('t'))),
+        Action::OpenPlanetDatabase
+    );
     assert_eq!(
         apply_action(&mut app, Action::OpenPlanetDatabase),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseList);
-    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::OpenPlanetDatabaseDetail);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        Action::OpenPlanetDatabaseDetail
+    );
     assert_eq!(
         apply_action(&mut app, Action::OpenPlanetDatabaseDetail),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseDetail);
-    assert_eq!(app.handle_key(key(KeyCode::Char('q'))), Action::OpenPlanetDatabase);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
+        Action::OpenPlanetDatabase
+    );
     assert_eq!(
         apply_action(&mut app, Action::OpenPlanetDatabase),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseList);
-    assert_eq!(app.handle_key(key(KeyCode::Char('q'))), Action::ReturnToCommandMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
+        Action::ReturnToCommandMenu
+    );
     assert_eq!(
         apply_action(&mut app, Action::ReturnToCommandMenu),
         AppOutcome::Continue
@@ -840,7 +906,6 @@ fn fleet_roe_accepts_typed_fleet_selection_and_q_cancels_edit_mode() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
-        startup_config: None,
     })
     .expect("app should load");
 
@@ -903,7 +968,6 @@ fn fleet_roe_empty_enter_accepts_displayed_default() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
-        startup_config: None,
     })
     .expect("app should load");
 
@@ -942,7 +1006,6 @@ fn fleet_roe_success_returns_to_selector_prompt_without_confirmation_text() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
-        startup_config: None,
     })
     .expect("app should load");
     let mut terminal = CaptureTerminal::new();
@@ -1130,25 +1193,54 @@ fn fleet_eta_accepts_typed_fleet_destination_and_default_include_system() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
-        startup_config: None,
     })
     .expect("app should load");
 
     advance_to_main_menu(&mut app);
-    assert_eq!(apply_action(&mut app, Action::OpenFleetEta), AppOutcome::Continue);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetEta),
+        AppOutcome::Continue
+    );
     assert_eq!(app.current_screen(), ScreenId::FleetEta);
 
-    assert_eq!(apply_action(&mut app, Action::AppendFleetEtaChar('4')), AppOutcome::Continue);
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetEtaChar('4')),
+        AppOutcome::Continue
+    );
     assert_eq!(app.selected_fleet_eta_id(), Some(4));
-    assert_eq!(apply_action(&mut app, Action::SubmitFleetEta), AppOutcome::Continue);
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetEta),
+        AppOutcome::Continue
+    );
     assert_eq!(app.current_screen(), ScreenId::FleetEta);
-    assert_eq!(apply_action(&mut app, Action::AppendFleetEtaChar('1')), AppOutcome::Continue);
-    assert_eq!(apply_action(&mut app, Action::AppendFleetEtaChar('0')), AppOutcome::Continue);
-    assert_eq!(apply_action(&mut app, Action::AppendFleetEtaChar(',')), AppOutcome::Continue);
-    assert_eq!(apply_action(&mut app, Action::AppendFleetEtaChar('1')), AppOutcome::Continue);
-    assert_eq!(apply_action(&mut app, Action::AppendFleetEtaChar('3')), AppOutcome::Continue);
-    assert_eq!(apply_action(&mut app, Action::SubmitFleetEta), AppOutcome::Continue);
-    assert_eq!(apply_action(&mut app, Action::SubmitFleetEta), AppOutcome::Continue);
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetEtaChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetEtaChar('0')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetEtaChar(',')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetEtaChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetEtaChar('3')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetEta),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetEta),
+        AppOutcome::Continue
+    );
     assert_eq!(app.current_screen(), ScreenId::FleetEta);
     assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::SubmitFleetEta);
 }
@@ -1189,7 +1281,11 @@ fn planet_build_specify_uses_bottom_command_line_default_prompt() {
         .render_specify(&view, &orders, "", None)
         .expect("build specify renders");
 
-    assert!(buffer.plain_line(19).contains("BUILD COMMAND <- Unit number or 0 if done"));
+    assert!(
+        buffer
+            .plain_line(19)
+            .contains("BUILD COMMAND <- Unit number or 0 if done")
+    );
     assert!(buffer.plain_line(19).contains("[0] ->"));
 }
 
@@ -1236,7 +1332,11 @@ fn planet_build_quantity_uses_bottom_command_line_default_prompt() {
         )
         .expect("build quantity renders");
 
-    assert!(buffer.plain_line(19).contains("BUILD COMMAND <- How many new destroyers to build"));
+    assert!(
+        buffer
+            .plain_line(19)
+            .contains("BUILD COMMAND <- How many new destroyers to build")
+    );
     assert!(buffer.plain_line(19).contains("[6] ->"));
 }
 
@@ -1248,7 +1348,6 @@ fn general_rankings_opens_production_table_and_returns_to_general_menu() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
-        startup_config: None,
     })
     .expect("app should load");
 
@@ -1274,7 +1373,10 @@ fn general_rankings_opens_production_table_and_returns_to_general_menu() {
         app.current_screen(),
         ScreenId::Rankings(EmpireProductionRankingSort::Production)
     );
-    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::ReturnToCommandMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        Action::ReturnToCommandMenu
+    );
     assert_eq!(
         apply_action(&mut app, Action::ReturnToCommandMenu),
         AppOutcome::Continue
@@ -1290,7 +1392,6 @@ fn apply_action_toggles_autopilot_and_enemy_relation() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
-        startup_config: None,
     })
     .expect("app should load");
 
@@ -1299,14 +1400,20 @@ fn apply_action_toggles_autopilot_and_enemy_relation() {
         apply_action(&mut app, Action::ToggleAutopilot),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_autopilot_flag(), if initial_autopilot == 0 { 1 } else { 0 });
+    assert_eq!(
+        app.current_autopilot_flag(),
+        if initial_autopilot == 0 { 1 } else { 0 }
+    );
 
     assert_eq!(
         apply_action(&mut app, Action::OpenEnemies),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::Enemies);
-    assert_eq!(app.current_relation_to(2), Some(DiplomaticRelation::Neutral));
+    assert_eq!(
+        app.current_relation_to(2),
+        Some(DiplomaticRelation::Neutral)
+    );
 
     assert_eq!(
         apply_action(&mut app, Action::AppendEnemiesChar('2')),
@@ -1327,7 +1434,6 @@ fn apply_action_clamps_enemies_scroll_to_visible_window() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
-        startup_config: None,
     })
     .expect("app should load");
 
@@ -1358,7 +1464,6 @@ fn apply_action_deletes_reviewables() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
-        startup_config: None,
     })
     .expect("app should load");
 
@@ -1391,7 +1496,6 @@ fn apply_action_queues_composed_message() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
-        startup_config: None,
     })
     .expect("app should load");
 
@@ -1467,7 +1571,6 @@ fn apply_action_deletes_queued_message_from_outbox() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
-        startup_config: None,
     })
     .expect("app should load");
 
@@ -1497,7 +1600,6 @@ fn apply_action_confirms_before_discarding_composed_message() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
-        startup_config: None,
     })
     .expect("app should load");
 
@@ -1564,7 +1666,6 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
-        startup_config: None,
     })
     .expect("app should load");
 
@@ -1576,7 +1677,11 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("render detach select");
-    assert!(terminal.line(19).contains("Detach ships from fleet # [1] ->"));
+    assert!(
+        terminal
+            .line(19)
+            .contains("Detach ships from fleet # [1] ->")
+    );
 
     assert_eq!(
         apply_action(&mut app, Action::SubmitFleetDetach),
@@ -1611,8 +1716,13 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
         apply_action(&mut app, Action::SubmitFleetDetach),
         AppOutcome::Continue
     );
-    app.render(&mut terminal).expect("render detach select after save");
-    assert!(terminal.line(19).contains("Detach ships from fleet # [1] ->"));
+    app.render(&mut terminal)
+        .expect("render detach select after save");
+    assert!(
+        terminal
+            .line(19)
+            .contains("Detach ships from fleet # [1] ->")
+    );
 
     let updated = CoreGameData::load(&fixture_dir).expect("reload saved game");
     assert_eq!(updated.fleets.records.len(), initial_fleet_count + 1);
