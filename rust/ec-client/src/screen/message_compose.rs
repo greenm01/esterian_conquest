@@ -5,7 +5,7 @@ use crate::app::Action;
 use crate::screen::layout::{
     draw_command_prompt, draw_plain_prompt, draw_title_bar, new_playfield,
 };
-use crate::screen::table::{format_empire_id, write_table_window, TableColumn};
+use crate::screen::table::{format_empire_id, write_table_window_with_cursor, TableColumn};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 
@@ -35,6 +35,7 @@ impl MessageComposeScreen {
         input: &str,
         status: Option<&str>,
         scroll_offset: usize,
+        cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "COMMUNICATE (SEND MESSAGE):");
@@ -60,7 +61,8 @@ impl MessageComposeScreen {
                 vec![format_empire_id(empire_id as u8), display]
             })
             .collect::<Vec<_>>();
-        write_table_window(
+        let selected = if rows.is_empty() { None } else { Some(cursor) };
+        write_table_window_with_cursor(
             &mut buffer,
             5,
             &RECIPIENT_COLUMNS,
@@ -69,6 +71,7 @@ impl MessageComposeScreen {
             RECIPIENT_VISIBLE_ROWS,
             classic::status_value_style(),
             classic::status_value_style(),
+            selected,
         );
         let prompt_row = 18;
         let prompt = format!("Enter recipient empire number: {input}");
@@ -206,6 +209,7 @@ impl MessageComposeScreen {
         input: &str,
         status: Option<&str>,
         scroll_offset: usize,
+        cursor: usize,
         game_data: &ec_data::CoreGameData,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
@@ -229,7 +233,8 @@ impl MessageComposeScreen {
                 vec![format!("{:02}", idx + 1), recipient, subject]
             })
             .collect::<Vec<_>>();
-        write_table_window(
+        let selected = if rows.is_empty() { None } else { Some(cursor) };
+        write_table_window_with_cursor(
             &mut buffer,
             4,
             &OUTBOX_COLUMNS,
@@ -238,6 +243,7 @@ impl MessageComposeScreen {
             OUTBOX_VISIBLE_ROWS,
             classic::status_value_style(),
             classic::status_value_style(),
+            selected,
         );
         let prompt = format!("Enter queued message number to delete: {input}");
         let cursor_col = draw_plain_prompt(&mut buffer, 16, &prompt);
@@ -263,13 +269,13 @@ impl MessageComposeScreen {
     pub fn handle_recipient_key(&self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                Action::ScrollComposeRecipients(-1)
+                Action::MoveComposeRecipient(-1)
             }
             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                Action::ScrollComposeRecipients(1)
+                Action::MoveComposeRecipient(1)
             }
-            KeyCode::PageUp => Action::ScrollComposeRecipients(-8),
-            KeyCode::PageDown => Action::ScrollComposeRecipients(8),
+            KeyCode::PageUp => Action::MoveComposeRecipient(-8),
+            KeyCode::PageDown => Action::MoveComposeRecipient(8),
             KeyCode::Char('d') | KeyCode::Char('D') => Action::OpenComposeMessageOutbox,
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenGeneralMenu,
             KeyCode::Enter => Action::SubmitComposeRecipient,
@@ -337,14 +343,10 @@ impl MessageComposeScreen {
 
     pub fn handle_outbox_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                Action::ScrollComposeOutbox(-1)
-            }
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                Action::ScrollComposeOutbox(1)
-            }
-            KeyCode::PageUp => Action::ScrollComposeOutbox(-8),
-            KeyCode::PageDown => Action::ScrollComposeOutbox(8),
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => Action::MoveComposeOutbox(-1),
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => Action::MoveComposeOutbox(1),
+            KeyCode::PageUp => Action::MoveComposeOutbox(-8),
+            KeyCode::PageDown => Action::MoveComposeOutbox(8),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                 Action::OpenComposeMessageRecipient
             }

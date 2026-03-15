@@ -55,6 +55,7 @@ pub fn write_table_row(
     buffer.write_text(row, 0, &format_table_row(columns, cells), style);
 }
 
+#[allow(dead_code)]
 pub fn write_table_window<'a>(
     buffer: &mut PlayfieldBuffer,
     start_row: usize,
@@ -64,6 +65,31 @@ pub fn write_table_window<'a>(
     visible_rows: usize,
     header_style: crate::screen::CellStyle,
     body_style: crate::screen::CellStyle,
+) {
+    write_table_window_with_cursor(
+        buffer,
+        start_row,
+        columns,
+        rows,
+        scroll_offset,
+        visible_rows,
+        header_style,
+        body_style,
+        None,
+    );
+}
+
+pub fn write_table_window_with_cursor<'a>(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    columns: &[TableColumn<'a>],
+    rows: &[Vec<String>],
+    scroll_offset: usize,
+    visible_rows: usize,
+    header_style: crate::screen::CellStyle,
+    body_style: crate::screen::CellStyle,
+    // Absolute row index (0-based into `rows`) to highlight as selected.
+    selected: Option<usize>,
 ) {
     write_table_header(buffer, start_row, columns, header_style);
     buffer.write_text(
@@ -79,8 +105,14 @@ pub fn write_table_window<'a>(
         .take(visible_rows)
         .enumerate()
     {
+        let abs_idx = scroll_offset + idx;
+        let style = if selected == Some(abs_idx) {
+            crate::theme::classic::selected_row_style()
+        } else {
+            body_style
+        };
         let refs = row_cells.iter().map(String::as_str).collect::<Vec<_>>();
-        write_table_row(buffer, start_row + 2 + idx, columns, &refs, body_style);
+        write_table_row(buffer, start_row + 2 + idx, columns, &refs, style);
     }
 
     write_scroll_indicator(

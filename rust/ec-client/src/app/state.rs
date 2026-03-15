@@ -65,10 +65,12 @@ pub struct App {
     enemies_input: String,
     enemies_status: Option<String>,
     enemies_scroll_offset: usize,
+    enemies_cursor: usize,
     delete_reviewables_status: Option<String>,
     compose_recipient_input: String,
     compose_recipient_status: Option<String>,
     compose_recipient_scroll_offset: usize,
+    compose_recipient_cursor: usize,
     compose_recipient_empire: Option<u8>,
     compose_subject: String,
     compose_subject_status: Option<String>,
@@ -78,9 +80,11 @@ pub struct App {
     compose_outbox_input: String,
     compose_outbox_status: Option<String>,
     compose_outbox_scroll_offset: usize,
+    compose_outbox_cursor: usize,
     compose_sent_status: Option<String>,
     planet_list_sort_status: Option<String>,
     planet_brief_scroll_offset: usize,
+    planet_brief_cursor: usize,
     planet_detail_index: usize,
     planet_build_index: usize,
     planet_build_status: Option<String>,
@@ -90,6 +94,8 @@ pub struct App {
     planet_build_quantity_status: Option<String>,
     planet_build_selected_kind: Option<ProductionItemKind>,
     planet_build_list_scroll_offset: usize,
+    planet_build_list_cursor: usize,
+    planet_build_list_confirming: bool,
     planet_tax_input: String,
     planet_tax_status: Option<String>,
     starmap_view_x: usize,
@@ -165,10 +171,12 @@ impl App {
             enemies_input: String::new(),
             enemies_status: None,
             enemies_scroll_offset: 0,
+            enemies_cursor: 0,
             delete_reviewables_status: None,
             compose_recipient_input: String::new(),
             compose_recipient_status: None,
             compose_recipient_scroll_offset: 0,
+            compose_recipient_cursor: 0,
             compose_recipient_empire: None,
             compose_subject: String::new(),
             compose_subject_status: None,
@@ -178,9 +186,11 @@ impl App {
             compose_outbox_input: String::new(),
             compose_outbox_status: None,
             compose_outbox_scroll_offset: 0,
+            compose_outbox_cursor: 0,
             compose_sent_status: None,
             planet_list_sort_status: None,
             planet_brief_scroll_offset: 0,
+            planet_brief_cursor: 0,
             planet_detail_index: 0,
             planet_build_index: 0,
             planet_build_status: None,
@@ -190,6 +200,8 @@ impl App {
             planet_build_quantity_status: None,
             planet_build_selected_kind: None,
             planet_build_list_scroll_offset: 0,
+            planet_build_list_cursor: 0,
+            planet_build_list_confirming: false,
             planet_tax_input: "50".to_string(),
             planet_tax_status: None,
             starmap_view_x: 1,
@@ -234,6 +246,8 @@ impl App {
                 &self.current_planet_build_view()?,
                 &self.planet_build_list_rows(),
                 self.planet_build_list_scroll_offset,
+                self.planet_build_list_cursor,
+                self.planet_build_list_confirming,
             )?,
             ScreenId::PlanetBuildAbortConfirm => self.planet_build.render_abort_confirm(
                 &self.current_planet_build_view()?,
@@ -264,6 +278,7 @@ impl App {
                 &self.sorted_planet_rows(sort),
                 sort,
                 self.planet_brief_scroll_offset,
+                self.planet_brief_cursor,
             )?,
             ScreenId::PlanetDetailList(sort) => self.planet_list.render_detail(
                 &frame,
@@ -317,6 +332,7 @@ impl App {
                 &self.enemies_input,
                 self.enemies_status.as_deref(),
                 self.enemies_scroll_offset,
+                self.enemies_cursor,
             )?,
             ScreenId::DeleteReviewables => self
                 .delete_reviewables
@@ -326,6 +342,7 @@ impl App {
                 &self.compose_recipient_input,
                 self.compose_recipient_status.as_deref(),
                 self.compose_recipient_scroll_offset,
+                self.compose_recipient_cursor,
             )?,
             ScreenId::ComposeMessageSubject => self.message_compose.render_subject(
                 &compose_recipient_label(&self.game_data, self.compose_recipient_empire),
@@ -344,6 +361,7 @@ impl App {
                 &self.compose_outbox_input,
                 self.compose_outbox_status.as_deref(),
                 self.compose_outbox_scroll_offset,
+                self.compose_outbox_cursor,
                 &self.game_data,
             )?,
             ScreenId::ComposeMessageDiscardConfirm => {
@@ -425,6 +443,8 @@ impl App {
 
     pub fn open_planet_build_list(&mut self) {
         self.planet_build_list_scroll_offset = 0;
+        self.planet_build_list_cursor = 0;
+        self.planet_build_list_confirming = false;
         self.current_screen = ScreenId::PlanetBuildList;
     }
 
@@ -455,6 +475,7 @@ impl App {
     pub fn submit_planet_list_sort(&mut self, mode: PlanetListMode, sort: PlanetListSort) {
         self.planet_list_sort_status = None;
         self.planet_brief_scroll_offset = 0;
+        self.planet_brief_cursor = 0;
         self.planet_detail_index = 0;
         self.current_screen = match mode {
             PlanetListMode::Brief => ScreenId::PlanetBriefList(sort),
@@ -473,6 +494,24 @@ impl App {
             .planet_brief_scroll_offset
             .saturating_add_signed(delta as isize)
             .min(max_offset);
+    }
+
+    pub fn move_planet_brief_cursor(&mut self, delta: i8) {
+        let ScreenId::PlanetBriefList(sort) = self.current_screen else {
+            return;
+        };
+        let total = self.sorted_planet_rows(sort).len();
+        if total == 0 {
+            self.planet_brief_cursor = 0;
+            return;
+        }
+        let next = self.planet_brief_cursor as isize + delta as isize;
+        self.planet_brief_cursor = next.rem_euclid(total as isize) as usize;
+        sync_scroll_to_cursor(
+            &mut self.planet_brief_scroll_offset,
+            self.planet_brief_cursor,
+            crate::screen::PLANET_BRIEF_VISIBLE_ROWS,
+        );
     }
 
     pub fn move_planet_detail(&mut self, delta: i8) {
@@ -516,6 +555,74 @@ impl App {
             .planet_build_list_scroll_offset
             .saturating_add_signed(delta as isize)
             .min(max_offset);
+    }
+
+    pub fn move_planet_build_list_cursor(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::PlanetBuildList {
+            return;
+        }
+        let total = self.planet_build_list_rows().len();
+        if total == 0 {
+            self.planet_build_list_cursor = 0;
+            return;
+        }
+        let next = self.planet_build_list_cursor as isize + delta as isize;
+        self.planet_build_list_cursor = next.rem_euclid(total as isize) as usize;
+        // Keep scroll window in sync: ensure cursor is visible.
+        if self.planet_build_list_cursor < self.planet_build_list_scroll_offset {
+            self.planet_build_list_scroll_offset = self.planet_build_list_cursor;
+        } else if self.planet_build_list_cursor
+            >= self.planet_build_list_scroll_offset + crate::screen::PLANET_BUILD_LIST_VISIBLE_ROWS
+        {
+            self.planet_build_list_scroll_offset =
+                self.planet_build_list_cursor + 1 - crate::screen::PLANET_BUILD_LIST_VISIBLE_ROWS;
+        }
+    }
+
+    pub fn delete_planet_build_slot_request(&mut self) {
+        if self.current_screen != ScreenId::PlanetBuildList {
+            return;
+        }
+        let rows = self.planet_build_list_rows();
+        if rows.is_empty() {
+            return;
+        }
+        self.planet_build_list_confirming = true;
+    }
+
+    pub fn confirm_delete_planet_build_slot(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if !self.planet_build_list_confirming {
+            return Ok(());
+        }
+        let rows = self.planet_build_list_rows();
+        let Some(row) = rows.get(self.planet_build_list_cursor) else {
+            self.planet_build_list_confirming = false;
+            return Ok(());
+        };
+        let slot_0based = row.slot - 1; // row.slot is 1-based display
+        let planet_record = self.current_build_planet_row()?.planet_record_index_1_based;
+        let record = self
+            .game_data
+            .planets
+            .records
+            .get_mut(planet_record - 1)
+            .ok_or("planet record missing")?;
+        record.set_build_count_raw(slot_0based, 0);
+        record.set_build_kind_raw(slot_0based, 0);
+        self.game_data.save(&self.game_dir)?;
+        self.planet_build_list_confirming = false;
+        // Clamp cursor after deletion.
+        let new_total = self.planet_build_list_rows().len();
+        if new_total == 0 {
+            self.planet_build_list_cursor = 0;
+        } else {
+            self.planet_build_list_cursor = self.planet_build_list_cursor.min(new_total - 1);
+        }
+        Ok(())
+    }
+
+    pub fn cancel_delete_planet_build_slot(&mut self) {
+        self.planet_build_list_confirming = false;
     }
 
     pub fn append_planet_build_unit_char(&mut self, ch: char) {
@@ -728,7 +835,9 @@ impl App {
             ScreenId::PlanetHelp => self.planet_help.handle_key(key),
             ScreenId::PlanetBuildMenu => self.planet_build.handle_menu_key(key),
             ScreenId::PlanetBuildReview => self.planet_build.handle_review_key(key),
-            ScreenId::PlanetBuildList => self.planet_build.handle_list_key(key),
+            ScreenId::PlanetBuildList => self
+                .planet_build
+                .handle_list_key(key, self.planet_build_list_confirming),
             ScreenId::PlanetBuildAbortConfirm => self.planet_build.handle_abort_key(key),
             ScreenId::PlanetBuildSpecify => self.planet_build.handle_specify_key(key),
             ScreenId::PlanetBuildQuantity => self.planet_build.handle_quantity_key(key),
@@ -793,6 +902,7 @@ impl App {
         self.enemies_input.clear();
         self.enemies_status = None;
         self.enemies_scroll_offset = 0;
+        self.enemies_cursor = 0;
         self.current_screen = ScreenId::Enemies;
     }
 
@@ -805,6 +915,7 @@ impl App {
         self.compose_recipient_input.clear();
         self.compose_recipient_status = None;
         self.compose_recipient_scroll_offset = 0;
+        self.compose_recipient_cursor = 0;
         self.compose_recipient_empire = None;
         self.compose_subject.clear();
         self.compose_subject_status = None;
@@ -840,6 +951,7 @@ impl App {
         self.compose_outbox_input.clear();
         self.compose_outbox_status = None;
         self.compose_outbox_scroll_offset = 0;
+        self.compose_outbox_cursor = 0;
         self.current_screen = ScreenId::ComposeMessageOutbox;
     }
 
@@ -870,6 +982,24 @@ impl App {
             .enemies_scroll_offset
             .saturating_add_signed(delta as isize)
             .min(max_offset);
+    }
+
+    pub fn move_enemies_cursor(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::Enemies {
+            return;
+        }
+        // Total rows = all empires minus self.
+        let total = self.game_data.player.records.len().saturating_sub(1);
+        if total == 0 {
+            return;
+        }
+        let next = self.enemies_cursor as isize + delta as isize;
+        self.enemies_cursor = next.rem_euclid(total as isize) as usize;
+        sync_scroll_to_cursor(
+            &mut self.enemies_scroll_offset,
+            self.enemies_cursor,
+            crate::screen::ENEMIES_VISIBLE_ROWS,
+        );
     }
 
     pub fn open_partial_starmap_prompt(&mut self, menu: CommandMenu) {
@@ -963,9 +1093,33 @@ impl App {
     }
 
     pub fn submit_enemies_input(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let Ok(empire_id) = self.enemies_input.parse::<u8>() else {
-            self.enemies_status = Some("Enter an empire number.".to_string());
-            return Ok(());
+        // If the input box is empty, derive the empire id from the cursor row.
+        let empire_id = if self.enemies_input.trim().is_empty() {
+            let mut ids: Vec<u8> = self
+                .game_data
+                .player
+                .records
+                .iter()
+                .enumerate()
+                .filter(|(idx, _)| *idx + 1 != self.player.record_index_1_based)
+                .map(|(idx, _)| (idx + 1) as u8)
+                .collect();
+            ids.sort_unstable();
+            match ids.get(self.enemies_cursor) {
+                Some(&id) => id,
+                None => {
+                    self.enemies_status = Some("No empire selected.".to_string());
+                    return Ok(());
+                }
+            }
+        } else {
+            match self.enemies_input.parse::<u8>() {
+                Ok(id) => id,
+                Err(_) => {
+                    self.enemies_status = Some("Enter an empire number.".to_string());
+                    return Ok(());
+                }
+            }
         };
         let max_empire = self.game_data.conquest.player_count();
         if !(1..=max_empire).contains(&empire_id) {
@@ -1022,6 +1176,23 @@ impl App {
             .min(max_offset);
     }
 
+    pub fn move_compose_recipient_cursor(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::ComposeMessageRecipient {
+            return;
+        }
+        let total = self.game_data.player.records.len().saturating_sub(1);
+        if total == 0 {
+            return;
+        }
+        let next = self.compose_recipient_cursor as isize + delta as isize;
+        self.compose_recipient_cursor = next.rem_euclid(total as isize) as usize;
+        sync_scroll_to_cursor(
+            &mut self.compose_recipient_scroll_offset,
+            self.compose_recipient_cursor,
+            crate::screen::RECIPIENT_VISIBLE_ROWS,
+        );
+    }
+
     pub fn backspace_compose_recipient(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageRecipient {
             self.compose_recipient_input.pop();
@@ -1030,9 +1201,32 @@ impl App {
     }
 
     pub fn submit_compose_recipient(&mut self) {
-        let Ok(empire_id) = self.compose_recipient_input.parse::<u8>() else {
-            self.compose_recipient_status = Some("Enter an empire number.".to_string());
-            return;
+        // If the input box is empty, derive the empire id from the cursor row.
+        let empire_id = if self.compose_recipient_input.trim().is_empty() {
+            let ids: Vec<u8> = self
+                .game_data
+                .player
+                .records
+                .iter()
+                .enumerate()
+                .filter(|(idx, _)| *idx + 1 != self.player.record_index_1_based)
+                .map(|(idx, _)| (idx + 1) as u8)
+                .collect();
+            match ids.get(self.compose_recipient_cursor) {
+                Some(&id) => id,
+                None => {
+                    self.compose_recipient_status = Some("No empire selected.".to_string());
+                    return;
+                }
+            }
+        } else {
+            match self.compose_recipient_input.parse::<u8>() {
+                Ok(id) => id,
+                Err(_) => {
+                    self.compose_recipient_status = Some("Enter an empire number.".to_string());
+                    return;
+                }
+            }
         };
         let max_empire = self.game_data.conquest.player_count();
         if !(1..=max_empire).contains(&empire_id) {
@@ -1211,6 +1405,23 @@ impl App {
             .min(max_offset);
     }
 
+    pub fn move_compose_outbox_cursor(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::ComposeMessageOutbox {
+            return;
+        }
+        let total = self.compose_outbox_queue_len();
+        if total == 0 {
+            return;
+        }
+        let next = self.compose_outbox_cursor as isize + delta as isize;
+        self.compose_outbox_cursor = next.rem_euclid(total as isize) as usize;
+        sync_scroll_to_cursor(
+            &mut self.compose_outbox_scroll_offset,
+            self.compose_outbox_cursor,
+            crate::screen::OUTBOX_VISIBLE_ROWS,
+        );
+    }
+
     pub fn append_compose_outbox_char(&mut self, ch: char) {
         if self.current_screen == ScreenId::ComposeMessageOutbox
             && self.compose_outbox_input.len() < 2
@@ -1231,14 +1442,20 @@ impl App {
         if self.current_screen != ScreenId::ComposeMessageOutbox {
             return Ok(());
         }
-        let Ok(queue_no) = self.compose_outbox_input.parse::<usize>() else {
-            self.compose_outbox_status = Some("Enter a queued message number.".to_string());
-            return Ok(());
+        // If the input box is empty, use the cursor row (1-based queue_no).
+        let queue_no = if self.compose_outbox_input.trim().is_empty() {
+            self.compose_outbox_cursor + 1
+        } else {
+            let Ok(n) = self.compose_outbox_input.parse::<usize>() else {
+                self.compose_outbox_status = Some("Enter a queued message number.".to_string());
+                return Ok(());
+            };
+            if n == 0 {
+                self.compose_outbox_status = Some("Enter a queued message number.".to_string());
+                return Ok(());
+            }
+            n
         };
-        if queue_no == 0 {
-            self.compose_outbox_status = Some("Enter a queued message number.".to_string());
-            return Ok(());
-        }
 
         let sender_empire_id = self.player.record_index_1_based as u8;
         let mut queue = load_mail_queue(&self.game_dir)?;
@@ -1260,10 +1477,10 @@ impl App {
         self.compose_outbox_input.clear();
         self.compose_outbox_status = Some(format!("Queued message {:02} deleted.", queue_no));
 
-        let max_offset = own_indexes
-            .len()
-            .saturating_sub(1)
-            .saturating_sub(crate::screen::OUTBOX_VISIBLE_ROWS);
+        // Clamp cursor and scroll offset to the new (smaller) queue.
+        let new_len = own_indexes.len().saturating_sub(1);
+        self.compose_outbox_cursor = self.compose_outbox_cursor.min(new_len.saturating_sub(1));
+        let max_offset = new_len.saturating_sub(crate::screen::OUTBOX_VISIBLE_ROWS);
         self.compose_outbox_scroll_offset = self.compose_outbox_scroll_offset.min(max_offset);
         Ok(())
     }
@@ -1601,6 +1818,15 @@ impl App {
             }
             _ => crate::app::Action::Noop,
         }
+    }
+}
+
+/// Keep `scroll_offset` in sync with `cursor` so the highlighted row is always visible.
+fn sync_scroll_to_cursor(scroll_offset: &mut usize, cursor: usize, visible: usize) {
+    if cursor < *scroll_offset {
+        *scroll_offset = cursor;
+    } else if cursor >= *scroll_offset + visible {
+        *scroll_offset = cursor + 1 - visible;
     }
 }
 

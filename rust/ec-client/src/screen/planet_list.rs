@@ -5,7 +5,7 @@ use crate::app::Action;
 use crate::screen::layout::{
     draw_command_prompt, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
 };
-use crate::screen::table::{write_table_window, TableColumn};
+use crate::screen::table::{write_table_window_with_cursor, TableColumn};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 
@@ -72,6 +72,7 @@ impl PlanetListScreen {
         rows: &[EmpirePlanetEconomyRow],
         sort: PlanetListSort,
         scroll_offset: usize,
+        cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "PLANET COMMAND:");
@@ -97,7 +98,12 @@ impl PlanetListScreen {
                 ]
             })
             .collect::<Vec<_>>();
-        write_table_window(
+        let selected = if table_rows.is_empty() {
+            None
+        } else {
+            Some(cursor)
+        };
+        write_table_window_with_cursor(
             &mut buffer,
             4,
             &BRIEF_COLUMNS,
@@ -106,6 +112,7 @@ impl PlanetListScreen {
             PLANET_BRIEF_VISIBLE_ROWS,
             classic::status_value_style(),
             classic::status_value_style(),
+            selected,
         );
         draw_command_prompt(&mut buffer, 19, "PLANET COMMAND", "ARROWS J K Q");
         Ok(buffer)
@@ -248,12 +255,12 @@ impl PlanetListScreen {
 
     pub fn handle_brief_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Up => Action::ScrollPlanetBrief(-1),
-            KeyCode::Down => Action::ScrollPlanetBrief(1),
-            KeyCode::PageUp => Action::ScrollPlanetBrief(-5),
-            KeyCode::PageDown => Action::ScrollPlanetBrief(5),
-            KeyCode::Char('k') | KeyCode::Char('K') => Action::ScrollPlanetBrief(-1),
-            KeyCode::Char('j') | KeyCode::Char('J') => Action::ScrollPlanetBrief(1),
+            KeyCode::Up => Action::MovePlanetBrief(-1),
+            KeyCode::Down => Action::MovePlanetBrief(1),
+            KeyCode::PageUp => Action::MovePlanetBrief(-5),
+            KeyCode::PageDown => Action::MovePlanetBrief(5),
+            KeyCode::Char('k') | KeyCode::Char('K') => Action::MovePlanetBrief(-1),
+            KeyCode::Char('j') | KeyCode::Char('J') => Action::MovePlanetBrief(1),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenPlanetMenu,
             _ => Action::Noop,
         }

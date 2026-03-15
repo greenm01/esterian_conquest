@@ -1,5 +1,5 @@
-use ec_data::EmpireProductionRankingSort;
 use crate::screen::{CommandMenu, PlanetListMode, PlanetListSort};
+use ec_data::EmpireProductionRankingSort;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
@@ -34,8 +34,14 @@ pub enum Action {
     ExportStarmap,
     ToggleAutopilot,
     ScrollEnemies(i8),
+    MoveEnemies(i8),
     ScrollPlanetBrief(i8),
+    MovePlanetBrief(i8),
     ScrollPlanetBuildList(i8),
+    MovePlanetBuildList(i8),
+    DeletePlanetBuildSlotRequest,
+    ConfirmDeletePlanetBuildSlot,
+    CancelDeletePlanetBuildSlot,
     MovePlanetBuild(i8),
     MovePlanetDetail(i8),
     AppendPlanetTaxChar(char),
@@ -49,7 +55,9 @@ pub enum Action {
     SubmitPlanetBuildQuantity,
     ConfirmPlanetBuildAbort,
     ScrollComposeRecipients(i8),
+    MoveComposeRecipient(i8),
     ScrollComposeOutbox(i8),
+    MoveComposeOutbox(i8),
     AppendPartialStarmapChar(char),
     BackspacePartialStarmapInput,
     SubmitPartialStarmapPrompt,

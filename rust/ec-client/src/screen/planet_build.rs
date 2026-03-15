@@ -6,7 +6,7 @@ use crate::screen::layout::{
     draw_command_prompt, draw_menu_row, draw_plain_prompt, draw_status_line, draw_title_bar,
     new_playfield, MenuEntry, CMD_COL_1, CMD_COL_2, CMD_COL_3,
 };
-use crate::screen::table::{write_table_window, TableColumn};
+use crate::screen::table::{write_table_window_with_cursor, TableColumn};
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
 
@@ -313,6 +313,8 @@ impl PlanetBuildScreen {
         view: &PlanetBuildMenuView,
         rows: &[PlanetBuildListRow],
         scroll_offset: usize,
+        cursor: usize,
+        confirming: bool,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(
@@ -348,7 +350,8 @@ impl PlanetBuildScreen {
             })
             .collect();
 
-        write_table_window(
+        let selected = if rows.is_empty() { None } else { Some(cursor) };
+        write_table_window_with_cursor(
             &mut buffer,
             4,
             &BUILD_LIST_COLUMNS,
@@ -357,6 +360,7 @@ impl PlanetBuildScreen {
             PLANET_BUILD_LIST_VISIBLE_ROWS,
             classic::status_value_style(),
             classic::status_value_style(),
+            selected,
         );
 
         if rows.is_empty() {
@@ -368,7 +372,12 @@ impl PlanetBuildScreen {
             );
         }
 
-        draw_command_prompt(&mut buffer, 19, "BUILD COMMAND", "ARROWS Q");
+        if confirming {
+            buffer.write_text(17, 0, "Delete this order? Y/[N]", classic::alert_style());
+            draw_command_prompt(&mut buffer, 19, "BUILD COMMAND", "Y N");
+        } else {
+            draw_command_prompt(&mut buffer, 19, "BUILD COMMAND", "ARROWS D(elete) Q");
+        }
         Ok(buffer)
     }
 
@@ -526,17 +535,27 @@ impl PlanetBuildScreen {
         Action::OpenPlanetBuildMenu
     }
 
-    pub fn handle_list_key(&self, key: KeyEvent) -> Action {
+    pub fn handle_list_key(&self, key: KeyEvent, confirming: bool) -> Action {
+        if confirming {
+            return match key.code {
+                KeyCode::Char('y') | KeyCode::Char('Y') => Action::ConfirmDeletePlanetBuildSlot,
+                _ => Action::CancelDeletePlanetBuildSlot,
+            };
+        }
         match key.code {
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                Action::ScrollPlanetBuildList(-1)
+                Action::MovePlanetBuildList(-1)
             }
             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                Action::ScrollPlanetBuildList(1)
+                Action::MovePlanetBuildList(1)
             }
-            KeyCode::PageUp => Action::ScrollPlanetBuildList(-8),
-            KeyCode::PageDown => Action::ScrollPlanetBuildList(8),
-            _ => Action::OpenPlanetBuildMenu,
+            KeyCode::PageUp => Action::MovePlanetBuildList(-8),
+            KeyCode::PageDown => Action::MovePlanetBuildList(8),
+            KeyCode::Char('d') | KeyCode::Char('D') | KeyCode::Delete => {
+                Action::DeletePlanetBuildSlotRequest
+            }
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenPlanetBuildMenu,
+            _ => Action::Noop,
         }
     }
 

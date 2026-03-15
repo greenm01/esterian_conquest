@@ -117,12 +117,36 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.scroll_enemies(delta);
             AppOutcome::Continue
         }
+        Action::MoveEnemies(delta) => {
+            app.move_enemies_cursor(delta);
+            AppOutcome::Continue
+        }
         Action::ScrollPlanetBrief(delta) => {
             app.scroll_planet_brief(delta);
             AppOutcome::Continue
         }
+        Action::MovePlanetBrief(delta) => {
+            app.move_planet_brief_cursor(delta);
+            AppOutcome::Continue
+        }
         Action::ScrollPlanetBuildList(delta) => {
             app.scroll_planet_build_list(delta);
+            AppOutcome::Continue
+        }
+        Action::MovePlanetBuildList(delta) => {
+            app.move_planet_build_list_cursor(delta);
+            AppOutcome::Continue
+        }
+        Action::DeletePlanetBuildSlotRequest => {
+            app.delete_planet_build_slot_request();
+            AppOutcome::Continue
+        }
+        Action::ConfirmDeletePlanetBuildSlot => match app.confirm_delete_planet_build_slot() {
+            Ok(()) => AppOutcome::Continue,
+            Err(_) => AppOutcome::Continue,
+        },
+        Action::CancelDeletePlanetBuildSlot => {
+            app.cancel_delete_planet_build_slot();
             AppOutcome::Continue
         }
         Action::MovePlanetBuild(delta) => {
@@ -177,8 +201,16 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.scroll_compose_recipients(delta);
             AppOutcome::Continue
         }
+        Action::MoveComposeRecipient(delta) => {
+            app.move_compose_recipient_cursor(delta);
+            AppOutcome::Continue
+        }
         Action::ScrollComposeOutbox(delta) => {
             app.scroll_compose_outbox(delta);
+            AppOutcome::Continue
+        }
+        Action::MoveComposeOutbox(delta) => {
+            app.move_compose_outbox_cursor(delta);
             AppOutcome::Continue
         }
         Action::BeginStarmapDump => {

@@ -5,7 +5,7 @@ use crate::app::Action;
 use crate::screen::layout::{
     draw_command_prompt, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
 };
-use crate::screen::table::{format_empire_id, write_table_window, TableColumn};
+use crate::screen::table::{format_empire_id, write_table_window_with_cursor, TableColumn};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 
@@ -29,6 +29,7 @@ impl EnemiesScreen {
         input: &str,
         status: Option<&str>,
         scroll_offset: usize,
+        cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "ENEMIES, DECLARE OR LIST:");
@@ -75,7 +76,8 @@ impl EnemiesScreen {
             })
             .collect::<Vec<_>>();
 
-        write_table_window(
+        let selected = if rows.is_empty() { None } else { Some(cursor) };
+        write_table_window_with_cursor(
             &mut buffer,
             3,
             &ENEMIES_COLUMNS,
@@ -84,6 +86,7 @@ impl EnemiesScreen {
             ENEMIES_VISIBLE_ROWS,
             classic::status_value_style(),
             classic::status_value_style(),
+            selected,
         );
 
         let prompt = format!("Enter empire number to toggle: {input}");
@@ -98,10 +101,10 @@ impl EnemiesScreen {
 
     pub fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => Action::ScrollEnemies(-1),
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => Action::ScrollEnemies(1),
-            KeyCode::PageUp => Action::ScrollEnemies(-8),
-            KeyCode::PageDown => Action::ScrollEnemies(8),
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => Action::MoveEnemies(-1),
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => Action::MoveEnemies(1),
+            KeyCode::PageUp => Action::MoveEnemies(-8),
+            KeyCode::PageDown => Action::MoveEnemies(8),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenGeneralMenu,
             KeyCode::Enter => Action::SubmitEnemiesInput,
             KeyCode::Backspace => Action::BackspaceEnemiesInput,

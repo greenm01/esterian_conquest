@@ -10,6 +10,8 @@ pub mod classic {
     const DOS_RED: RgbColor = RgbColor::new(170, 0, 0);
     const DOS_GREEN: RgbColor = RgbColor::new(0, 170, 0);
     const AMBER_BG: RgbColor = RgbColor::new(170, 85, 0);
+    const SELECTION_FG: RgbColor = RgbColor::new(20, 20, 20);
+    const SELECTION_BLUE: RgbColor = RgbColor::new(65, 132, 192);
 
     pub const fn body_style() -> CellStyle {
         CellStyle::new(BODY_GREY, BLACK, false)
@@ -45,6 +47,12 @@ pub mod classic {
 
     pub const fn status_value_style() -> CellStyle {
         CellStyle::new(BRIGHT_WHITE, BLACK, true)
+    }
+
+    /// Highlight style for the selected row in a navigable table.
+    /// Override this function when adding new themes.
+    pub const fn selected_row_style() -> CellStyle {
+        CellStyle::new(SELECTION_FG, SELECTION_BLUE, false)
     }
 
     pub const fn alert_style() -> CellStyle {
