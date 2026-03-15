@@ -120,6 +120,12 @@ impl PlayerRecord {
         u16::from_le_bytes([self.raw[0x40], self.raw[0x41]])
     }
 
+    pub fn set_fleet_chain_head_raw(&mut self, value: u16) {
+        let [lo, hi] = value.to_le_bytes();
+        self.raw[0x40] = lo;
+        self.raw[0x41] = hi;
+    }
+
     pub fn ipbm_count_raw(&self) -> u16 {
         u16::from_le_bytes([self.raw[0x48], self.raw[0x49]])
     }

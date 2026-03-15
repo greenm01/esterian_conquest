@@ -1523,6 +1523,7 @@ fn process_fleet_merging(
                 s.set_army_count(s.army_count().saturating_add(army));
                 s.set_etac_count(s.etac_count().saturating_add(et));
                 s.set_scout_count(s.scout_count().saturating_add(sc));
+                s.recompute_max_speed_from_composition();
             } else {
                 coord_to_survivor.insert(coords, fi);
             }

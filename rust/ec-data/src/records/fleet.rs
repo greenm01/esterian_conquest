@@ -191,6 +191,33 @@ impl FleetRecord {
         self.raw[0x0B] = coords[0];
         self.raw[0x0C] = coords[1];
     }
+
+    pub fn recompute_max_speed_from_composition(&mut self) {
+        let mut speeds = Vec::new();
+        if self.destroyer_count() > 0 {
+            speeds.push(6);
+        }
+        if self.cruiser_count() > 0 {
+            speeds.push(5);
+        }
+        if self.battleship_count() > 0 {
+            speeds.push(4);
+        }
+        if self.scout_count() > 0 {
+            speeds.push(6);
+        }
+        if self.troop_transport_count() > 0 {
+            speeds.push(5);
+        }
+        if self.etac_count() > 0 {
+            speeds.push(3);
+        }
+        let max_speed = speeds.into_iter().min().unwrap_or(0);
+        self.set_max_speed(max_speed);
+        if self.current_speed() > max_speed {
+            self.set_current_speed(max_speed);
+        }
+    }
     pub fn mission_param_bytes(&self) -> &[u8] {
         &self.raw[0x1F..=0x21]
     }

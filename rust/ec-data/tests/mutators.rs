@@ -70,6 +70,103 @@ fn fleet_owner_empire_accessor_round_trips() {
 }
 
 #[test]
+fn fleet_recompute_max_speed_uses_slowest_member() {
+    let mut record = FleetRecord::new_zeroed();
+    record.set_destroyer_count(10);
+    record.set_etac_count(1);
+    record.set_current_speed(6);
+    record.recompute_max_speed_from_composition();
+    assert_eq!(record.max_speed(), 3);
+    assert_eq!(record.current_speed(), 3);
+}
+
+#[test]
+fn player_fleet_chain_head_accessor_round_trips() {
+    let mut record = PlayerRecord::new_zeroed();
+    record.set_fleet_chain_head_raw(0x1234);
+    assert_eq!(record.fleet_chain_head_raw(), 0x1234);
+}
+
+#[test]
+fn commission_ship_from_stardock_appends_fleet_and_clears_slot() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+
+    let mut planet = PlanetRecord::new_zeroed();
+    planet.set_owner_empire_slot_raw(1);
+    planet.set_coords_raw([6, 5]);
+    planet.set_stardock_kind_raw(0, 1);
+    planet.set_stardock_count_raw(0, 2);
+
+    let mut data = CoreGameData {
+        player: PlayerDat { records: vec![player] },
+        planets: PlanetDat { records: vec![planet] },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    let result = data.commission_planet_stardock_slot(1, 1, 0).unwrap();
+    assert_eq!(
+        result,
+        CommissionResult::Fleet {
+            fleet_record_index_1_based: 1
+        }
+    );
+    assert_eq!(data.planets.records[0].stardock_kind_raw(0), 0);
+    assert_eq!(data.planets.records[0].stardock_count_raw(0), 0);
+    assert_eq!(data.player.records[0].fleet_chain_head_raw(), 1);
+    assert_eq!(data.fleets.records.len(), 1);
+    let fleet = &data.fleets.records[0];
+    assert_eq!(fleet.owner_empire_raw(), 1);
+    assert_eq!(fleet.fleet_id(), 1);
+    assert_eq!(fleet.local_slot(), 1);
+    assert_eq!(fleet.destroyer_count(), 2);
+    assert_eq!(fleet.current_location_coords_raw(), [6, 5]);
+    assert_eq!(fleet.standing_order_kind(), Order::HoldPosition);
+}
+
+#[test]
+fn commission_starbase_from_stardock_appends_base_and_clears_slot() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+
+    let mut planet = PlanetRecord::new_zeroed();
+    planet.set_owner_empire_slot_raw(1);
+    planet.set_coords_raw([6, 5]);
+    planet.set_stardock_kind_raw(0, 9);
+    planet.set_stardock_count_raw(0, 1);
+
+    let mut data = CoreGameData {
+        player: PlayerDat { records: vec![player] },
+        planets: PlanetDat { records: vec![planet] },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    let result = data.commission_planet_stardock_slot(1, 1, 0).unwrap();
+    assert_eq!(
+        result,
+        CommissionResult::Starbase {
+            base_record_index_1_based: 1
+        }
+    );
+    assert_eq!(data.planets.records[0].stardock_kind_raw(0), 0);
+    assert_eq!(data.planets.records[0].stardock_count_raw(0), 0);
+    assert_eq!(data.player.records[0].starbase_count_raw(), 1);
+    assert_eq!(data.bases.records.len(), 1);
+    let base = &data.bases.records[0];
+    assert_eq!(base.base_id_raw(), 1);
+    assert_eq!(base.coords_raw(), [6, 5]);
+    assert_eq!(base.owner_empire_raw(), 1);
+}
+
+#[test]
 fn ipbm_record_setters_round_trip_structural_prefix_fields() {
     let mut record = IpbmRecord {
         raw: [0u8; IPBM_RECORD_SIZE],

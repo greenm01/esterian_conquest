@@ -32,10 +32,11 @@ pub use config::{
     SetupOptionsConfig,
 };
 pub use directory::{
-    CampaignOutcome, CampaignOutlook, CampaignState, CoreGameData, CurrentKnownComplianceStatus,
-    CurrentKnownGuardStarbaseLinkageSummary, CurrentKnownKeyWordSummary, EmpireEconomySummary,
-    EmpirePlanetEconomyRow, EmpireProductionRankingRow, EmpireProductionRankingSort,
-    EmpireUnitSummary, GameDirectoryError, GameStateMutationError,
+    CampaignOutcome, CampaignOutlook, CampaignState, CommissionResult, CoreGameData,
+    CurrentKnownComplianceStatus, CurrentKnownGuardStarbaseLinkageSummary,
+    CurrentKnownKeyWordSummary, EmpireEconomySummary, EmpirePlanetEconomyRow,
+    EmpireProductionRankingRow, EmpireProductionRankingSort, EmpireUnitSummary, GameDirectoryError,
+    GameStateMutationError,
 };
 pub use economy::{build_capacity, yearly_growth_delta, yearly_high_tax_penalty, yearly_tax_revenue};
 pub use maint::{

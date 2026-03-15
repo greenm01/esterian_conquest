@@ -214,6 +214,17 @@ pub enum GameStateMutationError {
     MissingPlanetRecord { index_1_based: usize },
     MissingPlayerRecord { index_1_based: usize },
     PlanetBuildQueueFull { index_1_based: usize },
+    EmptyStardockSlot {
+        planet_index_1_based: usize,
+        slot_0_based: usize,
+    },
+    InvalidCommissionSelection,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CommissionResult {
+    Fleet { fleet_record_index_1_based: usize },
+    Starbase { base_record_index_1_based: usize },
 }
 
 impl std::fmt::Display for GameDirectoryError {
@@ -252,11 +263,37 @@ impl std::fmt::Display for GameStateMutationError {
             Self::PlanetBuildQueueFull { index_1_based } => {
                 write!(f, "build queue full for planet record {}", index_1_based)
             }
+            Self::EmptyStardockSlot {
+                planet_index_1_based,
+                slot_0_based,
+            } => {
+                write!(
+                    f,
+                    "empty stardock slot {} on planet record {}",
+                    slot_0_based + 1,
+                    planet_index_1_based
+                )
+            }
+            Self::InvalidCommissionSelection => {
+                write!(f, "invalid commission selection")
+            }
         }
     }
 }
 
 impl std::error::Error for GameStateMutationError {}
+
+fn commissioned_fleet_speed(kind: ProductionItemKind) -> u8 {
+    match kind {
+        ProductionItemKind::Destroyer => 6,
+        ProductionItemKind::Cruiser => 5,
+        ProductionItemKind::Battleship => 4,
+        ProductionItemKind::Scout => 6,
+        ProductionItemKind::Transport => 5,
+        ProductionItemKind::Etac => 3,
+        _ => 0,
+    }
+}
 
 impl CoreGameData {
     pub fn load(dir: &Path) -> Result<Self, GameDirectoryError> {
@@ -1858,6 +1895,186 @@ impl CoreGameData {
         record.set_build_count_raw(slot, points_remaining_raw);
         record.set_build_kind_raw(slot, kind_raw);
         Ok(())
+    }
+
+    pub fn commission_planet_stardock_slot(
+        &mut self,
+        player_index_1_based: usize,
+        planet_record_index_1_based: usize,
+        slot_0_based: usize,
+    ) -> Result<CommissionResult, GameStateMutationError> {
+        self.commission_planet_stardock_slots(
+            player_index_1_based,
+            planet_record_index_1_based,
+            &[slot_0_based],
+        )
+    }
+
+    pub fn commission_planet_stardock_slots(
+        &mut self,
+        player_index_1_based: usize,
+        planet_record_index_1_based: usize,
+        slot_0_based_list: &[usize],
+    ) -> Result<CommissionResult, GameStateMutationError> {
+        if slot_0_based_list.is_empty() {
+            return Err(GameStateMutationError::InvalidCommissionSelection);
+        }
+
+        let owner_empire = player_index_1_based as u8;
+        let player = self
+            .player
+            .records
+            .get_mut(player_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingPlayerRecord {
+                index_1_based: player_index_1_based,
+            })?;
+        let planet = self
+            .planets
+            .records
+            .get_mut(planet_record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingPlanetRecord {
+                index_1_based: planet_record_index_1_based,
+            })?;
+
+        let coords = planet.coords_raw();
+        let mut selected = Vec::with_capacity(slot_0_based_list.len());
+        for &slot_0_based in slot_0_based_list {
+            if slot_0_based >= 10
+                || planet.stardock_kind_raw(slot_0_based) == 0
+                || planet.stardock_count_raw(slot_0_based) == 0
+            {
+                return Err(GameStateMutationError::EmptyStardockSlot {
+                    planet_index_1_based: planet_record_index_1_based,
+                    slot_0_based,
+                });
+            }
+            selected.push((
+                slot_0_based,
+                planet.stardock_kind_raw(slot_0_based),
+                planet.stardock_count_raw(slot_0_based),
+            ));
+        }
+
+        let starbase_count = selected.iter().filter(|(_, kind_raw, _)| *kind_raw == 9).count();
+        if starbase_count > 1 || (starbase_count == 1 && selected.len() > 1) {
+            return Err(GameStateMutationError::InvalidCommissionSelection);
+        }
+
+        let result = if starbase_count == 1 {
+            let next_base_id = player.starbase_count_raw().saturating_add(1);
+            player.set_starbase_count_raw(next_base_id);
+            self.bases.records.push(build_guard_starbase_base_record(
+                coords,
+                next_base_id as u8,
+                next_base_id,
+                next_base_id,
+                owner_empire,
+                [0x80, 0, 0, 0, 0],
+                [0x80, 0, 0, 0, 0],
+                [0x81, 0, 0, 0, 0],
+            ));
+            CommissionResult::Starbase {
+                base_record_index_1_based: self.bases.records.len(),
+            }
+        } else {
+            let mut destroyers = 0u16;
+            let mut cruisers = 0u16;
+            let mut battleships = 0u16;
+            let mut scouts = 0u16;
+            let mut transports = 0u16;
+            let mut etacs = 0u16;
+            let mut speeds = Vec::new();
+
+            for (_, kind_raw, count) in &selected {
+                match ProductionItemKind::from_raw(*kind_raw) {
+                    ProductionItemKind::Destroyer => {
+                        destroyers = destroyers.saturating_add(*count);
+                        speeds.push(commissioned_fleet_speed(ProductionItemKind::Destroyer));
+                    }
+                    ProductionItemKind::Cruiser => {
+                        cruisers = cruisers.saturating_add(*count);
+                        speeds.push(commissioned_fleet_speed(ProductionItemKind::Cruiser));
+                    }
+                    ProductionItemKind::Battleship => {
+                        battleships = battleships.saturating_add(*count);
+                        speeds.push(commissioned_fleet_speed(ProductionItemKind::Battleship));
+                    }
+                    ProductionItemKind::Scout => {
+                        scouts = scouts.saturating_add(*count);
+                        speeds.push(commissioned_fleet_speed(ProductionItemKind::Scout));
+                    }
+                    ProductionItemKind::Transport => {
+                        transports = transports.saturating_add(*count);
+                        speeds.push(commissioned_fleet_speed(ProductionItemKind::Transport));
+                    }
+                    ProductionItemKind::Etac => {
+                        etacs = etacs.saturating_add(*count);
+                        speeds.push(commissioned_fleet_speed(ProductionItemKind::Etac));
+                    }
+                    _ => return Err(GameStateMutationError::InvalidCommissionSelection),
+                }
+            }
+
+            let fleet_id = self.fleets.records.len() as u16 + 1;
+            let local_slot = self
+                .fleets
+                .records
+                .iter()
+                .filter(|fleet| fleet.owner_empire_raw() == owner_empire)
+                .count() as u16
+                + 1;
+            let last_owned_fleet_index = self
+                .fleets
+                .records
+                .iter()
+                .enumerate()
+                .rev()
+                .find(|(_, fleet)| fleet.owner_empire_raw() == owner_empire)
+                .map(|(idx, _)| idx);
+            let previous_fleet_id = last_owned_fleet_index
+                .map(|idx| self.fleets.records[idx].fleet_id())
+                .unwrap_or(0);
+
+            if let Some(idx) = last_owned_fleet_index {
+                self.fleets.records[idx].set_next_fleet_link_word_raw(fleet_id);
+            } else {
+                player.set_fleet_chain_head_raw(fleet_id);
+            }
+
+            let mut fleet = FleetRecord::new_zeroed();
+            fleet.set_local_slot_word_raw(local_slot);
+            fleet.set_owner_empire_raw(owner_empire);
+            fleet.set_next_fleet_link_word_raw(0);
+            fleet.set_fleet_id_word_raw(fleet_id);
+            fleet.set_previous_fleet_id(previous_fleet_id);
+            fleet.set_current_speed(0);
+            fleet.set_current_location_coords_raw(coords);
+            fleet.set_tuple_a_payload_raw([0x80, 0, 0, 0, 0]);
+            fleet.set_tuple_b_payload_raw([0x80, 0, 0, 0, 0]);
+            fleet.set_tuple_c_payload_raw([0x81, 0, 0, 0, 0]);
+            fleet.set_standing_order_kind(crate::Order::HoldPosition);
+            fleet.set_standing_order_target_coords_raw(coords);
+            fleet.set_mission_aux_bytes([0, 0]);
+            fleet.set_rules_of_engagement(6);
+            fleet.set_destroyer_count(destroyers);
+            fleet.set_cruiser_count(cruisers);
+            fleet.set_battleship_count(battleships);
+            fleet.set_scout_count(scouts.min(u16::from(u8::MAX)) as u8);
+            fleet.set_troop_transport_count(transports);
+            fleet.set_etac_count(etacs);
+            fleet.recompute_max_speed_from_composition();
+
+            self.fleets.records.push(fleet);
+            CommissionResult::Fleet {
+                fleet_record_index_1_based: self.fleets.records.len(),
+            }
+        };
+
+        for (slot_0_based, _, _) in selected {
+            planet.set_stardock_count_raw(slot_0_based, 0);
+            planet.set_stardock_kind_raw(slot_0_based, 0);
+        }
+        Ok(result)
     }
 
     pub fn replace_planet_build_queue_with_single_order(

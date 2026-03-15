@@ -375,3 +375,33 @@ fn test_rendezvous_merge_emits_survivor_absorption_event() {
             && event.absorbed_fleet_id == absorbed_id
     }));
 }
+
+#[test]
+fn test_rendezvous_merge_recomputes_survivor_speed_to_slowest_member() {
+    let mut game_data = load_fixture("ecmaint-post");
+    game_data.player.records[0].raw[0x00] = 0xff;
+    let coords = game_data.fleets.records[0].current_location_coords_raw();
+
+    game_data.fleets.records[0].set_standing_order_kind(Order::RendezvousSector);
+    game_data.fleets.records[0].set_destroyer_count(1);
+    game_data.fleets.records[0].set_cruiser_count(0);
+    game_data.fleets.records[0].set_battleship_count(0);
+    game_data.fleets.records[0].set_scout_count(0);
+    game_data.fleets.records[0].set_troop_transport_count(0);
+    game_data.fleets.records[0].set_etac_count(0);
+    game_data.fleets.records[0].set_max_speed(6);
+
+    game_data.fleets.records[1].set_current_location_coords_raw(coords);
+    game_data.fleets.records[1].set_standing_order_kind(Order::RendezvousSector);
+    game_data.fleets.records[1].set_destroyer_count(0);
+    game_data.fleets.records[1].set_cruiser_count(0);
+    game_data.fleets.records[1].set_battleship_count(0);
+    game_data.fleets.records[1].set_scout_count(0);
+    game_data.fleets.records[1].set_troop_transport_count(0);
+    game_data.fleets.records[1].set_etac_count(1);
+    game_data.fleets.records[1].set_max_speed(3);
+
+    run_maintenance_turn(&mut game_data).expect("Maintenance failed");
+
+    assert_eq!(game_data.fleets.records[0].max_speed(), 3);
+}
