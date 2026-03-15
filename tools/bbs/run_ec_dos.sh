@@ -8,16 +8,22 @@ GAME_DIR="/home/mag/dev/esterian_conquest/original/v1.5"
 
 echo "$(date) - Launching door with $@" >> /tmp/ec-door.log
 
-# Read the docs carefully - ECGAME prefers CHAIN.TXT with *local* console parameters 
-# for local play, OR standard remote DOOR.SYS / DORINFO for actual BBS door routing.
+# Enigma generates the dropfile in the path provided.
+# If the path is a directory, append DOOR.SYS
+if [ -d "$DROPFILE" ]; then
+    DROPFILE="$DROPFILE/DOOR.SYS"
+fi
 
-# Enigma will natively create DOOR.SYS
-cp "$DROPFILE" "$GAME_DIR/DOOR.SYS"
+echo "Using DROPFILE: $DROPFILE" >> /tmp/ec-door.log
+
+if [ -f "$DROPFILE" ]; then
+    cp "$DROPFILE" "$GAME_DIR/DOOR.SYS"
+    chmod 666 "$GAME_DIR/DOOR.SYS"
+else
+    echo "ERROR: Dropfile not found at $DROPFILE" >> /tmp/ec-door.log
+fi
 
 export SDL_VIDEODRIVER=dummy
-
-# DOSBox-X requires specific settings to forward DOS INT 14h / FOSSIL / Stdio
-# When Enigma uses `io: stdio`, we must ensure DOSBox-X is routing output properly.
 
 dosbox-x -conf /dev/null \
   -fastlaunch \

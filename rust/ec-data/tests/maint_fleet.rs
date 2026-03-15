@@ -405,3 +405,34 @@ fn test_rendezvous_merge_recomputes_survivor_speed_to_slowest_member() {
 
     assert_eq!(game_data.fleets.records[0].max_speed(), 3);
 }
+
+#[test]
+fn test_merge_preserves_surviving_local_fleet_numbers() {
+    let mut game_data = load_fixture("ecmaint-post");
+    game_data.player.records[0].raw[0x00] = 0xff;
+    let coords = game_data.fleets.records[0].current_location_coords_raw();
+    game_data.fleets.records[2].set_current_location_coords_raw([1, 1]);
+    game_data.fleets.records[3].set_current_location_coords_raw([2, 2]);
+    game_data.fleets.records[1].set_current_location_coords_raw(coords);
+    game_data.fleets.records[1].set_standing_order_kind(Order::JoinAnotherFleet);
+
+    run_maintenance_turn(&mut game_data).expect("Maintenance failed");
+
+    let player1_local_slots = game_data
+        .fleets
+        .records
+        .iter()
+        .filter(|fleet| fleet.owner_empire_raw() == 1)
+        .map(|fleet| fleet.local_slot_word_raw())
+        .collect::<Vec<_>>();
+    assert_eq!(player1_local_slots, vec![1, 3, 4]);
+
+    let player2_local_slots = game_data
+        .fleets
+        .records
+        .iter()
+        .filter(|fleet| fleet.owner_empire_raw() == 2)
+        .map(|fleet| fleet.local_slot_word_raw())
+        .collect::<Vec<_>>();
+    assert_eq!(player2_local_slots, vec![1, 2, 3, 4]);
+}

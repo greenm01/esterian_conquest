@@ -1,3 +1,5 @@
 08-13-2003 11:43pm -> ECGAME: could not find a Door File in path: C:\DOORS\EC\
 01-01-1980 3:14am -> ECGAME: could not find a Door File in path: C:\DOORS\EC\
 01-01-1980 3:14am -> ECGAME: could not find a Door File in path: C:\DOORS\EC\
+03-15-2026 1:43pm -> ECGAME: could not find a Door File in path: /D:C:\\
+03-15-2026 1:43pm -> ECGAME: could not find a Door File in path: /D:C:\\
