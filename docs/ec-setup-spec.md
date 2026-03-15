@@ -12,7 +12,7 @@ save directories.
 
 Primary source:
 
-- [ECPLAYER.DOC](/home/mag/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC)
+- [ECPLAYER.DOC](original/v1.5/ECPLAYER.DOC)
 
 Relevant manual statements:
 
@@ -88,7 +88,7 @@ This implies:
   hand-placed known scenarios
 
 The intended map-generation algorithm is documented separately in
-[starmap-generation-spec.md](/home/mag/dev/esterian_conquest/docs/starmap-generation-spec.md).
+[starmap-generation-spec.md](docs/starmap-generation-spec.md).
 
 ## Planet And Empire Start Rules
 

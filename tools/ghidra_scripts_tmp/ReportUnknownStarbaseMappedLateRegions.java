@@ -19,7 +19,7 @@ public class ReportUnknownStarbaseMappedLateRegions extends GhidraScript {
     @Override
     public void run() throws Exception {
         File outFile = new File(
-            "/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/unknown-starbase-mapped-late-regions.txt");
+            "./artifacts/ghidra/ecmaint-live/unknown-starbase-mapped-late-regions.txt");
 
         try (PrintWriter out = new PrintWriter(outFile)) {
             out.println("Mapped unknown-starbase late regions");

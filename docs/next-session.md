@@ -1,7 +1,7 @@
 # Next Session
 
 Use this as the restart brief. Historical detail belongs in
-[next-session-archive.md](/home/mag/dev/esterian_conquest/docs/next-session-archive.md),
+[next-session-archive.md](docs/next-session-archive.md),
 not here.
 
 ## Current State
@@ -62,7 +62,7 @@ Primary goal:
   original combat RNG
 - `ECGAME` local DOSBox launch is now documented and working with the corrected
   local-console `CHAIN.TXT` settings in
-  [`docs/dosbox-workflow.md`](/home/mag/dev/esterian_conquest/docs/dosbox-workflow.md)
+  [`docs/dosbox-workflow.md`](docs/dosbox-workflow.md)
 - planet economy now has an explicit canonical Rust rule where the original
   replay oracle is still awkward to probe directly:
   - empire-wide tax sets yearly revenue on every owned planet
@@ -72,7 +72,7 @@ Primary goal:
   - civil-disorder baselines are left alone so preserved maint fixtures stay
     stable
 - the canonical economy rule is now documented in
-  [economics.md](/home/mag/dev/esterian_conquest/docs/economics.md)
+  [economics.md](docs/economics.md)
 - builder-generated starts now encode the intended opening economy directly:
   - homeworld current production starts at `100`
   - default empire tax starts at `50%`

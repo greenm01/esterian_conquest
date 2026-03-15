@@ -121,6 +121,6 @@ The first expected config extraction is combat constants and oracle scenarios,
 not a full generalized scenario DSL.
 
 The first concrete sysop/setup target is now documented in
-[setup-kdl-schema.md](/home/mag/dev/esterian_conquest/docs/setup-kdl-schema.md)
+[setup-kdl-schema.md](docs/setup-kdl-schema.md)
 with a matching sample file at
-[`rust/ec-data/config/setup.example.kdl`](/home/mag/dev/esterian_conquest/rust/ec-data/config/setup.example.kdl).
+[`rust/ec-data/config/setup.example.kdl`](rust/ec-data/config/setup.example.kdl).

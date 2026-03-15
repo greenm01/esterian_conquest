@@ -32,10 +32,10 @@ maintenance runs.
 
 Primary Esterian Conquest guidance:
 
-- [original/v1.5/ECPLAYER.DOC](/home/mag/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC)
-- [original/v1.5/ECQSTART.DOC](/home/mag/dev/esterian_conquest/original/v1.5/ECQSTART.DOC)
-- [original/v1.5/WHATSNEW.DOC](/home/mag/dev/esterian_conquest/original/v1.5/WHATSNEW.DOC)
-- [docs/ecmaint-combat-reference.md](/home/mag/dev/esterian_conquest/docs/ecmaint-combat-reference.md)
+- [original/v1.5/ECPLAYER.DOC](original/v1.5/ECPLAYER.DOC)
+- [original/v1.5/ECQSTART.DOC](original/v1.5/ECQSTART.DOC)
+- [original/v1.5/WHATSNEW.DOC](original/v1.5/WHATSNEW.DOC)
+- [docs/ecmaint-combat-reference.md](docs/ecmaint-combat-reference.md)
 
 High-value original-behavior cues from those sources:
 
