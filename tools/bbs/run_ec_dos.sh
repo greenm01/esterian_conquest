@@ -1,32 +1,32 @@
 #!/bin/bash
 # Wrapper script to launch Esterian Conquest (DOS) from Enigma BBS
-# Usage: run_ec_dos.sh <dropfile_path> <node_number> <server_port>
+# Usage: run_ec_dos.sh <dropfile_path> <node_number>
 
 DROPFILE=$1
 NODE=$2
-PORT=$3
 GAME_DIR="/home/mag/dev/esterian_conquest/original/v1.5"
 
 echo "$(date) - Launching door with $@" >> /tmp/ec-door.log
 
-# For ECBBS.EXE, the game client looks for DOOR.SYS or DORINFO1.DEF
-# Enigma natively generates DOOR.SYS if we configure dropFileType: DOOR
-# So we just need to ensure the copied file is in the root of C: mounted for the game
+# Read the docs carefully - ECGAME prefers CHAIN.TXT with *local* console parameters 
+# for local play, OR standard remote DOOR.SYS / DORINFO for actual BBS door routing.
 
+# Enigma will natively create DOOR.SYS
 cp "$DROPFILE" "$GAME_DIR/DOOR.SYS"
-chmod 666 "$GAME_DIR/DOOR.SYS"
 
 export SDL_VIDEODRIVER=dummy
 
-# DOSBox-X requires explicit socket connection if `io: socket` is used.
-# The syntax for DOSBox-X serial port forwarding over TCP is usually:
-# serial1=nullmodem server:127.0.0.1 port:$PORT
-# Let's ensure we are calling ECGAME.EXE since ECBBS.EXE does NOT exist in original/v1.5/!
+# DOSBox-X requires specific settings to forward DOS INT 14h / FOSSIL / Stdio
+# When Enigma uses `io: stdio`, we must ensure DOSBox-X is routing output properly.
 
 dosbox-x -conf /dev/null \
   -fastlaunch \
   -nogui \
-  -c "serial1=nullmodem server:127.0.0.1 port:$PORT" \
+  -set "dosv=off" \
+  -set "machine=vgaonly" \
+  -set "core=normal" \
+  -set "cputype=386_prefetch" \
+  -set "cycles=fixed 3000" \
   -c "mount c $GAME_DIR" \
   -c "c:" \
   -c "ECGAME.EXE /D:C:\\ /N:$NODE" \
