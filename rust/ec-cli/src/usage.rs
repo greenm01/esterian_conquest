@@ -3,6 +3,8 @@ pub fn print_usage() {
     println!("  ec-cli inspect [dir]");
     println!("  ec-cli inspect-messages [dir]");
     println!("  ec-cli map-export [dir] <player_record> <output_txt_path>");
+    println!("  ec-cli db-import [dir]");
+    println!("  ec-cli db-export [dir] <target_dir>");
     println!("  ec-cli sysop <subcommand> ...");
     println!(
         "  ec-cli sysop new-game <target_dir> [--players <1-25>] [--config <setup.kdl>] [--seed <u64>]"

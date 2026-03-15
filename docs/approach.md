@@ -156,16 +156,26 @@ For the Rust `ECGAME` clone, preserve the original pre-menu player flow too:
 - CLI and future TUI surfaces should act as frontends over that config and the
   shared Rust model, not as the only place where setup can be expressed
 
-12. Keep end-to-end Rust maintenance ahead of storage polish
+12. Keep storage additive to the compatibility boundary
 
-- the immediate engineering target is a full-game-capable Rust maintenance
+- the immediate engineering target remains a full-game-capable Rust maintenance
   engine with classic `.DAT` fidelity
-- modern storage work is approved, but it is not the current blocker
+- modern storage is now an active adjacent milestone because the client is
+  starting to need history and richer intel semantics that the classic files do
+  not encode well
 - KDL should remain focused on authored setup/config/scenario input
 - turn limits and other Rust-only campaign policy should be deferred until a
   future SQLite layer exists
-- any future SQLite adoption should sit beside the `.DAT` flow, not replace
-  the classic compliance boundary
+- SQLite sits beside the `.DAT` flow, not in place of the classic compliance
+  boundary
+- the intended shape is:
+  - `CoreGameData` remains the canonical in-memory model
+  - `ecgame.db` is the first-class persisted campaign store
+  - classic `.DAT` files remain import/export projections and oracle artifacts
+  - unresolved or partially decoded classic outputs may still be preserved in
+    compatibility-oriented SQLite tables while the Rust-native model matures
+- SQLite must be bundled/self-hosted in the compiled Rust application; sysops
+  and players should not need a separate SQLite installation
 
 13. Own manual-defined economy semantics when replay probing stalls
 
@@ -210,6 +220,8 @@ Long term:
   - classic `.DAT` directory interchange with the DOS binaries
   - a richer modern storage layer where useful, likely through SQLite
     importing/exporting through the same canonical Rust state model
+  - per-campaign `ecgame.db` persistence with history, analytics, and richer
+    player-facing intel views
 
 ## Milestone Ladder
 

@@ -225,6 +225,20 @@ cd rust
 cargo run -q -p ec-cli -- map-export /tmp/ec-game 1 /tmp/ec-exports/ECMAP-P1-Y3000.TXT
 ```
 
+Import a classic game directory into the bundled per-campaign SQLite store:
+
+```bash
+cd rust
+cargo run -q -p ec-cli -- db-import /tmp/ec-game
+```
+
+Export the latest `ecgame.db` snapshot back to a classic-compatible directory:
+
+```bash
+cd rust
+cargo run -q -p ec-cli -- db-export /tmp/ec-game /tmp/ec-game-exported
+```
+
 Run the broader validation sweeps:
 
 ```bash

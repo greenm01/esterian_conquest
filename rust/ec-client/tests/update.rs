@@ -947,10 +947,10 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseList);
     assert_eq!(
         app.handle_key(key(KeyCode::Enter)),
-        Action::OpenPlanetDatabaseDetail
+        Action::SubmitPlanetDatabaseLookup
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetDatabaseDetail),
+        apply_action(&mut app, Action::SubmitPlanetDatabaseLookup),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseDetail);
@@ -1114,6 +1114,32 @@ fn fleet_roe_success_returns_to_selector_prompt_without_confirmation_text() {
 
     app.render(&mut terminal).expect("render succeeds");
     assert_eq!(terminal.line(19), "FLEET COMMAND <- Fleet # [4] ->");
+}
+
+#[test]
+fn planet_database_render_uses_year_and_tier_labels_on_bottom_row() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetDatabase),
+        AppOutcome::Continue
+    );
+
+    app.render(&mut terminal).expect("render succeeds");
+    assert!(terminal.line(4).contains("Year"));
+    assert!(terminal.lines.iter().any(|line| line.contains("Y3000")));
+    assert!(terminal.lines.iter().any(|line| line.contains("owned")));
+    assert!(terminal.line(19).starts_with("MAIN COMMAND <- ["));
+    assert!(terminal.line(19).ends_with("] ->"));
 }
 
 #[test]

@@ -49,7 +49,8 @@ Primary goal:
   validation against classic `.DAT` output
 - refine only where stronger manual evidence or original-binary evidence shows
   the Rust rule should move
-- shift the next major implementation phase toward cloning `ECGAME` in Rust
+- shift the next major implementation phase toward cloning `ECGAME` in Rust on
+  top of the new Rust-native SQLite campaign store
 
 ## What Is Settled
 
@@ -132,11 +133,24 @@ Primary goal:
   but does not yet decode or reproduce it faithfully
 - live `ECGAME` confirmation is still needed that the restored default
   joinable setup now triggers the full first-join naming/onboarding flow
+- SQLite-backed campaign persistence is now started:
+  - each campaign uses a bundled/self-hosted `ecgame.db`
+  - the store keeps normalized record-set snapshots plus compatibility/export
+    payloads for unresolved classic outputs
+  - the total planet database now has a path for SQLite-backed `Last Intel`
+    year metadata
+  - intel tiers are now explicit:
+    - `owned`
+    - `full`
+    - `partial`
+    - `unknown`
+  - current intel-year stamping is still first-pass and should be refined as
+    more gameplay/report paths sync into SQLite
 
 These are refinement tasks, not blockers for calling `rust-maint` a usable
 full-game engine.
 
-## Next Phase: Rust ECGAME
+## Next Phase: SQLite-backed Rust ECGAME
 
 The next major phase should be cloning `ECGAME` in Rust while keeping the
 existing `.DAT` compatibility boundary intact.
@@ -147,6 +161,8 @@ Initial scope:
   backend
 - use the existing Rust maintenance/report pipeline instead of recreating game
   rules in a second place
+- use the SQLite campaign store as the first-class persisted campaign state
+  while keeping `.DAT` import/export as the oracle compatibility boundary
 - preserve classic terminology, menu structure, and campaign feel where the
   manuals or live `ECGAME` behavior are clear
 - do not invent a surrender UI action; the manuals describe surrender as a
@@ -213,5 +229,13 @@ Treat the login/startup side as one explicit pre-command-center pipeline:
      it for more player-facing economy output
 5. Use the now-working DOSBox `ECGAME` harness to capture only the player-side
    screens and behaviors needed for the first Rust clone pass.
-6. Keep SQLite and turn-limit policy deferred. They are approved future
-   architecture, not the current milestone.
+6. Continue the SQLite transition:
+   - keep `ecgame.db` bundled/self-hosted with no external SQLite dependency
+   - expand client/state sync so gameplay mutations refresh the latest snapshot
+   - move more report/intel/history surfaces onto SQLite-backed queries
+   - preserve `.DAT` export compatibility with oracle sweeps
+7. Keep the total planet database aligned with the intel model:
+   - all planets listed, fog-filtered
+   - `?` for unknown fields
+   - `Last Intel` year shown as `Y####` or `?`
+   - Main/General remain intel views; Planet menus remain owned-asset views

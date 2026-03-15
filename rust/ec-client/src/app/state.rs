@@ -3,10 +3,10 @@ use std::fs;
 use std::path::PathBuf;
 
 use ec_data::{
-    AutoCommissionSummary, CommissionResult, CoreGameData, DatabaseDat, FleetDetachSelection,
-    GameStateMutationError, PlayerStarmapWorld, ProductionItemKind, QueuedPlayerMail,
-    append_mail_queue, build_player_starmap_projection, load_mail_queue, plan_route,
-    save_mail_queue,
+    AutoCommissionSummary, CampaignStore, CommissionResult, CoreGameData, DatabaseDat,
+    FleetDetachSelection, GameStateMutationError, PlanetIntelSnapshot, PlayerStarmapWorld,
+    ProductionItemKind, QueuedPlayerMail, append_mail_queue,
+    build_player_starmap_projection, load_mail_queue, plan_route, save_mail_queue,
 };
 
 use crate::app::Action;
@@ -142,6 +142,8 @@ pub struct App {
     planet_database_scroll_offset: usize,
     planet_database_cursor: usize,
     planet_database_detail_index: usize,
+    planet_database_input: String,
+    planet_database_status: Option<String>,
     planet_commission_index: usize,
     planet_commission_cursor: usize,
     planet_commission_scroll_offset: usize,
@@ -179,6 +181,8 @@ pub struct App {
     starmap_capture_complete: bool,
     export_root: PathBuf,
     queue_dir: Option<PathBuf>,
+    campaign_store: CampaignStore,
+    planet_intel_snapshots: BTreeMap<usize, PlanetIntelSnapshot>,
     startup_splash_page: usize,
     startup_intro_page: usize,
     first_time_intro_page: usize,
@@ -198,6 +202,13 @@ impl App {
         let game_data = CoreGameData::load(&game_dir)?;
         let database = DatabaseDat::parse(&fs::read(game_dir.join("DATABASE.DAT"))?)?;
         let player = PlayerContext::from_game_data(&game_data, config.player_record_index_1_based)?;
+        let campaign_store = CampaignStore::open_default_in_dir(&game_dir)?;
+        campaign_store.import_directory_snapshot(&game_dir)?;
+        let planet_intel_snapshots = campaign_store
+            .latest_planet_intel_for_viewer(config.player_record_index_1_based as u8)?
+            .into_iter()
+            .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+            .collect::<BTreeMap<_, _>>();
         let pending_results = file_nonempty(game_dir.join("RESULTS.DAT"));
         let reports = ReportsPreview::load(&game_dir)?;
         let main_menu_summary = MainMenuSummary::from_game_data(
@@ -314,6 +325,8 @@ impl App {
             planet_database_scroll_offset: 0,
             planet_database_cursor: 0,
             planet_database_detail_index: 0,
+            planet_database_input: String::new(),
+            planet_database_status: None,
             planet_commission_index: 0,
             planet_commission_cursor: 0,
             planet_commission_scroll_offset: 0,
@@ -351,6 +364,8 @@ impl App {
             starmap_capture_complete: false,
             export_root,
             queue_dir: config.queue_dir,
+            campaign_store,
+            planet_intel_snapshots,
             startup_splash_page: 0,
             startup_intro_page: 0,
             first_time_intro_page: 0,
@@ -620,6 +635,9 @@ impl App {
                 &self.planet_database_rows(),
                 self.planet_database_scroll_offset,
                 self.planet_database_cursor,
+                self.default_planet_prompt_coords(),
+                &self.planet_database_input,
+                self.planet_database_status.as_deref(),
                 self.command_return_menu,
             )?,
             ScreenId::PlanetDatabaseDetail => {
@@ -1117,9 +1135,18 @@ impl App {
             ScreenId::PlanetDatabaseList | ScreenId::PlanetDatabaseDetail
         ) {
             self.command_return_menu = self.origin_command_menu();
-            self.planet_database_scroll_offset = 0;
-            self.planet_database_cursor = 0;
-            self.planet_database_detail_index = 0;
+            let default_coords = self.default_planet_prompt_coords();
+            let rows = self.planet_database_rows();
+            let default_index = rows
+                .iter()
+                .position(|row| row.coords == default_coords)
+                .unwrap_or(0);
+            self.planet_database_cursor = default_index;
+            self.planet_database_detail_index = default_index;
+            self.planet_database_scroll_offset =
+                default_index.saturating_sub(crate::screen::PLANET_DATABASE_VISIBLE_ROWS / 2);
+            self.planet_database_input.clear();
+            self.planet_database_status = None;
         }
         self.current_screen = ScreenId::PlanetDatabaseList;
     }
@@ -1504,7 +1531,7 @@ impl App {
             return Ok(());
         }
         fleet.set_rules_of_engagement(parsed);
-        self.game_data.save(&self.game_dir)?;
+        self.save_game_data()?;
         self.fleet_roe_input.clear();
         self.fleet_roe_status = None;
         self.fleet_roe_editing = false;
@@ -1703,7 +1730,7 @@ impl App {
                     donor_speed,
                     new_roe,
                 )?;
-                self.game_data.save(&self.game_dir)?;
+                self.save_game_data()?;
                 self.fleet_detach_mode = FleetDetachMode::SelectingFleet;
                 self.fleet_detach_input.clear();
                 self.fleet_detach_select_input.clear();
@@ -1848,6 +1875,59 @@ impl App {
         );
     }
 
+    pub fn append_planet_database_char(&mut self, ch: char) {
+        if self.current_screen != ScreenId::PlanetDatabaseList {
+            return;
+        }
+        if self.planet_database_input.len() < 16 && (ch.is_ascii_digit() || ch == ',' || ch == ' ')
+        {
+            self.planet_database_input.push(ch);
+            self.planet_database_status = None;
+        }
+    }
+
+    pub fn backspace_planet_database_input(&mut self) {
+        if self.current_screen != ScreenId::PlanetDatabaseList {
+            return;
+        }
+        self.planet_database_input.pop();
+        self.planet_database_status = None;
+    }
+
+    pub fn submit_planet_database_lookup(&mut self) {
+        if self.current_screen != ScreenId::PlanetDatabaseList {
+            return;
+        }
+        let rows = self.planet_database_rows();
+        if self.planet_database_input.trim().is_empty() {
+            self.open_planet_database_detail();
+            return;
+        }
+        let Some(coords) = resolve_default_coords_input(
+            &self.planet_database_input,
+            self.default_planet_prompt_coords(),
+        ) else {
+            self.planet_database_status = Some("Enter coordinates like 5,2".to_string());
+            return;
+        };
+        let Some(index) = rows.iter().position(|row| row.coords == coords) else {
+            self.planet_database_status = Some(format!(
+                "No world found at X={}, Y={}",
+                coords[0], coords[1]
+            ));
+            return;
+        };
+        self.planet_database_cursor = index;
+        sync_scroll_to_cursor(
+            &mut self.planet_database_scroll_offset,
+            self.planet_database_cursor,
+            crate::screen::PLANET_DATABASE_VISIBLE_ROWS,
+        );
+        self.planet_database_status = None;
+        self.planet_database_input.clear();
+        self.open_planet_database_detail();
+    }
+
     pub fn move_planet_build(&mut self, delta: i8) {
         let total = self.build_planet_rows().len();
         if total == 0 {
@@ -1935,7 +2015,7 @@ impl App {
             }
             Err(err) => return Err(err.into()),
         };
-        self.game_data.save(&self.game_dir)?;
+        self.save_game_data()?;
         match result {
             CommissionResult::Fleet {
                 fleet_record_index_1_based,
@@ -1980,7 +2060,7 @@ impl App {
         let summary = self
             .game_data
             .auto_commission_all_stardock_units(self.player.record_index_1_based)?;
-        self.game_data.save(&self.game_dir)?;
+        self.save_game_data()?;
         self.planet_auto_commission_status = Some(format_auto_commission_status(summary));
         self.current_screen = ScreenId::PlanetAutoCommissionDone;
         Ok(())
@@ -2155,7 +2235,7 @@ impl App {
             }
             Err(err) => return Err(err.into()),
         }
-        self.game_data.save(&self.game_dir)?;
+        self.save_game_data()?;
         self.planet_transport_status = None;
         self.planet_transport_qty_input.clear();
         let base_row = self
@@ -2276,7 +2356,7 @@ impl App {
                 record.set_build_kind_raw(slot, 0);
             }
         }
-        self.game_data.save(&self.game_dir)?;
+        self.save_game_data()?;
         self.planet_build_list_confirming = false;
         // Clamp cursor after deletion.
         let new_total = self.planet_build_list_rows().len();
@@ -2433,7 +2513,7 @@ impl App {
             }
             Err(e) => return Err(e.into()),
         }
-        self.game_data.save(&self.game_dir)?;
+        self.save_game_data()?;
         self.planet_build_unit_input.clear();
         self.planet_build_unit_status = Some(format!("Queued {} {}.", qty, unit.label));
         self.planet_build_quantity_input.clear();
@@ -2447,7 +2527,7 @@ impl App {
         let row = self.current_build_planet_row()?;
         self.game_data
             .clear_planet_build_queue(row.planet_record_index_1_based)?;
-        self.game_data.save(&self.game_dir)?;
+        self.save_game_data()?;
         self.planet_build_status = Some("Build orders aborted.".to_string());
         self.current_screen = ScreenId::PlanetBuildMenu;
         Ok(())
@@ -2487,7 +2567,7 @@ impl App {
         }
         self.game_data
             .set_player_tax_rate(self.player.record_index_1_based, parsed)?;
-        self.game_data.save(&self.game_dir)?;
+        self.save_game_data()?;
         self.planet_tax_input = parsed.to_string();
         self.planet_tax_status = Some(format!("Empire tax rate set to {parsed}%."));
         self.current_screen = ScreenId::PlanetTaxDone;
@@ -2884,7 +2964,7 @@ impl App {
         let player = &mut self.game_data.player.records[self.player.record_index_1_based - 1];
         let next = if player.autopilot_flag() == 0 { 1 } else { 0 };
         player.set_autopilot_flag(next);
-        self.game_data.save(&self.game_dir)?;
+        self.save_game_data()?;
         Ok(())
     }
 
@@ -2953,7 +3033,7 @@ impl App {
             empire_id,
             next,
         )?;
-        self.game_data.save(&self.game_dir)?;
+        self.save_game_data()?;
         self.enemies_status = None;
         self.enemies_input.clear();
         Ok(())
@@ -3300,7 +3380,7 @@ impl App {
             player.raw[0x30] = 0;
             player.raw[0x34] = 0;
         }
-        self.game_data.save(&self.game_dir)?;
+        self.save_game_data()?;
         let refreshed = ReportsPreview::load(&self.game_dir)?;
         let summary = MainMenuSummary::from_game_data(
             &self.game_data,
@@ -3531,16 +3611,11 @@ impl App {
         )
         .worlds
         .into_iter()
-        .filter(|world| {
-            world.known_name.is_some()
-                || world.known_owner_empire_name.is_some()
-                || world.known_owner_empire_id.is_some()
-                || world.known_potential_production.is_some()
-                || world.known_armies.is_some()
-                || world.known_ground_batteries.is_some()
-        })
         .map(|world| {
-            let intel_label = planet_database_intel_label(&world);
+            let intel_snapshot = self
+                .planet_intel_snapshots
+                .get(&world.planet_record_index_1_based);
+            let intel_label = planet_database_intel_label(intel_snapshot, &world);
             let owner_label = world
                 .known_owner_empire_name
                 .as_deref()
@@ -3568,6 +3643,10 @@ impl App {
                 batteries_label: world
                     .known_ground_batteries
                     .map(|value| value.to_string())
+                    .unwrap_or_else(|| "?".to_string()),
+                last_intel_year_label: intel_snapshot
+                    .and_then(|snapshot| snapshot.last_intel_year)
+                    .map(|year| format!("Y{year}"))
                     .unwrap_or_else(|| "?".to_string()),
                 intel_label,
             }
@@ -4474,6 +4553,18 @@ impl App {
     }
 
     fn default_planet_prompt_coords(&self) -> [u8; 2] {
+        let homeworld_index = self
+            .game_data
+            .player
+            .records
+            .get(self.player.record_index_1_based - 1)
+            .map(|player| player.homeworld_planet_index_1_based_raw() as usize)
+            .unwrap_or(0);
+        if homeworld_index != 0 {
+            if let Some(planet) = self.game_data.planets.records.get(homeworld_index - 1) {
+                return planet.coords_raw();
+            }
+        }
         self.game_data
             .planets
             .records
@@ -4484,6 +4575,18 @@ impl App {
             })
             .map(|planet| planet.coords_raw())
             .unwrap_or([8, 2])
+    }
+
+    fn save_game_data(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.game_data.save(&self.game_dir)?;
+        self.campaign_store.import_directory_snapshot(&self.game_dir)?;
+        self.planet_intel_snapshots = self
+            .campaign_store
+            .latest_planet_intel_for_viewer(self.player.record_index_1_based as u8)?
+            .into_iter()
+            .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+            .collect::<BTreeMap<_, _>>();
+        Ok(())
     }
 
     fn fleet_eta_default_destination(&self) -> [u8; 2] {
@@ -4594,7 +4697,7 @@ impl App {
             self.player.record_index_1_based,
             &self.first_time_empire_name,
         )?;
-        self.game_data.save(&self.game_dir)?;
+        self.save_game_data()?;
         self.refresh_player_context()?;
         Ok(())
     }
@@ -4604,7 +4707,7 @@ impl App {
             self.player.record_index_1_based,
             &self.first_time_homeworld_name,
         )?;
-        self.game_data.save(&self.game_dir)?;
+        self.save_game_data()?;
         self.refresh_player_context()?;
         Ok(())
     }
@@ -4658,24 +4761,31 @@ impl App {
     }
 }
 
-fn planet_database_intel_label(world: &PlayerStarmapWorld) -> String {
-    let mut labels = Vec::new();
-    if world.known_name.is_some() {
-        labels.push("name");
+fn planet_database_intel_label(
+    snapshot: Option<&PlanetIntelSnapshot>,
+    world: &PlayerStarmapWorld,
+) -> String {
+    if let Some(snapshot) = snapshot {
+        return match snapshot.intel_tier {
+            ec_data::IntelTier::Owned => "owned".to_string(),
+            ec_data::IntelTier::Full => "full".to_string(),
+            ec_data::IntelTier::Partial => "partial".to_string(),
+            ec_data::IntelTier::Unknown => "unknown".to_string(),
+        };
     }
-    if world.known_owner_empire_id.is_some() || world.known_owner_empire_name.is_some() {
-        labels.push("owner");
-    }
-    if world.known_potential_production.is_some() {
-        labels.push("prod");
+    if world.known_owner_empire_id == Some(0) {
+        return "unknown".to_string();
     }
     if world.known_armies.is_some() || world.known_ground_batteries.is_some() {
-        labels.push("defense");
-    }
-    if labels.is_empty() {
-        "partial contact".to_string()
+        "full".to_string()
+    } else if world.known_name.is_some()
+        || world.known_owner_empire_id.is_some()
+        || world.known_owner_empire_name.is_some()
+        || world.known_potential_production.is_some()
+    {
+        "partial".to_string()
     } else {
-        labels.join(", ")
+        "unknown".to_string()
     }
 }
 

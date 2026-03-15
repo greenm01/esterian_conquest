@@ -1,7 +1,10 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
-use crate::screen::layout::{draw_command_prompt, draw_status_line, draw_title_bar, new_playfield};
+use crate::screen::layout::{
+    draw_command_line_default_input, draw_command_prompt, draw_status_line, draw_title_bar,
+    new_playfield,
+};
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{CommandMenu, PlayfieldBuffer, command_menu_label};
 use crate::theme::classic;
@@ -17,19 +20,21 @@ pub struct PlanetDatabaseRow {
     pub potential_label: String,
     pub armies_label: String,
     pub batteries_label: String,
+    pub last_intel_year_label: String,
     pub intel_label: String,
 }
 
 pub struct PlanetDatabaseScreen;
 
-const DATABASE_COLUMNS: [TableColumn<'static>; 7] = [
+const DATABASE_COLUMNS: [TableColumn<'static>; 8] = [
     TableColumn::left("Planet Name", 15),
     TableColumn::left("Location", 9),
     TableColumn::left("Owner", 14),
     TableColumn::right("Prod", 4),
     TableColumn::right("Arm", 3),
     TableColumn::right("GB", 2),
-    TableColumn::left("Intel", 21),
+    TableColumn::left("Year", 5),
+    TableColumn::left("Intel", 15),
 ];
 
 impl PlanetDatabaseScreen {
@@ -42,6 +47,9 @@ impl PlanetDatabaseScreen {
         rows: &[PlanetDatabaseRow],
         scroll_offset: usize,
         cursor: usize,
+        default_coords: [u8; 2],
+        input: &str,
+        status: Option<&str>,
         menu: CommandMenu,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
@@ -62,6 +70,7 @@ impl PlanetDatabaseScreen {
                     row.potential_label.clone(),
                     row.armies_label.clone(),
                     row.batteries_label.clone(),
+                    row.last_intel_year_label.clone(),
                     row.intel_label.clone(),
                 ]
             })
@@ -85,20 +94,20 @@ impl PlanetDatabaseScreen {
         if table_rows.is_empty() {
             draw_status_line(
                 &mut buffer,
-                17,
+                16,
                 "Notice: ",
                 "No planets are currently recorded in your database.",
             );
         }
-        draw_command_prompt(
+        if let Some(status) = status {
+            draw_status_line(&mut buffer, 16, "Error: ", status);
+        }
+        draw_command_line_default_input(
             &mut buffer,
-            19,
             command_menu_label(menu),
-            if table_rows.is_empty() {
-                "Q"
-            } else {
-                "ARROWS J K ENTER Q"
-            },
+            "",
+            &format!("{},{}", default_coords[0], default_coords[1]),
+            input,
         );
         Ok(buffer)
     }
@@ -131,9 +140,10 @@ impl PlanetDatabaseScreen {
         );
         draw_status_line(&mut buffer, 7, "Armies: ", &row.armies_label);
         draw_status_line(&mut buffer, 8, "Ground Batteries: ", &row.batteries_label);
-        draw_status_line(&mut buffer, 10, "Known Intel: ", &row.intel_label);
+        draw_status_line(&mut buffer, 10, "Last Intel: ", &row.last_intel_year_label);
+        draw_status_line(&mut buffer, 11, "Known Intel: ", &row.intel_label);
         buffer.write_text(
-            12,
+            13,
             0,
             "Use arrows or HJKL to browse other known planets in the database.",
             classic::body_style(),
@@ -152,7 +162,11 @@ impl PlanetDatabaseScreen {
             }
             KeyCode::PageUp => Action::MovePlanetDatabaseList(-8),
             KeyCode::PageDown => Action::MovePlanetDatabaseList(8),
-            KeyCode::Enter => Action::OpenPlanetDatabaseDetail,
+            KeyCode::Char(ch) if ch.is_ascii_digit() || ch == ',' || ch == ' ' => {
+                Action::AppendPlanetDatabaseChar(ch)
+            }
+            KeyCode::Backspace => Action::BackspacePlanetDatabaseInput,
+            KeyCode::Enter => Action::SubmitPlanetDatabaseLookup,
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::ReturnToCommandMenu,
             _ => Action::Noop,
         }

@@ -52,6 +52,7 @@ use crate::commands::setup::{
     set_autopilot_after, set_com_irq, set_flow_control, set_local_timeout, set_maintenance_days,
     set_max_key_gap, set_minimum_time, set_purge_after, set_remote_timeout, set_snoop,
 };
+use crate::commands::storage::{export_latest_db_snapshot, import_directory_to_db};
 use crate::commands::sysop::run_sysop_args;
 use crate::support::parse::{
     parse_optional_source_and_target, parse_optional_source_target_and_bombard_spec,
@@ -193,6 +194,17 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
                 return Ok(());
             };
             export_player_starmap(&dir, player, &output)?;
+        }
+        "db-import" => {
+            import_directory_to_db(&next_dir(&mut args))?;
+        }
+        "db-export" => {
+            let source_dir = next_dir(&mut args);
+            let Some(target_dir) = args.next().map(PathBuf::from) else {
+                print_usage();
+                return Ok(());
+            };
+            export_latest_db_snapshot(&source_dir, &target_dir)?;
         }
         "maintenance-days" => {
             let dir = next_dir(&mut args);

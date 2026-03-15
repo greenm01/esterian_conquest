@@ -337,6 +337,18 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.move_planet_database_detail(delta);
             AppOutcome::Continue
         }
+        Action::AppendPlanetDatabaseChar(ch) => {
+            app.append_planet_database_char(ch);
+            AppOutcome::Continue
+        }
+        Action::BackspacePlanetDatabaseInput => {
+            app.backspace_planet_database_input();
+            AppOutcome::Continue
+        }
+        Action::SubmitPlanetDatabaseLookup => {
+            app.submit_planet_database_lookup();
+            AppOutcome::Continue
+        }
         Action::AppendPlanetTaxChar(ch) => {
             app.append_planet_tax_char(ch);
             AppOutcome::Continue

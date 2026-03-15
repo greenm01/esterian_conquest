@@ -84,25 +84,25 @@ That split should happen only if it buys clarity. It is not needed on day one.
 
 ## Storage Boundary
 
-Do not move the player client to SQLite first.
+The storage direction is now:
 
-The current project standard is:
+- `CoreGameData` is the canonical in-memory model
+- `ecgame.db` is the first-class persisted campaign store
+- classic `.DAT` directories remain the required compatibility projection
 
-- `CoreGameData` is the canonical state model
-- classic `.DAT` directories are the required compatibility projection
+SQLite is still additive rather than replacing classic semantics, but it is no
+longer deferred. The player client can use SQLite-backed history and intel
+metadata while continuing to import/export classic files for oracle validation.
 
-So the first Rust player client should load and save the same game directories
-the current engine already understands.
+Current storage rules:
 
-SQLite may still be useful later for:
-
-- campaign history
-- analytics
-- sysop convenience
-- richer modern hosting
-
-But it should remain additive. It is not the right first dependency for
-cloning `ECGAME`.
+- default campaign DB filename: `ecgame.db`
+- SQLite must be bundled/self-hosted in the compiled Rust build
+- no external SQLite runtime dependency should be required
+- unresolved or partially decoded classic outputs may still live in
+  compatibility-oriented tables while the normalized Rust-native model matures
+- total planet database / Main / General intel views should be free to consume
+  SQLite-backed metadata such as `Last Intel` year
 
 ## UI Direction
 

@@ -35,7 +35,14 @@ fn player_starmap_projection_shows_full_geometry_but_only_known_details() {
         .iter()
         .find(|world| world.coords == [5, 2])
         .expect("known world should exist");
-    assert_eq!(known.known_name.as_deref(), Some("Home"));
+    assert_eq!(
+        known.known_name.as_deref(),
+        Some(
+            game_data.planets.records[0]
+                .status_or_name_summary()
+                .as_str()
+        )
+    );
 
     let unknown = projection
         .worlds
@@ -55,6 +62,7 @@ fn player_starmap_projection_always_marks_owned_worlds_as_owned() {
         .expect("baseline should build");
     game_data.planets.records[0].set_coords_raw([5, 2]);
     game_data.planets.records[0].set_owner_empire_slot_raw(1);
+    game_data.planets.records[0].set_planet_name("Home");
 
     let planet_count = game_data.planets.records.len();
     let database =
@@ -68,6 +76,19 @@ fn player_starmap_projection_always_marks_owned_worlds_as_owned() {
         .expect("owned world should exist");
 
     assert_eq!(home.known_owner_empire_id, Some(1));
+    assert_eq!(home.known_name.as_deref(), Some("Home"));
+    assert_eq!(
+        home.known_potential_production,
+        Some(game_data.planets.records[0].potential_production_points())
+    );
+    assert_eq!(
+        home.known_armies,
+        Some(game_data.planets.records[0].army_count_raw())
+    );
+    assert_eq!(
+        home.known_ground_batteries,
+        Some(game_data.planets.records[0].ground_batteries_raw())
+    );
 }
 
 #[test]

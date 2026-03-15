@@ -8,3 +8,4 @@ path = "src/lib.rs"
 
 [dependencies]
 kdl = "6"
+rusqlite = { version = "0.31", features = ["bundled"] }

@@ -233,8 +233,13 @@ pub fn build_player_starmap_projection(
         .enumerate()
         .map(|(planet_index, planet)| {
             let db_record = database.record(planet_index, viewer_index, planet_count);
-            let known_name = decode_known_name(db_record);
             let actual_owner_empire_id = planet.owner_empire_slot_raw();
+            let is_owned_world = actual_owner_empire_id == viewer_empire_id;
+            let known_name = if is_owned_world {
+                Some(planet.status_or_name_summary())
+            } else {
+                decode_known_name(db_record)
+            };
             let known_owner_empire_id = if actual_owner_empire_id == viewer_empire_id {
                 Some(viewer_empire_id)
             } else {
@@ -250,9 +255,21 @@ pub fn build_player_starmap_projection(
                 known_name,
                 known_owner_empire_id,
                 known_owner_empire_name,
-                known_potential_production: decode_known_u16(db_record.raw[0x1c]),
-                known_armies: decode_known_u8(db_record.raw[0x23]),
-                known_ground_batteries: decode_known_u8(db_record.raw[0x25]),
+                known_potential_production: if is_owned_world {
+                    Some(planet.potential_production_points())
+                } else {
+                    decode_known_u16(db_record.raw[0x1c])
+                },
+                known_armies: if is_owned_world {
+                    Some(planet.army_count_raw())
+                } else {
+                    decode_known_u8(db_record.raw[0x23])
+                },
+                known_ground_batteries: if is_owned_world {
+                    Some(planet.ground_batteries_raw())
+                } else {
+                    decode_known_u8(db_record.raw[0x25])
+                },
             }
         })
         .collect();
