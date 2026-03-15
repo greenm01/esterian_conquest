@@ -36,7 +36,7 @@ In your `enigma-bbs` directory, create or edit the file `config/menus/doors.hjso
     module: extern_sys
     config: {
       # Make sure this points to the absolute path of the repository script!
-      cmd: /home/mag/dev/esterian_conquest/tools/bbs/run_ec_dos.sh
+      cmd: /path/to/esterian_conquest/tools/bbs/run_ec_dos.sh
       args: [
         "{dropFilePath}/DOOR.SYS",
         "{node}"

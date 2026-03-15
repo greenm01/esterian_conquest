@@ -5,43 +5,73 @@
 DROPFILE=$1
 NODE=$2
 PORT=$3
-GAME_DIR="/home/mag/dev/esterian_conquest/original/v1.5"
 
-echo "$(date) - Launching door with $@" >> /tmp/ec-door.log
+# Find the repository root dynamically
+REPO_ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+GAME_DIR="$REPO_ROOT/original/v1.5"
+LOGFILE="/tmp/ec-door.log"
 
-rm -f "$GAME_DIR/CHAIN.TXT"
-rm -f "$GAME_DIR/DOOR.SYS"
-rm -f "$GAME_DIR/DORINFO1.DEF"
+echo "$(date) - Launching door with $@" >> $LOGFILE
 
-if [ -f "$DROPFILE" ]; then
-    cp "$DROPFILE" "$GAME_DIR/DOOR.SYS"
-    chmod 666 "$GAME_DIR/DOOR.SYS"
-else
-    echo "ERROR: Dropfile not found at $DROPFILE" >> /tmp/ec-door.log
-fi
+# Create a Python script to convert/generate the strict CHAIN.TXT format
+cat << 'PY' > /tmp/convert_to_chain.py
+import sys
+import os
 
+repo_root = sys.argv[1]
+out_path = sys.argv[2]
+
+sys.path.insert(0, repo_root)
+from tools.ecgame_dropfiles import write_chain_txt
+
+# Set to remote modem defaults to ensure the COM port triggers
+write_chain_txt(out_path, remote=1, com_port=1, user_baud=115200, com_baud=115200)
+PY
+
+# Generate CHAIN.TXT directly into the game directory
+python3 /tmp/convert_to_chain.py "$REPO_ROOT" "$GAME_DIR/CHAIN.TXT"
+
+# Headless mode for SDL to prevent Wayland/X11 crashes
 export SDL_VIDEODRIVER=dummy
 
-# The ECGAME docs state: "When running ECGAME, you can specify the door file name"
-# Ex: ECGAME \BBS\DOOR.SYS
-# So we pass "C:\DOOR.SYS" directly, without /D or /N flags!
-
+# ECGAME is launched with ZERO arguments directly from its directory
 cat << 'BAT' > "$GAME_DIR/RUN.BAT"
 @ECHO OFF
 C:
-ECGAME.EXE C:\DOOR.SYS
+ECGAME.EXE
+exit
 BAT
 
-dosbox-x -conf /dev/null \
-  -fastlaunch \
-  -nogui \
-  -set "dosv=off" \
-  -set "machine=vgaonly" \
-  -set "core=normal" \
-  -set "cputype=386_prefetch" \
-  -set "cycles=fixed 3000" \
-  -c "serial1=nullmodem server:127.0.0.1 port:$PORT" \
-  -c "mount c $GAME_DIR" \
-  -c "c:" \
-  -c "RUN.BAT" \
-  -c "exit" >> /tmp/ec-door.log 2>&1
+# Generate a temporary dynamic dosbox.conf for this node
+CONF_FILE="/tmp/ec_dosbox_node${NODE}.conf"
+cat << CONF > "$CONF_FILE"
+[sdl]
+output=dummy
+
+[dosv]
+dosv=off
+
+[cpu]
+core=normal
+cputype=386_prefetch
+# NOTE: Using 'cycles=max' instead of 'fixed 3000' is CRITICAL! 
+# Low cycles severely bottleneck the virtual UART/COM rendering over Telnet,
+# making the door feel like a 300 baud modem.
+cycles=max
+
+[machine]
+machine=vgaonly
+
+[serial]
+# Telnet handoff from Enigma via nullmodem socket
+serial1=nullmodem server:127.0.0.1 port:$PORT transparent:1 telnet:1
+
+[autoexec]
+mount c $GAME_DIR
+c:
+RUN.BAT
+CONF
+
+echo "Running dosbox-x..." >> $LOGFILE
+dosbox-x -conf "$CONF_FILE" -fastlaunch -nogui >> $LOGFILE 2>&1
+echo "dosbox-x exited with $?" >> $LOGFILE
