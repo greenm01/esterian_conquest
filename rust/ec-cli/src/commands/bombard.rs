@@ -3,6 +3,7 @@ use std::path::Path;
 
 use ec_data::CoreGameData;
 
+use crate::commands::runtime::with_runtime_game_mut_and_export;
 use crate::workspace::copy_init_files;
 
 /// Apply the bombard scenario to an already-initialized game directory.
@@ -37,38 +38,32 @@ pub(crate) fn set_bombard_onefleet(
     ca: u16,
     dd: u16,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-
-    // Fleet 3: set speed, order, target via the general mutator
-    data.set_fleet_order(3, 3, 0x06, [target_x, target_y], None, None)
-        .map_err(|e| e.to_string())?;
-
-    // Fleet 3: max_speed and ship counts
-    {
-        let fleet3 = &mut data.fleets.records[2];
-        fleet3.set_max_speed(3);
-        fleet3.set_cruiser_count(ca);
-        fleet3.set_destroyer_count(dd);
-    }
-
-    // Planet 14: clone planet 13's raw record (empire 2 homeworld), change coords
-    {
-        let template = data
-            .planets
-            .records
-            .get(12)
-            .ok_or("planet record 13 missing")?
-            .raw;
-        let p14 = data
-            .planets
-            .records
-            .get_mut(13)
-            .ok_or("planet record 14 missing")?;
-        p14.raw = template;
-        p14.set_coords_raw([target_x, target_y]);
-    }
-
-    data.save(dir)?;
+    with_runtime_game_mut_and_export(dir, |data| {
+        data.set_fleet_order(3, 3, 0x06, [target_x, target_y], None, None)
+            .map_err(|e| e.to_string())?;
+        {
+            let fleet3 = &mut data.fleets.records[2];
+            fleet3.set_max_speed(3);
+            fleet3.set_cruiser_count(ca);
+            fleet3.set_destroyer_count(dd);
+        }
+        {
+            let template = data
+                .planets
+                .records
+                .get(12)
+                .ok_or("planet record 13 missing")?
+                .raw;
+            let p14 = data
+                .planets
+                .records
+                .get_mut(13)
+                .ok_or("planet record 14 missing")?;
+            p14.raw = template;
+            p14.set_coords_raw([target_x, target_y]);
+        }
+        Ok(())
+    })?;
 
     println!(
         "  FLEET[3].order = 0x06 (BombardWorld), target = ({}, {}), CA={}, DD={}",

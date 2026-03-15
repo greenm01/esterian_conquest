@@ -3,6 +3,7 @@ use std::path::Path;
 
 use ec_data::{CoreGameData, Order};
 
+use crate::commands::runtime::with_runtime_game_mut_and_export;
 use crate::workspace::copy_init_files;
 
 /// Apply the fleet-battle scenario to an already-initialized game directory.
@@ -67,78 +68,68 @@ pub(crate) fn set_fleet_battle(
     p14_armies: u8,
     p14_batteries: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-
-    // Fleet 0 (empire=1, slot=1): moved to battle coords, with RoE and ship counts
-    {
-        let f = &mut data.fleets.records[0];
-        f.set_current_location_coords_raw([battle_x, battle_y]);
-        f.set_standing_order_target_coords_raw([battle_x, battle_y]);
-        f.set_rules_of_engagement(f0_roe);
-        f.set_battleship_count(f0_bb);
-        f.set_cruiser_count(f0_ca);
-        f.set_destroyer_count(f0_dd);
-    }
-
-    // Fleet 2 (empire=1, slot=3): BombardWorld order targeting planet 14, speed=3/3
-    {
-        let f = &mut data.fleets.records[2];
-        f.set_max_speed(3);
-        f.set_current_speed(3);
-        f.set_standing_order_kind(Order::BombardWorld);
-        f.set_standing_order_target_coords_raw([p14_x, p14_y]);
-        f.set_cruiser_count(f2_ca);
-        f.set_destroyer_count(f2_dd);
-    }
-
-    // Fleet 4 (empire=2, slot=1): Patrol at battle coords, speed=0/6
-    {
-        let f = &mut data.fleets.records[4];
-        f.set_max_speed(6);
-        f.set_current_location_coords_raw([battle_x, battle_y]);
-        f.set_standing_order_kind(Order::PatrolSector);
-        f.set_standing_order_target_coords_raw([battle_x, battle_y]);
-        f.set_scout_count(f4_sc);
-        f.set_battleship_count(f4_bb);
-        f.set_cruiser_count(f4_ca);
-    }
-
-    // Fleet 8 (empire=3, slot=1): MoveOnly to battle coords, speed=3/6, at f8_loc
-    {
-        let f = &mut data.fleets.records[8];
-        f.set_max_speed(6);
-        f.set_current_speed(3);
-        f.set_current_location_coords_raw([f8_loc_x, f8_loc_y]);
-        f.set_standing_order_kind(Order::MoveOnly);
-        f.set_standing_order_target_coords_raw([battle_x, battle_y]);
-        f.set_scout_count(f8_sc);
-        f.set_battleship_count(f8_bb);
-        f.set_cruiser_count(f8_ca);
-    }
-
-    // Planet 14 (index 13): Dust Bowl-type target world at (p14_x, p14_y), owned by empire 2
-    {
-        let p = data
-            .planets
-            .records
-            .get_mut(13)
-            .ok_or("planet record 14 missing")?;
-        p.set_as_owned_target_world(
-            [p14_x, p14_y],                             // coords
-            [0x64, 0x87],                               // potential_production
-            [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],       // factories
-            0x04,                                       // tax_rate
-            0x0b,                                       // name_len = 11
-            *b"TargetPrimeet",                          // name_buffer (stale "et" suffix)
-            [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05], // name_suffix_raw [1d..23]
-            p14_armies,                                 // army_count
-            p14_batteries,                              // ground_batteries
-            0x02,                                       // ownership_status
-            0x02,                                       // owner_empire_slot
-        );
-    }
-
-    data.save(dir)?;
+    with_runtime_game_mut_and_export(dir, |data| {
+        {
+            let f = &mut data.fleets.records[0];
+            f.set_current_location_coords_raw([battle_x, battle_y]);
+            f.set_standing_order_target_coords_raw([battle_x, battle_y]);
+            f.set_rules_of_engagement(f0_roe);
+            f.set_battleship_count(f0_bb);
+            f.set_cruiser_count(f0_ca);
+            f.set_destroyer_count(f0_dd);
+        }
+        {
+            let f = &mut data.fleets.records[2];
+            f.set_max_speed(3);
+            f.set_current_speed(3);
+            f.set_standing_order_kind(Order::BombardWorld);
+            f.set_standing_order_target_coords_raw([p14_x, p14_y]);
+            f.set_cruiser_count(f2_ca);
+            f.set_destroyer_count(f2_dd);
+        }
+        {
+            let f = &mut data.fleets.records[4];
+            f.set_max_speed(6);
+            f.set_current_location_coords_raw([battle_x, battle_y]);
+            f.set_standing_order_kind(Order::PatrolSector);
+            f.set_standing_order_target_coords_raw([battle_x, battle_y]);
+            f.set_scout_count(f4_sc);
+            f.set_battleship_count(f4_bb);
+            f.set_cruiser_count(f4_ca);
+        }
+        {
+            let f = &mut data.fleets.records[8];
+            f.set_max_speed(6);
+            f.set_current_speed(3);
+            f.set_current_location_coords_raw([f8_loc_x, f8_loc_y]);
+            f.set_standing_order_kind(Order::MoveOnly);
+            f.set_standing_order_target_coords_raw([battle_x, battle_y]);
+            f.set_scout_count(f8_sc);
+            f.set_battleship_count(f8_bb);
+            f.set_cruiser_count(f8_ca);
+        }
+        {
+            let p = data
+                .planets
+                .records
+                .get_mut(13)
+                .ok_or("planet record 14 missing")?;
+            p.set_as_owned_target_world(
+                [p14_x, p14_y],
+                [0x64, 0x87],
+                [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],
+                0x04,
+                0x0b,
+                *b"TargetPrimeet",
+                [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05],
+                p14_armies,
+                p14_batteries,
+                0x02,
+                0x02,
+            );
+        }
+        Ok(())
+    })?;
 
     println!(
         "  FLEET[1]: loc=({}, {}) tgt=({}, {}) RoE={} BB={} CA={} DD={}",

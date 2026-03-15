@@ -3,6 +3,9 @@ use std::path::Path;
 
 use ec_data::{CoreGameData, FLEET_RECORD_SIZE, PLANET_RECORD_SIZE, PLAYER_RECORD_SIZE};
 
+use crate::commands::runtime::{
+    with_runtime_game_mut_and_export, with_runtime_game_mut_and_export_core,
+};
 use crate::support::paths::post_maint_fixture_dir;
 use crate::workspace::{
     copy_current_known_core_files, copy_top_level_files, ensure_auxiliary_files,
@@ -433,10 +436,10 @@ pub(crate) fn validate_current_known_baseline_exact(
 }
 
 pub(crate) fn sync_core_counts(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-    data.sync_player1_current_known_counts();
-
-    data.save(dir)?;
+    let data = with_runtime_game_mut_and_export(dir, |data| {
+        data.sync_player1_current_known_counts();
+        Ok(data.clone())
+    })?;
 
     println!("Core counts synchronized");
     println!(
@@ -521,10 +524,10 @@ pub(crate) fn sync_core_counts(dir: &Path) -> Result<(), Box<dyn std::error::Err
 }
 
 pub(crate) fn sync_core_baseline(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-    data.sync_current_known_baseline_controls_and_counts();
-
-    data.save(dir)?;
+    let data = with_runtime_game_mut_and_export_core(dir, |data| {
+        data.sync_current_known_baseline_controls_and_counts();
+        Ok(data.clone())
+    })?;
 
     println!("Core baseline synchronized");
     println!(
@@ -591,10 +594,10 @@ pub(crate) fn sync_core_baseline(dir: &Path) -> Result<(), Box<dyn std::error::E
 pub(crate) fn sync_initialized_fleet_baseline(
     dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-    data.sync_current_known_initialized_fleet_baseline();
-
-    data.save(dir)?;
+    let data = with_runtime_game_mut_and_export(dir, |data| {
+        data.sync_current_known_initialized_fleet_baseline();
+        Ok(data.clone())
+    })?;
 
     println!("Initialized fleet baseline synchronized");
     println!(
@@ -622,10 +625,10 @@ pub(crate) fn sync_initialized_fleet_baseline(
 pub(crate) fn sync_initialized_planet_payloads(
     dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-    data.sync_current_known_initialized_planet_payloads();
-
-    data.save(dir)?;
+    let data = with_runtime_game_mut_and_export(dir, |data| {
+        data.sync_current_known_initialized_planet_payloads();
+        Ok(data.clone())
+    })?;
 
     println!("Initialized planet payloads synchronized");
     println!(
@@ -647,10 +650,10 @@ pub(crate) fn sync_initialized_planet_payloads(
 }
 
 pub(crate) fn sync_current_known_baseline(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-    data.sync_current_known_initialized_post_maint_baseline();
-
-    data.save(dir)?;
+    let data = with_runtime_game_mut_and_export_core(dir, |data| {
+        data.sync_current_known_initialized_post_maint_baseline();
+        Ok(data.clone())
+    })?;
 
     println!("Current-known baseline synchronized");
     println!(
@@ -813,9 +816,10 @@ pub(crate) fn set_player_tax_rate(
     player_record_index_1_based: usize,
     tax_rate: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-    data.set_player_tax_rate(player_record_index_1_based, tax_rate)?;
-    data.save(dir)?;
+    with_runtime_game_mut_and_export(dir, |data| {
+        data.set_player_tax_rate(player_record_index_1_based, tax_rate)?;
+        Ok(())
+    })?;
 
     println!(
         "Player {} tax rate set to {}%",

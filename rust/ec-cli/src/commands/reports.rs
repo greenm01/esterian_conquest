@@ -21,9 +21,6 @@ pub(crate) fn build_database_dat(
     events: &MaintenanceEvents,
     template: Option<&DatabaseDat>,
 ) -> DatabaseDat {
-    let template = template.cloned();
-    let template = template.as_ref();
-
     let planet_names: Vec<String> = game_data
         .planets
         .records
@@ -42,6 +39,11 @@ pub(crate) fn build_database_dat(
     let discovery_year = year - 1;
     let player_count = game_data.conquest.player_count() as usize;
     let planet_count = game_data.planets.records.len();
+    let expected_record_count = player_count * planet_count;
+    let template = template
+        .filter(|db| db.records.len() == expected_record_count)
+        .cloned();
+    let template = template.as_ref();
     let mut new_database = DatabaseDat::generate_from_planets_and_year(
         &planet_names,
         year,

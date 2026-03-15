@@ -14,6 +14,7 @@ pub(crate) mod maint;
 pub(crate) mod map_export;
 pub(crate) mod planet_build;
 pub(crate) mod reports;
+pub(crate) mod runtime;
 pub(crate) mod scenario;
 pub(crate) mod setup;
 pub(crate) mod storage;

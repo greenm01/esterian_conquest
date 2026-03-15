@@ -2,7 +2,7 @@ use std::path::Path;
 
 use ec_data::CoreGameData;
 
-use crate::workspace::generate_database_dat;
+use crate::commands::runtime::with_runtime_game_mut_and_export;
 
 const PROBE_COLONY_SPECS: [(&str, u16, u16, u8, u8); 2] =
     [("Mid Colony", 50, 100, 3, 1), ("New Colony", 25, 100, 1, 0)];
@@ -12,79 +12,79 @@ pub(crate) fn init_tax_growth_probe(
     player_record_index_1_based: usize,
     tax_rate: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-    data.set_player_tax_rate(player_record_index_1_based, tax_rate)?;
+    with_runtime_game_mut_and_export(dir, |data| {
+        data.set_player_tax_rate(player_record_index_1_based, tax_rate)?;
 
-    let empire_raw = player_record_index_1_based as u8;
-    let Some(homeworld_idx) = data.planets.records.iter().position(|planet| {
-        planet.owner_empire_slot_raw() == empire_raw && planet.is_homeworld_seed_ignoring_name()
-    }) else {
-        return Err(format!(
-            "player {} homeworld seed not found",
-            player_record_index_1_based
-        )
-        .into());
-    };
+        let empire_raw = player_record_index_1_based as u8;
+        let Some(homeworld_idx) = data.planets.records.iter().position(|planet| {
+            planet.owner_empire_slot_raw() == empire_raw && planet.is_homeworld_seed_ignoring_name()
+        }) else {
+            return Err(format!(
+                "player {} homeworld seed not found",
+                player_record_index_1_based
+            )
+            .into());
+        };
 
-    {
-        let homeworld = &mut data.planets.records[homeworld_idx];
-        homeworld.set_economy_marker_raw(tax_rate);
-        homeworld.set_stored_goods_raw(0);
-        homeworld.set_army_count_raw(10);
-        homeworld.set_ground_batteries_raw(4);
-        homeworld.set_ownership_status_raw(2);
-    }
-
-    let unowned_indices = data
-        .planets
-        .records
-        .iter()
-        .enumerate()
-        .filter(|(_, planet)| planet.owner_empire_slot_raw() == 0)
-        .map(|(idx, _)| idx)
-        .rev()
-        .take(PROBE_COLONY_SPECS.len())
-        .collect::<Vec<_>>()
-        .into_iter()
-        .rev()
-        .collect::<Vec<_>>();
-
-    if unowned_indices.len() != PROBE_COLONY_SPECS.len() {
-        return Err("not enough unowned planets available for economy probe".into());
-    }
-
-    for (planet_idx, (name, present, potential, armies, batteries)) in
-        unowned_indices.into_iter().zip(PROBE_COLONY_SPECS)
-    {
-        let coords = data.planets.records[planet_idx].coords_raw();
-        let planet = &mut data.planets.records[planet_idx];
-        planet.set_as_owned_target_world(
-            coords,
-            [potential.min(u16::from(u8::MAX)) as u8, 0],
-            probe_present_production_raw(present)?,
-            tax_rate,
-            probe_name_len(name),
-            probe_name_buffer(name),
-            [0; 7],
-            armies,
-            batteries,
-            2,
-            empire_raw,
-        );
-        planet.set_population_raw([0; 6]);
-        for slot in 0..10 {
-            planet.set_build_count_raw(slot, 0);
-            planet.set_build_kind_raw(slot, 0);
+        {
+            let homeworld = &mut data.planets.records[homeworld_idx];
+            homeworld.set_economy_marker_raw(tax_rate);
+            homeworld.set_stored_goods_raw(0);
+            homeworld.set_army_count_raw(10);
+            homeworld.set_ground_batteries_raw(4);
+            homeworld.set_ownership_status_raw(2);
         }
-        for slot in 0..6 {
-            planet.set_stardock_count_raw(slot, 0);
-            planet.set_stardock_kind_raw(slot, 0);
-        }
-        planet.set_stored_goods_raw(0);
-    }
 
-    data.save(dir)?;
-    generate_database_dat(dir)?;
+        let unowned_indices = data
+            .planets
+            .records
+            .iter()
+            .enumerate()
+            .filter(|(_, planet)| planet.owner_empire_slot_raw() == 0)
+            .map(|(idx, _)| idx)
+            .rev()
+            .take(PROBE_COLONY_SPECS.len())
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect::<Vec<_>>();
+
+        if unowned_indices.len() != PROBE_COLONY_SPECS.len() {
+            return Err("not enough unowned planets available for economy probe".into());
+        }
+
+        for (planet_idx, (name, present, potential, armies, batteries)) in
+            unowned_indices.into_iter().zip(PROBE_COLONY_SPECS)
+        {
+            let coords = data.planets.records[planet_idx].coords_raw();
+            let planet = &mut data.planets.records[planet_idx];
+            planet.set_as_owned_target_world(
+                coords,
+                [potential.min(u16::from(u8::MAX)) as u8, 0],
+                probe_present_production_raw(present)?,
+                tax_rate,
+                probe_name_len(name),
+                probe_name_buffer(name),
+                [0; 7],
+                armies,
+                batteries,
+                2,
+                empire_raw,
+            );
+            planet.set_population_raw([0; 6]);
+            for slot in 0..10 {
+                planet.set_build_count_raw(slot, 0);
+                planet.set_build_kind_raw(slot, 0);
+            }
+            for slot in 0..6 {
+                planet.set_stardock_count_raw(slot, 0);
+                planet.set_stardock_kind_raw(slot, 0);
+            }
+            planet.set_stored_goods_raw(0);
+        }
+
+        Ok(())
+    })?;
 
     println!(
         "Initialized economy tax-growth probe at {} for player {} tax={}%",

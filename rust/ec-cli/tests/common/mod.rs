@@ -87,6 +87,25 @@ pub fn run_maint_rust_failure_after_import(target: &Path, turns: u16) -> String 
     )
 }
 
+pub fn run_ecmaint_oracle(dir: &Path) -> String {
+    let output = Command::new("python3")
+        .current_dir(repo_root())
+        .args(["tools/ecmaint_oracle.py", "run", dir.to_str().unwrap()])
+        .env("SDL_VIDEODRIVER", "dummy")
+        .env("SDL_AUDIODRIVER", "dummy")
+        .output()
+        .expect("ecmaint oracle should run");
+
+    assert!(
+        output.status.success(),
+        "ecmaint oracle failed: stdout={:?} stderr={:?}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    String::from_utf8(output.stdout).expect("oracle stdout should be utf-8")
+}
+
 pub fn unique_temp_dir(prefix: &str) -> PathBuf {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)

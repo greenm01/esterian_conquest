@@ -3,6 +3,7 @@ use std::path::Path;
 
 use ec_data::CoreGameData;
 
+use crate::commands::runtime::with_runtime_game_mut_and_export;
 use crate::workspace::copy_init_files;
 
 pub(crate) fn apply_guard_starbase_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -16,11 +17,10 @@ pub(crate) fn set_guard_starbase_onebase(
     target_x: u8,
     target_y: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-    // Scenario-specific constants: player 1, fleet 1, base id 1, owner empire 1
-    data.set_guard_starbase(1, 1, [target_x, target_y], 1, 1)
-        .map_err(|err| err.to_string())?;
-    data.save(dir)?;
+    with_runtime_game_mut_and_export(dir, |data| {
+        data.set_guard_starbase(1, 1, [target_x, target_y], 1, 1)
+            .map_err(|err| err.to_string().into())
+    })?;
 
     println!("  PLAYER[1].starbase_count_raw = 1");
     println!("  FLEET[1].order = 0x04, aux = [01, 01]");

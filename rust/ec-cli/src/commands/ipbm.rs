@@ -2,6 +2,7 @@ use std::path::Path;
 
 use ec_data::{CoreGameData, IPBM_RECORD_SIZE};
 
+use crate::commands::runtime::with_runtime_game_mut_and_export;
 use crate::workspace::copy_init_files;
 
 pub(crate) fn print_ipbm_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -45,13 +46,14 @@ pub(crate) fn set_ipbm_zero_records(
     dir: &Path,
     count: u16,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-    data.set_ipbm_zero_records(count);
-    data.save(dir)?;
+    with_runtime_game_mut_and_export(dir, |data| {
+        data.set_ipbm_zero_records(count);
+        Ok(())
+    })?;
 
     println!("IPBM zero records written");
     println!("  player[1].ipbm_count_raw = {}", count);
-    println!("  IPBM.DAT size = {}", data.ipbm.to_bytes().len());
+    println!("  IPBM.DAT size = {}", count as usize * IPBM_RECORD_SIZE);
     Ok(())
 }
 
@@ -63,9 +65,10 @@ pub(crate) fn set_ipbm_record_prefix(
     gate: u16,
     follow_on: u16,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-    data.set_ipbm_record_prefix(record_index_1_based, primary, owner, gate, follow_on)?;
-    data.save(dir)?;
+    with_runtime_game_mut_and_export(dir, |data| {
+        data.set_ipbm_record_prefix(record_index_1_based, primary, owner, gate, follow_on)?;
+        Ok(())
+    })?;
 
     println!("IPBM record {} updated", record_index_1_based);
     println!(
@@ -106,10 +109,10 @@ pub(crate) fn init_ipbm_zero_records(
 }
 
 pub(crate) fn apply_ipbm_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-    data.set_ipbm_zero_records(0);
-    data.save(dir)?;
-    Ok(())
+    with_runtime_game_mut_and_export(dir, |data| {
+        data.set_ipbm_zero_records(0);
+        Ok(())
+    })
 }
 
 pub(crate) fn validate_ipbm_data(data: &CoreGameData) -> Result<(), Box<dyn std::error::Error>> {

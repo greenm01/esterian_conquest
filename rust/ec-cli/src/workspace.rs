@@ -4,7 +4,7 @@ use std::path::Path;
 use crate::support::paths::{
     init_fixture_dir, post_maint_fixture_dir, pre_maint_replay_context_fixture_dir,
 };
-use ec_data::{ConquestDat, DatabaseDat, PlanetDat};
+use ec_data::{CampaignStore, ConquestDat, DatabaseDat, PlanetDat};
 
 pub(crate) const INIT_FILES: &[&str] = &[
     "BASES.DAT",
@@ -52,6 +52,7 @@ pub fn initialize_dir(source: &Path, target: &Path) -> Result<(), Box<dyn std::e
 
     // Ensure auxiliary files exist
     ensure_auxiliary_files(target)?;
+    refresh_runtime_store(target)?;
 
     println!("Initialized game directory: {}", target.display());
     println!("  source snapshot: {}", source.display());
@@ -67,7 +68,10 @@ pub fn initialize_dir(source: &Path, target: &Path) -> Result<(), Box<dyn std::e
 }
 
 pub fn copy_init_files(source: &Path, target: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    copy_named_files(source, target, INIT_FILES)
+    copy_named_files(source, target, INIT_FILES)?;
+    generate_database_dat(target)?;
+    ensure_auxiliary_files(target)?;
+    refresh_runtime_store(target)
 }
 
 pub fn copy_current_known_core_files(
@@ -84,7 +88,8 @@ pub fn copy_pre_maint_replay_context_files(
         &pre_maint_replay_context_fixture_dir(),
         target,
         PRE_MAINT_REPLAY_CONTEXT_FILES,
-    )
+    )?;
+    refresh_runtime_store(target)
 }
 
 /// Ensure auxiliary files (MESSAGES.DAT, RESULTS.DAT) exist.
@@ -96,6 +101,11 @@ pub fn ensure_auxiliary_files(target: &Path) -> Result<(), Box<dyn std::error::E
             fs::write(path, [])?;
         }
     }
+    Ok(())
+}
+
+pub fn refresh_runtime_store(target: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    CampaignStore::open_default_in_dir(target)?.import_directory_snapshot(target)?;
     Ok(())
 }
 

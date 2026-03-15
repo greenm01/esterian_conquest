@@ -3,6 +3,7 @@ use std::path::Path;
 
 use ec_data::CoreGameData;
 
+use crate::commands::runtime::with_runtime_game_mut_and_export;
 use crate::workspace::copy_init_files;
 
 pub(crate) fn set_fleet_order(
@@ -15,9 +16,8 @@ pub(crate) fn set_fleet_order(
     aux0: Option<u8>,
     aux1: Option<u8>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-    let final_aux = data
-        .set_fleet_order(
+    let final_aux = with_runtime_game_mut_and_export(dir, |data| {
+        data.set_fleet_order(
             record_index_1_based,
             speed,
             order_code,
@@ -25,8 +25,8 @@ pub(crate) fn set_fleet_order(
             aux0,
             aux1,
         )
-        .map_err(|err| err.to_string())?;
-    data.save(dir)?;
+        .map_err(|err| err.to_string().into())
+    })?;
 
     println!(
         "Fleet record {} updated: speed={} order={:#04x} target=({}, {}) aux={:02x?}",

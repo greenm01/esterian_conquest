@@ -1,4 +1,4 @@
-use crate::{CoreGameData, DatabaseDat, map_size_for_player_count};
+use crate::{CoreGameData, DatabaseDat, DatabaseRecord, map_size_for_player_count};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlayerStarmapWorld {
@@ -232,7 +232,9 @@ pub fn build_player_starmap_projection(
         .iter()
         .enumerate()
         .map(|(planet_index, planet)| {
-            let db_record = database.record(planet_index, viewer_index, planet_count);
+            let record_index = DatabaseDat::record_index(planet_index, viewer_index, planet_count);
+            let fallback_record = DatabaseRecord::new_zeroed();
+            let db_record = database.records.get(record_index).unwrap_or(&fallback_record);
             let actual_owner_empire_id = planet.owner_empire_slot_raw();
             let is_owned_world = actual_owner_empire_id == viewer_empire_id;
             let known_name = if is_owned_world {

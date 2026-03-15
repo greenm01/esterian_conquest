@@ -3,6 +3,7 @@ use std::path::Path;
 
 use ec_data::CoreGameData;
 
+use crate::commands::runtime::with_runtime_game_mut_and_export;
 use crate::workspace::copy_init_files;
 
 pub(crate) fn set_planet_build(
@@ -11,10 +12,10 @@ pub(crate) fn set_planet_build(
     slot_raw: u8,
     kind_raw: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-    data.set_planet_build(record_index_1_based, slot_raw, kind_raw)
-        .map_err(|err| err.to_string())?;
-    data.save(dir)?;
+    with_runtime_game_mut_and_export(dir, |data| {
+        data.set_planet_build(record_index_1_based, slot_raw, kind_raw)
+            .map_err(|err| err.to_string().into())
+    })?;
 
     println!(
         "Planet record {} updated: build_slot={:#04x} build_kind={:#04x}",
@@ -28,15 +29,16 @@ pub(crate) fn set_planet_owner(
     record_index_1_based: usize,
     owner_slot: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-    let record = data
-        .planets
-        .records
-        .get_mut(record_index_1_based - 1)
-        .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
-    record.set_owner_empire_slot_raw(owner_slot);
-    record.set_ownership_status_raw(if owner_slot == 0 { 0 } else { 2 });
-    data.save(dir)?;
+    with_runtime_game_mut_and_export(dir, |data| {
+        let record = data
+            .planets
+            .records
+            .get_mut(record_index_1_based - 1)
+            .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
+        record.set_owner_empire_slot_raw(owner_slot);
+        record.set_ownership_status_raw(if owner_slot == 0 { 0 } else { 2 });
+        Ok(())
+    })?;
 
     println!(
         "Planet record {} owner set to {}",
@@ -50,14 +52,15 @@ pub(crate) fn set_planet_name(
     record_index_1_based: usize,
     name: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-    let record = data
-        .planets
-        .records
-        .get_mut(record_index_1_based - 1)
-        .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
-    record.set_planet_name(name);
-    data.save(dir)?;
+    with_runtime_game_mut_and_export(dir, |data| {
+        let record = data
+            .planets
+            .records
+            .get_mut(record_index_1_based - 1)
+            .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
+        record.set_planet_name(name);
+        Ok(())
+    })?;
 
     println!(
         "Planet record {} name set to '{}'",
@@ -72,15 +75,16 @@ pub(crate) fn set_planet_stats(
     armies: u8,
     batteries: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-    let record = data
-        .planets
-        .records
-        .get_mut(record_index_1_based - 1)
-        .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
-    record.set_army_count_raw(armies);
-    record.set_ground_batteries_raw(batteries);
-    data.save(dir)?;
+    with_runtime_game_mut_and_export(dir, |data| {
+        let record = data
+            .planets
+            .records
+            .get_mut(record_index_1_based - 1)
+            .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
+        record.set_army_count_raw(armies);
+        record.set_ground_batteries_raw(batteries);
+        Ok(())
+    })?;
 
     println!(
         "Planet record {} stats set: armies={}, batteries={}",
@@ -95,14 +99,15 @@ pub(crate) fn set_planet_potential(
     p1: u8,
     p2: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-    let record = data
-        .planets
-        .records
-        .get_mut(record_index_1_based - 1)
-        .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
-    record.set_potential_production_raw([p1, p2]);
-    data.save(dir)?;
+    with_runtime_game_mut_and_export(dir, |data| {
+        let record = data
+            .planets
+            .records
+            .get_mut(record_index_1_based - 1)
+            .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
+        record.set_potential_production_raw([p1, p2]);
+        Ok(())
+    })?;
 
     println!(
         "Planet record {} potential set to ({:#04x}, {:#04x})",
@@ -116,14 +121,15 @@ pub(crate) fn set_planet_stored(
     record_index_1_based: usize,
     points: u32,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut data = CoreGameData::load(dir)?;
-    let record = data
-        .planets
-        .records
-        .get_mut(record_index_1_based - 1)
-        .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
-    record.set_stored_production_points(points);
-    data.save(dir)?;
+    with_runtime_game_mut_and_export(dir, |data| {
+        let record = data
+            .planets
+            .records
+            .get_mut(record_index_1_based - 1)
+            .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
+        record.set_stored_production_points(points);
+        Ok(())
+    })?;
 
     println!(
         "Planet record {} stored production points set to {}",
@@ -143,15 +149,16 @@ pub(crate) fn set_planet_stardock_slot(
         return Err(format!("stardock slot out of range: {slot}").into());
     }
 
-    let mut data = CoreGameData::load(dir)?;
-    let record = data
-        .planets
-        .records
-        .get_mut(record_index_1_based - 1)
-        .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
-    record.set_stardock_kind_raw(slot, kind_raw);
-    record.set_stardock_count_raw(slot, count);
-    data.save(dir)?;
+    with_runtime_game_mut_and_export(dir, |data| {
+        let record = data
+            .planets
+            .records
+            .get_mut(record_index_1_based - 1)
+            .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
+        record.set_stardock_kind_raw(slot, kind_raw);
+        record.set_stardock_count_raw(slot, count);
+        Ok(())
+    })?;
 
     println!(
         "Planet record {} stardock slot {} set: kind={:#04x} count={}",
