@@ -736,7 +736,7 @@ fn fleet_has_presence(fleet: &crate::FleetRecord) -> bool {
         || fleet.etac_count() > 0
 }
 
-fn remove_selected_fleets(game_data: &mut CoreGameData, to_remove: &[bool]) {
+fn apply_fleet_removal_remap(game_data: &mut CoreGameData, to_remove: &[bool]) {
     let fleet_count = game_data.fleets.records.len();
     if fleet_count == 0 || to_remove.len() != fleet_count {
         return;
@@ -780,13 +780,14 @@ fn remove_selected_fleets(game_data: &mut CoreGameData, to_remove: &[bool]) {
         }
     };
 
-    let new_fleets: Vec<_> = game_data
+    // Surviving local fleet numbers stay unchanged. Only global linkage IDs compress.
+    game_data.fleets.records = game_data
         .fleets
         .records
         .iter()
         .enumerate()
         .filter(|(i, _)| !to_remove[*i])
-        .map(|(_i, fleet)| {
+        .map(|(_, fleet)| {
             let mut f = fleet.clone();
             f.set_fleet_id_word_raw(remap_id(fleet.fleet_id_word_raw()));
             f.set_next_fleet_link_word_raw(remap_id(fleet.next_fleet_link_word_raw()));
@@ -794,7 +795,6 @@ fn remove_selected_fleets(game_data: &mut CoreGameData, to_remove: &[bool]) {
             f
         })
         .collect();
-    game_data.fleets.records = new_fleets;
 
     for player_idx in 0..game_data.player.records.len() {
         let owner_raw = (player_idx + 1) as u8;
@@ -818,6 +818,10 @@ fn remove_selected_fleets(game_data: &mut CoreGameData, to_remove: &[bool]) {
             new_last
         };
     }
+}
+
+fn remove_selected_fleets(game_data: &mut CoreGameData, to_remove: &[bool]) {
+    apply_fleet_removal_remap(game_data, to_remove);
 }
 
 fn apply_stored_diplomatic_escalations(
@@ -1437,23 +1441,10 @@ fn process_fleet_merging(
         return Ok(Vec::new());
     }
 
-    // Snapshot original fleet owner/id before any removals (for last_fleet_id recompute).
-    let pre_removal_owner: Vec<u8> = game_data
-        .fleets
-        .records
-        .iter()
-        .map(|f| f.raw[0x02])
-        .collect();
-    let pre_removal_fleet_id: Vec<u16> = game_data
-        .fleets
-        .records
-        .iter()
-        .map(|f| f.fleet_id_word_raw())
-        .collect();
-
     // Build a list of which fleets should be removed (merged into another).
     let mut to_remove: Vec<bool> = vec![false; fleet_count];
     let mut merge_events = Vec::new();
+    let mut players_with_merges = vec![false; game_data.player.records.len()];
 
     let player_count = game_data.player.records.len();
     for player_idx in 0..player_count {
@@ -1542,95 +1533,16 @@ fn process_fleet_merging(
                 game_data.fleets.records[fi].raw[0x03] = 0x00; // next_fleet_id
                 game_data.fleets.records[fi].raw[0x07] = 0x00; // prev_fleet_id
                 game_data.fleets.records[fi].set_rules_of_engagement(10);
+                players_with_merges[player_idx] = true;
             }
         }
     }
+    apply_fleet_removal_remap(game_data, &to_remove);
 
-    // Build the new fleet list with removed fleets deleted.
-    // Track how many slots were removed before each original index (for ID remapping).
-    let removed_before: Vec<u16> = {
-        let mut count = 0u16;
-        (0..fleet_count)
-            .map(|i| {
-                let c = count;
-                if to_remove[i] {
-                    count += 1;
-                }
-                c
-            })
-            .collect()
-    };
-
-    // Remap a fleet ID (1-based): if it referred to a removed fleet, return 0;
-    // otherwise decrement by the number of removed slots before its original index.
-    let remap_id = |old_id: u16| -> u16 {
-        if old_id == 0 {
-            return 0;
-        }
-        let orig_idx = (old_id as usize).saturating_sub(1);
-        if orig_idx >= fleet_count || to_remove[orig_idx] {
-            0
-        } else {
-            old_id - removed_before[orig_idx]
-        }
-    };
-
-    // Rebuild the fleet array: keep only non-removed fleets, updating only the
-    // global-ID fields. Surviving local fleet numbers stay unchanged.
-    let new_fleets: Vec<_> = game_data
-        .fleets
-        .records
-        .iter()
-        .enumerate()
-        .filter(|(i, _)| !to_remove[*i])
-        .map(|(_i, fleet)| {
-            let mut f = fleet.clone();
-            // local_slot (raw[0x00]): per-player fleet number; preserve it so gaps
-            // can be reused later by commissioning.
-            // fleet_id (raw[0x05]): 1-based global fleet ID — decremented by removed count.
-            f.set_fleet_id_word_raw(remap_id(fleet.fleet_id_word_raw()));
-            // next_fleet_id (raw[0x03]): 1-based global forward chain link
-            f.set_next_fleet_link_word_raw(remap_id(fleet.next_fleet_link_word_raw()));
-            // prev_fleet_id (raw[0x07]): 1-based global backward chain link
-            f.raw[0x07] = remap_id(u16::from(fleet.raw[0x07])) as u8;
-            f
-        })
-        .collect();
-
-    game_data.fleets.records = new_fleets;
-
-    // Update PLAYER.DAT fleet range fields for all players.
-    // raw[0x40] = first_fleet_id (1-based), raw[0x42] = last_fleet_id (1-based).
-    // When the original last fleet was merged away, remap_id returns 0.
-    // In that case, find the highest surviving fleet ID for this player.
-    for player_idx in 0..game_data.player.records.len() {
-        let owner_raw = (player_idx + 1) as u8;
-        let first_id = game_data.player.records[player_idx].raw[0x40];
-        let last_id = game_data.player.records[player_idx].raw[0x42];
-        let new_first = remap_id(u16::from(first_id)) as u8;
-        let new_last = remap_id(u16::from(last_id)) as u8;
-        game_data.player.records[player_idx].raw[0x40] = new_first;
-        // If last remaps to 0 but first is valid, the original last fleet was
-        // removed. Find the highest surviving fleet ID for this player.
-        game_data.player.records[player_idx].raw[0x42] = if new_last == 0 && new_first != 0 {
-            let mut max_new_id: u8 = new_first;
-            for orig_idx in 0..fleet_count {
-                if pre_removal_owner[orig_idx] == owner_raw && !to_remove[orig_idx] {
-                    let mapped = remap_id(pre_removal_fleet_id[orig_idx]) as u8;
-                    if mapped > max_new_id {
-                        max_new_id = mapped;
-                    }
-                }
-            }
-            max_new_id
-        } else {
-            new_last
-        };
-
-        // raw[0x51]: set to 0x41 for players whose fleets were merged this turn.
-        // Observed consistently across econ/fleet-battle/invade post-fixtures:
-        // any 0xff-flagged player that had at least one merge gets raw[0x51]=0x41.
-        if game_data.player.records[player_idx].raw[0x00] == 0xff && new_last != last_id {
+    // raw[0x51]: set to 0x41 for players whose fleets were merged this turn.
+    // Observed consistently across econ/fleet-battle/invade post-fixtures.
+    for (player_idx, had_merge) in players_with_merges.into_iter().enumerate() {
+        if had_merge && game_data.player.records[player_idx].raw[0x00] == 0xff {
             game_data.player.records[player_idx].raw[0x51] = 0x41;
         }
     }
