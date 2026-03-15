@@ -2,8 +2,8 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_command_center, draw_command_line_input, draw_command_line_text, draw_command_prompt,
-    draw_status_line, new_playfield,
+    draw_command_center, draw_command_line_default_input, draw_command_line_text,
+    draw_command_prompt, draw_status_line, new_playfield,
     MenuEntry,
     CMD_COL_1, CMD_COL_2, CMD_COL_3,
 };
@@ -20,8 +20,10 @@ pub struct FleetRow {
     pub fleet_record_index_1_based: usize,
     pub fleet_number: u16,
     pub coords: [u8; 2],
+    pub target_coords: [u8; 2],
     pub current_speed: u8,
     pub max_speed: u8,
+    pub eta_label: String,
     pub rules_of_engagement: u8,
     pub order_label: String,
     pub composition_label: String,
@@ -37,6 +39,15 @@ pub struct FleetMenuScreen;
 pub struct FleetListScreen;
 pub struct FleetReviewScreen;
 pub struct FleetRoeScreen;
+pub struct FleetEtaScreen;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetEtaMode {
+    SelectingFleet,
+    EnteringDestination,
+    ConfirmingSystemEntry,
+    ShowingResult,
+}
 
 const TOP_ROW: [MenuEntry<'static>; 2] = [
     MenuEntry::new(CMD_COL_2, "B", "rief List of Fleets"),
@@ -128,7 +139,7 @@ impl Screen for FleetMenuScreen {
             KeyCode::Char('l') | KeyCode::Char('L') => Action::Noop, // Load - TODO
             KeyCode::Char('a') | KeyCode::Char('A') => Action::Noop, // Alter ID - TODO
             KeyCode::Char('u') | KeyCode::Char('U') => Action::Noop, // Unload - TODO
-            KeyCode::Char('e') | KeyCode::Char('E') => Action::Noop, // ETA - TODO
+            KeyCode::Char('e') | KeyCode::Char('E') => Action::OpenFleetEta,
             KeyCode::Char('v') | KeyCode::Char('V') => Action::Noop, // View map - TODO
             KeyCode::Char('h') | KeyCode::Char('H') => Action::Noop, // Help - TODO
             KeyCode::Char('x') | KeyCode::Char('X') => Action::Noop, // Expert mode - TODO
@@ -338,25 +349,29 @@ impl FleetRoeScreen {
         );
         if table_rows.is_empty() {
             draw_command_line_text(&mut buffer, "FLEET COMMAND", "You have no active fleets. Q quits.");
-        } else if editing {
-            let row = &rows[cursor];
-            draw_command_line_input(
+        } else if editing && status.is_some() {
+            draw_command_line_text(
                 &mut buffer,
                 "FLEET COMMAND",
-                &format!(
-                    "Fleet #{} current ROE {}  New ROE (0 - 10): ",
-                    format_fleet_number(row.fleet_number, max_fleet_number),
-                    row.rules_of_engagement
-                ),
+                status.unwrap_or(""),
+            );
+        } else if editing {
+            let row = &rows[cursor];
+            draw_command_line_default_input(
+                &mut buffer,
+                "FLEET COMMAND",
+                &format!("Fleet #{} new ROE ", format_fleet_number(row.fleet_number, max_fleet_number)),
+                &row.rules_of_engagement.to_string(),
                 input,
             );
         } else if let Some(status) = status {
             draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
         } else {
-            draw_command_line_input(
+            draw_command_line_default_input(
                 &mut buffer,
                 "FLEET COMMAND",
-                "Fleet #: ",
+                "Fleet # ",
+                &format_fleet_number(rows[cursor].fleet_number, max_fleet_number),
                 select_input,
             );
         }
@@ -373,6 +388,105 @@ impl FleetRoeScreen {
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenFleetMenu,
             _ => Action::Noop,
         }
+    }
+}
+
+impl FleetEtaScreen {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn render(
+        &mut self,
+        rows: &[FleetRow],
+        scroll_offset: usize,
+        cursor: usize,
+        mode: FleetEtaMode,
+        select_input: &str,
+        destination_default: [u8; 2],
+        destination_input: &str,
+        include_system_input: &str,
+        status: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        buffer.fill_row(0, classic::menu_style());
+        buffer.write_text(0, 0, "CALCULATE FLEET ETA:", classic::title_style());
+        let max_fleet_number = max_fleet_number(rows);
+        let brief_columns = brief_columns(max_fleet_number);
+        draw_status_line(
+            &mut buffer,
+            1,
+            "",
+            "Select a fleet, then enter a destination to calculate arrival time.",
+        );
+        let table_rows = rows
+            .iter()
+            .map(|row| {
+                vec![
+                    format_fleet_number(row.fleet_number, max_fleet_number),
+                    format!("({:>2},{:>2})", row.coords[0], row.coords[1]),
+                    format!("{}/{}", row.current_speed, row.max_speed),
+                    row.rules_of_engagement.to_string(),
+                    row.composition_label.clone(),
+                ]
+            })
+            .collect::<Vec<_>>();
+        write_table_window_with_cursor(
+            &mut buffer,
+            3,
+            &brief_columns,
+            &table_rows,
+            scroll_offset,
+            FLEET_VISIBLE_ROWS,
+            classic::status_value_style(),
+            classic::status_value_style(),
+            if table_rows.is_empty() { None } else { Some(cursor) },
+        );
+        if table_rows.is_empty() {
+            draw_command_line_text(&mut buffer, "FLEET COMMAND", "You have no active fleets. Q quits.");
+            return Ok(buffer);
+        }
+        match mode {
+            FleetEtaMode::SelectingFleet => {
+                if let Some(status) = status {
+                    draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
+                } else {
+                    draw_command_line_default_input(
+                        &mut buffer,
+                        "FLEET COMMAND",
+                        "Calculate time for fleet # ",
+                        &format_fleet_number(rows[cursor].fleet_number, max_fleet_number),
+                        select_input,
+                    );
+                }
+            }
+            FleetEtaMode::EnteringDestination => {
+                draw_command_line_default_input(
+                    &mut buffer,
+                    "FLEET COMMAND",
+                    "Destination ",
+                    &format!("{},{}", destination_default[0], destination_default[1]),
+                    destination_input,
+                );
+            }
+            FleetEtaMode::ConfirmingSystemEntry => {
+                draw_command_line_default_input(
+                    &mut buffer,
+                    "FLEET COMMAND",
+                    "Include time to enter system? ",
+                    "N",
+                    include_system_input,
+                );
+            }
+            FleetEtaMode::ShowingResult => {
+                draw_command_line_text(
+                    &mut buffer,
+                    "FLEET COMMAND",
+                    status.unwrap_or("Press ENTER to continue."),
+                );
+            }
+        }
+        Ok(buffer)
     }
 }
 

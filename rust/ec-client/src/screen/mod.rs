@@ -33,7 +33,10 @@ pub use delete_reviewables::DeleteReviewablesScreen;
 pub use empire_profile::EmpireProfileScreen;
 pub use empire_status::EmpireStatusScreen;
 pub use enemies::EnemiesScreen;
-pub use fleet::{FleetListMode, FleetListScreen, FleetMenuScreen, FleetReviewScreen, FleetRoeScreen, FleetRow};
+pub use fleet::{
+    FleetEtaMode, FleetEtaScreen, FleetListMode, FleetListScreen, FleetMenuScreen,
+    FleetReviewScreen, FleetRoeScreen, FleetRow,
+};
 pub(crate) use enemies::ENEMIES_VISIBLE_ROWS;
 pub(crate) use fleet::FLEET_VISIBLE_ROWS;
 pub use general_help::GeneralHelpScreen;
@@ -87,6 +90,7 @@ pub enum ScreenId {
     FleetList(FleetListMode),
     FleetReview,
     FleetRoeSelect,
+    FleetEta,
     PlanetMenu,
     PlanetHelp,
     PlanetAutoCommissionConfirm,

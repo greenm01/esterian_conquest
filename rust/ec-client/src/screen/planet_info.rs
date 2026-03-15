@@ -2,7 +2,8 @@ use crossterm::event::KeyEvent;
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_command_prompt, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
+    draw_command_line_default_input, draw_command_prompt, draw_status_line, draw_title_bar,
+    new_playfield,
 };
 use crate::screen::{command_menu_label, CommandMenu, PlayfieldBuffer, ScreenFrame};
 
@@ -15,19 +16,29 @@ impl PlanetInfoScreen {
 
     pub fn render_prompt(
         &mut self,
+        default_coords: [u8; 2],
         input: &str,
         error: Option<&str>,
         menu: CommandMenu,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "INFO ABOUT A PLANET:");
-        let prompt = format!("Enter coordinates of the planet to view (x,y): {input}");
-        let cursor_col = draw_plain_prompt(&mut buffer, 2, &prompt);
+        buffer.write_text(
+            2,
+            0,
+            "Enter coordinates of the planet to view.",
+            crate::theme::classic::body_style(),
+        );
         if let Some(error) = error {
             draw_status_line(&mut buffer, 4, "Error: ", error);
         }
-        draw_command_prompt(&mut buffer, 6, command_menu_label(menu), "Q");
-        buffer.set_cursor(cursor_col as u16, 2);
+        draw_command_line_default_input(
+            &mut buffer,
+            command_menu_label(menu),
+            "Planet coords ",
+            &format!("{},{}", default_coords[0], default_coords[1]),
+            input,
+        );
         Ok(buffer)
     }
 

@@ -269,7 +269,7 @@ fn apply_action_switches_between_client_screens() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
-    assert_eq!(app.planet_info_input(), "16,13");
+    assert_eq!(app.planet_info_input(), "");
 
     assert_eq!(
         apply_action(&mut app, Action::SubmitPlanetInfoPrompt),
@@ -401,6 +401,21 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     );
     assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
     assert_eq!(app.current_fleet_roe_by_id(1), Some(4));
+    assert_eq!(app.handle_key(key(KeyCode::Char('q'))), Action::OpenFleetMenu);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('e'))),
+        Action::OpenFleetEta
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetEta),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetEta);
     assert_eq!(app.handle_key(key(KeyCode::Char('q'))), Action::OpenFleetMenu);
     assert_eq!(
         apply_action(&mut app, Action::OpenFleetMenu),
@@ -579,14 +594,55 @@ fn fleet_roe_accepts_typed_fleet_selection_and_q_cancels_edit_mode() {
 }
 
 #[test]
+fn fleet_roe_empty_enter_accepts_displayed_default() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    app.advance_startup();
+    app.advance_startup();
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetRoeSelect),
+        AppOutcome::Continue
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetRoeChar('4')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetRoe),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetRoe),
+        AppOutcome::Continue
+    );
+
+    assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
+    assert_eq!(app.current_fleet_roe_by_id(4), Some(6));
+}
+
+#[test]
 fn fleet_roe_render_keeps_command_line_on_bottom_row() {
     let mut screen = FleetRoeScreen::new();
     let rows = vec![FleetRow {
         fleet_record_index_1_based: 1,
         fleet_number: 1,
         coords: [16, 13],
+        target_coords: [16, 13],
         current_speed: 0,
         max_speed: 3,
+        eta_label: "0".to_string(),
         rules_of_engagement: 5,
         order_label: "Guard/blockade world".to_string(),
         composition_label: "1 CA 1 ETAC".to_string(),
@@ -597,8 +653,42 @@ fn fleet_roe_render_keeps_command_line_on_bottom_row() {
         .expect("roe screen renders");
 
     assert_eq!(buffer.plain_line(17), "");
-    assert_eq!(buffer.plain_line(19), "FLEET COMMAND <- Fleet #:");
-    assert_eq!(buffer.cursor(), Some((26, 19)));
+    assert_eq!(buffer.plain_line(19), "FLEET COMMAND <- Fleet # [1] ->");
+    assert_eq!(buffer.cursor(), Some((32, 19)));
+}
+
+#[test]
+fn fleet_roe_render_shows_edit_errors_on_bottom_line() {
+    let mut screen = FleetRoeScreen::new();
+    let rows = vec![FleetRow {
+        fleet_record_index_1_based: 1,
+        fleet_number: 6,
+        coords: [16, 13],
+        target_coords: [16, 13],
+        current_speed: 0,
+        max_speed: 3,
+        eta_label: "0".to_string(),
+        rules_of_engagement: 6,
+        order_label: "Hold".to_string(),
+        composition_label: "1 ETAC".to_string(),
+    }];
+
+    let buffer = screen
+        .render_select(
+            &rows,
+            0,
+            0,
+            true,
+            "",
+            "1",
+            Some("Non-combat fleets must use ROE 0."),
+        )
+        .expect("roe screen renders");
+
+    assert_eq!(
+        buffer.plain_line(19),
+        "FLEET COMMAND <- Non-combat fleets must use ROE 0."
+    );
 }
 
 #[test]
@@ -609,8 +699,10 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
             fleet_record_index_1_based: 1,
             fleet_number: 1,
             coords: [16, 13],
+            target_coords: [16, 13],
             current_speed: 0,
             max_speed: 3,
+            eta_label: "0".to_string(),
             rules_of_engagement: 6,
             order_label: "Hold".to_string(),
             composition_label: "1 CA".to_string(),
@@ -619,8 +711,10 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
             fleet_record_index_1_based: 2,
             fleet_number: 10,
             coords: [17, 13],
+            target_coords: [17, 13],
             current_speed: 0,
             max_speed: 3,
+            eta_label: "0".to_string(),
             rules_of_engagement: 6,
             order_label: "Hold".to_string(),
             composition_label: "1 DD".to_string(),
@@ -629,8 +723,10 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
             fleet_record_index_1_based: 3,
             fleet_number: 100,
             coords: [18, 13],
+            target_coords: [18, 13],
             current_speed: 0,
             max_speed: 3,
+            eta_label: "0".to_string(),
             rules_of_engagement: 6,
             order_label: "Hold".to_string(),
             composition_label: "1 BB".to_string(),
@@ -644,6 +740,72 @@ fn fleet_table_zero_pads_numbers_to_current_max_width() {
     assert!(buffer.plain_line(5).starts_with("001 "));
     assert!(buffer.plain_line(6).starts_with("010 "));
     assert!(buffer.plain_line(7).starts_with("100 "));
+}
+
+#[test]
+fn fleet_eta_screen_renders_bottom_line_prompt() {
+    let mut screen = ec_client::screen::FleetEtaScreen::new();
+    let rows = vec![FleetRow {
+        fleet_record_index_1_based: 1,
+        fleet_number: 7,
+        coords: [16, 13],
+        target_coords: [19, 13],
+        current_speed: 3,
+        max_speed: 3,
+        eta_label: "1".to_string(),
+        rules_of_engagement: 6,
+        order_label: "Move fleet to Sector (19,13)".to_string(),
+        composition_label: "1 CA".to_string(),
+    }];
+
+    let buffer = screen
+        .render(
+            &rows,
+            0,
+            0,
+            ec_client::screen::FleetEtaMode::SelectingFleet,
+            "",
+            [19, 13],
+            "",
+            "",
+            None,
+        )
+        .expect("fleet eta screen renders");
+
+    assert_eq!(buffer.plain_line(0), "CALCULATE FLEET ETA:");
+    assert!(buffer.plain_line(19).contains("Calculate time for fleet #"));
+    assert!(buffer.plain_line(19).contains("[7] ->"));
+}
+
+#[test]
+fn fleet_eta_accepts_typed_fleet_destination_and_default_include_system() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    app.advance_startup();
+    app.advance_startup();
+    assert_eq!(apply_action(&mut app, Action::OpenFleetEta), AppOutcome::Continue);
+    assert_eq!(app.current_screen(), ScreenId::FleetEta);
+
+    assert_eq!(apply_action(&mut app, Action::AppendFleetEtaChar('4')), AppOutcome::Continue);
+    assert_eq!(app.selected_fleet_eta_id(), Some(4));
+    assert_eq!(apply_action(&mut app, Action::SubmitFleetEta), AppOutcome::Continue);
+    assert_eq!(app.current_screen(), ScreenId::FleetEta);
+    assert_eq!(apply_action(&mut app, Action::AppendFleetEtaChar('1')), AppOutcome::Continue);
+    assert_eq!(apply_action(&mut app, Action::AppendFleetEtaChar('0')), AppOutcome::Continue);
+    assert_eq!(apply_action(&mut app, Action::AppendFleetEtaChar(',')), AppOutcome::Continue);
+    assert_eq!(apply_action(&mut app, Action::AppendFleetEtaChar('1')), AppOutcome::Continue);
+    assert_eq!(apply_action(&mut app, Action::AppendFleetEtaChar('3')), AppOutcome::Continue);
+    assert_eq!(apply_action(&mut app, Action::SubmitFleetEta), AppOutcome::Continue);
+    assert_eq!(apply_action(&mut app, Action::SubmitFleetEta), AppOutcome::Continue);
+    assert_eq!(app.current_screen(), ScreenId::FleetEta);
+    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::SubmitFleetEta);
 }
 
 #[test]

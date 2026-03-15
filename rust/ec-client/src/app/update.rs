@@ -45,6 +45,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_fleet_roe_select();
             AppOutcome::Continue
         }
+        Action::OpenFleetEta => {
+            app.open_fleet_eta();
+            AppOutcome::Continue
+        }
         Action::OpenPlanetMenu => {
             app.open_planet_menu();
             AppOutcome::Continue
@@ -185,6 +189,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.move_fleet_roe_select(delta);
             AppOutcome::Continue
         }
+        Action::MoveFleetEtaSelect(delta) => {
+            app.move_fleet_eta_select(delta);
+            AppOutcome::Continue
+        }
         Action::ScrollPlanetBrief(delta) => {
             app.scroll_planet_brief(delta);
             AppOutcome::Continue
@@ -289,6 +297,18 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             Ok(()) => AppOutcome::Continue,
             Err(_) => AppOutcome::Continue,
         },
+        Action::AppendFleetEtaChar(ch) => {
+            app.append_fleet_eta_char(ch);
+            AppOutcome::Continue
+        }
+        Action::BackspaceFleetEtaInput => {
+            app.backspace_fleet_eta_input();
+            AppOutcome::Continue
+        }
+        Action::SubmitFleetEta => {
+            app.submit_fleet_eta();
+            AppOutcome::Continue
+        }
         Action::BackspacePlanetTaxInput => {
             app.backspace_planet_tax_input();
             AppOutcome::Continue

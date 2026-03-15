@@ -3,7 +3,7 @@ use ec_data::DiplomaticRelation;
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_command_line_input, draw_command_line_text, draw_title_bar, new_playfield,
+    draw_command_line_default_input, draw_command_line_text, draw_title_bar, new_playfield,
 };
 use crate::screen::table::{format_empire_id, write_table_window_with_cursor, TableColumn};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
@@ -92,10 +92,16 @@ impl EnemiesScreen {
         if let Some(status) = status {
             draw_command_line_text(&mut buffer, "GENERAL COMMAND", status);
         } else {
-            draw_command_line_input(
+            let default_empire = rows
+                .get(cursor)
+                .and_then(|row| row.first())
+                .map(String::as_str)
+                .unwrap_or("");
+            draw_command_line_default_input(
                 &mut buffer,
                 "GENERAL COMMAND",
-                "Empire #: ",
+                "Empire # ",
+                default_empire,
                 input,
             );
         }

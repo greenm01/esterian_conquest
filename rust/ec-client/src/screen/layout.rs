@@ -121,10 +121,11 @@ pub fn draw_command_line_text(buffer: &mut PlayfieldBuffer, label: &str, text: &
     );
 }
 
-pub fn draw_command_line_input(
+pub fn draw_command_line_default_input(
     buffer: &mut PlayfieldBuffer,
     label: &str,
     prompt: &str,
+    default: &str,
     input: &str,
 ) -> usize {
     buffer.fill_row(COMMAND_LINE_ROW, classic::prompt_style());
@@ -135,16 +136,18 @@ pub fn draw_command_line_input(
             StyledSpan::new(label, classic::title_style()),
             StyledSpan::new(" <- ", classic::prompt_style()),
             StyledSpan::new(prompt, classic::prompt_style()),
+            StyledSpan::new("[", classic::prompt_style()),
+            StyledSpan::new(default, classic::prompt_hotkey_style()),
+            StyledSpan::new("] -> ", classic::prompt_style()),
         ],
     );
-    let input_col = prefix;
     let written = buffer.write_text(
         COMMAND_LINE_ROW,
-        input_col,
+        prefix,
         input,
         classic::prompt_hotkey_style(),
     );
-    let cursor_col = input_col + written;
+    let cursor_col = prefix + written;
     buffer.set_cursor(cursor_col as u16, COMMAND_LINE_ROW as u16);
     cursor_col
 }

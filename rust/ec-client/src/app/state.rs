@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use ec_data::{
     append_mail_queue, build_player_starmap_projection, load_mail_queue, save_mail_queue,
-    AutoCommissionSummary, CommissionResult, CoreGameData, DatabaseDat,
+    plan_route, AutoCommissionSummary, CommissionResult, CoreGameData, DatabaseDat,
     GameStateMutationError, PlayerStarmapWorld, ProductionItemKind, QueuedPlayerMail,
 };
 
@@ -14,8 +14,8 @@ use crate::reports::{clear_report_files, ReportsPreview};
 use crate::screen::{
     build_unit_spec, build_unit_spec_by_kind, max_quantity, BuildHelpScreen, CommandMenu,
     DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
-    FleetListMode, FleetListScreen, FleetMenuScreen, FleetReviewScreen, FleetRoeScreen,
-    FleetRow,
+    FleetEtaMode, FleetEtaScreen, FleetListMode, FleetListScreen, FleetMenuScreen,
+    FleetReviewScreen, FleetRoeScreen, FleetRow,
     GeneralHelpScreen, GeneralMenuScreen, MainMenuScreen, MessageComposeScreen,
     PartialStarmapScreen, PlanetAutoCommissionScreen, PlanetBuildChangeRow, PlanetBuildListRow,
     PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionRow,
@@ -51,6 +51,7 @@ pub struct App {
     fleet_list: FleetListScreen,
     fleet_review: FleetReviewScreen,
     fleet_roe: FleetRoeScreen,
+    fleet_eta: FleetEtaScreen,
     planet_menu: PlanetMenuScreen,
     planet_help: PlanetHelpScreen,
     planet_auto_commission: PlanetAutoCommissionScreen,
@@ -109,6 +110,13 @@ pub struct App {
     fleet_roe_select_input: String,
     fleet_roe_input: String,
     fleet_roe_status: Option<String>,
+    fleet_eta_scroll_offset: usize,
+    fleet_eta_cursor: usize,
+    fleet_eta_mode: FleetEtaMode,
+    fleet_eta_select_input: String,
+    fleet_eta_destination_input: String,
+    fleet_eta_include_system_input: String,
+    fleet_eta_status: Option<String>,
     planet_brief_scroll_offset: usize,
     planet_brief_cursor: usize,
     planet_detail_index: usize,
@@ -195,6 +203,7 @@ impl App {
             fleet_list: FleetListScreen::new(),
             fleet_review: FleetReviewScreen::new(),
             fleet_roe: FleetRoeScreen::new(),
+            fleet_eta: FleetEtaScreen::new(),
             planet_menu: PlanetMenuScreen::new(),
             planet_help: PlanetHelpScreen::new(),
             planet_auto_commission: PlanetAutoCommissionScreen::new(),
@@ -253,6 +262,13 @@ impl App {
             fleet_roe_select_input: String::new(),
             fleet_roe_input: String::new(),
             fleet_roe_status: None,
+            fleet_eta_scroll_offset: 0,
+            fleet_eta_cursor: 0,
+            fleet_eta_mode: FleetEtaMode::SelectingFleet,
+            fleet_eta_select_input: String::new(),
+            fleet_eta_destination_input: String::new(),
+            fleet_eta_include_system_input: String::new(),
+            fleet_eta_status: None,
             planet_brief_scroll_offset: 0,
             planet_brief_cursor: 0,
             planet_detail_index: 0,
@@ -337,6 +353,17 @@ impl App {
                 &self.fleet_roe_select_input,
                 &self.fleet_roe_input,
                 self.fleet_roe_status.as_deref(),
+            )?,
+            ScreenId::FleetEta => self.fleet_eta.render(
+                &self.fleet_rows(),
+                self.fleet_eta_scroll_offset,
+                self.fleet_eta_cursor,
+                self.fleet_eta_mode,
+                &self.fleet_eta_select_input,
+                self.fleet_eta_default_destination(),
+                &self.fleet_eta_destination_input,
+                &self.fleet_eta_include_system_input,
+                self.fleet_eta_status.as_deref(),
             )?,
             ScreenId::PlanetMenu => self.planet_menu.render(&frame)?,
             ScreenId::PlanetHelp => self.planet_help.render(&frame)?,
@@ -465,6 +492,7 @@ impl App {
                 .render_dump_page(&self.starmap_dump_lines, self.starmap_dump_offset)?,
             ScreenId::Starmap => self.starmap.render_prompt(self.starmap_status.as_deref())?,
             ScreenId::PartialStarmapPrompt => self.partial_starmap.render_prompt(
+                self.partial_starmap_center,
                 &self.partial_starmap_input,
                 self.partial_starmap_error.as_deref(),
                 self.command_return_menu,
@@ -492,6 +520,7 @@ impl App {
                 )?
             }
             ScreenId::PlanetInfoPrompt => self.planet_info.render_prompt(
+                self.default_planet_prompt_coords(),
                 &self.planet_info_input,
                 self.planet_info_error.as_deref(),
                 self.command_return_menu,
@@ -631,6 +660,17 @@ impl App {
         self.fleet_roe_cursor = 0;
         self.fleet_roe_editing = false;
         self.current_screen = ScreenId::FleetRoeSelect;
+    }
+
+    pub fn open_fleet_eta(&mut self) {
+        self.fleet_eta_status = None;
+        self.fleet_eta_select_input.clear();
+        self.fleet_eta_destination_input.clear();
+        self.fleet_eta_include_system_input.clear();
+        self.fleet_eta_scroll_offset = 0;
+        self.fleet_eta_cursor = 0;
+        self.fleet_eta_mode = FleetEtaMode::SelectingFleet;
+        self.current_screen = ScreenId::FleetEta;
     }
 
     pub fn open_planet_help(&mut self) {
@@ -935,6 +975,26 @@ impl App {
         self.fleet_roe_status = None;
     }
 
+    pub fn move_fleet_eta_select(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::FleetEta || self.fleet_eta_mode != FleetEtaMode::SelectingFleet {
+            return;
+        }
+        let total = self.fleet_rows().len();
+        if total == 0 {
+            self.fleet_eta_cursor = 0;
+            return;
+        }
+        let next = self.fleet_eta_cursor as isize + delta as isize;
+        self.fleet_eta_cursor = next.rem_euclid(total as isize) as usize;
+        sync_scroll_to_cursor(
+            &mut self.fleet_eta_scroll_offset,
+            self.fleet_eta_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+        );
+        self.fleet_eta_select_input.clear();
+        self.fleet_eta_status = None;
+    }
+
     pub fn append_fleet_roe_char(&mut self, ch: char) {
         if self.current_screen == ScreenId::FleetRoeSelect
             && if self.fleet_roe_editing {
@@ -953,6 +1013,37 @@ impl App {
         }
     }
 
+    pub fn append_fleet_eta_char(&mut self, ch: char) {
+        if self.current_screen != ScreenId::FleetEta {
+            return;
+        }
+        match self.fleet_eta_mode {
+            FleetEtaMode::SelectingFleet => {
+                if ch.is_ascii_digit() && self.fleet_eta_select_input.len() < 4 {
+                    self.fleet_eta_select_input.push(ch);
+                    self.sync_fleet_eta_cursor_to_input();
+                    self.fleet_eta_status = None;
+                }
+            }
+            FleetEtaMode::EnteringDestination => {
+                if self.fleet_eta_destination_input.len() < 16
+                    && (ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']'))
+                {
+                    self.fleet_eta_destination_input.push(ch);
+                    self.fleet_eta_status = None;
+                }
+            }
+            FleetEtaMode::ConfirmingSystemEntry => {
+                if matches!(ch, 'y' | 'Y' | 'n' | 'N') && self.fleet_eta_include_system_input.is_empty()
+                {
+                    self.fleet_eta_include_system_input.push(ch.to_ascii_uppercase());
+                    self.fleet_eta_status = None;
+                }
+            }
+            FleetEtaMode::ShowingResult => {}
+        }
+    }
+
     pub fn backspace_fleet_roe_input(&mut self) {
         if self.current_screen == ScreenId::FleetRoeSelect {
             if self.fleet_roe_editing {
@@ -963,6 +1054,26 @@ impl App {
             }
             self.fleet_roe_status = None;
         }
+    }
+
+    pub fn backspace_fleet_eta_input(&mut self) {
+        if self.current_screen != ScreenId::FleetEta {
+            return;
+        }
+        match self.fleet_eta_mode {
+            FleetEtaMode::SelectingFleet => {
+                self.fleet_eta_select_input.pop();
+                self.sync_fleet_eta_cursor_to_input();
+            }
+            FleetEtaMode::EnteringDestination => {
+                self.fleet_eta_destination_input.pop();
+            }
+            FleetEtaMode::ConfirmingSystemEntry => {
+                self.fleet_eta_include_system_input.pop();
+            }
+            FleetEtaMode::ShowingResult => {}
+        }
+        self.fleet_eta_status = None;
     }
 
     pub fn submit_fleet_roe(&mut self) -> Result<(), Box<dyn std::error::Error>> {
@@ -1011,11 +1122,15 @@ impl App {
             self.current_screen = ScreenId::FleetMenu;
             return Ok(());
         };
-        let parsed = match self.fleet_roe_input.trim().parse::<u8>() {
-            Ok(value) => value,
-            Err(_) => {
-                self.fleet_roe_status = Some("Enter an ROE from 0 to 10.".to_string());
-                return Ok(());
+        let parsed = if self.fleet_roe_input.trim().is_empty() {
+            selected_row.rules_of_engagement
+        } else {
+            match self.fleet_roe_input.trim().parse::<u8>() {
+                Ok(value) => value,
+                Err(_) => {
+                    self.fleet_roe_status = Some("Enter an ROE from 0 to 10.".to_string());
+                    return Ok(());
+                }
             }
         };
         if parsed > 10 {
@@ -1045,6 +1160,88 @@ impl App {
         ));
         self.fleet_roe_editing = false;
         Ok(())
+    }
+
+    pub fn submit_fleet_eta(&mut self) {
+        if self.current_screen != ScreenId::FleetEta {
+            return;
+        }
+        let rows = self.fleet_rows();
+        let Some(selected_row) = rows.get(self.fleet_eta_cursor) else {
+            self.fleet_eta_status = Some("You have no active fleets.".to_string());
+            self.fleet_eta_mode = FleetEtaMode::SelectingFleet;
+            return;
+        };
+        match self.fleet_eta_mode {
+            FleetEtaMode::SelectingFleet => {
+                if !self.fleet_eta_select_input.trim().is_empty() {
+                    let target_fleet_id = match self.fleet_eta_select_input.trim().parse::<u16>() {
+                        Ok(value) => value,
+                        Err(_) => {
+                            self.fleet_eta_status = Some("Enter a fleet number from the table.".to_string());
+                            return;
+                        }
+                    };
+                    let Some(index) = rows.iter().position(|row| row.fleet_number == target_fleet_id) else {
+                        self.fleet_eta_status = Some("Enter a fleet number from the table.".to_string());
+                        return;
+                    };
+                    self.fleet_eta_cursor = index;
+                    sync_scroll_to_cursor(
+                        &mut self.fleet_eta_scroll_offset,
+                        self.fleet_eta_cursor,
+                        crate::screen::FLEET_VISIBLE_ROWS,
+                    );
+                }
+                self.fleet_eta_select_input.clear();
+                self.fleet_eta_destination_input.clear();
+                self.fleet_eta_include_system_input.clear();
+                self.fleet_eta_status = None;
+                self.fleet_eta_mode = FleetEtaMode::EnteringDestination;
+            }
+            FleetEtaMode::EnteringDestination => {
+                let default_destination = self.fleet_eta_default_destination();
+                let Some(destination) =
+                    resolve_default_coords_input(&self.fleet_eta_destination_input, default_destination)
+                else {
+                    self.fleet_eta_status = Some("Enter coordinates like 10,13".to_string());
+                    return;
+                };
+                let map_size =
+                    ec_data::map_size_for_player_count(self.game_data.conquest.player_count());
+                if destination[0] == 0
+                    || destination[1] == 0
+                    || destination[0] > map_size
+                    || destination[1] > map_size
+                {
+                    self.fleet_eta_status = Some(format!("Enter coordinates within 1..{map_size}"));
+                    return;
+                }
+                self.fleet_eta_destination_input = format!("{},{}", destination[0], destination[1]);
+                self.fleet_eta_include_system_input.clear();
+                self.fleet_eta_status = None;
+                self.fleet_eta_mode = FleetEtaMode::ConfirmingSystemEntry;
+            }
+            FleetEtaMode::ConfirmingSystemEntry => {
+                let include_system =
+                    resolve_yes_no_input(&self.fleet_eta_include_system_input, false);
+                let destination = resolve_default_coords_input(
+                    &self.fleet_eta_destination_input,
+                    self.fleet_eta_default_destination(),
+                )
+                .unwrap_or(self.fleet_eta_default_destination());
+                let result = self.calculate_fleet_eta_message(selected_row, destination, include_system);
+                self.fleet_eta_status = Some(result);
+                self.fleet_eta_include_system_input.clear();
+                self.fleet_eta_mode = FleetEtaMode::ShowingResult;
+            }
+            FleetEtaMode::ShowingResult => {
+                self.fleet_eta_status = None;
+                self.fleet_eta_destination_input.clear();
+                self.fleet_eta_include_system_input.clear();
+                self.fleet_eta_mode = FleetEtaMode::SelectingFleet;
+            }
+        }
     }
 
     pub fn move_planet_database_list(&mut self, delta: i8) {
@@ -1747,6 +1944,7 @@ impl App {
             ScreenId::FleetList(_) => self.fleet_list.handle_key(key),
             ScreenId::FleetReview => self.fleet_review.handle_key(key),
             ScreenId::FleetRoeSelect => self.handle_fleet_roe_key(key),
+            ScreenId::FleetEta => self.handle_fleet_eta_key(key),
             ScreenId::PlanetMenu => self.planet_menu.handle_key(key),
             ScreenId::PlanetHelp => self.planet_help.handle_key(key),
             ScreenId::PlanetAutoCommissionConfirm => self.planet_auto_commission.handle_key(key),
@@ -1807,20 +2005,7 @@ impl App {
 
     pub fn open_planet_info_prompt(&mut self, menu: CommandMenu) {
         self.command_return_menu = menu;
-        self.planet_info_input = self
-            .game_data
-            .planets
-            .records
-            .iter()
-            .find(|planet| {
-                planet.owner_empire_slot_raw() as usize == self.player.record_index_1_based
-                    && planet.is_homeworld_seed_ignoring_name()
-            })
-            .map(|planet| {
-                let [x, y] = planet.coords_raw();
-                format!("{x},{y}")
-            })
-            .unwrap_or_default();
+        self.planet_info_input.clear();
         self.planet_info_error = None;
         self.planet_info_selected = None;
         self.current_screen = ScreenId::PlanetInfoPrompt;
@@ -1952,18 +2137,8 @@ impl App {
 
     pub fn open_partial_starmap_prompt(&mut self, menu: CommandMenu) {
         self.command_return_menu = menu;
-        let default = self
-            .game_data
-            .planets
-            .records
-            .iter()
-            .find(|planet| {
-                planet.owner_empire_slot_raw() as usize == self.player.record_index_1_based
-                    && planet.is_homeworld_seed_ignoring_name()
-            })
-            .map(|planet| planet.coords_raw())
-            .unwrap_or([8, 2]);
-        self.partial_starmap_input = format!("{},{}", default[0], default[1]);
+        let default = self.default_planet_prompt_coords();
+        self.partial_starmap_input.clear();
         self.partial_starmap_error = None;
         self.partial_starmap_center = default;
         self.current_screen = ScreenId::PartialStarmapPrompt;
@@ -1985,6 +2160,7 @@ impl App {
             | ScreenId::FleetList(_)
             | ScreenId::FleetReview
             | ScreenId::FleetRoeSelect
+            | ScreenId::FleetEta
             | ScreenId::PlanetDatabaseList
             | ScreenId::PlanetDatabaseDetail => {
                 CommandMenu::Main
@@ -2052,7 +2228,9 @@ impl App {
     }
 
     pub fn submit_partial_starmap_prompt(&mut self) {
-        let Some(coords) = crate::screen::parse_planet_coords(&self.partial_starmap_input) else {
+        let Some(coords) =
+            resolve_default_coords_input(&self.partial_starmap_input, self.partial_starmap_center)
+        else {
             self.partial_starmap_error = Some("Enter coordinates like 5,2".to_string());
             return;
         };
@@ -2616,7 +2794,9 @@ impl App {
     }
 
     pub fn submit_planet_info_prompt(&mut self) {
-        let Some(coords) = crate::screen::parse_planet_coords(&self.planet_info_input) else {
+        let Some(coords) =
+            resolve_default_coords_input(&self.planet_info_input, self.default_planet_prompt_coords())
+        else {
             self.planet_info_error = Some("Enter coordinates like 5,2".to_string());
             return;
         };
@@ -2663,6 +2843,11 @@ impl App {
         rows.get(self.fleet_roe_cursor).map(|row| row.fleet_number)
     }
 
+    pub fn selected_fleet_eta_id(&self) -> Option<u16> {
+        let rows = self.fleet_rows();
+        rows.get(self.fleet_eta_cursor).map(|row| row.fleet_number)
+    }
+
     pub fn current_relation_to(&self, empire_id: u8) -> Option<ec_data::DiplomaticRelation> {
         self.game_data
             .stored_diplomatic_relation(self.player.record_index_1_based as u8, empire_id)
@@ -2702,8 +2887,10 @@ impl App {
                 fleet_record_index_1_based: idx + 1,
                 fleet_number: fleet.local_slot_word_raw(),
                 coords: fleet.current_location_coords_raw(),
+                target_coords: fleet.standing_order_target_coords_raw(),
                 current_speed: fleet.current_speed(),
                 max_speed: fleet.max_speed(),
+                eta_label: fleet_eta_label(&self.game_data, idx),
                 rules_of_engagement: fleet.rules_of_engagement(),
                 order_label: fleet.standing_order_summary(),
                 composition_label: fleet.ship_composition_summary(),
@@ -3215,7 +3402,8 @@ impl App {
             KeyCode::Enter => crate::app::Action::SubmitPlanetInfoPrompt,
             KeyCode::Backspace => crate::app::Action::BackspacePlanetInfoInput,
             KeyCode::Char(ch)
-                if ch.is_ascii_digit() || matches!(ch, ',' | ' ' | ':' | '/' | '-') =>
+                if ch.is_ascii_digit()
+                    || matches!(ch, ',' | ' ' | ':' | '/' | '-' | '(' | ')' | '[' | ']') =>
             {
                 crate::app::Action::AppendPlanetInfoChar(ch)
             }
@@ -3275,6 +3463,132 @@ impl App {
             self.fleet_roe_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
+    }
+
+    fn handle_fleet_eta_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
+        use crossterm::event::KeyCode;
+
+        match self.fleet_eta_mode {
+            FleetEtaMode::SelectingFleet => match key.code {
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                    crate::app::Action::MoveFleetEtaSelect(-1)
+                }
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                    crate::app::Action::MoveFleetEtaSelect(1)
+                }
+                KeyCode::PageUp => crate::app::Action::MoveFleetEtaSelect(-8),
+                KeyCode::PageDown => crate::app::Action::MoveFleetEtaSelect(8),
+                KeyCode::Enter => crate::app::Action::SubmitFleetEta,
+                KeyCode::Backspace => crate::app::Action::BackspaceFleetEtaInput,
+                KeyCode::Char(ch) if ch.is_ascii_digit() => crate::app::Action::AppendFleetEtaChar(ch),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    crate::app::Action::OpenFleetMenu
+                }
+                _ => crate::app::Action::Noop,
+            },
+            FleetEtaMode::EnteringDestination => match key.code {
+                KeyCode::Enter => crate::app::Action::SubmitFleetEta,
+                KeyCode::Backspace => crate::app::Action::BackspaceFleetEtaInput,
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => crate::app::Action::OpenFleetEta,
+                KeyCode::Char(ch)
+                    if ch.is_ascii_digit()
+                        || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']') =>
+                {
+                    crate::app::Action::AppendFleetEtaChar(ch)
+                }
+                _ => crate::app::Action::Noop,
+            },
+            FleetEtaMode::ConfirmingSystemEntry => match key.code {
+                KeyCode::Enter => crate::app::Action::SubmitFleetEta,
+                KeyCode::Backspace => crate::app::Action::BackspaceFleetEtaInput,
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => crate::app::Action::OpenFleetEta,
+                KeyCode::Char(ch) if matches!(ch, 'y' | 'Y' | 'n' | 'N') => {
+                    crate::app::Action::AppendFleetEtaChar(ch)
+                }
+                _ => crate::app::Action::Noop,
+            },
+            FleetEtaMode::ShowingResult => match key.code {
+                KeyCode::Enter | KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    crate::app::Action::SubmitFleetEta
+                }
+                _ => crate::app::Action::Noop,
+            },
+        }
+    }
+
+    fn sync_fleet_eta_cursor_to_input(&mut self) {
+        if self.current_screen != ScreenId::FleetEta || self.fleet_eta_mode != FleetEtaMode::SelectingFleet {
+            return;
+        }
+        let Ok(target_fleet_id) = self.fleet_eta_select_input.trim().parse::<u16>() else {
+            return;
+        };
+        let rows = self.fleet_rows();
+        let Some(index) = rows.iter().position(|row| row.fleet_number == target_fleet_id) else {
+            return;
+        };
+        self.fleet_eta_cursor = index;
+        sync_scroll_to_cursor(
+            &mut self.fleet_eta_scroll_offset,
+            self.fleet_eta_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+        );
+    }
+
+    fn default_planet_prompt_coords(&self) -> [u8; 2] {
+        self.game_data
+            .planets
+            .records
+            .iter()
+            .find(|planet| {
+                planet.owner_empire_slot_raw() as usize == self.player.record_index_1_based
+                    && planet.is_homeworld_seed_ignoring_name()
+            })
+            .map(|planet| planet.coords_raw())
+            .unwrap_or([8, 2])
+    }
+
+    fn fleet_eta_default_destination(&self) -> [u8; 2] {
+        let rows = self.fleet_rows();
+        let Some(row) = rows.get(self.fleet_eta_cursor) else {
+            return [8, 2];
+        };
+        if row.target_coords[0] > 0 && row.target_coords[1] > 0 {
+            row.target_coords
+        } else {
+            row.coords
+        }
+    }
+
+    fn calculate_fleet_eta_message(
+        &self,
+        row: &FleetRow,
+        destination: [u8; 2],
+        include_system: bool,
+    ) -> String {
+        if row.current_speed == 0 {
+            return format!(
+                "Fleet {} is stopped at ({},{}).",
+                row.fleet_number, row.coords[0], row.coords[1]
+            );
+        }
+        let mut game_data = self.game_data.clone();
+        let fleet_index = row.fleet_record_index_1_based - 1;
+        let fleet = &mut game_data.fleets.records[fleet_index];
+        fleet.set_standing_order_target_coords_raw(destination);
+        let Some(route) = plan_route(&game_data, fleet_index) else {
+            return format!("No route found to ({},{}).", destination[0], destination[1]);
+        };
+        let mut steps = route.steps.len().saturating_sub(1);
+        if include_system && destination != row.coords {
+            steps += 1;
+        }
+        let years = steps.div_ceil(row.current_speed as usize);
+        let arrival_year = self.game_data.conquest.game_year() + years as u16;
+        format!(
+            "Fleet {} reaches ({},{}) in {} year(s), arriving in {}.",
+            row.fleet_number, destination[0], destination[1], years, arrival_year
+        )
     }
 }
 
@@ -3364,6 +3678,48 @@ fn format_auto_commission_status(summary: AutoCommissionSummary) -> String {
         summary.starbases_commissioned,
         summary.planets_used
     )
+}
+
+fn fleet_eta_label(game_data: &CoreGameData, fleet_idx: usize) -> String {
+    let Some(fleet) = game_data.fleets.records.get(fleet_idx) else {
+        return "?".to_string();
+    };
+
+    if fleet.current_location_coords_raw() == fleet.standing_order_target_coords_raw() {
+        return "0".to_string();
+    }
+
+    let Some(route) = plan_route(game_data, fleet_idx) else {
+        return "N/A".to_string();
+    };
+    let steps_remaining = route.steps.len().saturating_sub(1);
+    if steps_remaining == 0 {
+        return "0".to_string();
+    }
+
+    let speed = usize::from(fleet.current_speed());
+    if speed == 0 {
+        return "STOP".to_string();
+    }
+
+    steps_remaining.div_ceil(speed).to_string()
+}
+
+fn resolve_default_coords_input(input: &str, default: [u8; 2]) -> Option<[u8; 2]> {
+    if input.trim().is_empty() {
+        Some(default)
+    } else {
+        crate::screen::parse_planet_coords(input)
+    }
+}
+
+fn resolve_yes_no_input(input: &str, default: bool) -> bool {
+    match input.trim().to_ascii_uppercase().as_str() {
+        "" => default,
+        "Y" | "YES" => true,
+        "N" | "NO" => false,
+        _ => default,
+    }
 }
 
 fn insert_char_at(body: &mut String, cursor_index: usize, ch: char) {

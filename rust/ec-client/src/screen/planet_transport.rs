@@ -2,8 +2,8 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_command_line_input, draw_command_line_text, draw_command_prompt, draw_plain_prompt,
-    draw_title_bar, new_playfield,
+    draw_command_line_default_input, draw_command_line_text, draw_command_prompt, draw_title_bar,
+    new_playfield,
 };
 use crate::screen::table::{
     fleet_id_column_width, format_fleet_number, write_table_window_with_cursor, TableColumn,
@@ -184,10 +184,11 @@ impl PlanetTransportScreen {
         } else if let Some(status) = status {
             draw_command_line_text(&mut buffer, "PLANET COMMAND", status);
         } else {
-            draw_command_line_input(
+            draw_command_line_default_input(
                 &mut buffer,
                 "PLANET COMMAND",
-                &format!("How many armies to {}? [{}]: ", mode.verb(), max_qty),
+                &format!("How many armies to {}? ", mode.verb()),
+                &max_qty.to_string(),
                 input,
             );
         }
@@ -213,18 +214,16 @@ impl PlanetTransportScreen {
             ),
             classic::status_value_style(),
         );
-        let prompt = format!(
-            "How many armies to {}? [max {}] -> {}",
-            mode.verb(),
-            fleet.available_qty,
-            input
-        );
-        let cursor_col = draw_plain_prompt(&mut buffer, 4, &prompt);
         if let Some(status) = status {
             buffer.write_text(6, 0, status, classic::status_value_style());
         }
-        draw_command_prompt(&mut buffer, 19, "PLANET COMMAND", "ENTER Q");
-        buffer.set_cursor(cursor_col as u16, 4);
+        draw_command_line_default_input(
+            &mut buffer,
+            "PLANET COMMAND",
+            &format!("How many armies to {}? ", mode.verb()),
+            &fleet.available_qty.to_string(),
+            input,
+        );
         Ok(buffer)
     }
 

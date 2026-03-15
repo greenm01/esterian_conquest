@@ -3,8 +3,8 @@ use ec_data::QueuedPlayerMail;
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_command_line_input, draw_command_line_text, draw_command_prompt, draw_plain_prompt,
-    draw_title_bar, new_playfield,
+    draw_command_line_default_input, draw_command_line_text, draw_command_prompt, draw_title_bar,
+    new_playfield,
 };
 use crate::screen::table::{format_empire_id, write_table_window_with_cursor, TableColumn};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
@@ -77,10 +77,16 @@ impl MessageComposeScreen {
         if let Some(status) = status {
             draw_command_line_text(&mut buffer, "GENERAL COMMAND", status);
         } else {
-            draw_command_line_input(
+            let default_empire = rows
+                .get(cursor)
+                .and_then(|row| row.first())
+                .map(String::as_str)
+                .unwrap_or("");
+            draw_command_line_default_input(
                 &mut buffer,
                 "GENERAL COMMAND",
-                "Recipient empire #: ",
+                "Recipient empire # ",
+                default_empire,
                 input,
             );
         }
@@ -101,13 +107,16 @@ impl MessageComposeScreen {
             &format!("To: {recipient_label}"),
             classic::status_value_style(),
         );
-        let prompt = format!("Enter message subject: {subject}");
-        let cursor_col = draw_plain_prompt(&mut buffer, 4, &prompt);
         if let Some(status) = status {
             buffer.write_text(6, 0, status, classic::status_value_style());
         }
-        draw_command_prompt(&mut buffer, 19, "GENERAL COMMAND", "ENTER Q");
-        buffer.set_cursor(cursor_col as u16, 4);
+        draw_command_line_default_input(
+            &mut buffer,
+            "GENERAL COMMAND",
+            "Message subject ",
+            "",
+            subject,
+        );
         Ok(buffer)
     }
 
@@ -251,10 +260,16 @@ impl MessageComposeScreen {
         if let Some(status) = status {
             draw_command_line_text(&mut buffer, "GENERAL COMMAND", status);
         } else {
-            draw_command_line_input(
+            let default_queue_no = if rows.is_empty() {
+                String::new()
+            } else {
+                format!("{:02}", cursor + 1)
+            };
+            draw_command_line_default_input(
                 &mut buffer,
                 "GENERAL COMMAND",
-                "Queued message #: ",
+                "Queued message # ",
+                &default_queue_no,
                 input,
             );
         }
