@@ -83,7 +83,9 @@ pub use rankings::RankingsScreen;
 pub use reports::ReportsScreen;
 pub use starmap::StarmapScreen;
 pub use startup::StartupScreen;
+pub(crate) use startup::load_bbs_splash_pages;
 pub(crate) use startup::STARTUP_INTRO_PAGE_COUNT;
+pub(crate) use startup::STARTUP_SPLASH_PAGE_COUNT;
 
 use std::path::Path;
 

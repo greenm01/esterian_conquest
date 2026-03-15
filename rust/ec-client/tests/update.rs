@@ -67,6 +67,16 @@ fn key(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::NONE)
 }
 
+fn advance_to_main_menu(app: &mut App) {
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::MainMenu {
+            return;
+        }
+        app.advance_startup();
+    }
+    panic!("startup did not reach main menu");
+}
+
 struct CaptureTerminal {
     lines: Vec<String>,
 }
@@ -557,8 +567,7 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     })
     .expect("app should load");
 
-    app.advance_startup();
-    app.advance_startup();
+    advance_to_main_menu(&mut app);
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
 
     assert_eq!(app.handle_key(key(KeyCode::Char('b'))), Action::OpenEmpireStatus);
@@ -792,8 +801,7 @@ fn fleet_roe_accepts_typed_fleet_selection_and_q_cancels_edit_mode() {
     })
     .expect("app should load");
 
-    app.advance_startup();
-    app.advance_startup();
+    advance_to_main_menu(&mut app);
     assert_eq!(
         apply_action(&mut app, Action::OpenFleetMenu),
         AppOutcome::Continue
@@ -855,8 +863,7 @@ fn fleet_roe_empty_enter_accepts_displayed_default() {
     })
     .expect("app should load");
 
-    app.advance_startup();
-    app.advance_startup();
+    advance_to_main_menu(&mut app);
     assert_eq!(
         apply_action(&mut app, Action::OpenFleetMenu),
         AppOutcome::Continue
@@ -895,8 +902,7 @@ fn fleet_roe_success_returns_to_selector_prompt_without_confirmation_text() {
     .expect("app should load");
     let mut terminal = CaptureTerminal::new();
 
-    app.advance_startup();
-    app.advance_startup();
+    advance_to_main_menu(&mut app);
     assert_eq!(
         apply_action(&mut app, Action::OpenFleetMenu),
         AppOutcome::Continue
@@ -1082,8 +1088,7 @@ fn fleet_eta_accepts_typed_fleet_destination_and_default_include_system() {
     })
     .expect("app should load");
 
-    app.advance_startup();
-    app.advance_startup();
+    advance_to_main_menu(&mut app);
     assert_eq!(apply_action(&mut app, Action::OpenFleetEta), AppOutcome::Continue);
     assert_eq!(app.current_screen(), ScreenId::FleetEta);
 
@@ -1200,8 +1205,7 @@ fn general_rankings_opens_production_table_and_returns_to_general_menu() {
     })
     .expect("app should load");
 
-    app.advance_startup();
-    app.advance_startup();
+    advance_to_main_menu(&mut app);
     assert_eq!(
         apply_action(&mut app, Action::OpenGeneralMenu),
         AppOutcome::Continue

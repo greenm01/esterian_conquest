@@ -26,6 +26,8 @@ use crate::screen::{
     PlanetMenuScreen, PlanetTaxScreen, PlanetTransportFleetRow, PlanetTransportMode,
     PlanetTransportPlanetRow, PlanetTransportScreen, RankingsScreen, ReportsScreen, Screen,
     ScreenFrame, ScreenId, StarmapScreen, StartupScreen, FIRST_TIME_INTRO_PAGE_COUNT,
+    STARTUP_SPLASH_PAGE_COUNT,
+    load_bbs_splash_pages,
     render_first_time_homeworld_confirm, render_first_time_homeworld_name,
     render_first_time_join_confirm, render_first_time_join_name,
     render_first_time_join_name_confirm, render_first_time_join_no_pending,
@@ -180,6 +182,7 @@ pub struct App {
     starmap_capture_complete: bool,
     export_root: PathBuf,
     queue_dir: Option<PathBuf>,
+    startup_splash_page: usize,
     startup_intro_page: usize,
     first_time_intro_page: usize,
     first_time_status: Option<String>,
@@ -214,6 +217,12 @@ impl App {
             &reports,
         );
         let startup_sequence = StartupSequence::new(&startup_summary);
+        let bbs_splash_pages = load_bbs_splash_pages(
+            std::env::var_os("EC_CLIENT_BBS_SPLASH")
+                .as_ref()
+                .map(PathBuf::from)
+                .as_deref(),
+        )?;
 
         Ok(Self {
             game_dir,
@@ -226,7 +235,7 @@ impl App {
                 ScreenId::FirstTimeMenu
             },
             startup_sequence,
-            startup: StartupScreen::new(startup_summary, reports.clone()),
+            startup: StartupScreen::new(startup_summary, reports.clone(), bbs_splash_pages),
             first_time_menu: FirstTimeMenuScreen::new(),
             first_time_help: FirstTimeHelpScreen::new(),
             first_time_empires: FirstTimeEmpiresScreen::new(),
@@ -357,6 +366,7 @@ impl App {
             starmap_capture_complete: false,
             export_root,
             queue_dir: config.queue_dir,
+            startup_splash_page: 0,
             startup_intro_page: 0,
             first_time_intro_page: 0,
             first_time_status: None,
@@ -379,7 +389,12 @@ impl App {
         let playfield = match self.current_screen {
             ScreenId::Startup(phase) => self
                 .startup
-                .render_phase(&frame, phase, self.startup_intro_page)?,
+                .render_phase(
+                    &frame,
+                    phase,
+                    self.startup_splash_page,
+                    self.startup_intro_page,
+                )?,
             ScreenId::FirstTimeMenu => self
                 .first_time_menu
                 .render(self.first_time_status.as_deref())?,
@@ -721,6 +736,12 @@ impl App {
             }
             return;
         }
+        if self.current_screen == ScreenId::Startup(StartupPhase::Splash)
+            && self.startup_splash_page + 1 < STARTUP_SPLASH_PAGE_COUNT
+        {
+            self.startup_splash_page += 1;
+            return;
+        }
         if self.current_screen == ScreenId::Startup(StartupPhase::Intro)
             && self.startup_intro_page + 1 < crate::screen::STARTUP_INTRO_PAGE_COUNT
         {
@@ -735,6 +756,7 @@ impl App {
     }
 
     pub fn open_startup_intro(&mut self) {
+        self.startup_splash_page = STARTUP_SPLASH_PAGE_COUNT.saturating_sub(1);
         self.startup_intro_page = 0;
         let next = self.startup_sequence.open_intro();
         self.current_screen = ScreenId::Startup(next);
@@ -2453,6 +2475,15 @@ impl App {
 
     pub fn handle_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
         match self.current_screen {
+            ScreenId::Startup(StartupPhase::Splash)
+                if self.startup_splash_page + 1 < STARTUP_SPLASH_PAGE_COUNT =>
+            {
+                match key.code {
+                    crossterm::event::KeyCode::Char('q')
+                    | crossterm::event::KeyCode::Char('Q') => Action::Quit,
+                    _ => Action::AdvanceStartup,
+                }
+            }
             ScreenId::Startup(phase) => self.startup.handle_key(phase, key),
             ScreenId::FirstTimeMenu => self.first_time_menu.handle_key(key),
             ScreenId::FirstTimeHelp => self.first_time_help.handle_key(key),
