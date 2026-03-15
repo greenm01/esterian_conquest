@@ -1154,10 +1154,7 @@ impl App {
         fleet.set_rules_of_engagement(parsed);
         self.game_data.save(&self.game_dir)?;
         self.fleet_roe_input.clear();
-        self.fleet_roe_status = Some(format!(
-            "Fleet #{} ROE set to {}.",
-            selected_row.fleet_number, parsed
-        ));
+        self.fleet_roe_status = None;
         self.fleet_roe_editing = false;
         Ok(())
     }
@@ -1372,23 +1369,23 @@ impl App {
             Err(err) => return Err(err.into()),
         };
         self.game_data.save(&self.game_dir)?;
-        self.planet_commission_status = Some(match result {
+        match result {
             CommissionResult::Fleet {
                 fleet_record_index_1_based,
             } => {
-                let fleet_number = self
+                let _ = self
                     .game_data
                     .fleets
                     .records
                     .get(fleet_record_index_1_based - 1)
                     .map(|fleet| fleet.local_slot_word_raw())
                     .ok_or("commissioned fleet record missing")?;
-                format!("Commissioned a new fleet as Fleet #{fleet_number}.")
             }
             CommissionResult::Starbase {
-                base_record_index_1_based,
-            } => format!("Commissioned a new starbase as Base #{base_record_index_1_based}."),
-        });
+                base_record_index_1_based: _,
+            } => {}
+        }
+        self.planet_commission_status = None;
 
         let planet_rows = self.commission_planet_rows();
         if planet_rows.is_empty() {
@@ -1591,16 +1588,7 @@ impl App {
             Err(err) => return Err(err.into()),
         }
         self.game_data.save(&self.game_dir)?;
-        self.planet_transport_status = Some(match mode {
-            PlanetTransportMode::Load => format!(
-                "Loaded {qty} armies onto Fleet {} at {},{}.",
-                fleet.fleet_number, planet.coords[0], planet.coords[1]
-            ),
-            PlanetTransportMode::Unload => format!(
-                "Unloaded {qty} armies from Fleet {} at {},{}.",
-                fleet.fleet_number, planet.coords[0], planet.coords[1]
-            ),
-        });
+        self.planet_transport_status = None;
         self.planet_transport_qty_input.clear();
         let base_row = self
             .build_planet_rows()
@@ -2328,13 +2316,7 @@ impl App {
             next,
         )?;
         self.game_data.save(&self.game_dir)?;
-        self.enemies_status = Some(format!(
-            "Empire {empire_id} is now {}.",
-            match next {
-                ec_data::DiplomaticRelation::Enemy => "ENEMY",
-                ec_data::DiplomaticRelation::Neutral => "NEUTRAL",
-            }
-        ));
+        self.enemies_status = None;
         self.enemies_input.clear();
         Ok(())
     }
@@ -2659,7 +2641,7 @@ impl App {
         queue.remove(queue_index);
         save_mail_queue(&self.game_dir, &queue)?;
         self.compose_outbox_input.clear();
-        self.compose_outbox_status = Some(format!("Queued message {:02} deleted.", queue_no));
+        self.compose_outbox_status = None;
 
         // Clamp cursor and scroll offset to the new (smaller) queue.
         let new_len = own_indexes.len().saturating_sub(1);

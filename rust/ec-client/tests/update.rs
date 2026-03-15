@@ -9,6 +9,7 @@ use ec_client::screen::{
     PlanetBuildOrder, PlanetBuildScreen, PlanetListMode, PlanetListSort, ScreenId,
 };
 use ec_client::startup::StartupPhase;
+use ec_client::terminal::Terminal;
 use ec_data::{DiplomaticRelation, EmpirePlanetEconomyRow, EmpireProductionRankingSort, ProductionItemKind};
 
 fn repo_root() -> PathBuf {
@@ -44,6 +45,44 @@ fn copy_dir_all(src: &Path, dst: &Path) {
 
 fn key(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::NONE)
+}
+
+struct CaptureTerminal {
+    lines: Vec<String>,
+}
+
+impl CaptureTerminal {
+    fn new() -> Self {
+        Self { lines: Vec::new() }
+    }
+
+    fn line(&self, row: usize) -> &str {
+        &self.lines[row]
+    }
+}
+
+impl Terminal for CaptureTerminal {
+    fn render(
+        &mut self,
+        playfield: &ec_client::screen::PlayfieldBuffer,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        self.lines = (0..playfield.height())
+            .map(|row| playfield.plain_line(row))
+            .collect();
+        Ok(())
+    }
+
+    fn dump_text_capture(&mut self, _text: &str) -> Result<(), Box<dyn std::error::Error>> {
+        Ok(())
+    }
+
+    fn read_key(&mut self) -> Result<KeyEvent, Box<dyn std::error::Error>> {
+        Err("not used in tests".into())
+    }
+
+    fn clear_and_restore(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        Ok(())
+    }
 }
 
 #[test]
@@ -630,6 +669,49 @@ fn fleet_roe_empty_enter_accepts_displayed_default() {
 
     assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
     assert_eq!(app.current_fleet_roe_by_id(4), Some(6));
+}
+
+#[test]
+fn fleet_roe_success_returns_to_selector_prompt_without_confirmation_text() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    app.advance_startup();
+    app.advance_startup();
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetRoeSelect),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetRoeChar('4')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetRoe),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetRoeChar('9')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetRoe),
+        AppOutcome::Continue
+    );
+
+    app.render(&mut terminal).expect("render succeeds");
+    assert_eq!(terminal.line(19), "FLEET COMMAND <- Fleet # [4] ->");
 }
 
 #[test]
