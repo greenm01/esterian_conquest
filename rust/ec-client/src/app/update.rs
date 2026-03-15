@@ -37,6 +37,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_planet_help();
             AppOutcome::Continue
         }
+        Action::OpenPlanetCommissionMenu => {
+            app.open_planet_commission_menu();
+            AppOutcome::Continue
+        }
         Action::OpenPlanetBuildMenu => {
             app.open_planet_build_menu();
             AppOutcome::Continue
@@ -169,6 +173,22 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.move_planet_build(delta);
             AppOutcome::Continue
         }
+        Action::MovePlanetCommissionPlanet(delta) => {
+            app.move_planet_commission_planet(delta);
+            AppOutcome::Continue
+        }
+        Action::MovePlanetCommissionRow(delta) => {
+            app.move_planet_commission_row(delta);
+            AppOutcome::Continue
+        }
+        Action::TogglePlanetCommissionSelection => {
+            app.toggle_planet_commission_selection();
+            AppOutcome::Continue
+        }
+        Action::CommissionPlanetStardockSelection => match app.commission_selected_stardock_row() {
+            Ok(()) => AppOutcome::Continue,
+            Err(_) => AppOutcome::Continue,
+        },
         Action::MovePlanetDetail(delta) => {
             app.move_planet_detail(delta);
             AppOutcome::Continue

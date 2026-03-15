@@ -106,6 +106,12 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::PlanetHelp);
 
     assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetCommissionMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetCommissionMenu);
+
+    assert_eq!(
         apply_action(&mut app, Action::OpenPlanetBuildMenu),
         AppOutcome::Continue
     );

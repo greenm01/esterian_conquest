@@ -1,10 +1,11 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::PathBuf;
 
 use ec_data::{
     append_mail_queue, build_player_starmap_projection, load_mail_queue, save_mail_queue,
-    CoreGameData, DatabaseDat, GameStateMutationError, ProductionItemKind, QueuedPlayerMail,
+    CommissionResult, CoreGameData, DatabaseDat, GameStateMutationError, ProductionItemKind,
+    QueuedPlayerMail,
 };
 
 use crate::app::Action;
@@ -15,9 +16,10 @@ use crate::screen::{
     DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
     GeneralHelpScreen, GeneralMenuScreen, MainMenuScreen, MessageComposeScreen,
     PartialStarmapScreen, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView,
-    PlanetBuildOrder, PlanetBuildScreen, PlanetHelpScreen, PlanetInfoScreen, PlanetListMode,
-    PlanetListScreen, PlanetListSort, PlanetMenuScreen, PlanetTaxScreen, RankingsScreen,
-    RankingsView, ReportsScreen, Screen, ScreenFrame, ScreenId, StarmapScreen, StartupScreen,
+    PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionRow, PlanetCommissionScreen,
+    PlanetCommissionView, PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen,
+    PlanetListSort, PlanetMenuScreen, PlanetTaxScreen, RankingsScreen, RankingsView,
+    ReportsScreen, Screen, ScreenFrame, ScreenId, StarmapScreen, StartupScreen,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -43,6 +45,7 @@ pub struct App {
     general_help: GeneralHelpScreen,
     planet_menu: PlanetMenuScreen,
     planet_help: PlanetHelpScreen,
+    planet_commission: PlanetCommissionScreen,
     build_help: BuildHelpScreen,
     planet_build: PlanetBuildScreen,
     planet_list: PlanetListScreen,
@@ -88,6 +91,11 @@ pub struct App {
     planet_brief_scroll_offset: usize,
     planet_brief_cursor: usize,
     planet_detail_index: usize,
+    planet_commission_index: usize,
+    planet_commission_cursor: usize,
+    planet_commission_scroll_offset: usize,
+    planet_commission_selected_slots: BTreeSet<usize>,
+    planet_commission_status: Option<String>,
     planet_build_index: usize,
     planet_build_status: Option<String>,
     planet_build_unit_input: String,
@@ -152,6 +160,7 @@ impl App {
             general_help: GeneralHelpScreen::new(),
             planet_menu: PlanetMenuScreen::new(),
             planet_help: PlanetHelpScreen::new(),
+            planet_commission: PlanetCommissionScreen::new(),
             build_help: BuildHelpScreen::new(),
             planet_build: PlanetBuildScreen::new(),
             planet_list: PlanetListScreen::new(),
@@ -197,6 +206,11 @@ impl App {
             planet_brief_scroll_offset: 0,
             planet_brief_cursor: 0,
             planet_detail_index: 0,
+            planet_commission_index: 0,
+            planet_commission_cursor: 0,
+            planet_commission_scroll_offset: 0,
+            planet_commission_selected_slots: BTreeSet::new(),
+            planet_commission_status: None,
             planet_build_index: 0,
             planet_build_status: None,
             planet_build_unit_input: String::new(),
@@ -240,6 +254,13 @@ impl App {
             ScreenId::GeneralHelp => self.general_help.render(&frame)?,
             ScreenId::PlanetMenu => self.planet_menu.render(&frame)?,
             ScreenId::PlanetHelp => self.planet_help.render(&frame)?,
+            ScreenId::PlanetCommissionMenu => self.planet_commission.render_menu(
+                &self.current_planet_commission_view()?,
+                self.planet_commission_scroll_offset,
+                self.planet_commission_cursor,
+                &self.planet_commission_selected_slots,
+                self.planet_commission_status.as_deref(),
+            )?,
             ScreenId::PlanetBuildHelp => self.build_help.render(&frame)?,
             ScreenId::PlanetBuildMenu => self.planet_build.render_menu(
                 &self.current_planet_build_view()?,
@@ -430,6 +451,23 @@ impl App {
         self.current_screen = ScreenId::PlanetHelp;
     }
 
+    pub fn open_planet_commission_menu(&mut self) {
+        self.command_return_menu = CommandMenu::Planet;
+        self.planet_commission_status = None;
+        self.planet_commission_cursor = 0;
+        self.planet_commission_scroll_offset = 0;
+        self.planet_commission_selected_slots.clear();
+        let total = self.commission_planet_rows().len();
+        if total == 0 {
+            self.planet_commission_index = 0;
+            self.planet_commission_status =
+                Some("No owned planets have units waiting in stardock.".to_string());
+        } else {
+            self.planet_commission_index = self.planet_commission_index.min(total - 1);
+        }
+        self.current_screen = ScreenId::PlanetCommissionMenu;
+    }
+
     pub fn open_planet_build_help(&mut self) {
         self.current_screen = ScreenId::PlanetBuildHelp;
     }
@@ -599,6 +637,126 @@ impl App {
         let next = self.planet_build_index as isize + delta as isize;
         self.planet_build_index = next.rem_euclid(total as isize) as usize;
         self.planet_build_status = None;
+    }
+
+    pub fn move_planet_commission_planet(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::PlanetCommissionMenu {
+            return;
+        }
+        let total = self.commission_planet_rows().len();
+        if total == 0 {
+            self.planet_commission_index = 0;
+            return;
+        }
+        let next = self.planet_commission_index as isize + delta as isize;
+        self.planet_commission_index = next.rem_euclid(total as isize) as usize;
+        self.planet_commission_cursor = 0;
+        self.planet_commission_scroll_offset = 0;
+        self.planet_commission_selected_slots.clear();
+        self.planet_commission_status = None;
+    }
+
+    pub fn move_planet_commission_row(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::PlanetCommissionMenu {
+            return;
+        }
+        let total = self.current_planet_commission_rows().len();
+        if total == 0 {
+            self.planet_commission_cursor = 0;
+            return;
+        }
+        let next = self.planet_commission_cursor as isize + delta as isize;
+        self.planet_commission_cursor = next.rem_euclid(total as isize) as usize;
+        if self.planet_commission_cursor < self.planet_commission_scroll_offset {
+            self.planet_commission_scroll_offset = self.planet_commission_cursor;
+        } else if self.planet_commission_cursor
+            >= self.planet_commission_scroll_offset + crate::screen::PLANET_COMMISSION_VISIBLE_ROWS
+        {
+            self.planet_commission_scroll_offset = self.planet_commission_cursor + 1
+                - crate::screen::PLANET_COMMISSION_VISIBLE_ROWS;
+        }
+    }
+
+    pub fn commission_selected_stardock_row(
+        &mut self,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        if self.current_screen != ScreenId::PlanetCommissionMenu {
+            return Ok(());
+        }
+        let rows = self.current_planet_commission_rows();
+        let Some(current_row) = rows.get(self.planet_commission_cursor) else {
+            self.planet_commission_status = Some("No stardock units are available.".to_string());
+            return Ok(());
+        };
+        let selected_slots: Vec<usize> = if self.planet_commission_selected_slots.is_empty() {
+            vec![current_row.slot_0_based]
+        } else {
+            rows.iter()
+                .filter(|row| self.planet_commission_selected_slots.contains(&row.slot_0_based))
+                .map(|row| row.slot_0_based)
+                .collect()
+        };
+        let planet_record = self.current_commission_planet_row()?.planet_record_index_1_based;
+        let result = match self.game_data.commission_planet_stardock_slots(
+            self.player.record_index_1_based,
+            planet_record,
+            &selected_slots,
+        ) {
+            Ok(result) => result,
+            Err(GameStateMutationError::InvalidCommissionSelection) => {
+                self.planet_commission_status = Some(
+                    "Select either ships for one fleet or one starbase by itself.".to_string(),
+                );
+                return Ok(());
+            }
+            Err(err) => return Err(err.into()),
+        };
+        self.game_data.save(&self.game_dir)?;
+        self.planet_commission_status = Some(match result {
+            CommissionResult::Fleet {
+                fleet_record_index_1_based,
+            } => format!("Commissioned a new fleet as Fleet #{fleet_record_index_1_based}."),
+            CommissionResult::Starbase {
+                base_record_index_1_based,
+            } => format!("Commissioned a new starbase as Base #{base_record_index_1_based}."),
+        });
+
+        let planet_rows = self.commission_planet_rows();
+        if planet_rows.is_empty() {
+            self.planet_commission_index = 0;
+            self.planet_commission_cursor = 0;
+            self.planet_commission_scroll_offset = 0;
+        } else {
+            self.planet_commission_index = self.planet_commission_index.min(planet_rows.len() - 1);
+            let current_rows = self.current_planet_commission_rows();
+            if current_rows.is_empty() {
+                self.move_planet_commission_planet(1);
+            } else {
+                self.planet_commission_cursor =
+                    self.planet_commission_cursor.min(current_rows.len() - 1);
+            }
+        }
+        self.planet_commission_selected_slots.clear();
+        Ok(())
+    }
+
+    pub fn toggle_planet_commission_selection(&mut self) {
+        if self.current_screen != ScreenId::PlanetCommissionMenu {
+            return;
+        }
+        let rows = self.current_planet_commission_rows();
+        let Some(row) = rows.get(self.planet_commission_cursor) else {
+            return;
+        };
+        if self
+            .planet_commission_selected_slots
+            .contains(&row.slot_0_based)
+        {
+            self.planet_commission_selected_slots.remove(&row.slot_0_based);
+        } else {
+            self.planet_commission_selected_slots.insert(row.slot_0_based);
+        }
+        self.planet_commission_status = None;
     }
 
     pub fn scroll_planet_build_list(&mut self, delta: i8) {
@@ -895,6 +1053,7 @@ impl App {
             ScreenId::GeneralHelp => self.general_help.handle_key(key),
             ScreenId::PlanetMenu => self.planet_menu.handle_key(key),
             ScreenId::PlanetHelp => self.planet_help.handle_key(key),
+            ScreenId::PlanetCommissionMenu => self.planet_commission.handle_key(key),
             ScreenId::PlanetBuildHelp => self.build_help.handle_key(key),
             ScreenId::PlanetBuildMenu => self.planet_build.handle_menu_key(key),
             ScreenId::PlanetBuildReview => self.planet_build.handle_review_key(key),
@@ -1733,6 +1892,72 @@ impl App {
 
     fn build_planet_rows(&self) -> Vec<ec_data::EmpirePlanetEconomyRow> {
         self.sorted_planet_rows(PlanetListSort::CurrentProduction)
+    }
+
+    fn commission_planet_rows(&self) -> Vec<ec_data::EmpirePlanetEconomyRow> {
+        self.build_planet_rows()
+            .into_iter()
+            .filter(|row| {
+                self.game_data
+                    .planets
+                    .records
+                    .get(row.planet_record_index_1_based - 1)
+                    .map(|record| (0..10).any(|slot| record.stardock_kind_raw(slot) != 0))
+                    .unwrap_or(false)
+            })
+            .collect()
+    }
+
+    fn current_commission_planet_row(
+        &self,
+    ) -> Result<ec_data::EmpirePlanetEconomyRow, Box<dyn std::error::Error>> {
+        self.commission_planet_rows()
+            .get(self.planet_commission_index)
+            .cloned()
+            .ok_or_else(|| "current commission planet missing".into())
+    }
+
+    fn current_planet_commission_view(
+        &self,
+    ) -> Result<PlanetCommissionView, Box<dyn std::error::Error>> {
+        let row = self.current_commission_planet_row()?;
+        Ok(PlanetCommissionView {
+            planet_name: row.planet_name,
+            coords: row.coords,
+            rows: self.current_planet_commission_rows(),
+        })
+    }
+
+    fn current_planet_commission_rows(&self) -> Vec<PlanetCommissionRow> {
+        let Ok(row) = self.current_commission_planet_row() else {
+            return vec![];
+        };
+        let Some(record) = self
+            .game_data
+            .planets
+            .records
+            .get(row.planet_record_index_1_based - 1)
+        else {
+            return vec![];
+        };
+        (0..10)
+            .filter_map(|slot| {
+                let kind_raw = record.stardock_kind_raw(slot);
+                let qty = u32::from(record.stardock_count_raw(slot));
+                if kind_raw == 0 || qty == 0 {
+                    return None;
+                }
+                let kind = ProductionItemKind::from_raw(kind_raw);
+                let unit_label = build_unit_spec_by_kind(kind)
+                    .map(|spec| spec.label.to_string())
+                    .unwrap_or_else(|| format!("Unknown (kind {})", kind_raw));
+                Some(PlanetCommissionRow {
+                    slot_0_based: slot,
+                    unit_label,
+                    qty,
+                })
+            })
+            .collect()
     }
 
     fn build_change_rows(&self) -> Vec<PlanetBuildChangeRow> {

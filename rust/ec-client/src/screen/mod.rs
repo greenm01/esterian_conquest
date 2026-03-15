@@ -11,6 +11,7 @@ mod main_menu;
 mod message_compose;
 mod partial_starmap;
 mod planet_build;
+mod planet_commission;
 mod planet_help;
 mod planet_info;
 mod planet_list;
@@ -43,7 +44,9 @@ pub use planet_build::{
     max_quantity, BuildUnitSpec, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView,
     PlanetBuildOrder, PlanetBuildScreen,
 };
+pub use planet_commission::{PlanetCommissionRow, PlanetCommissionScreen, PlanetCommissionView};
 pub(crate) use planet_build::{PLANET_BUILD_CHANGE_VISIBLE_ROWS, PLANET_BUILD_LIST_VISIBLE_ROWS};
+pub(crate) use planet_commission::PLANET_COMMISSION_VISIBLE_ROWS;
 pub use planet_help::PlanetHelpScreen;
 pub use planet_info::{parse_planet_coords, PlanetInfoScreen};
 pub(crate) use planet_list::PLANET_BRIEF_VISIBLE_ROWS;
@@ -79,6 +82,7 @@ pub enum ScreenId {
     PlanetBuildAbortConfirm,
     PlanetBuildSpecify,
     PlanetBuildQuantity,
+    PlanetCommissionMenu,
     PlanetListSortPrompt(PlanetListMode),
     PlanetBriefList(PlanetListSort),
     PlanetDetailList(PlanetListSort),

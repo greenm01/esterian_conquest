@@ -81,9 +81,8 @@ impl Screen for PlanetMenuScreen {
             ),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenMainMenu,
             KeyCode::Char('b') | KeyCode::Char('B') => Action::OpenPlanetBuildMenu,
-            KeyCode::Char('c')
-            | KeyCode::Char('C')
-            | KeyCode::Char('a')
+            KeyCode::Char('c') | KeyCode::Char('C') => Action::OpenPlanetCommissionMenu,
+            KeyCode::Char('a')
             | KeyCode::Char('A')
             | KeyCode::Char('s')
             | KeyCode::Char('S')
@@ -103,7 +102,6 @@ impl Screen for PlanetMenuScreen {
 
 fn planet_stub_label(code: KeyCode) -> Option<&'static str> {
     match code {
-        KeyCode::Char('c') | KeyCode::Char('C') => Some("Commission menu not implemented yet."),
         KeyCode::Char('a') | KeyCode::Char('A') => Some("Auto-commission is not implemented yet."),
         KeyCode::Char('s') | KeyCode::Char('S') => {
             Some("Scorch-planet orders are not implemented yet.")
