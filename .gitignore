@@ -10,6 +10,9 @@ MEMDUMP.BIN
 $tmpfil$.exe
 bombard/
 capture/commission_menu.png
+capture/*.png
+capture/bbs-menu-map/
+capture/bbs-join-map-current/
 artifacts/ghidra/
 original/v1.5/IPBM.DAT
 
@@ -19,6 +22,7 @@ original/v1.5/IPBM.DAT
 
 # Python bytecode caches.
 tools/__pycache__/
+tools/bbs/__pycache__/
 
 # Local one-off tooling and scratch scripts not part of the repo baseline.
 tools/dump_ecgame_memory.py
