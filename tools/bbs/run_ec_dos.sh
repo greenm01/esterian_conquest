@@ -8,13 +8,9 @@ GAME_DIR="/home/mag/dev/esterian_conquest/original/v1.5"
 
 echo "$(date) - Launching door with $@" >> /tmp/ec-door.log
 
-# Enigma generates the dropfile in the path provided.
-# If the path is a directory, append DOOR.SYS
 if [ -d "$DROPFILE" ]; then
     DROPFILE="$DROPFILE/DOOR.SYS"
 fi
-
-echo "Using DROPFILE: $DROPFILE" >> /tmp/ec-door.log
 
 if [ -f "$DROPFILE" ]; then
     cp "$DROPFILE" "$GAME_DIR/DOOR.SYS"
@@ -24,6 +20,10 @@ else
 fi
 
 export SDL_VIDEODRIVER=dummy
+
+# The game's command line parsing is extremely specific about the path separator
+# C:\ is what it expects, but escaping in bash -> dosbox can get mangled.
+# Let's just use the default dropfile location by omitting the /D flag if DOOR.SYS is in the game dir.
 
 dosbox-x -conf /dev/null \
   -fastlaunch \
@@ -35,5 +35,5 @@ dosbox-x -conf /dev/null \
   -set "cycles=fixed 3000" \
   -c "mount c $GAME_DIR" \
   -c "c:" \
-  -c "ECGAME.EXE /D:C:\\ /N:$NODE" \
+  -c "ECGAME.EXE /N:$NODE" \
   -c "exit" >> /tmp/ec-door.log 2>&1
