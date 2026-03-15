@@ -12,9 +12,9 @@ if [ -d "$DROPFILE" ]; then
     DROPFILE="$DROPFILE/DOOR.SYS"
 fi
 
-# Clean up any previous drop files so ECGAME isn't confused
 rm -f "$GAME_DIR/CHAIN.TXT"
 rm -f "$GAME_DIR/DOOR.SYS"
+rm -f "$GAME_DIR/DORINFO1.DEF"
 
 if [ -f "$DROPFILE" ]; then
     cp "$DROPFILE" "$GAME_DIR/DOOR.SYS"
@@ -25,11 +25,16 @@ fi
 
 export SDL_VIDEODRIVER=dummy
 
-# If you don't specify /D:, ECGAME prioritizes CHAIN.TXT in the current dir.
-# If we want it to parse DOOR.SYS, we MUST give it the directory!
-# The syntax ECGAME wants is exactly: /D:C:\
-# But in DOSBox `-c "ECGAME.EXE /D:C:\ "` might get its backslash eaten by bash.
-# We will use two backslashes in the mount command to ensure it arrives at DOS.
+# Enigma generates DOOR.SYS by default based on our dropFileType config.
+# Let's switch the strategy. The absolute most reliable way to launch ECGAME
+# in DOSBox-X without bash escaping issues on backslashes is to write a tiny
+# .BAT file on the fly and launch THAT inside dosbox.
+
+cat << 'BAT' > "$GAME_DIR/RUN.BAT"
+@ECHO OFF
+C:
+ECGAME.EXE /D:C:\
+BAT
 
 dosbox-x -conf /dev/null \
   -fastlaunch \
@@ -41,5 +46,5 @@ dosbox-x -conf /dev/null \
   -set "cycles=fixed 3000" \
   -c "mount c $GAME_DIR" \
   -c "c:" \
-  -c "ECGAME.EXE /D:C:\\" \
+  -c "RUN.BAT" \
   -c "exit" >> /tmp/ec-door.log 2>&1
