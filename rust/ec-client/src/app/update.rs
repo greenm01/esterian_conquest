@@ -41,6 +41,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_planet_build_menu();
             AppOutcome::Continue
         }
+        Action::OpenPlanetBuildHelp => {
+            app.open_planet_build_help();
+            AppOutcome::Continue
+        }
         Action::OpenPlanetBuildReview => {
             app.open_planet_build_review();
             AppOutcome::Continue

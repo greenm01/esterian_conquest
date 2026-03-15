@@ -1,3 +1,4 @@
+mod build_help;
 mod buffer;
 mod delete_reviewables;
 mod empire_profile;
@@ -22,6 +23,7 @@ mod startup;
 mod table;
 
 pub use buffer::{Cell, CellStyle, PlayfieldBuffer, RgbColor, StyledSpan};
+pub use build_help::BuildHelpScreen;
 pub use delete_reviewables::DeleteReviewablesScreen;
 pub use empire_profile::EmpireProfileScreen;
 pub use empire_status::EmpireStatusScreen;
@@ -70,6 +72,7 @@ pub enum ScreenId {
     PlanetMenu,
     PlanetHelp,
     PlanetBuildMenu,
+    PlanetBuildHelp,
     PlanetBuildReview,
     PlanetBuildList,
     PlanetBuildChange,

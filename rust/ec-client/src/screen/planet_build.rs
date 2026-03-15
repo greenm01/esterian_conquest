@@ -622,7 +622,7 @@ impl PlanetBuildScreen {
             KeyCode::Char('i') | KeyCode::Char('I') => {
                 Action::OpenPlanetInfoPrompt(CommandMenu::PlanetBuild)
             }
-            KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenPlanetHelp,
+            KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenPlanetBuildHelp,
             KeyCode::Char('c') | KeyCode::Char('C') => Action::OpenPlanetBuildChange,
             KeyCode::Char('n') | KeyCode::Char('N') => Action::MovePlanetBuild(1),
             KeyCode::Char('r') | KeyCode::Char('R') => Action::OpenPlanetBuildReview,

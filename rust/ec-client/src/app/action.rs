@@ -11,6 +11,7 @@ pub enum Action {
     OpenPlanetMenu,
     OpenPlanetHelp,
     OpenPlanetBuildMenu,
+    OpenPlanetBuildHelp,
     OpenPlanetBuildReview,
     OpenPlanetBuildList,
     OpenPlanetBuildChange,

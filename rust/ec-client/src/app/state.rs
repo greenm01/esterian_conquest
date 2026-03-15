@@ -11,13 +11,13 @@ use crate::app::Action;
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
 use crate::reports::{clear_report_files, ReportsPreview};
 use crate::screen::{
-    build_unit_spec, build_unit_spec_by_kind, max_quantity, CommandMenu, DeleteReviewablesScreen,
-    EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen, GeneralHelpScreen, GeneralMenuScreen,
-    MainMenuScreen, MessageComposeScreen, PartialStarmapScreen, PlanetBuildChangeRow,
-    PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen,
-    PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen, PlanetListSort,
-    PlanetMenuScreen, PlanetTaxScreen, RankingsScreen, RankingsView, ReportsScreen, Screen,
-    ScreenFrame, ScreenId, StarmapScreen, StartupScreen,
+    build_unit_spec, build_unit_spec_by_kind, max_quantity, BuildHelpScreen, CommandMenu,
+    DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
+    GeneralHelpScreen, GeneralMenuScreen, MainMenuScreen, MessageComposeScreen,
+    PartialStarmapScreen, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView,
+    PlanetBuildOrder, PlanetBuildScreen, PlanetHelpScreen, PlanetInfoScreen, PlanetListMode,
+    PlanetListScreen, PlanetListSort, PlanetMenuScreen, PlanetTaxScreen, RankingsScreen,
+    RankingsView, ReportsScreen, Screen, ScreenFrame, ScreenId, StarmapScreen, StartupScreen,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -43,6 +43,7 @@ pub struct App {
     general_help: GeneralHelpScreen,
     planet_menu: PlanetMenuScreen,
     planet_help: PlanetHelpScreen,
+    build_help: BuildHelpScreen,
     planet_build: PlanetBuildScreen,
     planet_list: PlanetListScreen,
     planet_tax: PlanetTaxScreen,
@@ -151,6 +152,7 @@ impl App {
             general_help: GeneralHelpScreen::new(),
             planet_menu: PlanetMenuScreen::new(),
             planet_help: PlanetHelpScreen::new(),
+            build_help: BuildHelpScreen::new(),
             planet_build: PlanetBuildScreen::new(),
             planet_list: PlanetListScreen::new(),
             planet_tax: PlanetTaxScreen::new(),
@@ -238,6 +240,7 @@ impl App {
             ScreenId::GeneralHelp => self.general_help.render(&frame)?,
             ScreenId::PlanetMenu => self.planet_menu.render(&frame)?,
             ScreenId::PlanetHelp => self.planet_help.render(&frame)?,
+            ScreenId::PlanetBuildHelp => self.build_help.render(&frame)?,
             ScreenId::PlanetBuildMenu => self.planet_build.render_menu(
                 &self.current_planet_build_view()?,
                 self.planet_build_status.as_deref(),
@@ -425,6 +428,10 @@ impl App {
 
     pub fn open_planet_help(&mut self) {
         self.current_screen = ScreenId::PlanetHelp;
+    }
+
+    pub fn open_planet_build_help(&mut self) {
+        self.current_screen = ScreenId::PlanetBuildHelp;
     }
 
     pub fn open_planet_build_menu(&mut self) {
@@ -888,6 +895,7 @@ impl App {
             ScreenId::GeneralHelp => self.general_help.handle_key(key),
             ScreenId::PlanetMenu => self.planet_menu.handle_key(key),
             ScreenId::PlanetHelp => self.planet_help.handle_key(key),
+            ScreenId::PlanetBuildHelp => self.build_help.handle_key(key),
             ScreenId::PlanetBuildMenu => self.planet_build.handle_menu_key(key),
             ScreenId::PlanetBuildReview => self.planet_build.handle_review_key(key),
             ScreenId::PlanetBuildList => self
