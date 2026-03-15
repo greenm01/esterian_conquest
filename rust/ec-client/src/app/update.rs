@@ -41,6 +41,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_fleet_review();
             AppOutcome::Continue
         }
+        Action::OpenFleetRoeSelect => {
+            app.open_fleet_roe_select();
+            AppOutcome::Continue
+        }
         Action::OpenPlanetMenu => {
             app.open_planet_menu();
             AppOutcome::Continue
@@ -177,6 +181,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.move_fleet_review(delta);
             AppOutcome::Continue
         }
+        Action::MoveFleetRoeSelect(delta) => {
+            app.move_fleet_roe_select(delta);
+            AppOutcome::Continue
+        }
         Action::ScrollPlanetBrief(delta) => {
             app.scroll_planet_brief(delta);
             AppOutcome::Continue
@@ -269,6 +277,18 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.append_planet_tax_char(ch);
             AppOutcome::Continue
         }
+        Action::AppendFleetRoeChar(ch) => {
+            app.append_fleet_roe_char(ch);
+            AppOutcome::Continue
+        }
+        Action::BackspaceFleetRoeInput => {
+            app.backspace_fleet_roe_input();
+            AppOutcome::Continue
+        }
+        Action::SubmitFleetRoe => match app.submit_fleet_roe() {
+            Ok(()) => AppOutcome::Continue,
+            Err(_) => AppOutcome::Continue,
+        },
         Action::BackspacePlanetTaxInput => {
             app.backspace_planet_tax_input();
             AppOutcome::Continue
@@ -483,10 +503,6 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         }
         Action::OpenEmpireProfile => {
             app.open_empire_profile();
-            AppOutcome::Continue
-        }
-        Action::OpenRankingsPrompt => {
-            app.open_rankings_prompt();
             AppOutcome::Continue
         }
         Action::OpenRankingsTable(sort) => {

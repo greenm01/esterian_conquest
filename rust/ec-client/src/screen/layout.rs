@@ -3,6 +3,7 @@ use crate::theme::classic;
 
 pub const PLAYFIELD_WIDTH: usize = 80;
 pub const PLAYFIELD_HEIGHT: usize = 20;
+pub const COMMAND_LINE_ROW: usize = PLAYFIELD_HEIGHT - 1;
 pub const CMD_COL_1: usize = 2;
 pub const CMD_COL_2: usize = 26;
 pub const CMD_COL_3: usize = 50;
@@ -93,10 +94,10 @@ pub fn draw_centered_text(
     buffer.write_text(row, col, text, style);
 }
 
-pub fn draw_command_prompt(buffer: &mut PlayfieldBuffer, row: usize, label: &str, keys: &str) {
-    buffer.fill_row(row, classic::prompt_style());
+pub fn draw_command_prompt(buffer: &mut PlayfieldBuffer, _row: usize, label: &str, keys: &str) {
+    buffer.fill_row(COMMAND_LINE_ROW, classic::prompt_style());
     buffer.write_spans(
-        row,
+        COMMAND_LINE_ROW,
         0,
         &[
             StyledSpan::new(label, classic::title_style()),
@@ -105,6 +106,47 @@ pub fn draw_command_prompt(buffer: &mut PlayfieldBuffer, row: usize, label: &str
             StyledSpan::new("-> ", classic::prompt_style()),
         ],
     );
+}
+
+pub fn draw_command_line_text(buffer: &mut PlayfieldBuffer, label: &str, text: &str) {
+    buffer.fill_row(COMMAND_LINE_ROW, classic::prompt_style());
+    buffer.write_spans(
+        COMMAND_LINE_ROW,
+        0,
+        &[
+            StyledSpan::new(label, classic::title_style()),
+            StyledSpan::new(" <- ", classic::prompt_style()),
+            StyledSpan::new(text, classic::prompt_style()),
+        ],
+    );
+}
+
+pub fn draw_command_line_input(
+    buffer: &mut PlayfieldBuffer,
+    label: &str,
+    prompt: &str,
+    input: &str,
+) -> usize {
+    buffer.fill_row(COMMAND_LINE_ROW, classic::prompt_style());
+    let prefix = buffer.write_spans(
+        COMMAND_LINE_ROW,
+        0,
+        &[
+            StyledSpan::new(label, classic::title_style()),
+            StyledSpan::new(" <- ", classic::prompt_style()),
+            StyledSpan::new(prompt, classic::prompt_style()),
+        ],
+    );
+    let input_col = prefix;
+    let written = buffer.write_text(
+        COMMAND_LINE_ROW,
+        input_col,
+        input,
+        classic::prompt_hotkey_style(),
+    );
+    let cursor_col = input_col + written;
+    buffer.set_cursor(cursor_col as u16, COMMAND_LINE_ROW as u16);
+    cursor_col
 }
 
 pub fn draw_plain_prompt(buffer: &mut PlayfieldBuffer, row: usize, prompt: &str) -> usize {

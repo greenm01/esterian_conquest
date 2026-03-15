@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::KeyEvent;
 
 use crate::app::Action;
 use crate::screen::layout::{draw_command_prompt, draw_title_bar, new_playfield};
@@ -8,12 +8,6 @@ use crate::screen::table::{
 use crate::screen::{command_menu_label, CommandMenu, PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 use ec_data::{DiplomaticRelation, EmpireProductionRankingSort};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RankingsView {
-    Prompt,
-    Table(EmpireProductionRankingSort),
-}
 
 pub struct RankingsScreen;
 
@@ -28,24 +22,6 @@ const RANKINGS_COLUMNS: [TableColumn<'static>; 5] = [
 impl RankingsScreen {
     pub fn new() -> Self {
         Self
-    }
-
-    pub fn render_prompt(
-        &mut self,
-        _frame: &ScreenFrame<'_>,
-        menu: CommandMenu,
-    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, "OTHER EMPIRES (RANKINGS):");
-        buffer.write_text(
-            2,
-            0,
-            "Rank empires by <I>D, <P>roduction, <N>umber of planets or <A>bort? [I] ->",
-            classic::prompt_style(),
-        );
-        draw_command_prompt(&mut buffer, 19, command_menu_label(menu), "I P N A");
-        buffer.set_cursor(76, 2);
-        Ok(buffer)
     }
 
     pub fn render_table(
@@ -100,24 +76,7 @@ impl RankingsScreen {
         draw_command_prompt(&mut buffer, 19, command_menu_label(menu), "SLAP A KEY");
         Ok(buffer)
     }
-
-    pub fn handle_prompt_key(&self, key: KeyEvent) -> Action {
-        match key.code {
-            KeyCode::Char('i') | KeyCode::Char('I') | KeyCode::Enter => {
-                Action::OpenRankingsTable(EmpireProductionRankingSort::Id)
-            }
-            KeyCode::Char('p') | KeyCode::Char('P') => {
-                Action::OpenRankingsTable(EmpireProductionRankingSort::Production)
-            }
-            KeyCode::Char('n') | KeyCode::Char('N') => {
-                Action::OpenRankingsTable(EmpireProductionRankingSort::NumberOfPlanets)
-            }
-            KeyCode::Char('a') | KeyCode::Char('A') | KeyCode::Esc => Action::ReturnToCommandMenu,
-            _ => Action::Noop,
-        }
-    }
-
-    pub fn handle_table_key(&self, _key: KeyEvent) -> Action {
+    pub fn handle_key(&self, _key: KeyEvent) -> Action {
         Action::ReturnToCommandMenu
     }
 }

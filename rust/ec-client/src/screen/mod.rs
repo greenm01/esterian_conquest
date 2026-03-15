@@ -33,7 +33,7 @@ pub use delete_reviewables::DeleteReviewablesScreen;
 pub use empire_profile::EmpireProfileScreen;
 pub use empire_status::EmpireStatusScreen;
 pub use enemies::EnemiesScreen;
-pub use fleet::{FleetListMode, FleetListScreen, FleetMenuScreen, FleetReviewScreen, FleetRow};
+pub use fleet::{FleetListMode, FleetListScreen, FleetMenuScreen, FleetReviewScreen, FleetRoeScreen, FleetRow};
 pub(crate) use enemies::ENEMIES_VISIBLE_ROWS;
 pub(crate) use fleet::FLEET_VISIBLE_ROWS;
 pub use general_help::GeneralHelpScreen;
@@ -64,7 +64,7 @@ pub use planet_list::{PlanetListMode, PlanetListScreen, PlanetListSort};
 pub use planet_menu::PlanetMenuScreen;
 pub use planet_tax::PlanetTaxScreen;
 pub use planet_transport::{PlanetTransportFleetRow, PlanetTransportMode, PlanetTransportPlanetRow, PlanetTransportScreen};
-pub use rankings::{RankingsScreen, RankingsView};
+pub use rankings::RankingsScreen;
 pub use reports::ReportsScreen;
 pub use starmap::StarmapScreen;
 pub use startup::StartupScreen;
@@ -86,6 +86,7 @@ pub enum ScreenId {
     FleetMenu,
     FleetList(FleetListMode),
     FleetReview,
+    FleetRoeSelect,
     PlanetMenu,
     PlanetHelp,
     PlanetAutoCommissionConfirm,
@@ -126,7 +127,7 @@ pub enum ScreenId {
     ComposeMessageSent,
     EmpireStatus,
     EmpireProfile,
-    Rankings(RankingsView),
+    Rankings(ec_data::EmpireProductionRankingSort),
     Reports,
 }
 

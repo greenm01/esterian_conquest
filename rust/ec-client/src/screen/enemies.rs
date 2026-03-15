@@ -3,7 +3,7 @@ use ec_data::DiplomaticRelation;
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_command_prompt, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
+    draw_command_line_input, draw_command_line_text, draw_title_bar, new_playfield,
 };
 use crate::screen::table::{format_empire_id, write_table_window_with_cursor, TableColumn};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
@@ -89,13 +89,16 @@ impl EnemiesScreen {
             selected,
         );
 
-        let prompt = format!("Enter empire number to toggle: {input}");
-        let cursor_col = draw_plain_prompt(&mut buffer, 17, &prompt);
         if let Some(status) = status {
-            draw_status_line(&mut buffer, 18, "", status);
+            draw_command_line_text(&mut buffer, "GENERAL COMMAND", status);
+        } else {
+            draw_command_line_input(
+                &mut buffer,
+                "GENERAL COMMAND",
+                "Empire #: ",
+                input,
+            );
         }
-        draw_command_prompt(&mut buffer, 19, "GENERAL COMMAND", "ARROWS J K Q");
-        buffer.set_cursor(cursor_col as u16, 17);
         Ok(buffer)
     }
 

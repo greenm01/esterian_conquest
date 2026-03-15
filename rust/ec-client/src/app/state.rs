@@ -14,14 +14,15 @@ use crate::reports::{clear_report_files, ReportsPreview};
 use crate::screen::{
     build_unit_spec, build_unit_spec_by_kind, max_quantity, BuildHelpScreen, CommandMenu,
     DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
-    FleetListMode, FleetListScreen, FleetMenuScreen, FleetReviewScreen, FleetRow,
+    FleetListMode, FleetListScreen, FleetMenuScreen, FleetReviewScreen, FleetRoeScreen,
+    FleetRow,
     GeneralHelpScreen, GeneralMenuScreen, MainMenuScreen, MessageComposeScreen,
     PartialStarmapScreen, PlanetAutoCommissionScreen, PlanetBuildChangeRow, PlanetBuildListRow,
     PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionRow,
     PlanetCommissionScreen, PlanetCommissionView, PlanetDatabaseRow, PlanetDatabaseScreen,
     PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen, PlanetListSort,
     PlanetMenuScreen, PlanetTaxScreen, PlanetTransportFleetRow, PlanetTransportMode,
-    PlanetTransportPlanetRow, PlanetTransportScreen, RankingsScreen, RankingsView, ReportsScreen,
+    PlanetTransportPlanetRow, PlanetTransportScreen, RankingsScreen, ReportsScreen,
     Screen, ScreenFrame, ScreenId, StarmapScreen, StartupScreen,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
@@ -49,6 +50,7 @@ pub struct App {
     fleet_menu: FleetMenuScreen,
     fleet_list: FleetListScreen,
     fleet_review: FleetReviewScreen,
+    fleet_roe: FleetRoeScreen,
     planet_menu: PlanetMenuScreen,
     planet_help: PlanetHelpScreen,
     planet_auto_commission: PlanetAutoCommissionScreen,
@@ -101,6 +103,12 @@ pub struct App {
     fleet_scroll_offset: usize,
     fleet_cursor: usize,
     fleet_review_index: usize,
+    fleet_roe_scroll_offset: usize,
+    fleet_roe_cursor: usize,
+    fleet_roe_editing: bool,
+    fleet_roe_select_input: String,
+    fleet_roe_input: String,
+    fleet_roe_status: Option<String>,
     planet_brief_scroll_offset: usize,
     planet_brief_cursor: usize,
     planet_detail_index: usize,
@@ -186,6 +194,7 @@ impl App {
             fleet_menu: FleetMenuScreen::new(),
             fleet_list: FleetListScreen::new(),
             fleet_review: FleetReviewScreen::new(),
+            fleet_roe: FleetRoeScreen::new(),
             planet_menu: PlanetMenuScreen::new(),
             planet_help: PlanetHelpScreen::new(),
             planet_auto_commission: PlanetAutoCommissionScreen::new(),
@@ -238,6 +247,12 @@ impl App {
             fleet_scroll_offset: 0,
             fleet_cursor: 0,
             fleet_review_index: 0,
+            fleet_roe_scroll_offset: 0,
+            fleet_roe_cursor: 0,
+            fleet_roe_editing: false,
+            fleet_roe_select_input: String::new(),
+            fleet_roe_input: String::new(),
+            fleet_roe_status: None,
             planet_brief_scroll_offset: 0,
             planet_brief_cursor: 0,
             planet_detail_index: 0,
@@ -314,6 +329,15 @@ impl App {
                 self.fleet_review
                     .render(row, self.fleet_review_index, rows.len())?
             }
+            ScreenId::FleetRoeSelect => self.fleet_roe.render_select(
+                &self.fleet_rows(),
+                self.fleet_roe_scroll_offset,
+                self.fleet_roe_cursor,
+                self.fleet_roe_editing,
+                &self.fleet_roe_select_input,
+                &self.fleet_roe_input,
+                self.fleet_roe_status.as_deref(),
+            )?,
             ScreenId::PlanetMenu => self.planet_menu.render(&frame)?,
             ScreenId::PlanetHelp => self.planet_help.render(&frame)?,
             ScreenId::PlanetAutoCommissionConfirm => {
@@ -536,11 +560,7 @@ impl App {
                 self.empire_profile
                     .render_with_menu(&frame, self.command_return_menu)?
             }
-            ScreenId::Rankings(RankingsView::Prompt) => {
-                self.rankings
-                    .render_prompt(&frame, self.command_return_menu)?
-            }
-            ScreenId::Rankings(RankingsView::Table(sort)) => {
+            ScreenId::Rankings(sort) => {
                 self.rankings
                     .render_table(&frame, sort, self.command_return_menu)?
             }
@@ -594,6 +614,23 @@ impl App {
         }
         self.fleet_review_index = self.fleet_cursor.min(total - 1);
         self.current_screen = ScreenId::FleetReview;
+    }
+
+    pub fn open_fleet_roe_select(&mut self) {
+        if self.current_screen == ScreenId::FleetRoeSelect {
+            self.fleet_roe_editing = false;
+            self.fleet_roe_select_input.clear();
+            self.fleet_roe_input.clear();
+            self.fleet_roe_status = None;
+            return;
+        }
+        self.fleet_roe_status = None;
+        self.fleet_roe_select_input.clear();
+        self.fleet_roe_input.clear();
+        self.fleet_roe_scroll_offset = 0;
+        self.fleet_roe_cursor = 0;
+        self.fleet_roe_editing = false;
+        self.current_screen = ScreenId::FleetRoeSelect;
     }
 
     pub fn open_planet_help(&mut self) {
@@ -876,6 +913,135 @@ impl App {
             self.fleet_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
+    }
+
+    pub fn move_fleet_roe_select(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::FleetRoeSelect || self.fleet_roe_editing {
+            return;
+        }
+        let total = self.fleet_rows().len();
+        if total == 0 {
+            self.fleet_roe_cursor = 0;
+            return;
+        }
+        let next = self.fleet_roe_cursor as isize + delta as isize;
+        self.fleet_roe_cursor = next.rem_euclid(total as isize) as usize;
+        sync_scroll_to_cursor(
+            &mut self.fleet_roe_scroll_offset,
+            self.fleet_roe_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+        );
+        self.fleet_roe_select_input.clear();
+        self.fleet_roe_status = None;
+    }
+
+    pub fn append_fleet_roe_char(&mut self, ch: char) {
+        if self.current_screen == ScreenId::FleetRoeSelect
+            && if self.fleet_roe_editing {
+                self.fleet_roe_input.len() < 2
+            } else {
+                self.fleet_roe_select_input.len() < 2
+            }
+        {
+            if self.fleet_roe_editing {
+                self.fleet_roe_input.push(ch);
+            } else {
+                self.fleet_roe_select_input.push(ch);
+                self.sync_fleet_roe_cursor_to_input();
+            }
+            self.fleet_roe_status = None;
+        }
+    }
+
+    pub fn backspace_fleet_roe_input(&mut self) {
+        if self.current_screen == ScreenId::FleetRoeSelect {
+            if self.fleet_roe_editing {
+                self.fleet_roe_input.pop();
+            } else {
+                self.fleet_roe_select_input.pop();
+                self.sync_fleet_roe_cursor_to_input();
+            }
+            self.fleet_roe_status = None;
+        }
+    }
+
+    pub fn submit_fleet_roe(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if self.current_screen != ScreenId::FleetRoeSelect {
+            return Ok(());
+        }
+        if !self.fleet_roe_editing {
+            let rows = self.fleet_rows();
+            if rows.is_empty() {
+                self.current_screen = ScreenId::FleetMenu;
+                return Ok(());
+            }
+            if self.fleet_roe_select_input.trim().is_empty() {
+                self.fleet_roe_cursor = self.fleet_roe_cursor.min(rows.len() - 1);
+            } else {
+                let target_fleet_id = match self.fleet_roe_select_input.trim().parse::<u8>() {
+                    Ok(value) => value,
+                    Err(_) => {
+                        self.fleet_roe_status = Some("Enter a fleet number from the table.".to_string());
+                        return Ok(());
+                    }
+                };
+                let Some(index) = rows.iter().position(|row| row.fleet_id == target_fleet_id) else {
+                    self.fleet_roe_status =
+                        Some(format!("Fleet #{target_fleet_id:02} is not in your fleet list."));
+                    return Ok(());
+                };
+                self.fleet_roe_cursor = index;
+                sync_scroll_to_cursor(
+                    &mut self.fleet_roe_scroll_offset,
+                    self.fleet_roe_cursor,
+                    crate::screen::FLEET_VISIBLE_ROWS,
+                );
+            }
+            self.fleet_roe_select_input.clear();
+            self.fleet_roe_input.clear();
+            self.fleet_roe_status = None;
+            self.fleet_roe_editing = true;
+            return Ok(());
+        }
+        let rows = self.fleet_rows();
+        let Some(selected_row) = rows.get(self.fleet_roe_cursor) else {
+            self.current_screen = ScreenId::FleetMenu;
+            return Ok(());
+        };
+        let parsed = match self.fleet_roe_input.trim().parse::<u8>() {
+            Ok(value) => value,
+            Err(_) => {
+                self.fleet_roe_status = Some("Enter an ROE from 0 to 10.".to_string());
+                return Ok(());
+            }
+        };
+        if parsed > 10 {
+            self.fleet_roe_status = Some("Enter an ROE from 0 to 10.".to_string());
+            return Ok(());
+        }
+        let fleet = self
+            .game_data
+            .fleets
+            .records
+            .get_mut(selected_row.fleet_record_index_1_based - 1)
+            .ok_or("fleet roe target missing")?;
+        let has_combat_ships = fleet.destroyer_count() > 0
+            || fleet.cruiser_count() > 0
+            || fleet.battleship_count() > 0;
+        if !has_combat_ships && parsed != 0 {
+            self.fleet_roe_status =
+                Some("Non-combat fleets must use ROE 0.".to_string());
+            return Ok(());
+        }
+        fleet.set_rules_of_engagement(parsed);
+        self.game_data.save(&self.game_dir)?;
+        self.fleet_roe_input.clear();
+        self.fleet_roe_status = Some(format!(
+            "Fleet #{:02} ROE set to {}.",
+            selected_row.fleet_id, parsed
+        ));
+        self.fleet_roe_editing = false;
+        Ok(())
     }
 
     pub fn move_planet_database_list(&mut self, delta: i8) {
@@ -1568,6 +1734,7 @@ impl App {
             ScreenId::FleetMenu => self.fleet_menu.handle_key(key),
             ScreenId::FleetList(_) => self.fleet_list.handle_key(key),
             ScreenId::FleetReview => self.fleet_review.handle_key(key),
+            ScreenId::FleetRoeSelect => self.handle_fleet_roe_key(key),
             ScreenId::PlanetMenu => self.planet_menu.handle_key(key),
             ScreenId::PlanetHelp => self.planet_help.handle_key(key),
             ScreenId::PlanetAutoCommissionConfirm => self.planet_auto_commission.handle_key(key),
@@ -1621,8 +1788,7 @@ impl App {
             ScreenId::ComposeMessageSent => self.message_compose.handle_sent_key(key),
             ScreenId::EmpireStatus => self.empire_status.handle_key(key),
             ScreenId::EmpireProfile => self.empire_profile.handle_key(key),
-            ScreenId::Rankings(RankingsView::Prompt) => self.rankings.handle_prompt_key(key),
-            ScreenId::Rankings(RankingsView::Table(_)) => self.rankings.handle_table_key(key),
+            ScreenId::Rankings(_) => self.rankings.handle_key(key),
             ScreenId::Reports => self.reports.handle_key(key),
         }
     }
@@ -1671,13 +1837,9 @@ impl App {
         self.current_screen = ScreenId::EmpireProfile;
     }
 
-    pub fn open_rankings_prompt(&mut self) {
-        self.command_return_menu = self.origin_command_menu();
-        self.current_screen = ScreenId::Rankings(RankingsView::Prompt);
-    }
-
     pub fn open_rankings_table(&mut self, sort: ec_data::EmpireProductionRankingSort) {
-        self.current_screen = ScreenId::Rankings(RankingsView::Table(sort));
+        self.command_return_menu = self.origin_command_menu();
+        self.current_screen = ScreenId::Rankings(sort);
     }
 
     pub fn open_reports(&mut self) {
@@ -1810,6 +1972,7 @@ impl App {
             | ScreenId::FleetMenu
             | ScreenId::FleetList(_)
             | ScreenId::FleetReview
+            | ScreenId::FleetRoeSelect
             | ScreenId::PlanetDatabaseList
             | ScreenId::PlanetDatabaseDetail => {
                 CommandMenu::Main
@@ -2471,6 +2634,23 @@ impl App {
         self.game_data.player.records[self.player.record_index_1_based - 1].autopilot_flag()
     }
 
+    pub fn current_fleet_roe_by_id(&self, fleet_id: u8) -> Option<u8> {
+        self.game_data
+            .fleets
+            .records
+            .iter()
+            .find(|fleet| {
+                fleet.owner_empire_raw() as usize == self.player.record_index_1_based
+                    && fleet.fleet_id() == fleet_id
+            })
+            .map(|fleet| fleet.rules_of_engagement())
+    }
+
+    pub fn selected_fleet_roe_id(&self) -> Option<u8> {
+        let rows = self.fleet_rows();
+        rows.get(self.fleet_roe_cursor).map(|row| row.fleet_id)
+    }
+
     pub fn current_relation_to(&self, empire_id: u8) -> Option<ec_data::DiplomaticRelation> {
         self.game_data
             .stored_diplomatic_relation(self.player.record_index_1_based as u8, empire_id)
@@ -3029,6 +3209,57 @@ impl App {
             }
             _ => crate::app::Action::Noop,
         }
+    }
+
+    fn handle_fleet_roe_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
+        use crossterm::event::KeyCode;
+
+        if self.fleet_roe_editing {
+            match key.code {
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => crate::app::Action::OpenFleetRoeSelect,
+                KeyCode::Enter => crate::app::Action::SubmitFleetRoe,
+                KeyCode::Backspace => crate::app::Action::BackspaceFleetRoeInput,
+                KeyCode::Char(ch) if ch.is_ascii_digit() => crate::app::Action::AppendFleetRoeChar(ch),
+                _ => crate::app::Action::Noop,
+            }
+        } else {
+            match key.code {
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                    crate::app::Action::MoveFleetRoeSelect(-1)
+                }
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                    crate::app::Action::MoveFleetRoeSelect(1)
+                }
+                KeyCode::PageUp => crate::app::Action::MoveFleetRoeSelect(-8),
+                KeyCode::PageDown => crate::app::Action::MoveFleetRoeSelect(8),
+                KeyCode::Enter => crate::app::Action::SubmitFleetRoe,
+                KeyCode::Backspace => crate::app::Action::BackspaceFleetRoeInput,
+                KeyCode::Char(ch) if ch.is_ascii_digit() => crate::app::Action::AppendFleetRoeChar(ch),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    crate::app::Action::OpenFleetMenu
+                }
+                _ => crate::app::Action::Noop,
+            }
+        }
+    }
+
+    fn sync_fleet_roe_cursor_to_input(&mut self) {
+        if self.current_screen != ScreenId::FleetRoeSelect || self.fleet_roe_editing {
+            return;
+        }
+        let Ok(target_fleet_id) = self.fleet_roe_select_input.trim().parse::<u8>() else {
+            return;
+        };
+        let rows = self.fleet_rows();
+        let Some(index) = rows.iter().position(|row| row.fleet_id == target_fleet_id) else {
+            return;
+        };
+        self.fleet_roe_cursor = index;
+        sync_scroll_to_cursor(
+            &mut self.fleet_roe_scroll_offset,
+            self.fleet_roe_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+        );
     }
 }
 

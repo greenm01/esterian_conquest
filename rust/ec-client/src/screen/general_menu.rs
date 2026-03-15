@@ -75,7 +75,9 @@ impl Screen for GeneralMenuScreen {
             KeyCode::Char('s') | KeyCode::Char('S') => Action::OpenEmpireStatus,
             KeyCode::Char('p') | KeyCode::Char('P') => Action::OpenEmpireProfile,
             KeyCode::Char('d') | KeyCode::Char('D') => Action::OpenDeleteReviewables,
-            KeyCode::Char('o') | KeyCode::Char('O') => Action::OpenRankingsPrompt,
+            KeyCode::Char('o') | KeyCode::Char('O') => {
+                Action::OpenRankingsTable(ec_data::EmpireProductionRankingSort::Production)
+            }
             KeyCode::Char('r') | KeyCode::Char('R') => Action::OpenReports,
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenMainMenu,
             _ => Action::Noop,

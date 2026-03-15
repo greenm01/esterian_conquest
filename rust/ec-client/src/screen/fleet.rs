@@ -2,7 +2,9 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_command_center, draw_command_prompt, draw_status_line, new_playfield, MenuEntry,
+    draw_command_center, draw_command_line_input, draw_command_line_text, draw_command_prompt,
+    draw_status_line, new_playfield,
+    MenuEntry,
     CMD_COL_1, CMD_COL_2, CMD_COL_3,
 };
 use crate::screen::table::{format_empire_id, write_table_window_with_cursor, TableColumn};
@@ -32,6 +34,7 @@ pub enum FleetListMode {
 pub struct FleetMenuScreen;
 pub struct FleetListScreen;
 pub struct FleetReviewScreen;
+pub struct FleetRoeScreen;
 
 const TOP_ROW: [MenuEntry<'static>; 2] = [
     MenuEntry::new(CMD_COL_2, "B", "rief List of Fleets"),
@@ -119,7 +122,7 @@ impl Screen for FleetMenuScreen {
             KeyCode::Char('m') | KeyCode::Char('M') => Action::Noop, // Merge - TODO
             KeyCode::Char('o') | KeyCode::Char('O') => Action::Noop, // Order - TODO
             KeyCode::Char('t') | KeyCode::Char('T') => Action::Noop, // Transfer - TODO
-            KeyCode::Char('c') | KeyCode::Char('C') => Action::Noop, // Change ROE - TODO
+            KeyCode::Char('c') | KeyCode::Char('C') => Action::OpenFleetRoeSelect,
             KeyCode::Char('l') | KeyCode::Char('L') => Action::Noop, // Load - TODO
             KeyCode::Char('a') | KeyCode::Char('A') => Action::Noop, // Alter ID - TODO
             KeyCode::Char('u') | KeyCode::Char('U') => Action::Noop, // Unload - TODO
@@ -273,6 +276,92 @@ impl FleetReviewScreen {
             KeyCode::Char('j') | KeyCode::Char('J') | KeyCode::Char('l') | KeyCode::Char('L') => {
                 Action::MoveFleetReview(1)
             }
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenFleetMenu,
+            _ => Action::Noop,
+        }
+    }
+}
+
+impl FleetRoeScreen {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn render_select(
+        &mut self,
+        rows: &[FleetRow],
+        scroll_offset: usize,
+        cursor: usize,
+        editing: bool,
+        select_input: &str,
+        input: &str,
+        status: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        buffer.fill_row(0, classic::menu_style());
+        buffer.write_text(0, 0, "CHANGE FLEET ROE:", classic::title_style());
+        draw_status_line(
+            &mut buffer,
+            1,
+            "",
+            "Select a fleet, then press ENTER to change its rules of engagement.",
+        );
+        let table_rows = rows
+            .iter()
+            .map(|row| {
+                vec![
+                    format_empire_id(row.fleet_id),
+                    format!("({:>2},{:>2})", row.coords[0], row.coords[1]),
+                    format!("{}/{}", row.current_speed, row.max_speed),
+                    row.rules_of_engagement.to_string(),
+                    row.composition_label.clone(),
+                ]
+            })
+            .collect::<Vec<_>>();
+        write_table_window_with_cursor(
+            &mut buffer,
+            3,
+            &BRIEF_COLUMNS,
+            &table_rows,
+            scroll_offset,
+            FLEET_VISIBLE_ROWS,
+            classic::status_value_style(),
+            classic::status_value_style(),
+            if table_rows.is_empty() { None } else { Some(cursor) },
+        );
+        if table_rows.is_empty() {
+            draw_command_line_text(&mut buffer, "FLEET COMMAND", "You have no active fleets. Q quits.");
+        } else if editing {
+            let row = &rows[cursor];
+            draw_command_line_input(
+                &mut buffer,
+                "FLEET COMMAND",
+                &format!(
+                    "Fleet #{:02} current ROE {}  New ROE (0 - 10): ",
+                    row.fleet_id, row.rules_of_engagement
+                ),
+                input,
+            );
+        } else if let Some(status) = status {
+            draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
+        } else {
+            draw_command_line_input(
+                &mut buffer,
+                "FLEET COMMAND",
+                "Fleet #: ",
+                select_input,
+            );
+        }
+        Ok(buffer)
+    }
+
+    pub fn handle_select_key(&self, key: KeyEvent) -> Action {
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => Action::MoveFleetRoeSelect(-1),
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => Action::MoveFleetRoeSelect(1),
+            KeyCode::PageUp => Action::MoveFleetRoeSelect(-8),
+            KeyCode::PageDown => Action::MoveFleetRoeSelect(8),
+            KeyCode::Enter => Action::Noop,
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenFleetMenu,
             _ => Action::Noop,
         }

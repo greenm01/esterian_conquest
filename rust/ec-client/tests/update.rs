@@ -4,7 +4,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_client::app::{Action, AppConfig, AppOutcome, App, apply_action};
-use ec_client::screen::{CommandMenu, FleetListMode, PlanetListMode, PlanetListSort, RankingsView, ScreenId};
+use ec_client::screen::{
+    CommandMenu, FleetListMode, FleetRoeScreen, FleetRow, PlanetListMode, PlanetListSort,
+    ScreenId,
+};
 use ec_client::startup::StartupPhase;
 use ec_data::{DiplomaticRelation, EmpireProductionRankingSort};
 
@@ -121,6 +124,12 @@ fn apply_action_switches_between_client_screens() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetReview);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetRoeSelect),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
 
     assert_eq!(
         apply_action(&mut app, Action::OpenPlanetHelp),
@@ -308,14 +317,8 @@ fn apply_action_switches_between_client_screens() {
     );
     assert_eq!(
         app.current_screen(),
-        ScreenId::Rankings(RankingsView::Table(EmpireProductionRankingSort::Production))
+        ScreenId::Rankings(EmpireProductionRankingSort::Production)
     );
-
-    assert_eq!(
-        apply_action(&mut app, Action::OpenRankingsPrompt),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::Rankings(RankingsView::Prompt));
 
     assert_eq!(
         apply_action(&mut app, Action::OpenMainMenu),
@@ -368,6 +371,37 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
 
     assert_eq!(app.handle_key(key(KeyCode::Char('f'))), Action::OpenFleetMenu);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('c'))),
+        Action::OpenFleetRoeSelect
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetRoeSelect),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
+    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::SubmitFleetRoe);
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetRoe),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetRoeChar('4')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetRoe),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
+    assert_eq!(app.current_fleet_roe_by_id(1), Some(4));
+    assert_eq!(app.handle_key(key(KeyCode::Char('q'))), Action::OpenFleetMenu);
     assert_eq!(
         apply_action(&mut app, Action::OpenFleetMenu),
         AppOutcome::Continue
@@ -482,7 +516,93 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
 }
 
 #[test]
-fn general_rankings_returns_to_general_menu() {
+fn fleet_roe_accepts_typed_fleet_selection_and_q_cancels_edit_mode() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    app.advance_startup();
+    app.advance_startup();
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetRoeSelect),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
+
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetRoeChar('4')),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.selected_fleet_roe_id(), Some(4));
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetRoe),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
+        Action::OpenFleetRoeSelect
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetRoeSelect),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
+
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetRoeChar('4')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetRoe),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetRoeChar('7')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetRoe),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_fleet_roe_by_id(4), Some(7));
+    assert_eq!(app.current_fleet_roe_by_id(1), Some(6));
+}
+
+#[test]
+fn fleet_roe_render_keeps_command_line_on_bottom_row() {
+    let mut screen = FleetRoeScreen::new();
+    let rows = vec![FleetRow {
+        fleet_record_index_1_based: 1,
+        fleet_id: 1,
+        coords: [16, 13],
+        current_speed: 0,
+        max_speed: 3,
+        rules_of_engagement: 5,
+        order_label: "Guard/blockade world".to_string(),
+        composition_label: "1 CA 1 ETAC".to_string(),
+    }];
+
+    let buffer = screen
+        .render_select(&rows, 0, 0, false, "", "", None)
+        .expect("roe screen renders");
+
+    assert_eq!(buffer.plain_line(17), "");
+    assert_eq!(buffer.plain_line(19), "FLEET COMMAND <- Fleet #:");
+    assert_eq!(buffer.cursor(), Some((26, 19)));
+}
+
+#[test]
+fn general_rankings_opens_production_table_and_returns_to_general_menu() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -500,14 +620,8 @@ fn general_rankings_returns_to_general_menu() {
     );
     assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
 
-    assert_eq!(app.handle_key(key(KeyCode::Char('o'))), Action::OpenRankingsPrompt);
     assert_eq!(
-        apply_action(&mut app, Action::OpenRankingsPrompt),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::Rankings(RankingsView::Prompt));
-    assert_eq!(
-        app.handle_key(key(KeyCode::Char('p'))),
+        app.handle_key(key(KeyCode::Char('o'))),
         Action::OpenRankingsTable(EmpireProductionRankingSort::Production)
     );
     assert_eq!(
@@ -519,9 +633,7 @@ fn general_rankings_returns_to_general_menu() {
     );
     assert_eq!(
         app.current_screen(),
-        ScreenId::Rankings(RankingsView::Table(
-            EmpireProductionRankingSort::Production
-        ))
+        ScreenId::Rankings(EmpireProductionRankingSort::Production)
     );
     assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::ReturnToCommandMenu);
     assert_eq!(

@@ -3,7 +3,8 @@ use ec_data::QueuedPlayerMail;
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_command_prompt, draw_plain_prompt, draw_title_bar, new_playfield,
+    draw_command_line_input, draw_command_line_text, draw_command_prompt, draw_plain_prompt,
+    draw_title_bar, new_playfield,
 };
 use crate::screen::table::{format_empire_id, write_table_window_with_cursor, TableColumn};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
@@ -73,14 +74,16 @@ impl MessageComposeScreen {
             classic::status_value_style(),
             selected,
         );
-        let prompt_row = 18;
-        let prompt = format!("Enter recipient empire number: {input}");
-        let cursor_col = draw_plain_prompt(&mut buffer, prompt_row, &prompt);
         if let Some(status) = status {
-            buffer.write_text(17, 0, status, classic::status_value_style());
+            draw_command_line_text(&mut buffer, "GENERAL COMMAND", status);
+        } else {
+            draw_command_line_input(
+                &mut buffer,
+                "GENERAL COMMAND",
+                "Recipient empire #: ",
+                input,
+            );
         }
-        draw_command_prompt(&mut buffer, 19, "GENERAL COMMAND", "ARROWS J K D Q");
-        buffer.set_cursor(cursor_col as u16, prompt_row as u16);
         Ok(buffer)
     }
 
@@ -245,13 +248,16 @@ impl MessageComposeScreen {
             classic::status_value_style(),
             selected,
         );
-        let prompt = format!("Enter queued message number to delete: {input}");
-        let cursor_col = draw_plain_prompt(&mut buffer, 16, &prompt);
         if let Some(status) = status {
-            buffer.write_text(18, 0, status, classic::status_value_style());
+            draw_command_line_text(&mut buffer, "GENERAL COMMAND", status);
+        } else {
+            draw_command_line_input(
+                &mut buffer,
+                "GENERAL COMMAND",
+                "Queued message #: ",
+                input,
+            );
         }
-        draw_command_prompt(&mut buffer, 19, "GENERAL COMMAND", "ARROWS J K Q");
-        buffer.set_cursor(cursor_col as u16, 16);
         Ok(buffer)
     }
 
