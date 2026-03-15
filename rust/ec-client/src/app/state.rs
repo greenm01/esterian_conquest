@@ -96,6 +96,8 @@ pub struct App {
     planet_build_list_scroll_offset: usize,
     planet_build_list_cursor: usize,
     planet_build_list_confirming: bool,
+    planet_build_change_cursor: usize,
+    planet_build_change_scroll_offset: usize,
     planet_tax_input: String,
     planet_tax_status: Option<String>,
     starmap_view_x: usize,
@@ -202,6 +204,8 @@ impl App {
             planet_build_list_scroll_offset: 0,
             planet_build_list_cursor: 0,
             planet_build_list_confirming: false,
+            planet_build_change_cursor: 0,
+            planet_build_change_scroll_offset: 0,
             planet_tax_input: "50".to_string(),
             planet_tax_status: None,
             starmap_view_x: 1,
@@ -248,6 +252,11 @@ impl App {
                 self.planet_build_list_scroll_offset,
                 self.planet_build_list_cursor,
                 self.planet_build_list_confirming,
+            )?,
+            ScreenId::PlanetBuildChange => self.planet_build.render_change(
+                &self.build_planet_rows(),
+                self.planet_build_change_scroll_offset,
+                self.planet_build_change_cursor,
             )?,
             ScreenId::PlanetBuildAbortConfirm => self.planet_build.render_abort_confirm(
                 &self.current_planet_build_view()?,
@@ -446,6 +455,46 @@ impl App {
         self.planet_build_list_cursor = 0;
         self.planet_build_list_confirming = false;
         self.current_screen = ScreenId::PlanetBuildList;
+    }
+
+    pub fn open_planet_build_change(&mut self) {
+        // Pre-position cursor on the current planet so it's already highlighted.
+        self.planet_build_change_cursor = self.planet_build_index;
+        self.planet_build_change_scroll_offset = 0;
+        sync_scroll_to_cursor(
+            &mut self.planet_build_change_scroll_offset,
+            self.planet_build_change_cursor,
+            crate::screen::PLANET_BUILD_CHANGE_VISIBLE_ROWS,
+        );
+        self.current_screen = ScreenId::PlanetBuildChange;
+    }
+
+    pub fn move_planet_build_change_cursor(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::PlanetBuildChange {
+            return;
+        }
+        let total = self.build_planet_rows().len();
+        if total == 0 {
+            return;
+        }
+        let next = self.planet_build_change_cursor as isize + delta as isize;
+        self.planet_build_change_cursor = next.rem_euclid(total as isize) as usize;
+        sync_scroll_to_cursor(
+            &mut self.planet_build_change_scroll_offset,
+            self.planet_build_change_cursor,
+            crate::screen::PLANET_BUILD_CHANGE_VISIBLE_ROWS,
+        );
+    }
+
+    pub fn confirm_planet_build_change(&mut self) {
+        let total = self.build_planet_rows().len();
+        if total == 0 {
+            self.current_screen = ScreenId::PlanetBuildMenu;
+            return;
+        }
+        self.planet_build_index = self.planet_build_change_cursor.min(total - 1);
+        self.planet_build_status = None;
+        self.current_screen = ScreenId::PlanetBuildMenu;
     }
 
     pub fn open_planet_build_abort_confirm(&mut self) {
@@ -838,6 +887,7 @@ impl App {
             ScreenId::PlanetBuildList => self
                 .planet_build
                 .handle_list_key(key, self.planet_build_list_confirming),
+            ScreenId::PlanetBuildChange => self.planet_build.handle_change_key(key),
             ScreenId::PlanetBuildAbortConfirm => self.planet_build.handle_abort_key(key),
             ScreenId::PlanetBuildSpecify => self.planet_build.handle_specify_key(key),
             ScreenId::PlanetBuildQuantity => self.planet_build.handle_quantity_key(key),

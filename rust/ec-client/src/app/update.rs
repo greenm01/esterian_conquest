@@ -49,6 +49,18 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_planet_build_list();
             AppOutcome::Continue
         }
+        Action::OpenPlanetBuildChange => {
+            app.open_planet_build_change();
+            AppOutcome::Continue
+        }
+        Action::MovePlanetBuildChange(delta) => {
+            app.move_planet_build_change_cursor(delta);
+            AppOutcome::Continue
+        }
+        Action::ConfirmPlanetBuildChange => {
+            app.confirm_planet_build_change();
+            AppOutcome::Continue
+        }
         Action::OpenPlanetBuildAbortConfirm => {
             app.open_planet_build_abort_confirm();
             AppOutcome::Continue

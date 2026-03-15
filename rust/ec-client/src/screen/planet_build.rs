@@ -13,6 +13,14 @@ use crate::theme::classic;
 pub struct PlanetBuildScreen;
 
 pub(crate) const PLANET_BUILD_LIST_VISIBLE_ROWS: usize = 10;
+pub(crate) const PLANET_BUILD_CHANGE_VISIBLE_ROWS: usize = 13;
+
+const CHANGE_COLUMNS: [TableColumn<'static>; 4] = [
+    TableColumn::left("Planet Name", 20),
+    TableColumn::left("Location", 9),
+    TableColumn::left("Production", 16),
+    TableColumn::right("Points", 9),
+];
 
 const BUILD_LIST_COLUMNS: [TableColumn<'static>; 4] = [
     TableColumn::right("#", 2),
@@ -508,6 +516,78 @@ impl PlanetBuildScreen {
         Ok(buffer)
     }
 
+    pub fn render_change(
+        &mut self,
+        rows: &[EmpirePlanetEconomyRow],
+        scroll_offset: usize,
+        cursor: usize,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        draw_title_bar(&mut buffer, 0, "CHANGE CURRENT PLANET:");
+        buffer.write_text(
+            2,
+            0,
+            "Select a planet with ARROWS then press ENTER, or press Q to cancel.",
+            classic::body_style(),
+        );
+
+        let table_rows: Vec<Vec<String>> = rows
+            .iter()
+            .map(|row| {
+                vec![
+                    row.planet_name.clone(),
+                    format!("({:>2},{:>2})", row.coords[0], row.coords[1]),
+                    format!(
+                        "{:>3} of {:>3}",
+                        row.present_production, row.potential_production
+                    ),
+                    row.stored_production_points.to_string(),
+                ]
+            })
+            .collect();
+
+        let selected = if rows.is_empty() { None } else { Some(cursor) };
+        write_table_window_with_cursor(
+            &mut buffer,
+            4,
+            &CHANGE_COLUMNS,
+            &table_rows,
+            scroll_offset,
+            PLANET_BUILD_CHANGE_VISIBLE_ROWS,
+            classic::status_value_style(),
+            classic::status_value_style(),
+            selected,
+        );
+
+        if rows.is_empty() {
+            buffer.write_text(
+                6,
+                0,
+                "No owned planets available.",
+                classic::status_value_style(),
+            );
+        }
+
+        draw_command_prompt(&mut buffer, 19, "BUILD COMMAND", "ARROWS ENTER Q");
+        Ok(buffer)
+    }
+
+    pub fn handle_change_key(&self, key: KeyEvent) -> Action {
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                Action::MovePlanetBuildChange(-1)
+            }
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                Action::MovePlanetBuildChange(1)
+            }
+            KeyCode::PageUp => Action::MovePlanetBuildChange(-8),
+            KeyCode::PageDown => Action::MovePlanetBuildChange(8),
+            KeyCode::Enter => Action::ConfirmPlanetBuildChange,
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenPlanetBuildMenu,
+            _ => Action::Noop,
+        }
+    }
+
     pub fn handle_menu_key(&self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenPlanetMenu,
@@ -518,6 +598,7 @@ impl PlanetBuildScreen {
                 Action::OpenPlanetInfoPrompt(CommandMenu::PlanetBuild)
             }
             KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenPlanetHelp,
+            KeyCode::Char('c') | KeyCode::Char('C') => Action::OpenPlanetBuildChange,
             KeyCode::Char('n') | KeyCode::Char('N') => Action::MovePlanetBuild(1),
             KeyCode::Char('r') | KeyCode::Char('R') => Action::OpenPlanetBuildReview,
             KeyCode::Char('l') | KeyCode::Char('L') => Action::OpenPlanetBuildList,
