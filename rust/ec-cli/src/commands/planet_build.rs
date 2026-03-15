@@ -132,6 +132,34 @@ pub(crate) fn set_planet_stored(
     Ok(())
 }
 
+pub(crate) fn set_planet_stardock_slot(
+    dir: &Path,
+    record_index_1_based: usize,
+    slot: usize,
+    kind_raw: u8,
+    count: u16,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if slot >= 10 {
+        return Err(format!("stardock slot out of range: {slot}").into());
+    }
+
+    let mut data = CoreGameData::load(dir)?;
+    let record = data
+        .planets
+        .records
+        .get_mut(record_index_1_based - 1)
+        .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
+    record.set_stardock_kind_raw(slot, kind_raw);
+    record.set_stardock_count_raw(slot, count);
+    data.save(dir)?;
+
+    println!(
+        "Planet record {} stardock slot {} set: kind={:#04x} count={}",
+        record_index_1_based, slot, kind_raw, count
+    );
+    Ok(())
+}
+
 pub(crate) fn init_planet_original(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let mut data = CoreGameData::load(dir)?;
 

@@ -29,7 +29,7 @@ use crate::commands::ipbm::{
 use crate::commands::planet_build::{
     init_planet_build_batch, init_planet_build_scenario, init_planet_original,
     print_planet_build_report, set_planet_build, set_planet_name, set_planet_owner,
-    set_planet_potential, set_planet_stats, set_planet_stored,
+    set_planet_potential, set_planet_stardock_slot, set_planet_stats, set_planet_stored,
 };
 
 use crate::commands::bombard::{init_bombard, init_bombard_batch, set_bombard_onefleet};
@@ -455,6 +455,32 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
                 return Ok(());
             };
             set_planet_stored(&dir, record_index.parse()?, points.parse()?)?;
+        }
+        "planet-stardock" => {
+            let dir = next_dir(&mut args);
+            let Some(record_index) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(slot) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(kind_raw) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(count) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            set_planet_stardock_slot(
+                &dir,
+                record_index.parse()?,
+                slot.parse()?,
+                kind_raw.parse()?,
+                count.parse()?,
+            )?;
         }
         "planet-init-original" => init_planet_original(&next_dir(&mut args))?,
         "planet-build-report" => {

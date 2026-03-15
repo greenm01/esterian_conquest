@@ -1671,11 +1671,11 @@ fn process_build_completion(
 
             if build_count > 0 {
                 had_builds = true;
+                let build_kind = game_data.planets.records[planet_idx].build_kind_raw(slot);
+                let build_item_kind = ProductionItemKind::from_raw(build_kind);
                 // Decrement by production rate (or remaining count if less)
                 let decrement = build_count.min(production_rate_u8);
                 let new_count = build_count.saturating_sub(decrement);
-
-                game_data.planets.records[planet_idx].set_build_count_raw(slot, new_count);
 
                 // If build completed (reached 0), dispatch by unit kind.
                 // Armies and ground batteries are surface/defensive units: they go
@@ -1683,12 +1683,30 @@ fn process_build_completion(
                 // reserved for ships (kinds 1-6) and starbases (kind 9), which must
                 // be commissioned before use and can be destroyed by bombardment
                 // while sitting uncommissioned.
+                if new_count > 0 {
+                    game_data.planets.records[planet_idx].set_build_count_raw(slot, new_count);
+                    continue;
+                }
+
+                if build_item_kind.requires_stardock() {
+                    let has_open_stardock_slot = (0..10).any(|stardock_slot| {
+                        game_data.planets.records[planet_idx].stardock_kind_raw(stardock_slot) == 0
+                    });
+                    if !has_open_stardock_slot {
+                        // Rust policy: hold completed ship/starbase builds in queue until
+                        // stardock space exists rather than reproducing the classic
+                        // corruption bug triggered by full-stardock completion.
+                        continue;
+                    }
+                }
+
+                game_data.planets.records[planet_idx].set_build_count_raw(slot, new_count);
+
                 if new_count == 0 {
-                    let build_kind = game_data.planets.records[planet_idx].build_kind_raw(slot);
                     // decrement == original build_count when new_count == 0
                     let points_spent = u32::from(decrement);
 
-                    match ProductionItemKind::from_raw(build_kind) {
+                    match build_item_kind {
                         ProductionItemKind::Army => {
                             let qty = ((points_spent / 2).max(1)).min(u32::from(u8::MAX)) as u8;
                             let current = game_data.planets.records[planet_idx].army_count_raw();

@@ -70,6 +70,22 @@ fn owned_homeworld_seed(
     record
 }
 
+fn single_planet_game(player: PlayerRecord, planet: PlanetRecord) -> CoreGameData {
+    CoreGameData {
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![planet],
+        },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: zeroed_setup(),
+        conquest: configured_conquest(1),
+    }
+}
+
 #[test]
 fn decode_real48_matches_current_known_homeworld_values() {
     let fifty = decode_real48([0x00, 0x00, 0x00, 0x00, 0x48, 0x86]).expect("real should decode");
@@ -329,4 +345,98 @@ fn maintenance_starbase_worlds_tolerate_tax_up_to_70_without_penalty() {
     let planet = &game.planets.records[0];
     assert_eq!(planet.stored_goods_raw(), 35);
     assert_eq!(planet.present_production_points().unwrap(), 56);
+}
+
+#[test]
+fn maintenance_ship_build_stays_queued_when_stardock_is_full() {
+    let mut player = player_with_empire_name("Alpha", 50, 0);
+    player.set_owner_empire_raw(1);
+
+    let mut planet = owned_planet(1, 100, encode_real48(100.0).unwrap(), 0, 1, 0);
+    planet.set_build_count_raw(0, 100);
+    planet.set_build_kind_raw(0, 1);
+    for slot in 0..10 {
+        planet.set_stardock_kind_raw(slot, 1);
+        planet.set_stardock_count_raw(slot, 1);
+    }
+
+    let mut game = single_planet_game(player, planet);
+    run_maintenance_turn(&mut game).expect("maintenance should succeed");
+
+    let planet = &game.planets.records[0];
+    assert_eq!(planet.build_count_raw(0), 100);
+    assert_eq!(planet.build_kind_raw(0), 1);
+    for slot in 0..10 {
+        assert_eq!(planet.stardock_kind_raw(slot), 1);
+        assert_eq!(planet.stardock_count_raw(slot), 1);
+    }
+}
+
+#[test]
+fn maintenance_starbase_build_stays_queued_when_stardock_is_full() {
+    let mut player = player_with_empire_name("Alpha", 50, 0);
+    player.set_owner_empire_raw(1);
+
+    let mut planet = owned_planet(1, 100, encode_real48(100.0).unwrap(), 0, 1, 0);
+    planet.set_build_count_raw(0, 100);
+    planet.set_build_kind_raw(0, 9);
+    for slot in 0..10 {
+        planet.set_stardock_kind_raw(slot, 1);
+        planet.set_stardock_count_raw(slot, 1);
+    }
+
+    let mut game = single_planet_game(player, planet);
+    run_maintenance_turn(&mut game).expect("maintenance should succeed");
+
+    let planet = &game.planets.records[0];
+    assert_eq!(planet.build_count_raw(0), 100);
+    assert_eq!(planet.build_kind_raw(0), 9);
+    for slot in 0..10 {
+        assert_eq!(planet.stardock_kind_raw(slot), 1);
+        assert_eq!(planet.stardock_count_raw(slot), 1);
+    }
+}
+
+#[test]
+fn maintenance_army_build_completes_even_when_stardock_is_full() {
+    let mut player = player_with_empire_name("Alpha", 50, 0);
+    player.set_owner_empire_raw(1);
+
+    let mut planet = owned_planet(1, 100, encode_real48(100.0).unwrap(), 0, 1, 0);
+    planet.set_build_count_raw(0, 100);
+    planet.set_build_kind_raw(0, 8);
+    for slot in 0..10 {
+        planet.set_stardock_kind_raw(slot, 1);
+        planet.set_stardock_count_raw(slot, 1);
+    }
+
+    let mut game = single_planet_game(player, planet);
+    run_maintenance_turn(&mut game).expect("maintenance should succeed");
+
+    let planet = &game.planets.records[0];
+    assert_eq!(planet.build_count_raw(0), 0);
+    assert_eq!(planet.build_kind_raw(0), 0);
+    assert_eq!(planet.army_count_raw(), 51);
+}
+
+#[test]
+fn maintenance_ground_battery_build_completes_even_when_stardock_is_full() {
+    let mut player = player_with_empire_name("Alpha", 50, 0);
+    player.set_owner_empire_raw(1);
+
+    let mut planet = owned_planet(1, 100, encode_real48(100.0).unwrap(), 0, 1, 0);
+    planet.set_build_count_raw(0, 100);
+    planet.set_build_kind_raw(0, 7);
+    for slot in 0..10 {
+        planet.set_stardock_kind_raw(slot, 1);
+        planet.set_stardock_count_raw(slot, 1);
+    }
+
+    let mut game = single_planet_game(player, planet);
+    run_maintenance_turn(&mut game).expect("maintenance should succeed");
+
+    let planet = &game.planets.records[0];
+    assert_eq!(planet.build_count_raw(0), 0);
+    assert_eq!(planet.build_kind_raw(0), 0);
+    assert_eq!(planet.ground_batteries_raw(), 5);
 }

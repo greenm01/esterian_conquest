@@ -150,6 +150,28 @@ fn planet_stored_sets_stored_production_points() {
 }
 
 #[test]
+fn planet_stardock_sets_a_stardock_slot() {
+    let target = unique_temp_dir("ec-cli-planet-stardock");
+    common::copy_fixture_dir("fixtures/ecutil-init/v1.5", &target);
+
+    let stdout = run_ec_cli(&[
+        "planet-stardock",
+        target.to_str().unwrap(),
+        "1",
+        "0",
+        "1",
+        "2",
+    ]);
+    assert!(stdout.contains("stardock slot 0 set"));
+
+    let game_data = CoreGameData::load(&target).unwrap();
+    assert_eq!(game_data.planets.records[0].stardock_kind_raw(0), 1);
+    assert_eq!(game_data.planets.records[0].stardock_count_raw(0), 2);
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn compare_reports_expected_initialized_to_post_maint_shape() {
     let stdout = run_ec_cli(&[
         "compare",

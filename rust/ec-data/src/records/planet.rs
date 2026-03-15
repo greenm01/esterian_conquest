@@ -30,6 +30,19 @@ impl ProductionItemKind {
             other => Self::Unknown(other),
         }
     }
+
+    pub fn requires_stardock(self) -> bool {
+        matches!(
+            self,
+            Self::Destroyer
+                | Self::Cruiser
+                | Self::Battleship
+                | Self::Scout
+                | Self::Transport
+                | Self::Etac
+                | Self::Starbase
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

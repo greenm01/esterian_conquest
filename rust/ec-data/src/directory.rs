@@ -1819,6 +1819,24 @@ impl CoreGameData {
         Ok(10usize.saturating_sub(reserved))
     }
 
+    /// Count how many stardock slots are currently empty on a planet.
+    ///
+    /// Unlike `planet_free_stardock_slots`, this is an immediate execution-time
+    /// view used by maintenance when deciding whether a completed ship/starbase
+    /// build can actually move into stardock this turn.
+    pub fn planet_open_stardock_slots_now(
+        &self,
+        record_index_1_based: usize,
+    ) -> Result<usize, GameStateMutationError> {
+        let record = self.planets.records.get(record_index_1_based - 1).ok_or(
+            GameStateMutationError::MissingPlanetRecord {
+                index_1_based: record_index_1_based,
+            },
+        )?;
+
+        Ok((0..10).filter(|&s| record.stardock_kind_raw(s) == 0).count())
+    }
+
     pub fn append_planet_build_order(
         &mut self,
         record_index_1_based: usize,

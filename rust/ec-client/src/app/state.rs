@@ -239,7 +239,6 @@ impl App {
             ScreenId::PlanetHelp => self.planet_help.render(&frame)?,
             ScreenId::PlanetBuildMenu => self.planet_build.render_menu(
                 &self.current_planet_build_view()?,
-                &self.current_planet_build_orders(),
                 self.planet_build_status.as_deref(),
             )?,
             ScreenId::PlanetBuildReview => self.planet_build.render_review(
@@ -1765,11 +1764,30 @@ impl App {
         let available_points = u32::from(row.build_capacity)
             .min(row.stored_production_points.min(u32::from(u16::MAX)));
         let points_left = available_points.saturating_sub(committed_points);
+        let record = self
+            .game_data
+            .planets
+            .records
+            .get(row.planet_record_index_1_based - 1)
+            .ok_or("planet record missing")?;
+        let queue_capacity: usize = 10;
+        let queue_used = (0..queue_capacity)
+            .filter(|&s| record.build_count_raw(s) != 0 || record.build_kind_raw(s) != 0)
+            .count();
+        let stardock_capacity: usize = 10;
+        let stardock_free = self
+            .game_data
+            .planet_free_stardock_slots(row.planet_record_index_1_based)?;
+        let stardock_used = stardock_capacity.saturating_sub(stardock_free);
         Ok(PlanetBuildMenuView {
             row,
             committed_points,
             available_points,
             points_left,
+            queue_used,
+            queue_capacity,
+            stardock_used,
+            stardock_capacity,
         })
     }
 

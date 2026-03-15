@@ -4258,6 +4258,40 @@ The mysterious bytes `0x38` and `0x4C` that appeared in `PLANETS.DAT` after clea
 
 This perfectly explains why `FLEETS.DAT` didn't change on a second `ECMAINT` pass; the ships simply sat in the Stardock waiting for a player command to commission them into an active fleet.
 
+### Full Stardock Completion Probe
+
+Focused original-`ECMAINT` probe:
+
+- baseline: `fixtures/ecmaint-build-pre/v1.5`
+- target planet: record `15`
+- mutation:
+  - fill all `10` stardock slots with destroyers
+  - leave the existing pending destroyer build in queue slot `0`
+- harness:
+  - `python3 tools/probe_full_stardock_build.py /tmp/ecmaint-full-stardock-build`
+
+Observed original behavior:
+
+- `ECMAINT` completed the pending build and cleared the build slot
+- it did **not** emit `ERRORS.TXT`
+- it did **not** preserve the full stardock cleanly
+- instead, the target planet's stardock region in `PLANETS.DAT` became corrupted:
+  - counts like `65535, 0, 65535, 0, ...`
+  - kinds like `255, 255, 0, 0, 255, 255, ...`
+
+Conclusion:
+
+- full-stardock completion is not a safe or well-behaved classic state
+- the Rust client-side guard that prevents queueing additional ship/starbase
+  builds when no stardock slot remains should stay in place
+- Rust maintenance should also guard it:
+  - ship/starbase builds that would complete into a full stardock should remain
+    queued unchanged until a slot opens
+  - armies and ground batteries should still complete normally because they do
+    not use stardock
+- treating this as a precondition failure is more faithful than allowing the
+  state and hoping maintenance handles it cleanly
+
 ## Guard Starbase Linkage Keys
 
 Artifact:

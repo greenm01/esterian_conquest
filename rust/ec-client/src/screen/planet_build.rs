@@ -65,6 +65,15 @@ pub struct PlanetBuildMenuView {
     pub committed_points: u32,
     pub available_points: u32,
     pub points_left: u32,
+    /// Number of occupied build-queue slots (0..=10).
+    pub queue_used: usize,
+    /// Total build-queue capacity (always 10).
+    pub queue_capacity: usize,
+    /// Number of stardock slots currently occupied by built or pending
+    /// ships/starbases (0..=10). Armies and batteries excluded.
+    pub stardock_used: usize,
+    /// Total stardock capacity (always 10).
+    pub stardock_capacity: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -158,7 +167,6 @@ impl PlanetBuildScreen {
     pub fn render_menu(
         &mut self,
         view: &PlanetBuildMenuView,
-        orders: &[PlanetBuildOrder],
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
@@ -221,16 +229,15 @@ impl PlanetBuildScreen {
         draw_menu_row(&mut buffer, 8, &ROW_3);
         draw_menu_row(&mut buffer, 9, &ROW_4);
 
-        let queue_summary = if orders.is_empty() {
-            "<none>".to_string()
-        } else {
-            orders
-                .iter()
-                .map(|o| build_order_summary(*o))
-                .collect::<Vec<_>>()
-                .join(", ")
-        };
-        draw_status_line(&mut buffer, 12, "Current queued build: ", &queue_summary);
+        buffer.write_text(
+            12,
+            0,
+            &format!(
+                "Build queue: [{}/{}]   Stardock: [{}/{}]",
+                view.queue_used, view.queue_capacity, view.stardock_used, view.stardock_capacity,
+            ),
+            classic::status_value_style(),
+        );
 
         if let Some(status) = status {
             draw_status_line(&mut buffer, 14, "", status);

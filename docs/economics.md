@@ -226,6 +226,31 @@ commission.
 - This matches the manual: "Bombard a world: destroy its production and anything
   orbiting the world, including recently built ships stored in stardock."
 
+### When stardock is full
+
+If a ship or starbase build reaches completion and the planet's stardock has no
+open slot, `v1.6` does **not** consume or refund the order.
+
+Instead:
+
+- the build queue slot stays in place unchanged
+- the points remaining stay unchanged
+- the player may still abort that queued order manually from the build menu
+- once stardock space is freed, later maintenance can complete the build
+
+This is an intentional Rust safety policy.
+
+Original `ECMAINT` does **not** handle this edge case safely. A focused probe
+with a full stardock and a completing ship build showed that classic
+maintenance:
+
+- cleared the build slot
+- emitted no `ERRORS.TXT`
+- corrupted the target planet's stardock bytes
+
+So `v1.6` treats "completion into a full stardock" as an invalid classic state
+and holds the build in queue rather than reproducing that corruption bug.
+
 ### Armies and ground batteries → direct to planet
 
 Armies (kind 8) and ground batteries (kind 7) are surface and ground defensive
@@ -243,6 +268,8 @@ Rationale:
 - Treating them as stardocked units would mean a player could lose an entire
   army build to a bombardment before ever using them, which contradicts the
   manual's framing of armies as planet defenders.
+- A full stardock does not block them. They complete normally because they do
+  not use stardock at all.
 
 ## Validation Status
 

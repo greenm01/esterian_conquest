@@ -77,6 +77,14 @@ Primary goal:
   - homeworld current production starts at `100`
   - default empire tax starts at `50%`
   - canonical initialized homeworlds start with `10` armies and `4` batteries
+- a focused original-`ECMAINT` probe now shows that letting a ship build complete
+  into a full stardock is unsafe:
+  - the build slot clears
+  - no `ERRORS.TXT` is emitted
+  - the target planet's stardock bytes are corrupted
+  - Rust now keeps blocked ship/starbase builds queued unchanged until a
+    stardock slot opens, while armies and batteries still complete normally
+  - keep the Rust client-side stardock-capacity guard in place
 
 ## Biggest Remaining Engine Questions
 
