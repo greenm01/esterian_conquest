@@ -19,14 +19,14 @@ const CHANGE_COLUMNS: [TableColumn<'static>; 4] = [
     TableColumn::left("Planet Name", 20),
     TableColumn::left("Location", 9),
     TableColumn::left("Production", 16),
-    TableColumn::right("Points", 9),
+    TableColumn::right("PP Spent", 9),
 ];
 
 const BUILD_LIST_COLUMNS: [TableColumn<'static>; 4] = [
-    TableColumn::right("#", 2),
-    TableColumn::left("Unit", 20),
+    TableColumn::left("Unit", 24),
     TableColumn::right("Points", 6),
-    TableColumn::right("Qty", 4),
+    TableColumn::right("Queue", 5),
+    TableColumn::right("Dock", 4),
 ];
 
 const ROW_1: [MenuEntry<'static>; 3] = [
@@ -78,10 +78,11 @@ pub struct PlanetBuildMenuView {
 
 #[derive(Debug, Clone)]
 pub struct PlanetBuildListRow {
-    pub slot: usize,
+    pub kind: ProductionItemKind,
     pub unit_label: String,
     pub points: u32,
-    pub qty: u32,
+    pub queue_qty: u32,
+    pub stardock_qty: Option<u32>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -357,10 +358,10 @@ impl PlanetBuildScreen {
             .iter()
             .map(|row| {
                 vec![
-                    row.slot.to_string(),
                     row.unit_label.clone(),
                     row.points.to_string(),
-                    row.qty.to_string(),
+                    row.queue_qty.to_string(),
+                    row.stardock_qty.map(|q| q.to_string()).unwrap_or_else(|| "N/A".to_string()),
                 ]
             })
             .collect();
@@ -388,10 +389,15 @@ impl PlanetBuildScreen {
         }
 
         if confirming {
-            buffer.write_text(17, 0, "Delete this order? Y/[N]", classic::alert_style());
+            buffer.write_text(
+                17,
+                0,
+                "Delete queued build(s) for this unit? Y/[N]",
+                classic::alert_style(),
+            );
             draw_command_prompt(&mut buffer, 19, "BUILD COMMAND", "Y N");
         } else {
-            draw_command_prompt(&mut buffer, 19, "BUILD COMMAND", "ARROWS D(elete) Q");
+            draw_command_prompt(&mut buffer, 19, "BUILD COMMAND", "ARROWS D(elete queued) Q");
         }
         Ok(buffer)
     }

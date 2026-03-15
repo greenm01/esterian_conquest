@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
 
@@ -632,7 +633,10 @@ impl App {
             return;
         }
         let rows = self.planet_build_list_rows();
-        if rows.is_empty() {
+        let Some(row) = rows.get(self.planet_build_list_cursor) else {
+            return;
+        };
+        if row.queue_qty == 0 {
             return;
         }
         self.planet_build_list_confirming = true;
@@ -647,7 +651,6 @@ impl App {
             self.planet_build_list_confirming = false;
             return Ok(());
         };
-        let slot_0based = row.slot - 1; // row.slot is 1-based display
         let planet_record = self.current_build_planet_row()?.planet_record_index_1_based;
         let record = self
             .game_data
@@ -655,8 +658,12 @@ impl App {
             .records
             .get_mut(planet_record - 1)
             .ok_or("planet record missing")?;
-        record.set_build_count_raw(slot_0based, 0);
-        record.set_build_kind_raw(slot_0based, 0);
+        for slot in 0..10 {
+            if ProductionItemKind::from_raw(record.build_kind_raw(slot)) == row.kind {
+                record.set_build_count_raw(slot, 0);
+                record.set_build_kind_raw(slot, 0);
+            }
+        }
         self.game_data.save(&self.game_dir)?;
         self.planet_build_list_confirming = false;
         // Clamp cursor after deletion.
@@ -1834,23 +1841,59 @@ impl App {
         else {
             return vec![];
         };
-        (0..10)
-            .filter_map(|slot| {
-                let points = u32::from(record.build_count_raw(slot));
-                let kind_raw = record.build_kind_raw(slot);
-                if points == 0 || kind_raw == 0 {
+        let mut queue_qty_by_kind: BTreeMap<u8, u32> = BTreeMap::new();
+        let mut stardock_qty_by_kind: BTreeMap<u8, u32> = BTreeMap::new();
+
+        for slot in 0..10 {
+            let points = u32::from(record.build_count_raw(slot));
+            let kind_raw = record.build_kind_raw(slot);
+            if points == 0 || kind_raw == 0 {
+                continue;
+            }
+            let kind = ProductionItemKind::from_raw(kind_raw);
+            let cost = u32::from(build_unit_spec_by_kind(kind).map(|u| u.cost).unwrap_or(1));
+            let qty = if cost > 0 { points / cost } else { 0 };
+            *queue_qty_by_kind.entry(kind_raw).or_default() += qty.max(1);
+        }
+
+        for slot in 0..10 {
+            let qty = u32::from(record.stardock_count_raw(slot));
+            let kind_raw = record.stardock_kind_raw(slot);
+            if qty == 0 || kind_raw == 0 {
+                continue;
+            }
+            *stardock_qty_by_kind.entry(kind_raw).or_default() += qty;
+        }
+
+        let mut ordered_kind_raws = vec![1, 2, 3, 4, 5, 6, 9, 8, 7];
+        for kind_raw in queue_qty_by_kind.keys().chain(stardock_qty_by_kind.keys()) {
+            if !ordered_kind_raws.contains(kind_raw) {
+                ordered_kind_raws.push(*kind_raw);
+            }
+        }
+
+        ordered_kind_raws
+            .into_iter()
+            .filter_map(|kind_raw| {
+                let queue_qty = queue_qty_by_kind.get(&kind_raw).copied().unwrap_or(0);
+                let stardock_qty = stardock_qty_by_kind.get(&kind_raw).copied().unwrap_or(0);
+                if queue_qty == 0 && stardock_qty == 0 {
                     return None;
                 }
                 let kind = ProductionItemKind::from_raw(kind_raw);
                 let (unit_label, cost) = build_unit_spec_by_kind(kind)
                     .map(|u| (u.label.to_string(), u.cost))
-                    .unwrap_or_else(|| (format!("Unknown (kind {})", kind_raw), 1));
-                let qty = if cost > 0 { points / cost } else { 0 };
+                    .unwrap_or_else(|| (format!("Unknown (kind {})", kind_raw), 0));
                 Some(PlanetBuildListRow {
-                    slot: slot + 1,
+                    kind,
                     unit_label,
-                    points,
-                    qty,
+                    points: u32::from(cost),
+                    queue_qty,
+                    stardock_qty: if kind.requires_stardock() {
+                        Some(stardock_qty)
+                    } else {
+                        None
+                    },
                 })
             })
             .collect()
