@@ -5,9 +5,15 @@
 Rust preservation and reimplementation work for Esterian Conquest v1.5.
 
 This project started as a file-format and reverse-engineering effort. It is now
-past that stage: the Rust engine can generate classic-compatible game
-directories, run maintenance for full campaigns, and stay accepted by the
-original DOS toolchain under the project's actual compatibility standard.
+past that stage: the Rust side is being built as a full replacement stack:
+
+- a canonical Rust game engine and `.DAT` state layer
+- a Rust sysop/admin/oracle toolchain
+- a Rust player client intended to replace `ECGAME`
+
+The engine is already strong enough to run full campaigns while remaining
+accepted by the original DOS toolchain under the project's actual
+compatibility standard. The client phase is now actively underway.
 
 ## Premise
 
@@ -41,9 +47,26 @@ side must remain loadable, sane, and acceptable to the original tools while
 allowing documented canonical Rust behavior where the original internals are
 hidden, stochastic, or not worth cloning literally.
 
+## Project Intent
+
+The long-term goal is not just "Rust tools around the old binaries."
+
+The intended end state is:
+
+- `ec-data` as the canonical Rust engine and state model
+- `ec-cli` as the sysop/admin/oracle surface
+- `ec-client` as a full Rust `ECGAME` replacement
+- classic `.DAT` interoperability kept as the compatibility boundary
+- the original manuals treated as the gameplay spec
+- the original binaries treated as the compatibility oracle
+
+In plain terms: this project is aiming at a complete Rust engine/client
+replacement for Esterian Conquest, while preserving the original campaign
+feel, data layout, and BBS-era workflow where those still matter.
+
 ## Current Status
 
-The engine milestone is effectively complete by project criteria.
+The project is in a mixed engine-complete / client-in-progress phase.
 
 Today the Rust side can:
 
@@ -58,6 +81,12 @@ Today the Rust side can:
 - produce directories the original `ECMAINT` still accepts
 - create default `sysop new-game` directories that `ECGAME` can actually join
   through the original onboarding flow
+- provide a growing Rust player client with working startup flow and real
+  command-center coverage for:
+  - General Command
+  - Planet Command
+  - map export / starmap viewing
+  - diplomacy, mail, commissioning, build, and transport flows
 
 Recent validation:
 
@@ -68,9 +97,12 @@ Recent validation:
 - `cargo test -q`
   - current workspace status: green
 
-In plain terms: Rust is no longer just a scenario generator or fixture toy. It
-can run real Esterian Conquest campaigns while staying interoperable with the
-original game files.
+In plain terms:
+
+- Rust is no longer just a scenario generator or fixture toy
+- `rust-maint` is usable as a real campaign engine
+- the Rust client is no longer speculative UI work; it is actively replacing
+  `ECGAME` screen by screen and command by command
 
 ## Where Rust Intentionally Differs
 
@@ -90,20 +122,25 @@ boundary.
 
 For the detailed rationale, see [docs/approach.md](docs/approach.md).
 
-## Next Phase
+## Current Focus
 
-The next major step is the player client.
+The engine/admin side is now strong enough that the main implementation focus
+has shifted from:
 
-The engine/admin side is now strong enough that the project should shift from
-"can Rust maintain a game?" to "can Rust replace `ECGAME` well?"
+- "can Rust maintain a game?"
 
-Planned direction:
+to:
 
-- keep `ec-data` as the canonical engine/state layer
-- keep `ec-cli` as the sysop/admin/oracle tool
-- add a Rust player client crate for the `ECGAME` replacement
-- start with a local terminal client first
-- add BBS door support after the player workflow is solid
+- "can Rust replace `ECGAME` well?"
+
+Current emphasis:
+
+- keep `rust-maint` honest with continued oracle sweeps
+- finish the remaining Rust player command/menu surfaces
+- preserve classic terminology and workflow where it helps
+- modernize only where the original UI was clearly hostile or obsolete
+  (for example map export and terminal-safe compose flows)
+- build the local terminal client first, then carry that into BBS door support
 
 That client work is now documented in
 [docs/bbs_door_client_rust.md](docs/bbs_door_client_rust.md).
@@ -206,6 +243,7 @@ Useful supporting docs:
 - `RE_NOTES.md`: chronological reverse-engineering notebook
 - `rust/ec-data`: canonical Rust state/model/engine crate
 - `rust/ec-cli`: sysop/admin/oracle/inspection CLI
+- `rust/ec-client`: Rust `ECGAME` replacement in active development
 - `tools/`: oracle runners, DOSBox helpers, and analysis scripts
 
 ## License
