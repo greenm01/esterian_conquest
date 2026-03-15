@@ -2,6 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_client::app::{Action, AppConfig, AppOutcome, App, apply_action};
 use ec_client::screen::{CommandMenu, PlanetListMode, PlanetListSort, RankingsView, ScreenId};
 use ec_client::startup::StartupPhase;
@@ -36,6 +37,10 @@ fn copy_dir_all(src: &Path, dst: &Path) {
             fs::copy(&path, &target).expect("copy file");
         }
     }
+}
+
+fn key(code: KeyCode) -> KeyEvent {
+    KeyEvent::new(code, KeyModifiers::NONE)
 }
 
 #[test]
@@ -277,6 +282,12 @@ fn apply_action_switches_between_client_screens() {
     );
 
     assert_eq!(
+        apply_action(&mut app, Action::OpenRankingsPrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::Rankings(RankingsView::Prompt));
+
+    assert_eq!(
         apply_action(&mut app, Action::OpenMainMenu),
         AppOutcome::Continue
     );
@@ -296,6 +307,139 @@ fn apply_action_quit_exits_loop() {
 
     assert_eq!(apply_action(&mut app, Action::Quit), AppOutcome::Quit);
     assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::Splash));
+}
+
+#[test]
+fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    app.advance_startup();
+    app.advance_startup();
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+
+    assert_eq!(app.handle_key(key(KeyCode::Char('b'))), Action::OpenEmpireStatus);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenEmpireStatus),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::EmpireStatus);
+    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::ReturnToCommandMenu);
+    assert_eq!(
+        apply_action(&mut app, Action::ReturnToCommandMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('i'))),
+        Action::OpenPlanetInfoPrompt(CommandMenu::Main)
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetInfoPrompt(CommandMenu::Main)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
+    assert_eq!(app.handle_key(key(KeyCode::Char('q'))), Action::ReturnToCommandMenu);
+    assert_eq!(
+        apply_action(&mut app, Action::ReturnToCommandMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetInfoPrompt(CommandMenu::Main)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitPlanetInfoPrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetInfoDetail);
+    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::ReturnToCommandMenu);
+    assert_eq!(
+        apply_action(&mut app, Action::ReturnToCommandMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('v'))),
+        Action::OpenPartialStarmapPrompt(CommandMenu::Main)
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPartialStarmapPrompt(CommandMenu::Main)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PartialStarmapPrompt);
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitPartialStarmapPrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
+    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::ReturnToCommandMenu);
+    assert_eq!(
+        apply_action(&mut app, Action::ReturnToCommandMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+}
+
+#[test]
+fn general_rankings_returns_to_general_menu() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    app.advance_startup();
+    app.advance_startup();
+    assert_eq!(
+        apply_action(&mut app, Action::OpenGeneralMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
+
+    assert_eq!(app.handle_key(key(KeyCode::Char('o'))), Action::OpenRankingsPrompt);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenRankingsPrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::Rankings(RankingsView::Prompt));
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('p'))),
+        Action::OpenRankingsTable(EmpireProductionRankingSort::Production)
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::OpenRankingsTable(EmpireProductionRankingSort::Production)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Rankings(RankingsView::Table(
+            EmpireProductionRankingSort::Production
+        ))
+    );
+    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::ReturnToCommandMenu);
+    assert_eq!(
+        apply_action(&mut app, Action::ReturnToCommandMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
 }
 
 #[test]

@@ -473,13 +473,23 @@ impl App {
                     .as_deref()
                     .unwrap_or("Message queued."),
             )?,
-            ScreenId::EmpireStatus => self.empire_status.render(&frame)?,
-            ScreenId::EmpireProfile => self.empire_profile.render(&frame)?,
-            ScreenId::Rankings(RankingsView::Prompt) => self.rankings.render_prompt(&frame)?,
-            ScreenId::Rankings(RankingsView::Table(sort)) => {
-                self.rankings.render_table(&frame, sort)?
+            ScreenId::EmpireStatus => {
+                self.empire_status
+                    .render_with_menu(&frame, self.command_return_menu)?
             }
-            ScreenId::Reports => self.reports.render(&frame)?,
+            ScreenId::EmpireProfile => {
+                self.empire_profile
+                    .render_with_menu(&frame, self.command_return_menu)?
+            }
+            ScreenId::Rankings(RankingsView::Prompt) => {
+                self.rankings
+                    .render_prompt(&frame, self.command_return_menu)?
+            }
+            ScreenId::Rankings(RankingsView::Table(sort)) => {
+                self.rankings
+                    .render_table(&frame, sort, self.command_return_menu)?
+            }
+            ScreenId::Reports => self.reports.render_with_menu(&frame, self.command_return_menu)?,
         };
         terminal.render(&playfield)
     }
@@ -1461,6 +1471,30 @@ impl App {
         self.current_screen = ScreenId::DeleteReviewables;
     }
 
+    pub fn open_empire_status(&mut self) {
+        self.command_return_menu = self.origin_command_menu();
+        self.current_screen = ScreenId::EmpireStatus;
+    }
+
+    pub fn open_empire_profile(&mut self) {
+        self.command_return_menu = self.origin_command_menu();
+        self.current_screen = ScreenId::EmpireProfile;
+    }
+
+    pub fn open_rankings_prompt(&mut self) {
+        self.command_return_menu = self.origin_command_menu();
+        self.current_screen = ScreenId::Rankings(RankingsView::Prompt);
+    }
+
+    pub fn open_rankings_table(&mut self, sort: ec_data::EmpireProductionRankingSort) {
+        self.current_screen = ScreenId::Rankings(RankingsView::Table(sort));
+    }
+
+    pub fn open_reports(&mut self) {
+        self.command_return_menu = self.origin_command_menu();
+        self.current_screen = ScreenId::Reports;
+    }
+
     pub fn open_compose_message_recipient(&mut self) {
         self.compose_recipient_input.clear();
         self.compose_recipient_status = None;
@@ -1573,10 +1607,57 @@ impl App {
 
     pub fn return_to_command_menu(&mut self) {
         self.current_screen = match self.command_return_menu {
+            CommandMenu::Main => ScreenId::MainMenu,
             CommandMenu::General => ScreenId::GeneralMenu,
             CommandMenu::Planet => ScreenId::PlanetMenu,
             CommandMenu::PlanetBuild => ScreenId::PlanetBuildMenu,
         };
+    }
+
+    fn origin_command_menu(&self) -> CommandMenu {
+        match self.current_screen {
+            ScreenId::MainMenu => CommandMenu::Main,
+            ScreenId::GeneralMenu
+            | ScreenId::GeneralHelp
+            | ScreenId::Enemies
+            | ScreenId::DeleteReviewables
+            | ScreenId::ComposeMessageRecipient
+            | ScreenId::ComposeMessageSubject
+            | ScreenId::ComposeMessageBody
+            | ScreenId::ComposeMessageOutbox
+            | ScreenId::ComposeMessageDiscardConfirm
+            | ScreenId::ComposeMessageSendConfirm
+            | ScreenId::ComposeMessageSent
+            | ScreenId::EmpireStatus
+            | ScreenId::EmpireProfile
+            | ScreenId::Rankings(_)
+            | ScreenId::Reports
+            | ScreenId::Starmap => CommandMenu::General,
+            ScreenId::PlanetMenu
+            | ScreenId::PlanetHelp
+            | ScreenId::PlanetAutoCommissionConfirm
+            | ScreenId::PlanetAutoCommissionDone
+            | ScreenId::PlanetCommissionMenu
+            | ScreenId::PlanetListSortPrompt(_)
+            | ScreenId::PlanetBriefList(_)
+            | ScreenId::PlanetDetailList(_)
+            | ScreenId::PlanetTaxPrompt
+            | ScreenId::PlanetTaxDone
+            | ScreenId::PlanetTransportPlanetSelect(_)
+            | ScreenId::PlanetTransportFleetSelect(_)
+            | ScreenId::PlanetTransportQuantityPrompt(_)
+            | ScreenId::PlanetTransportDone(_) => CommandMenu::Planet,
+            ScreenId::PlanetBuildMenu
+            | ScreenId::PlanetBuildHelp
+            | ScreenId::PlanetBuildReview
+            | ScreenId::PlanetBuildList
+            | ScreenId::PlanetBuildChange
+            | ScreenId::PlanetBuildAbortConfirm
+            | ScreenId::PlanetBuildSpecify
+            | ScreenId::PlanetBuildQuantity => CommandMenu::PlanetBuild,
+            ScreenId::Startup(_) | ScreenId::PartialStarmapPrompt | ScreenId::PartialStarmapView
+            | ScreenId::PlanetInfoPrompt | ScreenId::PlanetInfoDetail => self.command_return_menu,
+        }
     }
 
     pub fn append_partial_starmap_char(&mut self, ch: char) {
@@ -2660,7 +2741,7 @@ impl App {
 
         match key.code {
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                crate::app::Action::OpenGeneralMenu
+                crate::app::Action::ReturnToCommandMenu
             }
             KeyCode::Enter => crate::app::Action::SubmitPlanetInfoPrompt,
             KeyCode::Backspace => crate::app::Action::BackspacePlanetInfoInput,

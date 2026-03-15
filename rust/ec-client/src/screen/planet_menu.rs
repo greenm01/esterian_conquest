@@ -107,12 +107,6 @@ fn planet_stub_label(code: KeyCode) -> Option<&'static str> {
         KeyCode::Char('s') | KeyCode::Char('S') => {
             Some("Scorch-planet orders are not implemented yet.")
         }
-        KeyCode::Char('l') | KeyCode::Char('L') => {
-            Some("Transport loading is not implemented yet.")
-        }
-        KeyCode::Char('u') | KeyCode::Char('U') => {
-            Some("Transport unloading is not implemented yet.")
-        }
         KeyCode::Char('x') | KeyCode::Char('X') => {
             Some("Expert mode will follow after all command menus are finished.")
         }

@@ -4,7 +4,7 @@ use crate::app::Action;
 use crate::model::ReviewSummary;
 use crate::reports::ReportsPreview;
 use crate::screen::layout::{draw_command_prompt, draw_status_line, draw_title_bar, new_playfield};
-use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
+use crate::screen::{command_menu_label, CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
 
 pub struct ReportsScreen {
@@ -21,12 +21,11 @@ impl ReportsScreen {
         self.preview = preview;
         self.summary = summary;
     }
-}
 
-impl Screen for ReportsScreen {
-    fn render(
+    pub fn render_with_menu(
         &mut self,
         frame: &ScreenFrame<'_>,
+        menu: CommandMenu,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         let mut row = 0;
@@ -65,12 +64,21 @@ impl Screen for ReportsScreen {
             &self.preview.message_lines,
         )?;
         row += 1;
-        draw_command_prompt(&mut buffer, row, "GENERAL COMMAND", "SLAP A KEY");
+        draw_command_prompt(&mut buffer, row, command_menu_label(menu), "SLAP A KEY");
         Ok(buffer)
+    }
+}
+
+impl Screen for ReportsScreen {
+    fn render(
+        &mut self,
+        frame: &ScreenFrame<'_>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        self.render_with_menu(frame, CommandMenu::General)
     }
 
     fn handle_key(&self, _key: KeyEvent) -> Action {
-        Action::OpenGeneralMenu
+        Action::ReturnToCommandMenu
     }
 }
 

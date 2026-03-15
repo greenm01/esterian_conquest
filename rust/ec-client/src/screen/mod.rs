@@ -121,9 +121,19 @@ pub enum ScreenId {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommandMenu {
+    Main,
     General,
     Planet,
     PlanetBuild,
+}
+
+pub fn command_menu_label(menu: CommandMenu) -> &'static str {
+    match menu {
+        CommandMenu::Main => "MAIN COMMAND",
+        CommandMenu::General => "GENERAL COMMAND",
+        CommandMenu::Planet => "PLANET COMMAND",
+        CommandMenu::PlanetBuild => "BUILD COMMAND",
+    }
 }
 
 pub struct ScreenFrame<'a> {

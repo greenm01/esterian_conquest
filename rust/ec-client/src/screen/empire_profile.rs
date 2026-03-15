@@ -4,7 +4,7 @@ use crate::app::Action;
 use crate::screen::layout::{
     draw_centered_text, draw_command_prompt, draw_title_bar, new_playfield,
 };
-use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
+use crate::screen::{command_menu_label, CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
 
 pub struct EmpireProfileScreen;
@@ -13,12 +13,11 @@ impl EmpireProfileScreen {
     pub fn new() -> Self {
         Self
     }
-}
 
-impl Screen for EmpireProfileScreen {
-    fn render(
+    pub fn render_with_menu(
         &mut self,
         frame: &ScreenFrame<'_>,
+        menu: CommandMenu,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let player_idx = frame.player.record_index_1_based;
         let player = &frame.game_data.player.records[player_idx - 1];
@@ -153,12 +152,21 @@ impl Screen for EmpireProfileScreen {
             ),
             classic::status_value_style(),
         );
-        draw_command_prompt(&mut buffer, 19, "GENERAL COMMAND", "SLAP A KEY");
+        draw_command_prompt(&mut buffer, 19, command_menu_label(menu), "SLAP A KEY");
         Ok(buffer)
+    }
+}
+
+impl Screen for EmpireProfileScreen {
+    fn render(
+        &mut self,
+        frame: &ScreenFrame<'_>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        self.render_with_menu(frame, CommandMenu::General)
     }
 
     fn handle_key(&self, _key: KeyEvent) -> Action {
-        Action::OpenGeneralMenu
+        Action::ReturnToCommandMenu
     }
 }
 

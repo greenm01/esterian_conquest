@@ -5,7 +5,7 @@ use crate::app::Action;
 use crate::screen::layout::{
     draw_command_prompt, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
 };
-use crate::screen::{CommandMenu, PlayfieldBuffer, ScreenFrame, StyledSpan};
+use crate::screen::{command_menu_label, CommandMenu, PlayfieldBuffer, ScreenFrame, StyledSpan};
 use crate::theme::classic;
 
 pub struct PartialStarmapScreen;
@@ -28,7 +28,7 @@ impl PartialStarmapScreen {
         if let Some(error) = error {
             draw_status_line(&mut buffer, 4, "Error: ", error);
         }
-        draw_command_prompt(&mut buffer, 6, command_label(menu), "Q");
+        draw_command_prompt(&mut buffer, 6, command_menu_label(menu), "Q");
         buffer.set_cursor(cursor_col as u16, 2);
         Ok(buffer)
     }
@@ -195,13 +195,5 @@ impl PartialStarmapScreen {
             }
             _ => Action::Noop,
         }
-    }
-}
-
-fn command_label(menu: CommandMenu) -> &'static str {
-    match menu {
-        CommandMenu::General => "GENERAL COMMAND",
-        CommandMenu::Planet => "PLANET COMMAND",
-        CommandMenu::PlanetBuild => "BUILD COMMAND",
     }
 }
