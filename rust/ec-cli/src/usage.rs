@@ -57,12 +57,19 @@ pub fn print_usage() {
     );
     println!("  ec-cli fleet-order-report [dir] [fleet_record]");
     println!(
+        "  ec-cli fleet-ships <dir> <fleet_record> <sc> <bb> <ca> <dd> <tt> [loaded_armies] [etac]"
+    );
+    println!(
+        "  ec-cli fleet-detach <dir> <player_record> <donor_fleet_record> <bb> <ca> <dd> <full_tt> <empty_tt> <sc> <etac> [donor_speed] [new_roe]"
+    );
+    println!(
         "  ec-cli fleet-order-init <target_dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]"
     );
     println!(
         "  ec-cli fleet-order-batch-init <target_root> <fleet_record:speed:order:target_x:target_y[:aux0[:aux1]]>..."
     );
     println!("  ec-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>");
+    println!("  ec-cli player-name <dir> <player_record> <handle> <empire_name>");
     println!("  ec-cli planet-owner <dir> <planet_record> <owner_slot>");
     println!("  ec-cli planet-name <dir> <planet_record> <name>");
     println!("  ec-cli planet-stats <dir> <planet_record> <armies> <batteries>");

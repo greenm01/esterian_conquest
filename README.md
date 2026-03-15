@@ -200,6 +200,14 @@ cargo run -q -p ec-client -- --dir /tmp/ec-game --player 1
 seed that DB automatically. If you mutate a classic directory outside the
 SQLite path, run `db-import` before launching the client or `maint-rust`.
 
+Test harness scripts live under [scripts/](/home/mag/dev/esterian_conquest/scripts):
+
+```bash
+python3 scripts/new_test_game.py /tmp/ec-join-test --players 9 --force
+python3 scripts/setup_ui_stress_game.py /tmp/ec-ui-stress --force
+python3 scripts/run_client.py /tmp/ec-ui-stress --player 1
+```
+
 ## Useful Commands
 
 New game from declarative config:

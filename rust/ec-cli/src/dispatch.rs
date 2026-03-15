@@ -17,6 +17,7 @@ use crate::commands::core::{
 use crate::commands::fleet_order::{
     init_fleet_order_batch, init_fleet_order_scenario, print_fleet_order_report, set_fleet_order,
 };
+use crate::commands::fleet_setup::{detach_fleet_to_new_record, set_fleet_ships};
 use crate::commands::guard_starbase::{
     init_guard_starbase_batch, init_guard_starbase_onebase, print_guard_starbase_report,
     set_guard_starbase_onebase,
@@ -31,6 +32,7 @@ use crate::commands::planet_build::{
     print_planet_build_report, set_planet_build, set_planet_name, set_planet_owner,
     set_planet_potential, set_planet_stardock_slot, set_planet_stats, set_planet_stored,
 };
+use crate::commands::player_setup::set_player_name;
 
 use crate::commands::bombard::{init_bombard, init_bombard_batch, set_bombard_onefleet};
 use crate::commands::econ::{init_econ, init_econ_batch, set_econ};
@@ -346,6 +348,116 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
                 parse_usize_1_based(record_index, "fleet record index")?,
             )?;
         }
+        "fleet-ships" => {
+            let dir = next_dir(&mut args);
+            let Some(record_index) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(scouts) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(battleships) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(cruisers) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(destroyers) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(transports) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let armies_loaded = args.next();
+            let etacs = args.next();
+            set_fleet_ships(
+                &dir,
+                parse_usize_1_based(&record_index, "fleet record index")?,
+                parse_u8_arg(&scouts, "scouts")?,
+                parse_u16_arg(&battleships, "battleships")?,
+                parse_u16_arg(&cruisers, "cruisers")?,
+                parse_u16_arg(&destroyers, "destroyers")?,
+                parse_u16_arg(&transports, "transports")?,
+                armies_loaded
+                    .as_deref()
+                    .map(|value| parse_u16_arg(value, "loaded armies"))
+                    .transpose()?
+                    .unwrap_or(0),
+                etacs
+                    .as_deref()
+                    .map(|value| parse_u16_arg(value, "etacs"))
+                    .transpose()?
+                    .unwrap_or(0),
+            )?;
+        }
+        "fleet-detach" => {
+            let dir = next_dir(&mut args);
+            let Some(player_index) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(donor_index) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(battleships) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(cruisers) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(destroyers) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(full_transports) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(empty_transports) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(scouts) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(etacs) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let donor_speed = args.next();
+            let new_fleet_roe = args.next();
+            detach_fleet_to_new_record(
+                &dir,
+                parse_usize_1_based(&player_index, "player record index")?,
+                parse_usize_1_based(&donor_index, "donor fleet record index")?,
+                parse_u16_arg(&battleships, "battleships")?,
+                parse_u16_arg(&cruisers, "cruisers")?,
+                parse_u16_arg(&destroyers, "destroyers")?,
+                parse_u16_arg(&full_transports, "full transports")?,
+                parse_u16_arg(&empty_transports, "empty transports")?,
+                parse_u8_arg(&scouts, "scouts")?,
+                parse_u16_arg(&etacs, "etacs")?,
+                donor_speed
+                    .as_deref()
+                    .map(|value| parse_u8_arg(value, "donor speed"))
+                    .transpose()?,
+                new_fleet_roe
+                    .as_deref()
+                    .map(|value| parse_u8_arg(value, "new fleet roe"))
+                    .transpose()?
+                    .unwrap_or(5),
+            )?;
+        }
         "fleet-order-init" => {
             let remaining = args.collect::<Vec<_>>();
             let Some((target, record_index, speed, order_code, target_x, target_y, aux0, aux1)) =
@@ -455,6 +567,27 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
                 return Ok(());
             };
             set_planet_potential(&dir, record_index.parse()?, p1.parse()?, p2.parse()?)?;
+        }
+        "player-name" => {
+            let dir = next_dir(&mut args);
+            let Some(player_index) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(handle) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(empire_name) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            set_player_name(
+                &dir,
+                parse_usize_1_based(&player_index, "player record index")?,
+                &handle,
+                &empire_name,
+            )?;
         }
         "planet-stored" => {
             let dir = next_dir(&mut args);
