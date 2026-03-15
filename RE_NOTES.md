@@ -3748,6 +3748,64 @@ Fleet Orders were also confirmed based on manual references and game engine reac
 ### The Invasion Experiment
 By creating a "heavy attacker" AI fleet with Battleships, Cruisers, Destroyers, Troop Transports, and Armies, then ordering them to "Invade" (`7`) the mature colony at `(15,13)`, `ECMAINT` generated a robust casualty report (`RESULTS.DAT`) and changed the planet's ownership. The surviving troop transport armies successfully populated the captured planet's `0x58` field (Armies).
 
+## Original oracle probe: byte-sized unit limits
+
+Probe script:
+
+- `python3 tools/probe_u8_unit_limits.py`
+
+Artifacts are written under `/tmp/ecgame-u8-unit-limits`.
+
+Confirmed original-oracle outcomes:
+
+1. `PLANETS.DAT[0x58]` planet armies behave as a hard `255` cap under
+   `ECMAINT`.
+   - Probe: set a player-1 homeworld to `255` armies, queue one army build
+     (kind `8`), then run original `ECMAINT`.
+   - Result:
+     - planet armies remained `255`
+     - the build slot cleared (`points -> 0`, `kind -> 0`)
+   - Interpretation:
+     - a completed army build at cap is silently consumed rather than held,
+       wrapped, or extended elsewhere.
+   - Rust policy:
+     - do not reproduce that silent-loss behavior
+     - hold the queued army build in place until the planet has room
+
+2. `PLANETS.DAT[0x5A]` ground batteries behave as a hard `255` cap under
+   `ECMAINT`.
+   - Probe: set the same homeworld to `255` batteries, queue one battery build
+     (kind `7`), then run original `ECMAINT`.
+   - Result:
+     - ground batteries remained `255`
+     - the build slot cleared
+   - Interpretation:
+     - completed battery builds at cap are also silently consumed.
+   - Rust policy:
+     - do not reproduce that silent-loss behavior
+     - hold the queued battery build in place until the planet has room
+
+3. The fleet scout field `FLEETS.DAT[0x24]` is still byte-sized, but a simple
+   merge probe does **not** behave like a clean overflow test.
+   - Probe: set two player-1 fleets at the same sector to `200` scouts each,
+     zero their other ship counts, flag the player for merge processing, set
+     rendezvous-style orders, then run original `ECMAINT`.
+   - Result:
+     - one fleet survived
+     - the surviving fleet still had `200` scouts, not `400`
+     - a control run with `100 + 100` scouts also left the survivor at `100`
+   - Interpretation:
+     - classic fleet merging appears to drop merged-away scout counts entirely
+       on this path
+     - this is a separate classic scout-merge bug/quirk, not yet a clean
+       answer to the scout overflow question
+
+4. A headless `ECGAME` unload probe with a planet at `250` armies and a local
+   fleet carrying `20` loaded armies produced no state change in this harness.
+   - Do **not** treat that as gameplay evidence yet.
+   - The scripted `ECGAME` transport path remains inconclusive until driven with
+     a stronger screen-aware automation path.
+
 ### Fleet-vs-Fleet Interception
 
 Through targeted scenarios in `ECMAINT`, the mechanics of fleet-vs-fleet combat were decoded:

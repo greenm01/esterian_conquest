@@ -289,6 +289,43 @@ fn unload_fleet_armies_to_planet_moves_armies_back_to_planet() {
 }
 
 #[test]
+fn unload_fleet_armies_to_planet_rejects_planet_overflow() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+
+    let mut planet = PlanetRecord::new_zeroed();
+    planet.set_owner_empire_slot_raw(1);
+    planet.set_coords_raw([6, 5]);
+    planet.set_army_count_raw(255);
+
+    let mut fleet = FleetRecord::new_zeroed();
+    fleet.set_owner_empire_raw(1);
+    fleet.set_current_location_coords_raw([6, 5]);
+    fleet.set_troop_transport_count(4);
+    fleet.set_army_count(3);
+
+    let mut data = CoreGameData {
+        player: PlayerDat { records: vec![player] },
+        planets: PlanetDat { records: vec![planet] },
+        fleets: FleetDat { records: vec![fleet] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    let err = data.unload_fleet_armies_to_planet(1, 1, 1, 1).unwrap_err();
+    assert_eq!(
+        err,
+        ec_data::GameStateMutationError::PlanetArmyCapacityExceeded {
+            planet_index_1_based: 1,
+            requested: 1,
+            available: 0,
+        }
+    );
+}
+
+#[test]
 fn ipbm_record_setters_round_trip_structural_prefix_fields() {
     let mut record = IpbmRecord {
         raw: [0u8; IPBM_RECORD_SIZE],

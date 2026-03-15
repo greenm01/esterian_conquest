@@ -540,7 +540,8 @@ impl App {
                     "No planets have armies and troop transports ready to load.".to_string()
                 }
                 PlanetTransportMode::Unload => {
-                    "No fleets have loaded armies ready to unload.".to_string()
+                    "No fleets have loaded armies ready to unload onto planets with free capacity."
+                        .to_string()
                 }
             });
             self.current_screen = ScreenId::PlanetTransportPlanetSelect(mode);
@@ -992,19 +993,32 @@ impl App {
             return Ok(());
         }
         let planet = self.current_planet_transport_planet_row(mode)?;
-        match mode {
+        let result = match mode {
             PlanetTransportMode::Load => self.game_data.load_planet_armies_onto_fleet(
                 self.player.record_index_1_based,
                 planet.planet_record_index_1_based,
                 fleet.fleet_record_index_1_based,
                 qty,
-            )?,
+            ),
             PlanetTransportMode::Unload => self.game_data.unload_fleet_armies_to_planet(
                 self.player.record_index_1_based,
                 planet.planet_record_index_1_based,
                 fleet.fleet_record_index_1_based,
                 qty,
-            )?,
+            ),
+        };
+        match result {
+            Ok(()) => {}
+            Err(GameStateMutationError::PlanetArmyCapacityExceeded { available, .. }) => {
+                self.planet_transport_status = Some(if available == 0 {
+                    "This planet is already at the maximum 255 armies.".to_string()
+                } else {
+                    format!("Planet can receive only {available} more armies.")
+                });
+                self.current_screen = ScreenId::PlanetTransportFleetSelect(mode);
+                return Ok(());
+            }
+            Err(err) => return Err(err.into()),
         }
         self.game_data.save(&self.game_dir)?;
         self.planet_transport_status = Some(match mode {
@@ -1190,7 +1204,10 @@ impl App {
             return;
         };
         if max_qty == 0 {
-            self.planet_build_unit_status = Some("No points are available to spend.".to_string());
+            self.planet_build_unit_status = Some(
+                self.planet_build_unavailable_message(unit.kind)
+                    .unwrap_or_else(|_| "No points are available to spend.".to_string()),
+            );
             return;
         }
 
@@ -1227,8 +1244,7 @@ impl App {
         };
         let max_qty = self.current_planet_build_max_quantity_for(kind)?;
         if max_qty == 0 {
-            self.planet_build_quantity_status =
-                Some("No points are available to spend.".to_string());
+            self.planet_build_quantity_status = Some(self.planet_build_unavailable_message(kind)?);
             return Ok(());
         }
 
@@ -2320,7 +2336,9 @@ impl App {
                     PlanetTransportMode::Load => {
                         fleet.troop_transport_count().saturating_sub(fleet.army_count())
                     }
-                    PlanetTransportMode::Unload => fleet.army_count(),
+                    PlanetTransportMode::Unload => fleet
+                        .army_count()
+                        .min(u16::from(u8::MAX.saturating_sub(row.armies))),
                 };
                 PlanetTransportFleetRow {
                     fleet_record_index_1_based: idx + 1,
@@ -2516,7 +2534,41 @@ impl App {
     ) -> Result<u32, Box<dyn std::error::Error>> {
         let view = self.current_planet_build_view()?;
         let unit = build_unit_spec_by_kind(kind).ok_or("unit spec missing")?;
-        Ok(max_quantity(view.points_left, unit.cost))
+        let mut max_qty = max_quantity(view.points_left, unit.cost);
+        match kind {
+            ProductionItemKind::Army => {
+                let free = self
+                    .game_data
+                    .planet_free_army_capacity(view.row.planet_record_index_1_based)?;
+                max_qty = max_qty.min(u32::from(free));
+            }
+            ProductionItemKind::GroundBattery => {
+                let free = self
+                    .game_data
+                    .planet_free_ground_battery_capacity(view.row.planet_record_index_1_based)?;
+                max_qty = max_qty.min(u32::from(free));
+            }
+            _ => {}
+        }
+        Ok(max_qty)
+    }
+
+    fn planet_build_unavailable_message(
+        &self,
+        kind: ProductionItemKind,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let view = self.current_planet_build_view()?;
+        if view.points_left == 0 {
+            return Ok("No points are available to spend.".to_string());
+        }
+        Ok(match kind {
+            ProductionItemKind::Army => "Planet already has the maximum 255 armies.",
+            ProductionItemKind::GroundBattery => {
+                "Planet already has the maximum 255 ground batteries."
+            }
+            _ => "No points are available to spend.",
+        }
+        .to_string())
     }
 
     fn planet_build_list_rows(&self) -> Vec<PlanetBuildListRow> {

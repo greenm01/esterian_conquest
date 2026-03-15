@@ -271,6 +271,31 @@ Rationale:
 - A full stardock does not block them. They complete normally because they do
   not use stardock at all.
 
+### Planet army / battery byte caps
+
+Original `ECMAINT` treats both of these planet-side fields as hard byte-sized
+caps.
+
+Focused oracle probes showed:
+
+- if a planet already has `255` armies, a completing army build is still
+  consumed, but the planet remains at `255`
+- if a planet already has `255` ground batteries, a completing battery build is
+  still consumed, but the planet remains at `255`
+
+So for `v1.6`:
+
+- planet armies should currently be treated as capped at `255`
+- planet batteries should currently be treated as capped at `255`
+- client and engine guards should prevent silent overflow where practical
+- if a queued army or battery build would complete past that cap, Rust keeps the
+  build queued unchanged instead of silently consuming it
+- if a player tries to unload troop-transport armies onto a full planet, Rust
+  blocks the unload and reports the cap clearly
+
+This is distinct from loaded fleet armies, which are stored more widely in
+`FLEETS.DAT`.
+
 ## Validation Status
 
 The current canonical model is backed by:

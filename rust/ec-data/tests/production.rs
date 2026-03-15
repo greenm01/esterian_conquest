@@ -440,3 +440,39 @@ fn maintenance_ground_battery_build_completes_even_when_stardock_is_full() {
     assert_eq!(planet.build_kind_raw(0), 0);
     assert_eq!(planet.ground_batteries_raw(), 5);
 }
+
+#[test]
+fn maintenance_army_build_waits_at_planet_cap() {
+    let mut player = player_with_empire_name("Alpha", 50, 0);
+    player.set_owner_empire_raw(1);
+
+    let mut planet = owned_planet(1, 100, encode_real48(100.0).unwrap(), 0, u8::MAX, 0);
+    planet.set_build_count_raw(0, 100);
+    planet.set_build_kind_raw(0, 8);
+
+    let mut game = single_planet_game(player, planet);
+    run_maintenance_turn(&mut game).expect("maintenance should succeed");
+
+    let planet = &game.planets.records[0];
+    assert_eq!(planet.build_count_raw(0), 100);
+    assert_eq!(planet.build_kind_raw(0), 8);
+    assert_eq!(planet.army_count_raw(), u8::MAX);
+}
+
+#[test]
+fn maintenance_ground_battery_build_waits_at_planet_cap() {
+    let mut player = player_with_empire_name("Alpha", 50, 0);
+    player.set_owner_empire_raw(1);
+
+    let mut planet = owned_planet(1, 100, encode_real48(100.0).unwrap(), 0, 0, u8::MAX);
+    planet.set_build_count_raw(0, 100);
+    planet.set_build_kind_raw(0, 7);
+
+    let mut game = single_planet_game(player, planet);
+    run_maintenance_turn(&mut game).expect("maintenance should succeed");
+
+    let planet = &game.planets.records[0];
+    assert_eq!(planet.build_count_raw(0), 100);
+    assert_eq!(planet.build_kind_raw(0), 7);
+    assert_eq!(planet.ground_batteries_raw(), u8::MAX);
+}

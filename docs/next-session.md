@@ -85,6 +85,17 @@ Primary goal:
   - Rust now keeps blocked ship/starbase builds queued unchanged until a
     stardock slot opens, while armies and batteries still complete normally
   - keep the Rust client-side stardock-capacity guard in place
+- a focused original-byte-limit probe now shows:
+  - planet armies at `255` stay at `255` and still consume a completing army build
+  - planet batteries at `255` stay at `255` and still consume a completing battery build
+  - a simple scout-fleet merge probe is not a clean overflow oracle because
+    classic merge processing appears to drop merged-away scouts even below `255`
+  - keep the Rust planet unload cap guard in place for now
+  - the exact original `ECGAME` load/unload UI behavior above `255` is still
+    worth a stronger screen-aware probe later
+  - Rust now diverges intentionally on the planet-side byte caps:
+    - army/battery builds that would overflow stay queued
+    - unload to a full planet is rejected cleanly in the client and engine
 
 ## Biggest Remaining Engine Questions
 

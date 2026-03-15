@@ -1689,6 +1689,8 @@ fn process_build_completion(
                     continue;
                 }
 
+                let points_spent = u32::from(decrement);
+
                 if build_item_kind.requires_stardock() {
                     let has_open_stardock_slot = (0..10).any(|stardock_slot| {
                         game_data.planets.records[planet_idx].stardock_kind_raw(stardock_slot) == 0
@@ -1701,25 +1703,45 @@ fn process_build_completion(
                     }
                 }
 
+                match build_item_kind {
+                    ProductionItemKind::Army => {
+                        let qty = ((points_spent / 2).max(1)).min(u32::from(u8::MAX)) as u8;
+                        let current = game_data.planets.records[planet_idx].army_count_raw();
+                        let free_capacity = u8::MAX.saturating_sub(current);
+                        if qty > free_capacity {
+                            // v1.6 policy: hold the build in queue instead of reproducing the
+                            // classic silent-loss bug at the byte cap.
+                            continue;
+                        }
+                    }
+                    ProductionItemKind::GroundBattery => {
+                        let qty = ((points_spent / 20).max(1)).min(u32::from(u8::MAX)) as u8;
+                        let current = game_data.planets.records[planet_idx].ground_batteries_raw();
+                        let free_capacity = u8::MAX.saturating_sub(current);
+                        if qty > free_capacity {
+                            // v1.6 policy: hold the build in queue instead of reproducing the
+                            // classic silent-loss bug at the byte cap.
+                            continue;
+                        }
+                    }
+                    _ => {}
+                }
+
                 game_data.planets.records[planet_idx].set_build_count_raw(slot, new_count);
 
                 if new_count == 0 {
-                    // decrement == original build_count when new_count == 0
-                    let points_spent = u32::from(decrement);
-
                     match build_item_kind {
                         ProductionItemKind::Army => {
                             let qty = ((points_spent / 2).max(1)).min(u32::from(u8::MAX)) as u8;
                             let current = game_data.planets.records[planet_idx].army_count_raw();
-                            game_data.planets.records[planet_idx]
-                                .set_army_count_raw(current.saturating_add(qty));
+                            game_data.planets.records[planet_idx].set_army_count_raw(current + qty);
                         }
                         ProductionItemKind::GroundBattery => {
                             let qty = ((points_spent / 20).max(1)).min(u32::from(u8::MAX)) as u8;
                             let current =
                                 game_data.planets.records[planet_idx].ground_batteries_raw();
                             game_data.planets.records[planet_idx]
-                                .set_ground_batteries_raw(current.saturating_add(qty));
+                                .set_ground_batteries_raw(current + qty);
                         }
                         _ => {
                             // Ships and starbases stage in stardock awaiting commission.

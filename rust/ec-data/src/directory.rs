@@ -238,6 +238,11 @@ pub enum GameStateMutationError {
         requested: u16,
         available: u16,
     },
+    PlanetGroundBatteryCapacityExceeded {
+        planet_index_1_based: usize,
+        requested: u16,
+        available: u16,
+    },
     TransportCapacityExceeded {
         fleet_index_1_based: usize,
         requested: u16,
@@ -342,6 +347,15 @@ impl std::fmt::Display for GameStateMutationError {
             } => write!(
                 f,
                 "planet {} can receive only {} more armies, requested {}",
+                planet_index_1_based, available, requested
+            ),
+            Self::PlanetGroundBatteryCapacityExceeded {
+                planet_index_1_based,
+                requested,
+                available,
+            } => write!(
+                f,
+                "planet {} can receive only {} more batteries, requested {}",
                 planet_index_1_based, available, requested
             ),
             Self::TransportCapacityExceeded {
@@ -1948,6 +1962,32 @@ impl CoreGameData {
         )?;
 
         Ok((0..10).filter(|&s| record.stardock_kind_raw(s) == 0).count())
+    }
+
+    pub fn planet_free_army_capacity(
+        &self,
+        record_index_1_based: usize,
+    ) -> Result<u16, GameStateMutationError> {
+        let record = self.planets.records.get(record_index_1_based - 1).ok_or(
+            GameStateMutationError::MissingPlanetRecord {
+                index_1_based: record_index_1_based,
+            },
+        )?;
+        Ok(u16::from(u8::MAX.saturating_sub(record.army_count_raw())))
+    }
+
+    pub fn planet_free_ground_battery_capacity(
+        &self,
+        record_index_1_based: usize,
+    ) -> Result<u16, GameStateMutationError> {
+        let record = self.planets.records.get(record_index_1_based - 1).ok_or(
+            GameStateMutationError::MissingPlanetRecord {
+                index_1_based: record_index_1_based,
+            },
+        )?;
+        Ok(u16::from(
+            u8::MAX.saturating_sub(record.ground_batteries_raw()),
+        ))
     }
 
     pub fn append_planet_build_order(
