@@ -15,6 +15,11 @@ capture/bbs-menu-map/
 capture/bbs-join-map-current/
 artifacts/ghidra/
 original/v1.5/IPBM.DAT
+original/v1.5/ERRORS.TXT
+original/v1.5/RUN*.BAT
+original/v1.5/DROP/*
+!original/v1.5/DROP/CHAIN.TXT
+search.py
 
 # Local Ghidra project/runtime caches.
 .ghidra/projects/*.rep/idata/
@@ -23,6 +28,7 @@ original/v1.5/IPBM.DAT
 # Python bytecode caches.
 tools/__pycache__/
 tools/bbs/__pycache__/
+tools/bbs/dummy.txt
 
 # Local one-off tooling and scratch scripts not part of the repo baseline.
 tools/dump_ecgame_memory.py
