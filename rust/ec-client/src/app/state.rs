@@ -10,13 +10,13 @@ use crate::app::Action;
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
 use crate::reports::{clear_report_files, ReportsPreview};
 use crate::screen::{
-    build_order_summary, build_unit_spec, build_unit_spec_by_kind, max_quantity, CommandMenu,
-    DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
-    GeneralHelpScreen, GeneralMenuScreen, MainMenuScreen, MessageComposeScreen,
-    PartialStarmapScreen, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildOrder,
-    PlanetBuildScreen, PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen,
-    PlanetListSort, PlanetMenuScreen, PlanetTaxScreen, RankingsScreen, RankingsView, ReportsScreen,
-    Screen, ScreenFrame, ScreenId, StarmapScreen, StartupScreen,
+    build_unit_spec, build_unit_spec_by_kind, max_quantity, CommandMenu, DeleteReviewablesScreen,
+    EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen, GeneralHelpScreen, GeneralMenuScreen,
+    MainMenuScreen, MessageComposeScreen, PartialStarmapScreen, PlanetBuildListRow,
+    PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetHelpScreen, PlanetInfoScreen,
+    PlanetListMode, PlanetListScreen, PlanetListSort, PlanetMenuScreen, PlanetTaxScreen,
+    RankingsScreen, RankingsView, ReportsScreen, Screen, ScreenFrame, ScreenId, StarmapScreen,
+    StartupScreen,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -231,6 +231,7 @@ impl App {
                 &self.current_planet_build_orders(),
             )?,
             ScreenId::PlanetBuildList => self.planet_build.render_list(
+                &self.current_planet_build_view()?,
                 &self.planet_build_list_rows(),
                 self.planet_build_list_scroll_offset,
             )?,
@@ -499,10 +500,9 @@ impl App {
             self.planet_build_index = 0;
             return;
         }
-        self.planet_build_index = self
-            .planet_build_index
-            .saturating_add_signed(delta as isize)
-            .min(total - 1);
+        // Wrap around so N on the last planet returns to the first.
+        let next = self.planet_build_index as isize + delta as isize;
+        self.planet_build_index = next.rem_euclid(total as isize) as usize;
         self.planet_build_status = None;
     }
 
@@ -1538,36 +1538,35 @@ impl App {
     }
 
     fn planet_build_list_rows(&self) -> Vec<PlanetBuildListRow> {
-        self.build_planet_rows()
-            .into_iter()
-            .map(|row| {
-                let build_summary = self
-                    .game_data
-                    .planets
-                    .records
-                    .get(row.planet_record_index_1_based - 1)
-                    .and_then(|record| {
-                        let points_remaining = record.build_count_raw(0);
-                        let kind_raw = record.build_kind_raw(0);
-                        if points_remaining == 0 || kind_raw == 0 {
-                            None
-                        } else {
-                            Some(build_order_summary(PlanetBuildOrder {
-                                kind: ProductionItemKind::from_raw(kind_raw),
-                                points_remaining,
-                            }))
-                        }
-                    })
-                    .unwrap_or_else(|| "<none>".to_string());
-                let points_committed = self
-                    .current_build_committed_points(row.planet_record_index_1_based)
-                    .unwrap_or(0);
-                PlanetBuildListRow {
-                    planet_name: row.planet_name,
-                    coords: row.coords,
-                    build_summary,
-                    points_committed,
+        let Ok(row) = self.current_build_planet_row() else {
+            return vec![];
+        };
+        let Some(record) = self
+            .game_data
+            .planets
+            .records
+            .get(row.planet_record_index_1_based - 1)
+        else {
+            return vec![];
+        };
+        (0..10)
+            .filter_map(|slot| {
+                let points = u32::from(record.build_count_raw(slot));
+                let kind_raw = record.build_kind_raw(slot);
+                if points == 0 || kind_raw == 0 {
+                    return None;
                 }
+                let kind = ProductionItemKind::from_raw(kind_raw);
+                let (unit_label, cost) = build_unit_spec_by_kind(kind)
+                    .map(|u| (u.label.to_string(), u.cost))
+                    .unwrap_or_else(|| (format!("Unknown (kind {})", kind_raw), 1));
+                let qty = if cost > 0 { points / cost } else { 0 };
+                Some(PlanetBuildListRow {
+                    slot: slot + 1,
+                    unit_label,
+                    points,
+                    qty,
+                })
             })
             .collect()
     }

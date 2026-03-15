@@ -12,13 +12,13 @@ use crate::theme::classic;
 
 pub struct PlanetBuildScreen;
 
-pub(crate) const PLANET_BUILD_LIST_VISIBLE_ROWS: usize = 13;
+pub(crate) const PLANET_BUILD_LIST_VISIBLE_ROWS: usize = 10;
 
 const BUILD_LIST_COLUMNS: [TableColumn<'static>; 4] = [
-    TableColumn::left("Planet", 16),
-    TableColumn::right("Loc", 5),
-    TableColumn::left("Build Orders", 34),
-    TableColumn::right("Pts", 5),
+    TableColumn::right("#", 2),
+    TableColumn::left("Unit", 20),
+    TableColumn::right("Points", 6),
+    TableColumn::right("Qty", 4),
 ];
 
 const ROW_1: [MenuEntry<'static>; 3] = [
@@ -61,10 +61,10 @@ pub struct PlanetBuildMenuView {
 
 #[derive(Debug, Clone)]
 pub struct PlanetBuildListRow {
-    pub planet_name: String,
-    pub coords: [u8; 2],
-    pub build_summary: String,
-    pub points_committed: u32,
+    pub slot: usize,
+    pub unit_label: String,
+    pub points: u32,
+    pub qty: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -310,27 +310,47 @@ impl PlanetBuildScreen {
 
     pub fn render_list(
         &mut self,
+        view: &PlanetBuildMenuView,
         rows: &[PlanetBuildListRow],
         scroll_offset: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, "BUILD LIST:");
+        draw_title_bar(
+            &mut buffer,
+            0,
+            &format!(
+                "BUILD LIST: \"{}\" AT ({},{}):",
+                view.row.planet_name, view.row.coords[0], view.row.coords[1]
+            ),
+        );
+
+        buffer.write_text(
+            2,
+            0,
+            &format!(
+                "You have spent {} out of {} points.  You have {} points left to spend.",
+                view.committed_points.min(view.available_points),
+                view.available_points,
+                view.points_left
+            ),
+            classic::status_value_style(),
+        );
 
         let table_rows: Vec<Vec<String>> = rows
             .iter()
-            .map(|planet| {
+            .map(|row| {
                 vec![
-                    planet.planet_name.clone(),
-                    format!("({},{})", planet.coords[0], planet.coords[1]),
-                    planet.build_summary.clone(),
-                    planet.points_committed.to_string(),
+                    row.slot.to_string(),
+                    row.unit_label.clone(),
+                    row.points.to_string(),
+                    row.qty.to_string(),
                 ]
             })
             .collect();
 
         write_table_window(
             &mut buffer,
-            2,
+            4,
             &BUILD_LIST_COLUMNS,
             &table_rows,
             scroll_offset,
@@ -341,7 +361,7 @@ impl PlanetBuildScreen {
 
         if rows.is_empty() {
             buffer.write_text(
-                4,
+                6,
                 0,
                 "No build orders are queued.",
                 classic::status_value_style(),
