@@ -4,10 +4,8 @@ use ec_data::CoreGameData;
 
 use crate::workspace::generate_database_dat;
 
-const PROBE_COLONY_SPECS: [(&str, u16, u16, u8, u8); 2] = [
-    ("Mid Colony", 50, 100, 3, 1),
-    ("New Colony", 25, 100, 1, 0),
-];
+const PROBE_COLONY_SPECS: [(&str, u16, u16, u8, u8); 2] =
+    [("Mid Colony", 50, 100, 3, 1), ("New Colony", 25, 100, 1, 0)];
 
 pub(crate) fn init_tax_growth_probe(
     dir: &Path,
@@ -55,9 +53,8 @@ pub(crate) fn init_tax_growth_probe(
         return Err("not enough unowned planets available for economy probe".into());
     }
 
-    for (planet_idx, (name, present, potential, armies, batteries)) in unowned_indices
-        .into_iter()
-        .zip(PROBE_COLONY_SPECS)
+    for (planet_idx, (name, present, potential, armies, batteries)) in
+        unowned_indices.into_iter().zip(PROBE_COLONY_SPECS)
     {
         let coords = data.planets.records[planet_idx].coords_raw();
         let planet = &mut data.planets.records[planet_idx];
@@ -135,7 +132,17 @@ pub(crate) fn print_economy_report(
     println!("  planets:");
     println!(
         "    {:>3} {:>7} {:<13} {:>7} {:>9} {:>6} {:>6} {:>6} {:>5} {:>4} {:>4}",
-        "rec", "coords", "name", "present", "potential", "stored", "rev", "grow", "cap", "army", "bat"
+        "rec",
+        "coords",
+        "name",
+        "present",
+        "potential",
+        "stored",
+        "rev",
+        "grow",
+        "cap",
+        "army",
+        "bat"
     );
     for row in data.empire_planet_economy_rows(player_record_index_1_based) {
         let [x, y] = row.coords;
@@ -153,8 +160,16 @@ pub(crate) fn print_economy_report(
             row.build_capacity,
             row.armies,
             row.ground_batteries,
-            if row.has_friendly_starbase { " starbase" } else { "" },
-            if row.is_homeworld_seed { " homeworld" } else { "" }
+            if row.has_friendly_starbase {
+                " starbase"
+            } else {
+                ""
+            },
+            if row.is_homeworld_seed {
+                " homeworld"
+            } else {
+                ""
+            }
         );
     }
 

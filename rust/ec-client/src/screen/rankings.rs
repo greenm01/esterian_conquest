@@ -3,9 +3,9 @@ use crossterm::event::KeyEvent;
 use crate::app::Action;
 use crate::screen::layout::{draw_command_prompt, draw_title_bar, new_playfield};
 use crate::screen::table::{
-    format_empire_id, table_divider, write_table_header, write_table_row, TableColumn,
+    TableColumn, format_empire_id, table_divider, write_table_header, write_table_row,
 };
-use crate::screen::{command_menu_label, CommandMenu, PlayfieldBuffer, ScreenFrame};
+use crate::screen::{CommandMenu, PlayfieldBuffer, ScreenFrame, command_menu_label};
 use crate::theme::classic;
 use ec_data::{DiplomaticRelation, EmpireProductionRankingSort};
 

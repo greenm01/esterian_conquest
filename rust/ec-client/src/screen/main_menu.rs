@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_command_prompt, draw_menu_row, draw_title_bar, new_playfield, MenuEntry,
+    MenuEntry, draw_command_prompt, draw_menu_row, draw_title_bar, new_playfield,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 
@@ -66,7 +66,9 @@ impl Screen for MainMenuScreen {
             KeyCode::Char('d') | KeyCode::Char('D') => Action::OpenEmpireProfile,
             KeyCode::Char('f') | KeyCode::Char('F') => Action::OpenFleetMenu,
             KeyCode::Char('g') | KeyCode::Char('G') => Action::OpenGeneralMenu,
-            KeyCode::Char('i') | KeyCode::Char('I') => Action::OpenPlanetInfoPrompt(CommandMenu::Main),
+            KeyCode::Char('i') | KeyCode::Char('I') => {
+                Action::OpenPlanetInfoPrompt(CommandMenu::Main)
+            }
             KeyCode::Char('p') | KeyCode::Char('P') => Action::OpenPlanetMenu,
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::Quit,
             KeyCode::Char('t') | KeyCode::Char('T') => Action::OpenPlanetDatabase,

@@ -1,8 +1,8 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
-use crate::screen::layout::{draw_command_prompt, draw_title_bar, new_playfield};
 use crate::screen::PlayfieldBuffer;
+use crate::screen::layout::{draw_command_prompt, draw_title_bar, new_playfield};
 use crate::theme::classic;
 
 pub struct StarmapScreen;

@@ -99,8 +99,12 @@ fn commission_ship_from_stardock_appends_fleet_and_clears_slot() {
     planet.set_stardock_count_raw(0, 2);
 
     let mut data = CoreGameData {
-        player: PlayerDat { records: vec![player] },
-        planets: PlanetDat { records: vec![planet] },
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![planet],
+        },
         fleets: FleetDat { records: vec![] },
         bases: BaseDat { records: vec![] },
         ipbm: IpbmDat { records: vec![] },
@@ -153,8 +157,12 @@ fn commission_ship_reuses_lowest_available_owned_fleet_number() {
     fleet_b.set_previous_fleet_id(1);
 
     let mut data = CoreGameData {
-        player: PlayerDat { records: vec![player] },
-        planets: PlanetDat { records: vec![planet] },
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![planet],
+        },
         fleets: FleetDat {
             records: vec![fleet_a, fleet_b],
         },
@@ -193,8 +201,12 @@ fn commission_starbase_from_stardock_appends_base_and_clears_slot() {
     planet.set_stardock_count_raw(0, 1);
 
     let mut data = CoreGameData {
-        player: PlayerDat { records: vec![player] },
-        planets: PlanetDat { records: vec![planet] },
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![planet],
+        },
         fleets: FleetDat { records: vec![] },
         bases: BaseDat { records: vec![] },
         ipbm: IpbmDat { records: vec![] },
@@ -247,7 +259,9 @@ fn auto_commission_all_stardock_units_creates_fleets_and_bases() {
     planet_three.set_stardock_count_raw(0, 1);
 
     let mut data = CoreGameData {
-        player: PlayerDat { records: vec![player] },
+        player: PlayerDat {
+            records: vec![player],
+        },
         planets: PlanetDat {
             records: vec![planet_one, planet_two, planet_three],
         },
@@ -296,9 +310,15 @@ fn load_planet_armies_onto_fleet_moves_armies_into_transports() {
     fleet.set_army_count(1);
 
     let mut data = CoreGameData {
-        player: PlayerDat { records: vec![player] },
-        planets: PlanetDat { records: vec![planet] },
-        fleets: FleetDat { records: vec![fleet] },
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![planet],
+        },
+        fleets: FleetDat {
+            records: vec![fleet],
+        },
         bases: BaseDat { records: vec![] },
         ipbm: IpbmDat { records: vec![] },
         setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
@@ -327,9 +347,15 @@ fn unload_fleet_armies_to_planet_moves_armies_back_to_planet() {
     fleet.set_army_count(3);
 
     let mut data = CoreGameData {
-        player: PlayerDat { records: vec![player] },
-        planets: PlanetDat { records: vec![planet] },
-        fleets: FleetDat { records: vec![fleet] },
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![planet],
+        },
+        fleets: FleetDat {
+            records: vec![fleet],
+        },
         bases: BaseDat { records: vec![] },
         ipbm: IpbmDat { records: vec![] },
         setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
@@ -358,9 +384,15 @@ fn unload_fleet_armies_to_planet_rejects_planet_overflow() {
     fleet.set_army_count(3);
 
     let mut data = CoreGameData {
-        player: PlayerDat { records: vec![player] },
-        planets: PlanetDat { records: vec![planet] },
-        fleets: FleetDat { records: vec![fleet] },
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![planet],
+        },
+        fleets: FleetDat {
+            records: vec![fleet],
+        },
         bases: BaseDat { records: vec![] },
         ipbm: IpbmDat { records: vec![] },
         setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
@@ -1554,9 +1586,13 @@ fn detach_ships_creates_new_fleet_and_preserves_donor_order() {
     donor.set_current_speed(5);
 
     let mut data = CoreGameData {
-        player: PlayerDat { records: vec![player] },
+        player: PlayerDat {
+            records: vec![player],
+        },
         planets: PlanetDat { records: vec![] },
-        fleets: FleetDat { records: vec![donor] },
+        fleets: FleetDat {
+            records: vec![donor],
+        },
         bases: BaseDat { records: vec![] },
         ipbm: IpbmDat { records: vec![] },
         setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
@@ -1624,9 +1660,13 @@ fn detach_ships_requires_valid_post_split_donor_speed() {
     donor.set_current_speed(6);
 
     let mut data = CoreGameData {
-        player: PlayerDat { records: vec![player] },
+        player: PlayerDat {
+            records: vec![player],
+        },
         planets: PlanetDat { records: vec![] },
-        fleets: FleetDat { records: vec![donor] },
+        fleets: FleetDat {
+            records: vec![donor],
+        },
         bases: BaseDat { records: vec![] },
         ipbm: IpbmDat { records: vec![] },
         setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),

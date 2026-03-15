@@ -1,11 +1,11 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use ec_data::{build_player_starmap_projection, DatabaseDat};
+use ec_data::{DatabaseDat, build_player_starmap_projection};
 
 use crate::app::Action;
 use crate::screen::layout::{
     draw_command_line_default_input, draw_status_line, draw_title_bar, new_playfield,
 };
-use crate::screen::{command_menu_label, CommandMenu, PlayfieldBuffer, ScreenFrame, StyledSpan};
+use crate::screen::{CommandMenu, PlayfieldBuffer, ScreenFrame, StyledSpan, command_menu_label};
 use crate::theme::classic;
 
 pub struct PartialStarmapScreen;

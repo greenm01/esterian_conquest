@@ -2,7 +2,7 @@ use crossterm::event::KeyEvent;
 
 use crate::app::Action;
 use crate::screen::layout::{draw_command_prompt, draw_status_line, draw_title_bar, new_playfield};
-use crate::screen::{command_menu_label, CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
+use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, command_menu_label};
 pub struct EmpireStatusScreen;
 
 impl EmpireStatusScreen {
@@ -119,9 +119,5 @@ fn campaign_state_label(state: Option<ec_data::CampaignState>) -> &'static str {
 }
 
 fn display_or_unknown(value: &str) -> &str {
-    if value.is_empty() {
-        "<unknown>"
-    } else {
-        value
-    }
+    if value.is_empty() { "<unknown>" } else { value }
 }

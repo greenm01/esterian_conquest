@@ -1,7 +1,7 @@
 use std::io::{self, IsTerminal, Write};
 
-use crate::screen::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 use crate::screen::{CellStyle, PlayfieldBuffer};
+use crate::screen::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 use crate::terminal::Terminal;
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
@@ -131,11 +131,6 @@ fn ansi_style(style: CellStyle) -> String {
     let weight = if style.bold { "1" } else { "0" };
     format!(
         "\x1b[{weight};38;2;{};{};{};48;2;{};{};{}m",
-        style.fg.red,
-        style.fg.green,
-        style.fg.blue,
-        style.bg.red,
-        style.bg.green,
-        style.bg.blue
+        style.fg.red, style.fg.green, style.fg.blue, style.bg.red, style.bg.green, style.bg.blue
     )
 }

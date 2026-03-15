@@ -158,8 +158,9 @@ impl PlayerStarmapProjection {
     }
 
     pub fn render_csv_details_export(&self) -> String {
-        let mut out =
-            String::from("x,y,known_name,known_owner_empire_id,known_owner_empire_name,known_potential_production,known_armies,known_ground_batteries\n");
+        let mut out = String::from(
+            "x,y,known_name,known_owner_empire_id,known_owner_empire_name,known_potential_production,known_armies,known_ground_batteries\n",
+        );
         let mut worlds = self.worlds.iter().collect::<Vec<_>>();
         worlds.sort_by_key(|world| (world.coords[1], world.coords[0]));
         for world in worlds.into_iter().filter(|world| {
@@ -183,7 +184,10 @@ impl PlayerStarmapProjection {
                     .known_potential_production
                     .map(|value| value.to_string())
                     .unwrap_or_default(),
-                world.known_armies.map(|value| value.to_string()).unwrap_or_default(),
+                world
+                    .known_armies
+                    .map(|value| value.to_string())
+                    .unwrap_or_default(),
                 world
                     .known_ground_batteries
                     .map(|value| value.to_string())
@@ -263,7 +267,9 @@ pub fn build_player_starmap_projection(
 }
 
 fn decode_known_name(record: &crate::DatabaseRecord) -> Option<String> {
-    let name = String::from_utf8_lossy(record.planet_name_bytes()).trim().to_string();
+    let name = String::from_utf8_lossy(record.planet_name_bytes())
+        .trim()
+        .to_string();
     if name.is_empty() || name.eq_ignore_ascii_case("unknown") {
         None
     } else {
@@ -271,7 +277,10 @@ fn decode_known_name(record: &crate::DatabaseRecord) -> Option<String> {
     }
 }
 
-fn decode_known_owner_empire_id(record: &crate::DatabaseRecord, game_data: &CoreGameData) -> Option<u8> {
+fn decode_known_owner_empire_id(
+    record: &crate::DatabaseRecord,
+    game_data: &CoreGameData,
+) -> Option<u8> {
     let raw = record.raw[0x15];
     if raw >= 1 && raw <= game_data.conquest.player_count() {
         Some(raw)

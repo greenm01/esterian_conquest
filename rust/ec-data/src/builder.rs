@@ -268,15 +268,15 @@ impl GameStateBuilder {
             if let Some(planet) = data.planets.records.get_mut(player_idx) {
                 planet.set_as_owned_target_world(
                     *coords,
-                    [100, 135],                    // potential_production (default)
+                    [100, 135],                       // potential_production (default)
                     HOMEWORLD_PRESENT_PRODUCTION_RAW, // current production = 100
-                    DEFAULT_EMPIRE_TAX_RATE,       // economy marker (seeded to empire tax)
+                    DEFAULT_EMPIRE_TAX_RATE,          // economy marker (seeded to empire tax)
                     b"Player 1 HW".len() as u8,
                     Self::name_buffer_for_player(player_idx),
-                    [0; 7],                      // name_suffix_raw
-                    10,                          // army_count
-                    4,                           // ground_batteries
-                    2,                           // ownership_status
+                    [0; 7],                 // name_suffix_raw
+                    10,                     // army_count
+                    4,                      // ground_batteries
+                    2,                      // ownership_status
                     (player_idx + 1) as u8, // owner_empire_slot
                 );
             }

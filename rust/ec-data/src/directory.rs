@@ -2,9 +2,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::{
-    build_capacity, yearly_growth_delta, yearly_tax_revenue, BaseDat, BaseRecord, ConquestDat,
-    DiplomaticRelation, FleetDat, FleetRecord, IpbmDat, IpbmRecord, ParseError, PlanetDat,
-    PlayerDat, PlayerRecord, ProductionItemKind, SetupDat, IPBM_RECORD_SIZE,
+    BaseDat, BaseRecord, ConquestDat, DiplomaticRelation, FleetDat, FleetRecord, IPBM_RECORD_SIZE,
+    IpbmDat, IpbmRecord, ParseError, PlanetDat, PlayerDat, PlayerRecord, ProductionItemKind,
+    SetupDat, build_capacity, yearly_growth_delta, yearly_tax_revenue,
 };
 
 const CURRENT_KNOWN_POST_MAINT_CONQUEST_CONTROL_HEADER: [u8; 0x55] = [
@@ -209,11 +209,21 @@ pub enum GameDirectoryError {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GameStateMutationError {
-    MissingFleetRecord { index_1_based: usize },
-    MissingIpbmRecord { index_1_based: usize },
-    MissingPlanetRecord { index_1_based: usize },
-    MissingPlayerRecord { index_1_based: usize },
-    PlanetBuildQueueFull { index_1_based: usize },
+    MissingFleetRecord {
+        index_1_based: usize,
+    },
+    MissingIpbmRecord {
+        index_1_based: usize,
+    },
+    MissingPlanetRecord {
+        index_1_based: usize,
+    },
+    MissingPlayerRecord {
+        index_1_based: usize,
+    },
+    PlanetBuildQueueFull {
+        index_1_based: usize,
+    },
     EmptyStardockSlot {
         planet_index_1_based: usize,
         slot_0_based: usize,
@@ -427,11 +437,7 @@ impl std::fmt::Display for GameStateMutationError {
             ),
             Self::FleetDetachSelectionEmpty {
                 fleet_index_1_based,
-            } => write!(
-                f,
-                "fleet {} detach selection is empty",
-                fleet_index_1_based
-            ),
+            } => write!(f, "fleet {} detach selection is empty", fleet_index_1_based),
             Self::FleetDetachSelectionExceedsAvailable {
                 fleet_index_1_based,
                 ship_kind,
@@ -526,7 +532,11 @@ fn total_starships(record: &FleetRecord) -> u32 {
         + u32::from(record.etac_count())
 }
 
-fn rebuild_owner_fleet_chain(records: &mut [FleetRecord], player: &mut PlayerRecord, owner_empire: u8) {
+fn rebuild_owner_fleet_chain(
+    records: &mut [FleetRecord],
+    player: &mut PlayerRecord,
+    owner_empire: u8,
+) {
     let mut owned = records
         .iter()
         .enumerate()
@@ -612,14 +622,14 @@ impl CoreGameData {
         player_record_index_1_based: usize,
         homeworld_name: &str,
     ) -> Result<usize, GameStateMutationError> {
-        let raw_homeworld_planet_index_1_based = self
-            .player
-            .records
-            .get(player_record_index_1_based - 1)
-            .ok_or(GameStateMutationError::MissingPlayerRecord {
-                index_1_based: player_record_index_1_based,
-            })?
-            .homeworld_planet_index_1_based_raw() as usize;
+        let raw_homeworld_planet_index_1_based =
+            self.player
+                .records
+                .get(player_record_index_1_based - 1)
+                .ok_or(GameStateMutationError::MissingPlayerRecord {
+                    index_1_based: player_record_index_1_based,
+                })?
+                .homeworld_planet_index_1_based_raw() as usize;
         let homeworld_planet_index_1_based = if raw_homeworld_planet_index_1_based != 0 {
             raw_homeworld_planet_index_1_based
         } else {
@@ -2196,7 +2206,9 @@ impl CoreGameData {
             },
         )?;
 
-        Ok((0..10).filter(|&s| record.stardock_kind_raw(s) == 0).count())
+        Ok((0..10)
+            .filter(|&s| record.stardock_kind_raw(s) == 0)
+            .count())
     }
 
     pub fn planet_free_army_capacity(
@@ -2306,7 +2318,10 @@ impl CoreGameData {
             ));
         }
 
-        let starbase_count = selected.iter().filter(|(_, kind_raw, _)| *kind_raw == 9).count();
+        let starbase_count = selected
+            .iter()
+            .filter(|(_, kind_raw, _)| *kind_raw == 9)
+            .count();
         if starbase_count > 1 || (starbase_count == 1 && selected.len() > 1) {
             return Err(GameStateMutationError::InvalidCommissionSelection);
         }
@@ -2560,21 +2575,39 @@ impl CoreGameData {
             .troop_transport_count()
             .saturating_sub(donor.army_count());
         for (ship_kind, requested, available) in [
-            ("battleships", selection.battleships, donor.battleship_count()),
+            (
+                "battleships",
+                selection.battleships,
+                donor.battleship_count(),
+            ),
             ("cruisers", selection.cruisers, donor.cruiser_count()),
             ("destroyers", selection.destroyers, donor.destroyer_count()),
-            ("full transports", selection.full_transports, available_full_transports),
-            ("empty transports", selection.empty_transports, available_empty_transports),
-            ("scout ships", u16::from(selection.scouts), u16::from(donor.scout_count())),
+            (
+                "full transports",
+                selection.full_transports,
+                available_full_transports,
+            ),
+            (
+                "empty transports",
+                selection.empty_transports,
+                available_empty_transports,
+            ),
+            (
+                "scout ships",
+                u16::from(selection.scouts),
+                u16::from(donor.scout_count()),
+            ),
             ("ETAC ships", selection.etacs, donor.etac_count()),
         ] {
             if requested > available {
-                return Err(GameStateMutationError::FleetDetachSelectionExceedsAvailable {
-                    fleet_index_1_based: donor_fleet_record_index_1_based,
-                    ship_kind,
-                    requested,
-                    available,
-                });
+                return Err(
+                    GameStateMutationError::FleetDetachSelectionExceedsAvailable {
+                        fleet_index_1_based: donor_fleet_record_index_1_based,
+                        ship_kind,
+                        requested,
+                        available,
+                    },
+                );
             }
         }
 
@@ -2592,7 +2625,9 @@ impl CoreGameData {
                 .saturating_sub(selection.battleships),
         );
         donor_after.set_cruiser_count(
-            donor_after.cruiser_count().saturating_sub(selection.cruisers),
+            donor_after
+                .cruiser_count()
+                .saturating_sub(selection.cruisers),
         );
         donor_after.set_destroyer_count(
             donor_after
@@ -2605,11 +2640,11 @@ impl CoreGameData {
                 .saturating_sub(selection.full_transports + selection.empty_transports),
         );
         donor_after.set_army_count(
-            donor_after.army_count().saturating_sub(selection.full_transports),
+            donor_after
+                .army_count()
+                .saturating_sub(selection.full_transports),
         );
-        donor_after.set_scout_count(
-            donor_after.scout_count().saturating_sub(selection.scouts),
-        );
+        donor_after.set_scout_count(donor_after.scout_count().saturating_sub(selection.scouts));
         donor_after.set_etac_count(donor_after.etac_count().saturating_sub(selection.etacs));
         donor_after.recompute_max_speed_from_composition();
         if donor_after.max_speed() > 0 && donor.current_speed() > donor_after.max_speed() {
@@ -2694,7 +2729,9 @@ impl CoreGameData {
                 index_1_based: fleet_record_index_1_based,
             })?;
 
-        if planet.owner_empire_slot_raw() != owner_empire || fleet.owner_empire_raw() != owner_empire {
+        if planet.owner_empire_slot_raw() != owner_empire
+            || fleet.owner_empire_raw() != owner_empire
+        {
             return Err(GameStateMutationError::FleetNotAtPlanet {
                 fleet_index_1_based: fleet_record_index_1_based,
                 planet_index_1_based: planet_record_index_1_based,
@@ -2716,8 +2753,9 @@ impl CoreGameData {
             });
         }
 
-        let available_transport_capacity =
-            fleet.troop_transport_count().saturating_sub(fleet.army_count());
+        let available_transport_capacity = fleet
+            .troop_transport_count()
+            .saturating_sub(fleet.army_count());
         if qty > available_transport_capacity {
             return Err(GameStateMutationError::TransportCapacityExceeded {
                 fleet_index_1_based: fleet_record_index_1_based,
@@ -2772,7 +2810,9 @@ impl CoreGameData {
                 index_1_based: fleet_record_index_1_based,
             })?;
 
-        if planet.owner_empire_slot_raw() != owner_empire || fleet.owner_empire_raw() != owner_empire {
+        if planet.owner_empire_slot_raw() != owner_empire
+            || fleet.owner_empire_raw() != owner_empire
+        {
             return Err(GameStateMutationError::FleetNotAtPlanet {
                 fleet_index_1_based: fleet_record_index_1_based,
                 planet_index_1_based: planet_record_index_1_based,

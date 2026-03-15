@@ -5,7 +5,7 @@ use crate::screen::layout::{
     draw_command_line_default_input, draw_command_prompt, draw_status_line, draw_title_bar,
     new_playfield,
 };
-use crate::screen::{command_menu_label, CommandMenu, PlayfieldBuffer, ScreenFrame};
+use crate::screen::{CommandMenu, PlayfieldBuffer, ScreenFrame, command_menu_label};
 
 pub struct PlanetInfoScreen;
 

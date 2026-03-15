@@ -1,6 +1,6 @@
 use ec_data::{
-    BaseDat, BaseRecord, ConquestDat, CoreGameData, EmpireProductionRankingSort, FleetDat,
-    IpbmDat, PlanetDat, PlanetRecord, PlayerDat, PlayerRecord, SetupDat, build_seeded_new_game,
+    BaseDat, BaseRecord, ConquestDat, CoreGameData, EmpireProductionRankingSort, FleetDat, IpbmDat,
+    PlanetDat, PlanetRecord, PlayerDat, PlayerRecord, SetupDat, build_seeded_new_game,
     decode_real48, encode_real48, run_maintenance_turn,
 };
 
@@ -89,8 +89,7 @@ fn single_planet_game(player: PlayerRecord, planet: PlanetRecord) -> CoreGameDat
 #[test]
 fn decode_real48_matches_current_known_homeworld_values() {
     let fifty = decode_real48([0x00, 0x00, 0x00, 0x00, 0x48, 0x86]).expect("real should decode");
-    let hundred =
-        decode_real48([0x00, 0x00, 0x00, 0x00, 0x48, 0x87]).expect("real should decode");
+    let hundred = decode_real48([0x00, 0x00, 0x00, 0x00, 0x48, 0x87]).expect("real should decode");
 
     assert!((fifty - 50.0).abs() < 0.001, "expected 50.0, got {fifty}");
     assert!(
@@ -104,7 +103,10 @@ fn encode_real48_round_trips_common_production_values() {
     for points in [0.0, 1.0, 25.0, 50.0, 75.0, 100.0] {
         let encoded = encode_real48(points).expect("real should encode");
         let decoded = decode_real48(encoded).expect("real should decode");
-        assert!((decoded - points).abs() < 0.001, "expected {points}, got {decoded}");
+        assert!(
+            (decoded - points).abs() < 0.001,
+            "expected {points}, got {decoded}"
+        );
     }
 }
 
@@ -270,8 +272,12 @@ fn maintenance_starbase_growth_bonus_accelerates_planet_development() {
     with_base.planets.records[0].set_coords_raw([0, 0]);
 
     let mut without_base = CoreGameData {
-        player: PlayerDat { records: vec![player] },
-        planets: PlanetDat { records: vec![colony] },
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![colony],
+        },
         fleets: FleetDat { records: vec![] },
         bases: BaseDat { records: vec![] },
         ipbm: IpbmDat { records: vec![] },
@@ -299,8 +305,12 @@ fn maintenance_high_tax_above_65_can_reduce_present_production() {
 
     let colony = owned_planet(1, 100, encode_real48(25.0).unwrap(), 0, 1, 0);
     let mut game = CoreGameData {
-        player: PlayerDat { records: vec![player] },
-        planets: PlanetDat { records: vec![colony] },
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![colony],
+        },
         fleets: FleetDat { records: vec![] },
         bases: BaseDat { records: vec![] },
         ipbm: IpbmDat { records: vec![] },
@@ -322,8 +332,12 @@ fn maintenance_starbase_worlds_tolerate_tax_up_to_70_without_penalty() {
 
     let colony = owned_planet(1, 100, encode_real48(50.0).unwrap(), 0, 3, 1);
     let mut game = CoreGameData {
-        player: PlayerDat { records: vec![player] },
-        planets: PlanetDat { records: vec![colony] },
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![colony],
+        },
         fleets: FleetDat { records: vec![] },
         bases: BaseDat {
             records: vec![{

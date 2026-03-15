@@ -102,7 +102,8 @@ impl PlanetRecord {
     }
 
     pub fn present_production_points(&self) -> Option<u16> {
-        let decoded = decode_real48(self.factories_raw()).map(|value| value.round().max(0.0) as u16)?;
+        let decoded =
+            decode_real48(self.factories_raw()).map(|value| value.round().max(0.0) as u16)?;
         if self.is_homeworld_seed_ignoring_name() {
             Some(decoded.max(self.potential_production_points()))
         } else {

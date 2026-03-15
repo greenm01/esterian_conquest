@@ -3,9 +3,9 @@
 mod combat;
 
 use crate::{
+    CoreGameData, DiplomaticRelation, Order, ProductionItemKind, VisibleHazardIntel,
     build_capacity, next_path_step, plan_route_with_intel, yearly_growth_delta,
-    yearly_high_tax_penalty, yearly_tax_revenue, CoreGameData, DiplomaticRelation, Order,
-    ProductionItemKind, VisibleHazardIntel,
+    yearly_high_tax_penalty, yearly_tax_revenue,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

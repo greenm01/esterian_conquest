@@ -6,7 +6,7 @@ use crate::screen::layout::{
     draw_command_line_default_input, draw_command_line_text, draw_command_prompt, draw_title_bar,
     new_playfield,
 };
-use crate::screen::table::{format_empire_id, write_table_window_with_cursor, TableColumn};
+use crate::screen::table::{TableColumn, format_empire_id, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 

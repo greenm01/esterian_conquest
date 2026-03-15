@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_command_center, new_playfield, MenuEntry, CMD_COL_1, CMD_COL_2, CMD_COL_3,
+    CMD_COL_1, CMD_COL_2, CMD_COL_3, MenuEntry, draw_command_center, new_playfield,
 };
 use crate::screen::{
     CommandMenu, PlanetListMode, PlanetListSort, PlanetTransportMode, PlayfieldBuffer, Screen,
@@ -84,12 +84,11 @@ impl Screen for PlanetMenuScreen {
             KeyCode::Char('b') | KeyCode::Char('B') => Action::OpenPlanetBuildMenu,
             KeyCode::Char('c') | KeyCode::Char('C') => Action::OpenPlanetCommissionMenu,
             KeyCode::Char('a') | KeyCode::Char('A') => Action::OpenPlanetAutoCommissionConfirm,
-            KeyCode::Char('s')
-            | KeyCode::Char('S')
-            | KeyCode::Char('x')
-            | KeyCode::Char('X') => Action::OpenPlanetListSortPrompt(PlanetListMode::Stub(
-                planet_stub_label(key.code).unwrap_or(""),
-            )),
+            KeyCode::Char('s') | KeyCode::Char('S') | KeyCode::Char('x') | KeyCode::Char('X') => {
+                Action::OpenPlanetListSortPrompt(PlanetListMode::Stub(
+                    planet_stub_label(key.code).unwrap_or(""),
+                ))
+            }
             KeyCode::Char('l') | KeyCode::Char('L') => {
                 Action::OpenPlanetTransportPlanetSelect(PlanetTransportMode::Load)
             }

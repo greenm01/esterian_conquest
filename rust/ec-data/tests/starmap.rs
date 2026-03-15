@@ -23,7 +23,12 @@ fn player_starmap_projection_shows_full_geometry_but_only_known_details() {
     let projection = build_player_starmap_projection(&game_data, &database, 1);
     assert_eq!(projection.worlds.len(), planet_count);
     assert!(projection.worlds.iter().any(|world| world.coords == [5, 2]));
-    assert!(projection.worlds.iter().any(|world| world.coords == [10, 15]));
+    assert!(
+        projection
+            .worlds
+            .iter()
+            .any(|world| world.coords == [10, 15])
+    );
 
     let known = projection
         .worlds
@@ -93,7 +98,12 @@ fn player_starmap_projection_uses_database_intel_for_known_foreign_owner() {
 
 #[test]
 fn ascii_map_export_uses_printable_paged_grid() {
-    for (width, height, expect_formfeed) in [(18, 18, false), (27, 27, true), (36, 36, true), (45, 45, true)] {
+    for (width, height, expect_formfeed) in [
+        (18, 18, false),
+        (27, 27, true),
+        (36, 36, true),
+        (45, 45, true),
+    ] {
         let projection = ec_data::PlayerStarmapProjection {
             map_width: width,
             map_height: height,

@@ -3,10 +3,10 @@ use ec_data::{EmpirePlanetEconomyRow, ProductionItemKind};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_command_line_default_input, draw_command_prompt, draw_menu_row, draw_status_line,
-    draw_title_bar, new_playfield, MenuEntry, CMD_COL_1, CMD_COL_2, CMD_COL_3,
+    CMD_COL_1, CMD_COL_2, CMD_COL_3, MenuEntry, draw_command_line_default_input,
+    draw_command_prompt, draw_menu_row, draw_status_line, draw_title_bar, new_playfield,
 };
-use crate::screen::table::{write_table_window_with_cursor, TableColumn};
+use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
 
@@ -372,7 +372,9 @@ impl PlanetBuildScreen {
                     row.unit_label.clone(),
                     row.points.to_string(),
                     row.queue_qty.to_string(),
-                    row.stardock_qty.map(|q| q.to_string()).unwrap_or_else(|| "N/A".to_string()),
+                    row.stardock_qty
+                        .map(|q| q.to_string())
+                        .unwrap_or_else(|| "N/A".to_string()),
                 ]
             })
             .collect();
@@ -513,7 +515,10 @@ impl PlanetBuildScreen {
         draw_command_line_default_input(
             &mut buffer,
             "BUILD COMMAND",
-            &format!("How many new {} to build (0 - {}) ", unit.singular_label, max_qty),
+            &format!(
+                "How many new {} to build (0 - {}) ",
+                unit.singular_label, max_qty
+            ),
             &max_qty.to_string(),
             input,
         );
@@ -860,9 +865,5 @@ pub fn infer_quantity(order: PlanetBuildOrder, cost: u32) -> Option<u32> {
 }
 
 pub fn max_quantity(points_left: u32, cost: u32) -> u32 {
-    if cost == 0 {
-        0
-    } else {
-        points_left / cost
-    }
+    if cost == 0 { 0 } else { points_left / cost }
 }

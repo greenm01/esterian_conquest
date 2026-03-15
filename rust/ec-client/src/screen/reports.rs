@@ -4,7 +4,7 @@ use crate::app::Action;
 use crate::model::ReviewSummary;
 use crate::reports::ReportsPreview;
 use crate::screen::layout::{draw_command_prompt, draw_status_line, draw_title_bar, new_playfield};
-use crate::screen::{command_menu_label, CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
+use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, command_menu_label};
 use crate::theme::classic;
 
 pub struct ReportsScreen {
@@ -126,9 +126,5 @@ fn write_section(
 }
 
 fn display_or_unknown(value: &str) -> &str {
-    if value.is_empty() {
-        "<unknown>"
-    } else {
-        value
-    }
+    if value.is_empty() { "<unknown>" } else { value }
 }

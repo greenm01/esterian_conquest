@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 
 use crate::app::Action;
 use crate::screen::layout::{draw_command_prompt, draw_status_line, draw_title_bar, new_playfield};
-use crate::screen::table::{write_table_window_with_cursor, TableColumn};
+use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
 
@@ -84,7 +84,11 @@ impl PlanetCommissionScreen {
             })
             .collect();
 
-        let selected = if view.rows.is_empty() { None } else { Some(cursor) };
+        let selected = if view.rows.is_empty() {
+            None
+        } else {
+            Some(cursor)
+        };
         write_table_window_with_cursor(
             &mut buffer,
             5,
@@ -109,7 +113,12 @@ impl PlanetCommissionScreen {
         if let Some(status) = status {
             draw_status_line(&mut buffer, 17, "", status);
         }
-        draw_command_prompt(&mut buffer, 19, "PLANET COMMAND", "J K H L SPACE ENTER ARROWS Q");
+        draw_command_prompt(
+            &mut buffer,
+            19,
+            "PLANET COMMAND",
+            "J K H L SPACE ENTER ARROWS Q",
+        );
         Ok(buffer)
     }
 }

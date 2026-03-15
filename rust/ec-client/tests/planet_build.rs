@@ -33,7 +33,10 @@ fn build_menu_renders_compact_queue_and_stardock_counts() {
 
     let buffer = screen.render_menu(&view, None).expect("render menu");
 
-    assert_eq!(buffer.plain_line(12), "Build queue: [2/10]   Stardock: [3/10]");
+    assert_eq!(
+        buffer.plain_line(12),
+        "Build queue: [2/10]   Stardock: [3/10]"
+    );
     assert_eq!(buffer.plain_line(13), "");
 }
 
@@ -86,7 +89,10 @@ fn build_list_renders_queue_and_stardock_columns() {
         .render_list(&view, &rows, 0, 0, false)
         .expect("render list");
 
-    assert_eq!(buffer.plain_line(4), "Unit                     Points Queue Dock");
+    assert_eq!(
+        buffer.plain_line(4),
+        "Unit                     Points Queue Dock"
+    );
     assert!(buffer.plain_line(6).contains("Destroyers"));
     assert!(buffer.plain_line(6).contains("3"));
     assert!(buffer.plain_line(7).contains("Armies"));
@@ -107,7 +113,10 @@ fn build_change_renders_pp_and_spent_columns() {
 
     let buffer = screen.render_change(&rows, 0, 0).expect("render change");
 
-    assert_eq!(buffer.plain_line(4), "Planet Name          Location  Production         PP Spent");
+    assert_eq!(
+        buffer.plain_line(4),
+        "Planet Name          Location  Production         PP Spent"
+    );
     assert!(buffer.plain_line(6).contains("50"));
     assert!(buffer.plain_line(6).contains("20"));
 }

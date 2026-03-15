@@ -32,13 +32,15 @@ pub use config::{
     SetupOptionsConfig,
 };
 pub use directory::{
-    AutoCommissionSummary, CampaignOutcome, CampaignOutlook, CampaignState, CommissionResult, CoreGameData,
-    CurrentKnownComplianceStatus, CurrentKnownGuardStarbaseLinkageSummary,
+    AutoCommissionSummary, CampaignOutcome, CampaignOutlook, CampaignState, CommissionResult,
+    CoreGameData, CurrentKnownComplianceStatus, CurrentKnownGuardStarbaseLinkageSummary,
     CurrentKnownKeyWordSummary, EmpireEconomySummary, EmpirePlanetEconomyRow,
-    EmpireProductionRankingRow, EmpireProductionRankingSort, EmpireUnitSummary, GameDirectoryError,
-    GameStateMutationError, FleetDetachResult, FleetDetachSelection,
+    EmpireProductionRankingRow, EmpireProductionRankingSort, EmpireUnitSummary, FleetDetachResult,
+    FleetDetachSelection, GameDirectoryError, GameStateMutationError,
 };
-pub use economy::{build_capacity, yearly_growth_delta, yearly_high_tax_penalty, yearly_tax_revenue};
+pub use economy::{
+    build_capacity, yearly_growth_delta, yearly_high_tax_penalty, yearly_tax_revenue,
+};
 pub use maint::{
     BombardEvent, CampaignOutcomeEvent, CampaignOutlookEvent, CivilDisorderEvent,
     ColonizationResolvedEvent, ContactReportSource, DiplomacyOverride, FleetBattleEvent,
@@ -59,7 +61,6 @@ pub use pathfinding::{
 pub use player_mail::{
     QueuedPlayerMail, append_mail_queue, clear_mail_queue, load_mail_queue, save_mail_queue,
 };
-pub use starmap::{PlayerStarmapProjection, PlayerStarmapWorld, build_player_starmap_projection};
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;
 pub use records::database::{DatabaseDat, DatabaseRecord};
@@ -68,4 +69,5 @@ pub use records::ipbm::{IpbmDat, IpbmRecord};
 pub use records::planet::{PlanetDat, PlanetRecord, ProductionItemKind};
 pub use records::player::{DiplomaticRelation, PlayerDat, PlayerRecord};
 pub use records::setup::SetupDat;
+pub use starmap::{PlayerStarmapProjection, PlayerStarmapWorld, build_player_starmap_projection};
 pub use support::{ParseError, decode_real48, encode_real48};

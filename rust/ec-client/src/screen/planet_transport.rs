@@ -6,7 +6,7 @@ use crate::screen::layout::{
     new_playfield,
 };
 use crate::screen::table::{
-    fleet_id_column_width, format_fleet_number, write_table_window_with_cursor, TableColumn,
+    TableColumn, fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
 };
 use crate::screen::{PlayfieldBuffer, Screen};
 use crate::theme::classic;
@@ -104,7 +104,11 @@ impl PlanetTransportScreen {
                 ]
             })
             .collect::<Vec<_>>();
-        let selected = if table_rows.is_empty() { None } else { Some(cursor) };
+        let selected = if table_rows.is_empty() {
+            None
+        } else {
+            Some(cursor)
+        };
         write_table_window_with_cursor(
             &mut buffer,
             4,
@@ -162,7 +166,11 @@ impl PlanetTransportScreen {
                 ]
             })
             .collect::<Vec<_>>();
-        let selected = if table_rows.is_empty() { None } else { Some(cursor) };
+        let selected = if table_rows.is_empty() {
+            None
+        } else {
+            Some(cursor)
+        };
         write_table_window_with_cursor(
             &mut buffer,
             4,
@@ -269,8 +277,12 @@ impl Screen for PlanetTransportScreen {
 impl PlanetTransportScreen {
     pub fn handle_planet_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => Action::MovePlanetTransportPlanet(-1),
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => Action::MovePlanetTransportPlanet(1),
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                Action::MovePlanetTransportPlanet(-1)
+            }
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                Action::MovePlanetTransportPlanet(1)
+            }
             KeyCode::PageUp => Action::MovePlanetTransportPlanet(-8),
             KeyCode::PageDown => Action::MovePlanetTransportPlanet(8),
             KeyCode::Enter => Action::ConfirmPlanetTransportPlanet,
@@ -281,8 +293,12 @@ impl PlanetTransportScreen {
 
     pub fn handle_fleet_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => Action::MovePlanetTransportFleet(-1),
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => Action::MovePlanetTransportFleet(1),
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                Action::MovePlanetTransportFleet(-1)
+            }
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                Action::MovePlanetTransportFleet(1)
+            }
             KeyCode::PageUp => Action::MovePlanetTransportFleet(-8),
             KeyCode::PageDown => Action::MovePlanetTransportFleet(8),
             KeyCode::Char(ch) if ch.is_ascii_digit() => Action::AppendPlanetTransportQtyChar(ch),

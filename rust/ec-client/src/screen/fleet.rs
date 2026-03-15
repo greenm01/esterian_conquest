@@ -2,13 +2,12 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_command_center, draw_command_line_default_input, draw_command_line_text,
-    draw_command_prompt, draw_status_line, new_playfield,
-    MenuEntry,
-    CMD_COL_1, CMD_COL_2, CMD_COL_3,
+    CMD_COL_1, CMD_COL_2, CMD_COL_3, MenuEntry, draw_command_center,
+    draw_command_line_default_input, draw_command_line_text, draw_command_prompt, draw_status_line,
+    new_playfield,
 };
 use crate::screen::table::{
-    fleet_id_column_width, format_fleet_number, write_table_window_with_cursor, TableColumn,
+    TableColumn, fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
 };
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
@@ -99,9 +98,7 @@ const ROW_5: [MenuEntry<'static>; 3] = [
     MenuEntry::new(CMD_COL_3, "L", "oad TTs w/Armies"),
 ];
 
-const ROW_6: [MenuEntry<'static>; 1] = [
-    MenuEntry::new(CMD_COL_3, "U", "nload TT Armies"),
-];
+const ROW_6: [MenuEntry<'static>; 1] = [MenuEntry::new(CMD_COL_3, "U", "nload TT Armies")];
 
 const BRIEF_COLUMNS: [TableColumn<'static>; 5] = [
     TableColumn::right("ID", 2),
@@ -232,7 +229,11 @@ impl FleetListScreen {
             FLEET_VISIBLE_ROWS,
             classic::status_value_style(),
             classic::status_value_style(),
-            if table_rows.is_empty() { None } else { Some(cursor) },
+            if table_rows.is_empty() {
+                None
+            } else {
+                Some(cursor)
+            },
         );
         if table_rows.is_empty() {
             draw_status_line(&mut buffer, 17, "Notice: ", "You have no active fleets.");
@@ -369,22 +370,29 @@ impl FleetRoeScreen {
             FLEET_VISIBLE_ROWS,
             classic::status_value_style(),
             classic::status_value_style(),
-            if table_rows.is_empty() { None } else { Some(cursor) },
+            if table_rows.is_empty() {
+                None
+            } else {
+                Some(cursor)
+            },
         );
         if table_rows.is_empty() {
-            draw_command_line_text(&mut buffer, "FLEET COMMAND", "You have no active fleets. Q quits.");
-        } else if editing && status.is_some() {
             draw_command_line_text(
                 &mut buffer,
                 "FLEET COMMAND",
-                status.unwrap_or(""),
+                "You have no active fleets. Q quits.",
             );
+        } else if editing && status.is_some() {
+            draw_command_line_text(&mut buffer, "FLEET COMMAND", status.unwrap_or(""));
         } else if editing {
             let row = &rows[cursor];
             draw_command_line_default_input(
                 &mut buffer,
                 "FLEET COMMAND",
-                &format!("Fleet #{} new ROE ", format_fleet_number(row.fleet_number, max_fleet_number)),
+                &format!(
+                    "Fleet #{} new ROE ",
+                    format_fleet_number(row.fleet_number, max_fleet_number)
+                ),
                 &row.rules_of_engagement.to_string(),
                 input,
             );
@@ -405,7 +413,9 @@ impl FleetRoeScreen {
     pub fn handle_select_key(&self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => Action::MoveFleetRoeSelect(-1),
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => Action::MoveFleetRoeSelect(1),
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                Action::MoveFleetRoeSelect(1)
+            }
             KeyCode::PageUp => Action::MoveFleetRoeSelect(-8),
             KeyCode::PageDown => Action::MoveFleetRoeSelect(8),
             KeyCode::Enter => Action::Noop,
@@ -464,10 +474,18 @@ impl FleetEtaScreen {
             FLEET_VISIBLE_ROWS,
             classic::status_value_style(),
             classic::status_value_style(),
-            if table_rows.is_empty() { None } else { Some(cursor) },
+            if table_rows.is_empty() {
+                None
+            } else {
+                Some(cursor)
+            },
         );
         if table_rows.is_empty() {
-            draw_command_line_text(&mut buffer, "FLEET COMMAND", "You have no active fleets. Q quits.");
+            draw_command_line_text(
+                &mut buffer,
+                "FLEET COMMAND",
+                "You have no active fleets. Q quits.",
+            );
             return Ok(buffer);
         }
         match mode {
@@ -561,20 +579,22 @@ impl FleetDetachScreen {
             FLEET_VISIBLE_ROWS,
             classic::status_value_style(),
             classic::status_value_style(),
-            if table_rows.is_empty() { None } else { Some(cursor) },
+            if table_rows.is_empty() {
+                None
+            } else {
+                Some(cursor)
+            },
         );
         if table_rows.is_empty() {
-            draw_command_line_text(&mut buffer, "FLEET COMMAND", "You have no active fleets. Q quits.");
+            draw_command_line_text(
+                &mut buffer,
+                "FLEET COMMAND",
+                "You have no active fleets. Q quits.",
+            );
         } else if let Some(status) = status {
             draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
         } else {
-            draw_command_line_default_input(
-                &mut buffer,
-                "FLEET COMMAND",
-                prompt,
-                default,
-                input,
-            );
+            draw_command_line_default_input(&mut buffer, "FLEET COMMAND", prompt, default, input);
         }
         Ok(buffer)
     }

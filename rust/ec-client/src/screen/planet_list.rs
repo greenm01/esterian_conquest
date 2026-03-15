@@ -5,7 +5,7 @@ use crate::app::Action;
 use crate::screen::layout::{
     draw_command_prompt, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
 };
-use crate::screen::table::{write_table_window_with_cursor, TableColumn};
+use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 

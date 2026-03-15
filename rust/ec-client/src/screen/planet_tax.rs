@@ -1,11 +1,11 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
+use crate::screen::PlayfieldBuffer;
 use crate::screen::layout::{
     draw_command_line_default_input, draw_command_prompt, draw_status_line, draw_title_bar,
     new_playfield,
 };
-use crate::screen::PlayfieldBuffer;
 use crate::theme::classic;
 
 pub struct PlanetTaxScreen;

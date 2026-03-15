@@ -2,8 +2,8 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{draw_command_prompt, draw_status_line, draw_title_bar, new_playfield};
-use crate::screen::table::{write_table_window_with_cursor, TableColumn};
-use crate::screen::{command_menu_label, CommandMenu, PlayfieldBuffer};
+use crate::screen::table::{TableColumn, write_table_window_with_cursor};
+use crate::screen::{CommandMenu, PlayfieldBuffer, command_menu_label};
 use crate::theme::classic;
 
 pub const PLANET_DATABASE_VISIBLE_ROWS: usize = 11;
@@ -123,7 +123,12 @@ impl PlanetDatabaseScreen {
         );
         draw_status_line(&mut buffer, 3, "Planet Name: ", &row.name_label);
         draw_status_line(&mut buffer, 4, "Known Owner: ", &row.owner_label);
-        draw_status_line(&mut buffer, 6, "Potential Production: ", &row.potential_label);
+        draw_status_line(
+            &mut buffer,
+            6,
+            "Potential Production: ",
+            &row.potential_label,
+        );
         draw_status_line(&mut buffer, 7, "Armies: ", &row.armies_label);
         draw_status_line(&mut buffer, 8, "Ground Batteries: ", &row.batteries_label);
         draw_status_line(&mut buffer, 10, "Known Intel: ", &row.intel_label);
