@@ -40,9 +40,8 @@ pub(crate) use first_time::FIRST_TIME_INTRO_PAGE_COUNT;
 pub use first_time::{
     FirstTimeEmpiresScreen, FirstTimeHelpScreen, FirstTimeIntroScreen, FirstTimeMenuScreen,
     render_first_time_homeworld_confirm, render_first_time_homeworld_name,
-    render_first_time_join_confirm, render_first_time_join_name,
-    render_first_time_join_name_confirm, render_first_time_join_no_pending,
-    render_first_time_join_summary,
+    render_first_time_join_name, render_first_time_join_name_confirm,
+    render_first_time_join_no_pending, render_first_time_join_summary,
 };
 pub(crate) use fleet::FLEET_VISIBLE_ROWS;
 pub use fleet::{
@@ -104,7 +103,6 @@ pub enum ScreenId {
     FirstTimeHelp,
     FirstTimeEmpires,
     FirstTimeIntro,
-    FirstTimeJoinConfirm,
     FirstTimeJoinEmpireName,
     FirstTimeJoinEmpireConfirm,
     FirstTimeJoinSummary,

@@ -29,10 +29,12 @@ fn temp_game_copy() -> PathBuf {
             .as_nanos()
     ));
     copy_dir_all(&repo_root().join("fixtures/ecutil-init/v1.5"), &root);
-    let player_path = root.join("PLAYER.DAT");
-    let mut bytes = fs::read(&player_path).expect("read PLAYER.DAT");
-    bytes[0] = 1;
-    fs::write(player_path, bytes).expect("write joined PLAYER.DAT");
+    let mut data = CoreGameData::load(&root).expect("load joinable fixture");
+    data.join_player(1, "Codex Dominion")
+        .expect("join player for standard client tests");
+    data.rename_player_homeworld(1, "Codex Prime")
+        .expect("name homeworld for standard client tests");
+    data.save(&root).expect("save joined fixture");
     root
 }
 
@@ -46,6 +48,15 @@ fn temp_first_time_game_copy() -> PathBuf {
             .as_nanos()
     ));
     copy_dir_all(&repo_root().join("fixtures/ecutil-init/v1.5"), &root);
+    root
+}
+
+fn temp_joined_needs_homeworld_copy() -> PathBuf {
+    let root = temp_first_time_game_copy();
+    let mut data = CoreGameData::load(&root).expect("load joinable fixture");
+    data.join_player(1, "Codex Dominion")
+        .expect("join player without naming homeworld");
+    data.save(&root).expect("save partially joined fixture");
     root
 }
 
@@ -505,6 +516,77 @@ fn first_time_startup_skips_joined_player_login_summary() {
 }
 
 #[test]
+fn joined_player_with_unnamed_homeworld_is_routed_to_homeworld_naming() {
+    let fixture_dir = temp_joined_needs_homeworld_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Splash)
+    );
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::FirstTimeHomeworldName {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
+}
+
+#[test]
+fn escaping_empire_name_does_not_partially_join_player() {
+    let fixture_dir = temp_first_time_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFirstTimeJoinName),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
+
+    for ch in "Codex Dominion".chars() {
+        assert_eq!(
+            apply_action(&mut app, Action::AppendFirstTimeInputChar(ch)),
+            AppOutcome::Continue
+        );
+    }
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFirstTimeMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
+
+    let reloaded = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should reload");
+    assert_eq!(
+        reloaded.current_screen(),
+        ScreenId::Startup(StartupPhase::Splash)
+    );
+
+    let game_data = CoreGameData::load(&fixture_dir).expect("reload unjoined game data");
+    assert_eq!(game_data.player.records[0].occupied_flag(), 0);
+}
+
+#[test]
 fn first_time_join_flow_updates_player_and_homeworld_then_enters_main_menu() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {
@@ -516,13 +598,7 @@ fn first_time_join_flow_updates_player_and_homeworld_then_enters_main_menu() {
     .expect("app should load");
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFirstTimeJoinConfirm),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinConfirm);
-
-    assert_eq!(
-        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        apply_action(&mut app, Action::OpenFirstTimeJoinName),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);

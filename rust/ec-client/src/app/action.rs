@@ -11,7 +11,7 @@ pub enum Action {
     OpenFirstTimeHelp,
     OpenFirstTimeEmpires,
     OpenFirstTimeIntro,
-    OpenFirstTimeJoinConfirm,
+    OpenFirstTimeJoinName,
     ShowAnsiAlwaysOnNotice,
     AppendFirstTimeInputChar(char),
     BackspaceFirstTimeInput,

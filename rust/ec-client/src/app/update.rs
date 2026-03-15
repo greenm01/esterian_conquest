@@ -33,8 +33,8 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_first_time_intro();
             AppOutcome::Continue
         }
-        Action::OpenFirstTimeJoinConfirm => {
-            app.open_first_time_join_confirm();
+        Action::OpenFirstTimeJoinName => {
+            app.open_first_time_join_name();
             AppOutcome::Continue
         }
         Action::ShowAnsiAlwaysOnNotice => {

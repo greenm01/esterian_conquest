@@ -2,8 +2,8 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    MenuEntry, draw_command_line_default_input, draw_command_prompt, draw_help_panel,
-    draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
+    MenuEntry, draw_command_line_default_input, draw_command_line_text, draw_command_prompt,
+    draw_help_panel, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
 };
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
@@ -69,7 +69,7 @@ impl Screen for FirstTimeMenuScreen {
             KeyCode::Char('l') | KeyCode::Char('L') => Action::OpenFirstTimeEmpires,
             KeyCode::Char('v') | KeyCode::Char('V') => Action::OpenFirstTimeIntro,
             KeyCode::Char('a') | KeyCode::Char('A') => Action::ShowAnsiAlwaysOnNotice,
-            KeyCode::Char('j') | KeyCode::Char('J') => Action::OpenFirstTimeJoinConfirm,
+            KeyCode::Char('j') | KeyCode::Char('J') => Action::OpenFirstTimeJoinName,
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::Quit,
             _ => Action::Noop,
         }
@@ -103,41 +103,30 @@ impl Screen for FirstTimeHelpScreen {
     }
 }
 
-pub fn render_first_time_join_confirm() -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-    let mut buffer = new_playfield();
-    draw_title_bar(&mut buffer, 0, "FIRST TIME JOIN:");
-    buffer.write_text(
-        2,
-        0,
-        "Would you like to join the current game?",
-        classic::body_style(),
-    );
-    draw_plain_prompt(&mut buffer, 4, "Join the current game? Y/N -> ");
-    Ok(buffer)
-}
-
 pub fn render_first_time_join_name(
     input: &str,
     status: Option<&str>,
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
     draw_title_bar(&mut buffer, 0, "FIRST TIME JOIN:");
+    crate::screen::layout::draw_menu_row(&mut buffer, 1, &FIRST_TIME_ROW_1);
+    crate::screen::layout::draw_menu_row(&mut buffer, 2, &FIRST_TIME_ROW_2);
     buffer.write_text(
-        2,
+        4,
         0,
         "Enter the name of your empire (up to 20 characters).",
         classic::body_style(),
     );
-    if let Some(status) = status {
-        draw_status_line(&mut buffer, 4, "Notice: ", status);
-    }
-    draw_command_line_default_input(
-        &mut buffer,
-        "EMPIRE NAME",
-        "Enter the name of your empire (up to 20 characters) ",
-        "",
-        input,
+    buffer.write_text(
+        5,
+        0,
+        "Press Esc to back out to the First Time Menu.",
+        classic::body_style(),
     );
+    if let Some(status) = status {
+        draw_status_line(&mut buffer, 7, "Notice: ", status);
+    }
+    draw_command_line_default_input(&mut buffer, "EMPIRE NAME", "Name your empire ", "", input);
     Ok(buffer)
 }
 
@@ -146,11 +135,24 @@ pub fn render_first_time_join_name_confirm(
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
     draw_title_bar(&mut buffer, 0, "FIRST TIME JOIN:");
+    crate::screen::layout::draw_menu_row(&mut buffer, 1, &FIRST_TIME_ROW_1);
+    crate::screen::layout::draw_menu_row(&mut buffer, 2, &FIRST_TIME_ROW_2);
     buffer.write_text(
-        2,
+        4,
         0,
-        &format!("\"{empire_name}\" <- Is this correct? [Y]/N ->"),
+        "Enter the name of your empire (up to 20 characters).",
         classic::body_style(),
+    );
+    buffer.write_text(
+        5,
+        0,
+        "Press N or Esc to go back and edit it before joining.",
+        classic::body_style(),
+    );
+    draw_command_line_text(
+        &mut buffer,
+        "EMPIRE NAME",
+        &format!("\"{empire_name}\" <- Is this correct? [Y]/N ->"),
     );
     Ok(buffer)
 }
@@ -236,6 +238,9 @@ pub fn render_first_time_homeworld_name(
 }
 
 pub fn render_first_time_homeworld_confirm(
+    coords: [u8; 2],
+    present_production: u16,
+    potential_production: u16,
     homeworld_name: &str,
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
@@ -243,8 +248,31 @@ pub fn render_first_time_homeworld_confirm(
     buffer.write_text(
         2,
         0,
-        &format!("\"{homeworld_name}\" <- Is this correct? Y/[N] ->"),
+        &format!(
+            "You have a world in the solar system at X={}, Y={}. Its current production",
+            coords[0], coords[1]
+        ),
         classic::body_style(),
+    );
+    buffer.write_text(
+        3,
+        0,
+        &format!(
+            "level is {} out of a possible {} points, (100% efficiency).",
+            present_production, potential_production
+        ),
+        classic::body_style(),
+    );
+    buffer.write_text(
+        5,
+        0,
+        "Press N or Esc to go back and edit the homeworld name.",
+        classic::body_style(),
+    );
+    draw_command_line_text(
+        &mut buffer,
+        "HOMEWORLD",
+        &format!("\"{homeworld_name}\" <- Is this correct? Y/[N] ->"),
     );
     Ok(buffer)
 }

@@ -27,9 +27,8 @@ use crate::screen::{
     ReportsScreen, STARTUP_SPLASH_PAGE_COUNT, Screen, ScreenFrame, ScreenId, StarmapScreen,
     StartupScreen, build_unit_spec, build_unit_spec_by_kind, max_quantity,
     render_first_time_homeworld_confirm, render_first_time_homeworld_name,
-    render_first_time_join_confirm, render_first_time_join_name,
-    render_first_time_join_name_confirm, render_first_time_join_no_pending,
-    render_first_time_join_summary,
+    render_first_time_join_name, render_first_time_join_name_confirm,
+    render_first_time_join_no_pending, render_first_time_join_summary,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -389,7 +388,6 @@ impl App {
             ScreenId::FirstTimeIntro => self
                 .first_time_intro
                 .render_page(self.first_time_intro_page)?,
-            ScreenId::FirstTimeJoinConfirm => render_first_time_join_confirm()?,
             ScreenId::FirstTimeJoinEmpireName => render_first_time_join_name(
                 &self.first_time_input,
                 self.first_time_status.as_deref(),
@@ -414,7 +412,13 @@ impl App {
                 )?
             }
             ScreenId::FirstTimeHomeworldConfirm => {
-                render_first_time_homeworld_confirm(&self.first_time_homeworld_name)?
+                let (coords, present, potential) = self.first_time_homeworld_summary()?;
+                render_first_time_homeworld_confirm(
+                    coords,
+                    present,
+                    potential,
+                    &self.first_time_homeworld_name,
+                )?
             }
             ScreenId::MainMenu => self.main_menu.render(&frame)?,
             ScreenId::GeneralMenu => self.general_menu.render(&frame)?,
@@ -732,16 +736,7 @@ impl App {
         }
         if self.current_screen == ScreenId::Startup(StartupPhase::Splash) {
             let next = self.startup_sequence.skip_intro();
-            self.current_screen = match next {
-                StartupPhase::Complete => {
-                    if self.player.is_joined {
-                        ScreenId::MainMenu
-                    } else {
-                        ScreenId::FirstTimeMenu
-                    }
-                }
-                phase => ScreenId::Startup(phase),
-            };
+            self.current_screen = self.startup_target_screen(next);
             return;
         }
         if self.current_screen == ScreenId::Startup(StartupPhase::Intro)
@@ -751,25 +746,18 @@ impl App {
             return;
         }
         let next = self.startup_sequence.advance();
-        self.current_screen = match next {
-            StartupPhase::Complete => {
-                if self.player.is_joined {
-                    ScreenId::MainMenu
-                } else {
-                    ScreenId::FirstTimeMenu
-                }
-            }
-            phase => ScreenId::Startup(phase),
-        };
+        self.current_screen = self.startup_target_screen(next);
     }
 
     pub fn open_startup_intro(&mut self) {
         self.startup_intro_page = 0;
         let next = self.startup_sequence.open_intro();
-        self.current_screen = ScreenId::Startup(next);
+        self.current_screen = self.startup_target_screen(next);
     }
 
     pub fn open_first_time_menu(&mut self) {
+        self.first_time_status = None;
+        self.first_time_input.clear();
         self.current_screen = ScreenId::FirstTimeMenu;
     }
 
@@ -789,10 +777,10 @@ impl App {
         self.current_screen = ScreenId::FirstTimeIntro;
     }
 
-    pub fn open_first_time_join_confirm(&mut self) {
+    pub fn open_first_time_join_name(&mut self) {
         self.first_time_status = None;
         self.first_time_input.clear();
-        self.current_screen = ScreenId::FirstTimeJoinConfirm;
+        self.current_screen = ScreenId::FirstTimeJoinEmpireName;
     }
 
     pub fn show_first_time_ansi_notice(&mut self) {
@@ -858,11 +846,6 @@ impl App {
 
     pub fn accept_first_time_prompt(&mut self) {
         match self.current_screen {
-            ScreenId::FirstTimeJoinConfirm => {
-                self.first_time_status = None;
-                self.first_time_input.clear();
-                self.current_screen = ScreenId::FirstTimeJoinEmpireName;
-            }
             ScreenId::FirstTimeJoinEmpireConfirm => {
                 if self.complete_first_time_join().is_ok() {
                     self.current_screen = ScreenId::FirstTimeJoinSummary;
@@ -874,7 +857,7 @@ impl App {
             ScreenId::FirstTimeJoinNoPending => {
                 self.first_time_status = None;
                 self.first_time_input.clear();
-                self.current_screen = ScreenId::FirstTimeHomeworldName;
+                self.current_screen = self.pending_naming_screen().unwrap_or(ScreenId::MainMenu);
             }
             ScreenId::FirstTimeHomeworldConfirm => {
                 if self.complete_first_time_homeworld_name().is_ok() {
@@ -887,7 +870,6 @@ impl App {
 
     pub fn reject_first_time_prompt(&mut self) {
         match self.current_screen {
-            ScreenId::FirstTimeJoinConfirm => self.open_first_time_menu(),
             ScreenId::FirstTimeJoinEmpireConfirm => {
                 self.first_time_input = self.first_time_empire_name.clone();
                 self.current_screen = ScreenId::FirstTimeJoinEmpireName;
@@ -2533,15 +2515,6 @@ impl App {
                 Action::AdvanceStartup
             }
             ScreenId::FirstTimeIntro => self.first_time_intro.handle_key(key),
-            ScreenId::FirstTimeJoinConfirm => match key.code {
-                crossterm::event::KeyCode::Char('y') | crossterm::event::KeyCode::Char('Y') => {
-                    Action::AcceptFirstTimePrompt
-                }
-                crossterm::event::KeyCode::Char('n')
-                | crossterm::event::KeyCode::Char('N')
-                | crossterm::event::KeyCode::Esc => Action::RejectFirstTimePrompt,
-                _ => Action::Noop,
-            },
             ScreenId::FirstTimeJoinEmpireName | ScreenId::FirstTimeHomeworldName => {
                 match key.code {
                     crossterm::event::KeyCode::Char(ch) => Action::AppendFirstTimeInputChar(ch),
@@ -2850,7 +2823,6 @@ impl App {
             | ScreenId::FirstTimeHelp
             | ScreenId::FirstTimeEmpires
             | ScreenId::FirstTimeIntro
-            | ScreenId::FirstTimeJoinConfirm
             | ScreenId::FirstTimeJoinEmpireName
             | ScreenId::FirstTimeJoinEmpireConfirm
             | ScreenId::FirstTimeJoinSummary
@@ -4648,6 +4620,40 @@ impl App {
         self.reports
             .replace(refreshed, ReviewSummary::from_main_menu(&summary));
         Ok(())
+    }
+
+    fn startup_target_screen(&self, phase: StartupPhase) -> ScreenId {
+        match phase {
+            StartupPhase::Complete => {
+                if self.player.is_joined {
+                    self.pending_naming_screen().unwrap_or(ScreenId::MainMenu)
+                } else {
+                    ScreenId::FirstTimeMenu
+                }
+            }
+            other => ScreenId::Startup(other),
+        }
+    }
+
+    fn pending_naming_screen(&self) -> Option<ScreenId> {
+        let Some(player) = self
+            .game_data
+            .player
+            .records
+            .get(self.player.record_index_1_based - 1)
+        else {
+            return None;
+        };
+        let planet_index = player.homeworld_planet_index_1_based_raw() as usize;
+        if planet_index == 0 {
+            return None;
+        }
+        self.game_data
+            .planets
+            .records
+            .get(planet_index - 1)
+            .filter(|planet| planet.is_named_homeworld_seed())
+            .map(|_| ScreenId::FirstTimeHomeworldName)
     }
 }
 
