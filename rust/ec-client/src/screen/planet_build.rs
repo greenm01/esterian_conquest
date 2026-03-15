@@ -3,8 +3,8 @@ use ec_data::{EmpirePlanetEconomyRow, ProductionItemKind};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_command_prompt, draw_menu_row, draw_plain_prompt, draw_status_line, draw_title_bar,
-    new_playfield, MenuEntry, CMD_COL_1, CMD_COL_2, CMD_COL_3,
+    draw_command_line_default_input, draw_command_prompt, draw_menu_row, draw_status_line,
+    draw_title_bar, new_playfield, MenuEntry, CMD_COL_1, CMD_COL_2, CMD_COL_3,
 };
 use crate::screen::table::{write_table_window_with_cursor, TableColumn};
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
@@ -456,9 +456,13 @@ impl PlanetBuildScreen {
             classic::prompt_hotkey_style(),
         );
 
-        let cursor_col = draw_plain_prompt(&mut buffer, 14, "Cancel these orders? Y/[N] -> ");
-        buffer.set_cursor(cursor_col as u16, 14);
-        draw_command_prompt(&mut buffer, 19, "BUILD COMMAND", "Y N");
+        draw_command_line_default_input(
+            &mut buffer,
+            "BUILD COMMAND",
+            "Cancel these orders? ",
+            "N",
+            "",
+        );
         Ok(buffer)
     }
 
@@ -478,23 +482,16 @@ impl PlanetBuildScreen {
             .map(|u| u.number)
             .max()
             .unwrap_or(0);
-        let prompt = format!(
-            "Enter the unit's number or \"0\" if done (0 - {}): [",
-            max_unit_num
-        );
-        let prefix_col = draw_plain_prompt(&mut buffer, 14, &prompt);
-        let default_col =
-            prefix_col + buffer.write_text(14, prefix_col, "0", classic::prompt_hotkey_style());
-        let arrow_col =
-            default_col + buffer.write_text(14, default_col, "] -> ", classic::prompt_style());
-        let cursor_col =
-            arrow_col + buffer.write_text(14, arrow_col, input, classic::prompt_hotkey_style());
-        buffer.set_cursor(cursor_col as u16, 14);
-
         if let Some(status) = status {
-            draw_status_line(&mut buffer, 15, "", status);
+            draw_status_line(&mut buffer, 14, "", status);
         }
-        draw_command_prompt(&mut buffer, 19, "BUILD COMMAND", "ENTER Q");
+        draw_command_line_default_input(
+            &mut buffer,
+            "BUILD COMMAND",
+            &format!("Unit number or 0 if done (0 - {}) ", max_unit_num),
+            "0",
+            input,
+        );
         Ok(buffer)
     }
 
@@ -510,33 +507,16 @@ impl PlanetBuildScreen {
         let mut buffer = new_playfield();
         draw_specify_table(&mut buffer, view, orders);
 
-        let prompt = format!(
-            "How many new {} do you wish to build (0 - {}): [",
-            unit.singular_label, max_qty
-        );
-        let prefix_col = draw_plain_prompt(&mut buffer, 14, &prompt);
-        let default_text = if input.is_empty() {
-            max_qty.to_string()
-        } else {
-            input.to_string()
-        };
-        let value_col = prefix_col
-            + buffer.write_text(
-                14,
-                prefix_col,
-                &default_text,
-                classic::prompt_hotkey_style(),
-            );
-        let arrow_col =
-            value_col + buffer.write_text(14, value_col, "] -> ", classic::prompt_style());
-        let cursor_col =
-            arrow_col + buffer.write_text(14, arrow_col, input, classic::prompt_hotkey_style());
-        buffer.set_cursor(cursor_col as u16, 14);
-
         if let Some(status) = status {
-            draw_status_line(&mut buffer, 15, "Error: ", status);
+            draw_status_line(&mut buffer, 14, "Error: ", status);
         }
-        draw_command_prompt(&mut buffer, 19, "BUILD COMMAND", "ENTER Q");
+        draw_command_line_default_input(
+            &mut buffer,
+            "BUILD COMMAND",
+            &format!("How many new {} to build (0 - {}) ", unit.singular_label, max_qty),
+            &max_qty.to_string(),
+            input,
+        );
         Ok(buffer)
     }
 

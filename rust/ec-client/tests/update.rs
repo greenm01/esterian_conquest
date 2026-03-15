@@ -5,11 +5,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_client::app::{Action, AppConfig, AppOutcome, App, apply_action};
 use ec_client::screen::{
-    CommandMenu, FleetListMode, FleetRoeScreen, FleetRow, PlanetListMode, PlanetListSort,
-    ScreenId,
+    CommandMenu, FleetListMode, FleetRoeScreen, FleetRow, PlanetBuildMenuView,
+    PlanetBuildOrder, PlanetBuildScreen, PlanetListMode, PlanetListSort, ScreenId,
 };
 use ec_client::startup::StartupPhase;
-use ec_data::{DiplomaticRelation, EmpireProductionRankingSort};
+use ec_data::{DiplomaticRelation, EmpirePlanetEconomyRow, EmpireProductionRankingSort, ProductionItemKind};
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -806,6 +806,93 @@ fn fleet_eta_accepts_typed_fleet_destination_and_default_include_system() {
     assert_eq!(apply_action(&mut app, Action::SubmitFleetEta), AppOutcome::Continue);
     assert_eq!(app.current_screen(), ScreenId::FleetEta);
     assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::SubmitFleetEta);
+}
+
+#[test]
+fn planet_build_specify_uses_bottom_command_line_default_prompt() {
+    let mut screen = PlanetBuildScreen::new();
+    let view = PlanetBuildMenuView {
+        row: EmpirePlanetEconomyRow {
+            planet_record_index_1_based: 1,
+            planet_name: "Loki".to_string(),
+            coords: [16, 13],
+            present_production: 50,
+            potential_production: 75,
+            stored_production_points: 40,
+            build_capacity: 50,
+            yearly_tax_revenue: 10,
+            yearly_growth_delta: 5,
+            armies: 10,
+            ground_batteries: 5,
+            has_friendly_starbase: false,
+            is_homeworld_seed: false,
+        },
+        committed_points: 10,
+        available_points: 40,
+        points_left: 30,
+        queue_used: 1,
+        queue_capacity: 10,
+        stardock_used: 0,
+        stardock_capacity: 10,
+    };
+    let orders = vec![PlanetBuildOrder {
+        kind: ProductionItemKind::Destroyer,
+        points_remaining: 5,
+    }];
+
+    let buffer = screen
+        .render_specify(&view, &orders, "", None)
+        .expect("build specify renders");
+
+    assert!(buffer.plain_line(19).contains("BUILD COMMAND <- Unit number or 0 if done"));
+    assert!(buffer.plain_line(19).contains("[0] ->"));
+}
+
+#[test]
+fn planet_build_quantity_uses_bottom_command_line_default_prompt() {
+    let mut screen = PlanetBuildScreen::new();
+    let view = PlanetBuildMenuView {
+        row: EmpirePlanetEconomyRow {
+            planet_record_index_1_based: 1,
+            planet_name: "Loki".to_string(),
+            coords: [16, 13],
+            present_production: 50,
+            potential_production: 75,
+            stored_production_points: 40,
+            build_capacity: 50,
+            yearly_tax_revenue: 10,
+            yearly_growth_delta: 5,
+            armies: 10,
+            ground_batteries: 5,
+            has_friendly_starbase: false,
+            is_homeworld_seed: false,
+        },
+        committed_points: 10,
+        available_points: 40,
+        points_left: 30,
+        queue_used: 1,
+        queue_capacity: 10,
+        stardock_used: 0,
+        stardock_capacity: 10,
+    };
+    let orders = vec![PlanetBuildOrder {
+        kind: ProductionItemKind::Destroyer,
+        points_remaining: 5,
+    }];
+
+    let buffer = screen
+        .render_quantity_prompt(
+            &view,
+            &orders,
+            ec_client::screen::build_unit_spec(1).expect("destroyer spec"),
+            6,
+            "",
+            None,
+        )
+        .expect("build quantity renders");
+
+    assert!(buffer.plain_line(19).contains("BUILD COMMAND <- How many new destroyers to build"));
+    assert!(buffer.plain_line(19).contains("[6] ->"));
 }
 
 #[test]
