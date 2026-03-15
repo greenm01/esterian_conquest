@@ -1775,10 +1775,10 @@ impl App {
             .filter(|&s| record.build_count_raw(s) != 0 || record.build_kind_raw(s) != 0)
             .count();
         let stardock_capacity: usize = 10;
-        let stardock_free = self
+        let stardock_open_now = self
             .game_data
-            .planet_free_stardock_slots(row.planet_record_index_1_based)?;
-        let stardock_used = stardock_capacity.saturating_sub(stardock_free);
+            .planet_open_stardock_slots_now(row.planet_record_index_1_based)?;
+        let stardock_used = stardock_capacity.saturating_sub(stardock_open_now);
         Ok(PlanetBuildMenuView {
             row,
             committed_points,
