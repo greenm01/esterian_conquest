@@ -111,6 +111,16 @@ Primary goal:
     autopilot/rogue AI path
   - do not treat `planet_tax_rate_raw()` as a stable player-facing semantic
     field after maintenance until that byte is fully decoded
+- fleet numbering now has an important split to preserve:
+  - preserved `ECGAME` logs strongly suggest the displayed `Nth Fleet` number is
+    per-empire
+  - the shipped active `original/v1.5/FLEETS.DAT` also shows per-owner local
+    slots alongside globally unique structural fleet IDs, so those two fields
+    should stay distinct in the Rust model
+  - the current recovered structural fleet-chain model still treats
+    `FLEETS.DAT record[0x05]` as a separate global linkage key
+  - keep player-facing fleet numbering and structural fleet linkage distinct
+    until deeper oracle evidence proves they are the same field
 - emperor-recognition details may still need refinement if stronger classic
   evidence appears
 - fleet-defection cadence is currently conservative and deterministic, not

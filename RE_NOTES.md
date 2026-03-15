@@ -2505,6 +2505,22 @@ Confirmed `FLEETS.DAT` fields from the initialized `16 x 54` layout:
   - records `1..16` store IDs `1..16`
 - `record[0x00]` (`u8`): local fleet slot within the owning empire's four-fleet starting block
   - cycles `1,2,3,4` across the initialized table
+  - preserved `ECGAME` text logs now also strongly suggest this is the
+    player-facing fleet number:
+    - `ec.txt` commissions the first player fleet after the starting four as
+      the `5th Fleet`
+    - later campaign logs refer to both your own `11th Fleet` and an alien
+      `11th Fleet of "Melody Lake"` in the same era, which is only coherent if
+      displayed fleet numbers are per-empire rather than globally unique
+  - the shipped active `original/v1.5/FLEETS.DAT` now reinforces the split:
+    - owner 2 uses local slots `1..4` while the paired `record[0x05]` values
+      are `2..5`
+    - owner 3 uses local slots `1..4` while the paired `record[0x05]` values
+      are `6..9`
+    - owner 4 uses local slots `1..4` while the paired `record[0x05]` values
+      are `10..13`
+    - so local slot and structural fleet ID are not the same on disk once the
+      campaign is no longer the simple player-1-only initialized view
 - `record[0x03]` (`u8`): next fleet ID in the local linked order
   - fleet `1 -> 2`, `2 -> 3`, `3 -> 4`, `4 -> 0`
 - `record[0x07]` (`u8`): previous fleet ID in the local linked order

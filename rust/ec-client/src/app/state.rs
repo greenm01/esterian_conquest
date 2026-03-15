@@ -978,16 +978,19 @@ impl App {
             if self.fleet_roe_select_input.trim().is_empty() {
                 self.fleet_roe_cursor = self.fleet_roe_cursor.min(rows.len() - 1);
             } else {
-                let target_fleet_id = match self.fleet_roe_select_input.trim().parse::<u8>() {
+                let target_fleet_id = match self.fleet_roe_select_input.trim().parse::<u16>() {
                     Ok(value) => value,
                     Err(_) => {
                         self.fleet_roe_status = Some("Enter a fleet number from the table.".to_string());
                         return Ok(());
                     }
                 };
-                let Some(index) = rows.iter().position(|row| row.fleet_id == target_fleet_id) else {
+                let Some(index) = rows
+                    .iter()
+                    .position(|row| row.fleet_number == target_fleet_id)
+                else {
                     self.fleet_roe_status =
-                        Some(format!("Fleet #{target_fleet_id:02} is not in your fleet list."));
+                        Some(format!("Fleet #{target_fleet_id} is not in your fleet list."));
                     return Ok(());
                 };
                 self.fleet_roe_cursor = index;
@@ -1037,8 +1040,8 @@ impl App {
         self.game_data.save(&self.game_dir)?;
         self.fleet_roe_input.clear();
         self.fleet_roe_status = Some(format!(
-            "Fleet #{:02} ROE set to {}.",
-            selected_row.fleet_id, parsed
+            "Fleet #{} ROE set to {}.",
+            selected_row.fleet_number, parsed
         ));
         self.fleet_roe_editing = false;
         Ok(())
@@ -1175,7 +1178,16 @@ impl App {
         self.planet_commission_status = Some(match result {
             CommissionResult::Fleet {
                 fleet_record_index_1_based,
-            } => format!("Commissioned a new fleet as Fleet #{fleet_record_index_1_based}."),
+            } => {
+                let fleet_number = self
+                    .game_data
+                    .fleets
+                    .records
+                    .get(fleet_record_index_1_based - 1)
+                    .map(|fleet| fleet.local_slot_word_raw())
+                    .ok_or("commissioned fleet record missing")?;
+                format!("Commissioned a new fleet as Fleet #{fleet_number}.")
+            }
             CommissionResult::Starbase {
                 base_record_index_1_based,
             } => format!("Commissioned a new starbase as Base #{base_record_index_1_based}."),
@@ -1327,10 +1339,10 @@ impl App {
         if max_qty == 0 {
             self.planet_transport_status = Some(match mode {
                 PlanetTransportMode::Load => {
-                    format!("Fleet {:02} cannot take any more armies.", fleet.fleet_id)
+                    format!("Fleet {} cannot take any more armies.", fleet.fleet_number)
                 }
                 PlanetTransportMode::Unload => {
-                    format!("Fleet {:02} has no loaded armies to unload.", fleet.fleet_id)
+                    format!("Fleet {} has no loaded armies to unload.", fleet.fleet_number)
                 }
             });
             self.current_screen = ScreenId::PlanetTransportFleetSelect(mode);
@@ -1384,12 +1396,12 @@ impl App {
         self.game_data.save(&self.game_dir)?;
         self.planet_transport_status = Some(match mode {
             PlanetTransportMode::Load => format!(
-                "Loaded {qty} armies onto Fleet {:02} at {},{}.",
-                fleet.fleet_id, planet.coords[0], planet.coords[1]
+                "Loaded {qty} armies onto Fleet {} at {},{}.",
+                fleet.fleet_number, planet.coords[0], planet.coords[1]
             ),
             PlanetTransportMode::Unload => format!(
-                "Unloaded {qty} armies from Fleet {:02} at {},{}.",
-                fleet.fleet_id, planet.coords[0], planet.coords[1]
+                "Unloaded {qty} armies from Fleet {} at {},{}.",
+                fleet.fleet_number, planet.coords[0], planet.coords[1]
             ),
         });
         self.planet_transport_qty_input.clear();
@@ -2634,21 +2646,21 @@ impl App {
         self.game_data.player.records[self.player.record_index_1_based - 1].autopilot_flag()
     }
 
-    pub fn current_fleet_roe_by_id(&self, fleet_id: u8) -> Option<u8> {
+    pub fn current_fleet_roe_by_id(&self, fleet_id: u16) -> Option<u8> {
         self.game_data
             .fleets
             .records
             .iter()
             .find(|fleet| {
                 fleet.owner_empire_raw() as usize == self.player.record_index_1_based
-                    && fleet.fleet_id() == fleet_id
+                    && fleet.local_slot_word_raw() == fleet_id
             })
             .map(|fleet| fleet.rules_of_engagement())
     }
 
-    pub fn selected_fleet_roe_id(&self) -> Option<u8> {
+    pub fn selected_fleet_roe_id(&self) -> Option<u16> {
         let rows = self.fleet_rows();
-        rows.get(self.fleet_roe_cursor).map(|row| row.fleet_id)
+        rows.get(self.fleet_roe_cursor).map(|row| row.fleet_number)
     }
 
     pub fn current_relation_to(&self, empire_id: u8) -> Option<ec_data::DiplomaticRelation> {
@@ -2688,7 +2700,7 @@ impl App {
             .filter(|(_, fleet)| fleet.owner_empire_raw() as usize == self.player.record_index_1_based)
             .map(|(idx, fleet)| FleetRow {
                 fleet_record_index_1_based: idx + 1,
-                fleet_id: fleet.fleet_id(),
+                fleet_number: fleet.local_slot_word_raw(),
                 coords: fleet.current_location_coords_raw(),
                 current_speed: fleet.current_speed(),
                 max_speed: fleet.max_speed(),
@@ -2697,7 +2709,7 @@ impl App {
                 composition_label: fleet.ship_composition_summary(),
             })
             .collect::<Vec<_>>();
-        rows.sort_by_key(|row| row.fleet_id);
+        rows.sort_by_key(|row| row.fleet_number);
         rows
     }
 
@@ -2880,7 +2892,7 @@ impl App {
                 };
                 PlanetTransportFleetRow {
                     fleet_record_index_1_based: idx + 1,
-                    fleet_id: fleet.fleet_id(),
+                    fleet_number: fleet.local_slot_word_raw(),
                     troop_transports: fleet.troop_transport_count(),
                     loaded_armies: fleet.army_count(),
                     available_qty,
@@ -3247,11 +3259,14 @@ impl App {
         if self.current_screen != ScreenId::FleetRoeSelect || self.fleet_roe_editing {
             return;
         }
-        let Ok(target_fleet_id) = self.fleet_roe_select_input.trim().parse::<u8>() else {
+        let Ok(target_fleet_id) = self.fleet_roe_select_input.trim().parse::<u16>() else {
             return;
         };
         let rows = self.fleet_rows();
-        let Some(index) = rows.iter().position(|row| row.fleet_id == target_fleet_id) else {
+        let Some(index) = rows
+            .iter()
+            .position(|row| row.fleet_number == target_fleet_id)
+        else {
             return;
         };
         self.fleet_roe_cursor = index;

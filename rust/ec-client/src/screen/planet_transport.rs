@@ -5,7 +5,9 @@ use crate::screen::layout::{
     draw_command_line_input, draw_command_line_text, draw_command_prompt, draw_plain_prompt,
     draw_title_bar, new_playfield,
 };
-use crate::screen::table::{format_empire_id, write_table_window_with_cursor, TableColumn};
+use crate::screen::table::{
+    fleet_id_column_width, format_fleet_number, write_table_window_with_cursor, TableColumn,
+};
 use crate::screen::{PlayfieldBuffer, Screen};
 use crate::theme::classic;
 
@@ -47,7 +49,7 @@ pub struct PlanetTransportPlanetRow {
 #[derive(Debug, Clone)]
 pub struct PlanetTransportFleetRow {
     pub fleet_record_index_1_based: usize,
-    pub fleet_id: u8,
+    pub fleet_number: u16,
     pub troop_transports: u16,
     pub loaded_armies: u16,
     pub available_qty: u16,
@@ -61,7 +63,7 @@ const PLANET_COLUMNS: [TableColumn<'static>; 4] = [
 ];
 
 const FLEET_COLUMNS: [TableColumn<'static>; 4] = [
-    TableColumn::right("ID", 3),
+    TableColumn::right("ID", 2),
     TableColumn::right("TTs", 4),
     TableColumn::right("Loaded", 6),
     TableColumn::right("Avail", 6),
@@ -138,6 +140,8 @@ impl PlanetTransportScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, mode.title());
+        let max_fleet_number = max_fleet_number(fleets);
+        let fleet_columns = fleet_columns(max_fleet_number);
         buffer.write_text(
             2,
             0,
@@ -151,7 +155,7 @@ impl PlanetTransportScreen {
             .iter()
             .map(|row| {
                 vec![
-                    format_empire_id(row.fleet_id),
+                    format_fleet_number(row.fleet_number, max_fleet_number),
                     row.troop_transports.to_string(),
                     row.loaded_armies.to_string(),
                     row.available_qty.to_string(),
@@ -162,7 +166,7 @@ impl PlanetTransportScreen {
         write_table_window_with_cursor(
             &mut buffer,
             4,
-            &FLEET_COLUMNS,
+            &fleet_columns,
             &table_rows,
             scroll_offset,
             PLANET_TRANSPORT_VISIBLE_ROWS,
@@ -205,7 +209,7 @@ impl PlanetTransportScreen {
             0,
             &format!(
                 "Planet: {} ({},{})   Fleet {:02}",
-                planet.planet_name, planet.coords[0], planet.coords[1], fleet.fleet_id
+                planet.planet_name, planet.coords[0], planet.coords[1], fleet.fleet_number
             ),
             classic::status_value_style(),
         );
@@ -235,6 +239,19 @@ impl PlanetTransportScreen {
         draw_command_prompt(&mut buffer, 19, "PLANET COMMAND", "SLAP A KEY");
         Ok(buffer)
     }
+}
+
+fn max_fleet_number(rows: &[PlanetTransportFleetRow]) -> u16 {
+    rows.iter().map(|row| row.fleet_number).max().unwrap_or(1)
+}
+
+fn fleet_columns(max_fleet_number: u16) -> [TableColumn<'static>; 4] {
+    [
+        TableColumn::right("ID", fleet_id_column_width(max_fleet_number)),
+        FLEET_COLUMNS[1],
+        FLEET_COLUMNS[2],
+        FLEET_COLUMNS[3],
+    ]
 }
 
 impl Screen for PlanetTransportScreen {

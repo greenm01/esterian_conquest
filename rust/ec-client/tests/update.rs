@@ -583,7 +583,7 @@ fn fleet_roe_render_keeps_command_line_on_bottom_row() {
     let mut screen = FleetRoeScreen::new();
     let rows = vec![FleetRow {
         fleet_record_index_1_based: 1,
-        fleet_id: 1,
+        fleet_number: 1,
         coords: [16, 13],
         current_speed: 0,
         max_speed: 3,
@@ -599,6 +599,51 @@ fn fleet_roe_render_keeps_command_line_on_bottom_row() {
     assert_eq!(buffer.plain_line(17), "");
     assert_eq!(buffer.plain_line(19), "FLEET COMMAND <- Fleet #:");
     assert_eq!(buffer.cursor(), Some((26, 19)));
+}
+
+#[test]
+fn fleet_table_zero_pads_numbers_to_current_max_width() {
+    let mut screen = ec_client::screen::FleetListScreen::new();
+    let rows = vec![
+        FleetRow {
+            fleet_record_index_1_based: 1,
+            fleet_number: 1,
+            coords: [16, 13],
+            current_speed: 0,
+            max_speed: 3,
+            rules_of_engagement: 6,
+            order_label: "Hold".to_string(),
+            composition_label: "1 CA".to_string(),
+        },
+        FleetRow {
+            fleet_record_index_1_based: 2,
+            fleet_number: 10,
+            coords: [17, 13],
+            current_speed: 0,
+            max_speed: 3,
+            rules_of_engagement: 6,
+            order_label: "Hold".to_string(),
+            composition_label: "1 DD".to_string(),
+        },
+        FleetRow {
+            fleet_record_index_1_based: 3,
+            fleet_number: 100,
+            coords: [18, 13],
+            current_speed: 0,
+            max_speed: 3,
+            rules_of_engagement: 6,
+            order_label: "Hold".to_string(),
+            composition_label: "1 BB".to_string(),
+        },
+    ];
+
+    let buffer = screen
+        .render(FleetListMode::Brief, &rows, 0, 0)
+        .expect("fleet list renders");
+
+    assert!(buffer.plain_line(5).starts_with("001 "));
+    assert!(buffer.plain_line(6).starts_with("010 "));
+    assert!(buffer.plain_line(7).starts_with("100 "));
 }
 
 #[test]

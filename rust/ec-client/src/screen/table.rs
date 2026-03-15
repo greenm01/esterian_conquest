@@ -140,6 +140,19 @@ pub fn format_empire_id(empire_id: u8) -> String {
     format!("{empire_id:02}")
 }
 
+pub fn fleet_number_width(max_fleet_number: u16) -> usize {
+    max_fleet_number.max(1).to_string().chars().count()
+}
+
+pub fn fleet_id_column_width(max_fleet_number: u16) -> usize {
+    "ID".len().max(fleet_number_width(max_fleet_number))
+}
+
+pub fn format_fleet_number(fleet_number: u16, max_fleet_number: u16) -> String {
+    let width = fleet_number_width(max_fleet_number);
+    format!("{fleet_number:0width$}")
+}
+
 fn write_scroll_indicator(
     buffer: &mut PlayfieldBuffer,
     start_row: usize,

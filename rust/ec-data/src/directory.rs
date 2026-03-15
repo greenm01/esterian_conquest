@@ -385,6 +385,47 @@ fn commissioned_fleet_speed(kind: ProductionItemKind) -> u8 {
     }
 }
 
+fn next_available_owned_fleet_local_slot(records: &[FleetRecord], owner_empire: u8) -> u16 {
+    let mut owned_slots = records
+        .iter()
+        .filter(|fleet| fleet.owner_empire_raw() == owner_empire)
+        .map(FleetRecord::local_slot_word_raw)
+        .filter(|slot| *slot != 0)
+        .collect::<Vec<_>>();
+    owned_slots.sort_unstable();
+    owned_slots.dedup();
+
+    let mut next = 1u16;
+    for slot in owned_slots {
+        if slot == next {
+            next = next.saturating_add(1);
+        } else if slot > next {
+            break;
+        }
+    }
+    next
+}
+
+fn next_available_global_fleet_id(records: &[FleetRecord]) -> u16 {
+    let mut fleet_ids = records
+        .iter()
+        .map(FleetRecord::fleet_id_word_raw)
+        .filter(|fleet_id| *fleet_id != 0)
+        .collect::<Vec<_>>();
+    fleet_ids.sort_unstable();
+    fleet_ids.dedup();
+
+    let mut next = 1u16;
+    for fleet_id in fleet_ids {
+        if fleet_id == next {
+            next = next.saturating_add(1);
+        } else if fleet_id > next {
+            break;
+        }
+    }
+    next
+}
+
 impl CoreGameData {
     pub fn load(dir: &Path) -> Result<Self, GameDirectoryError> {
         Ok(Self {
@@ -2131,36 +2172,48 @@ impl CoreGameData {
                 }
             }
 
-            let fleet_id = self.fleets.records.len() as u16 + 1;
-            let local_slot = self
-                .fleets
-                .records
-                .iter()
-                .filter(|fleet| fleet.owner_empire_raw() == owner_empire)
-                .count() as u16
-                + 1;
-            let last_owned_fleet_index = self
+            let fleet_id = next_available_global_fleet_id(&self.fleets.records);
+            let local_slot =
+                next_available_owned_fleet_local_slot(&self.fleets.records, owner_empire);
+            let mut owned_fleets = self
                 .fleets
                 .records
                 .iter()
                 .enumerate()
+                .filter(|(_, fleet)| fleet.owner_empire_raw() == owner_empire)
+                .map(|(idx, fleet)| (idx, fleet.local_slot_word_raw(), fleet.fleet_id_word_raw()))
+                .collect::<Vec<_>>();
+            owned_fleets.sort_unstable_by_key(|(_, slot, _)| *slot);
+
+            let predecessor = owned_fleets
+                .iter()
+                .copied()
                 .rev()
-                .find(|(_, fleet)| fleet.owner_empire_raw() == owner_empire)
-                .map(|(idx, _)| idx);
-            let previous_fleet_id = last_owned_fleet_index
-                .map(|idx| self.fleets.records[idx].fleet_id())
+                .find(|(_, slot, _)| *slot < local_slot);
+            let successor = owned_fleets
+                .iter()
+                .copied()
+                .find(|(_, slot, _)| *slot > local_slot);
+            let previous_fleet_id = predecessor
+                .map(|(_, _, predecessor_fleet_id)| predecessor_fleet_id as u8)
+                .unwrap_or(0);
+            let next_fleet_id = successor
+                .map(|(_, _, successor_fleet_id)| successor_fleet_id)
                 .unwrap_or(0);
 
-            if let Some(idx) = last_owned_fleet_index {
+            if let Some((idx, _, _)) = predecessor {
                 self.fleets.records[idx].set_next_fleet_link_word_raw(fleet_id);
             } else {
                 player.set_fleet_chain_head_raw(fleet_id);
+            }
+            if let Some((idx, _, _)) = successor {
+                self.fleets.records[idx].set_previous_fleet_id(fleet_id as u8);
             }
 
             let mut fleet = FleetRecord::new_zeroed();
             fleet.set_local_slot_word_raw(local_slot);
             fleet.set_owner_empire_raw(owner_empire);
-            fleet.set_next_fleet_link_word_raw(0);
+            fleet.set_next_fleet_link_word_raw(next_fleet_id);
             fleet.set_fleet_id_word_raw(fleet_id);
             fleet.set_previous_fleet_id(previous_fleet_id);
             fleet.set_current_speed(0);

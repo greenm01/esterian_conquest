@@ -7,7 +7,9 @@ use crate::screen::layout::{
     MenuEntry,
     CMD_COL_1, CMD_COL_2, CMD_COL_3,
 };
-use crate::screen::table::{format_empire_id, write_table_window_with_cursor, TableColumn};
+use crate::screen::table::{
+    fleet_id_column_width, format_fleet_number, write_table_window_with_cursor, TableColumn,
+};
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
 
@@ -16,7 +18,7 @@ pub const FLEET_VISIBLE_ROWS: usize = 11;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FleetRow {
     pub fleet_record_index_1_based: usize,
-    pub fleet_id: u8,
+    pub fleet_number: u16,
     pub coords: [u8; 2],
     pub current_speed: u8,
     pub max_speed: u8,
@@ -72,7 +74,7 @@ const ROW_5: [MenuEntry<'static>; 3] = [
 ];
 
 const BRIEF_COLUMNS: [TableColumn<'static>; 5] = [
-    TableColumn::right("ID", 3),
+    TableColumn::right("ID", 2),
     TableColumn::left("Location", 10),
     TableColumn::right("Spd", 7),
     TableColumn::right("ROE", 3),
@@ -80,7 +82,7 @@ const BRIEF_COLUMNS: [TableColumn<'static>; 5] = [
 ];
 
 const FULL_COLUMNS: [TableColumn<'static>; 6] = [
-    TableColumn::right("ID", 3),
+    TableColumn::right("ID", 2),
     TableColumn::left("Location", 10),
     TableColumn::right("Spd", 7),
     TableColumn::right("ROE", 3),
@@ -148,6 +150,9 @@ impl FleetListScreen {
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
+        let max_fleet_number = max_fleet_number(rows);
+        let brief_columns = brief_columns(max_fleet_number);
+        let full_columns = full_columns(max_fleet_number);
         let title = match mode {
             FleetListMode::Brief => "BRIEF FLEET LIST:",
             FleetListMode::Full => "FULL FLEET LIST:",
@@ -164,14 +169,14 @@ impl FleetListScreen {
             .iter()
             .map(|row| match mode {
                 FleetListMode::Brief => vec![
-                    format_empire_id(row.fleet_id),
+                    format_fleet_number(row.fleet_number, max_fleet_number),
                     format!("({:>2},{:>2})", row.coords[0], row.coords[1]),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
                     row.composition_label.clone(),
                 ],
                 FleetListMode::Full => vec![
-                    format_empire_id(row.fleet_id),
+                    format_fleet_number(row.fleet_number, max_fleet_number),
                     format!("({:>2},{:>2})", row.coords[0], row.coords[1]),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
@@ -184,8 +189,8 @@ impl FleetListScreen {
             &mut buffer,
             3,
             match mode {
-                FleetListMode::Brief => &BRIEF_COLUMNS,
-                FleetListMode::Full => &FULL_COLUMNS,
+                FleetListMode::Brief => &brief_columns,
+                FleetListMode::Full => &full_columns,
             },
             &table_rows,
             scroll_offset,
@@ -233,7 +238,7 @@ impl FleetReviewScreen {
             &format!("REVIEW FLEET {}/{}:", selected_index + 1, total),
             classic::title_style(),
         );
-        draw_status_line(&mut buffer, 2, "Fleet ID: ", &format_empire_id(row.fleet_id));
+        draw_status_line(&mut buffer, 2, "Fleet ID: ", &row.fleet_number.to_string());
         draw_status_line(
             &mut buffer,
             3,
@@ -300,6 +305,8 @@ impl FleetRoeScreen {
         let mut buffer = new_playfield();
         buffer.fill_row(0, classic::menu_style());
         buffer.write_text(0, 0, "CHANGE FLEET ROE:", classic::title_style());
+        let max_fleet_number = max_fleet_number(rows);
+        let brief_columns = brief_columns(max_fleet_number);
         draw_status_line(
             &mut buffer,
             1,
@@ -310,7 +317,7 @@ impl FleetRoeScreen {
             .iter()
             .map(|row| {
                 vec![
-                    format_empire_id(row.fleet_id),
+                    format_fleet_number(row.fleet_number, max_fleet_number),
                     format!("({:>2},{:>2})", row.coords[0], row.coords[1]),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
@@ -321,7 +328,7 @@ impl FleetRoeScreen {
         write_table_window_with_cursor(
             &mut buffer,
             3,
-            &BRIEF_COLUMNS,
+            &brief_columns,
             &table_rows,
             scroll_offset,
             FLEET_VISIBLE_ROWS,
@@ -337,8 +344,9 @@ impl FleetRoeScreen {
                 &mut buffer,
                 "FLEET COMMAND",
                 &format!(
-                    "Fleet #{:02} current ROE {}  New ROE (0 - 10): ",
-                    row.fleet_id, row.rules_of_engagement
+                    "Fleet #{} current ROE {}  New ROE (0 - 10): ",
+                    format_fleet_number(row.fleet_number, max_fleet_number),
+                    row.rules_of_engagement
                 ),
                 input,
             );
@@ -366,4 +374,29 @@ impl FleetRoeScreen {
             _ => Action::Noop,
         }
     }
+}
+
+fn max_fleet_number(rows: &[FleetRow]) -> u16 {
+    rows.iter().map(|row| row.fleet_number).max().unwrap_or(1)
+}
+
+fn brief_columns(max_fleet_number: u16) -> [TableColumn<'static>; 5] {
+    [
+        TableColumn::right("ID", fleet_id_column_width(max_fleet_number)),
+        BRIEF_COLUMNS[1],
+        BRIEF_COLUMNS[2],
+        BRIEF_COLUMNS[3],
+        BRIEF_COLUMNS[4],
+    ]
+}
+
+fn full_columns(max_fleet_number: u16) -> [TableColumn<'static>; 6] {
+    [
+        TableColumn::right("ID", fleet_id_column_width(max_fleet_number)),
+        FULL_COLUMNS[1],
+        FULL_COLUMNS[2],
+        FULL_COLUMNS[3],
+        FULL_COLUMNS[4],
+        FULL_COLUMNS[5],
+    ]
 }

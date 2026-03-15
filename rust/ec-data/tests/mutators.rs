@@ -129,6 +129,59 @@ fn commission_ship_from_stardock_appends_fleet_and_clears_slot() {
 }
 
 #[test]
+fn commission_ship_reuses_lowest_available_owned_fleet_number() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+    player.set_fleet_chain_head_raw(1);
+
+    let mut planet = PlanetRecord::new_zeroed();
+    planet.set_owner_empire_slot_raw(1);
+    planet.set_coords_raw([6, 5]);
+    planet.set_stardock_kind_raw(0, 1);
+    planet.set_stardock_count_raw(0, 1);
+
+    let mut fleet_a = FleetRecord::new_zeroed();
+    fleet_a.set_owner_empire_raw(1);
+    fleet_a.set_fleet_id_word_raw(1);
+    fleet_a.set_local_slot_word_raw(1);
+    fleet_a.set_next_fleet_link_word_raw(3);
+
+    let mut fleet_b = FleetRecord::new_zeroed();
+    fleet_b.set_owner_empire_raw(1);
+    fleet_b.set_fleet_id_word_raw(3);
+    fleet_b.set_local_slot_word_raw(3);
+    fleet_b.set_previous_fleet_id(1);
+
+    let mut data = CoreGameData {
+        player: PlayerDat { records: vec![player] },
+        planets: PlanetDat { records: vec![planet] },
+        fleets: FleetDat {
+            records: vec![fleet_a, fleet_b],
+        },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    let result = data.commission_planet_stardock_slot(1, 1, 0).unwrap();
+    assert_eq!(
+        result,
+        CommissionResult::Fleet {
+            fleet_record_index_1_based: 3
+        }
+    );
+    assert_eq!(data.player.records[0].fleet_chain_head_raw(), 1);
+    assert_eq!(data.fleets.records[0].next_fleet_link_word_raw(), 2);
+    assert_eq!(data.fleets.records[1].previous_fleet_id(), 2);
+    let fleet = &data.fleets.records[2];
+    assert_eq!(fleet.local_slot_word_raw(), 2);
+    assert_eq!(fleet.fleet_id_word_raw(), 2);
+    assert_eq!(fleet.previous_fleet_id(), 1);
+    assert_eq!(fleet.next_fleet_link_word_raw(), 3);
+}
+
+#[test]
 fn commission_starbase_from_stardock_appends_base_and_clears_slot() {
     let mut player = PlayerRecord::new_zeroed();
     player.set_owner_empire_raw(1);
