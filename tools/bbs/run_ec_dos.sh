@@ -21,9 +21,10 @@ fi
 
 export SDL_VIDEODRIVER=dummy
 
-# The game's command line parsing is extremely specific about the path separator
-# C:\ is what it expects, but escaping in bash -> dosbox can get mangled.
-# Let's just use the default dropfile location by omitting the /D flag if DOOR.SYS is in the game dir.
+# Ah! It looks like ECGAME is incorrectly parsing `/N:1` as a directory path
+# `/N:\1\` instead of the node argument. The safest way to play this is to
+# wrap the entire string in quotes or just avoid passing /N since we only have node 1 right now.
+# Let's also drop `/N` completely since it defaults to Node 1.
 
 dosbox-x -conf /dev/null \
   -fastlaunch \
@@ -35,5 +36,5 @@ dosbox-x -conf /dev/null \
   -set "cycles=fixed 3000" \
   -c "mount c $GAME_DIR" \
   -c "c:" \
-  -c "ECGAME.EXE /N:$NODE" \
+  -c "ECGAME.EXE" \
   -c "exit" >> /tmp/ec-door.log 2>&1

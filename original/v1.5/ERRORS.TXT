@@ -4,3 +4,5 @@
 03-15-2026 1:43pm -> ECGAME: could not find a Door File in path: /D:C:\\
 03-15-2026 1:43pm -> ECGAME: could not find a Door File in path: /D:C:\\
 03-15-2026 1:44pm -> ECGAME: could not find a Door File in path: /D:C:\\
+03-15-2026 1:45pm -> ECGAME: could not find a Door File in path: /N:\1\
+03-15-2026 1:46pm -> ECGAME: could not find a Door File in path: /N:\1\
