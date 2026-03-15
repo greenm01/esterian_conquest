@@ -475,6 +475,30 @@ fn first_time_menu_branch_opens_help_intro_and_empire_list() {
 }
 
 #[test]
+fn first_time_startup_skips_joined_player_login_summary() {
+    let fixture_dir = temp_first_time_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+        startup_config: None,
+    })
+    .expect("app should load");
+
+    assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::Splash));
+
+    apply_action(&mut app, Action::AdvanceStartup);
+    assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::Splash));
+
+    apply_action(&mut app, Action::AdvanceStartup);
+    assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::Splash));
+
+    apply_action(&mut app, Action::AdvanceStartup);
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
+}
+
+#[test]
 fn first_time_join_flow_updates_player_and_homeworld_then_enters_main_menu() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {

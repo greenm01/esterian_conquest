@@ -4,6 +4,8 @@ use std::path::Path;
 use crate::screen::{Cell, CellStyle, PlayfieldBuffer, RgbColor, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 use crate::screen::new_playfield;
 
+const ANSI_SCREEN_HEIGHT: usize = 25;
+
 #[derive(Debug, Clone)]
 pub struct StartupArt {
     cells: Vec<Cell>,
@@ -12,14 +14,19 @@ pub struct StartupArt {
 impl StartupArt {
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         let text = fs::read_to_string(path)?;
-        Ok(parse_ansi_art(&text))
+        if text.contains('\u{1b}') {
+            Ok(parse_ansi_art(&text))
+        } else {
+            Ok(parse_plain_art(&text))
+        }
     }
 
     pub fn render(&self) -> PlayfieldBuffer {
         let mut buffer = new_playfield();
+        let start_row = best_projection_start(&self.cells);
         for row in 0..PLAYFIELD_HEIGHT.saturating_sub(1) {
             for col in 0..PLAYFIELD_WIDTH {
-                let index = row * PLAYFIELD_WIDTH + col;
+                let index = (start_row + row) * PLAYFIELD_WIDTH + col;
                 if let Some(cell) = self.cells.get(index).copied() {
                     buffer.write_text(row, col, &cell.ch.to_string(), cell.style);
                 }
@@ -29,8 +36,20 @@ impl StartupArt {
     }
 }
 
+fn parse_plain_art(text: &str) -> StartupArt {
+    let mut cells = vec![Cell::new(' ', default_style()); PLAYFIELD_WIDTH * ANSI_SCREEN_HEIGHT];
+    for (row, line) in text.lines().take(ANSI_SCREEN_HEIGHT).enumerate() {
+        for (col, ch) in line.chars().take(PLAYFIELD_WIDTH).enumerate() {
+            cells[row * PLAYFIELD_WIDTH + col] = Cell::new(ch, default_style());
+        }
+    }
+    sanitize_cells(&mut cells);
+    StartupArt { cells }
+}
+
 fn parse_ansi_art(text: &str) -> StartupArt {
     let mut state = AnsiState::new();
+    let mut selected_snapshot: Option<Vec<Cell>> = None;
     let chars = text.chars().collect::<Vec<_>>();
     let mut idx = 0;
     while idx < chars.len() {
@@ -41,7 +60,7 @@ fn parse_ansi_art(text: &str) -> StartupArt {
                 idx += 1;
             }
             '\n' => {
-                state.row = (state.row + 1).min(PLAYFIELD_HEIGHT.saturating_sub(1));
+                state.row = (state.row + 1).min(ANSI_SCREEN_HEIGHT.saturating_sub(1));
                 idx += 1;
             }
             ch => {
@@ -49,6 +68,11 @@ fn parse_ansi_art(text: &str) -> StartupArt {
                 idx += 1;
             }
         }
+        maybe_capture_snapshot(&state, &mut selected_snapshot);
+    }
+    if let Some(mut snapshot) = selected_snapshot {
+        sanitize_cells(&mut snapshot);
+        return StartupArt { cells: snapshot };
     }
     sanitize_ec_frame(&mut state);
     StartupArt { cells: state.cells }
@@ -81,7 +105,8 @@ fn apply_csi(state: &mut AnsiState, params: &str, final_char: char) {
     match final_char {
         'A' => state.row = state.row.saturating_sub(first_or(&values, 1)),
         'B' => {
-            state.row = (state.row + first_or(&values, 1)).min(PLAYFIELD_HEIGHT.saturating_sub(1))
+            state.row =
+                (state.row + first_or(&values, 1)).min(ANSI_SCREEN_HEIGHT.saturating_sub(1))
         }
         'C' => {
             state.col = (state.col + first_or(&values, 1)).min(PLAYFIELD_WIDTH.saturating_sub(1))
@@ -90,7 +115,7 @@ fn apply_csi(state: &mut AnsiState, params: &str, final_char: char) {
         'H' | 'f' => {
             state.row = values.first().copied().unwrap_or(1).saturating_sub(1);
             state.col = values.get(1).copied().unwrap_or(1).saturating_sub(1);
-            state.row = state.row.min(PLAYFIELD_HEIGHT.saturating_sub(1));
+            state.row = state.row.min(ANSI_SCREEN_HEIGHT.saturating_sub(1));
             state.col = state.col.min(PLAYFIELD_WIDTH.saturating_sub(1));
         }
         'J' => {
@@ -140,24 +165,28 @@ fn first_or(values: &[usize], default: usize) -> usize {
 }
 
 fn sanitize_ec_frame(state: &mut AnsiState) {
-    replace_plain_text(state, "Version 1.51", "Version 1.60");
-    clear_row_containing(state, "Compliments of your Sysop");
-    clear_row_containing(state, "Registration #");
+    sanitize_cells(&mut state.cells);
 }
 
-fn replace_plain_text(state: &mut AnsiState, from: &str, to: &str) {
-    for row in 0..PLAYFIELD_HEIGHT {
-        let line = state.row_plain_text(row);
+fn sanitize_cells(cells: &mut [Cell]) {
+    replace_plain_text(cells, "Version 1.51", "Version 1.60");
+    clear_row_containing(cells, "Compliments of your Sysop");
+    clear_row_containing(cells, "Registration #");
+}
+
+fn replace_plain_text(cells: &mut [Cell], from: &str, to: &str) {
+    for row in 0..ANSI_SCREEN_HEIGHT {
+        let line = row_plain_text(cells, row);
         if let Some(col) = line.find(from) {
-            let style = state.cells[row * PLAYFIELD_WIDTH + col].style;
+            let style = cells[row * PLAYFIELD_WIDTH + col].style;
             for offset in 0..from.chars().count() {
                 let index = row * PLAYFIELD_WIDTH + col + offset;
-                state.cells[index] = Cell::new(' ', style);
+                cells[index] = Cell::new(' ', style);
             }
             for (offset, ch) in to.chars().enumerate() {
                 let index = row * PLAYFIELD_WIDTH + col + offset;
-                if index < state.cells.len() {
-                    state.cells[index] = Cell::new(ch, style);
+                if index < cells.len() {
+                    cells[index] = Cell::new(ch, style);
                 }
             }
             return;
@@ -165,16 +194,106 @@ fn replace_plain_text(state: &mut AnsiState, from: &str, to: &str) {
     }
 }
 
-fn clear_row_containing(state: &mut AnsiState, needle: &str) {
-    for row in 0..PLAYFIELD_HEIGHT {
-        if state.row_plain_text(row).contains(needle) {
+fn clear_row_containing(cells: &mut [Cell], needle: &str) {
+    for row in 0..ANSI_SCREEN_HEIGHT {
+        if row_plain_text(cells, row).contains(needle) {
             let start = row * PLAYFIELD_WIDTH;
             let end = start + PLAYFIELD_WIDTH;
-            for cell in &mut state.cells[start..end] {
+            for cell in &mut cells[start..end] {
                 *cell = Cell::new(' ', default_style());
             }
         }
     }
+}
+
+fn row_plain_text(cells: &[Cell], row: usize) -> String {
+    let start = row * PLAYFIELD_WIDTH;
+    let end = start + PLAYFIELD_WIDTH;
+    cells[start..end].iter().map(|cell| cell.ch).collect()
+}
+
+fn maybe_capture_snapshot(
+    state: &AnsiState,
+    selected_snapshot: &mut Option<Vec<Cell>>,
+) {
+    if selected_snapshot.is_some() {
+        return;
+    }
+    let visible_text = state.visible_text();
+    if !visible_text.contains("Version 1.51") && !visible_text.contains("Version 1.60") {
+        return;
+    }
+    let start_row = best_projection_start(&state.cells);
+    let projected_text = projected_text(&state.cells, start_row);
+    if projected_text.contains("Compliments of your Sysop")
+        || projected_text.contains("Registration #")
+    {
+        return;
+    }
+    if !contains_banner_body(&projected_text) || banner_row_count(&projected_text) < 4 {
+        return;
+    }
+    *selected_snapshot = Some(state.cells.clone());
+}
+
+fn best_projection_start(cells: &[Cell]) -> usize {
+    let mut best_start = 0usize;
+    let mut best_score = isize::MIN;
+    for start_row in 0..=ANSI_SCREEN_HEIGHT.saturating_sub(PLAYFIELD_HEIGHT - 1) {
+        let score = projection_score_for_window(cells, start_row);
+        if score > best_score {
+            best_score = score;
+            best_start = start_row;
+        }
+    }
+    best_start
+}
+
+fn projection_score_for_window(cells: &[Cell], start_row: usize) -> isize {
+    let mut score = 0isize;
+    let end_row = start_row + (PLAYFIELD_HEIGHT - 1);
+    let full_text = projected_text(cells, start_row);
+    for row in start_row..end_row {
+        let line = row_plain_text(cells, row);
+        score += line.chars().filter(|ch| *ch != ' ').count() as isize;
+    }
+    if contains_banner_body(&full_text) {
+        score += 400;
+    }
+    if full_text.contains("Version 1.51") || full_text.contains("Version 1.60") {
+        score += 1000;
+    }
+    if full_text.contains("Compliments of your Sysop") {
+        score -= 500;
+    }
+    if full_text.contains("Registration #") {
+        score -= 500;
+    }
+    if full_text.contains("────▐") || full_text.contains("▀▀▒█") || full_text.contains("▄▄▄▄▄▄") {
+        score -= 120;
+    }
+    score
+}
+
+fn projected_text(cells: &[Cell], start_row: usize) -> String {
+    let end_row = start_row + (PLAYFIELD_HEIGHT - 1);
+    (start_row..end_row)
+        .map(|row| row_plain_text(cells, row))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn contains_banner_body(text: &str) -> bool {
+    text.contains("▒██████") || text.contains("██████") || text.contains("ESTERIAN")
+}
+
+fn banner_row_count(text: &str) -> usize {
+    text.lines()
+        .filter(|line| {
+            let block_count = line.chars().filter(|ch| matches!(ch, '█' | '▒' | '▓')).count();
+            block_count >= 8
+        })
+        .count()
 }
 
 struct AnsiState {
@@ -190,7 +309,7 @@ impl AnsiState {
             row: 0,
             col: 0,
             style: default_style(),
-            cells: vec![Cell::new(' ', default_style()); PLAYFIELD_WIDTH * PLAYFIELD_HEIGHT],
+            cells: vec![Cell::new(' ', default_style()); PLAYFIELD_WIDTH * ANSI_SCREEN_HEIGHT],
         }
     }
 
@@ -209,7 +328,7 @@ impl AnsiState {
     }
 
     fn write_char(&mut self, ch: char) {
-        if self.row >= PLAYFIELD_HEIGHT || self.col >= PLAYFIELD_WIDTH {
+        if self.row >= ANSI_SCREEN_HEIGHT || self.col >= PLAYFIELD_WIDTH {
             return;
         }
         let index = self.row * PLAYFIELD_WIDTH + self.col;
@@ -217,10 +336,11 @@ impl AnsiState {
         self.col += 1;
     }
 
-    fn row_plain_text(&self, row: usize) -> String {
-        let start = row * PLAYFIELD_WIDTH;
-        let end = start + PLAYFIELD_WIDTH;
-        self.cells[start..end].iter().map(|cell| cell.ch).collect()
+    fn visible_text(&self) -> String {
+        (0..ANSI_SCREEN_HEIGHT)
+            .map(|row| row_plain_text(&self.cells, row))
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 }
 

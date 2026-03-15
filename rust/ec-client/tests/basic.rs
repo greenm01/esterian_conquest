@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::process::Command;
 
+use ec_client::startup::StartupArt;
 use ec_client::startup::StartupArtConfig;
 
 fn repo_root() -> PathBuf {
@@ -17,6 +18,29 @@ fn startup_default_kdl_parses() {
         StartupArtConfig::load_kdl(&startup_config_path()).expect("startup config should parse");
     assert!(config.bbs_art_path.exists(), "bbs art should exist");
     assert!(config.ec_game_art_path.exists(), "ec art should exist");
+}
+
+#[test]
+fn startup_ec_art_projection_keeps_version_and_art() {
+    let config =
+        StartupArtConfig::load_kdl(&startup_config_path()).expect("startup config should parse");
+    let art = StartupArt::load(&config.ec_game_art_path).expect("ec art should load");
+    let playfield = art.render();
+    let lines = (0..playfield.height())
+        .map(|row| playfield.plain_line(row))
+        .collect::<Vec<_>>();
+    let full = lines.join("\n");
+
+    assert!(full.contains("v1.60"), "rendered art:\n{full}");
+    assert!(!full.contains("Blade"));
+    assert!(!full.contains("Registration #"));
+    assert!(
+        full.contains("ANSI ART CONTRIBUTIONS NEEDED")
+            || full.contains("▒██████")
+            || full.contains("██████")
+            || full.contains("######"),
+        "projected art lost the banner body: {full}"
+    );
 }
 
 #[test]
@@ -40,6 +64,6 @@ fn client_renders_startup_splash_from_fixture() {
     );
 
     let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
-    assert!(stdout.contains("THE BATTLE FIELD BBS"));
-    assert!(stdout.contains("Press any key to continue."));
+    assert!(stdout.contains("INSERT YOUR ANSI ART HERE"));
+    assert!(stdout.contains("Slap a key."));
 }

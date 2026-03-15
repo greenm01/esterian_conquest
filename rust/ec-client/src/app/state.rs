@@ -238,7 +238,7 @@ impl App {
             main_menu_summary.pending_messages,
             &reports,
         );
-        let startup_sequence = StartupSequence::new(&startup_summary);
+        let startup_sequence = StartupSequence::new(&startup_summary, player.is_joined);
         let startup_assets = load_startup_assets(config.startup_config.as_deref())?;
 
         Ok(Self {

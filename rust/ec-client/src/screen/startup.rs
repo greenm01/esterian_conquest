@@ -69,8 +69,8 @@ impl StartupScreen {
         splash_page: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         match splash_page {
-            0 => self.render_art_page(&self.bbs_splash, "Press any key to continue."),
-            1 => self.render_art_page(&self.ec_game_splash, "Press any key to continue."),
+            0 => self.render_art_page(&self.bbs_splash, "Slap a key."),
+            1 => self.render_art_page(&self.ec_game_splash, "Slap a key."),
             _ => self.render_intro_prompt_page(),
         }
     }
@@ -91,9 +91,9 @@ impl StartupScreen {
             buffer.write_text(row + 2, 0, line, classic::body_style());
         }
         let prompt = if intro_page + 1 < INTRO_PAGES.len() {
-            "Press any key for the next section."
+            "Slap a key for the next section."
         } else {
-            "Press any key to continue."
+            "Slap a key."
         };
         draw_plain_prompt(&mut buffer, 19, prompt);
         Ok(buffer)
@@ -152,7 +152,7 @@ impl StartupScreen {
         draw_plain_prompt(
             &mut buffer,
             7,
-            "Press any key to continue to the login-time review flow.",
+            "Slap a key to continue to the login-time review flow.",
         );
         Ok(buffer)
     }
@@ -195,7 +195,7 @@ impl StartupScreen {
         }
 
         row += 1;
-        draw_plain_prompt(&mut buffer, row, "Press any key to continue.");
+        draw_plain_prompt(&mut buffer, row, "Slap a key.");
         Ok(buffer)
     }
 }

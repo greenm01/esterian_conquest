@@ -148,6 +148,11 @@ modern fluid terminal layout:
 - use a real command-line cursor when the client is waiting for input
 - do not add spinner-style idle animation; static prompt state is closer to
   the original feel
+- when reusing preserved full-screen ANSI assets, it is acceptable to parse
+  them on a virtual DOS-sized canvas first and then project/crop the result
+  back into the real `80x20` player window
+- keep that projection logic in the client renderer; do not dump raw ANSI
+  directly to the user's terminal during normal `ec-client` startup
 
 ## Rendering Stack
 
@@ -307,6 +312,15 @@ These should be treated as the current best reference set for:
 - first-time join flow
 - pre-main-menu report presentation
 - first-menu layout after join
+
+Current startup-art policy:
+
+- BBS splash source should be sysop-configurable through KDL-selected asset files
+- EC-owned splash/intro source should live in repo-owned assets, also selected
+  through startup KDL config
+- playback timing, ANSI parsing, and `80x20` projection remain client code
+- until curated startup art lands, placeholder file-backed splash assets are
+  preferable to pretending one raw captured ANSI dump already renders correctly
 
 ## Suggested Near-Term Milestones
 

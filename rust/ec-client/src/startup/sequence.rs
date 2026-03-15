@@ -22,6 +22,7 @@ pub struct StartupSummary {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StartupSequence {
     current: StartupPhase,
+    show_login_review: bool,
     show_results: bool,
     show_messages: bool,
 }
@@ -44,11 +45,14 @@ impl StartupSummary {
 }
 
 impl StartupSequence {
-    pub fn new(summary: &StartupSummary) -> Self {
+    pub fn new(summary: &StartupSummary, is_joined: bool) -> Self {
         Self {
             current: StartupPhase::Splash,
-            show_results: summary.pending_results && !summary.results_line_count.eq(&0),
-            show_messages: summary.pending_messages && !summary.message_line_count.eq(&0),
+            show_login_review: is_joined,
+            show_results: is_joined && summary.pending_results && !summary.results_line_count.eq(&0),
+            show_messages: is_joined
+                && summary.pending_messages
+                && !summary.message_line_count.eq(&0),
         }
     }
 
@@ -58,8 +62,13 @@ impl StartupSequence {
 
     pub fn advance(&mut self) -> StartupPhase {
         self.current = match self.current {
-            StartupPhase::Splash => StartupPhase::LoginSummary,
-            StartupPhase::Intro => StartupPhase::LoginSummary,
+            StartupPhase::Splash | StartupPhase::Intro => {
+                if self.show_login_review {
+                    StartupPhase::LoginSummary
+                } else {
+                    StartupPhase::Complete
+                }
+            }
             StartupPhase::LoginSummary => {
                 if self.show_results {
                     StartupPhase::Results
