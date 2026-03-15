@@ -23,10 +23,11 @@ impl StartupScreen {
         &mut self,
         frame: &ScreenFrame<'_>,
         phase: StartupPhase,
+        intro_page: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         match phase {
             StartupPhase::Splash => self.render_splash(frame),
-            StartupPhase::Intro => self.render_intro(),
+            StartupPhase::Intro => self.render_intro(intro_page),
             StartupPhase::LoginSummary => self.render_login_summary(frame),
             StartupPhase::Results => {
                 self.render_report_lines(frame, "PENDING RESULTS", &self.reports.results_lines)
@@ -89,7 +90,7 @@ impl StartupScreen {
         Ok(buffer)
     }
 
-    fn render_intro(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+    fn render_intro(&self, intro_page: usize) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_centered_text(
             &mut buffer,
@@ -97,15 +98,19 @@ impl StartupScreen {
             "Esterian Conquest Ver 1.60",
             classic::bright_style(),
         );
-        for (row, line) in INTRO_LINES.iter().enumerate() {
+        let lines = INTRO_PAGES
+            .get(intro_page)
+            .copied()
+            .unwrap_or(INTRO_PAGES.last().copied().unwrap_or(&[]));
+        for (row, line) in lines.iter().enumerate() {
             buffer.write_text(row + 2, 0, line, classic::body_style());
         }
-        let last_row = (INTRO_LINES.len() + 1) as u16;
-        let last_col = INTRO_LINES
-            .last()
-            .map(|line| line.chars().count() as u16)
-            .unwrap_or(0);
-        buffer.set_cursor(last_col, last_row);
+        let prompt = if intro_page + 1 < INTRO_PAGES.len() {
+            "Press any key for the next section."
+        } else {
+            "Press any key to continue."
+        };
+        draw_plain_prompt(&mut buffer, 19, prompt);
         Ok(buffer)
     }
 
@@ -210,24 +215,37 @@ impl StartupScreen {
     }
 }
 
-const INTRO_LINES: [&str; 16] = [
-    "Beyond the mapped frontiers of the old Esterian dominion lies a small galaxy",
-    "of contested solar systems. The old masters are gone. Their stations are",
-    "silent, their patrols vanished, and their subjects left with fleets,",
-    "factories, and enough knowledge to build empires.",
+pub const STARTUP_INTRO_PAGE_COUNT: usize = INTRO_PAGES.len();
+
+const INTRO_PAGE_1: [&str; 14] = [
+    "Beyond the mapped frontiers of the old Esterian dominion lies a small",
+    "galaxy of contested solar systems. The old masters are gone. Their",
+    "stations are silent, their patrols vanished, and their subjects left",
+    "with fleets, factories, and enough knowledge to build empires.",
     "",
-    "You rise as one of the new Star Masters. From a single world and a few small",
-    "fleets, you must tax, build, scout, bargain, threaten, and strike before",
-    "rival powers can do the same. Some systems will join your banner willingly.",
-    "Others will require persuasion from orbit.",
+    "You rise as one of the new Star Masters. From a single world and a few",
+    "small fleets, you must tax, build, scout, bargain, threaten, and",
+    "strike before rival powers can do the same. Some systems will join",
+    "your banner willingly. Others will require persuasion from orbit.",
     "",
-    "In profound respect and admiration to Bentley C. Griffith and his fellow",
-    "pioneers, who between 1990 and 1992 forged the enduring legend of Esterian",
-    "Conquest-a digital realm where star empires rose and fell across BBS",
-    "screens-and to the ancient dreamers, strategists, and storytellers whose",
-    "timeless visions of galactic dominion first lit the way for every commander",
-    "who still dares to claim worlds among these endless stars.",
+    "Each maintenance marks the passage of a year. In that span, fleets",
+    "cross the dark between stars, colonies grow or starve, alliances turn",
+    "cold, and wars are decided by distance, industry, mathematics, and",
+    "will.",
 ];
+
+const INTRO_PAGE_2: [&str; 8] = [
+    "In profound respect and admiration to Bentley C. Griffith and his",
+    "fellow pioneers, who between 1990 and 1992 forged the enduring legend",
+    "of Esterian Conquest-a digital realm where star empires rose and fell",
+    "across BBS screens-and to the ancient dreamers, strategists, and",
+    "storytellers whose timeless visions of galactic dominion first lit the",
+    "way for every commander who still dares to claim worlds among these",
+    "endless stars.",
+    "",
+];
+
+const INTRO_PAGES: [&[&str]; 2] = [&INTRO_PAGE_1, &INTRO_PAGE_2];
 
 fn display_or_unknown(value: &str) -> &str {
     if value.is_empty() {

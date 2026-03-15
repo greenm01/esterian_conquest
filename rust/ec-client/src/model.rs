@@ -3,6 +3,7 @@ use ec_data::CoreGameData;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlayerContext {
     pub record_index_1_based: usize,
+    pub is_joined: bool,
     pub empire_name: String,
     pub handle: String,
 }
@@ -43,6 +44,7 @@ impl PlayerContext {
         let handle = record.assigned_player_handle_summary();
         Ok(Self {
             record_index_1_based,
+            is_joined: record.occupied_flag() != 0,
             empire_name,
             handle,
         })

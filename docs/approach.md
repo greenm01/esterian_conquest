@@ -68,6 +68,26 @@ The goal is:
 - when possible, decode changes in `.DAT` files first and use live report viewing second
 - historical text captures are reference evidence when live playback is unavailable or flaky
 
+For the Rust `ECGAME` clone, preserve the original pre-menu player flow too:
+
+- do not treat startup as only a splash or logo
+- model the full pre-command-center path explicitly:
+  - BBS/sysop splash
+  - EC intro animation
+  - first-time onboarding or joined-player review flow
+  - then the first command center menu
+- keep ownership boundaries clear:
+  - BBS splash is sysop-configurable and should not be hardwired as game lore
+  - EC intro remains part of the game/client identity and should live in Rust
+    code/assets rather than a sysop-edited file
+- when the original game asks for homeworld naming or new-colony naming before
+  returning to the menus, treat that as part of the same login/entry pipeline
+- preserve the classic sequence while modernizing friction where useful:
+  - ANSI/CP437 by default
+  - cleaner prompt handling
+  - safer input validation
+  - no fake monochrome-first experience in the default Rust client
+
 7. Use escalating RE depth, not maximum depth by default
 
 - start with Rust-generated scenarios, preserved fixtures, and black-box

@@ -167,12 +167,37 @@ First concrete work:
   - order entry and review
   - classic player workflow around the existing Rust engine
 
+Treat the login/startup side as one explicit pre-command-center pipeline:
+
+- BBS splash is sysop-owned/configurable
+  - keep The Battle Field as the default preset
+- the classic EC ANSI intro is game-owned
+  - keep EC-specific ANSI art in Rust code/assets
+  - starfield
+  - ship
+  - red-line animation
+- after the intro, branch by player state before any command center opens
+  - unjoined player:
+    - first-time help/list/join flow
+    - then First Time Menu
+  - joined player:
+    - reports/messages review
+    - homeworld/new-colony naming prompts when applicable
+    - then Main Menu
+- keep this as one Rust client flow so onboarding, login-time review, naming,
+  and menu entry are modeled together instead of as disconnected screens
+
 ## Immediate Next Steps
 
 1. Verify the restored default `sysop new-game` path in live `ECGAME`:
    - join as player 1
    - confirm homeworld naming prompt appears
    - confirm player 2 can also join cleanly afterward
+   - capture the exact handoff between:
+     - BBS splash
+     - EC intro
+     - first-time menu
+     - joined-player report/message/naming flow
 2. Keep running periodic seeded multi-turn `rust-maint` sweeps to guard against
    regressions while the UI/client work begins.
 3. Write a focused Rust `ECGAME` phase plan:

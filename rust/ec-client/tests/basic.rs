@@ -26,8 +26,7 @@ fn client_renders_startup_splash_from_fixture() {
     );
 
     let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
-    assert!(stdout.contains("ESTERIAN"));
-    assert!(stdout.contains("CONQUEST"));
-    assert!(stdout.contains("Welcome back to Esterian Conquest, Ver 1.60"));
-    assert!(stdout.contains("View Introduction? Y/[N] ->"));
+    assert!(stdout.contains("FIRST TIME MENU:"));
+    assert!(stdout.contains("J>oin this game"));
+    assert!(stdout.contains("L>ist current empires"));
 }

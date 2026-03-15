@@ -5,6 +5,8 @@ mod empire_profile;
 mod empire_status;
 mod enemies;
 mod fleet;
+mod fleet_help;
+mod first_time;
 mod general_help;
 mod general_menu;
 mod layout;
@@ -34,11 +36,21 @@ pub use empire_profile::EmpireProfileScreen;
 pub use empire_status::EmpireStatusScreen;
 pub use enemies::EnemiesScreen;
 pub use fleet::{
-    FleetEtaMode, FleetEtaScreen, FleetListMode, FleetListScreen, FleetMenuScreen,
-    FleetReviewScreen, FleetRoeScreen, FleetRow,
+    FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen, FleetListMode,
+    FleetListScreen, FleetMenuScreen, FleetReviewScreen, FleetRoeScreen, FleetRow,
 };
+pub use first_time::{
+    render_first_time_homeworld_confirm, render_first_time_homeworld_name,
+    render_first_time_join_confirm, render_first_time_join_name,
+    render_first_time_join_name_confirm, render_first_time_join_no_pending,
+    render_first_time_join_summary, FirstTimeEmpiresScreen, FirstTimeHelpScreen,
+    FirstTimeIntroScreen, FirstTimeMenuScreen,
+};
+pub(crate) use first_time::FIRST_TIME_INTRO_PAGE_COUNT;
+pub use fleet_help::FleetHelpScreen;
 pub(crate) use enemies::ENEMIES_VISIBLE_ROWS;
 pub(crate) use fleet::FLEET_VISIBLE_ROWS;
+pub(crate) use table::format_fleet_number;
 pub use general_help::GeneralHelpScreen;
 pub use general_menu::GeneralMenuScreen;
 pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
@@ -71,6 +83,7 @@ pub use rankings::RankingsScreen;
 pub use reports::ReportsScreen;
 pub use starmap::StarmapScreen;
 pub use startup::StartupScreen;
+pub(crate) use startup::STARTUP_INTRO_PAGE_COUNT;
 
 use std::path::Path;
 
@@ -83,13 +96,26 @@ use crate::startup::StartupPhase;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScreenId {
     Startup(StartupPhase),
+    FirstTimeMenu,
+    FirstTimeHelp,
+    FirstTimeEmpires,
+    FirstTimeIntro,
+    FirstTimeJoinConfirm,
+    FirstTimeJoinEmpireName,
+    FirstTimeJoinEmpireConfirm,
+    FirstTimeJoinSummary,
+    FirstTimeJoinNoPending,
+    FirstTimeHomeworldName,
+    FirstTimeHomeworldConfirm,
     MainMenu,
     GeneralMenu,
     GeneralHelp,
+    FleetHelp,
     FleetMenu,
     FleetList(FleetListMode),
     FleetReview,
     FleetRoeSelect,
+    FleetDetach,
     FleetEta,
     PlanetMenu,
     PlanetHelp,
@@ -139,6 +165,7 @@ pub enum ScreenId {
 pub enum CommandMenu {
     Main,
     General,
+    Fleet,
     Planet,
     PlanetBuild,
 }
@@ -147,6 +174,7 @@ pub fn command_menu_label(menu: CommandMenu) -> &'static str {
     match menu {
         CommandMenu::Main => "MAIN COMMAND",
         CommandMenu::General => "GENERAL COMMAND",
+        CommandMenu::Fleet => "FLEET COMMAND",
         CommandMenu::Planet => "PLANET COMMAND",
         CommandMenu::PlanetBuild => "BUILD COMMAND",
     }

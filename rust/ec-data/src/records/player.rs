@@ -57,6 +57,13 @@ impl PlayerRecord {
         trim_ascii_field(self.handle_bytes())
     }
 
+    pub fn set_assigned_player_handle_raw(&mut self, value: &str) {
+        let bytes = value.as_bytes();
+        let len = bytes.len().min(25);
+        self.raw[1..0x1A].fill(b' ');
+        self.raw[1..1 + len].copy_from_slice(&bytes[..len]);
+    }
+
     pub fn controlled_empire_name_len_raw(&self) -> u8 {
         self.raw[27]
     }
@@ -65,6 +72,10 @@ impl PlayerRecord {
         let len = self.controlled_empire_name_len_raw() as usize;
         let end = (28 + len).min(self.raw.len());
         trim_ascii_field(&self.raw[28..end])
+    }
+
+    pub fn set_controlled_empire_name_raw(&mut self, value: &str) {
+        self.set_legacy_status_name_raw(value);
     }
 
     pub fn set_legacy_status_name_raw(&mut self, value: &str) {
@@ -134,6 +145,15 @@ impl PlayerRecord {
         let [lo, hi] = value.to_le_bytes();
         self.raw[0x48] = lo;
         self.raw[0x49] = hi;
+    }
+
+    pub fn homeworld_planet_index_1_based_raw(&self) -> u8 {
+        self.raw[0x4C]
+    }
+
+    pub fn set_homeworld_planet_index_1_based_raw(&mut self, value: u8) {
+        self.raw[0x4C] = value;
+        self.raw[0x4D] = value;
     }
 
     /// Accumulated production points available to spend this round.

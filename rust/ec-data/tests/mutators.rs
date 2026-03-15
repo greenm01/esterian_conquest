@@ -1527,3 +1527,131 @@ fn core_game_data_current_known_validation_helpers_match_known_fixtures() {
             .any(|error| error.contains("guard enable expected 0x01"))
     );
 }
+
+#[test]
+fn detach_ships_creates_new_fleet_and_preserves_donor_order() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+    player.set_fleet_chain_head_raw(1);
+
+    let mut donor = FleetRecord::new_zeroed();
+    donor.set_owner_empire_raw(1);
+    donor.set_local_slot_word_raw(1);
+    donor.set_fleet_id_word_raw(1);
+    donor.set_current_location_coords_raw([24, 14]);
+    donor.set_tuple_a_payload_raw([0x80, 0, 0, 0, 0]);
+    donor.set_tuple_b_payload_raw([0x80, 0, 0, 0, 0]);
+    donor.set_tuple_c_payload_raw([0x81, 0, 0, 0, 0]);
+    donor.set_standing_order_kind(Order::GuardBlockadeWorld);
+    donor.set_standing_order_target_coords_raw([25, 12]);
+    donor.set_destroyer_count(2);
+    donor.set_cruiser_count(1);
+    donor.set_troop_transport_count(2);
+    donor.set_army_count(1);
+    donor.set_etac_count(1);
+    donor.set_rules_of_engagement(6);
+    donor.recompute_max_speed_from_composition();
+    donor.set_current_speed(5);
+
+    let mut data = CoreGameData {
+        player: PlayerDat { records: vec![player] },
+        planets: PlanetDat { records: vec![] },
+        fleets: FleetDat { records: vec![donor] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    let result = data
+        .detach_ships_to_new_fleet(
+            1,
+            1,
+            FleetDetachSelection {
+                destroyers: 1,
+                full_transports: 1,
+                etacs: 1,
+                ..FleetDetachSelection::default()
+            },
+            None,
+            4,
+        )
+        .unwrap();
+
+    assert_eq!(
+        result,
+        FleetDetachResult {
+            donor_fleet_record_index_1_based: 1,
+            new_fleet_record_index_1_based: 2,
+        }
+    );
+    let donor = &data.fleets.records[0];
+    assert_eq!(donor.destroyer_count(), 1);
+    assert_eq!(donor.cruiser_count(), 1);
+    assert_eq!(donor.troop_transport_count(), 1);
+    assert_eq!(donor.army_count(), 0);
+    assert_eq!(donor.etac_count(), 0);
+    assert_eq!(donor.standing_order_kind(), Order::GuardBlockadeWorld);
+    assert_eq!(donor.standing_order_target_coords_raw(), [25, 12]);
+
+    let detached = &data.fleets.records[1];
+    assert_eq!(detached.local_slot_word_raw(), 2);
+    assert_eq!(detached.fleet_id_word_raw(), 2);
+    assert_eq!(detached.current_location_coords_raw(), [24, 14]);
+    assert_eq!(detached.destroyer_count(), 1);
+    assert_eq!(detached.troop_transport_count(), 1);
+    assert_eq!(detached.army_count(), 1);
+    assert_eq!(detached.etac_count(), 1);
+    assert_eq!(detached.rules_of_engagement(), 4);
+    assert_eq!(detached.standing_order_kind(), Order::HoldPosition);
+    assert_eq!(detached.current_speed(), 0);
+    assert_eq!(data.player.records[0].fleet_chain_head_raw(), 1);
+}
+
+#[test]
+fn detach_ships_requires_valid_post_split_donor_speed() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+    player.set_fleet_chain_head_raw(1);
+
+    let mut donor = FleetRecord::new_zeroed();
+    donor.set_owner_empire_raw(1);
+    donor.set_local_slot_word_raw(1);
+    donor.set_fleet_id_word_raw(1);
+    donor.set_destroyer_count(1);
+    donor.set_cruiser_count(1);
+    donor.recompute_max_speed_from_composition();
+    donor.set_current_speed(6);
+
+    let mut data = CoreGameData {
+        player: PlayerDat { records: vec![player] },
+        planets: PlanetDat { records: vec![] },
+        fleets: FleetDat { records: vec![donor] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    let error = data
+        .detach_ships_to_new_fleet(
+            1,
+            1,
+            FleetDetachSelection {
+                destroyers: 1,
+                ..FleetDetachSelection::default()
+            },
+            Some(6),
+            6,
+        )
+        .unwrap_err();
+
+    assert_eq!(
+        error,
+        GameStateMutationError::InvalidFleetSpeed {
+            fleet_index_1_based: 1,
+            requested: 6,
+            max: 5,
+        }
+    );
+}

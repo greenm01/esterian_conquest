@@ -5,7 +5,8 @@ use std::path::PathBuf;
 use ec_data::{
     append_mail_queue, build_player_starmap_projection, load_mail_queue, save_mail_queue,
     plan_route, AutoCommissionSummary, CommissionResult, CoreGameData, DatabaseDat,
-    GameStateMutationError, PlayerStarmapWorld, ProductionItemKind, QueuedPlayerMail,
+    FleetDetachSelection, GameStateMutationError, PlayerStarmapWorld, ProductionItemKind,
+    QueuedPlayerMail,
 };
 
 use crate::app::Action;
@@ -14,16 +15,21 @@ use crate::reports::{clear_report_files, ReportsPreview};
 use crate::screen::{
     build_unit_spec, build_unit_spec_by_kind, max_quantity, BuildHelpScreen, CommandMenu,
     DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
-    FleetEtaMode, FleetEtaScreen, FleetListMode, FleetListScreen, FleetMenuScreen,
-    FleetReviewScreen, FleetRoeScreen, FleetRow,
+    FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen, FleetHelpScreen,
+    FleetListMode, FleetListScreen, FleetMenuScreen, FleetReviewScreen, FleetRoeScreen, FleetRow,
+    FirstTimeEmpiresScreen, FirstTimeHelpScreen, FirstTimeIntroScreen, FirstTimeMenuScreen,
     GeneralHelpScreen, GeneralMenuScreen, MainMenuScreen, MessageComposeScreen,
     PartialStarmapScreen, PlanetAutoCommissionScreen, PlanetBuildChangeRow, PlanetBuildListRow,
     PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionRow,
     PlanetCommissionScreen, PlanetCommissionView, PlanetDatabaseRow, PlanetDatabaseScreen,
     PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen, PlanetListSort,
     PlanetMenuScreen, PlanetTaxScreen, PlanetTransportFleetRow, PlanetTransportMode,
-    PlanetTransportPlanetRow, PlanetTransportScreen, RankingsScreen, ReportsScreen,
-    Screen, ScreenFrame, ScreenId, StarmapScreen, StartupScreen,
+    PlanetTransportPlanetRow, PlanetTransportScreen, RankingsScreen, ReportsScreen, Screen,
+    ScreenFrame, ScreenId, StarmapScreen, StartupScreen, FIRST_TIME_INTRO_PAGE_COUNT,
+    render_first_time_homeworld_confirm, render_first_time_homeworld_name,
+    render_first_time_join_confirm, render_first_time_join_name,
+    render_first_time_join_name_confirm, render_first_time_join_no_pending,
+    render_first_time_join_summary,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -44,13 +50,19 @@ pub struct App {
     current_screen: ScreenId,
     startup_sequence: StartupSequence,
     startup: StartupScreen,
+    first_time_menu: FirstTimeMenuScreen,
+    first_time_help: FirstTimeHelpScreen,
+    first_time_empires: FirstTimeEmpiresScreen,
+    first_time_intro: FirstTimeIntroScreen,
     main_menu: MainMenuScreen,
     general_menu: GeneralMenuScreen,
     general_help: GeneralHelpScreen,
+    fleet_help: FleetHelpScreen,
     fleet_menu: FleetMenuScreen,
     fleet_list: FleetListScreen,
     fleet_review: FleetReviewScreen,
     fleet_roe: FleetRoeScreen,
+    fleet_detach: FleetDetachScreen,
     fleet_eta: FleetEtaScreen,
     planet_menu: PlanetMenuScreen,
     planet_help: PlanetHelpScreen,
@@ -110,6 +122,14 @@ pub struct App {
     fleet_roe_select_input: String,
     fleet_roe_input: String,
     fleet_roe_status: Option<String>,
+    fleet_detach_scroll_offset: usize,
+    fleet_detach_cursor: usize,
+    fleet_detach_mode: FleetDetachMode,
+    fleet_detach_select_input: String,
+    fleet_detach_input: String,
+    fleet_detach_status: Option<String>,
+    fleet_detach_selection: FleetDetachSelection,
+    fleet_detach_donor_speed: Option<u8>,
     fleet_eta_scroll_offset: usize,
     fleet_eta_cursor: usize,
     fleet_eta_mode: FleetEtaMode,
@@ -160,6 +180,12 @@ pub struct App {
     starmap_capture_complete: bool,
     export_root: PathBuf,
     queue_dir: Option<PathBuf>,
+    startup_intro_page: usize,
+    first_time_intro_page: usize,
+    first_time_status: Option<String>,
+    first_time_input: String,
+    first_time_empire_name: String,
+    first_time_homeworld_name: String,
 }
 
 impl App {
@@ -172,6 +198,7 @@ impl App {
         let game_data = CoreGameData::load(&game_dir)?;
         let database = DatabaseDat::parse(&fs::read(game_dir.join("DATABASE.DAT"))?)?;
         let player = PlayerContext::from_game_data(&game_data, config.player_record_index_1_based)?;
+        let player_is_joined = player.is_joined;
         let pending_results = file_nonempty(game_dir.join("RESULTS.DAT"));
         let reports = ReportsPreview::load(&game_dir)?;
         let main_menu_summary = MainMenuSummary::from_game_data(
@@ -193,16 +220,26 @@ impl App {
             game_data,
             database,
             player,
-            current_screen: ScreenId::Startup(startup_sequence.current()),
+            current_screen: if player_is_joined {
+                ScreenId::Startup(startup_sequence.current())
+            } else {
+                ScreenId::FirstTimeMenu
+            },
             startup_sequence,
             startup: StartupScreen::new(startup_summary, reports.clone()),
+            first_time_menu: FirstTimeMenuScreen::new(),
+            first_time_help: FirstTimeHelpScreen::new(),
+            first_time_empires: FirstTimeEmpiresScreen::new(),
+            first_time_intro: FirstTimeIntroScreen::new(),
             main_menu: MainMenuScreen::new(),
             general_menu: GeneralMenuScreen::new(),
             general_help: GeneralHelpScreen::new(),
+            fleet_help: FleetHelpScreen::new(),
             fleet_menu: FleetMenuScreen::new(),
             fleet_list: FleetListScreen::new(),
             fleet_review: FleetReviewScreen::new(),
             fleet_roe: FleetRoeScreen::new(),
+            fleet_detach: FleetDetachScreen::new(),
             fleet_eta: FleetEtaScreen::new(),
             planet_menu: PlanetMenuScreen::new(),
             planet_help: PlanetHelpScreen::new(),
@@ -262,6 +299,14 @@ impl App {
             fleet_roe_select_input: String::new(),
             fleet_roe_input: String::new(),
             fleet_roe_status: None,
+            fleet_detach_scroll_offset: 0,
+            fleet_detach_cursor: 0,
+            fleet_detach_mode: FleetDetachMode::SelectingFleet,
+            fleet_detach_select_input: String::new(),
+            fleet_detach_input: String::new(),
+            fleet_detach_status: None,
+            fleet_detach_selection: FleetDetachSelection::default(),
+            fleet_detach_donor_speed: None,
             fleet_eta_scroll_offset: 0,
             fleet_eta_cursor: 0,
             fleet_eta_mode: FleetEtaMode::SelectingFleet,
@@ -312,6 +357,12 @@ impl App {
             starmap_capture_complete: false,
             export_root,
             queue_dir: config.queue_dir,
+            startup_intro_page: 0,
+            first_time_intro_page: 0,
+            first_time_status: None,
+            first_time_input: String::new(),
+            first_time_empire_name: String::new(),
+            first_time_homeworld_name: String::new(),
         })
     }
 
@@ -326,10 +377,50 @@ impl App {
         };
 
         let playfield = match self.current_screen {
-            ScreenId::Startup(phase) => self.startup.render_phase(&frame, phase)?,
+            ScreenId::Startup(phase) => self
+                .startup
+                .render_phase(&frame, phase, self.startup_intro_page)?,
+            ScreenId::FirstTimeMenu => self
+                .first_time_menu
+                .render(self.first_time_status.as_deref())?,
+            ScreenId::FirstTimeHelp => self.first_time_help.render(&frame)?,
+            ScreenId::FirstTimeEmpires => self
+                .first_time_empires
+                .render_rows(&self.first_time_empire_rows())?,
+            ScreenId::FirstTimeIntro => self
+                .first_time_intro
+                .render_page(self.first_time_intro_page)?,
+            ScreenId::FirstTimeJoinConfirm => render_first_time_join_confirm()?,
+            ScreenId::FirstTimeJoinEmpireName => render_first_time_join_name(
+                &self.first_time_input,
+                self.first_time_status.as_deref(),
+            )?,
+            ScreenId::FirstTimeJoinEmpireConfirm => {
+                render_first_time_join_name_confirm(&self.first_time_empire_name)?
+            }
+            ScreenId::FirstTimeJoinSummary => render_first_time_join_summary(
+                &self.first_time_empire_name,
+                self.player.record_index_1_based,
+                self.game_data.conquest.game_year(),
+            )?,
+            ScreenId::FirstTimeJoinNoPending => render_first_time_join_no_pending()?,
+            ScreenId::FirstTimeHomeworldName => {
+                let (coords, present, potential) = self.first_time_homeworld_summary()?;
+                render_first_time_homeworld_name(
+                    coords,
+                    present,
+                    potential,
+                    &self.first_time_input,
+                    self.first_time_status.as_deref(),
+                )?
+            }
+            ScreenId::FirstTimeHomeworldConfirm => {
+                render_first_time_homeworld_confirm(&self.first_time_homeworld_name)?
+            }
             ScreenId::MainMenu => self.main_menu.render(&frame)?,
             ScreenId::GeneralMenu => self.general_menu.render(&frame)?,
             ScreenId::GeneralHelp => self.general_help.render(&frame)?,
+            ScreenId::FleetHelp => self.fleet_help.render(&frame)?,
             ScreenId::FleetMenu => self.fleet_menu.render(&frame)?,
             ScreenId::FleetList(mode) => self.fleet_list.render(
                 mode,
@@ -354,6 +445,21 @@ impl App {
                 &self.fleet_roe_input,
                 self.fleet_roe_status.as_deref(),
             )?,
+            ScreenId::FleetDetach => {
+                let rows = self.fleet_rows();
+                let (prompt, default) = self.fleet_detach_prompt_and_default(&rows);
+                let input = self.fleet_detach_current_input().to_string();
+                let status = self.fleet_detach_status.clone();
+                self.fleet_detach.render(
+                    &rows,
+                    self.fleet_detach_scroll_offset,
+                    self.fleet_detach_cursor,
+                    &prompt,
+                    &default,
+                    &input,
+                    status.as_deref(),
+                )?
+            }
             ScreenId::FleetEta => self.fleet_eta.render(
                 &self.fleet_rows(),
                 self.fleet_eta_scroll_offset,
@@ -607,6 +713,20 @@ impl App {
     }
 
     pub fn advance_startup(&mut self) {
+        if self.current_screen == ScreenId::FirstTimeIntro {
+            if self.first_time_intro_page + 1 < FIRST_TIME_INTRO_PAGE_COUNT {
+                self.first_time_intro_page += 1;
+            } else {
+                self.current_screen = ScreenId::FirstTimeMenu;
+            }
+            return;
+        }
+        if self.current_screen == ScreenId::Startup(StartupPhase::Intro)
+            && self.startup_intro_page + 1 < crate::screen::STARTUP_INTRO_PAGE_COUNT
+        {
+            self.startup_intro_page += 1;
+            return;
+        }
         let next = self.startup_sequence.advance();
         self.current_screen = match next {
             StartupPhase::Complete => ScreenId::MainMenu,
@@ -615,8 +735,141 @@ impl App {
     }
 
     pub fn open_startup_intro(&mut self) {
+        self.startup_intro_page = 0;
         let next = self.startup_sequence.open_intro();
         self.current_screen = ScreenId::Startup(next);
+    }
+
+    pub fn open_first_time_menu(&mut self) {
+        self.current_screen = ScreenId::FirstTimeMenu;
+    }
+
+    pub fn open_first_time_help(&mut self) {
+        self.first_time_status = None;
+        self.current_screen = ScreenId::FirstTimeHelp;
+    }
+
+    pub fn open_first_time_empires(&mut self) {
+        self.first_time_status = None;
+        self.current_screen = ScreenId::FirstTimeEmpires;
+    }
+
+    pub fn open_first_time_intro(&mut self) {
+        self.first_time_status = None;
+        self.first_time_intro_page = 0;
+        self.current_screen = ScreenId::FirstTimeIntro;
+    }
+
+    pub fn open_first_time_join_confirm(&mut self) {
+        self.first_time_status = None;
+        self.first_time_input.clear();
+        self.current_screen = ScreenId::FirstTimeJoinConfirm;
+    }
+
+    pub fn show_first_time_ansi_notice(&mut self) {
+        self.first_time_status = Some(
+            "ANSI stays on. The stars look better in color."
+                .to_string(),
+        );
+        self.current_screen = ScreenId::FirstTimeMenu;
+    }
+
+    pub fn append_first_time_input_char(&mut self, ch: char) {
+        if !matches!(
+            self.current_screen,
+            ScreenId::FirstTimeJoinEmpireName | ScreenId::FirstTimeHomeworldName
+        ) {
+            return;
+        }
+        if !ch.is_ascii_graphic() && ch != ' ' {
+            return;
+        }
+        if self.first_time_input.chars().count() >= 20 {
+            return;
+        }
+        self.first_time_input.push(ch);
+    }
+
+    pub fn backspace_first_time_input(&mut self) {
+        if !matches!(
+            self.current_screen,
+            ScreenId::FirstTimeJoinEmpireName | ScreenId::FirstTimeHomeworldName
+        ) {
+            return;
+        }
+        self.first_time_input.pop();
+    }
+
+    pub fn submit_first_time_input(&mut self) {
+        match self.current_screen {
+            ScreenId::FirstTimeJoinEmpireName => {
+                let value = self.first_time_input.trim();
+                if value.is_empty() {
+                    self.first_time_status = Some("Empire names need at least one visible character.".to_string());
+                    return;
+                }
+                self.first_time_status = None;
+                self.first_time_empire_name = value.to_string();
+                self.first_time_input.clear();
+                self.current_screen = ScreenId::FirstTimeJoinEmpireConfirm;
+            }
+            ScreenId::FirstTimeHomeworldName => {
+                let value = self.first_time_input.trim();
+                if value.is_empty() {
+                    self.first_time_status = Some("Homeworld names need at least one visible character.".to_string());
+                    return;
+                }
+                self.first_time_status = None;
+                self.first_time_homeworld_name = value.to_string();
+                self.first_time_input.clear();
+                self.current_screen = ScreenId::FirstTimeHomeworldConfirm;
+            }
+            _ => {}
+        }
+    }
+
+    pub fn accept_first_time_prompt(&mut self) {
+        match self.current_screen {
+            ScreenId::FirstTimeJoinConfirm => {
+                self.first_time_status = None;
+                self.first_time_input.clear();
+                self.current_screen = ScreenId::FirstTimeJoinEmpireName;
+            }
+            ScreenId::FirstTimeJoinEmpireConfirm => {
+                if self.complete_first_time_join().is_ok() {
+                    self.current_screen = ScreenId::FirstTimeJoinSummary;
+                }
+            }
+            ScreenId::FirstTimeJoinSummary => {
+                self.current_screen = ScreenId::FirstTimeJoinNoPending;
+            }
+            ScreenId::FirstTimeJoinNoPending => {
+                self.first_time_status = None;
+                self.first_time_input.clear();
+                self.current_screen = ScreenId::FirstTimeHomeworldName;
+            }
+            ScreenId::FirstTimeHomeworldConfirm => {
+                if self.complete_first_time_homeworld_name().is_ok() {
+                    self.current_screen = ScreenId::MainMenu;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    pub fn reject_first_time_prompt(&mut self) {
+        match self.current_screen {
+            ScreenId::FirstTimeJoinConfirm => self.open_first_time_menu(),
+            ScreenId::FirstTimeJoinEmpireConfirm => {
+                self.first_time_input = self.first_time_empire_name.clone();
+                self.current_screen = ScreenId::FirstTimeJoinEmpireName;
+            }
+            ScreenId::FirstTimeHomeworldConfirm => {
+                self.first_time_input = self.first_time_homeworld_name.clone();
+                self.current_screen = ScreenId::FirstTimeHomeworldName;
+            }
+            _ => {}
+        }
     }
 
     pub fn open_planet_menu(&mut self) {
@@ -626,6 +879,10 @@ impl App {
 
     pub fn open_fleet_menu(&mut self) {
         self.current_screen = ScreenId::FleetMenu;
+    }
+
+    pub fn open_fleet_help(&mut self) {
+        self.current_screen = ScreenId::FleetHelp;
     }
 
     pub fn open_fleet_list(&mut self, mode: FleetListMode) {
@@ -660,6 +917,26 @@ impl App {
         self.fleet_roe_cursor = 0;
         self.fleet_roe_editing = false;
         self.current_screen = ScreenId::FleetRoeSelect;
+    }
+
+    pub fn open_fleet_detach(&mut self) {
+        if self.current_screen == ScreenId::FleetDetach {
+            self.fleet_detach_mode = FleetDetachMode::SelectingFleet;
+            self.fleet_detach_input.clear();
+            self.fleet_detach_status = None;
+            self.fleet_detach_selection = FleetDetachSelection::default();
+            self.fleet_detach_donor_speed = None;
+            return;
+        }
+        self.fleet_detach_status = None;
+        self.fleet_detach_select_input.clear();
+        self.fleet_detach_input.clear();
+        self.fleet_detach_scroll_offset = 0;
+        self.fleet_detach_cursor = 0;
+        self.fleet_detach_mode = FleetDetachMode::SelectingFleet;
+        self.fleet_detach_selection = FleetDetachSelection::default();
+        self.fleet_detach_donor_speed = None;
+        self.current_screen = ScreenId::FleetDetach;
     }
 
     pub fn open_fleet_eta(&mut self) {
@@ -975,6 +1252,28 @@ impl App {
         self.fleet_roe_status = None;
     }
 
+    pub fn move_fleet_detach_select(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::FleetDetach
+            || self.fleet_detach_mode != FleetDetachMode::SelectingFleet
+        {
+            return;
+        }
+        let total = self.fleet_rows().len();
+        if total == 0 {
+            self.fleet_detach_cursor = 0;
+            return;
+        }
+        let next = self.fleet_detach_cursor as isize + delta as isize;
+        self.fleet_detach_cursor = next.rem_euclid(total as isize) as usize;
+        sync_scroll_to_cursor(
+            &mut self.fleet_detach_scroll_offset,
+            self.fleet_detach_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+        );
+        self.fleet_detach_select_input.clear();
+        self.fleet_detach_status = None;
+    }
+
     pub fn move_fleet_eta_select(&mut self, delta: i8) {
         if self.current_screen != ScreenId::FleetEta || self.fleet_eta_mode != FleetEtaMode::SelectingFleet {
             return;
@@ -1011,6 +1310,30 @@ impl App {
             }
             self.fleet_roe_status = None;
         }
+    }
+
+    pub fn append_fleet_detach_char(&mut self, ch: char) {
+        if self.current_screen != ScreenId::FleetDetach || !ch.is_ascii_digit() {
+            return;
+        }
+        let limit = if self.fleet_detach_mode == FleetDetachMode::SelectingFleet {
+            4
+        } else {
+            3
+        };
+        let input = if self.fleet_detach_mode == FleetDetachMode::SelectingFleet {
+            &mut self.fleet_detach_select_input
+        } else {
+            &mut self.fleet_detach_input
+        };
+        if input.len() >= limit {
+            return;
+        }
+        input.push(ch);
+        if self.fleet_detach_mode == FleetDetachMode::SelectingFleet {
+            self.sync_fleet_detach_cursor_to_input();
+        }
+        self.fleet_detach_status = None;
     }
 
     pub fn append_fleet_eta_char(&mut self, ch: char) {
@@ -1054,6 +1377,19 @@ impl App {
             }
             self.fleet_roe_status = None;
         }
+    }
+
+    pub fn backspace_fleet_detach_input(&mut self) {
+        if self.current_screen != ScreenId::FleetDetach {
+            return;
+        }
+        if self.fleet_detach_mode == FleetDetachMode::SelectingFleet {
+            self.fleet_detach_select_input.pop();
+            self.sync_fleet_detach_cursor_to_input();
+        } else {
+            self.fleet_detach_input.pop();
+        }
+        self.fleet_detach_status = None;
     }
 
     pub fn backspace_fleet_eta_input(&mut self) {
@@ -1156,6 +1492,199 @@ impl App {
         self.fleet_roe_input.clear();
         self.fleet_roe_status = None;
         self.fleet_roe_editing = false;
+        Ok(())
+    }
+
+    pub fn submit_fleet_detach(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if self.current_screen != ScreenId::FleetDetach {
+            return Ok(());
+        }
+        let rows = self.fleet_rows();
+        let Some(selected_row) = rows.get(self.fleet_detach_cursor) else {
+            self.current_screen = ScreenId::FleetMenu;
+            return Ok(());
+        };
+
+        if self.fleet_detach_mode == FleetDetachMode::SelectingFleet {
+            if !self.fleet_detach_select_input.trim().is_empty() {
+                let target_fleet_id = match self.fleet_detach_select_input.trim().parse::<u16>() {
+                    Ok(value) => value,
+                    Err(_) => {
+                        self.fleet_detach_status =
+                            Some("Enter a fleet number from the table.".to_string());
+                        return Ok(());
+                    }
+                };
+                let Some(index) = rows.iter().position(|row| row.fleet_number == target_fleet_id) else {
+                    self.fleet_detach_status =
+                        Some(format!("Fleet #{target_fleet_id} is not in your fleet list."));
+                    return Ok(());
+                };
+                self.fleet_detach_cursor = index;
+                sync_scroll_to_cursor(
+                    &mut self.fleet_detach_scroll_offset,
+                    self.fleet_detach_cursor,
+                    crate::screen::FLEET_VISIBLE_ROWS,
+                );
+            }
+            if self.current_fleet_detach_ship_total() <= 1 {
+                self.fleet_detach_status =
+                    Some("A fleet must contain at least two ships to detach.".to_string());
+                return Ok(());
+            }
+            self.fleet_detach_select_input.clear();
+            self.fleet_detach_input.clear();
+            self.fleet_detach_status = None;
+            self.fleet_detach_selection = FleetDetachSelection::default();
+            self.fleet_detach_donor_speed = None;
+            self.fleet_detach_mode = self
+                .next_fleet_detach_prompt_mode(FleetDetachMode::SelectingFleet)
+                .unwrap_or(FleetDetachMode::SettingNewFleetRoe);
+            return Ok(());
+        }
+
+        let Some(record) = self
+            .game_data
+            .fleets
+            .records
+            .get(selected_row.fleet_record_index_1_based - 1)
+            .cloned()
+        else {
+            self.current_screen = ScreenId::FleetMenu;
+            return Ok(());
+        };
+
+        match self.fleet_detach_mode {
+            FleetDetachMode::EnteringBattleships
+            | FleetDetachMode::EnteringCruisers
+            | FleetDetachMode::EnteringDestroyers
+            | FleetDetachMode::EnteringFullTransports
+            | FleetDetachMode::EnteringEmptyTransports
+            | FleetDetachMode::EnteringScouts
+            | FleetDetachMode::EnteringEtacs => {
+                let value = self.resolve_fleet_detach_numeric_input(0)?;
+                match self.fleet_detach_mode {
+                    FleetDetachMode::EnteringBattleships => {
+                        if value > record.battleship_count() {
+                            self.fleet_detach_status = Some("Enter a value from 0 to the table limit.".to_string());
+                            return Ok(());
+                        }
+                        self.fleet_detach_selection.battleships = value;
+                    }
+                    FleetDetachMode::EnteringCruisers => {
+                        if value > record.cruiser_count() {
+                            self.fleet_detach_status = Some("Enter a value from 0 to the table limit.".to_string());
+                            return Ok(());
+                        }
+                        self.fleet_detach_selection.cruisers = value;
+                    }
+                    FleetDetachMode::EnteringDestroyers => {
+                        if value > record.destroyer_count() {
+                            self.fleet_detach_status = Some("Enter a value from 0 to the table limit.".to_string());
+                            return Ok(());
+                        }
+                        self.fleet_detach_selection.destroyers = value;
+                    }
+                    FleetDetachMode::EnteringFullTransports => {
+                        if value > record.army_count() {
+                            self.fleet_detach_status = Some("Enter a value from 0 to the table limit.".to_string());
+                            return Ok(());
+                        }
+                        self.fleet_detach_selection.full_transports = value;
+                    }
+                    FleetDetachMode::EnteringEmptyTransports => {
+                        let available = record
+                            .troop_transport_count()
+                            .saturating_sub(record.army_count());
+                        if value > available {
+                            self.fleet_detach_status = Some("Enter a value from 0 to the table limit.".to_string());
+                            return Ok(());
+                        }
+                        self.fleet_detach_selection.empty_transports = value;
+                    }
+                    FleetDetachMode::EnteringScouts => {
+                        if value > u16::from(record.scout_count()) {
+                            self.fleet_detach_status = Some("Enter a value from 0 to the table limit.".to_string());
+                            return Ok(());
+                        }
+                        self.fleet_detach_selection.scouts = value as u8;
+                    }
+                    FleetDetachMode::EnteringEtacs => {
+                        if value > record.etac_count() {
+                            self.fleet_detach_status = Some("Enter a value from 0 to the table limit.".to_string());
+                            return Ok(());
+                        }
+                        self.fleet_detach_selection.etacs = value;
+                    }
+                    _ => {}
+                }
+                self.fleet_detach_input.clear();
+                self.fleet_detach_status = None;
+                if let Some(next_mode) = self.next_fleet_detach_prompt_mode(self.fleet_detach_mode) {
+                    self.fleet_detach_mode = next_mode;
+                } else if self.fleet_detach_selection.total_ships() == 0 {
+                    self.fleet_detach_status = Some("Detach at least one ship.".to_string());
+                } else if self.fleet_detach_requires_speed_prompt() {
+                    self.fleet_detach_donor_speed = None;
+                    self.fleet_detach_mode = FleetDetachMode::AdjustingDonorSpeed;
+                } else {
+                    self.fleet_detach_donor_speed = None;
+                    self.fleet_detach_mode = FleetDetachMode::SettingNewFleetRoe;
+                }
+            }
+            FleetDetachMode::AdjustingDonorSpeed => {
+                let default_speed = self.fleet_detach_donor_default_speed().max(1);
+                let speed = self.resolve_fleet_detach_numeric_input(default_speed as u16)? as u8;
+                let max_speed = self.fleet_detach_donor_default_speed();
+                if speed == 0 || speed > max_speed {
+                    self.fleet_detach_status =
+                        Some(format!("Enter a speed from 1 to {max_speed}."));
+                    return Ok(());
+                }
+                self.fleet_detach_donor_speed = Some(speed);
+                self.fleet_detach_input.clear();
+                self.fleet_detach_status = None;
+                self.fleet_detach_mode = FleetDetachMode::SettingNewFleetRoe;
+            }
+            FleetDetachMode::SettingNewFleetRoe => {
+                let new_roe = self.resolve_fleet_detach_numeric_input(6)? as u8;
+                if new_roe > 10 {
+                    self.fleet_detach_status = Some("Enter an ROE from 0 to 10.".to_string());
+                    return Ok(());
+                }
+                let detached_has_combat_ships = self.fleet_detach_selection.battleships > 0
+                    || self.fleet_detach_selection.cruisers > 0
+                    || self.fleet_detach_selection.destroyers > 0;
+                if !detached_has_combat_ships && new_roe != 0 {
+                    self.fleet_detach_status =
+                        Some("Non-combat fleets must use ROE 0.".to_string());
+                    return Ok(());
+                }
+                let donor_speed = if self.fleet_detach_requires_speed_prompt() {
+                    Some(
+                        self.fleet_detach_donor_speed
+                            .unwrap_or(self.fleet_detach_donor_default_speed()),
+                    )
+                } else {
+                    None
+                };
+                self.game_data.detach_ships_to_new_fleet(
+                    self.player.record_index_1_based,
+                    selected_row.fleet_record_index_1_based,
+                    self.fleet_detach_selection,
+                    donor_speed,
+                    new_roe,
+                )?;
+                self.game_data.save(&self.game_dir)?;
+                self.fleet_detach_mode = FleetDetachMode::SelectingFleet;
+                self.fleet_detach_input.clear();
+                self.fleet_detach_select_input.clear();
+                self.fleet_detach_status = None;
+                self.fleet_detach_selection = FleetDetachSelection::default();
+                self.fleet_detach_donor_speed = None;
+            }
+            FleetDetachMode::SelectingFleet => {}
+        }
         Ok(())
     }
 
@@ -1925,13 +2454,59 @@ impl App {
     pub fn handle_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
         match self.current_screen {
             ScreenId::Startup(phase) => self.startup.handle_key(phase, key),
+            ScreenId::FirstTimeMenu => self.first_time_menu.handle_key(key),
+            ScreenId::FirstTimeHelp => self.first_time_help.handle_key(key),
+            ScreenId::FirstTimeEmpires => self.first_time_empires.handle_key(key),
+            ScreenId::FirstTimeIntro if self.first_time_intro_page + 1 < FIRST_TIME_INTRO_PAGE_COUNT => {
+                Action::AdvanceStartup
+            }
+            ScreenId::FirstTimeIntro => self.first_time_intro.handle_key(key),
+            ScreenId::FirstTimeJoinConfirm => match key.code {
+                crossterm::event::KeyCode::Char('y')
+                | crossterm::event::KeyCode::Char('Y') => Action::AcceptFirstTimePrompt,
+                crossterm::event::KeyCode::Char('n')
+                | crossterm::event::KeyCode::Char('N')
+                | crossterm::event::KeyCode::Esc => Action::RejectFirstTimePrompt,
+                _ => Action::Noop,
+            },
+            ScreenId::FirstTimeJoinEmpireName | ScreenId::FirstTimeHomeworldName => match key.code {
+                crossterm::event::KeyCode::Char(ch) => Action::AppendFirstTimeInputChar(ch),
+                crossterm::event::KeyCode::Backspace => Action::BackspaceFirstTimeInput,
+                crossterm::event::KeyCode::Enter => Action::SubmitFirstTimeInput,
+                crossterm::event::KeyCode::Esc => Action::OpenFirstTimeMenu,
+                _ => Action::Noop,
+            },
+            ScreenId::FirstTimeJoinEmpireConfirm => match key.code {
+                crossterm::event::KeyCode::Enter
+                | crossterm::event::KeyCode::Char('y')
+                | crossterm::event::KeyCode::Char('Y') => Action::AcceptFirstTimePrompt,
+                crossterm::event::KeyCode::Char('n')
+                | crossterm::event::KeyCode::Char('N')
+                | crossterm::event::KeyCode::Esc => Action::RejectFirstTimePrompt,
+                _ => Action::Noop,
+            },
+            ScreenId::FirstTimeJoinSummary | ScreenId::FirstTimeJoinNoPending => match key.code {
+                crossterm::event::KeyCode::Enter => Action::AcceptFirstTimePrompt,
+                _ => Action::Noop,
+            },
+            ScreenId::FirstTimeHomeworldConfirm => match key.code {
+                crossterm::event::KeyCode::Char('y')
+                | crossterm::event::KeyCode::Char('Y') => Action::AcceptFirstTimePrompt,
+                crossterm::event::KeyCode::Enter
+                | crossterm::event::KeyCode::Char('n')
+                | crossterm::event::KeyCode::Char('N')
+                | crossterm::event::KeyCode::Esc => Action::RejectFirstTimePrompt,
+                _ => Action::Noop,
+            },
             ScreenId::MainMenu => self.main_menu.handle_key(key),
             ScreenId::GeneralMenu => self.general_menu.handle_key(key),
             ScreenId::GeneralHelp => self.general_help.handle_key(key),
+            ScreenId::FleetHelp => self.fleet_help.handle_key(key),
             ScreenId::FleetMenu => self.fleet_menu.handle_key(key),
             ScreenId::FleetList(_) => self.fleet_list.handle_key(key),
             ScreenId::FleetReview => self.fleet_review.handle_key(key),
             ScreenId::FleetRoeSelect => self.handle_fleet_roe_key(key),
+            ScreenId::FleetDetach => self.handle_fleet_detach_key(key),
             ScreenId::FleetEta => self.handle_fleet_eta_key(key),
             ScreenId::PlanetMenu => self.planet_menu.handle_key(key),
             ScreenId::PlanetHelp => self.planet_help.handle_key(key),
@@ -2136,6 +2711,7 @@ impl App {
         self.current_screen = match self.command_return_menu {
             CommandMenu::Main => ScreenId::MainMenu,
             CommandMenu::General => ScreenId::GeneralMenu,
+            CommandMenu::Fleet => ScreenId::FleetMenu,
             CommandMenu::Planet => ScreenId::PlanetMenu,
             CommandMenu::PlanetBuild => ScreenId::PlanetBuildMenu,
         };
@@ -2144,15 +2720,17 @@ impl App {
     fn origin_command_menu(&self) -> CommandMenu {
         match self.current_screen {
             ScreenId::MainMenu
-            | ScreenId::FleetMenu
-            | ScreenId::FleetList(_)
-            | ScreenId::FleetReview
-            | ScreenId::FleetRoeSelect
-            | ScreenId::FleetEta
             | ScreenId::PlanetDatabaseList
             | ScreenId::PlanetDatabaseDetail => {
                 CommandMenu::Main
             }
+            ScreenId::FleetHelp
+            | ScreenId::FleetMenu
+            | ScreenId::FleetList(_)
+            | ScreenId::FleetReview
+            | ScreenId::FleetRoeSelect
+            | ScreenId::FleetDetach
+            | ScreenId::FleetEta => CommandMenu::Fleet,
             ScreenId::GeneralMenu
             | ScreenId::GeneralHelp
             | ScreenId::Enemies
@@ -2192,6 +2770,17 @@ impl App {
             | ScreenId::PlanetBuildSpecify
             | ScreenId::PlanetBuildQuantity => CommandMenu::PlanetBuild,
             ScreenId::Startup(_)
+            | ScreenId::FirstTimeMenu
+            | ScreenId::FirstTimeHelp
+            | ScreenId::FirstTimeEmpires
+            | ScreenId::FirstTimeIntro
+            | ScreenId::FirstTimeJoinConfirm
+            | ScreenId::FirstTimeJoinEmpireName
+            | ScreenId::FirstTimeJoinEmpireConfirm
+            | ScreenId::FirstTimeJoinSummary
+            | ScreenId::FirstTimeJoinNoPending
+            | ScreenId::FirstTimeHomeworldName
+            | ScreenId::FirstTimeHomeworldConfirm
             | ScreenId::PartialStarmapPrompt
             | ScreenId::PartialStarmapView
             | ScreenId::PlanetInfoPrompt
@@ -3425,6 +4014,39 @@ impl App {
         }
     }
 
+    fn handle_fleet_detach_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
+        use crossterm::event::KeyCode;
+
+        match self.fleet_detach_mode {
+            FleetDetachMode::SelectingFleet => match key.code {
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                    crate::app::Action::MoveFleetDetachSelect(-1)
+                }
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                    crate::app::Action::MoveFleetDetachSelect(1)
+                }
+                KeyCode::PageUp => crate::app::Action::MoveFleetDetachSelect(-8),
+                KeyCode::PageDown => crate::app::Action::MoveFleetDetachSelect(8),
+                KeyCode::Enter => crate::app::Action::SubmitFleetDetach,
+                KeyCode::Backspace => crate::app::Action::BackspaceFleetDetachInput,
+                KeyCode::Char(ch) if ch.is_ascii_digit() => crate::app::Action::AppendFleetDetachChar(ch),
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    crate::app::Action::OpenFleetMenu
+                }
+                _ => crate::app::Action::Noop,
+            },
+            _ => match key.code {
+                KeyCode::Enter => crate::app::Action::SubmitFleetDetach,
+                KeyCode::Backspace => crate::app::Action::BackspaceFleetDetachInput,
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    crate::app::Action::OpenFleetDetach
+                }
+                KeyCode::Char(ch) if ch.is_ascii_digit() => crate::app::Action::AppendFleetDetachChar(ch),
+                _ => crate::app::Action::Noop,
+            },
+        }
+    }
+
     fn sync_fleet_roe_cursor_to_input(&mut self) {
         if self.current_screen != ScreenId::FleetRoeSelect || self.fleet_roe_editing {
             return;
@@ -3445,6 +4067,269 @@ impl App {
             self.fleet_roe_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
+    }
+
+    fn sync_fleet_detach_cursor_to_input(&mut self) {
+        if self.current_screen != ScreenId::FleetDetach
+            || self.fleet_detach_mode != FleetDetachMode::SelectingFleet
+        {
+            return;
+        }
+        let Ok(target_fleet_id) = self.fleet_detach_select_input.trim().parse::<u16>() else {
+            return;
+        };
+        let rows = self.fleet_rows();
+        let Some(index) = rows
+            .iter()
+            .position(|row| row.fleet_number == target_fleet_id)
+        else {
+            return;
+        };
+        self.fleet_detach_cursor = index;
+        sync_scroll_to_cursor(
+            &mut self.fleet_detach_scroll_offset,
+            self.fleet_detach_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+        );
+    }
+
+    fn fleet_detach_prompt_and_default(&self, rows: &[FleetRow]) -> (String, String) {
+        let fleet_number = rows
+            .get(self.fleet_detach_cursor)
+            .map(|row| row.fleet_number)
+            .unwrap_or(1);
+        match self.fleet_detach_mode {
+            FleetDetachMode::SelectingFleet => (
+                "Detach ships from fleet # ".to_string(),
+                format_fleet_number_for_rows(fleet_number, rows),
+            ),
+            FleetDetachMode::EnteringBattleships => (
+                "Battleships to detach ".to_string(),
+                "0".to_string(),
+            ),
+            FleetDetachMode::EnteringCruisers => ("Cruisers to detach ".to_string(), "0".to_string()),
+            FleetDetachMode::EnteringDestroyers => {
+                ("Destroyers to detach ".to_string(), "0".to_string())
+            }
+            FleetDetachMode::EnteringFullTransports => (
+                "FULL transports to detach ".to_string(),
+                "0".to_string(),
+            ),
+            FleetDetachMode::EnteringEmptyTransports => (
+                "EMPTY transports to detach ".to_string(),
+                "0".to_string(),
+            ),
+            FleetDetachMode::EnteringScouts => ("Scout ships to detach ".to_string(), "0".to_string()),
+            FleetDetachMode::EnteringEtacs => ("ETAC ships to detach ".to_string(), "0".to_string()),
+            FleetDetachMode::AdjustingDonorSpeed => (
+                format!(
+                    "Fleet #{} new speed ",
+                    format_fleet_number_for_rows(fleet_number, rows)
+                ),
+                self.fleet_detach_donor_default_speed().to_string(),
+            ),
+            FleetDetachMode::SettingNewFleetRoe => ("New fleet ROE ".to_string(), "6".to_string()),
+        }
+    }
+
+    fn fleet_detach_current_input(&self) -> &str {
+        if self.fleet_detach_mode == FleetDetachMode::SelectingFleet {
+            &self.fleet_detach_select_input
+        } else {
+            &self.fleet_detach_input
+        }
+    }
+
+    fn current_fleet_detach_ship_total(&self) -> u32 {
+        let rows = self.fleet_rows();
+        let Some(selected_row) = rows.get(self.fleet_detach_cursor) else {
+            return 0;
+        };
+        self.game_data
+            .fleets
+            .records
+            .get(selected_row.fleet_record_index_1_based - 1)
+            .map(|fleet| {
+                u32::from(fleet.battleship_count())
+                    + u32::from(fleet.cruiser_count())
+                    + u32::from(fleet.destroyer_count())
+                    + u32::from(fleet.troop_transport_count())
+                    + u32::from(fleet.scout_count())
+                    + u32::from(fleet.etac_count())
+            })
+            .unwrap_or(0)
+    }
+
+    fn next_fleet_detach_prompt_mode(&self, current: FleetDetachMode) -> Option<FleetDetachMode> {
+        let rows = self.fleet_rows();
+        let selected_row = rows.get(self.fleet_detach_cursor)?;
+        let fleet = self
+            .game_data
+            .fleets
+            .records
+            .get(selected_row.fleet_record_index_1_based - 1)?;
+        let modes = [
+            (
+                FleetDetachMode::EnteringBattleships,
+                fleet.battleship_count() > 0,
+            ),
+            (FleetDetachMode::EnteringCruisers, fleet.cruiser_count() > 0),
+            (
+                FleetDetachMode::EnteringDestroyers,
+                fleet.destroyer_count() > 0,
+            ),
+            (
+                FleetDetachMode::EnteringFullTransports,
+                fleet.army_count() > 0,
+            ),
+            (
+                FleetDetachMode::EnteringEmptyTransports,
+                fleet.troop_transport_count() > fleet.army_count(),
+            ),
+            (FleetDetachMode::EnteringScouts, fleet.scout_count() > 0),
+            (FleetDetachMode::EnteringEtacs, fleet.etac_count() > 0),
+        ];
+        let start_idx = match current {
+            FleetDetachMode::SelectingFleet => 0,
+            FleetDetachMode::EnteringBattleships => 1,
+            FleetDetachMode::EnteringCruisers => 2,
+            FleetDetachMode::EnteringDestroyers => 3,
+            FleetDetachMode::EnteringFullTransports => 4,
+            FleetDetachMode::EnteringEmptyTransports => 5,
+            FleetDetachMode::EnteringScouts => 6,
+            FleetDetachMode::EnteringEtacs
+            | FleetDetachMode::AdjustingDonorSpeed
+            | FleetDetachMode::SettingNewFleetRoe => modes.len(),
+        };
+        modes
+            .iter()
+            .skip(start_idx)
+            .find_map(|(mode, include)| (*include).then_some(*mode))
+    }
+
+    fn fleet_detach_requires_speed_prompt(&self) -> bool {
+        let rows = self.fleet_rows();
+        let Some(selected_row) = rows.get(self.fleet_detach_cursor) else {
+            return false;
+        };
+        let Some(fleet) = self
+            .game_data
+            .fleets
+            .records
+            .get(selected_row.fleet_record_index_1_based - 1)
+        else {
+            return false;
+        };
+        let mut donor_after = fleet.clone();
+        donor_after.set_battleship_count(
+            donor_after
+                .battleship_count()
+                .saturating_sub(self.fleet_detach_selection.battleships),
+        );
+        donor_after.set_cruiser_count(
+            donor_after
+                .cruiser_count()
+                .saturating_sub(self.fleet_detach_selection.cruisers),
+        );
+        donor_after.set_destroyer_count(
+            donor_after
+                .destroyer_count()
+                .saturating_sub(self.fleet_detach_selection.destroyers),
+        );
+        donor_after.set_troop_transport_count(
+            donor_after.troop_transport_count().saturating_sub(
+                self.fleet_detach_selection.full_transports
+                    + self.fleet_detach_selection.empty_transports,
+            ),
+        );
+        donor_after.set_army_count(
+            donor_after
+                .army_count()
+                .saturating_sub(self.fleet_detach_selection.full_transports),
+        );
+        donor_after.set_scout_count(
+            donor_after
+                .scout_count()
+                .saturating_sub(self.fleet_detach_selection.scouts),
+        );
+        donor_after.set_etac_count(
+            donor_after
+                .etac_count()
+                .saturating_sub(self.fleet_detach_selection.etacs),
+        );
+        donor_after.recompute_max_speed_from_composition();
+        donor_after.max_speed() > 0 && fleet.current_speed() > donor_after.max_speed()
+    }
+
+    fn fleet_detach_donor_default_speed(&self) -> u8 {
+        let rows = self.fleet_rows();
+        let Some(selected_row) = rows.get(self.fleet_detach_cursor) else {
+            return 1;
+        };
+        let Some(fleet) = self
+            .game_data
+            .fleets
+            .records
+            .get(selected_row.fleet_record_index_1_based - 1)
+        else {
+            return 1;
+        };
+        let mut donor_after = fleet.clone();
+        donor_after.set_battleship_count(
+            donor_after
+                .battleship_count()
+                .saturating_sub(self.fleet_detach_selection.battleships),
+        );
+        donor_after.set_cruiser_count(
+            donor_after
+                .cruiser_count()
+                .saturating_sub(self.fleet_detach_selection.cruisers),
+        );
+        donor_after.set_destroyer_count(
+            donor_after
+                .destroyer_count()
+                .saturating_sub(self.fleet_detach_selection.destroyers),
+        );
+        donor_after.set_troop_transport_count(
+            donor_after.troop_transport_count().saturating_sub(
+                self.fleet_detach_selection.full_transports
+                    + self.fleet_detach_selection.empty_transports,
+            ),
+        );
+        donor_after.set_army_count(
+            donor_after
+                .army_count()
+                .saturating_sub(self.fleet_detach_selection.full_transports),
+        );
+        donor_after.set_scout_count(
+            donor_after
+                .scout_count()
+                .saturating_sub(self.fleet_detach_selection.scouts),
+        );
+        donor_after.set_etac_count(
+            donor_after
+                .etac_count()
+                .saturating_sub(self.fleet_detach_selection.etacs),
+        );
+        donor_after.recompute_max_speed_from_composition();
+        donor_after.max_speed().max(1)
+    }
+
+    fn resolve_fleet_detach_numeric_input(
+        &mut self,
+        default: u16,
+    ) -> Result<u16, Box<dyn std::error::Error>> {
+        let raw = self.fleet_detach_input.trim();
+        if raw.is_empty() {
+            return Ok(default);
+        }
+        match raw.parse::<u16>() {
+            Ok(value) => Ok(value),
+            Err(_) => {
+                self.fleet_detach_status = Some("Enter an integer value.".to_string());
+                Err("invalid detach numeric input".into())
+            }
+        }
     }
 
     fn handle_fleet_eta_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
@@ -3571,6 +4456,88 @@ impl App {
             "Fleet {} reaches ({},{}) in {} year(s), arriving in {}.",
             row.fleet_number, destination[0], destination[1], years, arrival_year
         )
+    }
+
+    fn first_time_empire_rows(&self) -> Vec<String> {
+        self.game_data
+            .player
+            .records
+            .iter()
+            .enumerate()
+            .map(|(idx, player)| {
+                let slot = idx + 1;
+                if player.occupied_flag() != 0 {
+                    let handle = player.assigned_player_handle_summary();
+                    let empire = player.controlled_empire_name_summary();
+                    format!(
+                        "Empire {:>2}: JOINED  {}{}",
+                        slot,
+                        if empire.is_empty() { "Empire".to_string() } else { empire },
+                        if handle.is_empty() {
+                            String::new()
+                        } else {
+                            format!(" [{handle}]")
+                        }
+                    )
+                } else {
+                    format!("Empire {:>2}: OPEN    Available for a new Star Master", slot)
+                }
+            })
+            .collect()
+    }
+
+    fn first_time_homeworld_summary(&self) -> Result<([u8; 2], u16, u16), Box<dyn std::error::Error>> {
+        let planet_index = self
+            .game_data
+            .player
+            .records
+            .get(self.player.record_index_1_based - 1)
+            .ok_or("player record missing for homeworld prompt")?
+            .homeworld_planet_index_1_based_raw() as usize;
+        let planet = self
+            .game_data
+            .planets
+            .records
+            .get(planet_index.saturating_sub(1))
+            .ok_or("homeworld planet missing for first-time prompt")?;
+        Ok((
+            planet.coords_raw(),
+            planet.present_production_points().unwrap_or(planet.potential_production_points()),
+            planet.potential_production_points(),
+        ))
+    }
+
+    fn complete_first_time_join(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.game_data.join_player(
+            self.player.record_index_1_based,
+            &self.first_time_empire_name,
+        )?;
+        self.game_data.save(&self.game_dir)?;
+        self.refresh_player_context()?;
+        Ok(())
+    }
+
+    fn complete_first_time_homeworld_name(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.game_data.rename_player_homeworld(
+            self.player.record_index_1_based,
+            &self.first_time_homeworld_name,
+        )?;
+        self.game_data.save(&self.game_dir)?;
+        self.refresh_player_context()?;
+        Ok(())
+    }
+
+    fn refresh_player_context(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.player = PlayerContext::from_game_data(&self.game_data, self.player.record_index_1_based)?;
+        let refreshed = ReportsPreview::load(&self.game_dir)?;
+        let summary = MainMenuSummary::from_game_data(
+            &self.game_data,
+            self.player.record_index_1_based,
+            file_nonempty(self.game_dir.join("RESULTS.DAT")),
+        );
+        self.reports
+            .replace(refreshed, ReviewSummary::from_main_menu(&summary));
+        Ok(())
     }
 }
 
@@ -3702,6 +4669,11 @@ fn resolve_yes_no_input(input: &str, default: bool) -> bool {
         "N" | "NO" => false,
         _ => default,
     }
+}
+
+fn format_fleet_number_for_rows(fleet_number: u16, rows: &[FleetRow]) -> String {
+    let max_fleet_number = rows.iter().map(|row| row.fleet_number).max().unwrap_or(1);
+    crate::screen::format_fleet_number(fleet_number, max_fleet_number)
 }
 
 fn insert_char_at(body: &mut String, cursor_index: usize, ch: char) {

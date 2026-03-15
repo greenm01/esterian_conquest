@@ -10,7 +10,10 @@ use ec_client::screen::{
 };
 use ec_client::startup::StartupPhase;
 use ec_client::terminal::Terminal;
-use ec_data::{DiplomaticRelation, EmpirePlanetEconomyRow, EmpireProductionRankingSort, ProductionItemKind};
+use ec_data::{
+    CoreGameData, DiplomaticRelation, EmpirePlanetEconomyRow, EmpireProductionRankingSort,
+    ProductionItemKind,
+};
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -19,6 +22,23 @@ fn repo_root() -> PathBuf {
 fn temp_game_copy() -> PathBuf {
     let root = std::env::temp_dir().join(format!(
         "ec-client-update-{}-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("time ok")
+            .as_nanos()
+    ));
+    copy_dir_all(&repo_root().join("fixtures/ecutil-init/v1.5"), &root);
+    let player_path = root.join("PLAYER.DAT");
+    let mut bytes = fs::read(&player_path).expect("read PLAYER.DAT");
+    bytes[0] = 1;
+    fs::write(player_path, bytes).expect("write joined PLAYER.DAT");
+    root
+}
+
+fn temp_first_time_game_copy() -> PathBuf {
+    let root = std::env::temp_dir().join(format!(
+        "ec-client-first-time-{}-{}",
         std::process::id(),
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -108,10 +128,29 @@ fn apply_action_switches_between_client_screens() {
         apply_action(&mut app, Action::AdvanceStartup),
         AppOutcome::Continue
     );
+    assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::Intro));
+
+    assert_eq!(
+        apply_action(&mut app, Action::AdvanceStartup),
+        AppOutcome::Continue
+    );
     assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::LoginSummary));
 
     assert_eq!(
         apply_action(&mut app, Action::AdvanceStartup),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenGeneralMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
+    
+    // Continue on the joined-player surface after startup.
+    assert_eq!(
+        apply_action(&mut app, Action::OpenMainMenu),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
@@ -169,6 +208,18 @@ fn apply_action_switches_between_client_screens() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetDetach),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetDetach);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetHelp),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetHelp);
 
     assert_eq!(
         apply_action(&mut app, Action::OpenPlanetHelp),
@@ -367,6 +418,120 @@ fn apply_action_switches_between_client_screens() {
 }
 
 #[test]
+fn first_time_menu_branch_opens_help_intro_and_empire_list() {
+    let fixture_dir = temp_first_time_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFirstTimeHelp),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeHelp);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFirstTimeEmpires),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeEmpires);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFirstTimeIntro),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeIntro);
+}
+
+#[test]
+fn first_time_join_flow_updates_player_and_homeworld_then_enters_main_menu() {
+    let fixture_dir = temp_first_time_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFirstTimeJoinConfirm),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinConfirm);
+
+    assert_eq!(
+        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
+
+    for ch in "Codex Dominion".chars() {
+        assert_eq!(
+            apply_action(&mut app, Action::AppendFirstTimeInputChar(ch)),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFirstTimeInput),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireConfirm);
+
+    assert_eq!(
+        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinSummary);
+
+    assert_eq!(
+        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinNoPending);
+
+    assert_eq!(
+        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
+
+    for ch in "Codex Prime".chars() {
+        assert_eq!(
+            apply_action(&mut app, Action::AppendFirstTimeInputChar(ch)),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFirstTimeInput),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldConfirm);
+
+    assert_eq!(
+        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+
+    let game_data = CoreGameData::load(&fixture_dir).expect("reload joined game data");
+    let player = &game_data.player.records[0];
+    assert_eq!(player.occupied_flag(), 1);
+    assert_eq!(player.controlled_empire_name_summary(), "Codex Dominion");
+    let homeworld_index = player.homeworld_planet_index_1_based_raw() as usize;
+    assert_eq!(
+        game_data.planets.records[homeworld_index - 1].planet_name(),
+        "Codex Prime"
+    );
+}
+
+#[test]
 fn apply_action_quit_exits_loop() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
@@ -412,6 +577,53 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     assert_eq!(app.handle_key(key(KeyCode::Char('f'))), Action::OpenFleetMenu);
     assert_eq!(
         apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(app.handle_key(key(KeyCode::Char('h'))), Action::OpenFleetHelp);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetHelp),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetHelp);
+    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::OpenFleetMenu);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('i'))),
+        Action::OpenPlanetInfoPrompt(CommandMenu::Fleet)
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetInfoPrompt(CommandMenu::Fleet)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
+    assert_eq!(app.handle_key(key(KeyCode::Char('q'))), Action::ReturnToCommandMenu);
+    assert_eq!(
+        apply_action(&mut app, Action::ReturnToCommandMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('v'))),
+        Action::OpenPartialStarmapPrompt(CommandMenu::Fleet)
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPartialStarmapPrompt(CommandMenu::Fleet)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PartialStarmapPrompt);
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitPartialStarmapPrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
+    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::ReturnToCommandMenu);
+    assert_eq!(
+        apply_action(&mut app, Action::ReturnToCommandMenu),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
@@ -1271,4 +1483,84 @@ fn apply_action_confirms_before_discarding_composed_message() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageRecipient);
+}
+
+#[test]
+fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
+    let fixture_dir = temp_game_copy();
+    let mut game_data = CoreGameData::load(&fixture_dir).expect("load fixture");
+    let initial_fleet_count = game_data.fleets.records.len();
+    let donor = &mut game_data.fleets.records[0];
+    donor.set_destroyer_count(2);
+    donor.set_etac_count(1);
+    donor.set_cruiser_count(0);
+    donor.set_battleship_count(0);
+    donor.set_troop_transport_count(0);
+    donor.set_army_count(0);
+    donor.set_scout_count(0);
+    donor.recompute_max_speed_from_composition();
+    donor.set_current_speed(0);
+    game_data.save(&fixture_dir).expect("save fixture");
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetDetach),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetDetach);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("render detach select");
+    assert!(terminal.line(19).contains("Detach ships from fleet # [1] ->"));
+
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetDetach),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal).expect("render destroyer prompt");
+    assert!(terminal.line(19).contains("Destroyers to detach [0] ->"));
+
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetDetachChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetDetach),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal).expect("render etac prompt");
+    assert!(terminal.line(19).contains("ETAC ships to detach [0] ->"));
+
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetDetachChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetDetach),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal).expect("render roe prompt");
+    assert!(terminal.line(19).contains("New fleet ROE [6] ->"));
+
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetDetach),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal).expect("render detach select after save");
+    assert!(terminal.line(19).contains("Detach ships from fleet # [1] ->"));
+
+    let updated = CoreGameData::load(&fixture_dir).expect("reload saved game");
+    assert_eq!(updated.fleets.records.len(), initial_fleet_count + 1);
+    assert_eq!(updated.fleets.records[0].destroyer_count(), 1);
+    assert_eq!(updated.fleets.records[0].etac_count(), 0);
+    let detached = updated.fleets.records.last().expect("detached fleet");
+    assert_eq!(detached.destroyer_count(), 1);
+    assert_eq!(detached.etac_count(), 1);
 }

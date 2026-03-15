@@ -17,6 +17,50 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_startup_intro();
             AppOutcome::Continue
         }
+        Action::OpenFirstTimeMenu => {
+            app.open_first_time_menu();
+            AppOutcome::Continue
+        }
+        Action::OpenFirstTimeHelp => {
+            app.open_first_time_help();
+            AppOutcome::Continue
+        }
+        Action::OpenFirstTimeEmpires => {
+            app.open_first_time_empires();
+            AppOutcome::Continue
+        }
+        Action::OpenFirstTimeIntro => {
+            app.open_first_time_intro();
+            AppOutcome::Continue
+        }
+        Action::OpenFirstTimeJoinConfirm => {
+            app.open_first_time_join_confirm();
+            AppOutcome::Continue
+        }
+        Action::ShowAnsiAlwaysOnNotice => {
+            app.show_first_time_ansi_notice();
+            AppOutcome::Continue
+        }
+        Action::AppendFirstTimeInputChar(ch) => {
+            app.append_first_time_input_char(ch);
+            AppOutcome::Continue
+        }
+        Action::BackspaceFirstTimeInput => {
+            app.backspace_first_time_input();
+            AppOutcome::Continue
+        }
+        Action::SubmitFirstTimeInput => {
+            app.submit_first_time_input();
+            AppOutcome::Continue
+        }
+        Action::AcceptFirstTimePrompt => {
+            app.accept_first_time_prompt();
+            AppOutcome::Continue
+        }
+        Action::RejectFirstTimePrompt => {
+            app.reject_first_time_prompt();
+            AppOutcome::Continue
+        }
         Action::OpenMainMenu => {
             *app.current_screen_mut() = crate::screen::ScreenId::MainMenu;
             AppOutcome::Continue
@@ -27,6 +71,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         }
         Action::OpenGeneralHelp => {
             *app.current_screen_mut() = crate::screen::ScreenId::GeneralHelp;
+            AppOutcome::Continue
+        }
+        Action::OpenFleetHelp => {
+            app.open_fleet_help();
             AppOutcome::Continue
         }
         Action::OpenFleetMenu => {
@@ -43,6 +91,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         }
         Action::OpenFleetRoeSelect => {
             app.open_fleet_roe_select();
+            AppOutcome::Continue
+        }
+        Action::OpenFleetDetach => {
+            app.open_fleet_detach();
             AppOutcome::Continue
         }
         Action::OpenFleetEta => {
@@ -189,6 +241,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.move_fleet_roe_select(delta);
             AppOutcome::Continue
         }
+        Action::MoveFleetDetachSelect(delta) => {
+            app.move_fleet_detach_select(delta);
+            AppOutcome::Continue
+        }
         Action::MoveFleetEtaSelect(delta) => {
             app.move_fleet_eta_select(delta);
             AppOutcome::Continue
@@ -289,11 +345,23 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.append_fleet_roe_char(ch);
             AppOutcome::Continue
         }
+        Action::AppendFleetDetachChar(ch) => {
+            app.append_fleet_detach_char(ch);
+            AppOutcome::Continue
+        }
         Action::BackspaceFleetRoeInput => {
             app.backspace_fleet_roe_input();
             AppOutcome::Continue
         }
+        Action::BackspaceFleetDetachInput => {
+            app.backspace_fleet_detach_input();
+            AppOutcome::Continue
+        }
         Action::SubmitFleetRoe => match app.submit_fleet_roe() {
+            Ok(()) => AppOutcome::Continue,
+            Err(_) => AppOutcome::Continue,
+        },
+        Action::SubmitFleetDetach => match app.submit_fleet_detach() {
             Ok(()) => AppOutcome::Continue,
             Err(_) => AppOutcome::Continue,
         },
