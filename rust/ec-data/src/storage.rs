@@ -7,7 +7,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::{
     BASE_RECORD_SIZE, BaseDat, CoreGameData, DatabaseDat, FLEET_RECORD_SIZE, FleetDat,
     IPBM_RECORD_SIZE, IpbmDat, PLANET_RECORD_SIZE, PLAYER_RECORD_SIZE, PlanetDat, PlayerDat,
-    PlayerStarmapWorld, SetupDat, build_player_starmap_projection,
+    PlayerStarmapWorld, QueuedPlayerMail, SetupDat, build_player_starmap_projection,
 };
 
 pub const DEFAULT_CAMPAIGN_DB_NAME: &str = "ecgame.db";
@@ -42,6 +42,17 @@ pub struct PlanetIntelSnapshot {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CampaignStore {
     path: PathBuf,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CampaignRuntimeState {
+    pub snapshot_id: i64,
+    pub game_year: u16,
+    pub game_data: CoreGameData,
+    pub database: DatabaseDat,
+    pub results_bytes: Vec<u8>,
+    pub messages_bytes: Vec<u8>,
+    pub queued_mail: Vec<QueuedPlayerMail>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -135,50 +146,16 @@ impl CampaignStore {
     pub fn import_directory_snapshot(&self, dir: &Path) -> Result<i64, CampaignStoreError> {
         let game_data = CoreGameData::load(dir)?;
         let database = DatabaseDat::parse(&read_path(dir.join("DATABASE.DAT"))?)?;
-        let year = game_data.conquest.game_year();
-        let mut conn = self.connection()?;
-        let tx = conn.transaction()?;
-        tx.execute("DELETE FROM snapshots WHERE game_year = ?1", params![i64::from(year)])?;
-        tx.execute(
-            "INSERT INTO snapshots(game_year) VALUES (?1)",
-            params![i64::from(year)],
-        )?;
-        let snapshot_id = tx.last_insert_rowid();
-        write_record_rows(&tx, "player_records", snapshot_id, &game_data.player.to_bytes(), PLAYER_RECORD_SIZE)?;
-        write_record_rows(&tx, "planet_records", snapshot_id, &game_data.planets.to_bytes(), PLANET_RECORD_SIZE)?;
-        write_record_rows(&tx, "fleet_records", snapshot_id, &game_data.fleets.to_bytes(), FLEET_RECORD_SIZE)?;
-        write_record_rows(&tx, "base_records", snapshot_id, &game_data.bases.to_bytes(), BASE_RECORD_SIZE)?;
-        write_record_rows(&tx, "ipbm_records", snapshot_id, &game_data.ipbm.to_bytes(), IPBM_RECORD_SIZE)?;
-        tx.execute(
-            "INSERT INTO setup_records(snapshot_id, raw) VALUES (?1, ?2)",
-            params![snapshot_id, game_data.setup.to_bytes()],
-        )?;
-        tx.execute(
-            "INSERT INTO conquest_records(snapshot_id, raw) VALUES (?1, ?2)",
-            params![snapshot_id, game_data.conquest.to_bytes()],
-        )?;
-        for name in COMPAT_FILE_NAMES {
-            tx.execute(
-                "INSERT INTO compat_files(snapshot_id, name, bytes) VALUES (?1, ?2, ?3)",
-                params![snapshot_id, *name, read_path(dir.join(name))?],
-            )?;
-        }
-
-        let previous_snapshot_id = tx
-            .query_row(
-                "SELECT id FROM snapshots WHERE game_year < ?1 ORDER BY game_year DESC LIMIT 1",
-                params![i64::from(year)],
-                |row| row.get::<_, i64>(0),
-            )
-            .optional()?;
-        let previous = if let Some(previous_snapshot_id) = previous_snapshot_id {
-            load_intel_rows(&tx, previous_snapshot_id)?
-        } else {
-            BTreeMap::new()
-        };
-        write_planet_intel_rows(&tx, snapshot_id, &game_data, &database, year, &previous)?;
-        tx.commit()?;
-        Ok(snapshot_id)
+        let results_bytes = read_path(dir.join("RESULTS.DAT"))?;
+        let messages_bytes = read_path(dir.join("MESSAGES.DAT"))?;
+        let queued_mail = load_mail_queue_file(dir)?;
+        self.save_runtime_state(
+            &game_data,
+            &database,
+            &results_bytes,
+            &messages_bytes,
+            &queued_mail,
+        )
     }
 
     pub fn export_latest_snapshot_to_dir(&self, dir: &Path) -> Result<u16, CampaignStoreError> {
@@ -237,6 +214,129 @@ impl CampaignStore {
             })?
             .collect::<Result<Vec<_>, _>>()?;
         Ok(rows)
+    }
+
+    pub fn has_snapshots(&self) -> Result<bool, CampaignStoreError> {
+        let mut conn = self.connection()?;
+        Ok(latest_snapshot_id_and_year(&mut conn)?.is_some())
+    }
+
+    pub fn load_latest_runtime_state(
+        &self,
+    ) -> Result<Option<CampaignRuntimeState>, CampaignStoreError> {
+        let mut conn = self.connection()?;
+        let Some((snapshot_id, game_year)) = latest_snapshot_id_and_year(&mut conn)? else {
+            return Ok(None);
+        };
+        let game_data = load_snapshot_game_data(&mut conn, snapshot_id)?;
+        let database = DatabaseDat::parse(&compat_file_bytes(
+            &mut conn,
+            snapshot_id,
+            "DATABASE.DAT",
+        )?)?;
+        let results_bytes = compat_file_bytes(&mut conn, snapshot_id, "RESULTS.DAT")?;
+        let messages_bytes = compat_file_bytes(&mut conn, snapshot_id, "MESSAGES.DAT")?;
+        let queued_mail = load_queued_mail_rows(&mut conn, snapshot_id)?;
+        Ok(Some(CampaignRuntimeState {
+            snapshot_id,
+            game_year,
+            game_data,
+            database,
+            results_bytes,
+            messages_bytes,
+            queued_mail,
+        }))
+    }
+
+    pub fn save_runtime_state(
+        &self,
+        game_data: &CoreGameData,
+        database: &DatabaseDat,
+        results_bytes: &[u8],
+        messages_bytes: &[u8],
+        queued_mail: &[QueuedPlayerMail],
+    ) -> Result<i64, CampaignStoreError> {
+        let year = game_data.conquest.game_year();
+        let mut conn = self.connection()?;
+        let tx = conn.transaction()?;
+        tx.execute("DELETE FROM snapshots WHERE game_year = ?1", params![i64::from(year)])?;
+        tx.execute(
+            "INSERT INTO snapshots(game_year) VALUES (?1)",
+            params![i64::from(year)],
+        )?;
+        let snapshot_id = tx.last_insert_rowid();
+        write_record_rows(
+            &tx,
+            "player_records",
+            snapshot_id,
+            &game_data.player.to_bytes(),
+            PLAYER_RECORD_SIZE,
+        )?;
+        write_record_rows(
+            &tx,
+            "planet_records",
+            snapshot_id,
+            &game_data.planets.to_bytes(),
+            PLANET_RECORD_SIZE,
+        )?;
+        write_record_rows(
+            &tx,
+            "fleet_records",
+            snapshot_id,
+            &game_data.fleets.to_bytes(),
+            FLEET_RECORD_SIZE,
+        )?;
+        write_record_rows(
+            &tx,
+            "base_records",
+            snapshot_id,
+            &game_data.bases.to_bytes(),
+            BASE_RECORD_SIZE,
+        )?;
+        write_record_rows(
+            &tx,
+            "ipbm_records",
+            snapshot_id,
+            &game_data.ipbm.to_bytes(),
+            IPBM_RECORD_SIZE,
+        )?;
+        tx.execute(
+            "INSERT INTO setup_records(snapshot_id, raw) VALUES (?1, ?2)",
+            params![snapshot_id, game_data.setup.to_bytes()],
+        )?;
+        tx.execute(
+            "INSERT INTO conquest_records(snapshot_id, raw) VALUES (?1, ?2)",
+            params![snapshot_id, game_data.conquest.to_bytes()],
+        )?;
+        tx.execute(
+            "INSERT INTO compat_files(snapshot_id, name, bytes) VALUES (?1, 'DATABASE.DAT', ?2)",
+            params![snapshot_id, database.to_bytes()],
+        )?;
+        tx.execute(
+            "INSERT INTO compat_files(snapshot_id, name, bytes) VALUES (?1, 'RESULTS.DAT', ?2)",
+            params![snapshot_id, results_bytes],
+        )?;
+        tx.execute(
+            "INSERT INTO compat_files(snapshot_id, name, bytes) VALUES (?1, 'MESSAGES.DAT', ?2)",
+            params![snapshot_id, messages_bytes],
+        )?;
+        write_queued_mail_rows(&tx, snapshot_id, queued_mail)?;
+
+        let previous_snapshot_id = tx
+            .query_row(
+                "SELECT id FROM snapshots WHERE game_year < ?1 ORDER BY game_year DESC LIMIT 1",
+                params![i64::from(year)],
+                |row| row.get::<_, i64>(0),
+            )
+            .optional()?;
+        let previous = if let Some(previous_snapshot_id) = previous_snapshot_id {
+            load_intel_rows(&tx, previous_snapshot_id)?
+        } else {
+            BTreeMap::new()
+        };
+        write_planet_intel_rows(&tx, snapshot_id, game_data, database, year, &previous)?;
+        tx.commit()?;
+        Ok(snapshot_id)
     }
 
     fn initialize(&self) -> Result<(), CampaignStoreError> {
@@ -303,6 +403,16 @@ impl CampaignStore {
                  known_armies INTEGER,
                  known_ground_batteries INTEGER,
                  PRIMARY KEY(snapshot_id, viewer_empire_id, planet_record_index)
+             );
+             CREATE TABLE IF NOT EXISTS queued_mail (
+                 snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+                 queue_index INTEGER NOT NULL,
+                 sender_empire_id INTEGER NOT NULL,
+                 recipient_empire_id INTEGER NOT NULL,
+                 year INTEGER NOT NULL,
+                 subject TEXT NOT NULL,
+                 body TEXT NOT NULL,
+                 PRIMARY KEY(snapshot_id, queue_index)
              );",
         )?;
         Ok(())
@@ -391,6 +501,19 @@ fn load_snapshot_game_data(
             )?,
         )?,
     })
+}
+
+fn compat_file_bytes(
+    conn: &mut Connection,
+    snapshot_id: i64,
+    name: &str,
+) -> Result<Vec<u8>, CampaignStoreError> {
+    conn.query_row(
+        "SELECT bytes FROM compat_files WHERE snapshot_id = ?1 AND name = ?2",
+        params![snapshot_id, name],
+        |row| row.get::<_, Vec<u8>>(0),
+    )
+    .map_err(CampaignStoreError::Sql)
 }
 
 fn load_intel_rows(
@@ -535,4 +658,61 @@ fn read_path(path: PathBuf) -> Result<Vec<u8>, CampaignStoreError> {
 
 fn write_path(path: PathBuf, bytes: &[u8]) -> Result<(), CampaignStoreError> {
     fs::write(&path, bytes).map_err(|source| CampaignStoreError::Io { path, source })
+}
+
+fn load_mail_queue_file(dir: &Path) -> Result<Vec<QueuedPlayerMail>, CampaignStoreError> {
+    let path = crate::player_mail::queue_path(dir);
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    crate::load_mail_queue(dir).map_err(|err| CampaignStoreError::Io {
+        path,
+        source: std::io::Error::other(err.to_string()),
+    })
+}
+
+fn write_queued_mail_rows(
+    tx: &rusqlite::Transaction<'_>,
+    snapshot_id: i64,
+    queued_mail: &[QueuedPlayerMail],
+) -> Result<(), CampaignStoreError> {
+    let mut stmt = tx.prepare(
+        "INSERT INTO queued_mail(
+             snapshot_id, queue_index, sender_empire_id, recipient_empire_id, year, subject, body
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+    )?;
+    for (idx, mail) in queued_mail.iter().enumerate() {
+        stmt.execute(params![
+            snapshot_id,
+            idx as i64,
+            i64::from(mail.sender_empire_id),
+            i64::from(mail.recipient_empire_id),
+            i64::from(mail.year),
+            &mail.subject,
+            &mail.body,
+        ])?;
+    }
+    Ok(())
+}
+
+fn load_queued_mail_rows(
+    conn: &mut Connection,
+    snapshot_id: i64,
+) -> Result<Vec<QueuedPlayerMail>, CampaignStoreError> {
+    let mut stmt = conn.prepare(
+        "SELECT sender_empire_id, recipient_empire_id, year, subject, body
+         FROM queued_mail
+         WHERE snapshot_id = ?1
+         ORDER BY queue_index",
+    )?;
+    let rows = stmt.query_map(params![snapshot_id], |row| {
+        Ok(QueuedPlayerMail {
+            sender_empire_id: row.get::<_, i64>(0)? as u8,
+            recipient_empire_id: row.get::<_, i64>(1)? as u8,
+            year: row.get::<_, i64>(2)? as u16,
+            subject: row.get(3)?,
+            body: row.get(4)?,
+        })
+    })?;
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }

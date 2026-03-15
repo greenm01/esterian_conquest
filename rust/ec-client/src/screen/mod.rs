@@ -88,10 +88,11 @@ pub(crate) use startup::STARTUP_SPLASH_PAGE_COUNT;
 pub use startup::StartupScreen;
 pub(crate) use table::format_fleet_number;
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use crossterm::event::KeyEvent;
-use ec_data::{CoreGameData, DatabaseDat};
+use ec_data::{CoreGameData, DatabaseDat, PlanetIntelSnapshot};
 
 use crate::app::Action;
 use crate::model::PlayerContext;
@@ -187,6 +188,7 @@ pub struct ScreenFrame<'a> {
     pub game_data: &'a CoreGameData,
     pub database: &'a DatabaseDat,
     pub player: &'a PlayerContext,
+    pub planet_intel_snapshots: &'a BTreeMap<usize, PlanetIntelSnapshot>,
 }
 
 pub trait Screen {

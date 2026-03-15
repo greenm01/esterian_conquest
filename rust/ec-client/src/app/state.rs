@@ -1,17 +1,15 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fs;
 use std::path::PathBuf;
 
 use ec_data::{
     AutoCommissionSummary, CampaignStore, CommissionResult, CoreGameData, DatabaseDat,
     FleetDetachSelection, GameStateMutationError, PlanetIntelSnapshot, PlayerStarmapWorld,
-    ProductionItemKind, QueuedPlayerMail, append_mail_queue,
-    build_player_starmap_projection, load_mail_queue, plan_route, save_mail_queue,
+    ProductionItemKind, QueuedPlayerMail, build_player_starmap_projection, plan_route,
 };
 
 use crate::app::Action;
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
-use crate::reports::{ReportsPreview, clear_report_files};
+use crate::reports::{ReportsPreview, clear_report_bytes};
 use crate::screen::{
     BuildHelpScreen, CommandMenu, DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen,
     EnemiesScreen, FIRST_TIME_INTRO_PAGE_COUNT, FirstTimeEmpiresScreen, FirstTimeHelpScreen,
@@ -183,6 +181,9 @@ pub struct App {
     queue_dir: Option<PathBuf>,
     campaign_store: CampaignStore,
     planet_intel_snapshots: BTreeMap<usize, PlanetIntelSnapshot>,
+    results_bytes: Vec<u8>,
+    messages_bytes: Vec<u8>,
+    queued_mail: Vec<QueuedPlayerMail>,
     startup_splash_page: usize,
     startup_intro_page: usize,
     first_time_intro_page: usize,
@@ -199,18 +200,24 @@ impl App {
             .export_root
             .clone()
             .unwrap_or_else(|| game_dir.join("exports"));
-        let game_data = CoreGameData::load(&game_dir)?;
-        let database = DatabaseDat::parse(&fs::read(game_dir.join("DATABASE.DAT"))?)?;
-        let player = PlayerContext::from_game_data(&game_data, config.player_record_index_1_based)?;
         let campaign_store = CampaignStore::open_default_in_dir(&game_dir)?;
-        campaign_store.import_directory_snapshot(&game_dir)?;
+        let runtime_state = campaign_store
+            .load_latest_runtime_state()?
+            .ok_or("campaign store has no snapshots; import with ec-cli db-import first")?;
+        let pending_results = !runtime_state.results_bytes.is_empty();
+        let reports =
+            ReportsPreview::from_bytes(&runtime_state.results_bytes, &runtime_state.messages_bytes);
+        let game_data = runtime_state.game_data;
+        let database = runtime_state.database;
+        let queued_mail = runtime_state.queued_mail;
+        let results_bytes = runtime_state.results_bytes;
+        let messages_bytes = runtime_state.messages_bytes;
+        let player = PlayerContext::from_game_data(&game_data, config.player_record_index_1_based)?;
         let planet_intel_snapshots = campaign_store
             .latest_planet_intel_for_viewer(config.player_record_index_1_based as u8)?
             .into_iter()
             .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
             .collect::<BTreeMap<_, _>>();
-        let pending_results = file_nonempty(game_dir.join("RESULTS.DAT"));
-        let reports = ReportsPreview::load(&game_dir)?;
         let main_menu_summary = MainMenuSummary::from_game_data(
             &game_data,
             config.player_record_index_1_based,
@@ -366,6 +373,9 @@ impl App {
             queue_dir: config.queue_dir,
             campaign_store,
             planet_intel_snapshots,
+            results_bytes,
+            messages_bytes,
+            queued_mail,
             startup_splash_page: 0,
             startup_intro_page: 0,
             first_time_intro_page: 0,
@@ -385,6 +395,7 @@ impl App {
             game_data: &self.game_data,
             database: &self.database,
             player: &self.player,
+            planet_intel_snapshots: &self.planet_intel_snapshots,
         };
 
         let playfield = match self.current_screen {
@@ -3260,16 +3271,14 @@ impl App {
             self.compose_body_status = Some("Message body cannot be empty.".to_string());
             return Ok(());
         }
-        append_mail_queue(
-            &self.game_dir,
-            &QueuedPlayerMail {
-                sender_empire_id: self.player.record_index_1_based as u8,
-                recipient_empire_id,
-                year: self.game_data.conquest.game_year(),
-                subject: self.compose_subject.trim().to_string(),
-                body: body.to_string(),
-            },
-        )?;
+        self.queued_mail.push(QueuedPlayerMail {
+            sender_empire_id: self.player.record_index_1_based as u8,
+            recipient_empire_id,
+            year: self.game_data.conquest.game_year(),
+            subject: self.compose_subject.trim().to_string(),
+            body: body.to_string(),
+        });
+        self.save_game_data()?;
         self.compose_sent_status = Some(format!(
             "Message queued for Empire {recipient_empire_id}. It will be delivered after turn maintenance."
         ));
@@ -3342,7 +3351,7 @@ impl App {
         };
 
         let sender_empire_id = self.player.record_index_1_based as u8;
-        let mut queue = load_mail_queue(&self.game_dir)?;
+        let mut queue = self.queued_mail.clone();
         let own_indexes = queue
             .iter()
             .enumerate()
@@ -3357,7 +3366,8 @@ impl App {
         };
 
         queue.remove(queue_index);
-        save_mail_queue(&self.game_dir, &queue)?;
+        self.queued_mail = queue;
+        self.save_game_data()?;
         self.compose_outbox_input.clear();
         self.compose_outbox_status = None;
 
@@ -3370,7 +3380,7 @@ impl App {
     }
 
     pub fn delete_reviewables(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        clear_report_files(&self.game_dir)?;
+        clear_report_bytes(&mut self.results_bytes, &mut self.messages_bytes);
         if let Some(player) = self
             .game_data
             .player
@@ -3381,11 +3391,11 @@ impl App {
             player.raw[0x34] = 0;
         }
         self.save_game_data()?;
-        let refreshed = ReportsPreview::load(&self.game_dir)?;
+        let refreshed = ReportsPreview::from_bytes(&self.results_bytes, &self.messages_bytes);
         let summary = MainMenuSummary::from_game_data(
             &self.game_data,
             self.player.record_index_1_based,
-            false,
+            !self.results_bytes.is_empty(),
         );
         self.reports
             .replace(refreshed, ReviewSummary::from_main_menu(&summary));
@@ -4082,7 +4092,9 @@ impl App {
 
     fn compose_outbox_queue(&self) -> Result<Vec<QueuedPlayerMail>, Box<dyn std::error::Error>> {
         let sender_empire_id = self.player.record_index_1_based as u8;
-        Ok(load_mail_queue(&self.game_dir)?
+        Ok(self
+            .queued_mail
+            .clone()
             .into_iter()
             .filter(|mail| mail.sender_empire_id == sender_empire_id)
             .collect())
@@ -4578,8 +4590,13 @@ impl App {
     }
 
     fn save_game_data(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        self.game_data.save(&self.game_dir)?;
-        self.campaign_store.import_directory_snapshot(&self.game_dir)?;
+        self.campaign_store.save_runtime_state(
+            &self.game_data,
+            &self.database,
+            &self.results_bytes,
+            &self.messages_bytes,
+            &self.queued_mail,
+        )?;
         self.planet_intel_snapshots = self
             .campaign_store
             .latest_planet_intel_for_viewer(self.player.record_index_1_based as u8)?
@@ -4715,11 +4732,11 @@ impl App {
     fn refresh_player_context(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.player =
             PlayerContext::from_game_data(&self.game_data, self.player.record_index_1_based)?;
-        let refreshed = ReportsPreview::load(&self.game_dir)?;
+        let refreshed = ReportsPreview::from_bytes(&self.results_bytes, &self.messages_bytes);
         let summary = MainMenuSummary::from_game_data(
             &self.game_data,
             self.player.record_index_1_based,
-            file_nonempty(self.game_dir.join("RESULTS.DAT")),
+            !self.results_bytes.is_empty(),
         );
         self.reports
             .replace(refreshed, ReviewSummary::from_main_menu(&summary));
@@ -4830,11 +4847,6 @@ fn production_item_kind_raw(kind: ProductionItemKind) -> u8 {
     }
 }
 
-fn file_nonempty(path: PathBuf) -> bool {
-    fs::metadata(path)
-        .map(|meta| meta.len() > 0)
-        .unwrap_or(false)
-}
 
 fn char_to_byte_index(body: &str, char_index: usize) -> usize {
     if char_index == 0 {

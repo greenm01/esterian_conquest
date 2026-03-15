@@ -1,5 +1,5 @@
 use crossterm::event::KeyEvent;
-use ec_data::build_player_starmap_projection;
+use ec_data::{IntelTier, PlanetIntelSnapshot, build_player_starmap_projection};
 
 use crate::app::Action;
 use crate::screen::layout::{
@@ -142,6 +142,15 @@ impl PlanetInfoScreen {
             .into_iter()
             .find(|world| world.planet_record_index_1_based == planet_idx + 1)
             .ok_or("planet intel detail missing")?;
+        let owner_label = world
+            .known_owner_empire_name
+            .clone()
+            .or_else(|| {
+                world
+                    .known_owner_empire_id
+                    .map(|id| format!("Empire #{id}"))
+            })
+            .unwrap_or_else(|| "?".to_string());
 
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "INFO ABOUT A PLANET:");
@@ -161,16 +170,19 @@ impl PlanetInfoScreen {
             &mut buffer,
             4,
             "Owner: ",
-            &world
-                .known_owner_empire_name
-                .or_else(|| {
-                    world
-                        .known_owner_empire_id
-                        .map(|id| format!("Empire #{id}"))
-                })
-                .unwrap_or_else(|| "?".to_string()),
+            &owner_label,
         );
         draw_status_line(&mut buffer, 5, "State: ", "?");
+        let intel_snapshot = frame.planet_intel_snapshots.get(&(planet_idx + 1));
+        draw_status_line(
+            &mut buffer,
+            6,
+            "Last Intel: ",
+            &intel_snapshot
+                .and_then(|snapshot| snapshot.last_intel_year)
+                .map(|year| format!("Y{year}"))
+                .unwrap_or_else(|| "?".to_string()),
+        );
         draw_status_line(
             &mut buffer,
             7,
@@ -211,6 +223,12 @@ impl PlanetInfoScreen {
         );
         draw_status_line(&mut buffer, 14, "Stardock Units: ", "?");
         draw_status_line(&mut buffer, 15, "Starbase in Orbit: ", "?");
+        draw_status_line(
+            &mut buffer,
+            16,
+            "Intel Tier: ",
+            intel_tier_label(intel_snapshot, &world),
+        );
         draw_command_prompt(&mut buffer, 17, command_menu_label(menu), "SLAP A KEY");
         Ok(buffer)
     }
@@ -255,6 +273,24 @@ fn owner_state_summary(frame: &ScreenFrame<'_>, owner_empire_raw: u8) -> String 
         Some(ec_data::CampaignState::Rogue) => "Rogue".to_string(),
         None if owner_empire_raw == 0 => "Unowned".to_string(),
         None => "Unknown".to_string(),
+    }
+}
+
+fn intel_tier_label<'a>(
+    snapshot: Option<&'a PlanetIntelSnapshot>,
+    world: &'a ec_data::PlayerStarmapWorld,
+) -> &'a str {
+    match snapshot.map(|snapshot| snapshot.intel_tier) {
+        Some(IntelTier::Owned) => "owned",
+        Some(IntelTier::Full) => "full",
+        Some(IntelTier::Partial) => "partial",
+        Some(IntelTier::Unknown) => "unknown",
+        None if world.known_armies.is_some() || world.known_ground_batteries.is_some() => "full",
+        None if world.known_name.is_some()
+            || world.known_owner_empire_id.is_some()
+            || world.known_owner_empire_name.is_some()
+            || world.known_potential_production.is_some() => "partial",
+        None => "unknown",
     }
 }
 

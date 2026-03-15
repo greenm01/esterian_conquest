@@ -1,6 +1,3 @@
-use std::fs;
-use std::path::Path;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReportsPreview {
     pub results_lines: Vec<String>,
@@ -8,38 +5,34 @@ pub struct ReportsPreview {
 }
 
 impl ReportsPreview {
-    pub fn load(game_dir: &Path) -> Result<Self, Box<dyn std::error::Error>> {
-        let results_lines = decode_report_file(&game_dir.join("RESULTS.DAT"))?;
-        let message_lines = decode_report_file(&game_dir.join("MESSAGES.DAT"))?;
-        Ok(Self {
-            results_lines,
-            message_lines,
-        })
+    pub fn from_bytes(results_bytes: &[u8], message_bytes: &[u8]) -> Self {
+        Self {
+            results_lines: decode_report_bytes(results_bytes),
+            message_lines: decode_report_bytes(message_bytes),
+        }
     }
 }
 
-pub fn clear_report_files(game_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    fs::write(game_dir.join("RESULTS.DAT"), [])?;
-    fs::write(game_dir.join("MESSAGES.DAT"), [])?;
-    Ok(())
+pub fn clear_report_bytes(results_bytes: &mut Vec<u8>, message_bytes: &mut Vec<u8>) {
+    results_bytes.clear();
+    message_bytes.clear();
 }
 
-fn decode_report_file(path: &Path) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let bytes = fs::read(path)?;
+fn decode_report_bytes(bytes: &[u8]) -> Vec<String> {
     if bytes.is_empty() {
-        return Ok(Vec::new());
+        return Vec::new();
     }
 
-    if let Some(lines) = decode_chunked_records(&bytes) {
-        return Ok(lines);
+    if let Some(lines) = decode_chunked_records(bytes) {
+        return lines;
     }
 
-    let fallback = printable_runs(&bytes, 8);
-    Ok(if fallback.is_empty() {
+    let fallback = printable_runs(bytes, 8);
+    if fallback.is_empty() {
         vec!["<binary data present>".to_string()]
     } else {
         fallback
-    })
+    }
 }
 
 fn decode_chunked_records(bytes: &[u8]) -> Option<Vec<String>> {

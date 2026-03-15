@@ -4,6 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, path::Path};
 
 use ec_client::screen::GAME_VERSION;
+use ec_data::CampaignStore;
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -19,6 +20,10 @@ fn temp_fixture_copy() -> PathBuf {
             .as_nanos()
     ));
     copy_dir_all(&repo_root().join("fixtures/ecutil-init/v1.5"), &root);
+    CampaignStore::open_default_in_dir(&root)
+        .expect("open campaign store")
+        .import_directory_snapshot(&root)
+        .expect("seed sqlite snapshot");
     root
 }
 

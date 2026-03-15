@@ -11,8 +11,8 @@ use ec_client::screen::{
 use ec_client::startup::StartupPhase;
 use ec_client::terminal::Terminal;
 use ec_data::{
-    CoreGameData, DiplomaticRelation, EmpirePlanetEconomyRow, EmpireProductionRankingSort,
-    ProductionItemKind,
+    CampaignRuntimeState, CampaignStore, CoreGameData, DiplomaticRelation,
+    EmpirePlanetEconomyRow, EmpireProductionRankingSort, ProductionItemKind, QueuedPlayerMail,
 };
 
 fn repo_root() -> PathBuf {
@@ -35,6 +35,10 @@ fn temp_game_copy() -> PathBuf {
     data.rename_player_homeworld(1, "Codex Prime")
         .expect("name homeworld for standard client tests");
     data.save(&root).expect("save joined fixture");
+    CampaignStore::open_default_in_dir(&root)
+        .expect("open campaign store")
+        .import_directory_snapshot(&root)
+        .expect("seed sqlite snapshot");
     root
 }
 
@@ -48,6 +52,10 @@ fn temp_first_time_game_copy() -> PathBuf {
             .as_nanos()
     ));
     copy_dir_all(&repo_root().join("fixtures/ecutil-init/v1.5"), &root);
+    CampaignStore::open_default_in_dir(&root)
+        .expect("open campaign store")
+        .import_directory_snapshot(&root)
+        .expect("seed sqlite snapshot");
     root
 }
 
@@ -57,6 +65,10 @@ fn temp_joined_needs_homeworld_copy() -> PathBuf {
     data.join_player(1, "Codex Dominion")
         .expect("join player without naming homeworld");
     data.save(&root).expect("save partially joined fixture");
+    CampaignStore::open_default_in_dir(&root)
+        .expect("open campaign store")
+        .import_directory_snapshot(&root)
+        .expect("refresh sqlite snapshot");
     root
 }
 
@@ -76,6 +88,27 @@ fn copy_dir_all(src: &Path, dst: &Path) {
 
 fn key(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::NONE)
+}
+
+fn latest_runtime_state(root: &Path) -> CampaignRuntimeState {
+    CampaignStore::open_default_in_dir(root)
+        .expect("open campaign store")
+        .load_latest_runtime_state()
+        .expect("load latest runtime state")
+        .expect("campaign should have a latest runtime state")
+}
+
+fn save_runtime_state(root: &Path, state: &CampaignRuntimeState) {
+    CampaignStore::open_default_in_dir(root)
+        .expect("open campaign store")
+        .save_runtime_state(
+            &state.game_data,
+            &state.database,
+            &state.results_bytes,
+            &state.messages_bytes,
+            &state.queued_mail,
+        )
+        .expect("save runtime state");
 }
 
 fn advance_to_main_menu(app: &mut App) {
@@ -582,7 +615,7 @@ fn escaping_empire_name_does_not_partially_join_player() {
         ScreenId::Startup(StartupPhase::Splash)
     );
 
-    let game_data = CoreGameData::load(&fixture_dir).expect("reload unjoined game data");
+    let game_data = latest_runtime_state(&fixture_dir).game_data;
     assert_eq!(game_data.player.records[0].occupied_flag(), 0);
 }
 
@@ -651,7 +684,7 @@ fn first_time_join_flow_updates_player_and_homeworld_then_enters_main_menu() {
     );
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
 
-    let game_data = CoreGameData::load(&fixture_dir).expect("reload joined game data");
+    let game_data = latest_runtime_state(&fixture_dir).game_data;
     let player = &game_data.player.records[0];
     assert_eq!(player.occupied_flag(), 1);
     assert_eq!(player.controlled_empire_name_summary(), "Codex Dominion");
@@ -1143,6 +1176,33 @@ fn planet_database_render_uses_year_and_tier_labels_on_bottom_row() {
 }
 
 #[test]
+fn planet_info_intel_detail_shows_last_intel_and_tier() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetInfoPrompt(CommandMenu::Main)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitPlanetInfoPrompt),
+        AppOutcome::Continue
+    );
+
+    app.render(&mut terminal).expect("render succeeds");
+    assert!(terminal.lines.iter().any(|line| line.contains("Last Intel: Y3000")));
+    assert!(terminal.lines.iter().any(|line| line.contains("Intel Tier: owned")));
+}
+
+#[test]
 fn fleet_roe_render_keeps_command_line_on_bottom_row() {
     let mut screen = FleetRoeScreen::new();
     let rows = vec![FleetRow {
@@ -1558,8 +1618,10 @@ fn apply_action_clamps_enemies_scroll_to_visible_window() {
 #[test]
 fn apply_action_deletes_reviewables() {
     let fixture_dir = temp_game_copy();
-    std::fs::write(fixture_dir.join("RESULTS.DAT"), b"test results").expect("seed results");
-    std::fs::write(fixture_dir.join("MESSAGES.DAT"), b"test messages").expect("seed messages");
+    let mut runtime = latest_runtime_state(&fixture_dir);
+    runtime.results_bytes = b"test results".to_vec();
+    runtime.messages_bytes = b"test messages".to_vec();
+    save_runtime_state(&fixture_dir, &runtime);
 
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir.clone(),
@@ -1580,14 +1642,9 @@ fn apply_action_deletes_reviewables() {
         AppOutcome::Continue
     );
 
-    assert_eq!(
-        std::fs::read(fixture_dir.join("RESULTS.DAT")).expect("read results"),
-        Vec::<u8>::new()
-    );
-    assert_eq!(
-        std::fs::read(fixture_dir.join("MESSAGES.DAT")).expect("read messages"),
-        Vec::<u8>::new()
-    );
+    let runtime = latest_runtime_state(&fixture_dir);
+    assert!(runtime.results_bytes.is_empty());
+    assert!(runtime.messages_bytes.is_empty());
 }
 
 #[test]
@@ -1646,7 +1703,7 @@ fn apply_action_queues_composed_message() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageSent);
-    let queue = ec_data::load_mail_queue(&fixture_dir).expect("load queued mail");
+    let queue = latest_runtime_state(&fixture_dir).queued_mail;
     assert_eq!(queue.len(), 1);
     assert_eq!(queue[0].recipient_empire_id, 2);
     assert_eq!(queue[0].subject, "Hi");
@@ -1656,17 +1713,15 @@ fn apply_action_queues_composed_message() {
 #[test]
 fn apply_action_deletes_queued_message_from_outbox() {
     let fixture_dir = temp_game_copy();
-    ec_data::append_mail_queue(
-        &fixture_dir,
-        &ec_data::QueuedPlayerMail {
+    let mut runtime = latest_runtime_state(&fixture_dir);
+    runtime.queued_mail.push(QueuedPlayerMail {
             sender_empire_id: 1,
             recipient_empire_id: 2,
             year: 3000,
             subject: "Test".to_string(),
             body: "Queued".to_string(),
-        },
-    )
-    .expect("seed queued mail");
+        });
+    save_runtime_state(&fixture_dir, &runtime);
 
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir.clone(),
@@ -1690,7 +1745,7 @@ fn apply_action_deletes_queued_message_from_outbox() {
         AppOutcome::Continue
     );
 
-    let queue = ec_data::load_mail_queue(&fixture_dir).expect("load queue after delete");
+    let queue = latest_runtime_state(&fixture_dir).queued_mail;
     assert!(queue.is_empty());
 }
 
@@ -1762,6 +1817,10 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
     donor.recompute_max_speed_from_composition();
     donor.set_current_speed(0);
     game_data.save(&fixture_dir).expect("save fixture");
+    CampaignStore::open_default_in_dir(&fixture_dir)
+        .expect("open campaign store")
+        .import_directory_snapshot(&fixture_dir)
+        .expect("refresh sqlite snapshot");
 
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir.clone(),
@@ -1826,7 +1885,7 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
             .contains("Detach ships from fleet # [1] ->")
     );
 
-    let updated = CoreGameData::load(&fixture_dir).expect("reload saved game");
+    let updated = latest_runtime_state(&fixture_dir).game_data;
     assert_eq!(updated.fleets.records.len(), initial_fleet_count + 1);
     assert_eq!(updated.fleets.records[0].destroyer_count(), 1);
     assert_eq!(updated.fleets.records[0].etac_count(), 0);

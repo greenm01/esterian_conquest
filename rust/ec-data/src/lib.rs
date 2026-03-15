@@ -72,6 +72,7 @@ pub use records::player::{DiplomaticRelation, PlayerDat, PlayerRecord};
 pub use records::setup::SetupDat;
 pub use starmap::{PlayerStarmapProjection, PlayerStarmapWorld, build_player_starmap_projection};
 pub use storage::{
-    CampaignStore, CampaignStoreError, DEFAULT_CAMPAIGN_DB_NAME, IntelTier, PlanetIntelSnapshot,
+    CampaignRuntimeState, CampaignStore, CampaignStoreError, DEFAULT_CAMPAIGN_DB_NAME, IntelTier,
+    PlanetIntelSnapshot,
 };
 pub use support::{ParseError, decode_real48, encode_real48};
