@@ -27,13 +27,12 @@ use crate::screen::{
     PlanetTransportPlanetRow, PlanetTransportScreen, RankingsScreen, ReportsScreen, Screen,
     ScreenFrame, ScreenId, StarmapScreen, StartupScreen, FIRST_TIME_INTRO_PAGE_COUNT,
     STARTUP_SPLASH_PAGE_COUNT,
-    load_bbs_splash_pages,
     render_first_time_homeworld_confirm, render_first_time_homeworld_name,
     render_first_time_join_confirm, render_first_time_join_name,
     render_first_time_join_name_confirm, render_first_time_join_no_pending,
     render_first_time_join_summary,
 };
-use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
+use crate::startup::{StartupArt, StartupArtConfig, StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,6 +41,7 @@ pub struct AppConfig {
     pub player_record_index_1_based: usize,
     pub export_root: Option<PathBuf>,
     pub queue_dir: Option<PathBuf>,
+    pub startup_config: Option<PathBuf>,
 }
 
 pub struct App {
@@ -191,6 +191,29 @@ pub struct App {
     first_time_homeworld_name: String,
 }
 
+struct StartupAssets {
+    bbs_splash: StartupArt,
+    ec_game_splash: StartupArt,
+}
+
+fn load_startup_assets(
+    override_path: Option<&std::path::Path>,
+) -> Result<StartupAssets, Box<dyn std::error::Error>> {
+    let config_path = override_path
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("EC_CLIENT_STARTUP_CONFIG").map(PathBuf::from))
+        .unwrap_or_else(default_startup_config_path);
+    let config = StartupArtConfig::load_kdl(&config_path)?;
+    Ok(StartupAssets {
+        bbs_splash: StartupArt::load(&config.bbs_art_path)?,
+        ec_game_splash: StartupArt::load(&config.ec_game_art_path)?,
+    })
+}
+
+fn default_startup_config_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("config/startup.default.kdl")
+}
+
 impl App {
     pub fn load(config: AppConfig) -> Result<Self, Box<dyn std::error::Error>> {
         let game_dir = config.game_dir.clone();
@@ -201,7 +224,6 @@ impl App {
         let game_data = CoreGameData::load(&game_dir)?;
         let database = DatabaseDat::parse(&fs::read(game_dir.join("DATABASE.DAT"))?)?;
         let player = PlayerContext::from_game_data(&game_data, config.player_record_index_1_based)?;
-        let player_is_joined = player.is_joined;
         let pending_results = file_nonempty(game_dir.join("RESULTS.DAT"));
         let reports = ReportsPreview::load(&game_dir)?;
         let main_menu_summary = MainMenuSummary::from_game_data(
@@ -217,25 +239,21 @@ impl App {
             &reports,
         );
         let startup_sequence = StartupSequence::new(&startup_summary);
-        let bbs_splash_pages = load_bbs_splash_pages(
-            std::env::var_os("EC_CLIENT_BBS_SPLASH")
-                .as_ref()
-                .map(PathBuf::from)
-                .as_deref(),
-        )?;
+        let startup_assets = load_startup_assets(config.startup_config.as_deref())?;
 
         Ok(Self {
             game_dir,
             game_data,
             database,
             player,
-            current_screen: if player_is_joined {
-                ScreenId::Startup(startup_sequence.current())
-            } else {
-                ScreenId::FirstTimeMenu
-            },
+            current_screen: ScreenId::Startup(startup_sequence.current()),
             startup_sequence,
-            startup: StartupScreen::new(startup_summary, reports.clone(), bbs_splash_pages),
+            startup: StartupScreen::new(
+                startup_summary,
+                reports.clone(),
+                startup_assets.bbs_splash,
+                startup_assets.ec_game_splash,
+            ),
             first_time_menu: FirstTimeMenuScreen::new(),
             first_time_help: FirstTimeHelpScreen::new(),
             first_time_empires: FirstTimeEmpiresScreen::new(),
@@ -750,7 +768,13 @@ impl App {
         }
         let next = self.startup_sequence.advance();
         self.current_screen = match next {
-            StartupPhase::Complete => ScreenId::MainMenu,
+            StartupPhase::Complete => {
+                if self.player.is_joined {
+                    ScreenId::MainMenu
+                } else {
+                    ScreenId::FirstTimeMenu
+                }
+            }
             phase => ScreenId::Startup(phase),
         };
     }

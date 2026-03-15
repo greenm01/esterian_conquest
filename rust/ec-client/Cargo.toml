@@ -10,3 +10,4 @@ path = "src/main.rs"
 [dependencies]
 crossterm = "0.28"
 ec-data = { path = "../ec-data" }
+kdl = "6"

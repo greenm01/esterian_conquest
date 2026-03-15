@@ -1,8 +1,22 @@
 use std::path::PathBuf;
 use std::process::Command;
 
+use ec_client::startup::StartupArtConfig;
+
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+fn startup_config_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("config/startup.default.kdl")
+}
+
+#[test]
+fn startup_default_kdl_parses() {
+    let config =
+        StartupArtConfig::load_kdl(&startup_config_path()).expect("startup config should parse");
+    assert!(config.bbs_art_path.exists(), "bbs art should exist");
+    assert!(config.ec_game_art_path.exists(), "ec art should exist");
 }
 
 #[test]
@@ -26,7 +40,6 @@ fn client_renders_startup_splash_from_fixture() {
     );
 
     let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
-    assert!(stdout.contains("FIRST TIME MENU:"));
-    assert!(stdout.contains("J>oin this game"));
-    assert!(stdout.contains("L>ist current empires"));
+    assert!(stdout.contains("THE BATTLE FIELD BBS"));
+    assert!(stdout.contains("Press any key to continue."));
 }

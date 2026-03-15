@@ -54,6 +54,7 @@ pub(crate) use table::format_fleet_number;
 pub use general_help::GeneralHelpScreen;
 pub use general_menu::GeneralMenuScreen;
 pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
+pub(crate) use layout::new_playfield;
 pub use main_menu::MainMenuScreen;
 pub use message_compose::MessageComposeScreen;
 pub(crate) use message_compose::{
@@ -83,7 +84,6 @@ pub use rankings::RankingsScreen;
 pub use reports::ReportsScreen;
 pub use starmap::StarmapScreen;
 pub use startup::StartupScreen;
-pub(crate) use startup::load_bbs_splash_pages;
 pub(crate) use startup::STARTUP_INTRO_PAGE_COUNT;
 pub(crate) use startup::STARTUP_SPLASH_PAGE_COUNT;
 

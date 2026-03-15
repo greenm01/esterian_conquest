@@ -141,6 +141,9 @@ Current emphasis:
 - modernize only where the original UI was clearly hostile or obsolete
   (for example map export and terminal-safe compose flows)
 - build the local terminal client first, then carry that into BBS door support
+- keep startup art asset-driven:
+  - BBS splash and EC splash sources now come from KDL-configured files
+  - the Rust client still owns pacing, 80x20 rendering, and flow control
 
 That client work is now documented in
 [docs/bbs_door_client_rust.md](docs/bbs_door_client_rust.md).
@@ -179,6 +182,13 @@ Launch original `ECGAME` locally in DOSBox-X:
 tools/run_ecgame.sh /tmp/ec-game 1
 ```
 
+Run the Rust client with an alternate startup-art config:
+
+```bash
+cd rust
+cargo run -q -p ec-client -- --dir /tmp/ec-game --player 1 --startup-config ec-client/config/startup.default.kdl
+```
+
 ## Useful Commands
 
 New game from declarative config:
@@ -190,6 +200,9 @@ cargo run -q -p ec-cli -- sysop new-game /tmp/ec-game --config ec-data/config/se
 
 The bundled example config uses `setup_mode="builder-compatible"` for the
 active-campaign baseline used by the maint/oracle sweeps.
+
+The bundled `ec-client/config/startup.default.kdl` controls the startup splash
+asset paths for the Rust client.
 
 Inspect a game directory:
 

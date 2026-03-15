@@ -1,6 +1,3 @@
-use std::fs;
-use std::path::Path;
-
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
@@ -9,25 +6,29 @@ use crate::screen::layout::{
     draw_centered_text, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
 };
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
+use crate::startup::StartupArt;
 use crate::startup::{StartupPhase, StartupSummary};
 use crate::theme::classic;
 
 pub struct StartupScreen {
     summary: StartupSummary,
     reports: ReportsPreview,
-    bbs_splash_pages: Vec<Vec<String>>,
+    bbs_splash: StartupArt,
+    ec_game_splash: StartupArt,
 }
 
 impl StartupScreen {
     pub fn new(
         summary: StartupSummary,
         reports: ReportsPreview,
-        bbs_splash_pages: Vec<Vec<String>>,
+        bbs_splash: StartupArt,
+        ec_game_splash: StartupArt,
     ) -> Self {
         Self {
             summary,
             reports,
-            bbs_splash_pages,
+            bbs_splash,
+            ec_game_splash,
         }
     }
 
@@ -68,17 +69,8 @@ impl StartupScreen {
         splash_page: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         match splash_page {
-            0 => self.render_bbs_splash_page(),
-            1 => render_startup_art_page(
-                &EC_ART_PAGE_1,
-                "Press any key to continue.",
-                classic::bright_style(),
-            ),
-            2 => render_startup_art_page(
-                &EC_ART_PAGE_2,
-                "Press any key to continue.",
-                classic::bright_style(),
-            ),
+            0 => self.render_art_page(&self.bbs_splash, "Press any key to continue."),
+            1 => self.render_art_page(&self.ec_game_splash, "Press any key to continue."),
             _ => self.render_intro_prompt_page(),
         }
     }
@@ -208,148 +200,26 @@ impl StartupScreen {
     }
 }
 
-pub fn load_bbs_splash_pages(path: Option<&Path>) -> Result<Vec<Vec<String>>, Box<dyn std::error::Error>> {
-    let pages = if let Some(path) = path {
-        let text = fs::read_to_string(path)?;
-        let parsed = text
-            .split('\u{000c}')
-            .map(|page| {
-                page.lines()
-                    .map(|line| line.chars().take(80).collect::<String>())
-                    .collect::<Vec<_>>()
-            })
-            .filter(|page| !page.is_empty())
-            .collect::<Vec<_>>();
-        if parsed.is_empty() {
-            vec![DEFAULT_BBS_SPLASH_PAGE.iter().map(|line| (*line).to_string()).collect()]
-        } else {
-            parsed
-        }
-    } else {
-        vec![DEFAULT_BBS_SPLASH_PAGE.iter().map(|line| (*line).to_string()).collect()]
-    };
-    Ok(pages)
-}
-
 impl StartupScreen {
-    fn render_bbs_splash_page(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
-        let page = self
-            .bbs_splash_pages
-            .first()
-            .map(Vec::as_slice)
-            .unwrap_or(&[]);
-        for (idx, line) in page.iter().take(18).enumerate() {
-            draw_centered_text(&mut buffer, idx, line, classic::menu_hotkey_style());
-        }
-        draw_plain_prompt(&mut buffer, 19, "Press any key to continue.");
+    fn render_art_page(
+        &self,
+        art: &StartupArt,
+        prompt: &str,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = art.render();
+        draw_plain_prompt(&mut buffer, 19, prompt);
         Ok(buffer)
     }
 
     fn render_intro_prompt_page(&self) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
-        for (idx, line) in EC_ART_PAGE_3.iter().enumerate() {
-            buffer.write_text(idx, 0, line, classic::bright_style());
-        }
+        let mut buffer = self.ec_game_splash.render();
         draw_plain_prompt(&mut buffer, 19, "View Introduction? Y/[N] ->");
         Ok(buffer)
     }
 }
 
 pub const STARTUP_INTRO_PAGE_COUNT: usize = INTRO_PAGES.len();
-pub const STARTUP_SPLASH_PAGE_COUNT: usize = 4;
-
-const DEFAULT_BBS_SPLASH_PAGE: [&str; 10] = [
-    "",
-    "THE BATTLE FIELD BBS",
-    "",
-    "presents",
-    "",
-    "ESTERIAN CONQUEST",
-    "",
-    "A classic galactic war door, rebuilt for the modern terminal.",
-    "",
-    "Default sysop splash. Override with EC_CLIENT_BBS_SPLASH if desired.",
-];
-
-const EC_ART_PAGE_1: [&str; 19] = [
-    "        .                .                          .                  *        ",
-    "                                                                                ",
-    "                                                                                ",
-    "                      E S T E R I A N                                           ",
-    "                                                                                ",
-    "                        C O N Q U E S T                                         ",
-    "                                                                                ",
-    "                                                                                ",
-    "                 .                                .                             ",
-    "       *                            .                                           ",
-    "                                                  .                             ",
-    "                              Version 1.60                                      ",
-    "                                                                                ",
-    "             A galaxy of old wreckage, fresh empires, and unfinished wars.     ",
-    "                                                                                ",
-    "                                                                                ",
-    "      .                    *                               .                    ",
-    "                                                                                ",
-    "                                                                                ",
-];
-
-const EC_ART_PAGE_2: [&str; 19] = [
-    "                                                                                ",
-    "                             .                        .                         ",
-    "                                                                                ",
-    "                                                                                ",
-    "                                   /\\                                           ",
-    "                                  /  \\                                          ",
-    "                     __==========/====\\==========__                             ",
-    "                  .-'          /  /\\  \\          '-.                            ",
-    "                .'            /__/  \\__\\            '.                          ",
-    "               /________________________________________________\\               ",
-    "                                                                                ",
-    "                           .                       *                             ",
-    "                                                                                ",
-    "                                                                                ",
-    "                                                                                ",
-    "                                                                                ",
-    "                                                                                ",
-    "                                                                                ",
-    "                                                                                ",
-];
-
-const EC_ART_PAGE_3: [&str; 19] = [
-    "                                                                                ",
-    "                           *                                .                   ",
-    "                                                                                ",
-    "                                    /\\                                          ",
-    "                                   /  \\                                         ",
-    "                     __===========/====\\===========__                           ",
-    "                  .-'           /  /\\  \\           '-.                          ",
-    "                .'             /__/  \\__\\             '.                        ",
-    "               /________________________________________________\\               ",
-    "********************************************************************************",
-    "                                                                                ",
-    "                           ESTERIAN CONQUEST  Ver 1.60                          ",
-    "                                                                                ",
-    "        Use Ctrl-S throughout the game to pause and resume output.              ",
-    "        Use Ctrl-X or Ctrl-K to abort most listings.                            ",
-    "        Copyright (C) 1990, 1991 by Bentley C. Griffith.                        ",
-    "                                                                                ",
-    "                                                                                ",
-    "                                                                                ",
-];
-
-fn render_startup_art_page(
-    lines: &[&str],
-    prompt: &str,
-    style: crate::screen::CellStyle,
-) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-    let mut buffer = new_playfield();
-    for (idx, line) in lines.iter().enumerate().take(19) {
-        buffer.write_text(idx, 0, line, style);
-    }
-    draw_plain_prompt(&mut buffer, 19, prompt);
-    Ok(buffer)
-}
+pub const STARTUP_SPLASH_PAGE_COUNT: usize = 3;
 
 const INTRO_PAGE_1: [&str; 14] = [
     "Beyond the mapped frontiers of the old Esterian dominion lies a small",

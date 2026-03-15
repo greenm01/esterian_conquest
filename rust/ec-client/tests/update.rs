@@ -77,6 +77,16 @@ fn advance_to_main_menu(app: &mut App) {
     panic!("startup did not reach main menu");
 }
 
+fn advance_to_first_time_menu(app: &mut App) {
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::FirstTimeMenu {
+            return;
+        }
+        app.advance_startup();
+    }
+    panic!("startup did not reach first-time menu");
+}
+
 struct CaptureTerminal {
     lines: Vec<String>,
 }
@@ -123,6 +133,7 @@ fn apply_action_switches_between_client_screens() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        startup_config: None,
     })
     .expect("app should load");
 
@@ -435,9 +446,13 @@ fn first_time_menu_branch_opens_help_intro_and_empire_list() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        startup_config: None,
     })
     .expect("app should load");
 
+    assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::Splash));
+
+    advance_to_first_time_menu(&mut app);
     assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
 
     assert_eq!(
@@ -467,6 +482,7 @@ fn first_time_join_flow_updates_player_and_homeworld_then_enters_main_menu() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        startup_config: None,
     })
     .expect("app should load");
 
@@ -549,6 +565,7 @@ fn apply_action_quit_exits_loop() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        startup_config: None,
     })
     .expect("app should load");
 
@@ -564,6 +581,7 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        startup_config: None,
     })
     .expect("app should load");
 
@@ -798,6 +816,7 @@ fn fleet_roe_accepts_typed_fleet_selection_and_q_cancels_edit_mode() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        startup_config: None,
     })
     .expect("app should load");
 
@@ -860,6 +879,7 @@ fn fleet_roe_empty_enter_accepts_displayed_default() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        startup_config: None,
     })
     .expect("app should load");
 
@@ -898,6 +918,7 @@ fn fleet_roe_success_returns_to_selector_prompt_without_confirmation_text() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        startup_config: None,
     })
     .expect("app should load");
     let mut terminal = CaptureTerminal::new();
@@ -1085,6 +1106,7 @@ fn fleet_eta_accepts_typed_fleet_destination_and_default_include_system() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        startup_config: None,
     })
     .expect("app should load");
 
@@ -1202,6 +1224,7 @@ fn general_rankings_opens_production_table_and_returns_to_general_menu() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        startup_config: None,
     })
     .expect("app should load");
 
@@ -1243,6 +1266,7 @@ fn apply_action_toggles_autopilot_and_enemy_relation() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        startup_config: None,
     })
     .expect("app should load");
 
@@ -1279,6 +1303,7 @@ fn apply_action_clamps_enemies_scroll_to_visible_window() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        startup_config: None,
     })
     .expect("app should load");
 
@@ -1309,6 +1334,7 @@ fn apply_action_deletes_reviewables() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        startup_config: None,
     })
     .expect("app should load");
 
@@ -1341,6 +1367,7 @@ fn apply_action_queues_composed_message() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        startup_config: None,
     })
     .expect("app should load");
 
@@ -1416,6 +1443,7 @@ fn apply_action_deletes_queued_message_from_outbox() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        startup_config: None,
     })
     .expect("app should load");
 
@@ -1445,6 +1473,7 @@ fn apply_action_confirms_before_discarding_composed_message() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        startup_config: None,
     })
     .expect("app should load");
 
@@ -1511,6 +1540,7 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
+        startup_config: None,
     })
     .expect("app should load");
 

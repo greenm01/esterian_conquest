@@ -171,11 +171,14 @@ Treat the login/startup side as one explicit pre-command-center pipeline:
 
 - BBS splash is sysop-owned/configurable
   - keep The Battle Field as the default preset
+  - source it from startup KDL config instead of hardcoded Rust strings
 - the classic EC ANSI intro is game-owned
-  - keep EC-specific ANSI art in Rust code/assets
+  - keep EC-specific ANSI art in Rust-owned repo assets
   - starfield
   - ship
   - red-line animation
+  - select the asset path through the same startup KDL config, but keep flow
+    control and rendering in the client
 - after the intro, branch by player state before any command center opens
   - unjoined player:
     - first-time help/list/join flow
