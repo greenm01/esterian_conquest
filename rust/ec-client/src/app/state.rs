@@ -14,6 +14,7 @@ use crate::reports::{clear_report_files, ReportsPreview};
 use crate::screen::{
     build_unit_spec, build_unit_spec_by_kind, max_quantity, BuildHelpScreen, CommandMenu,
     DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
+    FleetListMode, FleetListScreen, FleetMenuScreen, FleetReviewScreen, FleetRow,
     GeneralHelpScreen, GeneralMenuScreen, MainMenuScreen, MessageComposeScreen,
     PartialStarmapScreen, PlanetAutoCommissionScreen, PlanetBuildChangeRow, PlanetBuildListRow,
     PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionRow,
@@ -45,6 +46,9 @@ pub struct App {
     main_menu: MainMenuScreen,
     general_menu: GeneralMenuScreen,
     general_help: GeneralHelpScreen,
+    fleet_menu: FleetMenuScreen,
+    fleet_list: FleetListScreen,
+    fleet_review: FleetReviewScreen,
     planet_menu: PlanetMenuScreen,
     planet_help: PlanetHelpScreen,
     planet_auto_commission: PlanetAutoCommissionScreen,
@@ -93,6 +97,10 @@ pub struct App {
     compose_outbox_cursor: usize,
     compose_sent_status: Option<String>,
     planet_list_sort_status: Option<String>,
+    fleet_list_mode: FleetListMode,
+    fleet_scroll_offset: usize,
+    fleet_cursor: usize,
+    fleet_review_index: usize,
     planet_brief_scroll_offset: usize,
     planet_brief_cursor: usize,
     planet_detail_index: usize,
@@ -175,6 +183,9 @@ impl App {
             main_menu: MainMenuScreen::new(),
             general_menu: GeneralMenuScreen::new(),
             general_help: GeneralHelpScreen::new(),
+            fleet_menu: FleetMenuScreen::new(),
+            fleet_list: FleetListScreen::new(),
+            fleet_review: FleetReviewScreen::new(),
             planet_menu: PlanetMenuScreen::new(),
             planet_help: PlanetHelpScreen::new(),
             planet_auto_commission: PlanetAutoCommissionScreen::new(),
@@ -223,6 +234,10 @@ impl App {
             compose_outbox_cursor: 0,
             compose_sent_status: None,
             planet_list_sort_status: None,
+            fleet_list_mode: FleetListMode::Brief,
+            fleet_scroll_offset: 0,
+            fleet_cursor: 0,
+            fleet_review_index: 0,
             planet_brief_scroll_offset: 0,
             planet_brief_cursor: 0,
             planet_detail_index: 0,
@@ -284,6 +299,21 @@ impl App {
             ScreenId::MainMenu => self.main_menu.render(&frame)?,
             ScreenId::GeneralMenu => self.general_menu.render(&frame)?,
             ScreenId::GeneralHelp => self.general_help.render(&frame)?,
+            ScreenId::FleetMenu => self.fleet_menu.render(&frame)?,
+            ScreenId::FleetList(mode) => self.fleet_list.render(
+                mode,
+                &self.fleet_rows(),
+                self.fleet_scroll_offset,
+                self.fleet_cursor,
+            )?,
+            ScreenId::FleetReview => {
+                let rows = self.fleet_rows();
+                let row = rows
+                    .get(self.fleet_review_index)
+                    .ok_or("fleet review row missing")?;
+                self.fleet_review
+                    .render(row, self.fleet_review_index, rows.len())?
+            }
             ScreenId::PlanetMenu => self.planet_menu.render(&frame)?,
             ScreenId::PlanetHelp => self.planet_help.render(&frame)?,
             ScreenId::PlanetAutoCommissionConfirm => {
@@ -545,6 +575,27 @@ impl App {
         self.current_screen = ScreenId::PlanetMenu;
     }
 
+    pub fn open_fleet_menu(&mut self) {
+        self.current_screen = ScreenId::FleetMenu;
+    }
+
+    pub fn open_fleet_list(&mut self, mode: FleetListMode) {
+        self.fleet_list_mode = mode;
+        self.fleet_scroll_offset = 0;
+        self.fleet_cursor = 0;
+        self.current_screen = ScreenId::FleetList(mode);
+    }
+
+    pub fn open_fleet_review(&mut self) {
+        let total = self.fleet_rows().len();
+        if total == 0 {
+            self.current_screen = ScreenId::FleetMenu;
+            return;
+        }
+        self.fleet_review_index = self.fleet_cursor.min(total - 1);
+        self.current_screen = ScreenId::FleetReview;
+    }
+
     pub fn open_planet_help(&mut self) {
         self.current_screen = ScreenId::PlanetHelp;
     }
@@ -782,6 +833,49 @@ impl App {
                 .saturating_add_signed(delta as isize)
                 .min(total - 1),
         };
+    }
+
+    pub fn move_fleet_list(&mut self, delta: i8) {
+        let ScreenId::FleetList(_) = self.current_screen else {
+            return;
+        };
+        let total = self.fleet_rows().len();
+        if total == 0 {
+            self.fleet_cursor = 0;
+            return;
+        }
+        let next = self.fleet_cursor as isize + delta as isize;
+        self.fleet_cursor = next.rem_euclid(total as isize) as usize;
+        sync_scroll_to_cursor(
+            &mut self.fleet_scroll_offset,
+            self.fleet_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+        );
+    }
+
+    pub fn move_fleet_review(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::FleetReview {
+            return;
+        }
+        let total = self.fleet_rows().len();
+        if total == 0 {
+            self.fleet_review_index = 0;
+            return;
+        }
+        self.fleet_review_index = match delta {
+            i8::MIN => 0,
+            i8::MAX => total - 1,
+            _ => self
+                .fleet_review_index
+                .saturating_add_signed(delta as isize)
+                .min(total - 1),
+        };
+        self.fleet_cursor = self.fleet_review_index;
+        sync_scroll_to_cursor(
+            &mut self.fleet_scroll_offset,
+            self.fleet_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+        );
     }
 
     pub fn move_planet_database_list(&mut self, delta: i8) {
@@ -1471,6 +1565,9 @@ impl App {
             ScreenId::MainMenu => self.main_menu.handle_key(key),
             ScreenId::GeneralMenu => self.general_menu.handle_key(key),
             ScreenId::GeneralHelp => self.general_help.handle_key(key),
+            ScreenId::FleetMenu => self.fleet_menu.handle_key(key),
+            ScreenId::FleetList(_) => self.fleet_list.handle_key(key),
+            ScreenId::FleetReview => self.fleet_review.handle_key(key),
             ScreenId::PlanetMenu => self.planet_menu.handle_key(key),
             ScreenId::PlanetHelp => self.planet_help.handle_key(key),
             ScreenId::PlanetAutoCommissionConfirm => self.planet_auto_commission.handle_key(key),
@@ -1709,7 +1806,12 @@ impl App {
 
     fn origin_command_menu(&self) -> CommandMenu {
         match self.current_screen {
-            ScreenId::MainMenu | ScreenId::PlanetDatabaseList | ScreenId::PlanetDatabaseDetail => {
+            ScreenId::MainMenu
+            | ScreenId::FleetMenu
+            | ScreenId::FleetList(_)
+            | ScreenId::FleetReview
+            | ScreenId::PlanetDatabaseList
+            | ScreenId::PlanetDatabaseDetail => {
                 CommandMenu::Main
             }
             ScreenId::GeneralMenu
@@ -2393,6 +2495,29 @@ impl App {
                 .cmp(&left.potential_production)
                 .then_with(|| left.coords.cmp(&right.coords)),
         });
+        rows
+    }
+
+    fn fleet_rows(&self) -> Vec<FleetRow> {
+        let mut rows = self
+            .game_data
+            .fleets
+            .records
+            .iter()
+            .enumerate()
+            .filter(|(_, fleet)| fleet.owner_empire_raw() as usize == self.player.record_index_1_based)
+            .map(|(idx, fleet)| FleetRow {
+                fleet_record_index_1_based: idx + 1,
+                fleet_id: fleet.fleet_id(),
+                coords: fleet.current_location_coords_raw(),
+                current_speed: fleet.current_speed(),
+                max_speed: fleet.max_speed(),
+                rules_of_engagement: fleet.rules_of_engagement(),
+                order_label: fleet.standing_order_summary(),
+                composition_label: fleet.ship_composition_summary(),
+            })
+            .collect::<Vec<_>>();
+        rows.sort_by_key(|row| row.fleet_id);
         rows
     }
 

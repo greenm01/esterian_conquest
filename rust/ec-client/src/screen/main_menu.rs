@@ -64,6 +64,7 @@ impl Screen for MainMenuScreen {
         match key.code {
             KeyCode::Char('b') | KeyCode::Char('B') => Action::OpenEmpireStatus,
             KeyCode::Char('d') | KeyCode::Char('D') => Action::OpenEmpireProfile,
+            KeyCode::Char('f') | KeyCode::Char('F') => Action::OpenFleetMenu,
             KeyCode::Char('g') | KeyCode::Char('G') => Action::OpenGeneralMenu,
             KeyCode::Char('i') | KeyCode::Char('I') => Action::OpenPlanetInfoPrompt(CommandMenu::Main),
             KeyCode::Char('p') | KeyCode::Char('P') => Action::OpenPlanetMenu,

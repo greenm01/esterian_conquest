@@ -1,4 +1,4 @@
-use crate::screen::{CommandMenu, PlanetListMode, PlanetListSort, PlanetTransportMode};
+use crate::screen::{CommandMenu, FleetListMode, PlanetListMode, PlanetListSort, PlanetTransportMode};
 use ec_data::EmpireProductionRankingSort;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -8,6 +8,9 @@ pub enum Action {
     OpenMainMenu,
     OpenGeneralMenu,
     OpenGeneralHelp,
+    OpenFleetMenu,
+    OpenFleetList(FleetListMode),
+    OpenFleetReview,
     OpenPlanetMenu,
     OpenPlanetHelp,
     OpenPlanetAutoCommissionConfirm,
@@ -44,6 +47,8 @@ pub enum Action {
     ToggleAutopilot,
     ScrollEnemies(i8),
     MoveEnemies(i8),
+    MoveFleetList(i8),
+    MoveFleetReview(i8),
     ScrollPlanetBrief(i8),
     MovePlanetBrief(i8),
     ScrollPlanetBuildList(i8),

@@ -4,7 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_client::app::{Action, AppConfig, AppOutcome, App, apply_action};
-use ec_client::screen::{CommandMenu, PlanetListMode, PlanetListSort, RankingsView, ScreenId};
+use ec_client::screen::{CommandMenu, FleetListMode, PlanetListMode, PlanetListSort, RankingsView, ScreenId};
 use ec_client::startup::StartupPhase;
 use ec_data::{DiplomaticRelation, EmpireProductionRankingSort};
 
@@ -103,6 +103,24 @@ fn apply_action_switches_between_client_screens() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetList(FleetListMode::Brief)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList(FleetListMode::Brief));
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetReview),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetReview);
 
     assert_eq!(
         apply_action(&mut app, Action::OpenPlanetHelp),
@@ -345,6 +363,40 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::ReturnToCommandMenu);
     assert_eq!(
         apply_action(&mut app, Action::ReturnToCommandMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+
+    assert_eq!(app.handle_key(key(KeyCode::Char('f'))), Action::OpenFleetMenu);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('b'))),
+        Action::OpenFleetList(FleetListMode::Brief)
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetList(FleetListMode::Brief)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetList(FleetListMode::Brief));
+    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::OpenFleetReview);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetReview),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetReview);
+    assert_eq!(app.handle_key(key(KeyCode::Char('q'))), Action::OpenFleetMenu);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(app.handle_key(key(KeyCode::Char('q'))), Action::OpenMainMenu);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenMainMenu),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::MainMenu);

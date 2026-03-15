@@ -4,6 +4,7 @@ mod delete_reviewables;
 mod empire_profile;
 mod empire_status;
 mod enemies;
+mod fleet;
 mod general_help;
 mod general_menu;
 mod layout;
@@ -32,7 +33,9 @@ pub use delete_reviewables::DeleteReviewablesScreen;
 pub use empire_profile::EmpireProfileScreen;
 pub use empire_status::EmpireStatusScreen;
 pub use enemies::EnemiesScreen;
+pub use fleet::{FleetListMode, FleetListScreen, FleetMenuScreen, FleetReviewScreen, FleetRow};
 pub(crate) use enemies::ENEMIES_VISIBLE_ROWS;
+pub(crate) use fleet::FLEET_VISIBLE_ROWS;
 pub use general_help::GeneralHelpScreen;
 pub use general_menu::GeneralMenuScreen;
 pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
@@ -80,6 +83,9 @@ pub enum ScreenId {
     MainMenu,
     GeneralMenu,
     GeneralHelp,
+    FleetMenu,
+    FleetList(FleetListMode),
+    FleetReview,
     PlanetMenu,
     PlanetHelp,
     PlanetAutoCommissionConfirm,

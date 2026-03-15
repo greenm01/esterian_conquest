@@ -29,6 +29,18 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             *app.current_screen_mut() = crate::screen::ScreenId::GeneralHelp;
             AppOutcome::Continue
         }
+        Action::OpenFleetMenu => {
+            app.open_fleet_menu();
+            AppOutcome::Continue
+        }
+        Action::OpenFleetList(mode) => {
+            app.open_fleet_list(mode);
+            AppOutcome::Continue
+        }
+        Action::OpenFleetReview => {
+            app.open_fleet_review();
+            AppOutcome::Continue
+        }
         Action::OpenPlanetMenu => {
             app.open_planet_menu();
             AppOutcome::Continue
@@ -155,6 +167,14 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         }
         Action::MoveEnemies(delta) => {
             app.move_enemies_cursor(delta);
+            AppOutcome::Continue
+        }
+        Action::MoveFleetList(delta) => {
+            app.move_fleet_list(delta);
+            AppOutcome::Continue
+        }
+        Action::MoveFleetReview(delta) => {
+            app.move_fleet_review(delta);
             AppOutcome::Continue
         }
         Action::ScrollPlanetBrief(delta) => {
