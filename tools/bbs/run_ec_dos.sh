@@ -9,7 +9,7 @@ GAME_DIR="/home/mag/dev/esterian_conquest/original/v1.5"
 echo "$(date) - Launching door with $@" >> /tmp/ec-door.log
 
 if [ -d "$DROPFILE" ]; then
-    DROPFILE="$DROPFILE/DOOR.SYS"
+    DROPFILE="$DROPFILE/chain.txt"
 fi
 
 rm -f "$GAME_DIR/CHAIN.TXT"
@@ -17,23 +17,18 @@ rm -f "$GAME_DIR/DOOR.SYS"
 rm -f "$GAME_DIR/DORINFO1.DEF"
 
 if [ -f "$DROPFILE" ]; then
-    cp "$DROPFILE" "$GAME_DIR/DOOR.SYS"
-    chmod 666 "$GAME_DIR/DOOR.SYS"
+    cp "$DROPFILE" "$GAME_DIR/CHAIN.TXT"
+    chmod 666 "$GAME_DIR/CHAIN.TXT"
 else
     echo "ERROR: Dropfile not found at $DROPFILE" >> /tmp/ec-door.log
 fi
 
 export SDL_VIDEODRIVER=dummy
 
-# Enigma generates DOOR.SYS by default based on our dropFileType config.
-# Let's switch the strategy. The absolute most reliable way to launch ECGAME
-# in DOSBox-X without bash escaping issues on backslashes is to write a tiny
-# .BAT file on the fly and launch THAT inside dosbox.
-
 cat << 'BAT' > "$GAME_DIR/RUN.BAT"
 @ECHO OFF
 C:
-ECGAME.EXE /D:C:\
+ECGAME.EXE
 BAT
 
 dosbox-x -conf /dev/null \
