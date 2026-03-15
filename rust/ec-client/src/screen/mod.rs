@@ -38,8 +38,8 @@ pub(crate) use message_compose::{
 pub use partial_starmap::PartialStarmapScreen;
 pub use planet_build::{
     build_kind_name, build_order_summary, build_unit_spec, build_unit_spec_by_kind, infer_quantity,
-    max_quantity, BuildUnitSpec, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildOrder,
-    PlanetBuildScreen,
+    max_quantity, BuildUnitSpec, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView,
+    PlanetBuildOrder, PlanetBuildScreen,
 };
 pub(crate) use planet_build::{PLANET_BUILD_CHANGE_VISIBLE_ROWS, PLANET_BUILD_LIST_VISIBLE_ROWS};
 pub use planet_help::PlanetHelpScreen;

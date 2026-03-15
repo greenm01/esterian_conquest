@@ -15,11 +15,12 @@ pub struct PlanetBuildScreen;
 pub(crate) const PLANET_BUILD_LIST_VISIBLE_ROWS: usize = 10;
 pub(crate) const PLANET_BUILD_CHANGE_VISIBLE_ROWS: usize = 13;
 
-const CHANGE_COLUMNS: [TableColumn<'static>; 4] = [
+const CHANGE_COLUMNS: [TableColumn<'static>; 5] = [
     TableColumn::left("Planet Name", 20),
     TableColumn::left("Location", 9),
     TableColumn::left("Production", 16),
-    TableColumn::right("PP Spent", 9),
+    TableColumn::right("PP", 4),
+    TableColumn::right("Spent", 5),
 ];
 
 const BUILD_LIST_COLUMNS: [TableColumn<'static>; 4] = [
@@ -83,6 +84,16 @@ pub struct PlanetBuildListRow {
     pub points: u32,
     pub queue_qty: u32,
     pub stardock_qty: Option<u32>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PlanetBuildChangeRow {
+    pub planet_name: String,
+    pub coords: [u8; 2],
+    pub present_production: u16,
+    pub potential_production: u16,
+    pub available_points: u32,
+    pub committed_points: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -531,7 +542,7 @@ impl PlanetBuildScreen {
 
     pub fn render_change(
         &mut self,
-        rows: &[EmpirePlanetEconomyRow],
+        rows: &[PlanetBuildChangeRow],
         scroll_offset: usize,
         cursor: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
@@ -554,7 +565,8 @@ impl PlanetBuildScreen {
                         "{:>3} of {:>3}",
                         row.present_production, row.potential_production
                     ),
-                    row.stored_production_points.to_string(),
+                    row.available_points.to_string(),
+                    row.committed_points.to_string(),
                 ]
             })
             .collect();

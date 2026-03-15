@@ -1,4 +1,6 @@
-use ec_client::screen::{PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildScreen};
+use ec_client::screen::{
+    PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildScreen,
+};
 use ec_data::{EmpirePlanetEconomyRow, ProductionItemKind};
 
 #[test]
@@ -89,4 +91,23 @@ fn build_list_renders_queue_and_stardock_columns() {
     assert!(buffer.plain_line(6).contains("3"));
     assert!(buffer.plain_line(7).contains("Armies"));
     assert!(buffer.plain_line(7).contains("N/A"));
+}
+
+#[test]
+fn build_change_renders_pp_and_spent_columns() {
+    let mut screen = PlanetBuildScreen::new();
+    let rows = vec![PlanetBuildChangeRow {
+        planet_name: "Not Named Yet".to_string(),
+        coords: [6, 5],
+        present_production: 100,
+        potential_production: 100,
+        available_points: 50,
+        committed_points: 20,
+    }];
+
+    let buffer = screen.render_change(&rows, 0, 0).expect("render change");
+
+    assert_eq!(buffer.plain_line(4), "Planet Name          Location  Production         PP Spent");
+    assert!(buffer.plain_line(6).contains("50"));
+    assert!(buffer.plain_line(6).contains("20"));
 }

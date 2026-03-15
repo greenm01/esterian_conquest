@@ -13,11 +13,11 @@ use crate::reports::{clear_report_files, ReportsPreview};
 use crate::screen::{
     build_unit_spec, build_unit_spec_by_kind, max_quantity, CommandMenu, DeleteReviewablesScreen,
     EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen, GeneralHelpScreen, GeneralMenuScreen,
-    MainMenuScreen, MessageComposeScreen, PartialStarmapScreen, PlanetBuildListRow,
-    PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetHelpScreen, PlanetInfoScreen,
-    PlanetListMode, PlanetListScreen, PlanetListSort, PlanetMenuScreen, PlanetTaxScreen,
-    RankingsScreen, RankingsView, ReportsScreen, Screen, ScreenFrame, ScreenId, StarmapScreen,
-    StartupScreen,
+    MainMenuScreen, MessageComposeScreen, PartialStarmapScreen, PlanetBuildChangeRow,
+    PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen,
+    PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen, PlanetListSort,
+    PlanetMenuScreen, PlanetTaxScreen, RankingsScreen, RankingsView, ReportsScreen, Screen,
+    ScreenFrame, ScreenId, StarmapScreen, StartupScreen,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -254,7 +254,7 @@ impl App {
                 self.planet_build_list_confirming,
             )?,
             ScreenId::PlanetBuildChange => self.planet_build.render_change(
-                &self.build_planet_rows(),
+                &self.build_change_rows(),
                 self.planet_build_change_scroll_offset,
                 self.planet_build_change_cursor,
             )?,
@@ -1725,6 +1725,27 @@ impl App {
 
     fn build_planet_rows(&self) -> Vec<ec_data::EmpirePlanetEconomyRow> {
         self.sorted_planet_rows(PlanetListSort::CurrentProduction)
+    }
+
+    fn build_change_rows(&self) -> Vec<PlanetBuildChangeRow> {
+        self.build_planet_rows()
+            .into_iter()
+            .map(|row| {
+                let available_points =
+                    u32::from(row.build_capacity).min(row.stored_production_points.min(u32::from(u16::MAX)));
+                let committed_points = self
+                    .current_build_committed_points(row.planet_record_index_1_based)
+                    .unwrap_or(0);
+                PlanetBuildChangeRow {
+                    planet_name: row.planet_name,
+                    coords: row.coords,
+                    present_production: row.present_production,
+                    potential_production: row.potential_production,
+                    available_points,
+                    committed_points,
+                }
+            })
+            .collect()
     }
 
     fn current_build_planet_row(
