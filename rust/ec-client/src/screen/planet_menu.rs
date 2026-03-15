@@ -5,7 +5,8 @@ use crate::screen::layout::{
     draw_command_center, new_playfield, MenuEntry, CMD_COL_1, CMD_COL_2, CMD_COL_3,
 };
 use crate::screen::{
-    CommandMenu, PlanetListMode, PlanetListSort, PlayfieldBuffer, Screen, ScreenFrame,
+    CommandMenu, PlanetListMode, PlanetListSort, PlanetTransportMode, PlayfieldBuffer, Screen,
+    ScreenFrame,
 };
 
 pub struct PlanetMenuScreen;
@@ -85,14 +86,16 @@ impl Screen for PlanetMenuScreen {
             KeyCode::Char('a') | KeyCode::Char('A') => Action::OpenPlanetAutoCommissionConfirm,
             KeyCode::Char('s')
             | KeyCode::Char('S')
-            | KeyCode::Char('l')
-            | KeyCode::Char('L')
-            | KeyCode::Char('u')
-            | KeyCode::Char('U')
             | KeyCode::Char('x')
             | KeyCode::Char('X') => Action::OpenPlanetListSortPrompt(PlanetListMode::Stub(
                 planet_stub_label(key.code).unwrap_or(""),
             )),
+            KeyCode::Char('l') | KeyCode::Char('L') => {
+                Action::OpenPlanetTransportPlanetSelect(PlanetTransportMode::Load)
+            }
+            KeyCode::Char('u') | KeyCode::Char('U') => {
+                Action::OpenPlanetTransportPlanetSelect(PlanetTransportMode::Unload)
+            }
             KeyCode::Char('t') | KeyCode::Char('T') => Action::OpenPlanetTaxPrompt,
             _ => Action::Noop,
         }

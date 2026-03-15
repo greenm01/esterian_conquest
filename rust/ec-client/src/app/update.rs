@@ -45,6 +45,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_planet_commission_menu();
             AppOutcome::Continue
         }
+        Action::OpenPlanetTransportPlanetSelect(mode) => {
+            app.open_planet_transport_planet_select(mode);
+            AppOutcome::Continue
+        }
         Action::OpenPlanetBuildMenu => {
             app.open_planet_build_menu();
             AppOutcome::Continue
@@ -190,6 +194,34 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             AppOutcome::Continue
         }
         Action::CommissionPlanetStardockSelection => match app.commission_selected_stardock_row() {
+            Ok(()) => AppOutcome::Continue,
+            Err(_) => AppOutcome::Continue,
+        },
+        Action::MovePlanetTransportPlanet(delta) => {
+            app.move_planet_transport_planet(delta);
+            AppOutcome::Continue
+        }
+        Action::ConfirmPlanetTransportPlanet => {
+            app.confirm_planet_transport_planet();
+            AppOutcome::Continue
+        }
+        Action::MovePlanetTransportFleet(delta) => {
+            app.move_planet_transport_fleet(delta);
+            AppOutcome::Continue
+        }
+        Action::ConfirmPlanetTransportFleet => {
+            app.confirm_planet_transport_fleet();
+            AppOutcome::Continue
+        }
+        Action::AppendPlanetTransportQtyChar(ch) => {
+            app.append_planet_transport_qty_char(ch);
+            AppOutcome::Continue
+        }
+        Action::BackspacePlanetTransportQty => {
+            app.backspace_planet_transport_qty();
+            AppOutcome::Continue
+        }
+        Action::SubmitPlanetTransportQty => match app.submit_planet_transport_qty() {
             Ok(()) => AppOutcome::Continue,
             Err(_) => AppOutcome::Continue,
         },

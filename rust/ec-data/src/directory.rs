@@ -219,6 +219,30 @@ pub enum GameStateMutationError {
         slot_0_based: usize,
     },
     InvalidCommissionSelection,
+    FleetNotAtPlanet {
+        fleet_index_1_based: usize,
+        planet_index_1_based: usize,
+    },
+    PlanetArmyShortage {
+        planet_index_1_based: usize,
+        requested: u16,
+        available: u16,
+    },
+    FleetArmyShortage {
+        fleet_index_1_based: usize,
+        requested: u16,
+        available: u16,
+    },
+    PlanetArmyCapacityExceeded {
+        planet_index_1_based: usize,
+        requested: u16,
+        available: u16,
+    },
+    TransportCapacityExceeded {
+        fleet_index_1_based: usize,
+        requested: u16,
+        available: u16,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -285,6 +309,50 @@ impl std::fmt::Display for GameStateMutationError {
             Self::InvalidCommissionSelection => {
                 write!(f, "invalid commission selection")
             }
+            Self::FleetNotAtPlanet {
+                fleet_index_1_based,
+                planet_index_1_based,
+            } => write!(
+                f,
+                "fleet {} is not at planet {}",
+                fleet_index_1_based, planet_index_1_based
+            ),
+            Self::PlanetArmyShortage {
+                planet_index_1_based,
+                requested,
+                available,
+            } => write!(
+                f,
+                "planet {} has only {} armies available, requested {}",
+                planet_index_1_based, available, requested
+            ),
+            Self::FleetArmyShortage {
+                fleet_index_1_based,
+                requested,
+                available,
+            } => write!(
+                f,
+                "fleet {} has only {} loaded armies available, requested {}",
+                fleet_index_1_based, available, requested
+            ),
+            Self::PlanetArmyCapacityExceeded {
+                planet_index_1_based,
+                requested,
+                available,
+            } => write!(
+                f,
+                "planet {} can receive only {} more armies, requested {}",
+                planet_index_1_based, available, requested
+            ),
+            Self::TransportCapacityExceeded {
+                fleet_index_1_based,
+                requested,
+                available,
+            } => write!(
+                f,
+                "fleet {} has only {} troop transport capacity available, requested {}",
+                fleet_index_1_based, available, requested
+            ),
         }
     }
 }
@@ -2170,6 +2238,160 @@ impl CoreGameData {
         }
 
         Ok(summary)
+    }
+
+    pub fn load_planet_armies_onto_fleet(
+        &mut self,
+        player_index_1_based: usize,
+        planet_record_index_1_based: usize,
+        fleet_record_index_1_based: usize,
+        qty: u16,
+    ) -> Result<(), GameStateMutationError> {
+        if qty == 0 {
+            return Ok(());
+        }
+        let owner_empire = player_index_1_based as u8;
+        let planet = self
+            .planets
+            .records
+            .get(planet_record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingPlanetRecord {
+                index_1_based: planet_record_index_1_based,
+            })?;
+        let fleet = self
+            .fleets
+            .records
+            .get(fleet_record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingFleetRecord {
+                index_1_based: fleet_record_index_1_based,
+            })?;
+
+        if planet.owner_empire_slot_raw() != owner_empire || fleet.owner_empire_raw() != owner_empire {
+            return Err(GameStateMutationError::FleetNotAtPlanet {
+                fleet_index_1_based: fleet_record_index_1_based,
+                planet_index_1_based: planet_record_index_1_based,
+            });
+        }
+        if fleet.current_location_coords_raw() != planet.coords_raw() {
+            return Err(GameStateMutationError::FleetNotAtPlanet {
+                fleet_index_1_based: fleet_record_index_1_based,
+                planet_index_1_based: planet_record_index_1_based,
+            });
+        }
+
+        let available_planet_armies = u16::from(planet.army_count_raw());
+        if qty > available_planet_armies {
+            return Err(GameStateMutationError::PlanetArmyShortage {
+                planet_index_1_based: planet_record_index_1_based,
+                requested: qty,
+                available: available_planet_armies,
+            });
+        }
+
+        let available_transport_capacity =
+            fleet.troop_transport_count().saturating_sub(fleet.army_count());
+        if qty > available_transport_capacity {
+            return Err(GameStateMutationError::TransportCapacityExceeded {
+                fleet_index_1_based: fleet_record_index_1_based,
+                requested: qty,
+                available: available_transport_capacity,
+            });
+        }
+
+        let planet = self
+            .planets
+            .records
+            .get_mut(planet_record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingPlanetRecord {
+                index_1_based: planet_record_index_1_based,
+            })?;
+        let fleet = self
+            .fleets
+            .records
+            .get_mut(fleet_record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingFleetRecord {
+                index_1_based: fleet_record_index_1_based,
+            })?;
+
+        planet.set_army_count_raw(planet.army_count_raw().saturating_sub(qty as u8));
+        fleet.set_army_count(fleet.army_count().saturating_add(qty));
+        Ok(())
+    }
+
+    pub fn unload_fleet_armies_to_planet(
+        &mut self,
+        player_index_1_based: usize,
+        planet_record_index_1_based: usize,
+        fleet_record_index_1_based: usize,
+        qty: u16,
+    ) -> Result<(), GameStateMutationError> {
+        if qty == 0 {
+            return Ok(());
+        }
+        let owner_empire = player_index_1_based as u8;
+        let planet = self
+            .planets
+            .records
+            .get(planet_record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingPlanetRecord {
+                index_1_based: planet_record_index_1_based,
+            })?;
+        let fleet = self
+            .fleets
+            .records
+            .get(fleet_record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingFleetRecord {
+                index_1_based: fleet_record_index_1_based,
+            })?;
+
+        if planet.owner_empire_slot_raw() != owner_empire || fleet.owner_empire_raw() != owner_empire {
+            return Err(GameStateMutationError::FleetNotAtPlanet {
+                fleet_index_1_based: fleet_record_index_1_based,
+                planet_index_1_based: planet_record_index_1_based,
+            });
+        }
+        if fleet.current_location_coords_raw() != planet.coords_raw() {
+            return Err(GameStateMutationError::FleetNotAtPlanet {
+                fleet_index_1_based: fleet_record_index_1_based,
+                planet_index_1_based: planet_record_index_1_based,
+            });
+        }
+
+        let available_loaded_armies = fleet.army_count();
+        if qty > available_loaded_armies {
+            return Err(GameStateMutationError::FleetArmyShortage {
+                fleet_index_1_based: fleet_record_index_1_based,
+                requested: qty,
+                available: available_loaded_armies,
+            });
+        }
+        let available_planet_capacity = u16::from(u8::MAX.saturating_sub(planet.army_count_raw()));
+        if qty > available_planet_capacity {
+            return Err(GameStateMutationError::PlanetArmyCapacityExceeded {
+                planet_index_1_based: planet_record_index_1_based,
+                requested: qty,
+                available: available_planet_capacity,
+            });
+        }
+
+        let planet = self
+            .planets
+            .records
+            .get_mut(planet_record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingPlanetRecord {
+                index_1_based: planet_record_index_1_based,
+            })?;
+        let fleet = self
+            .fleets
+            .records
+            .get_mut(fleet_record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingFleetRecord {
+                index_1_based: fleet_record_index_1_based,
+            })?;
+
+        planet.set_army_count_raw(planet.army_count_raw().saturating_add(qty as u8));
+        fleet.set_army_count(fleet.army_count().saturating_sub(qty));
+        Ok(())
     }
 
     pub fn replace_planet_build_queue_with_single_order(

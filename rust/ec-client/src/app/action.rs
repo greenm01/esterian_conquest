@@ -1,4 +1,4 @@
-use crate::screen::{CommandMenu, PlanetListMode, PlanetListSort};
+use crate::screen::{CommandMenu, PlanetListMode, PlanetListSort, PlanetTransportMode};
 use ec_data::EmpireProductionRankingSort;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -12,6 +12,7 @@ pub enum Action {
     OpenPlanetHelp,
     OpenPlanetAutoCommissionConfirm,
     OpenPlanetCommissionMenu,
+    OpenPlanetTransportPlanetSelect(PlanetTransportMode),
     OpenPlanetBuildMenu,
     OpenPlanetBuildHelp,
     OpenPlanetBuildReview,
@@ -53,6 +54,13 @@ pub enum Action {
     MovePlanetCommissionRow(i8),
     TogglePlanetCommissionSelection,
     CommissionPlanetStardockSelection,
+    MovePlanetTransportPlanet(i8),
+    ConfirmPlanetTransportPlanet,
+    MovePlanetTransportFleet(i8),
+    ConfirmPlanetTransportFleet,
+    AppendPlanetTransportQtyChar(char),
+    BackspacePlanetTransportQty,
+    SubmitPlanetTransportQty,
     MovePlanetDetail(i8),
     AppendPlanetTaxChar(char),
     BackspacePlanetTaxInput,

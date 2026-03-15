@@ -19,6 +19,7 @@ use crate::screen::{
     PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionRow,
     PlanetCommissionScreen, PlanetCommissionView, PlanetHelpScreen, PlanetInfoScreen,
     PlanetListMode, PlanetListScreen, PlanetListSort, PlanetMenuScreen, PlanetTaxScreen,
+    PlanetTransportFleetRow, PlanetTransportMode, PlanetTransportPlanetRow, PlanetTransportScreen,
     RankingsScreen, RankingsView, ReportsScreen, Screen, ScreenFrame, ScreenId, StarmapScreen,
     StartupScreen,
 };
@@ -48,6 +49,7 @@ pub struct App {
     planet_help: PlanetHelpScreen,
     planet_auto_commission: PlanetAutoCommissionScreen,
     planet_commission: PlanetCommissionScreen,
+    planet_transport: PlanetTransportScreen,
     build_help: BuildHelpScreen,
     planet_build: PlanetBuildScreen,
     planet_list: PlanetListScreen,
@@ -99,6 +101,14 @@ pub struct App {
     planet_commission_selected_slots: BTreeSet<usize>,
     planet_commission_status: Option<String>,
     planet_auto_commission_status: Option<String>,
+    planet_transport_mode: Option<PlanetTransportMode>,
+    planet_transport_planet_cursor: usize,
+    planet_transport_planet_scroll_offset: usize,
+    planet_transport_selected_planet_record: Option<usize>,
+    planet_transport_fleet_cursor: usize,
+    planet_transport_fleet_scroll_offset: usize,
+    planet_transport_qty_input: String,
+    planet_transport_status: Option<String>,
     planet_build_index: usize,
     planet_build_status: Option<String>,
     planet_build_unit_input: String,
@@ -165,6 +175,7 @@ impl App {
             planet_help: PlanetHelpScreen::new(),
             planet_auto_commission: PlanetAutoCommissionScreen::new(),
             planet_commission: PlanetCommissionScreen::new(),
+            planet_transport: PlanetTransportScreen::new(),
             build_help: BuildHelpScreen::new(),
             planet_build: PlanetBuildScreen::new(),
             planet_list: PlanetListScreen::new(),
@@ -216,6 +227,14 @@ impl App {
             planet_commission_selected_slots: BTreeSet::new(),
             planet_commission_status: None,
             planet_auto_commission_status: None,
+            planet_transport_mode: None,
+            planet_transport_planet_cursor: 0,
+            planet_transport_planet_scroll_offset: 0,
+            planet_transport_selected_planet_record: None,
+            planet_transport_fleet_cursor: 0,
+            planet_transport_fleet_scroll_offset: 0,
+            planet_transport_qty_input: String::new(),
+            planet_transport_status: None,
             planet_build_index: 0,
             planet_build_status: None,
             planet_build_unit_input: String::new(),
@@ -266,6 +285,37 @@ impl App {
                 self.planet_auto_commission_status
                     .as_deref()
                     .unwrap_or("Auto-commission complete."),
+            )?,
+            ScreenId::PlanetTransportPlanetSelect(mode) => self.planet_transport.render_planet_select(
+                mode,
+                &self.planet_transport_planet_rows(mode),
+                self.planet_transport_planet_scroll_offset,
+                self.planet_transport_planet_cursor,
+                self.planet_transport_status.as_deref(),
+            )?,
+            ScreenId::PlanetTransportFleetSelect(mode) => self.planet_transport.render_fleet_select(
+                mode,
+                &self.current_planet_transport_planet_row(mode)?,
+                &self.current_planet_transport_fleet_rows(mode)?,
+                self.planet_transport_fleet_scroll_offset,
+                self.planet_transport_fleet_cursor,
+                &self.planet_transport_qty_input,
+                self.planet_transport_status.as_deref(),
+            )?,
+            ScreenId::PlanetTransportQuantityPrompt(mode) => self
+                .planet_transport
+                .render_quantity_prompt(
+                    mode,
+                    &self.current_planet_transport_planet_row(mode)?,
+                    &self.current_planet_transport_fleet_row(mode)?,
+                    &self.planet_transport_qty_input,
+                    self.planet_transport_status.as_deref(),
+                )?,
+            ScreenId::PlanetTransportDone(mode) => self.planet_transport.render_done(
+                mode,
+                self.planet_transport_status
+                    .as_deref()
+                    .unwrap_or("Transport order completed."),
             )?,
             ScreenId::PlanetCommissionMenu => self.planet_commission.render_menu(
                 &self.current_planet_commission_view()?,
@@ -472,6 +522,30 @@ impl App {
             self.current_screen = ScreenId::PlanetAutoCommissionDone;
         } else {
             self.current_screen = ScreenId::PlanetAutoCommissionConfirm;
+        }
+    }
+
+    pub fn open_planet_transport_planet_select(&mut self, mode: PlanetTransportMode) {
+        self.planet_transport_mode = Some(mode);
+        self.planet_transport_planet_cursor = 0;
+        self.planet_transport_planet_scroll_offset = 0;
+        self.planet_transport_selected_planet_record = None;
+        self.planet_transport_fleet_cursor = 0;
+        self.planet_transport_fleet_scroll_offset = 0;
+        self.planet_transport_qty_input.clear();
+        self.planet_transport_status = None;
+        if self.planet_transport_planet_rows(mode).is_empty() {
+            self.planet_transport_status = Some(match mode {
+                PlanetTransportMode::Load => {
+                    "No planets have armies and troop transports ready to load.".to_string()
+                }
+                PlanetTransportMode::Unload => {
+                    "No fleets have loaded armies ready to unload.".to_string()
+                }
+            });
+            self.current_screen = ScreenId::PlanetTransportPlanetSelect(mode);
+        } else {
+            self.current_screen = ScreenId::PlanetTransportPlanetSelect(mode);
         }
     }
 
@@ -774,6 +848,198 @@ impl App {
         self.game_data.save(&self.game_dir)?;
         self.planet_auto_commission_status = Some(format_auto_commission_status(summary));
         self.current_screen = ScreenId::PlanetAutoCommissionDone;
+        Ok(())
+    }
+
+    pub fn move_planet_transport_planet(&mut self, delta: i8) {
+        let ScreenId::PlanetTransportPlanetSelect(mode) = self.current_screen else {
+            return;
+        };
+        let total = self.planet_transport_planet_rows(mode).len();
+        if total == 0 {
+            self.planet_transport_planet_cursor = 0;
+            return;
+        }
+        let next = self.planet_transport_planet_cursor as isize + delta as isize;
+        self.planet_transport_planet_cursor = next.rem_euclid(total as isize) as usize;
+        sync_scroll_to_cursor(
+            &mut self.planet_transport_planet_scroll_offset,
+            self.planet_transport_planet_cursor,
+            crate::screen::PLANET_TRANSPORT_VISIBLE_ROWS,
+        );
+    }
+
+    pub fn confirm_planet_transport_planet(&mut self) {
+        let ScreenId::PlanetTransportPlanetSelect(mode) = self.current_screen else {
+            return;
+        };
+        let Some(selected_planet) = self
+            .planet_transport_planet_rows(mode)
+            .get(self.planet_transport_planet_cursor)
+            .cloned()
+        else {
+            return;
+        };
+        self.planet_transport_selected_planet_record =
+            Some(selected_planet.planet_record_index_1_based);
+        self.planet_transport_fleet_cursor = 0;
+        self.planet_transport_fleet_scroll_offset = 0;
+        self.planet_transport_qty_input.clear();
+        self.planet_transport_status = None;
+        if self.current_planet_transport_fleet_rows(mode).unwrap_or_default().is_empty() {
+            self.planet_transport_status = Some(match mode {
+                PlanetTransportMode::Load => {
+                    "No fleets here can take more armies.".to_string()
+                }
+                PlanetTransportMode::Unload => {
+                    "No fleets here have loaded armies.".to_string()
+                }
+            });
+            self.current_screen = ScreenId::PlanetTransportPlanetSelect(mode);
+        } else {
+            self.current_screen = ScreenId::PlanetTransportFleetSelect(mode);
+        }
+    }
+
+    pub fn move_planet_transport_fleet(&mut self, delta: i8) {
+        let ScreenId::PlanetTransportFleetSelect(mode) = self.current_screen else {
+            return;
+        };
+        let total = self.current_planet_transport_fleet_rows(mode)
+            .map(|rows| rows.len())
+            .unwrap_or(0);
+        if total == 0 {
+            self.planet_transport_fleet_cursor = 0;
+            return;
+        }
+        let next = self.planet_transport_fleet_cursor as isize + delta as isize;
+        self.planet_transport_fleet_cursor = next.rem_euclid(total as isize) as usize;
+        sync_scroll_to_cursor(
+            &mut self.planet_transport_fleet_scroll_offset,
+            self.planet_transport_fleet_cursor,
+            crate::screen::PLANET_TRANSPORT_VISIBLE_ROWS,
+        );
+        self.planet_transport_qty_input.clear();
+        self.planet_transport_status = None;
+    }
+
+    pub fn confirm_planet_transport_fleet(&mut self) {
+        let ScreenId::PlanetTransportFleetSelect(mode) = self.current_screen else {
+            return;
+        };
+        self.planet_transport_qty_input.clear();
+        self.planet_transport_status = None;
+        self.current_screen = ScreenId::PlanetTransportFleetSelect(mode);
+    }
+
+    pub fn append_planet_transport_qty_char(&mut self, ch: char) {
+        if matches!(
+            self.current_screen,
+            ScreenId::PlanetTransportFleetSelect(_) | ScreenId::PlanetTransportQuantityPrompt(_)
+        )
+            && self.planet_transport_qty_input.len() < 3
+        {
+            self.planet_transport_qty_input.push(ch);
+            self.planet_transport_status = None;
+        }
+    }
+
+    pub fn backspace_planet_transport_qty(&mut self) {
+        if matches!(
+            self.current_screen,
+            ScreenId::PlanetTransportFleetSelect(_) | ScreenId::PlanetTransportQuantityPrompt(_)
+        ) {
+            self.planet_transport_qty_input.pop();
+            self.planet_transport_status = None;
+        }
+    }
+
+    pub fn submit_planet_transport_qty(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let mode = match self.current_screen {
+            ScreenId::PlanetTransportFleetSelect(mode)
+            | ScreenId::PlanetTransportQuantityPrompt(mode) => mode,
+            _ => return Ok(()),
+        };
+        let fleet = self.current_planet_transport_fleet_row(mode)?;
+        let max_qty = fleet.available_qty;
+        if max_qty == 0 {
+            self.planet_transport_status = Some(match mode {
+                PlanetTransportMode::Load => {
+                    format!("Fleet {:02} cannot take any more armies.", fleet.fleet_id)
+                }
+                PlanetTransportMode::Unload => {
+                    format!("Fleet {:02} has no loaded armies to unload.", fleet.fleet_id)
+                }
+            });
+            self.current_screen = ScreenId::PlanetTransportFleetSelect(mode);
+            return Ok(());
+        }
+        let qty = if self.planet_transport_qty_input.trim().is_empty() {
+            max_qty
+        } else {
+            match self.planet_transport_qty_input.trim().parse::<u16>() {
+                Ok(value) if value > 0 => value,
+                _ => {
+                    self.planet_transport_status =
+                        Some("Enter a positive army count.".to_string());
+                    return Ok(());
+                }
+            }
+        };
+        if qty > max_qty {
+            self.planet_transport_status =
+                Some(format!("Enter a value from 1 to {max_qty}."));
+            return Ok(());
+        }
+        let planet = self.current_planet_transport_planet_row(mode)?;
+        match mode {
+            PlanetTransportMode::Load => self.game_data.load_planet_armies_onto_fleet(
+                self.player.record_index_1_based,
+                planet.planet_record_index_1_based,
+                fleet.fleet_record_index_1_based,
+                qty,
+            )?,
+            PlanetTransportMode::Unload => self.game_data.unload_fleet_armies_to_planet(
+                self.player.record_index_1_based,
+                planet.planet_record_index_1_based,
+                fleet.fleet_record_index_1_based,
+                qty,
+            )?,
+        }
+        self.game_data.save(&self.game_dir)?;
+        self.planet_transport_status = Some(match mode {
+            PlanetTransportMode::Load => format!(
+                "Loaded {qty} armies onto Fleet {:02} at {},{}.",
+                fleet.fleet_id, planet.coords[0], planet.coords[1]
+            ),
+            PlanetTransportMode::Unload => format!(
+                "Unloaded {qty} armies from Fleet {:02} at {},{}.",
+                fleet.fleet_id, planet.coords[0], planet.coords[1]
+            ),
+        });
+        self.planet_transport_qty_input.clear();
+        let base_row = self
+            .build_planet_rows()
+            .into_iter()
+            .find(|row| row.planet_record_index_1_based == planet.planet_record_index_1_based)
+            .ok_or("transport planet row missing after submit")?;
+        let eligible_fleets = self.planet_transport_eligible_fleet_rows_for_planet(mode, &base_row);
+        if !eligible_fleets.is_empty() {
+            self.planet_transport_fleet_cursor =
+                self.planet_transport_fleet_cursor.min(eligible_fleets.len() - 1);
+            self.current_screen = ScreenId::PlanetTransportFleetSelect(mode);
+        } else {
+            let planet_rows = self.planet_transport_planet_rows(mode);
+            self.planet_transport_selected_planet_record = None;
+            if !planet_rows.is_empty() {
+                self.planet_transport_planet_cursor =
+                    self.planet_transport_planet_cursor.min(planet_rows.len() - 1);
+                self.current_screen = ScreenId::PlanetTransportPlanetSelect(mode);
+            } else {
+                self.planet_transport_status = None;
+                self.current_screen = ScreenId::PlanetMenu;
+            }
+        }
         Ok(())
     }
 
@@ -1093,6 +1359,12 @@ impl App {
             ScreenId::PlanetAutoCommissionConfirm => self.planet_auto_commission.handle_key(key),
             ScreenId::PlanetAutoCommissionDone => Action::OpenPlanetMenu,
             ScreenId::PlanetCommissionMenu => self.planet_commission.handle_key(key),
+            ScreenId::PlanetTransportPlanetSelect(_) => self.planet_transport.handle_planet_key(key),
+            ScreenId::PlanetTransportFleetSelect(_) => self.planet_transport.handle_fleet_key(key),
+            ScreenId::PlanetTransportQuantityPrompt(_) => {
+                self.planet_transport.handle_quantity_key(key)
+            }
+            ScreenId::PlanetTransportDone(_) => Action::OpenPlanetMenu,
             ScreenId::PlanetBuildHelp => self.build_help.handle_key(key),
             ScreenId::PlanetBuildMenu => self.planet_build.handle_menu_key(key),
             ScreenId::PlanetBuildReview => self.planet_build.handle_review_key(key),
@@ -1944,6 +2216,131 @@ impl App {
                     .map(|record| (0..10).any(|slot| record.stardock_kind_raw(slot) != 0))
                     .unwrap_or(false)
             })
+            .collect()
+    }
+
+    fn planet_transport_planet_rows(
+        &self,
+        mode: PlanetTransportMode,
+    ) -> Vec<PlanetTransportPlanetRow> {
+        self.build_planet_rows()
+            .into_iter()
+            .filter_map(|row| {
+                if mode == PlanetTransportMode::Load && row.armies == 0 {
+                    return None;
+                }
+                let fleets = self.planet_transport_eligible_fleet_rows_for_planet(mode, &row);
+                if fleets.is_empty() {
+                    return None;
+                }
+                Some(PlanetTransportPlanetRow {
+                    planet_record_index_1_based: row.planet_record_index_1_based,
+                    planet_name: row.planet_name,
+                    coords: row.coords,
+                    planet_armies: row.armies,
+                    transport_capacity: fleets.iter().map(|fleet| fleet.available_qty).sum(),
+                })
+            })
+            .collect()
+    }
+
+    fn current_planet_transport_planet_row(
+        &self,
+        mode: PlanetTransportMode,
+    ) -> Result<PlanetTransportPlanetRow, Box<dyn std::error::Error>> {
+        if matches!(self.current_screen, ScreenId::PlanetTransportFleetSelect(_)) {
+            let selected_record = self
+                .planet_transport_selected_planet_record
+                .ok_or_else(|| "current transport planet missing".to_string())?;
+            let base_row = self
+                .build_planet_rows()
+                .into_iter()
+                .find(|row| row.planet_record_index_1_based == selected_record)
+                .ok_or_else(|| "current transport planet missing".to_string())?;
+            let transport_capacity = self
+                .planet_transport_fleet_rows_for_planet(mode, &base_row)
+                .iter()
+                .map(|fleet| fleet.available_qty)
+                .sum();
+            return Ok(PlanetTransportPlanetRow {
+                planet_record_index_1_based: base_row.planet_record_index_1_based,
+                planet_name: base_row.planet_name,
+                coords: base_row.coords,
+                planet_armies: base_row.armies,
+                transport_capacity,
+            });
+        }
+
+        self.planet_transport_planet_rows(mode)
+            .get(self.planet_transport_planet_cursor)
+            .cloned()
+            .ok_or_else(|| "current transport planet missing".into())
+    }
+
+    fn current_planet_transport_fleet_rows(
+        &self,
+        mode: PlanetTransportMode,
+    ) -> Result<Vec<PlanetTransportFleetRow>, Box<dyn std::error::Error>> {
+        let planet = self.current_planet_transport_planet_row(mode)?;
+        let base_row = self
+            .build_planet_rows()
+            .into_iter()
+            .find(|row| row.planet_record_index_1_based == planet.planet_record_index_1_based)
+            .ok_or("transport planet row missing")?;
+        Ok(self.planet_transport_fleet_rows_for_planet(mode, &base_row))
+    }
+
+    fn current_planet_transport_fleet_row(
+        &self,
+        mode: PlanetTransportMode,
+    ) -> Result<PlanetTransportFleetRow, Box<dyn std::error::Error>> {
+        self.current_planet_transport_fleet_rows(mode)?
+            .get(self.planet_transport_fleet_cursor)
+            .cloned()
+            .ok_or_else(|| "current transport fleet missing".into())
+    }
+
+    fn planet_transport_fleet_rows_for_planet(
+        &self,
+        mode: PlanetTransportMode,
+        row: &ec_data::EmpirePlanetEconomyRow,
+    ) -> Vec<PlanetTransportFleetRow> {
+        self.game_data
+            .fleets
+            .records
+            .iter()
+            .enumerate()
+            .filter(|(_, fleet)| {
+                fleet.owner_empire_raw() as usize == self.player.record_index_1_based
+                    && fleet.current_location_coords_raw() == row.coords
+                    && fleet.troop_transport_count() > 0
+            })
+            .map(|(idx, fleet)| {
+                let available_qty = match mode {
+                    PlanetTransportMode::Load => {
+                        fleet.troop_transport_count().saturating_sub(fleet.army_count())
+                    }
+                    PlanetTransportMode::Unload => fleet.army_count(),
+                };
+                PlanetTransportFleetRow {
+                    fleet_record_index_1_based: idx + 1,
+                    fleet_id: fleet.fleet_id(),
+                    troop_transports: fleet.troop_transport_count(),
+                    loaded_armies: fleet.army_count(),
+                    available_qty,
+                }
+            })
+            .collect()
+    }
+
+    fn planet_transport_eligible_fleet_rows_for_planet(
+        &self,
+        mode: PlanetTransportMode,
+        row: &ec_data::EmpirePlanetEconomyRow,
+    ) -> Vec<PlanetTransportFleetRow> {
+        self.planet_transport_fleet_rows_for_planet(mode, row)
+            .into_iter()
+            .filter(|fleet| fleet.available_qty > 0)
             .collect()
     }
 

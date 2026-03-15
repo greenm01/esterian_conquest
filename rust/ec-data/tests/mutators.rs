@@ -227,6 +227,68 @@ fn auto_commission_all_stardock_units_creates_fleets_and_bases() {
 }
 
 #[test]
+fn load_planet_armies_onto_fleet_moves_armies_into_transports() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+
+    let mut planet = PlanetRecord::new_zeroed();
+    planet.set_owner_empire_slot_raw(1);
+    planet.set_coords_raw([6, 5]);
+    planet.set_army_count_raw(10);
+
+    let mut fleet = FleetRecord::new_zeroed();
+    fleet.set_owner_empire_raw(1);
+    fleet.set_current_location_coords_raw([6, 5]);
+    fleet.set_troop_transport_count(4);
+    fleet.set_army_count(1);
+
+    let mut data = CoreGameData {
+        player: PlayerDat { records: vec![player] },
+        planets: PlanetDat { records: vec![planet] },
+        fleets: FleetDat { records: vec![fleet] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    data.load_planet_armies_onto_fleet(1, 1, 1, 3).unwrap();
+    assert_eq!(data.planets.records[0].army_count_raw(), 7);
+    assert_eq!(data.fleets.records[0].army_count(), 4);
+}
+
+#[test]
+fn unload_fleet_armies_to_planet_moves_armies_back_to_planet() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+
+    let mut planet = PlanetRecord::new_zeroed();
+    planet.set_owner_empire_slot_raw(1);
+    planet.set_coords_raw([6, 5]);
+    planet.set_army_count_raw(4);
+
+    let mut fleet = FleetRecord::new_zeroed();
+    fleet.set_owner_empire_raw(1);
+    fleet.set_current_location_coords_raw([6, 5]);
+    fleet.set_troop_transport_count(4);
+    fleet.set_army_count(3);
+
+    let mut data = CoreGameData {
+        player: PlayerDat { records: vec![player] },
+        planets: PlanetDat { records: vec![planet] },
+        fleets: FleetDat { records: vec![fleet] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    data.unload_fleet_armies_to_planet(1, 1, 1, 2).unwrap();
+    assert_eq!(data.planets.records[0].army_count_raw(), 6);
+    assert_eq!(data.fleets.records[0].army_count(), 1);
+}
+
+#[test]
 fn ipbm_record_setters_round_trip_structural_prefix_fields() {
     let mut record = IpbmRecord {
         raw: [0u8; IPBM_RECORD_SIZE],
