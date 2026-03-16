@@ -3,7 +3,9 @@ use crossterm::event::KeyEvent;
 use crate::app::Action;
 use crate::model::ReviewSummary;
 use crate::reports::ReportsPreview;
-use crate::screen::layout::{draw_command_prompt, draw_status_line, draw_title_bar, new_playfield};
+use crate::screen::layout::{
+    PLAYFIELD_WIDTH, draw_command_prompt, draw_status_line, draw_title_bar, new_playfield,
+};
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, command_menu_label};
 use crate::theme::classic;
 
@@ -114,21 +116,16 @@ fn write_section(
     }
 
     let mut written = 0;
-    for line in lines.iter().take(10) {
-        let rendered = if line.is_empty() { "  " } else { line };
-        buffer.write_text(
-            start_row + written,
-            0,
-            &format!("  {rendered}"),
-            classic::body_style(),
-        );
+    let wrapped_rows = review_rows(lines);
+    for line in wrapped_rows.iter().take(10) {
+        buffer.write_text(start_row + written, 0, line, classic::body_style());
         written += 1;
     }
-    if lines.len() > 10 {
+    if wrapped_rows.len() > 10 {
         buffer.write_text(
             start_row + written,
             0,
-            &format!("  ... {} more line(s)", lines.len() - 10),
+            &format!("  ... {} more line(s)", wrapped_rows.len() - 10),
             classic::body_style(),
         );
         written += 1;
@@ -138,4 +135,55 @@ fn write_section(
 
 fn display_or_unknown(value: &str) -> &str {
     if value.is_empty() { "<unknown>" } else { value }
+}
+
+fn review_rows(lines: &[String]) -> Vec<String> {
+    let mut rows = Vec::new();
+    for line in lines {
+        if line.is_empty() {
+            rows.push("  ".to_string());
+            continue;
+        }
+        rows.extend(
+            wrap_review_text(line, PLAYFIELD_WIDTH.saturating_sub(2))
+                .into_iter()
+                .map(|wrapped| format!("  {wrapped}")),
+        );
+    }
+    rows
+}
+
+fn wrap_review_text(text: &str, width: usize) -> Vec<String> {
+    let normalized = text.split_whitespace().collect::<Vec<_>>();
+    if normalized.is_empty() {
+        return vec![String::new()];
+    }
+
+    let mut rows = Vec::new();
+    let mut current = String::new();
+    for word in normalized {
+        let separator = if current.is_empty() { 0 } else { 1 };
+        if current.len() + separator + word.len() > width && !current.is_empty() {
+            rows.push(current);
+            current = String::new();
+        }
+        if !current.is_empty() {
+            current.push(' ');
+        }
+
+        if word.len() > width && current.is_empty() {
+            let mut remaining = word;
+            while remaining.len() > width {
+                rows.push(remaining[..width].to_string());
+                remaining = &remaining[width..];
+            }
+            current.push_str(remaining);
+        } else {
+            current.push_str(word);
+        }
+    }
+    if !current.is_empty() {
+        rows.push(current);
+    }
+    rows
 }

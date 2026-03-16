@@ -2783,6 +2783,50 @@ fn reports_screen_preserves_blank_separator_lines() {
 }
 
 #[test]
+fn reports_screen_wraps_long_lines_within_the_playfield() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.results_bytes = b"This is a deliberately long reports review line that should wrap cleanly within the eighty column playfield instead of overrunning a single row.".to_vec();
+    state.messages_bytes.clear();
+    state.game_data.player.records[0].raw[0x30] = 1;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenReports),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::Reports);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("reports screen should render");
+    let first_line_idx = terminal
+        .lines
+        .iter()
+        .position(|line| line.contains("This is a deliberately long reports review line"))
+        .expect("reports screen should contain wrapped first line");
+    assert!(terminal.lines[first_line_idx].starts_with("  "));
+    assert!(terminal.lines[first_line_idx + 1].starts_with("  "));
+    assert!(
+        terminal.lines[first_line_idx].contains("should wrap cleanly")
+            || terminal.lines[first_line_idx + 1].contains("should wrap cleanly")
+    );
+    assert!(
+        terminal.lines[first_line_idx + 1].contains("eighty column playfield")
+            || terminal.lines[first_line_idx + 2].contains("eighty column playfield")
+    );
+}
+
+#[test]
 fn preloaded_first_login_reviews_reports_before_homeworld_naming() {
     let fixture_dir = temp_joined_needs_homeworld_copy();
     let mut state = latest_runtime_state(&fixture_dir);
