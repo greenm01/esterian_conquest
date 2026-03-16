@@ -64,7 +64,13 @@ impl PlanetMenuScreen {
         {
             buffer.fill_row(row_idx + 1, classic::menu_style());
             for entry in row {
-                draw_menu_entry(&mut buffer, row_idx + 1, entry.col, entry.hotkey, entry.label);
+                draw_menu_entry(
+                    &mut buffer,
+                    row_idx + 1,
+                    entry.col,
+                    entry.hotkey,
+                    entry.label,
+                );
             }
         }
         if let Some(notice) = notice {

@@ -27,7 +27,10 @@ fn player_name_updates_handle_and_empire() {
     assert!(stdout.contains("Player 1 renamed"));
 
     let data = ec_data::CoreGameData::load(&target).unwrap();
-    assert_eq!(data.player.records[0].assigned_player_handle_summary(), "tester01");
+    assert_eq!(
+        data.player.records[0].assigned_player_handle_summary(),
+        "tester01"
+    );
     assert_eq!(
         data.player.records[0].controlled_empire_name_summary(),
         "Auroran_Combine"

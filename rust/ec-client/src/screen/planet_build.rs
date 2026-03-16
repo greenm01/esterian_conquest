@@ -258,12 +258,7 @@ impl PlanetBuildScreen {
         if let Some(status) = status {
             draw_status_line(&mut buffer, 14, "", status);
         }
-        draw_command_prompt(
-            &mut buffer,
-            19,
-            "BUILD COMMAND",
-            "H,Q,X,V,P,R,C,N,S,A,L,I",
-        );
+        draw_command_prompt(&mut buffer, 19, "BUILD COMMAND", "H,Q,X,V,P,R,C,N,S,A,L,I");
         Ok(buffer)
     }
 

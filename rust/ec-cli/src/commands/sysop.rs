@@ -79,7 +79,8 @@ fn generate_gamestate_from_args(
 
     match builder.build_and_save(&target_dir) {
         Ok(()) => {
-            CampaignStore::open_default_in_dir(&target_dir)?.import_directory_snapshot(&target_dir)?;
+            CampaignStore::open_default_in_dir(&target_dir)?
+                .import_directory_snapshot(&target_dir)?;
             println!("Generated gamestate at: {}", target_dir.display());
 
             let data = CoreGameData::load(&target_dir)?;

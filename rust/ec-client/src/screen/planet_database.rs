@@ -2,8 +2,8 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_command_line_default_input, draw_command_line_text, draw_command_prompt,
-    draw_status_line, draw_title_bar, new_playfield,
+    draw_command_line_default_input, draw_command_line_text, draw_command_prompt, draw_status_line,
+    draw_title_bar, new_playfield,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{

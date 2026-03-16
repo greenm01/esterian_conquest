@@ -27,7 +27,9 @@ pub(crate) fn set_fleet_ships(
             .fleets
             .records
             .get_mut(fleet_record_index_1_based - 1)
-            .ok_or_else(|| format!("fleet record index out of range: {fleet_record_index_1_based}"))?;
+            .ok_or_else(|| {
+                format!("fleet record index out of range: {fleet_record_index_1_based}")
+            })?;
         fleet.set_scout_count(scouts);
         fleet.set_battleship_count(battleships);
         fleet.set_cruiser_count(cruisers);

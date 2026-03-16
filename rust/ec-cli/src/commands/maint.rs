@@ -9,9 +9,7 @@ use ec_data::{
     visible_hazard_intel_from_database,
 };
 
-use crate::commands::reports::{
-    build_database_dat, build_messages_dat, build_results_dat,
-};
+use crate::commands::reports::{build_database_dat, build_messages_dat, build_results_dat};
 
 /// Run Rust maintenance on a game directory for specified number of turns
 pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::error::Error>> {
@@ -115,8 +113,12 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
     );
 
     let results_bytes = build_results_dat(&game_data, &all_events);
-    let messages_bytes =
-        build_messages_dat(&mut game_data, &all_events, &queued_mail, &existing_messages)?;
+    let messages_bytes = build_messages_dat(
+        &mut game_data,
+        &all_events,
+        &queued_mail,
+        &existing_messages,
+    )?;
     campaign_store.save_runtime_state(
         &game_data,
         &database,

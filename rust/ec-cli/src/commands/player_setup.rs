@@ -14,7 +14,9 @@ pub(crate) fn set_player_name(
             .player
             .records
             .get_mut(player_record_index_1_based - 1)
-            .ok_or_else(|| format!("player record index out of range: {player_record_index_1_based}"))?;
+            .ok_or_else(|| {
+                format!("player record index out of range: {player_record_index_1_based}")
+            })?;
         player.set_owner_empire_raw(owner_empire);
         player.set_occupied_flag(owner_empire);
         player.set_assigned_player_handle_raw(handle);

@@ -44,12 +44,8 @@ pub(crate) fn build_database_dat(
         .filter(|db| db.records.len() == expected_record_count)
         .cloned();
     let template = template.as_ref();
-    let mut new_database = DatabaseDat::generate_from_planets_and_year(
-        &planet_names,
-        year,
-        player_count,
-        template,
-    );
+    let mut new_database =
+        DatabaseDat::generate_from_planets_and_year(&planet_names, year, player_count, template);
 
     if let Some(template_db) = template {
         let year_bytes = discovery_year.to_le_bytes();
@@ -350,10 +346,7 @@ fn ship_loss_summary(losses: ShipLosses) -> String {
     }
 }
 
-pub(crate) fn build_results_dat(
-    game_data: &CoreGameData,
-    events: &MaintenanceEvents,
-) -> Vec<u8> {
+pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEvents) -> Vec<u8> {
     let mut results = Vec::new();
 
     for event in &events.bombard_events {

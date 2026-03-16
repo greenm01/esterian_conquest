@@ -6,8 +6,7 @@ use crate::screen::layout::{
     draw_command_line_default_input, draw_status_line, draw_title_bar, new_playfield,
 };
 use crate::screen::{
-    CommandMenu, PlayfieldBuffer, ScreenFrame, StyledSpan, command_menu_label,
-    format_sector_coords,
+    CommandMenu, PlayfieldBuffer, ScreenFrame, StyledSpan, command_menu_label, format_sector_coords,
 };
 use crate::theme::classic;
 

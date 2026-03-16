@@ -82,7 +82,12 @@ impl PlanetInfoScreen {
 
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "INFO ABOUT A PLANET:");
-        draw_status_line(&mut buffer, 2, "Coordinates: ", &format_sector_coords([x, y]));
+        draw_status_line(
+            &mut buffer,
+            2,
+            "Coordinates: ",
+            &format_sector_coords([x, y]),
+        );
         draw_status_line(&mut buffer, 3, "Planet: ", &planet.status_or_name_summary());
         draw_status_line(&mut buffer, 4, "Owner: ", &owner_label);
         draw_status_line(&mut buffer, 5, "State: ", &state_label);
@@ -168,12 +173,7 @@ impl PlanetInfoScreen {
             "Planet: ",
             world.known_name.as_deref().unwrap_or("?"),
         );
-        draw_status_line(
-            &mut buffer,
-            4,
-            "Owner: ",
-            &owner_label,
-        );
+        draw_status_line(&mut buffer, 4, "Owner: ", &owner_label);
         draw_status_line(&mut buffer, 5, "State: ", "?");
         let intel_snapshot = frame.planet_intel_snapshots.get(&(planet_idx + 1));
         draw_status_line(
@@ -291,7 +291,10 @@ fn intel_tier_label<'a>(
         None if world.known_name.is_some()
             || world.known_owner_empire_id.is_some()
             || world.known_owner_empire_name.is_some()
-            || world.known_potential_production.is_some() => "partial",
+            || world.known_potential_production.is_some() =>
+        {
+            "partial"
+        }
         None => "unknown",
     }
 }

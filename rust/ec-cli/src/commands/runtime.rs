@@ -65,7 +65,10 @@ where
         .load_latest_runtime_state()?
         .ok_or("campaign store has no snapshots")?;
     write_partial_runtime_projection(dir, &state.game_data)?;
-    fs::write(dir.join("CONQUEST.DAT"), state.game_data.conquest.to_bytes())?;
+    fs::write(
+        dir.join("CONQUEST.DAT"),
+        state.game_data.conquest.to_bytes(),
+    )?;
     Ok(result)
 }
 

@@ -8,9 +8,7 @@ use crate::screen::layout::{
 use crate::screen::table::{
     TableColumn, fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
 };
-use crate::screen::{
-    PlayfieldBuffer, Screen, format_sector_coords, format_sector_coords_padded,
-};
+use crate::screen::{PlayfieldBuffer, Screen, format_sector_coords, format_sector_coords_padded};
 use crate::theme::classic;
 
 pub struct PlanetTransportScreen;
@@ -126,7 +124,11 @@ impl PlanetTransportScreen {
             selected,
         );
         if table_rows.is_empty() {
-            draw_command_line_text(&mut buffer, prompt_label, "No eligible planets remain. Q quits.");
+            draw_command_line_text(
+                &mut buffer,
+                prompt_label,
+                "No eligible planets remain. Q quits.",
+            );
         } else if let Some(status) = status {
             draw_command_line_text(&mut buffer, prompt_label, status);
         } else {
@@ -302,9 +304,7 @@ impl PlanetTransportScreen {
             KeyCode::PageDown => Action::MovePlanetTransportPlanet(8),
             KeyCode::Enter => Action::SubmitPlanetTransportPlanet,
             KeyCode::Backspace => Action::BackspacePlanetTransportPlanetInput,
-            KeyCode::Char(ch)
-                if ch.is_ascii_digit() || matches!(ch, ',' | '[' | ']' | ' ') =>
-            {
+            KeyCode::Char(ch) if ch.is_ascii_digit() || matches!(ch, ',' | '[' | ']' | ' ') => {
                 Action::AppendPlanetTransportPlanetChar(ch)
             }
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::ReturnToCommandMenu,

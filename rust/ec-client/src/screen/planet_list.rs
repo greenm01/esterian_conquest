@@ -6,7 +6,9 @@ use crate::screen::layout::{
     draw_command_prompt, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
-use crate::screen::{PlayfieldBuffer, ScreenFrame, format_sector_coords, format_sector_coords_padded};
+use crate::screen::{
+    PlayfieldBuffer, ScreenFrame, format_sector_coords, format_sector_coords_padded,
+};
 use crate::theme::classic;
 
 pub const PLANET_BRIEF_VISIBLE_ROWS: usize = 11;

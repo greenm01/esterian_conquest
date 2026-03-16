@@ -229,11 +229,8 @@ impl CampaignStore {
             return Ok(None);
         };
         let game_data = load_snapshot_game_data(&mut conn, snapshot_id)?;
-        let database = DatabaseDat::parse(&compat_file_bytes(
-            &mut conn,
-            snapshot_id,
-            "DATABASE.DAT",
-        )?)?;
+        let database =
+            DatabaseDat::parse(&compat_file_bytes(&mut conn, snapshot_id, "DATABASE.DAT")?)?;
         let results_bytes = compat_file_bytes(&mut conn, snapshot_id, "RESULTS.DAT")?;
         let messages_bytes = compat_file_bytes(&mut conn, snapshot_id, "MESSAGES.DAT")?;
         let queued_mail = load_queued_mail_rows(&mut conn, snapshot_id)?;
@@ -259,7 +256,10 @@ impl CampaignStore {
         let year = game_data.conquest.game_year();
         let mut conn = self.connection()?;
         let tx = conn.transaction()?;
-        tx.execute("DELETE FROM snapshots WHERE game_year = ?1", params![i64::from(year)])?;
+        tx.execute(
+            "DELETE FROM snapshots WHERE game_year = ?1",
+            params![i64::from(year)],
+        )?;
         tx.execute(
             "INSERT INTO snapshots(game_year) VALUES (?1)",
             params![i64::from(year)],
@@ -456,20 +456,20 @@ fn read_record_rows(
     snapshot_id: i64,
     expected_size: usize,
 ) -> Result<Vec<u8>, CampaignStoreError> {
-    let sql = format!(
-        "SELECT raw FROM {table} WHERE snapshot_id = ?1 ORDER BY record_index"
-    );
+    let sql = format!("SELECT raw FROM {table} WHERE snapshot_id = ?1 ORDER BY record_index");
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map(params![snapshot_id], |row| row.get::<_, Vec<u8>>(0))?;
     let mut bytes = Vec::new();
     for row in rows {
         let row = row?;
         if row.len() != expected_size {
-            return Err(CampaignStoreError::Parse(crate::ParseError::WrongRecordMultiple {
-                file_type: "sqlite-record",
-                record_size: expected_size,
-                actual: row.len(),
-            }));
+            return Err(CampaignStoreError::Parse(
+                crate::ParseError::WrongRecordMultiple {
+                    file_type: "sqlite-record",
+                    record_size: expected_size,
+                    actual: row.len(),
+                },
+            ));
         }
         bytes.extend_from_slice(&row);
     }
@@ -481,25 +481,46 @@ fn load_snapshot_game_data(
     snapshot_id: i64,
 ) -> Result<CoreGameData, CampaignStoreError> {
     Ok(CoreGameData {
-        player: PlayerDat::parse(&read_record_rows(conn, "player_records", snapshot_id, PLAYER_RECORD_SIZE)?)?,
-        planets: PlanetDat::parse(&read_record_rows(conn, "planet_records", snapshot_id, PLANET_RECORD_SIZE)?)?,
-        fleets: FleetDat::parse(&read_record_rows(conn, "fleet_records", snapshot_id, FLEET_RECORD_SIZE)?)?,
-        bases: BaseDat::parse(&read_record_rows(conn, "base_records", snapshot_id, BASE_RECORD_SIZE)?)?,
-        ipbm: IpbmDat::parse(&read_record_rows(conn, "ipbm_records", snapshot_id, IPBM_RECORD_SIZE)?)?,
-        setup: SetupDat::parse(
-            &conn.query_row(
-                "SELECT raw FROM setup_records WHERE snapshot_id = ?1",
-                params![snapshot_id],
-                |row| row.get::<_, Vec<u8>>(0),
-            )?,
-        )?,
-        conquest: crate::ConquestDat::parse(
-            &conn.query_row(
-                "SELECT raw FROM conquest_records WHERE snapshot_id = ?1",
-                params![snapshot_id],
-                |row| row.get::<_, Vec<u8>>(0),
-            )?,
-        )?,
+        player: PlayerDat::parse(&read_record_rows(
+            conn,
+            "player_records",
+            snapshot_id,
+            PLAYER_RECORD_SIZE,
+        )?)?,
+        planets: PlanetDat::parse(&read_record_rows(
+            conn,
+            "planet_records",
+            snapshot_id,
+            PLANET_RECORD_SIZE,
+        )?)?,
+        fleets: FleetDat::parse(&read_record_rows(
+            conn,
+            "fleet_records",
+            snapshot_id,
+            FLEET_RECORD_SIZE,
+        )?)?,
+        bases: BaseDat::parse(&read_record_rows(
+            conn,
+            "base_records",
+            snapshot_id,
+            BASE_RECORD_SIZE,
+        )?)?,
+        ipbm: IpbmDat::parse(&read_record_rows(
+            conn,
+            "ipbm_records",
+            snapshot_id,
+            IPBM_RECORD_SIZE,
+        )?)?,
+        setup: SetupDat::parse(&conn.query_row(
+            "SELECT raw FROM setup_records WHERE snapshot_id = ?1",
+            params![snapshot_id],
+            |row| row.get::<_, Vec<u8>>(0),
+        )?)?,
+        conquest: crate::ConquestDat::parse(&conn.query_row(
+            "SELECT raw FROM conquest_records WHERE snapshot_id = ?1",
+            params![snapshot_id],
+            |row| row.get::<_, Vec<u8>>(0),
+        )?)?,
     })
 }
 
@@ -575,7 +596,9 @@ fn write_planet_intel_rows(
                 .map(|row| intel_snapshot_row_fingerprint(row) == current_fingerprint)
                 .unwrap_or(false)
             {
-                previous_row.and_then(|row| row.last_intel_year).or(Some(year))
+                previous_row
+                    .and_then(|row| row.last_intel_year)
+                    .or(Some(year))
             } else {
                 Some(year)
             };
