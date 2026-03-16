@@ -8,6 +8,7 @@ pub mod classic {
     const YELLOW: RgbColor = RgbColor::new(255, 255, 85);
     const BRIGHT_WHITE: RgbColor = RgbColor::new(255, 255, 255);
     const DOS_RED: RgbColor = RgbColor::new(170, 0, 0);
+    const CODEX_MAGENTA: RgbColor = RgbColor::new(215, 135, 255);
     const DOS_GREEN: RgbColor = RgbColor::new(0, 170, 0);
     const AMBER_BG: RgbColor = RgbColor::new(170, 85, 0);
     const SELECTION_FG: RgbColor = RgbColor::new(20, 20, 20);
@@ -35,6 +36,10 @@ pub mod classic {
 
     pub const fn prompt_hotkey_style() -> CellStyle {
         CellStyle::new(YELLOW, BLACK, true)
+    }
+
+    pub const fn prompt_notice_action_style() -> CellStyle {
+        CellStyle::new(CODEX_MAGENTA, BLACK, true)
     }
 
     pub const fn bright_style() -> CellStyle {

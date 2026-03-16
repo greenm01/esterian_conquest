@@ -118,16 +118,35 @@ pub fn draw_centered_text(
 
 pub fn draw_command_prompt(buffer: &mut PlayfieldBuffer, _row: usize, label: &str, keys: &str) {
     buffer.fill_row(COMMAND_LINE_ROW, classic::prompt_style());
-    buffer.write_spans(
+    let prefix = buffer.write_spans(
         COMMAND_LINE_ROW,
         0,
         &[
             StyledSpan::new(label, classic::title_style()),
             StyledSpan::new(" <-", classic::prompt_style()),
-            StyledSpan::new(keys, classic::prompt_hotkey_style()),
-            StyledSpan::new("-> ", classic::prompt_style()),
         ],
     );
+    let suffix = "-> ";
+    if keys == "SLAP A KEY" {
+        let slap_width = "<slap a key>".chars().count();
+        let slap_col = PLAYFIELD_WIDTH.saturating_sub(suffix.chars().count() + slap_width);
+        write_slap_a_key(buffer, COMMAND_LINE_ROW, slap_col);
+        buffer.write_text(
+            COMMAND_LINE_ROW,
+            slap_col + slap_width,
+            suffix,
+            classic::prompt_style(),
+        );
+    } else {
+        buffer.write_spans(
+            COMMAND_LINE_ROW,
+            prefix,
+            &[
+                StyledSpan::new(keys, classic::prompt_hotkey_style()),
+                StyledSpan::new(suffix, classic::prompt_style()),
+            ],
+        );
+    }
 }
 
 pub fn draw_command_line_text(buffer: &mut PlayfieldBuffer, label: &str, text: &str) {
@@ -150,17 +169,13 @@ pub fn draw_command_line_notice(buffer: &mut PlayfieldBuffer, text: &str) {
         0,
         &[StyledSpan::new("Notice: ", classic::prompt_style())],
     );
-    let suffix = " <slap a key>";
-    let available = PLAYFIELD_WIDTH.saturating_sub(prefix + suffix.chars().count());
+    let suffix_width = " <slap a key>".chars().count();
+    let suffix_col = PLAYFIELD_WIDTH.saturating_sub(suffix_width);
+    let available = suffix_col.saturating_sub(prefix);
     let message = fit_inline_notice(text, available);
-    let after_message =
-        buffer.write_text(COMMAND_LINE_ROW, prefix, &message, classic::prompt_style());
-    buffer.write_text(
-        COMMAND_LINE_ROW,
-        after_message,
-        suffix,
-        classic::prompt_hotkey_style(),
-    );
+    buffer.write_text(COMMAND_LINE_ROW, prefix, &message, classic::prompt_style());
+    buffer.write_text(COMMAND_LINE_ROW, suffix_col, " ", classic::prompt_style());
+    write_slap_a_key(buffer, COMMAND_LINE_ROW, suffix_col + 1);
 }
 
 pub fn draw_command_line_default_input(
@@ -181,7 +196,7 @@ pub fn draw_command_line_default_input(
             StyledSpan::new("[", classic::prompt_style()),
             StyledSpan::new(default, classic::prompt_hotkey_style()),
             StyledSpan::new("] ", classic::prompt_style()),
-            StyledSpan::new("<Q=back>", classic::prompt_hotkey_style()),
+            StyledSpan::new("<Q>", classic::prompt_hotkey_style()),
             StyledSpan::new(" -> ", classic::prompt_style()),
         ],
     );
@@ -275,4 +290,16 @@ fn fit_inline_notice(value: &str, max_width: usize) -> String {
         return ".".repeat(max_width);
     }
     chars[..max_width - 3].iter().collect::<String>() + "..."
+}
+
+fn write_slap_a_key(buffer: &mut PlayfieldBuffer, row: usize, col: usize) -> usize {
+    let after_open = col + buffer.write_text(row, col, "<", classic::prompt_hotkey_style());
+    let after_text = after_open
+        + buffer.write_text(
+            row,
+            after_open,
+            "slap a key",
+            classic::prompt_notice_action_style(),
+        );
+    after_text + buffer.write_text(row, after_text, ">", classic::prompt_hotkey_style())
 }

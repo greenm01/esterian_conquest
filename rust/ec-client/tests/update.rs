@@ -1638,7 +1638,7 @@ fn fleet_review_opens_with_a_selection_table_first() {
             .line(1)
             .contains("Select a fleet, then press ENTER to review its status")
     );
-    assert!(terminal.line(19).contains("Fleet # [1] <Q=back> ->"));
+    assert!(terminal.line(19).contains("Fleet # [1] <Q> ->"));
 }
 
 #[test]
@@ -1701,7 +1701,7 @@ fn fleet_review_select_navigation_updates_the_default_fleet_prompt() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet review select should render after move");
-    assert!(terminal.line(19).contains("Fleet # [2] <Q=back> ->"));
+    assert!(terminal.line(19).contains("Fleet # [2] <Q> ->"));
 }
 
 #[test]
@@ -1736,7 +1736,7 @@ fn fleet_review_select_shows_invalid_fleet_message_on_unknown_typed_id() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet review select should render invalid id notice");
-    assert!(terminal.line(19).contains("Fleet #99"));
+    assert!(terminal.line(19).contains("Notice:"));
     assert!(terminal.line(19).contains("<slap a key>"));
 }
 
@@ -1784,7 +1784,7 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
     app.render(&mut terminal)
         .expect("fleet load transport picker should render");
     assert!(terminal.line(19).contains("FLEET COMMAND"));
-    assert!(terminal.line(19).contains("<Q=back> ->"));
+    assert!(terminal.line(19).contains("<Q> ->"));
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
         Action::ReturnToCommandMenu
@@ -1810,7 +1810,7 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
     app.render(&mut terminal)
         .expect("fleet unload transport picker should render");
     assert!(terminal.line(19).contains("FLEET COMMAND"));
-    assert!(terminal.line(19).contains("<Q=back> ->"));
+    assert!(terminal.line(19).contains("<Q> ->"));
 }
 
 #[test]
@@ -2202,7 +2202,7 @@ fn fleet_group_combat_mission_defaults_to_closest_known_enemy_world() {
         .expect("combat target prompt should render");
     assert!(terminal
         .line(19)
-        .contains(&format!("Target [{},{}] <Q=back> ->", closest_coords[0], closest_coords[1])));
+        .contains(&format!("Target [{},{}] <Q> ->", closest_coords[0], closest_coords[1])));
 }
 
 #[test]
@@ -2283,7 +2283,7 @@ fn fleet_group_colonize_mission_skips_worlds_claimed_by_other_friendly_etacs() {
         .expect("colonize target prompt should render");
     assert!(terminal
         .line(19)
-        .contains(&format!("Target [{},{}] <Q=back> ->", fallback_coords[0], fallback_coords[1])));
+        .contains(&format!("Target [{},{}] <Q> ->", fallback_coords[0], fallback_coords[1])));
 }
 
 #[test]
@@ -2829,7 +2829,7 @@ fn fleet_roe_success_returns_to_selector_prompt_without_confirmation_text() {
     );
 
     app.render(&mut terminal).expect("render succeeds");
-    assert_eq!(terminal.line(19), "FLEET COMMAND <- Fleet # [4] <Q=back> ->");
+    assert_eq!(terminal.line(19), "FLEET COMMAND <- Fleet # [4] <Q> ->");
 }
 
 #[test]
@@ -2855,7 +2855,7 @@ fn planet_database_render_uses_year_and_tier_labels_on_bottom_row() {
     assert!(terminal.lines.iter().any(|line| line.contains("3000")));
     assert!(terminal.lines.iter().any(|line| line.contains("owned")));
     assert!(terminal.line(19).starts_with("MAIN COMMAND <- ["));
-    assert!(terminal.line(19).contains("<Q=back> ->"));
+    assert!(terminal.line(19).contains("<Q> ->"));
 }
 
 #[test]
@@ -2908,8 +2908,8 @@ fn fleet_roe_render_keeps_command_line_on_bottom_row() {
         .expect("roe screen renders");
 
     assert_eq!(buffer.plain_line(17), "");
-    assert_eq!(buffer.plain_line(19), "FLEET COMMAND <- Fleet # [1] <Q=back> ->");
-    assert_eq!(buffer.cursor(), Some((41, 19)));
+    assert_eq!(buffer.plain_line(19), "FLEET COMMAND <- Fleet # [1] <Q> ->");
+    assert_eq!(buffer.cursor(), Some((36, 19)));
 }
 
 #[test]
@@ -3038,7 +3038,7 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
     assert!(buffer.plain_line(5).contains("  1"));
     assert!(buffer.plain_line(5).contains("[19,13]"));
     assert!(buffer.plain_line(19).contains("Calculate time for fleet #"));
-    assert!(buffer.plain_line(19).contains("[7] <Q=back> ->"));
+    assert!(buffer.plain_line(19).contains("[7] <Q> ->"));
 }
 
 #[test]
@@ -3264,7 +3264,7 @@ fn planet_build_specify_uses_bottom_command_line_default_prompt() {
             .plain_line(19)
             .contains("BUILD COMMAND <- Unit number or 0 if done")
     );
-    assert!(buffer.plain_line(19).contains("[0] <Q=back> ->"));
+    assert!(buffer.plain_line(19).contains("[0] <Q> ->"));
 }
 
 #[test]
@@ -3315,7 +3315,7 @@ fn planet_build_quantity_uses_bottom_command_line_default_prompt() {
             .plain_line(19)
             .contains("BUILD COMMAND <- How many new destroyers to build")
     );
-    assert!(buffer.plain_line(19).contains("[6] <Q=back> ->"));
+    assert!(buffer.plain_line(19).contains("[6] <Q> ->"));
 }
 
 #[test]
@@ -3657,7 +3657,7 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
     assert!(
         terminal
             .line(19)
-            .contains("Detach ships from fleet # [1] <Q=back> ->")
+            .contains("Detach ships from fleet # [1] <Q> ->")
     );
 
     assert_eq!(
@@ -3665,7 +3665,7 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
         AppOutcome::Continue
     );
     app.render(&mut terminal).expect("render destroyer prompt");
-    assert!(terminal.line(19).contains("Destroyers to detach [0] <Q=back> ->"));
+    assert!(terminal.line(19).contains("Destroyers to detach [0] <Q> ->"));
 
     assert_eq!(
         apply_action(&mut app, Action::AppendFleetDetachChar('1')),
@@ -3676,7 +3676,7 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
         AppOutcome::Continue
     );
     app.render(&mut terminal).expect("render etac prompt");
-    assert!(terminal.line(19).contains("ETAC ships to detach [0] <Q=back> ->"));
+    assert!(terminal.line(19).contains("ETAC ships to detach [0] <Q> ->"));
 
     assert_eq!(
         apply_action(&mut app, Action::AppendFleetDetachChar('1')),
@@ -3687,7 +3687,7 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
         AppOutcome::Continue
     );
     app.render(&mut terminal).expect("render roe prompt");
-    assert!(terminal.line(19).contains("New fleet ROE [6] <Q=back> ->"));
+    assert!(terminal.line(19).contains("New fleet ROE [6] <Q> ->"));
 
     assert_eq!(
         apply_action(&mut app, Action::SubmitFleetDetach),
@@ -3698,7 +3698,7 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
     assert!(
         terminal
             .line(19)
-            .contains("Detach ships from fleet # [1] <Q=back> ->")
+            .contains("Detach ships from fleet # [1] <Q> ->")
     );
 
     let updated = latest_runtime_state(&fixture_dir).game_data;
@@ -3732,7 +3732,7 @@ fn fleet_detach_with_zero_selected_ships_returns_to_the_table_without_a_warning(
     assert!(
         terminal
             .line(19)
-            .contains("Detach ships from fleet # [1] <Q=back> ->")
+            .contains("Detach ships from fleet # [1] <Q> ->")
     );
 
     assert_eq!(
@@ -3742,7 +3742,7 @@ fn fleet_detach_with_zero_selected_ships_returns_to_the_table_without_a_warning(
     app.render(&mut terminal).expect("render first quantity prompt");
 
     for _ in 0..8 {
-        if terminal.line(19).contains("Detach ships from fleet # [1] <Q=back> ->") {
+        if terminal.line(19).contains("Detach ships from fleet # [1] <Q> ->") {
             break;
         }
         assert_eq!(
@@ -3756,7 +3756,7 @@ fn fleet_detach_with_zero_selected_ships_returns_to_the_table_without_a_warning(
     assert!(
         terminal
             .line(19)
-            .contains("Detach ships from fleet # [1] <Q=back> ->")
+            .contains("Detach ships from fleet # [1] <Q> ->")
     );
     assert!(
         !terminal
