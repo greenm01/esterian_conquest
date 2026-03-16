@@ -33,6 +33,52 @@ fn sysop_snoop_off_rewrites_setup_flag() {
 }
 
 #[test]
+fn sysop_maintenance_days_update_runtime_store_and_export() {
+    let target = unique_temp_dir("ec-cli-sysop-maintenance-days");
+    let exported = unique_temp_dir("ec-cli-sysop-maintenance-days-exported");
+    let stdout = run_ec_cli(&["sysop", "new-game", target.to_str().unwrap()]);
+    assert!(stdout.contains("Initialized new game"));
+
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "sysop",
+            "maintenance-days",
+            target.to_str().unwrap(),
+            "set",
+            "mon",
+            "wed",
+            "fri",
+        ],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Directory:"));
+    assert!(stdout.contains("Maintenance days:"));
+    assert!(stdout.contains("mon=yes"));
+    assert!(stdout.contains("wed=yes"));
+    assert!(stdout.contains("fri=yes"));
+
+    run_ec_cli_in_dir(
+        &["db-export", target.to_str().unwrap(), exported.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+
+    let original = run_ec_cli_in_dir(
+        &["sysop", "maintenance-days", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    let reexported = run_ec_cli_in_dir(
+        &["sysop", "maintenance-days", exported.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    let original_lines = original.lines().skip(1).collect::<Vec<_>>();
+    let reexported_lines = reexported.lines().skip(1).collect::<Vec<_>>();
+    assert_eq!(original_lines, reexported_lines);
+
+    cleanup_dir(&target);
+    cleanup_dir(&exported);
+}
+
+#[test]
 fn sysop_can_init_canonical_four_player_start() {
     let target = unique_temp_dir("ec-cli-sysop-init");
     let stdout = run_ec_cli(&["sysop", "new-game", target.to_str().unwrap()]);

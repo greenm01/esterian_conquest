@@ -6,6 +6,7 @@ use ec_data::{
     CampaignStore, ConquestDat, DatabaseDat, SetupConfig, SetupDat, build_seeded_new_game,
 };
 
+use crate::commands::runtime::with_runtime_game_mut_and_export_core;
 use crate::workspace::seed_classic_runtime_files;
 
 pub(crate) fn print_maintenance_days(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -139,10 +140,10 @@ pub(crate) fn set_maintenance_days(
         enabled[idx] = true;
     }
 
-    let conquest_path = dir.join("CONQUEST.DAT");
-    let mut conquest = ConquestDat::parse(&fs::read(&conquest_path)?)?;
-    conquest.set_maintenance_schedule_enabled(enabled);
-    fs::write(&conquest_path, conquest.to_bytes())?;
+    with_runtime_game_mut_and_export_core(dir, |data| {
+        data.conquest.set_maintenance_schedule_enabled(enabled);
+        Ok(())
+    })?;
 
     print_maintenance_days(dir)?;
     Ok(())
