@@ -25,6 +25,22 @@ Current grade:
 - maintenance engine behavior against `ECPLAYER.DOC`: `A`
 - overall `rust-maint` status: `A+`
 
+Latest oracle signal against the remaining manual-adjacent fleet assumptions:
+
+- confirmed in classic `ECMAINT`:
+  - `Seek Home` dynamically retargets when the nearer refuge is lost
+  - `Guard a Starbase` follows a moved base
+  - invalid guard-starbase linkage aborts with `ERRORS.TXT`
+  - patrol/contact reports include actionable hostile composition
+  - battle-loss reports include observed enemy composition and enemy losses inflicted
+  - salvage failure at non-owned targets aborts and seeks home
+- confirmed known classic defect:
+  - empty-sector salvage reuses the wrong failure text
+    (`Since we no longer own the world...`) even when no world exists there
+- still unresolved:
+  - `Join another fleet` hot pursuit from a raw-crafted setup stayed ambiguous,
+    so manual-only fleet behavior is still `A` rather than `A+`
+
 It can currently:
 
 - create new classic-compatible games across the documented `4 / 9 / 16 / 25`
@@ -154,6 +170,11 @@ Primary goal:
   - owned-planet-only `Salvage`
   - some live-target retarget details for semantic missions
   - ROE withdrawal/report timing details
+- the newest oracle pass reduced that uncertainty materially:
+  - `Seek Home`, `Guard Starbase`, patrol contact intel, and salvage failure
+    semantics now have direct classic evidence
+  - the biggest remaining fleet-specific uncertainty is a stronger preserved or
+    player-driven oracle for `Join another fleet` hot pursuit
 - exact classic `MESSAGES.DAT` mail/report format and routing semantics are
   still only partially recovered; current Rust behavior preserves classic mail
   but does not yet decode or reproduce it faithfully
@@ -249,13 +270,20 @@ Treat the login/startup side as one explicit pre-command-center pipeline:
    - if a future manual-only `A+` pass is desired, prove the remaining
      interpretation-heavy edges against original binaries before changing the
      current canonical Rust rules
-4. Tighten the remaining CLI/storage boundary:
+4. Finish the fleet oracle pass before changing any manual-adjacent mission logic:
+   - build a stronger preserved/player-driven `Join another fleet` oracle setup
+     instead of relying on the raw-crafted ambiguous probe
+   - try to capture a surviving ROE-withdrawal report, not just destruction and
+     no-engagement cases
+   - keep recording reproducible classic defects as known `v1.51` bugs instead
+     of copying them into Rust by default
+5. Tighten the remaining CLI/storage boundary:
    - identify which `ec-cli` mutators still operate directly on classic `.DAT`
    - decide which should become SQLite-native next and which should remain
      explicit compatibility tooling
    - keep the rule that only explicit CLI import/export paths bridge classic
      directories into the runtime
-5. Write a focused Rust `ECGAME` phase plan:
+6. Write a focused Rust `ECGAME` phase plan:
    - command center
    - reports and intel views
    - diplomacy screens
@@ -272,7 +300,7 @@ Treat the login/startup side as one explicit pre-command-center pipeline:
    - defer real `X`/expert-mode behavior until the remaining command/menu
      surfaces are finished; implement it as a final menu-verbosity pass rather
      than a premature partial toggle
-6. Keep tightening original production semantics for player-facing screens:
+7. Keep tightening original production semantics for player-facing screens:
    - empire profile / rankings / planet info should use classic terms like
      `Present Production`, `Potential Production`, and `Total Available Points`
    - do not expose raw internal names like `factories` in the client UI
@@ -280,14 +308,14 @@ Treat the login/startup side as one explicit pre-command-center pipeline:
      formula rather than reintroducing placeholder arithmetic
    - decode or rename the overloaded per-planet `raw[0x0E]` byte before using
      it for more player-facing economy output
-7. Use the now-working DOSBox `ECGAME` harness to capture only the player-side
+8. Use the now-working DOSBox `ECGAME` harness to capture only the player-side
    screens and behaviors needed for the first Rust clone pass.
-8. Continue the SQLite transition:
+9. Continue the SQLite transition:
    - keep `ecgame.db` bundled/self-hosted with no external SQLite dependency
    - expand client/state sync so gameplay mutations refresh the latest snapshot
    - move more report/intel/history surfaces onto SQLite-backed queries
    - preserve `.DAT` export compatibility with oracle sweeps
-7. Keep the total planet database aligned with the intel model:
+10. Keep the total planet database aligned with the intel model:
    - all planets listed, fog-filtered
    - `?` for unknown fields
    - `Last Intel` year shown as `Y####` or `?`

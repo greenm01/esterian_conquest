@@ -5571,3 +5571,208 @@ This is the current repository example of the documented policy:
   tolerate up to `70%` before that penalty begins. This keeps the already
   implemented growth-slowdown rule, but adds the manual-backed "production may
   suffer" effect that was previously missing.
+
+## Session 2026-03-16 - fleet oracle verification against classic ECMAINT
+
+Goal: verify the remaining manual-adjacent fleet assumptions against the
+original `ECMAINT.EXE`, and record reproducible classic defects as known
+`v1.51` bugs instead of silently treating them as intended rules.
+
+### Confirmed: `Seek Home` dynamically retargets
+
+Controlled probe:
+
+- source baseline: `fixtures/ecmaint-post/v1.5`
+- player 1 was given two owned worlds:
+  - kept a friendly world at `(4,13)`
+  - lost control of the nearer target world at `(16,13)` before maintenance
+- fleet 1 was moved to `(12,13)` with:
+  - order `2` (`Seek Home`)
+  - speed `3`
+  - stale target `(16,13)`
+
+Observed original result after one maint turn:
+
+- fleet 1 moved to `(10,13)`
+- order remained `Seek Home`
+- target was rewritten from `(16,13)` to `(4,13)`
+
+Practical conclusion:
+
+- classic `ECMAINT` re-evaluates `Seek Home` semantically rather than blindly
+  chasing a stale coordinate snapshot
+
+### Confirmed: `Guard a Starbase` follows a moved base
+
+Controlled probe:
+
+- source baseline: `fixtures/ecmaint-starbase-pre/v1.5`
+- moved the single base from `(16,13)` to `(12,13)` in `BASES.DAT`
+- left fleet 1 on `Guard Starbase` with the original base linkage
+
+Observed original result after one maint turn:
+
+- fleet 1 current position became `(12,13)`
+- fleet 1 target became `(12,13)`
+- guard order remained active
+
+Practical conclusion:
+
+- classic `ECMAINT` refreshes guard-starbase pursuit from live base state
+
+### Confirmed: invalid guard-starbase linkage aborts with classic error text
+
+Controlled probe:
+
+- source baseline: `fixtures/ecmaint-starbase-pre/v1.5`
+- kept `BASES.DAT` present but zeroed the only base's active/summary fields and
+  owner byte
+
+Observed original result after one maint turn:
+
+- fleet 1 was reset to order `0` (`Hold Position`)
+- `ERRORS.TXT` was emitted with:
+  - `Fleet assigned to an unknown starbase.`
+
+Practical conclusion:
+
+- classic has a specific integrity/error path for unresolved guard-starbase
+  linkage
+
+### Confirmed: patrol/contact reports include actionable hostile composition
+
+Controlled probe:
+
+- source baseline: direct replay of `fixtures/ecmaint-fleet-battle-pre/v1.5`
+
+Observed original `RESULTS.DAT` text:
+
+- patrol fleet first reports sensor contact
+- then reports identified hostile fleet ownership/numbering
+- then reports ship composition in coarse buckets:
+  - `large`
+  - `medium`
+  - `small`
+- when no engagement occurs, classic explicitly says:
+  - `Ignoring alien fleet...`
+
+Representative recovered text fragments:
+
+- `Patrol mission report: Sensor contact shows an alien fleet ...`
+- `We have located and identified the alien fleet ...`
+- `Their fleet contains 51 large, 50 medium, and 50 small vessel(s) ...`
+- `Ignoring alien fleet...`
+
+Practical conclusion:
+
+- patrol is definitely an ongoing contact/report posture
+- classic reports actionable hostile composition, even when declining battle
+
+### Confirmed: battle-loss reports include observed enemy composition and losses inflicted
+
+Controlled probe:
+
+- source baseline: `fixtures/ecmaint-fleet-battle-pre/v1.5`
+- moved the player-owned fleet into a hostile empire-3 world sector
+- weakened the player fleet and strengthened the empire-3 defender to force a
+  losing contact
+
+Observed original `RESULTS.DAT` text:
+
+- classic emitted a Fleet Command Center loss-of-contact report
+- the report included:
+  - our fleet composition
+  - initial observed enemy composition
+  - enemy losses inflicted before destruction
+
+Representative recovered text fragments:
+
+- `We lost all contact with the 1st Fleet shortly after it was attacked ...`
+- `Records show the 1st Fleet was composed of 20 battleships.`
+- `the alien force initially contained 100 battleships.`
+- `The flight recorder recorded alien ship casualties of 12 battleships.`
+
+Practical conclusion:
+
+- classic encounter reporting includes actionable hostile force intel
+- classic also reports enemy losses inflicted, not just friendly losses
+
+### Confirmed: salvage failure at non-owned targets aborts and seeks home
+
+Controlled probe:
+
+- source baseline: `fixtures/ecmaint-fleet-battle-pre/v1.5`
+- rewrote player 2 fleet 5 to order `15` (`Salvage`) against:
+  - owned world `(4,13)`
+  - foreign world `(16,13)`
+  - empty sector `(10,10)`
+
+Observed original behavior:
+
+- foreign-world probe produced a `RESULTS.DAT` salvage report saying:
+  - `Since we no longer own the world in System(16,13), we are aborting our salvage mission.`
+  - `we are going to seek to safety of a friendly controlled world.`
+- empty-sector probe produced the same style of report, but with
+  `System(10,10)`
+
+Practical conclusion:
+
+- classic salvage does not proceed at foreign targets
+- the failure path explicitly aborts the mission and seeks a friendly refuge
+- this strongly supports the owned-planet-only salvage interpretation
+
+### Known v1.51 bug: empty-sector salvage uses wrong failure text
+
+Repro:
+
+- source baseline: `fixtures/ecmaint-fleet-battle-pre/v1.5`
+- set player 2 fleet 5 to `Salvage` target `(10,10)`, where no planet exists
+
+Observed original `RESULTS.DAT` text:
+
+- `Salvage mission report: Since we no longer own the world in System(10,10), we are aborting our salvage mission.`
+
+Why this looks buggy:
+
+- there is no world at `(10,10)`
+- classic reuses the "no longer own the world" failure text instead of a
+  "no world found" or equivalent empty-target message
+
+Practical consequence:
+
+- treat this as a known `v1.51` reporting bug, not as intended salvage
+  semantics
+
+### Ambiguous / still needs escalation: `Join another fleet` hot pursuit
+
+Controlled probe:
+
+- source baseline: `fixtures/ecmaint-post/v1.5`
+- raw-crafted setup:
+  - fleet 1 at `(16,13)` ordered to `Join another fleet`
+  - host fleet 2 started at `(19,13)` and moved toward `(22,13)`
+
+Observed original result across three maint turns:
+
+- turn 1:
+  - joiner moved from `(16,13)` to `(18,13)`
+  - target stayed `(19,13)`
+  - mission aux byte `0x22` unexpectedly changed from `2` to `1`
+- turn 2:
+  - joiner moved to `(19,13)`
+  - host reached `(22,13)` and stopped
+- turn 3:
+  - no further fleet changes occurred
+
+Why this is still ambiguous:
+
+- this setup was raw-crafted rather than built from a known accepted join
+  scenario
+- the unexplained `0x22: 2 -> 1` rewrite means the probe may have violated an
+  unresolved classic linkage rule
+
+Practical consequence:
+
+- do **not** promote this to a settled rule yet
+- next escalation should use a stronger preserved/player-driven join setup, and
+  probably `ECGAME`/door-side probing if needed
