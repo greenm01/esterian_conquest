@@ -1954,6 +1954,36 @@ fn delete_reviewables_stays_on_general_menu_with_notice_when_nothing_is_reviewab
 }
 
 #[test]
+fn delete_reviewables_opens_when_classic_pending_flags_are_set() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.results_bytes.clear();
+    state.messages_bytes.clear();
+    state.game_data.player.records[0].raw[0x30] = 1;
+    state.game_data.player.records[0].raw[0x34] = 1;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenGeneralMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenDeleteReviewables),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::DeleteReviewables);
+}
+
+#[test]
 fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);

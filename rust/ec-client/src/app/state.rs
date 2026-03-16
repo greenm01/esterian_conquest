@@ -4476,7 +4476,14 @@ impl App {
     }
 
     pub fn open_delete_reviewables(&mut self) {
-        if self.results_bytes.is_empty() && self.messages_bytes.is_empty() {
+        let summary = MainMenuSummary::from_game_data(
+            &self.game_data,
+            self.player.record_index_1_based,
+            !self.results_bytes.is_empty(),
+            !self.messages_bytes.is_empty(),
+        );
+        let review_summary = ReviewSummary::from_main_menu(&summary);
+        if !review_summary.reviewable_results && !review_summary.reviewable_messages {
             self.show_command_menu_notice(
                 CommandMenu::General,
                 "No messages or results are currently reviewable.",
