@@ -107,6 +107,31 @@ fn controlled_empire_name_setter_does_not_clobber_later_player_fields() {
 }
 
 #[test]
+fn rename_owned_planet_updates_name_for_matching_owner() {
+    let mut planet = PlanetRecord::new_zeroed();
+    planet.set_owner_empire_slot_raw(1);
+    planet.set_planet_name("Not Named Yet");
+
+    let mut data = CoreGameData {
+        player: PlayerDat {
+            records: vec![PlayerRecord::new_zeroed()],
+        },
+        planets: PlanetDat {
+            records: vec![planet],
+        },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+    data.player.records[0].set_owner_empire_raw(1);
+
+    data.rename_owned_planet(1, 1, "New Horizon").unwrap();
+    assert_eq!(data.planets.records[0].planet_name(), "New Horizon");
+}
+
+#[test]
 fn commission_ship_from_stardock_appends_fleet_and_clears_slot() {
     let mut player = PlayerRecord::new_zeroed();
     player.set_owner_empire_raw(1);

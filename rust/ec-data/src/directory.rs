@@ -807,6 +807,30 @@ impl CoreGameData {
         Ok(homeworld_planet_index_1_based)
     }
 
+    pub fn rename_owned_planet(
+        &mut self,
+        player_record_index_1_based: usize,
+        planet_record_index_1_based: usize,
+        planet_name: &str,
+    ) -> Result<(), GameStateMutationError> {
+        let owner_empire = player_record_index_1_based as u8;
+        let planet = self
+            .planets
+            .records
+            .get_mut(planet_record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingPlanetRecord {
+                index_1_based: planet_record_index_1_based,
+            })?;
+        if planet.owner_empire_slot_raw() != owner_empire {
+            return Err(GameStateMutationError::PlanetOwnershipMismatch {
+                player_index_1_based: player_record_index_1_based,
+                planet_index_1_based: planet_record_index_1_based,
+            });
+        }
+        planet.set_planet_name(planet_name);
+        Ok(())
+    }
+
     pub fn player1_starbase_count_current_known(&self) -> usize {
         self.player
             .records

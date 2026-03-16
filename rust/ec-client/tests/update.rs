@@ -829,6 +829,102 @@ fn preloaded_first_login_can_rename_empire_before_homeworld_naming() {
 }
 
 #[test]
+fn returning_player_with_owned_unnamed_colony_is_routed_to_colony_naming() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize;
+    let colony = state
+        .game_data
+        .planets
+        .records
+        .iter_mut()
+        .enumerate()
+        .find(|(idx, planet)| *idx + 1 != homeworld_index && planet.owner_empire_slot_raw() != 1)
+        .expect("need a non-homeworld planet for colony naming test");
+    colony.1.set_owner_empire_slot_raw(1);
+    colony.1.set_planet_name("Not Named Yet");
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::ColonyWorldName {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(app.current_screen(), ScreenId::ColonyWorldName);
+}
+
+#[test]
+fn colony_world_naming_updates_planet_and_enters_main_menu() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize;
+    let colony_index = state
+        .game_data
+        .planets
+        .records
+        .iter_mut()
+        .enumerate()
+        .find(|(idx, planet)| *idx + 1 != homeworld_index && planet.owner_empire_slot_raw() != 1)
+        .map(|(idx, planet)| {
+            planet.set_owner_empire_slot_raw(1);
+            planet.set_planet_name("Not Named Yet");
+            idx + 1
+        })
+        .expect("need a non-homeworld planet for colony naming test");
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::ColonyWorldName {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(app.current_screen(), ScreenId::ColonyWorldName);
+
+    for ch in "New Horizon".chars() {
+        assert_eq!(
+            apply_action(&mut app, Action::AppendFirstTimeInputChar(ch)),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFirstTimeInput),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::ColonyWorldConfirm);
+    assert_eq!(
+        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+
+    let runtime = latest_runtime_state(&fixture_dir);
+    assert_eq!(
+        runtime.game_data.planets.records[colony_index - 1].planet_name(),
+        "New Horizon"
+    );
+}
+
+#[test]
 fn returning_player_routes_through_login_summary_before_main_menu() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {

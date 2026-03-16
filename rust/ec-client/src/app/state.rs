@@ -254,6 +254,8 @@ pub struct App {
     first_time_input: String,
     first_time_empire_name: String,
     first_time_homeworld_name: String,
+    colony_world_name: String,
+    colony_world_planet_record_index_1_based: Option<usize>,
     first_time_rename_preloaded_empire: bool,
     command_menu_notice: Option<String>,
 }
@@ -502,6 +504,8 @@ impl App {
             first_time_input: String::new(),
             first_time_empire_name: String::new(),
             first_time_homeworld_name: String::new(),
+            colony_world_name: String::new(),
+            colony_world_planet_record_index_1_based: None,
             first_time_rename_preloaded_empire: false,
             command_menu_notice: None,
         })
@@ -579,6 +583,20 @@ impl App {
                         == crate::model::ClassicLoginState::MatchedPreloadedFirstLogin,
                     &self.first_time_homeworld_name,
                 )?
+            }
+            ScreenId::ColonyWorldName => {
+                let (coords, present, potential) = self.colony_world_summary()?;
+                crate::screen::render_colony_world_name(
+                    coords,
+                    present,
+                    potential,
+                    &self.first_time_input,
+                    self.first_time_status.as_deref(),
+                )?
+            }
+            ScreenId::ColonyWorldConfirm => {
+                let (coords, _, _) = self.colony_world_summary()?;
+                crate::screen::render_colony_world_confirm(coords, &self.colony_world_name)?
             }
             ScreenId::MainMenu => self
                 .main_menu
@@ -1070,7 +1088,7 @@ impl App {
     pub fn append_first_time_input_char(&mut self, ch: char) {
         if !matches!(
             self.current_screen,
-            ScreenId::FirstTimeJoinEmpireName | ScreenId::FirstTimeHomeworldName
+            ScreenId::FirstTimeJoinEmpireName | ScreenId::FirstTimeHomeworldName | ScreenId::ColonyWorldName
         ) {
             return;
         }
@@ -1086,7 +1104,7 @@ impl App {
     pub fn backspace_first_time_input(&mut self) {
         if !matches!(
             self.current_screen,
-            ScreenId::FirstTimeJoinEmpireName | ScreenId::FirstTimeHomeworldName
+            ScreenId::FirstTimeJoinEmpireName | ScreenId::FirstTimeHomeworldName | ScreenId::ColonyWorldName
         ) {
             return;
         }
@@ -1118,6 +1136,20 @@ impl App {
                 self.first_time_homeworld_name = value.to_string();
                 self.first_time_input.clear();
                 self.current_screen = ScreenId::FirstTimeHomeworldConfirm;
+            }
+            ScreenId::ColonyWorldName => {
+                let value = self.first_time_input.trim();
+                if value.is_empty() {
+                    self.first_time_status =
+                        Some("World names need at least one visible character.".to_string());
+                    return;
+                }
+                self.first_time_status = None;
+                self.colony_world_planet_record_index_1_based =
+                    self.colony_world_target_planet_index();
+                self.colony_world_name = value.to_string();
+                self.first_time_input.clear();
+                self.current_screen = ScreenId::ColonyWorldConfirm;
             }
             _ => {}
         }
@@ -1151,7 +1183,12 @@ impl App {
             }
             ScreenId::FirstTimeHomeworldConfirm => {
                 if self.complete_first_time_homeworld_name().is_ok() {
-                    self.current_screen = ScreenId::MainMenu;
+                    self.current_screen = self.pending_naming_screen().unwrap_or(ScreenId::MainMenu);
+                }
+            }
+            ScreenId::ColonyWorldConfirm => {
+                if self.complete_colony_world_name().is_ok() {
+                    self.current_screen = self.pending_naming_screen().unwrap_or(ScreenId::MainMenu);
                 }
             }
             _ => {}
@@ -1178,6 +1215,15 @@ impl App {
             ScreenId::FirstTimeHomeworldConfirm => {
                 self.first_time_input = self.first_time_homeworld_name.clone();
                 self.current_screen = ScreenId::FirstTimeHomeworldName;
+            }
+            ScreenId::ColonyWorldName => {
+                self.first_time_status = None;
+                self.first_time_input.clear();
+                self.current_screen = ScreenId::MainMenu;
+            }
+            ScreenId::ColonyWorldConfirm => {
+                self.first_time_input = self.colony_world_name.clone();
+                self.current_screen = ScreenId::ColonyWorldName;
             }
             _ => {}
         }
@@ -4402,6 +4448,13 @@ impl App {
                     _ => Action::Noop,
                 }
             }
+            ScreenId::ColonyWorldName => match key.code {
+                crossterm::event::KeyCode::Char(ch) => Action::AppendFirstTimeInputChar(ch),
+                crossterm::event::KeyCode::Backspace => Action::BackspaceFirstTimeInput,
+                crossterm::event::KeyCode::Enter => Action::SubmitFirstTimeInput,
+                crossterm::event::KeyCode::Esc => Action::RejectFirstTimePrompt,
+                _ => Action::Noop,
+            },
             ScreenId::FirstTimeJoinEmpireConfirm => {
                 if self.first_time_rename_preloaded_empire {
                     match key.code {
@@ -4435,6 +4488,15 @@ impl App {
                 }
                 crossterm::event::KeyCode::Enter
                 | crossterm::event::KeyCode::Char('n')
+                | crossterm::event::KeyCode::Char('N')
+                | crossterm::event::KeyCode::Esc => Action::RejectFirstTimePrompt,
+                _ => Action::Noop,
+            },
+            ScreenId::ColonyWorldConfirm => match key.code {
+                crossterm::event::KeyCode::Enter
+                | crossterm::event::KeyCode::Char('y')
+                | crossterm::event::KeyCode::Char('Y') => Action::AcceptFirstTimePrompt,
+                crossterm::event::KeyCode::Char('n')
                 | crossterm::event::KeyCode::Char('N')
                 | crossterm::event::KeyCode::Esc => Action::RejectFirstTimePrompt,
                 _ => Action::Noop,
@@ -4761,6 +4823,8 @@ impl App {
             | ScreenId::FirstTimeJoinNoPending
             | ScreenId::FirstTimeHomeworldName
             | ScreenId::FirstTimeHomeworldConfirm
+            | ScreenId::ColonyWorldName
+            | ScreenId::ColonyWorldConfirm
             | ScreenId::PartialStarmapPrompt
             | ScreenId::PartialStarmapView
             | ScreenId::PlanetInfoPrompt
@@ -7822,6 +7886,26 @@ impl App {
         ))
     }
 
+    fn colony_world_summary(&self) -> Result<([u8; 2], u16, u16), Box<dyn std::error::Error>> {
+        let planet_index = self
+            .colony_world_planet_record_index_1_based
+            .or_else(|| self.colony_world_target_planet_index())
+            .ok_or("colony world prompt missing target planet")?;
+        let planet = self
+            .game_data
+            .planets
+            .records
+            .get(planet_index - 1)
+            .ok_or("colony world missing for naming prompt")?;
+        Ok((
+            planet.coords_raw(),
+            planet
+                .present_production_points()
+                .unwrap_or(planet.potential_production_points()),
+            planet.potential_production_points(),
+        ))
+    }
+
     fn complete_first_time_join(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.game_data.join_player(
             self.player.record_index_1_based,
@@ -7839,6 +7923,23 @@ impl App {
         )?;
         self.save_game_data()?;
         self.refresh_player_context()?;
+        Ok(())
+    }
+
+    fn complete_colony_world_name(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let planet_index = self
+            .colony_world_planet_record_index_1_based
+            .or_else(|| self.colony_world_target_planet_index())
+            .ok_or("colony world prompt missing target planet")?;
+        self.game_data.rename_owned_planet(
+            self.player.record_index_1_based,
+            planet_index,
+            &self.colony_world_name,
+        )?;
+        self.save_game_data()?;
+        self.refresh_player_context()?;
+        self.colony_world_planet_record_index_1_based = None;
+        self.colony_world_name.clear();
         Ok(())
     }
 
@@ -7898,14 +7999,45 @@ impl App {
         };
         let planet_index = player.homeworld_planet_index_1_based_raw() as usize;
         if planet_index == 0 {
-            return None;
+            return self.pending_colony_world_naming_screen();
         }
-        self.game_data
+        if self
+            .game_data
             .planets
             .records
             .get(planet_index - 1)
             .filter(|planet| planet.is_named_homeworld_seed())
-            .map(|_| ScreenId::FirstTimeHomeworldName)
+            .is_some()
+        {
+            return Some(ScreenId::FirstTimeHomeworldName);
+        }
+        self.pending_colony_world_naming_screen()
+    }
+
+    fn pending_colony_world_naming_screen(&self) -> Option<ScreenId> {
+        self.colony_world_target_planet_index().map(|_| ScreenId::ColonyWorldName)
+    }
+
+    fn colony_world_target_planet_index(&self) -> Option<usize> {
+        let player_empire = self.player.record_index_1_based as u8;
+        let homeworld_index = self
+            .game_data
+            .player
+            .records
+            .get(self.player.record_index_1_based - 1)
+            .map(|player| player.homeworld_planet_index_1_based_raw() as usize)
+            .unwrap_or(0);
+        self.game_data
+            .planets
+            .records
+            .iter()
+            .enumerate()
+            .find(|(idx, planet)| {
+                planet.owner_empire_slot_raw() == player_empire
+                    && planet.planet_name() == "Not Named Yet"
+                    && *idx + 1 != homeworld_index
+            })
+            .map(|(idx, _)| idx + 1)
     }
 }
 

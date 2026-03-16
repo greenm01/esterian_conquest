@@ -385,6 +385,75 @@ pub fn render_first_time_homeworld_confirm(
     Ok(buffer)
 }
 
+pub fn render_colony_world_name(
+    coords: [u8; 2],
+    present_production: u16,
+    potential_production: u16,
+    input: &str,
+    status: Option<&str>,
+) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+    let mut buffer = new_playfield();
+    draw_title_bar(&mut buffer, 0, "WORLD NAMING:");
+    buffer.write_text(
+        2,
+        0,
+        &format!(
+            "You own a newly colonized world in the solar system at {}. Its current",
+            format_sector_coords(coords)
+        ),
+        classic::body_style(),
+    );
+    buffer.write_text(
+        3,
+        0,
+        &format!(
+            "production level is {} out of a possible {} points.",
+            present_production, potential_production
+        ),
+        classic::body_style(),
+    );
+    if let Some(status) = status {
+        draw_status_line(&mut buffer, 5, "Notice: ", status);
+    }
+    draw_command_line_default_input(
+        &mut buffer,
+        "WORLD NAME",
+        "Name this world (20 characters or less) ",
+        "",
+        input,
+    );
+    Ok(buffer)
+}
+
+pub fn render_colony_world_confirm(
+    coords: [u8; 2],
+    planet_name: &str,
+) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+    let mut buffer = new_playfield();
+    draw_title_bar(&mut buffer, 0, "WORLD NAMING:");
+    buffer.write_text(
+        2,
+        0,
+        &format!(
+            "Confirm the new name for your world at {}.",
+            format_sector_coords(coords)
+        ),
+        classic::body_style(),
+    );
+    buffer.write_text(
+        4,
+        0,
+        "Press N or Esc to go back and edit the world name.",
+        classic::body_style(),
+    );
+    draw_command_line_text(
+        &mut buffer,
+        "WORLD NAME",
+        &format!("\"{planet_name}\" <- Is this correct? [Y]/N ->"),
+    );
+    Ok(buffer)
+}
+
 impl FirstTimeEmpiresScreen {
     pub fn new() -> Self {
         Self
