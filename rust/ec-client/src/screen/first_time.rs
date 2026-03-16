@@ -201,6 +201,7 @@ pub fn render_first_time_homeworld_name(
     coords: [u8; 2],
     present_production: u16,
     potential_production: u16,
+    is_preloaded_first_login: bool,
     input: &str,
     status: Option<&str>,
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
@@ -224,8 +225,21 @@ pub fn render_first_time_homeworld_name(
         ),
         classic::body_style(),
     );
+    if is_preloaded_first_login {
+        buffer.write_text(
+            5,
+            0,
+            "This pre-loaded empire still needs its first homeworld name.",
+            classic::body_style(),
+        );
+    }
     if let Some(status) = status {
-        draw_status_line(&mut buffer, 5, "Notice: ", status);
+        draw_status_line(
+            &mut buffer,
+            if is_preloaded_first_login { 6 } else { 5 },
+            "Notice: ",
+            status,
+        );
     }
     draw_command_line_default_input(
         &mut buffer,

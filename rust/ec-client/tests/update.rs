@@ -672,6 +672,15 @@ fn preloaded_first_login_routes_through_login_summary_before_homeworld_naming() 
     assert!(saw_login_summary);
     assert!(saw_preloaded_summary_text);
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("homeworld naming should render");
+    assert!(
+        terminal
+            .line(5)
+            .contains("This pre-loaded empire still needs its first homeworld name.")
+    );
 }
 
 #[test]

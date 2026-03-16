@@ -553,6 +553,8 @@ impl App {
                     coords,
                     present,
                     potential,
+                    self.player.classic_login_state
+                        == crate::model::ClassicLoginState::MatchedPreloadedFirstLogin,
                     &self.first_time_input,
                     self.first_time_status.as_deref(),
                 )?
