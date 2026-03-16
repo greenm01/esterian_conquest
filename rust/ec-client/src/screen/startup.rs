@@ -40,14 +40,14 @@ impl StartupScreen {
                 frame,
                 "RESULTS REVIEW",
                 &self.reports.results_lines,
-                "Classic results pending flag is set, but no report lines are loaded.",
+                "Reports are marked pending, but no review text is available yet.",
                 results_page,
             ),
             StartupPhase::Messages => self.render_report_lines(
                 frame,
                 "MESSAGES REVIEW",
                 &self.reports.message_lines,
-                "Classic messages pending flag is set, but no message lines are loaded.",
+                "Messages are marked pending, but no review text is available yet.",
                 messages_page,
             ),
             StartupPhase::Complete => Ok(new_playfield()),
@@ -57,14 +57,14 @@ impl StartupScreen {
     pub fn results_page_count(&self) -> usize {
         review_page_count(&review_rows(
             &self.reports.results_lines,
-            "Classic results pending flag is set, but no report lines are loaded.",
+            "Reports are marked pending, but no review text is available yet.",
         ))
     }
 
     pub fn messages_page_count(&self) -> usize {
         review_page_count(&review_rows(
             &self.reports.message_lines,
-            "Classic messages pending flag is set, but no message lines are loaded.",
+            "Messages are marked pending, but no review text is available yet.",
         ))
     }
 
@@ -138,7 +138,7 @@ impl StartupScreen {
 
         if self.summary.pending_results {
             let report_status = if self.summary.results_line_count == 0 {
-                "Classic report-pending flag is set, but no report lines are loaded.".to_string()
+                "Reports are marked pending, but no review text is available yet.".to_string()
             } else {
                 "Reports are waiting for your review.".to_string()
             };
@@ -149,7 +149,7 @@ impl StartupScreen {
 
         if self.summary.pending_messages {
             let message_status = if self.summary.message_line_count == 0 {
-                "Classic message-pending flag is set, but no message lines are loaded.".to_string()
+                "Messages are marked pending, but no review text is available yet.".to_string()
             } else {
                 "Messages are waiting for your review.".to_string()
             };

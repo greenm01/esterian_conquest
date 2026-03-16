@@ -2461,12 +2461,12 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
             assert!(
                 terminal
                     .line(4)
-                    .contains("Classic report-pending flag is set")
+                    .contains("Reports are marked pending")
             );
             assert!(
                 terminal
                     .line(5)
-                    .contains("Classic message-pending flag is set")
+                    .contains("Messages are marked pending")
             );
             break;
         }
@@ -2486,7 +2486,7 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
     app.render(&mut results_terminal)
         .expect("startup results should render");
     assert!(results_terminal.lines.iter().any(|line| {
-        line.contains("Classic results pending flag is set, but no report lines are loaded.")
+        line.contains("Reports are marked pending, but no review text is available yet.")
     }));
 
     assert_eq!(
@@ -2502,7 +2502,7 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
     app.render(&mut messages_terminal)
         .expect("startup messages should render");
     assert!(messages_terminal.lines.iter().any(|line| {
-        line.contains("Classic messages pending flag is set, but no message lines are loaded.")
+        line.contains("Messages are marked pending, but no review text is available yet.")
     }));
 
     advance_to_main_menu(&mut app);
