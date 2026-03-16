@@ -268,7 +268,6 @@ impl App {
         let runtime_state = campaign_store
             .load_latest_runtime_state()?
             .ok_or("campaign store has no snapshots; import with ec-cli db-import first")?;
-        let pending_results = !runtime_state.results_bytes.is_empty();
         let reports =
             ReportsPreview::from_bytes(&runtime_state.results_bytes, &runtime_state.messages_bytes);
         let game_data = runtime_state.game_data;
@@ -285,7 +284,8 @@ impl App {
         let main_menu_summary = MainMenuSummary::from_game_data(
             &game_data,
             config.player_record_index_1_based,
-            pending_results,
+            !results_bytes.is_empty(),
+            !messages_bytes.is_empty(),
         );
         let review_summary = ReviewSummary::from_main_menu(&main_menu_summary);
         let startup_summary = StartupSummary::from_reports(
@@ -5283,6 +5283,7 @@ impl App {
             &self.game_data,
             self.player.record_index_1_based,
             !self.results_bytes.is_empty(),
+            !self.messages_bytes.is_empty(),
         );
         self.reports
             .replace(refreshed, ReviewSummary::from_main_menu(&summary));
@@ -7770,6 +7771,7 @@ impl App {
             &self.game_data,
             self.player.record_index_1_based,
             !self.results_bytes.is_empty(),
+            !self.messages_bytes.is_empty(),
         );
         self.reports
             .replace(refreshed, ReviewSummary::from_main_menu(&summary));

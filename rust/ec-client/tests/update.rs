@@ -1789,6 +1789,32 @@ fn delete_reviewables_stays_on_general_menu_with_notice_when_nothing_is_reviewab
 }
 
 #[test]
+fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.results_bytes.clear();
+    state.messages_bytes.clear();
+    state.game_data.player.records[0].raw[0x30] = 1;
+    state.game_data.player.records[0].raw[0x34] = 1;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Splash)
+    );
+    advance_to_main_menu(&mut app);
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+}
+
+#[test]
 fn fleet_review_opens_with_a_selection_table_first() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
@@ -4645,6 +4671,8 @@ fn apply_action_deletes_reviewables() {
     let mut runtime = latest_runtime_state(&fixture_dir);
     runtime.results_bytes = b"test results".to_vec();
     runtime.messages_bytes = b"test messages".to_vec();
+    runtime.game_data.player.records[0].raw[0x30] = 1;
+    runtime.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &runtime);
 
     let mut app = App::load(AppConfig {
@@ -4669,6 +4697,8 @@ fn apply_action_deletes_reviewables() {
     let runtime = latest_runtime_state(&fixture_dir);
     assert!(runtime.results_bytes.is_empty());
     assert!(runtime.messages_bytes.is_empty());
+    assert_eq!(runtime.game_data.player.records[0].raw[0x30], 0);
+    assert_eq!(runtime.game_data.player.records[0].raw[0x34], 0);
 }
 
 #[test]

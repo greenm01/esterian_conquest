@@ -55,7 +55,8 @@ impl MainMenuSummary {
     pub fn from_game_data(
         game_data: &CoreGameData,
         player_record_index_1_based: usize,
-        pending_results: bool,
+        results_bytes_present: bool,
+        messages_bytes_present: bool,
     ) -> Self {
         let owned_planets = game_data
             .planets
@@ -74,9 +75,14 @@ impl MainMenuSummary {
             .player
             .records
             .get(player_record_index_1_based - 1);
+        let pending_results = player_record
+            .map(|record| record.classic_reports_pending_flag_raw() != 0)
+            .unwrap_or(false)
+            || results_bytes_present;
         let pending_messages = player_record
-            .map(|record| record.raw[0x30] != 0 || record.raw[0x34] != 0)
-            .unwrap_or(false);
+            .map(|record| record.classic_messages_pending_flag_raw() != 0)
+            .unwrap_or(false)
+            || messages_bytes_present;
 
         Self {
             game_year: game_data.conquest.game_year(),
