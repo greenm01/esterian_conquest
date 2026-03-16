@@ -3,10 +3,10 @@
 mod combat;
 
 use crate::{
-    CoreGameData, DiplomaticRelation, FleetOrderValidationError, Order,
-    PlanetPlayerInputValidationError, ProductionItemKind, VisibleHazardIntel, build_capacity,
-    next_path_step, plan_route_with_intel, yearly_growth_delta, yearly_high_tax_penalty,
-    yearly_tax_revenue,
+    CoreGameData, DiplomaticRelation, FleetOrderValidationError,
+    FleetPlayerInputValidationError, Order, PlanetPlayerInputValidationError,
+    ProductionItemKind, VisibleHazardIntel, build_capacity, next_path_step,
+    plan_route_with_intel, yearly_growth_delta, yearly_high_tax_penalty, yearly_tax_revenue,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -335,6 +335,12 @@ pub enum InvalidPlayerStateEvent {
         order_code_raw: u8,
         coords: [u8; 2],
         reason: FleetOrderValidationError,
+    },
+    FleetInput {
+        fleet_idx: usize,
+        owner_empire_raw: u8,
+        coords: [u8; 2],
+        reason: FleetPlayerInputValidationError,
     },
     PlanetInput {
         planet_idx: usize,
@@ -1089,45 +1095,96 @@ fn sanitize_invalid_player_inputs(game_data: &mut CoreGameData) -> Vec<InvalidPl
     let mut events = Vec::new();
 
     for fleet_idx in 0..game_data.fleets.records.len() {
-        let fleet = &game_data.fleets.records[fleet_idx];
-        let order_code = fleet.standing_order_code_raw();
-        let target = fleet.standing_order_target_coords_raw();
-        let aux = fleet.mission_aux_bytes();
-        let owner_empire_raw = fleet.owner_empire_raw();
-        let coords = fleet.current_location_coords_raw();
-        if let Err(reason) = game_data.validate_fleet_order_payload(
-            fleet_idx + 1,
-            order_code,
-            target,
-            Some(aux[0]),
-            Some(aux[1]),
-        ) {
-            let should_sanitize = matches!(
-                reason,
-                FleetOrderValidationError::UnknownOrderCode(_)
-                    | FleetOrderValidationError::MissingCombatShips
-                    | FleetOrderValidationError::MissingScoutShip
-                    | FleetOrderValidationError::MissingEtac
-                    | FleetOrderValidationError::MissingLoadedTroopTransports
-                    | FleetOrderValidationError::InvalidJoinHost
-                    | FleetOrderValidationError::TargetOwnedByFleetEmpire
-            );
-            if !should_sanitize {
-                continue;
+        let mut rescan = true;
+        while rescan {
+            rescan = false;
+            let fleet = &game_data.fleets.records[fleet_idx];
+            let order_code = fleet.standing_order_code_raw();
+            let target = fleet.standing_order_target_coords_raw();
+            let aux = fleet.mission_aux_bytes();
+            let owner_empire_raw = fleet.owner_empire_raw();
+            let coords = fleet.current_location_coords_raw();
+            if let Err(reason) = game_data.validate_fleet_player_inputs(
+                fleet_idx + 1,
+                order_code,
+                target,
+                Some(aux[0]),
+                Some(aux[1]),
+            ) {
+                match reason {
+                    FleetPlayerInputValidationError::InvalidOrder(reason) => {
+                        let should_sanitize = matches!(
+                            reason,
+                            FleetOrderValidationError::UnknownOrderCode(_)
+                                | FleetOrderValidationError::MissingCombatShips
+                                | FleetOrderValidationError::MissingScoutShip
+                                | FleetOrderValidationError::MissingEtac
+                                | FleetOrderValidationError::MissingLoadedTroopTransports
+                                | FleetOrderValidationError::InvalidJoinHost
+                                | FleetOrderValidationError::TargetOwnedByFleetEmpire
+                        );
+                        if !should_sanitize {
+                            break;
+                        }
+                        let fleet = &mut game_data.fleets.records[fleet_idx];
+                        fleet.set_standing_order_kind(Order::HoldPosition);
+                        fleet.set_current_speed(0);
+                        fleet.set_standing_order_target_coords_raw(coords);
+                        fleet.set_join_host_fleet_id_raw(0);
+                        fleet.set_mission_aux_bytes([0, 0]);
+                        events.push(InvalidPlayerStateEvent::FleetMission {
+                            fleet_idx,
+                            owner_empire_raw,
+                            order_code_raw: order_code,
+                            coords,
+                            reason,
+                        });
+                    }
+                    FleetPlayerInputValidationError::LoadedArmiesExceedTransportCapacity {
+                        transports,
+                        ..
+                    } => {
+                        game_data.fleets.records[fleet_idx].set_army_count(transports);
+                        events.push(InvalidPlayerStateEvent::FleetInput {
+                            fleet_idx,
+                            owner_empire_raw,
+                            coords,
+                            reason,
+                        });
+                        rescan = true;
+                    }
+                    FleetPlayerInputValidationError::SpeedExceedsMaximum { max, .. } => {
+                        game_data.fleets.records[fleet_idx].set_current_speed(max);
+                        events.push(InvalidPlayerStateEvent::FleetInput {
+                            fleet_idx,
+                            owner_empire_raw,
+                            coords,
+                            reason,
+                        });
+                        rescan = true;
+                    }
+                    FleetPlayerInputValidationError::RulesOfEngagementOutOfRange { .. } => {
+                        game_data.fleets.records[fleet_idx].set_rules_of_engagement(10);
+                        events.push(InvalidPlayerStateEvent::FleetInput {
+                            fleet_idx,
+                            owner_empire_raw,
+                            coords,
+                            reason,
+                        });
+                        rescan = true;
+                    }
+                    FleetPlayerInputValidationError::NonCombatFleetMustUseZeroRoe { .. } => {
+                        game_data.fleets.records[fleet_idx].set_rules_of_engagement(0);
+                        events.push(InvalidPlayerStateEvent::FleetInput {
+                            fleet_idx,
+                            owner_empire_raw,
+                            coords,
+                            reason,
+                        });
+                        rescan = true;
+                    }
+                }
             }
-            let fleet = &mut game_data.fleets.records[fleet_idx];
-            fleet.set_standing_order_kind(Order::HoldPosition);
-            fleet.set_current_speed(0);
-            fleet.set_standing_order_target_coords_raw(coords);
-            fleet.set_join_host_fleet_id_raw(0);
-            fleet.set_mission_aux_bytes([0, 0]);
-            events.push(InvalidPlayerStateEvent::FleetMission {
-                fleet_idx,
-                owner_empire_raw,
-                order_code_raw: order_code,
-                coords,
-                reason,
-            });
         }
     }
 

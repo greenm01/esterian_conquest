@@ -120,6 +120,20 @@ pub fn cleanup_dir(path: &Path) {
     let _ = fs::remove_dir_all(path);
 }
 
+pub fn decode_results_text(raw: &[u8]) -> String {
+    raw.chunks(84)
+        .flat_map(|record| {
+            if record.len() < 76 {
+                return Vec::new();
+            }
+            let text = &record[1..76];
+            let end = text.iter().position(|b| *b == 0).unwrap_or(text.len());
+            text[..end].to_vec()
+        })
+        .map(char::from)
+        .collect()
+}
+
 pub fn copy_fixture_dir(relative: &str, target: &Path) {
     let fixture = repo_root().join(relative);
     copy_dir_files(&fixture, target);

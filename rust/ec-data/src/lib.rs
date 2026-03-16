@@ -37,8 +37,9 @@ pub use directory::{
     CoreGameData, CurrentKnownComplianceStatus, CurrentKnownGuardStarbaseLinkageSummary,
     CurrentKnownKeyWordSummary, EmpireEconomySummary, EmpirePlanetEconomyRow,
     EmpireProductionRankingRow, EmpireProductionRankingSort, EmpireUnitSummary, FleetDetachResult,
-    FleetDetachSelection, FleetOrderValidationError, FleetTransferResult, GameDirectoryError,
-    GameStateMutationError, PlanetPlayerInputValidationError,
+    FleetDetachSelection, FleetOrderValidationError, FleetPlayerInputValidationError,
+    FleetTransferResult, GameDirectoryError, GameStateMutationError,
+    PlanetPlayerInputValidationError,
 };
 pub use economy::{
     build_capacity, yearly_growth_delta, yearly_high_tax_penalty, yearly_tax_revenue,

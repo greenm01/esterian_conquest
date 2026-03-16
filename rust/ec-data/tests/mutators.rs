@@ -232,6 +232,41 @@ fn commission_starbase_from_stardock_appends_base_and_clears_slot() {
 }
 
 #[test]
+fn commission_rejects_foreign_owned_planet() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+
+    let mut planet = PlanetRecord::new_zeroed();
+    planet.set_owner_empire_slot_raw(2);
+    planet.set_coords_raw([6, 5]);
+    planet.set_stardock_kind_raw(0, 1);
+    planet.set_stardock_count_raw(0, 2);
+
+    let mut data = CoreGameData {
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![planet],
+        },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    let err = data.commission_planet_stardock_slot(1, 1, 0).unwrap_err();
+    assert!(matches!(
+        err,
+        GameStateMutationError::PlanetOwnershipMismatch {
+            player_index_1_based: 1,
+            planet_index_1_based: 1,
+        }
+    ));
+}
+
+#[test]
 fn auto_commission_all_stardock_units_creates_fleets_and_bases() {
     let mut player = PlayerRecord::new_zeroed();
     player.set_owner_empire_raw(1);
@@ -1406,6 +1441,40 @@ fn core_game_data_can_apply_current_known_scenario_mutations() {
     assert_eq!(ipbm.owner_empire_raw(), 0x02);
     assert_eq!(ipbm.gate_word_raw(), 0x4567);
     assert_eq!(ipbm.follow_on_word_raw(), 0x89ab);
+}
+
+#[test]
+fn set_fleet_order_rejects_speed_above_current_maximum() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    let max_speed = data.fleets.records[0].max_speed();
+    let error = data
+        .set_fleet_order(
+            1,
+            max_speed.saturating_add(1),
+            Order::MoveOnly.to_raw(),
+            [0x0F, 0x0D],
+            None,
+            None,
+        )
+        .unwrap_err();
+
+    assert_eq!(
+        error,
+        GameStateMutationError::InvalidFleetSpeed {
+            fleet_index_1_based: 1,
+            requested: max_speed.saturating_add(1),
+            max: max_speed,
+        }
+    );
 }
 
 #[test]

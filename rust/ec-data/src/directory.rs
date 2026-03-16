@@ -146,6 +146,15 @@ pub enum FleetOrderValidationError {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetPlayerInputValidationError {
+    InvalidOrder(FleetOrderValidationError),
+    LoadedArmiesExceedTransportCapacity { loaded_armies: u16, transports: u16 },
+    SpeedExceedsMaximum { speed: u8, max: u8 },
+    RulesOfEngagementOutOfRange { roe: u8 },
+    NonCombatFleetMustUseZeroRoe { roe: u8 },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetPlayerInputValidationError {
     InvalidBuildKind(u8),
     MissingBuildKindForCount,
@@ -287,6 +296,10 @@ pub enum GameStateMutationError {
     FleetOwnershipMismatch {
         player_index_1_based: usize,
         fleet_index_1_based: usize,
+    },
+    PlanetOwnershipMismatch {
+        player_index_1_based: usize,
+        planet_index_1_based: usize,
     },
     FleetDetachSelectionEmpty {
         fleet_index_1_based: usize,
@@ -483,6 +496,14 @@ impl std::fmt::Display for GameStateMutationError {
                 "fleet {} is not owned by player {}",
                 fleet_index_1_based, player_index_1_based
             ),
+            Self::PlanetOwnershipMismatch {
+                player_index_1_based,
+                planet_index_1_based,
+            } => write!(
+                f,
+                "planet {} is not owned by player {}",
+                planet_index_1_based, player_index_1_based
+            ),
             Self::FleetDetachSelectionEmpty {
                 fleet_index_1_based,
             } => write!(f, "fleet {} detach selection is empty", fleet_index_1_based),
@@ -610,6 +631,10 @@ fn total_starships(record: &FleetRecord) -> u32 {
         + u32::from(record.troop_transport_count())
         + u32::from(record.scout_count())
         + u32::from(record.etac_count())
+}
+
+fn fleet_has_combat_ships(record: &FleetRecord) -> bool {
+    record.destroyer_count() > 0 || record.cruiser_count() > 0 || record.battleship_count() > 0
 }
 
 fn rebuild_owner_fleet_chain(
@@ -1282,7 +1307,7 @@ impl CoreGameData {
         let mut errors = Vec::new();
         for (fleet_idx, fleet) in self.fleets.records.iter().enumerate() {
             let aux = fleet.mission_aux_bytes();
-            if let Err(reason) = self.validate_fleet_order_payload(
+            if let Err(reason) = self.validate_fleet_player_inputs(
                 fleet_idx + 1,
                 fleet.standing_order_code_raw(),
                 fleet.standing_order_target_coords_raw(),
@@ -1290,7 +1315,7 @@ impl CoreGameData {
                 Some(aux[1]),
             ) {
                 errors.push(format!(
-                    "FLEET[{}] invalid player order: {:?}",
+                    "FLEET[{}] invalid player input: {:?}",
                     fleet_idx + 1,
                     reason
                 ));
@@ -2236,6 +2261,21 @@ impl CoreGameData {
                 fleet_index_1_based: record_index_1_based,
                 reason,
             })?;
+        let max_speed = self
+            .fleets
+            .records
+            .get(record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingFleetRecord {
+                index_1_based: record_index_1_based,
+            })?
+            .max_speed();
+        if speed > max_speed {
+            return Err(GameStateMutationError::InvalidFleetSpeed {
+                fleet_index_1_based: record_index_1_based,
+                requested: speed,
+                max: max_speed,
+            });
+        }
         let record = self
             .fleets
             .records
@@ -2392,6 +2432,43 @@ impl CoreGameData {
             _ => {}
         }
         Ok(())
+    }
+
+    pub fn validate_fleet_player_inputs(
+        &self,
+        record_index_1_based: usize,
+        order_code: u8,
+        target: [u8; 2],
+        aux0: Option<u8>,
+        aux1: Option<u8>,
+    ) -> Result<(), FleetPlayerInputValidationError> {
+        let Some(fleet) = self.fleets.records.get(record_index_1_based - 1) else {
+            return Ok(());
+        };
+        if fleet.army_count() > fleet.troop_transport_count() {
+            return Err(FleetPlayerInputValidationError::LoadedArmiesExceedTransportCapacity {
+                loaded_armies: fleet.army_count(),
+                transports: fleet.troop_transport_count(),
+            });
+        }
+        if fleet.current_speed() > fleet.max_speed() {
+            return Err(FleetPlayerInputValidationError::SpeedExceedsMaximum {
+                speed: fleet.current_speed(),
+                max: fleet.max_speed(),
+            });
+        }
+        if !fleet_has_combat_ships(fleet) && fleet.rules_of_engagement() != 0 {
+            return Err(FleetPlayerInputValidationError::NonCombatFleetMustUseZeroRoe {
+                roe: fleet.rules_of_engagement(),
+            });
+        }
+        if fleet.rules_of_engagement() > 10 {
+            return Err(FleetPlayerInputValidationError::RulesOfEngagementOutOfRange {
+                roe: fleet.rules_of_engagement(),
+            });
+        }
+        self.validate_fleet_order_payload(record_index_1_based, order_code, target, aux0, aux1)
+            .map_err(FleetPlayerInputValidationError::InvalidOrder)
     }
 
     pub fn validate_planet_player_inputs(
@@ -2713,6 +2790,12 @@ impl CoreGameData {
             .ok_or(GameStateMutationError::MissingPlanetRecord {
                 index_1_based: planet_record_index_1_based,
             })?;
+        if planet.owner_empire_slot_raw() != owner_empire {
+            return Err(GameStateMutationError::PlanetOwnershipMismatch {
+                player_index_1_based,
+                planet_index_1_based: planet_record_index_1_based,
+            });
+        }
 
         let coords = planet.coords_raw();
         let mut selected = Vec::with_capacity(slot_0_based_list.len());

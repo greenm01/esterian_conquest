@@ -1,7 +1,7 @@
 use ec_data::{
-    ContactReportSource, CoreGameData, DatabaseDat, FleetOrderValidationError, MaintenanceEvents,
-    Mission, MissionOutcome, PlanetDat, PlanetPlayerInputValidationError, QueuedPlayerMail,
-    ShipLosses,
+    ContactReportSource, CoreGameData, DatabaseDat, FleetOrderValidationError,
+    FleetPlayerInputValidationError, MaintenanceEvents, Mission, MissionOutcome, PlanetDat,
+    PlanetPlayerInputValidationError, QueuedPlayerMail, ShipLosses,
 };
 
 const RESULTS_RECORD_SIZE: usize = 84;
@@ -384,6 +384,29 @@ fn fleet_order_validation_reason_text(reason: FleetOrderValidationError) -> Stri
         }
         FleetOrderValidationError::InvalidGuardStarbase => {
             "the selected starbase linkage is invalid".to_string()
+        }
+    }
+}
+
+fn fleet_player_input_validation_reason_text(reason: FleetPlayerInputValidationError) -> String {
+    match reason {
+        FleetPlayerInputValidationError::InvalidOrder(order_reason) => {
+            fleet_order_validation_reason_text(order_reason)
+        }
+        FleetPlayerInputValidationError::LoadedArmiesExceedTransportCapacity {
+            loaded_armies,
+            transports,
+        } => format!(
+            "loaded armies ({loaded_armies}) exceeded available troop transports ({transports})"
+        ),
+        FleetPlayerInputValidationError::SpeedExceedsMaximum { speed, max } => {
+            format!("fleet speed {speed} exceeded the current maximum speed {max}")
+        }
+        FleetPlayerInputValidationError::RulesOfEngagementOutOfRange { roe } => {
+            format!("rules of engagement {roe} was outside the valid 0-10 range")
+        }
+        FleetPlayerInputValidationError::NonCombatFleetMustUseZeroRoe { roe } => {
+            format!("non-combat fleet used ROE {roe}; non-combat fleets must use ROE 0")
         }
     }
 }
@@ -1063,6 +1086,12 @@ pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEv
                 coords[0],
                 coords[1],
                 fleet_order_validation_reason_text(reason)
+            ),
+            ec_data::InvalidPlayerStateEvent::FleetInput { coords, reason, .. } => format!(
+                "From your fleet in Sector({},{}) : Fleet readiness report: Maintenance corrected invalid fleet input because {}.",
+                coords[0],
+                coords[1],
+                fleet_player_input_validation_reason_text(reason)
             ),
             ec_data::InvalidPlayerStateEvent::PlanetInput { coords, reason, .. } => format!(
                 "From planet in System({},{}) : Administration report: Maintenance cleared invalid player input because {}.",
@@ -2001,6 +2030,20 @@ pub(crate) fn build_messages_dat(
                     coords[0],
                     coords[1],
                     fleet_order_validation_reason_text(reason)
+                ),
+            ),
+            ec_data::InvalidPlayerStateEvent::FleetInput {
+                owner_empire_raw,
+                coords,
+                reason,
+                ..
+            } => (
+                owner_empire_raw,
+                format!(
+                    "From your fleet in Sector({},{}) : Fleet readiness report: Maintenance corrected invalid fleet input because {}.",
+                    coords[0],
+                    coords[1],
+                    fleet_player_input_validation_reason_text(reason)
                 ),
             ),
             ec_data::InvalidPlayerStateEvent::PlanetInput {

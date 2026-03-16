@@ -1000,7 +1000,7 @@ fn maint_rust_blitz_success_generates_attacker_side_report() {
     attacker.set_cruiser_count(0);
     attacker.set_destroyer_count(1);
     attacker.set_troop_transport_count(10);
-    attacker.set_army_count(30);
+    attacker.set_army_count(10);
     attacker.set_etac_count(0);
     game_data
         .save(&target)
@@ -1010,7 +1010,7 @@ fn maint_rust_blitz_success_generates_attacker_side_report() {
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    let text = String::from_utf8_lossy(&results);
+    let text = decode_chunked_report(&results);
     assert!(text.contains("Blitz mission report"));
     assert!(text.contains("defending world initially contained"));
     assert!(text.contains("Friendly losses:"));

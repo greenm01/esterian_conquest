@@ -412,6 +412,10 @@ pub(crate) fn validate_core_state(dir: &Path) -> Result<(), Box<dyn std::error::
             "  conquest_baseline = {}",
             data.current_known_conquest_baseline_errors().is_empty()
         );
+        println!(
+            "  player_inputs = {}",
+            data.current_known_player_input_errors().is_empty()
+        );
         Ok(())
     } else {
         Err(errors.join("\n").into())
