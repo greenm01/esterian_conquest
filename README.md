@@ -208,6 +208,39 @@ That client work is now documented in
 Player map delivery and sysop staging are documented in
 [docs/sysop-map-exports.md](docs/sysop/sysop-map-exports.md).
 
+## Local Dependencies
+
+For normal Rust development in this repo, the practical baseline is:
+
+- Rust toolchain with `cargo`
+- Python 3 for oracle/support scripts under `tools/`
+- DOSBox-X only if you want to launch the original DOS binaries locally
+
+Recommended local build-speed tooling:
+
+- `sccache`
+
+On Arch-based systems:
+
+```bash
+sudo pacman -S sccache
+```
+
+Then enable it in your local Cargo config:
+
+```toml
+[build]
+rustc-wrapper = "sccache"
+```
+
+Notes:
+
+- Cargo already uses multiple cores by default; there is no repo-local
+  `jobs = ...` override checked in here.
+- `sccache` is the preferred low-risk speedup for this workspace.
+- `mold` can help on some systems, but it is not required by the repo and is
+  not currently recommended as a documented baseline dependency.
+
 ## Quick Start
 
 Create a new game:

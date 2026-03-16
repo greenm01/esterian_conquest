@@ -255,6 +255,7 @@ pub fn render_first_time_homeworld_confirm(
     coords: [u8; 2],
     present_production: u16,
     potential_production: u16,
+    is_preloaded_first_login: bool,
     homeworld_name: &str,
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
@@ -277,8 +278,16 @@ pub fn render_first_time_homeworld_confirm(
         ),
         classic::body_style(),
     );
+    if is_preloaded_first_login {
+        buffer.write_text(
+            5,
+            0,
+            "This pre-loaded empire still needs its first homeworld name.",
+            classic::body_style(),
+        );
+    }
     buffer.write_text(
-        5,
+        if is_preloaded_first_login { 6 } else { 5 },
         0,
         "Press N or Esc to go back and edit the homeworld name.",
         classic::body_style(),

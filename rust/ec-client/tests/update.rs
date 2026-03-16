@@ -681,6 +681,27 @@ fn preloaded_first_login_routes_through_login_summary_before_homeworld_naming() 
             .line(5)
             .contains("This pre-loaded empire still needs its first homeworld name.")
     );
+
+    for ch in "Codex Prime".chars() {
+        assert_eq!(
+            apply_action(&mut app, Action::AppendFirstTimeInputChar(ch)),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFirstTimeInput),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldConfirm);
+
+    let mut confirm_terminal = CaptureTerminal::new();
+    app.render(&mut confirm_terminal)
+        .expect("homeworld confirm should render");
+    assert!(
+        confirm_terminal
+            .line(5)
+            .contains("This pre-loaded empire still needs its first homeworld name.")
+    );
 }
 
 #[test]

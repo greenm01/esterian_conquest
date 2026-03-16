@@ -25,6 +25,12 @@ Current grade:
 - maintenance engine behavior against `ECPLAYER.DOC`: `A+`
 - overall `rust-maint` status: `A+`
 
+Local development baseline:
+
+- Rust builds already use Cargo's normal multi-core job scheduling by default
+- `sccache` is now the recommended local compile-speed dependency
+- do not treat `mold` as a required repo dependency; keep it optional/local
+
 Latest oracle signal against the remaining manual-adjacent fleet assumptions:
 
 - confirmed in classic `ECMAINT`:
