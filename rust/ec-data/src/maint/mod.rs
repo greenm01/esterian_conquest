@@ -3,11 +3,10 @@
 mod combat;
 
 use crate::{
-    CoreGameData, DiplomaticRelation, FleetOrderValidationError,
-    FleetPlayerInputValidationError, Order, PlanetPlayerInputValidationError,
-    PlayerDiplomacyValidationError, ProductionItemKind, VisibleHazardIntel, build_capacity,
-    next_path_step, plan_route_with_intel, yearly_growth_delta, yearly_high_tax_penalty,
-    yearly_tax_revenue,
+    CoreGameData, DiplomaticRelation, FleetOrderValidationError, FleetPlayerInputValidationError,
+    Order, PlanetPlayerInputValidationError, PlayerDiplomacyValidationError, ProductionItemKind,
+    VisibleHazardIntel, build_capacity, next_path_step, plan_route_with_intel, yearly_growth_delta,
+    yearly_high_tax_penalty, yearly_tax_revenue,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -311,7 +310,9 @@ pub enum EncounterDispositionEvent {
         mission: Option<Mission>,
         coords: [u8; 2],
         target_empire_raw: u8,
-        enemy_initial: ShipLosses,
+        small_vessels: u32,
+        medium_vessels: u32,
+        large_vessels: u32,
         reason: EncounterDispositionReason,
     },
     Retreated {
@@ -1010,6 +1011,22 @@ fn apply_stored_diplomatic_escalations(
     Ok(())
 }
 
+fn queue_local_intrusion_escalation(
+    movement_events: &mut MovementEvents,
+    owner_empire_raw: u8,
+    defender_empire_raw: u8,
+) {
+    if owner_empire_raw != 0 && defender_empire_raw != 0 && owner_empire_raw != defender_empire_raw
+    {
+        movement_events
+            .diplomatic_escalation_events
+            .push(DiplomaticEscalationEvent {
+                left_empire_raw: owner_empire_raw,
+                right_empire_raw: defender_empire_raw,
+            });
+    }
+}
+
 fn process_join_host_updates(
     game_data: &mut CoreGameData,
     merge_events: &[FleetMergeEvent],
@@ -1630,14 +1647,11 @@ fn process_fleet_movement(
                         if let Some(planet_idx) = planet_idx {
                             let defender_empire =
                                 game_data.planets.records[planet_idx].owner_empire_slot_raw();
-                            if defender_empire != 0 && defender_empire != owner_empire {
-                                movement_events.diplomatic_escalation_events.push(
-                                    DiplomaticEscalationEvent {
-                                        left_empire_raw: owner_empire,
-                                        right_empire_raw: defender_empire,
-                                    },
-                                );
-                            }
+                            queue_local_intrusion_escalation(
+                                &mut movement_events,
+                                owner_empire,
+                                defender_empire,
+                            );
                         }
                         movement_events.mission_events.push(MissionEvent {
                             fleet_idx: i,
@@ -1698,6 +1712,20 @@ fn process_fleet_movement(
                         });
                     }
                     Order::BombardWorld => {
+                        if let Some(planet_idx) = game_data
+                            .planets
+                            .records
+                            .iter()
+                            .position(|planet| planet.coords_raw() == [target_x, target_y])
+                        {
+                            let defender_empire =
+                                game_data.planets.records[planet_idx].owner_empire_slot_raw();
+                            queue_local_intrusion_escalation(
+                                &mut movement_events,
+                                owner_empire,
+                                defender_empire,
+                            );
+                        }
                         movement_events.mission_events.push(MissionEvent {
                             fleet_idx: i,
                             owner_empire_raw: owner_empire,
@@ -1713,6 +1741,20 @@ fn process_fleet_movement(
                         });
                     }
                     Order::InvadeWorld => {
+                        if let Some(planet_idx) = game_data
+                            .planets
+                            .records
+                            .iter()
+                            .position(|planet| planet.coords_raw() == [target_x, target_y])
+                        {
+                            let defender_empire =
+                                game_data.planets.records[planet_idx].owner_empire_slot_raw();
+                            queue_local_intrusion_escalation(
+                                &mut movement_events,
+                                owner_empire,
+                                defender_empire,
+                            );
+                        }
                         movement_events.mission_events.push(MissionEvent {
                             fleet_idx: i,
                             owner_empire_raw: owner_empire,
@@ -1728,12 +1770,26 @@ fn process_fleet_movement(
                         });
                     }
                     Order::BlitzWorld => {
+                        let planet_idx = game_data
+                            .planets
+                            .records
+                            .iter()
+                            .position(|planet| planet.coords_raw() == [target_x, target_y]);
+                        if let Some(planet_idx) = planet_idx {
+                            let defender_empire =
+                                game_data.planets.records[planet_idx].owner_empire_slot_raw();
+                            queue_local_intrusion_escalation(
+                                &mut movement_events,
+                                owner_empire,
+                                defender_empire,
+                            );
+                        }
                         movement_events.mission_events.push(MissionEvent {
                             fleet_idx: i,
                             owner_empire_raw: owner_empire,
                             kind: Mission::BlitzWorld,
                             outcome: MissionOutcome::Arrived,
-                            planet_idx: None,
+                            planet_idx,
                             location_coords: Some([target_x, target_y]),
                             target_coords: Some([target_x, target_y]),
                         });

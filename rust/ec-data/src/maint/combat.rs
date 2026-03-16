@@ -57,6 +57,13 @@ enum BattleRole {
     Neutral,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum EncounterContext {
+    DeepSpaceTransit,
+    SectorPatrol,
+    SystemEntry,
+}
+
 #[derive(Clone, Debug, Default)]
 struct FleetCombatState {
     counts: [u32; 7],
@@ -78,7 +85,11 @@ struct TaskForce {
 enum HostilityReason {
     DeclaredEnemy,
     DefendedSystemEntry,
-    BlockadeOrGuardContact,
+    PatrolContact,
+}
+
+fn hostility_requires_forced_engagement(reason: HostilityReason) -> bool {
+    matches!(reason, HostilityReason::DefendedSystemEntry)
 }
 
 impl FleetCombatState {
@@ -255,7 +266,7 @@ fn task_force_role(
     let guarding = fleet_indices.iter().any(|&idx| {
         matches!(
             game_data.fleets.records[idx].standing_order_kind(),
-            Order::PatrolSector | Order::GuardStarbase | Order::GuardBlockadeWorld
+            Order::GuardStarbase | Order::GuardBlockadeWorld
         )
     });
     if guarding {
@@ -267,13 +278,57 @@ fn task_force_role(
     }
 }
 
-fn has_guard_contact_order(game_data: &CoreGameData, fleet_indices: &[usize]) -> bool {
+fn has_anchored_guard_order(game_data: &CoreGameData, fleet_indices: &[usize]) -> bool {
     fleet_indices.iter().any(|&idx| {
         matches!(
             game_data.fleets.records[idx].standing_order_kind(),
             Order::GuardStarbase | Order::GuardBlockadeWorld
         )
     })
+}
+
+fn has_patrol_order(game_data: &CoreGameData, fleet_indices: &[usize]) -> bool {
+    fleet_indices
+        .iter()
+        .any(|&idx| game_data.fleets.records[idx].standing_order_kind() == Order::PatrolSector)
+}
+
+fn fleet_is_at_system_context(fleet: &crate::FleetRecord) -> bool {
+    let coords = fleet.current_location_coords_raw();
+    let target = fleet.standing_order_target_coords_raw();
+    if coords != target {
+        return false;
+    }
+    matches!(
+        fleet.standing_order_kind(),
+        Order::SeekHome
+            | Order::GuardStarbase
+            | Order::GuardBlockadeWorld
+            | Order::BombardWorld
+            | Order::InvadeWorld
+            | Order::BlitzWorld
+            | Order::ViewWorld
+            | Order::ScoutSolarSystem
+            | Order::Salvage
+    )
+}
+
+fn task_force_encounter_context(
+    game_data: &CoreGameData,
+    task_force: &TaskForce,
+) -> EncounterContext {
+    let has_system_context_fleet = task_force
+        .fleet_indices
+        .iter()
+        .any(|&idx| fleet_is_at_system_context(&game_data.fleets.records[idx]));
+
+    if has_system_context_fleet || task_force.state.counts[IDX_SB] > 0 {
+        EncounterContext::SystemEntry
+    } else if has_patrol_order(game_data, &task_force.fleet_indices) {
+        EncounterContext::SectorPatrol
+    } else {
+        EncounterContext::DeepSpaceTransit
+    }
 }
 
 fn effective_diplomatic_relation(
@@ -302,6 +357,9 @@ fn hostility_reason_between(
         return None;
     }
 
+    let left_context = task_force_encounter_context(game_data, left);
+    let right_context = task_force_encounter_context(game_data, right);
+
     if matches!(
         effective_diplomatic_relation(game_data, diplomacy_overrides, left.empire, right.empire),
         Some(DiplomaticRelation::Enemy)
@@ -309,7 +367,31 @@ fn hostility_reason_between(
         effective_diplomatic_relation(game_data, diplomacy_overrides, right.empire, left.empire),
         Some(DiplomaticRelation::Enemy)
     ) {
-        return Some(HostilityReason::DeclaredEnemy);
+        return match (left_context, right_context) {
+            (EncounterContext::SystemEntry, EncounterContext::SystemEntry) => {
+                Some(HostilityReason::DefendedSystemEntry)
+            }
+            (EncounterContext::SystemEntry, EncounterContext::SectorPatrol)
+            | (EncounterContext::SectorPatrol, EncounterContext::SystemEntry)
+            | (EncounterContext::SectorPatrol, EncounterContext::SectorPatrol) => {
+                Some(HostilityReason::PatrolContact)
+            }
+            (EncounterContext::DeepSpaceTransit, EncounterContext::DeepSpaceTransit)
+            | (EncounterContext::DeepSpaceTransit, EncounterContext::SectorPatrol)
+            | (EncounterContext::SectorPatrol, EncounterContext::DeepSpaceTransit) => {
+                Some(HostilityReason::DeclaredEnemy)
+            }
+            (EncounterContext::SystemEntry, EncounterContext::DeepSpaceTransit)
+            | (EncounterContext::DeepSpaceTransit, EncounterContext::SystemEntry) => {
+                if has_anchored_guard_order(game_data, &left.fleet_indices)
+                    || has_anchored_guard_order(game_data, &right.fleet_indices)
+                {
+                    None
+                } else {
+                    Some(HostilityReason::DeclaredEnemy)
+                }
+            }
+        };
     }
 
     if let Some(planet) = game_data
@@ -319,17 +401,15 @@ fn hostility_reason_between(
         .find(|p| p.coords_raw() == coords)
     {
         let owner = planet.owner_empire_slot_raw();
-        if owner != 0 && (owner == left.empire || owner == right.empire) {
+        if owner != 0
+            && (owner == left.empire || owner == right.empire)
+            && matches!(
+                (left_context, right_context),
+                (EncounterContext::SystemEntry, _) | (_, EncounterContext::SystemEntry)
+            )
+        {
             return Some(HostilityReason::DefendedSystemEntry);
         }
-    }
-
-    if has_guard_contact_order(game_data, &left.fleet_indices)
-        || has_guard_contact_order(game_data, &right.fleet_indices)
-        || left.state.counts[IDX_SB] > 0
-        || right.state.counts[IDX_SB] > 0
-    {
-        return Some(HostilityReason::BlockadeOrGuardContact);
     }
 
     None
@@ -434,17 +514,18 @@ fn build_task_forces_at_location(game_data: &CoreGameData, coords: [u8; 2]) -> V
         .collect()
 }
 
-fn empire_target_priority(
+fn hostile_target_priority(
     our_empire: u8,
     our_role: BattleRole,
-    candidates: &[TaskForce],
+    candidates: &[(&TaskForce, HostilityReason)],
     planet_owner: Option<u8>,
-) -> Option<u8> {
+) -> Option<(u8, HostilityReason)> {
     let _ = our_role;
     candidates
         .iter()
-        .filter(|tf| tf.empire != our_empire && tf.state.has_units())
-        .min_by_key(|tf| {
+        .copied()
+        .filter(|(tf, _)| tf.empire != our_empire && tf.state.has_units())
+        .min_by_key(|(tf, _)| {
             let guarding = matches!(
                 tf.role,
                 BattleRole::IncumbentDefender | BattleRole::GuardingDefender
@@ -458,7 +539,7 @@ fn empire_target_priority(
                 tf.empire,
             )
         })
-        .map(|tf| tf.empire)
+        .map(|(tf, reason)| (tf.empire, reason))
 }
 
 fn distribute_fleet_losses(
@@ -757,15 +838,37 @@ pub(crate) fn process_fleet_battles(
                     continue;
                 }
 
-                let enemy_as = task_forces
+                let hostile_opponents = task_forces
                     .iter()
-                    .filter(|other| other.empire != tf.empire)
-                    .map(|other| other.state.total_combat_as())
+                    .filter_map(|other| {
+                        (other.empire != tf.empire)
+                            .then(|| {
+                                hostility_reason_between(
+                                    game_data,
+                                    diplomacy_overrides,
+                                    coords,
+                                    tf,
+                                    other,
+                                )
+                                .map(|reason| (other, reason))
+                            })
+                            .flatten()
+                    })
+                    .collect::<Vec<_>>();
+                let enemy_as = hostile_opponents
+                    .iter()
+                    .map(|(other, _)| other.state.total_combat_as())
                     .max()
                     .unwrap_or(0);
                 if enemy_as == 0 {
                     continue;
                 }
+
+                let Some((target_empire, hostility_reason)) =
+                    hostile_target_priority(tf.empire, tf.role, &hostile_opponents, planet_owner)
+                else {
+                    continue;
+                };
 
                 let roe = tf
                     .fleet_indices
@@ -779,14 +882,9 @@ pub(crate) fn process_fleet_battles(
                     })
                     .max()
                     .unwrap_or(0);
-                if !rule_threshold_satisfied(roe, our_as, enemy_as) {
+                let forced_engagement = hostility_requires_forced_engagement(hostility_reason);
+                if !forced_engagement && !rule_threshold_satisfied(roe, our_as, enemy_as) {
                     if !combat_occurred {
-                        let target_empire = task_forces
-                            .iter()
-                            .filter(|other| other.empire != tf.empire)
-                            .max_by_key(|other| other.state.total_combat_as())
-                            .map(|other| other.empire)
-                            .unwrap_or(0);
                         if target_empire != 0 {
                             roe_declined_pairs.push((tf.empire, target_empire));
                         }
@@ -797,25 +895,6 @@ pub(crate) fn process_fleet_battles(
                     }
                     continue;
                 }
-
-                let target = empire_target_priority(tf.empire, tf.role, &task_forces, planet_owner);
-                let Some(target_empire) = target.filter(|target_empire| {
-                    task_forces
-                        .iter()
-                        .find(|other| other.empire == *target_empire)
-                        .and_then(|other| {
-                            hostility_reason_between(
-                                game_data,
-                                diplomacy_overrides,
-                                coords,
-                                tf,
-                                other,
-                            )
-                        })
-                        .is_some()
-                }) else {
-                    continue;
-                };
                 let starbase_bonus = tf.state.counts[IDX_SB] > 0 && tf.state.fresh[IDX_SB] > 0;
                 let cer = space_cer_percent(our_as, enemy_as, tf.state.is_mixed(), starbase_bonus);
                 let hits = hits_from(our_as, cer);
@@ -914,11 +993,24 @@ pub(crate) fn process_fleet_battles(
                                 ),
                                 coords,
                                 target_empire_raw: target_empire,
-                                enemy_initial: ship_counts_from_state(
+                                small_vessels: vessel_size_summary(
                                     original_states
                                         .get(&target_empire)
                                         .unwrap_or(&FleetCombatState::default()),
-                                ),
+                                )
+                                .0,
+                                medium_vessels: vessel_size_summary(
+                                    original_states
+                                        .get(&target_empire)
+                                        .unwrap_or(&FleetCombatState::default()),
+                                )
+                                .1,
+                                large_vessels: vessel_size_summary(
+                                    original_states
+                                        .get(&target_empire)
+                                        .unwrap_or(&FleetCombatState::default()),
+                                )
+                                .2,
                                 reason: EncounterDispositionReason::RoeDeclined,
                             },
                         );
@@ -1177,12 +1269,20 @@ fn mission_kind_for_order(order: Option<Order>) -> Option<Mission> {
 
 fn contact_reporting_kind(order: Order) -> Option<Mission> {
     match order {
+        Order::MoveOnly => Some(Mission::MoveOnly),
+        Order::SeekHome => Some(Mission::SeekHome),
+        Order::PatrolSector => Some(Mission::PatrolSector),
+        Order::ViewWorld => Some(Mission::ViewWorld),
         Order::ScoutSector => Some(Mission::ScoutSector),
         Order::ScoutSolarSystem => Some(Mission::ScoutSolarSystem),
+        Order::BombardWorld => Some(Mission::BombardWorld),
+        Order::InvadeWorld => Some(Mission::InvadeWorld),
+        Order::BlitzWorld => Some(Mission::BlitzWorld),
         Order::GuardStarbase => Some(Mission::GuardStarbase),
         Order::JoinAnotherFleet => Some(Mission::JoinAnotherFleet),
         Order::RendezvousSector => Some(Mission::RendezvousSector),
         Order::GuardBlockadeWorld => Some(Mission::GuardBlockadeWorld),
+        Order::Salvage => Some(Mission::Salvage),
         _ => None,
     }
 }

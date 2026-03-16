@@ -1,8 +1,7 @@
 use ec_data::{
     ContactReportSource, CoreGameData, DatabaseDat, FleetOrderValidationError,
     FleetPlayerInputValidationError, MaintenanceEvents, Mission, MissionOutcome, PlanetDat,
-    PlanetPlayerInputValidationError, PlayerDiplomacyValidationError, QueuedPlayerMail,
-    ShipLosses,
+    PlanetPlayerInputValidationError, PlayerDiplomacyValidationError, QueuedPlayerMail, ShipLosses,
 };
 
 const RESULTS_RECORD_SIZE: usize = 84;
@@ -251,7 +250,11 @@ fn push_routed_message_chunked(
 fn mission_location_phrase(kind: Mission, coords: [u8; 2]) -> String {
     let [x, y] = coords;
     match kind {
-        Mission::ScoutSector | Mission::MoveOnly => {
+        Mission::MoveOnly
+        | Mission::PatrolSector
+        | Mission::ScoutSector
+        | Mission::JoinAnotherFleet
+        | Mission::RendezvousSector => {
             format!("Sector({x},{y})")
         }
         _ => format!("System({x},{y})"),
@@ -260,6 +263,8 @@ fn mission_location_phrase(kind: Mission, coords: [u8; 2]) -> String {
 
 fn mission_report_label(kind: Mission) -> &'static str {
     match kind {
+        Mission::MoveOnly => "Move mission report",
+        Mission::PatrolSector => "Patrol mission report",
         Mission::GuardStarbase => "Guard Starbase mission report",
         Mission::JoinAnotherFleet => "Join mission report",
         Mission::RendezvousSector => "Rendezvous mission report",
@@ -271,30 +276,38 @@ fn mission_report_label(kind: Mission) -> &'static str {
 }
 
 fn contact_size_summary(event: &ec_data::ScoutContactEvent) -> String {
-    match (
-        event.large_vessels > 0,
-        event.medium_vessels > 0,
-        event.small_vessels > 0,
-    ) {
+    contact_size_summary_from_counts(
+        event.small_vessels,
+        event.medium_vessels,
+        event.large_vessels,
+    )
+}
+
+fn contact_size_summary_from_counts(
+    small_vessels: u32,
+    medium_vessels: u32,
+    large_vessels: u32,
+) -> String {
+    match (large_vessels > 0, medium_vessels > 0, small_vessels > 0) {
         (true, true, true) => format!(
             "{} large, {} medium, and {} small vessel(s)",
-            event.large_vessels, event.medium_vessels, event.small_vessels
+            large_vessels, medium_vessels, small_vessels
         ),
         (true, true, false) => format!(
             "{} large and {} medium vessel(s)",
-            event.large_vessels, event.medium_vessels
+            large_vessels, medium_vessels
         ),
         (true, false, true) => format!(
             "{} large and {} small vessel(s)",
-            event.large_vessels, event.small_vessels
+            large_vessels, small_vessels
         ),
         (false, true, true) => format!(
             "{} medium and {} small vessel(s)",
-            event.medium_vessels, event.small_vessels
+            medium_vessels, small_vessels
         ),
-        (true, false, false) => format!("{} large vessel(s)", event.large_vessels),
-        (false, true, false) => format!("{} medium vessel(s)", event.medium_vessels),
-        (false, false, true) => format!("{} small vessel(s)", event.small_vessels),
+        (true, false, false) => format!("{} large vessel(s)", large_vessels),
+        (false, true, false) => format!("{} medium vessel(s)", medium_vessels),
+        (false, false, true) => format!("{} small vessel(s)", small_vessels),
         (false, false, false) => "no combat vessels".to_string(),
     }
 }
@@ -441,10 +454,16 @@ fn planet_input_validation_reason_text(reason: PlanetPlayerInputValidationError)
 fn diplomacy_input_validation_reason_text(reason: PlayerDiplomacyValidationError) -> String {
     match reason {
         PlayerDiplomacyValidationError::TargetOutOfRange { target_empire_raw } => {
-            format!("target empire {} was outside the active player range", target_empire_raw)
+            format!(
+                "target empire {} was outside the active player range",
+                target_empire_raw
+            )
         }
         PlayerDiplomacyValidationError::SelfTarget { empire_raw } => {
-            format!("empire {} attempted to target itself in diplomacy", empire_raw)
+            format!(
+                "empire {} attempted to target itself in diplomacy",
+                empire_raw
+            )
         }
         PlayerDiplomacyValidationError::InvalidStoredRelationByte {
             target_empire_raw,
@@ -672,13 +691,14 @@ pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEv
         match event.source {
             ContactReportSource::FleetMission(kind) => {
                 let label = mission_report_label(kind);
+                let location = mission_location_phrase(kind, event.coords);
                 let contact_text = format!(
-                    "From your fleet in System({x},{y}): {label}: Sensor contact shows an alien fleet in System({x},{y}) traveling at sublight speed. Closing to check it out..."
+                    "From your fleet in {location}: {label}: Sensor contact shows an alien fleet in {location} traveling at sublight speed. Closing to check it out..."
                 );
                 push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &contact_text);
 
                 let identified_text = format!(
-                    "From your fleet in System({x},{y}): {label}: We have located and identified the alien fleet in System({x},{y}). It belongs to {}. Their fleet contains {size_summary} of unknown type. Ignoring alien fleet...",
+                    "From your fleet in {location}: {label}: We have located and identified the alien fleet in {location}. It belongs to {}. Their fleet contains {size_summary} of unknown type. Ignoring alien fleet...",
                     empire_label(game_data, event.target_empire_raw),
                 );
                 push_results_chunked(&mut results, 0x07, RESULTS_TAIL_SCOUTING, &identified_text);
@@ -1066,14 +1086,16 @@ pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEv
             ec_data::EncounterDispositionEvent::NoEngagement {
                 coords,
                 target_empire_raw,
-                enemy_initial,
+                small_vessels,
+                medium_vessels,
+                large_vessels,
                 ..
             } => format!(
                 "From your fleet in Sector({},{}) : Fleet encounter report: We detected hostile forces from {} but declined battle under our current ROE. Initial observed hostile composition: {}.",
                 coords[0],
                 coords[1],
                 empire_label(game_data, target_empire_raw),
-                ship_loss_summary(enemy_initial)
+                contact_size_summary_from_counts(small_vessels, medium_vessels, large_vessels)
             ),
             ec_data::EncounterDispositionEvent::Retreated {
                 coords,
@@ -1503,8 +1525,9 @@ pub(crate) fn build_messages_dat(
         match event.source {
             ContactReportSource::FleetMission(kind) => {
                 let label = mission_report_label(kind);
+                let location = mission_location_phrase(kind, event.coords);
                 let contact_text = format!(
-                    "From your fleet in System({x},{y}): {label}: Sensor contact shows an alien fleet in System({x},{y}) traveling at sublight speed. Closing to check it out..."
+                    "From your fleet in {location}: {label}: Sensor contact shows an alien fleet in {location} traveling at sublight speed. Closing to check it out..."
                 );
                 push_routed_message_chunked(
                     &mut messages,
@@ -1516,7 +1539,7 @@ pub(crate) fn build_messages_dat(
                 );
 
                 let identified_text = format!(
-                    "From your fleet in System({x},{y}): {label}: We have located and identified the alien fleet in System({x},{y}). It belongs to {}. Their fleet contains {size_summary} of unknown type. Ignoring alien fleet...",
+                    "From your fleet in {location}: {label}: We have located and identified the alien fleet in {location}. It belongs to {}. Their fleet contains {size_summary} of unknown type. Ignoring alien fleet...",
                     empire_label(game_data, event.target_empire_raw),
                 );
                 push_routed_message_chunked(
@@ -1998,7 +2021,9 @@ pub(crate) fn build_messages_dat(
                 owner_empire_raw,
                 coords,
                 target_empire_raw,
-                enemy_initial,
+                small_vessels,
+                medium_vessels,
+                large_vessels,
                 ..
             } => (
                 owner_empire_raw,
@@ -2007,7 +2032,7 @@ pub(crate) fn build_messages_dat(
                     coords[0],
                     coords[1],
                     empire_label(game_data, target_empire_raw),
-                    ship_loss_summary(enemy_initial)
+                    contact_size_summary_from_counts(small_vessels, medium_vessels, large_vessels)
                 ),
             ),
             ec_data::EncounterDispositionEvent::Retreated {

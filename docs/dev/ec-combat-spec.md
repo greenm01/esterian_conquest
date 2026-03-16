@@ -217,6 +217,32 @@ Current implementation note:
 - foreign co-location alone should produce contact reports, not automatic
   combat
 
+### Contact / Hostility Escalation Matrix
+
+| Scenario | Initial Diplomacy | Location Context | Defender / Observer | Immediate Result | Escalation Ladder | Diplomacy After |
+| --- | --- | --- | --- | --- | --- | --- |
+| Neutral fleet in deep space meets `PatrolSector` | Neutral | Sector / deep space | `PatrolSector` fleet | Report contact only | `report contact -> ignore in deep space` | Unchanged neutral |
+| Enemy fleet in deep space meets `PatrolSector` | Enemy | Sector / deep space | `PatrolSector` fleet | Patrol interception may begin; ROE still governs refusal or retreat | `report contact -> enemy deep-space interception` | Already enemy |
+| Neutral fleet in deep space meets non-patrol transit fleet | Neutral | Sector / deep space | `Move` / `Join` / `Rendezvous` / other transit fleet | Report contact only | `report contact -> ignore in deep space` | Unchanged neutral |
+| Neutral assault fleet reaches a defended world in `Bombard` / `Invade` / `Blitz` posture | Neutral | Defended solar system / guarded world | Local guard / blockade / starbase / incumbent world defense | Treat as hostile local intrusion; contest orbit before any delayed assault step | `report contact -> treat as hostile local intrusion -> contest orbit before assault -> escalate diplomacy to enemy` | Enemy after first interception / assault attempt |
+| Enemy assault fleet reaches a defended world in `Bombard` / `Invade` / `Blitz` posture | Enemy | Defended solar system / guarded world | Local guard / blockade / starbase / incumbent world defense | Contest orbit immediately | `enemy deep-space interception -> contest orbit before assault` | Already enemy |
+| Neutral fleet tries to enter or leave a blockaded world | Neutral | Blockade boundary at a world | `Guard/Blockade` fleet | Treat as hostile local intrusion | `report contact -> treat as hostile local intrusion -> contest orbit -> escalate diplomacy to enemy` | Enemy after first interception / assault attempt |
+| Enemy fleet tries to enter or leave a blockaded world | Enemy | Blockade boundary at a world | `Guard/Blockade` fleet | Contest orbit immediately | `enemy deep-space interception -> contest orbit before assault` | Already enemy |
+| Fleet attacks first or initiates planetary assault | Neutral or Enemy | Any fleet battle / planet assault location | Target fleet / planet defense | Defender returns fire | `hostile act -> return fire -> escalate diplomacy to enemy` | Enemy after hostile act |
+| Fleet is attacked first and returns fire | Neutral or Enemy | Any fleet battle / planet assault location | Defending fleet / planet defense | Return fire immediately | `return fire -> escalate diplomacy to enemy` | Enemy after hostile act if not already enemy |
+
+This matrix is the working synthesis of the player manual and the oracle notes.
+[`ECPLAYER.DOC`](../../original/v1.5/ECPLAYER.DOC) treats `Patrol a Sector`
+as enemy-focused deep-space interception, says fleets also attack when another
+player's fleets enter one of their solar systems, and describes
+`Guard/Blockade` as preventing alien contact with the guarded planet.
+[`RE_NOTES.md`](../../RE_NOTES.md) already records both sides of that split:
+patrol/deep-space contact reports that can end in `Ignoring alien fleet...`,
+and classic local interception of bombardment fleets at the defended world.
+The intended rule is therefore narrow in deep space and broader at the local
+defense boundary: neutral transit may be observed and ignored, but neutral
+assault posture at a defended world is not harmless loitering.
+
 ### Shared contact rules
 
 When two or more hostile empires are present in the same location in the same
@@ -234,6 +260,14 @@ maintenance step:
 Any fleet encounter, whether hostile or not, should still generate a contact
 or intelligence report for the empires that observed it. Contact reporting is
 broader than combat reporting.
+
+Deep-space contact and local intrusion are not the same trigger:
+
+- neutral deep-space contact should report without automatic combat
+- declared enemies in deep space may be intercepted by patrol or by any
+  co-located hostile fleet that elects to engage under ROE
+- local defended-world or blockade-boundary intrusion is broader than stored
+  `enemy` status and may force an immediate orbital contest
 
 ### Shared tie-break rules
 
@@ -581,11 +615,15 @@ Those values may break ties only after combat, never before it.
 Open-space battles still need a reaction-side concept for tie handling. Use:
 
 1. fleets already present in the location at tick start are defenders
-2. if no one was already present, fleets on `Patrol`, `Guard Starbase`, or
-   `Guard/Blockade` count as defenders against pure movers
+2. if no one was already present, fleets on `Patrol` count as defenders
+   against deep-space movers
 3. if all hostile fleets arrived simultaneously and no one has a guarding
    posture, there is no natural defender; ties go to the side with the highest
    surviving combat AS, then lowest empire number
+
+`Guard Starbase` and `Guard/Blockade` are not generic deep-space patrol
+missions. Their defender priority belongs to local system/orbit defense, not
+to arbitrary same-sector transit contact.
 
 ### Same-mission simultaneous arrivals
 
@@ -617,8 +655,13 @@ that should not have happened before enemy contact.
 ### Transit and interception
 
 If a moving fleet passes through or arrives in a location containing a hostile
-patrol or blockade force, the patrol/blockade force is treated as the local
-defender for tie purposes.
+patrol force in deep space, the patrol force is treated as the local defender
+for tie purposes.
+
+If a moving fleet reaches a defended world or blockade boundary in assault
+posture, the local defender is the incumbent world defense, guard/blockade
+fleet, or starbase-side defense at that world. That is a local-intrusion case,
+not a generic sector patrol case.
 
 If multiple hostile moving fleets and a local patrol all coincide:
 
@@ -633,9 +676,11 @@ After the open-space battle:
   mission is still valid and the fleet remains combat-capable enough to do so
 - surviving fleets that lost and were forced to withdraw receive a retreat /
   seek-home style post-battle destination as defined by implementation
-- if no battle occurs because all ROE checks refuse engagement, fleets coexist
-  only if diplomacy allows it; otherwise patrol/blockade interception forces a
-  one-round pursuit-fire exchange
+- if no battle occurs because all ROE checks refuse engagement in deep space,
+  fleets coexist only if diplomacy allows it
+- defended-world and blockade-boundary intrusion are stricter: a fleet in
+  active assault posture does not get a free passive orbiting turn merely
+  because it arrived while still nominally neutral
 
 ### Crossing paths during movement
 
@@ -654,7 +699,7 @@ Canonical Rust rule for now:
   hostile contact automatically
 - if fleets occupy the same final location and are not enemies, they should
   still generate encounter intel but should not perform hostile operations
-  unless one side attacks or a defensive hostility rule applies
+  unless one side attacks or a defensive local-intrusion rule applies
 
 So:
 
@@ -692,12 +737,19 @@ When multiple empires are present at the same planet in the same step, resolve:
    is established
 
 This preserves the manual spirit that you do not freely land troops or pound a
-world while hostile fleets still contest orbit.
+world while hostile fleets still contest orbit. It also means a neutral fleet
+arriving in `Bombard`, `Invade`, or `Blitz` posture is not treated as harmless
+orbiting traffic at a defended world.
 
 ### Orbital supremacy gate
 
 No empire may execute bombardment, invasion, or blitz against the planet unless
 it is the sole remaining hostile force in orbit after the orbital-combat step.
+
+Arrival in assault posture is itself enough to trigger the orbital contest at a
+defended world. The one-turn delay before planetary fire or landing resolves
+does not grant a neutral fleet a free turn of uncontested parking in attack
+posture.
 
 If multiple hostile empires survive in orbit after the round limit:
 

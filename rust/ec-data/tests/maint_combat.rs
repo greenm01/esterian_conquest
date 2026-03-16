@@ -192,8 +192,10 @@ fn declared_enemy_fleet_battle_removes_losers_without_garbage_counts() {
             && event.target_empire_raw == 2
     }));
     assert!(events.scout_contact_events.iter().any(|event| {
-        matches!(event.source, ContactReportSource::Fleet(_))
-            && event.coords == [10, 10]
+        matches!(
+            event.source,
+            ContactReportSource::Fleet(_) | ContactReportSource::FleetMission(Mission::MoveOnly)
+        ) && event.coords == [10, 10]
             && event.viewer_empire_raw != 1
     }));
 
@@ -254,6 +256,161 @@ fn hostile_contact_with_roe_zero_emits_no_engagement_event() {
                 ..
             } if *owner_empire_raw == 1 && *event_coords == coords && *target_empire_raw == 2
         )
+    }));
+}
+
+#[test]
+fn neutral_bombard_arrival_at_defended_world_forces_local_battle_and_escalation() {
+    let mut game_data = load_fixture("ecmaint-post");
+    let target = [15, 13];
+
+    let target_world = &mut game_data.planets.records[13];
+    target_world.set_as_owned_target_world(
+        target,
+        [0x64, 0x87],
+        [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],
+        0x04,
+        0x0b,
+        *b"TargetPrimeet",
+        [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05],
+        10,
+        4,
+        2,
+        2,
+    );
+
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_owner_empire_raw(1);
+    attacker.set_current_location_coords_raw([14, 13]);
+    attacker.set_standing_order_kind(Order::BombardWorld);
+    attacker.set_standing_order_target_coords_raw(target);
+    attacker.set_current_speed(3);
+    attacker.raw[0x19] = 0x00;
+    attacker.set_destroyer_count(1);
+    attacker.set_cruiser_count(0);
+    attacker.set_battleship_count(0);
+    attacker.set_scout_count(0);
+    attacker.set_troop_transport_count(0);
+    attacker.set_army_count(0);
+    attacker.set_etac_count(0);
+    attacker.set_rules_of_engagement(0);
+
+    let defender = &mut game_data.fleets.records[4];
+    defender.set_owner_empire_raw(2);
+    defender.set_current_location_coords_raw(target);
+    defender.set_standing_order_kind(Order::GuardBlockadeWorld);
+    defender.set_standing_order_target_coords_raw(target);
+    defender.set_current_speed(0);
+    defender.set_destroyer_count(1);
+    defender.set_cruiser_count(0);
+    defender.set_battleship_count(0);
+    defender.set_scout_count(0);
+    defender.set_troop_transport_count(0);
+    defender.set_army_count(0);
+    defender.set_etac_count(0);
+    defender.set_rules_of_engagement(0);
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+
+    assert!(
+        !events.fleet_battle_events.is_empty(),
+        "defended-world assault posture should force a local battle"
+    );
+    assert!(
+        events.bombard_events.is_empty(),
+        "arrival turn should contest orbit before bombardment executes"
+    );
+    assert_eq!(
+        game_data.player.records[0].diplomatic_relation_toward(2),
+        Some(ec_data::DiplomaticRelation::Enemy)
+    );
+    assert_eq!(
+        game_data.player.records[1].diplomatic_relation_toward(1),
+        Some(ec_data::DiplomaticRelation::Enemy)
+    );
+}
+
+#[test]
+fn enemy_transit_fleets_can_fight_in_deep_space() {
+    let mut game_data = load_fixture("ecmaint-post");
+    let coords = [8, 8];
+
+    let left = &mut game_data.fleets.records[0];
+    left.set_current_location_coords_raw(coords);
+    left.set_standing_order_kind(Order::MoveOnly);
+    left.set_standing_order_target_coords_raw([9, 8]);
+    left.set_destroyer_count(1);
+    left.set_cruiser_count(0);
+    left.set_battleship_count(0);
+    left.set_scout_count(0);
+    left.set_troop_transport_count(0);
+    left.set_etac_count(0);
+    left.set_rules_of_engagement(10);
+
+    let right = &mut game_data.fleets.records[4];
+    right.set_current_location_coords_raw(coords);
+    right.set_standing_order_kind(Order::MoveOnly);
+    right.set_standing_order_target_coords_raw([7, 8]);
+    right.set_destroyer_count(1);
+    right.set_cruiser_count(0);
+    right.set_battleship_count(0);
+    right.set_scout_count(0);
+    right.set_troop_transport_count(0);
+    right.set_etac_count(0);
+    right.set_rules_of_engagement(10);
+
+    let diplomacy = mutual_enemy_overrides(1, 2);
+    let events = run_maintenance_turn_with_context(&mut game_data, &[], &diplomacy)
+        .expect("maintenance should succeed");
+
+    assert!(
+        !events.fleet_battle_events.is_empty(),
+        "enemy transit fleets in deep space should still fight"
+    );
+}
+
+#[test]
+fn anchored_guard_does_not_sortie_against_deep_space_transit_contact() {
+    let mut game_data = load_fixture("ecmaint-post");
+    let coords = [16, 13];
+    add_active_starbase(&mut game_data, 1, coords);
+
+    let defender = &mut game_data.fleets.records[0];
+    defender.set_current_location_coords_raw(coords);
+    defender.set_standing_order_kind(Order::GuardStarbase);
+    defender.set_standing_order_target_coords_raw(coords);
+    defender.set_cruiser_count(1);
+    defender.set_destroyer_count(0);
+    defender.set_battleship_count(0);
+    defender.set_troop_transport_count(0);
+    defender.set_army_count(0);
+    defender.set_scout_count(0);
+    defender.set_etac_count(0);
+    defender.set_rules_of_engagement(10);
+
+    let transit = &mut game_data.fleets.records[4];
+    transit.set_current_location_coords_raw(coords);
+    transit.set_standing_order_kind(Order::MoveOnly);
+    transit.set_standing_order_target_coords_raw([18, 13]);
+    transit.set_destroyer_count(1);
+    transit.set_cruiser_count(0);
+    transit.set_battleship_count(0);
+    transit.set_troop_transport_count(0);
+    transit.set_army_count(0);
+    transit.set_scout_count(0);
+    transit.set_etac_count(0);
+    transit.set_rules_of_engagement(10);
+
+    let diplomacy = mutual_enemy_overrides(1, 2);
+    let events = run_maintenance_turn_with_context(&mut game_data, &[], &diplomacy)
+        .expect("maintenance should succeed");
+
+    assert!(
+        events.fleet_battle_events.is_empty(),
+        "anchored guard should not attack a fleet just transiting through deep space in the same sector"
+    );
+    assert!(events.scout_contact_events.iter().any(|event| {
+        event.viewer_empire_raw == 1 && event.target_empire_raw == 2 && event.coords == coords
     }));
 }
 

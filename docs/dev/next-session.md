@@ -198,6 +198,11 @@ Primary goal:
   - `Seek Home`, `Guard Starbase`, `Join another fleet`, patrol contact intel,
     salvage success/failure semantics, and surviving retreat/abort reporting now
     all have direct classic evidence
+- the combat spec now includes an explicit contact / hostility escalation
+  matrix:
+  - neutral deep-space transit is separate from neutral hostile local intrusion
+  - `PatrolSector` and anchored guard / blockade / starbase defense are now
+    documented as distinct layers
 - the remaining salvage question is no longer gameplay legality; it is record
   decoding:
   - the recovered points do not obviously land in

@@ -1188,7 +1188,10 @@ fn maint_rust_sanitizes_mixed_invalid_player_inputs_and_exports_loadable_state()
     assert!(stdout.contains("Rust maintenance complete."));
 
     let reloaded = CoreGameData::load(&target).expect("maint-rust output should remain loadable");
-    assert_eq!(reloaded.fleets.records[0].standing_order_kind(), Order::HoldPosition);
+    assert_eq!(
+        reloaded.fleets.records[0].standing_order_kind(),
+        Order::HoldPosition
+    );
     assert_eq!(reloaded.fleets.records[0].current_speed(), 0);
     assert_eq!(reloaded.fleets.records[0].army_count(), 1);
     assert_eq!(reloaded.fleets.records[0].rules_of_engagement(), 0);
@@ -1236,7 +1239,9 @@ fn maint_rust_survives_deterministic_malformed_directory_matrix() {
         game_data.planets.records[0].set_stardock_count_raw(0, 2);
         game_data.planets.records[0].set_stardock_kind_raw(0, 0xfe);
         game_data.player.records[0].set_tax_rate_raw(255);
-        game_data.save(&target).expect("mutated fixture should save");
+        game_data
+            .save(&target)
+            .expect("mutated fixture should save");
 
         let stdout = run_maint_rust_with_export(&target, 1);
         assert!(
@@ -1244,7 +1249,8 @@ fn maint_rust_survives_deterministic_malformed_directory_matrix() {
             "maint-rust failed for order code {order_code:#04x}: {stdout}"
         );
 
-        let reloaded = CoreGameData::load(&target).expect("maint-rust output should remain loadable");
+        let reloaded =
+            CoreGameData::load(&target).expect("maint-rust output should remain loadable");
         assert_eq!(
             reloaded.player.records[0].tax_rate(),
             100,
@@ -1298,7 +1304,9 @@ fn maint_rust_survives_multi_fixture_invalid_input_sweep() {
             player.raw[0x54] = 0x01;
             player.raw[0x55] = 0xfe;
         }
-        game_data.save(&target).expect("mutated fixture should save");
+        game_data
+            .save(&target)
+            .expect("mutated fixture should save");
 
         let stdout = run_maint_rust_with_export(&target, 1);
         assert!(stdout.contains("Rust maintenance complete."));
@@ -1331,7 +1339,9 @@ fn maint_rust_reports_invalid_diplomacy_input_sanitization() {
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
     game_data.player.records[0].raw[0x54] = 0x01;
     game_data.player.records[0].raw[0x55] = 0xfe;
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
