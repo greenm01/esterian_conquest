@@ -49,6 +49,7 @@ impl ReportsScreen {
         row += write_section(
             &mut buffer,
             row,
+            "results",
             self.summary.reviewable_results,
             &self.preview.results_lines,
         )?;
@@ -60,6 +61,7 @@ impl ReportsScreen {
         row += write_section(
             &mut buffer,
             row,
+            "messages",
             self.summary.reviewable_messages,
             &self.preview.message_lines,
         )?;
@@ -85,6 +87,7 @@ impl Screen for ReportsScreen {
 fn write_section(
     buffer: &mut PlayfieldBuffer,
     start_row: usize,
+    section_name: &str,
     reviewable: bool,
     lines: &[String],
 ) -> Result<usize, Box<dyn std::error::Error>> {
@@ -99,7 +102,12 @@ fn write_section(
     }
 
     if lines.is_empty() {
-        buffer.write_text(start_row, 0, "  <none>", classic::body_style());
+        buffer.write_text(
+            start_row,
+            0,
+            &format!("  <classic {section_name} pending flag is set, but no decoded lines are loaded>"),
+            classic::body_style(),
+        );
         return Ok(1);
     }
 

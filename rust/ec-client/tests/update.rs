@@ -1997,6 +1997,25 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
 
     advance_to_main_menu(&mut app);
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
+
+    assert_eq!(apply_action(&mut app, Action::OpenReports), AppOutcome::Continue);
+    assert_eq!(app.current_screen(), ScreenId::Reports);
+
+    let mut reports_terminal = CaptureTerminal::new();
+    app.render(&mut reports_terminal)
+        .expect("reports screen should render");
+    assert!(
+        reports_terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("classic results pending flag is set"))
+    );
+    assert!(
+        reports_terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("classic messages pending flag is set"))
+    );
 }
 
 #[test]
