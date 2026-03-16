@@ -205,3 +205,29 @@ fn scenario_init_replayable_planet_build_matches_exact_preserved_pre_fixture() {
 
     cleanup_dir(&target);
 }
+
+#[test]
+fn planet_init_original_updates_runtime_store_for_db_export() {
+    let source = unique_temp_dir("ec-cli-planet-init-original-source");
+    let exported = unique_temp_dir("ec-cli-planet-init-original-exported");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &source);
+
+    let stdout = run_ec_cli_in_dir(
+        &["planet-init-original", source.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Planet topology initialized to original sample state"));
+
+    run_ec_cli_in_dir(
+        &["db-export", source.to_str().unwrap(), exported.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+
+    assert_eq!(
+        fs::read(source.join("PLANETS.DAT")).unwrap(),
+        fs::read(exported.join("PLANETS.DAT")).unwrap()
+    );
+
+    cleanup_dir(&source);
+    cleanup_dir(&exported);
+}
