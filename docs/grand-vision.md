@@ -24,4 +24,4 @@ This repository (`esterian_conquest`) is strictly dedicated to preserving and fa
 
 However, if you are looking for a game that takes these foundational mechanics and expands them, check out my sister project: **[ec4x](https://github.com/greenm01/ec4x)**.
 
-Where `esterian_conquest` is the preservation of a classic, `ec4x` is essentially "Esterian Conquest on steroids." It shares a similar Ratatui/Nostr architecture vision but completely overhauls the game design, expanding it into a much deeper, modernized 4X strategy experience.
+Where `esterian_conquest` is the faithful preservation of a classic in Rust, `ec4x` is essentially "Esterian Conquest on steroids." Written in **Nim** with a **hand-rolled TUI**, it completely overhauls the game design, expanding it into a much deeper, modernized 4X strategy experience.
