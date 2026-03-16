@@ -265,6 +265,7 @@ fn maint_rust_updates_large_game_database_from_scout_intel_event() {
     scout.set_standing_order_target_coords_raw(coords);
     scout.set_current_speed(3);
     scout.raw[0x19] = 0x00;
+    scout.set_scout_count(1);
     game_data.save(&target).expect("mutated game should save");
 
     let stdout = run_maint_rust_with_export(&target, 1);
@@ -552,7 +553,9 @@ fn maint_rust_preserves_existing_classic_player_mail_when_no_rust_messages_are_e
         fleet.set_current_speed(0);
         fleet.raw[0x19] = 0x00;
     }
-    game_data.save(&target).expect("mutated fixture should save");
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
 
     let classic_mail = b"\x18this is a message to you\x00classic-payload".to_vec();
     fs::write(target.join("MESSAGES.DAT"), &classic_mail).expect("should seed classic mail");
@@ -737,6 +740,7 @@ fn maint_rust_refreshes_database_between_turns_for_route_hazards() {
     scout.set_standing_order_kind(Order::ScoutSolarSystem);
     scout.set_standing_order_target_coords_raw([4, 2]);
     scout.set_current_speed(3);
+    scout.set_scout_count(1);
 
     let mover = &mut game_data.fleets.records[1];
     mover.set_current_location_coords_raw([0, 2]);
@@ -1095,6 +1099,67 @@ fn maint_rust_roe_withdrawal_generates_composition_and_loss_report() {
 }
 
 #[test]
+fn maint_rust_invalid_fleet_order_generates_sanitization_report() {
+    let target = unique_temp_dir("ec-cli-maint-rust-invalid-fleet-order");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw([15, 13]);
+    fleet.set_standing_order_kind(Order::BombardWorld);
+    fleet.set_standing_order_target_coords_raw([15, 13]);
+    fleet.set_current_speed(3);
+    fleet.raw[0x19] = 0x80;
+    fleet.set_destroyer_count(0);
+    fleet.set_cruiser_count(0);
+    fleet.set_battleship_count(0);
+    fleet.set_scout_count(1);
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = decode_chunked_report(&results);
+    assert!(text.contains("Order validation report"));
+    assert!(text.contains("required combat ships"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_invalid_planet_inputs_generate_admin_report() {
+    let target = unique_temp_dir("ec-cli-maint-rust-invalid-planet-input");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let planet_idx = game_data
+        .planets
+        .records
+        .iter()
+        .position(|planet| planet.owner_empire_slot_raw() == 1)
+        .expect("fixture should contain owned planet");
+    game_data.planets.records[planet_idx].set_build_count_raw(0, 12);
+    game_data.planets.records[planet_idx].set_build_kind_raw(0, 0xfe);
+    game_data.player.records[0].set_tax_rate_raw(255);
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = decode_chunked_report(&results);
+    assert!(text.contains("Administration report"));
+    assert!(text.contains("Tax rate input 255%"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
     let target = unique_temp_dir("ec-cli-maint-rust-scout-abort");
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
@@ -1102,6 +1167,7 @@ fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
 
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
     game_data.fleets.records[0].set_standing_order_kind(Order::ScoutSector);
+    game_data.fleets.records[0].set_scout_count(1);
     game_data
         .save(&target)
         .expect("mutated fixture should save");
@@ -1202,6 +1268,8 @@ fn maint_rust_join_contact_uses_join_report_label() {
 
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
     game_data.fleets.records[0].set_standing_order_kind(Order::JoinAnotherFleet);
+    let host_id = game_data.fleets.records[1].fleet_id();
+    game_data.fleets.records[0].set_join_host_fleet_id_raw(host_id);
     game_data
         .save(&target)
         .expect("mutated fixture should save");

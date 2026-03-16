@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     BaseDat, BaseRecord, ConquestDat, DiplomaticRelation, FleetDat, FleetRecord, IPBM_RECORD_SIZE,
-    IpbmDat, IpbmRecord, ParseError, PlanetDat, PlayerDat, PlayerRecord, ProductionItemKind,
+    IpbmDat, IpbmRecord, Order, ParseError, PlanetDat, PlayerDat, PlayerRecord, ProductionItemKind,
     SetupDat, build_capacity, yearly_growth_delta, yearly_tax_revenue,
 };
 
@@ -128,6 +128,32 @@ pub struct EmpirePlanetEconomyRow {
     pub armies: u8,
     pub ground_batteries: u8,
     pub is_homeworld_seed: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetOrderValidationError {
+    UnknownOrderCode(u8),
+    MissingCombatShips,
+    MissingScoutShip,
+    MissingEtac,
+    MissingLoadedTroopTransports,
+    MissingPlanetTarget,
+    TargetOwnedByFleetEmpire,
+    TargetNotOwnedByFleetEmpire,
+    TargetAlreadyOwned,
+    InvalidJoinHost,
+    InvalidGuardStarbase,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlanetPlayerInputValidationError {
+    InvalidBuildKind(u8),
+    MissingBuildKindForCount,
+    MissingBuildCountForKind,
+    InvalidStardockKind(u8),
+    MissingStardockKindForCount,
+    MissingStardockCountForKind,
+    InvalidTaxRate(u8),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -282,6 +308,18 @@ pub enum GameStateMutationError {
     InvalidFleetMergeSelection {
         fleet_index_1_based: usize,
         host_fleet_index_1_based: usize,
+    },
+    InvalidFleetOrder {
+        fleet_index_1_based: usize,
+        reason: FleetOrderValidationError,
+    },
+    InvalidPlanetPlayerInput {
+        planet_index_1_based: usize,
+        reason: PlanetPlayerInputValidationError,
+    },
+    InvalidPlayerTaxRate {
+        player_index_1_based: usize,
+        tax_rate: u8,
     },
 }
 
@@ -481,6 +519,30 @@ impl std::fmt::Display for GameStateMutationError {
                 f,
                 "fleet {} cannot merge into fleet {}",
                 fleet_index_1_based, host_fleet_index_1_based
+            ),
+            Self::InvalidFleetOrder {
+                fleet_index_1_based,
+                reason,
+            } => write!(
+                f,
+                "fleet {} has invalid order: {:?}",
+                fleet_index_1_based, reason
+            ),
+            Self::InvalidPlanetPlayerInput {
+                planet_index_1_based,
+                reason,
+            } => write!(
+                f,
+                "planet {} has invalid player input: {:?}",
+                planet_index_1_based, reason
+            ),
+            Self::InvalidPlayerTaxRate {
+                player_index_1_based,
+                tax_rate,
+            } => write!(
+                f,
+                "player {} has invalid tax rate {}",
+                player_index_1_based, tax_rate
             ),
         }
     }
@@ -1204,6 +1266,7 @@ impl CoreGameData {
         errors.extend(self.current_known_initialized_homeworld_alignment_errors());
         errors.extend(self.current_known_setup_baseline_errors());
         errors.extend(self.current_known_conquest_baseline_errors());
+        errors.extend(self.current_known_player_input_errors());
         if self.ipbm.records.len() != expected_ipbm {
             errors.push(format!(
                 "IPBM.DAT record count expected {}, got {}",
@@ -1212,6 +1275,45 @@ impl CoreGameData {
             ));
         }
 
+        errors
+    }
+
+    pub fn current_known_player_input_errors(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+        for (fleet_idx, fleet) in self.fleets.records.iter().enumerate() {
+            let aux = fleet.mission_aux_bytes();
+            if let Err(reason) = self.validate_fleet_order_payload(
+                fleet_idx + 1,
+                fleet.standing_order_code_raw(),
+                fleet.standing_order_target_coords_raw(),
+                Some(aux[0]),
+                Some(aux[1]),
+            ) {
+                errors.push(format!(
+                    "FLEET[{}] invalid player order: {:?}",
+                    fleet_idx + 1,
+                    reason
+                ));
+            }
+        }
+        for planet_idx in 0..self.planets.records.len() {
+            if let Err(reason) = self.validate_planet_player_inputs(planet_idx + 1) {
+                errors.push(format!(
+                    "PLANET[{}] invalid player input: {:?}",
+                    planet_idx + 1,
+                    reason
+                ));
+            }
+        }
+        for (player_idx, player) in self.player.records.iter().enumerate() {
+            if player.tax_rate() > 100 {
+                errors.push(format!(
+                    "PLAYER[{}] invalid tax rate {}",
+                    player_idx + 1,
+                    player.tax_rate()
+                ));
+            }
+        }
         errors
     }
 
@@ -2129,6 +2231,11 @@ impl CoreGameData {
         aux0: Option<u8>,
         aux1: Option<u8>,
     ) -> Result<[u8; 2], GameStateMutationError> {
+        self.validate_fleet_order_payload(record_index_1_based, order_code, target, aux0, aux1)
+            .map_err(|reason| GameStateMutationError::InvalidFleetOrder {
+                fleet_index_1_based: record_index_1_based,
+                reason,
+            })?;
         let record = self
             .fleets
             .records
@@ -2148,6 +2255,192 @@ impl CoreGameData {
         }
         record.set_mission_aux_bytes(mission_aux);
         Ok(record.mission_aux_bytes())
+    }
+
+    pub fn validate_fleet_order_payload(
+        &self,
+        record_index_1_based: usize,
+        order_code: u8,
+        target: [u8; 2],
+        aux0: Option<u8>,
+        aux1: Option<u8>,
+    ) -> Result<(), FleetOrderValidationError> {
+        let Some(fleet) = self.fleets.records.get(record_index_1_based - 1) else {
+            return Ok(());
+        };
+        let order = Order::from_raw(order_code);
+        if matches!(order, Order::Unknown(_)) {
+            return Err(FleetOrderValidationError::UnknownOrderCode(order_code));
+        }
+        let owner = fleet.owner_empire_raw();
+        let has_combat = fleet.destroyer_count() > 0
+            || fleet.cruiser_count() > 0
+            || fleet.battleship_count() > 0;
+        let has_scout = fleet.scout_count() > 0;
+        let has_etac = fleet.etac_count() > 0;
+        let has_loaded_troops =
+            fleet.troop_transport_count() > 0 && u16::from(fleet.army_count()) > 0;
+        let planet_owner = self
+            .planets
+            .records
+            .iter()
+            .find(|planet| planet.coords_raw() == target)
+            .map(|planet| planet.owner_empire_slot_raw());
+
+        match order {
+            Order::GuardStarbase => {
+                if !has_combat {
+                    return Err(FleetOrderValidationError::MissingCombatShips);
+                }
+                let _ = (aux0, aux1);
+                let base_id = fleet.guard_starbase_index_raw();
+                let enabled = fleet.guard_starbase_enable_raw();
+                if enabled == 0
+                    || base_id == 0
+                    || !self.bases.records.iter().any(|base| {
+                        base.owner_empire_raw() == owner && base.base_id_raw() == base_id
+                    })
+                {
+                    return Err(FleetOrderValidationError::InvalidGuardStarbase);
+                }
+            }
+            Order::GuardBlockadeWorld => {
+                if !has_combat {
+                    return Err(FleetOrderValidationError::MissingCombatShips);
+                }
+                if planet_owner.is_none() {
+                    return Err(FleetOrderValidationError::MissingPlanetTarget);
+                }
+            }
+            Order::BombardWorld => {
+                if !has_combat {
+                    return Err(FleetOrderValidationError::MissingCombatShips);
+                }
+                match planet_owner {
+                    None => return Err(FleetOrderValidationError::MissingPlanetTarget),
+                    Some(owner_empire) if owner_empire == owner => {
+                        return Err(FleetOrderValidationError::TargetOwnedByFleetEmpire);
+                    }
+                    _ => {}
+                }
+            }
+            Order::InvadeWorld => {
+                if !has_combat {
+                    return Err(FleetOrderValidationError::MissingCombatShips);
+                }
+                if !has_loaded_troops {
+                    return Err(FleetOrderValidationError::MissingLoadedTroopTransports);
+                }
+                match planet_owner {
+                    None => return Err(FleetOrderValidationError::MissingPlanetTarget),
+                    Some(owner_empire) if owner_empire == owner => {
+                        return Err(FleetOrderValidationError::TargetOwnedByFleetEmpire);
+                    }
+                    _ => {}
+                }
+            }
+            Order::BlitzWorld => {
+                if !has_loaded_troops {
+                    return Err(FleetOrderValidationError::MissingLoadedTroopTransports);
+                }
+                match planet_owner {
+                    None => return Err(FleetOrderValidationError::MissingPlanetTarget),
+                    Some(owner_empire) if owner_empire == owner => {
+                        return Err(FleetOrderValidationError::TargetOwnedByFleetEmpire);
+                    }
+                    _ => {}
+                }
+            }
+            Order::ViewWorld | Order::ScoutSolarSystem | Order::Salvage => {
+                if matches!(order, Order::ScoutSolarSystem) && !has_scout {
+                    return Err(FleetOrderValidationError::MissingScoutShip);
+                }
+                let Some(owner_empire) = planet_owner else {
+                    return Err(FleetOrderValidationError::MissingPlanetTarget);
+                };
+                if matches!(order, Order::Salvage) && owner_empire != owner {
+                    return Err(FleetOrderValidationError::TargetNotOwnedByFleetEmpire);
+                }
+            }
+            Order::ScoutSector => {
+                if !has_scout {
+                    return Err(FleetOrderValidationError::MissingScoutShip);
+                }
+            }
+            Order::ColonizeWorld => {
+                if !has_etac {
+                    return Err(FleetOrderValidationError::MissingEtac);
+                }
+                if planet_owner.is_none() {
+                    return Err(FleetOrderValidationError::MissingPlanetTarget);
+                }
+            }
+            Order::JoinAnotherFleet => {
+                let _ = (aux0, aux1);
+                let host_id = fleet.join_host_fleet_id_raw();
+                if host_id == 0
+                    || host_id == fleet.fleet_id()
+                    || !self
+                        .fleets
+                        .records
+                        .iter()
+                        .any(|host| host.fleet_id() == host_id && host.owner_empire_raw() == owner)
+                {
+                    return Err(FleetOrderValidationError::InvalidJoinHost);
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    pub fn validate_planet_player_inputs(
+        &self,
+        planet_index_1_based: usize,
+    ) -> Result<(), PlanetPlayerInputValidationError> {
+        let Some(planet) = self.planets.records.get(planet_index_1_based - 1) else {
+            return Ok(());
+        };
+        for slot in 0..10 {
+            let build_count = planet.build_count_raw(slot);
+            let build_kind = planet.build_kind_raw(slot);
+            if build_count == 0 && build_kind != 0 {
+                return Err(PlanetPlayerInputValidationError::MissingBuildCountForKind);
+            }
+            if build_count != 0 && build_kind == 0 {
+                return Err(PlanetPlayerInputValidationError::MissingBuildKindForCount);
+            }
+            if build_kind != 0
+                && matches!(
+                    ProductionItemKind::from_raw(build_kind),
+                    ProductionItemKind::Unknown(_)
+                )
+            {
+                return Err(PlanetPlayerInputValidationError::InvalidBuildKind(
+                    build_kind,
+                ));
+            }
+
+            let stardock_count = planet.stardock_count_raw(slot);
+            let stardock_kind = planet.stardock_kind_raw(slot);
+            if stardock_count == 0 && stardock_kind != 0 {
+                return Err(PlanetPlayerInputValidationError::MissingStardockCountForKind);
+            }
+            if stardock_count != 0 && stardock_kind == 0 {
+                return Err(PlanetPlayerInputValidationError::MissingStardockKindForCount);
+            }
+            if stardock_kind != 0
+                && matches!(
+                    ProductionItemKind::from_raw(stardock_kind),
+                    ProductionItemKind::Unknown(_)
+                )
+            {
+                return Err(PlanetPlayerInputValidationError::InvalidStardockKind(
+                    stardock_kind,
+                ));
+            }
+        }
+        Ok(())
     }
 
     pub fn set_join_fleet_order(
@@ -2209,6 +2502,21 @@ impl CoreGameData {
         slot_raw: u8,
         kind_raw: u8,
     ) -> Result<(), GameStateMutationError> {
+        if kind_raw == 0 {
+            return Err(GameStateMutationError::InvalidPlanetPlayerInput {
+                planet_index_1_based: record_index_1_based,
+                reason: PlanetPlayerInputValidationError::MissingBuildKindForCount,
+            });
+        }
+        if matches!(
+            ProductionItemKind::from_raw(kind_raw),
+            ProductionItemKind::Unknown(_)
+        ) {
+            return Err(GameStateMutationError::InvalidPlanetPlayerInput {
+                planet_index_1_based: record_index_1_based,
+                reason: PlanetPlayerInputValidationError::InvalidBuildKind(kind_raw),
+            });
+        }
         let record = self
             .planets
             .records
@@ -2331,6 +2639,25 @@ impl CoreGameData {
         points_remaining_raw: u8,
         kind_raw: u8,
     ) -> Result<(), GameStateMutationError> {
+        if points_remaining_raw == 0 || kind_raw == 0 {
+            return Err(GameStateMutationError::InvalidPlanetPlayerInput {
+                planet_index_1_based: record_index_1_based,
+                reason: if kind_raw == 0 {
+                    PlanetPlayerInputValidationError::MissingBuildKindForCount
+                } else {
+                    PlanetPlayerInputValidationError::MissingBuildCountForKind
+                },
+            });
+        }
+        if matches!(
+            ProductionItemKind::from_raw(kind_raw),
+            ProductionItemKind::Unknown(_)
+        ) {
+            return Err(GameStateMutationError::InvalidPlanetPlayerInput {
+                planet_index_1_based: record_index_1_based,
+                reason: PlanetPlayerInputValidationError::InvalidBuildKind(kind_raw),
+            });
+        }
         let record = self
             .planets
             .records
@@ -3803,6 +4130,12 @@ impl CoreGameData {
         player_record_index_1_based: usize,
         tax_rate: u8,
     ) -> Result<(), GameStateMutationError> {
+        if tax_rate > 100 {
+            return Err(GameStateMutationError::InvalidPlayerTaxRate {
+                player_index_1_based: player_record_index_1_based,
+                tax_rate,
+            });
+        }
         let record = self
             .player
             .records

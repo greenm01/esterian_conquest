@@ -1,6 +1,7 @@
 use ec_data::{
-    ContactReportSource, CoreGameData, DatabaseDat, MaintenanceEvents, Mission, MissionOutcome,
-    PlanetDat, QueuedPlayerMail, ShipLosses,
+    ContactReportSource, CoreGameData, DatabaseDat, FleetOrderValidationError, MaintenanceEvents,
+    Mission, MissionOutcome, PlanetDat, PlanetPlayerInputValidationError, QueuedPlayerMail,
+    ShipLosses,
 };
 
 const RESULTS_RECORD_SIZE: usize = 84;
@@ -349,6 +350,68 @@ fn ship_loss_summary(losses: ShipLosses) -> String {
 
 fn planet_defense_summary(batteries: u8, armies: u8) -> String {
     format!("{batteries} ground battery(ies) and {armies} army(ies)")
+}
+
+fn fleet_order_validation_reason_text(reason: FleetOrderValidationError) -> String {
+    match reason {
+        FleetOrderValidationError::UnknownOrderCode(code) => {
+            format!("unknown mission code {code:#04x}")
+        }
+        FleetOrderValidationError::MissingCombatShips => {
+            "the fleet lacks the required combat ships".to_string()
+        }
+        FleetOrderValidationError::MissingScoutShip => {
+            "the fleet lacks the required scout ship".to_string()
+        }
+        FleetOrderValidationError::MissingEtac => "the fleet lacks the required ETAC".to_string(),
+        FleetOrderValidationError::MissingLoadedTroopTransports => {
+            "the fleet lacks loaded troop transports".to_string()
+        }
+        FleetOrderValidationError::MissingPlanetTarget => {
+            "the mission target is not a valid world".to_string()
+        }
+        FleetOrderValidationError::TargetOwnedByFleetEmpire => {
+            "the target world belongs to us".to_string()
+        }
+        FleetOrderValidationError::TargetNotOwnedByFleetEmpire => {
+            "the target world is not under our control".to_string()
+        }
+        FleetOrderValidationError::TargetAlreadyOwned => {
+            "the target world is already owned".to_string()
+        }
+        FleetOrderValidationError::InvalidJoinHost => {
+            "the selected host fleet is invalid".to_string()
+        }
+        FleetOrderValidationError::InvalidGuardStarbase => {
+            "the selected starbase linkage is invalid".to_string()
+        }
+    }
+}
+
+fn planet_input_validation_reason_text(reason: PlanetPlayerInputValidationError) -> String {
+    match reason {
+        PlanetPlayerInputValidationError::InvalidBuildKind(kind) => {
+            format!("the build queue contains unknown item kind {kind:#04x}")
+        }
+        PlanetPlayerInputValidationError::MissingBuildKindForCount => {
+            "a build queue slot had points remaining but no build kind".to_string()
+        }
+        PlanetPlayerInputValidationError::MissingBuildCountForKind => {
+            "a build queue slot named an item but had zero remaining cost".to_string()
+        }
+        PlanetPlayerInputValidationError::InvalidStardockKind(kind) => {
+            format!("the stardock contains unknown item kind {kind:#04x}")
+        }
+        PlanetPlayerInputValidationError::MissingStardockKindForCount => {
+            "a stardock slot stored units with no item kind".to_string()
+        }
+        PlanetPlayerInputValidationError::MissingStardockCountForKind => {
+            "a stardock slot named an item but stored zero units".to_string()
+        }
+        PlanetPlayerInputValidationError::InvalidTaxRate(rate) => {
+            format!("the attached tax input {rate}% is invalid")
+        }
+    }
 }
 
 pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEvents) -> Vec<u8> {
@@ -988,6 +1051,33 @@ pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEv
                 ship_loss_summary(losses_sustained),
                 ship_loss_summary(enemy_initial),
                 ship_loss_summary(enemy_losses_inflicted)
+            ),
+        };
+        push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
+    }
+
+    for event in &events.invalid_player_state_events {
+        let text = match *event {
+            ec_data::InvalidPlayerStateEvent::FleetMission { coords, reason, .. } => format!(
+                "From your fleet in Sector({},{}) : Order validation report: Maintenance canceled this fleet's orders because {}. The fleet is holding position awaiting new orders.",
+                coords[0],
+                coords[1],
+                fleet_order_validation_reason_text(reason)
+            ),
+            ec_data::InvalidPlayerStateEvent::PlanetInput { coords, reason, .. } => format!(
+                "From planet in System({},{}) : Administration report: Maintenance cleared invalid player input because {}.",
+                coords[0],
+                coords[1],
+                planet_input_validation_reason_text(reason)
+            ),
+            ec_data::InvalidPlayerStateEvent::PlayerTaxRate {
+                owner_empire_raw,
+                tax_rate,
+                ..
+            } => format!(
+                "From your central administration: Tax rate input {}% for {} was invalid and has been clamped to 100%.",
+                tax_rate,
+                empire_label(game_data, owner_empire_raw)
             ),
         };
         push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
@@ -1884,6 +1974,59 @@ pub(crate) fn build_messages_dat(
                     ship_loss_summary(losses_sustained),
                     ship_loss_summary(enemy_initial),
                     ship_loss_summary(enemy_losses_inflicted)
+                ),
+            ),
+        };
+        push_routed_message_chunked(
+            &mut messages,
+            game_data,
+            owner_empire_raw,
+            0x05,
+            RESULTS_TAIL_FLEET,
+            &text,
+        );
+    }
+
+    for event in &events.invalid_player_state_events {
+        let (owner_empire_raw, text) = match *event {
+            ec_data::InvalidPlayerStateEvent::FleetMission {
+                owner_empire_raw,
+                coords,
+                reason,
+                ..
+            } => (
+                owner_empire_raw,
+                format!(
+                    "From your fleet in Sector({},{}) : Order validation report: Maintenance canceled this fleet's orders because {}. The fleet is holding position awaiting new orders.",
+                    coords[0],
+                    coords[1],
+                    fleet_order_validation_reason_text(reason)
+                ),
+            ),
+            ec_data::InvalidPlayerStateEvent::PlanetInput {
+                owner_empire_raw,
+                coords,
+                reason,
+                ..
+            } => (
+                owner_empire_raw.max(1),
+                format!(
+                    "From planet in System({},{}) : Administration report: Maintenance cleared invalid player input because {}.",
+                    coords[0],
+                    coords[1],
+                    planet_input_validation_reason_text(reason)
+                ),
+            ),
+            ec_data::InvalidPlayerStateEvent::PlayerTaxRate {
+                owner_empire_raw,
+                tax_rate,
+                ..
+            } => (
+                owner_empire_raw,
+                format!(
+                    "From your central administration: Tax rate input {}% for {} was invalid and has been clamped to 100%.",
+                    tax_rate,
+                    empire_label(game_data, owner_empire_raw)
                 ),
             ),
         };

@@ -3,9 +3,10 @@
 mod combat;
 
 use crate::{
-    CoreGameData, DiplomaticRelation, Order, ProductionItemKind, VisibleHazardIntel,
-    build_capacity, next_path_step, plan_route_with_intel, yearly_growth_delta,
-    yearly_high_tax_penalty, yearly_tax_revenue,
+    CoreGameData, DiplomaticRelation, FleetOrderValidationError, Order,
+    PlanetPlayerInputValidationError, ProductionItemKind, VisibleHazardIntel, build_capacity,
+    next_path_step, plan_route_with_intel, yearly_growth_delta, yearly_high_tax_penalty,
+    yearly_tax_revenue,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -327,6 +328,28 @@ pub enum EncounterDispositionEvent {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InvalidPlayerStateEvent {
+    FleetMission {
+        fleet_idx: usize,
+        owner_empire_raw: u8,
+        order_code_raw: u8,
+        coords: [u8; 2],
+        reason: FleetOrderValidationError,
+    },
+    PlanetInput {
+        planet_idx: usize,
+        owner_empire_raw: u8,
+        coords: [u8; 2],
+        reason: PlanetPlayerInputValidationError,
+    },
+    PlayerTaxRate {
+        player_idx: usize,
+        owner_empire_raw: u8,
+        tax_rate: u8,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SalvageFailureReason {
     NoPlanetAtTarget,
     PlanetNotOwned,
@@ -432,6 +455,8 @@ pub struct MaintenanceEvents {
     pub scout_contact_events: Vec<ScoutContactEvent>,
     /// Contact/retreat outcomes driven by ROE and hostile encounters.
     pub encounter_disposition_events: Vec<EncounterDispositionEvent>,
+    /// Sanitization reports for invalid player-authored state.
+    pub invalid_player_state_events: Vec<InvalidPlayerStateEvent>,
     /// Friendly merge reports for join/rendezvous outcomes.
     pub fleet_merge_events: Vec<FleetMergeEvent>,
     /// Join mission host retarget/destruction reports.
@@ -623,6 +648,8 @@ pub fn run_maintenance_turn_with_context(
     // fleets for flagged players (PLAYER raw[0x00]==0xff).
     let mut merge_events = process_fleet_merging(game_data)?;
 
+    let invalid_player_state_events = sanitize_invalid_player_inputs(game_data);
+
     let mut mission_retarget_events = refresh_seek_home_targets(game_data);
     mission_retarget_events.extend(refresh_join_host_targets(game_data));
     mission_retarget_events.extend(refresh_guard_starbase_targets(game_data));
@@ -731,6 +758,7 @@ pub fn run_maintenance_turn_with_context(
         assault_report_events: assault_events.assault_report_events,
         scout_contact_events: fleet_battle_phase_events.scout_contact_events,
         encounter_disposition_events: fleet_battle_phase_events.encounter_disposition_events,
+        invalid_player_state_events,
         fleet_merge_events: merge_events,
         join_host_events,
         mission_retarget_events,
@@ -1050,6 +1078,115 @@ fn process_join_host_updates(
                 owner_empire_raw: fleet.owner_empire_raw(),
                 destroyed_host_fleet_id: host_id,
                 coords,
+            });
+        }
+    }
+
+    events
+}
+
+fn sanitize_invalid_player_inputs(game_data: &mut CoreGameData) -> Vec<InvalidPlayerStateEvent> {
+    let mut events = Vec::new();
+
+    for fleet_idx in 0..game_data.fleets.records.len() {
+        let fleet = &game_data.fleets.records[fleet_idx];
+        let order_code = fleet.standing_order_code_raw();
+        let target = fleet.standing_order_target_coords_raw();
+        let aux = fleet.mission_aux_bytes();
+        let owner_empire_raw = fleet.owner_empire_raw();
+        let coords = fleet.current_location_coords_raw();
+        if let Err(reason) = game_data.validate_fleet_order_payload(
+            fleet_idx + 1,
+            order_code,
+            target,
+            Some(aux[0]),
+            Some(aux[1]),
+        ) {
+            let should_sanitize = matches!(
+                reason,
+                FleetOrderValidationError::UnknownOrderCode(_)
+                    | FleetOrderValidationError::MissingCombatShips
+                    | FleetOrderValidationError::MissingScoutShip
+                    | FleetOrderValidationError::MissingEtac
+                    | FleetOrderValidationError::MissingLoadedTroopTransports
+                    | FleetOrderValidationError::InvalidJoinHost
+                    | FleetOrderValidationError::TargetOwnedByFleetEmpire
+            );
+            if !should_sanitize {
+                continue;
+            }
+            let fleet = &mut game_data.fleets.records[fleet_idx];
+            fleet.set_standing_order_kind(Order::HoldPosition);
+            fleet.set_current_speed(0);
+            fleet.set_standing_order_target_coords_raw(coords);
+            fleet.set_join_host_fleet_id_raw(0);
+            fleet.set_mission_aux_bytes([0, 0]);
+            events.push(InvalidPlayerStateEvent::FleetMission {
+                fleet_idx,
+                owner_empire_raw,
+                order_code_raw: order_code,
+                coords,
+                reason,
+            });
+        }
+    }
+
+    for planet_idx in 0..game_data.planets.records.len() {
+        let (owner_empire_raw, coords, reason_opt) = {
+            let planet = &game_data.planets.records[planet_idx];
+            (
+                planet.owner_empire_slot_raw(),
+                planet.coords_raw(),
+                game_data
+                    .validate_planet_player_inputs(planet_idx + 1)
+                    .err(),
+            )
+        };
+        if let Some(reason) = reason_opt {
+            let planet = &mut game_data.planets.records[planet_idx];
+            for slot in 0..10 {
+                let build_count = planet.build_count_raw(slot);
+                let build_kind = planet.build_kind_raw(slot);
+                if build_count == 0 && build_kind != 0
+                    || build_count != 0
+                        && matches!(
+                            ProductionItemKind::from_raw(build_kind),
+                            ProductionItemKind::Unknown(_)
+                        )
+                {
+                    planet.set_build_count_raw(slot, 0);
+                    planet.set_build_kind_raw(slot, 0);
+                }
+                let stardock_count = planet.stardock_count_raw(slot);
+                let stardock_kind = planet.stardock_kind_raw(slot);
+                if stardock_count == 0 && stardock_kind != 0
+                    || stardock_count != 0
+                        && matches!(
+                            ProductionItemKind::from_raw(stardock_kind),
+                            ProductionItemKind::Unknown(_)
+                        )
+                {
+                    planet.set_stardock_count_raw(slot, 0);
+                    planet.set_stardock_kind_raw(slot, 0);
+                }
+            }
+            events.push(InvalidPlayerStateEvent::PlanetInput {
+                planet_idx,
+                owner_empire_raw,
+                coords,
+                reason,
+            });
+        }
+    }
+
+    for player_idx in 0..game_data.player.records.len() {
+        let tax_rate = game_data.player.records[player_idx].tax_rate();
+        if tax_rate > 100 {
+            game_data.player.records[player_idx].set_tax_rate_raw(100);
+            events.push(InvalidPlayerStateEvent::PlayerTaxRate {
+                player_idx,
+                owner_empire_raw: (player_idx + 1) as u8,
+                tax_rate,
             });
         }
     }

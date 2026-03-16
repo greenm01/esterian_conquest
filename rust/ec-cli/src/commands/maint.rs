@@ -79,6 +79,9 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
             .encounter_disposition_events
             .extend(events.encounter_disposition_events);
         all_events
+            .invalid_player_state_events
+            .extend(events.invalid_player_state_events);
+        all_events
             .fleet_merge_events
             .extend(events.fleet_merge_events);
         all_events.join_host_events.extend(events.join_host_events);
