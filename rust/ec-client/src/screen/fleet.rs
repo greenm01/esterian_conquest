@@ -2,9 +2,8 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    CMD_COL_1, CMD_COL_2, CMD_COL_3, MenuEntry, draw_command_center,
-    draw_command_line_default_input, draw_command_line_text, draw_command_prompt,
-    draw_status_line, new_playfield,
+    MenuEntry, draw_command_line_default_input, draw_command_line_text, draw_command_prompt,
+    draw_menu_entry, draw_status_line, draw_title_bar, new_playfield,
 };
 use crate::screen::table::{
     TableColumn, fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
@@ -65,42 +64,43 @@ pub enum FleetDetachMode {
     SettingNewFleetRoe,
 }
 
+const FLEET_COL_1: usize = 2;
+const FLEET_COL_2: usize = 21;
+const FLEET_COL_3: usize = 41;
+const FLEET_COL_4: usize = 61;
+
 const TOP_ROW: [MenuEntry<'static>; 2] = [
-    MenuEntry::new(CMD_COL_2, "E", "TA Calculation"),
-    MenuEntry::new(CMD_COL_3, "O", "rder a Fleet"),
+    MenuEntry::new(FLEET_COL_3, "E", "TA Calculation"),
+    MenuEntry::new(FLEET_COL_4, "O", "rder a Fleet"),
 ];
 
-const ROW_1: [MenuEntry<'static>; 3] = [
-    MenuEntry::new(CMD_COL_1, "H", "elp on Options"),
-    MenuEntry::new(CMD_COL_2, "S", "TARBASE MENU..."),
-    MenuEntry::new(CMD_COL_3, "C", "hg ROE,ID,Speed"),
+const ROW_1: [MenuEntry<'static>; 4] = [
+    MenuEntry::new(FLEET_COL_1, "H", "elp on Options"),
+    MenuEntry::new(FLEET_COL_2, "S", "TARBASE MENU..."),
+    MenuEntry::new(FLEET_COL_3, "C", "hg ROE,ID,Speed"),
+    MenuEntry::new(FLEET_COL_4, "G", "ROUP FLEET ORDER"),
 ];
 
-const ROW_2: [MenuEntry<'static>; 3] = [
-    MenuEntry::new(CMD_COL_1, "Q", "uit: Main Menu"),
-    MenuEntry::new(CMD_COL_2, "B", "rief Fleet List"),
-    MenuEntry::new(CMD_COL_3, "I", "nfo about Planet"),
+const ROW_2: [MenuEntry<'static>; 4] = [
+    MenuEntry::new(FLEET_COL_1, "Q", "uit: Main Menu"),
+    MenuEntry::new(FLEET_COL_2, "B", "rief Fleet List"),
+    MenuEntry::new(FLEET_COL_3, "I", "nfo about Planet"),
+    MenuEntry::new(FLEET_COL_4, "M", "erge a Fleet"),
 ];
 
-const ROW_3: [MenuEntry<'static>; 3] = [
-    MenuEntry::new(CMD_COL_1, "X", "pert Mode"),
-    MenuEntry::new(CMD_COL_2, "F", "ull Fleet List"),
-    MenuEntry::new(CMD_COL_3, "D", "etach Ships"),
+const ROW_3: [MenuEntry<'static>; 4] = [
+    MenuEntry::new(FLEET_COL_1, "X", "pert Mode"),
+    MenuEntry::new(FLEET_COL_2, "F", "ull Fleet List"),
+    MenuEntry::new(FLEET_COL_3, "D", "etach Ships"),
+    MenuEntry::new(FLEET_COL_4, "L", "oad TTs w/Armies"),
 ];
 
-const ROW_4: [MenuEntry<'static>; 3] = [
-    MenuEntry::new(CMD_COL_1, "V", "iew Partial Map"),
-    MenuEntry::new(CMD_COL_2, "R", "eview a Fleet"),
-    MenuEntry::new(CMD_COL_3, "T", "ransfer Ships"),
+const ROW_4: [MenuEntry<'static>; 4] = [
+    MenuEntry::new(FLEET_COL_1, "V", "iew Partial Map"),
+    MenuEntry::new(FLEET_COL_2, "R", "eview a Fleet"),
+    MenuEntry::new(FLEET_COL_3, "T", "ransfer Ships"),
+    MenuEntry::new(FLEET_COL_4, "U", "nload TT Armies"),
 ];
-
-const ROW_5: [MenuEntry<'static>; 3] = [
-    MenuEntry::new(CMD_COL_1, "G", "ROUP FLEET ORDER"),
-    MenuEntry::new(CMD_COL_2, "M", "erge a Fleet"),
-    MenuEntry::new(CMD_COL_3, "L", "oad TTs w/Armies"),
-];
-
-const ROW_6: [MenuEntry<'static>; 1] = [MenuEntry::new(CMD_COL_3, "U", "nload TT Armies")];
 
 const BRIEF_COLUMNS: [TableColumn<'static>; 5] = [
     TableColumn::right("ID", 2),
@@ -129,17 +129,29 @@ impl FleetMenuScreen {
         notice: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        draw_command_center(
-            &mut buffer,
-            "FLEET COMMAND CENTER:",
-            &TOP_ROW,
-            &[&ROW_1, &ROW_2, &ROW_3, &ROW_4, &ROW_5, &ROW_6],
-            "FLEET COMMAND",
-            "H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U",
-        );
+        buffer.fill_row(0, classic::menu_style());
+        draw_title_bar(&mut buffer, 0, "FLEET COMMAND CENTER:");
+        for entry in TOP_ROW {
+            draw_menu_entry(&mut buffer, 0, entry.col, entry.hotkey, entry.label);
+        }
+        for (row_idx, row) in [ROW_1.as_slice(), ROW_2.as_slice(), ROW_3.as_slice(), ROW_4.as_slice()]
+            .into_iter()
+            .enumerate()
+        {
+            buffer.fill_row(row_idx + 1, classic::menu_style());
+            for entry in row {
+                draw_menu_entry(&mut buffer, row_idx + 1, entry.col, entry.hotkey, entry.label);
+            }
+        }
         if let Some(notice) = notice {
             draw_status_line(&mut buffer, 16, "Notice: ", notice);
         }
+        draw_command_prompt(
+            &mut buffer,
+            19,
+            "FLEET COMMAND",
+            "H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U",
+        );
         Ok(buffer)
     }
 }

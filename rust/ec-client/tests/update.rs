@@ -1046,6 +1046,46 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
 }
 
 #[test]
+fn fleet_menu_matches_verified_v15_command_layout() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("fleet menu should render");
+    assert_eq!(
+        terminal.line(0).trim_end(),
+        "FLEET COMMAND CENTER:                    E>TA Calculation    O>rder a Fleet"
+    );
+    assert_eq!(
+        terminal.line(1).trim_end(),
+        "  H>elp on Options   S>TARBASE MENU...   C>hg ROE,ID,Speed   G>ROUP FLEET ORDER"
+    );
+    assert_eq!(
+        terminal.line(2).trim_end(),
+        "  Q>uit: Main Menu   B>rief Fleet List   I>nfo about Planet  M>erge a Fleet"
+    );
+    assert_eq!(
+        terminal.line(3).trim_end(),
+        "  X>pert Mode        F>ull Fleet List    D>etach Ships       L>oad TTs w/Armies"
+    );
+    assert_eq!(
+        terminal.line(4).trim_end(),
+        "  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies"
+    );
+}
+
+#[test]
 fn planet_commission_menu_renders_without_crashing_when_no_stardock_units_exist() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
