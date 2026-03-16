@@ -53,6 +53,10 @@ pub mod classic {
         CellStyle::new(BRIGHT_WHITE, BLACK, true)
     }
 
+    pub const fn disabled_row_style() -> CellStyle {
+        CellStyle::new(BODY_GREY, BLACK, false)
+    }
+
     /// Highlight style for the selected row in a navigable table.
     /// Override this function when adding new themes.
     pub const fn selected_row_style() -> CellStyle {

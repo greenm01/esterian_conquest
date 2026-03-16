@@ -231,6 +231,15 @@ Treat the login/startup side as one explicit pre-command-center pipeline:
    - reports and intel views
    - diplomacy screens
    - order-entry workflow
+   - fleet mission target defaults:
+     - combat missions should default to the closest known enemy world, not the
+       player's homeworld
+     - if no known enemy world exists, show a brief notice instead of opening a
+       misleading target prompt
+     - ETAC colonize targeting should later prefer the closest uncolonized
+       planet, skipping the player's own worlds, skipping known colonized
+       worlds, and avoiding planets already targeted by other friendly ETAC
+       colonize missions, sorted by distance
    - defer real `X`/expert-mode behavior until the remaining command/menu
      surfaces are finished; implement it as a final menu-verbosity pass rather
      than a premature partial toggle

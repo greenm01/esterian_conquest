@@ -143,6 +143,26 @@ pub fn draw_command_line_text(buffer: &mut PlayfieldBuffer, label: &str, text: &
     );
 }
 
+pub fn draw_command_line_notice(buffer: &mut PlayfieldBuffer, text: &str) {
+    buffer.fill_row(COMMAND_LINE_ROW, classic::prompt_style());
+    let prefix = buffer.write_spans(
+        COMMAND_LINE_ROW,
+        0,
+        &[StyledSpan::new("Notice: ", classic::prompt_style())],
+    );
+    let suffix = " <slap a key>";
+    let available = PLAYFIELD_WIDTH.saturating_sub(prefix + suffix.chars().count());
+    let message = fit_inline_notice(text, available);
+    let after_message =
+        buffer.write_text(COMMAND_LINE_ROW, prefix, &message, classic::prompt_style());
+    buffer.write_text(
+        COMMAND_LINE_ROW,
+        after_message,
+        suffix,
+        classic::prompt_hotkey_style(),
+    );
+}
+
 pub fn draw_command_line_default_input(
     buffer: &mut PlayfieldBuffer,
     label: &str,
@@ -160,7 +180,9 @@ pub fn draw_command_line_default_input(
             StyledSpan::new(prompt, classic::prompt_style()),
             StyledSpan::new("[", classic::prompt_style()),
             StyledSpan::new(default, classic::prompt_hotkey_style()),
-            StyledSpan::new("] -> ", classic::prompt_style()),
+            StyledSpan::new("] ", classic::prompt_style()),
+            StyledSpan::new("<Q=back>", classic::prompt_hotkey_style()),
+            StyledSpan::new(" -> ", classic::prompt_style()),
         ],
     );
     let written = buffer.write_text(
@@ -238,4 +260,19 @@ fn wrap_text(value: &str, first_width: usize, continuation_width: usize) -> Vec<
         lines.push(current);
     }
     lines
+}
+
+fn fit_inline_notice(value: &str, max_width: usize) -> String {
+    if max_width == 0 {
+        return String::new();
+    }
+    let normalized = value.split_whitespace().collect::<Vec<_>>().join(" ");
+    let chars = normalized.chars().collect::<Vec<_>>();
+    if chars.len() <= max_width {
+        return normalized;
+    }
+    if max_width <= 3 {
+        return ".".repeat(max_width);
+    }
+    chars[..max_width - 3].iter().collect::<String>() + "..."
 }

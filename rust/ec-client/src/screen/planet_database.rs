@@ -2,8 +2,8 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_command_line_default_input, draw_command_prompt, draw_status_line, draw_title_bar,
-    draw_wrapped_status, new_playfield,
+    draw_command_line_default_input, draw_command_line_text, draw_command_prompt,
+    draw_status_line, draw_title_bar, new_playfield,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{
@@ -95,26 +95,22 @@ impl PlanetDatabaseScreen {
             selected,
         );
         if table_rows.is_empty() {
-            draw_wrapped_status(
+            draw_command_line_text(
                 &mut buffer,
-                15,
-                2,
-                "Notice: ",
-                "No planets are currently recorded in your database.",
+                command_menu_label(menu),
+                "No planets are in your database. Q quits.",
+            );
+        } else if let Some(status) = status {
+            draw_command_line_text(&mut buffer, command_menu_label(menu), status);
+        } else {
+            draw_command_line_default_input(
+                &mut buffer,
+                command_menu_label(menu),
+                "",
+                &format!("{},{}", default_coords[0], default_coords[1]),
+                input,
             );
         }
-        if let Some(status) = status {
-            draw_wrapped_status(&mut buffer, 16, 2, "Error: ", status);
-        } else {
-            draw_wrapped_status(&mut buffer, 16, 2, "Notice: ", "Press Q to leave this screen.");
-        }
-        draw_command_line_default_input(
-            &mut buffer,
-            command_menu_label(menu),
-            "",
-            &format!("{},{}", default_coords[0], default_coords[1]),
-            input,
-        );
         Ok(buffer)
     }
 

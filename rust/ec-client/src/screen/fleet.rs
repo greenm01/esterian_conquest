@@ -7,7 +7,8 @@ use crate::screen::layout::{
     draw_menu_entry, draw_status_line, draw_title_bar, draw_wrapped_status, new_playfield,
 };
 use crate::screen::table::{
-    TableColumn, fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
+    TableColumn, fleet_id_column_width, format_fleet_number, table_divider, write_table_header,
+    write_table_row, write_table_window_with_cursor,
 };
 use crate::screen::{
     PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords, format_sector_coords_padded,
@@ -22,6 +23,7 @@ pub struct FleetRow {
     pub fleet_number: u16,
     pub coords: [u8; 2],
     pub target_coords: [u8; 2],
+    pub order_code: u8,
     pub current_speed: u8,
     pub max_speed: u8,
     pub eta_label: String,
@@ -41,6 +43,7 @@ pub struct FleetListScreen;
 pub struct FleetReviewScreen;
 pub struct FleetRoeScreen;
 pub struct FleetGroupScreen;
+pub struct FleetMissionPickerScreen;
 pub struct FleetMergeScreen;
 pub struct FleetEtaScreen;
 pub struct FleetDetachScreen;
@@ -76,8 +79,14 @@ pub enum FleetMergeMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetGroupOrderMode {
     SelectingFleets,
-    EnteringMission,
     EnteringTarget,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FleetMissionOption {
+    pub code: u8,
+    pub mission: &'static str,
+    pub requirements: &'static str,
 }
 
 const FLEET_COL_1: usize = 2;
@@ -134,6 +143,37 @@ const FULL_COLUMNS: [TableColumn<'static>; 6] = [
     TableColumn::left("Order", 26),
     TableColumn::left("Ships", 26),
 ];
+
+pub const FLEET_MISSION_OPTIONS: [FleetMissionOption; 16] = [
+    FleetMissionOption { code: 0, mission: "None (hold position)", requirements: "None. All ships can do this." },
+    FleetMissionOption { code: 1, mission: "Move Fleet (only)", requirements: "None. All ships can do this." },
+    FleetMissionOption { code: 2, mission: "Seek Home", requirements: "None. All ships can do this." },
+    FleetMissionOption { code: 3, mission: "Patrol a Sector", requirements: "None. All ships can do this." },
+    FleetMissionOption { code: 4, mission: "Guard a Starbase", requirements: "Combat ship(s)." },
+    FleetMissionOption { code: 5, mission: "Guard/Blockade a World", requirements: "Combat ship(s)." },
+    FleetMissionOption { code: 6, mission: "Bombard a World", requirements: "Combat ship(s)." },
+    FleetMissionOption { code: 7, mission: "Invade a World", requirements: "Combat ship(s) & Loaded TTs." },
+    FleetMissionOption { code: 8, mission: "Blitz a World", requirements: "Loaded troop transports." },
+    FleetMissionOption { code: 9, mission: "View a World", requirements: "None. All ships can do this." },
+    FleetMissionOption { code: 10, mission: "Scout a Sector", requirements: "At least one scout ship." },
+    FleetMissionOption { code: 11, mission: "Scout a Solar System", requirements: "At least one scout ship." },
+    FleetMissionOption { code: 12, mission: "Colonize a World", requirements: "At least one ETAC." },
+    FleetMissionOption { code: 13, mission: "Join another fleet", requirements: "None. All ships can do this." },
+    FleetMissionOption { code: 14, mission: "Rendezvous at Sector", requirements: "None. All ships can do this." },
+    FleetMissionOption { code: 15, mission: "Salvage", requirements: "None. All ships can do this." },
+];
+
+fn fleet_selector_columns(max_fleet_number: u16) -> [TableColumn<'static>; 7] {
+    [
+        TableColumn::right("ID", fleet_id_column_width(max_fleet_number)),
+        TableColumn::left("Location", 10),
+        TableColumn::right("Spd", 7),
+        TableColumn::right("ROE", 3),
+        TableColumn::right("Ord", 3),
+        TableColumn::left("Target", 10),
+        TableColumn::left("Ships", 31),
+    ]
+}
 
 impl FleetMenuScreen {
     pub fn new() -> Self {
@@ -556,7 +596,7 @@ impl FleetEtaScreen {
         buffer.fill_row(0, classic::menu_style());
         buffer.write_text(0, 0, "CALCULATE FLEET ETA:", classic::title_style());
         let max_fleet_number = max_fleet_number(rows);
-        let brief_columns = brief_columns(max_fleet_number);
+        let eta_columns = fleet_selector_columns(max_fleet_number);
         draw_status_line(
             &mut buffer,
             1,
@@ -571,6 +611,8 @@ impl FleetEtaScreen {
                     format_sector_coords_padded(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
+                    row.order_code.to_string(),
+                    format_sector_coords_padded(row.target_coords),
                     row.composition_label.clone(),
                 ]
             })
@@ -578,7 +620,7 @@ impl FleetEtaScreen {
         write_table_window_with_cursor(
             &mut buffer,
             3,
-            &brief_columns,
+            &eta_columns,
             &table_rows,
             scroll_offset,
             FLEET_VISIBLE_ROWS,
@@ -741,10 +783,12 @@ impl FleetGroupScreen {
         let columns = [
             TableColumn::left("Sel", 3),
             TableColumn::right("ID", fleet_id_column_width(max_fleet_number)),
-            BRIEF_COLUMNS[1],
-            BRIEF_COLUMNS[2],
-            BRIEF_COLUMNS[3],
-            BRIEF_COLUMNS[4],
+            TableColumn::left("Location", 10),
+            TableColumn::right("Spd", 7),
+            TableColumn::right("ROE", 3),
+            TableColumn::right("Ord", 3),
+            TableColumn::left("Target", 10),
+            TableColumn::left("Ships", 27),
         ];
         draw_status_line(
             &mut buffer,
@@ -753,9 +797,6 @@ impl FleetGroupScreen {
             match mode {
                 FleetGroupOrderMode::SelectingFleets => {
                     "Select fleets with SPACE, then press ENTER to give them the same mission."
-                }
-                FleetGroupOrderMode::EnteringMission => {
-                    "Enter the mission number to apply to all selected fleets."
                 }
                 FleetGroupOrderMode::EnteringTarget => {
                     "Enter the target coordinates for the selected group mission."
@@ -781,6 +822,8 @@ impl FleetGroupScreen {
                     format_sector_coords_padded(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
+                    row.order_code.to_string(),
+                    format_sector_coords_padded(row.target_coords),
                     row.composition_label.clone(),
                 ]
             })
@@ -814,15 +857,6 @@ impl FleetGroupScreen {
                         "J K SPACE ENTER ARROWS Q",
                     );
                 }
-                FleetGroupOrderMode::EnteringMission => {
-                    draw_command_line_default_input(
-                        &mut buffer,
-                        "FLEET COMMAND",
-                        "Mission # ",
-                        "1",
-                        input,
-                    );
-                }
                 FleetGroupOrderMode::EnteringTarget => {
                     draw_command_line_default_input(
                         &mut buffer,
@@ -833,6 +867,68 @@ impl FleetGroupScreen {
                     );
                 }
             }
+        }
+        Ok(buffer)
+    }
+}
+
+impl FleetMissionPickerScreen {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn render(
+        &mut self,
+        cursor: usize,
+        input: &str,
+        enabled: &[bool],
+        status: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        buffer.fill_row(0, classic::menu_style());
+        buffer.write_text(0, 0, "FLEET MISSION ORDERS:", classic::title_style());
+        let columns = [
+            TableColumn::right("No.", 3),
+            TableColumn::left("Mission", 27),
+            TableColumn::left("Requirements (if any)", 46),
+        ];
+        let rows = FLEET_MISSION_OPTIONS
+            .iter()
+            .map(|option| {
+                vec![
+                    option.code.to_string(),
+                    option.mission.to_string(),
+                    option.requirements.to_string(),
+                ]
+            })
+            .collect::<Vec<_>>();
+        write_table_header(&mut buffer, 1, &columns, classic::status_value_style());
+        buffer.write_text(2, 0, &table_divider(&columns), classic::menu_style());
+        for (idx, row) in rows.iter().enumerate() {
+            let refs = row.iter().map(String::as_str).collect::<Vec<_>>();
+            let style = if idx == cursor {
+                classic::selected_row_style()
+            } else if enabled.get(idx).copied().unwrap_or(true) {
+                classic::status_value_style()
+            } else {
+                classic::disabled_row_style()
+            };
+            write_table_row(&mut buffer, 3 + idx, &columns, &refs, style);
+        }
+        if let Some(status) = status {
+            draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
+        } else {
+            let default = FLEET_MISSION_OPTIONS
+                .get(cursor)
+                .map(|option| option.code.to_string())
+                .unwrap_or_else(|| "1".to_string());
+            draw_command_line_default_input(
+                &mut buffer,
+                "FLEET COMMAND",
+                "Mission # ",
+                &default,
+                input,
+            );
         }
         Ok(buffer)
     }

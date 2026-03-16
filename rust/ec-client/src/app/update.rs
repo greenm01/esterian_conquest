@@ -10,6 +10,10 @@ pub enum AppOutcome {
 
 pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
     match action {
+        Action::DismissModalNotice => {
+            app.dismiss_modal_notice();
+            AppOutcome::Continue
+        }
         Action::AdvanceStartup => {
             app.advance_startup();
             AppOutcome::Continue
@@ -112,6 +116,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         }
         Action::OpenFleetGroupOrder => {
             app.open_fleet_group_order();
+            AppOutcome::Continue
+        }
+        Action::OpenFleetMissionPicker => {
+            app.open_fleet_mission_picker();
             AppOutcome::Continue
         }
         Action::OpenFleetMerge => {
@@ -282,6 +290,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.move_fleet_group_order(delta);
             AppOutcome::Continue
         }
+        Action::MoveFleetMissionPicker(delta) => {
+            app.move_fleet_mission_picker(delta);
+            AppOutcome::Continue
+        }
         Action::MoveFleetMergeSelect(delta) => {
             app.move_fleet_merge_select(delta);
             AppOutcome::Continue
@@ -426,6 +438,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.append_fleet_group_order_char(ch);
             AppOutcome::Continue
         }
+        Action::AppendFleetMissionPickerChar(ch) => {
+            app.append_fleet_mission_picker_char(ch);
+            AppOutcome::Continue
+        }
         Action::AppendFleetMergeChar(ch) => {
             app.append_fleet_merge_char(ch);
             AppOutcome::Continue
@@ -440,6 +456,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         }
         Action::BackspaceFleetGroupOrderInput => {
             app.backspace_fleet_group_order_input();
+            AppOutcome::Continue
+        }
+        Action::BackspaceFleetMissionPickerInput => {
+            app.backspace_fleet_mission_picker_input();
             AppOutcome::Continue
         }
         Action::BackspaceFleetMergeInput => {
@@ -464,6 +484,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         },
         Action::SubmitFleetGroupOrder => {
             app.submit_fleet_group_order();
+            AppOutcome::Continue
+        }
+        Action::SubmitFleetMissionPicker => {
+            app.submit_fleet_mission_picker();
             AppOutcome::Continue
         }
         Action::SubmitFleetMerge => match app.submit_fleet_merge() {

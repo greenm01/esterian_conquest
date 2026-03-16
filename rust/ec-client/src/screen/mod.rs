@@ -48,12 +48,14 @@ pub(crate) use fleet::FLEET_VISIBLE_ROWS;
 pub use fleet::{
     FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen, FleetGroupOrderMode,
     FleetGroupScreen, FleetListMode, FleetListScreen, FleetMenuScreen, FleetMergeMode,
-    FleetMergeScreen, FleetReviewScreen, FleetRoeScreen, FleetRow,
+    FleetMergeScreen, FleetMissionOption, FleetMissionPickerScreen, FleetReviewScreen,
+    FleetRoeScreen, FleetRow, FLEET_MISSION_OPTIONS,
 };
 pub use fleet_help::FleetHelpScreen;
 pub use general_help::GeneralHelpScreen;
 pub use general_menu::GeneralMenuScreen;
 pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
+pub(crate) use layout::draw_command_line_notice;
 pub use main_help::MainHelpScreen;
 pub use main_menu::MainMenuScreen;
 pub use message_compose::MessageComposeScreen;
@@ -124,6 +126,7 @@ pub enum ScreenId {
     FleetReview,
     FleetRoeSelect,
     FleetGroupOrder,
+    FleetMissionPicker,
     FleetMerge,
     FleetDetach,
     FleetEta,
