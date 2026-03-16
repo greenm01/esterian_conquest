@@ -5776,3 +5776,53 @@ Practical consequence:
 - do **not** promote this to a settled rule yet
 - next escalation should use a stronger preserved/player-driven join setup, and
   probably `ECGAME`/door-side probing if needed
+
+### Follow-up: direct raw join probes stayed too brittle to settle the rule
+
+Additional controlled probes after the first ambiguous join test:
+
+- tried empire-2 join setups on both:
+  - `fixtures/ecmaint-post/v1.5`
+  - `fixtures/ecmaint-fleet-battle-pre/v1.5`
+- varied `FLEETS.DAT[0x22]` between:
+  - local-slot-style host value
+  - structural-fleet-id-style host value
+
+Observed behavior:
+
+- on `ecmaint-post`, the joiner often never moved at all, so the probe stayed
+  underconstrained
+- on `ecmaint-fleet-battle-pre`, classic normalized the involved fleets back to
+  ordinary homeworld `Guard/Blockade` posture on the first turn before the join
+  pursuit question became meaningful
+
+Practical conclusion:
+
+- direct `.DAT` surgery is still not giving a trustworthy join oracle
+- the next serious join probe should be player-authored through live
+  `ECGAME`/door flow instead of more raw file mutation
+
+### Follow-up: no clean classic surviving-ROE-withdrawal report found yet
+
+Additional fleet-battle sweeps tried to force a surviving withdrawal outcome by
+varying fleet strengths and compositions around same-sector contact.
+
+Observed classic outcomes so far:
+
+- no-engagement/contact-only reports:
+  - `Ignoring alien fleet...`
+- destruction reports:
+  - Fleet Command Center `lost all contact ...`
+- mission-abort reports after fleets lose all warships:
+  - `Since we have lost all of our warships in combat, we must abort our mission ...`
+
+What did **not** appear yet in classic oracle outputs:
+
+- a surviving encounter report explicitly saying our fleet withdrew under ROE
+
+Practical conclusion:
+
+- the user-memory behavior is still plausible, but this oracle pass has not yet
+  reproduced it from preserved or direct `ECMAINT` battle setups
+- keep the question open and avoid promoting classic wording/timing claims until
+  a live or preserved classic case is captured

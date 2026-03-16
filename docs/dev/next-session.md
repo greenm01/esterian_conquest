@@ -40,6 +40,9 @@ Latest oracle signal against the remaining manual-adjacent fleet assumptions:
 - still unresolved:
   - `Join another fleet` hot pursuit from a raw-crafted setup stayed ambiguous,
     so manual-only fleet behavior is still `A` rather than `A+`
+  - a clean classic surviving-ROE-withdrawal report is still not captured;
+    current oracle evidence only confirms no-engagement contact reports,
+    mission-abort-after-loss reports, and outright destruction reports
 
 It can currently:
 
@@ -273,8 +276,8 @@ Treat the login/startup side as one explicit pre-command-center pipeline:
 4. Finish the fleet oracle pass before changing any manual-adjacent mission logic:
    - build a stronger preserved/player-driven `Join another fleet` oracle setup
      instead of relying on the raw-crafted ambiguous probe
-   - try to capture a surviving ROE-withdrawal report, not just destruction and
-     no-engagement cases
+   - try to capture a surviving classic ROE-withdrawal report, not just
+     destruction and no-engagement cases
    - keep recording reproducible classic defects as known `v1.51` bugs instead
      of copying them into Rust by default
 5. Tighten the remaining CLI/storage boundary:
