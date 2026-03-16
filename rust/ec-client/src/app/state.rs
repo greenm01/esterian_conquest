@@ -294,7 +294,7 @@ impl App {
             main_menu_summary.pending_messages,
             &reports,
         );
-        let startup_sequence = StartupSequence::new(&startup_summary, player.is_joined);
+        let startup_sequence = StartupSequence::new(&startup_summary, player.classic_login_state);
         Ok(Self {
             game_dir,
             game_data,
@@ -976,6 +976,10 @@ impl App {
 
     pub fn current_screen_mut(&mut self) -> &mut ScreenId {
         &mut self.current_screen
+    }
+
+    pub fn classic_login_state(&self) -> crate::model::ClassicLoginState {
+        self.player.classic_login_state
     }
 
     pub fn advance_startup(&mut self) {
@@ -7781,10 +7785,12 @@ impl App {
     fn startup_target_screen(&self, phase: StartupPhase) -> ScreenId {
         match phase {
             StartupPhase::Complete => {
-                if self.player.is_joined {
-                    self.pending_naming_screen().unwrap_or(ScreenId::MainMenu)
-                } else {
-                    ScreenId::FirstTimeMenu
+                match self.player.classic_login_state {
+                    crate::model::ClassicLoginState::FirstTimeMenu => ScreenId::FirstTimeMenu,
+                    crate::model::ClassicLoginState::MatchedPreloadedFirstLogin
+                    | crate::model::ClassicLoginState::ReturningPlayer => {
+                        self.pending_naming_screen().unwrap_or(ScreenId::MainMenu)
+                    }
                 }
             }
             other => ScreenId::Startup(other),

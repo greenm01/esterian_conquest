@@ -4,6 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_client::app::{Action, App, AppConfig, AppOutcome, apply_action};
+use ec_client::model::ClassicLoginState;
 use ec_client::screen::{
     CommandMenu, FleetListMode, FleetRoeScreen, FleetRow, PlanetBuildMenuView, PlanetBuildOrder,
     PlanetBuildScreen, PlanetListMode, PlanetListSort, ScreenId,
@@ -604,6 +605,7 @@ fn first_time_startup_skips_joined_player_login_summary() {
 
     apply_action(&mut app, Action::AdvanceStartup);
     assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
+    assert_eq!(app.classic_login_state(), ClassicLoginState::FirstTimeMenu);
 }
 
 #[test]
@@ -618,6 +620,11 @@ fn joined_player_with_unnamed_homeworld_is_routed_to_homeworld_naming() {
     .expect("app should load");
 
     assert_eq!(
+        app.classic_login_state(),
+        ClassicLoginState::MatchedPreloadedFirstLogin
+    );
+
+    assert_eq!(
         app.current_screen(),
         ScreenId::Startup(StartupPhase::Splash)
     );
@@ -629,6 +636,63 @@ fn joined_player_with_unnamed_homeworld_is_routed_to_homeworld_naming() {
         app.advance_startup();
     }
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
+}
+
+#[test]
+fn preloaded_first_login_routes_through_login_summary_before_homeworld_naming() {
+    let fixture_dir = temp_joined_needs_homeworld_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    let mut saw_login_summary = false;
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::Startup(StartupPhase::LoginSummary) {
+            saw_login_summary = true;
+        }
+        if app.current_screen() == ScreenId::FirstTimeHomeworldName {
+            break;
+        }
+        app.advance_startup();
+    }
+
+    assert!(saw_login_summary);
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
+}
+
+#[test]
+fn returning_player_routes_through_login_summary_before_main_menu() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        app.classic_login_state(),
+        ClassicLoginState::ReturningPlayer
+    );
+
+    let mut saw_login_summary = false;
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::Startup(StartupPhase::LoginSummary) {
+            saw_login_summary = true;
+        }
+        if app.current_screen() == ScreenId::MainMenu {
+            break;
+        }
+        app.advance_startup();
+    }
+
+    assert!(saw_login_summary);
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
 }
 
 #[test]

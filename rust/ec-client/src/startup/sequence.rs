@@ -1,3 +1,4 @@
+use crate::model::ClassicLoginState;
 use crate::reports::ReportsPreview;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,14 +46,18 @@ impl StartupSummary {
 }
 
 impl StartupSequence {
-    pub fn new(summary: &StartupSummary, is_joined: bool) -> Self {
+    pub fn new(summary: &StartupSummary, login_state: ClassicLoginState) -> Self {
+        let show_login_review = matches!(
+            login_state,
+            ClassicLoginState::MatchedPreloadedFirstLogin | ClassicLoginState::ReturningPlayer
+        );
         Self {
             current: StartupPhase::Splash,
-            show_login_review: is_joined,
-            show_results: is_joined
+            show_login_review,
+            show_results: show_login_review
                 && summary.pending_results
                 && !summary.results_line_count.eq(&0),
-            show_messages: is_joined
+            show_messages: show_login_review
                 && summary.pending_messages
                 && !summary.message_line_count.eq(&0),
         }

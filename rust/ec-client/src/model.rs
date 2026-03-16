@@ -1,9 +1,17 @@
 use ec_data::CoreGameData;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassicLoginState {
+    FirstTimeMenu,
+    MatchedPreloadedFirstLogin,
+    ReturningPlayer,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlayerContext {
     pub record_index_1_based: usize,
     pub is_joined: bool,
+    pub classic_login_state: ClassicLoginState,
     pub empire_name: String,
     pub handle: String,
 }
@@ -40,15 +48,61 @@ impl PlayerContext {
             .records
             .get(record_index_1_based - 1)
             .ok_or_else(|| format!("PLAYER.DAT missing record {record_index_1_based}"))?;
+        let classic_login_state =
+            ClassicLoginState::from_game_data(game_data, record_index_1_based as u8);
         let empire_name = record.controlled_empire_name_summary();
         let handle = record.assigned_player_handle_summary();
         Ok(Self {
             record_index_1_based,
-            is_joined: record.occupied_flag() != 0,
+            is_joined: classic_login_state != ClassicLoginState::FirstTimeMenu,
+            classic_login_state,
             empire_name,
             handle,
         })
     }
+}
+
+impl ClassicLoginState {
+    pub fn from_game_data(game_data: &CoreGameData, empire_raw: u8) -> Self {
+        let Some(player) = game_data
+            .player
+            .records
+            .get(empire_raw.saturating_sub(1) as usize)
+        else {
+            return Self::FirstTimeMenu;
+        };
+
+        if player.owner_mode_raw() != empire_raw {
+            return Self::FirstTimeMenu;
+        }
+
+        let Some(homeworld) = homeworld_like_planet(game_data, empire_raw, player) else {
+            return Self::ReturningPlayer;
+        };
+
+        if homeworld.is_named_homeworld_seed() {
+            Self::MatchedPreloadedFirstLogin
+        } else {
+            Self::ReturningPlayer
+        }
+    }
+}
+
+fn homeworld_like_planet<'a>(
+    game_data: &'a CoreGameData,
+    empire_raw: u8,
+    player: &ec_data::PlayerRecord,
+) -> Option<&'a ec_data::PlanetRecord> {
+    let index = player.homeworld_planet_index_1_based_raw() as usize;
+    if index > 0 {
+        if let Some(planet) = game_data.planets.records.get(index - 1) {
+            return Some(planet);
+        }
+    }
+
+    game_data.planets.records.iter().find(|planet| {
+        planet.owner_empire_slot_raw() == empire_raw && planet.is_named_homeworld_seed()
+    })
 }
 
 impl MainMenuSummary {
