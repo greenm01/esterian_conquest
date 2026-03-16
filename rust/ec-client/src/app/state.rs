@@ -636,8 +636,10 @@ impl App {
                 self.fleet_order_scroll_offset,
                 self.fleet_order_cursor,
                 self.fleet_order_mode,
+                &self.fleet_order_target_status_line(),
+                &self.fleet_order_target_prompt(),
+                &self.fleet_order_target_default(),
                 &self.fleet_order_input,
-                self.fleet_order_default_target(),
                 self.status_if_no_modal(self.fleet_order_status.as_deref()),
             )?,
             ScreenId::FleetGroupOrder => self.fleet_group.render(
@@ -646,8 +648,10 @@ impl App {
                 self.fleet_group_cursor,
                 &self.fleet_group_selected_fleets,
                 self.fleet_group_mode,
+                &self.fleet_group_target_status_line(),
+                &self.fleet_group_target_prompt(),
+                &self.fleet_group_target_default(),
                 &self.fleet_group_input,
-                self.fleet_group_default_target(),
                 self.status_if_no_modal(self.fleet_group_status.as_deref()),
             )?,
             ScreenId::FleetMissionPicker => self.fleet_mission_picker.render(
@@ -2301,9 +2305,15 @@ impl App {
                 }
             }
             FleetSingleOrderMode::EnteringTarget => {
-                if self.fleet_order_input.len() < 16
-                    && (ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']'))
-                {
+                let allow_char = match fleet_target_input_kind(self.fleet_order_mission_code) {
+                    FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
+                        ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']')
+                    }
+                    FleetTargetInputKind::StarbaseId | FleetTargetInputKind::FleetId => {
+                        ch.is_ascii_digit()
+                    }
+                };
+                if self.fleet_order_input.len() < 16 && allow_char {
                     self.fleet_order_input.push(ch);
                     self.fleet_order_status = None;
                 }
@@ -2497,9 +2507,15 @@ impl App {
         match self.fleet_group_mode {
             FleetGroupOrderMode::SelectingFleets => {}
             FleetGroupOrderMode::EnteringTarget => {
-                if self.fleet_group_input.len() < 16
-                    && (ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']'))
-                {
+                let allow_char = match fleet_target_input_kind(self.fleet_group_mission_code) {
+                    FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
+                        ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']')
+                    }
+                    FleetTargetInputKind::StarbaseId | FleetTargetInputKind::FleetId => {
+                        ch.is_ascii_digit()
+                    }
+                };
+                if self.fleet_group_input.len() < 16 && allow_char {
                     self.fleet_group_input.push(ch);
                     self.fleet_group_status = None;
                 }
@@ -2861,20 +2877,49 @@ impl App {
                 self.open_fleet_mission_picker();
             }
             FleetGroupOrderMode::EnteringTarget => {
-                let destination = match resolve_default_coords_input(
-                    &self.fleet_group_input,
-                    self.fleet_group_default_target(),
-                ) {
-                    Some(coords) => coords,
-                    None => {
-                        self.fleet_group_status = Some("Enter a sector as [x,y].".to_string());
-                        return;
-                    }
-                };
                 let Some(mission_code) = self.fleet_group_mission_code else {
                     self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
                     self.fleet_group_status = Some("Choose a group mission first.".to_string());
                     return;
+                };
+                let (destination, aux0, aux1) = match fleet_target_input_kind(Some(mission_code)) {
+                    FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
+                        let destination = match resolve_default_coords_input(
+                            &self.fleet_group_input,
+                            self.fleet_group_default_target(),
+                        ) {
+                            Some(coords) => coords,
+                            None => {
+                                self.fleet_group_status =
+                                    Some("Enter a sector as [x,y].".to_string());
+                                return;
+                            }
+                        };
+                        (destination, 0, 0)
+                    }
+                    FleetTargetInputKind::StarbaseId => {
+                        let Some(base) =
+                            self.resolve_fleet_group_starbase_target_for_current_mission()
+                        else {
+                            self.fleet_group_status =
+                                Some("Enter a starbase number from your starbase list.".to_string());
+                            return;
+                        };
+                        (base.coords, base.base_id, 1)
+                    }
+                    FleetTargetInputKind::FleetId => {
+                        let Some(host) =
+                            self.resolve_fleet_group_host_fleet_for_current_mission()
+                        else {
+                            self.fleet_group_status =
+                                Some("Enter another fleet number from your fleet list.".to_string());
+                            return;
+                        };
+                        if let Err(err) = self.apply_fleet_group_join_order(host) {
+                            self.fleet_group_status = Some(err.to_string());
+                        }
+                        return;
+                    }
                 };
                 let target_planet = self
                     .game_data
@@ -2906,7 +2951,8 @@ impl App {
                     );
                     return;
                 }
-                if let Err(err) = self.apply_fleet_group_order(mission_code, destination) {
+                if let Err(err) = self.apply_fleet_group_order(mission_code, destination, aux0, aux1)
+                {
                     self.fleet_group_status = Some(err.to_string());
                 }
             }
@@ -2959,20 +3005,49 @@ impl App {
                 self.open_fleet_mission_picker();
             }
             FleetSingleOrderMode::EnteringTarget => {
-                let destination = match resolve_default_coords_input(
-                    &self.fleet_order_input,
-                    self.fleet_order_default_target(),
-                ) {
-                    Some(coords) => coords,
-                    None => {
-                        self.fleet_order_status = Some("Enter a sector as [x,y].".to_string());
-                        return Ok(());
-                    }
-                };
                 let Some(mission_code) = self.fleet_order_mission_code else {
                     self.fleet_order_mode = FleetSingleOrderMode::SelectingFleet;
                     self.fleet_order_status = Some("Choose a fleet mission first.".to_string());
                     return Ok(());
+                };
+                let (destination, aux0, aux1) = match fleet_target_input_kind(Some(mission_code)) {
+                    FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
+                        let destination = match resolve_default_coords_input(
+                            &self.fleet_order_input,
+                            self.fleet_order_default_target(),
+                        ) {
+                            Some(coords) => coords,
+                            None => {
+                                self.fleet_order_status =
+                                    Some("Enter a sector as [x,y].".to_string());
+                                return Ok(());
+                            }
+                        };
+                        (destination, 0, 0)
+                    }
+                    FleetTargetInputKind::StarbaseId => {
+                        let Some(base) =
+                            self.resolve_fleet_order_starbase_target_for_current_mission()
+                        else {
+                            self.fleet_order_status =
+                                Some("Enter a starbase number from your starbase list.".to_string());
+                            return Ok(());
+                        };
+                        (base.coords, base.base_id, 1)
+                    }
+                    FleetTargetInputKind::FleetId => {
+                        let Some(host) =
+                            self.resolve_fleet_order_host_fleet_for_current_mission()
+                        else {
+                            self.fleet_order_status =
+                                Some("Enter another fleet number from your fleet list.".to_string());
+                            return Ok(());
+                        };
+                        if let Err(err) = self.apply_fleet_single_join_order(host) {
+                            self.fleet_order_status = Some(err.to_string());
+                        }
+                        return Ok(());
+                    }
                 };
                 let target_planet = self
                     .game_data
@@ -3002,7 +3077,8 @@ impl App {
                         Some("You cannot send that mission to your own world.".to_string());
                     return Ok(());
                 }
-                if let Err(err) = self.apply_fleet_single_order(mission_code, destination) {
+                if let Err(err) = self.apply_fleet_single_order(mission_code, destination, aux0, aux1)
+                {
                     self.fleet_order_status = Some(err.to_string());
                 }
             }
@@ -3051,65 +3127,51 @@ impl App {
         self.fleet_mission_picker_input.clear();
         match self.fleet_mission_picker_caller {
             Some(FleetMissionPickerCaller::SingleOrder) => {
-                if mission_code == 4 {
-                    self.fleet_mission_picker_status =
-                        Some("Guard starbase orders belong in the Starbase menu.".to_string());
-                    return;
-                }
-                if mission_code == 13 {
-                    self.fleet_mission_picker_status =
-                        Some("Use Merge a Fleet for join-fleet orders.".to_string());
-                    return;
-                }
                 self.fleet_order_mission_code = Some(mission_code);
                 self.fleet_mission_picker_status = None;
                 self.fleet_mission_picker_caller = None;
                 self.current_screen = ScreenId::FleetOrder;
                 if fleet_group_order_requires_target(mission_code) {
-                    if mission_code == 12
-                        && self
-                            .fleet_order_default_target_for_mission(mission_code)
-                            .is_none()
-                    {
+                    if !self.fleet_order_has_target_available(mission_code) {
                         self.fleet_order_mode = FleetSingleOrderMode::SelectingFleet;
-                        self.fleet_order_status = Some("No colonize target available.".to_string());
+                        self.fleet_order_status = Some(match mission_code {
+                            4 => "You have no starbases available to guard.".to_string(),
+                            12 => "No colonize target available.".to_string(),
+                            13 => "You need another fleet available to join.".to_string(),
+                            _ => "No valid target available for that mission.".to_string(),
+                        });
                         return;
                     }
                     self.fleet_order_mode = FleetSingleOrderMode::EnteringTarget;
                     self.fleet_order_input.clear();
-                } else if let Err(err) = self.apply_fleet_single_order(mission_code, [0, 0]) {
+                } else if let Err(err) =
+                    self.apply_fleet_single_order(mission_code, [0, 0], 0, 0)
+                {
                     self.current_screen = ScreenId::FleetMissionPicker;
                     self.fleet_mission_picker_caller = Some(FleetMissionPickerCaller::SingleOrder);
                     self.fleet_mission_picker_status = Some(err.to_string());
                 }
             }
             Some(FleetMissionPickerCaller::GroupOrder) => {
-                if mission_code == 4 {
-                    self.fleet_mission_picker_status =
-                        Some("Guard starbase orders belong in the Starbase menu.".to_string());
-                    return;
-                }
-                if mission_code == 13 {
-                    self.fleet_mission_picker_status =
-                        Some("Use Merge a Fleet for join-fleet orders.".to_string());
-                    return;
-                }
                 self.fleet_group_mission_code = Some(mission_code);
                 self.fleet_mission_picker_status = None;
                 self.fleet_mission_picker_caller = None;
                 self.current_screen = ScreenId::FleetGroupOrder;
                 if fleet_group_order_requires_target(mission_code) {
-                    if mission_code == 12
-                        && self
-                            .fleet_group_default_target_for_mission(mission_code)
-                            .is_none()
-                    {
+                    if !self.fleet_group_has_target_available(mission_code) {
                         self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
-                        self.fleet_group_status = Some("No colonize target available.".to_string());
+                        self.fleet_group_status = Some(match mission_code {
+                            4 => "You have no starbases available to guard.".to_string(),
+                            12 => "No colonize target available.".to_string(),
+                            13 => "You need another fleet available to join.".to_string(),
+                            _ => "No valid target available for that mission.".to_string(),
+                        });
                         return;
                     }
                     self.fleet_group_mode = FleetGroupOrderMode::EnteringTarget;
-                } else if let Err(err) = self.apply_fleet_group_order(mission_code, [0, 0]) {
+                } else if let Err(err) =
+                    self.apply_fleet_group_order(mission_code, [0, 0], 0, 0)
+                {
                     self.current_screen = ScreenId::FleetMissionPicker;
                     self.fleet_mission_picker_caller = Some(FleetMissionPickerCaller::GroupOrder);
                     self.fleet_mission_picker_status = Some(err.to_string());
@@ -6970,6 +7032,36 @@ impl App {
         }
     }
 
+    fn fleet_order_target_status_line(&self) -> String {
+        fleet_target_status_line(self.fleet_order_mission_code)
+    }
+
+    fn fleet_order_target_prompt(&self) -> String {
+        match fleet_target_input_kind(self.fleet_order_mission_code) {
+            FleetTargetInputKind::StarbaseId => "Starbase # ".to_string(),
+            FleetTargetInputKind::FleetId => "Fleet # ".to_string(),
+            FleetTargetInputKind::Coordinates => "Target ".to_string(),
+            FleetTargetInputKind::None => "Target ".to_string(),
+        }
+    }
+
+    fn fleet_order_target_default(&self) -> String {
+        match fleet_target_input_kind(self.fleet_order_mission_code) {
+            FleetTargetInputKind::StarbaseId => self
+                .fleet_order_default_starbase()
+                .map(|row| row.base_id.to_string())
+                .unwrap_or_else(|| "1".to_string()),
+            FleetTargetInputKind::FleetId => self
+                .fleet_order_default_host_fleet()
+                .map(|row| row.fleet_number.to_string())
+                .unwrap_or_else(|| "1".to_string()),
+            FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
+                let target = self.fleet_order_default_target();
+                format!("{},{}", target[0], target[1])
+            }
+        }
+    }
+
     fn fleet_order_default_target_for_mission(&self, mission_code: u8) -> Option<[u8; 2]> {
         let selected = self
             .fleet_order_selected_row()
@@ -7002,6 +7094,62 @@ impl App {
             &selected,
             self.fleet_group_selected_fleets.clone(),
         )
+    }
+
+    fn fleet_group_target_status_line(&self) -> String {
+        fleet_target_status_line(self.fleet_group_mission_code)
+    }
+
+    fn fleet_group_target_prompt(&self) -> String {
+        match fleet_target_input_kind(self.fleet_group_mission_code) {
+            FleetTargetInputKind::StarbaseId => "Starbase # ".to_string(),
+            FleetTargetInputKind::FleetId => "Fleet # ".to_string(),
+            FleetTargetInputKind::Coordinates => "Target ".to_string(),
+            FleetTargetInputKind::None => "Target ".to_string(),
+        }
+    }
+
+    fn fleet_group_target_default(&self) -> String {
+        match fleet_target_input_kind(self.fleet_group_mission_code) {
+            FleetTargetInputKind::StarbaseId => self
+                .fleet_group_default_starbase()
+                .map(|row| row.base_id.to_string())
+                .unwrap_or_else(|| "1".to_string()),
+            FleetTargetInputKind::FleetId => self
+                .fleet_group_default_host_fleet()
+                .map(|row| row.fleet_number.to_string())
+                .unwrap_or_else(|| "1".to_string()),
+            FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
+                let target = self.fleet_group_default_target();
+                format!("{},{}", target[0], target[1])
+            }
+        }
+    }
+
+    fn fleet_order_has_target_available(&self, mission_code: u8) -> bool {
+        match fleet_target_input_kind(Some(mission_code)) {
+            FleetTargetInputKind::StarbaseId => self.fleet_order_default_starbase().is_some(),
+            FleetTargetInputKind::FleetId => self.fleet_order_default_host_fleet().is_some(),
+            FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
+                !fleet_mission_requires_preselected_target(mission_code)
+                    || self
+                        .fleet_order_default_target_for_mission(mission_code)
+                        .is_some()
+            }
+        }
+    }
+
+    fn fleet_group_has_target_available(&self, mission_code: u8) -> bool {
+        match fleet_target_input_kind(Some(mission_code)) {
+            FleetTargetInputKind::StarbaseId => self.fleet_group_default_starbase().is_some(),
+            FleetTargetInputKind::FleetId => self.fleet_group_default_host_fleet().is_some(),
+            FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
+                !fleet_mission_requires_preselected_target(mission_code)
+                    || self
+                        .fleet_group_default_target_for_mission(mission_code)
+                        .is_some()
+            }
+        }
     }
 
     fn friendly_colonize_target_claimed_elsewhere(
@@ -7046,10 +7194,103 @@ impl App {
         if fleet_order_target_rejects_owned_planet(mission_code) {
             return self.closest_known_non_owned_planet_target_from(anchor);
         }
+        if mission_code == 4 {
+            return self.closest_owned_starbase_target_from(anchor);
+        }
         if mission_code == 12 {
             return self.closest_colonize_target_from(anchor, &selected_records);
         }
         None
+    }
+
+    fn closest_owned_starbase_target_from(&self, anchor: [u8; 2]) -> Option<[u8; 2]> {
+        self.closest_owned_starbase_from(anchor).map(|row| row.coords)
+    }
+
+    fn closest_owned_starbase_from(&self, anchor: [u8; 2]) -> Option<StarbaseRow> {
+        self.starbase_rows()
+            .into_iter()
+            .min_by_key(|row| sector_distance_sq(anchor, row.coords))
+    }
+
+    fn fleet_order_default_starbase(&self) -> Option<StarbaseRow> {
+        let anchor = self
+            .fleet_order_selected_row()
+            .map(|row| row.coords)
+            .unwrap_or(self.default_planet_prompt_coords());
+        self.closest_owned_starbase_from(anchor)
+    }
+
+    fn fleet_group_default_starbase(&self) -> Option<StarbaseRow> {
+        let anchor = self
+            .fleet_group_selected_rows()
+            .first()
+            .map(|row| row.coords)
+            .unwrap_or(self.default_planet_prompt_coords());
+        self.closest_owned_starbase_from(anchor)
+    }
+
+    fn closest_owned_fleet_from(
+        &self,
+        anchor: [u8; 2],
+        excluded_records: &BTreeSet<usize>,
+    ) -> Option<FleetRow> {
+        self.fleet_rows()
+            .into_iter()
+            .filter(|row| !excluded_records.contains(&row.fleet_record_index_1_based))
+            .min_by_key(|row| sector_distance_sq(anchor, row.coords))
+    }
+
+    fn fleet_order_default_host_fleet(&self) -> Option<FleetRow> {
+        let selected = self.fleet_order_selected_row()?;
+        let mut excluded = BTreeSet::new();
+        excluded.insert(selected.fleet_record_index_1_based);
+        self.closest_owned_fleet_from(selected.coords, &excluded)
+    }
+
+    fn fleet_group_default_host_fleet(&self) -> Option<FleetRow> {
+        let selected = self.fleet_group_selected_rows();
+        let anchor = selected
+            .first()
+            .map(|row| row.coords)
+            .unwrap_or(self.default_planet_prompt_coords());
+        self.closest_owned_fleet_from(anchor, &self.fleet_group_selected_fleets)
+    }
+
+    fn resolve_fleet_order_starbase_target_for_current_mission(&self) -> Option<StarbaseRow> {
+        let default_base_id = self.fleet_order_default_starbase()?.base_id;
+        let base_id = resolve_default_u8_input(&self.fleet_order_input, default_base_id)?;
+        self.starbase_rows()
+            .into_iter()
+            .find(|row| row.base_id == base_id)
+    }
+
+    fn resolve_fleet_group_starbase_target_for_current_mission(&self) -> Option<StarbaseRow> {
+        let default_base_id = self.fleet_group_default_starbase()?.base_id;
+        let base_id = resolve_default_u8_input(&self.fleet_group_input, default_base_id)?;
+        self.starbase_rows()
+            .into_iter()
+            .find(|row| row.base_id == base_id)
+    }
+
+    fn resolve_fleet_order_host_fleet_for_current_mission(&self) -> Option<FleetRow> {
+        let default_fleet_number = self.fleet_order_default_host_fleet()?.fleet_number;
+        let fleet_number = resolve_default_u16_input(&self.fleet_order_input, default_fleet_number)?;
+        let selected_record = self.fleet_order_selected_row()?.fleet_record_index_1_based;
+        self.fleet_rows().into_iter().find(|row| {
+            row.fleet_number == fleet_number && row.fleet_record_index_1_based != selected_record
+        })
+    }
+
+    fn resolve_fleet_group_host_fleet_for_current_mission(&self) -> Option<FleetRow> {
+        let default_fleet_number = self.fleet_group_default_host_fleet()?.fleet_number;
+        let fleet_number = resolve_default_u16_input(&self.fleet_group_input, default_fleet_number)?;
+        self.fleet_rows().into_iter().find(|row| {
+            row.fleet_number == fleet_number
+                && !self
+                    .fleet_group_selected_fleets
+                    .contains(&row.fleet_record_index_1_based)
+        })
     }
 
     fn closest_known_non_owned_planet_target_from(&self, anchor: [u8; 2]) -> Option<[u8; 2]> {
@@ -7159,6 +7400,8 @@ impl App {
         selected_rows: &[FleetRow],
         mission_code: u8,
         target: [u8; 2],
+        aux0: u8,
+        aux1: u8,
     ) -> Result<(), Box<dyn std::error::Error>> {
         for row in selected_rows {
             let speed = self
@@ -7177,8 +7420,8 @@ impl App {
                 } else {
                     [0, 0]
                 },
-                Some(0),
-                Some(0),
+                Some(aux0),
+                Some(aux1),
             )?;
         }
         self.save_game_data()?;
@@ -7189,6 +7432,8 @@ impl App {
         &mut self,
         mission_code: u8,
         target: [u8; 2],
+        aux0: u8,
+        aux1: u8,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let selected_rows = self.fleet_group_selected_rows();
         if selected_rows.is_empty() {
@@ -7196,7 +7441,7 @@ impl App {
             self.fleet_group_status = Some("Select at least one fleet.".to_string());
             return Ok(());
         }
-        self.apply_fleet_orders_to_rows(&selected_rows, mission_code, target)?;
+        self.apply_fleet_orders_to_rows(&selected_rows, mission_code, target, aux0, aux1)?;
         let selected_count = selected_rows.len();
         self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
         self.fleet_group_mission_code = None;
@@ -7221,17 +7466,50 @@ impl App {
         Ok(())
     }
 
+    fn apply_fleet_group_join_order(
+        &mut self,
+        host: FleetRow,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let selected_rows = self.fleet_group_selected_rows();
+        if selected_rows.is_empty() {
+            self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
+            self.fleet_group_status = Some("Select at least one fleet.".to_string());
+            return Ok(());
+        }
+        for row in &selected_rows {
+            self.game_data.set_join_fleet_order(
+                self.player.record_index_1_based,
+                row.fleet_record_index_1_based,
+                host.fleet_record_index_1_based,
+            )?;
+        }
+        self.save_game_data()?;
+        let selected_count = selected_rows.len();
+        self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
+        self.fleet_group_mission_code = None;
+        self.fleet_group_input.clear();
+        self.fleet_group_selected_fleets.clear();
+        self.current_screen = ScreenId::FleetGroupOrder;
+        self.fleet_group_status = Some(format!(
+            "Applied join-fleet order to {} fleets with host Fleet #{}.",
+            selected_count, host.fleet_number
+        ));
+        Ok(())
+    }
+
     fn apply_fleet_single_order(
         &mut self,
         mission_code: u8,
         target: [u8; 2],
+        aux0: u8,
+        aux1: u8,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let Some(selected_row) = self.fleet_order_selected_row() else {
             self.fleet_order_mode = FleetSingleOrderMode::SelectingFleet;
             self.fleet_order_status = Some("Select a fleet.".to_string());
             return Ok(());
         };
-        self.apply_fleet_orders_to_rows(&[selected_row.clone()], mission_code, target)?;
+        self.apply_fleet_orders_to_rows(&[selected_row.clone()], mission_code, target, aux0, aux1)?;
         self.fleet_order_mode = FleetSingleOrderMode::SelectingFleet;
         self.fleet_order_mission_code = None;
         self.fleet_order_input.clear();
@@ -7252,6 +7530,33 @@ impl App {
                 selected_row.fleet_number
             )
         });
+        Ok(())
+    }
+
+    fn apply_fleet_single_join_order(
+        &mut self,
+        host: FleetRow,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(selected_row) = self.fleet_order_selected_row() else {
+            self.fleet_order_mode = FleetSingleOrderMode::SelectingFleet;
+            self.fleet_order_status = Some("Select a fleet.".to_string());
+            return Ok(());
+        };
+        self.game_data.set_join_fleet_order(
+            self.player.record_index_1_based,
+            selected_row.fleet_record_index_1_based,
+            host.fleet_record_index_1_based,
+        )?;
+        self.save_game_data()?;
+        self.fleet_order_mode = FleetSingleOrderMode::SelectingFleet;
+        self.fleet_order_mission_code = None;
+        self.fleet_order_input.clear();
+        self.fleet_order_fleet_record_index_1_based = Some(selected_row.fleet_record_index_1_based);
+        self.current_screen = ScreenId::FleetOrder;
+        self.fleet_order_status = Some(format!(
+            "Applied join-fleet order to Fleet #{} with host Fleet #{}.",
+            selected_row.fleet_number, host.fleet_number
+        ));
         Ok(())
     }
 
@@ -7609,8 +7914,67 @@ fn resolve_yes_no_input(input: &str, default: bool) -> bool {
     }
 }
 
+fn resolve_default_u8_input(input: &str, default: u8) -> Option<u8> {
+    let raw = input.trim();
+    if raw.is_empty() {
+        return Some(default);
+    }
+    raw.parse::<u8>().ok()
+}
+
+fn resolve_default_u16_input(input: &str, default: u16) -> Option<u16> {
+    let raw = input.trim();
+    if raw.is_empty() {
+        return Some(default);
+    }
+    raw.parse::<u16>().ok()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FleetTargetInputKind {
+    None,
+    Coordinates,
+    StarbaseId,
+    FleetId,
+}
+
+fn fleet_target_input_kind(order_code: Option<u8>) -> FleetTargetInputKind {
+    match order_code {
+        Some(4) => FleetTargetInputKind::StarbaseId,
+        Some(13) => FleetTargetInputKind::FleetId,
+        Some(code) if fleet_group_order_requires_target(code) => FleetTargetInputKind::Coordinates,
+        _ => FleetTargetInputKind::None,
+    }
+}
+
+fn fleet_target_status_line(order_code: Option<u8>) -> String {
+    match order_code {
+        Some(4) => "Enter the starbase number for Guard a Starbase.".to_string(),
+        Some(13) => "Enter the host fleet number for Join another fleet.".to_string(),
+        Some(0) => "Enter the target coordinates for None (hold position).".to_string(),
+        Some(1) => "Enter the target coordinates for Move Fleet (only).".to_string(),
+        Some(2) => "Enter the target coordinates for Seek Home.".to_string(),
+        Some(3) => "Enter the target coordinates for Patrol a Sector.".to_string(),
+        Some(5) => "Enter the target coordinates for Guard/Blockade a World.".to_string(),
+        Some(6) => "Enter the target coordinates for Bombard a World.".to_string(),
+        Some(7) => "Enter the target coordinates for Invade a World.".to_string(),
+        Some(8) => "Enter the target coordinates for Blitz a World.".to_string(),
+        Some(9) => "Enter the target coordinates for View a World.".to_string(),
+        Some(10) => "Enter the target coordinates for Scout a Sector.".to_string(),
+        Some(11) => "Enter the target coordinates for Scout a Solar System.".to_string(),
+        Some(12) => "Enter the target coordinates for Colonize a World.".to_string(),
+        Some(14) => "Enter the target coordinates for Rendezvous at Sector.".to_string(),
+        Some(15) => "Enter the target coordinates for Salvage.".to_string(),
+        _ => "Enter the target for the selected fleet mission.".to_string(),
+    }
+}
+
 fn fleet_group_order_requires_target(order_code: u8) -> bool {
     !matches!(order_code, 0 | 2)
+}
+
+fn fleet_mission_requires_preselected_target(order_code: u8) -> bool {
+    matches!(order_code, 4 | 12)
 }
 
 fn fleet_order_target_requires_planet_system(order_code: u8) -> bool {

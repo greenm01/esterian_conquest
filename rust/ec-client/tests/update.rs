@@ -2442,18 +2442,213 @@ fn fleet_order_applies_move_order_to_selected_fleet_only() {
     assert!(terminal.line(19).contains("<slap a key>"));
 
     let state = latest_runtime_state(&fixture_dir);
+    let ordered_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
     assert_eq!(
-        state.game_data.fleets.records[1].standing_order_code_raw(),
+        ordered_fleet.standing_order_code_raw(),
         1
     );
     assert_eq!(
-        state.game_data.fleets.records[1].standing_order_target_coords_raw(),
+        ordered_fleet.standing_order_target_coords_raw(),
         [14, 9]
     );
-    assert_ne!(
-        state.game_data.fleets.records[0].standing_order_code_raw(),
-        1
+    assert_eq!(
+        state.game_data
+            .fleets
+            .records
+            .iter()
+            .filter(|fleet| !(fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2))
+            .filter(|fleet| fleet.standing_order_code_raw() == 1)
+            .count(),
+        0
     );
+}
+
+#[test]
+fn fleet_order_allows_guard_starbase_from_fleet_command() {
+    let fixture_dir = temp_game_with_starbase_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetOrderChar('2')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('4')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetOrder);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("guard starbase target prompt should render");
+    assert_eq!(
+        terminal.line(1).trim_end(),
+        "Enter the starbase number for Guard a Starbase."
+    );
+    assert!(terminal.line(19).contains("Starbase # [1]"), "{}", terminal.line(19));
+
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetOrder),
+        AppOutcome::Continue
+    );
+
+    let state = latest_runtime_state(&fixture_dir);
+    assert_eq!(
+        state.game_data.fleets.records[1].standing_order_code_raw(),
+        4
+    );
+    assert_eq!(state.game_data.fleets.records[1].mission_aux_bytes(), [1, 1]);
+    assert_eq!(
+        state.game_data.fleets.records[1].standing_order_target_coords_raw(),
+        [6, 5]
+    );
+}
+
+#[test]
+fn fleet_order_blocks_guard_starbase_when_player_has_no_starbases() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetOrderChar('2')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('4')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetOrder);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("no-starbase guard order notice should render");
+    assert!(terminal.line(19).contains("You have no starbases available to guard."));
+}
+
+#[test]
+fn fleet_order_allows_join_another_fleet_from_fleet_command() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetOrderChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('3')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetOrder);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("join-fleet target prompt should render");
+    assert_eq!(
+        terminal.line(1).trim_end(),
+        "Enter the host fleet number for Join another fleet."
+    );
+    assert!(terminal.line(19).contains("Fleet # ["), "{}", terminal.line(19));
+
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetOrder),
+        AppOutcome::Continue
+    );
+
+    let state = latest_runtime_state(&fixture_dir);
+    let source = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("fleet #1 should exist");
+    assert_eq!(source.standing_order_kind(), ec_data::Order::JoinAnotherFleet);
+    assert_ne!(source.join_host_fleet_id_raw(), 0);
+    let valid_host = state.game_data.fleets.records.iter().any(|fleet| {
+        fleet.owner_empire_raw() == 1
+            && fleet.fleet_id() == source.join_host_fleet_id_raw()
+            && fleet.current_location_coords_raw() == source.standing_order_target_coords_raw()
+    });
+    assert!(valid_host);
 }
 
 #[test]

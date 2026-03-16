@@ -326,7 +326,7 @@ impl Screen for FleetMenuScreen {
             KeyCode::Char('d') | KeyCode::Char('D') => Action::OpenFleetDetach,
             KeyCode::Char('m') | KeyCode::Char('M') => Action::OpenFleetMerge,
             KeyCode::Char('o') | KeyCode::Char('O') => Action::OpenFleetOrder,
-            KeyCode::Char('t') | KeyCode::Char('T') => Action::Noop, // Transfer - TODO
+            KeyCode::Char('t') | KeyCode::Char('T') => Action::OpenFleetTransfer,
             KeyCode::Char('c') | KeyCode::Char('C') => Action::OpenFleetRoeSelect,
             KeyCode::Char('l') | KeyCode::Char('L') => Action::OpenFleetTransportLoad,
             KeyCode::Char('u') | KeyCode::Char('U') => Action::OpenFleetTransportUnload,
@@ -677,8 +677,10 @@ impl FleetSingleOrderScreen {
         scroll_offset: usize,
         cursor: usize,
         mode: FleetSingleOrderMode,
+        target_status_line: &str,
+        target_prompt: &str,
+        target_default: &str,
         input: &str,
-        default_target: [u8; 2],
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
@@ -702,9 +704,7 @@ impl FleetSingleOrderScreen {
                 FleetSingleOrderMode::SelectingFleet => {
                     "Select a fleet, then press ENTER to give it a mission."
                 }
-                FleetSingleOrderMode::EnteringTarget => {
-                    "Enter the target coordinates for the selected fleet mission."
-                }
+                FleetSingleOrderMode::EnteringTarget => target_status_line,
             },
         );
         let selected_fleet_label = rows
@@ -764,8 +764,8 @@ impl FleetSingleOrderScreen {
                     draw_command_line_default_input(
                         &mut buffer,
                         "FLEET COMMAND",
-                        "Target ",
-                        &format!("{},{}", default_target[0], default_target[1]),
+                        target_prompt,
+                        target_default,
                         input,
                     );
                 }
@@ -974,8 +974,10 @@ impl FleetGroupScreen {
         cursor: usize,
         selected_fleet_record_indexes: &BTreeSet<usize>,
         mode: FleetGroupOrderMode,
+        target_status_line: &str,
+        target_prompt: &str,
+        target_default: &str,
         input: &str,
-        default_target: [u8; 2],
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
@@ -1000,9 +1002,7 @@ impl FleetGroupScreen {
                 FleetGroupOrderMode::SelectingFleets => {
                     "Select fleets with SPACE, then press ENTER to give them the same mission."
                 }
-                FleetGroupOrderMode::EnteringTarget => {
-                    "Enter the target coordinates for the selected group mission."
-                }
+                FleetGroupOrderMode::EnteringTarget => target_status_line,
             },
         );
         draw_status_line(
@@ -1067,8 +1067,8 @@ impl FleetGroupScreen {
                     draw_command_line_default_input(
                         &mut buffer,
                         "FLEET COMMAND",
-                        "Target ",
-                        &format!("{},{}", default_target[0], default_target[1]),
+                        target_prompt,
+                        target_default,
                         input,
                     );
                 }
