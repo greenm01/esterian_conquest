@@ -3,7 +3,9 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::model::ClassicLoginState;
 use crate::reports::ReportsPreview;
-use crate::screen::layout::{draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield};
+use crate::screen::layout::{
+    PLAYFIELD_WIDTH, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
+};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::startup::{StartupPhase, StartupSummary};
 use crate::theme::classic;
@@ -14,6 +16,7 @@ pub struct StartupScreen {
 }
 
 const STARTUP_REVIEW_VISIBLE_LINES: usize = 12;
+const STARTUP_REVIEW_PREFIX: &str = "< ";
 
 impl StartupScreen {
     pub fn new(summary: StartupSummary, reports: ReportsPreview) -> Self {
@@ -52,11 +55,17 @@ impl StartupScreen {
     }
 
     pub fn results_page_count(&self) -> usize {
-        review_page_count(&self.reports.results_lines)
+        review_page_count(&review_rows(
+            &self.reports.results_lines,
+            "Classic results pending flag is set, but no report lines are loaded.",
+        ))
     }
 
     pub fn messages_page_count(&self) -> usize {
-        review_page_count(&self.reports.message_lines)
+        review_page_count(&review_rows(
+            &self.reports.message_lines,
+            "Classic messages pending flag is set, but no message lines are loaded.",
+        ))
     }
 
     pub fn handle_key(&self, phase: StartupPhase, key: KeyEvent) -> Action {
@@ -192,30 +201,26 @@ impl StartupScreen {
         );
         row += 2;
 
-        if lines.is_empty() {
-            buffer.write_text(row, 0, empty_notice, classic::body_style());
+        let review_rows = review_rows(lines, empty_notice);
+        let start = page.saturating_mul(STARTUP_REVIEW_VISIBLE_LINES);
+        let end = usize::min(start + STARTUP_REVIEW_VISIBLE_LINES, review_rows.len());
+        for line in &review_rows[start..end] {
+            buffer.write_text(row, 0, line, classic::body_style());
             row += 1;
-        } else {
-            let start = page.saturating_mul(STARTUP_REVIEW_VISIBLE_LINES);
-            let end = usize::min(start + STARTUP_REVIEW_VISIBLE_LINES, lines.len());
-            for line in &lines[start..end] {
-                buffer.write_text(row, 0, line, classic::body_style());
-                row += 1;
-            }
-            if end < lines.len() {
-                row += 1;
-                buffer.write_text(
-                    row,
-                    0,
-                    &format!("... {} more line(s)", lines.len() - end),
-                    classic::body_style(),
-                );
-                row += 1;
-            }
+        }
+        if end < review_rows.len() {
+            row += 1;
+            buffer.write_text(
+                row,
+                0,
+                &format!("... {} more line(s)", review_rows.len() - end),
+                classic::body_style(),
+            );
+            row += 1;
         }
 
         row += 1;
-        let prompt = if lines.is_empty() || (page + 1) >= review_page_count(lines) {
+        let prompt = if (page + 1) >= review_page_count(&review_rows) {
             "(Slap a key)"
         } else {
             "(Slap a key for more)"
@@ -235,6 +240,67 @@ pub fn version_title() -> String {
 
 fn review_page_count(lines: &[String]) -> usize {
     usize::max(1, lines.len().div_ceil(STARTUP_REVIEW_VISIBLE_LINES))
+}
+
+fn review_rows(lines: &[String], empty_notice: &str) -> Vec<String> {
+    if lines.is_empty() {
+        return wrap_review_text(empty_notice, PLAYFIELD_WIDTH)
+            .into_iter()
+            .map(|line| format!("{STARTUP_REVIEW_PREFIX}{line}"))
+            .collect();
+    }
+
+    let mut rows = Vec::new();
+    for line in lines {
+        if line.trim().is_empty() {
+            rows.push("<".to_string());
+            continue;
+        }
+        rows.extend(
+            wrap_review_text(
+                line,
+                PLAYFIELD_WIDTH.saturating_sub(STARTUP_REVIEW_PREFIX.len()),
+            )
+            .into_iter()
+            .map(|wrapped| format!("{STARTUP_REVIEW_PREFIX}{wrapped}")),
+        );
+    }
+    rows
+}
+
+fn wrap_review_text(text: &str, width: usize) -> Vec<String> {
+    let normalized = text.split_whitespace().collect::<Vec<_>>();
+    if normalized.is_empty() {
+        return vec![String::new()];
+    }
+
+    let mut rows = Vec::new();
+    let mut current = String::new();
+    for word in normalized {
+        let separator = if current.is_empty() { 0 } else { 1 };
+        if current.len() + separator + word.len() > width && !current.is_empty() {
+            rows.push(current);
+            current = String::new();
+        }
+        if !current.is_empty() {
+            current.push(' ');
+        }
+
+        if word.len() > width && current.is_empty() {
+            let mut remaining = word;
+            while remaining.len() > width {
+                rows.push(remaining[..width].to_string());
+                remaining = &remaining[width..];
+            }
+            current.push_str(remaining);
+        } else {
+            current.push_str(word);
+        }
+    }
+    if !current.is_empty() {
+        rows.push(current);
+    }
+    rows
 }
 
 pub fn render_game_intro_page(

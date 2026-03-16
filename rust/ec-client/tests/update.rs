@@ -2608,7 +2608,7 @@ fn startup_results_paginate_before_advancing_to_messages() {
         first_page
             .lines
             .iter()
-            .any(|line| line.contains("Report line 01"))
+            .any(|line| line.contains("< Report line 01"))
     );
     assert!(
         !first_page
@@ -2636,7 +2636,7 @@ fn startup_results_paginate_before_advancing_to_messages() {
         second_page
             .lines
             .iter()
-            .any(|line| line.contains("Report line 13"))
+            .any(|line| line.contains("< Report line 13"))
     );
     assert!(
         second_page
@@ -2650,6 +2650,55 @@ fn startup_results_paginate_before_advancing_to_messages() {
         app.current_screen(),
         ScreenId::Startup(StartupPhase::Messages)
     );
+}
+
+#[test]
+fn startup_results_wrap_long_lines_within_the_playfield() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.results_bytes = b"This is a deliberately long startup results line that should wrap cleanly within the eighty column playfield instead of overrunning a single row.".to_vec();
+    state.messages_bytes.clear();
+    state.game_data.player.records[0].raw[0x30] = 1;
+    state.game_data.player.records[0].raw[0x34] = 0;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::Startup(StartupPhase::Results) {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Results)
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("startup results should render");
+    assert!(
+        terminal
+            .line(4)
+            .contains("< This is a deliberately long startup results line")
+    );
+    assert!(terminal.line(5).starts_with("< "));
+    assert!(
+        terminal.line(4).contains("should wrap cleanly")
+            || terminal.line(5).contains("should wrap cleanly")
+    );
+    assert!(
+        terminal.line(5).contains("eighty column playfield")
+            || terminal.line(6).contains("eighty column playfield")
+    );
+    assert!(terminal.line(5).contains("single row.") || terminal.line(6).contains("single row."));
 }
 
 #[test]
