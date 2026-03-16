@@ -1160,6 +1160,111 @@ fn maint_rust_invalid_planet_inputs_generate_admin_report() {
 }
 
 #[test]
+fn maint_rust_sanitizes_mixed_invalid_player_inputs_and_exports_loadable_state() {
+    let target = unique_temp_dir("ec-cli-maint-rust-mixed-invalid-inputs");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw([15, 13]);
+    fleet.set_standing_order_kind(Order::BombardWorld);
+    fleet.set_standing_order_target_coords_raw([15, 13]);
+    fleet.set_current_speed(fleet.max_speed().saturating_add(3));
+    fleet.set_destroyer_count(0);
+    fleet.set_cruiser_count(0);
+    fleet.set_battleship_count(0);
+    fleet.set_scout_count(1);
+    fleet.set_troop_transport_count(1);
+    fleet.set_army_count(3);
+    fleet.set_rules_of_engagement(6);
+    game_data.planets.records[0].set_build_count_raw(0, 9);
+    game_data.planets.records[0].set_build_kind_raw(0, 0xfe);
+    game_data.player.records[0].set_tax_rate_raw(255);
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let reloaded = CoreGameData::load(&target).expect("maint-rust output should remain loadable");
+    assert_eq!(reloaded.fleets.records[0].standing_order_kind(), Order::HoldPosition);
+    assert_eq!(reloaded.fleets.records[0].current_speed(), 0);
+    assert_eq!(reloaded.fleets.records[0].army_count(), 1);
+    assert_eq!(reloaded.fleets.records[0].rules_of_engagement(), 0);
+    assert_eq!(reloaded.player.records[0].tax_rate(), 100);
+    assert_eq!(reloaded.planets.records[0].build_count_raw(0), 0);
+    assert_eq!(reloaded.planets.records[0].build_kind_raw(0), 0);
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let result_text = decode_chunked_report(&results);
+    assert!(result_text.contains("Order validation report"));
+    assert!(result_text.contains("Fleet readiness report"));
+    assert!(result_text.contains("Administration report"));
+    assert!(result_text.contains("Tax rate input 255%"));
+
+    let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
+    let message_text = decode_chunked_report(&messages);
+    assert!(message_text.contains("Fleet readiness report"));
+    assert!(message_text.contains("Order validation report"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_survives_deterministic_malformed_directory_matrix() {
+    for order_code in [16u8, 17, 24, 31] {
+        let target = unique_temp_dir(&format!("ec-cli-maint-rust-invalid-matrix-{order_code}"));
+        copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+        let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+        let fleet = &mut game_data.fleets.records[0];
+        fleet.set_current_location_coords_raw([15, 13]);
+        fleet.set_standing_order_code_raw(order_code);
+        fleet.set_standing_order_target_coords_raw([15, 13]);
+        fleet.set_current_speed(99);
+        fleet.set_mission_aux_bytes([0xfe, 0xfe]);
+        fleet.set_destroyer_count(0);
+        fleet.set_cruiser_count(0);
+        fleet.set_battleship_count(0);
+        fleet.set_scout_count(1);
+        fleet.set_troop_transport_count(1);
+        fleet.set_army_count(4);
+        fleet.set_rules_of_engagement(42);
+        game_data.planets.records[0].set_build_count_raw(0, 9);
+        game_data.planets.records[0].set_build_kind_raw(0, 0xfe);
+        game_data.planets.records[0].set_stardock_count_raw(0, 2);
+        game_data.planets.records[0].set_stardock_kind_raw(0, 0xfe);
+        game_data.player.records[0].set_tax_rate_raw(255);
+        game_data.save(&target).expect("mutated fixture should save");
+
+        let stdout = run_maint_rust_with_export(&target, 1);
+        assert!(
+            stdout.contains("Rust maintenance complete."),
+            "maint-rust failed for order code {order_code:#04x}: {stdout}"
+        );
+
+        let reloaded = CoreGameData::load(&target).expect("maint-rust output should remain loadable");
+        assert_eq!(
+            reloaded.player.records[0].tax_rate(),
+            100,
+            "tax rate should clamp for order code {order_code:#04x}"
+        );
+
+        let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+        let result_text = decode_chunked_report(&results);
+        assert!(
+            result_text.contains("Order validation report")
+                || result_text.contains("Fleet readiness report"),
+            "RESULTS.DAT decoded text was: {:?}",
+            result_text
+        );
+
+        cleanup_dir(&target);
+    }
+}
+
+#[test]
 fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
     let target = unique_temp_dir("ec-cli-maint-rust-scout-abort");
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);

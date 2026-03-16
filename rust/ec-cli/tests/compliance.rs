@@ -55,9 +55,37 @@ fn core_validate_accepts_known_post_fixture_state() {
     assert!(stdout.contains("empty_auxiliary_state = true"));
     assert!(stdout.contains("setup_baseline = true"));
     assert!(stdout.contains("conquest_baseline = true"));
+    assert!(stdout.contains("player_inputs = true"));
     assert!(stdout.contains("player1_starbase_count = 0"));
     assert!(stdout.contains("player1_owned_base_record_count = 0"));
     assert!(stdout.contains("player1_ipbm_count = 0"));
+}
+
+#[test]
+fn core_validate_rejects_invalid_fleet_player_inputs() {
+    let target = unique_temp_dir("ec-cli-core-validate-player-inputs");
+    common::copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut data = CoreGameData::load(&target).unwrap();
+    let fleet = &mut data.fleets.records[0];
+    fleet.set_troop_transport_count(1);
+    fleet.set_army_count(3);
+    fleet.set_current_speed(fleet.max_speed().saturating_add(2));
+    fleet.set_destroyer_count(0);
+    fleet.set_cruiser_count(0);
+    fleet.set_battleship_count(0);
+    fleet.set_scout_count(1);
+    fleet.set_rules_of_engagement(6);
+    data.save(&target).unwrap();
+
+    let stderr = common::run_ec_cli_failure_in_dir(
+        &["core-validate", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(stderr.contains("FLEET[1] invalid player input"));
+    assert!(stderr.contains("LoadedArmiesExceedTransportCapacity"));
+
+    cleanup_dir(&target);
 }
 
 #[test]
