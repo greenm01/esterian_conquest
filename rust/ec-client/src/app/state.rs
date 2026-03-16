@@ -249,6 +249,8 @@ pub struct App {
     queued_mail: Vec<QueuedPlayerMail>,
     startup_splash_page: usize,
     startup_intro_page: usize,
+    startup_results_page: usize,
+    startup_messages_page: usize,
     first_time_intro_page: usize,
     first_time_status: Option<String>,
     first_time_input: String,
@@ -499,6 +501,8 @@ impl App {
             queued_mail,
             startup_splash_page: 0,
             startup_intro_page: 0,
+            startup_results_page: 0,
+            startup_messages_page: 0,
             first_time_intro_page: 0,
             first_time_status: None,
             first_time_input: String::new(),
@@ -529,6 +533,8 @@ impl App {
                 phase,
                 self.startup_splash_page,
                 self.startup_intro_page,
+                self.startup_results_page,
+                self.startup_messages_page,
             )?,
             ScreenId::FirstTimeMenu => self
                 .first_time_menu
@@ -1039,12 +1045,32 @@ impl App {
             self.startup_intro_page += 1;
             return;
         }
+        if self.current_screen == ScreenId::Startup(StartupPhase::Results)
+            && self.startup_results_page + 1 < self.startup.results_page_count()
+        {
+            self.startup_results_page += 1;
+            return;
+        }
+        if self.current_screen == ScreenId::Startup(StartupPhase::Messages)
+            && self.startup_messages_page + 1 < self.startup.messages_page_count()
+        {
+            self.startup_messages_page += 1;
+            return;
+        }
+        if self.current_screen != ScreenId::Startup(StartupPhase::Results) {
+            self.startup_results_page = 0;
+        }
+        if self.current_screen != ScreenId::Startup(StartupPhase::Messages) {
+            self.startup_messages_page = 0;
+        }
         let next = self.startup_sequence.advance();
         self.current_screen = self.startup_target_screen(next);
     }
 
     pub fn open_startup_intro(&mut self) {
         self.startup_intro_page = 0;
+        self.startup_results_page = 0;
+        self.startup_messages_page = 0;
         let next = self.startup_sequence.open_intro();
         self.current_screen = self.startup_target_screen(next);
     }
@@ -1221,9 +1247,9 @@ impl App {
                 self.current_screen = ScreenId::FirstTimeHomeworldName;
             }
             ScreenId::ColonyWorldName => {
-                self.first_time_status = None;
-                self.first_time_input.clear();
-                self.current_screen = ScreenId::MainMenu;
+                self.first_time_status =
+                    Some("You must name this newly colonized world before continuing.".to_string());
+                self.current_screen = ScreenId::ColonyWorldName;
             }
             ScreenId::ColonyWorldConfirm => {
                 self.first_time_input = self.colony_world_name.clone();

@@ -13,6 +13,8 @@ pub struct StartupScreen {
     reports: ReportsPreview,
 }
 
+const STARTUP_REVIEW_VISIBLE_LINES: usize = 12;
+
 impl StartupScreen {
     pub fn new(summary: StartupSummary, reports: ReportsPreview) -> Self {
         Self { summary, reports }
@@ -24,6 +26,8 @@ impl StartupScreen {
         phase: StartupPhase,
         splash_page: usize,
         intro_page: usize,
+        results_page: usize,
+        messages_page: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         match phase {
             StartupPhase::Splash => self.render_splash(frame, splash_page),
@@ -34,15 +38,25 @@ impl StartupScreen {
                 "PENDING RESULTS",
                 &self.reports.results_lines,
                 "Classic results pending flag is set, but no report lines are loaded.",
+                results_page,
             ),
             StartupPhase::Messages => self.render_report_lines(
                 frame,
                 "PENDING MESSAGES",
                 &self.reports.message_lines,
                 "Classic messages pending flag is set, but no message lines are loaded.",
+                messages_page,
             ),
             StartupPhase::Complete => Ok(new_playfield()),
         }
+    }
+
+    pub fn results_page_count(&self) -> usize {
+        review_page_count(&self.reports.results_lines)
+    }
+
+    pub fn messages_page_count(&self) -> usize {
+        review_page_count(&self.reports.message_lines)
     }
 
     pub fn handle_key(&self, phase: StartupPhase, key: KeyEvent) -> Action {
@@ -160,6 +174,7 @@ impl StartupScreen {
         title: &str,
         lines: &[String],
         empty_notice: &str,
+        page: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         let mut row = 0;
@@ -181,16 +196,18 @@ impl StartupScreen {
             buffer.write_text(row, 0, empty_notice, classic::body_style());
             row += 1;
         } else {
-            for line in lines.iter().take(12) {
+            let start = page.saturating_mul(STARTUP_REVIEW_VISIBLE_LINES);
+            let end = usize::min(start + STARTUP_REVIEW_VISIBLE_LINES, lines.len());
+            for line in &lines[start..end] {
                 buffer.write_text(row, 0, line, classic::body_style());
                 row += 1;
             }
-            if lines.len() > 12 {
+            if end < lines.len() {
                 row += 1;
                 buffer.write_text(
                     row,
                     0,
-                    &format!("... {} more line(s)", lines.len() - 12),
+                    &format!("... {} more line(s)", lines.len() - end),
                     classic::body_style(),
                 );
                 row += 1;
@@ -198,7 +215,12 @@ impl StartupScreen {
         }
 
         row += 1;
-        draw_plain_prompt(&mut buffer, row, "Slap a key.");
+        let prompt = if lines.is_empty() || (page + 1) >= review_page_count(lines) {
+            "Slap a key."
+        } else {
+            "Slap a key for more."
+        };
+        draw_plain_prompt(&mut buffer, row, prompt);
         Ok(buffer)
     }
 }
@@ -209,6 +231,10 @@ pub const GAME_VERSION: &str = "1.60";
 
 pub fn version_title() -> String {
     format!("Esterian Conquest Ver {GAME_VERSION}")
+}
+
+fn review_page_count(lines: &[String]) -> usize {
+    usize::max(1, lines.len().div_ceil(STARTUP_REVIEW_VISIBLE_LINES))
 }
 
 pub fn render_game_intro_page(

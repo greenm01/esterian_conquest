@@ -941,6 +941,67 @@ fn colony_world_naming_updates_planet_and_enters_main_menu() {
 }
 
 #[test]
+fn colony_world_naming_cannot_be_escaped_to_main_menu() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize;
+    state
+        .game_data
+        .planets
+        .records
+        .iter_mut()
+        .enumerate()
+        .find(|(idx, planet)| *idx + 1 != homeworld_index && planet.owner_empire_slot_raw() != 1)
+        .expect("need a non-homeworld planet for colony naming test")
+        .1
+        .set_owner_empire_slot_raw(1);
+    state
+        .game_data
+        .planets
+        .records
+        .iter_mut()
+        .enumerate()
+        .find(|(idx, planet)| *idx + 1 != homeworld_index && planet.owner_empire_slot_raw() == 1)
+        .expect("need owned unnamed colony")
+        .1
+        .set_planet_name("Not Named Yet");
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::ColonyWorldName {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(app.current_screen(), ScreenId::ColonyWorldName);
+
+    assert_eq!(
+        apply_action(&mut app, Action::RejectFirstTimePrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::ColonyWorldName);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("colony world naming screen should render");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("must name this newly colonized world before continuing"))
+    );
+}
+
+#[test]
 fn first_time_join_routes_from_homeworld_naming_to_colony_naming_when_needed() {
     let fixture_dir = temp_joined_needs_homeworld_copy();
     let mut state = latest_runtime_state(&fixture_dir);
@@ -974,7 +1035,10 @@ fn first_time_join_routes_from_homeworld_naming_to_colony_naming_when_needed() {
         }
         app.advance_startup();
     }
-    assert_eq!(app.current_screen(), ScreenId::FirstTimePreloadedRenamePrompt);
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::FirstTimePreloadedRenamePrompt
+    );
     assert_eq!(
         apply_action(&mut app, Action::RejectFirstTimePrompt),
         AppOutcome::Continue
@@ -1050,7 +1114,11 @@ fn returning_player_with_multiple_unnamed_colonies_is_prompted_for_each_in_turn(
             break;
         }
     }
-    assert_eq!(renamed_targets.len(), 2, "need two colony worlds for sequencing test");
+    assert_eq!(
+        renamed_targets.len(),
+        2,
+        "need two colony worlds for sequencing test"
+    );
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
@@ -2498,6 +2566,90 @@ fn startup_reviews_results_then_messages_then_enters_main_menu() {
     assert!(saw_results);
     assert!(saw_messages);
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
+}
+
+#[test]
+fn startup_results_paginate_before_advancing_to_messages() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.results_bytes = (1..=13)
+        .map(|idx| format!("Report line {idx:02} is long enough"))
+        .collect::<Vec<_>>()
+        .join("\n")
+        .into_bytes();
+    state.messages_bytes = b"Message line 01 is long enough".to_vec();
+    state.game_data.player.records[0].raw[0x30] = 1;
+    state.game_data.player.records[0].raw[0x34] = 1;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::Startup(StartupPhase::Results) {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Results)
+    );
+
+    let mut first_page = CaptureTerminal::new();
+    app.render(&mut first_page)
+        .expect("first startup results page should render");
+    assert!(
+        first_page
+            .lines
+            .iter()
+            .any(|line| line.contains("Report line 01"))
+    );
+    assert!(
+        !first_page
+            .lines
+            .iter()
+            .any(|line| line.contains("Report line 13"))
+    );
+    assert!(
+        first_page
+            .lines
+            .iter()
+            .any(|line| line.contains("Slap a key for more."))
+    );
+
+    app.advance_startup();
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Results)
+    );
+
+    let mut second_page = CaptureTerminal::new();
+    app.render(&mut second_page)
+        .expect("second startup results page should render");
+    assert!(
+        second_page
+            .lines
+            .iter()
+            .any(|line| line.contains("Report line 13"))
+    );
+    assert!(
+        second_page
+            .lines
+            .iter()
+            .any(|line| line.contains("Slap a key."))
+    );
+
+    app.advance_startup();
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Messages)
+    );
 }
 
 #[test]
