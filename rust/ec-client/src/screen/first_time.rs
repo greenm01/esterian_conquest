@@ -26,7 +26,7 @@ const FIRST_TIME_ROW_2: [MenuEntry<'static>; 3] = [
 ];
 
 const HELP_LINES: [&str; 6] = [
-    "<A> - ANSI color stays on in the Rust client; this century has standards.",
+    "<A> - ANSI stays on. The stars look better in color.",
     "<H> - describe First Time Menu commands",
     "<J> - join the game and control an unowned empire",
     "<L> - list all empires in the order you specify",

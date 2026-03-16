@@ -16,7 +16,8 @@ use crate::screen::{
     FirstTimeIntroScreen, FirstTimeMenuScreen, FleetDetachMode, FleetDetachScreen, FleetEtaMode,
     FleetEtaScreen, FleetHelpScreen, FleetListMode, FleetListScreen, FleetMenuScreen,
     FleetReviewScreen, FleetRoeScreen, FleetRow, GeneralHelpScreen, GeneralMenuScreen,
-    MainMenuScreen, MessageComposeScreen, PartialStarmapScreen, PlanetAutoCommissionScreen,
+    MainHelpScreen, MainMenuScreen, MessageComposeScreen, PartialStarmapScreen,
+    PlanetAutoCommissionScreen,
     PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildOrder,
     PlanetBuildScreen, PlanetCommissionRow, PlanetCommissionScreen, PlanetCommissionView,
     PlanetDatabaseRow, PlanetDatabaseScreen, PlanetHelpScreen, PlanetInfoScreen, PlanetListMode,
@@ -52,6 +53,7 @@ pub struct App {
     first_time_empires: FirstTimeEmpiresScreen,
     first_time_intro: FirstTimeIntroScreen,
     main_menu: MainMenuScreen,
+    main_help: MainHelpScreen,
     general_menu: GeneralMenuScreen,
     general_help: GeneralHelpScreen,
     fleet_help: FleetHelpScreen,
@@ -245,6 +247,7 @@ impl App {
             first_time_empires: FirstTimeEmpiresScreen::new(),
             first_time_intro: FirstTimeIntroScreen::new(),
             main_menu: MainMenuScreen::new(),
+            main_help: MainHelpScreen::new(),
             general_menu: GeneralMenuScreen::new(),
             general_help: GeneralHelpScreen::new(),
             fleet_help: FleetHelpScreen::new(),
@@ -452,6 +455,7 @@ impl App {
             ScreenId::MainMenu => self
                 .main_menu
                 .render_with_notice(self.command_menu_notice.as_deref())?,
+            ScreenId::MainHelp => self.main_help.render(&frame)?,
             ScreenId::GeneralMenu => self
                 .general_menu
                 .render_with_notice(&frame, self.command_menu_notice.as_deref())?,
@@ -941,6 +945,18 @@ impl App {
     pub fn open_main_menu(&mut self) {
         self.clear_command_menu_notice();
         self.current_screen = ScreenId::MainMenu;
+    }
+
+    pub fn open_main_help(&mut self) {
+        self.clear_command_menu_notice();
+        self.current_screen = ScreenId::MainHelp;
+    }
+
+    pub fn show_main_menu_ansi_notice(&mut self) {
+        self.show_command_menu_notice(
+            CommandMenu::Main,
+            "ANSI stays on. The stars look better in color.",
+        );
     }
 
     pub fn open_general_menu(&mut self) {
@@ -2729,6 +2745,7 @@ impl App {
                 _ => Action::Noop,
             },
             ScreenId::MainMenu => self.main_menu.handle_key(key),
+            ScreenId::MainHelp => self.main_help.handle_key(key),
             ScreenId::GeneralMenu => self.general_menu.handle_key(key),
             ScreenId::GeneralHelp => self.general_help.handle_key(key),
             ScreenId::FleetHelp => self.fleet_help.handle_key(key),
@@ -2951,7 +2968,10 @@ impl App {
 
     fn origin_command_menu(&self) -> CommandMenu {
         match self.current_screen {
-            ScreenId::MainMenu | ScreenId::PlanetDatabaseList | ScreenId::PlanetDatabaseDetail => {
+            ScreenId::MainMenu
+            | ScreenId::MainHelp
+            | ScreenId::PlanetDatabaseList
+            | ScreenId::PlanetDatabaseDetail => {
                 CommandMenu::Main
             }
             ScreenId::FleetHelp

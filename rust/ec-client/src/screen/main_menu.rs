@@ -24,8 +24,8 @@ impl MainMenuScreen {
             1,
             &[
                 MenuEntry::new(2, "H", "elp with commands"),
-                MenuEntry::new(24, "G", "ENERAL COMMAND MENU..."),
-                MenuEntry::new(53, "B", "rief Empire Report"),
+                MenuEntry::new(24, "A", "nsi color ON/OFF"),
+                MenuEntry::new(51, "T", "otal Planet Database"),
             ],
         );
         draw_menu_row(
@@ -33,8 +33,8 @@ impl MainMenuScreen {
             2,
             &[
                 MenuEntry::new(2, "Q", "uit back to BBS"),
-                MenuEntry::new(24, "P", "LANET COMMAND MENU..."),
-                MenuEntry::new(53, "I", "nfo about a Planet"),
+                MenuEntry::new(24, "G", "ENERAL COMMAND MENU..."),
+                MenuEntry::new(51, "I", "nfo about a Planet"),
             ],
         );
         draw_menu_row(
@@ -42,8 +42,8 @@ impl MainMenuScreen {
             3,
             &[
                 MenuEntry::new(2, "X", "pert mode ON/OFF"),
-                MenuEntry::new(24, "F", "LEET COMMAND MENU..."),
-                MenuEntry::new(53, "D", "etailed Empire Report"),
+                MenuEntry::new(24, "P", "LANET COMMAND MENU..."),
+                MenuEntry::new(51, "B", "rief Empire Report"),
             ],
         );
         draw_menu_row(
@@ -51,13 +51,14 @@ impl MainMenuScreen {
             4,
             &[
                 MenuEntry::new(2, "V", "iew Partial Map"),
-                MenuEntry::new(24, "T", "otal Planet Database"),
+                MenuEntry::new(24, "F", "LEET COMMAND MENU..."),
+                MenuEntry::new(51, "D", "etailed Empire Report"),
             ],
         );
         if let Some(notice) = notice {
             draw_status_line(&mut buffer, 7, "Notice: ", notice);
         }
-        draw_command_prompt(&mut buffer, 5, "MAIN COMMAND", "H Q X V G P F T I B D");
+        draw_command_prompt(&mut buffer, 5, "MAIN COMMAND", "H,Q,X,V,A,G,P,F,T,I,B,D");
         Ok(buffer)
     }
 }
@@ -72,6 +73,8 @@ impl Screen for MainMenuScreen {
 
     fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
+            KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenMainHelp,
+            KeyCode::Char('a') | KeyCode::Char('A') => Action::ShowAnsiAlwaysOnMainMenu,
             KeyCode::Char('b') | KeyCode::Char('B') => Action::OpenEmpireStatus,
             KeyCode::Char('d') | KeyCode::Char('D') => Action::OpenEmpireProfile,
             KeyCode::Char('f') | KeyCode::Char('F') => Action::OpenFleetMenu,

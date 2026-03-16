@@ -2,8 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    CMD_COL_1, CMD_COL_2, CMD_COL_3, MenuEntry, draw_command_center, draw_status_line,
-    new_playfield,
+    CMD_COL_1, CMD_COL_2, MenuEntry, draw_command_center, draw_status_line, new_playfield,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 
@@ -11,30 +10,30 @@ pub struct GeneralMenuScreen;
 
 const TOP_ROW: [MenuEntry<'static>; 2] = [
     MenuEntry::new(CMD_COL_2, "I", "nfo about a Planet"),
-    MenuEntry::new(CMD_COL_3, "C", "ommunicate (send message)"),
+    MenuEntry::new(51, "C", "ommunicate (send message)"),
 ];
 
 const ROW_1_RIGHT: [MenuEntry<'static>; 2] = [
     MenuEntry::new(CMD_COL_2, "A", ""),
-    MenuEntry::new(CMD_COL_3, "R", "eview messages/results"),
+    MenuEntry::new(51, "R", "eview messages/results"),
 ];
 
 const ROW_2: [MenuEntry<'static>; 3] = [
     MenuEntry::new(CMD_COL_1, "Q", "uit to main menu"),
     MenuEntry::new(CMD_COL_2, "S", "tatus, your"),
-    MenuEntry::new(CMD_COL_3, "D", "elete ALL messages/results"),
+    MenuEntry::new(51, "D", "elete ALL messages/results"),
 ];
 
 const ROW_3: [MenuEntry<'static>; 3] = [
     MenuEntry::new(CMD_COL_1, "X", "pert mode ON/OFF"),
     MenuEntry::new(CMD_COL_2, "P", "rofile of your empire"),
-    MenuEntry::new(CMD_COL_3, "O", "ther empires (rankings)"),
+    MenuEntry::new(51, "O", "ther empires (rankings)"),
 ];
 
 const ROW_4: [MenuEntry<'static>; 3] = [
     MenuEntry::new(CMD_COL_1, "V", "iew Partial Starmap"),
     MenuEntry::new(CMD_COL_2, "M", "ap of the galaxy"),
-    MenuEntry::new(CMD_COL_3, "E", "nemies, declare or list"),
+    MenuEntry::new(51, "E", "nemies, declare or list"),
 ];
 
 impl GeneralMenuScreen {
@@ -54,7 +53,7 @@ impl GeneralMenuScreen {
             &TOP_ROW,
             &[&autopilot_row(frame), &ROW_2, &ROW_3, &ROW_4],
             "GENERAL COMMAND",
-            "H Q X V I A S P M C R D O E",
+            "H,Q,X,V,I,A,S,P,M,C,R,D,O,E",
         );
         if let Some(notice) = notice {
             draw_status_line(&mut buffer, 16, "Notice: ", notice);
@@ -97,18 +96,10 @@ impl Screen for GeneralMenuScreen {
     }
 }
 
-fn autopilot_row(frame: &ScreenFrame<'_>) -> [MenuEntry<'static>; 3] {
-    let autopilot_label = if frame.game_data.player.records[frame.player.record_index_1_based - 1]
-        .autopilot_flag()
-        != 0
-    {
-        "utopilot OFF"
-    } else {
-        "utopilot ON"
-    };
+fn autopilot_row(_frame: &ScreenFrame<'_>) -> [MenuEntry<'static>; 3] {
     [
         MenuEntry::new(CMD_COL_1, "H", "elp with commands"),
-        MenuEntry::new(CMD_COL_2, "A", autopilot_label),
+        MenuEntry::new(CMD_COL_2, "A", "utopilot ON/OFF"),
         ROW_1_RIGHT[1],
     ]
 }

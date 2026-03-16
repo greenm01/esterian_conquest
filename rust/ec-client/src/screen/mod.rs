@@ -10,6 +10,7 @@ mod fleet_help;
 mod general_help;
 mod general_menu;
 mod layout;
+mod main_help;
 mod main_menu;
 mod message_compose;
 mod partial_starmap;
@@ -52,6 +53,7 @@ pub use fleet_help::FleetHelpScreen;
 pub use general_help::GeneralHelpScreen;
 pub use general_menu::GeneralMenuScreen;
 pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
+pub use main_help::MainHelpScreen;
 pub use main_menu::MainMenuScreen;
 pub use message_compose::MessageComposeScreen;
 pub(crate) use message_compose::{
@@ -111,6 +113,7 @@ pub enum ScreenId {
     FirstTimeHomeworldName,
     FirstTimeHomeworldConfirm,
     MainMenu,
+    MainHelp,
     GeneralMenu,
     GeneralHelp,
     FleetHelp,

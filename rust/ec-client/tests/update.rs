@@ -1086,6 +1086,140 @@ fn fleet_menu_matches_verified_v15_command_layout() {
 }
 
 #[test]
+fn main_menu_matches_verified_v15_command_layout() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("main menu should render");
+    assert_eq!(terminal.line(0).trim_end(), "MAIN MENU:");
+    assert_eq!(
+        terminal.line(1).trim_end(),
+        "  H>elp with commands   A>nsi color ON/OFF         T>otal Planet Database"
+    );
+    assert_eq!(
+        terminal.line(2).trim_end(),
+        "  Q>uit back to BBS     G>ENERAL COMMAND MENU...   I>nfo about a Planet"
+    );
+    assert_eq!(
+        terminal.line(3).trim_end(),
+        "  X>pert mode ON/OFF    P>LANET COMMAND MENU...    B>rief Empire Report"
+    );
+    assert_eq!(
+        terminal.line(4).trim_end(),
+        "  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report"
+    );
+    assert_eq!(
+        terminal.line(19).trim_end(),
+        "MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D->"
+    );
+}
+
+#[test]
+fn general_menu_matches_verified_v15_command_layout() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenGeneralMenu),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("general menu should render");
+    assert_eq!(
+        terminal.line(0).trim_end(),
+        "GENERAL COMMAND CENTER:   I>nfo about a Planet     C>ommunicate (send message)"
+    );
+    assert_eq!(
+        terminal.line(1).trim_end(),
+        "  H>elp with commands     A>utopilot ON/OFF        R>eview messages/results"
+    );
+    assert_eq!(
+        terminal.line(2).trim_end(),
+        "  Q>uit to main menu      S>tatus, your            D>elete ALL messages/results"
+    );
+    assert_eq!(
+        terminal.line(3).trim_end(),
+        "  X>pert mode ON/OFF      P>rofile of your empire  O>ther empires (rankings)"
+    );
+    assert_eq!(
+        terminal.line(4).trim_end(),
+        "  V>iew Partial Starmap   M>ap of the galaxy       E>nemies, declare or list"
+    );
+    assert_eq!(
+        terminal.line(19).trim_end(),
+        "GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E->"
+    );
+}
+
+#[test]
+fn main_help_includes_the_modern_ansi_always_on_note() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(app.handle_key(key(KeyCode::Char('h'))), Action::OpenMainHelp);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenMainHelp),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::MainHelp);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("main help should render");
+    assert_eq!(
+        terminal.line(3).trim_end(),
+        "<A> - ANSI stays on. The stars look better in color."
+    );
+}
+
+#[test]
+fn first_time_and_main_help_share_the_same_ansi_always_on_text() {
+    let fixture_dir = temp_first_time_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_first_time_menu(&mut app);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFirstTimeHelp),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeHelp);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("first-time help should render");
+    assert_eq!(
+        terminal.line(3).trim_end(),
+        "<A> - ANSI stays on. The stars look better in color."
+    );
+}
+
+#[test]
 fn planet_menu_matches_verified_v15_command_layout() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {

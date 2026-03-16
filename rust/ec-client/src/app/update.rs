@@ -41,6 +41,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.show_first_time_ansi_notice();
             AppOutcome::Continue
         }
+        Action::ShowAnsiAlwaysOnMainMenu => {
+            app.show_main_menu_ansi_notice();
+            AppOutcome::Continue
+        }
         Action::AppendFirstTimeInputChar(ch) => {
             app.append_first_time_input_char(ch);
             AppOutcome::Continue
@@ -63,6 +67,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         }
         Action::OpenMainMenu => {
             app.open_main_menu();
+            AppOutcome::Continue
+        }
+        Action::OpenMainHelp => {
+            app.open_main_help();
             AppOutcome::Continue
         }
         Action::OpenGeneralMenu => {
