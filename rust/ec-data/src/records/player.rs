@@ -91,7 +91,12 @@ impl PlayerRecord {
     }
 
     pub fn set_controlled_empire_name_raw(&mut self, value: &str) {
-        self.set_legacy_status_name_raw(value);
+        let bytes = value.as_bytes();
+        let len = bytes.len().min(self.empire_name_bytes().len());
+        self.raw[26] = self.empire_name_bytes().len() as u8;
+        self.raw[27] = len as u8;
+        self.raw[0x1C..=0x2E].fill(0);
+        self.raw[0x1C..0x1C + len].copy_from_slice(&bytes[..len]);
     }
 
     pub fn set_legacy_status_name_raw(&mut self, value: &str) {

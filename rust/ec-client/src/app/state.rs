@@ -254,6 +254,7 @@ pub struct App {
     first_time_input: String,
     first_time_empire_name: String,
     first_time_homeworld_name: String,
+    first_time_rename_preloaded_empire: bool,
     command_menu_notice: Option<String>,
 }
 
@@ -501,6 +502,7 @@ impl App {
             first_time_input: String::new(),
             first_time_empire_name: String::new(),
             first_time_homeworld_name: String::new(),
+            first_time_rename_preloaded_empire: false,
             command_menu_notice: None,
         })
     }
@@ -534,12 +536,20 @@ impl App {
             ScreenId::FirstTimeIntro => self
                 .first_time_intro
                 .render_page(self.first_time_intro_page)?,
+            ScreenId::FirstTimePreloadedRenamePrompt => {
+                crate::screen::render_preloaded_first_login_rename_prompt(&self.player.empire_name)?
+            }
             ScreenId::FirstTimeJoinEmpireName => render_first_time_join_name(
+                self.first_time_rename_preloaded_empire,
+                &self.player.empire_name,
                 &self.first_time_input,
                 self.first_time_status.as_deref(),
             )?,
             ScreenId::FirstTimeJoinEmpireConfirm => {
-                render_first_time_join_name_confirm(&self.first_time_empire_name)?
+                render_first_time_join_name_confirm(
+                    self.first_time_rename_preloaded_empire,
+                    &self.first_time_empire_name,
+                )?
             }
             ScreenId::FirstTimeJoinSummary => render_first_time_join_summary(
                 &self.first_time_empire_name,
@@ -1048,6 +1058,7 @@ impl App {
     pub fn open_first_time_join_name(&mut self) {
         self.first_time_status = None;
         self.first_time_input.clear();
+        self.first_time_rename_preloaded_empire = false;
         self.current_screen = ScreenId::FirstTimeJoinEmpireName;
     }
 
@@ -1114,8 +1125,20 @@ impl App {
 
     pub fn accept_first_time_prompt(&mut self) {
         match self.current_screen {
+            ScreenId::FirstTimePreloadedRenamePrompt => {
+                self.first_time_status = None;
+                self.first_time_input = self.player.empire_name.clone();
+                self.first_time_rename_preloaded_empire = true;
+                self.current_screen = ScreenId::FirstTimeJoinEmpireName;
+            }
             ScreenId::FirstTimeJoinEmpireConfirm => {
-                if self.complete_first_time_join().is_ok() {
+                if self.first_time_rename_preloaded_empire {
+                    if self.complete_preloaded_empire_rename().is_ok() {
+                        self.first_time_rename_preloaded_empire = false;
+                        self.current_screen =
+                            self.pending_naming_screen().unwrap_or(ScreenId::MainMenu);
+                    }
+                } else if self.complete_first_time_join().is_ok() {
                     self.current_screen = ScreenId::FirstTimeJoinSummary;
                 }
             }
@@ -1138,6 +1161,17 @@ impl App {
 
     pub fn reject_first_time_prompt(&mut self) {
         match self.current_screen {
+            ScreenId::FirstTimePreloadedRenamePrompt => {
+                self.first_time_status = None;
+                self.first_time_input.clear();
+                self.first_time_rename_preloaded_empire = false;
+                self.current_screen = self.pending_naming_screen().unwrap_or(ScreenId::MainMenu);
+            }
+            ScreenId::FirstTimeJoinEmpireName if self.first_time_rename_preloaded_empire => {
+                self.first_time_status = None;
+                self.first_time_input.clear();
+                self.current_screen = ScreenId::FirstTimePreloadedRenamePrompt;
+            }
             ScreenId::FirstTimeJoinEmpireConfirm => {
                 self.first_time_input = self.first_time_empire_name.clone();
                 self.current_screen = ScreenId::FirstTimeJoinEmpireName;
@@ -4339,6 +4373,15 @@ impl App {
             ScreenId::FirstTimeMenu => self.first_time_menu.handle_key(key),
             ScreenId::FirstTimeHelp => self.first_time_help.handle_key(key),
             ScreenId::FirstTimeEmpires => self.first_time_empires.handle_key(key),
+            ScreenId::FirstTimePreloadedRenamePrompt => match key.code {
+                crossterm::event::KeyCode::Char('y')
+                | crossterm::event::KeyCode::Char('Y') => Action::AcceptFirstTimePrompt,
+                crossterm::event::KeyCode::Enter
+                | crossterm::event::KeyCode::Char('n')
+                | crossterm::event::KeyCode::Char('N')
+                | crossterm::event::KeyCode::Esc => Action::RejectFirstTimePrompt,
+                _ => Action::Noop,
+            },
             ScreenId::FirstTimeIntro
                 if self.first_time_intro_page + 1 < FIRST_TIME_INTRO_PAGE_COUNT =>
             {
@@ -4350,19 +4393,39 @@ impl App {
                     crossterm::event::KeyCode::Char(ch) => Action::AppendFirstTimeInputChar(ch),
                     crossterm::event::KeyCode::Backspace => Action::BackspaceFirstTimeInput,
                     crossterm::event::KeyCode::Enter => Action::SubmitFirstTimeInput,
-                    crossterm::event::KeyCode::Esc => Action::OpenFirstTimeMenu,
+                    crossterm::event::KeyCode::Esc => {
+                        if self.first_time_rename_preloaded_empire {
+                            Action::RejectFirstTimePrompt
+                        } else {
+                            Action::OpenFirstTimeMenu
+                        }
+                    }
                     _ => Action::Noop,
                 }
             }
-            ScreenId::FirstTimeJoinEmpireConfirm => match key.code {
-                crossterm::event::KeyCode::Enter
-                | crossterm::event::KeyCode::Char('y')
-                | crossterm::event::KeyCode::Char('Y') => Action::AcceptFirstTimePrompt,
-                crossterm::event::KeyCode::Char('n')
-                | crossterm::event::KeyCode::Char('N')
-                | crossterm::event::KeyCode::Esc => Action::RejectFirstTimePrompt,
-                _ => Action::Noop,
-            },
+            ScreenId::FirstTimeJoinEmpireConfirm => {
+                if self.first_time_rename_preloaded_empire {
+                    match key.code {
+                        crossterm::event::KeyCode::Char('y')
+                        | crossterm::event::KeyCode::Char('Y') => Action::AcceptFirstTimePrompt,
+                        crossterm::event::KeyCode::Enter
+                        | crossterm::event::KeyCode::Char('n')
+                        | crossterm::event::KeyCode::Char('N')
+                        | crossterm::event::KeyCode::Esc => Action::RejectFirstTimePrompt,
+                        _ => Action::Noop,
+                    }
+                } else {
+                    match key.code {
+                        crossterm::event::KeyCode::Enter
+                        | crossterm::event::KeyCode::Char('y')
+                        | crossterm::event::KeyCode::Char('Y') => Action::AcceptFirstTimePrompt,
+                        crossterm::event::KeyCode::Char('n')
+                        | crossterm::event::KeyCode::Char('N')
+                        | crossterm::event::KeyCode::Esc => Action::RejectFirstTimePrompt,
+                        _ => Action::Noop,
+                    }
+                }
+            }
             ScreenId::FirstTimeJoinSummary | ScreenId::FirstTimeJoinNoPending => match key.code {
                 crossterm::event::KeyCode::Enter => Action::AcceptFirstTimePrompt,
                 _ => Action::Noop,
@@ -4692,6 +4755,7 @@ impl App {
             | ScreenId::FirstTimeHelp
             | ScreenId::FirstTimeEmpires
             | ScreenId::FirstTimeIntro
+            | ScreenId::FirstTimePreloadedRenamePrompt
             | ScreenId::FirstTimeJoinEmpireName
             | ScreenId::FirstTimeJoinEmpireConfirm
             | ScreenId::FirstTimeJoinSummary
@@ -7779,6 +7843,19 @@ impl App {
         Ok(())
     }
 
+    fn complete_preloaded_empire_rename(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let player = self
+            .game_data
+            .player
+            .records
+            .get_mut(self.player.record_index_1_based - 1)
+            .ok_or("player record missing for pre-loaded rename")?;
+        player.set_controlled_empire_name_raw(&self.first_time_empire_name);
+        self.save_game_data()?;
+        self.refresh_player_context()?;
+        Ok(())
+    }
+
     fn refresh_player_context(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.player =
             PlayerContext::from_game_data(&self.game_data, self.player.record_index_1_based)?;
@@ -7799,8 +7876,10 @@ impl App {
             StartupPhase::Complete => {
                 match self.player.classic_login_state {
                     crate::model::ClassicLoginState::FirstTimeMenu => ScreenId::FirstTimeMenu,
-                    crate::model::ClassicLoginState::MatchedPreloadedFirstLogin
-                    | crate::model::ClassicLoginState::ReturningPlayer => {
+                    crate::model::ClassicLoginState::MatchedPreloadedFirstLogin => {
+                        ScreenId::FirstTimePreloadedRenamePrompt
+                    }
+                    crate::model::ClassicLoginState::ReturningPlayer => {
                         self.pending_naming_screen().unwrap_or(ScreenId::MainMenu)
                     }
                 }

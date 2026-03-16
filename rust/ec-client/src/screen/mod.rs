@@ -44,6 +44,7 @@ pub use first_time::{
     render_first_time_homeworld_confirm, render_first_time_homeworld_name,
     render_first_time_join_name, render_first_time_join_name_confirm,
     render_first_time_join_no_pending, render_first_time_join_summary,
+    render_preloaded_first_login_rename_prompt,
 };
 pub(crate) use fleet::FLEET_VISIBLE_ROWS;
 pub use fleet::{
@@ -115,6 +116,7 @@ pub enum ScreenId {
     FirstTimeHelp,
     FirstTimeEmpires,
     FirstTimeIntro,
+    FirstTimePreloadedRenamePrompt,
     FirstTimeJoinEmpireName,
     FirstTimeJoinEmpireConfirm,
     FirstTimeJoinSummary,

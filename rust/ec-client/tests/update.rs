@@ -630,16 +630,16 @@ fn joined_player_with_unnamed_homeworld_is_routed_to_homeworld_naming() {
     );
 
     for _ in 0..16 {
-        if app.current_screen() == ScreenId::FirstTimeHomeworldName {
+        if app.current_screen() == ScreenId::FirstTimePreloadedRenamePrompt {
             break;
         }
         app.advance_startup();
     }
-    assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
+    assert_eq!(app.current_screen(), ScreenId::FirstTimePreloadedRenamePrompt);
 }
 
 #[test]
-fn preloaded_first_login_routes_through_login_summary_before_homeworld_naming() {
+fn preloaded_first_login_routes_through_login_summary_before_rename_prompt() {
     let fixture_dir = temp_joined_needs_homeworld_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir.clone(),
@@ -663,7 +663,7 @@ fn preloaded_first_login_routes_through_login_summary_before_homeworld_naming() 
                 saw_preloaded_summary_text = true;
             }
         }
-        if app.current_screen() == ScreenId::FirstTimeHomeworldName {
+        if app.current_screen() == ScreenId::FirstTimePreloadedRenamePrompt {
             break;
         }
         app.advance_startup();
@@ -671,36 +671,20 @@ fn preloaded_first_login_routes_through_login_summary_before_homeworld_naming() 
 
     assert!(saw_login_summary);
     assert!(saw_preloaded_summary_text);
-    assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
+    assert_eq!(app.current_screen(), ScreenId::FirstTimePreloadedRenamePrompt);
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
-        .expect("homeworld naming should render");
+        .expect("rename prompt should render");
     assert!(
         terminal
-            .line(5)
-            .contains("This pre-loaded empire still needs its first homeworld name.")
+            .line(2)
+            .contains("You are a pre-loaded player and this is your first time on.")
     );
-
-    for ch in "Codex Prime".chars() {
-        assert_eq!(
-            apply_action(&mut app, Action::AppendFirstTimeInputChar(ch)),
-            AppOutcome::Continue
-        );
-    }
-    assert_eq!(
-        apply_action(&mut app, Action::SubmitFirstTimeInput),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldConfirm);
-
-    let mut confirm_terminal = CaptureTerminal::new();
-    app.render(&mut confirm_terminal)
-        .expect("homeworld confirm should render");
     assert!(
-        confirm_terminal
-            .line(5)
-            .contains("This pre-loaded empire still needs its first homeworld name.")
+        terminal
+            .line(19)
+            .contains("Would you like to rename your empire? (This is your only chance.)")
     );
 }
 
@@ -716,11 +700,16 @@ fn preloaded_first_login_becomes_returning_player_after_homeworld_naming() {
     .expect("app should load");
 
     for _ in 0..16 {
-        if app.current_screen() == ScreenId::FirstTimeHomeworldName {
+        if app.current_screen() == ScreenId::FirstTimePreloadedRenamePrompt {
             break;
         }
         app.advance_startup();
     }
+    assert_eq!(app.current_screen(), ScreenId::FirstTimePreloadedRenamePrompt);
+    assert_eq!(
+        apply_action(&mut app, Action::RejectFirstTimePrompt),
+        AppOutcome::Continue
+    );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
 
     for ch in "Codex Prime".chars() {
@@ -752,6 +741,70 @@ fn preloaded_first_login_becomes_returning_player_after_homeworld_naming() {
     assert_eq!(
         reloaded.current_screen(),
         ScreenId::Startup(StartupPhase::Splash)
+    );
+}
+
+#[test]
+fn preloaded_first_login_can_rename_empire_before_homeworld_naming() {
+    let fixture_dir = temp_joined_needs_homeworld_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::FirstTimePreloadedRenamePrompt {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(app.current_screen(), ScreenId::FirstTimePreloadedRenamePrompt);
+
+    assert_eq!(
+        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
+
+    let mut rename_terminal = CaptureTerminal::new();
+    app.render(&mut rename_terminal)
+        .expect("rename input should render");
+    assert!(
+        rename_terminal
+            .line(2)
+            .contains("You are a pre-loaded player and this is your first time on.")
+    );
+
+    for _ in 0..24 {
+        assert_eq!(
+            apply_action(&mut app, Action::BackspaceFirstTimeInput),
+            AppOutcome::Continue
+        );
+    }
+    for ch in "Codex Dominion".chars() {
+        assert_eq!(
+            apply_action(&mut app, Action::AppendFirstTimeInputChar(ch)),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFirstTimeInput),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireConfirm);
+    assert_eq!(
+        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
+
+    let runtime = latest_runtime_state(&fixture_dir);
+    assert_eq!(
+        runtime.game_data.player.records[0].controlled_empire_name_summary(),
+        "Codex Dominion"
     );
 }
 

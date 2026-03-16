@@ -88,6 +88,25 @@ fn player_fleet_chain_head_accessor_round_trips() {
 }
 
 #[test]
+fn controlled_empire_name_setter_does_not_clobber_later_player_fields() {
+    let mut record = PlayerRecord::new_zeroed();
+    record.set_homeworld_planet_index_1_based_raw(7);
+    record.set_tax_rate_raw(50);
+    record.set_ipbm_count_raw(3);
+    record.raw[0x30] = 1;
+    record.raw[0x34] = 1;
+
+    record.set_controlled_empire_name_raw("Codex Dominion");
+
+    assert_eq!(record.controlled_empire_name_summary(), "Codex Dominion");
+    assert_eq!(record.homeworld_planet_index_1_based_raw(), 7);
+    assert_eq!(record.tax_rate(), 50);
+    assert_eq!(record.ipbm_count_raw(), 3);
+    assert_eq!(record.raw[0x30], 1);
+    assert_eq!(record.raw[0x34], 1);
+}
+
+#[test]
 fn commission_ship_from_stardock_appends_fleet_and_clears_slot() {
     let mut player = PlayerRecord::new_zeroed();
     player.set_owner_empire_raw(1);

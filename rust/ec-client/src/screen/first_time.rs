@@ -104,55 +104,140 @@ impl Screen for FirstTimeHelpScreen {
 }
 
 pub fn render_first_time_join_name(
+    rename_mode: bool,
+    current_empire_name: &str,
     input: &str,
     status: Option<&str>,
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
-    draw_title_bar(&mut buffer, 0, "FIRST TIME JOIN:");
-    crate::screen::layout::draw_menu_row(&mut buffer, 1, &FIRST_TIME_ROW_1);
-    crate::screen::layout::draw_menu_row(&mut buffer, 2, &FIRST_TIME_ROW_2);
-    buffer.write_text(
-        4,
-        0,
-        "Enter the name of your empire (up to 20 characters).",
-        classic::body_style(),
-    );
-    buffer.write_text(
-        5,
-        0,
-        "Press Esc to back out to the First Time Menu.",
-        classic::body_style(),
-    );
-    if let Some(status) = status {
-        draw_status_line(&mut buffer, 7, "Notice: ", status);
+    if rename_mode {
+        draw_title_bar(&mut buffer, 0, "PRE-LOADED PLAYER:");
+        buffer.write_text(
+            2,
+            0,
+            "You are a pre-loaded player and this is your first time on.",
+            classic::body_style(),
+        );
+        buffer.write_text(
+            3,
+            0,
+            &format!("Your empire has been pre-named as \"{current_empire_name}\"."),
+            classic::body_style(),
+        );
+        buffer.write_text(
+            5,
+            0,
+            "Enter a new empire name (up to 20 characters).",
+            classic::body_style(),
+        );
+        buffer.write_text(
+            6,
+            0,
+            "Press Esc to keep the current pre-loaded empire name.",
+            classic::body_style(),
+        );
+    } else {
+        draw_title_bar(&mut buffer, 0, "FIRST TIME JOIN:");
+        crate::screen::layout::draw_menu_row(&mut buffer, 1, &FIRST_TIME_ROW_1);
+        crate::screen::layout::draw_menu_row(&mut buffer, 2, &FIRST_TIME_ROW_2);
+        buffer.write_text(
+            4,
+            0,
+            "Enter the name of your empire (up to 20 characters).",
+            classic::body_style(),
+        );
+        buffer.write_text(
+            5,
+            0,
+            "Press Esc to back out to the First Time Menu.",
+            classic::body_style(),
+        );
     }
-    draw_command_line_default_input(&mut buffer, "EMPIRE NAME", "Name your empire ", "", input);
+    if let Some(status) = status {
+        draw_status_line(&mut buffer, if rename_mode { 8 } else { 7 }, "Notice: ", status);
+    }
+    draw_command_line_default_input(
+        &mut buffer,
+        "EMPIRE NAME",
+        if rename_mode {
+            "Rename your empire "
+        } else {
+            "Name your empire "
+        },
+        "",
+        input,
+    );
     Ok(buffer)
 }
 
 pub fn render_first_time_join_name_confirm(
+    rename_mode: bool,
     empire_name: &str,
 ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
-    draw_title_bar(&mut buffer, 0, "FIRST TIME JOIN:");
-    crate::screen::layout::draw_menu_row(&mut buffer, 1, &FIRST_TIME_ROW_1);
-    crate::screen::layout::draw_menu_row(&mut buffer, 2, &FIRST_TIME_ROW_2);
+    if rename_mode {
+        draw_title_bar(&mut buffer, 0, "PRE-LOADED PLAYER:");
+        buffer.write_text(
+            2,
+            0,
+            "Would you like to rename your empire? (This is your only chance.)",
+            classic::body_style(),
+        );
+        buffer.write_text(
+            4,
+            0,
+            "Press N or Esc to keep the current pre-loaded empire name.",
+            classic::body_style(),
+        );
+    } else {
+        draw_title_bar(&mut buffer, 0, "FIRST TIME JOIN:");
+        crate::screen::layout::draw_menu_row(&mut buffer, 1, &FIRST_TIME_ROW_1);
+        crate::screen::layout::draw_menu_row(&mut buffer, 2, &FIRST_TIME_ROW_2);
+        buffer.write_text(
+            4,
+            0,
+            "Enter the name of your empire (up to 20 characters).",
+            classic::body_style(),
+        );
+        buffer.write_text(
+            5,
+            0,
+            "Press N or Esc to go back and edit it before joining.",
+            classic::body_style(),
+        );
+    }
+    draw_command_line_text(
+        &mut buffer,
+        "EMPIRE NAME",
+        &format!(
+            "\"{empire_name}\" <- Is this correct? {}/N ->",
+            if rename_mode { "Y/[N]" } else { "[Y]" }
+        ),
+    );
+    Ok(buffer)
+}
+
+pub fn render_preloaded_first_login_rename_prompt(
+    empire_name: &str,
+) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+    let mut buffer = new_playfield();
+    draw_title_bar(&mut buffer, 0, "PRE-LOADED PLAYER:");
     buffer.write_text(
-        4,
+        2,
         0,
-        "Enter the name of your empire (up to 20 characters).",
+        "You are a pre-loaded player and this is your first time on.",
         classic::body_style(),
     );
     buffer.write_text(
-        5,
+        4,
         0,
-        "Press N or Esc to go back and edit it before joining.",
+        &format!("Your empire has been pre-named as \"{empire_name}\"."),
         classic::body_style(),
     );
     draw_command_line_text(
         &mut buffer,
         "EMPIRE NAME",
-        &format!("\"{empire_name}\" <- Is this correct? [Y]/N ->"),
+        "Would you like to rename your empire? (This is your only chance.) Y/[N] ->",
     );
     Ok(buffer)
 }
