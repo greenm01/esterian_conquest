@@ -2278,7 +2278,13 @@ fn fleet_order_applies_move_order_to_selected_fleet_only() {
         apply_action(&mut app, Action::SubmitFleetOrder),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(app.current_screen(), ScreenId::FleetOrder);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet order should render success notice");
+    assert!(terminal.line(19).contains("Notice:"));
+    assert!(terminal.line(19).contains("<slap a key>"));
 
     let state = latest_runtime_state(&fixture_dir);
     assert_eq!(
@@ -2869,17 +2875,13 @@ fn fleet_group_order_applies_move_order_to_selected_fleets() {
         apply_action(&mut app, Action::SubmitFleetGroupOrder),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
-        .expect("fleet menu should render group-order success");
-    let wrapped_notice = [terminal.line(16), terminal.line(17), terminal.line(18)]
-        .into_iter()
-        .flat_map(|line| line.split_whitespace())
-        .collect::<Vec<_>>()
-        .join(" ");
-    assert!(wrapped_notice.contains("Applied move order to 2 fleets for sector [10,13]."));
+        .expect("fleet group order should render success notice");
+    assert!(terminal.line(19).contains("Notice:"));
+    assert!(terminal.line(19).contains("<slap a key>"));
 
     let state = latest_runtime_state(&fixture_dir);
     assert_eq!(

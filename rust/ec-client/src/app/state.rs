@@ -6530,24 +6530,22 @@ impl App {
         self.fleet_group_mission_code = None;
         self.fleet_group_input.clear();
         self.fleet_group_selected_fleets.clear();
-        self.show_command_menu_notice(
-            CommandMenu::Fleet,
-            if fleet_group_order_requires_target(mission_code) {
-                format!(
-                    "Applied {} order to {} fleets for sector [{},{}].",
-                    fleet_group_order_label(mission_code),
-                    selected_count,
-                    target[0],
-                    target[1]
-                )
-            } else {
-                format!(
-                    "Applied {} order to {} fleets.",
-                    fleet_group_order_label(mission_code),
-                    selected_count
-                )
-            },
-        );
+        self.current_screen = ScreenId::FleetGroupOrder;
+        self.fleet_group_status = Some(if fleet_group_order_requires_target(mission_code) {
+            format!(
+                "Applied {} order to {} fleets for sector [{},{}].",
+                fleet_group_order_label(mission_code),
+                selected_count,
+                target[0],
+                target[1]
+            )
+        } else {
+            format!(
+                "Applied {} order to {} fleets.",
+                fleet_group_order_label(mission_code),
+                selected_count
+            )
+        });
         Ok(())
     }
 
@@ -6566,24 +6564,22 @@ impl App {
         self.fleet_order_mission_code = None;
         self.fleet_order_input.clear();
         self.fleet_order_fleet_record_index_1_based = Some(selected_row.fleet_record_index_1_based);
-        self.show_command_menu_notice(
-            CommandMenu::Fleet,
-            if fleet_group_order_requires_target(mission_code) {
-                format!(
-                    "Applied {} to Fleet #{} for sector [{},{}].",
-                    fleet_group_order_label(mission_code),
-                    selected_row.fleet_number,
-                    target[0],
-                    target[1]
-                )
-            } else {
-                format!(
-                    "Applied {} to Fleet #{}.",
-                    fleet_group_order_label(mission_code),
-                    selected_row.fleet_number
-                )
-            },
-        );
+        self.current_screen = ScreenId::FleetOrder;
+        self.fleet_order_status = Some(if fleet_group_order_requires_target(mission_code) {
+            format!(
+                "Applied {} to Fleet #{} for sector [{},{}].",
+                fleet_group_order_label(mission_code),
+                selected_row.fleet_number,
+                target[0],
+                target[1]
+            )
+        } else {
+            format!(
+                "Applied {} to Fleet #{}.",
+                fleet_group_order_label(mission_code),
+                selected_row.fleet_number
+            )
+        });
         Ok(())
     }
 
