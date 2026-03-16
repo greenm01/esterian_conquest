@@ -2649,20 +2649,30 @@ impl App {
             self.fleet_roe_status = Some("Enter an ROE from 0 to 10.".to_string());
             return Ok(());
         }
-        let fleet = self
-            .game_data
-            .fleets
-            .records
-            .get_mut(selected_row.fleet_record_index_1_based - 1)
-            .ok_or("fleet roe target missing")?;
-        let has_combat_ships = fleet.destroyer_count() > 0
-            || fleet.cruiser_count() > 0
-            || fleet.battleship_count() > 0;
-        if !has_combat_ships && parsed != 0 {
-            self.fleet_roe_status = Some("Non-combat fleets must use ROE 0.".to_string());
+        if let Err(err) = self.game_data.set_fleet_rules_of_engagement(
+            self.player.record_index_1_based,
+            selected_row.fleet_record_index_1_based,
+            parsed,
+        ) {
+            self.fleet_roe_status = Some(match err {
+                ec_data::GameStateMutationError::InvalidFleetPlayerInput {
+                    reason:
+                        ec_data::FleetPlayerInputValidationError::NonCombatFleetMustUseZeroRoe {
+                            ..
+                        },
+                    ..
+                } => "Non-combat fleets must use ROE 0.".to_string(),
+                ec_data::GameStateMutationError::InvalidFleetPlayerInput {
+                    reason:
+                        ec_data::FleetPlayerInputValidationError::RulesOfEngagementOutOfRange {
+                            ..
+                        },
+                    ..
+                } => "Enter an ROE from 0 to 10.".to_string(),
+                _ => err.to_string(),
+            });
             return Ok(());
         }
-        fleet.set_rules_of_engagement(parsed);
         self.save_game_data()?;
         self.fleet_roe_input.clear();
         self.fleet_roe_status = None;

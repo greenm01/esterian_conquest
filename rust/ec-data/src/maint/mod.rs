@@ -5,8 +5,9 @@ mod combat;
 use crate::{
     CoreGameData, DiplomaticRelation, FleetOrderValidationError,
     FleetPlayerInputValidationError, Order, PlanetPlayerInputValidationError,
-    ProductionItemKind, VisibleHazardIntel, build_capacity, next_path_step,
-    plan_route_with_intel, yearly_growth_delta, yearly_high_tax_penalty, yearly_tax_revenue,
+    PlayerDiplomacyValidationError, ProductionItemKind, VisibleHazardIntel, build_capacity,
+    next_path_step, plan_route_with_intel, yearly_growth_delta, yearly_high_tax_penalty,
+    yearly_tax_revenue,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -352,6 +353,11 @@ pub enum InvalidPlayerStateEvent {
         player_idx: usize,
         owner_empire_raw: u8,
         tax_rate: u8,
+    },
+    DiplomacyInput {
+        player_idx: usize,
+        owner_empire_raw: u8,
+        reason: PlayerDiplomacyValidationError,
     },
 }
 
@@ -1245,6 +1251,33 @@ fn sanitize_invalid_player_inputs(game_data: &mut CoreGameData) -> Vec<InvalidPl
                 owner_empire_raw: (player_idx + 1) as u8,
                 tax_rate,
             });
+        }
+        let player_count = game_data.player.records.len() as u8;
+        for target_empire_raw in 1..=player_count {
+            let reason = {
+                let player = &game_data.player.records[player_idx];
+                let raw = player.raw[0x54 + target_empire_raw as usize - 1];
+                let empire_raw = (player_idx + 1) as u8;
+                if target_empire_raw == empire_raw {
+                    (raw != 0).then_some(PlayerDiplomacyValidationError::SelfTarget { empire_raw })
+                } else if raw != 0x00 && raw != 0x01 {
+                    Some(PlayerDiplomacyValidationError::InvalidStoredRelationByte {
+                        target_empire_raw,
+                        raw,
+                    })
+                } else {
+                    None
+                }
+            };
+            if let Some(reason) = reason {
+                game_data.player.records[player_idx].raw[0x54 + target_empire_raw as usize - 1] =
+                    0x00;
+                events.push(InvalidPlayerStateEvent::DiplomacyInput {
+                    player_idx,
+                    owner_empire_raw: (player_idx + 1) as u8,
+                    reason,
+                });
+            }
         }
     }
 

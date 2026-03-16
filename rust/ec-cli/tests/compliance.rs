@@ -89,6 +89,26 @@ fn core_validate_rejects_invalid_fleet_player_inputs() {
 }
 
 #[test]
+fn core_validate_rejects_invalid_diplomacy_bytes() {
+    let target = unique_temp_dir("ec-cli-core-validate-diplomacy");
+    common::copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut data = CoreGameData::load(&target).unwrap();
+    data.player.records[0].raw[0x54] = 0x01;
+    data.player.records[0].raw[0x55] = 0xfe;
+    data.save(&target).unwrap();
+
+    let stderr = common::run_ec_cli_failure_in_dir(
+        &["core-validate", target.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(stderr.contains("PLAYER[1] invalid diplomacy input"));
+    assert!(stderr.contains("SelfTarget"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn core_validate_current_known_baseline_accepts_known_post_fixture_state() {
     let stdout = run_ec_cli(&[
         "core-validate-current-known-baseline",

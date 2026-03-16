@@ -1478,6 +1478,60 @@ fn set_fleet_order_rejects_speed_above_current_maximum() {
 }
 
 #[test]
+fn set_fleet_rules_of_engagement_rejects_non_combat_value() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+    let fleet = &mut data.fleets.records[0];
+    fleet.set_destroyer_count(0);
+    fleet.set_cruiser_count(0);
+    fleet.set_battleship_count(0);
+    fleet.set_scout_count(1);
+    fleet.set_troop_transport_count(0);
+    fleet.set_army_count(0);
+    fleet.set_etac_count(0);
+
+    let error = data.set_fleet_rules_of_engagement(1, 1, 6).unwrap_err();
+    assert_eq!(
+        error,
+        GameStateMutationError::InvalidFleetPlayerInput {
+            fleet_index_1_based: 1,
+            reason: FleetPlayerInputValidationError::NonCombatFleetMustUseZeroRoe { roe: 6 },
+        }
+    );
+}
+
+#[test]
+fn set_stored_diplomatic_relation_rejects_self_target() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    let error = data
+        .set_stored_diplomatic_relation(1, 1, DiplomaticRelation::Enemy)
+        .unwrap_err();
+    assert_eq!(
+        error,
+        GameStateMutationError::InvalidDiplomacyInput {
+            player_index_1_based: 1,
+            reason: PlayerDiplomacyValidationError::SelfTarget { empire_raw: 1 },
+        }
+    );
+}
+
+#[test]
 fn set_join_fleet_order_targets_host_fleet_and_records_host_id() {
     let mut data = CoreGameData {
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),

@@ -1,7 +1,8 @@
 use ec_data::{
     ContactReportSource, CoreGameData, DatabaseDat, FleetOrderValidationError,
     FleetPlayerInputValidationError, MaintenanceEvents, Mission, MissionOutcome, PlanetDat,
-    PlanetPlayerInputValidationError, QueuedPlayerMail, ShipLosses,
+    PlanetPlayerInputValidationError, PlayerDiplomacyValidationError, QueuedPlayerMail,
+    ShipLosses,
 };
 
 const RESULTS_RECORD_SIZE: usize = 84;
@@ -434,6 +435,24 @@ fn planet_input_validation_reason_text(reason: PlanetPlayerInputValidationError)
         PlanetPlayerInputValidationError::InvalidTaxRate(rate) => {
             format!("the attached tax input {rate}% is invalid")
         }
+    }
+}
+
+fn diplomacy_input_validation_reason_text(reason: PlayerDiplomacyValidationError) -> String {
+    match reason {
+        PlayerDiplomacyValidationError::TargetOutOfRange { target_empire_raw } => {
+            format!("target empire {} was outside the active player range", target_empire_raw)
+        }
+        PlayerDiplomacyValidationError::SelfTarget { empire_raw } => {
+            format!("empire {} attempted to target itself in diplomacy", empire_raw)
+        }
+        PlayerDiplomacyValidationError::InvalidStoredRelationByte {
+            target_empire_raw,
+            raw,
+        } => format!(
+            "stored diplomacy byte {raw:#04x} toward empire {} was invalid",
+            target_empire_raw
+        ),
     }
 }
 
@@ -1107,6 +1126,15 @@ pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEv
                 "From your central administration: Tax rate input {}% for {} was invalid and has been clamped to 100%.",
                 tax_rate,
                 empire_label(game_data, owner_empire_raw)
+            ),
+            ec_data::InvalidPlayerStateEvent::DiplomacyInput {
+                owner_empire_raw,
+                reason,
+                ..
+            } => format!(
+                "From your foreign ministry: Maintenance reset invalid diplomacy input for {} because {}.",
+                empire_label(game_data, owner_empire_raw),
+                diplomacy_input_validation_reason_text(reason)
             ),
         };
         push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
@@ -2070,6 +2098,18 @@ pub(crate) fn build_messages_dat(
                     "From your central administration: Tax rate input {}% for {} was invalid and has been clamped to 100%.",
                     tax_rate,
                     empire_label(game_data, owner_empire_raw)
+                ),
+            ),
+            ec_data::InvalidPlayerStateEvent::DiplomacyInput {
+                owner_empire_raw,
+                reason,
+                ..
+            } => (
+                owner_empire_raw,
+                format!(
+                    "From your foreign ministry: Maintenance reset invalid diplomacy input for {} because {}.",
+                    empire_label(game_data, owner_empire_raw),
+                    diplomacy_input_validation_reason_text(reason)
                 ),
             ),
         };

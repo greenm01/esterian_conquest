@@ -39,7 +39,7 @@ pub use directory::{
     EmpireProductionRankingRow, EmpireProductionRankingSort, EmpireUnitSummary, FleetDetachResult,
     FleetDetachSelection, FleetOrderValidationError, FleetPlayerInputValidationError,
     FleetTransferResult, GameDirectoryError, GameStateMutationError,
-    PlanetPlayerInputValidationError,
+    PlanetPlayerInputValidationError, PlayerDiplomacyValidationError,
 };
 pub use economy::{
     build_capacity, yearly_growth_delta, yearly_high_tax_penalty, yearly_tax_revenue,

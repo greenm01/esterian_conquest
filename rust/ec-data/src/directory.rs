@@ -165,6 +165,13 @@ pub enum PlanetPlayerInputValidationError {
     InvalidTaxRate(u8),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlayerDiplomacyValidationError {
+    TargetOutOfRange { target_empire_raw: u8 },
+    SelfTarget { empire_raw: u8 },
+    InvalidStoredRelationByte { target_empire_raw: u8, raw: u8 },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CoreFileDiffCount {
     pub name: &'static str,
@@ -326,6 +333,10 @@ pub enum GameStateMutationError {
         fleet_index_1_based: usize,
         reason: FleetOrderValidationError,
     },
+    InvalidFleetPlayerInput {
+        fleet_index_1_based: usize,
+        reason: FleetPlayerInputValidationError,
+    },
     InvalidPlanetPlayerInput {
         planet_index_1_based: usize,
         reason: PlanetPlayerInputValidationError,
@@ -333,6 +344,10 @@ pub enum GameStateMutationError {
     InvalidPlayerTaxRate {
         player_index_1_based: usize,
         tax_rate: u8,
+    },
+    InvalidDiplomacyInput {
+        player_index_1_based: usize,
+        reason: PlayerDiplomacyValidationError,
     },
 }
 
@@ -549,6 +564,14 @@ impl std::fmt::Display for GameStateMutationError {
                 "fleet {} has invalid order: {:?}",
                 fleet_index_1_based, reason
             ),
+            Self::InvalidFleetPlayerInput {
+                fleet_index_1_based,
+                reason,
+            } => write!(
+                f,
+                "fleet {} has invalid player input: {:?}",
+                fleet_index_1_based, reason
+            ),
             Self::InvalidPlanetPlayerInput {
                 planet_index_1_based,
                 reason,
@@ -564,6 +587,14 @@ impl std::fmt::Display for GameStateMutationError {
                 f,
                 "player {} has invalid tax rate {}",
                 player_index_1_based, tax_rate
+            ),
+            Self::InvalidDiplomacyInput {
+                player_index_1_based,
+                reason,
+            } => write!(
+                f,
+                "player {} has invalid diplomacy input: {:?}",
+                player_index_1_based, reason
             ),
         }
     }
@@ -1336,6 +1367,15 @@ impl CoreGameData {
                     "PLAYER[{}] invalid tax rate {}",
                     player_idx + 1,
                     player.tax_rate()
+                ));
+            }
+        }
+        for player_idx in 0..self.player.records.len() {
+            for reason in self.validate_player_diplomacy_inputs(player_idx + 1) {
+                errors.push(format!(
+                    "PLAYER[{}] invalid diplomacy input: {:?}",
+                    player_idx + 1,
+                    reason
                 ));
             }
         }
@@ -2520,6 +2560,34 @@ impl CoreGameData {
         Ok(())
     }
 
+    pub fn validate_player_diplomacy_inputs(
+        &self,
+        player_index_1_based: usize,
+    ) -> Vec<PlayerDiplomacyValidationError> {
+        let mut errors = Vec::new();
+        let Some(player) = self.player.records.get(player_index_1_based - 1) else {
+            return errors;
+        };
+        let empire_raw = player_index_1_based as u8;
+        let player_count = self.player.records.len() as u8;
+        for target_empire_raw in 1..=player_count {
+            let raw = player.raw[0x54 + target_empire_raw as usize - 1];
+            if target_empire_raw == empire_raw {
+                if raw != 0 {
+                    errors.push(PlayerDiplomacyValidationError::SelfTarget { empire_raw });
+                }
+                continue;
+            }
+            if raw != 0x00 && raw != 0x01 {
+                errors.push(PlayerDiplomacyValidationError::InvalidStoredRelationByte {
+                    target_empire_raw,
+                    raw,
+                });
+            }
+        }
+        errors
+    }
+
     pub fn set_join_fleet_order(
         &mut self,
         player_index_1_based: usize,
@@ -2570,6 +2638,41 @@ impl CoreGameData {
         fleet.set_standing_order_kind(crate::Order::JoinAnotherFleet);
         fleet.set_standing_order_target_coords_raw(host_coords);
         fleet.set_join_host_fleet_id_raw(host_fleet_id);
+        Ok(())
+    }
+
+    pub fn set_fleet_rules_of_engagement(
+        &mut self,
+        player_index_1_based: usize,
+        fleet_index_1_based: usize,
+        roe: u8,
+    ) -> Result<(), GameStateMutationError> {
+        let owner_empire = player_index_1_based as u8;
+        let fleet = self.fleets.records.get(fleet_index_1_based - 1).ok_or(
+            GameStateMutationError::MissingFleetRecord {
+                index_1_based: fleet_index_1_based,
+            },
+        )?;
+        if fleet.owner_empire_raw() != owner_empire {
+            return Err(GameStateMutationError::FleetOwnershipMismatch {
+                player_index_1_based,
+                fleet_index_1_based,
+            });
+        }
+        if roe > 10 {
+            return Err(GameStateMutationError::InvalidFleetPlayerInput {
+                fleet_index_1_based,
+                reason: FleetPlayerInputValidationError::RulesOfEngagementOutOfRange { roe },
+            });
+        }
+        if !fleet_has_combat_ships(fleet) && roe != 0 {
+            return Err(GameStateMutationError::InvalidFleetPlayerInput {
+                fleet_index_1_based,
+                reason: FleetPlayerInputValidationError::NonCombatFleetMustUseZeroRoe { roe },
+            });
+        }
+
+        self.fleets.records[fleet_index_1_based - 1].set_rules_of_engagement(roe);
         Ok(())
     }
 
@@ -4254,8 +4357,23 @@ impl CoreGameData {
         to_empire_raw: u8,
         relation: DiplomaticRelation,
     ) -> Result<bool, GameStateMutationError> {
-        if from_empire_raw == 0 || to_empire_raw == 0 || from_empire_raw == to_empire_raw {
-            return Ok(false);
+        let player_count = self.player.records.len() as u8;
+        if to_empire_raw == 0 || to_empire_raw > player_count {
+            return Err(GameStateMutationError::InvalidDiplomacyInput {
+                player_index_1_based: from_empire_raw as usize,
+                reason: PlayerDiplomacyValidationError::TargetOutOfRange { target_empire_raw: to_empire_raw },
+            });
+        }
+        if from_empire_raw == 0 || from_empire_raw > player_count {
+            return Err(GameStateMutationError::MissingPlayerRecord {
+                index_1_based: from_empire_raw as usize,
+            });
+        }
+        if from_empire_raw == to_empire_raw {
+            return Err(GameStateMutationError::InvalidDiplomacyInput {
+                player_index_1_based: from_empire_raw as usize,
+                reason: PlayerDiplomacyValidationError::SelfTarget { empire_raw: from_empire_raw },
+            });
         }
         let Some(record) = self
             .player

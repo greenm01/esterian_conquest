@@ -1265,6 +1265,31 @@ fn maint_rust_survives_deterministic_malformed_directory_matrix() {
 }
 
 #[test]
+fn maint_rust_reports_invalid_diplomacy_input_sanitization() {
+    let target = unique_temp_dir("ec-cli-maint-rust-invalid-diplomacy");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    game_data.player.records[0].raw[0x54] = 0x01;
+    game_data.player.records[0].raw[0x55] = 0xfe;
+    game_data.save(&target).expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let reloaded = CoreGameData::load(&target).expect("maint-rust output should remain loadable");
+    assert_eq!(reloaded.player.records[0].raw[0x54], 0x00);
+    assert_eq!(reloaded.player.records[0].raw[0x55], 0x00);
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = decode_chunked_report(&results);
+    assert!(text.contains("foreign ministry"));
+    assert!(text.contains("invalid diplomacy input"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
     let target = unique_temp_dir("ec-cli-maint-rust-scout-abort");
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
