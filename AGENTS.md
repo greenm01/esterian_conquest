@@ -30,21 +30,21 @@ In practice:
 - shared parsing, path, and reporting helpers shall live in support modules
 - batch/report commands shall reuse pure validators rather than duplicate checks
 
-See [docs/rust-architecture.md](docs/rust-architecture.md) for the fuller rationale.
+See [docs/rust-architecture.md](docs/dev/rust-architecture.md) for the fuller rationale.
 
 ## Startup Reading Order
 
 At the start of a development or agent session, read these in order:
 
-1. [docs/next-session.md](docs/next-session.md)
+1. [docs/next-session.md](docs/dev/next-session.md)
    Use this as the current handoff and restart point.
    It shall remain a compact restart brief, not a running notebook.
    If it starts accumulating detailed history, move that detail into
    archive docs and keep only the current state, current goal, biggest
    blockers, and immediate next steps.
-2. [docs/approach.md](docs/approach.md)
+2. [docs/approach.md](docs/dev/approach.md)
    Reconfirm the project goal, milestone ladder, and acceptance criteria.
-3. [docs/rust-architecture.md](docs/rust-architecture.md)
+3. [docs/rust-architecture.md](docs/dev/rust-architecture.md)
    Reconfirm the DOD/DRY/module-organization rules before editing Rust code.
 4. [RE_NOTES.md](RE_NOTES.md)
    Read only the sections relevant to the current task; do not reload the full notebook unless needed.
@@ -65,11 +65,11 @@ check them before turning an observed pattern into a semantic claim.
 
 If the task is Ghidra-heavy, also check:
 
-- [docs/ghidra-workflow.md](docs/ghidra-workflow.md)
+- [docs/ghidra-workflow.md](docs/dev/ghidra-workflow.md)
 
 If the task is DOSBox-heavy, also check:
 
-- [docs/dosbox-workflow.md](docs/dosbox-workflow.md)
+- [docs/dosbox-workflow.md](docs/dev/dosbox-workflow.md)
 
 ## Testing Rules
 

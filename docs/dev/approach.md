@@ -203,7 +203,7 @@ For the Rust `ECGAME` clone, preserve the original pre-menu player flow too:
   the project does not need to freeze on economy progress waiting for perfect
   replay coverage
 - the current canonical Rust economy rule is documented in
-  [docs/economics.md](docs/economics.md)
+  [docs/economics.md](economics.md)
 
 ## What Counts As Success
 
@@ -407,7 +407,7 @@ Near-term acceptance rule:
   opaque, or stochastic, strict adherence to the manuals is a better target
   than reproducing one hidden implementation artifact
 - the combat spec in
-  [docs/ec-combat-spec.md](docs/ec-combat-spec.md)
+  [docs/ec-combat-spec.md](ec-combat-spec.md)
   is no longer only aspirational; it now drives the live Rust maintenance path
   and has dedicated regression coverage
 

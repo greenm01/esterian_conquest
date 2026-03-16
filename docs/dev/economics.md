@@ -26,8 +26,8 @@ them into an explicit Rust rule set suitable for reproducible maintenance.
 
 Primary manual references:
 
-- [original/v1.5/ECPLAYER.DOC](original/v1.5/ECPLAYER.DOC)
-- [original/v1.5/ECQSTART.DOC](original/v1.5/ECQSTART.DOC)
+- [original/v1.5/ECPLAYER.DOC](../../original/v1.5/ECPLAYER.DOC)
+- [original/v1.5/ECQSTART.DOC](../../original/v1.5/ECQSTART.DOC)
 
 Important manual-facing claims:
 
@@ -307,7 +307,7 @@ The current canonical model is backed by:
   - starbase growth bonus
   - build-capacity behavior
 - mixed-tax probe runs using:
-  - [tools/economy_tax_probe.py](tools/economy_tax_probe.py)
+  - [tools/economy_tax_probe.py](../../tools/economy_tax_probe.py)
 
 Current limitation:
 

@@ -480,4 +480,4 @@ The preferred ownership split is:
   - reusable setup presets
   - named oracle scenarios
 
-See [config-architecture.md](docs/config-architecture.md).
+See [config-architecture.md](config-architecture.md).

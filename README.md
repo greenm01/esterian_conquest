@@ -125,7 +125,7 @@ Those differences are allowed by the project approach as long as the result
 remains faithful to the manuals and compatible with the original `.DAT`
 boundary.
 
-For the detailed rationale, see [docs/approach.md](docs/approach.md).
+For the detailed rationale, see [docs/approach.md](docs/dev/approach.md).
 
 ## Current Focus
 
@@ -152,10 +152,10 @@ Current emphasis:
   - no raw ANSI dump path during normal `ec-client` startup
 
 That client work is now documented in
-[docs/bbs_door_client_rust.md](docs/bbs_door_client_rust.md).
+[docs/bbs_door_client_rust.md](docs/dev/bbs_door_client_rust.md).
 
 Player map delivery and sysop staging are documented in
-[docs/sysop-map-exports.md](docs/sysop-map-exports.md).
+[docs/sysop-map-exports.md](docs/sysop/sysop-map-exports.md).
 
 ## Quick Start
 
@@ -202,7 +202,7 @@ cargo run -q -p ec-client -- --dir /tmp/ec-game --player 1
 seed that DB automatically. If you mutate a classic directory outside the
 SQLite path, run `db-import` before launching the client or `maint-rust`.
 
-Test harness scripts live under [scripts/](/home/mag/dev/esterian_conquest/scripts):
+Test harness scripts live under [scripts/](scripts/):
 
 ```bash
 python3 scripts/new_test_game.py /tmp/ec-join-test --players 9 --force
@@ -274,19 +274,19 @@ python3 tools/rust_maint_sweep.py --turns 3
 
 ## Read First
 
-- [docs/approach.md](docs/approach.md)
-- [docs/next-session.md](docs/next-session.md)
-- [docs/rust-architecture.md](docs/rust-architecture.md)
+- [docs/approach.md](docs/dev/approach.md)
+- [docs/next-session.md](docs/dev/next-session.md)
+- [docs/rust-architecture.md](docs/dev/rust-architecture.md)
 
 Useful supporting docs:
 
-- [docs/ec-setup-spec.md](docs/ec-setup-spec.md)
-- [docs/economics.md](docs/economics.md)
-- [docs/ec-combat-spec.md](docs/ec-combat-spec.md)
-- [docs/ec-movement-spec.md](docs/ec-movement-spec.md)
-- [docs/bbs_door_client_rust.md](docs/bbs_door_client_rust.md)
-- [docs/sysop-map-exports.md](docs/sysop-map-exports.md)
-- [docs/dosbox-workflow.md](docs/dosbox-workflow.md)
+- [docs/ec-setup-spec.md](docs/dev/ec-setup-spec.md)
+- [docs/economics.md](docs/dev/economics.md)
+- [docs/ec-combat-spec.md](docs/dev/ec-combat-spec.md)
+- [docs/ec-movement-spec.md](docs/dev/ec-movement-spec.md)
+- [docs/bbs_door_client_rust.md](docs/dev/bbs_door_client_rust.md)
+- [docs/sysop-map-exports.md](docs/sysop/sysop-map-exports.md)
+- [docs/dosbox-workflow.md](docs/dev/dosbox-workflow.md)
 
 ## Repository Layout
 

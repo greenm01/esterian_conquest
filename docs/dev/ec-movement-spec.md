@@ -11,9 +11,9 @@ The first is a fidelity target. The second is an explicit extension.
 
 Primary sources:
 
-- [ECPLAYER.DOC](original/v1.5/ECPLAYER.DOC)
+- [ECPLAYER.DOC](../../original/v1.5/ECPLAYER.DOC)
 - current movement RE and fixtures in
-  [RE_NOTES.md](RE_NOTES.md)
+  [RE_NOTES.md](../../RE_NOTES.md)
 
 ## Classic Movement Semantics
 
@@ -26,7 +26,7 @@ Current-known movement rules in Rust already model:
 
 The live movement implementation is in:
 
-- [mod.rs](rust/ec-data/src/maint/mod.rs)
+- [mod.rs](../../rust/ec-data/src/maint/mod.rs)
 
 The current implementation matches the known `ECMAINT` movement formula for the
 preserved movement scenarios. That deterministic movement path should remain the
