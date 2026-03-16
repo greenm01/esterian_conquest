@@ -2727,6 +2727,29 @@ impl CoreGameData {
         Ok(())
     }
 
+    pub fn clear_planet_build_orders_by_kind(
+        &mut self,
+        record_index_1_based: usize,
+        kind: ProductionItemKind,
+    ) -> Result<usize, GameStateMutationError> {
+        let record = self
+            .planets
+            .records
+            .get_mut(record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingPlanetRecord {
+                index_1_based: record_index_1_based,
+            })?;
+        let mut cleared = 0usize;
+        for slot in 0..10 {
+            if ProductionItemKind::from_raw(record.build_kind_raw(slot)) == kind {
+                record.set_build_count_raw(slot, 0);
+                record.set_build_kind_raw(slot, 0);
+                cleared += 1;
+            }
+        }
+        Ok(cleared)
+    }
+
     /// Append a build order to the first empty slot in the planet's build queue.
     /// Returns an error if all 10 slots are already occupied.
     /// Count how many stardock slots are available for a planet, accounting for

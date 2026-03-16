@@ -4093,18 +4093,8 @@ impl App {
             return Ok(());
         };
         let planet_record = self.current_build_planet_row()?.planet_record_index_1_based;
-        let record = self
-            .game_data
-            .planets
-            .records
-            .get_mut(planet_record - 1)
-            .ok_or("planet record missing")?;
-        for slot in 0..10 {
-            if ProductionItemKind::from_raw(record.build_kind_raw(slot)) == row.kind {
-                record.set_build_count_raw(slot, 0);
-                record.set_build_kind_raw(slot, 0);
-            }
-        }
+        self.game_data
+            .clear_planet_build_orders_by_kind(planet_record, row.kind)?;
         self.save_game_data()?;
         self.planet_build_list_confirming = false;
         // Clamp cursor after deletion.

@@ -1532,6 +1532,41 @@ fn set_stored_diplomatic_relation_rejects_self_target() {
 }
 
 #[test]
+fn clear_planet_build_orders_by_kind_removes_matching_slots_only() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+    let planet = &mut data.planets.records[0];
+    planet.set_build_count_raw(0, 4);
+    planet.set_build_kind_raw(0, 1);
+    planet.set_build_count_raw(1, 7);
+    planet.set_build_kind_raw(1, 1);
+    planet.set_build_count_raw(2, 5);
+    planet.set_build_kind_raw(2, 7);
+
+    let cleared = data
+        .clear_planet_build_orders_by_kind(1, ProductionItemKind::Destroyer)
+        .unwrap();
+
+    assert_eq!(cleared, 2);
+    assert_eq!(data.planets.records[0].build_count_raw(0), 0);
+    assert_eq!(data.planets.records[0].build_kind_raw(0), 0);
+    assert_eq!(data.planets.records[0].build_count_raw(1), 0);
+    assert_eq!(data.planets.records[0].build_kind_raw(1), 0);
+    assert_eq!(data.planets.records[0].build_count_raw(2), 5);
+    assert_eq!(
+        ProductionItemKind::from_raw(data.planets.records[0].build_kind_raw(2)),
+        ProductionItemKind::GroundBattery
+    );
+}
+
+#[test]
 fn set_join_fleet_order_targets_host_fleet_and_records_host_id() {
     let mut data = CoreGameData {
         player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),

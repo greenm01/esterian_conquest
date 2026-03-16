@@ -1265,6 +1265,65 @@ fn maint_rust_survives_deterministic_malformed_directory_matrix() {
 }
 
 #[test]
+fn maint_rust_survives_multi_fixture_invalid_input_sweep() {
+    for fixture in [
+        "fixtures/ecmaint-post/v1.5",
+        "fixtures/ecmaint-fleet-pre/v1.5",
+        "fixtures/ecmaint-fleet-battle-pre/v1.5",
+    ] {
+        let slug = fixture
+            .split('/')
+            .nth(1)
+            .unwrap_or("fixture")
+            .replace("ecmaint-", "");
+        let target = unique_temp_dir(&format!("ec-cli-maint-rust-sweep-{slug}"));
+        copy_fixture_dir(fixture, &target);
+
+        let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+        if let Some(fleet) = game_data.fleets.records.get_mut(0) {
+            fleet.set_standing_order_code_raw(0xfe);
+            fleet.set_current_speed(99);
+            fleet.set_troop_transport_count(1);
+            fleet.set_army_count(4);
+            fleet.set_rules_of_engagement(42);
+        }
+        if let Some(planet) = game_data.planets.records.get_mut(0) {
+            planet.set_build_count_raw(0, 9);
+            planet.set_build_kind_raw(0, 0xfe);
+            planet.set_stardock_count_raw(0, 2);
+            planet.set_stardock_kind_raw(0, 0xfe);
+        }
+        if let Some(player) = game_data.player.records.get_mut(0) {
+            player.set_tax_rate_raw(255);
+            player.raw[0x54] = 0x01;
+            player.raw[0x55] = 0xfe;
+        }
+        game_data.save(&target).expect("mutated fixture should save");
+
+        let stdout = run_maint_rust_with_export(&target, 1);
+        assert!(stdout.contains("Rust maintenance complete."));
+
+        let reloaded = CoreGameData::load(&target).expect("maint-rust output should load");
+        assert!(
+            reloaded.player.records[0].tax_rate() <= 100,
+            "fixture {fixture} left invalid tax rate {}",
+            reloaded.player.records[0].tax_rate()
+        );
+        let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+        let text = decode_chunked_report(&results);
+        assert!(
+            text.contains("Order validation report")
+                || text.contains("Fleet readiness report")
+                || text.contains("foreign ministry"),
+            "fixture {fixture} produced unexpected RESULTS.DAT text: {:?}",
+            text
+        );
+
+        cleanup_dir(&target);
+    }
+}
+
+#[test]
 fn maint_rust_reports_invalid_diplomacy_input_sanitization() {
     let target = unique_temp_dir("ec-cli-maint-rust-invalid-diplomacy");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
