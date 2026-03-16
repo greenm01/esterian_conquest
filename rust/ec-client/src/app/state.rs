@@ -3066,18 +3066,13 @@ impl App {
                 self.fleet_mission_picker_caller = None;
                 self.current_screen = ScreenId::FleetOrder;
                 if fleet_group_order_requires_target(mission_code) {
-                    if self
-                        .fleet_order_default_target_for_mission(mission_code)
-                        .is_none()
-                        && (fleet_order_target_rejects_owned_planet(mission_code)
-                            || mission_code == 12)
+                    if mission_code == 12
+                        && self
+                            .fleet_order_default_target_for_mission(mission_code)
+                            .is_none()
                     {
                         self.fleet_order_mode = FleetSingleOrderMode::SelectingFleet;
-                        self.fleet_order_status = Some(if mission_code == 12 {
-                            "No colonize target available.".to_string()
-                        } else {
-                            "No known enemy world for that mission.".to_string()
-                        });
+                        self.fleet_order_status = Some("No colonize target available.".to_string());
                         return;
                     }
                     self.fleet_order_mode = FleetSingleOrderMode::EnteringTarget;
@@ -3104,18 +3099,13 @@ impl App {
                 self.fleet_mission_picker_caller = None;
                 self.current_screen = ScreenId::FleetGroupOrder;
                 if fleet_group_order_requires_target(mission_code) {
-                    if self
-                        .fleet_group_default_target_for_mission(mission_code)
-                        .is_none()
-                        && (fleet_order_target_rejects_owned_planet(mission_code)
-                            || mission_code == 12)
+                    if mission_code == 12
+                        && self
+                            .fleet_group_default_target_for_mission(mission_code)
+                            .is_none()
                     {
                         self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
-                        self.fleet_group_status = Some(if mission_code == 12 {
-                            "No colonize target available.".to_string()
-                        } else {
-                            "No known enemy world for that mission.".to_string()
-                        });
+                        self.fleet_group_status = Some("No colonize target available.".to_string());
                         return;
                     }
                     self.fleet_group_mode = FleetGroupOrderMode::EnteringTarget;
@@ -7091,16 +7081,7 @@ impl App {
         .worlds
         .into_iter()
         .filter(|world| {
-            let Some(planet) = self
-                .game_data
-                .planets
-                .records
-                .get(world.planet_record_index_1_based - 1)
-            else {
-                return false;
-            };
-            planet.owner_empire_slot_raw() == 0
-                && world.known_owner_empire_id.is_none()
+            world.known_owner_empire_id.is_none()
                 && !self.friendly_colonize_target_claimed_elsewhere(world.coords, selected_records)
         })
         .min_by_key(|world| sector_distance_sq(anchor, world.coords))

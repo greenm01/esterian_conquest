@@ -7,9 +7,10 @@ Rust preservation and reimplementation work for Esterian Conquest v1.5.
 **[Read the Grand Vision: From BBS to the Decentralized Web](docs/grand-vision.md)**
 
 This project started as a file-format and reverse-engineering effort. It is now
-past that stage: the Rust side is being built as a full replacement stack:
+past that stage: the Rust side is being built as a full replacement stack for
+Phase 1 of the grand vision, the modern drop-in BBS door replacement:
 
-- a canonical Rust game engine and `.DAT` state layer
+- a canonical Rust game engine with SQLite-native runtime state
 - a Rust sysop/admin/oracle toolchain
 - a Rust player client intended to replace `ECGAME`
 
@@ -84,12 +85,15 @@ Today the Rust side can:
 - persist active campaigns in bundled `ecgame.db`
 - run `ec-client` and `maint-rust` against SQLite runtime state instead of
   directly mutating classic `.DAT` files
+- keep classic `.DAT` import/export at the CLI boundary instead of inside the
+  player TUI or Rust maintenance runtime
 - create default `sysop new-game` directories that `ECGAME` can actually join
   through the original onboarding flow
 - provide a growing Rust player client with working startup flow and real
   command-center coverage for:
   - General Command
   - Planet Command
+  - most of Fleet Command, including starbase and fleet-order workflows
   - map export / starmap viewing
   - diplomacy, mail, commissioning, build, and transport flows
 
@@ -108,6 +112,20 @@ In plain terms:
 - `rust-maint` is usable as a real campaign engine
 - the Rust client is no longer speculative UI work; it is actively replacing
   `ECGAME` screen by screen and command by command
+- the runtime architecture has already crossed the important boundary:
+  `ec-client` and `maint-rust` are SQLite-native, while `ec-cli` remains the
+  explicit `.DAT` compatibility bridge
+
+Player client status, approximately:
+
+- engine / maintenance / storage: effectively in late Phase 1 shape
+- player TUI: roughly `85%` of the classic v1.5 feature surface is now present
+  in some usable form
+- remaining work is less about proving the architecture and more about:
+  - finishing the remaining command/menu paths
+  - tightening fidelity against v1.5 screens and behaviors
+  - fixing UI bugs, picker edge cases, and other terminal polish
+  - completing the BBS-door-facing flow around the local TUI
 
 ## Where Rust Intentionally Differs
 
@@ -142,6 +160,10 @@ Current emphasis:
 
 - keep `rust-maint` honest with continued oracle sweeps
 - finish the remaining Rust player command/menu surfaces
+- keep Phase 1 aligned with the grand vision:
+  - faithful classic mechanics
+  - fixed terminal playfield
+  - modern-host-friendly native Rust deployment
 - preserve classic terminology and workflow where it helps
 - modernize only where the original UI was clearly hostile or obsolete
   (for example map export and terminal-safe compose flows)

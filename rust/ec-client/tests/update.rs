@@ -2764,6 +2764,93 @@ fn fleet_group_colonize_mission_skips_worlds_claimed_by_other_friendly_etacs() {
 }
 
 #[test]
+fn fleet_group_colonize_mission_allows_hidden_colonized_worlds_as_targets() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let home_coords = state.game_data.planets.records
+        [state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1]
+        .coords_raw();
+    let planet_count = state.game_data.planets.records.len();
+    let mut candidates = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .filter(|(_, planet)| planet.owner_empire_slot_raw() == 0)
+        .map(|(idx, planet)| (idx, planet.coords_raw()))
+        .collect::<Vec<_>>();
+    candidates.sort_by_key(|(_, coords)| {
+        let dx = i32::from(home_coords[0]) - i32::from(coords[0]);
+        let dy = i32::from(home_coords[1]) - i32::from(coords[1]);
+        dx * dx + dy * dy
+    });
+    let hidden_colonized_idx = candidates[0].0;
+    let hidden_colonized_coords = candidates[0].1;
+    state.game_data.planets.records[hidden_colonized_idx].set_owner_empire_slot_raw(2);
+    state.database.record_mut(hidden_colonized_idx, 0, planet_count).raw[0x15] = 0;
+    for fleet in state.game_data.fleets.records.iter_mut() {
+        if fleet.owner_empire_raw() == 1 {
+            fleet.set_standing_order_code_raw(9);
+        }
+    }
+    let selected_etac = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.etac_count() > 0)
+        .expect("fixture should have a selectable ETAC fleet");
+    selected_etac.set_standing_order_code_raw(0);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetGroupOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMissionPicker),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('2')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("colonize target prompt should render");
+    assert!(terminal.line(19).contains(&format!(
+        "Target [{},{}] <Q> ->",
+        hidden_colonized_coords[0], hidden_colonized_coords[1]
+    )));
+}
+
+#[test]
 fn fleet_mission_picker_rejects_missions_not_supported_by_all_selected_fleets() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
@@ -3053,6 +3140,113 @@ fn fleet_group_order_rejects_owned_planet_for_scout_mission() {
         .expect("owned-planet scout validation should render");
     assert!(terminal.line(19).contains("Notice:"));
     assert!(terminal.line(19).contains("<slap a key>"));
+}
+
+#[test]
+fn fleet_group_order_allows_manual_combat_target_without_known_enemy_world() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetGroupOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMissionPicker),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('5')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("combat target prompt should render");
+    assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
+    assert!(terminal.line(19).contains("Target ["));
+    assert!(!terminal.line(19).contains("Notice:"));
+}
+
+#[test]
+fn fleet_group_order_allows_manual_scout_target_without_known_enemy_world() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    for fleet in state.game_data.fleets.records.iter_mut() {
+        if fleet.owner_empire_raw() == 1 {
+            fleet.set_standing_order_code_raw(9);
+        }
+    }
+    let scout_fleet = state
+        .game_data
+        .fleets
+        .records
+        .get_mut(0)
+        .expect("fleet 1 should exist");
+    scout_fleet.set_scout_count(1);
+    scout_fleet.set_standing_order_code_raw(0);
+    save_runtime_state(&fixture_dir, &state);
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetGroupOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMissionPicker),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('0')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("scout target prompt should render");
+    assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
+    assert!(terminal.line(19).contains("Target ["));
+    assert!(!terminal.line(19).contains("Notice:"));
 }
 
 #[test]
