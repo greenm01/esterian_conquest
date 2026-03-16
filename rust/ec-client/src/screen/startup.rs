@@ -166,7 +166,7 @@ impl StartupScreen {
         draw_plain_prompt(
             &mut buffer,
             7,
-            "Slap a key to continue to the login-time review flow.",
+            "(Slap a key to continue to the login-time review flow)",
         );
         Ok(buffer)
     }
