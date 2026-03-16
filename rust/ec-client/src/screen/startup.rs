@@ -140,10 +140,7 @@ impl StartupScreen {
             let report_status = if self.summary.results_line_count == 0 {
                 "Classic report-pending flag is set, but no report lines are loaded.".to_string()
             } else {
-                format!(
-                    "You have {} report line(s) pending.",
-                    self.summary.results_line_count
-                )
+                "Reports are waiting for your review.".to_string()
             };
             buffer.write_text(4, 0, &report_status, classic::body_style());
         } else {
@@ -154,10 +151,7 @@ impl StartupScreen {
             let message_status = if self.summary.message_line_count == 0 {
                 "Classic message-pending flag is set, but no message lines are loaded.".to_string()
             } else {
-                format!(
-                    "You have undeleted messages: {} line(s) currently reviewable.",
-                    self.summary.message_line_count
-                )
+                "Messages are waiting for your review.".to_string()
             };
             buffer.write_text(5, 0, &message_status, classic::body_style());
         } else {
