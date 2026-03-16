@@ -1087,7 +1087,7 @@ impl App {
     pub fn show_fleet_expert_mode_notice(&mut self) {
         self.show_command_menu_notice(
             CommandMenu::Fleet,
-            "Expert mode not implemented yet. Plan for VIM style commands.",
+            "Expert mode not implemented yet. Plan for Helix style commands.",
         );
     }
 

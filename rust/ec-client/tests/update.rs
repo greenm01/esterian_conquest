@@ -2010,7 +2010,7 @@ fn fleet_menu_expert_mode_shows_notice_on_menu() {
         .collect::<Vec<_>>()
         .join(" ");
     assert!(
-        wrapped_notice.contains("Expert mode not implemented yet. Plan for VIM style commands.")
+        wrapped_notice.contains("Expert mode not implemented yet. Plan for Helix style commands.")
     );
 }
 
