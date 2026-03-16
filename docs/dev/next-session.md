@@ -232,6 +232,9 @@ Primary goal:
     snapshot there
   - classic `.DAT` import/export is now an explicit `ec-cli` bridge rather
     than the live runtime path for the client or Rust maintenance
+  - for hybrid classic-client campaigns, `maint-rust` now refreshes SQLite
+    from the live working directory before processing if classic `.DAT` files
+    have changed since the last stored snapshot
   - Rust-created new games now seed `ecgame.db` automatically
   - the store keeps normalized record-set snapshots plus compatibility/export
     payloads for unresolved classic outputs

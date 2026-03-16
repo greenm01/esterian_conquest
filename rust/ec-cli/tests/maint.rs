@@ -96,6 +96,38 @@ fn maint_rust_projects_latest_snapshot_back_into_working_directory() {
 }
 
 #[test]
+fn maint_rust_reimports_live_classic_directory_changes_before_processing() {
+    let target = unique_temp_dir("ec-cli-maint-rust-live-classic-sync");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+    common::import_campaign_db(&target);
+
+    let mut classic_side = CoreGameData::load(&target).expect("fixture should load");
+    classic_side.player.records[1].set_assigned_player_handle_raw("SYSOP");
+    classic_side.player.records[1].set_controlled_empire_name_raw("foo");
+    classic_side
+        .save(&target)
+        .expect("classic-side edit should save");
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let post = CoreGameData::load(&target).expect("maint-rust output should load");
+    assert_eq!(
+        post.player.records[1].assigned_player_handle_summary(),
+        "SYSOP"
+    );
+    assert_eq!(
+        post.player.records[1].controlled_empire_name_summary(),
+        "foo"
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
 #[ignore = "launches classic ECGAME through dosbox-x"]
 fn maint_rust_output_reopens_in_classic_ecgame_smoke() {
     let target = unique_temp_dir("ec-cli-maint-rust-classic-ecgame");

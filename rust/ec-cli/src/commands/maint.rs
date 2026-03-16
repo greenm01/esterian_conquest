@@ -10,6 +10,7 @@ use ec_data::{
 };
 
 use crate::commands::reports::{build_database_dat, build_messages_dat, build_results_dat};
+use crate::commands::runtime::load_runtime_state_preferring_live_directory;
 use crate::workspace::seed_classic_runtime_files;
 
 /// Run Rust maintenance on a game directory for specified number of turns
@@ -22,15 +23,7 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
     );
 
     let campaign_store = CampaignStore::open_default_in_dir(dir)?;
-    let runtime_state = match campaign_store.load_latest_runtime_state()? {
-        Some(state) => state,
-        None => {
-            campaign_store.import_directory_snapshot(dir)?;
-            campaign_store
-                .load_latest_runtime_state()?
-                .ok_or("campaign store has no snapshots after importing directory")?
-        }
-    };
+    let runtime_state = load_runtime_state_preferring_live_directory(dir, &campaign_store)?;
 
     let mut game_data = runtime_state.game_data;
     let start_year = game_data.conquest.game_year();

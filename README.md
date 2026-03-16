@@ -91,6 +91,9 @@ Today the Rust side can:
   through the original onboarding flow
 - project the latest Rust-maintained snapshot back into the working game
   directory so classic `ECGAME` can continue using the same campaign directory
+- re-import live classic `.DAT` edits from that working directory before the
+  next `maint-rust` turn, so old `ECGAME` order entry is not bypassed by a
+  stale SQLite snapshot
 - enforce major player-input legality in the shared Rust engine instead of
   trusting the player client:
   - fleet orders and mission payloads
@@ -227,7 +230,9 @@ cargo run -q -p ec-cli -- maint-rust /tmp/ec-game 3
 `maint-rust` now reads and writes the campaign's `ecgame.db`. Classic `.DAT`
 directories are imported/exported through the CLI compatibility bridge, and the
 latest snapshot is also projected back into the working directory for classic
-`ECGAME` play.
+`ECGAME` play. If classic `ECGAME` changes the working directory between Rust
+turns, `maint-rust` now refreshes SQLite from those live `.DAT` edits before it
+processes the next year.
 
 Run the original oracle against that directory:
 
