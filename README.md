@@ -253,6 +253,20 @@ persisted player handle:
 tools/run_ecgame.sh /tmp/ec-game 2 SYSOP
 ```
 
+Inspect the classic login branch Rust expects for a given caller alias:
+
+```bash
+cd rust
+cargo run -q -p ec-cli -- inspect-classic-login /tmp/ec-game SYSOP
+```
+
+Prepare a player slot for a local matched-alias classic probe:
+
+```bash
+cd rust
+cargo run -q -p ec-cli -- classic-login-prepare /tmp/ec-game 2 SYSOP foo
+```
+
 Run the Rust client:
 
 ```bash

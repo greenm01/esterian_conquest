@@ -85,6 +85,30 @@ fn inspect_summarizes_core_directory_state() {
 }
 
 #[test]
+fn inspect_classic_login_reports_first_time_and_matched_preloaded_states() {
+    let target = unique_temp_dir("ec-cli-inspect-classic-login");
+    common::copy_fixture_dir("fixtures/ecutil-init/v1.5", &target);
+
+    let first_time = run_ec_cli(&["inspect-classic-login", target.to_str().unwrap(), "SYSOP"]);
+    assert!(first_time.contains("slot 1: classification=first-time-menu"));
+
+    let prepared = run_ec_cli(&[
+        "classic-login-prepare",
+        target.to_str().unwrap(),
+        "1",
+        "SYSOP",
+        "Auroran_Combine",
+    ]);
+    assert!(prepared.contains("Prepared classic login for player 1"));
+
+    let matched = run_ec_cli(&["inspect-classic-login", target.to_str().unwrap(), "SYSOP"]);
+    assert!(matched.contains("slot 1: classification=matched-preloaded-first-login"));
+    assert!(matched.contains("homeworld='Not Named Yet'"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn inspect_messages_decodes_classic_mail_sample() {
     let target = unique_temp_dir("ec-cli-inspect-messages");
     fs::write(

@@ -40,6 +40,51 @@ fn player_name_updates_handle_and_empire() {
 }
 
 #[test]
+fn classic_login_prepare_sets_matching_handle_without_renaming_empire_by_default() {
+    let target = unique_temp_dir("ec-cli-classic-login-prepare");
+    run_ec_cli(&[
+        "sysop",
+        "generate-gamestate",
+        target.to_str().unwrap(),
+        "4",
+        "3010",
+        "16:13",
+        "30:6",
+        "2:25",
+        "26:26",
+    ]);
+
+    let rename_stdout = run_ec_cli(&[
+        "player-name",
+        target.to_str().unwrap(),
+        "1",
+        "tester01",
+        "Auroran_Combine",
+    ]);
+    assert!(rename_stdout.contains("Player 1 renamed"));
+
+    let prepare_stdout = run_ec_cli(&[
+        "classic-login-prepare",
+        target.to_str().unwrap(),
+        "1",
+        "SYSOP",
+    ]);
+    assert!(prepare_stdout.contains("Prepared classic login for player 1"));
+
+    let data = ec_data::CoreGameData::load(&target).unwrap();
+    assert_eq!(
+        data.player.records[0].assigned_player_handle_summary(),
+        "SYSOP"
+    );
+    assert_eq!(
+        data.player.records[0].controlled_empire_name_summary(),
+        "Auroran_Combine"
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn fleet_ships_and_detach_create_varied_extra_fleet() {
     let target = unique_temp_dir("ec-cli-fleet-setup");
     run_ec_cli(&[

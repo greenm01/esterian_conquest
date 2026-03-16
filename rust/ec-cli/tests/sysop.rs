@@ -1,8 +1,8 @@
 mod common;
 
 use common::{
-    cleanup_dir, copy_fixture_dir, run_classic_ecgame_smoke, run_ec_cli, run_ec_cli_in_dir,
-    unique_temp_dir,
+    cleanup_dir, copy_fixture_dir, run_classic_ecgame_smoke, run_classic_ecgame_smoke_with_alias,
+    run_ec_cli, run_ec_cli_in_dir, unique_temp_dir,
 };
 
 #[test]
@@ -62,6 +62,27 @@ fn sysop_new_game_launches_classic_ecgame_smoke() {
     assert!(stdout.contains("Initialized new game"));
 
     run_classic_ecgame_smoke(&target, 1);
+
+    cleanup_dir(&target);
+}
+
+#[test]
+#[ignore = "launches classic ECGAME through dosbox-x"]
+fn classic_login_prepare_supports_matched_preloaded_ecgame_smoke() {
+    let target = unique_temp_dir("ec-cli-classic-login-preloaded-ecgame");
+    let stdout = run_ec_cli(&["sysop", "new-game", target.to_str().unwrap()]);
+    assert!(stdout.contains("Initialized new game"));
+
+    let prepare = run_ec_cli(&[
+        "classic-login-prepare",
+        target.to_str().unwrap(),
+        "2",
+        "SYSOP",
+        "foo",
+    ]);
+    assert!(prepare.contains("Prepared classic login for player 2"));
+
+    run_classic_ecgame_smoke_with_alias(&target, 2, "SYSOP");
 
     cleanup_dir(&target);
 }

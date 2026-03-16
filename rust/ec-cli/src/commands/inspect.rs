@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::{ConquestDat, CoreGameData, SetupDat};
+use ec_data::{ConquestDat, CoreGameData, PlanetRecord, SetupDat};
 
 pub(crate) fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let data = CoreGameData::load(dir)?;
@@ -211,6 +211,39 @@ pub(crate) fn inspect_messages(dir: &Path) -> Result<(), Box<dyn std::error::Err
     Ok(())
 }
 
+pub(crate) fn inspect_classic_login(
+    dir: &Path,
+    caller_alias: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let data = CoreGameData::load(dir)?;
+
+    println!("Directory: {}", dir.display());
+    println!("Caller alias: {caller_alias}");
+    println!("Classic login compatibility:");
+
+    for (idx, player) in data.player.records.iter().enumerate() {
+        let slot = idx + 1;
+        let handle = player.assigned_player_handle_summary();
+        let empire = player.controlled_empire_name_summary();
+        let campaign_state = data
+            .empire_campaign_state(slot as u8)
+            .map(|state| state.as_str())
+            .unwrap_or("unknown");
+        let homeworld = login_homeworld_like_planet(&data, slot as u8, player);
+        let homeworld_name = homeworld
+            .map(PlanetRecord::planet_name)
+            .unwrap_or_else(|| "<unknown>".to_string());
+        let classification = classify_classic_login_state(&data, slot as u8, caller_alias);
+
+        println!(
+            "  slot {}: classification={} handle='{}' empire='{}' campaign_state={} homeworld='{}'",
+            slot, classification, handle, empire, campaign_state, homeworld_name
+        );
+    }
+
+    Ok(())
+}
+
 pub(crate) fn dump_headers(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
     let conquest = ConquestDat::parse(&fs::read(dir.join("CONQUEST.DAT"))?)?;
@@ -391,6 +424,62 @@ fn ascii_preview(bytes: &[u8]) -> String {
             }
         })
         .collect()
+}
+
+fn classify_classic_login_state(
+    data: &CoreGameData,
+    empire_raw: u8,
+    caller_alias: &str,
+) -> &'static str {
+    let Some(player) = data
+        .player
+        .records
+        .get(empire_raw.saturating_sub(1) as usize)
+    else {
+        return "unknown";
+    };
+
+    if player.owner_mode_raw() != empire_raw {
+        return "first-time-menu";
+    }
+
+    let handle = player.assigned_player_handle_summary();
+    if !handle.eq_ignore_ascii_case(caller_alias) {
+        return "first-time-menu";
+    }
+
+    let Some(homeworld) = login_homeworld_like_planet(data, empire_raw, player) else {
+        return "returning-player";
+    };
+
+    if homeworld.is_named_homeworld_seed() {
+        "matched-preloaded-first-login"
+    } else {
+        "returning-player"
+    }
+}
+
+fn homeworld_planet<'a>(
+    data: &'a CoreGameData,
+    player: &ec_data::PlayerRecord,
+) -> Option<&'a PlanetRecord> {
+    let index = player.homeworld_planet_index_1_based_raw() as usize;
+    if index == 0 {
+        return None;
+    }
+    data.planets.records.get(index - 1)
+}
+
+fn login_homeworld_like_planet<'a>(
+    data: &'a CoreGameData,
+    empire_raw: u8,
+    player: &ec_data::PlayerRecord,
+) -> Option<&'a PlanetRecord> {
+    homeworld_planet(data, player).or_else(|| {
+        data.planets.records.iter().find(|planet| {
+            planet.owner_empire_slot_raw() == empire_raw && planet.is_named_homeworld_seed()
+        })
+    })
 }
 
 fn yes_no(value: bool) -> &'static str {

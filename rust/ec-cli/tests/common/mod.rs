@@ -121,15 +121,24 @@ pub fn cleanup_dir(path: &Path) {
 }
 
 pub fn run_classic_ecgame_smoke(target: &Path, player_number: u8) -> String {
+    run_classic_ecgame_smoke_with_alias(target, player_number, "Sysop")
+}
+
+pub fn run_classic_ecgame_smoke_with_alias(
+    target: &Path,
+    player_number: u8,
+    caller_alias: &str,
+) -> String {
     let output = Command::new("/usr/bin/bash")
         .current_dir(repo_root())
         .env("SDL_VIDEODRIVER_OVERRIDE", "dummy")
         .env("SDL_AUDIODRIVER_OVERRIDE", "dummy")
         .arg("-lc")
         .arg(format!(
-            "/usr/bin/timeout 8s tools/run_ecgame.sh '{}' {}",
+            "/usr/bin/timeout 8s tools/run_ecgame.sh '{}' {} '{}'",
             target.display(),
-            player_number
+            player_number,
+            caller_alias
         ))
         .output()
         .expect("classic ECGAME smoke should run");

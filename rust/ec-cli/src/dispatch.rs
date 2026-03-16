@@ -22,7 +22,9 @@ use crate::commands::guard_starbase::{
     init_guard_starbase_batch, init_guard_starbase_onebase, print_guard_starbase_report,
     set_guard_starbase_onebase,
 };
-use crate::commands::inspect::{dump_headers, inspect_dir, inspect_messages};
+use crate::commands::inspect::{
+    dump_headers, inspect_classic_login, inspect_dir, inspect_messages,
+};
 use crate::commands::ipbm::{
     init_ipbm_batch, init_ipbm_zero_records, print_ipbm_report, set_ipbm_record_prefix,
     set_ipbm_zero_records, validate_ipbm,
@@ -32,7 +34,7 @@ use crate::commands::planet_build::{
     print_planet_build_report, set_planet_build, set_planet_name, set_planet_owner,
     set_planet_potential, set_planet_stardock_slot, set_planet_stats, set_planet_stored,
 };
-use crate::commands::player_setup::set_player_name;
+use crate::commands::player_setup::{prepare_classic_login, set_player_name};
 
 use crate::commands::bombard::{init_bombard, init_bombard_batch, set_bombard_onefleet};
 use crate::commands::econ::{init_econ, init_econ_batch, set_econ};
@@ -87,6 +89,14 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
         "sysop" => run_sysop_args(args)?,
         "inspect" => inspect_dir(&next_dir(&mut args))?,
         "inspect-messages" => inspect_messages(&next_dir(&mut args))?,
+        "inspect-classic-login" => {
+            let dir = next_dir(&mut args);
+            let Some(caller_alias) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            inspect_classic_login(&dir, &caller_alias)?;
+        }
         "core-report" => print_core_report(&next_dir(&mut args))?,
         "core-diff-current-known-baseline" => {
             print_current_known_baseline_diff(&next_dir(&mut args))?
@@ -587,6 +597,24 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
                 parse_usize_1_based(&player_index, "player record index")?,
                 &handle,
                 &empire_name,
+            )?;
+        }
+        "classic-login-prepare" => {
+            let dir = next_dir(&mut args);
+            let Some(player_index) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(caller_alias) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let empire_name = args.next();
+            prepare_classic_login(
+                &dir,
+                parse_usize_1_based(&player_index, "player record index")?,
+                &caller_alias,
+                empire_name.as_deref(),
             )?;
         }
         "planet-stored" => {

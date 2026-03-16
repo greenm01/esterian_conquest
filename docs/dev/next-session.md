@@ -70,6 +70,14 @@ Latest oracle signal against the remaining manual-adjacent fleet assumptions:
     - report/message review
     - homeworld naming
     - then `MAIN MENU`
+  - `ec-cli inspect-classic-login <dir> <caller_alias>` now reports the
+    compatibility-layer classification Rust expects for each slot:
+    `first-time-menu`, `matched-preloaded-first-login`, or
+    `returning-player`
+  - `ec-cli classic-login-prepare <dir> <player_record> <caller_alias>
+    [empire_name]` now provides a narrow local-probe helper that aligns the
+    persisted player handle with the caller alias without changing broader
+    gameplay state
 
 It can currently:
 
