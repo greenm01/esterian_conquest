@@ -173,6 +173,13 @@ fn classic_chunked_report_bytes(text: &str) -> Vec<u8> {
     bytes
 }
 
+fn classic_chunked_report_blocks(texts: &[&str]) -> Vec<u8> {
+    texts
+        .iter()
+        .flat_map(|text| classic_chunked_report_bytes(text))
+        .collect()
+}
+
 fn advance_to_main_menu(app: &mut App) {
     for _ in 0..16 {
         if app.current_screen() == ScreenId::MainMenu {
@@ -668,10 +675,9 @@ fn preloaded_first_login_routes_through_login_summary_before_rename_prompt() {
             let mut terminal = CaptureTerminal::new();
             app.render(&mut terminal)
                 .expect("login summary should render");
-            if terminal
-                .line(3)
-                .contains("Matched pre-loaded commander. First-login review is required.")
-            {
+            if terminal.lines.iter().any(|line| {
+                line.contains("Matched pre-loaded commander. First-login review is required.")
+            }) {
                 saw_preloaded_summary_text = true;
             }
         }
@@ -1214,10 +1220,9 @@ fn returning_player_routes_through_login_summary_before_main_menu() {
             let mut terminal = CaptureTerminal::new();
             app.render(&mut terminal)
                 .expect("login summary should render");
-            if terminal
-                .line(3)
-                .contains("Returning commander recognized. Resuming login-time review.")
-            {
+            if terminal.lines.iter().any(|line| {
+                line.contains("Returning commander recognized. Resuming login-time review.")
+            }) {
                 saw_returning_summary_text = true;
             }
         }
@@ -2460,13 +2465,15 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
                 .expect("login summary should render");
             assert!(
                 terminal
-                    .line(4)
-                    .contains("Reports are marked pending")
+                    .lines
+                    .iter()
+                    .any(|line| line.contains("Reports are marked pending"))
             );
             assert!(
                 terminal
-                    .line(5)
-                    .contains("Messages are marked pending")
+                    .lines
+                    .iter()
+                    .any(|line| line.contains("Messages are marked pending"))
             );
             break;
         }
@@ -2517,18 +2524,12 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
     let mut reports_terminal = CaptureTerminal::new();
     app.render(&mut reports_terminal)
         .expect("reports screen should render");
-    assert!(
-        reports_terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("reports are marked pending, but no review text is available yet"))
-    );
-    assert!(
-        reports_terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("messages are marked pending, but no review text is available yet"))
-    );
+    assert!(reports_terminal.lines.iter().any(|line| {
+        line.contains("reports are marked pending, but no review text is available yet")
+    }));
+    assert!(reports_terminal.lines.iter().any(|line| {
+        line.contains("messages are marked pending, but no review text is available yet")
+    }));
 }
 
 #[test]
@@ -2609,6 +2610,9 @@ fn startup_results_paginate_before_advancing_to_messages() {
         ScreenId::Startup(StartupPhase::Results)
     );
 
+    // Advance from ViewPrompt into ItemBody to start showing content.
+    app.advance_startup();
+
     let mut first_page = CaptureTerminal::new();
     app.render(&mut first_page)
         .expect("first startup results page should render");
@@ -2616,7 +2620,7 @@ fn startup_results_paginate_before_advancing_to_messages() {
         first_page
             .lines
             .iter()
-            .any(|line| line.contains("< Report line 01"))
+            .any(|line| line.contains(" -> Report line 01"))
     );
     assert!(
         !first_page
@@ -2653,11 +2657,139 @@ fn startup_results_paginate_before_advancing_to_messages() {
             .any(|line| line.contains("(Slap a key)"))
     );
 
+    // Advance through DeletePrompt (keep) → EndStatus → phase exit → Messages.
+    app.advance_startup();
+    app.advance_startup();
     app.advance_startup();
     assert_eq!(
         app.current_screen(),
         ScreenId::Startup(StartupPhase::Messages)
     );
+}
+
+#[test]
+fn startup_messages_allow_deleting_current_message_then_advancing() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.results_bytes.clear();
+    state.messages_bytes =
+        classic_chunked_report_blocks(&["From Alpha\nSubject: One\nBody one", "From Beta\nSubject: Two\nBody two"]);
+    state.game_data.player.records[0].raw[0x30] = 0;
+    state.game_data.player.records[0].raw[0x34] = 1;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::Startup(StartupPhase::Messages) {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Messages)
+    );
+
+    // ViewPrompt → ItemBody (shows Alpha).
+    app.advance_startup();
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("first startup message should render");
+    assert!(terminal.lines.iter().any(|line| line.contains(" -> From Alpha")));
+
+    // ItemBody last page → DeletePrompt.
+    app.advance_startup();
+
+    // Accept default at DeletePrompt → delete Alpha → ContinuePrompt (Beta still exists).
+    assert_eq!(
+        apply_action(&mut app, Action::StartupAcceptDefault),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Messages)
+    );
+
+    // ContinuePrompt → ItemBody (shows Beta).
+    assert_eq!(
+        apply_action(&mut app, Action::StartupAcceptDefault),
+        AppOutcome::Continue
+    );
+
+    let mut after_delete = CaptureTerminal::new();
+    app.render(&mut after_delete)
+        .expect("next startup message should render");
+    assert!(after_delete.lines.iter().any(|line| line.contains(" -> From Beta")));
+
+    let runtime = latest_runtime_state(&fixture_dir);
+    let preview = ec_client::reports::ReportsPreview::from_bytes(&runtime.results_bytes, &runtime.messages_bytes);
+    assert_eq!(preview.message_blocks.len(), 1);
+    assert!(preview.message_lines.iter().any(|line| line.contains("From Beta")));
+}
+
+#[test]
+fn startup_message_review_shows_end_status_after_deleting_last_message() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.results_bytes.clear();
+    state.messages_bytes = classic_chunked_report_bytes("From Alpha\nSubject: One\nBody one");
+    state.game_data.player.records[0].raw[0x30] = 0;
+    state.game_data.player.records[0].raw[0x34] = 1;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::Startup(StartupPhase::Messages) {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Messages)
+    );
+
+    // ViewPrompt → ItemBody.
+    app.advance_startup();
+    // ItemBody last page → DeletePrompt.
+    app.advance_startup();
+    // Accept delete → EndStatus (only 1 block).
+    assert_eq!(
+        apply_action(&mut app, Action::StartupAcceptDefault),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Messages)
+    );
+
+    let mut end_status = CaptureTerminal::new();
+    app.render(&mut end_status)
+        .expect("end status should render");
+    assert!(end_status.lines.iter().any(|line| line.contains("Messages deleted.")));
+
+    // Advance from EndStatus → phase exit → MainMenu.
+    app.advance_startup();
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+
+    let runtime = latest_runtime_state(&fixture_dir);
+    assert!(runtime.messages_bytes.is_empty());
+    assert_eq!(runtime.game_data.player.records[0].classic_messages_pending_flag_raw(), 0);
 }
 
 #[test]
@@ -2689,24 +2821,27 @@ fn startup_results_wrap_long_lines_within_the_playfield() {
         ScreenId::Startup(StartupPhase::Results)
     );
 
+    // Advance from ViewPrompt into ItemBody to start showing content.
+    app.advance_startup();
+
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("startup results should render");
     assert!(
         terminal
-            .line(4)
-            .contains("< This is a deliberately long startup results line")
+            .line(2)
+            .contains(" -> This is a deliberately long startup results line")
     );
-    assert!(terminal.line(5).starts_with("< "));
+    assert!(terminal.line(3).starts_with("< "));
     assert!(
-        terminal.line(4).contains("should wrap cleanly")
-            || terminal.line(5).contains("should wrap cleanly")
+        terminal.line(2).contains("should wrap cleanly")
+            || terminal.line(3).contains("should wrap cleanly")
     );
     assert!(
-        terminal.line(5).contains("eighty column playfield")
-            || terminal.line(6).contains("eighty column playfield")
+        terminal.line(3).contains("eighty column playfield")
+            || terminal.line(4).contains("eighty column playfield")
     );
-    assert!(terminal.line(5).contains("single row.") || terminal.line(6).contains("single row."));
+    assert!(terminal.line(3).contains("single row.") || terminal.line(4).contains("single row."));
 }
 
 #[test]
@@ -2738,12 +2873,15 @@ fn startup_results_preserve_blank_lines_as_classic_spacers() {
         ScreenId::Startup(StartupPhase::Results)
     );
 
+    // Advance from ViewPrompt into ItemBody to start showing content.
+    app.advance_startup();
+
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("startup results should render");
-    assert!(terminal.line(4).contains("< Line one"));
-    assert_eq!(terminal.line(5).trim_end(), "<");
-    assert!(terminal.line(6).contains("< Line two"));
+    assert!(terminal.line(2).contains(" -> Line one"));
+    assert_eq!(terminal.line(3).trim_end(), "<");
+    assert!(terminal.line(4).contains("< Line two"));
 }
 
 #[test]
@@ -2823,6 +2961,56 @@ fn reports_screen_wraps_long_lines_within_the_playfield() {
     assert!(
         terminal.lines[first_line_idx + 1].contains("eighty column playfield")
             || terminal.lines[first_line_idx + 2].contains("eighty column playfield")
+    );
+}
+
+#[test]
+fn reports_screen_keeps_both_sections_visible_when_results_are_long() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.results_bytes = (1..=8)
+        .map(|idx| format!("This is long report line {idx:02} and it should wrap across rows"))
+        .collect::<Vec<_>>()
+        .join("\n")
+        .into_bytes();
+    state.messages_bytes = (1..=4)
+        .map(|idx| format!("Message line {idx:02} should still remain visible"))
+        .collect::<Vec<_>>()
+        .join("\n")
+        .into_bytes();
+    state.game_data.player.records[0].raw[0x30] = 1;
+    state.game_data.player.records[0].raw[0x34] = 1;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenReports),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::Reports);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("reports screen should render");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.trim_end() == "MESSAGES")
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Message line 01 should still remain visible"))
     );
 }
 

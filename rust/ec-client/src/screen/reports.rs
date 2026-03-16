@@ -4,7 +4,8 @@ use crate::app::Action;
 use crate::model::ReviewSummary;
 use crate::reports::ReportsPreview;
 use crate::screen::layout::{
-    PLAYFIELD_WIDTH, draw_command_prompt, draw_status_line, draw_title_bar, new_playfield,
+    PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_command_prompt, draw_status_line, draw_title_bar,
+    new_playfield,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, command_menu_label};
 use crate::theme::classic;
@@ -44,30 +45,33 @@ impl ReportsScreen {
             ),
         );
         row += 2;
+        let report_rows = section_rows(
+            "results",
+            self.summary.reviewable_results,
+            &self.preview.results_lines,
+        );
+        let message_rows = section_rows(
+            "messages",
+            self.summary.reviewable_messages,
+            &self.preview.message_lines,
+        );
+        let content_budget = PLAYFIELD_HEIGHT
+            .saturating_sub(1)
+            .saturating_sub(row)
+            .saturating_sub(4);
+        let (visible_report_rows, visible_message_rows) =
+            split_section_budget(content_budget, report_rows.len(), message_rows.len());
+
         buffer.write_text(row, 0, "REPORTS", classic::status_value_style());
         row += 1;
         buffer.write_text(row, 0, "-------", classic::status_label_style());
         row += 1;
-        row += write_section(
-            &mut buffer,
-            row,
-            "results",
-            self.summary.reviewable_results,
-            &self.preview.results_lines,
-        )?;
-        row += 1;
+        row += write_section(&mut buffer, row, &report_rows, visible_report_rows)?;
         buffer.write_text(row, 0, "MESSAGES", classic::status_value_style());
         row += 1;
         buffer.write_text(row, 0, "--------", classic::status_label_style());
         row += 1;
-        row += write_section(
-            &mut buffer,
-            row,
-            "messages",
-            self.summary.reviewable_messages,
-            &self.preview.message_lines,
-        )?;
-        row += 1;
+        row += write_section(&mut buffer, row, &message_rows, visible_message_rows)?;
         draw_command_prompt(&mut buffer, row, command_menu_label(menu), "SLAP A KEY");
         Ok(buffer)
     }
@@ -89,48 +93,21 @@ impl Screen for ReportsScreen {
 fn write_section(
     buffer: &mut PlayfieldBuffer,
     start_row: usize,
-    section_name: &str,
-    reviewable: bool,
-    lines: &[String],
+    rows: &[String],
+    max_rows: usize,
 ) -> Result<usize, Box<dyn std::error::Error>> {
-    if !reviewable {
-        buffer.write_text(
-            start_row,
-            0,
-            "  <none currently reviewable>",
-            classic::body_style(),
-        );
-        return Ok(1);
-    }
-
-    if lines.is_empty() {
-        let empty_notice = match section_name {
-            "results" => "  <reports are marked pending, but no review text is available yet>",
-            "messages" => "  <messages are marked pending, but no review text is available yet>",
-            _ => "  <review items are marked pending, but no review text is available yet>",
-        };
-        buffer.write_text(
-            start_row,
-            0,
-            empty_notice,
-            classic::body_style(),
-        );
-        return Ok(1);
-    }
-
     let mut written = 0;
-    let wrapped_rows = review_rows(lines);
-    for line in wrapped_rows.iter().take(10) {
+    for line in rows.iter().take(max_rows) {
         buffer.write_text(start_row + written, 0, line, classic::body_style());
         written += 1;
     }
-    if wrapped_rows.len() > 10 {
+    if rows.len() > max_rows {
         buffer.write_text(
             start_row + written,
             0,
             &format!(
                 "  <... {} more line(s); use startup review for full suspense>",
-                wrapped_rows.len() - 10
+                rows.len() - max_rows
             ),
             classic::body_style(),
         );
@@ -143,7 +120,20 @@ fn display_or_unknown(value: &str) -> &str {
     if value.is_empty() { "<unknown>" } else { value }
 }
 
-fn review_rows(lines: &[String]) -> Vec<String> {
+fn section_rows(section_name: &str, reviewable: bool, lines: &[String]) -> Vec<String> {
+    if !reviewable {
+        return vec!["  <none currently reviewable>".to_string()];
+    }
+
+    if lines.is_empty() {
+        let empty_notice = match section_name {
+            "results" => "  <reports are marked pending, but no review text is available yet>",
+            "messages" => "  <messages are marked pending, but no review text is available yet>",
+            _ => "  <review items are marked pending, but no review text is available yet>",
+        };
+        return vec![empty_notice.to_string()];
+    }
+
     let mut rows = Vec::new();
     for line in lines {
         if line.is_empty() {
@@ -157,6 +147,29 @@ fn review_rows(lines: &[String]) -> Vec<String> {
         );
     }
     rows
+}
+
+fn split_section_budget(total: usize, first_len: usize, second_len: usize) -> (usize, usize) {
+    if total == 0 {
+        return (0, 0);
+    }
+
+    let mut first = usize::from(first_len > 0);
+    let mut second = usize::from(second_len > 0);
+    let mut remaining = total.saturating_sub(first + second);
+
+    while remaining > 0 && (first < first_len || second < second_len) {
+        if first < first_len && (first <= second || second >= second_len) {
+            first += 1;
+        } else if second < second_len {
+            second += 1;
+        } else if first < first_len {
+            first += 1;
+        }
+        remaining -= 1;
+    }
+
+    (first.min(first_len), second.min(second_len))
 }
 
 fn wrap_review_text(text: &str, width: usize) -> Vec<String> {

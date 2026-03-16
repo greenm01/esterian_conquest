@@ -9,7 +9,7 @@ use ec_data::{
 
 use crate::app::Action;
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
-use crate::reports::{ReportsPreview, clear_report_bytes};
+use crate::reports::{ReportsPreview, clear_report_bytes, rebuild_chunked_bytes};
 use crate::screen::{
     BuildHelpScreen, CommandMenu, DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen,
     EnemiesScreen, FIRST_TIME_INTRO_PAGE_COUNT, FLEET_MISSION_OPTIONS, FirstTimeEmpiresScreen,
@@ -27,7 +27,7 @@ use crate::screen::{
     PlanetTransportPlanetRow, PlanetTransportScreen, RankingsScreen, ReportsScreen,
     STARTUP_SPLASH_PAGE_COUNT, Screen, ScreenFrame, ScreenId, StarbaseHelpScreen,
     StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen, StarbaseRow, StarmapScreen,
-    StartupScreen, build_unit_spec, build_unit_spec_by_kind, max_quantity,
+    StartupReviewMode, StartupScreen, build_unit_spec, build_unit_spec_by_kind, max_quantity,
     render_first_time_homeworld_confirm, render_first_time_homeworld_name,
     render_first_time_join_name, render_first_time_join_name_confirm,
     render_first_time_join_no_pending, render_first_time_join_summary,
@@ -249,8 +249,16 @@ pub struct App {
     queued_mail: Vec<QueuedPlayerMail>,
     startup_splash_page: usize,
     startup_intro_page: usize,
+    startup_results_block: usize,
     startup_results_page: usize,
+    startup_results_mode: StartupReviewMode,
+    startup_results_nonstop: bool,
+    startup_results_deleted_any: bool,
+    startup_messages_block: usize,
     startup_messages_page: usize,
+    startup_messages_mode: StartupReviewMode,
+    startup_messages_nonstop: bool,
+    startup_messages_deleted_any: bool,
     first_time_intro_page: usize,
     first_time_status: Option<String>,
     first_time_input: String,
@@ -501,8 +509,16 @@ impl App {
             queued_mail,
             startup_splash_page: 0,
             startup_intro_page: 0,
+            startup_results_block: 0,
             startup_results_page: 0,
+            startup_results_mode: StartupReviewMode::ViewPrompt,
+            startup_results_nonstop: false,
+            startup_results_deleted_any: false,
+            startup_messages_block: 0,
             startup_messages_page: 0,
+            startup_messages_mode: StartupReviewMode::ViewPrompt,
+            startup_messages_nonstop: false,
+            startup_messages_deleted_any: false,
             first_time_intro_page: 0,
             first_time_status: None,
             first_time_input: String::new(),
@@ -533,8 +549,15 @@ impl App {
                 phase,
                 self.startup_splash_page,
                 self.startup_intro_page,
+                self.startup_results_block,
                 self.startup_results_page,
+                self.startup_results_mode,
+                self.startup_messages_block,
                 self.startup_messages_page,
+                self.startup_messages_mode,
+                self.startup_results_deleted_any,
+                self.startup_messages_deleted_any,
+                self.game_data.conquest.game_year(),
             )?,
             ScreenId::FirstTimeMenu => self
                 .first_time_menu
@@ -1045,34 +1068,288 @@ impl App {
             self.startup_intro_page += 1;
             return;
         }
-        if self.current_screen == ScreenId::Startup(StartupPhase::Results)
-            && self.startup_results_page + 1 < self.startup.results_page_count()
-        {
-            self.startup_results_page += 1;
+        if self.current_screen == ScreenId::Startup(StartupPhase::Results) {
+            self.advance_startup_review_phase(true);
             return;
         }
-        if self.current_screen == ScreenId::Startup(StartupPhase::Messages)
-            && self.startup_messages_page + 1 < self.startup.messages_page_count()
-        {
-            self.startup_messages_page += 1;
+        if self.current_screen == ScreenId::Startup(StartupPhase::Messages) {
+            self.advance_startup_review_phase(false);
             return;
         }
-        if self.current_screen != ScreenId::Startup(StartupPhase::Results) {
+        self.reset_startup_review_cursors_for_phase_exit();
+        let next = self.startup_sequence.advance();
+        self.current_screen = self.startup_target_screen(next);
+    }
+
+    fn advance_startup_review_phase(&mut self, is_results: bool) {
+        let mode = if is_results {
+            self.startup_results_mode
+        } else {
+            self.startup_messages_mode
+        };
+        let block = if is_results {
+            self.startup_results_block
+        } else {
+            self.startup_messages_block
+        };
+        let page = if is_results {
+            self.startup_results_page
+        } else {
+            self.startup_messages_page
+        };
+        let nonstop = if is_results {
+            self.startup_results_nonstop
+        } else {
+            self.startup_messages_nonstop
+        };
+        let block_count = if is_results {
+            self.startup.result_block_count()
+        } else {
+            self.startup.message_block_count()
+        };
+        let page_count = if is_results {
+            self.startup.results_block_page_count(block)
+        } else {
+            self.startup.messages_block_page_count(block)
+        };
+
+        match mode {
+            StartupReviewMode::ViewPrompt => {
+                if block_count == 0 {
+                    self.advance_startup_phase(is_results);
+                } else {
+                    self.set_startup_review_mode(is_results, StartupReviewMode::ItemBody);
+                    self.set_startup_review_page(is_results, 0);
+                }
+            }
+            StartupReviewMode::ItemBody => {
+                if page + 1 < page_count {
+                    self.set_startup_review_page(is_results, page + 1);
+                } else if nonstop {
+                    let next_block = block + 1;
+                    if next_block < block_count {
+                        self.set_startup_review_block(is_results, next_block);
+                        self.set_startup_review_page(is_results, 0);
+                    } else {
+                        self.set_startup_review_mode(is_results, StartupReviewMode::EndStatus);
+                    }
+                } else {
+                    self.set_startup_review_mode(is_results, StartupReviewMode::DeletePrompt);
+                }
+            }
+            StartupReviewMode::DeletePrompt => {
+                let next_block = block + 1;
+                self.set_startup_review_block(is_results, next_block);
+                self.set_startup_review_page(is_results, 0);
+                if next_block < block_count {
+                    self.set_startup_review_mode(is_results, StartupReviewMode::ContinuePrompt);
+                } else {
+                    self.set_startup_review_mode(is_results, StartupReviewMode::EndStatus);
+                }
+            }
+            StartupReviewMode::ContinuePrompt => {
+                self.set_startup_review_mode(is_results, StartupReviewMode::ItemBody);
+                self.set_startup_review_page(is_results, 0);
+            }
+            StartupReviewMode::EndStatus => {
+                self.advance_startup_phase(is_results);
+            }
+        }
+    }
+
+    fn advance_startup_phase(&mut self, is_results: bool) {
+        if is_results {
+            self.startup_results_block = 0;
             self.startup_results_page = 0;
-        }
-        if self.current_screen != ScreenId::Startup(StartupPhase::Messages) {
+            self.startup_results_mode = StartupReviewMode::ViewPrompt;
+            self.startup_results_nonstop = false;
+        } else {
+            self.startup_messages_block = 0;
             self.startup_messages_page = 0;
+            self.startup_messages_mode = StartupReviewMode::ViewPrompt;
+            self.startup_messages_nonstop = false;
         }
         let next = self.startup_sequence.advance();
         self.current_screen = self.startup_target_screen(next);
     }
 
+    fn set_startup_review_mode(&mut self, is_results: bool, mode: StartupReviewMode) {
+        if is_results {
+            self.startup_results_mode = mode;
+        } else {
+            self.startup_messages_mode = mode;
+        }
+    }
+
+    fn set_startup_review_block(&mut self, is_results: bool, block: usize) {
+        if is_results {
+            self.startup_results_block = block;
+        } else {
+            self.startup_messages_block = block;
+        }
+    }
+
+    fn set_startup_review_page(&mut self, is_results: bool, page: usize) {
+        if is_results {
+            self.startup_results_page = page;
+        } else {
+            self.startup_messages_page = page;
+        }
+    }
+
     pub fn open_startup_intro(&mut self) {
         self.startup_intro_page = 0;
+        self.startup_results_block = 0;
         self.startup_results_page = 0;
+        self.startup_messages_block = 0;
         self.startup_messages_page = 0;
         let next = self.startup_sequence.open_intro();
         self.current_screen = self.startup_target_screen(next);
+    }
+
+    pub fn startup_accept_default(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        match self.current_screen {
+            ScreenId::Startup(StartupPhase::Results) => {
+                match self.startup_results_mode {
+                    StartupReviewMode::ViewPrompt => {
+                        self.startup_results_mode = StartupReviewMode::ItemBody;
+                        self.startup_results_page = 0;
+                    }
+                    StartupReviewMode::DeletePrompt => {
+                        let block_idx = self.startup_results_block;
+                        let mut blocks = self.startup.result_blocks().to_vec();
+                        if block_idx < blocks.len() {
+                            blocks.remove(block_idx);
+                        }
+                        self.results_bytes = rebuild_chunked_bytes(&blocks).unwrap_or_default();
+                        self.sync_player_review_flags();
+                        self.save_game_data()?;
+                        self.refresh_review_context()?;
+                        self.startup_results_deleted_any = true;
+                        self.startup_results_page = 0;
+                        if self.startup_results_block < self.startup.result_block_count() {
+                            self.startup_results_mode = StartupReviewMode::ContinuePrompt;
+                        } else {
+                            self.startup_results_mode = StartupReviewMode::EndStatus;
+                        }
+                    }
+                    StartupReviewMode::ContinuePrompt => {
+                        self.startup_results_mode = StartupReviewMode::ItemBody;
+                        self.startup_results_page = 0;
+                    }
+                    _ => {}
+                }
+            }
+            ScreenId::Startup(StartupPhase::Messages) => {
+                match self.startup_messages_mode {
+                    StartupReviewMode::ViewPrompt => {
+                        self.startup_messages_mode = StartupReviewMode::ItemBody;
+                        self.startup_messages_page = 0;
+                    }
+                    StartupReviewMode::DeletePrompt => {
+                        let block_idx = self.startup_messages_block;
+                        let mut blocks = self.startup.message_blocks().to_vec();
+                        if block_idx < blocks.len() {
+                            blocks.remove(block_idx);
+                        }
+                        self.messages_bytes = rebuild_chunked_bytes(&blocks).unwrap_or_default();
+                        self.sync_player_review_flags();
+                        self.save_game_data()?;
+                        self.refresh_review_context()?;
+                        self.startup_messages_deleted_any = true;
+                        self.startup_messages_page = 0;
+                        if self.startup_messages_block < self.startup.message_block_count() {
+                            self.startup_messages_mode = StartupReviewMode::ContinuePrompt;
+                        } else {
+                            self.startup_messages_mode = StartupReviewMode::EndStatus;
+                        }
+                    }
+                    StartupReviewMode::ContinuePrompt => {
+                        self.startup_messages_mode = StartupReviewMode::ItemBody;
+                        self.startup_messages_page = 0;
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    pub fn startup_reject_choice(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        match self.current_screen {
+            ScreenId::Startup(StartupPhase::Results) => {
+                match self.startup_results_mode {
+                    StartupReviewMode::ViewPrompt => {
+                        self.advance_startup_phase(true);
+                    }
+                    StartupReviewMode::DeletePrompt => {
+                        let next_block = self.startup_results_block + 1;
+                        self.startup_results_block = next_block;
+                        self.startup_results_page = 0;
+                        if next_block < self.startup.result_block_count() {
+                            self.startup_results_mode = StartupReviewMode::ContinuePrompt;
+                        } else {
+                            self.startup_results_mode = StartupReviewMode::EndStatus;
+                        }
+                    }
+                    StartupReviewMode::ContinuePrompt => {
+                        self.startup_results_mode = StartupReviewMode::EndStatus;
+                    }
+                    _ => {}
+                }
+            }
+            ScreenId::Startup(StartupPhase::Messages) => {
+                match self.startup_messages_mode {
+                    StartupReviewMode::ViewPrompt => {
+                        self.advance_startup_phase(false);
+                    }
+                    StartupReviewMode::DeletePrompt => {
+                        let next_block = self.startup_messages_block + 1;
+                        self.startup_messages_block = next_block;
+                        self.startup_messages_page = 0;
+                        if next_block < self.startup.message_block_count() {
+                            self.startup_messages_mode = StartupReviewMode::ContinuePrompt;
+                        } else {
+                            self.startup_messages_mode = StartupReviewMode::EndStatus;
+                        }
+                    }
+                    StartupReviewMode::ContinuePrompt => {
+                        self.startup_messages_mode = StartupReviewMode::EndStatus;
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    pub fn startup_enable_nonstop(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        match self.current_screen {
+            ScreenId::Startup(StartupPhase::Results) => {
+                match self.startup_results_mode {
+                    StartupReviewMode::ViewPrompt | StartupReviewMode::ContinuePrompt => {
+                        self.startup_results_nonstop = true;
+                        self.startup_results_mode = StartupReviewMode::ItemBody;
+                        self.startup_results_page = 0;
+                    }
+                    _ => {}
+                }
+            }
+            ScreenId::Startup(StartupPhase::Messages) => {
+                match self.startup_messages_mode {
+                    StartupReviewMode::ViewPrompt | StartupReviewMode::ContinuePrompt => {
+                        self.startup_messages_nonstop = true;
+                        self.startup_messages_mode = StartupReviewMode::ItemBody;
+                        self.startup_messages_page = 0;
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+        Ok(())
     }
 
     pub fn open_first_time_menu(&mut self) {
@@ -4444,7 +4721,7 @@ impl App {
                     _ => Action::AdvanceStartup,
                 }
             }
-            ScreenId::Startup(phase) => self.startup.handle_key(phase, key),
+            ScreenId::Startup(phase) => self.handle_startup_key(phase, key),
             ScreenId::FirstTimeMenu => self.first_time_menu.handle_key(key),
             ScreenId::FirstTimeHelp => self.first_time_help.handle_key(key),
             ScreenId::FirstTimeEmpires => self.first_time_empires.handle_key(key),
@@ -4611,6 +4888,119 @@ impl App {
             ScreenId::EmpireProfile => self.empire_profile.handle_key(key),
             ScreenId::Rankings(_) => self.rankings.handle_key(key),
             ScreenId::Reports => self.reports.handle_key(key),
+        }
+    }
+
+    fn handle_startup_key(
+        &self,
+        phase: StartupPhase,
+        key: crossterm::event::KeyEvent,
+    ) -> crate::app::Action {
+        use crossterm::event::KeyCode;
+
+        match phase {
+            StartupPhase::Splash => match key.code {
+                KeyCode::Char('y') | KeyCode::Char('Y') => Action::OpenStartupIntro,
+                KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                _ => Action::AdvanceStartup,
+            },
+            StartupPhase::Intro | StartupPhase::LoginSummary => match key.code {
+                KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                _ => Action::AdvanceStartup,
+            },
+            StartupPhase::Results => {
+                if self.startup_results_mode == StartupReviewMode::ItemBody {
+                    let page_count = self
+                        .startup
+                        .results_block_page_count(self.startup_results_block);
+                    if self.startup_results_page + 1 < page_count {
+                        return match key.code {
+                            KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                            _ => Action::AdvanceStartup,
+                        };
+                    }
+                }
+                match self.startup_results_mode {
+                    StartupReviewMode::ViewPrompt | StartupReviewMode::ContinuePrompt => {
+                        match key.code {
+                            KeyCode::Enter
+                            | KeyCode::Char('y')
+                            | KeyCode::Char('Y') => Action::StartupAcceptDefault,
+                            KeyCode::Char('n') | KeyCode::Char('N') => {
+                                Action::StartupRejectChoice
+                            }
+                            KeyCode::Char('s') | KeyCode::Char('S') => {
+                                Action::StartupEnableNonstop
+                            }
+                            KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                            _ => Action::Noop,
+                        }
+                    }
+                    StartupReviewMode::ItemBody => match key.code {
+                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                        _ => Action::AdvanceStartup,
+                    },
+                    StartupReviewMode::DeletePrompt => match key.code {
+                        KeyCode::Char('y') | KeyCode::Char('Y') => Action::StartupAcceptDefault,
+                        KeyCode::Enter | KeyCode::Char('n') | KeyCode::Char('N') => {
+                            Action::StartupRejectChoice
+                        }
+                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                        _ => Action::Noop,
+                    },
+                    StartupReviewMode::EndStatus => match key.code {
+                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                        _ => Action::AdvanceStartup,
+                    },
+                }
+            }
+            StartupPhase::Messages => {
+                if self.startup_messages_mode == StartupReviewMode::ItemBody {
+                    let page_count = self
+                        .startup
+                        .messages_block_page_count(self.startup_messages_block);
+                    if self.startup_messages_page + 1 < page_count {
+                        return match key.code {
+                            KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                            _ => Action::AdvanceStartup,
+                        };
+                    }
+                }
+                match self.startup_messages_mode {
+                    StartupReviewMode::ViewPrompt | StartupReviewMode::ContinuePrompt => {
+                        match key.code {
+                            KeyCode::Enter
+                            | KeyCode::Char('y')
+                            | KeyCode::Char('Y') => Action::StartupAcceptDefault,
+                            KeyCode::Char('n') | KeyCode::Char('N') => {
+                                Action::StartupRejectChoice
+                            }
+                            KeyCode::Char('s') | KeyCode::Char('S') => {
+                                Action::StartupEnableNonstop
+                            }
+                            KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                            _ => Action::Noop,
+                        }
+                    }
+                    StartupReviewMode::ItemBody => match key.code {
+                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                        _ => Action::AdvanceStartup,
+                    },
+                    StartupReviewMode::DeletePrompt => match key.code {
+                        KeyCode::Char('y') | KeyCode::Char('Y') => Action::StartupAcceptDefault,
+                        KeyCode::Enter | KeyCode::Char('n') | KeyCode::Char('N') => {
+                            Action::StartupRejectChoice
+                        }
+                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                        _ => Action::Noop,
+                    },
+                    StartupReviewMode::EndStatus => match key.code {
+                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                        _ => Action::AdvanceStartup,
+                    },
+                }
+            }
+            StartupPhase::Complete => Action::Noop,
         }
     }
 
@@ -5448,8 +5838,8 @@ impl App {
             .records
             .get_mut(self.player.record_index_1_based - 1)
         {
-            player.raw[0x30] = 0;
-            player.raw[0x34] = 0;
+            player.set_classic_reports_pending_flag_raw(0);
+            player.set_classic_messages_pending_flag_raw(0);
         }
         self.save_game_data()?;
         let refreshed = ReportsPreview::from_bytes(&self.results_bytes, &self.messages_bytes);
@@ -7990,6 +8380,11 @@ impl App {
     fn refresh_player_context(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.player =
             PlayerContext::from_game_data(&self.game_data, self.player.record_index_1_based)?;
+        self.refresh_review_context()?;
+        Ok(())
+    }
+
+    fn refresh_review_context(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let refreshed = ReportsPreview::from_bytes(&self.results_bytes, &self.messages_bytes);
         let summary = MainMenuSummary::from_game_data(
             &self.game_data,
@@ -7997,9 +8392,46 @@ impl App {
             !self.results_bytes.is_empty(),
             !self.messages_bytes.is_empty(),
         );
+        let startup_summary = StartupSummary::from_reports(
+            summary.game_year,
+            self.player.classic_login_state,
+            summary.pending_results,
+            summary.pending_messages,
+            &refreshed,
+        );
+        self.startup.replace(startup_summary, refreshed.clone());
         self.reports
             .replace(refreshed, ReviewSummary::from_main_menu(&summary));
         Ok(())
+    }
+
+    fn reset_startup_review_cursors_for_phase_exit(&mut self) {
+        if self.current_screen != ScreenId::Startup(StartupPhase::Results) {
+            self.startup_results_block = 0;
+            self.startup_results_page = 0;
+            self.startup_results_mode = StartupReviewMode::ViewPrompt;
+            self.startup_results_nonstop = false;
+            self.startup_results_deleted_any = false;
+        }
+        if self.current_screen != ScreenId::Startup(StartupPhase::Messages) {
+            self.startup_messages_block = 0;
+            self.startup_messages_page = 0;
+            self.startup_messages_mode = StartupReviewMode::ViewPrompt;
+            self.startup_messages_nonstop = false;
+            self.startup_messages_deleted_any = false;
+        }
+    }
+
+    fn sync_player_review_flags(&mut self) {
+        if let Some(player) = self
+            .game_data
+            .player
+            .records
+            .get_mut(self.player.record_index_1_based - 1)
+        {
+            player.set_classic_reports_pending_flag_raw(u8::from(!self.results_bytes.is_empty()));
+            player.set_classic_messages_pending_flag_raw(u8::from(!self.messages_bytes.is_empty()));
+        }
     }
 
     fn startup_target_screen(&self, phase: StartupPhase) -> ScreenId {

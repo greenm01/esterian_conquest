@@ -97,7 +97,7 @@ pub use starmap::StarmapScreen;
 pub use startup::GAME_VERSION;
 pub(crate) use startup::STARTUP_INTRO_PAGE_COUNT;
 pub(crate) use startup::STARTUP_SPLASH_PAGE_COUNT;
-pub use startup::StartupScreen;
+pub use startup::{StartupReviewMode, StartupScreen};
 pub(crate) use table::format_fleet_number;
 
 use std::collections::BTreeMap;

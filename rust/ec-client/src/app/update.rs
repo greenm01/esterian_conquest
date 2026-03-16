@@ -22,6 +22,27 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_startup_intro();
             AppOutcome::Continue
         }
+        Action::StartupAcceptDefault => match app.startup_accept_default() {
+            Ok(()) => AppOutcome::Continue,
+            Err(err) => {
+                eprintln!("startup accept failed: {err}");
+                AppOutcome::Continue
+            }
+        },
+        Action::StartupRejectChoice => match app.startup_reject_choice() {
+            Ok(()) => AppOutcome::Continue,
+            Err(err) => {
+                eprintln!("startup reject failed: {err}");
+                AppOutcome::Continue
+            }
+        },
+        Action::StartupEnableNonstop => match app.startup_enable_nonstop() {
+            Ok(()) => AppOutcome::Continue,
+            Err(err) => {
+                eprintln!("startup nonstop transition failed: {err}");
+                AppOutcome::Continue
+            }
+        },
         Action::OpenFirstTimeMenu => {
             app.open_first_time_menu();
             AppOutcome::Continue

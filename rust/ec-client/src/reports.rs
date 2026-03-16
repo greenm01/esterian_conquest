@@ -1,14 +1,26 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReviewBlock {
+    pub lines: Vec<String>,
+    pub raw_chunked_bytes: Option<Vec<u8>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReportsPreview {
     pub results_lines: Vec<String>,
     pub message_lines: Vec<String>,
+    pub result_blocks: Vec<ReviewBlock>,
+    pub message_blocks: Vec<ReviewBlock>,
 }
 
 impl ReportsPreview {
     pub fn from_bytes(results_bytes: &[u8], message_bytes: &[u8]) -> Self {
+        let result_blocks = decode_report_blocks(results_bytes);
+        let message_blocks = decode_report_blocks(message_bytes);
         Self {
-            results_lines: decode_report_bytes(results_bytes),
-            message_lines: decode_report_bytes(message_bytes),
+            results_lines: flatten_block_lines(&result_blocks),
+            message_lines: flatten_block_lines(&message_blocks),
+            result_blocks,
+            message_blocks,
         }
     }
 }
@@ -18,40 +30,93 @@ pub fn clear_report_bytes(results_bytes: &mut Vec<u8>, message_bytes: &mut Vec<u
     message_bytes.clear();
 }
 
-fn decode_report_bytes(bytes: &[u8]) -> Vec<String> {
+pub fn rebuild_chunked_bytes(blocks: &[ReviewBlock]) -> Option<Vec<u8>> {
+    let mut rebuilt = Vec::new();
+    for block in blocks {
+        let raw = block.raw_chunked_bytes.as_ref()?;
+        rebuilt.extend_from_slice(raw);
+    }
+    Some(rebuilt)
+}
+
+fn decode_report_blocks(bytes: &[u8]) -> Vec<ReviewBlock> {
     if bytes.is_empty() {
         return Vec::new();
     }
 
-    if let Some(lines) = decode_chunked_records(bytes) {
-        return lines;
+    if let Some(blocks) = decode_chunked_records(bytes) {
+        return blocks;
     }
 
     let fallback = printable_runs(bytes, 8);
     if fallback.is_empty() {
-        vec!["<binary data present>".to_string()]
+        vec![ReviewBlock {
+            lines: vec!["<binary data present>".to_string()],
+            raw_chunked_bytes: None,
+        }]
     } else {
-        fallback
+        vec![ReviewBlock {
+            lines: fallback,
+            raw_chunked_bytes: None,
+        }]
     }
 }
 
-fn decode_chunked_records(bytes: &[u8]) -> Option<Vec<String>> {
+fn flatten_block_lines(blocks: &[ReviewBlock]) -> Vec<String> {
+    blocks
+        .iter()
+        .flat_map(|block| block.lines.iter().cloned())
+        .collect()
+}
+
+fn decode_chunked_records(bytes: &[u8]) -> Option<Vec<ReviewBlock>> {
     if bytes.len() % 84 != 0 {
         return None;
     }
 
-    let text = bytes
-        .chunks_exact(84)
-        .flat_map(|chunk| chunk.get(1..76).unwrap_or(&[]).iter().copied())
-        .filter(|byte| *byte != 0)
-        .map(char::from)
-        .collect::<String>();
-    let lines = text
-        .lines()
+    let mut blocks = Vec::new();
+    let mut current_text = String::new();
+    let mut current_raw = Vec::new();
+
+    for chunk in bytes.chunks_exact(84) {
+        let text_bytes = chunk.get(1..76).unwrap_or(&[]);
+        let used = text_bytes
+            .iter()
+            .position(|byte| *byte == 0)
+            .unwrap_or(text_bytes.len());
+        current_text.extend(text_bytes[..used].iter().map(|byte| char::from(*byte)));
+        current_raw.extend_from_slice(chunk);
+
+        if used < text_bytes.len() {
+            blocks.push(ReviewBlock {
+                lines: decode_text_lines(&current_text),
+                raw_chunked_bytes: Some(std::mem::take(&mut current_raw)),
+            });
+            current_text.clear();
+        }
+    }
+
+    if !current_text.is_empty() || !current_raw.is_empty() {
+        blocks.push(ReviewBlock {
+            lines: decode_text_lines(&current_text),
+            raw_chunked_bytes: Some(current_raw),
+        });
+    }
+
+    Some(blocks)
+}
+
+fn decode_text_lines(text: &str) -> Vec<String> {
+    let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
+    let mut lines = normalized
+        .split('\n')
         .map(str::trim)
         .map(ToOwned::to_owned)
         .collect::<Vec<_>>();
-    Some(lines)
+    while lines.last().is_some_and(|line| line.is_empty()) {
+        lines.pop();
+    }
+    lines
 }
 
 fn printable_runs(bytes: &[u8], min_len: usize) -> Vec<String> {
