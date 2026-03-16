@@ -607,7 +607,7 @@ pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEv
                 event.transport_army_losses
             )
         } else {
-            String::new()
+            " No troops were lost during the landing.".to_string()
         };
         let blitz_cover_note = if event.defender_battery_losses > 0 {
             format!(
@@ -1434,7 +1434,7 @@ pub(crate) fn build_messages_dat(
                 event.transport_army_losses
             )
         } else {
-            String::new()
+            " No troops were lost during the landing.".to_string()
         };
         let blitz_cover_note = if event.defender_battery_losses > 0 {
             format!(

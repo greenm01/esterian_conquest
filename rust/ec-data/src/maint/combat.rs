@@ -1392,6 +1392,82 @@ fn bombard_attack_as(state: &FleetCombatState) -> u32 {
     state.counts[IDX_DD] * 1 / 2 + state.counts[IDX_CA] * 3 + state.counts[IDX_BB] * 9 * 3 / 2
 }
 
+fn blitz_cover_hits(state: &FleetCombatState) -> u32 {
+    let combat_ships = state.counts[IDX_DD] + state.counts[IDX_CA] + state.counts[IDX_BB];
+    if combat_ships == 0 {
+        return 0;
+    }
+
+    hits_from(bombard_attack_as(state).max(1), 50)
+}
+
+fn apply_blitz_landing_fire(
+    game_data: &mut CoreGameData,
+    fleet_indices: &[usize],
+    surviving_batteries: u8,
+) -> (u32, ShipLosses) {
+    let mut transport_hits_remaining = surviving_batteries as u32;
+    let mut landed_army_losses = 0u32;
+    let mut ship_losses = ShipLosses::default();
+
+    for &idx in fleet_indices {
+        if transport_hits_remaining == 0 {
+            break;
+        }
+        let fleet = &mut game_data.fleets.records[idx];
+        let transport_loss =
+            transport_hits_remaining.min(fleet.troop_transport_count() as u32) as u16;
+        if transport_loss == 0 {
+            continue;
+        }
+        fleet.set_troop_transport_count(
+            fleet.troop_transport_count().saturating_sub(transport_loss),
+        );
+        fleet.set_army_count(fleet.army_count().saturating_sub(transport_loss));
+        ship_losses.transports += transport_loss as u32;
+        landed_army_losses += transport_loss as u32;
+        transport_hits_remaining -= transport_loss as u32;
+    }
+
+    if transport_hits_remaining > 0 {
+        for &idx in fleet_indices {
+            if transport_hits_remaining == 0 {
+                break;
+            }
+            let fleet = &mut game_data.fleets.records[idx];
+            let destroyer_loss =
+                transport_hits_remaining.min(fleet.destroyer_count() as u32) as u16;
+            if destroyer_loss > 0 {
+                fleet.set_destroyer_count(fleet.destroyer_count().saturating_sub(destroyer_loss));
+                ship_losses.destroyers += destroyer_loss as u32;
+                transport_hits_remaining -= destroyer_loss as u32;
+            }
+
+            let cruiser_loss = transport_hits_remaining.min(fleet.cruiser_count() as u32) as u16;
+            if cruiser_loss > 0 {
+                fleet.set_cruiser_count(fleet.cruiser_count().saturating_sub(cruiser_loss));
+                ship_losses.cruisers += cruiser_loss as u32;
+                transport_hits_remaining -= cruiser_loss as u32;
+            }
+
+            let battleship_loss =
+                transport_hits_remaining.min(fleet.battleship_count() as u32) as u16;
+            if battleship_loss > 0 {
+                fleet
+                    .set_battleship_count(fleet.battleship_count().saturating_sub(battleship_loss));
+                ship_losses.battleships += battleship_loss as u32;
+                transport_hits_remaining -= battleship_loss as u32;
+            }
+        }
+    }
+
+    if transport_hits_remaining > 0 {
+        landed_army_losses += transport_hits_remaining;
+    }
+
+    (landed_army_losses, ship_losses)
+}
+
 fn select_orbital_supremacy_empire(
     game_data: &CoreGameData,
     planet_idx: usize,
@@ -1795,7 +1871,7 @@ pub(crate) fn process_planetary_assaults(
                     .sum();
                 // A blitz uses only a brief cover-fire exchange before the drop.
                 // This is intentionally lighter than a full invade bombardment.
-                let cover_hits = hits_from(bombard_attack_as(&cover_state), 50);
+                let cover_hits = blitz_cover_hits(&cover_state);
                 {
                     let planet = &mut game_data.planets.records[planet_idx];
                     let battery_loss = cover_hits.min(planet.ground_batteries_raw() as u32) as u8;
@@ -1803,35 +1879,11 @@ pub(crate) fn process_planetary_assaults(
                         planet.ground_batteries_raw().saturating_sub(battery_loss),
                     );
                 }
-                let planet = &game_data.planets.records[planet_idx];
-                let landing_fire = hits_from(
-                    planet.ground_batteries_raw() as u32 * GROUND_AS_BATTERY,
-                    ground_cer_percent(
-                        planet.ground_batteries_raw() as u32 * GROUND_AS_BATTERY,
-                        attacking_armies.max(1),
-                        0,
-                    ),
-                );
-
-                let mut armies_after_landing = attacking_armies;
-                let mut ship_losses = ShipLosses::default();
-                let mut tt_losses = landing_fire;
-                for &idx in &winner_fleets {
-                    if tt_losses == 0 {
-                        break;
-                    }
-                    let fleet = &mut game_data.fleets.records[idx];
-                    let loss = tt_losses.min(fleet.troop_transport_count() as u32) as u16;
-                    fleet.set_troop_transport_count(
-                        fleet.troop_transport_count().saturating_sub(loss),
-                    );
-                    fleet.set_army_count(fleet.army_count().saturating_sub(loss));
-                    ship_losses.transports += loss as u32;
-                    armies_after_landing = armies_after_landing.saturating_sub(loss as u32);
-                    tt_losses -= loss as u32;
-                }
-                armies_after_landing = armies_after_landing.saturating_sub(tt_losses);
-
+                let surviving_batteries =
+                    game_data.planets.records[planet_idx].ground_batteries_raw();
+                let (landing_army_losses, ship_losses) =
+                    apply_blitz_landing_fire(game_data, &winner_fleets, surviving_batteries);
+                let armies_after_landing = attacking_armies.saturating_sub(landing_army_losses);
                 let defender_armies = game_data.planets.records[planet_idx].army_count_raw() as u32;
                 let atk_hits = hits_from(
                     armies_after_landing,
@@ -1843,8 +1895,8 @@ pub(crate) fn process_planetary_assaults(
                 );
                 let attacker_survivors = armies_after_landing.saturating_sub(def_hits);
                 let defender_survivors = defender_armies.saturating_sub(atk_hits);
-                let defender_battery_losses =
-                    pre_batteries.saturating_sub(planet.ground_batteries_raw());
+                let defender_battery_losses = pre_batteries
+                    .saturating_sub(game_data.planets.records[planet_idx].ground_batteries_raw());
                 let defender_army_losses =
                     pre_armies.saturating_sub(defender_survivors.min(255) as u8);
 
@@ -1893,7 +1945,7 @@ pub(crate) fn process_planetary_assaults(
                         defender_armies_initial: pre_armies,
                         attacker_ship_losses: ship_losses,
                         attacker_army_losses: attacking_armies.saturating_sub(attacker_survivors),
-                        transport_army_losses: ship_losses.transports,
+                        transport_army_losses: landing_army_losses,
                         defender_battery_losses,
                         defender_army_losses,
                         outcome: MissionOutcome::Succeeded,
@@ -1928,7 +1980,7 @@ pub(crate) fn process_planetary_assaults(
                         defender_armies_initial: pre_armies,
                         attacker_ship_losses: ship_losses,
                         attacker_army_losses: attacking_armies,
-                        transport_army_losses: ship_losses.transports,
+                        transport_army_losses: landing_army_losses,
                         defender_battery_losses,
                         defender_army_losses,
                         outcome: MissionOutcome::Failed,

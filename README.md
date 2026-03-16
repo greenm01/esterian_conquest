@@ -131,7 +131,7 @@ In plain terms:
 
 Maintenance engine status, approximately:
 
-- valid mission behavior against `ECPLAYER.DOC`: `A`
+- valid mission behavior against `ECPLAYER.DOC`: `A+`
 - engine authority / invalid-input resistance: `A+`
 - overall maintenance-engine status: `A+`
 

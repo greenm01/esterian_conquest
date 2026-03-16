@@ -624,12 +624,12 @@ fn canonical_blitz_success_transfers_surviving_batteries() {
     {
         let attacker = &mut game_data.fleets.records[0];
         attacker.set_troop_transport_count(15);
-        attacker.set_army_count(20);
+        attacker.set_army_count(15);
     }
     {
         let target = &mut game_data.planets.records[13];
         target.set_army_count_raw(3);
-        target.set_ground_batteries_raw(1);
+        target.set_ground_batteries_raw(2);
     }
 
     let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
@@ -642,8 +642,10 @@ fn canonical_blitz_success_transfers_surviving_batteries() {
     assert_eq!(target.owner_empire_slot_raw(), 1);
     assert_eq!(target.ownership_status_raw(), 2);
     assert_eq!(target.ground_batteries_raw(), 1);
-    assert_eq!(target.army_count_raw(), 10);
+    assert_eq!(target.army_count_raw(), 9);
     assert_eq!(events.ownership_change_events.len(), 1);
+    assert_eq!(events.assault_report_events.len(), 1);
+    assert_eq!(events.assault_report_events[0].transport_army_losses, 1);
     assert_eq!(events.ownership_change_events[0].planet_idx, 13);
     assert_eq!(
         events.ownership_change_events[0].previous_owner_empire_raw,
@@ -689,6 +691,6 @@ fn canonical_blitz_failure_leaves_defender_in_control() {
     assert_eq!(attacker.army_count(), 0);
     assert_eq!(target.owner_empire_slot_raw(), 2);
     assert_eq!(target.ownership_status_raw(), 2);
-    assert_eq!(target.army_count_raw(), 10);
-    assert_eq!(target.ground_batteries_raw(), 2);
+    assert_eq!(target.army_count_raw(), 8);
+    assert_eq!(target.ground_batteries_raw(), 1);
 }
