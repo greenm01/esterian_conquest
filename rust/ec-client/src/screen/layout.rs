@@ -6,7 +6,6 @@ pub const PLAYFIELD_HEIGHT: usize = 20;
 pub const COMMAND_LINE_ROW: usize = PLAYFIELD_HEIGHT - 1;
 pub const CMD_COL_1: usize = 2;
 pub const CMD_COL_2: usize = 26;
-pub const CMD_COL_3: usize = 50;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MenuEntry<'a> {

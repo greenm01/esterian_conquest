@@ -3,8 +3,8 @@ use ec_data::{EmpirePlanetEconomyRow, ProductionItemKind};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    CMD_COL_1, CMD_COL_2, CMD_COL_3, MenuEntry, draw_command_line_default_input,
-    draw_command_prompt, draw_menu_row, draw_status_line, draw_title_bar, new_playfield,
+    CMD_COL_1, MenuEntry, draw_command_line_default_input, draw_command_prompt, draw_menu_row,
+    draw_status_line, draw_title_bar, new_playfield,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{
@@ -35,26 +35,26 @@ const BUILD_LIST_COLUMNS: [TableColumn<'static>; 4] = [
 
 const ROW_1: [MenuEntry<'static>; 3] = [
     MenuEntry::new(CMD_COL_1, "H", "elp with commands"),
-    MenuEntry::new(CMD_COL_2, "P", "lanets, List your"),
-    MenuEntry::new(CMD_COL_3, "S", "pecify Build Orders"),
+    MenuEntry::new(29, "P", "lanets, List your"),
+    MenuEntry::new(57, "S", "pecify Build Orders"),
 ];
 
 const ROW_2: [MenuEntry<'static>; 3] = [
     MenuEntry::new(CMD_COL_1, "Q", "uit to Planet Menu"),
-    MenuEntry::new(CMD_COL_2, "R", "eview current planet"),
-    MenuEntry::new(CMD_COL_3, "A", "bort planet's builds"),
+    MenuEntry::new(29, "R", "eview current planet"),
+    MenuEntry::new(57, "A", "bort planet's builds"),
 ];
 
 const ROW_3: [MenuEntry<'static>; 3] = [
     MenuEntry::new(CMD_COL_1, "X", "pert mode ON/OFF"),
-    MenuEntry::new(CMD_COL_2, "C", "hange current planet"),
-    MenuEntry::new(CMD_COL_3, "L", "ist builds"),
+    MenuEntry::new(29, "C", "hange current planet"),
+    MenuEntry::new(57, "L", "ist builds"),
 ];
 
 const ROW_4: [MenuEntry<'static>; 3] = [
     MenuEntry::new(CMD_COL_1, "V", "iew partial star map"),
-    MenuEntry::new(CMD_COL_2, "N", "ext planet"),
-    MenuEntry::new(CMD_COL_3, "I", "nfo about a Planet"),
+    MenuEntry::new(29, "N", "ext planet"),
+    MenuEntry::new(57, "I", "nfo about a Planet"),
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -258,7 +258,12 @@ impl PlanetBuildScreen {
         if let Some(status) = status {
             draw_status_line(&mut buffer, 14, "", status);
         }
-        draw_command_prompt(&mut buffer, 19, "BUILD COMMAND", "H Q X V P R C N S A L I");
+        draw_command_prompt(
+            &mut buffer,
+            19,
+            "BUILD COMMAND",
+            "H,Q,X,V,P,R,C,N,S,A,L,I",
+        );
         Ok(buffer)
     }
 

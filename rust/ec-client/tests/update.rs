@@ -1332,6 +1332,51 @@ fn planet_build_menu_and_subscreens_render_without_crashing_when_no_owned_planet
 }
 
 #[test]
+fn planet_build_menu_matches_verified_v15_command_layout() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetBuildMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("planet build menu should render");
+    assert_eq!(
+        terminal.line(0).trim_end(),
+        "BUILD ON CURRENT PLANET: \"Codex Prime\" IN SYSTEM [16,13]:"
+    );
+    assert_eq!(
+        terminal.line(6).trim_end(),
+        "  H>elp with commands        P>lanets, List your         S>pecify Build Orders"
+    );
+    assert_eq!(
+        terminal.line(7).trim_end(),
+        "  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds"
+    );
+    assert_eq!(
+        terminal.line(8).trim_end(),
+        "  X>pert mode ON/OFF         C>hange current planet      L>ist builds"
+    );
+    assert_eq!(
+        terminal.line(9).trim_end(),
+        "  V>iew partial star map     N>ext planet                I>nfo about a Planet"
+    );
+    assert_eq!(
+        terminal.line(19).trim_end(),
+        "BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I->"
+    );
+}
+
+#[test]
 fn command_menus_render_without_crashing_for_empty_empire_state() {
     let fixture_dir = temp_joined_empty_empire_copy();
     let mut app = App::load(AppConfig {
