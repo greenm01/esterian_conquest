@@ -1107,7 +1107,6 @@ fn maint_rust_guard_contact_uses_guard_report_label() {
     cleanup_dir(&target);
 }
 
-
 #[test]
 fn maint_rust_reports_empire_falling_into_civil_disorder() {
     let target = unique_temp_dir("ec-cli-maint-rust-civil-disorder");

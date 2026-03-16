@@ -6,7 +6,7 @@
 use ec_data::{
     BaseDat, BaseRecord, ColonizationResolvedEvent, CoreGameData, DiplomaticRelation,
     JoinMissionHostEvent, Mission, MissionOutcome, MissionRetargetEvent, Order,
-    run_maintenance_turn,
+    SalvageFailureReason, SalvageResolvedEvent, run_maintenance_turn,
 };
 use std::path::Path;
 
@@ -506,7 +506,9 @@ fn test_guard_starbase_retargets_to_live_base_coords() {
     base.set_base_id_raw(3);
     base.set_owner_empire_raw(1);
     base.set_coords_raw([12, 8]);
-    game_data.bases = BaseDat { records: vec![base] };
+    game_data.bases = BaseDat {
+        records: vec![base],
+    };
 
     let fleet = &mut game_data.fleets.records[1];
     fleet.set_current_location_coords_raw([4, 8]);
@@ -552,7 +554,10 @@ fn test_guard_starbase_abandons_when_linked_base_is_missing() {
 
     let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
 
-    assert_eq!(game_data.fleets.records[1].standing_order_kind(), Order::HoldPosition);
+    assert_eq!(
+        game_data.fleets.records[1].standing_order_kind(),
+        Order::HoldPosition
+    );
     assert_eq!(game_data.fleets.records[1].current_speed(), 0);
     assert_eq!(
         game_data.fleets.records[1].standing_order_target_coords_raw(),
@@ -599,6 +604,116 @@ fn test_patrol_sector_persists_after_arrival() {
         event.fleet_idx == 1
             && event.kind == Mission::PatrolSector
             && event.outcome == MissionOutcome::Succeeded
+    }));
+}
+
+#[test]
+fn test_salvage_converts_fleet_value_into_owned_planet_production_and_removes_fleet() {
+    let mut game_data = load_fixture("ecmaint-post");
+    let (planet_idx, target_coords) = game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() == 1)
+        .map(|(idx, planet)| (idx, planet.coords_raw()))
+        .expect("fixture should contain an owned planet");
+    let start_coords = if target_coords[0] > 1 {
+        [target_coords[0] - 1, target_coords[1]]
+    } else {
+        [target_coords[0] + 1, target_coords[1]]
+    };
+    let stored_before = game_data.planets.records[planet_idx].stored_production_points();
+    let fleet_count_before = game_data.fleets.records.len();
+
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw(start_coords);
+    fleet.set_standing_order_kind(Order::Salvage);
+    fleet.set_standing_order_target_coords_raw(target_coords);
+    fleet.set_current_speed(3);
+    fleet.set_destroyer_count(1);
+    fleet.set_cruiser_count(1);
+    fleet.set_battleship_count(0);
+    fleet.set_scout_count(0);
+    fleet.set_troop_transport_count(0);
+    fleet.set_army_count(0);
+    fleet.set_etac_count(0);
+    fleet.raw[0x0d] = 0x80;
+    fleet.raw[0x0f] = 0;
+    fleet.raw[0x19] = 0x00;
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    assert_eq!(game_data.fleets.records.len(), fleet_count_before - 1);
+    assert_eq!(
+        game_data.planets.records[planet_idx].stored_production_points(),
+        stored_before + 10,
+    );
+    assert!(events.salvage_events.iter().any(|event| {
+        matches!(
+            event,
+            SalvageResolvedEvent::Succeeded {
+                owner_empire_raw,
+                planet_idx: event_planet_idx,
+                coords,
+                recovered_points,
+                ..
+            } if *owner_empire_raw == 1
+                && *event_planet_idx == planet_idx
+                && *coords == target_coords
+                && *recovered_points == 10
+        )
+    }));
+}
+
+#[test]
+fn test_salvage_fails_at_foreign_planet_without_removing_fleet() {
+    let mut game_data = load_fixture("ecmaint-post");
+    let (planet_idx, target_coords) = game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() == 2)
+        .map(|(idx, planet)| (idx, planet.coords_raw()))
+        .expect("fixture should contain a foreign planet");
+    let start_coords = if target_coords[0] > 1 {
+        [target_coords[0] - 1, target_coords[1]]
+    } else {
+        [target_coords[0] + 1, target_coords[1]]
+    };
+    let fleet_count_before = game_data.fleets.records.len();
+
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw(start_coords);
+    fleet.set_standing_order_kind(Order::Salvage);
+    fleet.set_standing_order_target_coords_raw(target_coords);
+    fleet.set_current_speed(3);
+    fleet.raw[0x0d] = 0x80;
+    fleet.raw[0x0f] = 0;
+    fleet.raw[0x19] = 0x00;
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    assert_eq!(game_data.fleets.records.len(), fleet_count_before);
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_kind(),
+        Order::HoldPosition
+    );
+    assert!(events.salvage_events.iter().any(|event| {
+        matches!(
+            event,
+            SalvageResolvedEvent::Failed {
+                owner_empire_raw,
+                planet_idx: Some(idx),
+                coords,
+                reason,
+                ..
+            } if *owner_empire_raw == 1
+                && *idx == planet_idx
+                && *coords == target_coords
+                && *reason == SalvageFailureReason::PlanetNotOwned
+        )
     }));
 }
 

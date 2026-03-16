@@ -248,6 +248,7 @@ pub enum Mission {
     SeekHome,
     PatrolSector,
     ViewWorld,
+    Salvage,
     GuardStarbase,
     GuardBlockadeWorld,
     JoinAnotherFleet,
@@ -277,6 +278,30 @@ pub struct MissionEvent {
     pub location_coords: Option<[u8; 2]>,
     /// Original mission target coordinates, if known.
     pub target_coords: Option<[u8; 2]>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SalvageFailureReason {
+    NoPlanetAtTarget,
+    PlanetNotOwned,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SalvageResolvedEvent {
+    Succeeded {
+        fleet_idx: usize,
+        owner_empire_raw: u8,
+        planet_idx: usize,
+        coords: [u8; 2],
+        recovered_points: u32,
+    },
+    Failed {
+        fleet_idx: usize,
+        owner_empire_raw: u8,
+        planet_idx: Option<usize>,
+        coords: [u8; 2],
+        reason: SalvageFailureReason,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -369,6 +394,8 @@ pub struct MaintenanceEvents {
     pub colonization_events: Vec<ColonizationResolvedEvent>,
     /// Generic mission outcomes for report generation.
     pub mission_events: Vec<MissionEvent>,
+    /// Salvage mission outcomes with recovered production detail.
+    pub salvage_events: Vec<SalvageResolvedEvent>,
     /// Diplomatic escalations caused by hostile action during maint.
     pub diplomatic_escalation_events: Vec<DiplomaticEscalationEvent>,
     /// Empires that fell into civil disorder this turn.
@@ -397,6 +424,7 @@ struct MovementEvents {
     colonization_events: Vec<ColonizationEvent>,
     planet_intel_events: Vec<PlanetIntelEvent>,
     mission_events: Vec<MissionEvent>,
+    salvage_events: Vec<SalvageResolvedEvent>,
     diplomatic_escalation_events: Vec<DiplomaticEscalationEvent>,
 }
 
@@ -658,6 +686,7 @@ pub fn run_maintenance_turn_with_context(
         mission_retarget_events,
         colonization_events,
         mission_events,
+        salvage_events: movement_events.salvage_events,
         diplomatic_escalation_events: movement_events.diplomatic_escalation_events,
         civil_disorder_events,
         campaign_outlook_events,
@@ -1055,7 +1084,11 @@ fn refresh_join_host_targets(game_data: &mut CoreGameData) -> Vec<MissionRetarge
             continue;
         }
 
-        if !current_host_viability.get(&host_id).copied().unwrap_or(false) {
+        if !current_host_viability
+            .get(&host_id)
+            .copied()
+            .unwrap_or(false)
+        {
             continue;
         }
 
@@ -1082,7 +1115,12 @@ fn refresh_guard_starbase_targets(game_data: &mut CoreGameData) -> Vec<MissionRe
         .records
         .iter()
         .filter(|base| base.base_id_raw() != 0 && base.owner_empire_raw() != 0)
-        .map(|base| ((base.owner_empire_raw(), base.base_id_raw()), base.coords_raw()))
+        .map(|base| {
+            (
+                (base.owner_empire_raw(), base.base_id_raw()),
+                base.coords_raw(),
+            )
+        })
         .collect();
     let mut events = Vec::new();
     for (fleet_idx, fleet) in game_data.fleets.records.iter_mut().enumerate() {
@@ -1106,7 +1144,8 @@ fn refresh_guard_starbase_targets(game_data: &mut CoreGameData) -> Vec<MissionRe
             });
             continue;
         }
-        let Some(new_target_coords) = active_bases.get(&(owner_empire_raw, base_id)).copied() else {
+        let Some(new_target_coords) = active_bases.get(&(owner_empire_raw, base_id)).copied()
+        else {
             fleet.set_standing_order_kind(Order::HoldPosition);
             fleet.set_current_speed(0);
             fleet.set_standing_order_target_coords_raw(current_coords);
@@ -1163,6 +1202,7 @@ fn process_fleet_movement(
 ) -> Result<MovementEvents, Box<dyn std::error::Error>> {
     let fleet_count = game_data.fleets.records.len();
     let mut movement_events = MovementEvents::default();
+    let mut to_remove = vec![false; fleet_count];
 
     for i in 0..fleet_count {
         let (target_x, target_y, current_x, current_y, speed, order_kind, owner_empire) = {
@@ -1177,6 +1217,23 @@ fn process_fleet_movement(
                 fleet.owner_empire_raw(),
             )
         };
+        if matches!(order_kind, Order::Salvage) && target_x == current_x && target_y == current_y {
+            let planet_idx = game_data
+                .planets
+                .records
+                .iter()
+                .position(|planet| planet.coords_raw() == [target_x, target_y]);
+            queue_salvage_resolution(
+                game_data,
+                &mut movement_events,
+                &mut to_remove,
+                i,
+                owner_empire,
+                planet_idx,
+                [target_x, target_y],
+            )?;
+            continue;
+        }
         // A fleet moves when it has a non-HoldPosition order, speed > 0,
         // and hasn't reached its target yet.
         // order_code 0x00 = HoldPosition — fleet stays put even if speed > 0
@@ -1259,6 +1316,22 @@ fn process_fleet_movement(
                             target_coords: Some([target_x, target_y]),
                         });
                     }
+                    Order::Salvage => {
+                        let planet_idx = game_data
+                            .planets
+                            .records
+                            .iter()
+                            .position(|planet| planet.coords_raw() == [target_x, target_y]);
+                        queue_salvage_resolution(
+                            game_data,
+                            &mut movement_events,
+                            &mut to_remove,
+                            i,
+                            owner_empire,
+                            planet_idx,
+                            [target_x, target_y],
+                        )?;
+                    }
                     Order::GuardStarbase => {
                         movement_events.mission_events.push(MissionEvent {
                             fleet_idx: i,
@@ -1337,7 +1410,178 @@ fn process_fleet_movement(
         }
     }
 
+    if to_remove.iter().any(|remove| *remove) {
+        remap_movement_event_fleet_indices_after_removal(&mut movement_events, &to_remove);
+        remove_selected_fleets(game_data, &to_remove);
+    }
+
     Ok(movement_events)
+}
+
+fn queue_salvage_resolution(
+    game_data: &mut CoreGameData,
+    movement_events: &mut MovementEvents,
+    to_remove: &mut [bool],
+    fleet_idx: usize,
+    owner_empire_raw: u8,
+    planet_idx: Option<usize>,
+    coords: [u8; 2],
+) -> Result<(), Box<dyn std::error::Error>> {
+    let salvage_event =
+        resolve_salvage_arrival(game_data, fleet_idx, owner_empire_raw, planet_idx)?;
+    match salvage_event {
+        SalvageResolvedEvent::Succeeded {
+            recovered_points, ..
+        } => {
+            movement_events.mission_events.push(MissionEvent {
+                fleet_idx,
+                owner_empire_raw,
+                kind: Mission::Salvage,
+                outcome: MissionOutcome::Succeeded,
+                planet_idx,
+                location_coords: Some(coords),
+                target_coords: Some(coords),
+            });
+            movement_events.salvage_events.push(salvage_event);
+            if recovered_points > 0 {
+                to_remove[fleet_idx] = true;
+            }
+        }
+        SalvageResolvedEvent::Failed { .. } => {
+            movement_events.mission_events.push(MissionEvent {
+                fleet_idx,
+                owner_empire_raw,
+                kind: Mission::Salvage,
+                outcome: MissionOutcome::Failed,
+                planet_idx,
+                location_coords: Some(coords),
+                target_coords: Some(coords),
+            });
+            movement_events.salvage_events.push(salvage_event);
+        }
+    }
+
+    Ok(())
+}
+
+fn resolve_salvage_arrival(
+    game_data: &mut CoreGameData,
+    fleet_idx: usize,
+    owner_empire_raw: u8,
+    planet_idx: Option<usize>,
+) -> Result<SalvageResolvedEvent, Box<dyn std::error::Error>> {
+    let coords = game_data.fleets.records[fleet_idx].current_location_coords_raw();
+    let Some(planet_idx) = planet_idx else {
+        game_data.fleets.records[fleet_idx].set_current_speed(0);
+        game_data.fleets.records[fleet_idx].set_standing_order_kind(Order::HoldPosition);
+        game_data.fleets.records[fleet_idx].set_standing_order_target_coords_raw(coords);
+        return Ok(SalvageResolvedEvent::Failed {
+            fleet_idx,
+            owner_empire_raw,
+            planet_idx: None,
+            coords,
+            reason: SalvageFailureReason::NoPlanetAtTarget,
+        });
+    };
+
+    if game_data.planets.records[planet_idx].owner_empire_slot_raw() != owner_empire_raw {
+        game_data.fleets.records[fleet_idx].set_current_speed(0);
+        game_data.fleets.records[fleet_idx].set_standing_order_kind(Order::HoldPosition);
+        game_data.fleets.records[fleet_idx].set_standing_order_target_coords_raw(coords);
+        return Ok(SalvageResolvedEvent::Failed {
+            fleet_idx,
+            owner_empire_raw,
+            planet_idx: Some(planet_idx),
+            coords,
+            reason: SalvageFailureReason::PlanetNotOwned,
+        });
+    }
+
+    let recovered_points = fleet_salvage_value(&game_data.fleets.records[fleet_idx]);
+    let current_stored = game_data.planets.records[planet_idx].stored_production_points();
+    game_data.planets.records[planet_idx]
+        .set_stored_production_points(current_stored.saturating_add(recovered_points));
+
+    Ok(SalvageResolvedEvent::Succeeded {
+        fleet_idx,
+        owner_empire_raw,
+        planet_idx,
+        coords,
+        recovered_points,
+    })
+}
+
+fn remap_movement_event_fleet_indices_after_removal(
+    movement_events: &mut MovementEvents,
+    to_remove: &[bool],
+) {
+    let removed_before: Vec<usize> = {
+        let mut removed = 0usize;
+        to_remove
+            .iter()
+            .map(|remove| {
+                let current = removed;
+                if *remove {
+                    removed += 1;
+                }
+                current
+            })
+            .collect()
+    };
+
+    let remap = |fleet_idx: usize| -> Option<usize> {
+        if to_remove.get(fleet_idx).copied().unwrap_or(false) {
+            None
+        } else {
+            Some(fleet_idx.saturating_sub(removed_before.get(fleet_idx).copied().unwrap_or(0)))
+        }
+    };
+
+    movement_events
+        .colonization_events
+        .retain_mut(|event| match remap(event.fleet_idx) {
+            Some(new_idx) => {
+                event.fleet_idx = new_idx;
+                true
+            }
+            None => false,
+        });
+    movement_events
+        .mission_events
+        .retain_mut(|event| match remap(event.fleet_idx) {
+            Some(new_idx) => {
+                event.fleet_idx = new_idx;
+                true
+            }
+            None => false,
+        });
+}
+
+fn fleet_salvage_value(fleet: &crate::FleetRecord) -> u32 {
+    let total_cost = u32::from(fleet.destroyer_count())
+        * purchase_cost(ProductionItemKind::Destroyer)
+        + u32::from(fleet.cruiser_count()) * purchase_cost(ProductionItemKind::Cruiser)
+        + u32::from(fleet.battleship_count()) * purchase_cost(ProductionItemKind::Battleship)
+        + u32::from(fleet.scout_count()) * purchase_cost(ProductionItemKind::Scout)
+        + u32::from(fleet.troop_transport_count()) * purchase_cost(ProductionItemKind::Transport)
+        + u32::from(fleet.etac_count()) * purchase_cost(ProductionItemKind::Etac)
+        + u32::from(fleet.army_count()) * purchase_cost(ProductionItemKind::Army);
+    total_cost / 2
+}
+
+fn purchase_cost(kind: ProductionItemKind) -> u32 {
+    match kind {
+        ProductionItemKind::Destroyer => 5,
+        ProductionItemKind::Cruiser => 15,
+        ProductionItemKind::Battleship => 45,
+        ProductionItemKind::Scout => 15,
+        ProductionItemKind::Transport => 5,
+        ProductionItemKind::Etac => 20,
+        ProductionItemKind::GroundBattery => 20,
+        ProductionItemKind::Army => 2,
+        ProductionItemKind::Starbase => 50,
+        ProductionItemKind::Unknown(_) => 0,
+    }
 }
 
 /// Process movement for a single fleet using the ECMAINT movement formula.

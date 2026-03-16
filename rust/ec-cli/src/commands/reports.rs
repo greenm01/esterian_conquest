@@ -262,6 +262,7 @@ fn mission_report_label(kind: Mission) -> &'static str {
         Mission::JoinAnotherFleet => "Join mission report",
         Mission::RendezvousSector => "Rendezvous mission report",
         Mission::GuardBlockadeWorld => "Guard/Blockade World mission report",
+        Mission::Salvage => "Salvage mission report",
         Mission::ViewWorld => "Viewing mission report",
         _ => "Scouting mission report",
     }
@@ -834,6 +835,57 @@ pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEv
             }
             _ => {}
         }
+    }
+
+    for event in &events.salvage_events {
+        let text = match *event {
+            ec_data::SalvageResolvedEvent::Succeeded {
+                planet_idx,
+                coords,
+                recovered_points,
+                ..
+            } => {
+                let [x, y] = coords;
+                let planet_name = game_data
+                    .planets
+                    .records
+                    .get(planet_idx)
+                    .map(|planet| planet.planet_name())
+                    .unwrap_or_else(|| "the target world".to_string());
+                format!(
+                    "From your fleet in System({x},{y}): Salvage mission report: We have arrived at planet \"{planet_name}\" in System({x},{y}) and have begun salvaging our fleet. We estimate that our fleet will yield {recovered_points} production point(s)."
+                )
+            }
+            ec_data::SalvageResolvedEvent::Failed {
+                planet_idx: Some(planet_idx),
+                coords,
+                reason: ec_data::SalvageFailureReason::PlanetNotOwned,
+                ..
+            } => {
+                let [x, y] = coords;
+                let planet_name = game_data
+                    .planets
+                    .records
+                    .get(planet_idx)
+                    .map(|planet| planet.planet_name())
+                    .unwrap_or_else(|| "the target world".to_string());
+                format!(
+                    "From your fleet in System({x},{y}): Salvage mission report: We have arrived at planet \"{planet_name}\" in System({x},{y}), but it is not under our control so we cannot salvage our fleet there."
+                )
+            }
+            ec_data::SalvageResolvedEvent::Failed {
+                coords,
+                reason: ec_data::SalvageFailureReason::NoPlanetAtTarget,
+                ..
+            } => {
+                let [x, y] = coords;
+                format!(
+                    "From your fleet in System({x},{y}): Salvage mission report: We found no planet to salvage at the assigned destination and are awaiting new orders."
+                )
+            }
+            _ => continue,
+        };
+        push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
     }
 
     for event in &events.fleet_merge_events {
@@ -1545,6 +1597,76 @@ pub(crate) fn build_messages_dat(
             event.owner_empire_raw,
             kind,
             tail,
+            &text,
+        );
+    }
+
+    for event in &events.salvage_events {
+        let (owner_empire_raw, text) = match *event {
+            ec_data::SalvageResolvedEvent::Succeeded {
+                owner_empire_raw,
+                planet_idx,
+                coords,
+                recovered_points,
+                ..
+            } => {
+                let [x, y] = coords;
+                let planet_name = game_data
+                    .planets
+                    .records
+                    .get(planet_idx)
+                    .map(|planet| planet.planet_name())
+                    .unwrap_or_else(|| "the target world".to_string());
+                (
+                    owner_empire_raw,
+                    format!(
+                        "From your fleet in System({x},{y}): Salvage mission report: We have arrived at planet \"{planet_name}\" in System({x},{y}) and have begun salvaging our fleet. We estimate that our fleet will yield {recovered_points} production point(s)."
+                    ),
+                )
+            }
+            ec_data::SalvageResolvedEvent::Failed {
+                owner_empire_raw,
+                planet_idx: Some(planet_idx),
+                coords,
+                reason: ec_data::SalvageFailureReason::PlanetNotOwned,
+                ..
+            } => {
+                let [x, y] = coords;
+                let planet_name = game_data
+                    .planets
+                    .records
+                    .get(planet_idx)
+                    .map(|planet| planet.planet_name())
+                    .unwrap_or_else(|| "the target world".to_string());
+                (
+                    owner_empire_raw,
+                    format!(
+                        "From your fleet in System({x},{y}): Salvage mission report: We have arrived at planet \"{planet_name}\" in System({x},{y}), but it is not under our control so we cannot salvage our fleet there."
+                    ),
+                )
+            }
+            ec_data::SalvageResolvedEvent::Failed {
+                owner_empire_raw,
+                coords,
+                reason: ec_data::SalvageFailureReason::NoPlanetAtTarget,
+                ..
+            } => {
+                let [x, y] = coords;
+                (
+                    owner_empire_raw,
+                    format!(
+                        "From your fleet in System({x},{y}): Salvage mission report: We found no planet to salvage at the assigned destination and are awaiting new orders."
+                    ),
+                )
+            }
+            _ => continue,
+        };
+        push_routed_message_chunked(
+            &mut messages,
+            game_data,
+            owner_empire_raw,
+            0x05,
+            RESULTS_TAIL_FLEET,
             &text,
         );
     }
