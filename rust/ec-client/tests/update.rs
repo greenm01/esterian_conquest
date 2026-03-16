@@ -2077,6 +2077,128 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
 }
 
 #[test]
+fn fleet_group_order_applies_move_order_to_selected_fleets() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetGroupOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::MoveFleetGroupOrder(1)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetGroupOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetGroupOrderChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetGroupOrder),
+        AppOutcome::Continue
+    );
+    for ch in ['1', '0', ',', '1', '3'] {
+        assert_eq!(
+            apply_action(&mut app, Action::AppendFleetGroupOrderChar(ch)),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetGroupOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet menu should render group-order success");
+    let wrapped_notice = [terminal.line(16), terminal.line(17), terminal.line(18)]
+        .into_iter()
+        .flat_map(|line| line.split_whitespace())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(wrapped_notice.contains("Applied move order to 2 fleets for sector [10,13]."));
+
+    let state = latest_runtime_state(&fixture_dir);
+    for fleet in &state.game_data.fleets.records[0..2] {
+        assert_eq!(fleet.standing_order_code_raw(), 1);
+        assert_eq!(fleet.standing_order_target_coords_raw(), [10, 13]);
+    }
+}
+
+#[test]
+fn fleet_group_order_rejects_join_fleet_mission_number() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetGroupOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetGroupOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetGroupOrderChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetGroupOrderChar('3')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetGroupOrder),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet group mission validation should render");
+    assert!(
+        terminal
+            .line(19)
+            .contains("Use Merge a Fleet for join-fleet orders.")
+    );
+}
+
+#[test]
 fn fleet_roe_accepts_typed_fleet_selection_and_q_cancels_edit_mode() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
@@ -2475,6 +2597,71 @@ fn fleet_eta_accepts_typed_fleet_destination_and_default_include_system() {
     );
     assert_eq!(app.current_screen(), ScreenId::FleetEta);
     assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::SubmitFleetEta);
+}
+
+#[test]
+fn fleet_eta_uses_max_speed_when_selected_fleet_is_stopped() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let fleet = state
+        .game_data
+        .fleets
+        .records
+        .get_mut(0)
+        .expect("fleet 1 should exist");
+    let current_coords = fleet.current_location_coords_raw();
+    fleet.set_current_speed(0);
+    save_runtime_state(&fixture_dir, &state);
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetEta),
+        AppOutcome::Continue
+    );
+    for ch in ['1'] {
+        assert_eq!(
+            apply_action(&mut app, Action::AppendFleetEtaChar(ch)),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetEta),
+        AppOutcome::Continue
+    );
+    for ch in format!("{},{}", current_coords[0], current_coords[1]).chars() {
+        assert_eq!(
+            apply_action(&mut app, Action::AppendFleetEtaChar(ch)),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetEta),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetEta),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet eta result should render");
+    assert!(
+        terminal.line(19).contains(&format!(
+            "Fleet 1 reaches [{},{}] in 0 year(s)",
+            current_coords[0], current_coords[1]
+        )),
+        "{}",
+        terminal.line(19)
+    );
+    assert!(!terminal.line(19).contains("is stopped"));
 }
 
 #[test]

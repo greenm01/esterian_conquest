@@ -131,6 +131,7 @@ pub struct App {
     fleet_group_cursor: usize,
     fleet_group_mode: FleetGroupOrderMode,
     fleet_group_selected_fleets: BTreeSet<usize>,
+    fleet_group_mission_code: Option<u8>,
     fleet_group_input: String,
     fleet_group_status: Option<String>,
     fleet_merge_scroll_offset: usize,
@@ -343,6 +344,7 @@ impl App {
             fleet_group_cursor: 0,
             fleet_group_mode: FleetGroupOrderMode::SelectingFleets,
             fleet_group_selected_fleets: BTreeSet::new(),
+            fleet_group_mission_code: None,
             fleet_group_input: String::new(),
             fleet_group_status: None,
             fleet_merge_scroll_offset: 0,
@@ -1193,6 +1195,15 @@ impl App {
     }
 
     pub fn open_fleet_group_order(&mut self) {
+        if self.current_screen == ScreenId::FleetGroupOrder
+            && self.fleet_group_mode != FleetGroupOrderMode::SelectingFleets
+        {
+            self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
+            self.fleet_group_mission_code = None;
+            self.fleet_group_input.clear();
+            self.fleet_group_status = None;
+            return;
+        }
         let total = self.fleet_rows().len();
         if total == 0 {
             self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
@@ -1201,6 +1212,7 @@ impl App {
         self.clear_command_menu_notice();
         self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
         self.fleet_group_status = None;
+        self.fleet_group_mission_code = None;
         self.fleet_group_input.clear();
         self.fleet_group_selected_fleets.clear();
         self.fleet_group_cursor = self.fleet_group_cursor.min(total - 1);
@@ -2149,14 +2161,74 @@ impl App {
         if self.current_screen != ScreenId::FleetGroupOrder {
             return;
         }
-        if self.fleet_group_selected_fleets.is_empty() {
-            self.fleet_group_status = Some("Select at least one fleet.".to_string());
-            return;
+        match self.fleet_group_mode {
+            FleetGroupOrderMode::SelectingFleets => {
+                if self.fleet_group_selected_fleets.is_empty() {
+                    self.fleet_group_status = Some("Select at least one fleet.".to_string());
+                    return;
+                }
+                self.fleet_group_mode = FleetGroupOrderMode::EnteringMission;
+                self.fleet_group_input.clear();
+                self.fleet_group_status = None;
+            }
+            FleetGroupOrderMode::EnteringMission => {
+                let mission_code = match self.fleet_group_input.trim() {
+                    "" => 1,
+                    raw => match raw.parse::<u8>() {
+                        Ok(value) => value,
+                        Err(_) => {
+                            self.fleet_group_status =
+                                Some("Enter a mission number from 0 to 15.".to_string());
+                            return;
+                        }
+                    },
+                };
+                if mission_code > 15 {
+                    self.fleet_group_status =
+                        Some("Enter a mission number from 0 to 15.".to_string());
+                    return;
+                }
+                if mission_code == 4 {
+                    self.fleet_group_status =
+                        Some("Guard starbase orders belong in the Starbase menu.".to_string());
+                    return;
+                }
+                if mission_code == 13 {
+                    self.fleet_group_status =
+                        Some("Use Merge a Fleet for join-fleet orders.".to_string());
+                    return;
+                }
+                self.fleet_group_mission_code = Some(mission_code);
+                self.fleet_group_input.clear();
+                self.fleet_group_status = None;
+                if fleet_group_order_requires_target(mission_code) {
+                    self.fleet_group_mode = FleetGroupOrderMode::EnteringTarget;
+                } else if let Err(err) = self.apply_fleet_group_order(mission_code, [0, 0]) {
+                    self.fleet_group_status = Some(err.to_string());
+                }
+            }
+            FleetGroupOrderMode::EnteringTarget => {
+                let destination = match resolve_default_coords_input(
+                    &self.fleet_group_input,
+                    self.fleet_group_default_target(),
+                ) {
+                    Some(coords) => coords,
+                    None => {
+                        self.fleet_group_status =
+                            Some("Enter a sector as [x,y].".to_string());
+                        return;
+                    }
+                };
+                let Some(mission_code) = self.fleet_group_mission_code else {
+                    self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
+                    self.fleet_group_status = Some("Choose a group mission first.".to_string());
+                    return;
+                };
+                if let Err(err) = self.apply_fleet_group_order(mission_code, destination) {
+                    self.fleet_group_status = Some(err.to_string());
+                }
+            }
         }
-        self.fleet_group_status = Some(
-            "Group fleet missions are not implemented yet. Multi-select picker is now in place."
-                .to_string(),
-        );
     }
 
     pub fn submit_fleet_detach(&mut self) -> Result<(), Box<dyn std::error::Error>> {
@@ -4983,21 +5055,47 @@ impl App {
     ) -> crate::app::Action {
         use crossterm::event::KeyCode;
 
-        match key.code {
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                crate::app::Action::MoveFleetGroupOrder(-1)
-            }
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                crate::app::Action::MoveFleetGroupOrder(1)
-            }
-            KeyCode::PageUp => crate::app::Action::MoveFleetGroupOrder(-8),
-            KeyCode::PageDown => crate::app::Action::MoveFleetGroupOrder(8),
-            KeyCode::Char(' ') => crate::app::Action::ToggleFleetGroupOrderSelection,
-            KeyCode::Enter => crate::app::Action::SubmitFleetGroupOrder,
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                crate::app::Action::OpenFleetMenu
-            }
-            _ => crate::app::Action::Noop,
+        match self.fleet_group_mode {
+            FleetGroupOrderMode::SelectingFleets => match key.code {
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                    crate::app::Action::MoveFleetGroupOrder(-1)
+                }
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                    crate::app::Action::MoveFleetGroupOrder(1)
+                }
+                KeyCode::PageUp => crate::app::Action::MoveFleetGroupOrder(-8),
+                KeyCode::PageDown => crate::app::Action::MoveFleetGroupOrder(8),
+                KeyCode::Char(' ') => crate::app::Action::ToggleFleetGroupOrderSelection,
+                KeyCode::Enter => crate::app::Action::SubmitFleetGroupOrder,
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    crate::app::Action::OpenFleetMenu
+                }
+                _ => crate::app::Action::Noop,
+            },
+            FleetGroupOrderMode::EnteringMission => match key.code {
+                KeyCode::Enter => crate::app::Action::SubmitFleetGroupOrder,
+                KeyCode::Backspace => crate::app::Action::BackspaceFleetGroupOrderInput,
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    crate::app::Action::AppendFleetGroupOrderChar(ch)
+                }
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    crate::app::Action::OpenFleetGroupOrder
+                }
+                _ => crate::app::Action::Noop,
+            },
+            FleetGroupOrderMode::EnteringTarget => match key.code {
+                KeyCode::Enter => crate::app::Action::SubmitFleetGroupOrder,
+                KeyCode::Backspace => crate::app::Action::BackspaceFleetGroupOrderInput,
+                KeyCode::Char(ch)
+                    if ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']') =>
+                {
+                    crate::app::Action::AppendFleetGroupOrderChar(ch)
+                }
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    crate::app::Action::OpenFleetGroupOrder
+                }
+                _ => crate::app::Action::Noop,
+            },
         }
     }
 
@@ -5486,16 +5584,97 @@ impl App {
         }
     }
 
+    fn fleet_group_default_target(&self) -> [u8; 2] {
+        let rows = self.fleet_rows();
+        let Some(row) = rows.get(self.fleet_group_cursor) else {
+            return [8, 2];
+        };
+        if row.target_coords[0] > 0 && row.target_coords[1] > 0 {
+            row.target_coords
+        } else {
+            row.coords
+        }
+    }
+
+    fn apply_fleet_group_order(
+        &mut self,
+        mission_code: u8,
+        target: [u8; 2],
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let rows = self.fleet_rows();
+        let selected_rows = rows
+            .into_iter()
+            .filter(|row| {
+                self.fleet_group_selected_fleets
+                    .contains(&row.fleet_record_index_1_based)
+            })
+            .collect::<Vec<_>>();
+        if selected_rows.is_empty() {
+            self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
+            self.fleet_group_status = Some("Select at least one fleet.".to_string());
+            return Ok(());
+        }
+        for row in &selected_rows {
+            let speed = self
+                .game_data
+                .fleets
+                .records
+                .get(row.fleet_record_index_1_based - 1)
+                .map(|fleet| fleet.current_speed())
+                .unwrap_or(row.current_speed);
+            self.game_data.set_fleet_order(
+                row.fleet_record_index_1_based,
+                speed,
+                mission_code,
+                if fleet_group_order_requires_target(mission_code) {
+                    target
+                } else {
+                    [0, 0]
+                },
+                Some(0),
+                Some(0),
+            )?;
+        }
+        self.save_game_data()?;
+        let selected_count = selected_rows.len();
+        self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
+        self.fleet_group_mission_code = None;
+        self.fleet_group_input.clear();
+        self.fleet_group_selected_fleets.clear();
+        self.show_command_menu_notice(
+            CommandMenu::Fleet,
+            if fleet_group_order_requires_target(mission_code) {
+                format!(
+                    "Applied {} order to {} fleets for sector [{},{}].",
+                    fleet_group_order_label(mission_code),
+                    selected_count,
+                    target[0],
+                    target[1]
+                )
+            } else {
+                format!(
+                    "Applied {} order to {} fleets.",
+                    fleet_group_order_label(mission_code),
+                    selected_count
+                )
+            },
+        );
+        Ok(())
+    }
+
     fn calculate_fleet_eta_message(
         &self,
         row: &FleetRow,
         destination: [u8; 2],
         include_system: bool,
     ) -> String {
-        if row.current_speed == 0 {
+        if destination == row.coords {
             return format!(
-                "Fleet {} is stopped at [{},{}].",
-                row.fleet_number, row.coords[0], row.coords[1]
+                "Fleet {} reaches [{},{}] in 0 year(s), arriving in {}.",
+                row.fleet_number,
+                destination[0],
+                destination[1],
+                self.game_data.conquest.game_year()
             );
         }
         let mut game_data = self.game_data.clone();
@@ -5509,7 +5688,12 @@ impl App {
         if include_system && destination != row.coords {
             steps += 1;
         }
-        let years = steps.div_ceil(row.current_speed as usize);
+        let speed = usize::from(if row.current_speed == 0 {
+            row.max_speed.max(1)
+        } else {
+            row.current_speed
+        });
+        let years = steps.div_ceil(speed);
         let arrival_year = self.game_data.conquest.game_year() + years as u16;
         format!(
             "Fleet {} reaches [{},{}] in {} year(s), arriving in {}.",
@@ -5785,6 +5969,32 @@ fn resolve_yes_no_input(input: &str, default: bool) -> bool {
         "Y" | "YES" => true,
         "N" | "NO" => false,
         _ => default,
+    }
+}
+
+fn fleet_group_order_requires_target(order_code: u8) -> bool {
+    !matches!(order_code, 0 | 2)
+}
+
+fn fleet_group_order_label(order_code: u8) -> &'static str {
+    match ec_data::Order::from_raw(order_code) {
+        ec_data::Order::HoldPosition => "hold",
+        ec_data::Order::MoveOnly => "move",
+        ec_data::Order::SeekHome => "seek-home",
+        ec_data::Order::PatrolSector => "patrol",
+        ec_data::Order::GuardBlockadeWorld => "guard/blockade",
+        ec_data::Order::BombardWorld => "bombard",
+        ec_data::Order::InvadeWorld => "invade",
+        ec_data::Order::BlitzWorld => "blitz",
+        ec_data::Order::ViewWorld => "view",
+        ec_data::Order::ScoutSector => "scout-sector",
+        ec_data::Order::ScoutSolarSystem => "scout-system",
+        ec_data::Order::ColonizeWorld => "colonize",
+        ec_data::Order::RendezvousSector => "rendezvous",
+        ec_data::Order::Salvage => "salvage",
+        ec_data::Order::GuardStarbase => "guard-starbase",
+        ec_data::Order::JoinAnotherFleet => "join-fleet",
+        ec_data::Order::Unknown(_) => "unknown",
     }
 }
 

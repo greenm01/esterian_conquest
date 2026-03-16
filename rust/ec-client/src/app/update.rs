@@ -422,6 +422,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.append_fleet_roe_char(ch);
             AppOutcome::Continue
         }
+        Action::AppendFleetGroupOrderChar(ch) => {
+            app.append_fleet_group_order_char(ch);
+            AppOutcome::Continue
+        }
         Action::AppendFleetMergeChar(ch) => {
             app.append_fleet_merge_char(ch);
             AppOutcome::Continue
@@ -432,6 +436,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         }
         Action::BackspaceFleetRoeInput => {
             app.backspace_fleet_roe_input();
+            AppOutcome::Continue
+        }
+        Action::BackspaceFleetGroupOrderInput => {
+            app.backspace_fleet_group_order_input();
             AppOutcome::Continue
         }
         Action::BackspaceFleetMergeInput => {
