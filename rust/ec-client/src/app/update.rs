@@ -94,6 +94,34 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_fleet_help();
             AppOutcome::Continue
         }
+        Action::OpenStarbaseMenu => {
+            app.open_starbase_menu();
+            AppOutcome::Continue
+        }
+        Action::OpenStarbaseHelp => {
+            app.open_starbase_help();
+            AppOutcome::Continue
+        }
+        Action::OpenStarbaseList => {
+            app.open_starbase_list();
+            AppOutcome::Continue
+        }
+        Action::OpenStarbaseReviewSelect => {
+            app.open_starbase_review_select();
+            AppOutcome::Continue
+        }
+        Action::OpenStarbaseReview => {
+            app.open_starbase_review();
+            AppOutcome::Continue
+        }
+        Action::ShowStarbaseExpertModeNotice => {
+            app.show_starbase_expert_mode_notice();
+            AppOutcome::Continue
+        }
+        Action::ShowStarbaseMoveNotice => {
+            app.show_starbase_move_notice();
+            AppOutcome::Continue
+        }
         Action::OpenFleetMenu => {
             app.open_fleet_menu();
             AppOutcome::Continue
@@ -128,6 +156,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         }
         Action::OpenFleetMerge => {
             app.open_fleet_merge();
+            AppOutcome::Continue
+        }
+        Action::OpenFleetTransfer => {
+            app.open_fleet_transfer();
             AppOutcome::Continue
         }
         Action::OpenFleetDetach => {
@@ -278,6 +310,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.move_fleet_list(delta);
             AppOutcome::Continue
         }
+        Action::MoveStarbaseSelect(delta) => {
+            app.move_starbase_select(delta);
+            AppOutcome::Continue
+        }
         Action::MoveFleetReviewSelect(delta) => {
             app.move_fleet_review_select(delta);
             AppOutcome::Continue
@@ -304,6 +340,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         }
         Action::MoveFleetMergeSelect(delta) => {
             app.move_fleet_merge_select(delta);
+            AppOutcome::Continue
+        }
+        Action::MoveFleetTransferSelect(delta) => {
+            app.move_fleet_transfer_select(delta);
             AppOutcome::Continue
         }
         Action::MoveFleetDetachSelect(delta) => {
@@ -364,6 +404,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         },
         Action::ToggleFleetGroupOrderSelection => {
             app.toggle_fleet_group_order_selection();
+            AppOutcome::Continue
+        }
+        Action::ToggleFleetTransferSelection => {
+            app.toggle_fleet_transfer_selection();
             AppOutcome::Continue
         }
         Action::MovePlanetTransportPlanet(delta) => {
@@ -438,6 +482,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.append_fleet_review_char(ch);
             AppOutcome::Continue
         }
+        Action::AppendStarbaseChar(ch) => {
+            app.append_starbase_char(ch);
+            AppOutcome::Continue
+        }
         Action::AppendFleetRoeChar(ch) => {
             app.append_fleet_roe_char(ch);
             AppOutcome::Continue
@@ -456,6 +504,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         }
         Action::AppendFleetMergeChar(ch) => {
             app.append_fleet_merge_char(ch);
+            AppOutcome::Continue
+        }
+        Action::AppendFleetTransferChar(ch) => {
+            app.append_fleet_transfer_char(ch);
             AppOutcome::Continue
         }
         Action::AppendFleetDetachChar(ch) => {
@@ -482,8 +534,16 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.backspace_fleet_merge_input();
             AppOutcome::Continue
         }
+        Action::BackspaceFleetTransferInput => {
+            app.backspace_fleet_transfer_input();
+            AppOutcome::Continue
+        }
         Action::BackspaceFleetReviewInput => {
             app.backspace_fleet_review_input();
+            AppOutcome::Continue
+        }
+        Action::BackspaceStarbaseInput => {
+            app.backspace_starbase_input();
             AppOutcome::Continue
         }
         Action::BackspaceFleetDetachInput => {
@@ -492,6 +552,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         }
         Action::SubmitFleetReviewSelect => {
             app.submit_fleet_review_select();
+            AppOutcome::Continue
+        }
+        Action::SubmitStarbaseReviewSelect => {
+            app.submit_starbase_review_select();
             AppOutcome::Continue
         }
         Action::SubmitFleetRoe => match app.submit_fleet_roe() {
@@ -511,6 +575,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             AppOutcome::Continue
         }
         Action::SubmitFleetMerge => match app.submit_fleet_merge() {
+            Ok(()) => AppOutcome::Continue,
+            Err(_) => AppOutcome::Continue,
+        },
+        Action::SubmitFleetTransfer => match app.submit_fleet_transfer() {
             Ok(()) => AppOutcome::Continue,
             Err(_) => AppOutcome::Continue,
         },

@@ -1433,7 +1433,10 @@ fn set_join_fleet_order_targets_host_fleet_and_records_host_id() {
         data.fleets.records[1].standing_order_target_coords_raw(),
         host_coords
     );
-    assert_eq!(data.fleets.records[1].join_host_fleet_id_raw(), host_fleet_id);
+    assert_eq!(
+        data.fleets.records[1].join_host_fleet_id_raw(),
+        host_fleet_id
+    );
 }
 
 #[test]
@@ -1722,4 +1725,73 @@ fn detach_ships_requires_valid_post_split_donor_speed() {
             max: 5,
         }
     );
+}
+
+#[test]
+fn transfer_ships_between_fleets_moves_counts_and_preserves_both_fleets() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+    player.set_fleet_chain_head_raw(1);
+
+    let mut donor = FleetRecord::new_zeroed();
+    donor.set_owner_empire_raw(1);
+    donor.set_local_slot_word_raw(1);
+    donor.set_fleet_id_word_raw(1);
+    donor.set_current_location_coords_raw([24, 14]);
+    donor.set_destroyer_count(2);
+    donor.set_troop_transport_count(2);
+    donor.set_army_count(1);
+    donor.set_etac_count(1);
+    donor.recompute_max_speed_from_composition();
+    donor.set_current_speed(5);
+
+    let mut host = FleetRecord::new_zeroed();
+    host.set_owner_empire_raw(1);
+    host.set_local_slot_word_raw(2);
+    host.set_fleet_id_word_raw(2);
+    host.set_current_location_coords_raw([24, 14]);
+    host.set_cruiser_count(1);
+    host.recompute_max_speed_from_composition();
+    host.set_current_speed(5);
+
+    let mut data = CoreGameData {
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat { records: vec![] },
+        fleets: FleetDat {
+            records: vec![donor, host],
+        },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    let result = data
+        .transfer_ships_between_fleets(
+            1,
+            1,
+            2,
+            FleetDetachSelection {
+                destroyers: 1,
+                full_transports: 1,
+                ..FleetDetachSelection::default()
+            },
+        )
+        .unwrap();
+
+    assert_eq!(result.donor_fleet_record_index_1_based, 1);
+    assert_eq!(result.host_fleet_record_index_1_based, 2);
+
+    let donor = &data.fleets.records[0];
+    assert_eq!(donor.destroyer_count(), 1);
+    assert_eq!(donor.troop_transport_count(), 1);
+    assert_eq!(donor.army_count(), 0);
+
+    let host = &data.fleets.records[1];
+    assert_eq!(host.cruiser_count(), 1);
+    assert_eq!(host.destroyer_count(), 1);
+    assert_eq!(host.troop_transport_count(), 1);
+    assert_eq!(host.army_count(), 1);
 }

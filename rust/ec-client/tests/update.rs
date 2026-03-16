@@ -103,6 +103,28 @@ fn temp_joined_empty_empire_copy() -> PathBuf {
     root
 }
 
+fn temp_game_with_starbase_copy() -> PathBuf {
+    let root = temp_game_copy();
+    let mut state = latest_runtime_state(&root);
+    state
+        .game_data
+        .set_guard_starbase(1, 1, [6, 5], 1, 1)
+        .expect("seed guard starbase");
+    save_runtime_state(&root, &state);
+    root
+}
+
+fn temp_game_with_same_sector_fleets_copy() -> PathBuf {
+    let root = temp_game_copy();
+    let mut state = latest_runtime_state(&root);
+    state.game_data.fleets.records[0].set_current_location_coords_raw([6, 5]);
+    state.game_data.fleets.records[0].set_standing_order_target_coords_raw([6, 5]);
+    state.game_data.fleets.records[1].set_current_location_coords_raw([6, 5]);
+    state.game_data.fleets.records[1].set_standing_order_target_coords_raw([6, 5]);
+    save_runtime_state(&root, &state);
+    root
+}
+
 fn copy_dir_all(src: &Path, dst: &Path) {
     fs::create_dir_all(dst).expect("create temp dir");
     for entry in fs::read_dir(src).expect("read src dir") {
@@ -1153,6 +1175,139 @@ fn fleet_menu_matches_verified_v15_command_layout() {
         terminal.line(4).trim_end(),
         "  V>iew Partial Map  R>eview a Fleet     T>ransfer Ships     U>nload TT Armies"
     );
+}
+
+#[test]
+fn starbase_menu_matches_verified_v15_command_layout() {
+    let fixture_dir = temp_game_with_starbase_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenStarbaseMenu),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("starbase menu should render");
+    assert_eq!(
+        terminal.line(0).trim_end(),
+        "STARBASE CONTROL:            X>pert mode ON/OFF     V>iew Partial Star Map"
+    );
+    assert_eq!(
+        terminal.line(1).trim_end(),
+        "  H>elp with commands        S>tarbases-List        I>nfo about a Planet"
+    );
+    assert_eq!(
+        terminal.line(2).trim_end(),
+        "  Q>uit to Fleet Command     R>eview a Starbase     M>ove/Halt Starbase"
+    );
+    assert_eq!(
+        terminal.line(19).trim_end(),
+        "STARBASE COMMAND <-H,Q,X,S,R,V,I,M->"
+    );
+}
+
+#[test]
+fn starbase_review_matches_verified_v15_review_content() {
+    let fixture_dir = temp_game_with_starbase_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenStarbaseMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenStarbaseReviewSelect),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitStarbaseReviewSelect),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::StarbaseReview);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("starbase review should render");
+    assert_eq!(terminal.line(3).trim_end(), "Starbase ID: Starbase 1");
+    assert_eq!(
+        terminal.line(4).trim_end(),
+        "Location:    World in Solar System [ 6, 5]"
+    );
+    assert_eq!(
+        terminal.line(5).trim_end(),
+        "Destination: World in Solar System [ 6, 5]"
+    );
+    assert_eq!(
+        terminal.line(6).trim_end(),
+        "Operation:   Protection & Enhancement"
+    );
+    assert_eq!(
+        terminal.line(7).trim_end(),
+        "ETA:         Starbase 1 has already arrived and is in operation."
+    );
+    assert_eq!(terminal.line(8).trim_end(), "Escort:      The 1st Fleet");
+}
+
+#[test]
+fn fleet_transfer_uses_two_fleet_selector_and_groups_same_sector_rows() {
+    let fixture_dir = temp_game_with_same_sector_fleets_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetTransfer),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetTransfer);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("transfer screen should render");
+    assert_eq!(terminal.line(0).trim_end(), "TRANSFER SHIPS:");
+    assert_eq!(
+        terminal.line(1).trim_end(),
+        "Select two fleets in one sector. Highlight the host fleet, then press ENTER."
+    );
+    assert_eq!(terminal.line(2).trim_end(), "Selected fleets: 0");
+    assert_eq!(
+        terminal.line(3).trim_end(),
+        "Sel ID Location       Spd ROE Ord Target     Ships"
+    );
+    let same_sector_rows = (5..16)
+        .filter(|idx| terminal.line(*idx).contains("[ 6, 5]"))
+        .count();
+    assert!(same_sector_rows >= 2);
 }
 
 #[test]

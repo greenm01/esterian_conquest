@@ -28,6 +28,7 @@ mod rankings;
 mod reports;
 mod starmap;
 mod startup;
+mod starbase;
 mod table;
 
 pub use buffer::{Cell, CellStyle, PlayfieldBuffer, RgbColor, StyledSpan};
@@ -50,6 +51,7 @@ pub use fleet::{
     FleetGroupOrderMode, FleetGroupScreen, FleetListMode, FleetListScreen, FleetMenuScreen,
     FleetMergeMode, FleetMergeScreen, FleetMissionOption, FleetMissionPickerScreen,
     FleetReviewScreen, FleetRoeScreen, FleetRow, FleetSingleOrderMode, FleetSingleOrderScreen,
+    FleetTransferMode, FleetTransferScreen,
 };
 pub use fleet_help::FleetHelpScreen;
 pub use general_help::GeneralHelpScreen;
@@ -91,6 +93,11 @@ pub use startup::GAME_VERSION;
 pub(crate) use startup::STARTUP_INTRO_PAGE_COUNT;
 pub(crate) use startup::STARTUP_SPLASH_PAGE_COUNT;
 pub use startup::StartupScreen;
+pub(crate) use starbase::STARBASE_VISIBLE_ROWS;
+pub use starbase::{
+    StarbaseHelpScreen, StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen,
+    StarbaseRow,
+};
 pub(crate) use table::format_fleet_number;
 
 use std::collections::BTreeMap;
@@ -120,6 +127,11 @@ pub enum ScreenId {
     GeneralMenu,
     GeneralHelp,
     FleetHelp,
+    StarbaseMenu,
+    StarbaseHelp,
+    StarbaseList,
+    StarbaseReviewSelect,
+    StarbaseReview,
     FleetMenu,
     FleetList(FleetListMode),
     FleetReviewSelect,
@@ -129,6 +141,7 @@ pub enum ScreenId {
     FleetGroupOrder,
     FleetMissionPicker,
     FleetMerge,
+    FleetTransfer,
     FleetDetach,
     FleetEta,
     PlanetMenu,
@@ -180,6 +193,7 @@ pub enum CommandMenu {
     Main,
     General,
     Fleet,
+    Starbase,
     Planet,
     PlanetBuild,
 }
@@ -189,6 +203,7 @@ pub fn command_menu_label(menu: CommandMenu) -> &'static str {
         CommandMenu::Main => "MAIN COMMAND",
         CommandMenu::General => "GENERAL COMMAND",
         CommandMenu::Fleet => "FLEET COMMAND",
+        CommandMenu::Starbase => "STARBASE COMMAND",
         CommandMenu::Planet => "PLANET COMMAND",
         CommandMenu::PlanetBuild => "BUILD COMMAND",
     }

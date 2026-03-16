@@ -17,18 +17,21 @@ use crate::screen::{
     FleetDetachScreen, FleetEtaMode, FleetEtaScreen, FleetGroupOrderMode, FleetGroupScreen,
     FleetHelpScreen, FleetListMode, FleetListScreen, FleetMenuScreen, FleetMergeMode,
     FleetMergeScreen, FleetMissionPickerScreen, FleetReviewScreen, FleetRoeScreen, FleetRow,
-    FleetSingleOrderMode, FleetSingleOrderScreen, GeneralHelpScreen, GeneralMenuScreen,
-    MainHelpScreen, MainMenuScreen, MessageComposeScreen, PartialStarmapScreen,
+    FleetSingleOrderMode, FleetSingleOrderScreen, FleetTransferMode, FleetTransferScreen,
+    GeneralHelpScreen, GeneralMenuScreen, MainHelpScreen, MainMenuScreen, MessageComposeScreen,
+    PartialStarmapScreen,
     PlanetAutoCommissionScreen, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView,
     PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionRow, PlanetCommissionScreen,
     PlanetCommissionView, PlanetDatabaseRow, PlanetDatabaseScreen, PlanetHelpScreen,
     PlanetInfoScreen, PlanetListMode, PlanetListScreen, PlanetListSort, PlanetMenuScreen,
     PlanetTaxScreen, PlanetTransportFleetRow, PlanetTransportMode, PlanetTransportPlanetRow,
     PlanetTransportScreen, RankingsScreen, ReportsScreen, STARTUP_SPLASH_PAGE_COUNT, Screen,
-    ScreenFrame, ScreenId, StarmapScreen, StartupScreen, build_unit_spec, build_unit_spec_by_kind,
-    max_quantity, render_first_time_homeworld_confirm, render_first_time_homeworld_name,
-    render_first_time_join_name, render_first_time_join_name_confirm,
-    render_first_time_join_no_pending, render_first_time_join_summary,
+    ScreenFrame, ScreenId, StarbaseHelpScreen, StarbaseListScreen, StarbaseMenuScreen,
+    StarbaseReviewScreen, StarbaseRow, StarmapScreen, StartupScreen, build_unit_spec,
+    build_unit_spec_by_kind, max_quantity, render_first_time_homeworld_confirm,
+    render_first_time_homeworld_name, render_first_time_join_name,
+    render_first_time_join_name_confirm, render_first_time_join_no_pending,
+    render_first_time_join_summary,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -64,6 +67,10 @@ pub struct App {
     general_menu: GeneralMenuScreen,
     general_help: GeneralHelpScreen,
     fleet_help: FleetHelpScreen,
+    starbase_menu: StarbaseMenuScreen,
+    starbase_help: StarbaseHelpScreen,
+    starbase_list: StarbaseListScreen,
+    starbase_review: StarbaseReviewScreen,
     fleet_menu: FleetMenuScreen,
     fleet_list: FleetListScreen,
     fleet_review: FleetReviewScreen,
@@ -72,6 +79,7 @@ pub struct App {
     fleet_group: FleetGroupScreen,
     fleet_mission_picker: FleetMissionPickerScreen,
     fleet_merge: FleetMergeScreen,
+    fleet_transfer: FleetTransferScreen,
     fleet_detach: FleetDetachScreen,
     fleet_eta: FleetEtaScreen,
     planet_menu: PlanetMenuScreen,
@@ -123,6 +131,11 @@ pub struct App {
     compose_sent_status: Option<String>,
     planet_list_sort_status: Option<String>,
     fleet_list_mode: FleetListMode,
+    starbase_scroll_offset: usize,
+    starbase_cursor: usize,
+    starbase_review_index: usize,
+    starbase_review_input: String,
+    starbase_review_status: Option<String>,
     fleet_scroll_offset: usize,
     fleet_cursor: usize,
     fleet_review_index: usize,
@@ -159,6 +172,16 @@ pub struct App {
     fleet_merge_source_input: String,
     fleet_merge_host_input: String,
     fleet_merge_status: Option<String>,
+    fleet_transfer_scroll_offset: usize,
+    fleet_transfer_cursor: usize,
+    fleet_transfer_mode: FleetTransferMode,
+    fleet_transfer_selected_fleets: BTreeSet<usize>,
+    fleet_transfer_donor_record_index_1_based: Option<usize>,
+    fleet_transfer_host_record_index_1_based: Option<usize>,
+    fleet_transfer_select_input: String,
+    fleet_transfer_input: String,
+    fleet_transfer_status: Option<String>,
+    fleet_transfer_selection: FleetDetachSelection,
     fleet_detach_scroll_offset: usize,
     fleet_detach_cursor: usize,
     fleet_detach_mode: FleetDetachMode,
@@ -290,6 +313,10 @@ impl App {
             general_menu: GeneralMenuScreen::new(),
             general_help: GeneralHelpScreen::new(),
             fleet_help: FleetHelpScreen::new(),
+            starbase_menu: StarbaseMenuScreen::new(),
+            starbase_help: StarbaseHelpScreen::new(),
+            starbase_list: StarbaseListScreen::new(),
+            starbase_review: StarbaseReviewScreen::new(),
             fleet_menu: FleetMenuScreen::new(),
             fleet_list: FleetListScreen::new(),
             fleet_review: FleetReviewScreen::new(),
@@ -298,6 +325,7 @@ impl App {
             fleet_group: FleetGroupScreen::new(),
             fleet_mission_picker: FleetMissionPickerScreen::new(),
             fleet_merge: FleetMergeScreen::new(),
+            fleet_transfer: FleetTransferScreen::new(),
             fleet_detach: FleetDetachScreen::new(),
             fleet_eta: FleetEtaScreen::new(),
             planet_menu: PlanetMenuScreen::new(),
@@ -349,6 +377,11 @@ impl App {
             compose_sent_status: None,
             planet_list_sort_status: None,
             fleet_list_mode: FleetListMode::Brief,
+            starbase_scroll_offset: 0,
+            starbase_cursor: 0,
+            starbase_review_index: 0,
+            starbase_review_input: String::new(),
+            starbase_review_status: None,
             fleet_scroll_offset: 0,
             fleet_cursor: 0,
             fleet_review_index: 0,
@@ -385,6 +418,16 @@ impl App {
             fleet_merge_source_input: String::new(),
             fleet_merge_host_input: String::new(),
             fleet_merge_status: None,
+            fleet_transfer_scroll_offset: 0,
+            fleet_transfer_cursor: 0,
+            fleet_transfer_mode: FleetTransferMode::SelectingFleets,
+            fleet_transfer_selected_fleets: BTreeSet::new(),
+            fleet_transfer_donor_record_index_1_based: None,
+            fleet_transfer_host_record_index_1_based: None,
+            fleet_transfer_select_input: String::new(),
+            fleet_transfer_input: String::new(),
+            fleet_transfer_status: None,
+            fleet_transfer_selection: FleetDetachSelection::default(),
             fleet_detach_scroll_offset: 0,
             fleet_detach_cursor: 0,
             fleet_detach_mode: FleetDetachMode::SelectingFleet,
@@ -532,6 +575,29 @@ impl App {
                 .render_with_notice(&frame, self.command_menu_notice.as_deref())?,
             ScreenId::GeneralHelp => self.general_help.render(&frame)?,
             ScreenId::FleetHelp => self.fleet_help.render(&frame)?,
+            ScreenId::StarbaseMenu => self
+                .starbase_menu
+                .render_with_notice(self.command_menu_notice.as_deref())?,
+            ScreenId::StarbaseHelp => self.starbase_help.render(&frame)?,
+            ScreenId::StarbaseList => self.starbase_list.render(
+                &self.starbase_rows(),
+                self.starbase_scroll_offset,
+                self.starbase_cursor,
+            )?,
+            ScreenId::StarbaseReviewSelect => self.starbase_review.render_select(
+                &self.starbase_rows(),
+                self.starbase_scroll_offset,
+                self.starbase_cursor,
+                &self.starbase_review_input,
+                self.status_if_no_modal(self.starbase_review_status.as_deref()),
+            )?,
+            ScreenId::StarbaseReview => {
+                let rows = self.starbase_rows();
+                let row = rows
+                    .get(self.starbase_review_index)
+                    .ok_or("starbase review row missing")?;
+                self.starbase_review.render_detail(row)?
+            }
             ScreenId::FleetMenu => self
                 .fleet_menu
                 .render_with_notice(self.command_menu_notice.as_deref())?,
@@ -601,6 +667,27 @@ impl App {
                     self.fleet_merge_mode,
                     &input,
                     status,
+                )?
+            }
+            ScreenId::FleetTransfer => {
+                let rows = self.current_fleet_transfer_rows();
+                let input = self.current_fleet_transfer_input().to_string();
+                let status = self.status_if_no_modal(self.fleet_transfer_status.as_deref());
+                let (prompt, default) = self.fleet_transfer_prompt_and_default(&rows);
+                self.fleet_transfer.render(
+                    &rows,
+                    self.fleet_transfer_scroll_offset,
+                    self.fleet_transfer_cursor,
+                    self.fleet_transfer_mode,
+                    &self.fleet_transfer_selected_fleets,
+                    self.fleet_transfer_donor_record_index_1_based
+                        .and_then(|idx| self.fleet_number_for_record_index(idx)),
+                    self.fleet_transfer_host_record_index_1_based
+                        .and_then(|idx| self.fleet_number_for_record_index(idx)),
+                    &input,
+                    status,
+                    &prompt,
+                    &default,
                 )?
             }
             ScreenId::FleetDetach => {
@@ -1062,6 +1149,7 @@ impl App {
             CommandMenu::Main => ScreenId::MainMenu,
             CommandMenu::General => ScreenId::GeneralMenu,
             CommandMenu::Fleet => ScreenId::FleetMenu,
+            CommandMenu::Starbase => ScreenId::StarbaseMenu,
             CommandMenu::Planet => ScreenId::PlanetMenu,
             CommandMenu::PlanetBuild => ScreenId::PlanetBuildMenu,
         };
@@ -1110,6 +1198,80 @@ impl App {
     pub fn open_fleet_help(&mut self) {
         self.clear_command_menu_notice();
         self.current_screen = ScreenId::FleetHelp;
+    }
+
+    pub fn show_starbase_expert_mode_notice(&mut self) {
+        self.show_command_menu_notice(
+            CommandMenu::Starbase,
+            "Expert mode not implemented yet. Plan for Helix style commands.",
+        );
+    }
+
+    pub fn show_starbase_move_notice(&mut self) {
+        self.show_command_menu_notice(
+            CommandMenu::Starbase,
+            "Starbase hauling is not implemented yet.",
+        );
+    }
+
+    pub fn open_starbase_menu(&mut self) {
+        self.clear_command_menu_notice();
+        self.current_screen = ScreenId::StarbaseMenu;
+    }
+
+    pub fn open_starbase_help(&mut self) {
+        self.clear_command_menu_notice();
+        self.current_screen = ScreenId::StarbaseHelp;
+    }
+
+    pub fn open_starbase_list(&mut self) {
+        let total = self.starbase_rows().len();
+        if total == 0 {
+            self.show_command_menu_notice(CommandMenu::Starbase, "You have no active starbases.");
+            return;
+        }
+        self.clear_command_menu_notice();
+        self.starbase_cursor = self.starbase_cursor.min(total - 1);
+        center_scroll_to_cursor(
+            &mut self.starbase_scroll_offset,
+            self.starbase_cursor,
+            crate::screen::STARBASE_VISIBLE_ROWS,
+            total,
+        );
+        self.current_screen = ScreenId::StarbaseList;
+    }
+
+    pub fn open_starbase_review_select(&mut self) {
+        let total = self.starbase_rows().len();
+        if total == 0 {
+            self.show_command_menu_notice(CommandMenu::Starbase, "You have no active starbases.");
+            return;
+        }
+        self.clear_command_menu_notice();
+        self.starbase_cursor = self.starbase_cursor.min(total - 1);
+        self.starbase_review_input.clear();
+        self.starbase_review_status = None;
+        center_scroll_to_cursor(
+            &mut self.starbase_scroll_offset,
+            self.starbase_cursor,
+            crate::screen::STARBASE_VISIBLE_ROWS,
+            total,
+        );
+        self.current_screen = ScreenId::StarbaseReviewSelect;
+    }
+
+    pub fn open_starbase_review(&mut self) {
+        let rows = self.starbase_rows();
+        if rows.is_empty() {
+            self.show_command_menu_notice(CommandMenu::Starbase, "You have no active starbases.");
+            return;
+        }
+        let Some(_) = rows.get(self.starbase_cursor) else {
+            self.current_screen = ScreenId::StarbaseMenu;
+            return;
+        };
+        self.starbase_review_index = self.starbase_cursor;
+        self.current_screen = ScreenId::StarbaseReview;
     }
 
     pub fn open_fleet_list(&mut self, mode: FleetListMode) {
@@ -1244,6 +1406,34 @@ impl App {
             total,
         );
         self.current_screen = ScreenId::FleetMerge;
+    }
+
+    pub fn open_fleet_transfer(&mut self) {
+        let total = self.fleet_rows().len();
+        if total < 2 {
+            self.show_command_menu_notice(
+                CommandMenu::Fleet,
+                "You need at least two fleets to transfer ships.",
+            );
+            return;
+        }
+        self.clear_command_menu_notice();
+        self.fleet_transfer_status = None;
+        self.fleet_transfer_select_input.clear();
+        self.fleet_transfer_input.clear();
+        self.fleet_transfer_selected_fleets.clear();
+        self.fleet_transfer_donor_record_index_1_based = None;
+        self.fleet_transfer_host_record_index_1_based = None;
+        self.fleet_transfer_selection = FleetDetachSelection::default();
+        self.fleet_transfer_mode = FleetTransferMode::SelectingFleets;
+        self.fleet_transfer_cursor = self.fleet_transfer_cursor.min(total - 1);
+        center_scroll_to_cursor(
+            &mut self.fleet_transfer_scroll_offset,
+            self.fleet_transfer_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+            total,
+        );
+        self.current_screen = ScreenId::FleetTransfer;
     }
 
     pub fn open_fleet_order(&mut self) {
@@ -1739,6 +1929,29 @@ impl App {
         );
     }
 
+    pub fn move_starbase_select(&mut self, delta: i8) {
+        if !matches!(
+            self.current_screen,
+            ScreenId::StarbaseList | ScreenId::StarbaseReviewSelect
+        ) {
+            return;
+        }
+        let total = self.starbase_rows().len();
+        if total == 0 {
+            self.starbase_cursor = 0;
+            return;
+        }
+        let next = self.starbase_cursor as isize + delta as isize;
+        self.starbase_cursor = next.rem_euclid(total as isize) as usize;
+        sync_scroll_to_cursor(
+            &mut self.starbase_scroll_offset,
+            self.starbase_cursor,
+            crate::screen::STARBASE_VISIBLE_ROWS,
+        );
+        self.starbase_review_input.clear();
+        self.starbase_review_status = None;
+    }
+
     pub fn move_fleet_review_select(&mut self, delta: i8) {
         if self.current_screen != ScreenId::FleetReviewSelect {
             return;
@@ -1825,6 +2038,49 @@ impl App {
             FleetMergeMode::SelectingHost => self.fleet_merge_host_input.clear(),
         }
         self.fleet_merge_status = None;
+    }
+
+    pub fn move_fleet_transfer_select(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::FleetTransfer {
+            return;
+        }
+        if self.fleet_transfer_mode != FleetTransferMode::SelectingFleets {
+            return;
+        }
+        let total = self.current_fleet_transfer_rows().len();
+        if total == 0 {
+            self.fleet_transfer_cursor = 0;
+            return;
+        }
+        let next = self.fleet_transfer_cursor as isize + delta as isize;
+        self.fleet_transfer_cursor = next.rem_euclid(total as isize) as usize;
+        sync_scroll_to_cursor(
+            &mut self.fleet_transfer_scroll_offset,
+            self.fleet_transfer_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+        );
+        self.fleet_transfer_select_input.clear();
+        self.fleet_transfer_status = None;
+    }
+
+    pub fn toggle_fleet_transfer_selection(&mut self) {
+        if self.current_screen != ScreenId::FleetTransfer
+            || self.fleet_transfer_mode != FleetTransferMode::SelectingFleets
+        {
+            return;
+        }
+        let rows = self.current_fleet_transfer_rows();
+        let Some(row) = rows.get(self.fleet_transfer_cursor) else {
+            return;
+        };
+        if !self
+            .fleet_transfer_selected_fleets
+            .insert(row.fleet_record_index_1_based)
+        {
+            self.fleet_transfer_selected_fleets
+                .remove(&row.fleet_record_index_1_based);
+        }
+        self.fleet_transfer_status = None;
     }
 
     pub fn move_fleet_group_order(&mut self, delta: i8) {
@@ -1980,6 +2236,18 @@ impl App {
         self.fleet_review_status = None;
     }
 
+    pub fn append_starbase_char(&mut self, ch: char) {
+        if self.current_screen != ScreenId::StarbaseReviewSelect || !ch.is_ascii_digit() {
+            return;
+        }
+        if self.starbase_review_input.len() >= 3 {
+            return;
+        }
+        self.starbase_review_input.push(ch);
+        self.sync_starbase_cursor_to_input();
+        self.starbase_review_status = None;
+    }
+
     pub fn append_fleet_merge_char(&mut self, ch: char) {
         if self.current_screen != ScreenId::FleetMerge || !ch.is_ascii_digit() {
             return;
@@ -1994,6 +2262,30 @@ impl App {
         input.push(ch);
         self.sync_fleet_merge_cursor_to_input();
         self.fleet_merge_status = None;
+    }
+
+    pub fn append_fleet_transfer_char(&mut self, ch: char) {
+        if self.current_screen != ScreenId::FleetTransfer || !ch.is_ascii_digit() {
+            return;
+        }
+        let input = if self.fleet_transfer_mode == FleetTransferMode::SelectingFleets {
+            &mut self.fleet_transfer_select_input
+        } else {
+            &mut self.fleet_transfer_input
+        };
+        let limit = if self.fleet_transfer_mode == FleetTransferMode::SelectingFleets {
+            4
+        } else {
+            3
+        };
+        if input.len() >= limit {
+            return;
+        }
+        input.push(ch);
+        if self.fleet_transfer_mode == FleetTransferMode::SelectingFleets {
+            self.sync_fleet_transfer_cursor_to_input();
+        }
+        self.fleet_transfer_status = None;
     }
 
     pub fn append_fleet_order_char(&mut self, ch: char) {
@@ -2097,6 +2389,50 @@ impl App {
         self.fleet_review_status = None;
     }
 
+    pub fn backspace_starbase_input(&mut self) {
+        if self.current_screen != ScreenId::StarbaseReviewSelect {
+            return;
+        }
+        self.starbase_review_input.pop();
+        self.sync_starbase_cursor_to_input();
+        self.starbase_review_status = None;
+    }
+
+    pub fn submit_starbase_review_select(&mut self) {
+        if self.current_screen != ScreenId::StarbaseReviewSelect {
+            return;
+        }
+        let rows = self.starbase_rows();
+        let Some(_) = rows.get(self.starbase_cursor) else {
+            self.current_screen = ScreenId::StarbaseMenu;
+            return;
+        };
+        if !self.starbase_review_input.trim().is_empty() {
+            let target_base_id = match self.starbase_review_input.trim().parse::<u8>() {
+                Ok(value) => value,
+                Err(_) => {
+                    self.starbase_review_status =
+                        Some("Enter a starbase number from the table.".to_string());
+                    return;
+                }
+            };
+            let Some(index) = rows.iter().position(|row| row.base_id == target_base_id) else {
+                self.starbase_review_status =
+                    Some(format!("Starbase #{target_base_id} is not in your list."));
+                return;
+            };
+            self.starbase_cursor = index;
+            sync_scroll_to_cursor(
+                &mut self.starbase_scroll_offset,
+                self.starbase_cursor,
+                crate::screen::STARBASE_VISIBLE_ROWS,
+            );
+        }
+        self.starbase_review_input.clear();
+        self.starbase_review_status = None;
+        self.open_starbase_review();
+    }
+
     pub fn backspace_fleet_merge_input(&mut self) {
         if self.current_screen != ScreenId::FleetMerge {
             return;
@@ -2107,6 +2443,19 @@ impl App {
         };
         self.sync_fleet_merge_cursor_to_input();
         self.fleet_merge_status = None;
+    }
+
+    pub fn backspace_fleet_transfer_input(&mut self) {
+        if self.current_screen != ScreenId::FleetTransfer {
+            return;
+        }
+        if self.fleet_transfer_mode == FleetTransferMode::SelectingFleets {
+            self.fleet_transfer_select_input.pop();
+            self.sync_fleet_transfer_cursor_to_input();
+        } else {
+            self.fleet_transfer_input.pop();
+        }
+        self.fleet_transfer_status = None;
     }
 
     pub fn backspace_fleet_order_input(&mut self) {
@@ -2398,6 +2747,106 @@ impl App {
                         source_fleet_number, host.fleet_number
                     ),
                 );
+            }
+        }
+        Ok(())
+    }
+
+    pub fn submit_fleet_transfer(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if self.current_screen != ScreenId::FleetTransfer {
+            return Ok(());
+        }
+        let rows = self.current_fleet_transfer_rows();
+        match self.fleet_transfer_mode {
+            FleetTransferMode::SelectingFleets => {
+                if self.fleet_transfer_selected_fleets.len() != 2 {
+                    self.fleet_transfer_status =
+                        Some("Select exactly two fleets for transfer.".to_string());
+                    return Ok(());
+                }
+                let Some(host_row) = rows.get(self.fleet_transfer_cursor) else {
+                    return Ok(());
+                };
+                if !self
+                    .fleet_transfer_selected_fleets
+                    .contains(&host_row.fleet_record_index_1_based)
+                {
+                    self.fleet_transfer_status =
+                        Some("Highlight one selected fleet as the host.".to_string());
+                    return Ok(());
+                }
+                let selected_rows = rows
+                    .iter()
+                    .filter(|row| {
+                        self.fleet_transfer_selected_fleets
+                            .contains(&row.fleet_record_index_1_based)
+                    })
+                    .collect::<Vec<_>>();
+                if selected_rows.len() != 2 {
+                    self.fleet_transfer_status =
+                        Some("Select exactly two fleets for transfer.".to_string());
+                    return Ok(());
+                }
+                if selected_rows[0].coords != selected_rows[1].coords {
+                    self.fleet_transfer_status =
+                        Some("Transfer fleets must share one sector.".to_string());
+                    return Ok(());
+                }
+                self.fleet_transfer_host_record_index_1_based =
+                    Some(host_row.fleet_record_index_1_based);
+                self.fleet_transfer_donor_record_index_1_based = selected_rows
+                    .iter()
+                    .find(|row| row.fleet_record_index_1_based != host_row.fleet_record_index_1_based)
+                    .map(|row| row.fleet_record_index_1_based);
+                self.fleet_transfer_mode = FleetTransferMode::EnteringBattleships;
+                self.fleet_transfer_input.clear();
+                self.fleet_transfer_status = None;
+                self.fleet_transfer_selection = FleetDetachSelection::default();
+            }
+            _ => {
+                let value = if self.fleet_transfer_input.trim().is_empty() {
+                    0
+                } else {
+                    match self.fleet_transfer_input.trim().parse::<u16>() {
+                        Ok(value) => value,
+                        Err(_) => {
+                            self.fleet_transfer_status = Some("Enter a number from 0 up.".to_string());
+                            return Ok(());
+                        }
+                    }
+                };
+                match self.fleet_transfer_mode {
+                    FleetTransferMode::EnteringBattleships => {
+                        self.fleet_transfer_selection.battleships = value;
+                        self.fleet_transfer_mode = FleetTransferMode::EnteringCruisers;
+                    }
+                    FleetTransferMode::EnteringCruisers => {
+                        self.fleet_transfer_selection.cruisers = value;
+                        self.fleet_transfer_mode = FleetTransferMode::EnteringDestroyers;
+                    }
+                    FleetTransferMode::EnteringDestroyers => {
+                        self.fleet_transfer_selection.destroyers = value;
+                        self.fleet_transfer_mode = FleetTransferMode::EnteringFullTransports;
+                    }
+                    FleetTransferMode::EnteringFullTransports => {
+                        self.fleet_transfer_selection.full_transports = value;
+                        self.fleet_transfer_mode = FleetTransferMode::EnteringEmptyTransports;
+                    }
+                    FleetTransferMode::EnteringEmptyTransports => {
+                        self.fleet_transfer_selection.empty_transports = value;
+                        self.fleet_transfer_mode = FleetTransferMode::EnteringScouts;
+                    }
+                    FleetTransferMode::EnteringScouts => {
+                        self.fleet_transfer_selection.scouts = value.min(u16::from(u8::MAX)) as u8;
+                        self.fleet_transfer_mode = FleetTransferMode::EnteringEtacs;
+                    }
+                    FleetTransferMode::EnteringEtacs => {
+                        self.fleet_transfer_selection.etacs = value;
+                        self.finish_fleet_transfer()?;
+                    }
+                    FleetTransferMode::SelectingFleets => {}
+                }
+                self.fleet_transfer_input.clear();
             }
         }
         Ok(())
@@ -3846,6 +4295,11 @@ impl App {
             ScreenId::GeneralMenu => self.general_menu.handle_key(key),
             ScreenId::GeneralHelp => self.general_help.handle_key(key),
             ScreenId::FleetHelp => self.fleet_help.handle_key(key),
+            ScreenId::StarbaseMenu => self.starbase_menu.handle_key(key),
+            ScreenId::StarbaseHelp => self.starbase_help.handle_key(key),
+            ScreenId::StarbaseList => self.starbase_list.handle_key(key),
+            ScreenId::StarbaseReviewSelect => self.handle_starbase_review_select_key(key),
+            ScreenId::StarbaseReview => Action::OpenStarbaseReviewSelect,
             ScreenId::FleetMenu => self.fleet_menu.handle_key(key),
             ScreenId::FleetList(_) => self.fleet_list.handle_key(key),
             ScreenId::FleetReviewSelect => self.handle_fleet_review_select_key(key),
@@ -3855,6 +4309,7 @@ impl App {
             ScreenId::FleetGroupOrder => self.handle_fleet_group_order_key(key),
             ScreenId::FleetMissionPicker => self.handle_fleet_mission_picker_key(key),
             ScreenId::FleetMerge => self.handle_fleet_merge_key(key),
+            ScreenId::FleetTransfer => self.handle_fleet_transfer_key(key),
             ScreenId::FleetDetach => self.handle_fleet_detach_key(key),
             ScreenId::FleetEta => self.handle_fleet_eta_key(key),
             ScreenId::PlanetMenu => self.planet_menu.handle_key(key),
@@ -4070,6 +4525,7 @@ impl App {
             CommandMenu::Main => ScreenId::MainMenu,
             CommandMenu::General => ScreenId::GeneralMenu,
             CommandMenu::Fleet => ScreenId::FleetMenu,
+            CommandMenu::Starbase => ScreenId::StarbaseMenu,
             CommandMenu::Planet => ScreenId::PlanetMenu,
             CommandMenu::PlanetBuild => ScreenId::PlanetBuildMenu,
         };
@@ -4091,8 +4547,14 @@ impl App {
             | ScreenId::FleetGroupOrder
             | ScreenId::FleetMissionPicker
             | ScreenId::FleetMerge
+            | ScreenId::FleetTransfer
             | ScreenId::FleetDetach
             | ScreenId::FleetEta => CommandMenu::Fleet,
+            ScreenId::StarbaseMenu
+            | ScreenId::StarbaseHelp
+            | ScreenId::StarbaseList
+            | ScreenId::StarbaseReviewSelect
+            | ScreenId::StarbaseReview => CommandMenu::Starbase,
             ScreenId::GeneralMenu
             | ScreenId::GeneralHelp
             | ScreenId::Enemies
@@ -4159,12 +4621,14 @@ impl App {
 
     fn current_modal_notice(&self) -> Option<&str> {
         match self.current_screen {
+            ScreenId::StarbaseReviewSelect => self.starbase_review_status.as_deref(),
             ScreenId::FleetReviewSelect => self.fleet_review_status.as_deref(),
             ScreenId::FleetRoeSelect => self.fleet_roe_status.as_deref(),
             ScreenId::FleetOrder => self.fleet_order_status.as_deref(),
             ScreenId::FleetGroupOrder => self.fleet_group_status.as_deref(),
             ScreenId::FleetMissionPicker => self.fleet_mission_picker_status.as_deref(),
             ScreenId::FleetMerge => self.fleet_merge_status.as_deref(),
+            ScreenId::FleetTransfer => self.fleet_transfer_status.as_deref(),
             ScreenId::FleetDetach => self.fleet_detach_status.as_deref(),
             ScreenId::FleetEta if self.fleet_eta_mode != FleetEtaMode::ShowingResult => {
                 self.fleet_eta_status.as_deref()
@@ -4182,6 +4646,10 @@ impl App {
 
     pub fn dismiss_modal_notice(&mut self) {
         match self.current_screen {
+            ScreenId::StarbaseReviewSelect => {
+                self.starbase_review_status = None;
+                self.starbase_review_input.clear();
+            }
             ScreenId::FleetReviewSelect => {
                 self.fleet_review_status = None;
                 self.fleet_review_select_input.clear();
@@ -4211,6 +4679,14 @@ impl App {
                 match self.fleet_merge_mode {
                     FleetMergeMode::SelectingSource => self.fleet_merge_source_input.clear(),
                     FleetMergeMode::SelectingHost => self.fleet_merge_host_input.clear(),
+                }
+            }
+            ScreenId::FleetTransfer => {
+                self.fleet_transfer_status = None;
+                if self.fleet_transfer_mode == FleetTransferMode::SelectingFleets {
+                    self.fleet_transfer_select_input.clear();
+                } else {
+                    self.fleet_transfer_input.clear();
                 }
             }
             ScreenId::FleetDetach => {
@@ -4949,6 +5425,54 @@ impl App {
         rows
     }
 
+    fn starbase_rows(&self) -> Vec<StarbaseRow> {
+        let mut rows = self
+            .game_data
+            .bases
+            .records
+            .iter()
+            .enumerate()
+            .filter(|(_, base)| base.owner_empire_raw() as usize == self.player.record_index_1_based)
+            .map(|(idx, base)| {
+                let escort_label = self
+                    .game_data
+                    .fleets
+                    .records
+                    .iter()
+                    .find(|fleet| fleet.fleet_id_word_raw() == base.chain_word_raw())
+                    .map(|fleet| {
+                        format!(
+                            "The {} Fleet",
+                            ordinal_number(fleet.local_slot_word_raw() as usize)
+                        )
+                    })
+                    .unwrap_or_else(|| "Unknown escort".to_string());
+                let destination_coords = base.trailing_coords_raw();
+                let operation_label = if destination_coords == base.coords_raw() {
+                    "Protection & Enhancement".to_string()
+                } else {
+                    "Starbase in transit".to_string()
+                };
+                let eta_label = if destination_coords == base.coords_raw() {
+                    "0".to_string()
+                } else {
+                    "?".to_string()
+                };
+                StarbaseRow {
+                    base_record_index_1_based: idx + 1,
+                    base_id: base.base_id_raw(),
+                    escort_label,
+                    coords: base.coords_raw(),
+                    destination_coords,
+                    eta_label,
+                    operation_label,
+                }
+            })
+            .collect::<Vec<_>>();
+        rows.sort_by_key(|row| row.base_id);
+        rows
+    }
+
     fn planet_database_rows(&self) -> Vec<PlanetDatabaseRow> {
         let mut rows = build_player_starmap_projection(
             &self.game_data,
@@ -5600,6 +6124,33 @@ impl App {
         }
     }
 
+    fn handle_starbase_review_select_key(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> crate::app::Action {
+        use crossterm::event::KeyCode;
+
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                crate::app::Action::MoveStarbaseSelect(-1)
+            }
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                crate::app::Action::MoveStarbaseSelect(1)
+            }
+            KeyCode::PageUp => crate::app::Action::MoveStarbaseSelect(-8),
+            KeyCode::PageDown => crate::app::Action::MoveStarbaseSelect(8),
+            KeyCode::Enter => crate::app::Action::SubmitStarbaseReviewSelect,
+            KeyCode::Backspace => crate::app::Action::BackspaceStarbaseInput,
+            KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                crate::app::Action::AppendStarbaseChar(ch)
+            }
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                crate::app::Action::OpenStarbaseMenu
+            }
+            _ => crate::app::Action::Noop,
+        }
+    }
+
     fn handle_fleet_merge_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
         use crossterm::event::KeyCode;
 
@@ -5621,6 +6172,44 @@ impl App {
                 crate::app::Action::OpenFleetMenu
             }
             _ => crate::app::Action::Noop,
+        }
+    }
+
+    fn handle_fleet_transfer_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
+        use crossterm::event::KeyCode;
+
+        match self.fleet_transfer_mode {
+            FleetTransferMode::SelectingFleets => match key.code {
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                    crate::app::Action::MoveFleetTransferSelect(-1)
+                }
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                    crate::app::Action::MoveFleetTransferSelect(1)
+                }
+                KeyCode::PageUp => crate::app::Action::MoveFleetTransferSelect(-8),
+                KeyCode::PageDown => crate::app::Action::MoveFleetTransferSelect(8),
+                KeyCode::Char(' ') => crate::app::Action::ToggleFleetTransferSelection,
+                KeyCode::Enter => crate::app::Action::SubmitFleetTransfer,
+                KeyCode::Backspace => crate::app::Action::BackspaceFleetTransferInput,
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    crate::app::Action::AppendFleetTransferChar(ch)
+                }
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    crate::app::Action::OpenFleetMenu
+                }
+                _ => crate::app::Action::Noop,
+            },
+            _ => match key.code {
+                KeyCode::Enter => crate::app::Action::SubmitFleetTransfer,
+                KeyCode::Backspace => crate::app::Action::BackspaceFleetTransferInput,
+                KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                    crate::app::Action::OpenFleetTransfer
+                }
+                KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                    crate::app::Action::AppendFleetTransferChar(ch)
+                }
+                _ => crate::app::Action::Noop,
+            },
         }
     }
 
@@ -5818,6 +6407,25 @@ impl App {
         );
     }
 
+    fn sync_starbase_cursor_to_input(&mut self) {
+        if self.current_screen != ScreenId::StarbaseReviewSelect {
+            return;
+        }
+        let Ok(target_base_id) = self.starbase_review_input.trim().parse::<u8>() else {
+            return;
+        };
+        let rows = self.starbase_rows();
+        let Some(index) = rows.iter().position(|row| row.base_id == target_base_id) else {
+            return;
+        };
+        self.starbase_cursor = index;
+        sync_scroll_to_cursor(
+            &mut self.starbase_scroll_offset,
+            self.starbase_cursor,
+            crate::screen::STARBASE_VISIBLE_ROWS,
+        );
+    }
+
     fn sync_fleet_merge_cursor_to_input(&mut self) {
         if self.current_screen != ScreenId::FleetMerge {
             return;
@@ -5836,6 +6444,30 @@ impl App {
         sync_scroll_to_cursor(
             &mut self.fleet_merge_scroll_offset,
             self.fleet_merge_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+        );
+    }
+
+    fn sync_fleet_transfer_cursor_to_input(&mut self) {
+        if self.current_screen != ScreenId::FleetTransfer
+            || self.fleet_transfer_mode != FleetTransferMode::SelectingFleets
+        {
+            return;
+        }
+        let Ok(target_fleet_id) = self.fleet_transfer_select_input.trim().parse::<u16>() else {
+            return;
+        };
+        let rows = self.current_fleet_transfer_rows();
+        let Some(index) = rows
+            .iter()
+            .position(|row| row.fleet_number == target_fleet_id)
+        else {
+            return;
+        };
+        self.fleet_transfer_cursor = index;
+        sync_scroll_to_cursor(
+            &mut self.fleet_transfer_scroll_offset,
+            self.fleet_transfer_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
     }
@@ -6203,6 +6835,65 @@ impl App {
         match self.fleet_merge_mode {
             FleetMergeMode::SelectingSource => &self.fleet_merge_source_input,
             FleetMergeMode::SelectingHost => &self.fleet_merge_host_input,
+        }
+    }
+
+    fn current_fleet_transfer_rows(&self) -> Vec<FleetRow> {
+        let mut rows = match self.fleet_transfer_mode {
+            FleetTransferMode::SelectingFleets => self.fleet_rows(),
+            _ => self
+                .fleet_transfer_donor_record_index_1_based
+                .and_then(|idx| {
+                    self.fleet_rows()
+                        .into_iter()
+                        .find(|row| row.fleet_record_index_1_based == idx)
+                })
+                .into_iter()
+                .collect(),
+        };
+        rows.sort_by(|left, right| {
+            left.coords
+                .cmp(&right.coords)
+                .then_with(|| left.order_code.cmp(&right.order_code))
+                .then_with(|| right.fleet_number.cmp(&left.fleet_number))
+        });
+        rows
+    }
+
+    fn current_fleet_transfer_input(&self) -> &str {
+        match self.fleet_transfer_mode {
+            FleetTransferMode::SelectingFleets => &self.fleet_transfer_select_input,
+            _ => &self.fleet_transfer_input,
+        }
+    }
+
+    fn fleet_number_for_record_index(&self, record_index_1_based: usize) -> Option<u16> {
+        self.game_data
+            .fleets
+            .records
+            .get(record_index_1_based - 1)
+            .map(|fleet| fleet.local_slot_word_raw())
+    }
+
+    fn fleet_transfer_prompt_and_default(&self, rows: &[FleetRow]) -> (String, String) {
+        match self.fleet_transfer_mode {
+            FleetTransferMode::SelectingFleets => (
+                "Fleet # ".to_string(),
+                rows.get(self.fleet_transfer_cursor)
+                    .map(|row| row.fleet_number.to_string())
+                    .unwrap_or_else(|| "1".to_string()),
+            ),
+            FleetTransferMode::EnteringBattleships => ("Battleships ".to_string(), "0".to_string()),
+            FleetTransferMode::EnteringCruisers => ("Cruisers ".to_string(), "0".to_string()),
+            FleetTransferMode::EnteringDestroyers => ("Destroyers ".to_string(), "0".to_string()),
+            FleetTransferMode::EnteringFullTransports => {
+                ("Full transports ".to_string(), "0".to_string())
+            }
+            FleetTransferMode::EnteringEmptyTransports => {
+                ("Empty transports ".to_string(), "0".to_string())
+            }
+            FleetTransferMode::EnteringScouts => ("Scouts ".to_string(), "0".to_string()),
+            FleetTransferMode::EnteringEtacs => ("ETACs ".to_string(), "0".to_string()),
         }
     }
 
@@ -6583,6 +7274,44 @@ impl App {
         Ok(())
     }
 
+    fn finish_fleet_transfer(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(donor_record_index_1_based) = self.fleet_transfer_donor_record_index_1_based
+        else {
+            self.fleet_transfer_status = Some("Select two fleets for transfer.".to_string());
+            return Ok(());
+        };
+        let Some(host_record_index_1_based) = self.fleet_transfer_host_record_index_1_based else {
+            self.fleet_transfer_status = Some("Select two fleets for transfer.".to_string());
+            return Ok(());
+        };
+        self.game_data.transfer_ships_between_fleets(
+            self.player.record_index_1_based,
+            donor_record_index_1_based,
+            host_record_index_1_based,
+            self.fleet_transfer_selection.clone(),
+        )?;
+        self.save_game_data()?;
+        let donor_fleet_number = self
+            .fleet_number_for_record_index(donor_record_index_1_based)
+            .unwrap_or(0);
+        let host_fleet_number = self
+            .fleet_number_for_record_index(host_record_index_1_based)
+            .unwrap_or(0);
+        self.fleet_transfer_mode = FleetTransferMode::SelectingFleets;
+        self.fleet_transfer_selected_fleets.clear();
+        self.fleet_transfer_donor_record_index_1_based = None;
+        self.fleet_transfer_host_record_index_1_based = None;
+        self.fleet_transfer_select_input.clear();
+        self.fleet_transfer_input.clear();
+        self.fleet_transfer_selection = FleetDetachSelection::default();
+        self.current_screen = ScreenId::FleetTransfer;
+        self.fleet_transfer_status = Some(format!(
+            "Transferred ships from fleet {} to fleet {}.",
+            donor_fleet_number, host_fleet_number
+        ));
+        Ok(())
+    }
+
     fn calculate_fleet_eta_message(
         &self,
         row: &FleetRow,
@@ -6936,6 +7665,19 @@ fn fleet_group_order_label(order_code: u8) -> &'static str {
 fn format_fleet_number_for_rows(fleet_number: u16, rows: &[FleetRow]) -> String {
     let max_fleet_number = rows.iter().map(|row| row.fleet_number).max().unwrap_or(1);
     crate::screen::format_fleet_number(fleet_number, max_fleet_number)
+}
+
+fn ordinal_number(value: usize) -> String {
+    let suffix = match value % 100 {
+        11..=13 => "th",
+        _ => match value % 10 {
+            1 => "st",
+            2 => "nd",
+            3 => "rd",
+            _ => "th",
+        },
+    };
+    format!("{value}{suffix}")
 }
 
 fn insert_char_at(body: &mut String, cursor_index: usize, ch: char) {

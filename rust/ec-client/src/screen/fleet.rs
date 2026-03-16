@@ -46,6 +46,7 @@ pub struct FleetSingleOrderScreen;
 pub struct FleetGroupScreen;
 pub struct FleetMissionPickerScreen;
 pub struct FleetMergeScreen;
+pub struct FleetTransferScreen;
 pub struct FleetEtaScreen;
 pub struct FleetDetachScreen;
 
@@ -75,6 +76,18 @@ pub enum FleetDetachMode {
 pub enum FleetMergeMode {
     SelectingSource,
     SelectingHost,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetTransferMode {
+    SelectingFleets,
+    EnteringBattleships,
+    EnteringCruisers,
+    EnteringDestroyers,
+    EnteringFullTransports,
+    EnteringEmptyTransports,
+    EnteringScouts,
+    EnteringEtacs,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -309,7 +322,7 @@ impl Screen for FleetMenuScreen {
             KeyCode::Char('r') | KeyCode::Char('R') => Action::OpenFleetReviewSelect,
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenMainMenu,
             KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenFleetHelp,
-            KeyCode::Char('s') | KeyCode::Char('S') => Action::Noop, // Starbase menu - TODO
+            KeyCode::Char('s') | KeyCode::Char('S') => Action::OpenStarbaseMenu,
             KeyCode::Char('d') | KeyCode::Char('D') => Action::OpenFleetDetach,
             KeyCode::Char('m') | KeyCode::Char('M') => Action::OpenFleetMerge,
             KeyCode::Char('o') | KeyCode::Char('O') => Action::OpenFleetOrder,
@@ -1056,6 +1069,131 @@ impl FleetGroupScreen {
                         "FLEET COMMAND",
                         "Target ",
                         &format!("{},{}", default_target[0], default_target[1]),
+                        input,
+                    );
+                }
+            }
+        }
+        Ok(buffer)
+    }
+}
+
+impl FleetTransferScreen {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn render(
+        &mut self,
+        rows: &[FleetRow],
+        scroll_offset: usize,
+        cursor: usize,
+        mode: FleetTransferMode,
+        selected_fleet_record_indexes: &BTreeSet<usize>,
+        donor_fleet_number: Option<u16>,
+        host_fleet_number: Option<u16>,
+        input: &str,
+        status: Option<&str>,
+        prompt: &str,
+        default: &str,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        let max_fleet_number = max_fleet_number(rows);
+        let columns = [
+            TableColumn::left("Sel", 3),
+            TableColumn::right("ID", fleet_id_column_width(max_fleet_number)),
+            TableColumn::left("Location", 10),
+            TableColumn::right("Spd", 7),
+            TableColumn::right("ROE", 3),
+            TableColumn::right("Ord", 3),
+            TableColumn::left("Target", 10),
+            TableColumn::left("Ships", 27),
+        ];
+        buffer.fill_row(0, classic::menu_style());
+        buffer.write_text(0, 0, "TRANSFER SHIPS:", classic::title_style());
+        draw_status_line(
+            &mut buffer,
+            1,
+            "",
+            match mode {
+                FleetTransferMode::SelectingFleets => {
+                    "Select two fleets in one sector. Highlight the host fleet, then press ENTER."
+                }
+                _ => "Enter ship counts to transfer from the donor fleet to the host fleet.",
+            },
+        );
+        match mode {
+            FleetTransferMode::SelectingFleets => {
+                draw_status_line(
+                    &mut buffer,
+                    2,
+                    "Selected fleets: ",
+                    &selected_fleet_record_indexes.len().to_string(),
+                );
+            }
+            _ => {
+                if let Some(donor) = donor_fleet_number {
+                    draw_status_line(&mut buffer, 2, "Donor: ", &format!("Fleet #{donor}"));
+                }
+                if let Some(host) = host_fleet_number {
+                    draw_status_line(&mut buffer, 2, "Host: ", &format!("Fleet #{host}"));
+                }
+            }
+        }
+        let table_rows = rows
+            .iter()
+            .map(|row| {
+                vec![
+                    if selected_fleet_record_indexes.contains(&row.fleet_record_index_1_based) {
+                        "X".to_string()
+                    } else {
+                        "".to_string()
+                    },
+                    format_fleet_number(row.fleet_number, max_fleet_number),
+                    format_sector_coords_padded(row.coords),
+                    format!("{}/{}", row.current_speed, row.max_speed),
+                    row.rules_of_engagement.to_string(),
+                    row.order_code.to_string(),
+                    format_sector_coords_padded(row.target_coords),
+                    row.composition_label.clone(),
+                ]
+            })
+            .collect::<Vec<_>>();
+        write_table_window_with_cursor(
+            &mut buffer,
+            3,
+            &columns,
+            &table_rows,
+            scroll_offset,
+            FLEET_VISIBLE_ROWS,
+            classic::status_value_style(),
+            classic::status_value_style(),
+            if !table_rows.is_empty() {
+                Some(cursor)
+            } else {
+                None
+            },
+        );
+        if let Some(status) = status {
+            draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
+        } else {
+            match mode {
+                FleetTransferMode::SelectingFleets => {
+                    if !table_rows.is_empty() {
+                        draw_command_prompt(
+                            &mut buffer,
+                            19,
+                            "FLEET COMMAND",
+                            "J K SPACE ENTER ARROWS Q",
+                        );
+                    }
+                }
+                _ => {
+                    draw_command_line_default_input(
+                        &mut buffer,
+                        "FLEET COMMAND",
+                        prompt,
+                        default,
                         input,
                     );
                 }

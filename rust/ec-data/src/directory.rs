@@ -328,6 +328,12 @@ pub struct FleetDetachResult {
     pub new_fleet_record_index_1_based: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FleetTransferResult {
+    pub donor_fleet_record_index_1_based: usize,
+    pub host_fleet_record_index_1_based: usize,
+}
+
 impl std::fmt::Display for GameDirectoryError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -638,10 +644,8 @@ impl CoreGameData {
                 .records
                 .get_mut(homeworld_planet_index_1_based - 1)
             {
-                let revenue = yearly_tax_revenue(
-                    planet.present_production_points().unwrap_or(0),
-                    tax_rate,
-                );
+                let revenue =
+                    yearly_tax_revenue(planet.present_production_points().unwrap_or(0), tax_rate);
                 planet.set_stored_production_points(revenue);
             }
         }
@@ -2167,13 +2171,11 @@ impl CoreGameData {
             .ok_or(GameStateMutationError::MissingFleetRecord {
                 index_1_based: host_fleet_index_1_based,
             })?;
-        let fleet = self
-            .fleets
-            .records
-            .get(fleet_index_1_based - 1)
-            .ok_or(GameStateMutationError::MissingFleetRecord {
+        let fleet = self.fleets.records.get(fleet_index_1_based - 1).ok_or(
+            GameStateMutationError::MissingFleetRecord {
                 index_1_based: fleet_index_1_based,
-            })?;
+            },
+        )?;
 
         if fleet.owner_empire_raw() != owner_empire {
             return Err(GameStateMutationError::FleetOwnershipMismatch {
@@ -2190,13 +2192,11 @@ impl CoreGameData {
 
         let host_coords = host.current_location_coords_raw();
         let host_fleet_id = host.fleet_id();
-        let fleet = self
-            .fleets
-            .records
-            .get_mut(fleet_index_1_based - 1)
-            .ok_or(GameStateMutationError::MissingFleetRecord {
+        let fleet = self.fleets.records.get_mut(fleet_index_1_based - 1).ok_or(
+            GameStateMutationError::MissingFleetRecord {
                 index_1_based: fleet_index_1_based,
-            })?;
+            },
+        )?;
         fleet.set_standing_order_kind(crate::Order::JoinAnotherFleet);
         fleet.set_standing_order_target_coords_raw(host_coords);
         fleet.set_join_host_fleet_id_raw(host_fleet_id);
@@ -2788,6 +2788,179 @@ impl CoreGameData {
         Ok(FleetDetachResult {
             donor_fleet_record_index_1_based,
             new_fleet_record_index_1_based,
+        })
+    }
+
+    pub fn transfer_ships_between_fleets(
+        &mut self,
+        player_index_1_based: usize,
+        donor_fleet_record_index_1_based: usize,
+        host_fleet_record_index_1_based: usize,
+        selection: FleetDetachSelection,
+    ) -> Result<FleetTransferResult, GameStateMutationError> {
+        if donor_fleet_record_index_1_based == host_fleet_record_index_1_based {
+            return Err(GameStateMutationError::InvalidFleetMergeSelection {
+                fleet_index_1_based: donor_fleet_record_index_1_based,
+                host_fleet_index_1_based: host_fleet_record_index_1_based,
+            });
+        }
+
+        let owner_empire = player_index_1_based as u8;
+        let donor = self
+            .fleets
+            .records
+            .get(donor_fleet_record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingFleetRecord {
+                index_1_based: donor_fleet_record_index_1_based,
+            })?
+            .clone();
+        let host = self
+            .fleets
+            .records
+            .get(host_fleet_record_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingFleetRecord {
+                index_1_based: host_fleet_record_index_1_based,
+            })?
+            .clone();
+
+        if donor.owner_empire_raw() != owner_empire {
+            return Err(GameStateMutationError::FleetOwnershipMismatch {
+                player_index_1_based,
+                fleet_index_1_based: donor_fleet_record_index_1_based,
+            });
+        }
+        if host.owner_empire_raw() != owner_empire {
+            return Err(GameStateMutationError::FleetOwnershipMismatch {
+                player_index_1_based,
+                fleet_index_1_based: host_fleet_record_index_1_based,
+            });
+        }
+        if donor.current_location_coords_raw() != host.current_location_coords_raw() {
+            return Err(GameStateMutationError::InvalidFleetMergeSelection {
+                fleet_index_1_based: donor_fleet_record_index_1_based,
+                host_fleet_index_1_based: host_fleet_record_index_1_based,
+            });
+        }
+        if selection.total_ships() == 0 {
+            return Err(GameStateMutationError::FleetDetachSelectionEmpty {
+                fleet_index_1_based: donor_fleet_record_index_1_based,
+            });
+        }
+
+        let available_full_transports = donor.army_count();
+        let available_empty_transports = donor
+            .troop_transport_count()
+            .saturating_sub(donor.army_count());
+        for (ship_kind, requested, available) in [
+            (
+                "battleships",
+                selection.battleships,
+                donor.battleship_count(),
+            ),
+            ("cruisers", selection.cruisers, donor.cruiser_count()),
+            ("destroyers", selection.destroyers, donor.destroyer_count()),
+            (
+                "full transports",
+                selection.full_transports,
+                available_full_transports,
+            ),
+            (
+                "empty transports",
+                selection.empty_transports,
+                available_empty_transports,
+            ),
+            (
+                "scout ships",
+                u16::from(selection.scouts),
+                u16::from(donor.scout_count()),
+            ),
+            ("ETAC ships", selection.etacs, donor.etac_count()),
+        ] {
+            if requested > available {
+                return Err(
+                    GameStateMutationError::FleetDetachSelectionExceedsAvailable {
+                        fleet_index_1_based: donor_fleet_record_index_1_based,
+                        ship_kind,
+                        requested,
+                        available,
+                    },
+                );
+            }
+        }
+
+        let remaining_ships = total_starships(&donor).saturating_sub(selection.total_ships());
+        if remaining_ships == 0 {
+            return Err(GameStateMutationError::FleetDetachLeavesFleetEmpty {
+                fleet_index_1_based: donor_fleet_record_index_1_based,
+            });
+        }
+
+        let mut donor_after = donor.clone();
+        donor_after.set_battleship_count(
+            donor_after
+                .battleship_count()
+                .saturating_sub(selection.battleships),
+        );
+        donor_after.set_cruiser_count(
+            donor_after
+                .cruiser_count()
+                .saturating_sub(selection.cruisers),
+        );
+        donor_after.set_destroyer_count(
+            donor_after
+                .destroyer_count()
+                .saturating_sub(selection.destroyers),
+        );
+        donor_after.set_troop_transport_count(
+            donor_after
+                .troop_transport_count()
+                .saturating_sub(selection.full_transports + selection.empty_transports),
+        );
+        donor_after.set_army_count(
+            donor_after
+                .army_count()
+                .saturating_sub(selection.full_transports),
+        );
+        donor_after.set_scout_count(donor_after.scout_count().saturating_sub(selection.scouts));
+        donor_after.set_etac_count(donor_after.etac_count().saturating_sub(selection.etacs));
+        donor_after.recompute_max_speed_from_composition();
+        if donor_after.current_speed() > donor_after.max_speed() {
+            donor_after.set_current_speed(donor_after.max_speed());
+        }
+
+        let mut host_after = host.clone();
+        host_after.set_battleship_count(
+            host_after
+                .battleship_count()
+                .saturating_add(selection.battleships),
+        );
+        host_after
+            .set_cruiser_count(host_after.cruiser_count().saturating_add(selection.cruisers));
+        host_after.set_destroyer_count(
+            host_after
+                .destroyer_count()
+                .saturating_add(selection.destroyers),
+        );
+        host_after.set_troop_transport_count(
+            host_after
+                .troop_transport_count()
+                .saturating_add(selection.full_transports + selection.empty_transports),
+        );
+        host_after
+            .set_army_count(host_after.army_count().saturating_add(selection.full_transports));
+        host_after.set_scout_count(host_after.scout_count().saturating_add(selection.scouts));
+        host_after.set_etac_count(host_after.etac_count().saturating_add(selection.etacs));
+        host_after.recompute_max_speed_from_composition();
+        if host_after.current_speed() > host_after.max_speed() {
+            host_after.set_current_speed(host_after.max_speed());
+        }
+
+        self.fleets.records[donor_fleet_record_index_1_based - 1] = donor_after;
+        self.fleets.records[host_fleet_record_index_1_based - 1] = host_after;
+
+        Ok(FleetTransferResult {
+            donor_fleet_record_index_1_based,
+            host_fleet_record_index_1_based,
         })
     }
 
