@@ -1,9 +1,9 @@
 mod common;
 
 use common::{
-    cleanup_dir, copy_fixture_dir, run_ec_cli_in_dir, run_maint_rust_failure_after_import,
-    run_maint_rust_with_export, set_mutual_enemy_in_player_dat, unique_temp_dir,
-    write_mutual_enemy_diplomacy,
+    cleanup_dir, copy_fixture_dir, run_classic_ecgame_smoke, run_ec_cli_in_dir,
+    run_maint_rust_failure_after_import, run_maint_rust_with_export,
+    set_mutual_enemy_in_player_dat, unique_temp_dir, write_mutual_enemy_diplomacy,
 };
 use ec_data::{CoreGameData, DatabaseDat, GameStateBuilder, Order};
 use std::fs;
@@ -91,6 +91,23 @@ fn maint_rust_projects_latest_snapshot_back_into_working_directory() {
     assert!(target.join("MESSAGES.DAT").exists());
     assert!(target.join("ECGAME.EXE").exists());
     assert!(target.join("ECMAINT.EXE").exists());
+
+    cleanup_dir(&target);
+}
+
+#[test]
+#[ignore = "launches classic ECGAME through dosbox-x"]
+fn maint_rust_output_reopens_in_classic_ecgame_smoke() {
+    let target = unique_temp_dir("ec-cli-maint-rust-classic-ecgame");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    run_classic_ecgame_smoke(&target, 1);
 
     cleanup_dir(&target);
 }

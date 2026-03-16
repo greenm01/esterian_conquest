@@ -120,6 +120,46 @@ pub fn cleanup_dir(path: &Path) {
     let _ = fs::remove_dir_all(path);
 }
 
+pub fn run_classic_ecgame_smoke(target: &Path, player_number: u8) -> String {
+    let output = Command::new("/usr/bin/bash")
+        .current_dir(repo_root())
+        .env("SDL_VIDEODRIVER_OVERRIDE", "dummy")
+        .env("SDL_AUDIODRIVER_OVERRIDE", "dummy")
+        .arg("-lc")
+        .arg(format!(
+            "/usr/bin/timeout 8s tools/run_ecgame.sh '{}' {}",
+            target.display(),
+            player_number
+        ))
+        .output()
+        .expect("classic ECGAME smoke should run");
+
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    assert!(
+        output.status.code() == Some(124),
+        "classic ECGAME smoke did not stay alive under timeout: status={:?} output={combined:?}",
+        output.status.code()
+    );
+
+    let errors_path = target.join("ERRORS.TXT");
+    if errors_path.exists() {
+        let errors = fs::read_to_string(&errors_path).expect("ERRORS.TXT should be readable");
+        assert!(
+            !errors.contains("could not find a Door File")
+                && !errors.contains("unexpected End Of File")
+                && !errors.contains("found invalid data in file"),
+            "classic ECGAME startup reported parser/file errors: {errors:?}"
+        );
+    }
+
+    combined
+}
+
 pub fn decode_results_text(raw: &[u8]) -> String {
     raw.chunks(84)
         .flat_map(|record| {

@@ -1,6 +1,9 @@
 mod common;
 
-use common::{cleanup_dir, copy_fixture_dir, run_ec_cli, run_ec_cli_in_dir, unique_temp_dir};
+use common::{
+    cleanup_dir, copy_fixture_dir, run_classic_ecgame_smoke, run_ec_cli, run_ec_cli_in_dir,
+    unique_temp_dir,
+};
 
 #[test]
 fn sysop_setup_programs_prints_known_f4_values() {
@@ -48,6 +51,18 @@ fn sysop_can_init_canonical_four_player_start() {
     assert!(target.join("ECGAME.EXE").exists());
     assert!(target.join("ECMAINT.EXE").exists());
     assert!(target.join("ECUTIL.EXE").exists());
+    cleanup_dir(&target);
+}
+
+#[test]
+#[ignore = "launches classic ECGAME through dosbox-x"]
+fn sysop_new_game_launches_classic_ecgame_smoke() {
+    let target = unique_temp_dir("ec-cli-sysop-new-game-ecgame");
+    let stdout = run_ec_cli(&["sysop", "new-game", target.to_str().unwrap()]);
+    assert!(stdout.contains("Initialized new game"));
+
+    run_classic_ecgame_smoke(&target, 1);
+
     cleanup_dir(&target);
 }
 
