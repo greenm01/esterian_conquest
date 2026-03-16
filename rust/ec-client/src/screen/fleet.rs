@@ -273,7 +273,9 @@ impl FleetListScreen {
             KeyCode::PageUp => Action::MoveFleetList(-8),
             KeyCode::PageDown => Action::MoveFleetList(8),
             KeyCode::Enter => Action::OpenFleetReview,
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenFleetMenu,
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                Action::OpenFleetReviewSelect
+            }
             _ => Action::Noop,
         }
     }
@@ -407,7 +409,9 @@ impl FleetReviewScreen {
             KeyCode::Char('j') | KeyCode::Char('J') | KeyCode::Char('l') | KeyCode::Char('L') => {
                 Action::MoveFleetReview(1)
             }
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenFleetMenu,
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                Action::OpenFleetReviewSelect
+            }
             _ => Action::Noop,
         }
     }

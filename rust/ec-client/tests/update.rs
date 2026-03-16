@@ -1081,6 +1081,41 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
 }
 
 #[test]
+fn fleet_review_detail_q_returns_to_review_picker() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetReviewSelect),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetReviewSelect),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetReview);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
+        Action::OpenFleetReviewSelect
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetReviewSelect),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetReviewSelect);
+}
+
+#[test]
 fn fleet_menu_matches_verified_v15_command_layout() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
