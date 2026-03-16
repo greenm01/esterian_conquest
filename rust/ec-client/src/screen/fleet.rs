@@ -289,6 +289,8 @@ impl FleetReviewScreen {
         rows: &[FleetRow],
         scroll_offset: usize,
         cursor: usize,
+        input: &str,
+        status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         buffer.fill_row(0, classic::menu_style());
@@ -334,8 +336,16 @@ impl FleetReviewScreen {
                 "FLEET COMMAND",
                 "You have no active fleets. Q quits.",
             );
+        } else if let Some(status) = status {
+            draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
         } else {
-            draw_command_prompt(&mut buffer, 19, "FLEET COMMAND", "ARROWS J K ENTER Q");
+            draw_command_line_default_input(
+                &mut buffer,
+                "FLEET COMMAND",
+                "Fleet # ",
+                &format_fleet_number(rows[cursor].fleet_number, max_fleet_number),
+                input,
+            );
         }
         Ok(buffer)
     }

@@ -942,6 +942,22 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     );
     assert_eq!(app.current_screen(), ScreenId::FleetReviewSelect);
     assert_eq!(
+        app.handle_key(key(KeyCode::Down)),
+        Action::MoveFleetReviewSelect(1)
+    );
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('7'))),
+        Action::AppendFleetReviewChar('7')
+    );
+    assert_eq!(
+        app.handle_key(key(KeyCode::Backspace)),
+        Action::BackspaceFleetReviewInput
+    );
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        Action::SubmitFleetReviewSelect
+    );
+    assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
         Action::OpenFleetMenu
     );
@@ -1469,10 +1485,105 @@ fn fleet_review_opens_with_a_selection_table_first() {
             .line(1)
             .contains("Select a fleet, then press ENTER to review its status")
     );
+    assert!(terminal.line(19).contains("Fleet # [1] ->"));
+}
+
+#[test]
+fn fleet_review_select_accepts_typed_fleet_id_and_opens_that_fleet() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
     assert_eq!(
-        terminal.line(19).trim_end(),
-        "FLEET COMMAND <-ARROWS J K ENTER Q->"
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
     );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetReviewSelect),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetReviewChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetReviewSelect),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetReview);
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("fleet review detail should render");
+    assert!(terminal.line(2).contains("Fleet ID: 1"));
+}
+
+#[test]
+fn fleet_review_select_navigation_updates_the_default_fleet_prompt() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetReviewSelect),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::MoveFleetReviewSelect(1)),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet review select should render after move");
+    assert!(terminal.line(19).contains("Fleet # [2] ->"));
+}
+
+#[test]
+fn fleet_review_select_shows_invalid_fleet_message_on_unknown_typed_id() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetReviewSelect),
+        AppOutcome::Continue
+    );
+    for ch in ['9', '9'] {
+        assert_eq!(
+            apply_action(&mut app, Action::AppendFleetReviewChar(ch)),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetReviewSelect),
+        AppOutcome::Continue
+    );
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet review select should render invalid id notice");
+    assert!(terminal.line(19).contains("Fleet #99 is not in your fleet list."));
 }
 
 #[test]

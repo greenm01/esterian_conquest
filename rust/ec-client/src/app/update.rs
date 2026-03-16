@@ -245,6 +245,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.move_fleet_list(delta);
             AppOutcome::Continue
         }
+        Action::MoveFleetReviewSelect(delta) => {
+            app.move_fleet_review_select(delta);
+            AppOutcome::Continue
+        }
         Action::MoveFleetReview(delta) => {
             app.move_fleet_review(delta);
             AppOutcome::Continue
@@ -365,6 +369,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.append_planet_tax_char(ch);
             AppOutcome::Continue
         }
+        Action::AppendFleetReviewChar(ch) => {
+            app.append_fleet_review_char(ch);
+            AppOutcome::Continue
+        }
         Action::AppendFleetRoeChar(ch) => {
             app.append_fleet_roe_char(ch);
             AppOutcome::Continue
@@ -377,8 +385,16 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.backspace_fleet_roe_input();
             AppOutcome::Continue
         }
+        Action::BackspaceFleetReviewInput => {
+            app.backspace_fleet_review_input();
+            AppOutcome::Continue
+        }
         Action::BackspaceFleetDetachInput => {
             app.backspace_fleet_detach_input();
+            AppOutcome::Continue
+        }
+        Action::SubmitFleetReviewSelect => {
+            app.submit_fleet_review_select();
             AppOutcome::Continue
         }
         Action::SubmitFleetRoe => match app.submit_fleet_roe() {

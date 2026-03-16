@@ -115,6 +115,8 @@ pub struct App {
     fleet_scroll_offset: usize,
     fleet_cursor: usize,
     fleet_review_index: usize,
+    fleet_review_select_input: String,
+    fleet_review_status: Option<String>,
     fleet_roe_scroll_offset: usize,
     fleet_roe_cursor: usize,
     fleet_roe_editing: bool,
@@ -309,6 +311,8 @@ impl App {
             fleet_scroll_offset: 0,
             fleet_cursor: 0,
             fleet_review_index: 0,
+            fleet_review_select_input: String::new(),
+            fleet_review_status: None,
             fleet_roe_scroll_offset: 0,
             fleet_roe_cursor: 0,
             fleet_roe_editing: false,
@@ -474,6 +478,8 @@ impl App {
                 &self.fleet_rows(),
                 self.fleet_scroll_offset,
                 self.fleet_cursor,
+                &self.fleet_review_select_input,
+                self.fleet_review_status.as_deref(),
             )?,
             ScreenId::FleetReview => {
                 let rows = self.fleet_rows();
@@ -1004,6 +1010,42 @@ impl App {
         self.current_screen = ScreenId::FleetReview;
     }
 
+    pub fn submit_fleet_review_select(&mut self) {
+        if self.current_screen != ScreenId::FleetReviewSelect {
+            return;
+        }
+        let rows = self.fleet_rows();
+        let Some(_) = rows.get(self.fleet_cursor) else {
+            self.current_screen = ScreenId::FleetMenu;
+            return;
+        };
+        if !self.fleet_review_select_input.trim().is_empty() {
+            let target_fleet_id = match self.fleet_review_select_input.trim().parse::<u16>() {
+                Ok(value) => value,
+                Err(_) => {
+                    self.fleet_review_status =
+                        Some("Enter a fleet number from the table.".to_string());
+                    return;
+                }
+            };
+            let Some(index) = rows.iter().position(|row| row.fleet_number == target_fleet_id)
+            else {
+                self.fleet_review_status =
+                    Some(format!("Fleet #{target_fleet_id} is not in your fleet list."));
+                return;
+            };
+            self.fleet_cursor = index;
+            sync_scroll_to_cursor(
+                &mut self.fleet_scroll_offset,
+                self.fleet_cursor,
+                crate::screen::FLEET_VISIBLE_ROWS,
+            );
+        }
+        self.fleet_review_select_input.clear();
+        self.fleet_review_status = None;
+        self.open_fleet_review();
+    }
+
     pub fn open_fleet_review_select(&mut self) {
         let total = self.fleet_rows().len();
         if total == 0 {
@@ -1012,10 +1054,13 @@ impl App {
         }
         self.clear_command_menu_notice();
         self.fleet_cursor = self.fleet_cursor.min(total - 1);
-        sync_scroll_to_cursor(
+        self.fleet_review_select_input.clear();
+        self.fleet_review_status = None;
+        center_scroll_to_cursor(
             &mut self.fleet_scroll_offset,
             self.fleet_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
+            total,
         );
         self.current_screen = ScreenId::FleetReviewSelect;
     }
@@ -1036,8 +1081,14 @@ impl App {
         self.fleet_roe_status = None;
         self.fleet_roe_select_input.clear();
         self.fleet_roe_input.clear();
-        self.fleet_roe_scroll_offset = 0;
-        self.fleet_roe_cursor = 0;
+        let total = self.fleet_rows().len();
+        self.fleet_roe_cursor = self.fleet_roe_cursor.min(total - 1);
+        center_scroll_to_cursor(
+            &mut self.fleet_roe_scroll_offset,
+            self.fleet_roe_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+            total,
+        );
         self.fleet_roe_editing = false;
         self.current_screen = ScreenId::FleetRoeSelect;
     }
@@ -1059,8 +1110,14 @@ impl App {
         self.fleet_detach_status = None;
         self.fleet_detach_select_input.clear();
         self.fleet_detach_input.clear();
-        self.fleet_detach_scroll_offset = 0;
-        self.fleet_detach_cursor = 0;
+        let total = self.fleet_rows().len();
+        self.fleet_detach_cursor = self.fleet_detach_cursor.min(total - 1);
+        center_scroll_to_cursor(
+            &mut self.fleet_detach_scroll_offset,
+            self.fleet_detach_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+            total,
+        );
         self.fleet_detach_mode = FleetDetachMode::SelectingFleet;
         self.fleet_detach_selection = FleetDetachSelection::default();
         self.fleet_detach_donor_speed = None;
@@ -1077,8 +1134,14 @@ impl App {
         self.fleet_eta_select_input.clear();
         self.fleet_eta_destination_input.clear();
         self.fleet_eta_include_system_input.clear();
-        self.fleet_eta_scroll_offset = 0;
-        self.fleet_eta_cursor = 0;
+        let total = self.fleet_rows().len();
+        self.fleet_eta_cursor = self.fleet_eta_cursor.min(total - 1);
+        center_scroll_to_cursor(
+            &mut self.fleet_eta_scroll_offset,
+            self.fleet_eta_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+            total,
+        );
         self.fleet_eta_mode = FleetEtaMode::SelectingFleet;
         self.current_screen = ScreenId::FleetEta;
     }
@@ -1384,6 +1447,26 @@ impl App {
         );
     }
 
+    pub fn move_fleet_review_select(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::FleetReviewSelect {
+            return;
+        }
+        let total = self.fleet_rows().len();
+        if total == 0 {
+            self.fleet_cursor = 0;
+            return;
+        }
+        let next = self.fleet_cursor as isize + delta as isize;
+        self.fleet_cursor = next.rem_euclid(total as isize) as usize;
+        sync_scroll_to_cursor(
+            &mut self.fleet_scroll_offset,
+            self.fleet_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+        );
+        self.fleet_review_select_input.clear();
+        self.fleet_review_status = None;
+    }
+
     pub fn move_fleet_review(&mut self, delta: i8) {
         if self.current_screen != ScreenId::FleetReview {
             return;
@@ -1491,6 +1574,18 @@ impl App {
         }
     }
 
+    pub fn append_fleet_review_char(&mut self, ch: char) {
+        if self.current_screen != ScreenId::FleetReviewSelect || !ch.is_ascii_digit() {
+            return;
+        }
+        if self.fleet_review_select_input.len() >= 4 {
+            return;
+        }
+        self.fleet_review_select_input.push(ch);
+        self.sync_fleet_review_cursor_to_input();
+        self.fleet_review_status = None;
+    }
+
     pub fn append_fleet_detach_char(&mut self, ch: char) {
         if self.current_screen != ScreenId::FleetDetach || !ch.is_ascii_digit() {
             return;
@@ -1558,6 +1653,15 @@ impl App {
             }
             self.fleet_roe_status = None;
         }
+    }
+
+    pub fn backspace_fleet_review_input(&mut self) {
+        if self.current_screen != ScreenId::FleetReviewSelect {
+            return;
+        }
+        self.fleet_review_select_input.pop();
+        self.sync_fleet_review_cursor_to_input();
+        self.fleet_review_status = None;
     }
 
     pub fn backspace_fleet_detach_input(&mut self) {
@@ -2772,7 +2876,7 @@ impl App {
             ScreenId::FleetHelp => self.fleet_help.handle_key(key),
             ScreenId::FleetMenu => self.fleet_menu.handle_key(key),
             ScreenId::FleetList(_) => self.fleet_list.handle_key(key),
-            ScreenId::FleetReviewSelect => self.fleet_list.handle_key(key),
+            ScreenId::FleetReviewSelect => self.handle_fleet_review_select_key(key),
             ScreenId::FleetReview => self.fleet_review.handle_key(key),
             ScreenId::FleetRoeSelect => self.handle_fleet_roe_key(key),
             ScreenId::FleetDetach => self.handle_fleet_detach_key(key),
@@ -4367,6 +4471,33 @@ impl App {
         }
     }
 
+    fn handle_fleet_review_select_key(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> crate::app::Action {
+        use crossterm::event::KeyCode;
+
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                crate::app::Action::MoveFleetReviewSelect(-1)
+            }
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                crate::app::Action::MoveFleetReviewSelect(1)
+            }
+            KeyCode::PageUp => crate::app::Action::MoveFleetReviewSelect(-8),
+            KeyCode::PageDown => crate::app::Action::MoveFleetReviewSelect(8),
+            KeyCode::Enter => crate::app::Action::SubmitFleetReviewSelect,
+            KeyCode::Backspace => crate::app::Action::BackspaceFleetReviewInput,
+            KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                crate::app::Action::AppendFleetReviewChar(ch)
+            }
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                crate::app::Action::OpenFleetMenu
+            }
+            _ => crate::app::Action::Noop,
+        }
+    }
+
     fn sync_fleet_roe_cursor_to_input(&mut self) {
         if self.current_screen != ScreenId::FleetRoeSelect || self.fleet_roe_editing {
             return;
@@ -4385,6 +4516,28 @@ impl App {
         sync_scroll_to_cursor(
             &mut self.fleet_roe_scroll_offset,
             self.fleet_roe_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+        );
+    }
+
+    fn sync_fleet_review_cursor_to_input(&mut self) {
+        if self.current_screen != ScreenId::FleetReviewSelect {
+            return;
+        }
+        let Ok(target_fleet_id) = self.fleet_review_select_input.trim().parse::<u16>() else {
+            return;
+        };
+        let rows = self.fleet_rows();
+        let Some(index) = rows
+            .iter()
+            .position(|row| row.fleet_number == target_fleet_id)
+        else {
+            return;
+        };
+        self.fleet_cursor = index;
+        sync_scroll_to_cursor(
+            &mut self.fleet_scroll_offset,
+            self.fleet_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
     }
@@ -4980,6 +5133,16 @@ fn sync_scroll_to_cursor(scroll_offset: &mut usize, cursor: usize, visible: usiz
     } else if cursor >= *scroll_offset + visible {
         *scroll_offset = cursor + 1 - visible;
     }
+}
+
+fn center_scroll_to_cursor(scroll_offset: &mut usize, cursor: usize, visible: usize, total: usize) {
+    if total <= visible {
+        *scroll_offset = 0;
+        return;
+    }
+    let half = visible / 2;
+    let max_offset = total - visible;
+    *scroll_offset = cursor.saturating_sub(half).min(max_offset);
 }
 
 fn compose_recipient_label(game_data: &CoreGameData, empire_id: Option<u8>) -> String {
