@@ -591,16 +591,6 @@ impl CoreGameData {
         player_record_index_1_based: usize,
         empire_name: &str,
     ) -> Result<(), GameStateMutationError> {
-        let homeworld_planet_index_1_based = self
-            .planets
-            .records
-            .iter()
-            .position(|planet| {
-                planet.owner_empire_slot_raw() as usize == player_record_index_1_based
-                    && planet.is_homeworld_seed_ignoring_name()
-            })
-            .map(|idx| idx + 1)
-            .unwrap_or(0);
         let player = self
             .player
             .records
@@ -608,11 +598,40 @@ impl CoreGameData {
             .ok_or(GameStateMutationError::MissingPlayerRecord {
                 index_1_based: player_record_index_1_based,
             })?;
+        let tax_rate = player.tax_rate();
+        let ipbm_count = player.ipbm_count_raw();
+        let homeworld_planet_index_1_based =
+            if player.homeworld_planet_index_1_based_raw() as usize != 0 {
+                player.homeworld_planet_index_1_based_raw() as usize
+            } else {
+                self.planets
+                    .records
+                    .iter()
+                    .position(|planet| {
+                        planet.owner_empire_slot_raw() as usize == player_record_index_1_based
+                            && planet.is_homeworld_seed_ignoring_name()
+                    })
+                    .map(|idx| idx + 1)
+                    .unwrap_or(0)
+            };
         player.set_owner_empire_raw(player_record_index_1_based as u8);
         player.set_controlled_empire_name_raw(empire_name);
+        player.set_tax_rate_raw(tax_rate);
+        player.set_ipbm_count_raw(ipbm_count);
         player.set_autopilot_flag(0);
         if homeworld_planet_index_1_based != 0 {
             player.set_homeworld_planet_index_1_based_raw(homeworld_planet_index_1_based as u8);
+            if let Some(planet) = self
+                .planets
+                .records
+                .get_mut(homeworld_planet_index_1_based - 1)
+            {
+                let revenue = yearly_tax_revenue(
+                    planet.present_production_points().unwrap_or(0),
+                    tax_rate,
+                );
+                planet.set_stored_production_points(revenue);
+            }
         }
         Ok(())
     }

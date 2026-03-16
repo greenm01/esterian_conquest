@@ -127,6 +127,9 @@ For the Rust `ECGAME` clone, preserve the original pre-menu player flow too:
   - joinable new games are not the same thing as post-join campaign baselines
   - `ECGAME` onboarding must see inactive player slots and `Not Named Yet`
     homeworld seeds
+  - once a player actually joins a fresh slot, the opening homeworld should
+    immediately expose the documented starting spendable production implied by
+    the manuals rather than forcing an extra first-turn maintenance wait
   - automated maint/oracle sweeps may still use a separate explicit
     post-join-compatible baseline when that is the thing being tested
 - exact reproduction of the original hidden map RNG is not required to be

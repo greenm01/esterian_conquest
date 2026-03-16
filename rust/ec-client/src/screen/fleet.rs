@@ -3,8 +3,8 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::screen::layout::{
     CMD_COL_1, CMD_COL_2, CMD_COL_3, MenuEntry, draw_command_center,
-    draw_command_line_default_input, draw_command_line_text, draw_command_prompt, draw_status_line,
-    new_playfield,
+    draw_command_line_default_input, draw_command_line_text, draw_command_prompt,
+    draw_status_line, new_playfield,
 };
 use crate::screen::table::{
     TableColumn, fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
@@ -123,12 +123,10 @@ impl FleetMenuScreen {
     pub fn new() -> Self {
         Self
     }
-}
 
-impl Screen for FleetMenuScreen {
-    fn render(
+    pub fn render_with_notice(
         &mut self,
-        _frame: &ScreenFrame<'_>,
+        notice: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_command_center(
@@ -139,7 +137,19 @@ impl Screen for FleetMenuScreen {
             "FLEET COMMAND",
             "H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U",
         );
+        if let Some(notice) = notice {
+            draw_status_line(&mut buffer, 16, "Notice: ", notice);
+        }
         Ok(buffer)
+    }
+}
+
+impl Screen for FleetMenuScreen {
+    fn render(
+        &mut self,
+        _frame: &ScreenFrame<'_>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        self.render_with_notice(None)
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {

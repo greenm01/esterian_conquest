@@ -2,7 +2,8 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    CMD_COL_1, CMD_COL_2, CMD_COL_3, MenuEntry, draw_command_center, new_playfield,
+    CMD_COL_1, CMD_COL_2, CMD_COL_3, MenuEntry, draw_command_center, draw_status_line,
+    new_playfield,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 
@@ -40,12 +41,11 @@ impl GeneralMenuScreen {
     pub fn new() -> Self {
         Self
     }
-}
 
-impl Screen for GeneralMenuScreen {
-    fn render(
+    pub fn render_with_notice(
         &mut self,
         frame: &ScreenFrame<'_>,
+        notice: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_command_center(
@@ -56,7 +56,19 @@ impl Screen for GeneralMenuScreen {
             "GENERAL COMMAND",
             "H Q X V I A S P M C R D O E",
         );
+        if let Some(notice) = notice {
+            draw_status_line(&mut buffer, 16, "Notice: ", notice);
+        }
         Ok(buffer)
+    }
+}
+
+impl Screen for GeneralMenuScreen {
+    fn render(
+        &mut self,
+        frame: &ScreenFrame<'_>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        self.render_with_notice(frame, None)
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {

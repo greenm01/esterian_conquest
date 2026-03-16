@@ -62,11 +62,11 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             AppOutcome::Continue
         }
         Action::OpenMainMenu => {
-            *app.current_screen_mut() = crate::screen::ScreenId::MainMenu;
+            app.open_main_menu();
             AppOutcome::Continue
         }
         Action::OpenGeneralMenu => {
-            *app.current_screen_mut() = crate::screen::ScreenId::GeneralMenu;
+            app.open_general_menu();
             AppOutcome::Continue
         }
         Action::OpenGeneralHelp => {

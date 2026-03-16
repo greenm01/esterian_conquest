@@ -124,10 +124,21 @@ impl PlanetListScreen {
         rows: &[EmpirePlanetEconomyRow],
         selected_index: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        if rows.is_empty() {
+            draw_title_bar(&mut buffer, 0, "PLANET DETAIL 0/0:");
+            draw_status_line(
+                &mut buffer,
+                3,
+                "Notice: ",
+                "You do not currently control any planets.",
+            );
+            draw_command_prompt(&mut buffer, 19, "PLANET COMMAND", "Q");
+            return Ok(buffer);
+        }
         let row = rows
             .get(selected_index)
             .ok_or("planet detail row missing")?;
-        let mut buffer = new_playfield();
         draw_title_bar(
             &mut buffer,
             0,

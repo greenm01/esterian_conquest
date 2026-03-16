@@ -54,7 +54,7 @@ fn seeded_new_game_populates_documented_planet_count_for_player_count() {
 
     for idx in 0..3 {
         assert_eq!(data.player.records[idx].owner_mode_raw(), 0);
-        assert_eq!(data.player.records[idx].autopilot_flag(), 0);
+        assert_eq!(data.player.records[idx].autopilot_flag(), 1);
         assert_eq!(
             data.planets.records[idx].owner_empire_slot_raw(),
             (idx + 1) as u8

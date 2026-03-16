@@ -104,7 +104,8 @@ fn builder_can_create_joinable_new_game_baseline() {
 
     assert_eq!(data.player.records[0].owner_mode_raw(), 0);
     assert_eq!(data.player.records[1].owner_mode_raw(), 0);
-    assert_eq!(data.player.records[0].autopilot_flag(), 0);
+    assert_eq!(data.player.records[0].autopilot_flag(), 1);
+    assert_eq!(data.player.records[1].autopilot_flag(), 1);
     assert_eq!(data.player.records[0].fleet_chain_head_raw(), 1);
     assert_eq!(data.player.records[1].fleet_chain_head_raw(), 5);
     assert_eq!(data.planets.records[0].planet_name(), "Not Named Yet");
@@ -118,4 +119,22 @@ fn builder_can_create_joinable_new_game_baseline() {
         Some(100)
     );
     assert!(data.ecmaint_preflight_errors().is_empty());
+}
+
+#[test]
+fn joining_player_grants_documented_opening_homeworld_production_points() {
+    let mut data = GameStateBuilder::new()
+        .with_player_count(2)
+        .build_joinable_new_game_baseline()
+        .expect("Should build successfully");
+
+    data.join_player(1, "Codex Dominion")
+        .expect("join player should succeed");
+
+    let player = &data.player.records[0];
+    let homeworld_index = player.homeworld_planet_index_1_based_raw() as usize;
+    let homeworld = &data.planets.records[homeworld_index - 1];
+    assert_eq!(player.tax_rate(), 50);
+    assert_eq!(homeworld.present_production_points(), Some(100));
+    assert_eq!(homeworld.stored_production_points(), 50);
 }

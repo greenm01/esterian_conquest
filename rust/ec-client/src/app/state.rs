@@ -191,6 +191,7 @@ pub struct App {
     first_time_input: String,
     first_time_empire_name: String,
     first_time_homeworld_name: String,
+    command_menu_notice: Option<String>,
 }
 
 impl App {
@@ -383,6 +384,7 @@ impl App {
             first_time_input: String::new(),
             first_time_empire_name: String::new(),
             first_time_homeworld_name: String::new(),
+            command_menu_notice: None,
         })
     }
 
@@ -447,11 +449,17 @@ impl App {
                     &self.first_time_homeworld_name,
                 )?
             }
-            ScreenId::MainMenu => self.main_menu.render(&frame)?,
-            ScreenId::GeneralMenu => self.general_menu.render(&frame)?,
+            ScreenId::MainMenu => self
+                .main_menu
+                .render_with_notice(self.command_menu_notice.as_deref())?,
+            ScreenId::GeneralMenu => self
+                .general_menu
+                .render_with_notice(&frame, self.command_menu_notice.as_deref())?,
             ScreenId::GeneralHelp => self.general_help.render(&frame)?,
             ScreenId::FleetHelp => self.fleet_help.render(&frame)?,
-            ScreenId::FleetMenu => self.fleet_menu.render(&frame)?,
+            ScreenId::FleetMenu => self
+                .fleet_menu
+                .render_with_notice(self.command_menu_notice.as_deref())?,
             ScreenId::FleetList(mode) => self.fleet_list.render(
                 mode,
                 &self.fleet_rows(),
@@ -501,7 +509,9 @@ impl App {
                 &self.fleet_eta_include_system_input,
                 self.fleet_eta_status.as_deref(),
             )?,
-            ScreenId::PlanetMenu => self.planet_menu.render(&frame)?,
+            ScreenId::PlanetMenu => self
+                .planet_menu
+                .render_with_notice(self.command_menu_notice.as_deref())?,
             ScreenId::PlanetHelp => self.planet_help.render(&frame)?,
             ScreenId::PlanetAutoCommissionConfirm => {
                 self.planet_auto_commission.render_confirm()?
@@ -912,20 +922,50 @@ impl App {
         }
     }
 
+    fn clear_command_menu_notice(&mut self) {
+        self.command_menu_notice = None;
+    }
+
+    fn show_command_menu_notice(&mut self, menu: CommandMenu, message: impl Into<String>) {
+        self.command_menu_notice = Some(message.into());
+        self.command_return_menu = menu;
+        self.current_screen = match menu {
+            CommandMenu::Main => ScreenId::MainMenu,
+            CommandMenu::General => ScreenId::GeneralMenu,
+            CommandMenu::Fleet => ScreenId::FleetMenu,
+            CommandMenu::Planet => ScreenId::PlanetMenu,
+            CommandMenu::PlanetBuild => ScreenId::PlanetBuildMenu,
+        };
+    }
+
+    pub fn open_main_menu(&mut self) {
+        self.clear_command_menu_notice();
+        self.current_screen = ScreenId::MainMenu;
+    }
+
+    pub fn open_general_menu(&mut self) {
+        self.clear_command_menu_notice();
+        self.current_screen = ScreenId::GeneralMenu;
+    }
+
     pub fn open_planet_menu(&mut self) {
+        self.clear_command_menu_notice();
         self.command_return_menu = CommandMenu::Planet;
         self.current_screen = ScreenId::PlanetMenu;
     }
 
     pub fn open_fleet_menu(&mut self) {
+        self.clear_command_menu_notice();
         self.current_screen = ScreenId::FleetMenu;
     }
 
     pub fn open_fleet_help(&mut self) {
+        self.clear_command_menu_notice();
         self.current_screen = ScreenId::FleetHelp;
     }
 
     pub fn open_fleet_list(&mut self, mode: FleetListMode) {
+        self.clear_command_menu_notice();
         self.fleet_list_mode = mode;
         self.fleet_scroll_offset = 0;
         self.fleet_cursor = 0;
@@ -935,9 +975,10 @@ impl App {
     pub fn open_fleet_review(&mut self) {
         let total = self.fleet_rows().len();
         if total == 0 {
-            self.current_screen = ScreenId::FleetMenu;
+            self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
             return;
         }
+        self.clear_command_menu_notice();
         self.fleet_review_index = self.fleet_cursor.min(total - 1);
         self.current_screen = ScreenId::FleetReview;
     }
@@ -950,6 +991,11 @@ impl App {
             self.fleet_roe_status = None;
             return;
         }
+        if self.fleet_rows().is_empty() {
+            self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
+            return;
+        }
+        self.clear_command_menu_notice();
         self.fleet_roe_status = None;
         self.fleet_roe_select_input.clear();
         self.fleet_roe_input.clear();
@@ -968,6 +1014,11 @@ impl App {
             self.fleet_detach_donor_speed = None;
             return;
         }
+        if self.fleet_rows().is_empty() {
+            self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
+            return;
+        }
+        self.clear_command_menu_notice();
         self.fleet_detach_status = None;
         self.fleet_detach_select_input.clear();
         self.fleet_detach_input.clear();
@@ -980,6 +1031,11 @@ impl App {
     }
 
     pub fn open_fleet_eta(&mut self) {
+        if self.fleet_rows().is_empty() {
+            self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
+            return;
+        }
+        self.clear_command_menu_notice();
         self.fleet_eta_status = None;
         self.fleet_eta_select_input.clear();
         self.fleet_eta_destination_input.clear();
@@ -991,16 +1047,19 @@ impl App {
     }
 
     pub fn open_planet_help(&mut self) {
+        self.clear_command_menu_notice();
         self.current_screen = ScreenId::PlanetHelp;
     }
 
     pub fn open_planet_auto_commission_confirm(&mut self) {
         self.planet_auto_commission_status = None;
         if self.commission_planet_rows().is_empty() {
-            self.planet_auto_commission_status =
-                Some("No ships or starbases are waiting in stardock.".to_string());
-            self.current_screen = ScreenId::PlanetAutoCommissionDone;
+            self.show_command_menu_notice(
+                CommandMenu::Planet,
+                "No ships or starbases are waiting in stardock.",
+            );
         } else {
+            self.clear_command_menu_notice();
             self.current_screen = ScreenId::PlanetAutoCommissionConfirm;
         }
     }
@@ -1015,17 +1074,16 @@ impl App {
         self.planet_transport_qty_input.clear();
         self.planet_transport_status = None;
         if self.planet_transport_planet_rows(mode).is_empty() {
-            self.planet_transport_status = Some(match mode {
+            self.show_command_menu_notice(CommandMenu::Planet, match mode {
                 PlanetTransportMode::Load => {
-                    "No planets have armies and troop transports ready to load.".to_string()
+                    "No planets have armies and troop transports ready to load."
                 }
                 PlanetTransportMode::Unload => {
                     "No fleets have loaded armies ready to unload onto planets with free capacity."
-                        .to_string()
                 }
             });
-            self.current_screen = ScreenId::PlanetTransportPlanetSelect(mode);
         } else {
+            self.clear_command_menu_notice();
             self.current_screen = ScreenId::PlanetTransportPlanetSelect(mode);
         }
     }
@@ -1039,15 +1097,20 @@ impl App {
         let total = self.commission_planet_rows().len();
         if total == 0 {
             self.planet_commission_index = 0;
-            self.planet_commission_status =
-                Some("No owned planets have units waiting in stardock.".to_string());
+            self.show_command_menu_notice(
+                CommandMenu::Planet,
+                "No owned planets have units waiting in stardock.",
+            );
+            return;
         } else {
+            self.clear_command_menu_notice();
             self.planet_commission_index = self.planet_commission_index.min(total - 1);
         }
         self.current_screen = ScreenId::PlanetCommissionMenu;
     }
 
     pub fn open_planet_build_help(&mut self) {
+        self.clear_command_menu_notice();
         self.current_screen = ScreenId::PlanetBuildHelp;
     }
 
@@ -1063,18 +1126,30 @@ impl App {
         let total = self.build_planet_rows().len();
         if total == 0 {
             self.planet_build_index = 0;
-            self.planet_build_status = Some("No owned planets available for building.".to_string());
-        } else {
-            self.planet_build_index = self.planet_build_index.min(total - 1);
+            self.show_command_menu_notice(
+                CommandMenu::Planet,
+                "No owned planets available for building.",
+            );
+            return;
         }
+        self.clear_command_menu_notice();
+        self.planet_build_index = self.planet_build_index.min(total - 1);
         self.current_screen = ScreenId::PlanetBuildMenu;
     }
 
     pub fn open_planet_build_review(&mut self) {
+        if self.build_planet_rows().is_empty() {
+            self.open_planet_build_menu();
+            return;
+        }
         self.current_screen = ScreenId::PlanetBuildReview;
     }
 
     pub fn open_planet_build_list(&mut self) {
+        if self.build_planet_rows().is_empty() {
+            self.open_planet_build_menu();
+            return;
+        }
         self.planet_build_list_scroll_offset = 0;
         self.planet_build_list_cursor = 0;
         self.planet_build_list_confirming = false;
@@ -1122,10 +1197,18 @@ impl App {
     }
 
     pub fn open_planet_build_abort_confirm(&mut self) {
+        if self.build_planet_rows().is_empty() {
+            self.open_planet_build_menu();
+            return;
+        }
         self.current_screen = ScreenId::PlanetBuildAbortConfirm;
     }
 
     pub fn open_planet_build_specify(&mut self) {
+        if self.build_planet_rows().is_empty() {
+            self.open_planet_build_menu();
+            return;
+        }
         self.planet_build_unit_input.clear();
         self.planet_build_unit_status = None;
         self.planet_build_quantity_input.clear();
@@ -1135,6 +1218,7 @@ impl App {
     }
 
     pub fn open_planet_tax_prompt(&mut self) {
+        self.clear_command_menu_notice();
         self.planet_tax_input = String::new();
         self.planet_tax_status = None;
         self.current_screen = ScreenId::PlanetTaxPrompt;
@@ -1173,11 +1257,18 @@ impl App {
     }
 
     pub fn open_planet_list_sort_prompt(&mut self, mode: PlanetListMode) {
+        self.clear_command_menu_notice();
         self.planet_list_sort_status = None;
         self.current_screen = ScreenId::PlanetListSortPrompt(mode);
     }
 
     pub fn submit_planet_list_sort(&mut self, mode: PlanetListMode, sort: PlanetListSort) {
+        let total = self.sorted_planet_rows(sort).len();
+        if total == 0 {
+            self.show_command_menu_notice(CommandMenu::Planet, "You do not currently control any planets.");
+            return;
+        }
+        self.clear_command_menu_notice();
         self.planet_list_sort_status = None;
         self.planet_brief_scroll_offset = 0;
         self.planet_brief_cursor = 0;
@@ -3819,7 +3910,16 @@ impl App {
     fn current_planet_commission_view(
         &self,
     ) -> Result<PlanetCommissionView, Box<dyn std::error::Error>> {
-        let row = self.current_commission_planet_row()?;
+        let row = match self.current_commission_planet_row() {
+            Ok(row) => row,
+            Err(_) => {
+                return Ok(PlanetCommissionView {
+                    planet_name: "No commissionable planets".to_string(),
+                    coords: self.default_planet_prompt_coords(),
+                    rows: vec![],
+                });
+            }
+        };
         Ok(PlanetCommissionView {
             planet_name: row.planet_name,
             coords: row.coords,
@@ -3918,7 +4018,35 @@ impl App {
     }
 
     fn current_planet_build_view(&self) -> Result<PlanetBuildMenuView, Box<dyn std::error::Error>> {
-        let row = self.current_build_planet_row()?;
+        let row = match self.current_build_planet_row() {
+            Ok(row) => row,
+            Err(_) => {
+                return Ok(PlanetBuildMenuView {
+                    row: ec_data::EmpirePlanetEconomyRow {
+                        planet_record_index_1_based: 0,
+                        coords: self.default_planet_prompt_coords(),
+                        planet_name: "No owned planets".to_string(),
+                        present_production: 0,
+                        potential_production: 0,
+                        stored_production_points: 0,
+                        yearly_tax_revenue: 0,
+                        yearly_growth_delta: 0,
+                        build_capacity: 0,
+                        has_friendly_starbase: false,
+                        armies: 0,
+                        ground_batteries: 0,
+                        is_homeworld_seed: false,
+                    },
+                    committed_points: 0,
+                    available_points: 0,
+                    points_left: 0,
+                    queue_used: 0,
+                    queue_capacity: 10,
+                    stardock_used: 0,
+                    stardock_capacity: 10,
+                });
+            }
+        };
         let committed_points =
             self.current_build_committed_points(row.planet_record_index_1_based)?;
         let available_points = u32::from(row.build_capacity)

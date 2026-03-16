@@ -2,7 +2,8 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    CMD_COL_1, CMD_COL_2, CMD_COL_3, MenuEntry, draw_command_center, new_playfield,
+    CMD_COL_1, CMD_COL_2, CMD_COL_3, MenuEntry, draw_command_center, draw_status_line,
+    new_playfield,
 };
 use crate::screen::{
     CommandMenu, PlanetListMode, PlanetListSort, PlanetTransportMode, PlayfieldBuffer, Screen,
@@ -44,12 +45,10 @@ impl PlanetMenuScreen {
     pub fn new() -> Self {
         Self
     }
-}
 
-impl Screen for PlanetMenuScreen {
-    fn render(
+    pub fn render_with_notice(
         &mut self,
-        _frame: &ScreenFrame<'_>,
+        notice: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_command_center(
@@ -60,7 +59,19 @@ impl Screen for PlanetMenuScreen {
             "PLANET COMMAND",
             "H Q X V C A B I D P T S L U",
         );
+        if let Some(notice) = notice {
+            draw_status_line(&mut buffer, 16, "Notice: ", notice);
+        }
         Ok(buffer)
+    }
+}
+
+impl Screen for PlanetMenuScreen {
+    fn render(
+        &mut self,
+        _frame: &ScreenFrame<'_>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        self.render_with_notice(None)
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {

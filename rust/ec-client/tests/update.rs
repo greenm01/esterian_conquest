@@ -13,6 +13,7 @@ use ec_client::terminal::Terminal;
 use ec_data::{
     CampaignRuntimeState, CampaignStore, CoreGameData, DiplomaticRelation,
     EmpirePlanetEconomyRow, EmpireProductionRankingSort, ProductionItemKind, QueuedPlayerMail,
+    yearly_tax_revenue,
 };
 
 fn repo_root() -> PathBuf {
@@ -69,6 +70,37 @@ fn temp_joined_needs_homeworld_copy() -> PathBuf {
         .expect("open campaign store")
         .import_directory_snapshot(&root)
         .expect("refresh sqlite snapshot");
+    root
+}
+
+fn temp_joined_no_assets_copy() -> PathBuf {
+    let root = temp_game_copy();
+    let mut state = latest_runtime_state(&root);
+    for planet in &mut state.game_data.planets.records {
+        if planet.owner_empire_slot_raw() == 1 {
+            planet.set_owner_empire_slot_raw(0);
+            planet.set_ownership_status_raw(0);
+        }
+    }
+    save_runtime_state(&root, &state);
+    root
+}
+
+fn temp_joined_empty_empire_copy() -> PathBuf {
+    let root = temp_game_copy();
+    let mut state = latest_runtime_state(&root);
+    for planet in &mut state.game_data.planets.records {
+        if planet.owner_empire_slot_raw() == 1 {
+            planet.set_owner_empire_slot_raw(0);
+            planet.set_ownership_status_raw(0);
+        }
+    }
+    for fleet in &mut state.game_data.fleets.records {
+        if fleet.owner_empire_raw() == 1 {
+            fleet.set_owner_empire_raw(0);
+        }
+    }
+    save_runtime_state(&root, &state);
     root
 }
 
@@ -304,19 +336,19 @@ fn apply_action_switches_between_client_screens() {
         apply_action(&mut app, Action::OpenPlanetAutoCommissionConfirm),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::PlanetAutoCommissionDone);
+    assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
 
     assert_eq!(
         apply_action(&mut app, Action::ConfirmPlanetAutoCommission),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::PlanetAutoCommissionDone);
+    assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
 
     assert_eq!(
         apply_action(&mut app, Action::OpenPlanetCommissionMenu),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::PlanetCommissionMenu);
+    assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
 
     assert_eq!(
         apply_action(&mut app, Action::OpenPlanetBuildMenu),
@@ -688,10 +720,16 @@ fn first_time_join_flow_updates_player_and_homeworld_then_enters_main_menu() {
     let player = &game_data.player.records[0];
     assert_eq!(player.occupied_flag(), 1);
     assert_eq!(player.controlled_empire_name_summary(), "Codex Dominion");
+    assert_eq!(player.autopilot_flag(), 0);
     let homeworld_index = player.homeworld_planet_index_1_based_raw() as usize;
+    let homeworld = &game_data.planets.records[homeworld_index - 1];
+    assert_eq!(homeworld.planet_name(), "Codex Prime");
     assert_eq!(
-        game_data.planets.records[homeworld_index - 1].planet_name(),
-        "Codex Prime"
+        homeworld.stored_production_points(),
+        yearly_tax_revenue(
+            homeworld.present_production_points().unwrap_or(0),
+            player.tax_rate(),
+        )
     );
 }
 
@@ -1005,6 +1043,125 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
+}
+
+#[test]
+fn planet_commission_menu_renders_without_crashing_when_no_stardock_units_exist() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetCommissionMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
+
+    app.render(&mut terminal).expect("render succeeds");
+    assert!(terminal.lines.iter().any(|line| {
+        line.contains("No owned planets have units waiting in stardock.")
+    }));
+}
+
+#[test]
+fn planet_build_menu_and_subscreens_render_without_crashing_when_no_owned_planets_exist() {
+    let fixture_dir = temp_joined_no_assets_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    let mut terminal = CaptureTerminal::new();
+
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetBuildMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
+    app.render(&mut terminal).expect("planet menu render succeeds");
+    assert!(terminal.lines.iter().any(|line| line.contains("No owned planets available")));
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetBuildReview),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
+    app.render(&mut terminal).expect("build review fallback render succeeds");
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetBuildList),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
+    app.render(&mut terminal).expect("build list fallback render succeeds");
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetBuildAbortConfirm),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
+    app.render(&mut terminal).expect("build abort fallback render succeeds");
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetBuildSpecify),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
+    app.render(&mut terminal).expect("build specify fallback render succeeds");
+}
+
+#[test]
+fn command_menus_render_without_crashing_for_empty_empire_state() {
+    let fixture_dir = temp_joined_empty_empire_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    let mut terminal = CaptureTerminal::new();
+    for action in [
+        Action::OpenFleetMenu,
+        Action::OpenFleetList(FleetListMode::Brief),
+        Action::OpenFleetList(FleetListMode::Full),
+        Action::OpenFleetReview,
+        Action::OpenFleetRoeSelect,
+        Action::OpenFleetDetach,
+        Action::OpenFleetEta,
+        Action::OpenPlanetMenu,
+        Action::OpenPlanetAutoCommissionConfirm,
+        Action::OpenPlanetCommissionMenu,
+        Action::OpenPlanetBuildMenu,
+        Action::OpenPlanetBuildReview,
+        Action::OpenPlanetBuildList,
+        Action::OpenPlanetBuildChange,
+        Action::OpenPlanetBuildAbortConfirm,
+        Action::OpenPlanetBuildSpecify,
+        Action::OpenPlanetTransportPlanetSelect(ec_client::screen::PlanetTransportMode::Load),
+        Action::OpenPlanetTransportPlanetSelect(ec_client::screen::PlanetTransportMode::Unload),
+        Action::OpenPlanetListSortPrompt(PlanetListMode::Brief),
+        Action::SubmitPlanetListSort(PlanetListMode::Brief, PlanetListSort::Location),
+        Action::OpenPlanetListSortPrompt(PlanetListMode::Detail),
+        Action::SubmitPlanetListSort(PlanetListMode::Detail, PlanetListSort::Location),
+    ] {
+        apply_action(&mut app, action);
+        app.render(&mut terminal)
+            .expect("screen should render without crashing");
+    }
 }
 
 #[test]

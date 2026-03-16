@@ -525,6 +525,7 @@ fn seed_unjoined_player_slot(
     player.raw[0x52..0x54].copy_from_slice(&100u16.to_le_bytes());
     player.set_tax_rate_raw(DEFAULT_EMPIRE_TAX_RATE);
     player.set_ipbm_count_raw(ipbm_count);
+    player.set_autopilot_flag(1);
 }
 
 fn seed_unjoined_homeworld_seed(planet: &mut PlanetRecord, coords: [u8; 2], owner_empire_slot: u8) {

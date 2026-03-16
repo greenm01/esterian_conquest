@@ -77,6 +77,9 @@ Primary goal:
 - builder-generated starts now encode the intended opening economy directly:
   - homeworld current production starts at `100`
   - default empire tax starts at `50%`
+  - when a player joins a fresh slot, the claimed homeworld now starts with the
+    opening spendable production implied by the manuals: `50` stored points at
+    the default `50%` tax rate on `100` present production
   - canonical initialized homeworlds start with `10` armies and `4` batteries
 - a focused original-`ECMAINT` probe now shows that letting a ship build complete
   into a full stardock is unsafe:
