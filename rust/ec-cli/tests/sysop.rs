@@ -120,6 +120,17 @@ fn hybrid_campaign_loop_reopens_classic_client_after_rust_maintenance() {
 }
 
 #[test]
+#[ignore = "launches classic ECGAME through dosbox-x"]
+fn returning_player_fixture_reopens_in_classic_ecgame_with_matching_alias() {
+    let target = unique_temp_dir("ec-cli-returning-player-ecgame");
+    copy_fixture_dir("original/v1.5", &target);
+
+    run_classic_ecgame_smoke_with_alias(&target, 1, "HANNIBAL");
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn sysop_new_game_accepts_player_count_flag() {
     let target = unique_temp_dir("ec-cli-sysop-new-game-players");
     let stdout = run_ec_cli(&[

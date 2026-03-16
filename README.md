@@ -285,6 +285,12 @@ Rust maintenance. It does not claim byte-faithful classic `MESSAGES.DAT`
 reproduction; current Rust behavior preserves existing classic player mail and
 maintains classic-readable results/report files.
 
+The classic login classifier now covers all three local compatibility branches:
+
+- `first-time-menu`
+- `matched-preloaded-first-login`
+- `returning-player`
+
 Run the Rust client:
 
 ```bash

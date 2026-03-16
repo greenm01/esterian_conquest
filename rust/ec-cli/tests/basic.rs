@@ -109,6 +109,14 @@ fn inspect_classic_login_reports_first_time_and_matched_preloaded_states() {
 }
 
 #[test]
+fn inspect_classic_login_reports_returning_player_for_matching_named_homeworld() {
+    let stdout = run_ec_cli(&["inspect-classic-login", "original/v1.5", "HANNIBAL"]);
+    assert!(stdout.contains("slot 1: classification=returning-player"));
+    assert!(stdout.contains("handle='HANNIBAL'"));
+    assert!(stdout.contains("homeworld='Dust Bowl'"));
+}
+
+#[test]
 fn inspect_messages_decodes_classic_mail_sample() {
     let target = unique_temp_dir("ec-cli-inspect-messages");
     fs::write(

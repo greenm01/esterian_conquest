@@ -134,3 +134,31 @@ fn db_export_preserves_classic_login_classification_for_prepared_slot() {
     cleanup_dir(&source);
     cleanup_dir(&exported);
 }
+
+#[test]
+fn db_export_preserves_returning_player_classification() {
+    let source = unique_temp_dir("ec-cli-db-export-returning-player-source");
+    let exported = unique_temp_dir("ec-cli-db-export-returning-player-exported");
+    common::copy_fixture_dir("original/v1.5", &source);
+
+    let import_stdout = run_ec_cli(&["db-import", source.to_str().unwrap()]);
+    assert!(import_stdout.contains("Imported"));
+
+    let export_stdout = run_ec_cli(&[
+        "db-export",
+        source.to_str().unwrap(),
+        exported.to_str().unwrap(),
+    ]);
+    assert!(export_stdout.contains("Exported year"));
+
+    let inspect_stdout = run_ec_cli(&[
+        "inspect-classic-login",
+        exported.to_str().unwrap(),
+        "HANNIBAL",
+    ]);
+    assert!(inspect_stdout.contains("slot 1: classification=returning-player"));
+    assert!(inspect_stdout.contains("homeworld='Dust Bowl'"));
+
+    cleanup_dir(&source);
+    cleanup_dir(&exported);
+}
