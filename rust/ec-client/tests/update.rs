@@ -1086,6 +1086,42 @@ fn fleet_menu_matches_verified_v15_command_layout() {
 }
 
 #[test]
+fn planet_menu_matches_verified_v15_command_layout() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetMenu),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("planet menu should render");
+    assert_eq!(
+        terminal.line(0).trim_end(),
+        "PLANET COMMANDS:    V>iew Partial Map                       T>ax rate: Empire"
+    );
+    assert_eq!(
+        terminal.line(1).trim_end(),
+        "  H>elp on Options  C>OMMISSION MENU   D>etail Planet List  S>corch planets"
+    );
+    assert_eq!(
+        terminal.line(2).trim_end(),
+        "  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet: Brief List  L>oad TTs w/Armies"
+    );
+    assert_eq!(
+        terminal.line(3).trim_end(),
+        "  X>pert mode       B>UILD MENU...     I>nfo about Planet   U>nload TT Armies"
+    );
+}
+
+#[test]
 fn planet_commission_menu_renders_without_crashing_when_no_stardock_units_exist() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {

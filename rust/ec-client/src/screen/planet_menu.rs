@@ -2,43 +2,46 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    CMD_COL_1, CMD_COL_2, CMD_COL_3, MenuEntry, draw_command_center, draw_status_line,
+    MenuEntry, draw_command_prompt, draw_menu_entry, draw_status_line, draw_title_bar,
     new_playfield,
 };
 use crate::screen::{
     CommandMenu, PlanetListMode, PlanetListSort, PlanetTransportMode, PlayfieldBuffer, Screen,
     ScreenFrame,
 };
+use crate::theme::classic;
 
 pub struct PlanetMenuScreen;
 
+const PLANET_COL_1: usize = 2;
+const PLANET_COL_2: usize = 20;
+const PLANET_COL_3: usize = 39;
+const PLANET_COL_4: usize = 60;
+
 const TOP_ROW: [MenuEntry<'static>; 2] = [
-    MenuEntry::new(CMD_COL_2, "V", "iew Partial Map"),
-    MenuEntry::new(CMD_COL_3, "T", "ax rate: Empire"),
+    MenuEntry::new(PLANET_COL_2, "V", "iew Partial Map"),
+    MenuEntry::new(PLANET_COL_4, "T", "ax rate: Empire"),
 ];
 
-const ROW_1: [MenuEntry<'static>; 3] = [
-    MenuEntry::new(CMD_COL_1, "H", "elp on Options"),
-    MenuEntry::new(CMD_COL_2, "C", "OMMISSION MENU"),
-    MenuEntry::new(CMD_COL_3, "D", "etail Planet List"),
+const ROW_1: [MenuEntry<'static>; 4] = [
+    MenuEntry::new(PLANET_COL_1, "H", "elp on Options"),
+    MenuEntry::new(PLANET_COL_2, "C", "OMMISSION MENU"),
+    MenuEntry::new(PLANET_COL_3, "D", "etail Planet List"),
+    MenuEntry::new(PLANET_COL_4, "S", "corch planets"),
 ];
 
-const ROW_2: [MenuEntry<'static>; 3] = [
-    MenuEntry::new(CMD_COL_1, "Q", "uit: Main Menu"),
-    MenuEntry::new(CMD_COL_2, "A", "UTO-COMMISSION"),
-    MenuEntry::new(CMD_COL_3, "P", "lanet: Brief List"),
+const ROW_2: [MenuEntry<'static>; 4] = [
+    MenuEntry::new(PLANET_COL_1, "Q", "uit: Main Menu"),
+    MenuEntry::new(PLANET_COL_2, "A", "UTO-COMMISSION"),
+    MenuEntry::new(PLANET_COL_3, "P", "lanet: Brief List"),
+    MenuEntry::new(PLANET_COL_4, "L", "oad TTs w/Armies"),
 ];
 
-const ROW_3: [MenuEntry<'static>; 3] = [
-    MenuEntry::new(CMD_COL_1, "X", "pert mode"),
-    MenuEntry::new(CMD_COL_2, "B", "UILD MENU..."),
-    MenuEntry::new(CMD_COL_3, "I", "nfo about Planet"),
-];
-
-const ROW_4: [MenuEntry<'static>; 3] = [
-    MenuEntry::new(CMD_COL_1, "S", "corch planets"),
-    MenuEntry::new(CMD_COL_2, "L", "oad TTs w/Armies"),
-    MenuEntry::new(CMD_COL_3, "U", "nload TT Armies"),
+const ROW_3: [MenuEntry<'static>; 4] = [
+    MenuEntry::new(PLANET_COL_1, "X", "pert mode"),
+    MenuEntry::new(PLANET_COL_2, "B", "UILD MENU..."),
+    MenuEntry::new(PLANET_COL_3, "I", "nfo about Planet"),
+    MenuEntry::new(PLANET_COL_4, "U", "nload TT Armies"),
 ];
 
 impl PlanetMenuScreen {
@@ -51,17 +54,28 @@ impl PlanetMenuScreen {
         notice: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        draw_command_center(
-            &mut buffer,
-            "PLANET COMMAND CENTER:",
-            &TOP_ROW,
-            &[&ROW_1, &ROW_2, &ROW_3, &ROW_4],
-            "PLANET COMMAND",
-            "H Q X V C A B I D P T S L U",
-        );
+        draw_title_bar(&mut buffer, 0, "PLANET COMMANDS:");
+        for entry in TOP_ROW {
+            draw_menu_entry(&mut buffer, 0, entry.col, entry.hotkey, entry.label);
+        }
+        for (row_idx, row) in [ROW_1.as_slice(), ROW_2.as_slice(), ROW_3.as_slice()]
+            .into_iter()
+            .enumerate()
+        {
+            buffer.fill_row(row_idx + 1, classic::menu_style());
+            for entry in row {
+                draw_menu_entry(&mut buffer, row_idx + 1, entry.col, entry.hotkey, entry.label);
+            }
+        }
         if let Some(notice) = notice {
             draw_status_line(&mut buffer, 16, "Notice: ", notice);
         }
+        draw_command_prompt(
+            &mut buffer,
+            19,
+            "PLANET COMMAND",
+            "H,Q,X,V,C,A,B,I,D,P,T,S,L,U",
+        );
         Ok(buffer)
     }
 }
