@@ -165,6 +165,14 @@ fn save_runtime_state(root: &Path, state: &CampaignRuntimeState) {
         .expect("save runtime state");
 }
 
+fn classic_chunked_report_bytes(text: &str) -> Vec<u8> {
+    let mut bytes = vec![0u8; 84];
+    for (idx, byte) in text.bytes().take(75).enumerate() {
+        bytes[idx + 1] = byte;
+    }
+    bytes
+}
+
 fn advance_to_main_menu(app: &mut App) {
     for _ in 0..16 {
         if app.current_screen() == ScreenId::MainMenu {
@@ -2699,6 +2707,43 @@ fn startup_results_wrap_long_lines_within_the_playfield() {
             || terminal.line(6).contains("eighty column playfield")
     );
     assert!(terminal.line(5).contains("single row.") || terminal.line(6).contains("single row."));
+}
+
+#[test]
+fn startup_results_preserve_blank_lines_as_classic_spacers() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.results_bytes = classic_chunked_report_bytes("Line one\n\nLine two");
+    state.messages_bytes.clear();
+    state.game_data.player.records[0].raw[0x30] = 1;
+    state.game_data.player.records[0].raw[0x34] = 0;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::Startup(StartupPhase::Results) {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Results)
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("startup results should render");
+    assert!(terminal.line(4).contains("< Line one"));
+    assert_eq!(terminal.line(5).trim_end(), "<");
+    assert!(terminal.line(6).contains("< Line two"));
 }
 
 #[test]

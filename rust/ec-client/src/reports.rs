@@ -49,7 +49,6 @@ fn decode_chunked_records(bytes: &[u8]) -> Option<Vec<String>> {
     let lines = text
         .lines()
         .map(str::trim)
-        .filter(|line| !line.is_empty())
         .map(ToOwned::to_owned)
         .collect::<Vec<_>>();
     Some(lines)
