@@ -214,6 +214,25 @@ pub enum JoinMissionHostEvent {
     },
 }
 
+/// A fleet mission whose semantic target changed or disappeared during maintenance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MissionRetargetEvent {
+    Retargeted {
+        fleet_idx: usize,
+        owner_empire_raw: u8,
+        mission: Mission,
+        previous_target_coords: [u8; 2],
+        new_target_coords: [u8; 2],
+    },
+    Abandoned {
+        fleet_idx: usize,
+        owner_empire_raw: u8,
+        mission: Mission,
+        previous_target_coords: [u8; 2],
+        coords: [u8; 2],
+    },
+}
+
 /// The generic outcome class for a mission report.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MissionOutcome {
@@ -226,6 +245,8 @@ pub enum MissionOutcome {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mission {
     MoveOnly,
+    SeekHome,
+    PatrolSector,
     ViewWorld,
     GuardStarbase,
     GuardBlockadeWorld,
@@ -342,6 +363,8 @@ pub struct MaintenanceEvents {
     pub fleet_merge_events: Vec<FleetMergeEvent>,
     /// Join mission host retarget/destruction reports.
     pub join_host_events: Vec<JoinMissionHostEvent>,
+    /// Semantic mission target refresh/abandon reports.
+    pub mission_retarget_events: Vec<MissionRetargetEvent>,
     /// Successful colonization outcomes.
     pub colonization_events: Vec<ColonizationResolvedEvent>,
     /// Generic mission outcomes for report generation.
@@ -524,9 +547,9 @@ pub fn run_maintenance_turn_with_context(
     // fleets for flagged players (PLAYER raw[0x00]==0xff).
     let merge_events = process_fleet_merging(game_data)?;
 
-    // Join-another-fleet orders track the host fleet's current position each turn.
-    // This must happen before movement so joiners keep pursuing moving hosts.
-    refresh_join_host_targets(game_data);
+    let mut mission_retarget_events = refresh_seek_home_targets(game_data);
+    mission_retarget_events.extend(refresh_join_host_targets(game_data));
+    mission_retarget_events.extend(refresh_guard_starbase_targets(game_data));
 
     // Process fleet orders; collect side-effect events
     let movement_events = process_fleet_movement(game_data, visible_hazards_by_empire)?;
@@ -632,6 +655,7 @@ pub fn run_maintenance_turn_with_context(
         scout_contact_events: fleet_battle_phase_events.scout_contact_events,
         fleet_merge_events: merge_events,
         join_host_events,
+        mission_retarget_events,
         colonization_events,
         mission_events,
         diplomatic_escalation_events: movement_events.diplomatic_escalation_events,
@@ -954,7 +978,51 @@ fn process_join_host_updates(
     events
 }
 
-fn refresh_join_host_targets(game_data: &mut CoreGameData) {
+fn refresh_seek_home_targets(game_data: &mut CoreGameData) -> Vec<MissionRetargetEvent> {
+    let owned_planets: Vec<(u8, [u8; 2])> = game_data
+        .planets
+        .records
+        .iter()
+        .map(|planet| (planet.owner_empire_slot_raw(), planet.coords_raw()))
+        .collect();
+    let mut events = Vec::new();
+    for (fleet_idx, fleet) in game_data.fleets.records.iter_mut().enumerate() {
+        if fleet.standing_order_kind() != Order::SeekHome {
+            continue;
+        }
+        let previous_target_coords = fleet.standing_order_target_coords_raw();
+        let current_coords = fleet.current_location_coords_raw();
+        let owner_empire_raw = fleet.owner_empire_raw();
+        let Some(new_target_coords) =
+            nearest_owned_planet_target_from_list(&owned_planets, owner_empire_raw, current_coords)
+        else {
+            fleet.set_standing_order_kind(Order::HoldPosition);
+            fleet.set_current_speed(0);
+            fleet.set_standing_order_target_coords_raw(current_coords);
+            events.push(MissionRetargetEvent::Abandoned {
+                fleet_idx,
+                owner_empire_raw,
+                mission: Mission::SeekHome,
+                previous_target_coords,
+                coords: current_coords,
+            });
+            continue;
+        };
+        if new_target_coords != previous_target_coords {
+            fleet.set_standing_order_target_coords_raw(new_target_coords);
+            events.push(MissionRetargetEvent::Retargeted {
+                fleet_idx,
+                owner_empire_raw,
+                mission: Mission::SeekHome,
+                previous_target_coords,
+                new_target_coords,
+            });
+        }
+    }
+    events
+}
+
+fn refresh_join_host_targets(game_data: &mut CoreGameData) -> Vec<MissionRetargetEvent> {
     let current_host_viability: std::collections::HashMap<u8, bool> = game_data
         .fleets
         .records
@@ -976,7 +1044,8 @@ fn refresh_join_host_targets(game_data: &mut CoreGameData) {
         .map(|fleet| (fleet.fleet_id(), fleet.current_location_coords_raw()))
         .collect();
 
-    for fleet in game_data.fleets.records.iter_mut() {
+    let mut events = Vec::new();
+    for (fleet_idx, fleet) in game_data.fleets.records.iter_mut().enumerate() {
         if fleet.standing_order_kind() != Order::JoinAnotherFleet {
             continue;
         }
@@ -991,9 +1060,93 @@ fn refresh_join_host_targets(game_data: &mut CoreGameData) {
         }
 
         if let Some(coords) = current_fleet_coords.get(&host_id).copied() {
-            fleet.set_standing_order_target_coords_raw(coords);
+            let previous_target_coords = fleet.standing_order_target_coords_raw();
+            if coords != previous_target_coords {
+                fleet.set_standing_order_target_coords_raw(coords);
+                events.push(MissionRetargetEvent::Retargeted {
+                    fleet_idx,
+                    owner_empire_raw: fleet.owner_empire_raw(),
+                    mission: Mission::JoinAnotherFleet,
+                    previous_target_coords,
+                    new_target_coords: coords,
+                });
+            }
         }
     }
+    events
+}
+
+fn refresh_guard_starbase_targets(game_data: &mut CoreGameData) -> Vec<MissionRetargetEvent> {
+    let active_bases: std::collections::HashMap<(u8, u8), [u8; 2]> = game_data
+        .bases
+        .records
+        .iter()
+        .filter(|base| base.base_id_raw() != 0 && base.owner_empire_raw() != 0)
+        .map(|base| ((base.owner_empire_raw(), base.base_id_raw()), base.coords_raw()))
+        .collect();
+    let mut events = Vec::new();
+    for (fleet_idx, fleet) in game_data.fleets.records.iter_mut().enumerate() {
+        if fleet.standing_order_kind() != Order::GuardStarbase {
+            continue;
+        }
+        let previous_target_coords = fleet.standing_order_target_coords_raw();
+        let current_coords = fleet.current_location_coords_raw();
+        let owner_empire_raw = fleet.owner_empire_raw();
+        let base_id = fleet.guard_starbase_index_raw();
+        if base_id == 0 || fleet.guard_starbase_enable_raw() == 0 {
+            fleet.set_standing_order_kind(Order::HoldPosition);
+            fleet.set_current_speed(0);
+            fleet.set_standing_order_target_coords_raw(current_coords);
+            events.push(MissionRetargetEvent::Abandoned {
+                fleet_idx,
+                owner_empire_raw,
+                mission: Mission::GuardStarbase,
+                previous_target_coords,
+                coords: current_coords,
+            });
+            continue;
+        }
+        let Some(new_target_coords) = active_bases.get(&(owner_empire_raw, base_id)).copied() else {
+            fleet.set_standing_order_kind(Order::HoldPosition);
+            fleet.set_current_speed(0);
+            fleet.set_standing_order_target_coords_raw(current_coords);
+            events.push(MissionRetargetEvent::Abandoned {
+                fleet_idx,
+                owner_empire_raw,
+                mission: Mission::GuardStarbase,
+                previous_target_coords,
+                coords: current_coords,
+            });
+            continue;
+        };
+        if new_target_coords != previous_target_coords {
+            fleet.set_standing_order_target_coords_raw(new_target_coords);
+            events.push(MissionRetargetEvent::Retargeted {
+                fleet_idx,
+                owner_empire_raw,
+                mission: Mission::GuardStarbase,
+                previous_target_coords,
+                new_target_coords,
+            });
+        }
+    }
+    events
+}
+
+fn nearest_owned_planet_target_from_list(
+    owned_planets: &[(u8, [u8; 2])],
+    empire_raw: u8,
+    from: [u8; 2],
+) -> Option<[u8; 2]> {
+    owned_planets
+        .iter()
+        .filter(|(owner, _)| *owner == empire_raw)
+        .min_by_key(|(_, coords)| {
+            let dx = i16::from(coords[0]) - i16::from(from[0]);
+            let dy = i16::from(coords[1]) - i16::from(from[1]);
+            dx * dx + dy * dy
+        })
+        .map(|(_, coords)| *coords)
 }
 
 /// Process fleet movement for all fleets with active movement.
@@ -1167,6 +1320,17 @@ fn process_fleet_movement(
                             target_coords: Some([target_x, target_y]),
                         });
                     }
+                    Order::PatrolSector => {
+                        movement_events.mission_events.push(MissionEvent {
+                            fleet_idx: i,
+                            owner_empire_raw: owner_empire,
+                            kind: Mission::PatrolSector,
+                            outcome: MissionOutcome::Succeeded,
+                            planet_idx: None,
+                            location_coords: Some([target_x, target_y]),
+                            target_coords: Some([target_x, target_y]),
+                        });
+                    }
                     _ => {}
                 }
             }
@@ -1284,7 +1448,11 @@ fn process_single_fleet_movement(
         let order_code_on_arrival = game_data.fleets.records[fleet_idx].standing_order_code_raw();
         let preserves_order_on_arrival = matches!(
             Order::from_raw(order_code_on_arrival),
-            Order::MoveOnly | Order::BombardWorld | Order::InvadeWorld | Order::BlitzWorld
+            Order::MoveOnly
+                | Order::PatrolSector
+                | Order::BombardWorld
+                | Order::InvadeWorld
+                | Order::BlitzWorld
         );
 
         if !preserves_order_on_arrival {

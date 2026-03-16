@@ -4,8 +4,9 @@
 //! behavior on the fleet-scenario fixture pair.
 
 use ec_data::{
-    ColonizationResolvedEvent, CoreGameData, DiplomaticRelation, JoinMissionHostEvent, Mission,
-    MissionOutcome, Order, run_maintenance_turn,
+    BaseDat, BaseRecord, ColonizationResolvedEvent, CoreGameData, DiplomaticRelation,
+    JoinMissionHostEvent, Mission, MissionOutcome, MissionRetargetEvent, Order,
+    run_maintenance_turn,
 };
 use std::path::Path;
 
@@ -453,6 +454,151 @@ fn test_join_order_abandons_mission_when_host_is_destroyed() {
                 && *destroyed_host_fleet_id == host_id
                 && *coords == abandoned_coords
         )
+    }));
+}
+
+#[test]
+fn test_seek_home_retargets_to_next_owned_planet_when_target_is_lost() {
+    let mut game_data = load_fixture("ecmaint-post");
+    let original_target = game_data.planets.records[0].coords_raw();
+    game_data.planets.records[0].set_owner_empire_slot_raw(2);
+    let fallback_target = game_data
+        .planets
+        .records
+        .iter()
+        .find(|planet| planet.owner_empire_slot_raw() == 1)
+        .map(|planet| planet.coords_raw())
+        .expect("fixture should still have another owned planet");
+
+    let fleet = &mut game_data.fleets.records[1];
+    fleet.set_current_location_coords_raw([9, 9]);
+    fleet.set_standing_order_kind(Order::SeekHome);
+    fleet.set_standing_order_target_coords_raw(original_target);
+    fleet.set_current_speed(3);
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    assert_eq!(
+        game_data.fleets.records[1].standing_order_target_coords_raw(),
+        fallback_target
+    );
+    assert!(events.mission_retarget_events.iter().any(|event| {
+        matches!(
+            event,
+            MissionRetargetEvent::Retargeted {
+                fleet_idx,
+                mission,
+                previous_target_coords,
+                new_target_coords,
+                ..
+            } if *fleet_idx == 1
+                && *mission == Mission::SeekHome
+                && *previous_target_coords == original_target
+                && *new_target_coords == fallback_target
+        )
+    }));
+}
+
+#[test]
+fn test_guard_starbase_retargets_to_live_base_coords() {
+    let mut game_data = load_fixture("ecmaint-post");
+    let mut base = BaseRecord::new_zeroed();
+    base.set_base_id_raw(3);
+    base.set_owner_empire_raw(1);
+    base.set_coords_raw([12, 8]);
+    game_data.bases = BaseDat { records: vec![base] };
+
+    let fleet = &mut game_data.fleets.records[1];
+    fleet.set_current_location_coords_raw([4, 8]);
+    fleet.set_standing_order_kind(Order::GuardStarbase);
+    fleet.set_standing_order_target_coords_raw([9, 8]);
+    fleet.set_current_speed(3);
+    fleet.set_mission_aux_bytes([3, 1]);
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    assert_eq!(
+        game_data.fleets.records[1].standing_order_target_coords_raw(),
+        [12, 8]
+    );
+    assert!(events.mission_retarget_events.iter().any(|event| {
+        matches!(
+            event,
+            MissionRetargetEvent::Retargeted {
+                fleet_idx,
+                mission,
+                previous_target_coords,
+                new_target_coords,
+                ..
+            } if *fleet_idx == 1
+                && *mission == Mission::GuardStarbase
+                && *previous_target_coords == [9, 8]
+                && *new_target_coords == [12, 8]
+        )
+    }));
+}
+
+#[test]
+fn test_guard_starbase_abandons_when_linked_base_is_missing() {
+    let mut game_data = load_fixture("ecmaint-post");
+    game_data.bases = BaseDat { records: vec![] };
+
+    let fleet = &mut game_data.fleets.records[1];
+    fleet.set_current_location_coords_raw([4, 8]);
+    fleet.set_standing_order_kind(Order::GuardStarbase);
+    fleet.set_standing_order_target_coords_raw([9, 8]);
+    fleet.set_current_speed(3);
+    fleet.set_mission_aux_bytes([3, 1]);
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    assert_eq!(game_data.fleets.records[1].standing_order_kind(), Order::HoldPosition);
+    assert_eq!(game_data.fleets.records[1].current_speed(), 0);
+    assert_eq!(
+        game_data.fleets.records[1].standing_order_target_coords_raw(),
+        game_data.fleets.records[1].current_location_coords_raw()
+    );
+    assert!(events.mission_retarget_events.iter().any(|event| {
+        matches!(
+            event,
+            MissionRetargetEvent::Abandoned {
+                fleet_idx,
+                mission,
+                previous_target_coords,
+                ..
+            } if *fleet_idx == 1
+                && *mission == Mission::GuardStarbase
+                && *previous_target_coords == [9, 8]
+        )
+    }));
+}
+
+#[test]
+fn test_patrol_sector_persists_after_arrival() {
+    let mut game_data = load_fixture("ecmaint-post");
+    let fleet = &mut game_data.fleets.records[1];
+    fleet.set_current_location_coords_raw([10, 10]);
+    fleet.set_standing_order_kind(Order::PatrolSector);
+    fleet.set_standing_order_target_coords_raw([11, 10]);
+    fleet.set_current_speed(3);
+    fleet.raw[0x0d] = 0x80;
+    fleet.raw[0x0f] = 0;
+    fleet.raw[0x19] = 0x80;
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    assert_eq!(
+        game_data.fleets.records[1].current_location_coords_raw(),
+        [11, 10]
+    );
+    assert_eq!(
+        game_data.fleets.records[1].standing_order_kind(),
+        Order::PatrolSector
+    );
+    assert!(events.mission_events.iter().any(|event| {
+        event.fleet_idx == 1
+            && event.kind == Mission::PatrolSector
+            && event.outcome == MissionOutcome::Succeeded
     }));
 }
 

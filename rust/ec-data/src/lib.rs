@@ -46,6 +46,7 @@ pub use maint::{
     BombardEvent, CampaignOutcomeEvent, CampaignOutlookEvent, CivilDisorderEvent,
     ColonizationResolvedEvent, ContactReportSource, DiplomacyOverride, FleetBattleEvent,
     FleetDefectionEvent, FleetDestroyedEvent, FleetMergeEvent, JoinMissionHostEvent,
+    MissionRetargetEvent,
     MaintenanceEvents, Mission, MissionEvent, MissionOutcome, PlanetIntelEvent,
     PlanetOwnershipChangeEvent, ScoutContactEvent, ShipLosses, StarbaseDestroyedEvent,
     run_maintenance_turn, run_maintenance_turn_with_context,

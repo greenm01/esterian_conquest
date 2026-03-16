@@ -883,6 +883,65 @@ pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEv
         push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
     }
 
+    for event in &events.mission_retarget_events {
+        let text = match *event {
+            ec_data::MissionRetargetEvent::Retargeted {
+                mission: Mission::SeekHome,
+                previous_target_coords,
+                new_target_coords,
+                ..
+            } => format!(
+                "Fleet mission report: Our original refuge at Sector({},{}) is no longer suitable, so we are now seeking home at Sector({},{}) instead.",
+                previous_target_coords[0],
+                previous_target_coords[1],
+                new_target_coords[0],
+                new_target_coords[1]
+            ),
+            ec_data::MissionRetargetEvent::Abandoned {
+                mission: Mission::SeekHome,
+                coords,
+                ..
+            } => format!(
+                "Fleet mission report: With no owned planets remaining, we are holding our current position in Sector({},{}) and are awaiting new orders.",
+                coords[0], coords[1]
+            ),
+            ec_data::MissionRetargetEvent::Retargeted {
+                mission: Mission::GuardStarbase,
+                previous_target_coords,
+                new_target_coords,
+                ..
+            } => format!(
+                "Guard Starbase mission report: The guarded starbase is no longer at Sector({},{}) and we are now moving to Sector({},{}) to resume escort duty.",
+                previous_target_coords[0],
+                previous_target_coords[1],
+                new_target_coords[0],
+                new_target_coords[1]
+            ),
+            ec_data::MissionRetargetEvent::Abandoned {
+                mission: Mission::GuardStarbase,
+                coords,
+                ..
+            } => format!(
+                "Guard Starbase mission report: We can no longer locate the guarded starbase, so we are holding our current position in Sector({},{}) and awaiting new orders.",
+                coords[0], coords[1]
+            ),
+            ec_data::MissionRetargetEvent::Retargeted {
+                mission: Mission::JoinAnotherFleet,
+                previous_target_coords,
+                new_target_coords,
+                ..
+            } => format!(
+                "Join mission report: Our host fleet has changed position from Sector({},{}) to Sector({},{}) and we are continuing pursuit.",
+                previous_target_coords[0],
+                previous_target_coords[1],
+                new_target_coords[0],
+                new_target_coords[1]
+            ),
+            _ => continue,
+        };
+        push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
+    }
+
     results
 }
 
@@ -1548,6 +1607,92 @@ pub(crate) fn build_messages_dat(
                     ),
                 )
             }
+        };
+        push_routed_message_chunked(
+            &mut messages,
+            game_data,
+            recipient,
+            0x05,
+            RESULTS_TAIL_FLEET,
+            &text,
+        );
+    }
+
+    for event in &events.mission_retarget_events {
+        let (recipient, text) = match *event {
+            ec_data::MissionRetargetEvent::Retargeted {
+                owner_empire_raw,
+                mission: Mission::SeekHome,
+                previous_target_coords,
+                new_target_coords,
+                ..
+            } => (
+                owner_empire_raw,
+                format!(
+                    "Fleet mission report: Our original refuge at Sector({},{}) is no longer suitable, so we are now seeking home at Sector({},{}) instead.",
+                    previous_target_coords[0],
+                    previous_target_coords[1],
+                    new_target_coords[0],
+                    new_target_coords[1]
+                ),
+            ),
+            ec_data::MissionRetargetEvent::Abandoned {
+                owner_empire_raw,
+                mission: Mission::SeekHome,
+                coords,
+                ..
+            } => (
+                owner_empire_raw,
+                format!(
+                    "Fleet mission report: With no owned planets remaining, we are holding our current position in Sector({},{}) and are awaiting new orders.",
+                    coords[0], coords[1]
+                ),
+            ),
+            ec_data::MissionRetargetEvent::Retargeted {
+                owner_empire_raw,
+                mission: Mission::GuardStarbase,
+                previous_target_coords,
+                new_target_coords,
+                ..
+            } => (
+                owner_empire_raw,
+                format!(
+                    "Guard Starbase mission report: The guarded starbase is no longer at Sector({},{}) and we are now moving to Sector({},{}) to resume escort duty.",
+                    previous_target_coords[0],
+                    previous_target_coords[1],
+                    new_target_coords[0],
+                    new_target_coords[1]
+                ),
+            ),
+            ec_data::MissionRetargetEvent::Abandoned {
+                owner_empire_raw,
+                mission: Mission::GuardStarbase,
+                coords,
+                ..
+            } => (
+                owner_empire_raw,
+                format!(
+                    "Guard Starbase mission report: We can no longer locate the guarded starbase, so we are holding our current position in Sector({},{}) and awaiting new orders.",
+                    coords[0], coords[1]
+                ),
+            ),
+            ec_data::MissionRetargetEvent::Retargeted {
+                owner_empire_raw,
+                mission: Mission::JoinAnotherFleet,
+                previous_target_coords,
+                new_target_coords,
+                ..
+            } => (
+                owner_empire_raw,
+                format!(
+                    "Join mission report: Our host fleet has changed position from Sector({},{}) to Sector({},{}) and we are continuing pursuit.",
+                    previous_target_coords[0],
+                    previous_target_coords[1],
+                    new_target_coords[0],
+                    new_target_coords[1]
+                ),
+            ),
+            _ => continue,
         };
         push_routed_message_chunked(
             &mut messages,
