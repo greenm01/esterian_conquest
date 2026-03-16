@@ -37,7 +37,7 @@ For `ECGAME`, the current best-known local recipe is:
 Use:
 
 ```bash
-tools/run_ecgame.sh /path/to/game_dir [player_number]
+tools/run_ecgame.sh /path/to/game_dir [player_number] [caller_alias]
 ```
 
 Important rules:
@@ -59,6 +59,24 @@ or:
 
 ```bash
 SDL_VIDEODRIVER_OVERRIDE=wayland tools/run_ecgame.sh /path/to/game_dir
+```
+
+For returning-player probing, caller identity matters:
+
+- classic `ECGAME` does not treat `PLAYER.DAT` assigned-player fields alone as
+  sufficient for returning-player login
+- the generated `CHAIN.TXT` alias must match the persisted player handle well
+  enough to escape the first-time menu
+- the local launcher now lets you pass that alias explicitly:
+
+```bash
+tools/run_ecgame.sh /path/to/game_dir 2 SYSOP
+```
+
+or:
+
+```bash
+ECGAME_CALLER_ALIAS=SYSOP tools/run_ecgame.sh /path/to/game_dir 2
 ```
 
 Public corroboration for this path:

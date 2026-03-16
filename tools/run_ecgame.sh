@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ $# -lt 1 ] || [ $# -gt 2 ]; then
-  echo "usage: $0 <game_dir> [player_number]" >&2
+if [ $# -lt 1 ] || [ $# -gt 3 ]; then
+  echo "usage: $0 <game_dir> [player_number] [caller_alias]" >&2
   exit 2
 fi
 
 game_dir=$1
 player_number=${2:-1}
+caller_alias=${3:-${ECGAME_CALLER_ALIAS:-Sysop}}
 mount_dir=$game_dir
 temp_link=
 
@@ -29,12 +30,18 @@ fi
 
 trap 'if [ -n "${temp_link:-}" ]; then rm -f "$temp_link"; fi' EXIT
 
-GAME_DIR="$game_dir" PLAYER_NUMBER="$player_number" python3 - <<'PY'
+GAME_DIR="$game_dir" PLAYER_NUMBER="$player_number" CALLER_ALIAS="$caller_alias" python3 - <<'PY'
 import os
 from pathlib import Path
 from tools.ecgame_dropfiles import write_chain_txt
 
-write_chain_txt(Path(os.environ["GAME_DIR"]) / "CHAIN.TXT", player_number=int(os.environ["PLAYER_NUMBER"]))
+alias = os.environ["CALLER_ALIAS"]
+write_chain_txt(
+    Path(os.environ["GAME_DIR"]) / "CHAIN.TXT",
+    player_number=int(os.environ["PLAYER_NUMBER"]),
+    alias=alias,
+    real_name=alias,
+)
 PY
 
 export SDL_VIDEODRIVER="${SDL_VIDEODRIVER_OVERRIDE:-wayland}"

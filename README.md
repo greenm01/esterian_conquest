@@ -246,6 +246,13 @@ Launch original `ECGAME` locally in DOSBox-X:
 tools/run_ecgame.sh /tmp/ec-game 1
 ```
 
+For local returning-player probes, pass a caller alias that matches the
+persisted player handle:
+
+```bash
+tools/run_ecgame.sh /tmp/ec-game 2 SYSOP
+```
+
 Run the Rust client:
 
 ```bash
