@@ -246,6 +246,13 @@ Primary goal:
     - first-time menu
     - matched pre-loaded player first-login onboarding
     - established joined-player login flow
+  - future BBS-door dropfile support should stay Rust-native and forward-looking:
+    - parse classic `CHAIN.TXT` plus modern telnet/BBS dropfile shapes through a
+      thin `ec-client` session adapter layer
+    - normalize those inputs into one internal Rust session/startup context
+    - keep door-file parsing out of `ec-data` and core gameplay state
+    - if the integration surface grows, split it into a thin launcher/adapter
+      crate rather than pushing BBS-specific logic down into the engine
 - SQLite-backed campaign persistence is now started:
   - each campaign uses a bundled/self-hosted `ecgame.db`
   - `ec-client` now loads/saves runtime state from `ecgame.db`

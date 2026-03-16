@@ -642,7 +642,7 @@ fn joined_player_with_unnamed_homeworld_is_routed_to_homeworld_naming() {
 fn preloaded_first_login_routes_through_login_summary_before_homeworld_naming() {
     let fixture_dir = temp_joined_needs_homeworld_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -741,7 +741,7 @@ fn preloaded_first_login_becomes_returning_player_after_homeworld_naming() {
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
 
     let reloaded = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -759,7 +759,7 @@ fn preloaded_first_login_becomes_returning_player_after_homeworld_naming() {
 fn returning_player_routes_through_login_summary_before_main_menu() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1439,7 +1439,7 @@ fn starbase_review_matches_verified_v15_review_content() {
 fn fleet_transfer_uses_two_fleet_selector_and_groups_same_sector_rows() {
     let fixture_dir = temp_game_with_same_sector_fleets_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1964,7 +1964,7 @@ fn delete_reviewables_opens_when_classic_pending_flags_are_set() {
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1981,6 +1981,17 @@ fn delete_reviewables_opens_when_classic_pending_flags_are_set() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::DeleteReviewables);
+
+    assert_eq!(
+        apply_action(&mut app, Action::ConfirmDeleteReviewables),
+        AppOutcome::Continue
+    );
+
+    let runtime = latest_runtime_state(&fixture_dir);
+    assert!(runtime.results_bytes.is_empty());
+    assert!(runtime.messages_bytes.is_empty());
+    assert_eq!(runtime.game_data.player.records[0].raw[0x30], 0);
+    assert_eq!(runtime.game_data.player.records[0].raw[0x34], 0);
 }
 
 #[test]
