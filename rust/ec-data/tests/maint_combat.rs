@@ -1,8 +1,8 @@
 mod common;
 
 use ec_data::{
-    ContactReportSource, CoreGameData, DiplomacyOverride, Mission, MissionOutcome, Order,
-    run_maintenance_turn, run_maintenance_turn_with_context,
+    ContactReportSource, CoreGameData, DiplomacyOverride, EncounterDispositionEvent, Mission,
+    MissionOutcome, Order, run_maintenance_turn, run_maintenance_turn_with_context,
 };
 use std::path::Path;
 
@@ -209,6 +209,114 @@ fn declared_enemy_fleet_battle_removes_losers_without_garbage_counts() {
         assert!(fleet.destroyer_count() <= 100);
         assert!(fleet.troop_transport_count() <= 100);
     }
+}
+
+#[test]
+fn hostile_contact_with_roe_zero_emits_no_engagement_event() {
+    let mut game_data = load_fixture("ecmaint-post");
+    let coords = [15, 13];
+
+    let patrol = &mut game_data.fleets.records[0];
+    patrol.set_current_location_coords_raw(coords);
+    patrol.set_standing_order_kind(Order::PatrolSector);
+    patrol.set_destroyer_count(1);
+    patrol.set_cruiser_count(0);
+    patrol.set_battleship_count(0);
+    patrol.set_scout_count(0);
+    patrol.set_troop_transport_count(0);
+    patrol.set_etac_count(0);
+    patrol.set_rules_of_engagement(0);
+
+    let hostile = &mut game_data.fleets.records[4];
+    hostile.set_current_location_coords_raw(coords);
+    hostile.set_standing_order_kind(Order::MoveOnly);
+    hostile.set_destroyer_count(1);
+    hostile.set_cruiser_count(0);
+    hostile.set_battleship_count(0);
+    hostile.set_scout_count(0);
+    hostile.set_troop_transport_count(0);
+    hostile.set_etac_count(0);
+    hostile.set_rules_of_engagement(0);
+
+    let diplomacy = mutual_enemy_overrides(1, 2);
+    let events = run_maintenance_turn_with_context(&mut game_data, &[], &diplomacy)
+        .expect("maintenance should succeed");
+
+    assert!(events.fleet_battle_events.is_empty());
+    assert!(events.encounter_disposition_events.iter().any(|event| {
+        matches!(
+            event,
+            EncounterDispositionEvent::NoEngagement {
+                owner_empire_raw,
+                mission: Some(Mission::PatrolSector),
+                coords: event_coords,
+                target_empire_raw,
+                ..
+            } if *owner_empire_raw == 1 && *event_coords == coords && *target_empire_raw == 2
+        )
+    }));
+}
+
+#[test]
+fn hostile_battle_can_trigger_roe_withdrawal_to_seek_home() {
+    let mut game_data = load_fixture("ecmaint-post");
+    let coords = [15, 13];
+    let retreat_target = game_data
+        .planets
+        .records
+        .iter()
+        .find(|planet| planet.owner_empire_slot_raw() == 1)
+        .map(|planet| planet.coords_raw())
+        .expect("fixture should contain owned world");
+
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw(coords);
+    fleet.set_standing_order_kind(Order::PatrolSector);
+    fleet.set_destroyer_count(6);
+    fleet.set_cruiser_count(0);
+    fleet.set_battleship_count(0);
+    fleet.set_scout_count(0);
+    fleet.set_troop_transport_count(0);
+    fleet.set_etac_count(0);
+    fleet.set_rules_of_engagement(8);
+
+    let hostile = &mut game_data.fleets.records[4];
+    hostile.set_current_location_coords_raw(coords);
+    hostile.set_standing_order_kind(Order::MoveOnly);
+    hostile.set_destroyer_count(2);
+    hostile.set_cruiser_count(2);
+    hostile.set_battleship_count(0);
+    hostile.set_scout_count(0);
+    hostile.set_troop_transport_count(0);
+    hostile.set_etac_count(0);
+    hostile.set_rules_of_engagement(10);
+
+    let diplomacy = mutual_enemy_overrides(1, 2);
+    let events = run_maintenance_turn_with_context(&mut game_data, &[], &diplomacy)
+        .expect("maintenance should succeed");
+
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_kind(),
+        Order::SeekHome
+    );
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_target_coords_raw(),
+        retreat_target
+    );
+    assert!(events.encounter_disposition_events.iter().any(|event| {
+        matches!(
+            event,
+            EncounterDispositionEvent::Retreated {
+                owner_empire_raw,
+                mission: Some(Mission::PatrolSector),
+                coords: event_coords,
+                retreat_target_coords,
+                ..
+            } if *owner_empire_raw == 1
+                && *event_coords == coords
+                && *retreat_target_coords == retreat_target
+        )
+    }));
 }
 
 #[test]

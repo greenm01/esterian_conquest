@@ -330,6 +330,35 @@ fn test_view_world_arrival_emits_success_and_intel_event() {
 }
 
 #[test]
+fn test_seek_home_arrival_emits_success_event() {
+    let mut game_data = load_fixture("ecmaint-post");
+    let target_coords = game_data
+        .planets
+        .records
+        .iter()
+        .find(|planet| planet.owner_empire_slot_raw() == 1)
+        .map(|planet| planet.coords_raw())
+        .expect("fixture should contain an owned world");
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw([target_coords[0].saturating_add(1), target_coords[1]]);
+    fleet.set_standing_order_kind(Order::SeekHome);
+    fleet.set_standing_order_target_coords_raw(target_coords);
+    fleet.set_current_speed(3);
+    fleet.raw[0x0d] = 0x80;
+    fleet.raw[0x0f] = 0;
+    fleet.raw[0x19] = 0x00;
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+
+    assert!(events.mission_events.iter().any(|event| {
+        event.fleet_idx == 0
+            && event.kind == Mission::SeekHome
+            && event.outcome == MissionOutcome::Succeeded
+            && event.location_coords == Some(target_coords)
+    }));
+}
+
+#[test]
 fn test_rendezvous_arrival_emits_waiting_event() {
     let mut game_data = load_fixture("ecmaint-fleet-pre");
     let fleet = &mut game_data.fleets.records[0];
@@ -341,7 +370,7 @@ fn test_rendezvous_arrival_emits_waiting_event() {
     assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 0
             && event.kind == Mission::RendezvousSector
-            && event.outcome == MissionOutcome::Succeeded
+            && event.outcome == MissionOutcome::Arrived
             && event.location_coords == Some([15, 13])
     }));
 }
@@ -612,8 +641,54 @@ fn test_patrol_sector_persists_after_arrival() {
     assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 1
             && event.kind == Mission::PatrolSector
-            && event.outcome == MissionOutcome::Succeeded
+            && event.outcome == MissionOutcome::Arrived
     }));
+}
+
+#[test]
+fn test_join_merge_occurs_without_combat_merge_flag() {
+    let mut game_data = load_fixture("ecmaint-post");
+    game_data.player.records[0].raw[0x00] = 0x00;
+    let host_coords = game_data.fleets.records[0].current_location_coords_raw();
+    let host_id = game_data.fleets.records[0].fleet_id();
+
+    let joiner = &mut game_data.fleets.records[1];
+    joiner.set_current_location_coords_raw(host_coords);
+    joiner.set_standing_order_kind(Order::JoinAnotherFleet);
+    joiner.set_join_host_fleet_id_raw(host_id);
+    joiner.set_standing_order_target_coords_raw(host_coords);
+
+    let fleet_count_before = game_data.fleets.records.len();
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+
+    assert_eq!(game_data.fleets.records.len(), fleet_count_before - 1);
+    assert!(
+        events
+            .fleet_merge_events
+            .iter()
+            .any(|event| { event.kind == Mission::JoinAnotherFleet && !event.survivor_side })
+    );
+}
+
+#[test]
+fn test_rendezvous_merge_occurs_without_combat_merge_flag() {
+    let mut game_data = load_fixture("ecmaint-post");
+    game_data.player.records[0].raw[0x00] = 0x00;
+    let coords = game_data.fleets.records[0].current_location_coords_raw();
+    game_data.fleets.records[0].set_standing_order_kind(Order::RendezvousSector);
+    game_data.fleets.records[1].set_current_location_coords_raw(coords);
+    game_data.fleets.records[1].set_standing_order_kind(Order::RendezvousSector);
+
+    let fleet_count_before = game_data.fleets.records.len();
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+
+    assert_eq!(game_data.fleets.records.len(), fleet_count_before - 1);
+    assert!(
+        events
+            .fleet_merge_events
+            .iter()
+            .any(|event| { event.kind == Mission::RendezvousSector && !event.survivor_side })
+    );
 }
 
 #[test]

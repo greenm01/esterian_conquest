@@ -27,6 +27,12 @@ pub struct BombardEvent {
     pub attacker_empire_raw: u8,
     /// Defending empire that should receive the bombardment report, if any.
     pub defender_empire_raw: u8,
+    /// Initial attacking fleet composition observed by both sides.
+    pub attacker_initial: ShipLosses,
+    /// Initial defender ground batteries.
+    pub defender_batteries_initial: u8,
+    /// Initial defender armies.
+    pub defender_armies_initial: u8,
     /// Exact attacker fleet losses during the bombardment exchange.
     pub attacker_losses: ShipLosses,
     /// Observed defender ground battery losses.
@@ -46,6 +52,12 @@ pub struct AssaultReportEvent {
     pub attacker_empire_raw: u8,
     /// Defending empire that was attacked, if any.
     pub defender_empire_raw: u8,
+    /// Initial attacking fleet composition observed by both sides.
+    pub attacker_initial: ShipLosses,
+    /// Initial defender ground batteries.
+    pub defender_batteries_initial: u8,
+    /// Initial defender armies.
+    pub defender_armies_initial: u8,
     /// Exact attacker fleet losses during the orbital/landing exchange.
     pub attacker_ship_losses: ShipLosses,
     /// Attacker ground losses.
@@ -95,6 +107,8 @@ pub struct FleetBattleEvent {
     pub held_field: bool,
     /// Exact losses suffered by the reporting empire.
     pub friendly_losses: ShipLosses,
+    /// Initial observed hostile composition across opposing forces.
+    pub enemy_initial: ShipLosses,
     /// Observed hostile losses across the opposing forces.
     pub enemy_losses: ShipLosses,
 }
@@ -236,6 +250,7 @@ pub enum MissionRetargetEvent {
 /// The generic outcome class for a mission report.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MissionOutcome {
+    Arrived,
     Succeeded,
     Failed,
     Aborted,
@@ -278,6 +293,37 @@ pub struct MissionEvent {
     pub location_coords: Option<[u8; 2]>,
     /// Original mission target coordinates, if known.
     pub target_coords: Option<[u8; 2]>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EncounterDispositionReason {
+    RoeDeclined,
+    RoeWithdrawal,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EncounterDispositionEvent {
+    NoEngagement {
+        fleet_idx: usize,
+        owner_empire_raw: u8,
+        mission: Option<Mission>,
+        coords: [u8; 2],
+        target_empire_raw: u8,
+        enemy_initial: ShipLosses,
+        reason: EncounterDispositionReason,
+    },
+    Retreated {
+        fleet_idx: usize,
+        owner_empire_raw: u8,
+        mission: Option<Mission>,
+        coords: [u8; 2],
+        target_empire_raw: u8,
+        enemy_initial: ShipLosses,
+        retreat_target_coords: [u8; 2],
+        losses_sustained: ShipLosses,
+        enemy_losses_inflicted: ShipLosses,
+        reason: EncounterDispositionReason,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -384,6 +430,8 @@ pub struct MaintenanceEvents {
     pub assault_report_events: Vec<AssaultReportEvent>,
     /// Scout-style hostile contact reports.
     pub scout_contact_events: Vec<ScoutContactEvent>,
+    /// Contact/retreat outcomes driven by ROE and hostile encounters.
+    pub encounter_disposition_events: Vec<EncounterDispositionEvent>,
     /// Friendly merge reports for join/rendezvous outcomes.
     pub fleet_merge_events: Vec<FleetMergeEvent>,
     /// Join mission host retarget/destruction reports.
@@ -573,7 +621,7 @@ pub fn run_maintenance_turn_with_context(
     // included in the merge even though it moves to (15,13) this turn.
     // The merge runs before movement resolution, absorbing all same-position
     // fleets for flagged players (PLAYER raw[0x00]==0xff).
-    let merge_events = process_fleet_merging(game_data)?;
+    let mut merge_events = process_fleet_merging(game_data)?;
 
     let mut mission_retarget_events = refresh_seek_home_targets(game_data);
     mission_retarget_events.extend(refresh_join_host_targets(game_data));
@@ -581,6 +629,7 @@ pub fn run_maintenance_turn_with_context(
 
     // Process fleet orders; collect side-effect events
     let movement_events = process_fleet_movement(game_data, visible_hazards_by_empire)?;
+    merge_events.extend(process_mission_fleet_merging(game_data)?);
 
     // Detect and resolve fleet battles: when hostile fleets co-locate after movement,
     // surviving fleets get SeekHome orders (confirmed from fleet-battle oracle).
@@ -681,6 +730,7 @@ pub fn run_maintenance_turn_with_context(
         starbase_destroyed_events: fleet_battle_phase_events.starbase_destroyed_events,
         assault_report_events: assault_events.assault_report_events,
         scout_contact_events: fleet_battle_phase_events.scout_contact_events,
+        encounter_disposition_events: fleet_battle_phase_events.encounter_disposition_events,
         fleet_merge_events: merge_events,
         join_host_events,
         mission_retarget_events,
@@ -1338,7 +1388,7 @@ fn process_fleet_movement(
                             fleet_idx: i,
                             owner_empire_raw: owner_empire,
                             kind: Mission::GuardStarbase,
-                            outcome: MissionOutcome::Succeeded,
+                            outcome: MissionOutcome::Arrived,
                             planet_idx: None,
                             location_coords: Some([target_x, target_y]),
                             target_coords: Some([target_x, target_y]),
@@ -1366,7 +1416,7 @@ fn process_fleet_movement(
                             fleet_idx: i,
                             owner_empire_raw: owner_empire,
                             kind: Mission::GuardBlockadeWorld,
-                            outcome: MissionOutcome::Succeeded,
+                            outcome: MissionOutcome::Arrived,
                             planet_idx,
                             location_coords: Some([target_x, target_y]),
                             target_coords: Some([target_x, target_y]),
@@ -1377,7 +1427,7 @@ fn process_fleet_movement(
                             fleet_idx: i,
                             owner_empire_raw: owner_empire,
                             kind: Mission::RendezvousSector,
-                            outcome: MissionOutcome::Succeeded,
+                            outcome: MissionOutcome::Arrived,
                             planet_idx: None,
                             location_coords: Some([target_x, target_y]),
                             target_coords: Some([target_x, target_y]),
@@ -1399,7 +1449,63 @@ fn process_fleet_movement(
                             fleet_idx: i,
                             owner_empire_raw: owner_empire,
                             kind: Mission::PatrolSector,
+                            outcome: MissionOutcome::Arrived,
+                            planet_idx: None,
+                            location_coords: Some([target_x, target_y]),
+                            target_coords: Some([target_x, target_y]),
+                        });
+                    }
+                    Order::SeekHome => {
+                        movement_events.mission_events.push(MissionEvent {
+                            fleet_idx: i,
+                            owner_empire_raw: owner_empire,
+                            kind: Mission::SeekHome,
                             outcome: MissionOutcome::Succeeded,
+                            planet_idx: game_data
+                                .planets
+                                .records
+                                .iter()
+                                .position(|planet| planet.coords_raw() == [target_x, target_y]),
+                            location_coords: Some([target_x, target_y]),
+                            target_coords: Some([target_x, target_y]),
+                        });
+                    }
+                    Order::BombardWorld => {
+                        movement_events.mission_events.push(MissionEvent {
+                            fleet_idx: i,
+                            owner_empire_raw: owner_empire,
+                            kind: Mission::BombardWorld,
+                            outcome: MissionOutcome::Arrived,
+                            planet_idx: game_data
+                                .planets
+                                .records
+                                .iter()
+                                .position(|planet| planet.coords_raw() == [target_x, target_y]),
+                            location_coords: Some([target_x, target_y]),
+                            target_coords: Some([target_x, target_y]),
+                        });
+                    }
+                    Order::InvadeWorld => {
+                        movement_events.mission_events.push(MissionEvent {
+                            fleet_idx: i,
+                            owner_empire_raw: owner_empire,
+                            kind: Mission::InvadeWorld,
+                            outcome: MissionOutcome::Arrived,
+                            planet_idx: game_data
+                                .planets
+                                .records
+                                .iter()
+                                .position(|planet| planet.coords_raw() == [target_x, target_y]),
+                            location_coords: Some([target_x, target_y]),
+                            target_coords: Some([target_x, target_y]),
+                        });
+                    }
+                    Order::BlitzWorld => {
+                        movement_events.mission_events.push(MissionEvent {
+                            fleet_idx: i,
+                            owner_empire_raw: owner_empire,
+                            kind: Mission::BlitzWorld,
+                            outcome: MissionOutcome::Arrived,
                             planet_idx: None,
                             location_coords: Some([target_x, target_y]),
                             target_coords: Some([target_x, target_y]),
@@ -2015,6 +2121,140 @@ fn process_fleet_merging(
     }
 
     Ok(merge_events)
+}
+
+fn process_mission_fleet_merging(
+    game_data: &mut CoreGameData,
+) -> Result<Vec<FleetMergeEvent>, Box<dyn std::error::Error>> {
+    let fleet_count = game_data.fleets.records.len();
+    if fleet_count == 0 {
+        return Ok(Vec::new());
+    }
+
+    let mut to_remove = vec![false; fleet_count];
+    let mut merge_events = Vec::new();
+
+    let fleet_lookup: std::collections::HashMap<u8, usize> = game_data
+        .fleets
+        .records
+        .iter()
+        .enumerate()
+        .map(|(idx, fleet)| (fleet.fleet_id(), idx))
+        .collect();
+
+    for joiner_idx in 0..fleet_count {
+        if to_remove[joiner_idx] {
+            continue;
+        }
+        let joiner = &game_data.fleets.records[joiner_idx];
+        if joiner.standing_order_kind() != Order::JoinAnotherFleet {
+            continue;
+        }
+        let host_id = joiner.join_host_fleet_id_raw();
+        let joiner_owner = joiner.owner_empire_raw();
+        let joiner_fleet_id = joiner.fleet_id();
+        let joiner_coords = joiner.current_location_coords_raw();
+        let Some(&host_idx) = fleet_lookup.get(&host_id) else {
+            continue;
+        };
+        if host_idx == joiner_idx || to_remove[host_idx] {
+            continue;
+        }
+        let same_owner = game_data.fleets.records[host_idx].owner_empire_raw() == joiner_owner;
+        let same_coords =
+            game_data.fleets.records[host_idx].current_location_coords_raw() == joiner_coords;
+        if !same_owner || !same_coords {
+            continue;
+        }
+
+        merge_one_fleet_into_host(game_data, host_idx, joiner_idx);
+        to_remove[joiner_idx] = true;
+        merge_events.push(FleetMergeEvent {
+            fleet_idx: joiner_idx,
+            owner_empire_raw: joiner_owner,
+            kind: Mission::JoinAnotherFleet,
+            host_fleet_id: game_data.fleets.records[host_idx].fleet_id(),
+            absorbed_fleet_id: joiner_fleet_id,
+            coords: joiner_coords,
+            survivor_side: false,
+        });
+    }
+
+    let mut rendezvous_groups: std::collections::BTreeMap<(u8, [u8; 2]), Vec<usize>> =
+        std::collections::BTreeMap::new();
+    for (idx, fleet) in game_data.fleets.records.iter().enumerate() {
+        if to_remove[idx] || fleet.standing_order_kind() != Order::RendezvousSector {
+            continue;
+        }
+        rendezvous_groups
+            .entry((
+                fleet.owner_empire_raw(),
+                fleet.current_location_coords_raw(),
+            ))
+            .or_default()
+            .push(idx);
+    }
+
+    for ((_owner, coords), mut group) in rendezvous_groups {
+        if group.len() < 2 {
+            continue;
+        }
+        group.sort_by_key(|idx| game_data.fleets.records[*idx].fleet_id());
+        let survivor_idx = group[0];
+        for &absorbed_idx in group.iter().skip(1) {
+            if to_remove[absorbed_idx] {
+                continue;
+            }
+            let absorbed_id = game_data.fleets.records[absorbed_idx].fleet_id();
+            let owner_empire_raw = game_data.fleets.records[absorbed_idx].owner_empire_raw();
+            merge_one_fleet_into_host(game_data, survivor_idx, absorbed_idx);
+            to_remove[absorbed_idx] = true;
+            merge_events.push(FleetMergeEvent {
+                fleet_idx: absorbed_idx,
+                owner_empire_raw,
+                kind: Mission::RendezvousSector,
+                host_fleet_id: game_data.fleets.records[survivor_idx].fleet_id(),
+                absorbed_fleet_id: absorbed_id,
+                coords,
+                survivor_side: false,
+            });
+            merge_events.push(FleetMergeEvent {
+                fleet_idx: survivor_idx,
+                owner_empire_raw,
+                kind: Mission::RendezvousSector,
+                host_fleet_id: game_data.fleets.records[survivor_idx].fleet_id(),
+                absorbed_fleet_id: absorbed_id,
+                coords,
+                survivor_side: true,
+            });
+        }
+    }
+
+    if to_remove.iter().any(|remove| *remove) {
+        apply_fleet_removal_remap(game_data, &to_remove);
+    }
+
+    Ok(merge_events)
+}
+
+fn merge_one_fleet_into_host(game_data: &mut CoreGameData, host_idx: usize, donor_idx: usize) {
+    let bb = game_data.fleets.records[donor_idx].battleship_count();
+    let ca = game_data.fleets.records[donor_idx].cruiser_count();
+    let dd = game_data.fleets.records[donor_idx].destroyer_count();
+    let tt = game_data.fleets.records[donor_idx].troop_transport_count();
+    let army = game_data.fleets.records[donor_idx].army_count();
+    let et = game_data.fleets.records[donor_idx].etac_count();
+    let sc = game_data.fleets.records[donor_idx].scout_count();
+
+    let host = &mut game_data.fleets.records[host_idx];
+    host.set_battleship_count(host.battleship_count().saturating_add(bb));
+    host.set_cruiser_count(host.cruiser_count().saturating_add(ca));
+    host.set_destroyer_count(host.destroyer_count().saturating_add(dd));
+    host.set_troop_transport_count(host.troop_transport_count().saturating_add(tt));
+    host.set_army_count(host.army_count().saturating_add(army));
+    host.set_etac_count(host.etac_count().saturating_add(et));
+    host.set_scout_count(host.scout_count().saturating_add(sc));
+    host.recompute_max_speed_from_composition();
 }
 
 /// Process build queue completion for all planets.

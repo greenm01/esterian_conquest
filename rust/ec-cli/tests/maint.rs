@@ -62,7 +62,12 @@ fn maint_rust_econ_updates_database_owner_intel_from_post_combat_planet_state() 
     assert_eq!(unrelated_record.planet_name_bytes(), b"UNKNOWN");
     assert_eq!(unrelated_record.raw[0x15], 0xff);
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
-    assert!(messages.is_empty(), "MESSAGES.DAT should remain empty here");
+    let message_text = decode_chunked_report(&messages);
+    assert!(
+        message_text.contains("Bombardment mission report"),
+        "MESSAGES.DAT decoded text was: {:?}",
+        message_text
+    );
 
     cleanup_dir(&target);
 }
@@ -84,6 +89,7 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     let text = String::from_utf8_lossy(&results);
     assert!(text.contains("Fleet battle report"));
     assert!(text.contains("System("));
+    assert!(text.contains("Initial observed hostile composition:"));
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
     let text = decode_chunked_report(&messages);
     assert!(
@@ -91,6 +97,7 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
         "MESSAGES.DAT decoded text was: {:?}",
         text
     );
+    assert!(text.contains("Initial observed hostile composition:"));
     assert!(text.contains("For Empire #"));
 
     cleanup_dir(&target);
@@ -537,7 +544,15 @@ fn maint_rust_colonization_generates_results_report_from_colony_event() {
 #[test]
 fn maint_rust_preserves_existing_classic_player_mail_when_no_rust_messages_are_emitted() {
     let target = unique_temp_dir("ec-cli-maint-rust-preserve-classic-mail");
-    copy_fixture_dir("fixtures/ecmaint-econ-pre/v1.5", &target);
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    for fleet in &mut game_data.fleets.records {
+        fleet.set_standing_order_kind(Order::HoldPosition);
+        fleet.set_current_speed(0);
+        fleet.raw[0x19] = 0x00;
+    }
+    game_data.save(&target).expect("mutated fixture should save");
 
     let classic_mail = b"\x18this is a message to you\x00classic-payload".to_vec();
     fs::write(target.join("MESSAGES.DAT"), &classic_mail).expect("should seed classic mail");
@@ -889,9 +904,10 @@ fn maint_rust_bombardment_generates_attacker_side_report() {
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    let text = String::from_utf8_lossy(&results);
+    let text = decode_chunked_report(&results);
     assert!(text.contains("Bombardment mission report"));
     assert!(text.contains("bombing run"));
+    assert!(text.contains("The defending world initially contained"));
 
     cleanup_dir(&target);
 }
@@ -941,6 +957,7 @@ fn maint_rust_invade_failure_generates_attacker_side_report() {
     let text = String::from_utf8_lossy(&results);
     assert!(text.contains("Invasion mission report"));
     assert!(text.contains("repulsed") || text.contains("landing was"));
+    assert!(text.contains("defending world initially contained"));
     assert!(text.contains("Friendly losses:"));
     assert!(text.contains("Enemy losses:"));
 
@@ -991,6 +1008,7 @@ fn maint_rust_blitz_success_generates_attacker_side_report() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = String::from_utf8_lossy(&results);
     assert!(text.contains("Blitz mission report"));
+    assert!(text.contains("defending world initially contained"));
     assert!(text.contains("Friendly losses:"));
     assert!(text.contains("Enemy losses:"));
     assert!(text.contains("during the landing"));
@@ -1019,6 +1037,59 @@ fn maint_rust_battle_abort_generates_move_abort_report() {
     assert!(text.contains("Move mission report"));
     assert!(text.contains("abort our mission") || text.contains("abort our"));
     assert!(text.contains("seek safety"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_roe_withdrawal_generates_composition_and_loss_report() {
+    let target = unique_temp_dir("ec-cli-maint-rust-roe-withdrawal");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+    write_mutual_enemy_diplomacy(&target, 1, 2);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let coords = [15, 13];
+
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw(coords);
+    fleet.set_standing_order_kind(Order::PatrolSector);
+    fleet.set_standing_order_target_coords_raw(coords);
+    fleet.set_current_speed(3);
+    fleet.set_destroyer_count(6);
+    fleet.set_cruiser_count(0);
+    fleet.set_battleship_count(0);
+    fleet.set_scout_count(0);
+    fleet.set_troop_transport_count(0);
+    fleet.set_army_count(0);
+    fleet.set_etac_count(0);
+    fleet.set_rules_of_engagement(8);
+
+    let hostile = &mut game_data.fleets.records[4];
+    hostile.set_current_location_coords_raw(coords);
+    hostile.set_standing_order_kind(Order::MoveOnly);
+    hostile.set_standing_order_target_coords_raw(coords);
+    hostile.set_current_speed(3);
+    hostile.set_destroyer_count(2);
+    hostile.set_cruiser_count(2);
+    hostile.set_battleship_count(0);
+    hostile.set_scout_count(0);
+    hostile.set_troop_transport_count(0);
+    hostile.set_army_count(0);
+    hostile.set_etac_count(0);
+    hostile.set_rules_of_engagement(10);
+
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = decode_chunked_report(&results);
+    assert!(text.contains("withdrew under our ROE"));
+    assert!(text.contains("Initial observed hostile composition:"));
+    assert!(text.contains("We observed enemy losses of"));
 
     cleanup_dir(&target);
 }

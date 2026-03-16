@@ -347,6 +347,10 @@ fn ship_loss_summary(losses: ShipLosses) -> String {
     }
 }
 
+fn planet_defense_summary(batteries: u8, armies: u8) -> String {
+    format!("{batteries} ground battery(ies) and {armies} army(ies)")
+}
+
 pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEvents) -> Vec<u8> {
     let mut results = Vec::new();
 
@@ -357,10 +361,15 @@ pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEv
         if let Some(planet) = game_data.planets.records.get(event.planet_idx) {
             let [x, y] = planet.coords_raw();
             let text = format!(
-                "From planet \"{}\" in System({x},{y}): Stardate 1/{}. We have been bombarded by {}. We observed losses of {} ground batteries and {} armies.",
+                "From planet \"{}\" in System({x},{y}): Stardate 1/{}. We have been bombarded by {}. The attacking fleet initially appeared to contain {}. Our defenses initially contained {}. We observed losses of {} ground batteries and {} armies.",
                 planet.planet_name(),
                 game_data.conquest.game_year(),
                 empire_label(game_data, event.attacker_empire_raw),
+                ship_loss_summary(event.attacker_initial),
+                planet_defense_summary(
+                    event.defender_batteries_initial,
+                    event.defender_armies_initial,
+                ),
                 event.defender_battery_losses,
                 event.defender_army_losses,
             );
@@ -382,7 +391,8 @@ pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEv
             "We were forced to disengage.".to_string()
         };
         let text = format!(
-            "From your fleet in System({x},{y}): Fleet battle report. We engaged hostile forces belonging to {enemies}. Friendly losses: {}. Observed enemy losses: {}. {outcome}",
+            "From your fleet in System({x},{y}): Fleet battle report. We engaged hostile forces belonging to {enemies}. Initial observed hostile composition: {}. Friendly losses: {}. Observed enemy losses: {}. {outcome}",
+            ship_loss_summary(event.enemy_initial),
             ship_loss_summary(event.friendly_losses),
             ship_loss_summary(event.enemy_losses),
         );
@@ -486,30 +496,46 @@ pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEv
         };
         let text = match (event.kind, event.outcome) {
             (Mission::InvadeWorld, MissionOutcome::Succeeded) => format!(
-                "From your fleet in System({x},{y}): Invasion mission report: Our armies have captured planet \"{}\". Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                "From your fleet in System({x},{y}): Invasion mission report: Our armies have captured planet \"{}\". The defending world initially contained {}. Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
                 planet.planet_name(),
+                planet_defense_summary(
+                    event.defender_batteries_initial,
+                    event.defender_armies_initial,
+                ),
                 ship_losses,
                 event.attacker_army_losses,
                 event.defender_battery_losses,
                 event.defender_army_losses,
             ),
             (Mission::InvadeWorld, MissionOutcome::Failed) => format!(
-                "From your fleet in System({x},{y}): Invasion mission report: The landing was repulsed. Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                "From your fleet in System({x},{y}): Invasion mission report: The landing was repulsed. The defending world initially contained {}. Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                planet_defense_summary(
+                    event.defender_batteries_initial,
+                    event.defender_armies_initial,
+                ),
                 ship_losses,
                 event.attacker_army_losses,
                 event.defender_battery_losses,
                 event.defender_army_losses,
             ),
             (Mission::InvadeWorld, MissionOutcome::Aborted) => format!(
-                "From your fleet in System({x},{y}): Invasion mission report: Enemy ground batteries prevented a landing. Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                "From your fleet in System({x},{y}): Invasion mission report: Enemy ground batteries prevented a landing. The defending world initially contained {}. Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                planet_defense_summary(
+                    event.defender_batteries_initial,
+                    event.defender_armies_initial,
+                ),
                 ship_losses,
                 event.attacker_army_losses,
                 event.defender_battery_losses,
                 event.defender_army_losses,
             ),
             (Mission::BlitzWorld, MissionOutcome::Succeeded) => format!(
-                "From your fleet in System({x},{y}): Blitz mission report: We have seized planet \"{}\" in a fast assault.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
+                "From your fleet in System({x},{y}): Blitz mission report: We have seized planet \"{}\" in a fast assault. The defending world initially contained {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
                 planet.planet_name(),
+                planet_defense_summary(
+                    event.defender_batteries_initial,
+                    event.defender_armies_initial,
+                ),
                 blitz_cover_note,
                 ship_losses,
                 event.attacker_army_losses,
@@ -518,7 +544,11 @@ pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEv
                 transport_note,
             ),
             (Mission::BlitzWorld, MissionOutcome::Failed) => format!(
-                "From your fleet in System({x},{y}): Blitz mission report: The blitz attack failed.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
+                "From your fleet in System({x},{y}): Blitz mission report: The blitz attack failed. The defending world initially contained {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
+                planet_defense_summary(
+                    event.defender_batteries_initial,
+                    event.defender_armies_initial,
+                ),
                 blitz_cover_note,
                 ship_losses,
                 event.attacker_army_losses,
@@ -639,13 +669,13 @@ pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEv
                 );
                 push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
             }
-            (Mission::RendezvousSector, MissionOutcome::Succeeded) => {
+            (Mission::RendezvousSector, MissionOutcome::Arrived) => {
                 let text = format!(
                     "From your fleet in Sector({x},{y}): Rendezvous mission report: We have arrived at the our rendezvous point and are waiting for more fleets to arrive."
                 );
                 push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
             }
-            (Mission::GuardStarbase, MissionOutcome::Succeeded) => {
+            (Mission::GuardStarbase, MissionOutcome::Arrived) => {
                 let starbase_text = game_data
                     .bases
                     .records
@@ -662,7 +692,7 @@ pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEv
                 );
                 push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
             }
-            (Mission::GuardBlockadeWorld, MissionOutcome::Succeeded) => {
+            (Mission::GuardBlockadeWorld, MissionOutcome::Arrived) => {
                 let text = if let Some(planet_idx) = event.planet_idx {
                     if let Some(planet) = game_data.planets.records.get(planet_idx) {
                         format!(
@@ -680,6 +710,36 @@ pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEv
                     )
                 };
                 push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
+            }
+            (Mission::PatrolSector, MissionOutcome::Arrived) => {
+                let text = format!(
+                    "From your fleet in Sector({x},{y}): Patrol mission report: We have arrived in our assigned sector and are beginning patrol operations."
+                );
+                push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
+            }
+            (Mission::SeekHome, MissionOutcome::Succeeded) => {
+                let text = format!(
+                    "From your fleet in System({x},{y}): Seek Home mission report: We have reached a friendly world and are awaiting new orders."
+                );
+                push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
+            }
+            (Mission::BombardWorld, MissionOutcome::Arrived) => {
+                let text = format!(
+                    "From your fleet in System({x},{y}): Bombardment mission report: We have arrived at our target world and are preparing for bombardment."
+                );
+                push_results_chunked(&mut results, 0x08, RESULTS_TAIL_BOMBARD, &text);
+            }
+            (Mission::InvadeWorld, MissionOutcome::Arrived) => {
+                let text = format!(
+                    "From your fleet in System({x},{y}): Invasion mission report: We have arrived at our target world and are preparing to begin the invasion."
+                );
+                push_results_chunked(&mut results, 0x08, RESULTS_TAIL_INVASION, &text);
+            }
+            (Mission::BlitzWorld, MissionOutcome::Arrived) => {
+                let text = format!(
+                    "From your fleet in System({x},{y}): Blitz mission report: We have arrived at our target world and are preparing to launch the assault."
+                );
+                push_results_chunked(&mut results, 0x08, RESULTS_TAIL_INVASION, &text);
             }
             (Mission::MoveOnly, MissionOutcome::Aborted) => {
                 let destination = fleet.standing_order_target_coords_raw();
@@ -745,8 +805,16 @@ pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEv
                 let text = if let Some(planet_idx) = event.planet_idx {
                     if let Some(planet) = game_data.planets.records.get(planet_idx) {
                         format!(
-                            "From your fleet in System({x},{y}): Bombardment mission report: We have concluded our bombing run against planet \"{}\". Friendly losses: {}. Observed enemy losses: {} ground batteries and {} armies.",
+                            "From your fleet in System({x},{y}): Bombardment mission report: We have concluded our bombing run against planet \"{}\". The defending world initially contained {}. Friendly losses: {}. Observed enemy losses: {} ground batteries and {} armies.",
                             planet.planet_name(),
+                            bombard_event
+                                .map(|e| {
+                                    planet_defense_summary(
+                                        e.defender_batteries_initial,
+                                        e.defender_armies_initial,
+                                    )
+                                })
+                                .unwrap_or_else(|| "unknown defenses".to_string()),
                             bombard_event
                                 .map(|e| ship_loss_summary(e.attacker_losses))
                                 .unwrap_or_else(|| "no ship losses".to_string()),
@@ -888,6 +956,43 @@ pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEv
         push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
     }
 
+    for event in &events.encounter_disposition_events {
+        let text = match *event {
+            ec_data::EncounterDispositionEvent::NoEngagement {
+                coords,
+                target_empire_raw,
+                enemy_initial,
+                ..
+            } => format!(
+                "From your fleet in Sector({},{}) : Fleet encounter report: We detected hostile forces from {} but declined battle under our current ROE. Initial observed hostile composition: {}.",
+                coords[0],
+                coords[1],
+                empire_label(game_data, target_empire_raw),
+                ship_loss_summary(enemy_initial)
+            ),
+            ec_data::EncounterDispositionEvent::Retreated {
+                coords,
+                target_empire_raw,
+                enemy_initial,
+                retreat_target_coords,
+                losses_sustained,
+                enemy_losses_inflicted,
+                ..
+            } => format!(
+                "From your fleet in Sector({},{}) : Fleet encounter report: After engaging hostile forces from {}, we withdrew under our ROE toward System({},{}) after suffering losses of {}. Initial observed hostile composition: {}. We observed enemy losses of {}.",
+                coords[0],
+                coords[1],
+                empire_label(game_data, target_empire_raw),
+                retreat_target_coords[0],
+                retreat_target_coords[1],
+                ship_loss_summary(losses_sustained),
+                ship_loss_summary(enemy_initial),
+                ship_loss_summary(enemy_losses_inflicted)
+            ),
+        };
+        push_results_chunked(&mut results, 0x05, RESULTS_TAIL_FLEET, &text);
+    }
+
     for event in &events.fleet_merge_events {
         let [x, y] = event.coords;
         let text = match event.kind {
@@ -1012,10 +1117,15 @@ pub(crate) fn build_messages_dat(
         if let Some(planet) = game_data.planets.records.get(event.planet_idx) {
             let [x, y] = planet.coords_raw();
             let text = format!(
-                "From planet \"{}\" in System({x},{y}): Stardate 1/{}. We have been bombarded by {}. We observed losses of {} ground batteries and {} armies.",
+                "From planet \"{}\" in System({x},{y}): Stardate 1/{}. We have been bombarded by {}. The attacking fleet initially appeared to contain {}. Our defenses initially contained {}. We observed losses of {} ground batteries and {} armies.",
                 planet.planet_name(),
                 game_data.conquest.game_year(),
                 empire_label(game_data, event.attacker_empire_raw),
+                ship_loss_summary(event.attacker_initial),
+                planet_defense_summary(
+                    event.defender_batteries_initial,
+                    event.defender_armies_initial,
+                ),
                 event.defender_battery_losses,
                 event.defender_army_losses,
             );
@@ -1044,7 +1154,8 @@ pub(crate) fn build_messages_dat(
             "We were forced to disengage.".to_string()
         };
         let text = format!(
-            "From your fleet in System({x},{y}): Fleet battle report. We engaged hostile forces belonging to {enemies}. Friendly losses: {}. Observed enemy losses: {}. {outcome}",
+            "From your fleet in System({x},{y}): Fleet battle report. We engaged hostile forces belonging to {enemies}. Initial observed hostile composition: {}. Friendly losses: {}. Observed enemy losses: {}. {outcome}",
+            ship_loss_summary(event.enemy_initial),
             ship_loss_summary(event.friendly_losses),
             ship_loss_summary(event.enemy_losses),
         );
@@ -1167,30 +1278,46 @@ pub(crate) fn build_messages_dat(
         };
         let text = match (event.kind, event.outcome) {
             (Mission::InvadeWorld, MissionOutcome::Succeeded) => format!(
-                "From your fleet in System({x},{y}): Invasion mission report: Our armies have captured planet \"{}\". Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                "From your fleet in System({x},{y}): Invasion mission report: Our armies have captured planet \"{}\". The defending world initially contained {}. Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
                 planet.planet_name(),
+                planet_defense_summary(
+                    event.defender_batteries_initial,
+                    event.defender_armies_initial,
+                ),
                 ship_losses,
                 event.attacker_army_losses,
                 event.defender_battery_losses,
                 event.defender_army_losses,
             ),
             (Mission::InvadeWorld, MissionOutcome::Failed) => format!(
-                "From your fleet in System({x},{y}): Invasion mission report: The landing was repulsed. Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                "From your fleet in System({x},{y}): Invasion mission report: The landing was repulsed. The defending world initially contained {}. Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                planet_defense_summary(
+                    event.defender_batteries_initial,
+                    event.defender_armies_initial,
+                ),
                 ship_losses,
                 event.attacker_army_losses,
                 event.defender_battery_losses,
                 event.defender_army_losses,
             ),
             (Mission::InvadeWorld, MissionOutcome::Aborted) => format!(
-                "From your fleet in System({x},{y}): Invasion mission report: Enemy ground batteries prevented a landing. Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                "From your fleet in System({x},{y}): Invasion mission report: Enemy ground batteries prevented a landing. The defending world initially contained {}. Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
+                planet_defense_summary(
+                    event.defender_batteries_initial,
+                    event.defender_armies_initial,
+                ),
                 ship_losses,
                 event.attacker_army_losses,
                 event.defender_battery_losses,
                 event.defender_army_losses,
             ),
             (Mission::BlitzWorld, MissionOutcome::Succeeded) => format!(
-                "From your fleet in System({x},{y}): Blitz mission report: We have seized planet \"{}\" in a fast assault.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
+                "From your fleet in System({x},{y}): Blitz mission report: We have seized planet \"{}\" in a fast assault. The defending world initially contained {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
                 planet.planet_name(),
+                planet_defense_summary(
+                    event.defender_batteries_initial,
+                    event.defender_armies_initial,
+                ),
                 blitz_cover_note,
                 ship_losses,
                 event.attacker_army_losses,
@@ -1199,7 +1326,11 @@ pub(crate) fn build_messages_dat(
                 transport_note,
             ),
             (Mission::BlitzWorld, MissionOutcome::Failed) => format!(
-                "From your fleet in System({x},{y}): Blitz mission report: The blitz attack failed.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
+                "From your fleet in System({x},{y}): Blitz mission report: The blitz attack failed. The defending world initially contained {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
+                planet_defense_summary(
+                    event.defender_batteries_initial,
+                    event.defender_armies_initial,
+                ),
                 blitz_cover_note,
                 ship_losses,
                 event.attacker_army_losses,
@@ -1377,14 +1508,14 @@ pub(crate) fn build_messages_dat(
                     mission_location_phrase(event.kind, coords)
                 ),
             ),
-            (Mission::RendezvousSector, MissionOutcome::Succeeded) => (
+            (Mission::RendezvousSector, MissionOutcome::Arrived) => (
                 0x05,
                 RESULTS_TAIL_FLEET,
                 format!(
                     "From your fleet in Sector({x},{y}): Rendezvous mission report: We have arrived at the our rendezvous point and are waiting for more fleets to arrive."
                 ),
             ),
-            (Mission::GuardStarbase, MissionOutcome::Succeeded) => {
+            (Mission::GuardStarbase, MissionOutcome::Arrived) => {
                 let starbase_text = game_data
                     .bases
                     .records
@@ -1404,7 +1535,7 @@ pub(crate) fn build_messages_dat(
                     ),
                 )
             }
-            (Mission::GuardBlockadeWorld, MissionOutcome::Succeeded) => {
+            (Mission::GuardBlockadeWorld, MissionOutcome::Arrived) => {
                 let text = if let Some(planet_idx) = event.planet_idx {
                     if let Some(planet) = game_data.planets.records.get(planet_idx) {
                         format!(
@@ -1423,6 +1554,41 @@ pub(crate) fn build_messages_dat(
                 };
                 (0x05, RESULTS_TAIL_FLEET, text)
             }
+            (Mission::PatrolSector, MissionOutcome::Arrived) => (
+                0x05,
+                RESULTS_TAIL_FLEET,
+                format!(
+                    "From your fleet in Sector({x},{y}): Patrol mission report: We have arrived in our assigned sector and are beginning patrol operations."
+                ),
+            ),
+            (Mission::SeekHome, MissionOutcome::Succeeded) => (
+                0x05,
+                RESULTS_TAIL_FLEET,
+                format!(
+                    "From your fleet in System({x},{y}): Seek Home mission report: We have reached a friendly world and are awaiting new orders."
+                ),
+            ),
+            (Mission::BombardWorld, MissionOutcome::Arrived) => (
+                0x08,
+                RESULTS_TAIL_BOMBARD,
+                format!(
+                    "From your fleet in System({x},{y}): Bombardment mission report: We have arrived at our target world and are preparing for bombardment."
+                ),
+            ),
+            (Mission::InvadeWorld, MissionOutcome::Arrived) => (
+                0x08,
+                RESULTS_TAIL_INVASION,
+                format!(
+                    "From your fleet in System({x},{y}): Invasion mission report: We have arrived at our target world and are preparing to begin the invasion."
+                ),
+            ),
+            (Mission::BlitzWorld, MissionOutcome::Arrived) => (
+                0x08,
+                RESULTS_TAIL_INVASION,
+                format!(
+                    "From your fleet in System({x},{y}): Blitz mission report: We have arrived at our target world and are preparing to launch the assault."
+                ),
+            ),
             (Mission::MoveOnly, MissionOutcome::Aborted) => {
                 let destination = fleet.standing_order_target_coords_raw();
                 let [dx, dy] = destination;
@@ -1494,8 +1660,16 @@ pub(crate) fn build_messages_dat(
                 let text = if let Some(planet_idx) = event.planet_idx {
                     if let Some(planet) = game_data.planets.records.get(planet_idx) {
                         format!(
-                            "From your fleet in System({x},{y}): Bombardment mission report: We have concluded our bombing run against planet \"{}\". Friendly losses: {}. Observed enemy losses: {} ground batteries and {} armies.",
+                            "From your fleet in System({x},{y}): Bombardment mission report: We have concluded our bombing run against planet \"{}\". The defending world initially contained {}. Friendly losses: {}. Observed enemy losses: {} ground batteries and {} armies.",
                             planet.planet_name(),
+                            bombard_event
+                                .map(|e| {
+                                    planet_defense_summary(
+                                        e.defender_batteries_initial,
+                                        e.defender_armies_initial,
+                                    )
+                                })
+                                .unwrap_or_else(|| "unknown defenses".to_string()),
                             bombard_event
                                 .map(|e| ship_loss_summary(e.attacker_losses))
                                 .unwrap_or_else(|| "no ship losses".to_string()),
@@ -1660,6 +1834,58 @@ pub(crate) fn build_messages_dat(
                 )
             }
             _ => continue,
+        };
+        push_routed_message_chunked(
+            &mut messages,
+            game_data,
+            owner_empire_raw,
+            0x05,
+            RESULTS_TAIL_FLEET,
+            &text,
+        );
+    }
+
+    for event in &events.encounter_disposition_events {
+        let (owner_empire_raw, text) = match *event {
+            ec_data::EncounterDispositionEvent::NoEngagement {
+                owner_empire_raw,
+                coords,
+                target_empire_raw,
+                enemy_initial,
+                ..
+            } => (
+                owner_empire_raw,
+                format!(
+                    "From your fleet in Sector({},{}) : Fleet encounter report: We detected hostile forces from {} but declined battle under our current ROE. Initial observed hostile composition: {}.",
+                    coords[0],
+                    coords[1],
+                    empire_label(game_data, target_empire_raw),
+                    ship_loss_summary(enemy_initial)
+                ),
+            ),
+            ec_data::EncounterDispositionEvent::Retreated {
+                owner_empire_raw,
+                coords,
+                target_empire_raw,
+                enemy_initial,
+                retreat_target_coords,
+                losses_sustained,
+                enemy_losses_inflicted,
+                ..
+            } => (
+                owner_empire_raw,
+                format!(
+                    "From your fleet in Sector({},{}) : Fleet encounter report: After engaging hostile forces from {}, we withdrew under our ROE toward System({},{}) after suffering losses of {}. Initial observed hostile composition: {}. We observed enemy losses of {}.",
+                    coords[0],
+                    coords[1],
+                    empire_label(game_data, target_empire_raw),
+                    retreat_target_coords[0],
+                    retreat_target_coords[1],
+                    ship_loss_summary(losses_sustained),
+                    ship_loss_summary(enemy_initial),
+                    ship_loss_summary(enemy_losses_inflicted)
+                ),
+            ),
         };
         push_routed_message_chunked(
             &mut messages,
