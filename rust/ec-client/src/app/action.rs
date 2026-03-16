@@ -26,6 +26,7 @@ pub enum Action {
     OpenFleetHelp,
     OpenFleetMenu,
     OpenFleetList(FleetListMode),
+    OpenFleetReviewSelect,
     OpenFleetReview,
     OpenFleetRoeSelect,
     OpenFleetDetach,

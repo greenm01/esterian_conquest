@@ -119,6 +119,7 @@ pub enum ScreenId {
     FleetHelp,
     FleetMenu,
     FleetList(FleetListMode),
+    FleetReviewSelect,
     FleetReview,
     FleetRoeSelect,
     FleetDetach,

@@ -470,6 +470,11 @@ impl App {
                 self.fleet_scroll_offset,
                 self.fleet_cursor,
             )?,
+            ScreenId::FleetReviewSelect => self.fleet_review.render_select(
+                &self.fleet_rows(),
+                self.fleet_scroll_offset,
+                self.fleet_cursor,
+            )?,
             ScreenId::FleetReview => {
                 let rows = self.fleet_rows();
                 let row = rows
@@ -997,6 +1002,22 @@ impl App {
         self.clear_command_menu_notice();
         self.fleet_review_index = self.fleet_cursor.min(total - 1);
         self.current_screen = ScreenId::FleetReview;
+    }
+
+    pub fn open_fleet_review_select(&mut self) {
+        let total = self.fleet_rows().len();
+        if total == 0 {
+            self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
+            return;
+        }
+        self.clear_command_menu_notice();
+        self.fleet_cursor = self.fleet_cursor.min(total - 1);
+        sync_scroll_to_cursor(
+            &mut self.fleet_scroll_offset,
+            self.fleet_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+        );
+        self.current_screen = ScreenId::FleetReviewSelect;
     }
 
     pub fn open_fleet_roe_select(&mut self) {
@@ -2751,6 +2772,7 @@ impl App {
             ScreenId::FleetHelp => self.fleet_help.handle_key(key),
             ScreenId::FleetMenu => self.fleet_menu.handle_key(key),
             ScreenId::FleetList(_) => self.fleet_list.handle_key(key),
+            ScreenId::FleetReviewSelect => self.fleet_list.handle_key(key),
             ScreenId::FleetReview => self.fleet_review.handle_key(key),
             ScreenId::FleetRoeSelect => self.handle_fleet_roe_key(key),
             ScreenId::FleetDetach => self.handle_fleet_detach_key(key),
@@ -2977,6 +2999,7 @@ impl App {
             ScreenId::FleetHelp
             | ScreenId::FleetMenu
             | ScreenId::FleetList(_)
+            | ScreenId::FleetReviewSelect
             | ScreenId::FleetReview
             | ScreenId::FleetRoeSelect
             | ScreenId::FleetDetach

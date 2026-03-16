@@ -168,7 +168,7 @@ impl Screen for FleetMenuScreen {
         match key.code {
             KeyCode::Char('b') | KeyCode::Char('B') => Action::OpenFleetList(FleetListMode::Brief),
             KeyCode::Char('f') | KeyCode::Char('F') => Action::OpenFleetList(FleetListMode::Full),
-            KeyCode::Char('r') | KeyCode::Char('R') => Action::OpenFleetReview,
+            KeyCode::Char('r') | KeyCode::Char('R') => Action::OpenFleetReviewSelect,
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenMainMenu,
             KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenFleetHelp,
             KeyCode::Char('s') | KeyCode::Char('S') => Action::Noop, // Starbase menu - TODO
@@ -282,6 +282,62 @@ impl FleetListScreen {
 impl FleetReviewScreen {
     pub fn new() -> Self {
         Self
+    }
+
+    pub fn render_select(
+        &mut self,
+        rows: &[FleetRow],
+        scroll_offset: usize,
+        cursor: usize,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        buffer.fill_row(0, classic::menu_style());
+        buffer.write_text(0, 0, "REVIEW A FLEET:", classic::title_style());
+        let max_fleet_number = max_fleet_number(rows);
+        let brief_columns = brief_columns(max_fleet_number);
+        draw_status_line(
+            &mut buffer,
+            1,
+            "",
+            "Select a fleet, then press ENTER to review its status and composition.",
+        );
+        let table_rows = rows
+            .iter()
+            .map(|row| {
+                vec![
+                    format_fleet_number(row.fleet_number, max_fleet_number),
+                    format_sector_coords_padded(row.coords),
+                    format!("{}/{}", row.current_speed, row.max_speed),
+                    row.rules_of_engagement.to_string(),
+                    row.composition_label.clone(),
+                ]
+            })
+            .collect::<Vec<_>>();
+        write_table_window_with_cursor(
+            &mut buffer,
+            3,
+            &brief_columns,
+            &table_rows,
+            scroll_offset,
+            FLEET_VISIBLE_ROWS,
+            classic::status_value_style(),
+            classic::status_value_style(),
+            if table_rows.is_empty() {
+                None
+            } else {
+                Some(cursor)
+            },
+        );
+        if table_rows.is_empty() {
+            draw_command_line_text(
+                &mut buffer,
+                "FLEET COMMAND",
+                "You have no active fleets. Q quits.",
+            );
+        } else {
+            draw_command_prompt(&mut buffer, 19, "FLEET COMMAND", "ARROWS J K ENTER Q");
+        }
+        Ok(buffer)
     }
 
     pub fn render(

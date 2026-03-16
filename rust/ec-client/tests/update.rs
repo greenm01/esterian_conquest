@@ -303,6 +303,11 @@ fn apply_action_switches_between_client_screens() {
     );
 
     assert_eq!(
+        apply_action(&mut app, Action::OpenFleetReviewSelect),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetReviewSelect);
+    assert_eq!(
         apply_action(&mut app, Action::OpenFleetReview),
         AppOutcome::Continue
     );
@@ -923,6 +928,20 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     );
     assert_eq!(app.current_screen(), ScreenId::FleetReview);
     assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('r'))),
+        Action::OpenFleetReviewSelect
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetReviewSelect),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetReviewSelect);
+    assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
         Action::OpenFleetMenu
     );
@@ -1393,6 +1412,7 @@ fn command_menus_render_without_crashing_for_empty_empire_state() {
         Action::OpenFleetMenu,
         Action::OpenFleetList(FleetListMode::Brief),
         Action::OpenFleetList(FleetListMode::Full),
+        Action::OpenFleetReviewSelect,
         Action::OpenFleetReview,
         Action::OpenFleetRoeSelect,
         Action::OpenFleetDetach,
@@ -1417,6 +1437,42 @@ fn command_menus_render_without_crashing_for_empty_empire_state() {
         app.render(&mut terminal)
             .expect("screen should render without crashing");
     }
+}
+
+#[test]
+fn fleet_review_opens_with_a_selection_table_first() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetReviewSelect),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetReviewSelect);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet review select should render");
+    assert_eq!(terminal.line(0).trim_end(), "REVIEW A FLEET:");
+    assert!(
+        terminal
+            .line(1)
+            .contains("Select a fleet, then press ENTER to review its status")
+    );
+    assert_eq!(
+        terminal.line(19).trim_end(),
+        "FLEET COMMAND <-ARROWS J K ENTER Q->"
+    );
 }
 
 #[test]

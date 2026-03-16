@@ -93,6 +93,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_fleet_list(mode);
             AppOutcome::Continue
         }
+        Action::OpenFleetReviewSelect => {
+            app.open_fleet_review_select();
+            AppOutcome::Continue
+        }
         Action::OpenFleetReview => {
             app.open_fleet_review();
             AppOutcome::Continue
