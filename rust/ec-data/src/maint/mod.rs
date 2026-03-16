@@ -1315,6 +1315,7 @@ fn process_fleet_movement(
                             location_coords: Some([target_x, target_y]),
                             target_coords: Some([target_x, target_y]),
                         });
+                        set_fleet_to_deep_space_hold(&mut game_data.fleets.records[i]);
                     }
                     Order::Salvage => {
                         let planet_idx = game_data
@@ -1509,6 +1510,14 @@ fn resolve_salvage_arrival(
         coords,
         recovered_points,
     })
+}
+
+fn set_fleet_to_deep_space_hold(fleet: &mut crate::FleetRecord) {
+    let coords = fleet.current_location_coords_raw();
+    fleet.set_current_speed(0);
+    fleet.set_standing_order_kind(Order::HoldPosition);
+    fleet.set_standing_order_target_coords_raw(coords);
+    fleet.set_tuple_c_payload_raw([0x81, 0x00, 0x00, 0x00, 0x00]);
 }
 
 fn remap_movement_event_fleet_indices_after_removal(

@@ -318,6 +318,15 @@ fn test_view_world_arrival_emits_success_and_intel_event() {
             && event.outcome == MissionOutcome::Succeeded
             && event.planet_idx == Some(13)
     }));
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_kind(),
+        Order::HoldPosition
+    );
+    assert_eq!(game_data.fleets.records[0].current_speed(), 0);
+    assert_eq!(
+        game_data.fleets.records[0].tuple_c_payload_raw(),
+        [0x81, 0x00, 0x00, 0x00, 0x00]
+    );
 }
 
 #[test]

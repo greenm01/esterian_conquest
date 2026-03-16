@@ -820,6 +820,67 @@ fn maint_rust_guard_blockade_generates_arrival_report() {
 }
 
 #[test]
+fn maint_rust_salvage_generates_report_and_removes_fleet() {
+    let target = unique_temp_dir("ec-cli-maint-rust-salvage");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let (planet_idx, target_coords) = game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() == 1)
+        .map(|(idx, planet)| (idx, planet.coords_raw()))
+        .expect("fixture should contain an owned planet");
+    let start_coords = if target_coords[0] > 1 {
+        [target_coords[0] - 1, target_coords[1]]
+    } else {
+        [target_coords[0] + 1, target_coords[1]]
+    };
+    let stored_before = game_data.planets.records[planet_idx].stored_production_points();
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw(start_coords);
+    fleet.set_standing_order_kind(Order::Salvage);
+    fleet.set_standing_order_target_coords_raw(target_coords);
+    fleet.set_current_speed(3);
+    fleet.set_destroyer_count(1);
+    fleet.set_cruiser_count(1);
+    fleet.set_battleship_count(0);
+    fleet.set_scout_count(0);
+    fleet.set_troop_transport_count(0);
+    fleet.set_army_count(0);
+    fleet.set_etac_count(0);
+    fleet.raw[0x0d] = 0x80;
+    fleet.raw[0x0f] = 0;
+    fleet.raw[0x19] = 0x00;
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+    let db_path = target.join("ecgame.db");
+    if db_path.exists() {
+        fs::remove_file(&db_path).expect("stale ecgame.db should be removable");
+    }
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("Salvage mission report"));
+    assert!(text.contains("yield 10 production point(s)"));
+
+    let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
+    assert_eq!(game_data.fleets.records.len(), 15);
+    assert_eq!(
+        game_data.planets.records[planet_idx].stored_production_points(),
+        stored_before + 10
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_bombardment_generates_attacker_side_report() {
     let target = unique_temp_dir("ec-cli-maint-rust-bombard-report");
     copy_fixture_dir("fixtures/ecmaint-bombard-arrive/v1.5", &target);

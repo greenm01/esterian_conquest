@@ -80,9 +80,13 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
             .extend(events.fleet_merge_events);
         all_events.join_host_events.extend(events.join_host_events);
         all_events
+            .mission_retarget_events
+            .extend(events.mission_retarget_events);
+        all_events
             .colonization_events
             .extend(events.colonization_events);
         all_events.mission_events.extend(events.mission_events);
+        all_events.salvage_events.extend(events.salvage_events);
         all_events
             .diplomatic_escalation_events
             .extend(events.diplomatic_escalation_events);
