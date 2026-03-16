@@ -89,6 +89,17 @@ Today the Rust side can:
   player TUI or Rust maintenance runtime
 - create default `sysop new-game` directories that `ECGAME` can actually join
   through the original onboarding flow
+- enforce major player-input legality in the shared Rust engine instead of
+  trusting the player client:
+  - fleet orders and mission payloads
+  - fleet ROE, speed, and transport-army consistency
+  - build queue and stardock payloads
+  - tax-rate inputs
+  - stored diplomacy inputs
+  - commission ownership / stardock actions
+- sanitize malformed player-authored state during `maint-rust` instead of
+  panicking or silently executing illegal effects
+- emit maintenance reports when invalid player input is canceled or corrected
 - provide a growing Rust player client with working startup flow and real
   command-center coverage for:
   - General Command
@@ -110,11 +121,24 @@ In plain terms:
 
 - Rust is no longer just a scenario generator or fixture toy
 - `rust-maint` is usable as a real campaign engine
+- the maintenance engine is now the authority for the major gameplay inputs it
+  consumes; frontend validation is convenience, not the trust boundary
 - the Rust client is no longer speculative UI work; it is actively replacing
   `ECGAME` screen by screen and command by command
 - the runtime architecture has already crossed the important boundary:
   `ec-client` and `maint-rust` are SQLite-native, while `ec-cli` remains the
   explicit `.DAT` compatibility bridge
+
+Maintenance engine status, approximately:
+
+- valid mission behavior against `ECPLAYER.DOC`: `A`
+- engine authority / invalid-input resistance: `A+`
+- overall maintenance-engine status: `A+`
+
+That does not mean every client/menu path is finished. It means the engine is
+now in the shape we need for Phase 1: shared rules live in `ec-data`, malformed
+player state is audited and sanitized in maint, and the CLI path has
+deterministic malformed-directory stress coverage.
 
 Player client status, approximately:
 
