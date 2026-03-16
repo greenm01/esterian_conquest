@@ -5743,39 +5743,69 @@ Practical consequence:
 - treat this as a known `v1.51` reporting bug, not as intended salvage
   semantics
 
-### Ambiguous / still needs escalation: `Join another fleet` hot pursuit
+### `Join another fleet` hot pursuit is now confirmed from a player-authored classic probe
 
-Controlled probe:
+The earlier raw-crafted join probes were too brittle to settle the rule, so the
+next escalation used live `ECGAME` order entry through the local BBS door and
+then original `ECMAINT` on the same campaign state.
 
-- source baseline: `fixtures/ecmaint-post/v1.5`
-- raw-crafted setup:
-  - fleet 1 at `(16,13)` ordered to `Join another fleet`
-  - host fleet 2 started at `(19,13)` and moved toward `(22,13)`
+Working classic setup:
 
-Observed original result across three maint turns:
+- live mutable directory: `original/v1.5`
+- active joined empire:
+  - player slot 2
+  - handle summary: `SYSOP`
+  - empire name: `foo`
+- player-authored orders in classic `ECGAME`:
+  - visible fleet `1`: `Move Fleet` to `(11,12)` at speed `3`
+  - visible fleet `2`: `Join Another Fleet`, host fleet `1`, speed `3`
 
-- turn 1:
-  - joiner moved from `(16,13)` to `(18,13)`
-  - target stayed `(19,13)`
-  - mission aux byte `0x22` unexpectedly changed from `2` to `1`
-- turn 2:
-  - joiner moved to `(19,13)`
-  - host reached `(22,13)` and stopped
-- turn 3:
-  - no further fleet changes occurred
+Classic pre-maint encoding after order entry:
 
-Why this is still ambiguous:
+- moving host fleet record:
+  - structural fleet id `2`
+  - local slot `1`
+  - current location `(8,12)`
+  - order `1` (`Move Fleet`)
+  - target `(11,12)`
+- joining fleet record:
+  - structural fleet id `3`
+  - local slot `2`
+  - current location `(6,12)`
+  - order `13` (`Join another fleet`)
+  - target `(8,12)` = host fleet's current live location at order-entry time
+  - mission aux bytes `00 01`
+    - `aux1 = 1` is the player-facing host fleet number entered in `ECGAME`
 
-- this setup was raw-crafted rather than built from a known accepted join
-  scenario
-- the unexplained `0x22: 2 -> 1` rewrite means the probe may have violated an
-  unresolved classic linkage rule
+Classic maintenance result after one `ECMAINT` turn:
 
-Practical consequence:
+- host fleet reached `(11,12)` and changed to `Hold position`
+- joining fleet moved from `(6,12)` to `(8,12)`
+- joining fleet target was rewritten from `(8,12)` to `(11,12)`
 
-- do **not** promote this to a settled rule yet
-- next escalation should use a stronger preserved/player-driven join setup, and
-  probably `ECGAME`/door-side probing if needed
+Classic maintenance result after the following `ECMAINT` turn:
+
+- the join completed at `(11,12)`
+- the host fleet absorbed the joining fleet
+- host composition increased from:
+  - `SC=70 CA=1 ET=1`
+  - to `SC=70 CA=2 ET=2`
+- the separate joining fleet record disappeared from the active fleet chain
+
+Conclusion:
+
+- classic `Join another fleet` is definitively a live semantic-target mission
+- `ECGAME` stores:
+  - host fleet number in mission aux
+  - the host's current coordinates as the initial target snapshot
+- `ECMAINT` then refreshes the joiner's target to the host's new live location
+  on later turns
+- the joiner continues pursuit until merge or later mission failure
+
+Reporting note:
+
+- this successful pursuit/merge path did **not** emit new `MESSAGES.DAT`
+  payload in the sampled live oracle run
 
 ### Follow-up: direct raw join probes stayed too brittle to settle the rule
 
@@ -5826,3 +5856,352 @@ Practical conclusion:
   reproduced it from preserved or direct `ECMAINT` battle setups
 - keep the question open and avoid promoting classic wording/timing claims until
   a live or preserved classic case is captured
+
+### Surviving ROE-style fleet withdrawal is now confirmed from a live classic probe
+
+The earlier sweeps failed to surface a surviving withdrawal report, but a
+player-authored live `ECGAME` + `ECMAINT` probe in the mutable
+`original/v1.5` campaign did.
+
+Working setup:
+
+- active joined empire:
+  - player slot 2
+  - handle summary: `SYSOP`
+  - empire name: `foo`
+- player-authored changes in classic `ECGAME`:
+  - declared `Empire Of Dust` (Empire #1) an `ENEMY`
+  - set local fleet `1` ROE to `4`
+  - moved that fleet into `(16,13)` and later ordered it to
+    `Bombard a World` at `(16,13)`
+
+Classic maintenance result:
+
+- defender side:
+  - Starbase 1 at `(16,13)` reported sighting the alien fleet and alerting
+    nearby forces
+  - the defending guard-starbase fleet intercepted and fought
+- attacker side:
+  - the bombardment fleet survived but scattered
+  - mission changed from `Bombard` to `Seek Home`
+  - destination changed to friendly planet `fooville` in system `(6,12)`
+  - surviving fleet state after maint:
+    - still alive
+    - location `(14,13)`
+    - composition reduced from `2 cruisers + 2 ETAC` to `2 ETAC`
+
+Classic player-facing bombardment retreat report text:
+
+- `Bombardment mission report: We were attacked by the 1st Fleet of`
+- `"Empire Of Dust", (Empire #1) in System(16,13).`
+- `Our force contained 2 cruisers and 2 ETAC ships.`
+- `Alien force contained 9 battleships, 12 cruisers, 12 destroyers and 2 ETAC ships.`
+- `To avoid the total destruction of our fleet, we were forced to scatter.`
+- `However, we were able to destroy 1 destroyer.`
+- `We lost 2 cruisers.`
+- `After reassembling our fleet, we've decided to abort our mission of bombarding the world in System(16,13) and to seek the safety of a friendly controlled solar system at maximum speed.`
+- `Until ordered otherwise, we are going to avoid contact with alien crafts.`
+- `Our new destination is planet "fooville", located in System(6,12).`
+
+Practical conclusions:
+
+- surviving retreat/withdrawal after combat is definitively real in classic
+- the player receives a detailed report when that happens
+- the report includes:
+  - enemy composition seen
+  - own composition seen
+  - enemy losses inflicted
+  - own losses
+  - explicit mission abort
+  - retreat destination
+  - avoidance/withdrawal wording
+- the post-combat retreat path semantically becomes `Seek Home`
+
+### Follow-up: `ecmaint-fleet-battle-pre` is not a valid returning-player `ECGAME` fixture
+
+Manual live probe through the local BBS / `ECGAME` path:
+
+- launched `ECGAME` against the preserved maint/combat fixture
+  `fixtures/ecmaint-fleet-battle-pre/v1.5`
+- caller identity was the local BBS test user
+- classic did **not** treat player slot 2 (`FOO` / empire `foo`) as an existing
+  joined player
+- instead it entered the `FIRST TIME COMMAND` flow
+
+Observed first-time `L` listing:
+
+- only one currently player-owned empire was shown:
+  - `Empire Of Dust`
+  - `ID 1`
+  - `ALIVE`
+- footer text said:
+  - space reserved for `4` empires
+  - currently `1 of the 4` empires is owned by a player
+  - `You can join this game if you wish by picking the "J" option.`
+
+Observed `J` behavior:
+
+- classic immediately prompted for a new empire name
+- it did **not** offer to attach to preserved slot 2 / empire `foo`
+
+Practical conclusion:
+
+- the raw preserved state in `PLAYER.DAT` is not sufficient for classic
+  `ECGAME` to recognize a slot as an existing returning-player login
+- there is at least one additional join-state/client gate beyond:
+  - `assigned_player_flag`
+  - assigned player handle
+  - empire name text
+- therefore `fixtures/ecmaint-fleet-battle-pre/v1.5` should currently be
+  treated as:
+  - a valid maint/combat oracle fixture
+  - **not** a valid returning-player `ECGAME` fixture
+
+Implication for Rust:
+
+- do not let the Rust client decide "joined returning player" from raw
+  `PLAYER.DAT` assigned-player fields alone
+- preserve the distinction between:
+  - joinable/classic-first-time `ECGAME` starts
+  - maint-valid but not login-valid preserved battle fixtures
+
+Next oracle step for `Join another fleet`:
+
+- stop trying to drive that question from `ecmaint-fleet-battle-pre` through
+  the login UI
+- instead use a truly joinable `ECGAME` baseline, perform a real player join,
+  then issue the join-fleet order through classic menus before running
+  `ECMAINT`
+
+### `ECGAME` first-time `List Empires` screen is a styled report, not a plain dump
+
+Live `ECGAME` first-time-menu probe from the local BBS door captured the
+current `L` / "List Empires" presentation.
+
+Useful player-facing details to preserve for the Rust client later:
+
+- inline command prompt format:
+  - `FIRST TIME COMMAND <-H Q L J A V-> l`
+- large 4-line ASCII-art report title above the empire table
+  - current captured glyph block:
+    - `█▀▀ ▀▀█▀▀ █▀▀█ █▀▀█ █▀▀▄ █▀▀█ ▀▀█▀▀ █▀▀       ▀▀█ █▀█ ▀▀█ ▀▀█`
+    - `█▄▄   █   █  █ █  █ █  █ █  █   █   █▄  ▄     ▄▄█ █ █ ▄▄█ ▄▄█`
+    - `  █   █   █▀▀█ █▀█▀ █  █ █▀▀█   █   █           █ █ █ █   █`
+    - `▄▄█   █   █  █ █ █▄ █▄▄█ █  █   █   █▄▄ ▀     ▄▄█ █▄█ █▄▄ █▄▄`
+  - this is not just a heading string; it is a stylized title treatment that
+    should be preserved or intentionally reinterpreted in the Rust client
+- note line immediately under the title:
+  - `NOTE: Previous Year's Information is Parenthesized.`
+- framed table presentation with columns:
+  - `Empire Name`
+  - `ID`
+  - `Planets Owned`
+  - `Current Production`
+  - `Status`
+- footer summary text under the table:
+  - total reserved empires in the game
+  - current count of player-owned empires
+  - explicit instruction that `J` can be used to join
+- closing prompt:
+  - `(Press Return)`
+
+Practical implication:
+
+- for the Rust client, the first-time empire list should be treated as a
+  report-style screen with classic framing/copy and title art, not as a bare
+  data table
+- this is a UI-reference finding, not a new gameplay-rule claim
+
+### Local BBS door wrapper writes live player joins into `original/v1.5`
+
+Follow-up inspection after a successful manual join through the local BBS door:
+
+- the join did **not** persist into the temporary local test directory
+  `/tmp/ecgame-oracle-joinable`
+- the active BBS wrapper was still mounting the repo's shipped sample
+  directory `original/v1.5`
+- inspecting `original/v1.5` after the join showed the new player state there
+
+Observed persisted state in `original/v1.5`:
+
+- player slot 2 is now active and stable:
+  - handle summary: `SYSOP`
+  - empire name: `foo`
+  - tax: `50`
+  - stored production: `3022`
+- `PLAYER.DAT`, `PLANETS.DAT`, `FLEETS.DAT`, and `DATABASE.DAT` all changed on
+  disk during the live door session
+
+Important wrapper/client implication:
+
+- the local Enigma BBS door harness is not currently a neutral oracle against a
+  caller-selected temp game directory
+- it is mutating the mounted directory configured by `tools/bbs/run_ec_dos.sh`,
+  which currently points at `original/v1.5`
+
+Important identity implication:
+
+- the persisted joined handle became `SYSOP`, not the external BBS username
+  `mag`
+- this matches the current wrapper/dropfile path more than the actual Enigma
+  caller identity and means the local BBS oracle is currently using a
+  simplified/fixed caller identity for classic joins
+
+Practical consequence:
+
+- for future live BBS oracle probes, either:
+  - repoint the wrapper at a disposable copied game directory first, or
+  - treat `original/v1.5` as mutable scratch state and snapshot it before/after
+- do not assume the BBS oracle is exercising per-caller identity faithfully
+  until the wrapper/dropfile handoff is tightened
+
+### Returning-player `ECGAME` recognition is gated by caller-handle match, then a pre-loaded first-login flow
+
+Follow-up live/local probe after the failing `FOO` fixture:
+
+- copied `fixtures/ecmaint-fleet-battle-pre/v1.5` to a temp directory
+- changed only player slot 2's persisted handle from `FOO` to `SYSOP`
+- left the rest of the active campaign state intact
+- launched local `ECGAME` with the normal generated `CHAIN.TXT`
+  - current helper default alias is `Sysop`
+
+Observed result:
+
+- classic no longer entered the `FIRST TIME MENU`
+- instead it treated the matched slot as a returning player and ran the
+  post-intro onboarding flow
+
+This is materially stronger evidence that the classic client's first-time vs
+returning-player branch depends on caller identity matching the persisted
+player handle, not just on active `PLAYER.DAT` ownership bytes.
+
+Observed flow for a matched pre-loaded player:
+
+1. intro pages run first
+2. then classic prints:
+   - `, you are a pre-loaded player and this is your first time on.`
+   - `Your empire has been pre-named as "foo".`
+   - `Would you like to rename your empire? (This is your only chance.) Y/[N] ->`
+3. after that prompt, classic shows the usual identity/year/minutes/autopilot
+   status screen:
+   - `, you are "foo", (Empire #2)`
+   - `The year is: 3010 A.D.`
+   - `Last year on: NEVER`
+   - `You have 57 minutes left to play.`
+   - `Autopilot is off.`
+4. then classic checks for pending reports and messages
+   - in this probe:
+     - `, you have no reports pending.`
+     - `, you have no messages pending.`
+5. then classic still asks the player to name the preloaded homeworld:
+   - `You have a world in the solar system at X=4, Y=13. Its current production`
+   - `level is 100 out of a possible 100 points, (100% efficiency).`
+   - `Name this world (20 characters or less) ->`
+6. after homeworld naming confirmation, classic enters `MAIN MENU`
+
+Practical conclusions:
+
+- `ECGAME` login recognition has at least two relevant client-side gates:
+  - caller/dropfile identity must match the persisted player handle strongly
+    enough to escape the first-time menu
+  - after a successful match, classic can still route into a distinct
+    `pre-loaded player and this is your first time on` onboarding path before
+    normal menu play
+- raw active player state in `PLAYER.DAT` is not enough by itself to decide
+  whether Rust should show:
+  - first-time menu
+  - pre-loaded first-login onboarding
+  - normal joined-player login flow
+
+Implication for Rust client work:
+
+- treat caller identity matching as part of login-state resolution
+- model at least three startup branches:
+  - no matching joined player -> first-time menu
+  - matching pre-loaded player first login -> intro -> one-time empire rename
+    prompt -> reports/messages -> homeworld naming -> main menu
+  - established joined player -> reports/messages review and normal main menu
+
+### Owned-world fleet salvage succeeds in classic and is reported as an estimated production yield
+
+Follow-up live probe in the mutable `original/v1.5` campaign:
+
+- starting state:
+  - active player slot 2 / empire `foo`
+  - surviving post-bombard fleet was already on a classic `Seek Home` path
+    toward `fooville` in system `(6,12)`
+- mutated that live fleet to a `Salvage` mission targeting owned world
+  `(6,12)`
+- advanced classic `ECMAINT` turn-by-turn until arrival
+
+Observed classic behavior:
+
+- classic accepted the salvage order on an owned world
+- maintenance moved the fleet toward `(6,12)` over multiple turns exactly like
+  another movement-based mission
+- on arrival, the fleet record disappeared from the active fleet chain
+- `RESULTS.DAT` gained a new player-visible report:
+  - `Salvage mission report: We have arrived at planet "fooville" in`
+  - `System(6,12) and have begun salvaging our fleet.`
+  - `We estimate that our fleet will yield 20 production point(s).`
+
+Practical conclusions:
+
+- owned-world salvage is now directly confirmed from classic behavior, not just
+  inferred from common sense
+- foreign-world salvage failure and empty-target failure were already
+  confirmed earlier
+- together, the classic rule is now strongly:
+  - owned world -> valid salvage path
+  - non-owned world -> fail and seek home
+  - empty target -> fail with the known wrong v1.51 text and seek home
+
+One accounting detail remains open:
+
+- the report clearly exposes an estimated production yield (`20` points in this
+  case)
+- the exact classic destination/storage field for those recovered points is not
+  yet cleanly decoded from this probe alone
+- do not promote a byte-level accounting claim from this one run yet; keep the
+  semantic result settled and the final point-accounting field open
+
+Follow-up accounting isolate from `/tmp/salvage-account-pre` ->
+`/tmp/salvage-account-post`:
+
+- replayed the same active-campaign salvage order in an isolated before/after
+  pair until classic removed the fleet and emitted the success report
+- semantic outcome stayed consistent:
+  - year advanced from `3030` -> `3034`
+  - salvage fleet disappeared
+  - owned world `fooville` remained the target world
+  - classic report still estimated `20 production point(s)`
+
+Observed byte-level clues:
+
+- `PLAYER.DAT` player-2 `stored_prod_pts_raw` stayed unchanged at `3029`
+  throughout this replay
+  - so the recovered salvage points are **not** obviously being deposited into
+    the player's `stored_production_pts_raw` field
+- `PLANETS.DAT` record 13 (`fooville` at `(6,12)`) changed in the putative
+  stored-goods region:
+  - pre bytes `0x0A..0x0F`: `00 00 00 80 59 08`
+  - post bytes `0x0A..0x0F`: `00 00 00 C0 23 08`
+  - under the current Rust raw accessor this looks like:
+    - pre `stored_goods_raw = 0x80000000`
+    - post `stored_goods_raw = 0xC0000000`
+- `DATABASE.DAT` also changed in the same replay around the owning-planet row:
+  - representative region near offset `1520`:
+    - pre:  `00 8a 46 01 d5 0b d5 0b 00 00 64 64 41 00 ff 00 00 e1 00 17 00 d5 0b 00`
+    - post: `00 8a 46 01 d9 0b d9 0b 00 00 64 64 41 00 ff 00 00 04 01 1a 00 d9 0b 00`
+
+Current best interpretation:
+
+- the accounting destination is more likely planet-scoped than player-scoped
+- however, the changed bytes are **not** yet a clean plain-integer `+20`
+  counter under current field assumptions
+- this may mean either:
+  - the relevant storage field is not yet decoded correctly, or
+  - the visible reported salvage estimate is not written as a simple integer in
+    the same turn
+
+Keep the semantic rule settled and the accounting encoding unresolved.

@@ -22,7 +22,7 @@ The maintenance engine is also now on much firmer authority footing:
 Current grade:
 
 - maintenance engine authority / invalid-input resistance: `A+`
-- maintenance engine behavior against `ECPLAYER.DOC`: `A`
+- maintenance engine behavior against `ECPLAYER.DOC`: `A+`
 - overall `rust-maint` status: `A+`
 
 Latest oracle signal against the remaining manual-adjacent fleet assumptions:
@@ -33,16 +33,43 @@ Latest oracle signal against the remaining manual-adjacent fleet assumptions:
   - invalid guard-starbase linkage aborts with `ERRORS.TXT`
   - patrol/contact reports include actionable hostile composition
   - battle-loss reports include observed enemy composition and enemy losses inflicted
+  - owned-world `Salvage` succeeds from a live classic probe:
+    - the fleet moves to the owned world
+    - the fleet is removed on arrival
+    - classic reports an estimated recovered production yield
   - salvage failure at non-owned targets aborts and seeks home
+  - `Join another fleet` hot pursuit is now confirmed from a player-authored
+    classic `ECGAME` + `ECMAINT` probe:
+    - `ECGAME` stores the host fleet number in mission aux and snapshots the
+      host's current coordinates
+    - later `ECMAINT` turns refresh the joiner's target to the host's new live
+      location
+    - on arrival, the host absorbs the joining fleet
+  - surviving retreat after fleet combat is now confirmed from a player-authored
+    classic bombardment probe:
+    - the surviving fleet aborted its mission
+    - switched to a seek-home retreat
+    - reported enemy composition, enemy losses inflicted, own losses, and the
+      named retreat destination
 - confirmed known classic defect:
   - empty-sector salvage reuses the wrong failure text
     (`Since we no longer own the world...`) even when no world exists there
-- still unresolved:
-  - `Join another fleet` hot pursuit from a raw-crafted setup stayed ambiguous,
-    so manual-only fleet behavior is still `A` rather than `A+`
-  - a clean classic surviving-ROE-withdrawal report is still not captured;
-    current oracle evidence only confirms no-engagement contact reports,
-    mission-abort-after-loss reports, and outright destruction reports
+- confirmed in live `ECGAME` login probing:
+  - `fixtures/ecmaint-fleet-battle-pre/v1.5` is maint-valid but not a valid
+    returning-player client fixture when the persisted handle does not match the
+    caller/dropfile identity:
+    - classic enters the first-time menu
+  - changing only the persisted slot-2 handle from `FOO` to `SYSOP`
+    (matching the generated `CHAIN.TXT` alias) is enough to flip classic into
+    a matched pre-loaded-player path
+  - that matched path is distinct from both the first-time menu and the normal
+    established-player login:
+    - intro pages
+    - one-time empire rename prompt
+    - status screen
+    - report/message review
+    - homeworld naming
+    - then `MAIN MENU`
 
 It can currently:
 
@@ -167,22 +194,32 @@ Primary goal:
   proven byte-for-byte original behavior
 - report wording and visibility can still be tightened when new `ECGAME` or
   manual evidence appears
-- a few maintenance behaviors are still justified by oracle evidence and
-  common-sense project policy rather than by explicit `ECPLAYER.DOC` wording,
-  so the manual-only behavior grade is still `A` rather than `A+`:
-  - owned-planet-only `Salvage`
-  - some live-target retarget details for semantic missions
-  - ROE withdrawal/report timing details
-- the newest oracle pass reduced that uncertainty materially:
-  - `Seek Home`, `Guard Starbase`, patrol contact intel, and salvage failure
-    semantics now have direct classic evidence
-  - the biggest remaining fleet-specific uncertainty is a stronger preserved or
-    player-driven oracle for `Join another fleet` hot pursuit
+- the newest oracle pass closed the remaining fleet/manual uncertainty:
+  - `Seek Home`, `Guard Starbase`, `Join another fleet`, patrol contact intel,
+    salvage success/failure semantics, and surviving retreat/abort reporting now
+    all have direct classic evidence
+- the remaining salvage question is no longer gameplay legality; it is record
+  decoding:
+  - the recovered points do not obviously land in
+    `PLAYER.DAT.player.stored_prod_pts_raw`
+  - the owned planet record and matching `DATABASE.DAT` row do change
+  - the changed bytes are not yet a clean plain-integer `+20` under current
+    field assumptions
 - exact classic `MESSAGES.DAT` mail/report format and routing semantics are
   still only partially recovered; current Rust behavior preserves classic mail
   but does not yet decode or reproduce it faithfully
-- live `ECGAME` confirmation is still needed that the restored default
-  joinable setup now triggers the full first-join naming/onboarding flow
+- for the Rust client, do not infer "returning joined player" from
+  `PLAYER.DAT` assigned-player fields alone:
+  - live classic probing now shows caller/dropfile identity matching the
+    persisted player handle is part of login recognition
+  - keep a distinction between:
+    - maint-valid fixtures
+    - login-valid matching-player fixtures
+    - matched pre-loaded first-login fixtures
+  - Rust client startup should branch at least three ways:
+    - first-time menu
+    - matched pre-loaded player first-login onboarding
+    - established joined-player login flow
 - SQLite-backed campaign persistence is now started:
   - each campaign uses a bundled/self-hosted `ecgame.db`
   - `ec-client` now loads/saves runtime state from `ecgame.db`
@@ -256,15 +293,15 @@ Treat the login/startup side as one explicit pre-command-center pipeline:
 
 ## Immediate Next Steps
 
-1. Verify the restored default `sysop new-game` path in live `ECGAME`:
-   - join as player 1
-   - confirm homeworld naming prompt appears
-   - confirm player 2 can also join cleanly afterward
-   - capture the exact handoff between:
-     - ASCII splash
-     - intro text pages
-     - first-time menu
-     - joined-player report/message/naming flow
+1. Probe the remaining client/login edge cases in live `ECGAME`:
+   - verify the restored default `sysop new-game` path still triggers the full
+     first-join naming/onboarding flow
+   - distinguish clearly between:
+     - unmatched caller -> first-time menu
+     - matched pre-loaded player first login
+     - established joined-player login
+   - capture any remaining differences in report/message ordering or prompt
+     wording between those three startup branches
 2. Keep running periodic seeded multi-turn `rust-maint` sweeps to guard against
    regressions while the UI/client work begins.
 3. Treat maint hardening as settled unless new evidence contradicts it:
@@ -274,10 +311,6 @@ Treat the login/startup side as one explicit pre-command-center pipeline:
      interpretation-heavy edges against original binaries before changing the
      current canonical Rust rules
 4. Finish the fleet oracle pass before changing any manual-adjacent mission logic:
-   - build a stronger preserved/player-driven `Join another fleet` oracle setup
-     instead of relying on the raw-crafted ambiguous probe
-   - try to capture a surviving classic ROE-withdrawal report, not just
-     destruction and no-engagement cases
    - keep recording reproducible classic defects as known `v1.51` bugs instead
      of copying them into Rust by default
 5. Tighten the remaining CLI/storage boundary:
