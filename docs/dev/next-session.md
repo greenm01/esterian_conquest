@@ -100,6 +100,13 @@ It can currently:
   - pre-join fleet blocks at seeded homeworld coords
 - keep the older post-join active campaign baseline available through
   `setup_mode="builder-compatible"` for maint/oracle sweeps and test fixtures
+- support a documented local hybrid campaign loop:
+  - Rust creates the campaign
+  - classic `ECGAME` launches against the same working directory
+  - `classic-login-prepare` can align a local caller alias with a persisted
+    player handle for matched probes
+  - `maint-rust` advances the same directory and reprojects classic files back
+    into place
 
 Recent validation:
 

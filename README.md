@@ -267,6 +267,24 @@ cd rust
 cargo run -q -p ec-cli -- classic-login-prepare /tmp/ec-game 2 SYSOP foo
 ```
 
+Supported local hybrid loop:
+
+```bash
+cd rust
+cargo run -q -p ec-cli -- sysop new-game /tmp/ec-game --players 4 --seed 1515
+cargo run -q -p ec-cli -- inspect-classic-login /tmp/ec-game SYSOP
+../tools/run_ecgame.sh /tmp/ec-game 1
+cargo run -q -p ec-cli -- classic-login-prepare /tmp/ec-game 1 SYSOP foo
+../tools/run_ecgame.sh /tmp/ec-game 1 SYSOP
+cargo run -q -p ec-cli -- maint-rust /tmp/ec-game 1
+../tools/run_ecgame.sh /tmp/ec-game 1 SYSOP
+```
+
+This is a supported local compatibility loop for classic `ECGAME` on top of
+Rust maintenance. It does not claim byte-faithful classic `MESSAGES.DAT`
+reproduction; current Rust behavior preserves existing classic player mail and
+maintains classic-readable results/report files.
+
 Run the Rust client:
 
 ```bash

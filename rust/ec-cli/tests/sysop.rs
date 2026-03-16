@@ -88,6 +88,38 @@ fn classic_login_prepare_supports_matched_preloaded_ecgame_smoke() {
 }
 
 #[test]
+#[ignore = "launches classic ECGAME through dosbox-x"]
+fn hybrid_campaign_loop_reopens_classic_client_after_rust_maintenance() {
+    let target = unique_temp_dir("ec-cli-hybrid-campaign-loop");
+
+    let stdout = run_ec_cli(&["sysop", "new-game", target.to_str().unwrap()]);
+    assert!(stdout.contains("Initialized new game"));
+
+    run_classic_ecgame_smoke(&target, 1);
+
+    let prepare = run_ec_cli(&[
+        "classic-login-prepare",
+        target.to_str().unwrap(),
+        "1",
+        "SYSOP",
+        "foo",
+    ]);
+    assert!(prepare.contains("Prepared classic login for player 1"));
+
+    run_classic_ecgame_smoke_with_alias(&target, 1, "SYSOP");
+
+    let maint = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(maint.contains("Rust maintenance complete."));
+
+    run_classic_ecgame_smoke_with_alias(&target, 1, "SYSOP");
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn sysop_new_game_accepts_player_count_flag() {
     let target = unique_temp_dir("ec-cli-sysop-new-game-players");
     let stdout = run_ec_cli(&[

@@ -128,6 +128,45 @@ fn maint_rust_reimports_live_classic_directory_changes_before_processing() {
 }
 
 #[test]
+fn maint_rust_preserves_prepared_classic_login_classification_across_turns() {
+    let target = unique_temp_dir("ec-cli-maint-rust-classic-login-classification");
+    copy_fixture_dir("fixtures/ecutil-init/v1.5", &target);
+
+    let prepare = run_ec_cli_in_dir(
+        &[
+            "classic-login-prepare",
+            target.to_str().unwrap(),
+            "2",
+            "SYSOP",
+            "foo",
+        ],
+        common::rust_workspace(),
+    );
+    assert!(prepare.contains("Prepared classic login for player 2"));
+
+    let before = run_ec_cli_in_dir(
+        &["inspect-classic-login", target.to_str().unwrap(), "SYSOP"],
+        common::rust_workspace(),
+    );
+    assert!(before.contains("slot 2: classification=matched-preloaded-first-login"));
+
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let after = run_ec_cli_in_dir(
+        &["inspect-classic-login", target.to_str().unwrap(), "SYSOP"],
+        common::rust_workspace(),
+    );
+    assert!(after.contains("slot 2: classification=matched-preloaded-first-login"));
+    assert!(after.contains("handle='SYSOP'"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
 #[ignore = "launches classic ECGAME through dosbox-x"]
 fn maint_rust_output_reopens_in_classic_ecgame_smoke() {
     let target = unique_temp_dir("ec-cli-maint-rust-classic-ecgame");

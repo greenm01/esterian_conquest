@@ -100,3 +100,37 @@ fn db_export_preserves_classic_player_handle_identity() {
     cleanup_dir(&source);
     cleanup_dir(&exported);
 }
+
+#[test]
+fn db_export_preserves_classic_login_classification_for_prepared_slot() {
+    let source = unique_temp_dir("ec-cli-db-export-classic-login-source");
+    let exported = unique_temp_dir("ec-cli-db-export-classic-login-exported");
+
+    let stdout = run_ec_cli(&["sysop", "new-game", source.to_str().unwrap()]);
+    assert!(stdout.contains("Initialized new game"));
+
+    let prepare_stdout = run_ec_cli(&[
+        "classic-login-prepare",
+        source.to_str().unwrap(),
+        "2",
+        "SYSOP",
+        "foo",
+    ]);
+    assert!(prepare_stdout.contains("Prepared classic login for player 2"));
+
+    let export_stdout = run_ec_cli(&[
+        "db-export",
+        source.to_str().unwrap(),
+        exported.to_str().unwrap(),
+    ]);
+    assert!(export_stdout.contains("Exported year 3000"));
+
+    let inspect_stdout =
+        run_ec_cli(&["inspect-classic-login", exported.to_str().unwrap(), "SYSOP"]);
+    assert!(inspect_stdout.contains("slot 2: classification=matched-preloaded-first-login"));
+    assert!(inspect_stdout.contains("handle='SYSOP'"));
+    assert!(inspect_stdout.contains("empire='foo'"));
+
+    cleanup_dir(&source);
+    cleanup_dir(&exported);
+}
