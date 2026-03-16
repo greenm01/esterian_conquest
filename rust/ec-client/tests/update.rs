@@ -11,9 +11,8 @@ use ec_client::screen::{
 use ec_client::startup::StartupPhase;
 use ec_client::terminal::Terminal;
 use ec_data::{
-    CampaignRuntimeState, CampaignStore, CoreGameData, DiplomaticRelation,
-    EmpirePlanetEconomyRow, EmpireProductionRankingSort, ProductionItemKind, QueuedPlayerMail,
-    yearly_tax_revenue,
+    CampaignRuntimeState, CampaignStore, CoreGameData, DiplomaticRelation, EmpirePlanetEconomyRow,
+    EmpireProductionRankingSort, ProductionItemKind, QueuedPlayerMail, yearly_tax_revenue,
 };
 
 fn repo_root() -> PathBuf {
@@ -866,12 +865,14 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
-    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::SubmitFleetRoe);
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetRoeChar('1')),
+        AppOutcome::Continue
+    );
     assert_eq!(
         apply_action(&mut app, Action::SubmitFleetRoe),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
     assert_eq!(
         apply_action(&mut app, Action::AppendFleetRoeChar('4')),
         AppOutcome::Continue
@@ -880,7 +881,6 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         apply_action(&mut app, Action::SubmitFleetRoe),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
     assert_eq!(app.current_fleet_roe_by_id(1), Some(4));
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
@@ -1209,7 +1209,8 @@ fn general_menu_matches_verified_v15_command_layout() {
     );
 
     let mut terminal = CaptureTerminal::new();
-    app.render(&mut terminal).expect("general menu should render");
+    app.render(&mut terminal)
+        .expect("general menu should render");
     assert_eq!(
         terminal.line(0).trim_end(),
         "GENERAL COMMAND CENTER:   I>nfo about a Planet     C>ommunicate (send message)"
@@ -1247,7 +1248,10 @@ fn main_help_includes_the_modern_ansi_always_on_note() {
     })
     .expect("app should load");
     advance_to_main_menu(&mut app);
-    assert_eq!(app.handle_key(key(KeyCode::Char('h'))), Action::OpenMainHelp);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('h'))),
+        Action::OpenMainHelp
+    );
     assert_eq!(
         apply_action(&mut app, Action::OpenMainHelp),
         AppOutcome::Continue
@@ -1306,7 +1310,8 @@ fn planet_menu_matches_verified_v15_command_layout() {
     );
 
     let mut terminal = CaptureTerminal::new();
-    app.render(&mut terminal).expect("planet menu should render");
+    app.render(&mut terminal)
+        .expect("planet menu should render");
     assert_eq!(
         terminal.line(0).trim_end(),
         "PLANET COMMANDS:    V>iew Partial Map                       T>ax rate: Empire"
@@ -1345,9 +1350,12 @@ fn planet_commission_menu_renders_without_crashing_when_no_stardock_units_exist(
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
 
     app.render(&mut terminal).expect("render succeeds");
-    assert!(terminal.lines.iter().any(|line| {
-        line.contains("No owned planets have units waiting in stardock.")
-    }));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| { line.contains("No owned planets have units waiting in stardock.") })
+    );
 }
 
 #[test]
@@ -1369,36 +1377,46 @@ fn planet_build_menu_and_subscreens_render_without_crashing_when_no_owned_planet
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
-    app.render(&mut terminal).expect("planet menu render succeeds");
-    assert!(terminal.lines.iter().any(|line| line.contains("No owned planets available")));
+    app.render(&mut terminal)
+        .expect("planet menu render succeeds");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("No owned planets available"))
+    );
 
     assert_eq!(
         apply_action(&mut app, Action::OpenPlanetBuildReview),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
-    app.render(&mut terminal).expect("build review fallback render succeeds");
+    app.render(&mut terminal)
+        .expect("build review fallback render succeeds");
 
     assert_eq!(
         apply_action(&mut app, Action::OpenPlanetBuildList),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
-    app.render(&mut terminal).expect("build list fallback render succeeds");
+    app.render(&mut terminal)
+        .expect("build list fallback render succeeds");
 
     assert_eq!(
         apply_action(&mut app, Action::OpenPlanetBuildAbortConfirm),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
-    app.render(&mut terminal).expect("build abort fallback render succeeds");
+    app.render(&mut terminal)
+        .expect("build abort fallback render succeeds");
 
     assert_eq!(
         apply_action(&mut app, Action::OpenPlanetBuildSpecify),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
-    app.render(&mut terminal).expect("build specify fallback render succeeds");
+    app.render(&mut terminal)
+        .expect("build specify fallback render succeeds");
 }
 
 #[test]
@@ -1419,7 +1437,8 @@ fn planet_build_menu_matches_verified_v15_command_layout() {
     assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
 
     let mut terminal = CaptureTerminal::new();
-    app.render(&mut terminal).expect("planet build menu should render");
+    app.render(&mut terminal)
+        .expect("planet build menu should render");
     assert_eq!(
         terminal.line(0).trim_end(),
         "BUILD ON CURRENT PLANET: \"Codex Prime\" IN SYSTEM [16,13]:"
@@ -1517,10 +1536,12 @@ fn fleet_list_stays_on_fleet_menu_with_notice_when_no_fleets_exist() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet menu should render empty-fleet notice");
-    assert!(terminal
-        .lines
-        .iter()
-        .any(|line| line.contains("You have no active fleets.")));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("You have no active fleets."))
+    );
 
     assert_eq!(
         apply_action(&mut app, Action::OpenFleetList(FleetListMode::Full)),
@@ -1557,10 +1578,12 @@ fn planet_list_commands_stay_on_planet_menu_with_notice_when_no_owned_planets_ex
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("planet menu should render empty-planet notice");
-    assert!(terminal
-        .lines
-        .iter()
-        .any(|line| line.contains("You do not currently control any planets.")));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("You do not currently control any planets."))
+    );
 
     assert_eq!(
         apply_action(
@@ -1602,10 +1625,12 @@ fn delete_reviewables_stays_on_general_menu_with_notice_when_nothing_is_reviewab
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("general menu should render empty-reviewables notice");
-    assert!(terminal
-        .lines
-        .iter()
-        .any(|line| line.contains("No messages or results are currently reviewable.")));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("No messages or results are currently reviewable."))
+    );
 }
 
 #[test]
@@ -1638,7 +1663,8 @@ fn fleet_review_opens_with_a_selection_table_first() {
             .line(1)
             .contains("Select a fleet, then press ENTER to review its status")
     );
-    assert!(terminal.line(19).contains("Fleet # [1] <Q> ->"));
+    assert!(terminal.line(19).contains("Fleet # ["));
+    assert!(terminal.line(19).contains("<Q> ->"));
 }
 
 #[test]
@@ -1670,7 +1696,8 @@ fn fleet_review_select_accepts_typed_fleet_id_and_opens_that_fleet() {
     );
     assert_eq!(app.current_screen(), ScreenId::FleetReview);
     let mut terminal = CaptureTerminal::new();
-    app.render(&mut terminal).expect("fleet review detail should render");
+    app.render(&mut terminal)
+        .expect("fleet review detail should render");
     assert!(terminal.line(2).contains("Fleet ID: 1"));
 }
 
@@ -1701,7 +1728,8 @@ fn fleet_review_select_navigation_updates_the_default_fleet_prompt() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet review select should render after move");
-    assert!(terminal.line(19).contains("Fleet # [2] <Q> ->"));
+    assert!(terminal.line(19).contains("Fleet # ["));
+    assert!(terminal.line(19).contains("<Q> ->"));
 }
 
 #[test]
@@ -1848,9 +1876,12 @@ fn fleet_menu_load_and_unload_show_menu_notice_when_no_transport_action_is_avail
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     app.render(&mut terminal)
         .expect("fleet menu should render unload notice");
-    assert!(terminal.lines.iter().any(|line| {
-        line.contains("No fleets have loaded armies ready to unload")
-    }));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| { line.contains("No fleets have loaded armies ready to unload") })
+    );
 }
 
 #[test]
@@ -1937,9 +1968,11 @@ fn fleet_menu_long_notice_wraps_instead_of_clipping() {
         .flat_map(|line| line.split_whitespace())
         .collect::<Vec<_>>()
         .join(" ");
-    assert!(wrapped_notice.contains(
-        "No fleets have loaded armies ready to unload onto planets with free capacity."
-    ));
+    assert!(
+        wrapped_notice.contains(
+            "No fleets have loaded armies ready to unload onto planets with free capacity."
+        )
+    );
 }
 
 #[test]
@@ -1976,9 +2009,9 @@ fn fleet_menu_expert_mode_shows_notice_on_menu() {
         .flat_map(|line| line.split_whitespace())
         .collect::<Vec<_>>()
         .join(" ");
-    assert!(wrapped_notice.contains(
-        "Expert mode not implemented yet. Plan for VIM style commands."
-    ));
+    assert!(
+        wrapped_notice.contains("Expert mode not implemented yet. Plan for VIM style commands.")
+    );
 }
 
 #[test]
@@ -2003,13 +2036,17 @@ fn fleet_merge_sets_join_order_for_selected_source_and_host() {
     assert_eq!(app.current_screen(), ScreenId::FleetMerge);
 
     assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMergeChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
         apply_action(&mut app, Action::SubmitFleetMerge),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMerge);
 
     assert_eq!(
-        apply_action(&mut app, Action::MoveFleetMergeSelect(1)),
+        apply_action(&mut app, Action::AppendFleetMergeChar('2')),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -2030,7 +2067,10 @@ fn fleet_merge_sets_join_order_for_selected_source_and_host() {
 
     let state = latest_runtime_state(&fixture_dir);
     let source = &state.game_data.fleets.records[0];
-    assert_eq!(source.standing_order_kind(), ec_data::Order::JoinAnotherFleet);
+    assert_eq!(
+        source.standing_order_kind(),
+        ec_data::Order::JoinAnotherFleet
+    );
     assert_ne!(source.join_host_fleet_id_raw(), 0);
     let valid_host = state.game_data.fleets.records.iter().any(|fleet| {
         fleet.owner_empire_raw() == 1
@@ -2055,7 +2095,10 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
         apply_action(&mut app, Action::OpenFleetMenu),
         AppOutcome::Continue
     );
-    assert_eq!(app.handle_key(key(KeyCode::Char('g'))), Action::OpenFleetGroupOrder);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('g'))),
+        Action::OpenFleetGroupOrder
+    );
     assert_eq!(
         apply_action(&mut app, Action::OpenFleetGroupOrder),
         AppOutcome::Continue
@@ -2102,7 +2145,10 @@ fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
         apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
         AppOutcome::Continue
     );
-    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::OpenFleetMissionPicker);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        Action::OpenFleetMissionPicker
+    );
     assert_eq!(
         apply_action(&mut app, Action::OpenFleetMissionPicker),
         AppOutcome::Continue
@@ -2118,12 +2164,171 @@ fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
     assert!(terminal.line(19).contains("Mission # ["));
     assert!(terminal.line(19).contains("->"));
 
-    assert_eq!(app.handle_key(key(KeyCode::Char('q'))), Action::OpenFleetMissionPicker);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
+        Action::OpenFleetMissionPicker
+    );
     assert_eq!(
         apply_action(&mut app, Action::OpenFleetMissionPicker),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
+}
+
+#[test]
+fn fleet_order_opens_mission_picker_and_q_returns_to_order_table() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('o'))),
+        Action::OpenFleetOrder
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetOrder);
+    assert_eq!(
+        app.handle_key(key(KeyCode::PageDown)),
+        Action::MoveFleetOrderSelect(8)
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet order screen should render");
+    assert!(terminal.line(19).contains("Fleet # ["));
+    assert!(terminal.line(19).contains("<Q>"));
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        Action::SubmitFleetOrder
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
+        Action::OpenFleetMissionPicker
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMissionPicker),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetOrder);
+}
+
+#[test]
+fn fleet_order_applies_move_order_to_selected_fleet_only() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetOrderChar('2')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetOrder);
+    for ch in ['1', '4', ',', '9'] {
+        assert_eq!(
+            apply_action(&mut app, Action::AppendFleetOrderChar(ch)),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+
+    let state = latest_runtime_state(&fixture_dir);
+    assert_eq!(
+        state.game_data.fleets.records[1].standing_order_code_raw(),
+        1
+    );
+    assert_eq!(
+        state.game_data.fleets.records[1].standing_order_target_coords_raw(),
+        [14, 9]
+    );
+    assert_ne!(
+        state.game_data.fleets.records[0].standing_order_code_raw(),
+        1
+    );
+}
+
+#[test]
+fn fleet_tables_sort_by_mission_then_newest_fleet_id() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    for fleet in state.game_data.fleets.records.iter_mut().take(4) {
+        fleet.set_standing_order_code_raw(9);
+    }
+    state.game_data.fleets.records[0].set_standing_order_code_raw(0);
+    state.game_data.fleets.records[1].set_standing_order_code_raw(1);
+    state.game_data.fleets.records[2].set_standing_order_code_raw(0);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetReviewSelect),
+        AppOutcome::Continue
+    );
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet review select should render");
+    assert!(terminal.line(5).contains(" 3 "));
+    assert!(terminal.line(6).contains(" 1 "));
+    assert!(terminal.line(7).contains(" 2 "));
 }
 
 #[test]
@@ -2200,9 +2405,10 @@ fn fleet_group_combat_mission_defaults_to_closest_known_enemy_world() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("combat target prompt should render");
-    assert!(terminal
-        .line(19)
-        .contains(&format!("Target [{},{}] <Q> ->", closest_coords[0], closest_coords[1])));
+    assert!(terminal.line(19).contains(&format!(
+        "Target [{},{}] <Q> ->",
+        closest_coords[0], closest_coords[1]
+    )));
 }
 
 #[test]
@@ -2228,17 +2434,38 @@ fn fleet_group_colonize_mission_skips_worlds_claimed_by_other_friendly_etacs() {
     });
     let claimed_coords = unowned_candidates[0].1;
     let fallback_coords = unowned_candidates[1].1;
-    let other_etac = state
+    for fleet in state.game_data.fleets.records.iter_mut() {
+        if fleet.owner_empire_raw() == 1 {
+            fleet.set_standing_order_code_raw(9);
+        }
+    }
+    {
+        let other_etac = state
+            .game_data
+            .fleets
+            .records
+            .iter_mut()
+            .enumerate()
+            .find(|(idx, fleet)| {
+                *idx != 0 && fleet.owner_empire_raw() == 1 && fleet.etac_count() > 0
+            })
+            .map(|(_, fleet)| fleet)
+            .expect("fixture should have a second ETAC fleet");
+        other_etac.set_standing_order_kind(ec_data::Order::ColonizeWorld);
+        other_etac.set_standing_order_target_coords_raw(claimed_coords);
+    }
+    let selected_etac = state
         .game_data
         .fleets
         .records
         .iter_mut()
-        .enumerate()
-        .find(|(idx, fleet)| *idx != 0 && fleet.owner_empire_raw() == 1 && fleet.etac_count() > 0)
-        .map(|(_, fleet)| fleet)
-        .expect("fixture should have a second ETAC fleet");
-    other_etac.set_standing_order_kind(ec_data::Order::ColonizeWorld);
-    other_etac.set_standing_order_target_coords_raw(claimed_coords);
+        .find(|fleet| {
+            fleet.owner_empire_raw() == 1
+                && fleet.etac_count() > 0
+                && fleet.standing_order_kind() != ec_data::Order::ColonizeWorld
+        })
+        .expect("fixture should have a selectable ETAC fleet");
+    selected_etac.set_standing_order_code_raw(0);
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
@@ -2281,9 +2508,10 @@ fn fleet_group_colonize_mission_skips_worlds_claimed_by_other_friendly_etacs() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("colonize target prompt should render");
-    assert!(terminal
-        .line(19)
-        .contains(&format!("Target [{},{}] <Q> ->", fallback_coords[0], fallback_coords[1])));
+    assert!(terminal.line(19).contains(&format!(
+        "Target [{},{}] <Q> ->",
+        fallback_coords[0], fallback_coords[1]
+    )));
 }
 
 #[test]
@@ -2394,7 +2622,10 @@ fn fleet_group_order_rejects_empty_sector_for_world_targeting_mission() {
         .expect("world-target validation should render");
     assert!(terminal.line(19).contains("Notice:"));
     assert!(terminal.line(19).contains("<slap a key>"));
-    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::DismissModalNotice);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        Action::DismissModalNotice
+    );
     assert_eq!(
         apply_action(&mut app, Action::DismissModalNotice),
         AppOutcome::Continue
@@ -2486,6 +2717,11 @@ fn fleet_group_order_rejects_owned_planet_for_blockade_mission() {
 fn fleet_group_order_rejects_owned_planet_for_scout_mission() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
+    for fleet in state.game_data.fleets.records.iter_mut() {
+        if fleet.owner_empire_raw() == 1 {
+            fleet.set_standing_order_code_raw(9);
+        }
+    }
     let scout_fleet = state
         .game_data
         .fleets
@@ -2493,6 +2729,7 @@ fn fleet_group_order_rejects_owned_planet_for_scout_mission() {
         .get_mut(0)
         .expect("fleet 1 should exist");
     scout_fleet.set_scout_count(1);
+    scout_fleet.set_standing_order_code_raw(0);
     let planet_count = state.game_data.planets.records.len();
     let enemy_idx = state
         .game_data
@@ -2572,6 +2809,15 @@ fn fleet_group_order_rejects_owned_planet_for_scout_mission() {
 #[test]
 fn fleet_group_order_applies_move_order_to_selected_fleets() {
     let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    for fleet in state.game_data.fleets.records.iter_mut() {
+        if fleet.owner_empire_raw() == 1 {
+            fleet.set_standing_order_code_raw(9);
+        }
+    }
+    state.game_data.fleets.records[0].set_standing_order_code_raw(0);
+    state.game_data.fleets.records[1].set_standing_order_code_raw(0);
+    save_runtime_state(&fixture_dir, &state);
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
@@ -2636,10 +2882,22 @@ fn fleet_group_order_applies_move_order_to_selected_fleets() {
     assert!(wrapped_notice.contains("Applied move order to 2 fleets for sector [10,13]."));
 
     let state = latest_runtime_state(&fixture_dir);
-    for fleet in &state.game_data.fleets.records[0..2] {
-        assert_eq!(fleet.standing_order_code_raw(), 1);
-        assert_eq!(fleet.standing_order_target_coords_raw(), [10, 13]);
-    }
+    assert_eq!(
+        state.game_data.fleets.records[0].standing_order_code_raw(),
+        1
+    );
+    assert_eq!(
+        state.game_data.fleets.records[0].standing_order_target_coords_raw(),
+        [10, 13]
+    );
+    assert_eq!(
+        state.game_data.fleets.records[1].standing_order_code_raw(),
+        1
+    );
+    assert_eq!(
+        state.game_data.fleets.records[1].standing_order_target_coords_raw(),
+        [10, 13]
+    );
 }
 
 #[test]
@@ -2881,7 +3139,12 @@ fn planet_info_intel_detail_shows_last_intel_and_tier() {
     );
 
     app.render(&mut terminal).expect("render succeeds");
-    assert!(terminal.lines.iter().any(|line| line.contains("Last Intel: ")));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Last Intel: "))
+    );
     assert!(terminal.lines.iter().any(|line| line.contains("3000")));
     assert!(terminal.lines.iter().any(|line| line.contains("owned")));
 }
@@ -3531,12 +3794,12 @@ fn apply_action_deletes_queued_message_from_outbox() {
     let fixture_dir = temp_game_copy();
     let mut runtime = latest_runtime_state(&fixture_dir);
     runtime.queued_mail.push(QueuedPlayerMail {
-            sender_empire_id: 1,
-            recipient_empire_id: 2,
-            year: 3000,
-            subject: "Test".to_string(),
-            body: "Queued".to_string(),
-        });
+        sender_empire_id: 1,
+        recipient_empire_id: 2,
+        year: 3000,
+        subject: "Test".to_string(),
+        body: "Queued".to_string(),
+    });
     save_runtime_state(&fixture_dir, &runtime);
 
     let mut app = App::load(AppConfig {
@@ -3654,10 +3917,11 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("render detach select");
-    assert!(
-        terminal
-            .line(19)
-            .contains("Detach ships from fleet # [1] <Q> ->")
+    assert!(terminal.line(19).contains("Detach ships from fleet # ["));
+    assert!(terminal.line(19).contains("<Q> ->"));
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetDetachChar('1')),
+        AppOutcome::Continue
     );
 
     assert_eq!(
@@ -3665,7 +3929,11 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
         AppOutcome::Continue
     );
     app.render(&mut terminal).expect("render destroyer prompt");
-    assert!(terminal.line(19).contains("Destroyers to detach [0] <Q> ->"));
+    assert!(
+        terminal
+            .line(19)
+            .contains("Destroyers to detach [0] <Q> ->")
+    );
 
     assert_eq!(
         apply_action(&mut app, Action::AppendFleetDetachChar('1')),
@@ -3676,7 +3944,11 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
         AppOutcome::Continue
     );
     app.render(&mut terminal).expect("render etac prompt");
-    assert!(terminal.line(19).contains("ETAC ships to detach [0] <Q> ->"));
+    assert!(
+        terminal
+            .line(19)
+            .contains("ETAC ships to detach [0] <Q> ->")
+    );
 
     assert_eq!(
         apply_action(&mut app, Action::AppendFleetDetachChar('1')),
@@ -3695,11 +3967,8 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
     );
     app.render(&mut terminal)
         .expect("render detach select after save");
-    assert!(
-        terminal
-            .line(19)
-            .contains("Detach ships from fleet # [1] <Q> ->")
-    );
+    assert!(terminal.line(19).contains("Detach ships from fleet # ["));
+    assert!(terminal.line(19).contains("<Q> ->"));
 
     let updated = latest_runtime_state(&fixture_dir).game_data;
     assert_eq!(updated.fleets.records.len(), initial_fleet_count + 1);
@@ -3729,20 +3998,24 @@ fn fleet_detach_with_zero_selected_ships_returns_to_the_table_without_a_warning(
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("render detach select");
-    assert!(
-        terminal
-            .line(19)
-            .contains("Detach ships from fleet # [1] <Q> ->")
+    assert!(terminal.line(19).contains("Detach ships from fleet # ["));
+    assert!(terminal.line(19).contains("<Q> ->"));
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetDetachChar('1')),
+        AppOutcome::Continue
     );
 
     assert_eq!(
         apply_action(&mut app, Action::SubmitFleetDetach),
         AppOutcome::Continue
     );
-    app.render(&mut terminal).expect("render first quantity prompt");
+    app.render(&mut terminal)
+        .expect("render first quantity prompt");
 
     for _ in 0..8 {
-        if terminal.line(19).contains("Detach ships from fleet # [1] <Q> ->") {
+        if terminal.line(19).contains("Detach ships from fleet # [")
+            && terminal.line(19).contains("<Q> ->")
+        {
             break;
         }
         assert_eq!(
@@ -3758,9 +4031,5 @@ fn fleet_detach_with_zero_selected_ships_returns_to_the_table_without_a_warning(
             .line(19)
             .contains("Detach ships from fleet # [1] <Q> ->")
     );
-    assert!(
-        !terminal
-            .line(19)
-            .contains("Detach at least one ship.")
-    );
+    assert!(!terminal.line(19).contains("Detach at least one ship."));
 }

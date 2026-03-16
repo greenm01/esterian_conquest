@@ -42,6 +42,7 @@ pub struct FleetMenuScreen;
 pub struct FleetListScreen;
 pub struct FleetReviewScreen;
 pub struct FleetRoeScreen;
+pub struct FleetSingleOrderScreen;
 pub struct FleetGroupScreen;
 pub struct FleetMissionPickerScreen;
 pub struct FleetMergeScreen;
@@ -79,6 +80,12 @@ pub enum FleetMergeMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetGroupOrderMode {
     SelectingFleets,
+    EnteringTarget,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetSingleOrderMode {
+    SelectingFleet,
     EnteringTarget,
 }
 
@@ -145,22 +152,86 @@ const FULL_COLUMNS: [TableColumn<'static>; 6] = [
 ];
 
 pub const FLEET_MISSION_OPTIONS: [FleetMissionOption; 16] = [
-    FleetMissionOption { code: 0, mission: "None (hold position)", requirements: "None. All ships can do this." },
-    FleetMissionOption { code: 1, mission: "Move Fleet (only)", requirements: "None. All ships can do this." },
-    FleetMissionOption { code: 2, mission: "Seek Home", requirements: "None. All ships can do this." },
-    FleetMissionOption { code: 3, mission: "Patrol a Sector", requirements: "None. All ships can do this." },
-    FleetMissionOption { code: 4, mission: "Guard a Starbase", requirements: "Combat ship(s)." },
-    FleetMissionOption { code: 5, mission: "Guard/Blockade a World", requirements: "Combat ship(s)." },
-    FleetMissionOption { code: 6, mission: "Bombard a World", requirements: "Combat ship(s)." },
-    FleetMissionOption { code: 7, mission: "Invade a World", requirements: "Combat ship(s) & Loaded TTs." },
-    FleetMissionOption { code: 8, mission: "Blitz a World", requirements: "Loaded troop transports." },
-    FleetMissionOption { code: 9, mission: "View a World", requirements: "None. All ships can do this." },
-    FleetMissionOption { code: 10, mission: "Scout a Sector", requirements: "At least one scout ship." },
-    FleetMissionOption { code: 11, mission: "Scout a Solar System", requirements: "At least one scout ship." },
-    FleetMissionOption { code: 12, mission: "Colonize a World", requirements: "At least one ETAC." },
-    FleetMissionOption { code: 13, mission: "Join another fleet", requirements: "None. All ships can do this." },
-    FleetMissionOption { code: 14, mission: "Rendezvous at Sector", requirements: "None. All ships can do this." },
-    FleetMissionOption { code: 15, mission: "Salvage", requirements: "None. All ships can do this." },
+    FleetMissionOption {
+        code: 0,
+        mission: "None (hold position)",
+        requirements: "None. All ships can do this.",
+    },
+    FleetMissionOption {
+        code: 1,
+        mission: "Move Fleet (only)",
+        requirements: "None. All ships can do this.",
+    },
+    FleetMissionOption {
+        code: 2,
+        mission: "Seek Home",
+        requirements: "None. All ships can do this.",
+    },
+    FleetMissionOption {
+        code: 3,
+        mission: "Patrol a Sector",
+        requirements: "None. All ships can do this.",
+    },
+    FleetMissionOption {
+        code: 4,
+        mission: "Guard a Starbase",
+        requirements: "Combat ship(s).",
+    },
+    FleetMissionOption {
+        code: 5,
+        mission: "Guard/Blockade a World",
+        requirements: "Combat ship(s).",
+    },
+    FleetMissionOption {
+        code: 6,
+        mission: "Bombard a World",
+        requirements: "Combat ship(s).",
+    },
+    FleetMissionOption {
+        code: 7,
+        mission: "Invade a World",
+        requirements: "Combat ship(s) & Loaded TTs.",
+    },
+    FleetMissionOption {
+        code: 8,
+        mission: "Blitz a World",
+        requirements: "Loaded troop transports.",
+    },
+    FleetMissionOption {
+        code: 9,
+        mission: "View a World",
+        requirements: "None. All ships can do this.",
+    },
+    FleetMissionOption {
+        code: 10,
+        mission: "Scout a Sector",
+        requirements: "At least one scout ship.",
+    },
+    FleetMissionOption {
+        code: 11,
+        mission: "Scout a Solar System",
+        requirements: "At least one scout ship.",
+    },
+    FleetMissionOption {
+        code: 12,
+        mission: "Colonize a World",
+        requirements: "At least one ETAC.",
+    },
+    FleetMissionOption {
+        code: 13,
+        mission: "Join another fleet",
+        requirements: "None. All ships can do this.",
+    },
+    FleetMissionOption {
+        code: 14,
+        mission: "Rendezvous at Sector",
+        requirements: "None. All ships can do this.",
+    },
+    FleetMissionOption {
+        code: 15,
+        mission: "Salvage",
+        requirements: "None. All ships can do this.",
+    },
 ];
 
 fn fleet_selector_columns(max_fleet_number: u16) -> [TableColumn<'static>; 7] {
@@ -190,13 +261,24 @@ impl FleetMenuScreen {
         for entry in TOP_ROW {
             draw_menu_entry(&mut buffer, 0, entry.col, entry.hotkey, entry.label);
         }
-        for (row_idx, row) in [ROW_1.as_slice(), ROW_2.as_slice(), ROW_3.as_slice(), ROW_4.as_slice()]
-            .into_iter()
-            .enumerate()
+        for (row_idx, row) in [
+            ROW_1.as_slice(),
+            ROW_2.as_slice(),
+            ROW_3.as_slice(),
+            ROW_4.as_slice(),
+        ]
+        .into_iter()
+        .enumerate()
         {
             buffer.fill_row(row_idx + 1, classic::menu_style());
             for entry in row {
-                draw_menu_entry(&mut buffer, row_idx + 1, entry.col, entry.hotkey, entry.label);
+                draw_menu_entry(
+                    &mut buffer,
+                    row_idx + 1,
+                    entry.col,
+                    entry.hotkey,
+                    entry.label,
+                );
             }
         }
         if let Some(notice) = notice {
@@ -230,7 +312,7 @@ impl Screen for FleetMenuScreen {
             KeyCode::Char('s') | KeyCode::Char('S') => Action::Noop, // Starbase menu - TODO
             KeyCode::Char('d') | KeyCode::Char('D') => Action::OpenFleetDetach,
             KeyCode::Char('m') | KeyCode::Char('M') => Action::OpenFleetMerge,
-            KeyCode::Char('o') | KeyCode::Char('O') => Action::Noop, // Order - TODO
+            KeyCode::Char('o') | KeyCode::Char('O') => Action::OpenFleetOrder,
             KeyCode::Char('t') | KeyCode::Char('T') => Action::Noop, // Transfer - TODO
             KeyCode::Char('c') | KeyCode::Char('C') => Action::OpenFleetRoeSelect,
             KeyCode::Char('l') | KeyCode::Char('L') => Action::OpenFleetTransportLoad,
@@ -329,9 +411,7 @@ impl FleetListScreen {
             KeyCode::PageUp => Action::MoveFleetList(-8),
             KeyCode::PageDown => Action::MoveFleetList(8),
             KeyCode::Enter => Action::OpenFleetReview,
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                Action::OpenFleetReviewSelect
-            }
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenFleetReviewSelect,
             _ => Action::Noop,
         }
     }
@@ -465,9 +545,7 @@ impl FleetReviewScreen {
             KeyCode::Char('j') | KeyCode::Char('J') | KeyCode::Char('l') | KeyCode::Char('L') => {
                 Action::MoveFleetReview(1)
             }
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                Action::OpenFleetReviewSelect
-            }
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenFleetReviewSelect,
             _ => Action::Noop,
         }
     }
@@ -572,6 +650,115 @@ impl FleetRoeScreen {
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenFleetMenu,
             _ => Action::Noop,
         }
+    }
+}
+
+impl FleetSingleOrderScreen {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn render(
+        &mut self,
+        rows: &[FleetRow],
+        scroll_offset: usize,
+        cursor: usize,
+        mode: FleetSingleOrderMode,
+        input: &str,
+        default_target: [u8; 2],
+        status: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        buffer.fill_row(0, classic::menu_style());
+        buffer.write_text(0, 0, "ORDER A FLEET:", classic::title_style());
+        let max_fleet_number = max_fleet_number(rows);
+        let columns = [
+            TableColumn::right("ID", fleet_id_column_width(max_fleet_number)),
+            TableColumn::left("Location", 10),
+            TableColumn::right("Spd", 7),
+            TableColumn::right("ROE", 3),
+            TableColumn::right("Ord", 3),
+            TableColumn::left("Target", 10),
+            TableColumn::left("Ships", 31),
+        ];
+        draw_status_line(
+            &mut buffer,
+            1,
+            "",
+            match mode {
+                FleetSingleOrderMode::SelectingFleet => {
+                    "Select a fleet, then press ENTER to give it a mission."
+                }
+                FleetSingleOrderMode::EnteringTarget => {
+                    "Enter the target coordinates for the selected fleet mission."
+                }
+            },
+        );
+        let selected_fleet_label = rows
+            .get(cursor)
+            .map(|row| row.fleet_number.to_string())
+            .unwrap_or_else(|| "?".to_string());
+        draw_status_line(&mut buffer, 2, "Selected fleet: ", &selected_fleet_label);
+        let table_rows = rows
+            .iter()
+            .map(|row| {
+                vec![
+                    format_fleet_number(row.fleet_number, max_fleet_number),
+                    format_sector_coords_padded(row.coords),
+                    format!("{}/{}", row.current_speed, row.max_speed),
+                    row.rules_of_engagement.to_string(),
+                    row.order_code.to_string(),
+                    format_sector_coords_padded(row.target_coords),
+                    row.composition_label.clone(),
+                ]
+            })
+            .collect::<Vec<_>>();
+        write_table_window_with_cursor(
+            &mut buffer,
+            3,
+            &columns,
+            &table_rows,
+            scroll_offset,
+            FLEET_VISIBLE_ROWS,
+            classic::status_value_style(),
+            classic::status_value_style(),
+            if table_rows.is_empty() {
+                None
+            } else {
+                Some(cursor)
+            },
+        );
+        if table_rows.is_empty() {
+            draw_command_line_text(
+                &mut buffer,
+                "FLEET COMMAND",
+                "You have no active fleets. Q quits.",
+            );
+        } else if let Some(status) = status {
+            draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
+        } else {
+            match mode {
+                FleetSingleOrderMode::SelectingFleet => {
+                    draw_command_line_default_input(
+                        &mut buffer,
+                        "FLEET COMMAND",
+                        "Fleet # ",
+                        &format_fleet_number(rows[cursor].fleet_number, max_fleet_number),
+                        input,
+                    );
+                }
+                FleetSingleOrderMode::EnteringTarget => {
+                    draw_command_line_default_input(
+                        &mut buffer,
+                        "FLEET COMMAND",
+                        "Target ",
+                        &format!("{},{}", default_target[0], default_target[1]),
+                        input,
+                    );
+                }
+            }
+        }
+        Ok(buffer)
     }
 }
 
@@ -708,9 +895,7 @@ impl FleetMergeScreen {
             1,
             "",
             match mode {
-                FleetMergeMode::SelectingSource => {
-                    "Select the fleet that will join another fleet."
-                }
+                FleetMergeMode::SelectingSource => "Select the fleet that will join another fleet.",
                 FleetMergeMode::SelectingHost => {
                     "Select the host fleet that will absorb the joining fleet."
                 }
@@ -737,7 +922,11 @@ impl FleetMergeScreen {
             FLEET_VISIBLE_ROWS,
             classic::status_value_style(),
             classic::status_value_style(),
-            if table_rows.is_empty() { None } else { Some(cursor) },
+            if table_rows.is_empty() {
+                None
+            } else {
+                Some(cursor)
+            },
         );
         if table_rows.is_empty() {
             draw_command_line_text(
@@ -837,7 +1026,11 @@ impl FleetGroupScreen {
             FLEET_VISIBLE_ROWS,
             classic::status_value_style(),
             classic::status_value_style(),
-            if table_rows.is_empty() { None } else { Some(cursor) },
+            if table_rows.is_empty() {
+                None
+            } else {
+                Some(cursor)
+            },
         );
         if table_rows.is_empty() {
             draw_command_line_text(

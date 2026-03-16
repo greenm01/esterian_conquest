@@ -114,6 +114,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.open_fleet_roe_select();
             AppOutcome::Continue
         }
+        Action::OpenFleetOrder => {
+            app.open_fleet_order();
+            AppOutcome::Continue
+        }
         Action::OpenFleetGroupOrder => {
             app.open_fleet_group_order();
             AppOutcome::Continue
@@ -286,6 +290,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.move_fleet_roe_select(delta);
             AppOutcome::Continue
         }
+        Action::MoveFleetOrderSelect(delta) => {
+            app.move_fleet_order_select(delta);
+            AppOutcome::Continue
+        }
         Action::MoveFleetGroupOrder(delta) => {
             app.move_fleet_group_order(delta);
             AppOutcome::Continue
@@ -434,6 +442,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.append_fleet_roe_char(ch);
             AppOutcome::Continue
         }
+        Action::AppendFleetOrderChar(ch) => {
+            app.append_fleet_order_char(ch);
+            AppOutcome::Continue
+        }
         Action::AppendFleetGroupOrderChar(ch) => {
             app.append_fleet_group_order_char(ch);
             AppOutcome::Continue
@@ -452,6 +464,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         }
         Action::BackspaceFleetRoeInput => {
             app.backspace_fleet_roe_input();
+            AppOutcome::Continue
+        }
+        Action::BackspaceFleetOrderInput => {
+            app.backspace_fleet_order_input();
             AppOutcome::Continue
         }
         Action::BackspaceFleetGroupOrderInput => {
@@ -479,6 +495,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             AppOutcome::Continue
         }
         Action::SubmitFleetRoe => match app.submit_fleet_roe() {
+            Ok(()) => AppOutcome::Continue,
+            Err(_) => AppOutcome::Continue,
+        },
+        Action::SubmitFleetOrder => match app.submit_fleet_order() {
             Ok(()) => AppOutcome::Continue,
             Err(_) => AppOutcome::Continue,
         },
