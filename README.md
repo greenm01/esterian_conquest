@@ -89,6 +89,8 @@ Today the Rust side can:
   player TUI or Rust maintenance runtime
 - create default `sysop new-game` directories that `ECGAME` can actually join
   through the original onboarding flow
+- project the latest Rust-maintained snapshot back into the working game
+  directory so classic `ECGAME` can continue using the same campaign directory
 - enforce major player-input legality in the shared Rust engine instead of
   trusting the player client:
   - fleet orders and mission payloads
@@ -223,7 +225,9 @@ cargo run -q -p ec-cli -- maint-rust /tmp/ec-game 3
 ```
 
 `maint-rust` now reads and writes the campaign's `ecgame.db`. Classic `.DAT`
-directories are imported/exported through the CLI compatibility bridge.
+directories are imported/exported through the CLI compatibility bridge, and the
+latest snapshot is also projected back into the working directory for classic
+`ECGAME` play.
 
 Run the original oracle against that directory:
 

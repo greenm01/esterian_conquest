@@ -41,6 +41,17 @@ const ORIGINAL_FILES: &[&str] = &[
     "SETUP.DAT",
 ];
 
+const CLASSIC_RUNTIME_SUPPORT_FILES: &[&str] = &[
+    "ECGAME.EXE",
+    "ECMAINT.EXE",
+    "ECUTIL.EXE",
+    "ECKEY1X.BIN",
+    "ECPLAYER.DOC",
+    "ECQSTART.DOC",
+    "ECREADME.DOC",
+    "WHATSNEW.DOC",
+];
+
 pub fn initialize_dir(source: &Path, target: &Path) -> Result<(), Box<dyn std::error::Error>> {
     copy_top_level_files(source, target)?;
 
@@ -106,6 +117,28 @@ pub fn ensure_auxiliary_files(target: &Path) -> Result<(), Box<dyn std::error::E
 
 pub fn refresh_runtime_store(target: &Path) -> Result<(), Box<dyn std::error::Error>> {
     CampaignStore::open_default_in_dir(target)?.import_directory_snapshot(target)?;
+    Ok(())
+}
+
+pub fn seed_classic_runtime_files(target: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    copy_named_files(
+        &crate::support::paths::default_fixture_dir(),
+        target,
+        CLASSIC_RUNTIME_SUPPORT_FILES,
+    )
+}
+
+pub fn overlay_classic_runtime_files(
+    source: &Path,
+    target: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    for name in CLASSIC_RUNTIME_SUPPORT_FILES {
+        let source_path = source.join(name);
+        if source_path.exists() {
+            fs::create_dir_all(target)?;
+            fs::copy(&source_path, target.join(name))?;
+        }
+    }
     Ok(())
 }
 

@@ -45,6 +45,9 @@ fn sysop_can_init_canonical_four_player_start() {
         game_data.planets.records[0].present_production_points(),
         Some(100)
     );
+    assert!(target.join("ECGAME.EXE").exists());
+    assert!(target.join("ECMAINT.EXE").exists());
+    assert!(target.join("ECUTIL.EXE").exists());
     cleanup_dir(&target);
 }
 

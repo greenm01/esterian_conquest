@@ -2,6 +2,8 @@ use std::path::Path;
 
 use ec_data::{CampaignStore, DEFAULT_CAMPAIGN_DB_NAME};
 
+use crate::workspace::{overlay_classic_runtime_files, seed_classic_runtime_files};
+
 pub fn import_directory_to_db(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let store = CampaignStore::open_default_in_dir(dir)?;
     let snapshot_id = store.import_directory_snapshot(dir)?;
@@ -19,6 +21,8 @@ pub fn export_latest_db_snapshot(
     target_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let store = CampaignStore::open(source_dir.join(DEFAULT_CAMPAIGN_DB_NAME))?;
+    overlay_classic_runtime_files(source_dir, target_dir)?;
+    seed_classic_runtime_files(target_dir)?;
     let year = store.export_latest_snapshot_to_dir(target_dir)?;
     if year == 0 {
         println!("No snapshots found in {}.", store.path().display());

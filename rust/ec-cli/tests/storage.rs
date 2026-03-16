@@ -28,6 +28,9 @@ fn db_import_and_export_round_trip_fixture() {
         fs::read(source.join("DATABASE.DAT")).unwrap(),
         fs::read(exported.join("DATABASE.DAT")).unwrap()
     );
+    assert!(exported.join("ECGAME.EXE").exists());
+    assert!(exported.join("ECMAINT.EXE").exists());
+    assert!(exported.join("ECUTIL.EXE").exists());
 
     cleanup_dir(&source);
     cleanup_dir(&exported);
@@ -54,6 +57,7 @@ fn sqlite_maint_exported_directory_is_accepted_by_ecmaint_oracle() {
 
     let oracle_stdout = run_ecmaint_oracle(&exported);
     assert!(!oracle_stdout.trim().is_empty());
+    assert!(exported.join("ECGAME.EXE").exists());
 
     cleanup_dir(&source);
     cleanup_dir(&exported);

@@ -10,6 +10,7 @@ use ec_data::{
 };
 
 use crate::commands::reports::{build_database_dat, build_messages_dat, build_results_dat};
+use crate::workspace::seed_classic_runtime_files;
 
 /// Run Rust maintenance on a game directory for specified number of turns
 pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::error::Error>> {
@@ -21,9 +22,15 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
     );
 
     let campaign_store = CampaignStore::open_default_in_dir(dir)?;
-    let runtime_state = campaign_store
-        .load_latest_runtime_state()?
-        .ok_or("campaign store has no snapshots; import with ec-cli db-import first")?;
+    let runtime_state = match campaign_store.load_latest_runtime_state()? {
+        Some(state) => state,
+        None => {
+            campaign_store.import_directory_snapshot(dir)?;
+            campaign_store
+                .load_latest_runtime_state()?
+                .ok_or("campaign store has no snapshots after importing directory")?
+        }
+    };
 
     let mut game_data = runtime_state.game_data;
     let start_year = game_data.conquest.game_year();
@@ -136,6 +143,8 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
         &messages_bytes,
         &Vec::new(),
     )?;
+    campaign_store.export_latest_snapshot_to_dir(dir)?;
+    seed_classic_runtime_files(dir)?;
     save_diplomacy_overrides_if_needed(
         dir,
         game_data.conquest.player_count(),

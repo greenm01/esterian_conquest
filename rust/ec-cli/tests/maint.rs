@@ -73,6 +73,29 @@ fn maint_rust_econ_updates_database_owner_intel_from_post_combat_planet_state() 
 }
 
 #[test]
+fn maint_rust_projects_latest_snapshot_back_into_working_directory() {
+    let target = unique_temp_dir("ec-cli-maint-rust-in-place-classic");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let pre = CoreGameData::load(&target).expect("fixture should load");
+    let stdout = run_ec_cli_in_dir(
+        &["maint-rust", target.to_str().unwrap(), "1"],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let post = CoreGameData::load(&target).expect("maint-rust should project latest snapshot");
+    assert_eq!(post.conquest.game_year(), pre.conquest.game_year() + 1);
+    assert!(target.join("DATABASE.DAT").exists());
+    assert!(target.join("RESULTS.DAT").exists());
+    assert!(target.join("MESSAGES.DAT").exists());
+    assert!(target.join("ECGAME.EXE").exists());
+    assert!(target.join("ECMAINT.EXE").exists());
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     let target = unique_temp_dir("ec-cli-maint-rust-fleet-battle");
     copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);

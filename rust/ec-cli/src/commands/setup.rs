@@ -6,6 +6,8 @@ use ec_data::{
     CampaignStore, ConquestDat, DatabaseDat, SetupConfig, SetupDat, build_seeded_new_game,
 };
 
+use crate::workspace::seed_classic_runtime_files;
+
 pub(crate) fn print_maintenance_days(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let conquest = ConquestDat::parse(&fs::read(dir.join("CONQUEST.DAT"))?)?;
     let enabled = conquest.maintenance_schedule_enabled();
@@ -70,6 +72,7 @@ pub(crate) fn init_new_game_with_seed(
         }
     }
 
+    seed_classic_runtime_files(target)?;
     CampaignStore::open_default_in_dir(target)?.import_directory_snapshot(target)?;
 
     Ok(())
@@ -113,6 +116,7 @@ pub(crate) fn init_new_game_from_config(
         }
     }
 
+    seed_classic_runtime_files(target)?;
     CampaignStore::open_default_in_dir(target)?.import_directory_snapshot(target)?;
 
     Ok(())
