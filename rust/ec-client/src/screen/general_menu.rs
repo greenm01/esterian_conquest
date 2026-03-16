@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    CMD_COL_1, CMD_COL_2, MenuEntry, draw_command_center, draw_status_line, new_playfield,
+    CMD_COL_1, CMD_COL_2, MenuEntry, draw_command_center, draw_wrapped_status, new_playfield,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 
@@ -56,7 +56,7 @@ impl GeneralMenuScreen {
             "H,Q,X,V,I,A,S,P,M,C,R,D,O,E",
         );
         if let Some(notice) = notice {
-            draw_status_line(&mut buffer, 16, "Notice: ", notice);
+            draw_wrapped_status(&mut buffer, 16, 3, "Notice: ", notice);
         }
         Ok(buffer)
     }

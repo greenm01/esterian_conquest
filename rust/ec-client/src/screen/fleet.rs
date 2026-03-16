@@ -3,7 +3,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::screen::layout::{
     MenuEntry, draw_command_line_default_input, draw_command_line_text, draw_command_prompt,
-    draw_menu_entry, draw_status_line, draw_title_bar, new_playfield,
+    draw_menu_entry, draw_status_line, draw_title_bar, draw_wrapped_status, new_playfield,
 };
 use crate::screen::table::{
     TableColumn, fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
@@ -144,7 +144,7 @@ impl FleetMenuScreen {
             }
         }
         if let Some(notice) = notice {
-            draw_status_line(&mut buffer, 16, "Notice: ", notice);
+            draw_wrapped_status(&mut buffer, 16, 3, "Notice: ", notice);
         }
         draw_command_prompt(
             &mut buffer,

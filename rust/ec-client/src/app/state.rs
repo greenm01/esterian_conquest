@@ -156,6 +156,7 @@ pub struct App {
     planet_transport_planet_cursor: usize,
     planet_transport_planet_scroll_offset: usize,
     planet_transport_selected_planet_record: Option<usize>,
+    planet_transport_planet_input: String,
     planet_transport_fleet_cursor: usize,
     planet_transport_fleet_scroll_offset: usize,
     planet_transport_qty_input: String,
@@ -352,6 +353,7 @@ impl App {
             planet_transport_planet_cursor: 0,
             planet_transport_planet_scroll_offset: 0,
             planet_transport_selected_planet_record: None,
+            planet_transport_planet_input: String::new(),
             planet_transport_fleet_cursor: 0,
             planet_transport_fleet_scroll_offset: 0,
             planet_transport_qty_input: String::new(),
@@ -543,6 +545,8 @@ impl App {
                     &self.planet_transport_planet_rows(mode),
                     self.planet_transport_planet_scroll_offset,
                     self.planet_transport_planet_cursor,
+                    &self.planet_transport_planet_input,
+                    self.planet_transport_planet_default_coords(mode),
                     self.planet_transport_status.as_deref(),
                 )?
             }
@@ -1187,6 +1191,7 @@ impl App {
         self.planet_transport_planet_cursor = 0;
         self.planet_transport_planet_scroll_offset = 0;
         self.planet_transport_selected_planet_record = None;
+        self.planet_transport_planet_input.clear();
         self.planet_transport_fleet_cursor = 0;
         self.planet_transport_fleet_scroll_offset = 0;
         self.planet_transport_qty_input.clear();
@@ -2354,6 +2359,8 @@ impl App {
             self.planet_transport_planet_cursor,
             crate::screen::PLANET_TRANSPORT_VISIBLE_ROWS,
         );
+        self.planet_transport_planet_input.clear();
+        self.planet_transport_status = None;
     }
 
     pub fn confirm_planet_transport_planet(&mut self) {
@@ -2386,6 +2393,62 @@ impl App {
         } else {
             self.current_screen = ScreenId::PlanetTransportFleetSelect(mode);
         }
+    }
+
+    pub fn append_planet_transport_planet_char(&mut self, ch: char) {
+        if matches!(
+            self.current_screen,
+            ScreenId::PlanetTransportPlanetSelect(PlanetTransportMode::Load)
+                | ScreenId::PlanetTransportPlanetSelect(PlanetTransportMode::Unload)
+        ) && self.planet_transport_planet_input.len() < 16
+        {
+            self.planet_transport_planet_input.push(ch);
+            self.planet_transport_status = None;
+        }
+    }
+
+    pub fn backspace_planet_transport_planet_input(&mut self) {
+        if matches!(
+            self.current_screen,
+            ScreenId::PlanetTransportPlanetSelect(PlanetTransportMode::Load)
+                | ScreenId::PlanetTransportPlanetSelect(PlanetTransportMode::Unload)
+        ) {
+            self.planet_transport_planet_input.pop();
+            self.planet_transport_status = None;
+        }
+    }
+
+    pub fn submit_planet_transport_planet(&mut self) {
+        let ScreenId::PlanetTransportPlanetSelect(mode) = self.current_screen else {
+            return;
+        };
+        if self.planet_transport_planet_input.trim().is_empty() {
+            self.confirm_planet_transport_planet();
+            return;
+        }
+        let Some(coords) = resolve_default_coords_input(
+            &self.planet_transport_planet_input,
+            self.planet_transport_planet_default_coords(mode),
+        ) else {
+            self.planet_transport_status = Some("Enter coordinates like 5,2".to_string());
+            return;
+        };
+        let rows = self.planet_transport_planet_rows(mode);
+        let Some(index) = rows.iter().position(|row| row.coords == coords) else {
+            self.planet_transport_status =
+                Some(format!("No eligible planet found at [{},{}].", coords[0], coords[1]));
+            return;
+        };
+        self.planet_transport_planet_cursor = index;
+        center_scroll_to_cursor(
+            &mut self.planet_transport_planet_scroll_offset,
+            self.planet_transport_planet_cursor,
+            crate::screen::PLANET_TRANSPORT_VISIBLE_ROWS,
+            rows.len(),
+        );
+        self.planet_transport_planet_input.clear();
+        self.planet_transport_status = None;
+        self.confirm_planet_transport_planet();
     }
 
     pub fn move_planet_transport_fleet(&mut self, delta: i8) {
@@ -2535,6 +2598,13 @@ impl App {
             }
         }
         Ok(())
+    }
+
+    fn planet_transport_planet_default_coords(&self, mode: PlanetTransportMode) -> [u8; 2] {
+        self.planet_transport_planet_rows(mode)
+            .get(self.planet_transport_planet_cursor)
+            .map(|row| row.coords)
+            .unwrap_or_else(|| self.default_planet_prompt_coords())
     }
 
     pub fn toggle_planet_commission_selection(&mut self) {

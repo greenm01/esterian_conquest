@@ -83,6 +83,29 @@ pub fn draw_status_line(buffer: &mut PlayfieldBuffer, row: usize, label: &str, v
     );
 }
 
+pub fn draw_wrapped_status(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    max_rows: usize,
+    label: &str,
+    value: &str,
+) -> usize {
+    if max_rows == 0 {
+        return 0;
+    }
+    let label_width = label.chars().count();
+    let continuation = " ".repeat(label_width);
+    let first_width = PLAYFIELD_WIDTH.saturating_sub(label_width).max(1);
+    let continuation_width = PLAYFIELD_WIDTH.saturating_sub(label_width).max(1);
+    let lines = wrap_text(value, first_width, continuation_width);
+    let rows_to_draw = lines.len().min(max_rows);
+    for (idx, line) in lines.into_iter().take(rows_to_draw).enumerate() {
+        let current_label = if idx == 0 { label } else { &continuation };
+        draw_status_line(buffer, start_row + idx, current_label, &line);
+    }
+    rows_to_draw
+}
+
 pub fn draw_centered_text(
     buffer: &mut PlayfieldBuffer,
     row: usize,
@@ -178,4 +201,41 @@ pub fn draw_help_panel(
         buffer.write_text(3 + idx, 0, line, classic::help_panel_style());
     }
     draw_command_prompt(buffer, 19, prompt_label, "SLAP A KEY");
+}
+
+fn wrap_text(value: &str, first_width: usize, continuation_width: usize) -> Vec<String> {
+    let normalized = value.split_whitespace().collect::<Vec<_>>();
+    if normalized.is_empty() {
+        return vec![String::new()];
+    }
+
+    let mut lines = Vec::new();
+    let mut current = String::new();
+    let mut limit = first_width;
+    for word in normalized {
+        let separator = if current.is_empty() { 0 } else { 1 };
+        if current.len() + separator + word.len() > limit && !current.is_empty() {
+            lines.push(current);
+            current = String::new();
+            limit = continuation_width;
+        }
+        if !current.is_empty() {
+            current.push(' ');
+        }
+        if word.len() > limit && current.is_empty() {
+            let mut remaining = word;
+            while remaining.len() > limit {
+                lines.push(remaining[..limit].to_string());
+                remaining = &remaining[limit..];
+                limit = continuation_width;
+            }
+            current.push_str(remaining);
+        } else {
+            current.push_str(word);
+        }
+    }
+    if !current.is_empty() {
+        lines.push(current);
+    }
+    lines
 }

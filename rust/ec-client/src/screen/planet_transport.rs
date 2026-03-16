@@ -83,6 +83,8 @@ impl PlanetTransportScreen {
         rows: &[PlanetTransportPlanetRow],
         scroll_offset: usize,
         cursor: usize,
+        input: &str,
+        default_coords: [u8; 2],
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
@@ -123,15 +125,19 @@ impl PlanetTransportScreen {
             classic::status_value_style(),
             selected,
         );
-        if let Some(status) = status {
-            buffer.write_text(17, 0, status, classic::status_value_style());
-        }
-        let prompt_keys = if table_rows.is_empty() {
-            "Q"
+        if table_rows.is_empty() {
+            draw_command_line_text(&mut buffer, prompt_label, "No eligible planets remain. Q quits.");
+        } else if let Some(status) = status {
+            draw_command_line_text(&mut buffer, prompt_label, status);
         } else {
-            "ARROWS J K ENTER Q"
-        };
-        draw_command_prompt(&mut buffer, 19, prompt_label, prompt_keys);
+            draw_command_line_default_input(
+                &mut buffer,
+                prompt_label,
+                "",
+                &format!("{},{}", default_coords[0], default_coords[1]),
+                input,
+            );
+        }
         Ok(buffer)
     }
 
@@ -294,7 +300,13 @@ impl PlanetTransportScreen {
             }
             KeyCode::PageUp => Action::MovePlanetTransportPlanet(-8),
             KeyCode::PageDown => Action::MovePlanetTransportPlanet(8),
-            KeyCode::Enter => Action::ConfirmPlanetTransportPlanet,
+            KeyCode::Enter => Action::SubmitPlanetTransportPlanet,
+            KeyCode::Backspace => Action::BackspacePlanetTransportPlanetInput,
+            KeyCode::Char(ch)
+                if ch.is_ascii_digit() || matches!(ch, ',' | '[' | ']' | ' ') =>
+            {
+                Action::AppendPlanetTransportPlanetChar(ch)
+            }
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::ReturnToCommandMenu,
             _ => Action::Noop,
         }

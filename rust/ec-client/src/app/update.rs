@@ -330,6 +330,18 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.confirm_planet_transport_planet();
             AppOutcome::Continue
         }
+        Action::AppendPlanetTransportPlanetChar(ch) => {
+            app.append_planet_transport_planet_char(ch);
+            AppOutcome::Continue
+        }
+        Action::BackspacePlanetTransportPlanetInput => {
+            app.backspace_planet_transport_planet_input();
+            AppOutcome::Continue
+        }
+        Action::SubmitPlanetTransportPlanet => {
+            app.submit_planet_transport_planet();
+            AppOutcome::Continue
+        }
         Action::MovePlanetTransportFleet(delta) => {
             app.move_planet_transport_fleet(delta);
             AppOutcome::Continue

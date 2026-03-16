@@ -1783,6 +1783,7 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
     app.render(&mut terminal)
         .expect("fleet load transport picker should render");
     assert!(terminal.line(19).contains("FLEET COMMAND"));
+    assert!(terminal.line(19).contains("] ->"));
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
         Action::ReturnToCommandMenu
@@ -1808,6 +1809,7 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
     app.render(&mut terminal)
         .expect("fleet unload transport picker should render");
     assert!(terminal.line(19).contains("FLEET COMMAND"));
+    assert!(terminal.line(19).contains("] ->"));
 }
 
 #[test]
@@ -1848,6 +1850,95 @@ fn fleet_menu_load_and_unload_show_menu_notice_when_no_transport_action_is_avail
     assert!(terminal.lines.iter().any(|line| {
         line.contains("No fleets have loaded armies ready to unload")
     }));
+}
+
+#[test]
+fn fleet_transport_planet_picker_accepts_typed_coordinates() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1;
+    let home_coords = state.game_data.planets.records[homeworld_index].coords_raw();
+    let fleet = &mut state.game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw(home_coords);
+    fleet.set_troop_transport_count(3);
+    fleet.set_army_count(1);
+    fleet.recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetTransportLoad),
+        AppOutcome::Continue
+    );
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet load transport picker should render");
+    let prompt = terminal.line(19);
+    let default_coords = prompt
+        .split('[')
+        .nth(1)
+        .and_then(|tail| tail.split(']').next())
+        .expect("default coords should be shown in prompt");
+    for ch in default_coords.chars() {
+        assert_eq!(
+            apply_action(&mut app, Action::AppendPlanetTransportPlanetChar(ch)),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitPlanetTransportPlanet),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::PlanetTransportFleetSelect(ec_client::screen::PlanetTransportMode::Load)
+    );
+}
+
+#[test]
+fn fleet_menu_long_notice_wraps_instead_of_clipping() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetTransportUnload),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet menu should render wrapped notice");
+    let wrapped_notice = [terminal.line(16), terminal.line(17), terminal.line(18)]
+        .into_iter()
+        .flat_map(|line| line.split_whitespace())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(wrapped_notice.contains(
+        "No fleets have loaded armies ready to unload onto planets with free capacity."
+    ));
 }
 
 #[test]

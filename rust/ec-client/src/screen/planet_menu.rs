@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::screen::layout::{
-    MenuEntry, draw_command_prompt, draw_menu_entry, draw_status_line, draw_title_bar,
+    MenuEntry, draw_command_prompt, draw_menu_entry, draw_title_bar, draw_wrapped_status,
     new_playfield,
 };
 use crate::screen::{
@@ -68,7 +68,7 @@ impl PlanetMenuScreen {
             }
         }
         if let Some(notice) = notice {
-            draw_status_line(&mut buffer, 16, "Notice: ", notice);
+            draw_wrapped_status(&mut buffer, 16, 3, "Notice: ", notice);
         }
         draw_command_prompt(
             &mut buffer,

@@ -3,7 +3,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::screen::layout::{
     draw_command_line_default_input, draw_command_prompt, draw_status_line, draw_title_bar,
-    new_playfield,
+    draw_wrapped_status, new_playfield,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{
@@ -95,17 +95,18 @@ impl PlanetDatabaseScreen {
             selected,
         );
         if table_rows.is_empty() {
-            draw_status_line(
+            draw_wrapped_status(
                 &mut buffer,
-                16,
+                15,
+                2,
                 "Notice: ",
                 "No planets are currently recorded in your database.",
             );
         }
         if let Some(status) = status {
-            draw_status_line(&mut buffer, 16, "Error: ", status);
+            draw_wrapped_status(&mut buffer, 16, 2, "Error: ", status);
         } else {
-            draw_status_line(&mut buffer, 16, "Notice: ", "Press Q to leave this screen.");
+            draw_wrapped_status(&mut buffer, 16, 2, "Notice: ", "Press Q to leave this screen.");
         }
         draw_command_line_default_input(
             &mut buffer,
