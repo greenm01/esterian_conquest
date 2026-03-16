@@ -38,14 +38,14 @@ impl StartupScreen {
             StartupPhase::LoginSummary => self.render_login_summary(frame),
             StartupPhase::Results => self.render_report_lines(
                 frame,
-                "PENDING RESULTS",
+                "RESULTS REVIEW",
                 &self.reports.results_lines,
                 "Classic results pending flag is set, but no report lines are loaded.",
                 results_page,
             ),
             StartupPhase::Messages => self.render_report_lines(
                 frame,
-                "PENDING MESSAGES",
+                "MESSAGES REVIEW",
                 &self.reports.message_lines,
                 "Classic messages pending flag is set, but no message lines are loaded.",
                 messages_page,
