@@ -149,6 +149,16 @@ pub(crate) fn set_maintenance_days(
     Ok(())
 }
 
+fn with_runtime_setup_mut<F>(dir: &Path, mutate: F) -> Result<(), Box<dyn std::error::Error>>
+where
+    F: FnOnce(&mut SetupDat),
+{
+    with_runtime_game_mut_and_export_core(dir, |data| {
+        mutate(&mut data.setup);
+        Ok(())
+    })
+}
+
 pub(crate) fn print_port_setup(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
     println!("Directory: {}", dir.display());
@@ -185,10 +195,7 @@ pub(crate) fn print_snoop(dir: &Path) -> Result<(), Box<dyn std::error::Error>> 
 }
 
 pub(crate) fn set_snoop(dir: &Path, enabled: bool) -> Result<(), Box<dyn std::error::Error>> {
-    let setup_path = dir.join("SETUP.DAT");
-    let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
-    setup.set_snoop_enabled(enabled);
-    fs::write(&setup_path, setup.to_bytes())?;
+    with_runtime_setup_mut(dir, |setup| setup.set_snoop_enabled(enabled))?;
     print_snoop(dir)?;
     Ok(())
 }
@@ -218,10 +225,9 @@ pub(crate) fn set_flow_control(
     enabled: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let com_index = com_index(port_name).ok_or_else(|| format!("unknown COM port: {port_name}"))?;
-    let setup_path = dir.join("SETUP.DAT");
-    let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
-    setup.set_com_hardware_flow_control_enabled(com_index, enabled);
-    fs::write(&setup_path, setup.to_bytes())?;
+    with_runtime_setup_mut(dir, |setup| {
+        let _ = setup.set_com_hardware_flow_control_enabled(com_index, enabled);
+    })?;
     print_flow_control(dir, port_name)?;
     Ok(())
 }
@@ -247,10 +253,9 @@ pub(crate) fn set_com_irq(
         return Err(format!("IRQ must be in 0..=7, got {irq}").into());
     }
     let com_index = com_index(port_name).ok_or_else(|| format!("unknown COM port: {port_name}"))?;
-    let setup_path = dir.join("SETUP.DAT");
-    let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
-    setup.set_com_irq_raw(com_index, irq);
-    fs::write(&setup_path, setup.to_bytes())?;
+    with_runtime_setup_mut(dir, |setup| {
+        let _ = setup.set_com_irq_raw(com_index, irq);
+    })?;
     print_com_irq(dir, port_name)?;
     Ok(())
 }
@@ -273,10 +278,7 @@ pub(crate) fn set_local_timeout(
     dir: &Path,
     enabled: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let setup_path = dir.join("SETUP.DAT");
-    let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
-    setup.set_local_timeout_enabled(enabled);
-    fs::write(&setup_path, setup.to_bytes())?;
+    with_runtime_setup_mut(dir, |setup| setup.set_local_timeout_enabled(enabled))?;
     print_local_timeout(dir)?;
     Ok(())
 }
@@ -299,10 +301,7 @@ pub(crate) fn set_remote_timeout(
     dir: &Path,
     enabled: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let setup_path = dir.join("SETUP.DAT");
-    let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
-    setup.set_remote_timeout_enabled(enabled);
-    fs::write(&setup_path, setup.to_bytes())?;
+    with_runtime_setup_mut(dir, |setup| setup.set_remote_timeout_enabled(enabled))?;
     print_remote_timeout(dir)?;
     Ok(())
 }
@@ -318,10 +317,9 @@ pub(crate) fn print_max_key_gap(dir: &Path) -> Result<(), Box<dyn std::error::Er
 }
 
 pub(crate) fn set_max_key_gap(dir: &Path, minutes: u8) -> Result<(), Box<dyn std::error::Error>> {
-    let setup_path = dir.join("SETUP.DAT");
-    let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
-    setup.set_max_time_between_keys_minutes_raw(minutes);
-    fs::write(&setup_path, setup.to_bytes())?;
+    with_runtime_setup_mut(dir, |setup| {
+        setup.set_max_time_between_keys_minutes_raw(minutes)
+    })?;
     print_max_key_gap(dir)?;
     Ok(())
 }
@@ -337,10 +335,9 @@ pub(crate) fn print_minimum_time(dir: &Path) -> Result<(), Box<dyn std::error::E
 }
 
 pub(crate) fn set_minimum_time(dir: &Path, minutes: u8) -> Result<(), Box<dyn std::error::Error>> {
-    let setup_path = dir.join("SETUP.DAT");
-    let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
-    setup.set_minimum_time_granted_minutes_raw(minutes);
-    fs::write(&setup_path, setup.to_bytes())?;
+    with_runtime_setup_mut(dir, |setup| {
+        setup.set_minimum_time_granted_minutes_raw(minutes)
+    })?;
     print_minimum_time(dir)?;
     Ok(())
 }
@@ -385,10 +382,7 @@ pub(crate) fn print_setup_programs(dir: &Path) -> Result<(), Box<dyn std::error:
 }
 
 pub(crate) fn set_purge_after(dir: &Path, turns: u8) -> Result<(), Box<dyn std::error::Error>> {
-    let setup_path = dir.join("SETUP.DAT");
-    let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
-    setup.set_purge_after_turns_raw(turns);
-    fs::write(&setup_path, setup.to_bytes())?;
+    with_runtime_setup_mut(dir, |setup| setup.set_purge_after_turns_raw(turns))?;
     print_purge_after(dir)?;
     Ok(())
 }
@@ -404,10 +398,7 @@ pub(crate) fn print_autopilot_after(dir: &Path) -> Result<(), Box<dyn std::error
 }
 
 pub(crate) fn set_autopilot_after(dir: &Path, turns: u8) -> Result<(), Box<dyn std::error::Error>> {
-    let setup_path = dir.join("SETUP.DAT");
-    let mut setup = SetupDat::parse(&fs::read(&setup_path)?)?;
-    setup.set_autopilot_inactive_turns_raw(turns);
-    fs::write(&setup_path, setup.to_bytes())?;
+    with_runtime_setup_mut(dir, |setup| setup.set_autopilot_inactive_turns_raw(turns))?;
     print_autopilot_after(dir)?;
     Ok(())
 }

@@ -29,7 +29,19 @@ fn sysop_snoop_off_rewrites_setup_flag() {
     );
     assert!(stdout.contains("Snoop enabled: no"));
 
+    let exported = unique_temp_dir("ec-cli-sysop-snoop-exported");
+    run_ec_cli_in_dir(
+        &["db-export", target.to_str().unwrap(), exported.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    let exported_stdout = run_ec_cli_in_dir(
+        &["sysop", "snoop", exported.to_str().unwrap()],
+        common::rust_workspace(),
+    );
+    assert!(exported_stdout.contains("Snoop enabled: no"));
+
     cleanup_dir(&target);
+    cleanup_dir(&exported);
 }
 
 #[test]
