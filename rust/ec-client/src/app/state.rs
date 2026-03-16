@@ -14,8 +14,10 @@ use crate::screen::{
     BuildHelpScreen, CommandMenu, DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen,
     EnemiesScreen, FIRST_TIME_INTRO_PAGE_COUNT, FirstTimeEmpiresScreen, FirstTimeHelpScreen,
     FirstTimeIntroScreen, FirstTimeMenuScreen, FleetDetachMode, FleetDetachScreen, FleetEtaMode,
-    FleetEtaScreen, FleetHelpScreen, FleetListMode, FleetListScreen, FleetMenuScreen,
-    FleetReviewScreen, FleetRoeScreen, FleetRow, GeneralHelpScreen, GeneralMenuScreen,
+    FleetEtaScreen, FleetGroupScreen, FleetHelpScreen, FleetListMode, FleetListScreen,
+    FleetMenuScreen, FleetMergeMode, FleetMergeScreen, FleetReviewScreen, FleetRoeScreen,
+    FleetRow,
+    GeneralHelpScreen, GeneralMenuScreen,
     MainHelpScreen, MainMenuScreen, MessageComposeScreen, PartialStarmapScreen,
     PlanetAutoCommissionScreen,
     PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildOrder,
@@ -61,6 +63,8 @@ pub struct App {
     fleet_list: FleetListScreen,
     fleet_review: FleetReviewScreen,
     fleet_roe: FleetRoeScreen,
+    fleet_group: FleetGroupScreen,
+    fleet_merge: FleetMergeScreen,
     fleet_detach: FleetDetachScreen,
     fleet_eta: FleetEtaScreen,
     planet_menu: PlanetMenuScreen,
@@ -123,6 +127,17 @@ pub struct App {
     fleet_roe_select_input: String,
     fleet_roe_input: String,
     fleet_roe_status: Option<String>,
+    fleet_group_scroll_offset: usize,
+    fleet_group_cursor: usize,
+    fleet_group_selected_fleets: BTreeSet<usize>,
+    fleet_group_status: Option<String>,
+    fleet_merge_scroll_offset: usize,
+    fleet_merge_cursor: usize,
+    fleet_merge_mode: FleetMergeMode,
+    fleet_merge_source_record_index_1_based: Option<usize>,
+    fleet_merge_source_input: String,
+    fleet_merge_host_input: String,
+    fleet_merge_status: Option<String>,
     fleet_detach_scroll_offset: usize,
     fleet_detach_cursor: usize,
     fleet_detach_mode: FleetDetachMode,
@@ -258,6 +273,8 @@ impl App {
             fleet_list: FleetListScreen::new(),
             fleet_review: FleetReviewScreen::new(),
             fleet_roe: FleetRoeScreen::new(),
+            fleet_group: FleetGroupScreen::new(),
+            fleet_merge: FleetMergeScreen::new(),
             fleet_detach: FleetDetachScreen::new(),
             fleet_eta: FleetEtaScreen::new(),
             planet_menu: PlanetMenuScreen::new(),
@@ -320,6 +337,17 @@ impl App {
             fleet_roe_select_input: String::new(),
             fleet_roe_input: String::new(),
             fleet_roe_status: None,
+            fleet_group_scroll_offset: 0,
+            fleet_group_cursor: 0,
+            fleet_group_selected_fleets: BTreeSet::new(),
+            fleet_group_status: None,
+            fleet_merge_scroll_offset: 0,
+            fleet_merge_cursor: 0,
+            fleet_merge_mode: FleetMergeMode::SelectingSource,
+            fleet_merge_source_record_index_1_based: None,
+            fleet_merge_source_input: String::new(),
+            fleet_merge_host_input: String::new(),
+            fleet_merge_status: None,
             fleet_detach_scroll_offset: 0,
             fleet_detach_cursor: 0,
             fleet_detach_mode: FleetDetachMode::SelectingFleet,
@@ -500,6 +528,26 @@ impl App {
                 &self.fleet_roe_input,
                 self.fleet_roe_status.as_deref(),
             )?,
+            ScreenId::FleetGroupOrder => self.fleet_group.render(
+                &self.fleet_rows(),
+                self.fleet_group_scroll_offset,
+                self.fleet_group_cursor,
+                &self.fleet_group_selected_fleets,
+                self.fleet_group_status.as_deref(),
+            )?,
+            ScreenId::FleetMerge => {
+                let rows = self.current_fleet_merge_rows();
+                let input = self.current_fleet_merge_input().to_string();
+                let status = self.fleet_merge_status.clone();
+                self.fleet_merge.render(
+                    &rows,
+                    self.fleet_merge_scroll_offset,
+                    self.fleet_merge_cursor,
+                    self.fleet_merge_mode,
+                    &input,
+                    status.as_deref(),
+                )?
+            }
             ScreenId::FleetDetach => {
                 let rows = self.fleet_rows();
                 let (prompt, default) = self.fleet_detach_prompt_and_default(&rows);
@@ -978,6 +1026,13 @@ impl App {
         );
     }
 
+    pub fn show_fleet_expert_mode_notice(&mut self) {
+        self.show_command_menu_notice(
+            CommandMenu::Fleet,
+            "Expert mode not implemented yet. Plan for VIM style commands.",
+        );
+    }
+
     pub fn open_general_menu(&mut self) {
         self.clear_command_menu_notice();
         self.current_screen = ScreenId::GeneralMenu;
@@ -1103,6 +1158,50 @@ impl App {
         );
         self.fleet_roe_editing = false;
         self.current_screen = ScreenId::FleetRoeSelect;
+    }
+
+    pub fn open_fleet_merge(&mut self) {
+        let total = self.fleet_rows().len();
+        if total < 2 {
+            self.show_command_menu_notice(
+                CommandMenu::Fleet,
+                "You need at least two fleets to merge.",
+            );
+            return;
+        }
+        self.clear_command_menu_notice();
+        self.fleet_merge_status = None;
+        self.fleet_merge_source_input.clear();
+        self.fleet_merge_host_input.clear();
+        self.fleet_merge_source_record_index_1_based = None;
+        self.fleet_merge_mode = FleetMergeMode::SelectingSource;
+        self.fleet_merge_cursor = self.fleet_merge_cursor.min(total - 1);
+        center_scroll_to_cursor(
+            &mut self.fleet_merge_scroll_offset,
+            self.fleet_merge_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+            total,
+        );
+        self.current_screen = ScreenId::FleetMerge;
+    }
+
+    pub fn open_fleet_group_order(&mut self) {
+        let total = self.fleet_rows().len();
+        if total == 0 {
+            self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
+            return;
+        }
+        self.clear_command_menu_notice();
+        self.fleet_group_status = None;
+        self.fleet_group_selected_fleets.clear();
+        self.fleet_group_cursor = self.fleet_group_cursor.min(total - 1);
+        center_scroll_to_cursor(
+            &mut self.fleet_group_scroll_offset,
+            self.fleet_group_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+            total,
+        );
+        self.current_screen = ScreenId::FleetGroupOrder;
     }
 
     pub fn open_fleet_detach(&mut self) {
@@ -1548,6 +1647,48 @@ impl App {
         self.fleet_roe_status = None;
     }
 
+    pub fn move_fleet_merge_select(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::FleetMerge {
+            return;
+        }
+        let total = self.current_fleet_merge_rows().len();
+        if total == 0 {
+            self.fleet_merge_cursor = 0;
+            return;
+        }
+        let next = self.fleet_merge_cursor as isize + delta as isize;
+        self.fleet_merge_cursor = next.rem_euclid(total as isize) as usize;
+        sync_scroll_to_cursor(
+            &mut self.fleet_merge_scroll_offset,
+            self.fleet_merge_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+        );
+        match self.fleet_merge_mode {
+            FleetMergeMode::SelectingSource => self.fleet_merge_source_input.clear(),
+            FleetMergeMode::SelectingHost => self.fleet_merge_host_input.clear(),
+        }
+        self.fleet_merge_status = None;
+    }
+
+    pub fn move_fleet_group_order(&mut self, delta: i8) {
+        if self.current_screen != ScreenId::FleetGroupOrder {
+            return;
+        }
+        let total = self.fleet_rows().len();
+        if total == 0 {
+            self.fleet_group_cursor = 0;
+            return;
+        }
+        let next = self.fleet_group_cursor as isize + delta as isize;
+        self.fleet_group_cursor = next.rem_euclid(total as isize) as usize;
+        sync_scroll_to_cursor(
+            &mut self.fleet_group_scroll_offset,
+            self.fleet_group_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+        );
+        self.fleet_group_status = None;
+    }
+
     pub fn move_fleet_detach_select(&mut self, delta: i8) {
         if self.current_screen != ScreenId::FleetDetach
             || self.fleet_detach_mode != FleetDetachMode::SelectingFleet
@@ -1620,6 +1761,22 @@ impl App {
         self.fleet_review_select_input.push(ch);
         self.sync_fleet_review_cursor_to_input();
         self.fleet_review_status = None;
+    }
+
+    pub fn append_fleet_merge_char(&mut self, ch: char) {
+        if self.current_screen != ScreenId::FleetMerge || !ch.is_ascii_digit() {
+            return;
+        }
+        let input = match self.fleet_merge_mode {
+            FleetMergeMode::SelectingSource => &mut self.fleet_merge_source_input,
+            FleetMergeMode::SelectingHost => &mut self.fleet_merge_host_input,
+        };
+        if input.len() >= 4 {
+            return;
+        }
+        input.push(ch);
+        self.sync_fleet_merge_cursor_to_input();
+        self.fleet_merge_status = None;
     }
 
     pub fn append_fleet_detach_char(&mut self, ch: char) {
@@ -1698,6 +1855,36 @@ impl App {
         self.fleet_review_select_input.pop();
         self.sync_fleet_review_cursor_to_input();
         self.fleet_review_status = None;
+    }
+
+    pub fn backspace_fleet_merge_input(&mut self) {
+        if self.current_screen != ScreenId::FleetMerge {
+            return;
+        }
+        match self.fleet_merge_mode {
+            FleetMergeMode::SelectingSource => self.fleet_merge_source_input.pop(),
+            FleetMergeMode::SelectingHost => self.fleet_merge_host_input.pop(),
+        };
+        self.sync_fleet_merge_cursor_to_input();
+        self.fleet_merge_status = None;
+    }
+
+    pub fn toggle_fleet_group_order_selection(&mut self) {
+        if self.current_screen != ScreenId::FleetGroupOrder {
+            return;
+        }
+        let rows = self.fleet_rows();
+        let Some(row) = rows.get(self.fleet_group_cursor) else {
+            return;
+        };
+        if !self
+            .fleet_group_selected_fleets
+            .insert(row.fleet_record_index_1_based)
+        {
+            self.fleet_group_selected_fleets
+                .remove(&row.fleet_record_index_1_based);
+        }
+        self.fleet_group_status = None;
     }
 
     pub fn backspace_fleet_detach_input(&mut self) {
@@ -1815,6 +2002,113 @@ impl App {
         self.fleet_roe_status = None;
         self.fleet_roe_editing = false;
         Ok(())
+    }
+
+    pub fn submit_fleet_merge(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if self.current_screen != ScreenId::FleetMerge {
+            return Ok(());
+        }
+        let rows = self.current_fleet_merge_rows();
+        let Some(_) = rows.get(self.fleet_merge_cursor) else {
+            self.current_screen = ScreenId::FleetMenu;
+            return Ok(());
+        };
+
+        let target_fleet_id = match self.current_fleet_merge_input().trim() {
+            "" => rows[self.fleet_merge_cursor].fleet_number,
+            raw => match raw.parse::<u16>() {
+                Ok(value) => value,
+                Err(_) => {
+                    self.fleet_merge_status =
+                        Some("Enter a fleet number from the table.".to_string());
+                    return Ok(());
+                }
+            },
+        };
+        let Some(index) = rows.iter().position(|row| row.fleet_number == target_fleet_id) else {
+            self.fleet_merge_status =
+                Some(format!("Fleet #{target_fleet_id} is not in your fleet list."));
+            return Ok(());
+        };
+        self.fleet_merge_cursor = index;
+        sync_scroll_to_cursor(
+            &mut self.fleet_merge_scroll_offset,
+            self.fleet_merge_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+        );
+
+        match self.fleet_merge_mode {
+            FleetMergeMode::SelectingSource => {
+                let source = &rows[self.fleet_merge_cursor];
+                self.fleet_merge_source_record_index_1_based =
+                    Some(source.fleet_record_index_1_based);
+                self.fleet_merge_source_input.clear();
+                self.fleet_merge_host_input.clear();
+                self.fleet_merge_status = None;
+                self.fleet_merge_mode = FleetMergeMode::SelectingHost;
+                self.fleet_merge_cursor = 0;
+                self.fleet_merge_scroll_offset = 0;
+                let host_total = self.current_fleet_merge_rows().len();
+                if host_total == 0 {
+                    self.show_command_menu_notice(
+                        CommandMenu::Fleet,
+                        "You need at least two fleets to merge.",
+                    );
+                    return Ok(());
+                }
+                center_scroll_to_cursor(
+                    &mut self.fleet_merge_scroll_offset,
+                    self.fleet_merge_cursor,
+                    crate::screen::FLEET_VISIBLE_ROWS,
+                    host_total,
+                );
+            }
+            FleetMergeMode::SelectingHost => {
+                let host = &rows[self.fleet_merge_cursor];
+                let source_record_index_1_based = self
+                    .fleet_merge_source_record_index_1_based
+                    .ok_or("fleet merge source missing")?;
+                let source_fleet_number = self
+                    .fleet_rows()
+                    .into_iter()
+                    .find(|row| row.fleet_record_index_1_based == source_record_index_1_based)
+                    .map(|row| row.fleet_number)
+                    .ok_or("fleet merge source row missing")?;
+                self.game_data.set_join_fleet_order(
+                    self.player.record_index_1_based,
+                    source_record_index_1_based,
+                    host.fleet_record_index_1_based,
+                )?;
+                self.save_game_data()?;
+                self.fleet_merge_source_record_index_1_based = None;
+                self.fleet_merge_source_input.clear();
+                self.fleet_merge_host_input.clear();
+                self.fleet_merge_status = None;
+                self.fleet_merge_mode = FleetMergeMode::SelectingSource;
+                self.show_command_menu_notice(
+                    CommandMenu::Fleet,
+                    format!(
+                        "Fleet #{} ordered to join Fleet #{}.",
+                        source_fleet_number, host.fleet_number
+                    ),
+                );
+            }
+        }
+        Ok(())
+    }
+
+    pub fn submit_fleet_group_order(&mut self) {
+        if self.current_screen != ScreenId::FleetGroupOrder {
+            return;
+        }
+        if self.fleet_group_selected_fleets.is_empty() {
+            self.fleet_group_status = Some("Select at least one fleet.".to_string());
+            return;
+        }
+        self.fleet_group_status = Some(
+            "Group fleet missions are not implemented yet. Multi-select picker is now in place."
+                .to_string(),
+        );
     }
 
     pub fn submit_fleet_detach(&mut self) -> Result<(), Box<dyn std::error::Error>> {
@@ -2980,6 +3274,8 @@ impl App {
             ScreenId::FleetReviewSelect => self.handle_fleet_review_select_key(key),
             ScreenId::FleetReview => self.fleet_review.handle_key(key),
             ScreenId::FleetRoeSelect => self.handle_fleet_roe_key(key),
+            ScreenId::FleetGroupOrder => self.handle_fleet_group_order_key(key),
+            ScreenId::FleetMerge => self.handle_fleet_merge_key(key),
             ScreenId::FleetDetach => self.handle_fleet_detach_key(key),
             ScreenId::FleetEta => self.handle_fleet_eta_key(key),
             ScreenId::PlanetMenu => self.planet_menu.handle_key(key),
@@ -3214,6 +3510,8 @@ impl App {
             | ScreenId::FleetReviewSelect
             | ScreenId::FleetReview
             | ScreenId::FleetRoeSelect
+            | ScreenId::FleetGroupOrder
+            | ScreenId::FleetMerge
             | ScreenId::FleetDetach
             | ScreenId::FleetEta => CommandMenu::Fleet,
             ScreenId::GeneralMenu
@@ -4606,6 +4904,55 @@ impl App {
         }
     }
 
+    fn handle_fleet_merge_key(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> crate::app::Action {
+        use crossterm::event::KeyCode;
+
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                crate::app::Action::MoveFleetMergeSelect(-1)
+            }
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                crate::app::Action::MoveFleetMergeSelect(1)
+            }
+            KeyCode::PageUp => crate::app::Action::MoveFleetMergeSelect(-8),
+            KeyCode::PageDown => crate::app::Action::MoveFleetMergeSelect(8),
+            KeyCode::Enter => crate::app::Action::SubmitFleetMerge,
+            KeyCode::Backspace => crate::app::Action::BackspaceFleetMergeInput,
+            KeyCode::Char(ch) if ch.is_ascii_digit() => crate::app::Action::AppendFleetMergeChar(ch),
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                crate::app::Action::OpenFleetMenu
+            }
+            _ => crate::app::Action::Noop,
+        }
+    }
+
+    fn handle_fleet_group_order_key(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> crate::app::Action {
+        use crossterm::event::KeyCode;
+
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                crate::app::Action::MoveFleetGroupOrder(-1)
+            }
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                crate::app::Action::MoveFleetGroupOrder(1)
+            }
+            KeyCode::PageUp => crate::app::Action::MoveFleetGroupOrder(-8),
+            KeyCode::PageDown => crate::app::Action::MoveFleetGroupOrder(8),
+            KeyCode::Char(' ') => crate::app::Action::ToggleFleetGroupOrderSelection,
+            KeyCode::Enter => crate::app::Action::SubmitFleetGroupOrder,
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                crate::app::Action::OpenFleetMenu
+            }
+            _ => crate::app::Action::Noop,
+        }
+    }
+
     fn sync_fleet_roe_cursor_to_input(&mut self) {
         if self.current_screen != ScreenId::FleetRoeSelect || self.fleet_roe_editing {
             return;
@@ -4646,6 +4993,28 @@ impl App {
         sync_scroll_to_cursor(
             &mut self.fleet_scroll_offset,
             self.fleet_cursor,
+            crate::screen::FLEET_VISIBLE_ROWS,
+        );
+    }
+
+    fn sync_fleet_merge_cursor_to_input(&mut self) {
+        if self.current_screen != ScreenId::FleetMerge {
+            return;
+        }
+        let Ok(target_fleet_id) = self.current_fleet_merge_input().trim().parse::<u16>() else {
+            return;
+        };
+        let rows = self.current_fleet_merge_rows();
+        let Some(index) = rows
+            .iter()
+            .position(|row| row.fleet_number == target_fleet_id)
+        else {
+            return;
+        };
+        self.fleet_merge_cursor = index;
+        sync_scroll_to_cursor(
+            &mut self.fleet_merge_scroll_offset,
+            self.fleet_merge_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
     }
@@ -4990,6 +5359,29 @@ impl App {
             self.fleet_eta_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
+    }
+
+    fn current_fleet_merge_rows(&self) -> Vec<FleetRow> {
+        let rows = self.fleet_rows();
+        match self.fleet_merge_mode {
+            FleetMergeMode::SelectingSource => rows,
+            FleetMergeMode::SelectingHost => {
+                let Some(source_record_index_1_based) = self.fleet_merge_source_record_index_1_based
+                else {
+                    return rows;
+                };
+                rows.into_iter()
+                    .filter(|row| row.fleet_record_index_1_based != source_record_index_1_based)
+                    .collect()
+            }
+        }
+    }
+
+    fn current_fleet_merge_input(&self) -> &str {
+        match self.fleet_merge_mode {
+            FleetMergeMode::SelectingSource => &self.fleet_merge_source_input,
+            FleetMergeMode::SelectingHost => &self.fleet_merge_host_input,
+        }
     }
 
     fn default_planet_prompt_coords(&self) -> [u8; 2] {

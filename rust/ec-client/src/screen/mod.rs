@@ -47,7 +47,8 @@ pub use first_time::{
 pub(crate) use fleet::FLEET_VISIBLE_ROWS;
 pub use fleet::{
     FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen, FleetListMode,
-    FleetListScreen, FleetMenuScreen, FleetReviewScreen, FleetRoeScreen, FleetRow,
+    FleetGroupScreen, FleetListScreen, FleetMenuScreen, FleetMergeMode, FleetMergeScreen,
+    FleetReviewScreen, FleetRoeScreen, FleetRow,
 };
 pub use fleet_help::FleetHelpScreen;
 pub use general_help::GeneralHelpScreen;
@@ -122,6 +123,8 @@ pub enum ScreenId {
     FleetReviewSelect,
     FleetReview,
     FleetRoeSelect,
+    FleetGroupOrder,
+    FleetMerge,
     FleetDetach,
     FleetEta,
     PlanetMenu,

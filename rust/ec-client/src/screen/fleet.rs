@@ -1,4 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
+use std::collections::BTreeSet;
 
 use crate::app::Action;
 use crate::screen::layout::{
@@ -39,6 +40,8 @@ pub struct FleetMenuScreen;
 pub struct FleetListScreen;
 pub struct FleetReviewScreen;
 pub struct FleetRoeScreen;
+pub struct FleetGroupScreen;
+pub struct FleetMergeScreen;
 pub struct FleetEtaScreen;
 pub struct FleetDetachScreen;
 
@@ -62,6 +65,12 @@ pub enum FleetDetachMode {
     EnteringEtacs,
     AdjustingDonorSpeed,
     SettingNewFleetRoe,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetMergeMode {
+    SelectingSource,
+    SelectingHost,
 }
 
 const FLEET_COL_1: usize = 2;
@@ -173,7 +182,7 @@ impl Screen for FleetMenuScreen {
             KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenFleetHelp,
             KeyCode::Char('s') | KeyCode::Char('S') => Action::Noop, // Starbase menu - TODO
             KeyCode::Char('d') | KeyCode::Char('D') => Action::OpenFleetDetach,
-            KeyCode::Char('m') | KeyCode::Char('M') => Action::Noop, // Merge - TODO
+            KeyCode::Char('m') | KeyCode::Char('M') => Action::OpenFleetMerge,
             KeyCode::Char('o') | KeyCode::Char('O') => Action::Noop, // Order - TODO
             KeyCode::Char('t') | KeyCode::Char('T') => Action::Noop, // Transfer - TODO
             KeyCode::Char('c') | KeyCode::Char('C') => Action::OpenFleetRoeSelect,
@@ -186,8 +195,8 @@ impl Screen for FleetMenuScreen {
             KeyCode::Char('i') | KeyCode::Char('I') => {
                 Action::OpenPlanetInfoPrompt(crate::screen::CommandMenu::Fleet)
             }
-            KeyCode::Char('g') | KeyCode::Char('G') => Action::Noop, // Group order - TODO
-            KeyCode::Char('x') | KeyCode::Char('X') => Action::Noop, // Expert mode - TODO
+            KeyCode::Char('g') | KeyCode::Char('G') => Action::OpenFleetGroupOrder,
+            KeyCode::Char('x') | KeyCode::Char('X') => Action::ShowFleetExpertModeNotice,
             _ => Action::Noop,
         }
     }
@@ -621,6 +630,156 @@ impl FleetEtaScreen {
                     status.unwrap_or("Press ENTER to continue."),
                 );
             }
+        }
+        Ok(buffer)
+    }
+}
+
+impl FleetMergeScreen {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn render(
+        &mut self,
+        rows: &[FleetRow],
+        scroll_offset: usize,
+        cursor: usize,
+        mode: FleetMergeMode,
+        input: &str,
+        status: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        buffer.fill_row(0, classic::menu_style());
+        buffer.write_text(0, 0, "MERGE A FLEET:", classic::title_style());
+        let max_fleet_number = max_fleet_number(rows);
+        let brief_columns = brief_columns(max_fleet_number);
+        draw_status_line(
+            &mut buffer,
+            1,
+            "",
+            match mode {
+                FleetMergeMode::SelectingSource => {
+                    "Select the fleet that will join another fleet."
+                }
+                FleetMergeMode::SelectingHost => {
+                    "Select the host fleet that will absorb the joining fleet."
+                }
+            },
+        );
+        let table_rows = rows
+            .iter()
+            .map(|row| {
+                vec![
+                    format_fleet_number(row.fleet_number, max_fleet_number),
+                    format_sector_coords_padded(row.coords),
+                    format!("{}/{}", row.current_speed, row.max_speed),
+                    row.rules_of_engagement.to_string(),
+                    row.composition_label.clone(),
+                ]
+            })
+            .collect::<Vec<_>>();
+        write_table_window_with_cursor(
+            &mut buffer,
+            3,
+            &brief_columns,
+            &table_rows,
+            scroll_offset,
+            FLEET_VISIBLE_ROWS,
+            classic::status_value_style(),
+            classic::status_value_style(),
+            if table_rows.is_empty() { None } else { Some(cursor) },
+        );
+        if table_rows.is_empty() {
+            draw_command_line_text(
+                &mut buffer,
+                "FLEET COMMAND",
+                "At least two fleets are required. Q quits.",
+            );
+        } else if let Some(status) = status {
+            draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
+        } else {
+            draw_command_line_default_input(
+                &mut buffer,
+                "FLEET COMMAND",
+                "Fleet # ",
+                &format_fleet_number(rows[cursor].fleet_number, max_fleet_number),
+                input,
+            );
+        }
+        Ok(buffer)
+    }
+}
+
+impl FleetGroupScreen {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn render(
+        &mut self,
+        rows: &[FleetRow],
+        scroll_offset: usize,
+        cursor: usize,
+        selected_fleet_record_indexes: &BTreeSet<usize>,
+        status: Option<&str>,
+    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+        let mut buffer = new_playfield();
+        buffer.fill_row(0, classic::menu_style());
+        buffer.write_text(0, 0, "GROUP FLEET ORDER:", classic::title_style());
+        let max_fleet_number = max_fleet_number(rows);
+        let columns = [
+            TableColumn::left("Sel", 3),
+            TableColumn::right("ID", fleet_id_column_width(max_fleet_number)),
+            BRIEF_COLUMNS[1],
+            BRIEF_COLUMNS[2],
+            BRIEF_COLUMNS[3],
+            BRIEF_COLUMNS[4],
+        ];
+        draw_status_line(
+            &mut buffer,
+            1,
+            "",
+            "Select fleets with SPACE, then press ENTER to give them the same mission.",
+        );
+        let table_rows = rows
+            .iter()
+            .map(|row| {
+                vec![
+                    if selected_fleet_record_indexes.contains(&row.fleet_record_index_1_based) {
+                        "X".to_string()
+                    } else {
+                        "".to_string()
+                    },
+                    format_fleet_number(row.fleet_number, max_fleet_number),
+                    format_sector_coords_padded(row.coords),
+                    format!("{}/{}", row.current_speed, row.max_speed),
+                    row.rules_of_engagement.to_string(),
+                    row.composition_label.clone(),
+                ]
+            })
+            .collect::<Vec<_>>();
+        write_table_window_with_cursor(
+            &mut buffer,
+            3,
+            &columns,
+            &table_rows,
+            scroll_offset,
+            FLEET_VISIBLE_ROWS,
+            classic::status_value_style(),
+            classic::status_value_style(),
+            if table_rows.is_empty() { None } else { Some(cursor) },
+        );
+        if table_rows.is_empty() {
+            draw_command_line_text(
+                &mut buffer,
+                "FLEET COMMAND",
+                "You have no active fleets. Q quits.",
+            );
+        } else if let Some(status) = status {
+            draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
+        } else {
+            draw_command_prompt(&mut buffer, 19, "FLEET COMMAND", "J K SPACE ENTER ARROWS Q");
         }
         Ok(buffer)
     }

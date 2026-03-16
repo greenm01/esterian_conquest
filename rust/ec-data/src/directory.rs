@@ -279,6 +279,10 @@ pub enum GameStateMutationError {
         requested: u8,
         max: u8,
     },
+    InvalidFleetMergeSelection {
+        fleet_index_1_based: usize,
+        host_fleet_index_1_based: usize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -463,6 +467,14 @@ impl std::fmt::Display for GameStateMutationError {
                 f,
                 "fleet {} speed {} exceeds maximum {}",
                 fleet_index_1_based, requested, max
+            ),
+            Self::InvalidFleetMergeSelection {
+                fleet_index_1_based,
+                host_fleet_index_1_based,
+            } => write!(
+                f,
+                "fleet {} cannot merge into fleet {}",
+                fleet_index_1_based, host_fleet_index_1_based
             ),
         }
     }
@@ -2132,6 +2144,63 @@ impl CoreGameData {
         }
         record.set_mission_aux_bytes(mission_aux);
         Ok(record.mission_aux_bytes())
+    }
+
+    pub fn set_join_fleet_order(
+        &mut self,
+        player_index_1_based: usize,
+        fleet_index_1_based: usize,
+        host_fleet_index_1_based: usize,
+    ) -> Result<(), GameStateMutationError> {
+        if fleet_index_1_based == host_fleet_index_1_based {
+            return Err(GameStateMutationError::InvalidFleetMergeSelection {
+                fleet_index_1_based,
+                host_fleet_index_1_based,
+            });
+        }
+
+        let owner_empire = player_index_1_based as u8;
+        let host = self
+            .fleets
+            .records
+            .get(host_fleet_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingFleetRecord {
+                index_1_based: host_fleet_index_1_based,
+            })?;
+        let fleet = self
+            .fleets
+            .records
+            .get(fleet_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingFleetRecord {
+                index_1_based: fleet_index_1_based,
+            })?;
+
+        if fleet.owner_empire_raw() != owner_empire {
+            return Err(GameStateMutationError::FleetOwnershipMismatch {
+                player_index_1_based,
+                fleet_index_1_based,
+            });
+        }
+        if host.owner_empire_raw() != owner_empire {
+            return Err(GameStateMutationError::FleetOwnershipMismatch {
+                player_index_1_based,
+                fleet_index_1_based: host_fleet_index_1_based,
+            });
+        }
+
+        let host_coords = host.current_location_coords_raw();
+        let host_fleet_id = host.fleet_id();
+        let fleet = self
+            .fleets
+            .records
+            .get_mut(fleet_index_1_based - 1)
+            .ok_or(GameStateMutationError::MissingFleetRecord {
+                index_1_based: fleet_index_1_based,
+            })?;
+        fleet.set_standing_order_kind(crate::Order::JoinAnotherFleet);
+        fleet.set_standing_order_target_coords_raw(host_coords);
+        fleet.set_join_host_fleet_id_raw(host_fleet_id);
+        Ok(())
     }
 
     pub fn set_planet_build(

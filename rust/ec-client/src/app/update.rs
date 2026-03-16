@@ -46,6 +46,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.show_main_menu_ansi_notice();
             AppOutcome::Continue
         }
+        Action::ShowFleetExpertModeNotice => {
+            app.show_fleet_expert_mode_notice();
+            AppOutcome::Continue
+        }
         Action::AppendFirstTimeInputChar(ch) => {
             app.append_first_time_input_char(ch);
             AppOutcome::Continue
@@ -104,6 +108,14 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         }
         Action::OpenFleetRoeSelect => {
             app.open_fleet_roe_select();
+            AppOutcome::Continue
+        }
+        Action::OpenFleetGroupOrder => {
+            app.open_fleet_group_order();
+            AppOutcome::Continue
+        }
+        Action::OpenFleetMerge => {
+            app.open_fleet_merge();
             AppOutcome::Continue
         }
         Action::OpenFleetDetach => {
@@ -266,6 +278,14 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.move_fleet_roe_select(delta);
             AppOutcome::Continue
         }
+        Action::MoveFleetGroupOrder(delta) => {
+            app.move_fleet_group_order(delta);
+            AppOutcome::Continue
+        }
+        Action::MoveFleetMergeSelect(delta) => {
+            app.move_fleet_merge_select(delta);
+            AppOutcome::Continue
+        }
         Action::MoveFleetDetachSelect(delta) => {
             app.move_fleet_detach_select(delta);
             AppOutcome::Continue
@@ -322,6 +342,10 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             Ok(()) => AppOutcome::Continue,
             Err(_) => AppOutcome::Continue,
         },
+        Action::ToggleFleetGroupOrderSelection => {
+            app.toggle_fleet_group_order_selection();
+            AppOutcome::Continue
+        }
         Action::MovePlanetTransportPlanet(delta) => {
             app.move_planet_transport_planet(delta);
             AppOutcome::Continue
@@ -398,12 +422,20 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             app.append_fleet_roe_char(ch);
             AppOutcome::Continue
         }
+        Action::AppendFleetMergeChar(ch) => {
+            app.append_fleet_merge_char(ch);
+            AppOutcome::Continue
+        }
         Action::AppendFleetDetachChar(ch) => {
             app.append_fleet_detach_char(ch);
             AppOutcome::Continue
         }
         Action::BackspaceFleetRoeInput => {
             app.backspace_fleet_roe_input();
+            AppOutcome::Continue
+        }
+        Action::BackspaceFleetMergeInput => {
+            app.backspace_fleet_merge_input();
             AppOutcome::Continue
         }
         Action::BackspaceFleetReviewInput => {
@@ -419,6 +451,14 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             AppOutcome::Continue
         }
         Action::SubmitFleetRoe => match app.submit_fleet_roe() {
+            Ok(()) => AppOutcome::Continue,
+            Err(_) => AppOutcome::Continue,
+        },
+        Action::SubmitFleetGroupOrder => {
+            app.submit_fleet_group_order();
+            AppOutcome::Continue
+        }
+        Action::SubmitFleetMerge => match app.submit_fleet_merge() {
             Ok(()) => AppOutcome::Continue,
             Err(_) => AppOutcome::Continue,
         },

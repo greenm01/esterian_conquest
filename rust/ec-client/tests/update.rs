@@ -1942,6 +1942,141 @@ fn fleet_menu_long_notice_wraps_instead_of_clipping() {
 }
 
 #[test]
+fn fleet_menu_expert_mode_shows_notice_on_menu() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('x'))),
+        Action::ShowFleetExpertModeNotice
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::ShowFleetExpertModeNotice),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet menu should render expert notice");
+    let wrapped_notice = [terminal.line(16), terminal.line(17), terminal.line(18)]
+        .into_iter()
+        .flat_map(|line| line.split_whitespace())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(wrapped_notice.contains(
+        "Expert mode not implemented yet. Plan for VIM style commands."
+    ));
+}
+
+#[test]
+fn fleet_merge_sets_join_order_for_selected_source_and_host() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMerge),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMerge);
+
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetMerge),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMerge);
+
+    assert_eq!(
+        apply_action(&mut app, Action::MoveFleetMergeSelect(1)),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetMerge),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet menu should render merge success notice");
+    let wrapped_notice = [terminal.line(16), terminal.line(17), terminal.line(18)]
+        .into_iter()
+        .flat_map(|line| line.split_whitespace())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(wrapped_notice.contains("ordered to join Fleet #"));
+
+    let state = latest_runtime_state(&fixture_dir);
+    let source = &state.game_data.fleets.records[0];
+    assert_eq!(source.standing_order_kind(), ec_data::Order::JoinAnotherFleet);
+    assert_ne!(source.join_host_fleet_id_raw(), 0);
+    let valid_host = state.game_data.fleets.records.iter().any(|fleet| {
+        fleet.owner_empire_raw() == 1
+            && fleet.fleet_id() == source.join_host_fleet_id_raw()
+            && fleet.current_location_coords_raw() == source.standing_order_target_coords_raw()
+    });
+    assert!(valid_host);
+}
+
+#[test]
+fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.handle_key(key(KeyCode::Char('g'))), Action::OpenFleetGroupOrder);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetGroupOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet group order screen should render");
+    assert!(terminal.line(3).contains("Sel"));
+    assert!(!terminal.line(5).contains(" X "));
+
+    assert_eq!(
+        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal)
+        .expect("fleet group order selection should render");
+    assert!(terminal.line(5).contains("X"));
+}
+
+#[test]
 fn fleet_roe_accepts_typed_fleet_selection_and_q_cancels_edit_mode() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {

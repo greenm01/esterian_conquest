@@ -1409,6 +1409,34 @@ fn core_game_data_can_apply_current_known_scenario_mutations() {
 }
 
 #[test]
+fn set_join_fleet_order_targets_host_fleet_and_records_host_id() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    let host_coords = data.fleets.records[0].current_location_coords_raw();
+    let host_fleet_id = data.fleets.records[0].fleet_id();
+
+    data.set_join_fleet_order(1, 2, 1).unwrap();
+
+    assert_eq!(
+        data.fleets.records[1].standing_order_kind(),
+        crate::Order::JoinAnotherFleet
+    );
+    assert_eq!(
+        data.fleets.records[1].standing_order_target_coords_raw(),
+        host_coords
+    );
+    assert_eq!(data.fleets.records[1].join_host_fleet_id_raw(), host_fleet_id);
+}
+
+#[test]
 fn core_game_data_current_known_validation_helpers_match_known_fixtures() {
     let fleet_data = CoreGameData {
         player: PlayerDat::parse(&read_ecmaint_fleet_pre_fixture("PLAYER.DAT")).unwrap(),
