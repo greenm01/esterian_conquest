@@ -104,12 +104,15 @@ fn write_section(
     }
 
     if lines.is_empty() {
+        let empty_notice = match section_name {
+            "results" => "  <reports are marked pending, but no review text is available yet>",
+            "messages" => "  <messages are marked pending, but no review text is available yet>",
+            _ => "  <review items are marked pending, but no review text is available yet>",
+        };
         buffer.write_text(
             start_row,
             0,
-            &format!(
-                "  <classic {section_name} pending flag is set, but no decoded lines are loaded>"
-            ),
+            empty_notice,
             classic::body_style(),
         );
         return Ok(1);

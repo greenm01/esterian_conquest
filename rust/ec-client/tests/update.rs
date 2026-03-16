@@ -2521,13 +2521,13 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
         reports_terminal
             .lines
             .iter()
-            .any(|line| line.contains("classic results pending flag is set"))
+            .any(|line| line.contains("reports are marked pending, but no review text is available yet"))
     );
     assert!(
         reports_terminal
             .lines
             .iter()
-            .any(|line| line.contains("classic messages pending flag is set"))
+            .any(|line| line.contains("messages are marked pending, but no review text is available yet"))
     );
 }
 
