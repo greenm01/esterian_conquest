@@ -78,6 +78,8 @@ fn inspect_summarizes_core_directory_state() {
     assert!(stdout.contains("Directory:"));
     assert!(stdout.contains("Players:"));
     assert!(stdout.contains("campaign_state="));
+    assert!(stdout.contains("reports_pending="));
+    assert!(stdout.contains("messages_pending="));
     assert!(stdout.contains("Planets:"));
     assert!(stdout.contains("Fleets:"));
     assert!(stdout.contains("Bases:"));
@@ -114,6 +116,8 @@ fn inspect_classic_login_reports_returning_player_for_matching_named_homeworld()
     assert!(stdout.contains("slot 1: classification=returning-player"));
     assert!(stdout.contains("handle='HANNIBAL'"));
     assert!(stdout.contains("homeworld='Dust Bowl'"));
+    assert!(stdout.contains("reports_pending="));
+    assert!(stdout.contains("messages_pending="));
 }
 
 #[test]

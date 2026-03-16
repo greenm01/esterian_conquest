@@ -74,6 +74,22 @@ impl PlayerRecord {
         trim_ascii_field(&self.raw[28..end])
     }
 
+    /// Strong candidate for classic "reports pending" state from live ECGAME
+    /// mail/report probes. Current known values:
+    /// - `0x00` when no pending review item is advertised
+    /// - `0x01` when classic reports/messages are pending during login flow
+    pub fn classic_reports_pending_flag_raw(&self) -> u8 {
+        self.raw[0x30]
+    }
+
+    /// Strong candidate for classic "messages pending" state from live ECGAME
+    /// mail/report probes. Current known values:
+    /// - `0x00` when no pending review item is advertised
+    /// - `0x01` when classic reports/messages are pending during login flow
+    pub fn classic_messages_pending_flag_raw(&self) -> u8 {
+        self.raw[0x34]
+    }
+
     pub fn set_controlled_empire_name_raw(&mut self, value: &str) {
         self.set_legacy_status_name_raw(value);
     }
