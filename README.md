@@ -4,6 +4,8 @@
 
 Rust preservation and reimplementation work for Esterian Conquest v1.5.
 
+**[Read the Grand Vision: From BBS to the Decentralized Web](docs/grand-vision.md)**
+
 This project started as a file-format and reverse-engineering effort. It is now
 past that stage: the Rust side is being built as a full replacement stack:
 
