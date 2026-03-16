@@ -14,9 +14,9 @@ use crate::screen::{
     BuildHelpScreen, CommandMenu, DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen,
     EnemiesScreen, FIRST_TIME_INTRO_PAGE_COUNT, FirstTimeEmpiresScreen, FirstTimeHelpScreen,
     FirstTimeIntroScreen, FirstTimeMenuScreen, FleetDetachMode, FleetDetachScreen, FleetEtaMode,
-    FleetEtaScreen, FleetGroupScreen, FleetHelpScreen, FleetListMode, FleetListScreen,
-    FleetMenuScreen, FleetMergeMode, FleetMergeScreen, FleetReviewScreen, FleetRoeScreen,
-    FleetRow,
+    FleetEtaScreen, FleetGroupOrderMode, FleetGroupScreen, FleetHelpScreen, FleetListMode,
+    FleetListScreen, FleetMenuScreen, FleetMergeMode, FleetMergeScreen, FleetReviewScreen,
+    FleetRoeScreen, FleetRow,
     GeneralHelpScreen, GeneralMenuScreen,
     MainHelpScreen, MainMenuScreen, MessageComposeScreen, PartialStarmapScreen,
     PlanetAutoCommissionScreen,
@@ -129,7 +129,9 @@ pub struct App {
     fleet_roe_status: Option<String>,
     fleet_group_scroll_offset: usize,
     fleet_group_cursor: usize,
+    fleet_group_mode: FleetGroupOrderMode,
     fleet_group_selected_fleets: BTreeSet<usize>,
+    fleet_group_input: String,
     fleet_group_status: Option<String>,
     fleet_merge_scroll_offset: usize,
     fleet_merge_cursor: usize,
@@ -339,7 +341,9 @@ impl App {
             fleet_roe_status: None,
             fleet_group_scroll_offset: 0,
             fleet_group_cursor: 0,
+            fleet_group_mode: FleetGroupOrderMode::SelectingFleets,
             fleet_group_selected_fleets: BTreeSet::new(),
+            fleet_group_input: String::new(),
             fleet_group_status: None,
             fleet_merge_scroll_offset: 0,
             fleet_merge_cursor: 0,
@@ -533,6 +537,9 @@ impl App {
                 self.fleet_group_scroll_offset,
                 self.fleet_group_cursor,
                 &self.fleet_group_selected_fleets,
+                self.fleet_group_mode,
+                &self.fleet_group_input,
+                self.fleet_group_default_target(),
                 self.fleet_group_status.as_deref(),
             )?,
             ScreenId::FleetMerge => {
@@ -1192,7 +1199,9 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
+        self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
         self.fleet_group_status = None;
+        self.fleet_group_input.clear();
         self.fleet_group_selected_fleets.clear();
         self.fleet_group_cursor = self.fleet_group_cursor.min(total - 1);
         center_scroll_to_cursor(
@@ -1686,6 +1695,9 @@ impl App {
             self.fleet_group_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
+        if self.fleet_group_mode == FleetGroupOrderMode::SelectingFleets {
+            self.fleet_group_input.clear();
+        }
         self.fleet_group_status = None;
     }
 
@@ -1873,6 +1885,9 @@ impl App {
         if self.current_screen != ScreenId::FleetGroupOrder {
             return;
         }
+        if self.fleet_group_mode != FleetGroupOrderMode::SelectingFleets {
+            return;
+        }
         let rows = self.fleet_rows();
         let Some(row) = rows.get(self.fleet_group_cursor) else {
             return;
@@ -1885,6 +1900,39 @@ impl App {
                 .remove(&row.fleet_record_index_1_based);
         }
         self.fleet_group_status = None;
+    }
+
+    pub fn append_fleet_group_order_char(&mut self, ch: char) {
+        if self.current_screen != ScreenId::FleetGroupOrder {
+            return;
+        }
+        match self.fleet_group_mode {
+            FleetGroupOrderMode::SelectingFleets => {}
+            FleetGroupOrderMode::EnteringMission => {
+                if ch.is_ascii_digit() && self.fleet_group_input.len() < 2 {
+                    self.fleet_group_input.push(ch);
+                    self.fleet_group_status = None;
+                }
+            }
+            FleetGroupOrderMode::EnteringTarget => {
+                if self.fleet_group_input.len() < 16
+                    && (ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']'))
+                {
+                    self.fleet_group_input.push(ch);
+                    self.fleet_group_status = None;
+                }
+            }
+        }
+    }
+
+    pub fn backspace_fleet_group_order_input(&mut self) {
+        if self.current_screen != ScreenId::FleetGroupOrder {
+            return;
+        }
+        if self.fleet_group_mode != FleetGroupOrderMode::SelectingFleets {
+            self.fleet_group_input.pop();
+            self.fleet_group_status = None;
+        }
     }
 
     pub fn backspace_fleet_detach_input(&mut self) {

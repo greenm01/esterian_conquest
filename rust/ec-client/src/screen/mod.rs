@@ -46,9 +46,9 @@ pub use first_time::{
 };
 pub(crate) use fleet::FLEET_VISIBLE_ROWS;
 pub use fleet::{
-    FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen, FleetListMode,
-    FleetGroupScreen, FleetListScreen, FleetMenuScreen, FleetMergeMode, FleetMergeScreen,
-    FleetReviewScreen, FleetRoeScreen, FleetRow,
+    FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen, FleetGroupOrderMode,
+    FleetGroupScreen, FleetListMode, FleetListScreen, FleetMenuScreen, FleetMergeMode,
+    FleetMergeScreen, FleetReviewScreen, FleetRoeScreen, FleetRow,
 };
 pub use fleet_help::FleetHelpScreen;
 pub use general_help::GeneralHelpScreen;

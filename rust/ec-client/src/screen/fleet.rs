@@ -73,6 +73,13 @@ pub enum FleetMergeMode {
     SelectingHost,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetGroupOrderMode {
+    SelectingFleets,
+    EnteringMission,
+    EnteringTarget,
+}
+
 const FLEET_COL_1: usize = 2;
 const FLEET_COL_2: usize = 21;
 const FLEET_COL_3: usize = 41;
@@ -722,6 +729,9 @@ impl FleetGroupScreen {
         scroll_offset: usize,
         cursor: usize,
         selected_fleet_record_indexes: &BTreeSet<usize>,
+        mode: FleetGroupOrderMode,
+        input: &str,
+        default_target: [u8; 2],
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
@@ -740,7 +750,23 @@ impl FleetGroupScreen {
             &mut buffer,
             1,
             "",
-            "Select fleets with SPACE, then press ENTER to give them the same mission.",
+            match mode {
+                FleetGroupOrderMode::SelectingFleets => {
+                    "Select fleets with SPACE, then press ENTER to give them the same mission."
+                }
+                FleetGroupOrderMode::EnteringMission => {
+                    "Enter the mission number to apply to all selected fleets."
+                }
+                FleetGroupOrderMode::EnteringTarget => {
+                    "Enter the target coordinates for the selected group mission."
+                }
+            },
+        );
+        draw_status_line(
+            &mut buffer,
+            2,
+            "Selected fleets: ",
+            &selected_fleet_record_indexes.len().to_string(),
         );
         let table_rows = rows
             .iter()
@@ -779,7 +805,34 @@ impl FleetGroupScreen {
         } else if let Some(status) = status {
             draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
         } else {
-            draw_command_prompt(&mut buffer, 19, "FLEET COMMAND", "J K SPACE ENTER ARROWS Q");
+            match mode {
+                FleetGroupOrderMode::SelectingFleets => {
+                    draw_command_prompt(
+                        &mut buffer,
+                        19,
+                        "FLEET COMMAND",
+                        "J K SPACE ENTER ARROWS Q",
+                    );
+                }
+                FleetGroupOrderMode::EnteringMission => {
+                    draw_command_line_default_input(
+                        &mut buffer,
+                        "FLEET COMMAND",
+                        "Mission # ",
+                        "1",
+                        input,
+                    );
+                }
+                FleetGroupOrderMode::EnteringTarget => {
+                    draw_command_line_default_input(
+                        &mut buffer,
+                        "FLEET COMMAND",
+                        "Target ",
+                        &format!("{},{}", default_target[0], default_target[1]),
+                        input,
+                    );
+                }
+            }
         }
         Ok(buffer)
     }
