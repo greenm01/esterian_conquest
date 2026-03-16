@@ -8,7 +8,9 @@ use crate::screen::layout::{
 use crate::screen::table::{
     TableColumn, fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
 };
-use crate::screen::{PlayfieldBuffer, Screen, format_sector_coords, format_sector_coords_padded};
+use crate::screen::{
+    PlayfieldBuffer, Screen, format_sector_coords, format_sector_coords_padded,
+};
 use crate::theme::classic;
 
 pub struct PlanetTransportScreen;
@@ -76,6 +78,7 @@ impl PlanetTransportScreen {
 
     pub fn render_planet_select(
         &mut self,
+        prompt_label: &str,
         mode: PlanetTransportMode,
         rows: &[PlanetTransportPlanetRow],
         scroll_offset: usize,
@@ -128,12 +131,13 @@ impl PlanetTransportScreen {
         } else {
             "ARROWS J K ENTER Q"
         };
-        draw_command_prompt(&mut buffer, 19, "PLANET COMMAND", prompt_keys);
+        draw_command_prompt(&mut buffer, 19, prompt_label, prompt_keys);
         Ok(buffer)
     }
 
     pub fn render_fleet_select(
         &mut self,
+        prompt_label: &str,
         mode: PlanetTransportMode,
         planet: &PlanetTransportPlanetRow,
         fleets: &[PlanetTransportFleetRow],
@@ -187,15 +191,15 @@ impl PlanetTransportScreen {
         if table_rows.is_empty() {
             draw_command_line_text(
                 &mut buffer,
-                "PLANET COMMAND",
+                prompt_label,
                 "No eligible fleets remain here. Q quits.",
             );
         } else if let Some(status) = status {
-            draw_command_line_text(&mut buffer, "PLANET COMMAND", status);
+            draw_command_line_text(&mut buffer, prompt_label, status);
         } else {
             draw_command_line_default_input(
                 &mut buffer,
-                "PLANET COMMAND",
+                prompt_label,
                 &format!("How many armies to {}? ", mode.verb()),
                 &max_qty.to_string(),
                 input,
@@ -206,6 +210,7 @@ impl PlanetTransportScreen {
 
     pub fn render_quantity_prompt(
         &mut self,
+        prompt_label: &str,
         mode: PlanetTransportMode,
         planet: &PlanetTransportPlanetRow,
         fleet: &PlanetTransportFleetRow,
@@ -230,7 +235,7 @@ impl PlanetTransportScreen {
         }
         draw_command_line_default_input(
             &mut buffer,
-            "PLANET COMMAND",
+            prompt_label,
             &format!("How many armies to {}? ", mode.verb()),
             &fleet.available_qty.to_string(),
             input,
@@ -240,13 +245,14 @@ impl PlanetTransportScreen {
 
     pub fn render_done(
         &mut self,
+        prompt_label: &str,
         mode: PlanetTransportMode,
         status: &str,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, mode.title());
         buffer.write_text(3, 0, status, classic::status_value_style());
-        draw_command_prompt(&mut buffer, 19, "PLANET COMMAND", "SLAP A KEY");
+        draw_command_prompt(&mut buffer, 19, prompt_label, "SLAP A KEY");
         Ok(buffer)
     }
 }
@@ -289,7 +295,7 @@ impl PlanetTransportScreen {
             KeyCode::PageUp => Action::MovePlanetTransportPlanet(-8),
             KeyCode::PageDown => Action::MovePlanetTransportPlanet(8),
             KeyCode::Enter => Action::ConfirmPlanetTransportPlanet,
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenPlanetMenu,
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::ReturnToCommandMenu,
             _ => Action::Noop,
         }
     }
@@ -307,7 +313,7 @@ impl PlanetTransportScreen {
             KeyCode::Char(ch) if ch.is_ascii_digit() => Action::AppendPlanetTransportQtyChar(ch),
             KeyCode::Backspace => Action::BackspacePlanetTransportQty,
             KeyCode::Enter => Action::SubmitPlanetTransportQty,
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenPlanetMenu,
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::ReturnToCommandMenu,
             _ => Action::Noop,
         }
     }
@@ -317,7 +323,7 @@ impl PlanetTransportScreen {
             KeyCode::Char(ch) if ch.is_ascii_digit() => Action::AppendPlanetTransportQtyChar(ch),
             KeyCode::Backspace => Action::BackspacePlanetTransportQty,
             KeyCode::Enter => Action::SubmitPlanetTransportQty,
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenPlanetMenu,
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::ReturnToCommandMenu,
             _ => Action::Noop,
         }
     }

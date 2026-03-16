@@ -1,5 +1,6 @@
 use crate::app::action::Action;
 use crate::app::state::App;
+use crate::screen::PlanetTransportMode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AppOutcome {
@@ -111,6 +112,14 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
         }
         Action::OpenFleetEta => {
             app.open_fleet_eta();
+            AppOutcome::Continue
+        }
+        Action::OpenFleetTransportLoad => {
+            app.open_fleet_transport_planet_select(PlanetTransportMode::Load);
+            AppOutcome::Continue
+        }
+        Action::OpenFleetTransportUnload => {
+            app.open_fleet_transport_planet_select(PlanetTransportMode::Unload);
             AppOutcome::Continue
         }
         Action::OpenPlanetMenu => {

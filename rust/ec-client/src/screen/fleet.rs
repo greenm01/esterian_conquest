@@ -177,8 +177,8 @@ impl Screen for FleetMenuScreen {
             KeyCode::Char('o') | KeyCode::Char('O') => Action::Noop, // Order - TODO
             KeyCode::Char('t') | KeyCode::Char('T') => Action::Noop, // Transfer - TODO
             KeyCode::Char('c') | KeyCode::Char('C') => Action::OpenFleetRoeSelect,
-            KeyCode::Char('l') | KeyCode::Char('L') => Action::Noop, // Load - TODO
-            KeyCode::Char('u') | KeyCode::Char('U') => Action::Noop, // Unload - TODO
+            KeyCode::Char('l') | KeyCode::Char('L') => Action::OpenFleetTransportLoad,
+            KeyCode::Char('u') | KeyCode::Char('U') => Action::OpenFleetTransportUnload,
             KeyCode::Char('e') | KeyCode::Char('E') => Action::OpenFleetEta,
             KeyCode::Char('v') | KeyCode::Char('V') => {
                 Action::OpenPartialStarmapPrompt(crate::screen::CommandMenu::Fleet)

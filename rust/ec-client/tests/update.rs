@@ -1468,6 +1468,8 @@ fn command_menus_render_without_crashing_for_empty_empire_state() {
         Action::OpenFleetRoeSelect,
         Action::OpenFleetDetach,
         Action::OpenFleetEta,
+        Action::OpenFleetTransportLoad,
+        Action::OpenFleetTransportUnload,
         Action::OpenPlanetMenu,
         Action::OpenPlanetAutoCommissionConfirm,
         Action::OpenPlanetCommissionMenu,
@@ -1488,6 +1490,122 @@ fn command_menus_render_without_crashing_for_empty_empire_state() {
         app.render(&mut terminal)
             .expect("screen should render without crashing");
     }
+}
+
+#[test]
+fn fleet_list_stays_on_fleet_menu_with_notice_when_no_fleets_exist() {
+    let fixture_dir = temp_joined_empty_empire_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetList(FleetListMode::Brief)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet menu should render empty-fleet notice");
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("You have no active fleets.")));
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetList(FleetListMode::Full)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+}
+
+#[test]
+fn planet_list_commands_stay_on_planet_menu_with_notice_when_no_owned_planets_exist() {
+    let fixture_dir = temp_joined_no_assets_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenPlanetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::OpenPlanetListSortPrompt(PlanetListMode::Brief)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("planet menu should render empty-planet notice");
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("You do not currently control any planets.")));
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::OpenPlanetListSortPrompt(PlanetListMode::Detail)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
+}
+
+#[test]
+fn delete_reviewables_stays_on_general_menu_with_notice_when_nothing_is_reviewable() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.results_bytes.clear();
+    state.messages_bytes.clear();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenGeneralMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenDeleteReviewables),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("general menu should render empty-reviewables notice");
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("No messages or results are currently reviewable.")));
 }
 
 #[test]
@@ -1619,6 +1737,117 @@ fn fleet_review_select_shows_invalid_fleet_message_on_unknown_typed_id() {
     app.render(&mut terminal)
         .expect("fleet review select should render invalid id notice");
     assert!(terminal.line(19).contains("Fleet #99 is not in your fleet list."));
+}
+
+#[test]
+fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1;
+    let home_coords = state.game_data.planets.records[homeworld_index].coords_raw();
+    let fleet = &mut state.game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw(home_coords);
+    fleet.set_troop_transport_count(3);
+    fleet.set_army_count(1);
+    fleet.recompute_max_speed_from_composition();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('l'))),
+        Action::OpenFleetTransportLoad
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetTransportLoad),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::PlanetTransportPlanetSelect(ec_client::screen::PlanetTransportMode::Load)
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet load transport picker should render");
+    assert!(terminal.line(19).contains("FLEET COMMAND"));
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
+        Action::ReturnToCommandMenu
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::ReturnToCommandMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('u'))),
+        Action::OpenFleetTransportUnload
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetTransportUnload),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::PlanetTransportPlanetSelect(ec_client::screen::PlanetTransportMode::Unload)
+    );
+    app.render(&mut terminal)
+        .expect("fleet unload transport picker should render");
+    assert!(terminal.line(19).contains("FLEET COMMAND"));
+}
+
+#[test]
+fn fleet_menu_load_and_unload_show_menu_notice_when_no_transport_action_is_available() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetTransportLoad),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet menu should render load notice");
+    assert!(terminal.lines.iter().any(|line| {
+        line.contains("No planets have armies and troop transports ready to load.")
+    }));
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetTransportUnload),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    app.render(&mut terminal)
+        .expect("fleet menu should render unload notice");
+    assert!(terminal.lines.iter().any(|line| {
+        line.contains("No fleets have loaded armies ready to unload")
+    }));
 }
 
 #[test]

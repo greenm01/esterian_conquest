@@ -31,6 +31,8 @@ pub enum Action {
     OpenFleetRoeSelect,
     OpenFleetDetach,
     OpenFleetEta,
+    OpenFleetTransportLoad,
+    OpenFleetTransportUnload,
     OpenPlanetMenu,
     OpenPlanetHelp,
     OpenPlanetAutoCommissionConfirm,

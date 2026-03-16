@@ -538,6 +538,7 @@ impl App {
             )?,
             ScreenId::PlanetTransportPlanetSelect(mode) => {
                 self.planet_transport.render_planet_select(
+                    crate::screen::command_menu_label(self.command_return_menu),
                     mode,
                     &self.planet_transport_planet_rows(mode),
                     self.planet_transport_planet_scroll_offset,
@@ -547,6 +548,7 @@ impl App {
             }
             ScreenId::PlanetTransportFleetSelect(mode) => {
                 self.planet_transport.render_fleet_select(
+                    crate::screen::command_menu_label(self.command_return_menu),
                     mode,
                     &self.current_planet_transport_planet_row(mode)?,
                     &self.current_planet_transport_fleet_rows(mode)?,
@@ -558,6 +560,7 @@ impl App {
             }
             ScreenId::PlanetTransportQuantityPrompt(mode) => {
                 self.planet_transport.render_quantity_prompt(
+                    crate::screen::command_menu_label(self.command_return_menu),
                     mode,
                     &self.current_planet_transport_planet_row(mode)?,
                     &self.current_planet_transport_fleet_row(mode)?,
@@ -566,6 +569,7 @@ impl App {
                 )?
             }
             ScreenId::PlanetTransportDone(mode) => self.planet_transport.render_done(
+                crate::screen::command_menu_label(self.command_return_menu),
                 mode,
                 self.planet_transport_status
                     .as_deref()
@@ -992,6 +996,10 @@ impl App {
     }
 
     pub fn open_fleet_list(&mut self, mode: FleetListMode) {
+        if self.fleet_rows().is_empty() {
+            self.show_command_menu_notice(CommandMenu::Fleet, "You have no active fleets.");
+            return;
+        }
         self.clear_command_menu_notice();
         self.fleet_list_mode = mode;
         self.fleet_scroll_offset = 0;
@@ -1165,6 +1173,16 @@ impl App {
     }
 
     pub fn open_planet_transport_planet_select(&mut self, mode: PlanetTransportMode) {
+        self.command_return_menu = CommandMenu::Planet;
+        self.open_transport_planet_select(mode);
+    }
+
+    pub fn open_fleet_transport_planet_select(&mut self, mode: PlanetTransportMode) {
+        self.command_return_menu = CommandMenu::Fleet;
+        self.open_transport_planet_select(mode);
+    }
+
+    fn open_transport_planet_select(&mut self, mode: PlanetTransportMode) {
         self.planet_transport_mode = Some(mode);
         self.planet_transport_planet_cursor = 0;
         self.planet_transport_planet_scroll_offset = 0;
@@ -1174,14 +1192,17 @@ impl App {
         self.planet_transport_qty_input.clear();
         self.planet_transport_status = None;
         if self.planet_transport_planet_rows(mode).is_empty() {
-            self.show_command_menu_notice(CommandMenu::Planet, match mode {
-                PlanetTransportMode::Load => {
-                    "No planets have armies and troop transports ready to load."
-                }
-                PlanetTransportMode::Unload => {
-                    "No fleets have loaded armies ready to unload onto planets with free capacity."
-                }
-            });
+            self.show_command_menu_notice(
+                self.command_return_menu,
+                match mode {
+                    PlanetTransportMode::Load => {
+                        "No planets have armies and troop transports ready to load."
+                    }
+                    PlanetTransportMode::Unload => {
+                        "No fleets have loaded armies ready to unload onto planets with free capacity."
+                    }
+                },
+            );
         } else {
             self.clear_command_menu_notice();
             self.current_screen = ScreenId::PlanetTransportPlanetSelect(mode);
@@ -1357,6 +1378,16 @@ impl App {
     }
 
     pub fn open_planet_list_sort_prompt(&mut self, mode: PlanetListMode) {
+        if self
+            .sorted_planet_rows(PlanetListSort::Location)
+            .is_empty()
+        {
+            self.show_command_menu_notice(
+                CommandMenu::Planet,
+                "You do not currently control any planets.",
+            );
+            return;
+        }
         self.clear_command_menu_notice();
         self.planet_list_sort_status = None;
         self.current_screen = ScreenId::PlanetListSortPrompt(mode);
@@ -2500,7 +2531,7 @@ impl App {
                 self.current_screen = ScreenId::PlanetTransportPlanetSelect(mode);
             } else {
                 self.planet_transport_status = None;
-                self.current_screen = ScreenId::PlanetMenu;
+                self.return_to_command_menu();
             }
         }
         Ok(())
@@ -2958,6 +2989,13 @@ impl App {
     }
 
     pub fn open_delete_reviewables(&mut self) {
+        if self.results_bytes.is_empty() && self.messages_bytes.is_empty() {
+            self.show_command_menu_notice(
+                CommandMenu::General,
+                "No messages or results are currently reviewable.",
+            );
+            return;
+        }
         self.delete_reviewables_status = None;
         self.current_screen = ScreenId::DeleteReviewables;
     }
