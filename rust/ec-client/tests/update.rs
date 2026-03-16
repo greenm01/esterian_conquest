@@ -2306,3 +2306,58 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
     assert_eq!(detached.destroyer_count(), 1);
     assert_eq!(detached.etac_count(), 1);
 }
+
+#[test]
+fn fleet_detach_with_zero_selected_ships_returns_to_the_table_without_a_warning() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetDetach),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetDetach);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal).expect("render detach select");
+    assert!(
+        terminal
+            .line(19)
+            .contains("Detach ships from fleet # [1] ->")
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetDetach),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal).expect("render first quantity prompt");
+
+    for _ in 0..8 {
+        if terminal.line(19).contains("Detach ships from fleet # [1] ->") {
+            break;
+        }
+        assert_eq!(
+            apply_action(&mut app, Action::SubmitFleetDetach),
+            AppOutcome::Continue
+        );
+        app.render(&mut terminal)
+            .expect("advance zero-detach prompt sequence");
+    }
+
+    assert!(
+        terminal
+            .line(19)
+            .contains("Detach ships from fleet # [1] ->")
+    );
+    assert!(
+        !terminal
+            .line(19)
+            .contains("Detach at least one ship.")
+    );
+}

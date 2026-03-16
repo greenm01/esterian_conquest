@@ -1796,7 +1796,7 @@ impl App {
                 {
                     self.fleet_detach_mode = next_mode;
                 } else if self.fleet_detach_selection.total_ships() == 0 {
-                    self.fleet_detach_status = Some("Detach at least one ship.".to_string());
+                    self.open_fleet_detach();
                 } else if self.fleet_detach_requires_speed_prompt() {
                     self.fleet_detach_donor_speed = None;
                     self.fleet_detach_mode = FleetDetachMode::AdjustingDonorSpeed;
