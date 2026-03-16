@@ -710,6 +710,16 @@ fn preloaded_first_login_becomes_returning_player_after_homeworld_naming() {
         apply_action(&mut app, Action::RejectFirstTimePrompt),
         AppOutcome::Continue
     );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinSummary);
+    assert_eq!(
+        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinNoPending);
+    assert_eq!(
+        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        AppOutcome::Continue
+    );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
 
     for ch in "Codex Prime".chars() {
@@ -795,6 +805,16 @@ fn preloaded_first_login_can_rename_empire_before_homeworld_naming() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireConfirm);
+    assert_eq!(
+        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinSummary);
+    assert_eq!(
+        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinNoPending);
     assert_eq!(
         apply_action(&mut app, Action::AcceptFirstTimePrompt),
         AppOutcome::Continue

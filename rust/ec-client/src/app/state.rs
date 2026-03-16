@@ -1135,8 +1135,7 @@ impl App {
                 if self.first_time_rename_preloaded_empire {
                     if self.complete_preloaded_empire_rename().is_ok() {
                         self.first_time_rename_preloaded_empire = false;
-                        self.current_screen =
-                            self.pending_naming_screen().unwrap_or(ScreenId::MainMenu);
+                        self.current_screen = ScreenId::FirstTimeJoinSummary;
                     }
                 } else if self.complete_first_time_join().is_ok() {
                     self.current_screen = ScreenId::FirstTimeJoinSummary;
@@ -1165,7 +1164,7 @@ impl App {
                 self.first_time_status = None;
                 self.first_time_input.clear();
                 self.first_time_rename_preloaded_empire = false;
-                self.current_screen = self.pending_naming_screen().unwrap_or(ScreenId::MainMenu);
+                self.current_screen = ScreenId::FirstTimeJoinSummary;
             }
             ScreenId::FirstTimeJoinEmpireName if self.first_time_rename_preloaded_empire => {
                 self.first_time_status = None;
