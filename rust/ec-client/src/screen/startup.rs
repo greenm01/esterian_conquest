@@ -114,7 +114,7 @@ impl StartupScreen {
         frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, "LOGIN STATUS: ");
+        draw_title_bar(&mut buffer, 0, "REVIEW STATUS: ");
         draw_status_line(
             &mut buffer,
             2,
