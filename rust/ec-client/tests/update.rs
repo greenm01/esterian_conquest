@@ -2747,6 +2747,42 @@ fn startup_results_preserve_blank_lines_as_classic_spacers() {
 }
 
 #[test]
+fn reports_screen_preserves_blank_separator_lines() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.results_bytes = classic_chunked_report_bytes("Line one\n\nLine two");
+    state.messages_bytes.clear();
+    state.game_data.player.records[0].raw[0x30] = 1;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenReports),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::Reports);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("reports screen should render");
+    let line_one_idx = terminal
+        .lines
+        .iter()
+        .position(|line| line.trim_end() == "  Line one")
+        .expect("reports screen should contain first line");
+    assert!(terminal.lines[line_one_idx + 1].trim().is_empty());
+    assert_eq!(terminal.lines[line_one_idx + 2].trim_end(), "  Line two");
+}
+
+#[test]
 fn preloaded_first_login_reviews_reports_before_homeworld_naming() {
     let fixture_dir = temp_joined_needs_homeworld_copy();
     let mut state = latest_runtime_state(&fixture_dir);

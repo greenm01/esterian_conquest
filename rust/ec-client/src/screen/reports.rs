@@ -115,10 +115,11 @@ fn write_section(
 
     let mut written = 0;
     for line in lines.iter().take(10) {
+        let rendered = if line.is_empty() { "  " } else { line };
         buffer.write_text(
             start_row + written,
             0,
-            &format!("  {line}"),
+            &format!("  {rendered}"),
             classic::body_style(),
         );
         written += 1;
