@@ -8,6 +8,23 @@ not here.
 
 `rust-maint` is now end-to-end capable in a conservative, manual-faithful way.
 
+The maintenance engine is also now on much firmer authority footing:
+
+- major player-authored inputs are validated in shared `ec-data`, not trusted
+  from the client
+- malformed player state is sanitized and reported during `maint-rust` instead
+  of being silently executed
+- `core-validate` now audits gameplay-invalid player input, not just structural
+  linkage
+- deterministic malformed-directory stress coverage now exists at both
+  `ec-data` and `ec-cli` layers
+
+Current grade:
+
+- maintenance engine authority / invalid-input resistance: `A+`
+- maintenance engine behavior against `ECPLAYER.DOC`: `A`
+- overall `rust-maint` status: `A+`
+
 It can currently:
 
 - create new classic-compatible games across the documented `4 / 9 / 16 / 25`
@@ -131,6 +148,12 @@ Primary goal:
   proven byte-for-byte original behavior
 - report wording and visibility can still be tightened when new `ECGAME` or
   manual evidence appears
+- a few maintenance behaviors are still justified by oracle evidence and
+  common-sense project policy rather than by explicit `ECPLAYER.DOC` wording,
+  so the manual-only behavior grade is still `A` rather than `A+`:
+  - owned-planet-only `Salvage`
+  - some live-target retarget details for semantic missions
+  - ROE withdrawal/report timing details
 - exact classic `MESSAGES.DAT` mail/report format and routing semantics are
   still only partially recovered; current Rust behavior preserves classic mail
   but does not yet decode or reproduce it faithfully
@@ -220,13 +243,19 @@ Treat the login/startup side as one explicit pre-command-center pipeline:
      - joined-player report/message/naming flow
 2. Keep running periodic seeded multi-turn `rust-maint` sweeps to guard against
    regressions while the UI/client work begins.
-3. Tighten the remaining CLI/storage boundary:
+3. Treat maint hardening as settled unless new evidence contradicts it:
+   - do not weaken the shared-engine validation/sanitization path just to match
+     older client-local behavior
+   - if a future manual-only `A+` pass is desired, prove the remaining
+     interpretation-heavy edges against original binaries before changing the
+     current canonical Rust rules
+4. Tighten the remaining CLI/storage boundary:
    - identify which `ec-cli` mutators still operate directly on classic `.DAT`
    - decide which should become SQLite-native next and which should remain
      explicit compatibility tooling
    - keep the rule that only explicit CLI import/export paths bridge classic
      directories into the runtime
-4. Write a focused Rust `ECGAME` phase plan:
+5. Write a focused Rust `ECGAME` phase plan:
    - command center
    - reports and intel views
    - diplomacy screens
@@ -243,7 +272,7 @@ Treat the login/startup side as one explicit pre-command-center pipeline:
    - defer real `X`/expert-mode behavior until the remaining command/menu
      surfaces are finished; implement it as a final menu-verbosity pass rather
      than a premature partial toggle
-4. Keep tightening original production semantics for player-facing screens:
+6. Keep tightening original production semantics for player-facing screens:
    - empire profile / rankings / planet info should use classic terms like
      `Present Production`, `Potential Production`, and `Total Available Points`
    - do not expose raw internal names like `factories` in the client UI
@@ -251,9 +280,9 @@ Treat the login/startup side as one explicit pre-command-center pipeline:
      formula rather than reintroducing placeholder arithmetic
    - decode or rename the overloaded per-planet `raw[0x0E]` byte before using
      it for more player-facing economy output
-5. Use the now-working DOSBox `ECGAME` harness to capture only the player-side
+7. Use the now-working DOSBox `ECGAME` harness to capture only the player-side
    screens and behaviors needed for the first Rust clone pass.
-6. Continue the SQLite transition:
+8. Continue the SQLite transition:
    - keep `ecgame.db` bundled/self-hosted with no external SQLite dependency
    - expand client/state sync so gameplay mutations refresh the latest snapshot
    - move more report/intel/history surfaces onto SQLite-backed queries
