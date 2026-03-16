@@ -342,6 +342,10 @@ Treat the login/startup side as one explicit pre-command-center pipeline:
      explicit compatibility tooling
    - keep the rule that only explicit CLI import/export paths bridge classic
      directories into the runtime
+   - current intentional exception:
+     `core-init-current-known-baseline` still mutates the projected `.DAT`
+     directory directly because the canonical transition reports depend on its
+     exact file-shape drift against the preserved post-maint baseline
 6. Write a focused Rust `ECGAME` phase plan:
    - command center
    - reports and intel views

@@ -735,6 +735,10 @@ pub(crate) fn init_current_known_baseline(
 ) -> Result<(), Box<dyn std::error::Error>> {
     copy_top_level_files(source, target)?;
     seed_missing_current_known_core_files(target)?;
+    // Keep this path as an explicit classic-directory compatibility initializer.
+    // The canonical transition reports compare the direct projected file shape
+    // against the preserved post-maint baseline, and routing this through the
+    // runtime bridge changes those drift reports.
     let mut data = CoreGameData::load(target)?;
     data.sync_current_known_initialized_post_maint_baseline();
     data.save(target)?;
