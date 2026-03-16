@@ -635,7 +635,10 @@ fn joined_player_with_unnamed_homeworld_is_routed_to_homeworld_naming() {
         }
         app.advance_startup();
     }
-    assert_eq!(app.current_screen(), ScreenId::FirstTimePreloadedRenamePrompt);
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::FirstTimePreloadedRenamePrompt
+    );
 }
 
 #[test]
@@ -655,7 +658,8 @@ fn preloaded_first_login_routes_through_login_summary_before_rename_prompt() {
         if app.current_screen() == ScreenId::Startup(StartupPhase::LoginSummary) {
             saw_login_summary = true;
             let mut terminal = CaptureTerminal::new();
-            app.render(&mut terminal).expect("login summary should render");
+            app.render(&mut terminal)
+                .expect("login summary should render");
             if terminal
                 .line(3)
                 .contains("Matched pre-loaded commander. First-login review is required.")
@@ -671,7 +675,10 @@ fn preloaded_first_login_routes_through_login_summary_before_rename_prompt() {
 
     assert!(saw_login_summary);
     assert!(saw_preloaded_summary_text);
-    assert_eq!(app.current_screen(), ScreenId::FirstTimePreloadedRenamePrompt);
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::FirstTimePreloadedRenamePrompt
+    );
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
@@ -705,7 +712,10 @@ fn preloaded_first_login_becomes_returning_player_after_homeworld_naming() {
         }
         app.advance_startup();
     }
-    assert_eq!(app.current_screen(), ScreenId::FirstTimePreloadedRenamePrompt);
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::FirstTimePreloadedRenamePrompt
+    );
     assert_eq!(
         apply_action(&mut app, Action::RejectFirstTimePrompt),
         AppOutcome::Continue
@@ -747,7 +757,10 @@ fn preloaded_first_login_becomes_returning_player_after_homeworld_naming() {
     })
     .expect("reloaded app should load");
 
-    assert_eq!(reloaded.classic_login_state(), ClassicLoginState::ReturningPlayer);
+    assert_eq!(
+        reloaded.classic_login_state(),
+        ClassicLoginState::ReturningPlayer
+    );
     assert_eq!(
         reloaded.current_screen(),
         ScreenId::Startup(StartupPhase::Splash)
@@ -771,7 +784,10 @@ fn preloaded_first_login_can_rename_empire_before_homeworld_naming() {
         }
         app.advance_startup();
     }
-    assert_eq!(app.current_screen(), ScreenId::FirstTimePreloadedRenamePrompt);
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::FirstTimePreloadedRenamePrompt
+    );
 
     assert_eq!(
         apply_action(&mut app, Action::AcceptFirstTimePrompt),
@@ -946,7 +962,8 @@ fn returning_player_routes_through_login_summary_before_main_menu() {
         if app.current_screen() == ScreenId::Startup(StartupPhase::LoginSummary) {
             saw_login_summary = true;
             let mut terminal = CaptureTerminal::new();
-            app.render(&mut terminal).expect("login summary should render");
+            app.render(&mut terminal)
+                .expect("login summary should render");
             if terminal
                 .line(3)
                 .contains("Returning commander recognized. Resuming login-time review.")
@@ -2189,7 +2206,8 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
     for _ in 0..16 {
         if app.current_screen() == ScreenId::Startup(StartupPhase::LoginSummary) {
             let mut terminal = CaptureTerminal::new();
-            app.render(&mut terminal).expect("login summary should render");
+            app.render(&mut terminal)
+                .expect("login summary should render");
             assert!(
                 terminal
                     .line(4)
@@ -2205,10 +2223,45 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
         app.advance_startup();
     }
 
+    assert_eq!(
+        apply_action(&mut app, Action::AdvanceStartup),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Results)
+    );
+
+    let mut results_terminal = CaptureTerminal::new();
+    app.render(&mut results_terminal)
+        .expect("startup results should render");
+    assert!(results_terminal.lines.iter().any(|line| {
+        line.contains("Classic results pending flag is set, but no report lines are loaded.")
+    }));
+
+    assert_eq!(
+        apply_action(&mut app, Action::AdvanceStartup),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Messages)
+    );
+
+    let mut messages_terminal = CaptureTerminal::new();
+    app.render(&mut messages_terminal)
+        .expect("startup messages should render");
+    assert!(messages_terminal.lines.iter().any(|line| {
+        line.contains("Classic messages pending flag is set, but no message lines are loaded.")
+    }));
+
     advance_to_main_menu(&mut app);
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
 
-    assert_eq!(apply_action(&mut app, Action::OpenReports), AppOutcome::Continue);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenReports),
+        AppOutcome::Continue
+    );
     assert_eq!(app.current_screen(), ScreenId::Reports);
 
     let mut reports_terminal = CaptureTerminal::new();
@@ -2308,7 +2361,10 @@ fn preloaded_first_login_reviews_reports_before_homeworld_naming() {
 
     assert!(saw_results);
     assert!(saw_messages);
-    assert_eq!(app.current_screen(), ScreenId::FirstTimePreloadedRenamePrompt);
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::FirstTimePreloadedRenamePrompt
+    );
 }
 
 #[test]

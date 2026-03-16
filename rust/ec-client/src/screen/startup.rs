@@ -29,12 +29,18 @@ impl StartupScreen {
             StartupPhase::Splash => self.render_splash(frame, splash_page),
             StartupPhase::Intro => self.render_intro(intro_page),
             StartupPhase::LoginSummary => self.render_login_summary(frame),
-            StartupPhase::Results => {
-                self.render_report_lines(frame, "PENDING RESULTS", &self.reports.results_lines)
-            }
-            StartupPhase::Messages => {
-                self.render_report_lines(frame, "PENDING MESSAGES", &self.reports.message_lines)
-            }
+            StartupPhase::Results => self.render_report_lines(
+                frame,
+                "PENDING RESULTS",
+                &self.reports.results_lines,
+                "Classic results pending flag is set, but no report lines are loaded.",
+            ),
+            StartupPhase::Messages => self.render_report_lines(
+                frame,
+                "PENDING MESSAGES",
+                &self.reports.message_lines,
+                "Classic messages pending flag is set, but no message lines are loaded.",
+            ),
             StartupPhase::Complete => Ok(new_playfield()),
         }
     }
@@ -103,16 +109,13 @@ impl StartupScreen {
             ClassicLoginState::ReturningPlayer => {
                 "Returning commander recognized. Resuming login-time review."
             }
-            ClassicLoginState::FirstTimeMenu => {
-                "First-time commander path."
-            }
+            ClassicLoginState::FirstTimeMenu => "First-time commander path.",
         };
         buffer.write_text(3, 0, login_status, classic::body_style());
 
         if self.summary.pending_results {
             let report_status = if self.summary.results_line_count == 0 {
-                "Classic report-pending flag is set, but no report lines are loaded."
-                    .to_string()
+                "Classic report-pending flag is set, but no report lines are loaded.".to_string()
             } else {
                 format!(
                     "You have {} report line(s) pending.",
@@ -126,8 +129,7 @@ impl StartupScreen {
 
         if self.summary.pending_messages {
             let message_status = if self.summary.message_line_count == 0 {
-                "Classic message-pending flag is set, but no message lines are loaded."
-                    .to_string()
+                "Classic message-pending flag is set, but no message lines are loaded.".to_string()
             } else {
                 format!(
                     "You have undeleted messages: {} line(s) currently reviewable.",
@@ -157,6 +159,7 @@ impl StartupScreen {
         frame: &ScreenFrame<'_>,
         title: &str,
         lines: &[String],
+        empty_notice: &str,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         let mut row = 0;
@@ -174,19 +177,24 @@ impl StartupScreen {
         );
         row += 2;
 
-        for line in lines.iter().take(12) {
-            buffer.write_text(row, 0, line, classic::body_style());
+        if lines.is_empty() {
+            buffer.write_text(row, 0, empty_notice, classic::body_style());
             row += 1;
-        }
-        if lines.len() > 12 {
-            row += 1;
-            buffer.write_text(
-                row,
-                0,
-                &format!("... {} more line(s)", lines.len() - 12),
-                classic::body_style(),
-            );
-            row += 1;
+        } else {
+            for line in lines.iter().take(12) {
+                buffer.write_text(row, 0, line, classic::body_style());
+                row += 1;
+            }
+            if lines.len() > 12 {
+                row += 1;
+                buffer.write_text(
+                    row,
+                    0,
+                    &format!("... {} more line(s)", lines.len() - 12),
+                    classic::body_style(),
+                );
+                row += 1;
+            }
         }
 
         row += 1;

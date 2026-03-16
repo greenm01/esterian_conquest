@@ -57,12 +57,8 @@ impl StartupSequence {
         Self {
             current: StartupPhase::Splash,
             show_login_review,
-            show_results: show_login_review
-                && summary.pending_results
-                && !summary.results_line_count.eq(&0),
-            show_messages: show_login_review
-                && summary.pending_messages
-                && !summary.message_line_count.eq(&0),
+            show_results: show_login_review && summary.pending_results,
+            show_messages: show_login_review && summary.pending_messages,
         }
     }
 
