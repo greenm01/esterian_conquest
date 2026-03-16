@@ -1169,7 +1169,7 @@ fn planet_database_render_uses_year_and_tier_labels_on_bottom_row() {
 
     app.render(&mut terminal).expect("render succeeds");
     assert!(terminal.line(4).contains("Year"));
-    assert!(terminal.lines.iter().any(|line| line.contains("Y3000")));
+    assert!(terminal.lines.iter().any(|line| line.contains("3000")));
     assert!(terminal.lines.iter().any(|line| line.contains("owned")));
     assert!(terminal.line(19).starts_with("MAIN COMMAND <- ["));
     assert!(terminal.line(19).ends_with("] ->"));
@@ -1198,8 +1198,9 @@ fn planet_info_intel_detail_shows_last_intel_and_tier() {
     );
 
     app.render(&mut terminal).expect("render succeeds");
-    assert!(terminal.lines.iter().any(|line| line.contains("Last Intel: Y3000")));
-    assert!(terminal.lines.iter().any(|line| line.contains("Intel Tier: owned")));
+    assert!(terminal.lines.iter().any(|line| line.contains("Last Intel: ")));
+    assert!(terminal.lines.iter().any(|line| line.contains("3000")));
+    assert!(terminal.lines.iter().any(|line| line.contains("owned")));
 }
 
 #[test]

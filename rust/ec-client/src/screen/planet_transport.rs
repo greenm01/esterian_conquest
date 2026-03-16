@@ -8,7 +8,7 @@ use crate::screen::layout::{
 use crate::screen::table::{
     TableColumn, fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
 };
-use crate::screen::{PlayfieldBuffer, Screen};
+use crate::screen::{PlayfieldBuffer, Screen, format_sector_coords, format_sector_coords_padded};
 use crate::theme::classic;
 
 pub struct PlanetTransportScreen;
@@ -98,7 +98,7 @@ impl PlanetTransportScreen {
             .map(|row| {
                 vec![
                     row.planet_name.clone(),
-                    format!("({:>2},{:>2})", row.coords[0], row.coords[1]),
+                    format_sector_coords_padded(row.coords),
                     row.planet_armies.to_string(),
                     row.transport_capacity.to_string(),
                 ]
@@ -150,8 +150,9 @@ impl PlanetTransportScreen {
             2,
             0,
             &format!(
-                "Select a fleet at {} ({},{}), then press ENTER.",
-                planet.planet_name, planet.coords[0], planet.coords[1]
+                "Select a fleet at {} {}, then press ENTER.",
+                planet.planet_name,
+                format_sector_coords(planet.coords)
             ),
             classic::status_value_style(),
         );
@@ -217,8 +218,10 @@ impl PlanetTransportScreen {
             2,
             0,
             &format!(
-                "Planet: {} ({},{})   Fleet {:02}",
-                planet.planet_name, planet.coords[0], planet.coords[1], fleet.fleet_number
+                "Planet: {} {}   Fleet {:02}",
+                planet.planet_name,
+                format_sector_coords(planet.coords),
+                fleet.fleet_number
             ),
             classic::status_value_style(),
         );

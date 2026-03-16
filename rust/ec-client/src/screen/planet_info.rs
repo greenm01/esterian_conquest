@@ -6,7 +6,9 @@ use crate::screen::layout::{
     draw_command_line_default_input, draw_command_prompt, draw_status_line, draw_title_bar,
     new_playfield,
 };
-use crate::screen::{CommandMenu, PlayfieldBuffer, ScreenFrame, command_menu_label};
+use crate::screen::{
+    CommandMenu, PlayfieldBuffer, ScreenFrame, command_menu_label, format_sector_coords,
+};
 
 pub struct PlanetInfoScreen;
 
@@ -80,7 +82,7 @@ impl PlanetInfoScreen {
 
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "INFO ABOUT A PLANET:");
-        draw_status_line(&mut buffer, 2, "Coordinates: ", &format!("X={x}, Y={y}"));
+        draw_status_line(&mut buffer, 2, "Coordinates: ", &format_sector_coords([x, y]));
         draw_status_line(&mut buffer, 3, "Planet: ", &planet.status_or_name_summary());
         draw_status_line(&mut buffer, 4, "Owner: ", &owner_label);
         draw_status_line(&mut buffer, 5, "State: ", &state_label);
@@ -158,7 +160,7 @@ impl PlanetInfoScreen {
             &mut buffer,
             2,
             "Coordinates: ",
-            &format!("X={}, Y={}", world.coords[0], world.coords[1]),
+            &format_sector_coords(world.coords),
         );
         draw_status_line(
             &mut buffer,

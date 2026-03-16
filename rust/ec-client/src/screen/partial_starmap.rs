@@ -5,7 +5,10 @@ use crate::app::Action;
 use crate::screen::layout::{
     draw_command_line_default_input, draw_status_line, draw_title_bar, new_playfield,
 };
-use crate::screen::{CommandMenu, PlayfieldBuffer, ScreenFrame, StyledSpan, command_menu_label};
+use crate::screen::{
+    CommandMenu, PlayfieldBuffer, ScreenFrame, StyledSpan, command_menu_label,
+    format_sector_coords,
+};
 use crate::theme::classic;
 
 pub struct PartialStarmapScreen;
@@ -55,7 +58,7 @@ impl PartialStarmapScreen {
             frame.player.record_index_1_based as u8,
         );
         let mut buffer = new_playfield();
-        let title = format!("Map Center at Sector ({},{})", center[0], center[1]);
+        let title = format!("Map Center at Sector {}", format_sector_coords(center));
         draw_title_bar(&mut buffer, 0, &title);
         buffer.write_text(0, 36, "Col: 8, Row: 2 in red", classic::alert_style());
 

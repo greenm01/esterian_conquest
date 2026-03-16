@@ -9,7 +9,9 @@ use crate::screen::layout::{
 use crate::screen::table::{
     TableColumn, fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
 };
-use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
+use crate::screen::{
+    PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords, format_sector_coords_padded,
+};
 use crate::theme::classic;
 
 pub const FLEET_VISIBLE_ROWS: usize = 11;
@@ -202,14 +204,14 @@ impl FleetListScreen {
             .map(|row| match mode {
                 FleetListMode::Brief => vec![
                     format_fleet_number(row.fleet_number, max_fleet_number),
-                    format!("({:>2},{:>2})", row.coords[0], row.coords[1]),
+                    format_sector_coords_padded(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
                     row.composition_label.clone(),
                 ],
                 FleetListMode::Full => vec![
                     format_fleet_number(row.fleet_number, max_fleet_number),
-                    format!("({:>2},{:>2})", row.coords[0], row.coords[1]),
+                    format_sector_coords_padded(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
                     row.order_label.clone(),
@@ -279,7 +281,7 @@ impl FleetReviewScreen {
             &mut buffer,
             3,
             "Location: ",
-            &format!("({},{})", row.coords[0], row.coords[1]),
+            &format_sector_coords(row.coords),
         );
         draw_status_line(
             &mut buffer,
@@ -354,7 +356,7 @@ impl FleetRoeScreen {
             .map(|row| {
                 vec![
                     format_fleet_number(row.fleet_number, max_fleet_number),
-                    format!("({:>2},{:>2})", row.coords[0], row.coords[1]),
+                    format_sector_coords_padded(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
                     row.composition_label.clone(),
@@ -458,7 +460,7 @@ impl FleetEtaScreen {
             .map(|row| {
                 vec![
                     format_fleet_number(row.fleet_number, max_fleet_number),
-                    format!("({:>2},{:>2})", row.coords[0], row.coords[1]),
+                    format_sector_coords_padded(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
                     row.composition_label.clone(),
@@ -563,7 +565,7 @@ impl FleetDetachScreen {
             .map(|row| {
                 vec![
                     format_fleet_number(row.fleet_number, max_fleet_number),
-                    format!("({:>2},{:>2})", row.coords[0], row.coords[1]),
+                    format_sector_coords_padded(row.coords),
                     format!("{}/{}", row.current_speed, row.max_speed),
                     row.rules_of_engagement.to_string(),
                     row.composition_label.clone(),

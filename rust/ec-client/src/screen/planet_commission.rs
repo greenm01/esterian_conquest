@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use crate::app::Action;
 use crate::screen::layout::{draw_command_prompt, draw_status_line, draw_title_bar, new_playfield};
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
-use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
+use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords};
 use crate::theme::classic;
 
 pub struct PlanetCommissionScreen;
@@ -50,8 +50,9 @@ impl PlanetCommissionScreen {
             &mut buffer,
             0,
             &format!(
-                "COMMISSION SHIPS: \"{}\" IN SYSTEM ({},{}):",
-                view.planet_name, view.coords[0], view.coords[1]
+                "COMMISSION SHIPS: \"{}\" IN SYSTEM {}:",
+                view.planet_name,
+                format_sector_coords(view.coords)
             ),
         );
         buffer.write_text(

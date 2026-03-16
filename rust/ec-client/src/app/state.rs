@@ -1922,10 +1922,8 @@ impl App {
             return;
         };
         let Some(index) = rows.iter().position(|row| row.coords == coords) else {
-            self.planet_database_status = Some(format!(
-                "No world found at X={}, Y={}",
-                coords[0], coords[1]
-            ));
+            self.planet_database_status =
+                Some(format!("No world found at [{},{}]", coords[0], coords[1]));
             return;
         };
         self.planet_database_cursor = index;
@@ -3513,10 +3511,8 @@ impl App {
         };
 
         let Some(planet_idx) = self.game_data.planet_record_index_at_coords(coords) else {
-            self.planet_info_error = Some(format!(
-                "No world found at X={}, Y={}",
-                coords[0], coords[1]
-            ));
+            self.planet_info_error =
+                Some(format!("No world found at [{},{}]", coords[0], coords[1]));
             return;
         };
 
@@ -3656,7 +3652,7 @@ impl App {
                     .unwrap_or_else(|| "?".to_string()),
                 last_intel_year_label: intel_snapshot
                     .and_then(|snapshot| snapshot.last_intel_year)
-                    .map(|year| format!("Y{year}"))
+                    .map(|year| year.to_string())
                     .unwrap_or_else(|| "?".to_string()),
                 intel_label,
             }
@@ -4626,7 +4622,7 @@ impl App {
     ) -> String {
         if row.current_speed == 0 {
             return format!(
-                "Fleet {} is stopped at ({},{}).",
+                "Fleet {} is stopped at [{},{}].",
                 row.fleet_number, row.coords[0], row.coords[1]
             );
         }
@@ -4635,7 +4631,7 @@ impl App {
         let fleet = &mut game_data.fleets.records[fleet_index];
         fleet.set_standing_order_target_coords_raw(destination);
         let Some(route) = plan_route(&game_data, fleet_index) else {
-            return format!("No route found to ({},{}).", destination[0], destination[1]);
+            return format!("No route found to [{},{}].", destination[0], destination[1]);
         };
         let mut steps = route.steps.len().saturating_sub(1);
         if include_system && destination != row.coords {
@@ -4644,7 +4640,7 @@ impl App {
         let years = steps.div_ceil(row.current_speed as usize);
         let arrival_year = self.game_data.conquest.game_year() + years as u16;
         format!(
-            "Fleet {} reaches ({},{}) in {} year(s), arriving in {}.",
+            "Fleet {} reaches [{},{}] in {} year(s), arriving in {}.",
             row.fleet_number, destination[0], destination[1], years, arrival_year
         )
     }

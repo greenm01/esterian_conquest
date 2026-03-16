@@ -6,7 +6,10 @@ use crate::screen::layout::{
     new_playfield,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
-use crate::screen::{CommandMenu, PlayfieldBuffer, command_menu_label};
+use crate::screen::{
+    CommandMenu, PlayfieldBuffer, command_menu_label, format_sector_coords,
+    format_sector_coords_padded,
+};
 use crate::theme::classic;
 
 pub const PLANET_DATABASE_VISIBLE_ROWS: usize = 11;
@@ -57,7 +60,7 @@ impl PlanetDatabaseScreen {
         buffer.write_text(
             2,
             0,
-            "Planets your empire has encountered, sorted by location.",
+            "Planet intelligence, sorted by location.",
             classic::status_value_style(),
         );
         let table_rows = rows
@@ -65,7 +68,7 @@ impl PlanetDatabaseScreen {
             .map(|row| {
                 vec![
                     row.name_label.clone(),
-                    format!("({:>2},{:>2})", row.coords[0], row.coords[1]),
+                    format_sector_coords_padded(row.coords),
                     row.owner_label.clone(),
                     row.potential_label.clone(),
                     row.armies_label.clone(),
@@ -101,6 +104,8 @@ impl PlanetDatabaseScreen {
         }
         if let Some(status) = status {
             draw_status_line(&mut buffer, 16, "Error: ", status);
+        } else {
+            draw_status_line(&mut buffer, 16, "Notice: ", "Press Q to leave this screen.");
         }
         draw_command_line_default_input(
             &mut buffer,
@@ -128,7 +133,7 @@ impl PlanetDatabaseScreen {
             &mut buffer,
             2,
             "Coordinates: ",
-            &format!("X={}, Y={}", row.coords[0], row.coords[1]),
+            &format_sector_coords(row.coords),
         );
         draw_status_line(&mut buffer, 3, "Planet Name: ", &row.name_label);
         draw_status_line(&mut buffer, 4, "Known Owner: ", &row.owner_label);

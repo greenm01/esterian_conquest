@@ -6,7 +6,7 @@ use crate::screen::layout::{
     draw_command_prompt, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
-use crate::screen::{PlayfieldBuffer, ScreenFrame};
+use crate::screen::{PlayfieldBuffer, ScreenFrame, format_sector_coords, format_sector_coords_padded};
 use crate::theme::classic;
 
 pub const PLANET_BRIEF_VISIBLE_ROWS: usize = 11;
@@ -87,7 +87,7 @@ impl PlanetListScreen {
             .map(|row| {
                 vec![
                     row.planet_name.clone(),
-                    format!("({:>2},{:>2})", row.coords[0], row.coords[1]),
+                    format_sector_coords_padded(row.coords),
                     format!(
                         "{:>3} of {:>3}",
                         row.present_production, row.potential_production
@@ -161,7 +161,7 @@ impl PlanetListScreen {
             &mut buffer,
             3,
             "Location: ",
-            &format!("({},{})", row.coords[0], row.coords[1]),
+            &format_sector_coords(row.coords),
         );
         draw_status_line(
             &mut buffer,

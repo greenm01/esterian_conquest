@@ -5,7 +5,7 @@ use crate::screen::layout::{
     MenuEntry, draw_command_line_default_input, draw_command_line_text, draw_command_prompt,
     draw_help_panel, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
 };
-use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
+use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords};
 use crate::theme::classic;
 
 pub struct FirstTimeMenuScreen;
@@ -210,8 +210,8 @@ pub fn render_first_time_homeworld_name(
         2,
         0,
         &format!(
-            "You have a world in the solar system at X={}, Y={}. Its current production",
-            coords[0], coords[1]
+            "You have a world in the solar system at {}. Its current production",
+            format_sector_coords(coords)
         ),
         classic::body_style(),
     );
@@ -249,8 +249,8 @@ pub fn render_first_time_homeworld_confirm(
         2,
         0,
         &format!(
-            "You have a world in the solar system at X={}, Y={}. Its current production",
-            coords[0], coords[1]
+            "You have a world in the solar system at {}. Its current production",
+            format_sector_coords(coords)
         ),
         classic::body_style(),
     );
@@ -320,7 +320,7 @@ impl FirstTimeIntroScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         crate::screen::startup::render_game_intro_page(
             page,
-            "Press any key to return to the First Time Menu.",
+            "Slap a key to return to the First Time Menu.",
         )
     }
 }

@@ -7,7 +7,10 @@ use crate::screen::layout::{
     draw_command_prompt, draw_menu_row, draw_status_line, draw_title_bar, new_playfield,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
-use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
+use crate::screen::{
+    CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords,
+    format_sector_coords_padded,
+};
 use crate::theme::classic;
 
 pub struct PlanetBuildScreen;
@@ -186,8 +189,9 @@ impl PlanetBuildScreen {
             &mut buffer,
             0,
             &format!(
-                "BUILD ON CURRENT PLANET: \"{}\" IN SYSTEM ({},{}):",
-                view.row.planet_name, view.row.coords[0], view.row.coords[1]
+                "BUILD ON CURRENT PLANET: \"{}\" IN SYSTEM {}:",
+                view.row.planet_name,
+                format_sector_coords(view.row.coords)
             ),
         );
 
@@ -270,7 +274,7 @@ impl PlanetBuildScreen {
             &mut buffer,
             3,
             "Location: ",
-            &format!("({},{})", view.row.coords[0], view.row.coords[1]),
+            &format_sector_coords(view.row.coords),
         );
         draw_status_line(
             &mut buffer,
@@ -348,8 +352,9 @@ impl PlanetBuildScreen {
             &mut buffer,
             0,
             &format!(
-                "BUILD LIST: \"{}\" AT ({},{}):",
-                view.row.planet_name, view.row.coords[0], view.row.coords[1]
+                "BUILD LIST: \"{}\" AT {}:",
+                view.row.planet_name,
+                format_sector_coords(view.row.coords)
             ),
         );
 
@@ -428,8 +433,9 @@ impl PlanetBuildScreen {
             2,
             0,
             &format!(
-                "Abort all build orders for \"{}\" at ({},{}).",
-                view.row.planet_name, view.row.coords[0], view.row.coords[1]
+                "Abort all build orders for \"{}\" at {}.",
+                view.row.planet_name,
+                format_sector_coords(view.row.coords)
             ),
             style,
         );
@@ -545,7 +551,7 @@ impl PlanetBuildScreen {
             .map(|row| {
                 vec![
                     row.planet_name.clone(),
-                    format!("({:>2},{:>2})", row.coords[0], row.coords[1]),
+                    format_sector_coords_padded(row.coords),
                     format!(
                         "{:>3} of {:>3}",
                         row.present_production, row.potential_production
