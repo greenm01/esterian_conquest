@@ -524,6 +524,10 @@ pub fn run_maintenance_turn_with_context(
     // fleets for flagged players (PLAYER raw[0x00]==0xff).
     let merge_events = process_fleet_merging(game_data)?;
 
+    // Join-another-fleet orders track the host fleet's current position each turn.
+    // This must happen before movement so joiners keep pursuing moving hosts.
+    refresh_join_host_targets(game_data);
+
     // Process fleet orders; collect side-effect events
     let movement_events = process_fleet_movement(game_data, visible_hazards_by_empire)?;
 
@@ -948,6 +952,48 @@ fn process_join_host_updates(
     }
 
     events
+}
+
+fn refresh_join_host_targets(game_data: &mut CoreGameData) {
+    let current_host_viability: std::collections::HashMap<u8, bool> = game_data
+        .fleets
+        .records
+        .iter()
+        .map(|fleet| {
+            let viable = fleet.destroyer_count() > 0
+                || fleet.cruiser_count() > 0
+                || fleet.battleship_count() > 0
+                || fleet.scout_count() > 0
+                || fleet.troop_transport_count() > 0
+                || fleet.etac_count() > 0;
+            (fleet.fleet_id(), viable)
+        })
+        .collect();
+    let current_fleet_coords: std::collections::HashMap<u8, [u8; 2]> = game_data
+        .fleets
+        .records
+        .iter()
+        .map(|fleet| (fleet.fleet_id(), fleet.current_location_coords_raw()))
+        .collect();
+
+    for fleet in game_data.fleets.records.iter_mut() {
+        if fleet.standing_order_kind() != Order::JoinAnotherFleet {
+            continue;
+        }
+
+        let host_id = fleet.join_host_fleet_id_raw();
+        if host_id == 0 || host_id == fleet.fleet_id() {
+            continue;
+        }
+
+        if !current_host_viability.get(&host_id).copied().unwrap_or(false) {
+            continue;
+        }
+
+        if let Some(coords) = current_fleet_coords.get(&host_id).copied() {
+            fleet.set_standing_order_target_coords_raw(coords);
+        }
+    }
 }
 
 /// Process fleet movement for all fleets with active movement.

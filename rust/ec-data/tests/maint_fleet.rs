@@ -4,8 +4,8 @@
 //! behavior on the fleet-scenario fixture pair.
 
 use ec_data::{
-    ColonizationResolvedEvent, CoreGameData, DiplomaticRelation, Mission, MissionOutcome, Order,
-    run_maintenance_turn,
+    ColonizationResolvedEvent, CoreGameData, DiplomaticRelation, JoinMissionHostEvent, Mission,
+    MissionOutcome, Order, run_maintenance_turn,
 };
 use std::path::Path;
 
@@ -351,6 +351,108 @@ fn test_join_merge_emits_merge_event() {
             && event.kind == Mission::JoinAnotherFleet
             && event.owner_empire_raw == 1
             && !event.survivor_side
+    }));
+}
+
+#[test]
+fn test_join_order_refreshes_target_to_moving_host_each_turn() {
+    let mut game_data = load_fixture("ecmaint-post");
+    game_data.player.records[0].raw[0x00] = 0x00;
+
+    let host = &mut game_data.fleets.records[0];
+    host.set_current_location_coords_raw([10, 10]);
+    host.set_standing_order_kind(Order::MoveOnly);
+    host.set_standing_order_target_coords_raw([14, 10]);
+    host.set_current_speed(3);
+    host.raw[0x0d] = 0x80;
+    host.raw[0x0f] = 0;
+    host.raw[0x19] = 0x80;
+
+    let host_id = game_data.fleets.records[0].fleet_id();
+    let joiner = &mut game_data.fleets.records[1];
+    joiner.set_current_location_coords_raw([4, 10]);
+    joiner.set_standing_order_kind(Order::JoinAnotherFleet);
+    joiner.set_join_host_fleet_id_raw(host_id);
+    joiner.set_standing_order_target_coords_raw([10, 10]);
+    joiner.set_current_speed(3);
+    joiner.raw[0x0d] = 0x80;
+    joiner.raw[0x0f] = 0;
+    joiner.raw[0x19] = 0x80;
+
+    run_maintenance_turn(&mut game_data).expect("first maintenance turn should succeed");
+
+    let host_after_first = game_data.fleets.records[0].current_location_coords_raw();
+    assert_eq!(host_after_first, [12, 10]);
+    assert_eq!(
+        game_data.fleets.records[1].standing_order_target_coords_raw(),
+        [10, 10],
+        "joiner should chase the host's turn-start position during the first turn"
+    );
+
+    run_maintenance_turn(&mut game_data).expect("second maintenance turn should succeed");
+
+    assert_eq!(
+        game_data.fleets.records[1].standing_order_target_coords_raw(),
+        host_after_first,
+        "joiner should refresh to the host's latest location on the following turn"
+    );
+    assert_eq!(
+        game_data.fleets.records[1].join_host_fleet_id_raw(),
+        host_id,
+        "host identity should remain unchanged while the host survives"
+    );
+    assert_eq!(
+        game_data.fleets.records[1].standing_order_kind(),
+        Order::JoinAnotherFleet
+    );
+}
+
+#[test]
+fn test_join_order_abandons_mission_when_host_is_destroyed() {
+    let mut game_data = load_fixture("ecmaint-post");
+
+    let host_id = game_data.fleets.records[0].fleet_id();
+    game_data.fleets.records[0].set_destroyer_count(0);
+    game_data.fleets.records[0].set_cruiser_count(0);
+    game_data.fleets.records[0].set_battleship_count(0);
+    game_data.fleets.records[0].set_scout_count(0);
+    game_data.fleets.records[0].set_troop_transport_count(0);
+    game_data.fleets.records[0].set_etac_count(0);
+
+    let joiner_coords = [7, 9];
+    let joiner = &mut game_data.fleets.records[1];
+    joiner.set_current_location_coords_raw(joiner_coords);
+    joiner.set_standing_order_kind(Order::JoinAnotherFleet);
+    joiner.set_join_host_fleet_id_raw(host_id);
+    joiner.set_standing_order_target_coords_raw([10, 10]);
+    joiner.set_current_speed(3);
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    assert_eq!(
+        game_data.fleets.records[1].standing_order_kind(),
+        Order::HoldPosition
+    );
+    assert_eq!(game_data.fleets.records[1].current_speed(), 0);
+    let abandoned_coords = game_data.fleets.records[1].current_location_coords_raw();
+    assert_eq!(abandoned_coords, [9, 10]);
+    assert_eq!(
+        game_data.fleets.records[1].standing_order_target_coords_raw(),
+        abandoned_coords
+    );
+    assert_eq!(game_data.fleets.records[1].join_host_fleet_id_raw(), 0);
+    assert!(events.join_host_events.iter().any(|event| {
+        matches!(
+            event,
+            JoinMissionHostEvent::HostDestroyed {
+                fleet_idx,
+                destroyed_host_fleet_id,
+                coords,
+                ..
+            } if *fleet_idx == 1
+                && *destroyed_host_fleet_id == host_id
+                && *coords == abandoned_coords
+        )
     }));
 }
 
