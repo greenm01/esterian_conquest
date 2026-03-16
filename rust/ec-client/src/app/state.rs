@@ -19,19 +19,18 @@ use crate::screen::{
     FleetMergeScreen, FleetMissionPickerScreen, FleetReviewScreen, FleetRoeScreen, FleetRow,
     FleetSingleOrderMode, FleetSingleOrderScreen, FleetTransferMode, FleetTransferScreen,
     GeneralHelpScreen, GeneralMenuScreen, MainHelpScreen, MainMenuScreen, MessageComposeScreen,
-    PartialStarmapScreen,
-    PlanetAutoCommissionScreen, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView,
-    PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionRow, PlanetCommissionScreen,
-    PlanetCommissionView, PlanetDatabaseRow, PlanetDatabaseScreen, PlanetHelpScreen,
-    PlanetInfoScreen, PlanetListMode, PlanetListScreen, PlanetListSort, PlanetMenuScreen,
-    PlanetTaxScreen, PlanetTransportFleetRow, PlanetTransportMode, PlanetTransportPlanetRow,
-    PlanetTransportScreen, RankingsScreen, ReportsScreen, STARTUP_SPLASH_PAGE_COUNT, Screen,
-    ScreenFrame, ScreenId, StarbaseHelpScreen, StarbaseListScreen, StarbaseMenuScreen,
-    StarbaseReviewScreen, StarbaseRow, StarmapScreen, StartupScreen, build_unit_spec,
-    build_unit_spec_by_kind, max_quantity, render_first_time_homeworld_confirm,
-    render_first_time_homeworld_name, render_first_time_join_name,
-    render_first_time_join_name_confirm, render_first_time_join_no_pending,
-    render_first_time_join_summary,
+    PartialStarmapScreen, PlanetAutoCommissionScreen, PlanetBuildChangeRow, PlanetBuildListRow,
+    PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetCommissionRow,
+    PlanetCommissionScreen, PlanetCommissionView, PlanetDatabaseRow, PlanetDatabaseScreen,
+    PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen, PlanetListSort,
+    PlanetMenuScreen, PlanetTaxScreen, PlanetTransportFleetRow, PlanetTransportMode,
+    PlanetTransportPlanetRow, PlanetTransportScreen, RankingsScreen, ReportsScreen,
+    STARTUP_SPLASH_PAGE_COUNT, Screen, ScreenFrame, ScreenId, StarbaseHelpScreen,
+    StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen, StarbaseRow, StarmapScreen,
+    StartupScreen, build_unit_spec, build_unit_spec_by_kind, max_quantity,
+    render_first_time_homeworld_confirm, render_first_time_homeworld_name,
+    render_first_time_join_name, render_first_time_join_name_confirm,
+    render_first_time_join_no_pending, render_first_time_join_summary,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -2812,7 +2811,9 @@ impl App {
                     Some(host_row.fleet_record_index_1_based);
                 self.fleet_transfer_donor_record_index_1_based = selected_rows
                     .iter()
-                    .find(|row| row.fleet_record_index_1_based != host_row.fleet_record_index_1_based)
+                    .find(|row| {
+                        row.fleet_record_index_1_based != host_row.fleet_record_index_1_based
+                    })
                     .map(|row| row.fleet_record_index_1_based);
                 self.fleet_transfer_mode = FleetTransferMode::EnteringBattleships;
                 self.fleet_transfer_input.clear();
@@ -2826,7 +2827,8 @@ impl App {
                     match self.fleet_transfer_input.trim().parse::<u16>() {
                         Ok(value) => value,
                         Err(_) => {
-                            self.fleet_transfer_status = Some("Enter a number from 0 up.".to_string());
+                            self.fleet_transfer_status =
+                                Some("Enter a number from 0 up.".to_string());
                             return Ok(());
                         }
                     }
@@ -2901,18 +2903,19 @@ impl App {
                         let Some(base) =
                             self.resolve_fleet_group_starbase_target_for_current_mission()
                         else {
-                            self.fleet_group_status =
-                                Some("Enter a starbase number from your starbase list.".to_string());
+                            self.fleet_group_status = Some(
+                                "Enter a starbase number from your starbase list.".to_string(),
+                            );
                             return;
                         };
                         (base.coords, base.base_id, 1)
                     }
                     FleetTargetInputKind::FleetId => {
-                        let Some(host) =
-                            self.resolve_fleet_group_host_fleet_for_current_mission()
+                        let Some(host) = self.resolve_fleet_group_host_fleet_for_current_mission()
                         else {
-                            self.fleet_group_status =
-                                Some("Enter another fleet number from your fleet list.".to_string());
+                            self.fleet_group_status = Some(
+                                "Enter another fleet number from your fleet list.".to_string(),
+                            );
                             return;
                         };
                         if let Err(err) = self.apply_fleet_group_join_order(host) {
@@ -2964,7 +2967,8 @@ impl App {
                         Some("That mission requires one of your owned planets.".to_string());
                     return;
                 }
-                if let Err(err) = self.apply_fleet_group_order(mission_code, destination, aux0, aux1)
+                if let Err(err) =
+                    self.apply_fleet_group_order(mission_code, destination, aux0, aux1)
                 {
                     self.fleet_group_status = Some(err.to_string());
                 }
@@ -3042,18 +3046,19 @@ impl App {
                         let Some(base) =
                             self.resolve_fleet_order_starbase_target_for_current_mission()
                         else {
-                            self.fleet_order_status =
-                                Some("Enter a starbase number from your starbase list.".to_string());
+                            self.fleet_order_status = Some(
+                                "Enter a starbase number from your starbase list.".to_string(),
+                            );
                             return Ok(());
                         };
                         (base.coords, base.base_id, 1)
                     }
                     FleetTargetInputKind::FleetId => {
-                        let Some(host) =
-                            self.resolve_fleet_order_host_fleet_for_current_mission()
+                        let Some(host) = self.resolve_fleet_order_host_fleet_for_current_mission()
                         else {
-                            self.fleet_order_status =
-                                Some("Enter another fleet number from your fleet list.".to_string());
+                            self.fleet_order_status = Some(
+                                "Enter another fleet number from your fleet list.".to_string(),
+                            );
                             return Ok(());
                         };
                         if let Err(err) = self.apply_fleet_single_join_order(host) {
@@ -3103,7 +3108,8 @@ impl App {
                         Some("That mission requires one of your owned planets.".to_string());
                     return Ok(());
                 }
-                if let Err(err) = self.apply_fleet_single_order(mission_code, destination, aux0, aux1)
+                if let Err(err) =
+                    self.apply_fleet_single_order(mission_code, destination, aux0, aux1)
                 {
                     self.fleet_order_status = Some(err.to_string());
                 }
@@ -3170,9 +3176,7 @@ impl App {
                     }
                     self.fleet_order_mode = FleetSingleOrderMode::EnteringTarget;
                     self.fleet_order_input.clear();
-                } else if let Err(err) =
-                    self.apply_fleet_single_order(mission_code, [0, 0], 0, 0)
-                {
+                } else if let Err(err) = self.apply_fleet_single_order(mission_code, [0, 0], 0, 0) {
                     self.current_screen = ScreenId::FleetMissionPicker;
                     self.fleet_mission_picker_caller = Some(FleetMissionPickerCaller::SingleOrder);
                     self.fleet_mission_picker_status = Some(err.to_string());
@@ -3195,9 +3199,7 @@ impl App {
                         return;
                     }
                     self.fleet_group_mode = FleetGroupOrderMode::EnteringTarget;
-                } else if let Err(err) =
-                    self.apply_fleet_group_order(mission_code, [0, 0], 0, 0)
-                {
+                } else if let Err(err) = self.apply_fleet_group_order(mission_code, [0, 0], 0, 0) {
                     self.current_screen = ScreenId::FleetMissionPicker;
                     self.fleet_mission_picker_caller = Some(FleetMissionPickerCaller::GroupOrder);
                     self.fleet_mission_picker_status = Some(err.to_string());
@@ -5510,7 +5512,9 @@ impl App {
             .records
             .iter()
             .enumerate()
-            .filter(|(_, base)| base.owner_empire_raw() as usize == self.player.record_index_1_based)
+            .filter(|(_, base)| {
+                base.owner_empire_raw() as usize == self.player.record_index_1_based
+            })
             .map(|(idx, base)| {
                 let escort_label = self
                     .game_data
@@ -6219,9 +6223,7 @@ impl App {
             KeyCode::PageDown => crate::app::Action::MoveStarbaseSelect(8),
             KeyCode::Enter => crate::app::Action::SubmitStarbaseReviewSelect,
             KeyCode::Backspace => crate::app::Action::BackspaceStarbaseInput,
-            KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                crate::app::Action::AppendStarbaseChar(ch)
-            }
+            KeyCode::Char(ch) if ch.is_ascii_digit() => crate::app::Action::AppendStarbaseChar(ch),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                 crate::app::Action::OpenStarbaseMenu
             }
@@ -7233,7 +7235,8 @@ impl App {
     }
 
     fn closest_owned_starbase_target_from(&self, anchor: [u8; 2]) -> Option<[u8; 2]> {
-        self.closest_owned_starbase_from(anchor).map(|row| row.coords)
+        self.closest_owned_starbase_from(anchor)
+            .map(|row| row.coords)
     }
 
     fn closest_owned_starbase_from(&self, anchor: [u8; 2]) -> Option<StarbaseRow> {
@@ -7304,7 +7307,8 @@ impl App {
 
     fn resolve_fleet_order_host_fleet_for_current_mission(&self) -> Option<FleetRow> {
         let default_fleet_number = self.fleet_order_default_host_fleet()?.fleet_number;
-        let fleet_number = resolve_default_u16_input(&self.fleet_order_input, default_fleet_number)?;
+        let fleet_number =
+            resolve_default_u16_input(&self.fleet_order_input, default_fleet_number)?;
         let selected_record = self.fleet_order_selected_row()?.fleet_record_index_1_based;
         self.fleet_rows().into_iter().find(|row| {
             row.fleet_number == fleet_number && row.fleet_record_index_1_based != selected_record
@@ -7313,7 +7317,8 @@ impl App {
 
     fn resolve_fleet_group_host_fleet_for_current_mission(&self) -> Option<FleetRow> {
         let default_fleet_number = self.fleet_group_default_host_fleet()?.fleet_number;
-        let fleet_number = resolve_default_u16_input(&self.fleet_group_input, default_fleet_number)?;
+        let fleet_number =
+            resolve_default_u16_input(&self.fleet_group_input, default_fleet_number)?;
         self.fleet_rows().into_iter().find(|row| {
             row.fleet_number == fleet_number
                 && !self
@@ -7343,7 +7348,9 @@ impl App {
             .planets
             .records
             .iter()
-            .filter(|planet| planet.owner_empire_slot_raw() as usize == self.player.record_index_1_based)
+            .filter(|planet| {
+                planet.owner_empire_slot_raw() as usize == self.player.record_index_1_based
+            })
             .min_by_key(|planet| sector_distance_sq(anchor, planet.coords_raw()))
             .map(|planet| planet.coords_raw())
     }

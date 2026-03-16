@@ -5,9 +5,7 @@ use crate::screen::layout::{
     MenuEntry, draw_command_line_default_input, draw_command_prompt, draw_help_panel,
     draw_menu_entry, draw_status_line, draw_title_bar, new_playfield,
 };
-use crate::screen::table::{
-    TableColumn, write_table_window_with_cursor,
-};
+use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords_padded};
 use crate::theme::classic;
 
@@ -179,7 +177,10 @@ impl StarbaseListScreen {
                     row.base_id.to_string(),
                     row.escort_label.clone(),
                     format!("System{}", format_sector_coords_padded(row.coords)),
-                    format!("System{}", format_sector_coords_padded(row.destination_coords)),
+                    format!(
+                        "System{}",
+                        format_sector_coords_padded(row.destination_coords)
+                    ),
                     row.eta_label.clone(),
                     starbase_list_operation_label(&row.operation_label),
                 ]
@@ -194,7 +195,11 @@ impl StarbaseListScreen {
             STARBASE_VISIBLE_ROWS,
             classic::status_value_style(),
             classic::status_value_style(),
-            if table_rows.is_empty() { None } else { Some(cursor) },
+            if table_rows.is_empty() {
+                None
+            } else {
+                Some(cursor)
+            },
         );
         draw_command_prompt(&mut buffer, 19, "STARBASE COMMAND", "ARROWS J K ENTER Q");
         Ok(buffer)
@@ -203,7 +208,9 @@ impl StarbaseListScreen {
     pub fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => Action::MoveStarbaseSelect(-1),
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => Action::MoveStarbaseSelect(1),
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                Action::MoveStarbaseSelect(1)
+            }
             KeyCode::PageUp => Action::MoveStarbaseSelect(-8),
             KeyCode::PageDown => Action::MoveStarbaseSelect(8),
             KeyCode::Enter => Action::OpenStarbaseReview,
@@ -241,7 +248,10 @@ impl StarbaseReviewScreen {
                     row.base_id.to_string(),
                     row.escort_label.clone(),
                     format!("System{}", format_sector_coords_padded(row.coords)),
-                    format!("System{}", format_sector_coords_padded(row.destination_coords)),
+                    format!(
+                        "System{}",
+                        format_sector_coords_padded(row.destination_coords)
+                    ),
                     row.eta_label.clone(),
                     starbase_list_operation_label(&row.operation_label),
                 ]
@@ -256,7 +266,11 @@ impl StarbaseReviewScreen {
             STARBASE_VISIBLE_ROWS,
             classic::status_value_style(),
             classic::status_value_style(),
-            if table_rows.is_empty() { None } else { Some(cursor) },
+            if table_rows.is_empty() {
+                None
+            } else {
+                Some(cursor)
+            },
         );
         if let Some(status) = status {
             draw_status_line(&mut buffer, 17, "Notice: ", status);
@@ -293,7 +307,10 @@ impl StarbaseReviewScreen {
             &mut buffer,
             4,
             "Location:    ",
-            &format!("World in Solar System {}", format_sector_coords_padded(row.coords)),
+            &format!(
+                "World in Solar System {}",
+                format_sector_coords_padded(row.coords)
+            ),
         );
         draw_status_line(
             &mut buffer,

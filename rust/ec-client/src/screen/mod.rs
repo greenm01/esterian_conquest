@@ -26,9 +26,9 @@ mod planet_tax;
 mod planet_transport;
 mod rankings;
 mod reports;
+mod starbase;
 mod starmap;
 mod startup;
-mod starbase;
 mod table;
 
 pub use buffer::{Cell, CellStyle, PlayfieldBuffer, RgbColor, StyledSpan};
@@ -88,16 +88,15 @@ pub use planet_transport::{
 };
 pub use rankings::RankingsScreen;
 pub use reports::ReportsScreen;
+pub(crate) use starbase::STARBASE_VISIBLE_ROWS;
+pub use starbase::{
+    StarbaseHelpScreen, StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen, StarbaseRow,
+};
 pub use starmap::StarmapScreen;
 pub use startup::GAME_VERSION;
 pub(crate) use startup::STARTUP_INTRO_PAGE_COUNT;
 pub(crate) use startup::STARTUP_SPLASH_PAGE_COUNT;
 pub use startup::StartupScreen;
-pub(crate) use starbase::STARBASE_VISIBLE_ROWS;
-pub use starbase::{
-    StarbaseHelpScreen, StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen,
-    StarbaseRow,
-};
 pub(crate) use table::format_fleet_number;
 
 use std::collections::BTreeMap;

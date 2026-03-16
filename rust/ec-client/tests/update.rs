@@ -2449,16 +2449,11 @@ fn fleet_order_applies_move_order_to_selected_fleet_only() {
         .iter()
         .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
         .expect("fleet #2 should exist");
+    assert_eq!(ordered_fleet.standing_order_code_raw(), 1);
+    assert_eq!(ordered_fleet.standing_order_target_coords_raw(), [14, 9]);
     assert_eq!(
-        ordered_fleet.standing_order_code_raw(),
-        1
-    );
-    assert_eq!(
-        ordered_fleet.standing_order_target_coords_raw(),
-        [14, 9]
-    );
-    assert_eq!(
-        state.game_data
+        state
+            .game_data
             .fleets
             .records
             .iter()
@@ -2514,7 +2509,11 @@ fn fleet_order_allows_guard_starbase_from_fleet_command() {
         terminal.line(1).trim_end(),
         "Enter the starbase number for Guard a Starbase."
     );
-    assert!(terminal.line(19).contains("Starbase # [1]"), "{}", terminal.line(19));
+    assert!(
+        terminal.line(19).contains("Starbase # [1]"),
+        "{}",
+        terminal.line(19)
+    );
 
     assert_eq!(
         apply_action(&mut app, Action::SubmitFleetOrder),
@@ -2526,7 +2525,10 @@ fn fleet_order_allows_guard_starbase_from_fleet_command() {
         state.game_data.fleets.records[1].standing_order_code_raw(),
         4
     );
-    assert_eq!(state.game_data.fleets.records[1].mission_aux_bytes(), [1, 1]);
+    assert_eq!(
+        state.game_data.fleets.records[1].mission_aux_bytes(),
+        [1, 1]
+    );
     assert_eq!(
         state.game_data.fleets.records[1].standing_order_target_coords_raw(),
         [6, 5]
@@ -2574,7 +2576,11 @@ fn fleet_order_blocks_guard_starbase_when_player_has_no_starbases() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("no-starbase guard order notice should render");
-    assert!(terminal.line(19).contains("You have no starbases available to guard."));
+    assert!(
+        terminal
+            .line(19)
+            .contains("You have no starbases available to guard.")
+    );
 }
 
 #[test]
@@ -2626,7 +2632,11 @@ fn fleet_order_allows_join_another_fleet_from_fleet_command() {
         terminal.line(1).trim_end(),
         "Enter the host fleet number for Join another fleet."
     );
-    assert!(terminal.line(19).contains("Fleet # ["), "{}", terminal.line(19));
+    assert!(
+        terminal.line(19).contains("Fleet # ["),
+        "{}",
+        terminal.line(19)
+    );
 
     assert_eq!(
         apply_action(&mut app, Action::SubmitFleetOrder),
@@ -2641,7 +2651,10 @@ fn fleet_order_allows_join_another_fleet_from_fleet_command() {
         .iter()
         .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
         .expect("fleet #1 should exist");
-    assert_eq!(source.standing_order_kind(), ec_data::Order::JoinAnotherFleet);
+    assert_eq!(
+        source.standing_order_kind(),
+        ec_data::Order::JoinAnotherFleet
+    );
     assert_ne!(source.join_host_fleet_id_raw(), 0);
     let valid_host = state.game_data.fleets.records.iter().any(|fleet| {
         fleet.owner_empire_raw() == 1
@@ -2983,7 +2996,10 @@ fn fleet_group_colonize_mission_allows_hidden_colonized_worlds_as_targets() {
     let hidden_colonized_idx = candidates[0].0;
     let hidden_colonized_coords = candidates[0].1;
     state.game_data.planets.records[hidden_colonized_idx].set_owner_empire_slot_raw(2);
-    state.database.record_mut(hidden_colonized_idx, 0, planet_count).raw[0x15] = 0;
+    state
+        .database
+        .record_mut(hidden_colonized_idx, 0, planet_count)
+        .raw[0x15] = 0;
     for fleet in state.game_data.fleets.records.iter_mut() {
         if fleet.owner_empire_raw() == 1 {
             fleet.set_standing_order_code_raw(9);
@@ -3246,7 +3262,10 @@ fn fleet_group_order_allows_owned_planet_for_blockade_mission() {
         ordered_fleet.standing_order_kind(),
         ec_data::Order::GuardBlockadeWorld
     );
-    assert_eq!(ordered_fleet.standing_order_target_coords_raw(), owned_target);
+    assert_eq!(
+        ordered_fleet.standing_order_target_coords_raw(),
+        owned_target
+    );
 }
 
 #[test]
@@ -3336,8 +3355,14 @@ fn fleet_group_order_allows_owned_planet_for_scout_mission() {
         .iter()
         .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
         .expect("player 1 fleet #1 should exist");
-    assert_eq!(ordered_fleet.standing_order_kind(), ec_data::Order::ScoutSector);
-    assert_eq!(ordered_fleet.standing_order_target_coords_raw(), owned_target);
+    assert_eq!(
+        ordered_fleet.standing_order_kind(),
+        ec_data::Order::ScoutSector
+    );
+    assert_eq!(
+        ordered_fleet.standing_order_target_coords_raw(),
+        owned_target
+    );
 }
 
 #[test]
@@ -3355,7 +3380,10 @@ fn fleet_order_salvage_defaults_to_closest_owned_planet() {
         .map(|(idx, _)| idx)
         .expect("fixture should have a non-owned planet");
     state.game_data.planets.records[extra_owned_idx].set_owner_empire_slot_raw(1);
-    state.database.record_mut(extra_owned_idx, 0, planet_count).raw[0x15] = 1;
+    state
+        .database
+        .record_mut(extra_owned_idx, 0, planet_count)
+        .raw[0x15] = 1;
     let nearest_owned = state.game_data.planets.records[extra_owned_idx].coords_raw();
     let selected_fleet = state
         .game_data
@@ -3467,7 +3495,11 @@ fn fleet_order_salvage_rejects_empty_sector_target() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("salvage empty-sector validation should render");
-    assert!(terminal.line(19).contains("That mission needs a system with a planet at the target."));
+    assert!(
+        terminal
+            .line(19)
+            .contains("That mission needs a system with a planet at the target.")
+    );
 }
 
 #[test]
@@ -3539,7 +3571,11 @@ fn fleet_order_salvage_rejects_foreign_planet_target() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("salvage foreign-planet validation should render");
-    assert!(terminal.line(19).contains("That mission requires one of your owned planets."));
+    assert!(
+        terminal
+            .line(19)
+            .contains("That mission requires one of your owned planets.")
+    );
 }
 
 #[test]
@@ -3605,7 +3641,11 @@ fn fleet_order_salvage_rejects_unowned_planet_target() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("salvage unowned-planet validation should render");
-    assert!(terminal.line(19).contains("That mission requires one of your owned planets."));
+    assert!(
+        terminal
+            .line(19)
+            .contains("That mission requires one of your owned planets.")
+    );
 }
 
 #[test]

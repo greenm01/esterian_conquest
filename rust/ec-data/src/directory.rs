@@ -2934,8 +2934,11 @@ impl CoreGameData {
                 .battleship_count()
                 .saturating_add(selection.battleships),
         );
-        host_after
-            .set_cruiser_count(host_after.cruiser_count().saturating_add(selection.cruisers));
+        host_after.set_cruiser_count(
+            host_after
+                .cruiser_count()
+                .saturating_add(selection.cruisers),
+        );
         host_after.set_destroyer_count(
             host_after
                 .destroyer_count()
@@ -2946,8 +2949,11 @@ impl CoreGameData {
                 .troop_transport_count()
                 .saturating_add(selection.full_transports + selection.empty_transports),
         );
-        host_after
-            .set_army_count(host_after.army_count().saturating_add(selection.full_transports));
+        host_after.set_army_count(
+            host_after
+                .army_count()
+                .saturating_add(selection.full_transports),
+        );
         host_after.set_scout_count(host_after.scout_count().saturating_add(selection.scouts));
         host_after.set_etac_count(host_after.etac_count().saturating_add(selection.etacs));
         host_after.recompute_max_speed_from_composition();
