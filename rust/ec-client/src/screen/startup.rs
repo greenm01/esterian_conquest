@@ -110,29 +110,31 @@ impl StartupScreen {
         buffer.write_text(3, 0, login_status, classic::body_style());
 
         if self.summary.pending_results {
-            buffer.write_text(
-                4,
-                0,
-                &format!(
+            let report_status = if self.summary.results_line_count == 0 {
+                "Classic report-pending flag is set, but no report lines are loaded."
+                    .to_string()
+            } else {
+                format!(
                     "You have {} report line(s) pending.",
                     self.summary.results_line_count
-                ),
-                classic::body_style(),
-            );
+                )
+            };
+            buffer.write_text(4, 0, &report_status, classic::body_style());
         } else {
             buffer.write_text(4, 0, "You have no reports pending.", classic::body_style());
         }
 
         if self.summary.pending_messages {
-            buffer.write_text(
-                5,
-                0,
-                &format!(
+            let message_status = if self.summary.message_line_count == 0 {
+                "Classic message-pending flag is set, but no message lines are loaded."
+                    .to_string()
+            } else {
+                format!(
                     "You have undeleted messages: {} line(s) currently reviewable.",
                     self.summary.message_line_count
-                ),
-                classic::body_style(),
-            );
+                )
+            };
+            buffer.write_text(5, 0, &message_status, classic::body_style());
         } else {
             buffer.write_text(
                 5,

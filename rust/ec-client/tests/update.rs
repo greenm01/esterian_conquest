@@ -705,6 +705,57 @@ fn preloaded_first_login_routes_through_login_summary_before_homeworld_naming() 
 }
 
 #[test]
+fn preloaded_first_login_becomes_returning_player_after_homeworld_naming() {
+    let fixture_dir = temp_joined_needs_homeworld_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::FirstTimeHomeworldName {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
+
+    for ch in "Codex Prime".chars() {
+        assert_eq!(
+            apply_action(&mut app, Action::AppendFirstTimeInputChar(ch)),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFirstTimeInput),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldConfirm);
+    assert_eq!(
+        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+
+    let reloaded = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("reloaded app should load");
+
+    assert_eq!(reloaded.classic_login_state(), ClassicLoginState::ReturningPlayer);
+    assert_eq!(
+        reloaded.current_screen(),
+        ScreenId::Startup(StartupPhase::Splash)
+    );
+}
+
+#[test]
 fn returning_player_routes_through_login_summary_before_main_menu() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
@@ -1924,6 +1975,26 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
         app.current_screen(),
         ScreenId::Startup(StartupPhase::Splash)
     );
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::Startup(StartupPhase::LoginSummary) {
+            let mut terminal = CaptureTerminal::new();
+            app.render(&mut terminal).expect("login summary should render");
+            assert!(
+                terminal
+                    .line(4)
+                    .contains("Classic report-pending flag is set")
+            );
+            assert!(
+                terminal
+                    .line(5)
+                    .contains("Classic message-pending flag is set")
+            );
+            break;
+        }
+        app.advance_startup();
+    }
+
     advance_to_main_menu(&mut app);
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
 }
