@@ -5680,6 +5680,7 @@ impl App {
         let mut game_data = self.game_data.clone();
         let fleet_index = row.fleet_record_index_1_based - 1;
         let fleet = &mut game_data.fleets.records[fleet_index];
+        fleet.set_standing_order_kind(ec_data::Order::MoveOnly);
         fleet.set_standing_order_target_coords_raw(destination);
         let Some(route) = plan_route(&game_data, fleet_index) else {
             return format!("No route found to [{},{}].", destination[0], destination[1]);

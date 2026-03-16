@@ -2665,6 +2665,63 @@ fn fleet_eta_uses_max_speed_when_selected_fleet_is_stopped() {
 }
 
 #[test]
+fn fleet_eta_allows_empty_sector_targets_for_resting_hold_fleets() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let fleet = state
+        .game_data
+        .fleets
+        .records
+        .get_mut(0)
+        .expect("fleet 1 should exist");
+    fleet.set_current_speed(0);
+    fleet.set_standing_order_kind(ec_data::Order::HoldPosition);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetEta),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetEtaChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetEta),
+        AppOutcome::Continue
+    );
+    for ch in ['1', ',', '1'] {
+        assert_eq!(
+            apply_action(&mut app, Action::AppendFleetEtaChar(ch)),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetEta),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetEta),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("fleet eta empty-sector result should render");
+    assert!(terminal.line(19).contains("Fleet 1 reaches [1,1] in"));
+    assert!(!terminal.line(19).contains("No route found"));
+}
+
+#[test]
 fn planet_build_specify_uses_bottom_command_line_default_prompt() {
     let mut screen = PlanetBuildScreen::new();
     let view = PlanetBuildMenuView {
