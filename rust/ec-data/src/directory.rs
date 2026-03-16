@@ -2486,10 +2486,12 @@ impl CoreGameData {
             return Ok(());
         };
         if fleet.army_count() > fleet.troop_transport_count() {
-            return Err(FleetPlayerInputValidationError::LoadedArmiesExceedTransportCapacity {
-                loaded_armies: fleet.army_count(),
-                transports: fleet.troop_transport_count(),
-            });
+            return Err(
+                FleetPlayerInputValidationError::LoadedArmiesExceedTransportCapacity {
+                    loaded_armies: fleet.army_count(),
+                    transports: fleet.troop_transport_count(),
+                },
+            );
         }
         if fleet.current_speed() > fleet.max_speed() {
             return Err(FleetPlayerInputValidationError::SpeedExceedsMaximum {
@@ -2498,14 +2500,18 @@ impl CoreGameData {
             });
         }
         if !fleet_has_combat_ships(fleet) && fleet.rules_of_engagement() != 0 {
-            return Err(FleetPlayerInputValidationError::NonCombatFleetMustUseZeroRoe {
-                roe: fleet.rules_of_engagement(),
-            });
+            return Err(
+                FleetPlayerInputValidationError::NonCombatFleetMustUseZeroRoe {
+                    roe: fleet.rules_of_engagement(),
+                },
+            );
         }
         if fleet.rules_of_engagement() > 10 {
-            return Err(FleetPlayerInputValidationError::RulesOfEngagementOutOfRange {
-                roe: fleet.rules_of_engagement(),
-            });
+            return Err(
+                FleetPlayerInputValidationError::RulesOfEngagementOutOfRange {
+                    roe: fleet.rules_of_engagement(),
+                },
+            );
         }
         self.validate_fleet_order_payload(record_index_1_based, order_code, target, aux0, aux1)
             .map_err(FleetPlayerInputValidationError::InvalidOrder)
@@ -4384,7 +4390,9 @@ impl CoreGameData {
         if to_empire_raw == 0 || to_empire_raw > player_count {
             return Err(GameStateMutationError::InvalidDiplomacyInput {
                 player_index_1_based: from_empire_raw as usize,
-                reason: PlayerDiplomacyValidationError::TargetOutOfRange { target_empire_raw: to_empire_raw },
+                reason: PlayerDiplomacyValidationError::TargetOutOfRange {
+                    target_empire_raw: to_empire_raw,
+                },
             });
         }
         if from_empire_raw == 0 || from_empire_raw > player_count {
@@ -4395,7 +4403,9 @@ impl CoreGameData {
         if from_empire_raw == to_empire_raw {
             return Err(GameStateMutationError::InvalidDiplomacyInput {
                 player_index_1_based: from_empire_raw as usize,
-                reason: PlayerDiplomacyValidationError::SelfTarget { empire_raw: from_empire_raw },
+                reason: PlayerDiplomacyValidationError::SelfTarget {
+                    empire_raw: from_empire_raw,
+                },
             });
         }
         let Some(record) = self

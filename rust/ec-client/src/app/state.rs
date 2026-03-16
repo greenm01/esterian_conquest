@@ -2664,9 +2664,7 @@ impl App {
                 } => "Non-combat fleets must use ROE 0.".to_string(),
                 ec_data::GameStateMutationError::InvalidFleetPlayerInput {
                     reason:
-                        ec_data::FleetPlayerInputValidationError::RulesOfEngagementOutOfRange {
-                            ..
-                        },
+                        ec_data::FleetPlayerInputValidationError::RulesOfEngagementOutOfRange { .. },
                     ..
                 } => "Enter an ROE from 0 to 10.".to_string(),
                 _ => err.to_string(),
