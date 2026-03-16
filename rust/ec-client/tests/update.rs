@@ -2302,6 +2302,94 @@ fn fleet_order_applies_move_order_to_selected_fleet_only() {
 }
 
 #[test]
+fn fleet_order_persists_immediately_and_reloaded_tables_reflect_it() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir.clone(),
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetOrderChar('2')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        AppOutcome::Continue
+    );
+    for ch in ['1', '4', ',', '9'] {
+        assert_eq!(
+            apply_action(&mut app, Action::AppendFleetOrderChar(ch)),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetOrder);
+
+    let persisted = latest_runtime_state(&fixture_dir);
+    assert_eq!(
+        persisted.game_data.fleets.records[1].standing_order_code_raw(),
+        1
+    );
+    assert_eq!(
+        persisted.game_data.fleets.records[1].standing_order_target_coords_raw(),
+        [14, 9]
+    );
+
+    let mut reloaded = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("reloaded app should load");
+    advance_to_main_menu(&mut reloaded);
+    assert_eq!(
+        apply_action(&mut reloaded, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut reloaded, Action::OpenFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut reloaded, Action::AppendFleetOrderChar('2')),
+        AppOutcome::Continue
+    );
+    let mut terminal = CaptureTerminal::new();
+    reloaded
+        .render(&mut terminal)
+        .expect("reloaded fleet order table should render");
+    let table_text = (5..16)
+        .map(|row| terminal.line(row).to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(table_text.contains("[14, 9]"));
+}
+
+#[test]
 fn fleet_tables_sort_by_mission_then_newest_fleet_id() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
