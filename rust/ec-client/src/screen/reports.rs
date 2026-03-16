@@ -125,7 +125,10 @@ fn write_section(
         buffer.write_text(
             start_row + written,
             0,
-            &format!("  ... {} more line(s)", wrapped_rows.len() - 10),
+            &format!(
+                "  <... {} more line(s); use startup review for full suspense>",
+                wrapped_rows.len() - 10
+            ),
             classic::body_style(),
         );
         written += 1;

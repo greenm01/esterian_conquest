@@ -2827,6 +2827,43 @@ fn reports_screen_wraps_long_lines_within_the_playfield() {
 }
 
 #[test]
+fn reports_screen_shows_explicit_truncation_cue_when_wrapped_rows_overflow() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.results_bytes = (1..=11)
+        .map(|idx| format!("This is long report line {idx:02} and it should wrap across rows"))
+        .collect::<Vec<_>>()
+        .join("\n")
+        .into_bytes();
+    state.messages_bytes.clear();
+    state.game_data.player.records[0].raw[0x30] = 1;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(&mut app, Action::OpenReports),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::Reports);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("reports screen should render");
+    assert!(terminal.lines.iter().any(|line| {
+        line.contains("<...")
+            && line.contains("more line(s); use startup review for full suspense>")
+    }));
+}
+
+#[test]
 fn preloaded_first_login_reviews_reports_before_homeworld_naming() {
     let fixture_dir = temp_joined_needs_homeworld_copy();
     let mut state = latest_runtime_state(&fixture_dir);
