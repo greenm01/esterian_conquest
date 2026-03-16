@@ -2229,6 +2229,139 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
 }
 
 #[test]
+fn startup_reviews_results_then_messages_then_enters_main_menu() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.results_bytes = b"Fleet battle report".to_vec();
+    state.messages_bytes = b"Diplomatic telegram".to_vec();
+    state.game_data.player.records[0].raw[0x30] = 1;
+    state.game_data.player.records[0].raw[0x34] = 1;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    let mut saw_login_summary = false;
+    let mut saw_results = false;
+    let mut saw_messages = false;
+
+    for _ in 0..16 {
+        match app.current_screen() {
+            ScreenId::Startup(StartupPhase::LoginSummary) => saw_login_summary = true,
+            ScreenId::Startup(StartupPhase::Results) => {
+                assert!(saw_login_summary);
+                saw_results = true;
+            }
+            ScreenId::Startup(StartupPhase::Messages) => {
+                assert!(saw_results);
+                saw_messages = true;
+            }
+            ScreenId::MainMenu => break,
+            _ => {}
+        }
+        app.advance_startup();
+    }
+
+    assert!(saw_login_summary);
+    assert!(saw_results);
+    assert!(saw_messages);
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+}
+
+#[test]
+fn preloaded_first_login_reviews_reports_before_homeworld_naming() {
+    let fixture_dir = temp_joined_needs_homeworld_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.results_bytes = b"Fleet battle report".to_vec();
+    state.messages_bytes = b"Diplomatic telegram".to_vec();
+    state.game_data.player.records[0].raw[0x30] = 1;
+    state.game_data.player.records[0].raw[0x34] = 1;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    let mut saw_results = false;
+    let mut saw_messages = false;
+    for _ in 0..16 {
+        match app.current_screen() {
+            ScreenId::Startup(StartupPhase::Results) => saw_results = true,
+            ScreenId::Startup(StartupPhase::Messages) => {
+                assert!(saw_results);
+                saw_messages = true;
+            }
+            ScreenId::FirstTimePreloadedRenamePrompt => break,
+            _ => {}
+        }
+        app.advance_startup();
+    }
+
+    assert!(saw_results);
+    assert!(saw_messages);
+    assert_eq!(app.current_screen(), ScreenId::FirstTimePreloadedRenamePrompt);
+}
+
+#[test]
+fn returning_player_reviews_reports_before_colony_naming() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let homeworld_index =
+        state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize;
+    let colony = state
+        .game_data
+        .planets
+        .records
+        .iter_mut()
+        .enumerate()
+        .find(|(idx, planet)| *idx + 1 != homeworld_index && planet.owner_empire_slot_raw() != 1)
+        .expect("need a non-homeworld planet for colony naming test");
+    colony.1.set_owner_empire_slot_raw(1);
+    colony.1.set_planet_name("Not Named Yet");
+    state.results_bytes = b"Scout report".to_vec();
+    state.messages_bytes = b"Command mail".to_vec();
+    state.game_data.player.records[0].raw[0x30] = 1;
+    state.game_data.player.records[0].raw[0x34] = 1;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    let mut saw_results = false;
+    let mut saw_messages = false;
+    for _ in 0..16 {
+        match app.current_screen() {
+            ScreenId::Startup(StartupPhase::Results) => saw_results = true,
+            ScreenId::Startup(StartupPhase::Messages) => {
+                assert!(saw_results);
+                saw_messages = true;
+            }
+            ScreenId::ColonyWorldName => break,
+            _ => {}
+        }
+        app.advance_startup();
+    }
+
+    assert!(saw_results);
+    assert!(saw_messages);
+    assert_eq!(app.current_screen(), ScreenId::ColonyWorldName);
+}
+
+#[test]
 fn fleet_review_opens_with_a_selection_table_first() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
