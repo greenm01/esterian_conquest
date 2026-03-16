@@ -2951,6 +2951,19 @@ impl App {
                     );
                     return;
                 }
+                if fleet_order_target_requires_owned_planet(mission_code)
+                    && target_planet
+                        .map(|planet| {
+                            planet.owner_empire_slot_raw() as usize
+                                != self.player.record_index_1_based
+                        })
+                        .unwrap_or(true)
+                {
+                    self.fleet_group_input.clear();
+                    self.fleet_group_status =
+                        Some("That mission requires one of your owned planets.".to_string());
+                    return;
+                }
                 if let Err(err) = self.apply_fleet_group_order(mission_code, destination, aux0, aux1)
                 {
                     self.fleet_group_status = Some(err.to_string());
@@ -3075,6 +3088,19 @@ impl App {
                     self.fleet_order_input.clear();
                     self.fleet_order_status =
                         Some("You cannot send that mission to your own world.".to_string());
+                    return Ok(());
+                }
+                if fleet_order_target_requires_owned_planet(mission_code)
+                    && target_planet
+                        .map(|planet| {
+                            planet.owner_empire_slot_raw() as usize
+                                != self.player.record_index_1_based
+                        })
+                        .unwrap_or(true)
+                {
+                    self.fleet_order_input.clear();
+                    self.fleet_order_status =
+                        Some("That mission requires one of your owned planets.".to_string());
                     return Ok(());
                 }
                 if let Err(err) = self.apply_fleet_single_order(mission_code, destination, aux0, aux1)
@@ -7200,6 +7226,9 @@ impl App {
         if mission_code == 12 {
             return self.closest_colonize_target_from(anchor, &selected_records);
         }
+        if mission_code == 15 {
+            return self.closest_owned_planet_target_from(anchor);
+        }
         None
     }
 
@@ -7307,6 +7336,16 @@ impl App {
         })
         .min_by_key(|world| sector_distance_sq(anchor, world.coords))
         .map(|world| world.coords)
+    }
+
+    fn closest_owned_planet_target_from(&self, anchor: [u8; 2]) -> Option<[u8; 2]> {
+        self.game_data
+            .planets
+            .records
+            .iter()
+            .filter(|planet| planet.owner_empire_slot_raw() as usize == self.player.record_index_1_based)
+            .min_by_key(|planet| sector_distance_sq(anchor, planet.coords_raw()))
+            .map(|planet| planet.coords_raw())
     }
 
     fn closest_colonize_target_from(
@@ -7978,11 +8017,15 @@ fn fleet_mission_requires_preselected_target(order_code: u8) -> bool {
 }
 
 fn fleet_order_target_requires_planet_system(order_code: u8) -> bool {
-    matches!(order_code, 5 | 6 | 7 | 8 | 9 | 11 | 12)
+    matches!(order_code, 5 | 6 | 7 | 8 | 9 | 11 | 12 | 15)
 }
 
 fn fleet_order_target_rejects_owned_planet(order_code: u8) -> bool {
-    matches!(order_code, 5 | 6 | 7 | 8 | 10 | 11)
+    matches!(order_code, 6 | 7 | 8)
+}
+
+fn fleet_order_target_requires_owned_planet(order_code: u8) -> bool {
+    matches!(order_code, 15)
 }
 
 fn fleet_group_order_label(order_code: u8) -> &'static str {

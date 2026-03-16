@@ -226,7 +226,7 @@ impl Terminal for CaptureTerminal {
 fn apply_action_switches_between_client_screens() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -552,7 +552,7 @@ fn apply_action_switches_between_client_screens() {
 fn first_time_menu_branch_opens_help_intro_and_empire_list() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -590,7 +590,7 @@ fn first_time_menu_branch_opens_help_intro_and_empire_list() {
 fn first_time_startup_skips_joined_player_login_summary() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -610,7 +610,7 @@ fn first_time_startup_skips_joined_player_login_summary() {
 fn joined_player_with_unnamed_homeworld_is_routed_to_homeworld_naming() {
     let fixture_dir = temp_joined_needs_homeworld_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -763,7 +763,7 @@ fn first_time_join_flow_updates_player_and_homeworld_then_enters_main_menu() {
 fn apply_action_quit_exits_loop() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -781,7 +781,7 @@ fn apply_action_quit_exits_loop() {
 fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1106,7 +1106,7 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
 fn fleet_review_detail_q_returns_to_review_picker() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1141,7 +1141,7 @@ fn fleet_review_detail_q_returns_to_review_picker() {
 fn fleet_menu_matches_verified_v15_command_layout() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1181,7 +1181,7 @@ fn fleet_menu_matches_verified_v15_command_layout() {
 fn starbase_menu_matches_verified_v15_command_layout() {
     let fixture_dir = temp_game_with_starbase_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -1222,7 +1222,7 @@ fn starbase_menu_matches_verified_v15_command_layout() {
 fn starbase_review_matches_verified_v15_review_content() {
     let fixture_dir = temp_game_with_starbase_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3169,19 +3169,11 @@ fn fleet_group_order_rejects_empty_sector_for_world_targeting_mission() {
 }
 
 #[test]
-fn fleet_group_order_rejects_owned_planet_for_blockade_mission() {
+fn fleet_group_order_allows_owned_planet_for_blockade_mission() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    let owned_target = state
-        .game_data
-        .planets
-        .records
-        .iter()
-        .find(|planet| planet.owner_empire_slot_raw() == 1)
-        .map(|planet| planet.coords_raw())
-        .expect("player 1 should own a planet");
     let planet_count = state.game_data.planets.records.len();
-    let enemy_idx = state
+    let target_idx = state
         .game_data
         .planets
         .records
@@ -3190,11 +3182,12 @@ fn fleet_group_order_rejects_owned_planet_for_blockade_mission() {
         .find(|(_, planet)| planet.owner_empire_slot_raw() != 1)
         .map(|(idx, _)| idx)
         .expect("fixture should have a foreign world");
-    state.game_data.planets.records[enemy_idx].set_owner_empire_slot_raw(2);
-    state.database.record_mut(enemy_idx, 0, planet_count).raw[0x15] = 2;
+    state.game_data.planets.records[target_idx].set_owner_empire_slot_raw(1);
+    state.database.record_mut(target_idx, 0, planet_count).raw[0x15] = 1;
+    let owned_target = state.game_data.planets.records[target_idx].coords_raw();
     save_runtime_state(&fixture_dir, &state);
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3237,15 +3230,27 @@ fn fleet_group_order_rejects_owned_planet_for_blockade_mission() {
         AppOutcome::Continue
     );
 
-    let mut terminal = CaptureTerminal::new();
-    app.render(&mut terminal)
-        .expect("owned-planet blockade validation should render");
-    assert!(terminal.line(19).contains("Notice:"));
-    assert!(terminal.line(19).contains("<slap a key>"));
+    let state = latest_runtime_state(&fixture_dir);
+    let ordered_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| {
+            fleet.owner_empire_raw() == 1
+                && fleet.standing_order_kind() == ec_data::Order::GuardBlockadeWorld
+                && fleet.standing_order_target_coords_raw() == owned_target
+        })
+        .expect("one selected fleet should accept an owned blockade target");
+    assert_eq!(
+        ordered_fleet.standing_order_kind(),
+        ec_data::Order::GuardBlockadeWorld
+    );
+    assert_eq!(ordered_fleet.standing_order_target_coords_raw(), owned_target);
 }
 
 #[test]
-fn fleet_group_order_rejects_owned_planet_for_scout_mission() {
+fn fleet_group_order_allows_owned_planet_for_scout_mission() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
     for fleet in state.game_data.fleets.records.iter_mut() {
@@ -3271,19 +3276,12 @@ fn fleet_group_order_rejects_owned_planet_for_scout_mission() {
         .find(|(_, planet)| planet.owner_empire_slot_raw() != 1)
         .map(|(idx, _)| idx)
         .expect("fixture should have a foreign world");
-    state.game_data.planets.records[enemy_idx].set_owner_empire_slot_raw(2);
-    state.database.record_mut(enemy_idx, 0, planet_count).raw[0x15] = 2;
+    state.game_data.planets.records[enemy_idx].set_owner_empire_slot_raw(1);
+    state.database.record_mut(enemy_idx, 0, planet_count).raw[0x15] = 1;
+    let owned_target = state.game_data.planets.records[enemy_idx].coords_raw();
     save_runtime_state(&fixture_dir, &state);
-    let owned_target = latest_runtime_state(&fixture_dir)
-        .game_data
-        .planets
-        .records
-        .iter()
-        .find(|planet| planet.owner_empire_slot_raw() == 1)
-        .map(|planet| planet.coords_raw())
-        .expect("player 1 should own a planet");
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3330,11 +3328,284 @@ fn fleet_group_order_rejects_owned_planet_for_scout_mission() {
         AppOutcome::Continue
     );
 
+    let state = latest_runtime_state(&fixture_dir);
+    let ordered_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("player 1 fleet #1 should exist");
+    assert_eq!(ordered_fleet.standing_order_kind(), ec_data::Order::ScoutSector);
+    assert_eq!(ordered_fleet.standing_order_target_coords_raw(), owned_target);
+}
+
+#[test]
+fn fleet_order_salvage_defaults_to_closest_owned_planet() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let planet_count = state.game_data.planets.records.len();
+    let extra_owned_idx = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() != 1)
+        .map(|(idx, _)| idx)
+        .expect("fixture should have a non-owned planet");
+    state.game_data.planets.records[extra_owned_idx].set_owner_empire_slot_raw(1);
+    state.database.record_mut(extra_owned_idx, 0, planet_count).raw[0x15] = 1;
+    let nearest_owned = state.game_data.planets.records[extra_owned_idx].coords_raw();
+    let selected_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter_mut()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 1)
+        .expect("player 1 fleet #1 should exist");
+    selected_fleet.set_current_location_coords_raw(nearest_owned);
+    selected_fleet.set_standing_order_target_coords_raw(nearest_owned);
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetOrderChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('5')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        AppOutcome::Continue
+    );
+
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
-        .expect("owned-planet scout validation should render");
-    assert!(terminal.line(19).contains("Notice:"));
-    assert!(terminal.line(19).contains("<slap a key>"));
+        .expect("salvage target prompt should render");
+    assert!(terminal.line(19).contains(&format!(
+        "Target [{},{}] <Q> ->",
+        nearest_owned[0], nearest_owned[1]
+    )));
+}
+
+#[test]
+fn fleet_order_salvage_rejects_empty_sector_target() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetOrderChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('5')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        AppOutcome::Continue
+    );
+    for ch in ['1', ',', '1'] {
+        assert_eq!(
+            apply_action(&mut app, Action::AppendFleetOrderChar(ch)),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetOrder),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("salvage empty-sector validation should render");
+    assert!(terminal.line(19).contains("That mission needs a system with a planet at the target."));
+}
+
+#[test]
+fn fleet_order_salvage_rejects_foreign_planet_target() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    let planet_count = state.game_data.planets.records.len();
+    let foreign_idx = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() == 0)
+        .map(|(idx, _)| idx)
+        .expect("fixture should have an unowned planet");
+    state.game_data.planets.records[foreign_idx].set_owner_empire_slot_raw(2);
+    state.database.record_mut(foreign_idx, 0, planet_count).raw[0x15] = 2;
+    let foreign_target = state.game_data.planets.records[foreign_idx].coords_raw();
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetOrderChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('5')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        AppOutcome::Continue
+    );
+    for ch in format!("{},{}", foreign_target[0], foreign_target[1]).chars() {
+        assert_eq!(
+            apply_action(&mut app, Action::AppendFleetOrderChar(ch)),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetOrder),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("salvage foreign-planet validation should render");
+    assert!(terminal.line(19).contains("That mission requires one of your owned planets."));
+}
+
+#[test]
+fn fleet_order_salvage_rejects_unowned_planet_target() {
+    let fixture_dir = temp_game_copy();
+    let state = latest_runtime_state(&fixture_dir);
+    let unowned_target = state
+        .game_data
+        .planets
+        .records
+        .iter()
+        .find(|planet| planet.owner_empire_slot_raw() == 0)
+        .map(|planet| planet.coords_raw())
+        .expect("fixture should have an unowned planet");
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::OpenFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetOrderChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetOrder),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('5')),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        AppOutcome::Continue
+    );
+    for ch in format!("{},{}", unowned_target[0], unowned_target[1]).chars() {
+        assert_eq!(
+            apply_action(&mut app, Action::AppendFleetOrderChar(ch)),
+            AppOutcome::Continue
+        );
+    }
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetOrder),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("salvage unowned-planet validation should render");
+    assert!(terminal.line(19).contains("That mission requires one of your owned planets."));
 }
 
 #[test]
