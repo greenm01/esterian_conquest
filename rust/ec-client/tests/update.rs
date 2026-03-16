@@ -2620,7 +2620,7 @@ fn startup_results_paginate_before_advancing_to_messages() {
         first_page
             .lines
             .iter()
-            .any(|line| line.contains("Slap a key for more."))
+            .any(|line| line.contains("(Slap a key for more)"))
     );
 
     app.advance_startup();
@@ -2642,7 +2642,7 @@ fn startup_results_paginate_before_advancing_to_messages() {
         second_page
             .lines
             .iter()
-            .any(|line| line.contains("Slap a key."))
+            .any(|line| line.contains("(Slap a key)"))
     );
 
     app.advance_startup();
@@ -2875,7 +2875,7 @@ fn fleet_review_select_shows_invalid_fleet_message_on_unknown_typed_id() {
     app.render(&mut terminal)
         .expect("fleet review select should render invalid id notice");
     assert!(terminal.line(19).contains("Notice:"));
-    assert!(terminal.line(19).contains("<slap a key>"));
+    assert!(terminal.line(19).contains("(slap a key)"));
 }
 
 #[test]
@@ -3394,7 +3394,7 @@ fn fleet_order_applies_move_order_to_selected_fleet_only() {
     app.render(&mut terminal)
         .expect("fleet order should render success notice");
     assert!(terminal.line(19).contains("Notice:"));
-    assert!(terminal.line(19).contains("<slap a key>"));
+    assert!(terminal.line(19).contains("(slap a key)"));
 
     let state = latest_runtime_state(&fixture_dir);
     let ordered_fleet = state
@@ -4076,7 +4076,7 @@ fn fleet_mission_picker_rejects_missions_not_supported_by_all_selected_fleets() 
     app.render(&mut terminal)
         .expect("disabled mission rejection should render");
     assert!(terminal.line(19).contains("Notice:"));
-    assert!(terminal.line(19).contains("<slap a key>"));
+    assert!(terminal.line(19).contains("(slap a key)"));
 }
 
 #[test]
@@ -4130,7 +4130,7 @@ fn fleet_group_order_rejects_empty_sector_for_world_targeting_mission() {
     app.render(&mut terminal)
         .expect("world-target validation should render");
     assert!(terminal.line(19).contains("Notice:"));
-    assert!(terminal.line(19).contains("<slap a key>"));
+    assert!(terminal.line(19).contains("(slap a key)"));
     assert_eq!(
         app.handle_key(key(KeyCode::Enter)),
         Action::DismissModalNotice
@@ -4786,7 +4786,7 @@ fn fleet_group_order_applies_move_order_to_selected_fleets() {
     app.render(&mut terminal)
         .expect("fleet group order should render success notice");
     assert!(terminal.line(19).contains("Notice:"));
-    assert!(terminal.line(19).contains("<slap a key>"));
+    assert!(terminal.line(19).contains("(slap a key)"));
 
     let state = latest_runtime_state(&fixture_dir);
     assert_eq!(

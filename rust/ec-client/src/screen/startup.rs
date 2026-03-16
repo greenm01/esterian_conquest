@@ -216,9 +216,9 @@ impl StartupScreen {
 
         row += 1;
         let prompt = if lines.is_empty() || (page + 1) >= review_page_count(lines) {
-            "Slap a key."
+            "(Slap a key)"
         } else {
-            "Slap a key for more."
+            "(Slap a key for more)"
         };
         draw_plain_prompt(&mut buffer, row, prompt);
         Ok(buffer)

@@ -128,7 +128,7 @@ pub fn draw_command_prompt(buffer: &mut PlayfieldBuffer, _row: usize, label: &st
     );
     let suffix = "-> ";
     if keys == "SLAP A KEY" {
-        let slap_width = "<slap a key>".chars().count();
+        let slap_width = "(slap a key)".chars().count();
         let slap_col = PLAYFIELD_WIDTH.saturating_sub(suffix.chars().count() + slap_width);
         write_slap_a_key(buffer, COMMAND_LINE_ROW, slap_col);
         buffer.write_text(
@@ -169,7 +169,7 @@ pub fn draw_command_line_notice(buffer: &mut PlayfieldBuffer, text: &str) {
         0,
         &[StyledSpan::new("Notice: ", classic::prompt_style())],
     );
-    let suffix_width = " <slap a key>".chars().count();
+    let suffix_width = " (slap a key)".chars().count();
     let suffix_col = PLAYFIELD_WIDTH.saturating_sub(suffix_width);
     let available = suffix_col.saturating_sub(prefix);
     let message = fit_inline_notice(text, available);
@@ -293,7 +293,7 @@ fn fit_inline_notice(value: &str, max_width: usize) -> String {
 }
 
 fn write_slap_a_key(buffer: &mut PlayfieldBuffer, row: usize, col: usize) -> usize {
-    let after_open = col + buffer.write_text(row, col, "<", classic::prompt_hotkey_style());
+    let after_open = col + buffer.write_text(row, col, "(", classic::prompt_hotkey_style());
     let after_text = after_open
         + buffer.write_text(
             row,
@@ -301,5 +301,5 @@ fn write_slap_a_key(buffer: &mut PlayfieldBuffer, row: usize, col: usize) -> usi
             "slap a key",
             classic::prompt_notice_action_style(),
         );
-    after_text + buffer.write_text(row, after_text, ">", classic::prompt_hotkey_style())
+    after_text + buffer.write_text(row, after_text, ")", classic::prompt_hotkey_style())
 }
