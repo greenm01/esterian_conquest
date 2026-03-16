@@ -650,9 +650,18 @@ fn preloaded_first_login_routes_through_login_summary_before_homeworld_naming() 
     .expect("app should load");
 
     let mut saw_login_summary = false;
+    let mut saw_preloaded_summary_text = false;
     for _ in 0..16 {
         if app.current_screen() == ScreenId::Startup(StartupPhase::LoginSummary) {
             saw_login_summary = true;
+            let mut terminal = CaptureTerminal::new();
+            app.render(&mut terminal).expect("login summary should render");
+            if terminal
+                .line(3)
+                .contains("Matched pre-loaded commander. First-login review is required.")
+            {
+                saw_preloaded_summary_text = true;
+            }
         }
         if app.current_screen() == ScreenId::FirstTimeHomeworldName {
             break;
@@ -661,6 +670,7 @@ fn preloaded_first_login_routes_through_login_summary_before_homeworld_naming() 
     }
 
     assert!(saw_login_summary);
+    assert!(saw_preloaded_summary_text);
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
 }
 
@@ -681,9 +691,18 @@ fn returning_player_routes_through_login_summary_before_main_menu() {
     );
 
     let mut saw_login_summary = false;
+    let mut saw_returning_summary_text = false;
     for _ in 0..16 {
         if app.current_screen() == ScreenId::Startup(StartupPhase::LoginSummary) {
             saw_login_summary = true;
+            let mut terminal = CaptureTerminal::new();
+            app.render(&mut terminal).expect("login summary should render");
+            if terminal
+                .line(3)
+                .contains("Returning commander recognized. Resuming login-time review.")
+            {
+                saw_returning_summary_text = true;
+            }
         }
         if app.current_screen() == ScreenId::MainMenu {
             break;
@@ -692,6 +711,7 @@ fn returning_player_routes_through_login_summary_before_main_menu() {
     }
 
     assert!(saw_login_summary);
+    assert!(saw_returning_summary_text);
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
 }
 

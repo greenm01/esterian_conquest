@@ -1,6 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
+use crate::model::ClassicLoginState;
 use crate::reports::ReportsPreview;
 use crate::screen::layout::{draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
@@ -95,6 +96,18 @@ impl StartupScreen {
                 frame.player.record_index_1_based
             ),
         );
+        let login_status = match self.summary.login_state {
+            ClassicLoginState::MatchedPreloadedFirstLogin => {
+                "Matched pre-loaded commander. First-login review is required."
+            }
+            ClassicLoginState::ReturningPlayer => {
+                "Returning commander recognized. Resuming login-time review."
+            }
+            ClassicLoginState::FirstTimeMenu => {
+                "First-time commander path."
+            }
+        };
+        buffer.write_text(3, 0, login_status, classic::body_style());
 
         if self.summary.pending_results {
             buffer.write_text(

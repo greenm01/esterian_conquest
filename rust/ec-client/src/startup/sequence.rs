@@ -14,6 +14,7 @@ pub enum StartupPhase {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StartupSummary {
     pub game_year: u16,
+    pub login_state: ClassicLoginState,
     pub pending_results: bool,
     pub pending_messages: bool,
     pub results_line_count: usize,
@@ -31,12 +32,14 @@ pub struct StartupSequence {
 impl StartupSummary {
     pub fn from_reports(
         game_year: u16,
+        login_state: ClassicLoginState,
         pending_results: bool,
         pending_messages: bool,
         reports: &ReportsPreview,
     ) -> Self {
         Self {
             game_year,
+            login_state,
             pending_results,
             pending_messages,
             results_line_count: reports.results_lines.len(),

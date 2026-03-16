@@ -290,6 +290,7 @@ impl App {
         let review_summary = ReviewSummary::from_main_menu(&main_menu_summary);
         let startup_summary = StartupSummary::from_reports(
             main_menu_summary.game_year,
+            player.classic_login_state,
             main_menu_summary.pending_results,
             main_menu_summary.pending_messages,
             &reports,
