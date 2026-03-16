@@ -2493,6 +2493,15 @@ fn fleet_order_applies_move_order_to_selected_fleet_only() {
 #[test]
 fn fleet_order_allows_guard_starbase_from_fleet_command() {
     let fixture_dir = temp_game_with_starbase_copy();
+    let before = latest_runtime_state(&fixture_dir);
+    assert_eq!(
+        before.game_data.fleets.records[0].standing_order_code_raw(),
+        4
+    );
+    assert_eq!(
+        before.game_data.fleets.records[1].standing_order_code_raw(),
+        5
+    );
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
@@ -2547,18 +2556,16 @@ fn fleet_order_allows_guard_starbase_from_fleet_command() {
     );
 
     let state = latest_runtime_state(&fixture_dir);
-    assert_eq!(
-        state.game_data.fleets.records[1].standing_order_code_raw(),
-        4
-    );
-    assert_eq!(
-        state.game_data.fleets.records[1].mission_aux_bytes(),
-        [1, 1]
-    );
-    assert_eq!(
-        state.game_data.fleets.records[1].standing_order_target_coords_raw(),
-        [6, 5]
-    );
+    let ordered_fleet = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.local_slot_word_raw() == 2)
+        .expect("fleet #2 should exist");
+    assert_eq!(ordered_fleet.standing_order_code_raw(), 4);
+    assert_eq!(ordered_fleet.mission_aux_bytes(), [1, 1]);
+    assert_eq!(ordered_fleet.standing_order_target_coords_raw(), [6, 5]);
 }
 
 #[test]
@@ -2815,7 +2822,7 @@ fn fleet_tables_sort_by_mission_then_newest_fleet_id() {
 }
 
 #[test]
-fn fleet_group_combat_mission_defaults_to_closest_known_enemy_world() {
+fn fleet_group_bombard_mission_defaults_to_closest_known_enemy_world() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
     let viewer_index = 0usize;
@@ -2876,7 +2883,7 @@ fn fleet_group_combat_mission_defaults_to_closest_known_enemy_world() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('5')),
+        apply_action(&mut app, Action::AppendFleetMissionPickerChar('6')),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -3872,10 +3879,10 @@ fn fleet_group_order_applies_move_order_to_selected_fleets() {
 }
 
 #[test]
-fn fleet_group_order_rejects_join_fleet_mission_number() {
+fn fleet_group_order_accepts_join_fleet_mission_number() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
-        game_dir: fixture_dir,
+        game_dir: fixture_dir.clone(),
         player_record_index_1_based: 1,
         export_root: None,
         queue_dir: None,
@@ -3914,9 +3921,40 @@ fn fleet_group_order_rejects_join_fleet_mission_number() {
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
-        .expect("fleet group mission validation should render");
-    assert!(terminal.line(19).contains("Notice:"));
-    assert!(terminal.line(19).contains("<slap a key>"));
+        .expect("fleet group join target prompt should render");
+    assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
+    assert_eq!(
+        terminal.line(1).trim_end(),
+        "Enter the host fleet number for Join another fleet."
+    );
+    assert!(
+        terminal.line(19).contains("Fleet # ["),
+        "{}",
+        terminal.line(19)
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::SubmitFleetGroupOrder),
+        AppOutcome::Continue
+    );
+
+    let state = latest_runtime_state(&fixture_dir);
+    let joined_fleets = state
+        .game_data
+        .fleets
+        .records
+        .iter()
+        .filter(|fleet| fleet.owner_empire_raw() == 1 && fleet.standing_order_code_raw() == 13)
+        .collect::<Vec<_>>();
+    assert_eq!(joined_fleets.len(), 1);
+    let ordered_fleet = joined_fleets[0];
+    assert_eq!(ordered_fleet.standing_order_code_raw(), 13);
+    assert_ne!(ordered_fleet.join_host_fleet_id_raw(), 0);
+    assert_ne!(
+        ordered_fleet.join_host_fleet_id_raw(),
+        ordered_fleet.fleet_id()
+    );
+    assert_eq!(ordered_fleet.standing_order_target_coords_raw(), [16, 13]);
 }
 
 #[test]

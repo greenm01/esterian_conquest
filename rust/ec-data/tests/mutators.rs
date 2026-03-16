@@ -1598,6 +1598,91 @@ fn set_join_fleet_order_targets_host_fleet_and_records_host_id() {
 }
 
 #[test]
+fn set_fleet_order_accepts_guard_starbase_using_submitted_aux_bytes() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    data.set_guard_starbase(1, 1, [16, 13], 1, 1).unwrap();
+    let base = data.bases.records[0].clone();
+    let current_speed = data.fleets.records[1].current_speed();
+    data.fleets.records[1].set_standing_order_kind(Order::HoldPosition);
+    data.fleets.records[1].set_standing_order_target_coords_raw([0, 0]);
+    data.fleets.records[1].set_mission_aux_bytes([0, 0]);
+
+    data.set_fleet_order(
+        2,
+        current_speed,
+        Order::GuardStarbase.to_raw(),
+        base.coords_raw(),
+        Some(base.base_id_raw()),
+        Some(1),
+    )
+    .unwrap();
+
+    assert_eq!(
+        data.fleets.records[1].standing_order_kind(),
+        Order::GuardStarbase
+    );
+    assert_eq!(
+        data.fleets.records[1].standing_order_target_coords_raw(),
+        base.coords_raw()
+    );
+    assert_eq!(
+        data.fleets.records[1].mission_aux_bytes(),
+        [base.base_id_raw(), 1]
+    );
+}
+
+#[test]
+fn set_fleet_order_accepts_join_another_fleet_using_submitted_aux_bytes() {
+    let mut data = CoreGameData {
+        player: PlayerDat::parse(&read_post_maint_fixture("PLAYER.DAT")).unwrap(),
+        planets: PlanetDat::parse(&read_post_maint_fixture("PLANETS.DAT")).unwrap(),
+        fleets: FleetDat::parse(&read_post_maint_fixture("FLEETS.DAT")).unwrap(),
+        bases: BaseDat::parse(&read_post_maint_fixture("BASES.DAT")).unwrap(),
+        ipbm: IpbmDat::parse(&read_post_maint_fixture("IPBM.DAT")).unwrap(),
+        setup: SetupDat::parse(&read_post_maint_fixture("SETUP.DAT")).unwrap(),
+        conquest: ConquestDat::parse(&read_post_maint_fixture("CONQUEST.DAT")).unwrap(),
+    };
+
+    let host = data.fleets.records[0].clone();
+    let current_speed = data.fleets.records[1].current_speed();
+    data.fleets.records[1].set_standing_order_kind(Order::HoldPosition);
+    data.fleets.records[1].set_standing_order_target_coords_raw([0, 0]);
+    data.fleets.records[1].set_mission_aux_bytes([0, 0]);
+
+    data.set_fleet_order(
+        2,
+        current_speed,
+        Order::JoinAnotherFleet.to_raw(),
+        host.current_location_coords_raw(),
+        Some(host.fleet_id()),
+        None,
+    )
+    .unwrap();
+
+    assert_eq!(
+        data.fleets.records[1].standing_order_kind(),
+        Order::JoinAnotherFleet
+    );
+    assert_eq!(
+        data.fleets.records[1].standing_order_target_coords_raw(),
+        host.current_location_coords_raw()
+    );
+    assert_eq!(
+        data.fleets.records[1].join_host_fleet_id_raw(),
+        host.fleet_id()
+    );
+}
+
+#[test]
 fn core_game_data_current_known_validation_helpers_match_known_fixtures() {
     let fleet_data = CoreGameData {
         player: PlayerDat::parse(&read_ecmaint_fleet_pre_fixture("PLAYER.DAT")).unwrap(),

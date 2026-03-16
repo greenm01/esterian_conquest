@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::CoreGameData;
+use ec_data::{CoreGameData, Order};
 
 use crate::commands::runtime::with_runtime_game_mut_and_export;
 use crate::workspace::copy_init_files;
@@ -39,11 +39,10 @@ pub(crate) fn set_bombard_onefleet(
     dd: u16,
 ) -> Result<(), Box<dyn std::error::Error>> {
     with_runtime_game_mut_and_export(dir, |data| {
-        data.set_fleet_order(3, 3, 0x06, [target_x, target_y], None, None)
-            .map_err(|e| e.to_string())?;
         {
             let fleet3 = &mut data.fleets.records[2];
             fleet3.set_max_speed(3);
+            fleet3.set_current_speed(3);
             fleet3.set_cruiser_count(ca);
             fleet3.set_destroyer_count(dd);
         }
@@ -62,6 +61,15 @@ pub(crate) fn set_bombard_onefleet(
             p14.raw = template;
             p14.set_coords_raw([target_x, target_y]);
         }
+        data.set_fleet_order(
+            3,
+            3,
+            Order::BombardWorld.to_raw(),
+            [target_x, target_y],
+            None,
+            None,
+        )
+        .map_err(|e| e.to_string())?;
         Ok(())
     })?;
 

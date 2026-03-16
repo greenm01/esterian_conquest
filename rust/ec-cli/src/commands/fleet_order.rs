@@ -17,6 +17,7 @@ pub(crate) fn set_fleet_order(
     aux1: Option<u8>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let final_aux = with_runtime_game_mut_and_export(dir, |data| {
+        ensure_planet_target_for_order(data, order_code, [target_x, target_y])?;
         data.set_fleet_order(
             record_index_1_based,
             speed,
@@ -32,6 +33,39 @@ pub(crate) fn set_fleet_order(
         "Fleet record {} updated: speed={} order={:#04x} target=({}, {}) aux={:02x?}",
         record_index_1_based, speed, order_code, target_x, target_y, final_aux
     );
+    Ok(())
+}
+
+fn fleet_order_requires_planet_target(order_code: u8) -> bool {
+    matches!(order_code, 5 | 6 | 7 | 8 | 9 | 11 | 12 | 15)
+}
+
+fn ensure_planet_target_for_order(
+    data: &mut CoreGameData,
+    order_code: u8,
+    coords: [u8; 2],
+) -> Result<(), Box<dyn std::error::Error>> {
+    if !fleet_order_requires_planet_target(order_code)
+        || data.planets.records.iter().any(|planet| planet.coords_raw() == coords)
+    {
+        return Ok(());
+    }
+
+    let template = data
+        .planets
+        .records
+        .iter()
+        .find(|planet| planet.owner_empire_slot_raw() == 0)
+        .or_else(|| data.planets.records.last())
+        .ok_or("no planet record available to clone target coordinates")?
+        .raw;
+    let target = data
+        .planets
+        .records
+        .last_mut()
+        .ok_or("no planet record available to receive target coordinates")?;
+    target.raw = template;
+    target.set_coords_raw(coords);
     Ok(())
 }
 

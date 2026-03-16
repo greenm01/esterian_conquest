@@ -2372,9 +2372,8 @@ impl CoreGameData {
                 if !has_combat {
                     return Err(FleetOrderValidationError::MissingCombatShips);
                 }
-                let _ = (aux0, aux1);
-                let base_id = fleet.guard_starbase_index_raw();
-                let enabled = fleet.guard_starbase_enable_raw();
+                let base_id = aux0.unwrap_or_else(|| fleet.guard_starbase_index_raw());
+                let enabled = aux1.unwrap_or_else(|| fleet.guard_starbase_enable_raw());
                 if enabled == 0
                     || base_id == 0
                     || !self.bases.records.iter().any(|base| {
@@ -2456,8 +2455,8 @@ impl CoreGameData {
                 }
             }
             Order::JoinAnotherFleet => {
-                let _ = (aux0, aux1);
-                let host_id = fleet.join_host_fleet_id_raw();
+                let _ = aux1;
+                let host_id = aux0.unwrap_or_else(|| fleet.join_host_fleet_id_raw());
                 if host_id == 0
                     || host_id == fleet.fleet_id()
                     || !self

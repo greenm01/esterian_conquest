@@ -429,6 +429,7 @@ impl GameStateBuilder {
     fn apply_orders(&self, data: &mut CoreGameData) -> Result<(), GameStateMutationError> {
         // Apply fleet orders
         for order in &self.fleet_orders {
+            ensure_planet_target_for_order(data, order.order_code, order.target);
             data.set_fleet_order(
                 order.fleet_index_1_based,
                 order.speed,
@@ -498,6 +499,24 @@ impl GameStateBuilder {
         }
 
         Ok(())
+    }
+}
+
+fn fleet_order_requires_planet_target(order_code: u8) -> bool {
+    matches!(order_code, 5 | 6 | 7 | 8 | 9 | 11 | 12 | 15)
+}
+
+fn ensure_planet_target_for_order(data: &mut CoreGameData, order_code: u8, coords: [u8; 2]) {
+    if !fleet_order_requires_planet_target(order_code)
+        || data.planets.records.iter().any(|planet| planet.coords_raw() == coords)
+    {
+        return;
+    }
+
+    if let Some(target) = data.planets.records.iter_mut().find(|planet| {
+        planet.owner_empire_slot_raw() == 0 && planet.coords_raw() == [0, 0]
+    }) {
+        target.set_coords_raw(coords);
     }
 }
 
