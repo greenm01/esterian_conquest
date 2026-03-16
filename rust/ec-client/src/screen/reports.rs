@@ -105,7 +105,9 @@ fn write_section(
         buffer.write_text(
             start_row,
             0,
-            &format!("  <classic {section_name} pending flag is set, but no decoded lines are loaded>"),
+            &format!(
+                "  <classic {section_name} pending flag is set, but no decoded lines are loaded>"
+            ),
             classic::body_style(),
         );
         return Ok(1);

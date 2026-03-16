@@ -219,7 +219,11 @@ fn planet_init_original_updates_runtime_store_for_db_export() {
     assert!(stdout.contains("Planet topology initialized to original sample state"));
 
     run_ec_cli_in_dir(
-        &["db-export", source.to_str().unwrap(), exported.to_str().unwrap()],
+        &[
+            "db-export",
+            source.to_str().unwrap(),
+            exported.to_str().unwrap(),
+        ],
         common::rust_workspace(),
     );
 

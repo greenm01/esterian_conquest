@@ -46,7 +46,11 @@ fn ensure_planet_target_for_order(
     coords: [u8; 2],
 ) -> Result<(), Box<dyn std::error::Error>> {
     if !fleet_order_requires_planet_target(order_code)
-        || data.planets.records.iter().any(|planet| planet.coords_raw() == coords)
+        || data
+            .planets
+            .records
+            .iter()
+            .any(|planet| planet.coords_raw() == coords)
     {
         return Ok(());
     }

@@ -154,7 +154,12 @@ pub fn render_first_time_join_name(
         );
     }
     if let Some(status) = status {
-        draw_status_line(&mut buffer, if rename_mode { 8 } else { 7 }, "Notice: ", status);
+        draw_status_line(
+            &mut buffer,
+            if rename_mode { 8 } else { 7 },
+            "Notice: ",
+            status,
+        );
     }
     draw_command_line_default_input(
         &mut buffer,

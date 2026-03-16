@@ -508,14 +508,21 @@ fn fleet_order_requires_planet_target(order_code: u8) -> bool {
 
 fn ensure_planet_target_for_order(data: &mut CoreGameData, order_code: u8, coords: [u8; 2]) {
     if !fleet_order_requires_planet_target(order_code)
-        || data.planets.records.iter().any(|planet| planet.coords_raw() == coords)
+        || data
+            .planets
+            .records
+            .iter()
+            .any(|planet| planet.coords_raw() == coords)
     {
         return;
     }
 
-    if let Some(target) = data.planets.records.iter_mut().find(|planet| {
-        planet.owner_empire_slot_raw() == 0 && planet.coords_raw() == [0, 0]
-    }) {
+    if let Some(target) = data
+        .planets
+        .records
+        .iter_mut()
+        .find(|planet| planet.owner_empire_slot_raw() == 0 && planet.coords_raw() == [0, 0])
+    {
         target.set_coords_raw(coords);
     }
 }

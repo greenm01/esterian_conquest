@@ -549,12 +549,10 @@ impl App {
                 &self.first_time_input,
                 self.first_time_status.as_deref(),
             )?,
-            ScreenId::FirstTimeJoinEmpireConfirm => {
-                render_first_time_join_name_confirm(
-                    self.first_time_rename_preloaded_empire,
-                    &self.first_time_empire_name,
-                )?
-            }
+            ScreenId::FirstTimeJoinEmpireConfirm => render_first_time_join_name_confirm(
+                self.first_time_rename_preloaded_empire,
+                &self.first_time_empire_name,
+            )?,
             ScreenId::FirstTimeJoinSummary => render_first_time_join_summary(
                 &self.first_time_empire_name,
                 self.player.record_index_1_based,
@@ -1088,7 +1086,9 @@ impl App {
     pub fn append_first_time_input_char(&mut self, ch: char) {
         if !matches!(
             self.current_screen,
-            ScreenId::FirstTimeJoinEmpireName | ScreenId::FirstTimeHomeworldName | ScreenId::ColonyWorldName
+            ScreenId::FirstTimeJoinEmpireName
+                | ScreenId::FirstTimeHomeworldName
+                | ScreenId::ColonyWorldName
         ) {
             return;
         }
@@ -1104,7 +1104,9 @@ impl App {
     pub fn backspace_first_time_input(&mut self) {
         if !matches!(
             self.current_screen,
-            ScreenId::FirstTimeJoinEmpireName | ScreenId::FirstTimeHomeworldName | ScreenId::ColonyWorldName
+            ScreenId::FirstTimeJoinEmpireName
+                | ScreenId::FirstTimeHomeworldName
+                | ScreenId::ColonyWorldName
         ) {
             return;
         }
@@ -1183,12 +1185,14 @@ impl App {
             }
             ScreenId::FirstTimeHomeworldConfirm => {
                 if self.complete_first_time_homeworld_name().is_ok() {
-                    self.current_screen = self.pending_naming_screen().unwrap_or(ScreenId::MainMenu);
+                    self.current_screen =
+                        self.pending_naming_screen().unwrap_or(ScreenId::MainMenu);
                 }
             }
             ScreenId::ColonyWorldConfirm => {
                 if self.complete_colony_world_name().is_ok() {
-                    self.current_screen = self.pending_naming_screen().unwrap_or(ScreenId::MainMenu);
+                    self.current_screen =
+                        self.pending_naming_screen().unwrap_or(ScreenId::MainMenu);
                 }
             }
             _ => {}
@@ -4419,8 +4423,9 @@ impl App {
             ScreenId::FirstTimeHelp => self.first_time_help.handle_key(key),
             ScreenId::FirstTimeEmpires => self.first_time_empires.handle_key(key),
             ScreenId::FirstTimePreloadedRenamePrompt => match key.code {
-                crossterm::event::KeyCode::Char('y')
-                | crossterm::event::KeyCode::Char('Y') => Action::AcceptFirstTimePrompt,
+                crossterm::event::KeyCode::Char('y') | crossterm::event::KeyCode::Char('Y') => {
+                    Action::AcceptFirstTimePrompt
+                }
                 crossterm::event::KeyCode::Enter
                 | crossterm::event::KeyCode::Char('n')
                 | crossterm::event::KeyCode::Char('N')
@@ -7973,17 +7978,15 @@ impl App {
 
     fn startup_target_screen(&self, phase: StartupPhase) -> ScreenId {
         match phase {
-            StartupPhase::Complete => {
-                match self.player.classic_login_state {
-                    crate::model::ClassicLoginState::FirstTimeMenu => ScreenId::FirstTimeMenu,
-                    crate::model::ClassicLoginState::MatchedPreloadedFirstLogin => {
-                        ScreenId::FirstTimePreloadedRenamePrompt
-                    }
-                    crate::model::ClassicLoginState::ReturningPlayer => {
-                        self.pending_naming_screen().unwrap_or(ScreenId::MainMenu)
-                    }
+            StartupPhase::Complete => match self.player.classic_login_state {
+                crate::model::ClassicLoginState::FirstTimeMenu => ScreenId::FirstTimeMenu,
+                crate::model::ClassicLoginState::MatchedPreloadedFirstLogin => {
+                    ScreenId::FirstTimePreloadedRenamePrompt
                 }
-            }
+                crate::model::ClassicLoginState::ReturningPlayer => {
+                    self.pending_naming_screen().unwrap_or(ScreenId::MainMenu)
+                }
+            },
             other => ScreenId::Startup(other),
         }
     }
@@ -8015,7 +8018,8 @@ impl App {
     }
 
     fn pending_colony_world_naming_screen(&self) -> Option<ScreenId> {
-        self.colony_world_target_planet_index().map(|_| ScreenId::ColonyWorldName)
+        self.colony_world_target_planet_index()
+            .map(|_| ScreenId::ColonyWorldName)
     }
 
     fn colony_world_target_planet_index(&self) -> Option<usize> {

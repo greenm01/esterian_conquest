@@ -31,7 +31,11 @@ fn sysop_snoop_off_rewrites_setup_flag() {
 
     let exported = unique_temp_dir("ec-cli-sysop-snoop-exported");
     run_ec_cli_in_dir(
-        &["db-export", target.to_str().unwrap(), exported.to_str().unwrap()],
+        &[
+            "db-export",
+            target.to_str().unwrap(),
+            exported.to_str().unwrap(),
+        ],
         common::rust_workspace(),
     );
     let exported_stdout = run_ec_cli_in_dir(
@@ -70,7 +74,11 @@ fn sysop_maintenance_days_update_runtime_store_and_export() {
     assert!(stdout.contains("fri=yes"));
 
     run_ec_cli_in_dir(
-        &["db-export", target.to_str().unwrap(), exported.to_str().unwrap()],
+        &[
+            "db-export",
+            target.to_str().unwrap(),
+            exported.to_str().unwrap(),
+        ],
         common::rust_workspace(),
     );
 
