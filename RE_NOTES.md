@@ -6657,3 +6657,41 @@ Additional same-week aftermath evidence:
   - this strongly suggests different fleets' mission outcomes are interleaved
     into one shared weekly event stream rather than emitted in isolated
     per-feature batches
+
+#### `2000:33f7` tightened as intelligence/database helper, not gameplay core
+
+Added a reusable single-function probe helper:
+
+- `tools/ghidra_scripts/ECMaintFunctionProbe.java`
+
+Current artifact:
+
+- `artifacts/ghidra/ecmaint-live/probe-2000_33f7.txt`
+
+Recovered structure for `2000:33f7`:
+
+- incoming refs:
+  - `2000:32a2`
+  - `2000:33c2`
+- the first useful embedded string at `2000:2bd2` reads into:
+  - `Backing up intelligence database...`
+  - followed by backup-failure text for the intelligence database
+- the function:
+  - allocates a large stack frame
+  - copies `0x64 * [0x1714]` bytes into a scratch region
+  - uses helper family:
+    - `0x3000:4136`
+    - `0x3000:4f83`
+    - `0x3000:506c`
+    - `0x3000:4ffb`
+  - sets `byte ptr [0x34f8] = 1` on completion
+
+Practical interpretation:
+
+- `2000:33f7` is not combat/movement/economy logic
+- it is a focused intelligence-database backup/regeneration helper inside the
+  broader `2db3` derived-output path
+- this further strengthens the reading that:
+  - `2db3` belongs to the late derived-file/output side of `ECMAINT`
+  - the unresolved gameplay simulation core still lies earlier than the
+    `8652` call chain, or in the setup path feeding it

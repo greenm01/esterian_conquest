@@ -292,7 +292,10 @@ Combat policy for the Rust clone remains:
       `1da6 -> 0c06 -> 2db3 -> 56be -> [7659?]`
     - `56be` is mission-report oriented
     - `1da6` and `0c06` also now look heavily report/message oriented
-    - `2db3` is the strongest current `DATABASE.DAT` rebuild candidate
+    - `2db3` is the strongest current `DATABASE.DAT` / intelligence-output
+      rebuild candidate
+      - its internal helper `33f7` now ties directly to
+        `Backing up intelligence database...`
     - the startup `main.tok` / `Creating main work file...` / `Merging joint
       fleets...` cluster still has no direct scalar xrefs in the live dump, so
       that outer startup/status path is likely indirect/table-driven

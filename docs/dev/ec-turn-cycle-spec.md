@@ -270,6 +270,9 @@ Practical meaning:
     oriented rather than core simulation routines
   - `2db3` still looks more like derived-output regeneration than combat or
     movement logic
+  - the newly probed helper `33f7` inside `2db3` is tied to
+    `Backing up intelligence database...`, which pushes `2db3` even further
+    toward derived database handling rather than simulation-core work
 
 ### 6. Weekly Report Emission Loop
 
