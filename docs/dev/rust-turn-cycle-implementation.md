@@ -236,6 +236,7 @@ Updated Durable State + Durable Event Pool
 | `00e8/024d` are yearly producer passes | keep room for dedicated producer/mutator subphases inside step `4` |
 | `024d` mixes state mutation and event production | do not force a false boundary where all state mutation finishes before any durable event creation starts |
 | Some producer-side world mutation is silent | do not assume every important step-4 change creates a report/message immediately |
+| Some neighboring step-4 subphases appear to write overlapping target-world state | do not assume one clean owner per world field; the driver needs ordered overwrite behavior and explicit subphase boundaries |
 
 ### What Is Still Open
 
@@ -246,6 +247,7 @@ Updated Durable State + Durable Event Pool
 | command normalization timing | keep order sanitation/prep separate from outcome emission |
 | exact combat-placement relative to producer passes | keep combat/outcome handling and producer passes separable in the driver |
 | mission-family-specific aftermath timing | allow different mission families to schedule follow-on effects differently |
+| exact overwrite precedence when two subphases touch the same target-world fields | centralize world-state writes in ordered subphase functions; do not hide them behind unordered helper side effects |
 
 ## Current Practical Step-4 Shape
 
@@ -266,6 +268,9 @@ Important constraint:
   in exactly this final order in every case
 - the driver should therefore make these boundaries explicit enough to reorder
   later if new oracle evidence demands it
+- it should also allow later subphases to overwrite some earlier world-state
+  changes on the same target, because current probes suggest that can happen in
+  at least some step-`4` families
 
 ## The `024d` Implication For Rust
 
@@ -304,6 +309,46 @@ canonicalize the resulting event pool
 emit reports from the canonicalized pool
 ```
 
+## Shared Write Ownership Inside Step 4
+
+The current practical evidence is strong enough to guide one more engine rule:
+
+- do not model step `4` as a set of fully disjoint passes where each subphase
+  owns a separate slice of world state
+- some neighboring subphases appear to touch overlapping target-world state
+- in at least some probes, a producer-side branch can overwrite target-world
+  changes that also appear in natural hostile-resolution cases
+
+Implementation consequence:
+
+- keep step-`4` world updates ordered and explicit
+- avoid hidden mutation from helper calls that makes overwrite order hard to
+  audit
+- prefer one of these shapes:
+  - subphase functions that write directly in known order
+  - or subphase-local change sets that are applied in known order
+
+Avoid this shape:
+
+```text
+collect a bag of unordered world mutations from many helpers
+merge them later with no explicit precedence
+```
+
+Prefer this shape:
+
+```text
+run hostile-resolution subphase
+  -> apply its target-world updates
+
+run producer/mutator subphase
+  -> apply its target-world updates
+  -> allow documented overwrite where needed
+```
+
+That keeps the engine faithful to current evidence without claiming the final
+oracle precedence is already fully solved.
+
 ## Recommended Driver Skeleton
 
 This is the current recommended engine shape for `rust-maint`.
@@ -331,6 +376,12 @@ run_turn(directory):
 ```
 
 Use that as a shape guide, not a frozen final ordering contract.
+
+Practical refinement:
+
+- if a subphase writes target-world state that another subphase may also touch,
+  keep that write path visible in the driver-level ordering
+- do not bury those writes in unrelated report builders or broad cleanup code
 
 ## Allowed Writes By Phase
 

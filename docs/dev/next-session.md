@@ -269,6 +269,26 @@ Current Rust-facing implication:
       the remaining step-`4` puzzle is likely not just "one producer pass plus
       one generic report delay"; mission-family context appears to change which
       portion of the planet-local rewrite has landed by a given yearly tick
+  - preserved-control comparison without forced `+0x60` narrows that further:
+    - `invade-pre` and `fleet-battle-pre` naturally change the same target
+      world bytes on tick `1`:
+      `+0x09`, `+0x0e`, `+0x38`, `+0x3c`
+    - `bombard-pre` leaves the watched target world unchanged across its
+      preserved ticks
+    - practical implication:
+      those shared invade/fleet-battle bytes are now the best current
+      candidate for natural mission/combat-side target-world consequences,
+      while the extra lower/upper world-block writes exposed by forced `+0x60`
+      look more like a separate producer/mutator family
+  - direct forced-vs-control overlay on the same tick tightens that again:
+    - the forced `+0x60` branch does not merely add extra writes beside the
+      natural target-world pattern
+    - it can overwrite the natural tick-`1` bytes at `+0x09` and `+0x0e`
+    - in the invade case it also suppresses the control-side `+0x38/+0x3c`
+      marks while adding broader lower/upper world-block writes and `+0x58`
+    - practical implication:
+      step `4` currently looks like overlapping neighboring subphases that can
+      write some of the same world-state fields, not clean isolated passes
 
 Latest static tightening on the turn-cycle side:
 

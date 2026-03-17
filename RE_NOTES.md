@@ -7647,3 +7647,93 @@ Current practical reading:
   one universal report delay:
   mission family and/or neighboring subphase context appears to affect which
   part of the planet-local rewrite has landed by a given yearly tick
+
+#### Control comparison against the same fixtures without forced `+0x60`
+
+Ran the same harness on the preserved control fixtures without any direct
+planet-byte edits, still watching target world record `14`:
+
+- `ecmaint-invade-pre`
+- `ecmaint-bombard-pre`
+- `ecmaint-fleet-battle-pre`
+
+Observed control result:
+
+- `invade-pre`, tick `1`:
+  - target world changes only at:
+    - `+0x09`
+    - `+0x0e`
+    - `+0x38`
+    - `+0x3c`
+  - `RESULTS.DAT` still empty
+- `bombard-pre`, ticks `1` and `2`:
+  - watched target world stays unchanged
+  - `RESULTS.DAT` stays empty
+- `fleet-battle-pre`, tick `1`:
+  - target world changes at the same four offsets as invade:
+    - `+0x09`
+    - `+0x0e`
+    - `+0x38`
+    - `+0x3c`
+  - `RESULTS.DAT` is already non-empty
+
+Current practical reading:
+
+- the natural target-world bytes shared by invade and fleet-battle on tick `1`
+  are now better bounded as mission/combat-side consequences, not the extra
+  forced `+0x60` producer path by itself
+- bombard is importantly different:
+  the watched target world stays untouched in the preserved control case even
+  though other files move and `DATABASE.DAT` / `RANKINGS.TXT` rebuild
+- comparing forced vs control now gives a cleaner partition:
+  - likely mission/combat-side target-world bytes on tick `1`:
+    `+0x09`, `+0x0e`, `+0x38`, `+0x3c`
+  - additional producer-side bytes exposed by forced `+0x60` vary by fixture
+    but include earlier direct writes into the lower world block
+    (`+0x03..+0x08`) and, in stronger cases, more of the upper world block
+    (`+0x0a..+0x0d`) plus `+0x58`
+
+Practical consequence for step-4 recovery:
+
+- this is the clearest current separation between:
+  - natural mission/combat consequences on the watched target world
+  - and extra producer/mutator work that can be induced independently
+- that makes the next question narrower:
+  determine whether the producer-side lower/upper world-block writes are
+  normally scheduled before, after, or only conditionally alongside the
+  mission/combat-side `+0x09/+0x0e/+0x38/+0x3c` family
+
+Direct forced-vs-control overlay on the same tick:
+
+- compared the watched target-world record after tick `1` between:
+  - forced `+0x60 = 1`
+  - preserved control run
+- cases checked:
+  - `invade-pre`
+  - `bombard-pre`
+  - `fleet-battle-pre`
+
+Observed overlay result:
+
+- `invade-pre`:
+  forced state differs from control at:
+  `+0x03`, `+0x04`, `+0x08..+0x0e`, `+0x38`, `+0x3c`, `+0x58`
+- `bombard-pre`:
+  forced state differs from control at:
+  `+0x03`, `+0x04`, `+0x08`, `+0x09`, `+0x0e`
+- `fleet-battle-pre`:
+  forced state differs from control at:
+  `+0x03`, `+0x08`, `+0x09`, `+0x0e`
+
+Current practical reading:
+
+- the forced `+0x60` path is not merely additive on top of the natural
+  mission/combat-side target-world pattern
+- it can overwrite that natural pattern on the same yearly tick
+  - most clearly at `+0x09` and `+0x0e`
+  - and, in the invade case, it also suppresses the control-side `+0x38/+0x3c`
+    marks while adding broader lower/upper world-block writes plus `+0x58`
+- practical implication:
+  step `4` should currently be modeled as overlapping neighboring subphases
+  that can write some of the same world-state fields, not as isolated
+  non-interacting passes
