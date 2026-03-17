@@ -134,6 +134,56 @@ representative multi-week sequences:
     * week 38: Guard/Blockade World mission report: We successfully intercepted the
     * week 49: Guard/Blockade World mission report: We were attacked by the 27th Fleet
 
+top same-week ordered pattern bundles:
+  - 38x sensor-contact -> identified
+  - 30x other -> other -> intercepted
+  - 10x other -> other
+  - 3x sensor-contact -> identified -> orbit-world
+  - 3x sensor-contact -> identified -> intercepted
+  - 2x other -> sensor-contact -> identified -> orbit-world
+  - 2x sensor-contact -> other
+  - 2x sensor-contact -> identified -> other
+  - 1x entered-system -> attacked
+  - 1x attacked -> bombing-run
+
+adjacent report week-gap distribution:
+  - gap 0: 350
+  - gap 1: 67
+  - gap 2: 40
+  - gap 3: 48
+  - gap 4: 26
+  - gap 5: 26
+  - gap 6: 28
+  - gap 7: 14
+
+top adjacent ordered body-pattern transitions:
+  - 108x other -> other
+  - 48x sensor-contact -> identified
+  - 48x arrived-world -> arrived-world
+  - 36x other -> intercepted
+  - 14x arrived-world -> other
+  - 14x planet-bombarded -> other
+  - 14x other -> sensor-contact
+  - 13x identified -> other
+  - 11x orbit-world -> other
+  - 11x arrived-world -> orbit-world
+  - 11x intercepted -> other
+  - 10x orbit-world -> sensor-contact
+
+top adjacent ordered kind transitions:
+  - 131x guard-world -> guard-world
+  - 116x fleet-report-other -> fleet-report-other
+  - 34x rendezvous -> rendezvous
+  - 33x guard-world -> fleet-report-other
+  - 27x fleet-report-other -> guard-world
+  - 17x fleet-report-other -> rendezvous
+  - 14x bombard -> fleet-report-other
+  - 11x colonize -> colonize
+  - 11x guard-world -> fleet-command-center
+  - 11x rendezvous -> fleet-report-other
+  - 10x fleet-report-other -> bombard
+  - 9x planet-report -> guard-world
+
 fleet-command-center reports: 28
 sample fleet-command-center sequencing:
   - ec3.txt 28/3003
@@ -250,6 +300,8 @@ high-signal conclusions:
   - Report logs are strictly sorted by (year, week).
   - Unread reports can persist across years; some files contain multiple report years.
   - Same-week bundles are common for one source, especially sensor-contact + identification + interception chains.
+  - Same-week ordering is not random: the corpus repeatedly shows contact -> identification -> interception as a stable intra-week sequence.
   - Multi-week sequences from the same source are also common, showing missions progressing across weeks inside one year.
+  - Across adjacent reports, zero-gap and one-week transitions dominate, which fits an ordered weekly event stream rather than post-hoc narrative stamping.
   - Fleet Command Center reports act like administrative loss summaries and are interleaved into the same weekly ordering.
   - The log corpus therefore supports a real sub-year scheduler, not just decorative timestamps.

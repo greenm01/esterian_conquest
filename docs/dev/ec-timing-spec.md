@@ -97,10 +97,21 @@ High-signal sequencing patterns:
 - same-week bundles are common for one source
   - especially `sensor contact -> identification -> interception`
   - these appear to be emitted as one weekly batch
+- same-week ordering is stable rather than arbitrary
+  - the aggregate corpus now shows `38` direct `sensor contact ->
+    identification` pairs
+  - it also shows repeated longer chains including
+    `sensor contact -> identification -> interception`
 - multi-week sequences from the same source are also common
   - examples include `extended orbit` followed by later contact/update reports
   - this strongly supports mission progress advancing across multiple in-year
     ticks
+- adjacent report timing is concentrated at zero or one week of separation
+  - current corpus counts:
+    - `350` adjacent transitions with week-gap `0`
+    - `67` adjacent transitions with week-gap `1`
+  - this fits a real ordered weekly event stream much better than post-hoc
+    decorative timestamps
 - Fleet Command Center reports are interleaved into the same weekly order
   - they usually read like administrative loss summaries after combat or
     interception outcomes
@@ -170,6 +181,12 @@ Practical interpretation:
 - `2000:6fc6` and `3000:189c` currently show no direct xrefs in the live dump,
   so the schedule/rankings strings are probably reached through indirect
   string-table handling rather than simple immediate references
+- the startup `main.tok` / `Creating main work file...` / `Merging joint
+  fleets...` cluster at `2000:841b..855a` also currently has no direct scalar
+  xrefs in the live dump
+  - current best interpretation is the same: the outer startup driver is likely
+    reaching those messages through an indirect string/pointer path rather than
+    inline `MOV DI, imm16` references
 
 ## Open Questions
 

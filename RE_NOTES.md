@@ -6493,3 +6493,54 @@ Practical consequence:
   - explicit `1..52` weekly summary loop
 - the still-missing gameplay core is now more likely earlier than this
   `861d` tail, or hidden behind helpers feeding it
+
+#### Startup/status indirection and tighter weekly-order corpus evidence
+
+Added two focused helper scripts:
+
+- `tools/ghidra_scripts/ECMaintOuterDriver.java`
+- `tools/ghidra_scripts/ECMaintStringXrefs.java`
+
+Current artifacts:
+
+- `artifacts/ghidra/ecmaint-live/outer-driver.txt`
+- `artifacts/ghidra/ecmaint-live/string-xrefs.txt`
+
+New static findings:
+
+- `0000:841a` is **not** the startup driver
+  - it is a late kind-`1`/starbase-related helper using scratch fields
+    `350d/350e/351b..351f/3522..3524`
+- the startup/status string cluster at `2000:841b..855a` still has **no direct
+  scalar xrefs** in the current live dump:
+  - `main.tok`
+  - `Performing integrity check of game files...`
+  - `Creating main work file...`
+  - `Merging joint fleets and setting required speeds...`
+- practical interpretation:
+  - the outer startup/status path is probably reached through an indirect
+    string/pointer mechanism rather than inline `MOV DI, imm16` references
+- by contrast, the later status strings at `2000:7c44/7ca1/7cd8/7cf3/7cf8` do
+  have direct scalar hits in the `861d -> 8b3d` late tail
+
+Log-analysis tightening:
+
+- reran `python3 tools/analyze_ec_report_logs.py` after adding ordered-pattern
+  aggregation
+- new corpus-level timing/order results:
+  - top same-week ordered bundle:
+    - `38x sensor-contact -> identified`
+  - same-week longer chain also recurs:
+    - `3x sensor-contact -> identified -> interception`
+  - adjacent report week-gap distribution is heavily concentrated at:
+    - `gap 0: 350`
+    - `gap 1: 67`
+
+Practical consequence:
+
+- weekly report order is structured, not just weekly timestamps glued onto
+  free-form report text
+- the corpus now supports a stronger timing claim:
+  - same-week micro-order exists inside the weekly scheduler
+  - immediate next-week transitions are also common, which fits a real ordered
+    event stream

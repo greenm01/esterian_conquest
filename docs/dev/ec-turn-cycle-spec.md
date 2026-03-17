@@ -110,6 +110,12 @@ Settled facts:
 - recovered examples:
   - `PLAYER[0x44]` links into `BASES.DAT`
   - `PLAYER[0x48]` is the `IPBM.DAT` record count
+- the nearby startup/status string cluster at `2000:841b..855a`
+  (`main.tok`, `Performing integrity check of game files...`,
+  `Creating main work file...`, `Merging joint fleets and setting required
+  speeds...`) currently has no direct scalar xrefs in the live dump
+  - current best interpretation is that this outer startup/status path is
+    reached indirectly, likely through a table/pointer-driven emitter
 
 Practical meaning:
 
@@ -188,6 +194,11 @@ Evidence:
   - sensor contact
   - identification
   - interception
+- same-week ordering is stable in the corpus, not just co-timestamped noise
+  - repeated ordered `sensor contact -> identification` pairs are common
+  - longer `sensor contact -> identification -> interception` chains also recur
+- adjacent report transitions are dominated by gap `0` and gap `1` weeks
+  - this fits a shared ordered weekly event stream
 - Fleet Command Center loss summaries are interleaved into the same weekly
   ordering rather than appended as a separate yearly summary
 

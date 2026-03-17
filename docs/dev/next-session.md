@@ -251,6 +251,11 @@ Primary goal:
   - the first static correction is important:
     - `2000:945b` currently looks like a maintenance schedule/status date
       formatter in the token path, not the player-report `Stardate` emitter
+  - the corpus-side ordering evidence is now stronger:
+    - same-week ordering repeatedly shows
+      `sensor contact -> identification -> interception`
+    - adjacent report transitions are dominated by gap `0` and gap `1` weeks,
+      which fits a real ordered weekly event stream
   - the actual report/rankings timestamp writer and any persisted per-day field
     are still open
 - `ECMAINT` canonical phase-order recovery now has a dedicated stable note at
@@ -265,6 +270,9 @@ Primary goal:
       `1da6 -> 0c06 -> 2db3 -> 56be -> [7659?]`
     - `56be` is mission-report oriented
     - `2db3` is the strongest current `DATABASE.DAT` rebuild candidate
+    - the startup `main.tok` / `Creating main work file...` / `Merging joint
+      fleets...` cluster still has no direct scalar xrefs in the live dump, so
+      that outer startup/status path is likely indirect/table-driven
   - still-open middle block:
     - exact ordering of economy / production / movement / combat / assaults
 - for the Rust client, do not infer "returning joined player" from

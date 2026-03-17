@@ -42,6 +42,34 @@ def classify_event(src: str, body0: str) -> str:
     return "other"
 
 
+def classify_body_pattern(body0: str) -> str:
+    text = body0.lower()
+    mapping = [
+        ("sensor-contact", "sensor contact shows an alien fleet"),
+        ("identified", "we have located and identified the alien fleet"),
+        ("intercepted", "we successfully intercepted"),
+        ("attacked", "we were attacked by"),
+        ("orbit-world", "we are in extended orbit around"),
+        ("arrived-world", "we have arrived at planet"),
+        ("arrived-target", "we have arrived at our target world"),
+        ("arrived-destination", "we have arrived at our destination"),
+        ("entered-system", "we have entered system"),
+        ("bombing-run", "we have just concluded a bombing run"),
+        ("invaded", "we have successfully invaded"),
+        ("invasion-failed", "our invasion attempt was defeated"),
+        ("joined", "we have joined the"),
+        ("join-retarget", "in light of the destruction"),
+        ("control-update", "since we now control"),
+        ("view-complete", "we have completed our mission"),
+        ("fleet-lost", "we lost all contact with"),
+        ("planet-bombarded", "we have been bombarded by"),
+    ]
+    for label, needle in mapping:
+        if needle in text:
+            return label
+    return "other"
+
+
 def parse_logs():
     events = []
     per_file = {}
@@ -73,6 +101,7 @@ def parse_logs():
                     "body0": body0,
                     "body_lines": body_lines,
                     "kind": classify_event(src, body0),
+                    "pattern": classify_body_pattern(body0),
                 }
             )
         per_file[path.name] = parsed
@@ -141,16 +170,51 @@ def main() -> None:
         out.write("\n")
 
         repeated_multi_week = []
+        same_week_pattern_orders = collections.Counter()
+        adjacent_transition_orders = collections.Counter()
+        adjacent_kind_transitions = collections.Counter()
+        adjacent_gap_counts = collections.Counter()
         for key, group in same_src_multi_week.items():
             weeks_seen = {item["week"] for item in group}
             if len(weeks_seen) > 1:
                 repeated_multi_week.append((key, sorted(group, key=lambda item: item["week"])))
+        for _, group in repeated_same_week:
+            ordered = tuple(item["pattern"] for item in group)
+            same_week_pattern_orders[ordered] += 1
+        for name, items in per_file.items():
+            for idx in range(len(items) - 1):
+                left = items[idx]
+                right = items[idx + 1]
+                week_gap = (right["year"] - left["year"]) * 52 + (right["week"] - left["week"])
+                adjacent_gap_counts[week_gap] += 1
+                adjacent_transition_orders[(left["pattern"], right["pattern"])] += 1
+                adjacent_kind_transitions[(left["kind"], right["kind"])] += 1
         out.write(f"same-source multi-week sequences: {len(repeated_multi_week)}\n")
         out.write("representative multi-week sequences:\n")
         for (name, src, year), group in repeated_multi_week[:12]:
             out.write(f"  - {name} {year} {src}\n")
             for item in group:
                 out.write(f"    * week {item['week']}: {item['body0']}\n")
+        out.write("\n")
+
+        out.write("top same-week ordered pattern bundles:\n")
+        for ordered, count in same_week_pattern_orders.most_common(10):
+            out.write(f"  - {count}x {' -> '.join(ordered)}\n")
+        out.write("\n")
+
+        out.write("adjacent report week-gap distribution:\n")
+        for gap, count in sorted(adjacent_gap_counts.items())[:8]:
+            out.write(f"  - gap {gap}: {count}\n")
+        out.write("\n")
+
+        out.write("top adjacent ordered body-pattern transitions:\n")
+        for (left, right), count in adjacent_transition_orders.most_common(12):
+            out.write(f"  - {count}x {left} -> {right}\n")
+        out.write("\n")
+
+        out.write("top adjacent ordered kind transitions:\n")
+        for (left, right), count in adjacent_kind_transitions.most_common(12):
+            out.write(f"  - {count}x {left} -> {right}\n")
         out.write("\n")
 
         fcc_events = [item for item in events if item["kind"] == "fleet-command-center"]
@@ -184,7 +248,9 @@ def main() -> None:
         out.write("  - Report logs are strictly sorted by (year, week).\n")
         out.write("  - Unread reports can persist across years; some files contain multiple report years.\n")
         out.write("  - Same-week bundles are common for one source, especially sensor-contact + identification + interception chains.\n")
+        out.write("  - Same-week ordering is not random: the corpus repeatedly shows contact -> identification -> interception as a stable intra-week sequence.\n")
         out.write("  - Multi-week sequences from the same source are also common, showing missions progressing across weeks inside one year.\n")
+        out.write("  - Across adjacent reports, zero-gap and one-week transitions dominate, which fits an ordered weekly event stream rather than post-hoc narrative stamping.\n")
         out.write("  - Fleet Command Center reports act like administrative loss summaries and are interleaved into the same weekly ordering.\n")
         out.write("  - The log corpus therefore supports a real sub-year scheduler, not just decorative timestamps.\n")
 
