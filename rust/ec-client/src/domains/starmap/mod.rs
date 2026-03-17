@@ -5,3 +5,4 @@ pub mod update;
 
 pub use action::StarmapAction;
 pub use state::StarmapState;
+pub mod views;

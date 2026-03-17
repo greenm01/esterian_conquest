@@ -5,3 +5,4 @@ pub mod update;
 
 pub use action::EmpireAction;
 pub use state::EmpireState;
+pub mod views;

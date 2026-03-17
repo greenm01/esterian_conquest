@@ -5,3 +5,4 @@ pub mod update;
 
 pub use action::StartupAction;
 pub use state::StartupState;
+pub mod views;

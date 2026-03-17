@@ -15,6 +15,12 @@ pub struct StartupState {
     pub messages_deleted_any: bool,
     pub first_time_intro_page: usize,
     pub first_time_rename_preloaded_empire: bool,
+    pub first_time_status: Option<String>,
+    pub first_time_input: String,
+    pub first_time_empire_name: String,
+    pub first_time_homeworld_name: String,
+    pub colony_world_name: String,
+    pub colony_world_planet_record_index_1_based: Option<usize>,
 }
 
 impl Default for StartupState {
@@ -34,6 +40,12 @@ impl Default for StartupState {
             messages_deleted_any: false,
             first_time_intro_page: 0,
             first_time_rename_preloaded_empire: false,
+            first_time_status: None,
+            first_time_input: String::new(),
+            first_time_empire_name: String::new(),
+            first_time_homeworld_name: String::new(),
+            colony_world_name: String::new(),
+            colony_world_planet_record_index_1_based: None,
         }
     }
 }

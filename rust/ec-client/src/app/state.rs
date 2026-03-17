@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use ec_data::{
     AutoCommissionSummary, CampaignStore, CommissionResult, CoreGameData, DatabaseDat,
@@ -8,13 +8,13 @@ use ec_data::{
 };
 
 use crate::app::action::Action;
-use crate::domains::empire::{EmpireAction, EmpireState};
+use crate::domains::empire::EmpireState;
 use crate::domains::fleet::{FleetAction, FleetState};
 use crate::domains::fleet::state::FleetMissionPickerCaller;
-use crate::domains::messaging::{MessagingAction, MessagingState};
+use crate::domains::messaging::MessagingState;
 use crate::domains::planet::{PlanetAction, PlanetState};
 use crate::domains::starbase::{StarbaseAction, StarbaseState};
-use crate::domains::starmap::{StarmapAction, StarmapState};
+use crate::domains::starmap::StarmapState;
 use crate::domains::startup::{StartupAction, StartupState};
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
 use crate::reports::{ReportsPreview, clear_report_bytes, rebuild_chunked_bytes};
@@ -33,16 +33,12 @@ use crate::screen::{
     PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen, PlanetListSort,
     PlanetMenuScreen, PlanetTaxScreen, PlanetTransportFleetRow, PlanetTransportMode,
     PlanetTransportPlanetRow, PlanetTransportScreen, RankingsScreen, ReportsScreen,
-    STARTUP_SPLASH_PAGE_COUNT, Screen, ScreenFrame, ScreenId, StarbaseHelpScreen,
+    STARTUP_SPLASH_PAGE_COUNT, Screen, ScreenId, StarbaseHelpScreen,
     StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen, StarbaseRow, StarmapScreen,
     StartupReviewMode, StartupScreen, build_unit_spec, build_unit_spec_by_kind, max_quantity,
-    render_first_time_homeworld_confirm, render_first_time_homeworld_name,
-    render_first_time_join_name, render_first_time_join_name_confirm,
-    render_first_time_join_no_pending, render_first_time_join_summary,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
-use crate::theme::classic;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AppConfig {
@@ -121,12 +117,6 @@ pub struct App {
     pub results_bytes: Vec<u8>,
     pub messages_bytes: Vec<u8>,
     pub queued_mail: Vec<QueuedPlayerMail>,
-    pub first_time_status: Option<String>,
-    pub first_time_input: String,
-    pub first_time_empire_name: String,
-    pub first_time_homeworld_name: String,
-    pub colony_world_name: String,
-    pub colony_world_planet_record_index_1_based: Option<usize>,
     pub command_menu_notice: Option<String>,
     pub planet_intel_snapshots: BTreeMap<usize, PlanetIntelSnapshot>,
 }
@@ -245,12 +235,6 @@ impl App {
             results_bytes,
             messages_bytes,
             queued_mail,
-            first_time_status: None,
-            first_time_input: String::new(),
-            first_time_empire_name: String::new(),
-            first_time_homeworld_name: String::new(),
-            colony_world_name: String::new(),
-            colony_world_planet_record_index_1_based: None,
             command_menu_notice: None,
             planet_intel_snapshots,
         })
@@ -260,494 +244,92 @@ impl App {
         &mut self,
         terminal: &mut dyn Terminal,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let frame = ScreenFrame {
-            game_dir: &self.game_dir,
-            game_data: &self.game_data,
-            database: &self.database,
-            player: &self.player,
-            planet_intel_snapshots: &self.planet_intel_snapshots,
-        };
-
+        use crate::domains;
         let mut playfield = match self.current_screen {
-            ScreenId::Startup(phase) => self.startup.render_phase(
-                &frame,
-                phase,
-                self.startup_state.splash_page,
-                self.startup_state.intro_page,
-                self.startup_state.results_block,
-                self.startup_state.results_page,
-                self.startup_state.results_mode,
-                self.startup_state.messages_block,
-                self.startup_state.messages_page,
-                self.startup_state.messages_mode,
-                self.startup_state.results_deleted_any,
-                self.startup_state.messages_deleted_any,
-                self.game_data.conquest.game_year(),
-            )?,
-            ScreenId::FirstTimeMenu => self
-                .first_time_menu
-                .render(self.first_time_status.as_deref())?,
-            ScreenId::FirstTimeHelp => self.first_time_help.render(&frame)?,
-            ScreenId::FirstTimeEmpires => self
-                .first_time_empires
-                .render_rows(&self.first_time_empire_rows())?,
-            ScreenId::FirstTimeIntro => self
-                .first_time_intro
-                .render_page(self.startup_state.first_time_intro_page)?,
-            ScreenId::FirstTimePreloadedRenamePrompt => {
-                crate::screen::render_preloaded_first_login_rename_prompt(&self.player.empire_name)?
-            }
-            ScreenId::FirstTimeJoinEmpireName => render_first_time_join_name(
-                self.startup_state.first_time_rename_preloaded_empire,
-                &self.player.empire_name,
-                &self.first_time_input,
-                self.first_time_status.as_deref(),
-            )?,
-            ScreenId::FirstTimeJoinEmpireConfirm => render_first_time_join_name_confirm(
-                self.startup_state.first_time_rename_preloaded_empire,
-                &self.first_time_empire_name,
-            )?,
-            ScreenId::FirstTimeJoinSummary => render_first_time_join_summary(
-                &self.first_time_empire_name,
-                self.player.record_index_1_based,
-                self.game_data.conquest.game_year(),
-            )?,
-            ScreenId::FirstTimeJoinNoPending => render_first_time_join_no_pending()?,
-            ScreenId::FirstTimeHomeworldName => {
-                let (coords, present, potential) = self.first_time_homeworld_summary()?;
-                render_first_time_homeworld_name(
-                    coords,
-                    present,
-                    potential,
-                    self.player.classic_login_state
-                        == crate::model::ClassicLoginState::MatchedPreloadedFirstLogin,
-                    &self.first_time_input,
-                    self.first_time_status.as_deref(),
-                )?
-            }
-            ScreenId::FirstTimeHomeworldConfirm => {
-                let (coords, present, potential) = self.first_time_homeworld_summary()?;
-                render_first_time_homeworld_confirm(
-                    coords,
-                    present,
-                    potential,
-                    self.player.classic_login_state
-                        == crate::model::ClassicLoginState::MatchedPreloadedFirstLogin,
-                    &self.first_time_homeworld_name,
-                )?
-            }
-            ScreenId::ColonyWorldName => {
-                let (coords, present, potential) = self.colony_world_summary()?;
-                crate::screen::render_colony_world_name(
-                    coords,
-                    present,
-                    potential,
-                    &self.first_time_input,
-                    self.first_time_status.as_deref(),
-                )?
-            }
-            ScreenId::ColonyWorldConfirm => {
-                let (coords, _, _) = self.colony_world_summary()?;
-                crate::screen::render_colony_world_confirm(coords, &self.colony_world_name)?
-            }
-            ScreenId::MainMenu => self
-                .main_menu
-                .render_with_notice(self.command_menu_notice.as_deref())?,
-            ScreenId::MainHelp => self.main_help.render(&frame)?,
-            ScreenId::GeneralMenu => self
-                .general_menu
-                .render_with_notice(&frame, self.command_menu_notice.as_deref())?,
-            ScreenId::GeneralHelp => self.general_help.render(&frame)?,
-            ScreenId::FleetHelp => self.fleet_help.render(&frame)?,
-            ScreenId::StarbaseMenu => self
-                .starbase_menu
-                .render_with_notice(self.command_menu_notice.as_deref())?,
-            ScreenId::StarbaseHelp => self.starbase_help.render(&frame)?,
-            ScreenId::StarbaseList => self.starbase_list.render(
-                &self.starbase_rows(),
-                self.starbase.scroll_offset,
-                self.starbase.cursor,
-            )?,
-            ScreenId::StarbaseReviewSelect => self.starbase_review.render_select(
-                &self.starbase_rows(),
-                self.starbase.scroll_offset,
-                self.starbase.cursor,
-                &self.starbase.review_input,
-                self.status_if_no_modal(self.starbase.review_status.as_deref()),
-            )?,
-            ScreenId::StarbaseReview => {
-                let rows = self.starbase_rows();
-                let row = rows
-                    .get(self.starbase.review_index)
-                    .ok_or("starbase review row missing")?;
-                self.starbase_review.render_detail(row)?
-            }
-            ScreenId::FleetMenu => self
-                .fleet_menu
-                .render_with_notice(self.command_menu_notice.as_deref())?,
-            ScreenId::FleetList(mode) => self.fleet_list.render(
-                mode,
-                &self.fleet_rows(),
-                self.fleet.scroll_offset,
-                self.fleet.cursor,
-            )?,
-            ScreenId::FleetReviewSelect => self.fleet_review.render_select(
-                &self.fleet_rows(),
-                self.fleet.scroll_offset,
-                self.fleet.cursor,
-                &self.fleet.review_select_input,
-                self.status_if_no_modal(self.fleet.review_status.as_deref()),
-            )?,
-            ScreenId::FleetReview => {
-                let rows = self.fleet_rows();
-                let row = rows
-                    .get(self.fleet.review_index)
-                    .ok_or("fleet review row missing")?;
-                self.fleet_review
-                    .render(row, self.fleet.review_index, rows.len())?
-            }
-            ScreenId::FleetRoeSelect => self.fleet_roe.render_select(
-                &self.fleet_rows(),
-                self.fleet.roe_scroll_offset,
-                self.fleet.roe_cursor,
-                self.fleet.roe_editing,
-                &self.fleet.roe_select_input,
-                &self.fleet.roe_input,
-                self.status_if_no_modal(self.fleet.roe_status.as_deref()),
-            )?,
-            ScreenId::FleetOrder => self.fleet_order.render(
-                &self.fleet_rows(),
-                self.fleet.order_scroll_offset,
-                self.fleet.order_cursor,
-                self.fleet.order_mode,
-                &self.fleet_order_target_status_line(),
-                &self.fleet_order_target_prompt(),
-                &self.fleet_order_target_default(),
-                &self.fleet.order_input,
-                self.status_if_no_modal(self.fleet.order_status.as_deref()),
-            )?,
-            ScreenId::FleetGroupOrder => self.fleet_group.render(
-                &self.fleet_rows(),
-                self.fleet.group_scroll_offset,
-                self.fleet.group_cursor,
-                &self.fleet.group_selected_fleets,
-                self.fleet.group_mode,
-                &self.fleet_group_target_status_line(),
-                &self.fleet_group_target_prompt(),
-                &self.fleet_group_target_default(),
-                &self.fleet.group_input,
-                self.status_if_no_modal(self.fleet.group_status.as_deref()),
-            )?,
-            ScreenId::FleetMissionPicker => self.fleet_mission_picker.render(
-                self.fleet.mission_picker_cursor,
-                &self.fleet.mission_picker_input,
-                &self.fleet_mission_picker_enabled_flags(),
-                self.status_if_no_modal(self.fleet.mission_picker_status.as_deref()),
-            )?,
-            ScreenId::FleetMerge => {
-                let rows = self.current_fleet_merge_rows();
-                let input = self.current_fleet_merge_input().to_string();
-                let status = self.status_if_no_modal(self.fleet.merge_status.as_deref());
-                self.fleet_merge.render(
-                    &rows,
-                    self.fleet.merge_scroll_offset,
-                    self.fleet.merge_cursor,
-                    self.fleet.merge_mode,
-                    &input,
-                    status,
-                )?
-            }
-            ScreenId::FleetTransfer => {
-                let rows = self.current_fleet_transfer_rows();
-                let input = self.current_fleet_transfer_input().to_string();
-                let status = self.status_if_no_modal(self.fleet.transfer_status.as_deref());
-                let (prompt, default) = self.fleet_transfer_prompt_and_default(&rows);
-                self.fleet_transfer.render(
-                    &rows,
-                    self.fleet.transfer_scroll_offset,
-                    self.fleet.transfer_cursor,
-                    self.fleet.transfer_mode,
-                    &self.fleet.transfer_selected_fleets,
-                    self.fleet.transfer_donor_record_index_1_based
-                        .and_then(|idx| self.fleet_number_for_record_index(idx)),
-                    self.fleet.transfer_host_record_index_1_based
-                        .and_then(|idx| self.fleet_number_for_record_index(idx)),
-                    &input,
-                    status,
-                    &prompt,
-                    &default,
-                )?
-            }
-            ScreenId::FleetDetach => {
-                let rows = self.fleet_rows();
-                let (prompt, default) = self.fleet_detach_prompt_and_default(&rows);
-                let input = self.fleet_detach_current_input().to_string();
-                let status = self.status_if_no_modal(self.fleet.detach_status.as_deref());
-                self.fleet_detach.render(
-                    &rows,
-                    self.fleet.detach_scroll_offset,
-                    self.fleet.detach_cursor,
-                    &prompt,
-                    &default,
-                    &input,
-                    status,
-                )?
-            }
-            ScreenId::FleetEta => self.fleet_eta.render(
-                &self.fleet_rows(),
-                self.fleet.eta_scroll_offset,
-                self.fleet.eta_cursor,
-                self.fleet.eta_mode,
-                &self.fleet.eta_select_input,
-                self.fleet_eta_default_destination(),
-                &self.fleet.eta_destination_input,
-                &self.fleet.eta_include_system_input,
-                self.status_if_no_modal(self.fleet.eta_status.as_deref()),
-            )?,
-            ScreenId::PlanetMenu => self
-                .planet_menu
-                .render_with_notice(self.command_menu_notice.as_deref())?,
-            ScreenId::PlanetHelp => self.planet_help.render(&frame)?,
-            ScreenId::PlanetAutoCommissionConfirm => {
-                self.planet_auto_commission.render_confirm()?
-            }
-            ScreenId::PlanetAutoCommissionDone => self.planet_auto_commission.render_done(
-                self.planet.auto_commission_status
-                    .as_deref()
-                    .unwrap_or("Auto-commission complete."),
-            )?,
-            ScreenId::PlanetTransportPlanetSelect(mode) => {
-                self.planet_transport.render_planet_select(
-                    crate::screen::command_menu_label(self.command_return_menu),
-                    mode,
-                    &self.planet_transport_planet_rows(mode),
-                    self.planet.transport_planet_scroll_offset,
-                    self.planet.transport_planet_cursor,
-                    &self.planet.transport_planet_input,
-                    self.planet_transport_planet_default_coords(mode),
-                    self.status_if_no_modal(self.planet.transport_status.as_deref()),
-                )?
-            }
-            ScreenId::PlanetTransportFleetSelect(mode) => {
-                self.planet_transport.render_fleet_select(
-                    crate::screen::command_menu_label(self.command_return_menu),
-                    mode,
-                    &self.current_planet_transport_planet_row(mode)?,
-                    &self.current_planet_transport_fleet_rows(mode)?,
-                    self.planet.transport_fleet_scroll_offset,
-                    self.planet.transport_fleet_cursor,
-                    &self.planet.transport_qty_input,
-                    self.status_if_no_modal(self.planet.transport_status.as_deref()),
-                )?
-            }
-            ScreenId::PlanetTransportQuantityPrompt(mode) => {
-                self.planet_transport.render_quantity_prompt(
-                    crate::screen::command_menu_label(self.command_return_menu),
-                    mode,
-                    &self.current_planet_transport_planet_row(mode)?,
-                    &self.current_planet_transport_fleet_row(mode)?,
-                    &self.planet.transport_qty_input,
-                    self.status_if_no_modal(self.planet.transport_status.as_deref()),
-                )?
-            }
-            ScreenId::PlanetTransportDone(mode) => self.planet_transport.render_done(
-                crate::screen::command_menu_label(self.command_return_menu),
-                mode,
-                self.planet.transport_status
-                    .as_deref()
-                    .unwrap_or("Transport order completed."),
-            )?,
-            ScreenId::PlanetCommissionMenu => self.planet_commission.render_menu(
-                &self.current_planet_commission_view()?,
-                self.planet.commission_scroll_offset,
-                self.planet.commission_cursor,
-                &self.planet.commission_selected_slots,
-                self.planet.commission_status.as_deref(),
-            )?,
-            ScreenId::PlanetBuildHelp => self.build_help.render(&frame)?,
-            ScreenId::PlanetBuildMenu => self.planet_build.render_menu(
-                &self.current_planet_build_view()?,
-                self.planet.build_status.as_deref(),
-            )?,
-            ScreenId::PlanetBuildReview => self.planet_build.render_review(
-                &self.current_planet_build_view()?,
-                &self.current_planet_build_orders(),
-            )?,
-            ScreenId::PlanetBuildList => self.planet_build.render_list(
-                &self.current_planet_build_view()?,
-                &self.planet_build_list_rows(),
-                self.planet.build_list_scroll_offset,
-                self.planet.build_list_cursor,
-                self.planet.build_list_confirming,
-            )?,
-            ScreenId::PlanetBuildChange => self.planet_build.render_change(
-                &self.build_change_rows(),
-                self.planet.build_change_scroll_offset,
-                self.planet.build_change_cursor,
-            )?,
-            ScreenId::PlanetBuildAbortConfirm => self.planet_build.render_abort_confirm(
-                &self.current_planet_build_view()?,
-                &self.current_planet_build_orders(),
-            )?,
-            ScreenId::PlanetBuildSpecify => self.planet_build.render_specify(
-                &self.current_planet_build_view()?,
-                &self.current_planet_build_orders(),
-                &self.planet.build_unit_input,
-                self.planet.build_unit_status.as_deref(),
-            )?,
-            ScreenId::PlanetBuildQuantity => self.planet_build.render_quantity_prompt(
-                &self.current_planet_build_view()?,
-                &self.current_planet_build_orders(),
-                build_unit_spec_by_kind(
-                    self.planet.build_selected_kind
-                        .ok_or("planet build kind not selected")?,
-                )
-                .ok_or("planet build unit missing")?,
-                self.current_planet_build_max_quantity()?,
-                &self.planet.build_quantity_input,
-                self.planet.build_quantity_status.as_deref(),
-            )?,
-            ScreenId::PlanetListSortPrompt(mode) => self
-                .planet_list
-                .render_sort_prompt(mode, self.planet.list_sort_status.as_deref())?,
-            ScreenId::PlanetBriefList(sort) => self.planet_list.render_brief_list(
-                &self.sorted_planet_rows(sort),
-                sort,
-                self.planet.brief_scroll_offset,
-                self.planet.brief_cursor,
-            )?,
-            ScreenId::PlanetDetailList(sort) => self.planet_list.render_detail(
-                &frame,
-                &self.sorted_planet_rows(sort),
-                self.planet.detail_index,
-            )?,
-            ScreenId::PlanetTaxPrompt => {
-                let current_tax = self.game_data.player.records
-                    [self.player.record_index_1_based - 1]
-                    .tax_rate()
-                    .to_string();
-                self.planet_tax.render_prompt(
-                    &current_tax,
-                    &self.planet.tax_input,
-                    self.planet.tax_status.as_deref(),
-                )?
-            }
-            ScreenId::PlanetTaxDone => self.planet_tax.render_done(
-                self.planet.tax_status
-                    .as_deref()
-                    .unwrap_or("Tax rate updated."),
-            )?,
-            ScreenId::Starmap if self.starmap_state.capture_complete => self.starmap.render_complete()?,
-            ScreenId::Starmap if self.starmap_state.dump_active => self
-                .starmap
-                .render_dump_page(&self.starmap_state.dump_lines, self.starmap_state.dump_offset)?,
-            ScreenId::Starmap => self.starmap.render_prompt(self.starmap_state.status.as_deref())?,
-            ScreenId::PartialStarmapPrompt => self.partial_starmap.render_prompt(
-                self.starmap_state.partial_center,
-                &self.starmap_state.partial_input,
-                self.starmap_state.partial_error.as_deref(),
-                self.command_return_menu,
-            )?,
-            ScreenId::PartialStarmapView => self.partial_starmap.render_view(
-                &frame,
-                &self.database,
-                self.starmap_state.partial_center,
-            )?,
-            ScreenId::PlanetDatabaseList => self.planet_database.render_list(
-                &self.planet_database_rows(),
-                self.planet.database_scroll_offset,
-                self.planet.database_cursor,
-                self.default_planet_prompt_coords(),
-                &self.planet.database_input,
-                self.status_if_no_modal(self.planet.database_status.as_deref()),
-                self.command_return_menu,
-            )?,
-            ScreenId::PlanetDatabaseDetail => {
-                let rows = self.planet_database_rows();
-                let row = rows
-                    .get(self.planet.database_detail_index)
-                    .ok_or("planet database row missing")?;
-                self.planet_database.render_detail(
-                    row,
-                    self.planet.database_detail_index,
-                    rows.len(),
-                )?
-            }
-            ScreenId::PlanetInfoPrompt => self.planet_info.render_prompt(
-                self.default_planet_prompt_coords(),
-                &self.planet.info_input,
-                self.planet.info_error.as_deref(),
-                self.command_return_menu,
-            )?,
-            ScreenId::PlanetInfoDetail => self.planet_info.render_detail(
-                &frame,
-                self.planet.info_selected
-                    .ok_or("planet info detail not selected")?,
-                self.command_return_menu,
-            )?,
-            ScreenId::Enemies => self.enemies.render(
-                &frame,
-                &self.empire.enemies_input,
-                self.status_if_no_modal(self.empire.enemies_status.as_deref()),
-                self.empire.enemies_scroll_offset,
-                self.empire.enemies_cursor,
-            )?,
-            ScreenId::DeleteReviewables => self
-                .delete_reviewables
-                .render(self.messaging.delete_reviewables_status.as_deref())?,
-            ScreenId::ComposeMessageRecipient => self.message_compose.render_recipient(
-                &frame,
-                &self.messaging.compose_recipient_input,
-                self.status_if_no_modal(self.messaging.compose_recipient_status.as_deref()),
-                self.messaging.compose_recipient_scroll_offset,
-                self.messaging.compose_recipient_cursor,
-            )?,
-            ScreenId::ComposeMessageSubject => self.message_compose.render_subject(
-                &compose_recipient_label(&self.game_data, self.messaging.compose_recipient_empire),
-                &self.messaging.compose_subject,
-                self.messaging.compose_subject_status.as_deref(),
-            )?,
-            ScreenId::ComposeMessageBody => self.message_compose.render_body(
-                &compose_recipient_label(&self.game_data, self.messaging.compose_recipient_empire),
-                &self.messaging.compose_subject,
-                &self.messaging.compose_body,
-                self.messaging.compose_body_cursor,
-                self.messaging.compose_body_status.as_deref(),
-            )?,
-            ScreenId::ComposeMessageOutbox => self.message_compose.render_outbox(
-                &self.compose_outbox_queue()?,
-                &self.messaging.compose_outbox_input,
-                self.status_if_no_modal(self.messaging.compose_outbox_status.as_deref()),
-                self.messaging.compose_outbox_scroll_offset,
-                self.messaging.compose_outbox_cursor,
-                &self.game_data,
-            )?,
-            ScreenId::ComposeMessageDiscardConfirm => {
-                self.message_compose.render_discard_confirm()?
-            }
-            ScreenId::ComposeMessageSendConfirm => self.message_compose.render_send_confirm(
-                &compose_recipient_label(&self.game_data, self.messaging.compose_recipient_empire),
-                &self.messaging.compose_subject,
-                &self.messaging.compose_body,
-            )?,
-            ScreenId::ComposeMessageSent => self.message_compose.render_sent(
-                self.messaging.compose_sent_status
-                    .as_deref()
-                    .unwrap_or("Message queued."),
-            )?,
-            ScreenId::EmpireStatus => self
-                .empire_status
-                .render_with_menu(&frame, self.command_return_menu)?,
-            ScreenId::EmpireProfile => self
-                .empire_profile
-                .render_with_menu(&frame, self.command_return_menu)?,
-            ScreenId::Rankings(sort) => {
-                self.rankings
-                    .render_table(&frame, sort, self.command_return_menu)?
-            }
-            ScreenId::Reports => self
-                .reports
-                .render_with_menu(&frame, self.command_return_menu)?,
+            ScreenId::Startup(_)
+            | ScreenId::FirstTimeMenu
+            | ScreenId::FirstTimeHelp
+            | ScreenId::FirstTimeEmpires
+            | ScreenId::FirstTimeIntro
+            | ScreenId::FirstTimePreloadedRenamePrompt
+            | ScreenId::FirstTimeJoinEmpireName
+            | ScreenId::FirstTimeJoinEmpireConfirm
+            | ScreenId::FirstTimeJoinSummary
+            | ScreenId::FirstTimeJoinNoPending
+            | ScreenId::FirstTimeHomeworldName
+            | ScreenId::FirstTimeHomeworldConfirm
+            | ScreenId::ColonyWorldName
+            | ScreenId::ColonyWorldConfirm
+            | ScreenId::MainMenu
+            | ScreenId::MainHelp
+            | ScreenId::GeneralMenu
+            | ScreenId::GeneralHelp
+            | ScreenId::Reports => domains::startup::views::render(self)?,
+
+            ScreenId::FleetHelp
+            | ScreenId::FleetMenu
+            | ScreenId::FleetList(_)
+            | ScreenId::FleetReviewSelect
+            | ScreenId::FleetReview
+            | ScreenId::FleetRoeSelect
+            | ScreenId::FleetOrder
+            | ScreenId::FleetGroupOrder
+            | ScreenId::FleetMissionPicker
+            | ScreenId::FleetMerge
+            | ScreenId::FleetTransfer
+            | ScreenId::FleetDetach
+            | ScreenId::FleetEta => domains::fleet::views::render(self)?,
+
+            ScreenId::StarbaseMenu
+            | ScreenId::StarbaseHelp
+            | ScreenId::StarbaseList
+            | ScreenId::StarbaseReviewSelect
+            | ScreenId::StarbaseReview => domains::starbase::views::render(self)?,
+
+            ScreenId::PlanetMenu
+            | ScreenId::PlanetHelp
+            | ScreenId::PlanetAutoCommissionConfirm
+            | ScreenId::PlanetAutoCommissionDone
+            | ScreenId::PlanetTransportPlanetSelect(_)
+            | ScreenId::PlanetTransportFleetSelect(_)
+            | ScreenId::PlanetTransportQuantityPrompt(_)
+            | ScreenId::PlanetTransportDone(_)
+            | ScreenId::PlanetCommissionMenu
+            | ScreenId::PlanetBuildHelp
+            | ScreenId::PlanetBuildMenu
+            | ScreenId::PlanetBuildReview
+            | ScreenId::PlanetBuildList
+            | ScreenId::PlanetBuildChange
+            | ScreenId::PlanetBuildAbortConfirm
+            | ScreenId::PlanetBuildSpecify
+            | ScreenId::PlanetBuildQuantity
+            | ScreenId::PlanetListSortPrompt(_)
+            | ScreenId::PlanetBriefList(_)
+            | ScreenId::PlanetDetailList(_)
+            | ScreenId::PlanetTaxPrompt
+            | ScreenId::PlanetTaxDone
+            | ScreenId::PlanetDatabaseList
+            | ScreenId::PlanetDatabaseDetail
+            | ScreenId::PlanetInfoPrompt
+            | ScreenId::PlanetInfoDetail => domains::planet::views::render(self)?,
+
+            ScreenId::Enemies
+            | ScreenId::EmpireStatus
+            | ScreenId::EmpireProfile
+            | ScreenId::Rankings(_) => domains::empire::views::render(self)?,
+
+            ScreenId::DeleteReviewables
+            | ScreenId::ComposeMessageRecipient
+            | ScreenId::ComposeMessageSubject
+            | ScreenId::ComposeMessageBody
+            | ScreenId::ComposeMessageOutbox
+            | ScreenId::ComposeMessageDiscardConfirm
+            | ScreenId::ComposeMessageSendConfirm
+            | ScreenId::ComposeMessageSent => domains::messaging::views::render(self)?,
+
+            ScreenId::Starmap
+            | ScreenId::PartialStarmapPrompt
+            | ScreenId::PartialStarmapView => domains::starmap::views::render(self)?,
         };
         if let Some(notice) = self.current_modal_notice() {
             crate::screen::draw_command_line_notice(&mut playfield, notice);
@@ -1079,36 +661,36 @@ impl App {
     }
 
     pub fn open_first_time_menu(&mut self) {
-        self.first_time_status = None;
-        self.first_time_input.clear();
+        self.startup_state.first_time_status = None;
+        self.startup_state.first_time_input.clear();
         self.current_screen = ScreenId::FirstTimeMenu;
     }
 
     pub fn open_first_time_help(&mut self) {
-        self.first_time_status = None;
+        self.startup_state.first_time_status = None;
         self.current_screen = ScreenId::FirstTimeHelp;
     }
 
     pub fn open_first_time_empires(&mut self) {
-        self.first_time_status = None;
+        self.startup_state.first_time_status = None;
         self.current_screen = ScreenId::FirstTimeEmpires;
     }
 
     pub fn open_first_time_intro(&mut self) {
-        self.first_time_status = None;
+        self.startup_state.first_time_status = None;
         self.startup_state.first_time_intro_page = 0;
         self.current_screen = ScreenId::FirstTimeIntro;
     }
 
     pub fn open_first_time_join_name(&mut self) {
-        self.first_time_status = None;
-        self.first_time_input.clear();
+        self.startup_state.first_time_status = None;
+        self.startup_state.first_time_input.clear();
         self.startup_state.first_time_rename_preloaded_empire = false;
         self.current_screen = ScreenId::FirstTimeJoinEmpireName;
     }
 
     pub fn show_first_time_ansi_notice(&mut self) {
-        self.first_time_status = Some("ANSI stays on. The stars look better in color.".to_string());
+        self.startup_state.first_time_status = Some("ANSI stays on. The stars look better in color.".to_string());
         self.current_screen = ScreenId::FirstTimeMenu;
     }
 
@@ -1124,10 +706,10 @@ impl App {
         if !ch.is_ascii_graphic() && ch != ' ' {
             return;
         }
-        if self.first_time_input.chars().count() >= 20 {
+        if self.startup_state.first_time_input.chars().count() >= 20 {
             return;
         }
-        self.first_time_input.push(ch);
+        self.startup_state.first_time_input.push(ch);
     }
 
     pub fn backspace_first_time_input(&mut self) {
@@ -1139,47 +721,47 @@ impl App {
         ) {
             return;
         }
-        self.first_time_input.pop();
+        self.startup_state.first_time_input.pop();
     }
 
     pub fn submit_first_time_input(&mut self) {
         match self.current_screen {
             ScreenId::FirstTimeJoinEmpireName => {
-                let value = self.first_time_input.trim();
+                let value = self.startup_state.first_time_input.trim();
                 if value.is_empty() {
-                    self.first_time_status =
+                    self.startup_state.first_time_status =
                         Some("Empire names need at least one visible character.".to_string());
                     return;
                 }
-                self.first_time_status = None;
-                self.first_time_empire_name = value.to_string();
-                self.first_time_input.clear();
+                self.startup_state.first_time_status = None;
+                self.startup_state.first_time_empire_name = value.to_string();
+                self.startup_state.first_time_input.clear();
                 self.current_screen = ScreenId::FirstTimeJoinEmpireConfirm;
             }
             ScreenId::FirstTimeHomeworldName => {
-                let value = self.first_time_input.trim();
+                let value = self.startup_state.first_time_input.trim();
                 if value.is_empty() {
-                    self.first_time_status =
+                    self.startup_state.first_time_status =
                         Some("Homeworld names need at least one visible character.".to_string());
                     return;
                 }
-                self.first_time_status = None;
-                self.first_time_homeworld_name = value.to_string();
-                self.first_time_input.clear();
+                self.startup_state.first_time_status = None;
+                self.startup_state.first_time_homeworld_name = value.to_string();
+                self.startup_state.first_time_input.clear();
                 self.current_screen = ScreenId::FirstTimeHomeworldConfirm;
             }
             ScreenId::ColonyWorldName => {
-                let value = self.first_time_input.trim();
+                let value = self.startup_state.first_time_input.trim();
                 if value.is_empty() {
-                    self.first_time_status =
+                    self.startup_state.first_time_status =
                         Some("World names need at least one visible character.".to_string());
                     return;
                 }
-                self.first_time_status = None;
-                self.colony_world_planet_record_index_1_based =
+                self.startup_state.first_time_status = None;
+                self.startup_state.colony_world_planet_record_index_1_based =
                     self.colony_world_target_planet_index();
-                self.colony_world_name = value.to_string();
-                self.first_time_input.clear();
+                self.startup_state.colony_world_name = value.to_string();
+                self.startup_state.first_time_input.clear();
                 self.current_screen = ScreenId::ColonyWorldConfirm;
             }
             _ => {}
@@ -1189,8 +771,8 @@ impl App {
     pub fn accept_first_time_prompt(&mut self) {
         match self.current_screen {
             ScreenId::FirstTimePreloadedRenamePrompt => {
-                self.first_time_status = None;
-                self.first_time_input = self.player.empire_name.clone();
+                self.startup_state.first_time_status = None;
+                self.startup_state.first_time_input = self.player.empire_name.clone();
                 self.startup_state.first_time_rename_preloaded_empire = true;
                 self.current_screen = ScreenId::FirstTimeJoinEmpireName;
             }
@@ -1208,8 +790,8 @@ impl App {
                 self.current_screen = ScreenId::FirstTimeJoinNoPending;
             }
             ScreenId::FirstTimeJoinNoPending => {
-                self.first_time_status = None;
-                self.first_time_input.clear();
+                self.startup_state.first_time_status = None;
+                self.startup_state.first_time_input.clear();
                 self.current_screen = self.pending_naming_screen().unwrap_or(ScreenId::MainMenu);
             }
             ScreenId::FirstTimeHomeworldConfirm => {
@@ -1231,31 +813,31 @@ impl App {
     pub fn reject_first_time_prompt(&mut self) {
         match self.current_screen {
             ScreenId::FirstTimePreloadedRenamePrompt => {
-                self.first_time_status = None;
-                self.first_time_input.clear();
+                self.startup_state.first_time_status = None;
+                self.startup_state.first_time_input.clear();
                 self.startup_state.first_time_rename_preloaded_empire = false;
                 self.current_screen = ScreenId::FirstTimeJoinSummary;
             }
             ScreenId::FirstTimeJoinEmpireName if self.startup_state.first_time_rename_preloaded_empire => {
-                self.first_time_status = None;
-                self.first_time_input.clear();
+                self.startup_state.first_time_status = None;
+                self.startup_state.first_time_input.clear();
                 self.current_screen = ScreenId::FirstTimePreloadedRenamePrompt;
             }
             ScreenId::FirstTimeJoinEmpireConfirm => {
-                self.first_time_input = self.first_time_empire_name.clone();
+                self.startup_state.first_time_input = self.startup_state.first_time_empire_name.clone();
                 self.current_screen = ScreenId::FirstTimeJoinEmpireName;
             }
             ScreenId::FirstTimeHomeworldConfirm => {
-                self.first_time_input = self.first_time_homeworld_name.clone();
+                self.startup_state.first_time_input = self.startup_state.first_time_homeworld_name.clone();
                 self.current_screen = ScreenId::FirstTimeHomeworldName;
             }
             ScreenId::ColonyWorldName => {
-                self.first_time_status =
+                self.startup_state.first_time_status =
                     Some("You must name this newly colonized world before continuing.".to_string());
                 self.current_screen = ScreenId::ColonyWorldName;
             }
             ScreenId::ColonyWorldConfirm => {
-                self.first_time_input = self.colony_world_name.clone();
+                self.startup_state.first_time_input = self.startup_state.colony_world_name.clone();
                 self.current_screen = ScreenId::ColonyWorldName;
             }
             _ => {}
@@ -4120,7 +3702,7 @@ impl App {
         Ok(())
     }
 
-    fn planet_transport_planet_default_coords(&self, mode: PlanetTransportMode) -> [u8; 2] {
+    pub(crate) fn planet_transport_planet_default_coords(&self, mode: PlanetTransportMode) -> [u8; 2] {
         self.planet_transport_planet_rows(mode)
             .get(self.planet.transport_planet_cursor)
             .map(|row| row.coords)
@@ -4973,7 +4555,7 @@ impl App {
         }
     }
 
-    fn status_if_no_modal<'a>(&self, status: Option<&'a str>) -> Option<&'a str> {
+    pub(crate) fn status_if_no_modal<'a>(&self, status: Option<&'a str>) -> Option<&'a str> {
         if self.current_modal_notice().is_some() {
             None
         } else {
@@ -5738,7 +5320,7 @@ impl App {
         self.empire.enemies_scroll_offset
     }
 
-    fn sorted_planet_rows(&self, sort: PlanetListSort) -> Vec<ec_data::EmpirePlanetEconomyRow> {
+    pub(crate) fn sorted_planet_rows(&self, sort: PlanetListSort) -> Vec<ec_data::EmpirePlanetEconomyRow> {
         let mut rows = self
             .game_data
             .empire_planet_economy_rows(self.player.record_index_1_based);
@@ -5756,7 +5338,7 @@ impl App {
         rows
     }
 
-    fn fleet_rows(&self) -> Vec<FleetRow> {
+    pub(crate) fn fleet_rows(&self) -> Vec<FleetRow> {
         let mut rows = self
             .game_data
             .fleets
@@ -5788,12 +5370,12 @@ impl App {
         rows
     }
 
-    fn starbase_rows(&self) -> Vec<StarbaseRow> {
+    pub(crate) fn starbase_rows(&self) -> Vec<StarbaseRow> {
         self.starbase
             .starbase_rows(&self.game_data, self.player.record_index_1_based)
     }
 
-    fn planet_database_rows(&self) -> Vec<PlanetDatabaseRow> {
+    pub(crate) fn planet_database_rows(&self) -> Vec<PlanetDatabaseRow> {
         let mut rows = build_player_starmap_projection(
             &self.game_data,
             &self.database,
@@ -5864,7 +5446,7 @@ impl App {
             .collect()
     }
 
-    fn planet_transport_planet_rows(
+    pub(crate) fn planet_transport_planet_rows(
         &self,
         mode: PlanetTransportMode,
     ) -> Vec<PlanetTransportPlanetRow> {
@@ -5889,7 +5471,7 @@ impl App {
             .collect()
     }
 
-    fn current_planet_transport_planet_row(
+    pub(crate) fn current_planet_transport_planet_row(
         &self,
         mode: PlanetTransportMode,
     ) -> Result<PlanetTransportPlanetRow, Box<dyn std::error::Error>> {
@@ -5922,7 +5504,7 @@ impl App {
             .ok_or_else(|| "current transport planet missing".into())
     }
 
-    fn current_planet_transport_fleet_rows(
+    pub(crate) fn current_planet_transport_fleet_rows(
         &self,
         mode: PlanetTransportMode,
     ) -> Result<Vec<PlanetTransportFleetRow>, Box<dyn std::error::Error>> {
@@ -5935,7 +5517,7 @@ impl App {
         Ok(self.planet_transport_fleet_rows_for_planet(mode, &base_row))
     }
 
-    fn current_planet_transport_fleet_row(
+    pub(crate) fn current_planet_transport_fleet_row(
         &self,
         mode: PlanetTransportMode,
     ) -> Result<PlanetTransportFleetRow, Box<dyn std::error::Error>> {
@@ -6000,7 +5582,7 @@ impl App {
             .ok_or_else(|| "current commission planet missing".into())
     }
 
-    fn current_planet_commission_view(
+    pub(crate) fn current_planet_commission_view(
         &self,
     ) -> Result<PlanetCommissionView, Box<dyn std::error::Error>> {
         let row = match self.current_commission_planet_row() {
@@ -6052,7 +5634,7 @@ impl App {
             .collect()
     }
 
-    fn build_change_rows(&self) -> Vec<PlanetBuildChangeRow> {
+    pub(crate) fn build_change_rows(&self) -> Vec<PlanetBuildChangeRow> {
         self.build_planet_rows()
             .into_iter()
             .map(|row| {
@@ -6082,7 +5664,7 @@ impl App {
             .ok_or_else(|| "current build planet missing".into())
     }
 
-    fn current_planet_build_orders(&self) -> Vec<PlanetBuildOrder> {
+    pub(crate) fn current_planet_build_orders(&self) -> Vec<PlanetBuildOrder> {
         let Ok(row) = self.current_build_planet_row() else {
             return vec![];
         };
@@ -6110,7 +5692,7 @@ impl App {
             .collect()
     }
 
-    fn current_planet_build_view(&self) -> Result<PlanetBuildMenuView, Box<dyn std::error::Error>> {
+    pub(crate) fn current_planet_build_view(&self) -> Result<PlanetBuildMenuView, Box<dyn std::error::Error>> {
         let row = match self.current_build_planet_row() {
             Ok(row) => row,
             Err(_) => {
@@ -6187,7 +5769,7 @@ impl App {
             .sum::<u32>())
     }
 
-    fn current_planet_build_max_quantity(&self) -> Result<u32, Box<dyn std::error::Error>> {
+    pub(crate) fn current_planet_build_max_quantity(&self) -> Result<u32, Box<dyn std::error::Error>> {
         let kind = self
             .planet.build_selected_kind
             .ok_or("planet build kind missing")?;
@@ -6237,7 +5819,7 @@ impl App {
         .to_string())
     }
 
-    fn planet_build_list_rows(&self) -> Vec<PlanetBuildListRow> {
+    pub(crate) fn planet_build_list_rows(&self) -> Vec<PlanetBuildListRow> {
         let Ok(row) = self.current_build_planet_row() else {
             return vec![];
         };
@@ -6307,7 +5889,7 @@ impl App {
             .collect()
     }
 
-    fn compose_outbox_queue(&self) -> Result<Vec<QueuedPlayerMail>, Box<dyn std::error::Error>> {
+    pub(crate) fn compose_outbox_queue(&self) -> Result<Vec<QueuedPlayerMail>, Box<dyn std::error::Error>> {
         let sender_empire_id = self.player.record_index_1_based as u8;
         Ok(self
             .queued_mail
@@ -6814,7 +6396,7 @@ impl App {
         );
     }
 
-    fn fleet_detach_prompt_and_default(&self, rows: &[FleetRow]) -> (String, String) {
+    pub(crate) fn fleet_detach_prompt_and_default(&self, rows: &[FleetRow]) -> (String, String) {
         let fleet_number = rows
             .get(self.fleet.detach_cursor)
             .map(|row| row.fleet_number)
@@ -6856,7 +6438,7 @@ impl App {
         }
     }
 
-    fn fleet_detach_current_input(&self) -> &str {
+    pub(crate) fn fleet_detach_current_input(&self) -> &str {
         if self.fleet.detach_mode == FleetDetachMode::SelectingFleet {
             &self.fleet.detach_select_input
         } else {
@@ -7132,7 +6714,7 @@ impl App {
         );
     }
 
-    fn current_fleet_merge_rows(&self) -> Vec<FleetRow> {
+    pub(crate) fn current_fleet_merge_rows(&self) -> Vec<FleetRow> {
         let rows = self.fleet_rows();
         match self.fleet.merge_mode {
             FleetMergeMode::SelectingSource => rows,
@@ -7149,14 +6731,14 @@ impl App {
         }
     }
 
-    fn current_fleet_merge_input(&self) -> &str {
+    pub(crate) fn current_fleet_merge_input(&self) -> &str {
         match self.fleet.merge_mode {
             FleetMergeMode::SelectingSource => &self.fleet.merge_source_input,
             FleetMergeMode::SelectingHost => &self.fleet.merge_host_input,
         }
     }
 
-    fn current_fleet_transfer_rows(&self) -> Vec<FleetRow> {
+    pub(crate) fn current_fleet_transfer_rows(&self) -> Vec<FleetRow> {
         let mut rows = match self.fleet.transfer_mode {
             FleetTransferMode::SelectingFleets => self.fleet_rows(),
             _ => self
@@ -7178,14 +6760,14 @@ impl App {
         rows
     }
 
-    fn current_fleet_transfer_input(&self) -> &str {
+    pub(crate) fn current_fleet_transfer_input(&self) -> &str {
         match self.fleet.transfer_mode {
             FleetTransferMode::SelectingFleets => &self.fleet.transfer_select_input,
             _ => &self.fleet.transfer_input,
         }
     }
 
-    fn fleet_number_for_record_index(&self, record_index_1_based: usize) -> Option<u16> {
+    pub(crate) fn fleet_number_for_record_index(&self, record_index_1_based: usize) -> Option<u16> {
         self.game_data
             .fleets
             .records
@@ -7193,7 +6775,7 @@ impl App {
             .map(|fleet| fleet.local_slot_word_raw())
     }
 
-    fn fleet_transfer_prompt_and_default(&self, rows: &[FleetRow]) -> (String, String) {
+    pub(crate) fn fleet_transfer_prompt_and_default(&self, rows: &[FleetRow]) -> (String, String) {
         match self.fleet.transfer_mode {
             FleetTransferMode::SelectingFleets => (
                 "Fleet # ".to_string(),
@@ -7215,7 +6797,7 @@ impl App {
         }
     }
 
-    fn default_planet_prompt_coords(&self) -> [u8; 2] {
+    pub(crate) fn default_planet_prompt_coords(&self) -> [u8; 2] {
         let homeworld_index = self
             .game_data
             .player
@@ -7257,7 +6839,7 @@ impl App {
         Ok(())
     }
 
-    fn fleet_eta_default_destination(&self) -> [u8; 2] {
+    pub(crate) fn fleet_eta_default_destination(&self) -> [u8; 2] {
         let rows = self.fleet_rows();
         let Some(row) = rows.get(self.fleet.eta_cursor) else {
             return [8, 2];
@@ -7298,11 +6880,11 @@ impl App {
         }
     }
 
-    fn fleet_order_target_status_line(&self) -> String {
+    pub(crate) fn fleet_order_target_status_line(&self) -> String {
         fleet_target_status_line(self.fleet.order_mission_code)
     }
 
-    fn fleet_order_target_prompt(&self) -> String {
+    pub(crate) fn fleet_order_target_prompt(&self) -> String {
         match fleet_target_input_kind(self.fleet.order_mission_code) {
             FleetTargetInputKind::StarbaseId => "Starbase # ".to_string(),
             FleetTargetInputKind::FleetId => "Fleet # ".to_string(),
@@ -7311,7 +6893,7 @@ impl App {
         }
     }
 
-    fn fleet_order_target_default(&self) -> String {
+    pub(crate) fn fleet_order_target_default(&self) -> String {
         match fleet_target_input_kind(self.fleet.order_mission_code) {
             FleetTargetInputKind::StarbaseId => self
                 .fleet_order_default_starbase()
@@ -7362,11 +6944,11 @@ impl App {
         )
     }
 
-    fn fleet_group_target_status_line(&self) -> String {
+    pub(crate) fn fleet_group_target_status_line(&self) -> String {
         fleet_target_status_line(self.fleet.group_mission_code)
     }
 
-    fn fleet_group_target_prompt(&self) -> String {
+    pub(crate) fn fleet_group_target_prompt(&self) -> String {
         match fleet_target_input_kind(self.fleet.group_mission_code) {
             FleetTargetInputKind::StarbaseId => "Starbase # ".to_string(),
             FleetTargetInputKind::FleetId => "Fleet # ".to_string(),
@@ -7375,7 +6957,7 @@ impl App {
         }
     }
 
-    fn fleet_group_target_default(&self) -> String {
+    pub(crate) fn fleet_group_target_default(&self) -> String {
         match fleet_target_input_kind(self.fleet.group_mission_code) {
             FleetTargetInputKind::StarbaseId => self
                 .fleet_group_default_starbase()
@@ -7640,7 +7222,7 @@ impl App {
         }
     }
 
-    fn fleet_mission_picker_enabled_flags(&self) -> Vec<bool> {
+    pub(crate) fn fleet_mission_picker_enabled_flags(&self) -> Vec<bool> {
         match self.fleet.mission_picker_caller {
             Some(FleetMissionPickerCaller::SingleOrder) => {
                 let selected = self
@@ -7922,7 +7504,7 @@ impl App {
         )
     }
 
-    fn first_time_empire_rows(&self) -> Vec<String> {
+    pub(crate) fn first_time_empire_rows(&self) -> Vec<String> {
         self.game_data
             .player
             .records
@@ -7957,7 +7539,7 @@ impl App {
             .collect()
     }
 
-    fn first_time_homeworld_summary(
+    pub(crate) fn first_time_homeworld_summary(
         &self,
     ) -> Result<([u8; 2], u16, u16), Box<dyn std::error::Error>> {
         let planet_index = self
@@ -7982,9 +7564,9 @@ impl App {
         ))
     }
 
-    fn colony_world_summary(&self) -> Result<([u8; 2], u16, u16), Box<dyn std::error::Error>> {
+    pub(crate) fn colony_world_summary(&self) -> Result<([u8; 2], u16, u16), Box<dyn std::error::Error>> {
         let planet_index = self
-            .colony_world_planet_record_index_1_based
+            .startup_state.colony_world_planet_record_index_1_based
             .or_else(|| self.colony_world_target_planet_index())
             .ok_or("colony world prompt missing target planet")?;
         let planet = self
@@ -8005,7 +7587,7 @@ impl App {
     fn complete_first_time_join(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.game_data.join_player(
             self.player.record_index_1_based,
-            &self.first_time_empire_name,
+            &self.startup_state.first_time_empire_name,
         )?;
         self.save_game_data()?;
         self.refresh_player_context()?;
@@ -8015,7 +7597,7 @@ impl App {
     fn complete_first_time_homeworld_name(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.game_data.rename_player_homeworld(
             self.player.record_index_1_based,
-            &self.first_time_homeworld_name,
+            &self.startup_state.first_time_homeworld_name,
         )?;
         self.save_game_data()?;
         self.refresh_player_context()?;
@@ -8024,18 +7606,18 @@ impl App {
 
     fn complete_colony_world_name(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let planet_index = self
-            .colony_world_planet_record_index_1_based
+            .startup_state.colony_world_planet_record_index_1_based
             .or_else(|| self.colony_world_target_planet_index())
             .ok_or("colony world prompt missing target planet")?;
         self.game_data.rename_owned_planet(
             self.player.record_index_1_based,
             planet_index,
-            &self.colony_world_name,
+            &self.startup_state.colony_world_name,
         )?;
         self.save_game_data()?;
         self.refresh_player_context()?;
-        self.colony_world_planet_record_index_1_based = None;
-        self.colony_world_name.clear();
+        self.startup_state.colony_world_planet_record_index_1_based = None;
+        self.startup_state.colony_world_name.clear();
         Ok(())
     }
 
@@ -8046,7 +7628,7 @@ impl App {
             .records
             .get_mut(self.player.record_index_1_based - 1)
             .ok_or("player record missing for pre-loaded rename")?;
-        player.set_controlled_empire_name_raw(&self.first_time_empire_name);
+        player.set_controlled_empire_name_raw(&self.startup_state.first_time_empire_name);
         self.save_game_data()?;
         self.refresh_player_context()?;
         Ok(())
@@ -8225,7 +7807,7 @@ fn center_scroll_to_cursor(scroll_offset: &mut usize, cursor: usize, visible: us
     *scroll_offset = cursor.saturating_sub(half).min(max_offset);
 }
 
-fn compose_recipient_label(game_data: &CoreGameData, empire_id: Option<u8>) -> String {
+pub(crate) fn compose_recipient_label(game_data: &CoreGameData, empire_id: Option<u8>) -> String {
     let Some(empire_id) = empire_id else {
         return "<unknown>".to_string();
     };
