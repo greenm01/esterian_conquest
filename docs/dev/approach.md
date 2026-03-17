@@ -12,6 +12,17 @@ The goal is:
   modern reimplementation in Rust
 - keep the original DOS binaries and data as the reference implementation
 
+For the `ECMAINT` turn-cycle RE specifically, the target is explicit:
+
+- fully recover the complete week-assignment process inside the yearly
+  `1..52` scheduler
+- fully recover the cross-turn fleet-behavior process well enough to explain
+  how fleets move, arrive, defer missions, retarget, retreat, and generate
+  dated reports across multiple maint ticks
+- consider that thread complete only when the oracle behavior is understood
+  well enough to call the weekly scheduler and cross-turn fleet/report process
+  fully recovered
+
 ## Principles
 
 1. Treat the original manuals as the semantic spec, and the DOS binaries as the

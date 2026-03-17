@@ -7789,3 +7789,81 @@ Practical consequence for Rust step-4 modeling:
 - it likely depends on both:
   - the surrounding hostile-resolution context
   - and the target world's current payload/class
+
+Inverse transplant check on `bombard-pre`:
+
+- transplanted the stronger `invade` / `fleet-battle` target-world seed into
+  `bombard-pre`
+- reran the natural `bombard` control probe for `2` ticks with no forced
+  `+0x60`
+
+Observed result:
+
+- the watched target world still stayed unchanged on both ticks
+- `RESULTS.DAT` stayed empty, just like preserved `bombard-pre`
+
+Current practical reading:
+
+- stronger target-world payload alone is **not** enough to produce the natural
+  `invade` / `fleet-battle` target-world aftermath shape inside the bombard
+  context
+- combining this with the earlier transplant result gives the cleanest current
+  rule:
+  natural target-world aftermath depends on **both**
+  - hostile-resolution context
+  - and target-world payload/class
+- neither side alone is sufficient
+
+#### Timing-flow follow-up: explicit late weekly loop plus per-entry offset helper
+
+Rechecked:
+
+- `artifacts/ghidra/ecmaint-live/timing-flow.txt`
+- `artifacts/ghidra/ecmaint-live/late-report-pipeline.txt`
+- direct probe `artifacts/ghidra/ecmaint-live/probe-1000_a26e.txt`
+
+Current strongest static timing gain:
+
+- `timing-flow.txt` itself remains mostly negative evidence:
+  - `2000:945b` is still best treated as shared current-date/status text
+    formatting in the token/schedule path
+  - it is **not** the recovered player-report `Stardate` formatter
+- but the already-recovered late weekly/report loop at
+  `0000:12ef..1369` now has a more useful timing-side helper:
+  `0000:1339 -> 1000:a26e`
+
+What `1000:a26e` concretely does:
+
+- iterates a local table of `0x0a`-byte entries via count at stack slot
+  `+0xfe58` and pointer at stack slot `+0xfe64`
+- reads a small code byte from each entry at offset `-0x0a`
+- updates a local 32-bit accumulator at stack slots `-0x18/-0x16`
+- applies fixed code-dependent offsets:
+  - code `1` -> `+2`
+  - code `2` -> `+7`
+  - code `3` -> `+0x15`
+  - code `8` -> `+0x1e`
+  - codes `4`, `5`, `6`, `7` -> `+0`
+- also clamps two local byte fields as it goes:
+  - one at `+0xfe1c` toward values like `0x0a`, `0x0f`, `0x14`, `0x19`
+  - one at `-0x10` toward values like `6`, `5`, `4`, `3`, `1`
+
+Current practical reading:
+
+- this is the first strong static candidate for real week-bucket assignment or
+  report-timing window shaping inside the late weekly loop
+- it is more promising than `2000:945b` because it is:
+  - called from the explicit summary-walk loop
+  - driven by decoded per-entry codes
+  - and mutates a local accumulator through fixed timing-like offsets
+- cautious interpretation:
+  do **not** call the exact semantics settled yet, but treat `1000:a26e` as a
+  leading candidate for the mapping from summary entry class to week-offset /
+  timing bucket constraints
+
+Best next timing-side target:
+
+- recover where the `0x0a`-byte local table consumed by `1000:a26e` is built
+- identify what the code byte at entry offset `-0x0a` actually classifies
+- relate those codes back to observed fleet/report transitions in preserved
+  logs and fixture probes

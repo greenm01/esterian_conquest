@@ -135,6 +135,11 @@ Primary goal:
   the Rust rule should move
 - shift the next major implementation phase toward cloning `ECGAME` in Rust on
   top of the new Rust-native SQLite campaign store
+- for the active `ECMAINT` turn-cycle RE thread, the completion target is
+  explicit:
+  fully recover the complete week-assignment and cross-turn fleet-behavior
+  process well enough to call that oracle behavior fully recovered, not merely
+  approximated
 
 Highest-value remaining `ECMAINT` oracle RE targets:
 
@@ -299,6 +304,13 @@ Current Rust-facing implication:
       the natural target-world aftermath shape depends strongly on target-world
       payload/class, not only on mission family or whether report output is
       already active
+  - inverse transplant into `bombard-pre` closes the other half:
+    - transplanting the stronger `invade` / `fleet-battle` target-world seed
+      into `bombard-pre` still leaves the watched target world unchanged across
+      both preserved ticks
+    - practical implication:
+      target-world payload/class alone is not enough; the natural aftermath
+      shape depends on both hostile context and target-world payload/class
 
 Latest static tightening on the turn-cycle side:
 
@@ -357,6 +369,18 @@ Latest static tightening on the turn-cycle side:
   than a hidden gameplay-core phase; the missing middle turn order is still
   more likely earlier than the fixed late `8652` chain or inside helpers not
   yet split out
+- timing-flow follow-up produced one stronger static lead:
+  - `2000:945b` still looks like token/schedule date text formatting, not the
+    player-report `Stardate` emitter
+  - but the explicit late weekly loop at `0000:12ef..1369` calls
+    `1000:a26e`, which now looks like a per-entry timing-bucket helper
+  - `1000:a26e` walks a `0x0a`-byte local table, reads a small code byte from
+    each entry, and applies fixed offsets to a local accumulator:
+    `+2`, `+7`, `+0x15`, `+0x1e`
+  - practical implication:
+    `1000:a26e` is currently the strongest static candidate for mapping
+    summary entry class to week-offset / timing-window constraints inside the
+    late `1..52` scheduler
 
 Combat policy for the Rust clone remains:
 

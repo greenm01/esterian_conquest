@@ -141,8 +141,13 @@ Prefer rule-shaped generators and validators over preserved-byte blob emission.
 
 1. expand Rust from known accepted scenarios toward general compliant gamestate generation
 2. keep recovering `ECMAINT` cross-file linkage and integrity rules
-3. replace scenario-specific constants with explicit validators/builders
-4. defer any KDL scenario DSL until the internal Rust state/order model stabilizes
+3. keep the `ECMAINT` turn-cycle RE focused on full recovery of:
+   - the complete `1..52` week-assignment process
+   - the complete cross-turn fleet-behavior and dated-report process
+   - this remains a top priority until that oracle behavior is understood well
+     enough to call it fully recovered, not merely approximated
+4. replace scenario-specific constants with explicit validators/builders
+5. defer any KDL scenario DSL until the internal Rust state/order model stabilizes
 
 ## Avoid
 
