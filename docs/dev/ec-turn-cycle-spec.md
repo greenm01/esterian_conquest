@@ -7,6 +7,10 @@ The goal is to specify the oracle's phase order, not Rust policy. Where the
 original ordering is not yet fully decoded, this document marks the gap
 explicitly instead of filling it with guessed semantics.
 
+For the implementation-facing companion that describes the same process as a
+Rust engine/state-machine problem, use
+[rust-turn-cycle-implementation.md](/home/mag/dev/esterian_conquest/docs/dev/rust-turn-cycle-implementation.md).
+
 ## Confidence Levels
 
 - `High`: directly supported by static RE, black-box probes, or both
