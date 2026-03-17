@@ -5,7 +5,6 @@ use crate::domains::empire::EmpireAction;
 use crate::domains::messaging::MessagingAction;
 use crate::domains::starmap::StarmapAction;
 use crate::domains::startup::StartupAction;
-use crate::screen::CommandMenu;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {

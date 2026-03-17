@@ -2,7 +2,6 @@ use crossterm::event::KeyEvent;
 use ec_data::{IntelTier, PlanetIntelSnapshot, build_player_starmap_projection};
 
 use crate::app::Action;
-use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
     draw_command_line_default_input, draw_command_prompt, draw_status_line, draw_title_bar,
     new_playfield,
