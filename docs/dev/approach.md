@@ -144,7 +144,28 @@ For the Rust `ECGAME` clone, preserve the original pre-menu player flow too:
 - smart pathfinding should be documented as a Rust policy layer, not implied to
   be a recovered original mechanic
 
-11. Prefer declarative sysop config over endless setup flags
+11. Keep deterministic Rust combat inside the oracle's timing framework
+
+- the project does not need to reproduce the original opaque combat RNG
+- deterministic Rust combat remains the canonical replacement
+- however, combat outcomes still need to be folded into the oracle-backed
+  maintenance structure:
+  - canonical middle turn order
+  - intra-year `1..52` weekly timing
+  - follow-on consequences such as retreats, aborts, retargets, bombardment,
+    invasion resolution, and Fleet Command Center summaries
+  - late report/output emission sequencing
+- practical rule:
+  - do not spend RE effort trying to clone Pascal-era randomness
+  - do spend RE effort recovering where combat happens in the turn, when its
+    consequences land on the weekly timeline, and how those consequences are
+    routed into reports and derived files
+- Rust should therefore converge on:
+  1. deterministic combat resolution
+  2. oracle-faithful phase placement
+  3. oracle-faithful weekly event/report scheduling
+
+12. Prefer declarative sysop config over endless setup flags
 
 - `ECUTIL`-style setup/admin data is mostly declarative and should eventually
   live in KDL rather than only in one-off command flags
@@ -159,7 +180,7 @@ For the Rust `ECGAME` clone, preserve the original pre-menu player flow too:
 - CLI and future TUI surfaces should act as frontends over that config and the
   shared Rust model, not as the only place where setup can be expressed
 
-12. Keep storage additive to the compatibility boundary
+13. Keep storage additive to the compatibility boundary
 
 - the immediate engineering target remains a full-game-capable Rust maintenance
   engine with classic `.DAT` fidelity
@@ -179,12 +200,12 @@ For the Rust `ECGAME` clone, preserve the original pre-menu player flow too:
     not on live `.DAT` mutation paths
   - `ec-cli db-import` / `db-export` are the explicit compatibility bridge for
     classic directories
-  - unresolved or partially decoded classic outputs may still be preserved in
-    compatibility-oriented SQLite tables while the Rust-native model matures
+- unresolved or partially decoded classic outputs may still be preserved in
+  compatibility-oriented SQLite tables while the Rust-native model matures
 - SQLite must be bundled/self-hosted in the compiled Rust application; sysops
   and players should not need a separate SQLite installation
 
-13. Own manual-defined economy semantics when replay probing stalls
+14. Own manual-defined economy semantics when replay probing stalls
 
 - the manuals clearly define the important economy tradeoff:
   - empire-wide tax generates yearly production points

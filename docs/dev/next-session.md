@@ -145,6 +145,15 @@ Highest-value remaining `ECMAINT` oracle RE targets:
    and rankings output
 5. economy / production application timing
 
+Combat policy for the Rust clone remains:
+
+- do not chase original combat RNG parity
+- do keep deterministic Rust combat embedded in the oracle-backed:
+  - turn order
+  - weekly timing
+  - follow-on consequence sequencing
+  - late report/output pipeline
+
 ## What Is Settled
 
 - manuals are the semantic authority
