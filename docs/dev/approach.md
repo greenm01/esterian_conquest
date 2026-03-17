@@ -258,6 +258,92 @@ Long term:
 4. Full Rust maintenance replacement
 
 - reimplement `ECMAINT` behavior in Rust with reproducible outputs
+
+## Highest-Value Remaining Oracle RE
+
+To make the Rust clone as faithful as possible, prioritize reusable engine
+structure over isolated one-off edge cases.
+
+Current highest-value oracle targets:
+
+1. canonical middle turn order
+
+- recover the relative ordering of:
+  - command normalization
+  - economy / tax growth
+  - production completion
+  - movement
+  - contact / interception
+  - combat
+  - bombardment / invasion / blitz resolution
+  - retreats / seek-home retargets
+  - administrative loss summaries
+- this is the largest remaining gap between a behaviorally close maint clone
+  and a structurally faithful one
+
+2. weekly event scheduler semantics
+
+- recover how `ECMAINT` assigns weeks inside the `1..52` yearly timeline
+- determine whether week values are:
+  - persisted
+  - derived from summary/event records
+  - or recomputed during late report emission
+- determine how travel, interception, combat, and delayed mission resolution
+  are placed on that timeline
+
+3. summary/event record pipeline
+
+- recover how the engine:
+  - accumulates canonicalized summary/event entries
+  - sorts/canonicalizes them
+  - emits reports from them in the late weekly loop
+- Rust should ultimately mirror that staged architecture instead of relying on
+  ad hoc per-feature report emission
+
+4. report routing and output-family policy
+
+- recover:
+  - who receives which report families
+  - how Fleet Command Center summaries are injected
+  - when `RESULTS.DAT`, `MESSAGES.DAT`, and `RANKINGS.TXT` diverge or overlap
+  - whether some reports suppress, merge, or follow others by rule
+
+5. economy / production application timing
+
+- recover:
+  - exact production completion timing
+  - growth timing relative to tax and ownership changes
+  - blocked-build timing and spillover behavior
+  - salvage accounting destination and timing
+
+6. combat-adjacent ordering
+
+- tighten:
+  - interception precedence
+  - multi-fleet same-location ordering
+  - retreat timing
+  - mission abort timing after combat
+  - starbase defense ordering relative to fleets
+  - whether bombard/invade can resolve in the same yearly pass as arrival
+
+7. derived-file regeneration lifecycle
+
+- keep recovering exactly when and from which inputs the oracle rebuilds:
+  - `DATABASE.DAT`
+  - `RESULTS.DAT`
+  - `MESSAGES.DAT`
+  - `RANKINGS.TXT`
+
+Current recommended execution order:
+
+1. canonical middle turn order
+2. weekly event assignment rules
+3. summary/event record format and late emission pipeline
+4. report routing and recipient rules
+5. economy/production application timing
+
+This set will improve Rust fidelity more than continuing to collect isolated
+mission edge cases in random order.
 - preserve compatibility with original save directories and reports
 - deterministic combat is now implemented as a canonical Rust replacement for
   the original RNG-driven combat paths

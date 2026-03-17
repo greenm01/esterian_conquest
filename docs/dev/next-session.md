@@ -136,6 +136,15 @@ Primary goal:
 - shift the next major implementation phase toward cloning `ECGAME` in Rust on
   top of the new Rust-native SQLite campaign store
 
+Highest-value remaining `ECMAINT` oracle RE targets:
+
+1. canonical middle turn order
+2. weekly event assignment rules inside the `1..52` yearly timeline
+3. summary/event record format plus late weekly emission pipeline
+4. report routing / recipient policy across `RESULTS.DAT`, `MESSAGES.DAT`,
+   and rankings output
+5. economy / production application timing
+
 ## What Is Settled
 
 - manuals are the semantic authority
@@ -256,6 +265,10 @@ Primary goal:
       `sensor contact -> identification -> interception`
     - adjacent report transitions are dominated by gap `0` and gap `1` weeks,
       which fits a real ordered weekly event stream
+    - Fleet Command Center loss summaries also participate in immediate
+      follow-on sequencing:
+      - `fleet-lost -> join-retarget` same week
+      - `fleet-lost -> planet-bombarded` same week
   - the actual report/rankings timestamp writer and any persisted per-day field
     are still open
 - `ECMAINT` canonical phase-order recovery now has a dedicated stable note at

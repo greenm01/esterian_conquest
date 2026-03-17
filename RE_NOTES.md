@@ -6544,3 +6544,35 @@ Practical consequence:
   - same-week micro-order exists inside the weekly scheduler
   - immediate next-week transitions are also common, which fits a real ordered
     event stream
+
+#### Corpus-side combat/admin follow-on ordering tightened further
+
+Extended `tools/analyze_ec_report_logs.py` with targeted transition counts for
+combat/admin follow-on patterns.
+
+Current new aggregate results:
+
+- `identified -> fleet-lost` same week: `4x`
+- `attacked -> fleet-lost` next week: `2x`
+- `fleet-lost -> join-retarget` same week: `2x`
+- `fleet-lost -> planet-bombarded` same week: `4x`
+- `intercepted -> planet-bombarded` next week: `3x`
+
+Concrete examples:
+
+- `ec20.txt` `40/3021`:
+  - Fleet Command Center reports loss of the `7th Fleet`
+  - same week, another fleet emits `Join mission report: In light of the
+    destruction of the 7th Fleet...`
+- `ec41.txt` `33/3042`:
+  - Fleet Command Center reports loss of `Starbase 2`
+  - same week, planet `"hector"` emits bombardment damage
+
+Practical consequence:
+
+- Fleet Command Center loss summaries are not a detached annual appendix
+- at least some retargeting and bombardment consequences are emitted on the
+  same weekly stream immediately after combat/admin loss events
+- this further supports a staged but shared event pipeline:
+  - simulation consequences land on ordered weekly ticks
+  - admin/follow-on reports are injected into that same sequence

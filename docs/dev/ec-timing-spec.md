@@ -116,6 +116,12 @@ High-signal sequencing patterns:
   - they usually read like administrative loss summaries after combat or
     interception outcomes
   - they are not a separate out-of-band yearly appendix
+- targeted recurring transitions also show immediate follow-on consequences in
+  that same ordered stream:
+  - `identified -> fleet-lost` same week: `4x`
+  - `fleet-lost -> join-retarget` same week: `2x`
+  - `fleet-lost -> planet-bombarded` same week: `4x`
+  - `intercepted -> planet-bombarded` next week: `3x`
 
 Practical conclusion:
 

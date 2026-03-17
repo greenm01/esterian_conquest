@@ -201,11 +201,21 @@ Evidence:
   - this fits a shared ordered weekly event stream
 - Fleet Command Center loss summaries are interleaved into the same weekly
   ordering rather than appended as a separate yearly summary
+- targeted recurring transitions now show that administrative summaries and
+  follow-on mission consequences share that same stream
+  - `identified -> fleet-lost` same week: `4x`
+  - `attacked -> fleet-lost` next week: `2x`
+  - `fleet-lost -> join-retarget` same week: `2x`
+  - `fleet-lost -> planet-bombarded` same week: `4x`
+  - `intercepted -> planet-bombarded` next week: `3x`
 
 Practical meaning:
 
 - combat/contact/admin summaries are likely produced from one shared event
   stream inside the yearly simulation
+- at least some post-combat administrative and retargeting consequences are
+  emitted immediately or on the very next weekly tick, not in a detached
+  end-of-year appendix
 
 #### 4e. Internal ordering of economy, production, tax growth, and command application remains open
 

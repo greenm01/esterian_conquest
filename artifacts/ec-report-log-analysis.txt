@@ -184,6 +184,13 @@ top adjacent ordered kind transitions:
   - 10x fleet-report-other -> bombard
   - 9x planet-report -> guard-world
 
+targeted timing transitions:
+  - 4x identified -> fleet-lost with gap 0
+  - 2x attacked -> fleet-lost with gap 1
+  - 2x fleet-lost -> join-retarget with gap 0
+  - 4x fleet-lost -> planet-bombarded with gap 0
+  - 3x intercepted -> planet-bombarded with gap 1
+
 fleet-command-center reports: 28
 sample fleet-command-center sequencing:
   - ec3.txt 28/3003
@@ -303,5 +310,6 @@ high-signal conclusions:
   - Same-week ordering is not random: the corpus repeatedly shows contact -> identification -> interception as a stable intra-week sequence.
   - Multi-week sequences from the same source are also common, showing missions progressing across weeks inside one year.
   - Across adjacent reports, zero-gap and one-week transitions dominate, which fits an ordered weekly event stream rather than post-hoc narrative stamping.
+  - Administrative loss summaries and retarget/follow-on mission reports can appear immediately after combat-related fleet reports, which suggests they are emitted from the same ordered event pipeline.
   - Fleet Command Center reports act like administrative loss summaries and are interleaved into the same weekly ordering.
   - The log corpus therefore supports a real sub-year scheduler, not just decorative timestamps.
