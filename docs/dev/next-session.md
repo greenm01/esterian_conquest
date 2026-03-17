@@ -234,6 +234,19 @@ Primary goal:
 - exact classic `MESSAGES.DAT` mail/report format and routing semantics are
   still only partially recovered; current Rust behavior preserves classic mail
   but does not yet decode or reproduce it faithfully
+- `ECMAINT` timing / `Stardate` recovery is now partially grounded:
+  - shipped historical logs strongly support a real `1..52` in-year timeline
+    with rollover from `52/YYYY` to `1/YYYY+1`
+  - the leading semantic interpretation is now week-of-year rather than
+    literal day-of-year
+  - the new timing-focused Ghidra report lives at
+    [ec-timing-spec.md](ec-timing-spec.md) and
+    `artifacts/ghidra/ecmaint-live/timing-flow.txt`
+  - the first static correction is important:
+    - `2000:945b` currently looks like a maintenance schedule/status date
+      formatter in the token path, not the player-report `Stardate` emitter
+  - the actual report/rankings timestamp writer and any persisted per-day field
+    are still open
 - for the Rust client, do not infer "returning joined player" from
   `PLAYER.DAT` assigned-player fields alone:
   - live classic probing now shows caller/dropfile identity matching the

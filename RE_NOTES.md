@@ -6205,3 +6205,114 @@ Current best interpretation:
     the same turn
 
 Keep the semantic rule settled and the accounting encoding unresolved.
+
+---
+
+## ECMAINT timing / stardate anchors
+
+### Session: 2026-03-17
+
+Goal: understand whether the `Stardate: D/YYYY` values in classic player
+reports imply a real internal day system in `ECMAINT`, and locate the first
+static anchors for that timing path.
+
+#### Historical log sweep: strong evidence for a 52-step yearly scale
+
+A quick sweep over `original/v1.5/ec-logs-2012/*.txt` found:
+
+- `735` `Stardate:` lines total
+- minimum observed day = `1`
+- maximum observed day = `52`
+- repeated year rollover pairs where one year reaches `52` and a later log for
+  the next year starts at `1`
+
+Representative rollover examples:
+
+- `ec8.txt`: reaches `Stardate: 52/3009`
+- `ec9.txt`: begins with `Stardate: 1/3010`
+- `ec47.txt`: reaches `Stardate: 52/3049`
+- `ec48.txt`: begins with `Stardate: 1/3052`
+
+Practical conclusion:
+
+- classic `Stardate` values clearly expose an in-year component in the closed
+  range `1..52`
+- this is much stronger than a cosmetic ranking-year label; the logs support a
+  real internal yearly tick scale
+- the leading semantic interpretation is now "week-of-year", since `52` fits
+  weeks much better than literal days or months
+
+This does **not** yet prove where the day lives in memory or on disk, only
+that the player-facing reports behave as if `ECMAINT` is assigning event ticks
+within a 52-step year.
+
+#### New reusable static extractor
+
+Added a focused headless Ghidra script:
+
+- `tools/ghidra_scripts/ECMaintTimingFlow.java`
+
+Current runner behavior on this machine required one small workflow fix:
+
+- `tools/run_ghidra_script.sh` and `tools/run_ghidra_script_args.sh` now stage
+  checked-in scripts from `tools/ghidra_scripts/` into
+  `tools/ghidra_scripts_tmp/` before headless execution
+- this keeps the checked-in script as the source of truth while still using
+  the local script path that current headless Ghidra accepts here
+
+The current report is emitted to:
+
+- `artifacts/ghidra/ecmaint-live/timing-flow.txt`
+
+Command:
+
+- `tools/run_ghidra_script.sh ecmaint-live ECMaintTimingFlow.java`
+
+#### First static findings
+
+Static anchors frozen by the new report:
+
+- `2000:6fc6`
+  - string cluster includes:
+    `Today is ' - maintenance is not scheduled to run.`
+  - this remains the clearest current anchor for the maintenance date/schedule
+    gate
+- `3000:189c`
+  - string cluster includes:
+    `Enabling player-ranking text file generation...`
+  - this is now the best current rankings-output anchor, but still lacks a
+    decoded code path to the report stardate formatter
+- `3000:39dc`
+  - current time-query helper candidate from earlier token-anchor work
+  - still not semantically decoded from the live dump
+
+Most importantly, the earlier timestamp-helper assumption changed:
+
+- `2000:945b` currently has only four direct call sites in the analyzed live
+  dump
+- all four are in the token/schedule region around `0x97xx..0x9exx`
+- none are currently tied to player report generation
+
+Practical interpretation:
+
+- `2000:945b` is currently better treated as a current-date/status formatter
+  used by maintenance scheduling/token handling
+- do **not** treat `2000:945b` as the recovered `Stardate: D/YYYY` player
+  report emitter yet
+
+#### Current best model
+
+- each round is still one year, matching the manuals
+- within that yearly maintenance pass, classic behavior now strongly suggests a
+  52-step internal timeline
+- the leading semantic interpretation of that timeline is week-of-year
+- player-visible reports appear to be stamped with event ticks inside that
+  yearly timeline, not just with "the date maintenance ran"
+
+#### Still open
+
+- the actual report/rankings `Stardate` formatter path
+- whether the tick value is persisted in classic files or exists only in
+  scratch/runtime state
+- which exact `CONQUEST.DAT` fields feed the maintenance schedule gate
+- how specific movement/combat/report subphases map onto individual tick numbers
