@@ -31,6 +31,24 @@ that movement, hostile contact, delayed mission resolution, and later weekly
 report stamping all exist, but economy / production / command-side transforms
 are not yet fully placed relative to one another.
 
+## Practical Rust Consequences
+
+Current practical guidance for `rust-maint`:
+
+- keep cross-file validation as a distinct early phase, not mixed into yearly
+  state mutation
+- keep summary/event generation as a real intermediate boundary inside the
+  engine; the original binary clearly builds outcomes first and only later
+  canonicalizes, coalesces, and emits report text from them
+- do not shape Rust gameplay order around the already-recovered late helpers:
+  - `9e1e` is startup summary-workspace plumbing
+  - `6d9b` is restore/integrity wrapper logic
+  - `5ee4` is staged validation plus known fleet/base/IPBM summary emission
+  - `8652 -> 1da6 / 0c06 / 2db3 / 56be` is late output/database/report side
+  - `87f4 -> 8b15` is late summary coalescing/report prep
+- this means the remaining Rust turn-order risk is concentrated in the still
+  unresolved earlier simulation helpers, not in the late report pipeline
+
 ## Evidence Backbone
 
 This spec is built from four independent evidence sources:

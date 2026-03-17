@@ -145,6 +145,16 @@ Highest-value remaining `ECMAINT` oracle RE targets:
    and rankings output
 5. economy / production application timing
 
+Current Rust-facing implication:
+
+- keep treating `rust-maint` as three distinct boundaries:
+  - early structural validation / restore framing
+  - yearly state mutation plus summary/event creation
+  - late summary canonicalization, report emission, and derived-file rebuild
+- do not keep tuning Rust gameplay order against the already-recovered late
+  `5ee4` / `6d9b` / `8652` machinery; the remaining ordering risk is now more
+  likely in earlier simulation helpers
+
 Latest static tightening on the turn-cycle side:
 
 - `2000:87f4 -> 2000:8b15` is now better classified as a late summary
