@@ -7939,3 +7939,66 @@ Current practical timing model:
 - the remaining missing piece is still the code-table builder and semantic
   meaning of those code bytes, not whether the scheduler has explicit
   acceptance / rejection logic
+
+#### Top-down step-4 follow-up: earlier-driver target tightened, file-I/O trace added
+
+Continued the step-4 recovery thread from the new top-down premise.
+
+Current corrective conclusion:
+
+- the direction shift is right, but the old "trace between `6d9b` and `861d`"
+  framing is not:
+  - `6d9b` remains restore/validation scaffolding
+  - `861d` remains the already-bounded late output tail
+  - the missing middle ordering is still more likely earlier than `861d` or in
+    helpers that feed that tail
+
+New coarse dynamic signal from DOSBox-X file-I/O logging on classic
+`fixtures/ecmaint-bombard-pre/v1.5`:
+
+- first-write order:
+  - `FLEETS.DAT`
+  - `DATABASE.DAT`
+  - `PLAYER.DAT`
+  - `PLANETS.DAT`
+  - `CONQUEST.DAT`
+  - `RANKINGS.TXT`
+- the write clustering is especially one-sided:
+  - `FLEETS.DAT` writes start at event `511`
+  - the next first write, `DATABASE.DAT`, does not occur until event `3910`
+  - practical implication:
+    the run clearly has a long earlier state-mutation block dominated by fleet
+    writes before the later rebuild/flush family begins
+
+Important limitation:
+
+- this file-I/O trace is **not** proof of exact movement vs economy vs combat
+  ordering inside step `4`
+- it is only broad phase-boundary evidence:
+  - heavy fleet-state mutation first
+  - derived-file / report-output rebuild later
+
+Debugger-capture follow-up:
+
+- updated `tools/capture_ecmaint_sim_driver_trace.py` to:
+  - compare hits by linear address instead of raw segment:offset
+  - retarget breakpoints toward earlier startup/token seams:
+    - `9e1e`
+    - `9cb0`
+    - `731f`
+    - `6d9b`
+    - `5ee4`
+    - `00e8`
+    - `024d`
+    - plus `861d` only as an upper fence
+- current DOSBox debugger limitation is now explicit:
+  - if breakpoints are armed only after the first file-open stop, the run has
+    already passed the earlier seams and only `861d` is still catchable
+  - if those same breakpoints are armed immediately at debugger startup, the
+    run falls through to exit without hitting the loaded-image addresses
+
+Practical next step:
+
+- keep the top-down plan, but aim the next dynamic pass at finding a reliable
+  post-load / pre-run debugger stop before trying to place more step-4
+  interior helpers

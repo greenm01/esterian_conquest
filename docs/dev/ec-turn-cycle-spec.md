@@ -675,6 +675,15 @@ These are the most important practical conclusions:
   timing stream
 - the engine performs a late summary sort/canonicalization pass before at least
   one major weekly report loop
+- first coarse file-I/O tracing on a classic `bombard` run supports a broad
+  phase split:
+  - a long `FLEETS.DAT` write burst lands before later writes to
+    `DATABASE.DAT`, `PLAYER.DAT`, `PLANETS.DAT`, `CONQUEST.DAT`, and
+    `RANKINGS.TXT`
+  - practical meaning:
+    heavy fleet-state mutation clearly precedes the late derived-output tail,
+    but this still does not prove the precise middle ordering of movement,
+    economy, combat, or producer passes
 
 ## What Is Still Missing
 

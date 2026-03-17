@@ -162,6 +162,13 @@ Current best workflow for target `1`:
 - use those repeated mutations to choose the next static seam
 - treat the partially recovered `1000:03ff..0d53` owned-planet body as the
   current strongest step-4 candidate until a better earlier driver appears
+- when the one-mechanic probes plateau, switch to top-down driver recovery:
+  - target the earlier startup/token/driver path, not the already-bounded
+    `861d` late tail
+  - treat `861d` only as an upper boundary fence for the missing middle
+  - use dynamic tracing only when it is aimed at those earlier seams
+- use DOSBox file-I/O traces only as coarse support, not proof of exact
+  movement/economy/combat ordering
 - avoid spending more time in already-bounded late summary/report families
   unless a scenario diff points back there
 
@@ -655,6 +662,23 @@ Combat policy for the Rust clone remains:
     - the startup `main.tok` / `Creating main work file...` / `Merging joint
       fleets...` cluster still has no direct scalar xrefs in the live dump, so
       that outer startup/status path is likely indirect/table-driven
+    - first coarse dynamic file-I/O trace on the classic `bombard` scenario now
+      supports a broad split between early mutation and later rebuild/flush:
+      - first write burst is overwhelmingly `FLEETS.DAT`
+      - only later do `DATABASE.DAT`, `PLAYER.DAT`, `PLANETS.DAT`,
+        `CONQUEST.DAT`, and `RANKINGS.TXT` get written
+      - practical implication:
+        use file-I/O tracing as evidence that heavy fleet-state mutation lands
+        before the derived-output tail, but not as evidence for the exact
+        order of economy, movement, combat, or producer passes inside step `4`
+    - current DOSBox debugger capture caveat:
+      - arming breakpoints only after the first file-open stop misses the
+        earlier startup/driver seams entirely
+      - arming the same breakpoints immediately at debugger start misses the
+        loaded image and falls straight through to exit
+      - practical implication:
+        keep the top-down dynamic-trace plan, but the current `DEBUGBOX`
+        arming method still needs a better "post-load, pre-run" stop point
   - still-open middle block:
     - exact ordering of economy / production / movement / combat / assaults
     - weekly aftermath timing is now clearly mission-family dependent rather
