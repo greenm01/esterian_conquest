@@ -381,6 +381,18 @@ Latest static tightening on the turn-cycle side:
     `1000:a26e` is currently the strongest static candidate for mapping
     summary entry class to week-offset / timing-window constraints inside the
     late `1..52` scheduler
+  - follow-up probes now tighten that into a three-stage late timing path:
+    - `0000:02c0` decodes kind-`1` summary entries through `2000:c067` and
+      seeds large stack-resident local timing state
+    - `1000:9fa1 / 1000:a26e` derives two timing-window families from a local
+      `0x0a`-byte code table using fixed offsets like `+2`, `+7`, `+0x15`,
+      and `+0x1e`
+    - `1000:c102 / 1000:9c0e` then scores/tests the current weekly candidate
+      against those windows and raises a rejection flag when the slot falls
+      outside the computed range
+  - practical implication:
+    the late scheduler now looks like explicit week-placement logic, not just
+    decorative timestamp formatting or a flat offset lookup
 
 Combat policy for the Rust clone remains:
 

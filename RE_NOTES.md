@@ -7867,3 +7867,75 @@ Best next timing-side target:
 - identify what the code byte at entry offset `-0x0a` actually classifies
 - relate those codes back to observed fleet/report transitions in preserved
   logs and fixture probes
+
+#### Timing follow-up: late weekly path is now a three-stage selector
+
+Additional direct probes:
+
+- `artifacts/ghidra/ecmaint-live/probe-1000_9fa1.txt`
+- `artifacts/ghidra/ecmaint-live/probe-1000_c103.txt`
+- `artifacts/ghidra/ecmaint-live/probe-1000_9c0e.txt`
+- `artifacts/ghidra/ecmaint-live/probe-1000_c102.txt`
+
+New structural gain:
+
+- `1000:a26e` is not a standalone helper after all:
+  - it is an interior address inside `1000:9fa1`
+  - `0000:1339` calls that mid-function entry directly from the explicit late
+    weekly loop
+- the same timing worker family is also consumed by `1000:c102`:
+  - `1000:c103` calls `1000:9fa1` at the normal function entry
+  - `1000:c102` then immediately calls `1000:9c0e` twice with selector args
+    `2` then `1`
+
+What the late weekly side now looks like:
+
+- `0000:02c0` decodes a kind-`1` summary entry:
+  - it runs only when `entry[+0x04] == 1`
+  - decodes through `2000:c067`
+  - seeds large stack-resident local state
+- `1000:9fa1 / 1000:a26e` then computes timing windows from a local `0x0a`
+  code table:
+  - one accumulator family at `-0x14/-0x12` with byte bound `-0xf`
+  - another at `-0x18/-0x16` with byte bound `-0x10`
+  - code classes still map to fixed offsets:
+    - `1 -> +2`
+    - `2 -> +7`
+    - `3 -> +0x15`
+    - `8 -> +0x1e`
+    - `4..7 -> +0`
+- `1000:c102` is now the strongest candidate for the actual week-placement
+  decision layer:
+  - it consumes the timing-window results from `9fa1`
+  - runs `9c0e(arg=2)` then `9c0e(arg=1)`
+  - conditionally adds or subtracts the byte bounds into a running local
+    score at `-0x6/-0x4`
+  - compares that score against the current timing-window floors/ceilings at
+    `0xfe1c`, `0xfe1d`, `-0xf`, and `-0x10`
+  - raises flag `0xfe34 = 1` when the current week candidate violates those
+    constraints
+
+What `1000:9c0e` adds:
+
+- it is not simple formatting or decoding
+- it selects between two timing-window families depending on arg `1` vs `2`
+- for nontrivial mode bytes it performs numeric compare/helper calls through
+  `3000:4891`, `3000:4883`, and `3000:488d`
+- current best practical reading:
+  `9c0e` is a timing-window comparator/classifier used by `c102` to decide
+  whether the current weekly candidate is too early, too late, or acceptable
+
+Current practical timing model:
+
+- late weekly scheduling is now best treated as a layered selector, not one
+  flat "offset lookup":
+  1. decode summary entry into local timing state (`0000:02c0`)
+  2. derive timing-window candidates from per-entry timing codes
+     (`1000:9fa1 / 1000:a26e`)
+  3. score/test the current weekly slot against those windows
+     (`1000:c102 / 1000:9c0e`)
+- this is stronger evidence for a real weekly placement mechanism than the
+  earlier `a26e`-only read
+- the remaining missing piece is still the code-table builder and semantic
+  meaning of those code bytes, not whether the scheduler has explicit
+  acceptance / rejection logic

@@ -233,6 +233,7 @@ Updated Durable State + Durable Event Pool
 | Movement is a real named engine boundary | keep movement as an explicit subphase, not a side effect hidden inside reporting |
 | Delayed missions exist | do not treat arrival, bombardment, invasion, and similar outcomes as one atomic same-step event family |
 | Internal weekly timing exists | event generation and report emission need a weekly scheduler model, not one end-of-year dump |
+| Late weekly placement uses explicit timing-window logic | keep report scheduling as a real scheduler stage with computed windows and accept/reject tests, not a flat per-event offset table |
 | `00e8/024d` are yearly producer passes | keep room for dedicated producer/mutator subphases inside step `4` |
 | `024d` mixes state mutation and event production | do not force a false boundary where all state mutation finishes before any durable event creation starts |
 | Some producer-side world mutation is silent | do not assume every important step-4 change creates a report/message immediately |
@@ -250,6 +251,7 @@ Updated Durable State + Durable Event Pool
 | mission-family-specific aftermath timing | allow different mission families to schedule follow-on effects differently |
 | exact overwrite precedence when two subphases touch the same target-world fields | centralize world-state writes in ordered subphase functions; do not hide them behind unordered helper side effects |
 | exact target-world-state predicates that choose one aftermath shape over another | keep aftermath shaping behind explicit world-state inspection, not hard-coded per-mission tables alone |
+| exact semantic meaning of late timing code classes | keep event timing classification explicit and typed in Rust, but defer final code-to-semantics mapping until oracle evidence lands |
 
 ## Current Practical Step-4 Shape
 
@@ -362,6 +364,8 @@ In particular:
   target-world payload can produce the same early target-world aftermath shape
 - transplanting a different target-world seed into those same scenarios can
   change that shape materially
+- but transplanting the stronger target-world seed into a bombard context does
+  not recreate the same aftermath shape by itself
 
 Implementation consequence:
 
@@ -372,6 +376,15 @@ Implementation consequence:
   - identify the hostile-resolution context
   - inspect the target-world state/class
   - choose the applicable aftermath update shape
+
+Practical rule:
+
+- neither hostile context alone nor target-world payload alone currently looks
+  sufficient
+- the engine should therefore choose target-world aftermath from the
+  combination of:
+  - hostile-resolution context
+  - current target-world state/class
 
 That keeps the Rust engine aligned with current oracle evidence while the exact
 classic predicates are still being recovered.

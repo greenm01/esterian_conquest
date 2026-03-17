@@ -203,6 +203,46 @@ Practical interpretation:
 - how the internal `1..52` tick is assigned to specific movement/combat/report
   events within a yearly maintenance run
 
+## Strongest Late-Scheduler Static Path
+
+The current strongest static timing seam is no longer just `1000:a26e` by
+itself.
+
+Recovered late weekly chain:
+
+- `0000:127A..1361`
+  - explicit outer `1..52` loop
+- `0000:1333 -> 0000:02c0`
+  - decodes active kind-`1` summary entries through `2000:c067`
+  - seeds large stack-resident local timing state
+- `0000:1339 -> 1000:a26e`
+  - this is a mid-function entry inside `1000:9fa1`
+  - it walks a local `0x0a`-byte code table and derives two timing-window
+    families
+- `1000:c102 -> 1000:9fa1 -> 1000:9c0e`
+  - the same timing worker family is then consumed by `1000:c102`
+  - `c102` calls `9c0e` twice with selector args `2` then `1`
+  - current best reading is that `c102/9c0e` score the current week candidate
+    against the computed timing windows and set a rejection flag when the slot
+    is outside the acceptable range
+
+The timing-code mapping still recovered in `a26e` remains:
+
+- code `1` -> `+2`
+- code `2` -> `+7`
+- code `3` -> `+0x15`
+- code `8` -> `+0x1e`
+- codes `4..7` -> `+0`
+
+Practical interpretation:
+
+- the late weekly side now looks like an explicit placement mechanism with
+  decode, window-derivation, and accept/reject testing
+- this is stronger than the earlier "maybe offset shaping" read
+- the main remaining unknown is what semantic event classes feed the local
+  timing-code table, not whether the late scheduler has real weekly selection
+  logic
+
 ## Working Model
 
 Current best model:

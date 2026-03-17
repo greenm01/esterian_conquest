@@ -571,6 +571,14 @@ Practical meaning:
   - the yearly simulation has already produced canonicalized summary entries
   - the later report pipeline then walks those summaries across a 52-step
     weekly presentation / emission schedule
+- the late timing side is now better split into internal layers:
+  - `0000:02c0` decodes kind-`1` summary entries through `2000:c067` into
+    stack-resident local timing state
+  - `1000:9fa1 / 1000:a26e` derives timing windows from a local `0x0a`-byte
+    code table using fixed offsets like `+2`, `+7`, `+0x15`, and `+0x1e`
+  - `1000:c102 / 1000:9c0e` then score/test the current weekly slot against
+    those windows and raise a rejection flag when the candidate falls outside
+    the acceptable range
 
 Important caution:
 
