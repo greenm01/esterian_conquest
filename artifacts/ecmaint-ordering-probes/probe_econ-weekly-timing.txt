@@ -4,18 +4,43 @@ CONCLUSION: INCONCLUSIVE
 ====================================================================================================
 
   Source fixture: econ (ticks=2)
-  Initial planet economy state:
-    Planet 4: owner=3 status=0x02 stored_goods=0
-    Planet 5: owner=4 status=0x02 stored_goods=0
-    Planet 12: owner=2 status=0x02 stored_goods=0
-    Planet 13: owner=2 status=0x02 stored_goods=0
-    Planet 14: owner=1 status=0x02 stored_goods=0
+  Initial planet state (owned):
+    Planet 4: coords=(6, 5) owner=3 status=0x02 pot=(100,135) stored=0 armies=10 batteries=4 econ_marker=12
+    Planet 5: coords=(13, 5) owner=4 status=0x02 pot=(100,135) stored=0 armies=10 batteries=4 econ_marker=12
+    Planet 12: coords=(4, 13) owner=2 status=0x02 pot=(100,135) stored=0 armies=10 batteries=4 econ_marker=12
+    Planet 13: coords=(15, 13) owner=2 status=0x02 pot=(100,135) stored=0 armies=142 batteries=15 econ_marker=4
+    Planet 14: coords=(16, 13) owner=1 status=0x02 pot=(100,135) stored=0 armies=10 batteries=4 econ_marker=12
+  Initial fleet state:
+    Fleet 0: owner=1 order=0x05 loc=(16, 13) target=(16, 13) speed=0 max_spd=3 ships=[sc=0 bs=0 ca=1 dd=0 tt=0 army=0 etac=1]
+    Fleet 1: owner=1 order=0x05 loc=(16, 13) target=(16, 13) speed=0 max_spd=3 ships=[sc=0 bs=0 ca=1 dd=0 tt=0 army=0 etac=1]
+    Fleet 2: owner=1 order=0x06 loc=(16, 13) target=(15, 13) speed=3 max_spd=3 ships=[sc=0 bs=0 ca=50 dd=50 tt=0 army=0 etac=0]
+    Fleet 3: owner=1 order=0x05 loc=(16, 13) target=(16, 13) speed=0 max_spd=6 ships=[sc=0 bs=0 ca=0 dd=1 tt=0 army=0 etac=0]
+    Fleet 4: owner=2 order=0x05 loc=(4, 13) target=(4, 13) speed=0 max_spd=3 ships=[sc=0 bs=0 ca=1 dd=0 tt=0 army=0 etac=1]
+    Fleet 5: owner=2 order=0x05 loc=(4, 13) target=(4, 13) speed=0 max_spd=3 ships=[sc=0 bs=0 ca=1 dd=0 tt=0 army=0 etac=1]
+    Fleet 6: owner=2 order=0x05 loc=(4, 13) target=(4, 13) speed=0 max_spd=6 ships=[sc=0 bs=0 ca=0 dd=1 tt=0 army=0 etac=0]
+    Fleet 7: owner=2 order=0x05 loc=(4, 13) target=(4, 13) speed=0 max_spd=6 ships=[sc=0 bs=0 ca=0 dd=1 tt=0 army=0 etac=0]
+    Fleet 8: owner=3 order=0x05 loc=(6, 5) target=(6, 5) speed=0 max_spd=3 ships=[sc=0 bs=0 ca=1 dd=0 tt=0 army=0 etac=1]
+    Fleet 9: owner=3 order=0x05 loc=(6, 5) target=(6, 5) speed=0 max_spd=3 ships=[sc=0 bs=0 ca=1 dd=0 tt=0 army=0 etac=1]
+    Fleet 10: owner=3 order=0x05 loc=(6, 5) target=(6, 5) speed=0 max_spd=6 ships=[sc=0 bs=0 ca=0 dd=1 tt=0 army=0 etac=0]
+    Fleet 11: owner=3 order=0x05 loc=(6, 5) target=(6, 5) speed=0 max_spd=6 ships=[sc=0 bs=0 ca=0 dd=1 tt=0 army=0 etac=0]
+    Fleet 12: owner=4 order=0x05 loc=(13, 5) target=(13, 5) speed=0 max_spd=3 ships=[sc=0 bs=0 ca=1 dd=0 tt=0 army=0 etac=1]
+    Fleet 13: owner=4 order=0x05 loc=(13, 5) target=(13, 5) speed=0 max_spd=3 ships=[sc=0 bs=0 ca=1 dd=0 tt=0 army=0 etac=1]
+    Fleet 14: owner=4 order=0x05 loc=(13, 5) target=(13, 5) speed=0 max_spd=6 ships=[sc=0 bs=0 ca=0 dd=1 tt=0 army=0 etac=0]
+    Fleet 15: owner=4 order=0x05 loc=(13, 5) target=(13, 5) speed=0 max_spd=6 ships=[sc=0 bs=0 ca=0 dd=1 tt=0 army=0 etac=0]
   
   === Tick 1 ===
-    RESULTS records after tick 1: 0
+    Fleet changes:
+      Fleet 2: {'location_x': (16, 15)}
+      Fleet 2 raw: +0x0b:10->0f +0x19:81->80 +0x1a:00->b9 +0x1b:00->ff +0x1c:00->ff +0x1d:00->ff +0x1e:00->7f
+    Planet changes:
+    RANKINGS.TXT: size 1508 -> 1268
   
   === Tick 2 ===
-    Planet 13 changes: {'potential_prod_hi': (135, 133), 'economy_marker': (4, 0), 'army_count': (142, 60), 'ground_batteries': (15, 0)}
-    RESULTS records after tick 2: 0
+    Fleet changes:
+      Fleet 2: {'current_speed': (3, 0), 'standing_order': (6, 0), 'cruiser_count': (50, 33), 'destroyer_count': (50, 33)}
+      Fleet 2 raw: +0x0a:03->00 +0x19:80->81 +0x1a:b9->00 +0x1b:ff->00 +0x1c:ff->00 +0x1d:ff->00 +0x1e:7f->00 +0x1f:06->00 +0x28:32->21 +0x2a:32->21
+    Planet changes:
+      Planet 13: {'potential_prod_hi': (135, 133), 'economy_marker': (4, 0), 'army_count': (142, 54), 'ground_batteries': (15, 0)}
+      Planet 13 raw: +0x03:87->85 +0x04:00->39 +0x05:00->7a +0x06:00->0b +0x07:00->d3 +0x08:48->7e +0x09:87->00 +0x0e:04->00 +0x58:8e->36 +0x5a:0f->00
 
-DETAIL: Compare stored_goods changes across ticks with report stardate references.
+DETAIL: Compare fleet arrival timing against planet economy changes per tick.

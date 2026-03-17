@@ -850,10 +850,14 @@ Closed (high confidence, actionable):
 - [x] Fleet visit order: PRNG-shuffled (deterministic per state)
 - [x] Fleet destruction/capture dynamics
 - [x] File write/flush ordering
+- [x] Movement is position-first, mission resolves next year
+- [x] Colonization is atomic on arrival (ownership+armies+name+status)
+- [x] Economy/autopilot processing gated by `player[0]` (rogue vs civil disorder)
 
 Still open:
 - [ ] Exact PRNG for visit order (needs Borland Pascal Random RE)
-- [ ] Economy/production timing relative to fleet loop
+- [ ] Economy timing relative to fleet loop (runs only for rogue empires,
+      likely a separate pre/post-loop pass rather than inside the 52-week loop)
 - [ ] Inner per-fleet-per-week body structure (movement/combat/producer
       ordering within each iteration)
 - [ ] Fleet incremental activation trigger in early passes

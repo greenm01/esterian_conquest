@@ -30,10 +30,24 @@ Current best model:
 6. report emission across an internal `1..52` weekly timeline
 7. final report flush / cleanup / token cleanup
 
-The major unresolved area is the internal ordering inside step `4`: we now know
-that movement, hostile contact, delayed mission resolution, and later weekly
-report stamping all exist, but economy / production / command-side transforms
-are not yet fully placed relative to one another.
+The yearly simulation core (step `4`) is now substantially recovered:
+
+- it is a **52-iteration weekly fleet-processing loop**
+- fleet visit order is **PRNG-shuffled** per game state
+- movement updates position within the loop; **mission resolution requires
+  the fleet to be at its target at the start of the year**
+- combat reports are emitted **inline** during the loop
+- combat is triggered by the first co-located hostile fleet processed
+- fleet destruction and capture are dynamic mid-pass
+- economy/autopilot processing is **gated by `player[0] = 0xFF`** (rogue
+  mode) and runs as a **separate pass outside the fleet loop** (PLANETS.DAT
+  is never accessed during the 52-pass fleet loop)
+- colonization is **atomic on arrival** (ownership, armies, name, status,
+  production all set in one pass)
+
+Remaining unresolved areas inside step `4`: exact PRNG for visit order,
+exact inner-loop body structure, production completion timing, fleet
+incremental activation trigger, and mission-family-specific aftermath timing.
 
 ## Practical Rust Consequences
 
@@ -711,6 +725,72 @@ Planets 44, 65, and 32 appear in every scenario — they are likely
 homeworld or structurally significant planets whose database entries are
 always refreshed.
 
+#### 4p. Movement is position-first, mission-resolution-next-year
+
+Confidence: `High`
+
+Source: black-box ordering probes across econ, bombard, and colonization
+fixtures (Phase C probes, 2026-03-17).
+
+A speed-3 fleet traveling 1 sector updates its position in tick N but does
+not resolve its mission (bombardment, colonization) until tick N+1:
+
+- econ fixture: fleet 2 (bombard, speed 3) at (16,13) targeting (15,13)
+  - tick 1: location_x changes 16→15, but speed and order remain set
+  - tick 2: speed clears to 0, order clears, planet damage applied
+- colonization probe: fleet 2 (colonize, speed 3) at (16,13) targeting (18,15)
+  - tick 1: location moves to (17,14) — one sector of two
+  - tick 2: location reaches (18,15), order clears, planet colonized
+
+Contrast with co-located fleets (fleet-battle fixture): fleets already at
+the same sector at the start of a tick resolve combat within that tick.
+
+Practical implication: the 52-week loop processes movement and resolves
+missions within the same yearly pass, but a fleet must already be at its
+target at the start of the year for its mission to resolve that year.
+Position updates within the 52-week loop are visible at end-of-year but
+mission resolution uses start-of-year position.
+
+#### 4q. Colonization is atomic on arrival
+
+Confidence: `High`
+
+Source: ETAC colonize probe on econ fixture (Phase C, 2026-03-17).
+
+When a colonize fleet arrives at an unowned planet, all colonization
+effects happen in the same tick:
+
+- planet ownership status: 0→2 (homeworld-style)
+- planet owner empire: 0→colonizer empire
+- planet army count: 0→1
+- planet name: updated to "Not Named Yet"
+- planet potential_prod_hi: set to 0x81 (129)
+- planet stardock/build fields: unchanged
+
+Economy starts on the newly colonized planet in the following tick
+(factories_raw initialized on tick 3).
+
+#### 4r. Economy/autopilot processing gated by player mode byte
+
+Confidence: `High`
+
+Source: direct PLAYER.DAT byte-0 mutation probes (Phase C, 2026-03-17).
+
+Planet economy changes (army growth, battery growth, econ_marker updates,
+factories_raw adjustments) only occur for empires whose PLAYER.DAT
+`byte[0]` is `0xFF` (rogue mode). Empires in civil disorder (`byte[0] =
+0x00`) are economically frozen: their owned planets show no growth across
+ECMAINT ticks.
+
+Verified by direct mutation: patching only `player[0]` from `0x00` to
+`0xFF` in the econ fixture causes planet 14 (empire 1 homeworld) to show
+armies 10→27, econ_marker 12→4, and factories exponent adjustment on
+tick 1 — matching the natural behavior in fleet-battle/invade fixtures
+where player 1 was already `0xFF`.
+
+The `autopilot_flag` at `player[0x6D]` is the companion that drives
+army/battery building within the rogue pass, per existing Rust RE.
+
 ### 5. Late Summary Canonicalization And Sort
 
 Confidence: `High`
@@ -862,52 +942,85 @@ What remains open:
 
 These are the most important practical conclusions:
 
-- `ECMAINT` does have a more sophisticated internal turn structure than "one
-  instant per year"
-- movement is a named crash-sensitive phase
-- some missions resolve in delayed follow-up years after arrival
-- reports are emitted on a real internal `1..52` weekly scale
+- `ECMAINT` has a sophisticated internal turn structure, not "one instant per
+  year"
+- the yearly simulation core is a **52-iteration weekly fleet-processing loop**
+- fleet visit order is **PRNG-shuffled** per game state, seeded from planet data
+- movement is a named crash-sensitive phase (`Move.Tok` recovery)
+- movement updates fleet position within the yearly loop, but **mission
+  resolution (bombard, colonize, invade) requires the fleet to already be at
+  its target at the start of the year** — position-first, resolve-next-year
+- co-located fleets resolve combat/contact within the same tick
+- combat reports (`RESULTS.DAT`) are emitted **inline** during the weekly
+  fleet-processing loop, not deferred to a post-simulation phase
+- combat is triggered when the first co-located hostile fleet is processed;
+  the opposing fleet's writeback happens later in the same pass
+- fleet destruction removes fleets from subsequent weekly passes
+- fleet slot reassignment (capture) changes ownership mid-simulation
+- some fleets enter the active visit set incrementally during early weekly
+  passes (fleet-battle shows 1→2→1→2→3→14 records over passes 1-6)
+- **economy/autopilot processing is gated by `player[0]`**: only rogue-mode
+  (`0xFF`) empires get economy/army/battery growth; civil disorder (`0x00`)
+  empires are frozen
+- economy runs as a **separate pass outside the 52-week fleet loop**:
+  PLANETS.DAT is never accessed during the fleet loop
+- **colonization is atomic on arrival**: ownership, armies (=1), name, status,
+  and potential production are all set in one pass; economy starts the
+  following tick
+- reports are stamped on a real internal `1..52` weekly scale
 - contact, interception, and command-center summaries participate in that same
   timing stream
-- the engine performs a late summary sort/canonicalization pass before at least
-  one major weekly report loop
-- first coarse file-I/O tracing on a classic `bombard` run supports a broad
-  phase split:
-  - a long `FLEETS.DAT` write burst lands before later writes to
-    `DATABASE.DAT`, `PLAYER.DAT`, `PLANETS.DAT`, `CONQUEST.DAT`, and
-    `RANKINGS.TXT`
-  - practical meaning:
-    heavy fleet-state mutation clearly precedes the late derived-output tail,
-    but this still does not prove the precise middle ordering of movement,
-    economy, combat, or producer passes
+- the engine performs a late summary sort/canonicalization pass before the
+  weekly report emission loop
+- file write/flush ordering is stable across scenarios:
+  `FLEETS.DAT` → `[RESULTS.DAT]` → `DATABASE.DAT` → `PLAYER.DAT` →
+  `PLANETS.DAT` → `CONQUEST.DAT` → `RANKINGS.TXT`
 
 ## What Is Still Missing
 
 To finish the canonical cycle, we still need:
 
-- the exact middle ordering of:
-  - economy
-  - build completion
-  - movement
-  - hostile contact
-  - orbital combat
-  - bombard / invade / blitz
-  - retreat / seek-home rewrites
+- the exact PRNG for fleet visit order (likely Borland Pascal `Random`)
+- the exact inner per-fleet-per-week body structure:
+  - read → combat check → report emit → write is established, but the
+    placement of movement decrement, order execution, and producer passes
+    within that body is not fully settled
+- the exact trigger for fleet incremental activation in early weekly passes
+- production completion timing relative to fleet loop
+- mission-family-specific aftermath timing (the weekly aftermath delay varies
+  by mission type, not a universal constant)
 - the direct code path that formats player-visible `Stardate: D/YYYY`
-- the exact write/flush ordering for all output files
+- whether economy runs before or after the fleet loop (evidence currently
+  points to after, but direct proof is not yet confirmed)
 
 ## Current Working Canonical Spec
 
-This is the tightest safe statement today:
+This is the tightest oracle-backed statement today:
 
 1. `ECMAINT` first performs schedule/token gating.
 2. If `Move.Tok` exists, it restores `.SAV` backups before validation.
 3. It validates and loads the linked `.DAT` state.
-4. It runs the yearly gameplay simulation, including at least an explicit
-   movement phase and later mission/combat consequences.
+4. It runs the yearly simulation core:
+   a. Prepare transient workspaces.
+   b. Compute fleet visit order (PRNG shuffle seeded from game state).
+   c. Run a 52-iteration weekly fleet-processing loop:
+      - for each week 1..52:
+        - for each fleet in visit order:
+          - read fleet record
+          - if co-located hostile fleet: read opposing fleet, resolve combat,
+            emit RESULTS.DAT reports inline
+          - update fleet state (movement, order execution)
+          - write fleet record
+        - remove destroyed/captured fleets from active set
+   d. Post-loop fleet summary scan (2 sequential reads of all fleet records).
+   e. Economy/autopilot pass over owned planets (rogue empires only, separate
+      from fleet loop).
+   f. Producer/mutator passes on planet state (`024d` interior).
+   g. DATABASE.DAT planet-specific updates.
 5. It canonicalizes and sorts summary entries from those outcomes.
 6. It performs a late `1..52` weekly report/timing loop over the active
    summaries.
-7. It flushes outputs and performs final cleanup.
+7. It flushes outputs (`PLAYER.DAT`, `PLANETS.DAT`, `CONQUEST.DAT`,
+   `RANKINGS.TXT`) and performs final cleanup.
 
 That is the current oracle-backed canonical turn cycle.

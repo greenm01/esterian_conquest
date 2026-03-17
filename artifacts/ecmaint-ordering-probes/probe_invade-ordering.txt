@@ -4,32 +4,147 @@ CONCLUSION: INCONCLUSIVE
 ====================================================================================================
 
   === invade (ticks=2) ===
-  Hostile fleets:
-  Planet changes:
-    Planet 14: {'economy_marker': (12, 2), 'army_count': (10, 35)}
-  Fleet changes:
-    Fleet 0: {'battleship_count': (0, 100), 'cruiser_count': (1, 52), 'destroyer_count': (0, 51), 'transport_count': (0, 50), 'etac_count': (1, 2)}
-    Fleet 1: {'owner_empire': (1, 2), 'location_x': (16, 4), 'target_x': (16, 4)}
-    Fleet 2: {'owner_empire': (1, 2), 'invasion_army': (100, 0), 'current_speed': (3, 0), 'location_x': (16, 4), 'standing_order': (10, 5), 'target_x': (15, 4), 'scout_count': (100, 0), 'battleship_count': (100, 0), 'cruiser_count': (50, 1), 'destroyer_count': (50, 0), 'transport_count': (50, 0), 'etac_count': (0, 1)}
-    Fleet 3: {'owner_empire': (1, 2), 'location_x': (16, 4), 'target_x': (16, 4)}
-    Fleet 4: {'max_speed': (3, 6), 'cruiser_count': (1, 0), 'destroyer_count': (0, 1), 'etac_count': (1, 0)}
-    Fleet 5: {'owner_empire': (2, 3), 'location_x': (4, 6), 'location_y': (13, 5), 'target_x': (4, 6), 'target_y': (13, 5)}
-    Fleet 6: {'owner_empire': (2, 3), 'max_speed': (6, 3), 'location_x': (4, 6), 'location_y': (13, 5), 'target_x': (4, 6), 'target_y': (13, 5), 'cruiser_count': (0, 1), 'destroyer_count': (1, 0), 'etac_count': (0, 1)}
-    Fleet 7: {'owner_empire': (2, 3), 'location_x': (4, 6), 'location_y': (13, 5), 'target_x': (4, 6), 'target_y': (13, 5)}
-    Fleet 8: {'max_speed': (3, 6), 'cruiser_count': (1, 0), 'destroyer_count': (0, 1), 'etac_count': (1, 0)}
-    Fleet 9: {'owner_empire': (3, 4), 'location_x': (6, 13), 'target_x': (6, 13)}
-    Fleet 10: {'owner_empire': (3, 4), 'max_speed': (6, 3), 'location_x': (6, 13), 'target_x': (6, 13), 'cruiser_count': (0, 1), 'destroyer_count': (1, 0), 'etac_count': (0, 1)}
-    Fleet 11: {'owner_empire': (3, 4), 'location_x': (6, 13), 'target_x': (6, 13)}
-    Fleet 12: {'max_speed': (3, 6), 'cruiser_count': (1, 0), 'destroyer_count': (0, 1), 'etac_count': (1, 0)}
-  RESULTS records: 0
+  Initial fleets:
+    Fleet 0: owner=1 order=0x05 loc=(16, 13) target=(16, 13) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 1: owner=1 order=0x05 loc=(16, 13) target=(16, 13) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 2: owner=1 order=0x0a loc=(16, 13) target=(15, 13) speed=3 inv_army=100 ships={'sc': 100, 'bs': 100, 'ca': 50, 'dd': 50, 'tt': 50, 'army': 0, 'etac': 0}
+    Fleet 3: owner=1 order=0x05 loc=(16, 13) target=(16, 13) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 4: owner=2 order=0x05 loc=(4, 13) target=(4, 13) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 5: owner=2 order=0x05 loc=(4, 13) target=(4, 13) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 6: owner=2 order=0x05 loc=(4, 13) target=(4, 13) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 7: owner=2 order=0x05 loc=(4, 13) target=(4, 13) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 8: owner=3 order=0x05 loc=(6, 5) target=(6, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 9: owner=3 order=0x05 loc=(6, 5) target=(6, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 10: owner=3 order=0x05 loc=(6, 5) target=(6, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 11: owner=3 order=0x05 loc=(6, 5) target=(6, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 12: owner=4 order=0x05 loc=(13, 5) target=(13, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 13: owner=4 order=0x05 loc=(13, 5) target=(13, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 14: owner=4 order=0x05 loc=(13, 5) target=(13, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 15: owner=4 order=0x05 loc=(13, 5) target=(13, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+  Initial planets (owned):
+    Planet 4: coords=(6, 5) owner=3 status=0x02 armies=10 batteries=4 econ=12
+    Planet 5: coords=(13, 5) owner=4 status=0x02 armies=10 batteries=4 econ=12
+    Planet 12: coords=(4, 13) owner=2 status=0x02 armies=10 batteries=4 econ=12
+    Planet 13: coords=(15, 13) owner=2 status=0x02 armies=142 batteries=15 econ=4
+    Planet 14: coords=(16, 13) owner=1 status=0x02 armies=10 batteries=4 econ=12
+    --- Tick 1 ---
+      Fleet 0: {'battleship_count': (0, 100), 'cruiser_count': (1, 52), 'destroyer_count': (0, 51), 'transport_count': (0, 50), 'etac_count': (1, 2)}
+      Fleet 1: {'owner_empire': (1, 2), 'location_x': (16, 4), 'target_x': (16, 4)}
+      Fleet 2: {'owner_empire': (1, 2), 'invasion_army': (100, 0), 'current_speed': (3, 0), 'location_x': (16, 4), 'standing_order': (10, 5), 'target_x': (15, 4), 'scout_count': (100, 0), 'battleship_count': (100, 0), 'cruiser_count': (50, 1), 'destroyer_count': (50, 0), 'transport_count': (50, 0), 'etac_count': (0, 1)}
+      Fleet 3: {'owner_empire': (1, 2), 'location_x': (16, 4), 'target_x': (16, 4)}
+      Fleet 4: {'max_speed': (3, 6), 'cruiser_count': (1, 0), 'destroyer_count': (0, 1), 'etac_count': (1, 0)}
+      Fleet 5: {'owner_empire': (2, 3), 'location_x': (4, 6), 'location_y': (13, 5), 'target_x': (4, 6), 'target_y': (13, 5)}
+      Fleet 6: {'owner_empire': (2, 3), 'max_speed': (6, 3), 'location_x': (4, 6), 'location_y': (13, 5), 'target_x': (4, 6), 'target_y': (13, 5), 'cruiser_count': (0, 1), 'destroyer_count': (1, 0), 'etac_count': (0, 1)}
+      Fleet 7: {'owner_empire': (2, 3), 'location_x': (4, 6), 'location_y': (13, 5), 'target_x': (4, 6), 'target_y': (13, 5)}
+      Fleet 8: {'max_speed': (3, 6), 'cruiser_count': (1, 0), 'destroyer_count': (0, 1), 'etac_count': (1, 0)}
+      Fleet 9: {'owner_empire': (3, 4), 'location_x': (6, 13), 'target_x': (6, 13)}
+      Fleet 10: {'owner_empire': (3, 4), 'max_speed': (6, 3), 'location_x': (6, 13), 'target_x': (6, 13), 'cruiser_count': (0, 1), 'destroyer_count': (1, 0), 'etac_count': (0, 1)}
+      Fleet 11: {'owner_empire': (3, 4), 'location_x': (6, 13), 'target_x': (6, 13)}
+      Fleet 12: {'max_speed': (3, 6), 'cruiser_count': (1, 0), 'destroyer_count': (0, 1), 'etac_count': (1, 0)}
+      Planet 14: {'economy_marker': (12, 4), 'army_count': (10, 27)}
+      Planet 14 raw: +0x09:86->87 +0x0e:0c->04 +0x58:0a->1b
+    --- Tick 2 ---
+      Planet 14: {'economy_marker': (4, 2), 'army_count': (27, 35)}
+      Planet 14 raw: +0x0e:04->02 +0x50:00->01 +0x58:1b->23
   
   === bombard (ticks=2) ===
-  Hostile fleets:
-    Fleet 2: owner=1 order=0x06 target=(15,13) armies=0 inv_army=0
-  Planet changes:
-  Fleet changes:
-    Fleet 2: {'current_speed': (3, 0), 'location_x': (16, 15), 'standing_order': (6, 0), 'cruiser_count': (3, 1), 'destroyer_count': (5, 4)}
-  RESULTS records: 0
+  Initial fleets:
+    Fleet 0: owner=1 order=0x05 loc=(16, 13) target=(16, 13) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 1: owner=1 order=0x05 loc=(16, 13) target=(16, 13) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 2: owner=1 order=0x06 loc=(16, 13) target=(15, 13) speed=3 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 3, 'dd': 5, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 3: owner=1 order=0x05 loc=(16, 13) target=(16, 13) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 4: owner=2 order=0x05 loc=(4, 13) target=(4, 13) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 5: owner=2 order=0x05 loc=(4, 13) target=(4, 13) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 6: owner=2 order=0x05 loc=(4, 13) target=(4, 13) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 7: owner=2 order=0x05 loc=(4, 13) target=(4, 13) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 8: owner=3 order=0x05 loc=(6, 5) target=(6, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 9: owner=3 order=0x05 loc=(6, 5) target=(6, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 10: owner=3 order=0x05 loc=(6, 5) target=(6, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 11: owner=3 order=0x05 loc=(6, 5) target=(6, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 12: owner=4 order=0x05 loc=(13, 5) target=(13, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 13: owner=4 order=0x05 loc=(13, 5) target=(13, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 14: owner=4 order=0x05 loc=(13, 5) target=(13, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 15: owner=4 order=0x05 loc=(13, 5) target=(13, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+  Initial planets (owned):
+    Planet 4: coords=(6, 5) owner=3 status=0x02 armies=10 batteries=4 econ=12
+    Planet 5: coords=(13, 5) owner=4 status=0x02 armies=10 batteries=4 econ=12
+    Planet 12: coords=(4, 13) owner=2 status=0x02 armies=10 batteries=4 econ=12
+    Planet 13: coords=(15, 13) owner=2 status=0x02 armies=10 batteries=4 econ=12
+    Planet 14: coords=(16, 13) owner=1 status=0x02 armies=10 batteries=4 econ=12
+    --- Tick 1 ---
+      Fleet 2: {'location_x': (16, 15)}
+    --- Tick 2 ---
+      Fleet 2: {'current_speed': (3, 0), 'standing_order': (6, 0), 'cruiser_count': (3, 1), 'destroyer_count': (5, 1)}
+  
+  === fleet-battle (ticks=1) ===
+  Initial fleets:
+    Fleet 0: owner=1 order=0x05 loc=(10, 10) target=(10, 10) speed=0 inv_army=0 ships={'sc': 0, 'bs': 50, 'ca': 50, 'dd': 50, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 1: owner=1 order=0x05 loc=(16, 13) target=(16, 13) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 2: owner=1 order=0x06 loc=(16, 13) target=(15, 13) speed=3 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 50, 'dd': 50, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 3: owner=1 order=0x05 loc=(16, 13) target=(16, 13) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 4: owner=2 order=0x03 loc=(10, 10) target=(10, 10) speed=0 inv_army=0 ships={'sc': 10, 'bs': 100, 'ca': 0, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 5: owner=2 order=0x05 loc=(4, 13) target=(4, 13) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 6: owner=2 order=0x05 loc=(4, 13) target=(4, 13) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 7: owner=2 order=0x05 loc=(4, 13) target=(4, 13) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 8: owner=3 order=0x01 loc=(9, 10) target=(10, 10) speed=3 inv_army=0 ships={'sc': 10, 'bs': 1, 'ca': 0, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 9: owner=3 order=0x05 loc=(6, 5) target=(6, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 10: owner=3 order=0x05 loc=(6, 5) target=(6, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 11: owner=3 order=0x05 loc=(6, 5) target=(6, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 12: owner=4 order=0x05 loc=(13, 5) target=(13, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 13: owner=4 order=0x05 loc=(13, 5) target=(13, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 1, 'dd': 0, 'tt': 0, 'army': 0, 'etac': 1}
+    Fleet 14: owner=4 order=0x05 loc=(13, 5) target=(13, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+    Fleet 15: owner=4 order=0x05 loc=(13, 5) target=(13, 5) speed=0 inv_army=0 ships={'sc': 0, 'bs': 0, 'ca': 0, 'dd': 1, 'tt': 0, 'army': 0, 'etac': 0}
+  Initial planets (owned):
+    Planet 4: coords=(6, 5) owner=3 status=0x02 armies=10 batteries=4 econ=12
+    Planet 5: coords=(13, 5) owner=4 status=0x02 armies=10 batteries=4 econ=12
+    Planet 12: coords=(4, 13) owner=2 status=0x02 armies=10 batteries=4 econ=12
+    Planet 13: coords=(15, 13) owner=2 status=0x02 armies=142 batteries=15 econ=4
+    Planet 14: coords=(16, 13) owner=1 status=0x02 armies=10 batteries=4 econ=12
+    --- Tick 1 ---
+      Fleet 0: {'current_speed': (0, 3), 'location_x': (10, 12), 'location_y': (10, 11), 'standing_order': (5, 2), 'target_x': (10, 16), 'target_y': (10, 13)}
+      Fleet 1: {'cruiser_count': (1, 51), 'destroyer_count': (0, 51)}
+      Fleet 2: {'owner_empire': (1, 2), 'max_speed': (3, 6), 'current_speed': (3, 0), 'location_x': (16, 10), 'location_y': (13, 10), 'standing_order': (6, 3), 'target_x': (15, 10), 'target_y': (13, 10), 'scout_count': (0, 10), 'battleship_count': (0, 100), 'cruiser_count': (50, 0), 'destroyer_count': (50, 0), 'etac_count': (0, 1)}
+      Fleet 3: {'owner_empire': (1, 2), 'max_speed': (6, 3), 'location_x': (16, 4), 'target_x': (16, 4), 'cruiser_count': (0, 1), 'destroyer_count': (1, 0), 'etac_count': (0, 1)}
+      Fleet 4: {'location_x': (10, 4), 'location_y': (10, 13), 'standing_order': (3, 5), 'target_x': (10, 4), 'target_y': (10, 13), 'scout_count': (10, 0), 'battleship_count': (100, 0), 'destroyer_count': (0, 1), 'etac_count': (1, 0)}
+      Fleet 5: {'max_speed': (3, 6), 'cruiser_count': (1, 0), 'destroyer_count': (0, 1), 'etac_count': (1, 0)}
+      Fleet 6: {'owner_empire': (2, 3), 'current_speed': (0, 3), 'location_x': (4, 10), 'location_y': (13, 10), 'standing_order': (5, 1), 'target_x': (4, 10), 'target_y': (13, 10), 'scout_count': (0, 10), 'battleship_count': (0, 1), 'destroyer_count': (1, 0), 'etac_count': (0, 1)}
+      Fleet 7: {'owner_empire': (2, 3), 'max_speed': (6, 3), 'location_x': (4, 6), 'location_y': (13, 5), 'target_x': (4, 6), 'target_y': (13, 5), 'cruiser_count': (0, 1), 'destroyer_count': (1, 0), 'etac_count': (0, 1)}
+      Fleet 8: {'current_speed': (3, 0), 'location_x': (9, 6), 'location_y': (10, 5), 'standing_order': (1, 5), 'target_x': (10, 6), 'target_y': (10, 5), 'scout_count': (10, 0), 'battleship_count': (1, 0), 'destroyer_count': (0, 1), 'etac_count': (1, 0)}
+      Fleet 9: {'max_speed': (3, 6), 'cruiser_count': (1, 0), 'destroyer_count': (0, 1), 'etac_count': (1, 0)}
+      Fleet 10: {'owner_empire': (3, 4), 'max_speed': (6, 3), 'location_x': (6, 13), 'target_x': (6, 13), 'cruiser_count': (0, 1), 'destroyer_count': (1, 0), 'etac_count': (0, 1)}
+      Fleet 11: {'owner_empire': (3, 4), 'max_speed': (6, 3), 'location_x': (6, 13), 'target_x': (6, 13), 'cruiser_count': (0, 1), 'destroyer_count': (1, 0), 'etac_count': (0, 1)}
+      Fleet 12: {'max_speed': (3, 6), 'cruiser_count': (1, 0), 'destroyer_count': (0, 1), 'etac_count': (1, 0)}
+      Fleet 13: {'max_speed': (3, 6), 'cruiser_count': (1, 0), 'destroyer_count': (0, 1), 'etac_count': (1, 0)}
+      Planet 14: {'economy_marker': (12, 4), 'army_count': (10, 27)}
+      Planet 14 raw: +0x09:86->87 +0x0e:0c->04 +0x58:0a->1b
+      RESULTS.DAT: size 0 -> 1848
+      RESULTS records: 22
+        [  0] kind=0x05 HFrom your 1st Fleet, located in System(10,10)           Stardate: 2/3
+          -> Stardate: 2/3010
+        [  1] kind=0x05 >Patrol mission report: Sensor contact shows an alien fleet in te: 2/3
+        [  2] kind=0x05 HSystem(10,10) traveling at a translight speed of 3. Closing to check 
+        [  3] kind=0x05 out...(10,10) traveling at a translight speed of 3. Closing to check 
+        [  4] kind=0x05 <end of transmission>ng at a translight speed of 3. Closing to check 
+        [  5] kind=0x06 HFrom your 1st Fleet, located in System(10,10)           Stardate: 2/3
+          -> Stardate: 2/3010
+        [  6] kind=0x06 FPatrol mission report: We have located and identified the alien fleet
+        [  7] kind=0x06 Fin System(10,10). It is the 1st Fleet of "Rogues", (Empire #1). Their
+        [  8] kind=0x06 Ffleet contains 51 large, 50 medium, and 50 small vessel(s) of unknown
+        [  9] kind=0x06 type. Ignoring alien fleet...edium, and 50 small vessel(s) of unknown
+        [ 10] kind=0x06 <end of transmission>fleet...edium, and 50 small vessel(s) of unknown
+        [ 11] kind=0x05 HFrom your 1st Fleet, located in System(10,10)          Stardate: 50/3
+          -> Stardate: 50/3010
+        [ 12] kind=0x05 >Patrol mission report: Sensor contact shows an alien fleet in e: 50/3
+        [ 13] kind=0x05 HSystem(10,10) traveling at a translight speed of 3. Closing to check 
+        [ 14] kind=0x05 out...(10,10) traveling at a translight speed of 3. Closing to check 
+        [ 15] kind=0x05 <end of transmission>ng at a translight speed of 3. Closing to check 
+        [ 16] kind=0x06 HFrom your 1st Fleet, located in System(10,10)          Stardate: 50/3
+          -> Stardate: 50/3010
+        [ 17] kind=0x06 FPatrol mission report: We have located and identified the alien fleet
+        [ 18] kind=0x06 Fin System(10,10). It is the 1st Fleet of "In Civil Disorder", (Empire
+        [ 19] kind=0x06 F#3). Their fleet contains 2 large vessel(s) of unknown type. Ignoring
+        [ 20] kind=0x06 alien fleet...et contains 2 large vessel(s) of unknown type. Ignoring
+        [ 21] kind=0x06 <end of transmission>ains 2 large vessel(s) of unknown type. Ignoring
   
 
-DETAIL: Compare invasion vs bombardment aftermath sequences. Ownership changes in invasion vs defense-only changes in bombardment reveal mission-family aftermath timing differences.
+DETAIL: Cross-scenario per-tick comparison of fleet arrival, combat, planet mutation, and report timing.
