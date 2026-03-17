@@ -6829,6 +6829,22 @@ Practical consequence:
   target is the earlier helper chain that populates or consumes these staged
   collections before the late report side
 
+Additional practical tightening:
+
+- `5ee4`'s `0x2f72 / 0x2f76` writes are now better read as transient validation
+  scratch, not automatically as the durable late-report summary/event pool
+  because:
+  - the fleet/base/IPBM branches do append `0x0c` entries and increment
+    `0x2f76`
+  - but tail `2000:6ac3` immediately executes:
+    - `XOR AX,AX`
+    - `MOV [0x2f76],AX`
+  - before `5ee4` returns
+- practical Rust implication:
+  do not merge "validation findings" and "later report events" into one engine
+  structure by default just because they share the same backing workspace in
+  DOS memory; lifetimes appear to differ even if storage is reused
+
 #### `2000:6d9b` tightened as restore/validation wrapper with recursive retry path
 
 Added probe:

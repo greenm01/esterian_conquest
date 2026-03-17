@@ -40,6 +40,12 @@ Current practical guidance for `rust-maint`:
 - keep summary/event generation as a real intermediate boundary inside the
   engine; the original binary clearly builds outcomes first and only later
   canonicalizes, coalesces, and emits report text from them
+- do not assume every writer to the `0x2f72 / 0x2f76` workspace belongs to the
+  final late-report event pool:
+  - `5ee4` appends `0x0c` records there during validation
+  - but `6ac3` zeroes `0x2f76` before `5ee4` returns
+  - current best practical reading is that `5ee4` uses the shared workspace as
+    temporary validation scratch, not as the final persistent report-event set
 - do not shape Rust gameplay order around the already-recovered late helpers:
   - `9e1e` is startup summary-workspace plumbing
   - `6d9b` is restore/integrity wrapper logic
@@ -183,6 +189,13 @@ Practical meaning:
     `0x3178`, `0x31f8`, `0x3278`, `0x32f8`, and `0x3478`
 - this strengthens the reading that `6d9b` is integrity/restore framing around
   `5ee4`, not another hidden yearly gameplay-core stage
+- `5ee4`'s writes into `0x2f72 / 0x2f76` now look transient rather than final:
+  - fleet/base/IPBM branches inside `5ee4` do increment `0x2f76` and allocate
+    `0x0c` entry records in the shared workspace
+  - but tail `0x6ac3` immediately zeroes `0x2f76` before `5ee4` returns
+  - practical reading: those validation-time entries are temporary scratch for
+    integrity/link checks, not the durable late-report summary set consumed by
+    later canonicalization/coalescing passes
 - this further narrows the unresolved gameplay-core search away from the
   already-recovered `5ee4` tail exits
 

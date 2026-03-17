@@ -151,6 +151,11 @@ Current Rust-facing implication:
   - early structural validation / restore framing
   - yearly state mutation plus summary/event creation
   - late summary canonicalization, report emission, and derived-file rebuild
+- do not currently collapse validation-time `5ee4` summary-like entries into
+  the same Rust structure as the later durable report-event pool:
+  - `5ee4` increments `0x2f76`
+  - tail `0x6ac3` then clears `0x2f76` before returning
+  - current best reading is "shared workspace, different lifetime"
 - do not keep tuning Rust gameplay order against the already-recovered late
   `5ee4` / `6d9b` / `8652` machinery; the remaining ordering risk is now more
   likely in earlier simulation helpers
@@ -180,13 +185,15 @@ Latest static tightening on the turn-cycle side:
   - the direct summary emitters still visible inside the function remain:
     - `0x3178` fleet
     - `0x2ff8` base
-    - `0x31f8` IPBM
+  - `0x31f8` IPBM
   - tail `0x6ac3..0x6b74` zeros `0x2f76`, frees the staged player/planet
     buffers, and returns
 - practical implication:
   player-side and planet-side collections are currently best modeled as staged
   validation / lookup inputs for the known fleet/base/IPBM summary producers,
-  not as additional direct summary kinds hidden in the `5ee4` tail
+  not as additional direct summary kinds hidden in the `5ee4` tail; and the
+  `5ee4`-time `0x2f76` entries themselves are increasingly likely to be
+  transient validation scratch rather than the final late-report event pool
 - `2000:6d9b` is now better bounded as restore/validation scaffolding:
   - `arg=0` goes through `0x6f20`, calls `5ee4`, and on failure emits
     recovery/error text before recursively calling `6d9b(arg=1)`
