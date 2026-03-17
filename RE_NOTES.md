@@ -6661,6 +6661,13 @@ Practical consequence:
 - `7659` is now best treated as optional rankings/output generation appended to
   the already-late report tail, not part of yearly gameplay mutation
 - `8b4a` is the corresponding end-of-tail cleanup/reset point
+- in the earlier late-tail functions too, `0x169a` now looks like setup-mode
+  gating rather than pass-presence gating:
+  - `1da6`, `0c06`, and `2db3` all test `0x169a` near entry
+  - in each case the branch only selects an initial open/header/status setup
+    path for the output workspace (`0x30f8`, `0x3078`, or local scratch around
+    `0xff78`)
+  - after that preamble, the main player/planet/report scan still proceeds
 - practical Rust implication:
   - do not use the `169a` / `634` / `635` / `636` / `638` flag family as
     evidence for economy, movement, combat, or other gameplay-core ordering

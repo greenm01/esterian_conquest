@@ -389,6 +389,14 @@ Combat policy for the Rust clone remains:
         keep the `169a/634/635/636/638` family out of Rust gameplay-order
         reasoning unless new evidence ties it back to simulation rather than
         output housekeeping
+    - tighter `0x169a` read across the earlier late-tail passes:
+      - `1da6`, `0c06`, and `2db3` all test `0x169a` near function entry
+      - in each case it only chooses an initial output-workspace/header setup
+        path
+      - the main player/planet/report scan still runs afterward
+      - practical implication:
+        `0x169a` currently looks like late output-mode control, not a switch
+        that turns yearly gameplay subphases on/off
     - the startup `main.tok` / `Creating main work file...` / `Merging joint
       fleets...` cluster still has no direct scalar xrefs in the live dump, so
       that outer startup/status path is likely indirect/table-driven
