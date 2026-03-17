@@ -446,6 +446,9 @@ Combat policy for the Rust clone remains:
       - `1000:cba4`, reached inside the kind-1 producer path, computes one
         `+0x34` value from weighted scratch fields (`+0x26/+0x28/+0x2a`
         plus `+0x2c/+0x2e`) and a special guard-starbase-style bonus gate
+      - the previously unmapped `1000:0612..0794` window also only treats
+        `+0x34/+0x36` as saturating accumulator/carry-forward state and folds
+        them into `+0x58/+0x5a` before clearing `+0x34` again
       - practical implication:
         keep treating those fields as late player-output aggregation /
         reviewable-state counters, not evidence for gameplay-core yearly

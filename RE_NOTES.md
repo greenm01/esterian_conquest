@@ -6787,6 +6787,22 @@ Practical consequence:
     clock or weekly scheduler
   - keep looking earlier than this summary-prep family for canonical
     economy/movement/combat order
+- the previously unmapped `1000:0612..0794` timing window is now better bounded
+  too:
+  - it iterates a per-slot table rooted at `[BP+0xff7c]`
+  - for each slot, it adds `entry[+0x22]` into that slot's running
+    `player[+0x34/+0x36]` pair
+  - if the addition overflows the accepted range, it saturates the pair to
+    `0xffff:0000`
+  - it also folds the resulting values into `player[+0x58]` and `player[+0x5a]`
+    with the same saturating style
+  - then it zeroes `player[+0x34]` again before continuing
+- practical implication:
+  - this window also behaves like accumulator / carry-forward bookkeeping over
+    late player-side counters, not like the hidden yearly gameplay-core order
+  - combined with `0c06`, `5404`, and `cba4`, the `+0x34/+0x36` family is now
+    strongly bounded as derived late-state plumbing rather than movement,
+    combat, or economy sequencing evidence
 - practical Rust implication:
   - do not use the `169a` / `634` / `635` / `636` / `638` flag family as
     evidence for economy, movement, combat, or other gameplay-core ordering
