@@ -860,7 +860,10 @@ Closed (high confidence, actionable):
       (5 passes in fleet-battle, 0 in non-combat; passes 6-57 = exactly 52 weeks)
 
 Still open:
-- [ ] Exact PRNG for visit order (needs Borland Pascal Random RE or Ghidra)
+- [ ] Exact PRNG for visit order: LCG confirmed ($08088405), RandSeed at
+      DS:0x03A6, but shuffle algorithm unknown — full 2^32 black-box search
+      exhausted all standard variants. Seed is accumulated state from
+      validation-phase calls. Needs DOSBox RandSeed capture or Ghidra RE
 - [ ] Inner per-fleet-per-week body structure (movement/combat/producer
       ordering within each iteration)
 - [ ] Mission-family aftermath timing differences

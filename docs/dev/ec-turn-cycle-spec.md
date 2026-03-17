@@ -629,16 +629,16 @@ Practical meaning:
   is better understood as a capture/setup phase that runs before the weekly
   loop, not as gradual fleet awakening during the loop itself
 
-#### 4l. Fleet visit order is PRNG-shuffled, seeded from game state
+#### 4l. Fleet visit order is PRNG-shuffled, seeded from accumulated game-state processing
 
 Confidence: `High`
 
-Source: cross-fixture comparison. Four scenarios with identical
-CONQUEST.DAT, SETUP.DAT, and nearly identical FLEETS.DAT (only fleet 2's
-ship counts differ) but different PLANETS.DAT produce completely different
-visit orders.
+Source: cross-fixture comparison plus PRNG reverse-engineering
+(Phase C/D, 2026-03-17).
 
-Evidence:
+Four scenarios with identical CONQUEST.DAT, SETUP.DAT, and nearly identical
+FLEETS.DAT (only fleet 2's ship counts differ) but different PLANETS.DAT
+produce completely different visit orders:
 
 - bombard:     `[11,15,0,10,4,3,2,1,14,5,13,8,7,6,9,12]`
 - econ:        `[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]`
@@ -646,20 +646,62 @@ Evidence:
 - planet-build:`[15,12,9,4,0,3,7,8,11,14,2,1,13,6,10,5]`
 
 The linked list traversal (`next_fleet_link`) does NOT match any of these
-orderings. The fleet data is nearly identical but the orderings are
-completely different, ruling out all simple fleet-field-based sort keys.
+orderings. Fleet data is identical across all 4 fixtures. No simple
+fleet-field sort produces any of the orderings.
 
-The only varying file among these four fixtures is PLANETS.DAT (planet 13's
-name and numeric fields differ). Small planet data changes cascade into
-completely different fleet orderings — characteristic of PRNG seeding.
+The only varying file is PLANETS.DAT (planet 13's name and numeric fields
+differ). Small planet data changes — even just 2 bytes — cascade into
+completely different fleet orderings, characteristic of PRNG sensitivity.
+
+PRNG identification (from binary analysis of the memdump):
+
+- the LCG is confirmed as standard Borland Pascal:
+  `RandSeed = RandSeed * $08088405 + 1`
+- the Random function was located via its shift-and-add multiply pattern
+  in the memdump (the 32-bit multiply by `$08088405` is decomposed into
+  16-bit partial products with shifts)
+- `RandSeed` is stored at `DS:0x03A6` (32-bit, low word at `0x03A6`,
+  high word at `0x03A8`)
+- the `Randomize` function (seeds from DOS `INT 21h/2Ch` Get Time) sits
+  immediately after the Random function body
+
+Shuffle algorithm investigation:
+
+Exhaustive black-box search ruled out all standard approaches:
+
+- Fisher-Yates reverse shuffle (for i=N-1 downto 1): no seed in 0..50M
+  matches for any Random extraction variant (multiplicative or shift)
+- Fisher-Yates forward shuffle (for i=0 to N-2): same result
+- Simple swap shuffle (for i=0 to N-1): same result
+- Sort-by-Random-key (assign key[i]=Random() for each fleet, sort by key):
+  no seed in full 2^32 space matches
+- TP7 16-bit Random(Range) extraction `((seed >> 16) * Range) >> 16`:
+  full seed_1 range searched for both Fisher-Yates variants, no match
+
+The conclusion is that the seed at shuffle time is the **accumulated
+RandSeed after all Random() calls during validation and loading** (step 3).
+Processing different planet data takes different branch paths during
+validation, each advancing the PRNG state differently. By the time the
+shuffle runs, the seed is completely different for each fixture.
+
+This means the shuffle algorithm cannot be cracked from black-box data
+alone — it requires either:
+
+1. a DOSBox breakpoint at `DS:0x03A6` write to capture the pre-shuffle
+   seed value, or
+2. Ghidra RE of the shuffle call site inside the fleet loop setup
+
+With the actual seed in hand, the algorithm (likely standard Fisher-Yates)
+should be identifiable from a single test.
 
 Practical meaning:
 
-- the fleet visit order is determined by a shuffle or sort using a PRNG
-  seeded from game state (likely including planet data)
-- the PRNG is probably Borland Pascal's `Random` function
-- for Rust oracle parity, either replicate the exact PRNG or accept that
-  visit order is deterministic-per-state but not trivially reproducible
+- for Rust oracle parity, exact PRNG replication requires knowing both
+  the shuffle algorithm and the full PRNG call chain from program start
+  through validation to the shuffle point
+- for practical Rust implementation, use a deterministic visit order
+  (e.g., slot order or a seeded shuffle from a Rust-native PRNG) and
+  accept that visit order will differ from the original
 - the visit order affects combat timing within weekly passes: when two
   hostile fleets are co-located, the first-visited fleet triggers combat
   resolution and report emission

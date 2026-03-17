@@ -294,7 +294,7 @@ Updated Durable State + Durable Event Pool
 
 | Open question | Current safe implementation posture |
 | --- | --- |
-| exact PRNG for fleet visit order shuffle | use a deterministic order for now; exact parity requires reverse-engineering the Borland Pascal Random seed from game state |
+| exact PRNG for fleet visit order shuffle | LCG confirmed as Borland Pascal `$08088405`, RandSeed at `DS:0x03A6`. Shuffle algorithm and seed-at-shuffle-time still unknown — black-box search of full 2^32 space ruled out all standard Fisher-Yates and sort-by-key variants. The seed is accumulated state from validation-phase Random() calls, not a simple game-state derivation. Needs DOSBox RandSeed capture or Ghidra RE of the shuffle call site. Use deterministic slot order in Rust for now |
 | production completion timing | avoid promising exact parity until more oracle evidence lands |
 | exact inner-loop body structure | the per-fleet-per-week body does: read → combat check → report emit → write; but the exact placement of movement decrement, order execution, and producer passes within that body is not fully settled |
 | mission-family-specific aftermath timing | allow different mission families to schedule follow-on effects differently |
