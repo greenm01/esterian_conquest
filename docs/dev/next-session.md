@@ -438,6 +438,18 @@ Combat policy for the Rust clone remains:
         keep this branch point inside "durable summary/event creation" for
         Rust-facing modeling; it is still not evidence for canonical
         movement/combat/economy ordering
+    - tighter late meaning of player fields `+0x30/+0x32/+0x34/+0x36`:
+      - `2000:0c06` scans those words up front only to decide whether late
+        player output/report work exists before opening `0x3078`
+      - `2000:5404` then acts as a merge helper over the same family,
+        especially `+0x34`, before calling local output/summary helpers
+      - `1000:cba4`, reached inside the kind-1 producer path, computes one
+        `+0x34` value from weighted scratch fields (`+0x26/+0x28/+0x2a`
+        plus `+0x2c/+0x2e`) and a special guard-starbase-style bonus gate
+      - practical implication:
+        keep treating those fields as late player-output aggregation /
+        reviewable-state counters, not evidence for gameplay-core yearly
+        phase placement
     - the startup `main.tok` / `Creating main work file...` / `Merging joint
       fleets...` cluster still has no direct scalar xrefs in the live dump, so
       that outer startup/status path is likely indirect/table-driven

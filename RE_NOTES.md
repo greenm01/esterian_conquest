@@ -6752,6 +6752,41 @@ Practical consequence:
     phase
   - do not promote that branch point into Rust as evidence for the canonical
     order of economy, movement, combat, or assaults
+- the player-side timing/report counters at `+0x30/+0x32/+0x34/+0x36` are now
+  tighter as late-output state, not gameplay-core scheduling:
+  - `2000:0c06` begins by scanning all active `0x16ac` player records and
+    sets its local "anything to report?" gate if either family is nonzero:
+    - `(+0x32,+0x30)` nonzero
+    - or `(+0x36,+0x34)` nonzero
+  - only after that gate does `0c06` open and populate the `0x3078`
+    output workspace
+  - `2000:5404` is a straight merge helper over the same late fields:
+    - adds source into destination for `+0x34`
+    - also accumulates `+0x26/+0x28/+0x2a/+0x32/+0x30/+0x2e/+0x2c`
+    - clamps byte `+0x09` / `+0x0a`
+    - then calls local output/summary helpers `3fc0`, `451c`, and `3f27`
+  - current best reading:
+    these words are part of late player-output aggregation / reviewable state,
+    not evidence for where economy, movement, or combat occur in the year
+- `1000:cba4`, a direct writer reached from `1000:e79a -> 1000:e928`, makes
+  the `+0x34` story tighter:
+  - it computes a weighted scalar from scratch fields:
+    - `0x15 * [+0x26]`
+    - `0x07 * [+0x28]`
+    - `0x02 * [+0x2a]`
+    - plus `+0x2c/+0x2e`
+    - while `+0x30/+0x32` currently contribute zero in this helper
+  - it writes that derived value straight into `record[+0x34]`
+  - then, if mission/order byte `record[+0x1f] == 4` and byte `record[+0x0a]`
+    is zero, it adds `0x1e`
+  - caller context:
+    `1000:e79a` invokes `cc5b`, then `cba4`, then kind-1 writer `dddb`
+- practical implication:
+  - at least one important `+0x34` writer is a derived late-summary scorer or
+    classifier built from already-staged scratch data, not a core simulation
+    clock or weekly scheduler
+  - keep looking earlier than this summary-prep family for canonical
+    economy/movement/combat order
 - practical Rust implication:
   - do not use the `169a` / `634` / `635` / `636` / `638` flag family as
     evidence for economy, movement, combat, or other gameplay-core ordering
