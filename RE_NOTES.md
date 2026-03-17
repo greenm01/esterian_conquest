@@ -6668,6 +6668,16 @@ Practical consequence:
     path for the output workspace (`0x30f8`, `0x3078`, or local scratch around
     `0xff78`)
   - after that preamble, the main player/planet/report scan still proceeds
+- `0x169a` now also has a tighter origin:
+  - in `6d9b(arg=0)`, a direct `5ee4` success returns immediately without
+    setting `0x169a`
+  - `0x169a` is only set at `6fb1` after:
+    - direct `5ee4` failure on the plain path
+    - recursive `6d9b(arg=1)` registered-stream recovery
+    - successful return from that recovery path
+  - current best reading:
+    `0x169a` means "late tail is running after restore/recovery succeeded",
+    not "rankings are generally enabled" and not any gameplay-core phase bit
 - practical Rust implication:
   - do not use the `169a` / `634` / `635` / `636` / `638` flag family as
     evidence for economy, movement, combat, or other gameplay-core ordering

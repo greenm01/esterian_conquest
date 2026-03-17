@@ -397,6 +397,12 @@ Combat policy for the Rust clone remains:
       - practical implication:
         `0x169a` currently looks like late output-mode control, not a switch
         that turns yearly gameplay subphases on/off
+      - tighter origin:
+        `0x169a` is only set when plain `6d9b(arg=0)` validation fails and the
+        recursive registered-stream `6d9b(arg=1)` recovery succeeds
+      - practical implication:
+        treat `0x169a` as "recovered restore mode reached the late tail", not
+        as a generic rankings/gameplay phase flag
     - the startup `main.tok` / `Creating main work file...` / `Merging joint
       fleets...` cluster still has no direct scalar xrefs in the live dump, so
       that outer startup/status path is likely indirect/table-driven
