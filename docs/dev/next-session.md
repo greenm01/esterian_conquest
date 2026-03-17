@@ -260,6 +260,11 @@ Primary goal:
     - `Move.Tok` crash restore before integrity validation
     - late summary canonicalization
     - late `1..52` weekly report loop
+  - newly anchored late tail after restore/validate:
+    - fixed call chain at `2000:861d`:
+      `1da6 -> 0c06 -> 2db3 -> 56be -> [7659?]`
+    - `56be` is mission-report oriented
+    - `2db3` is the strongest current `DATABASE.DAT` rebuild candidate
   - still-open middle block:
     - exact ordering of economy / production / movement / combat / assaults
 - for the Rust client, do not infer "returning joined player" from

@@ -6449,3 +6449,47 @@ Most important practical conclusion:
   - gate / recover / validate
   - yearly simulation core
   - late weekly summary/report loop
+
+#### New post-validate/report tail anchor
+
+Added two focused helper scripts:
+
+- `tools/ghidra_scripts/ECMaintTurnCycleAnchors.java`
+- `tools/ghidra_scripts/ECMaintFunctionStrings.java`
+
+Current artifacts:
+
+- `artifacts/ghidra/ecmaint-live/turn-cycle-anchors.txt`
+- `artifacts/ghidra/ecmaint-live/turn-cycle-function-strings.txt`
+
+Most useful new static result:
+
+- the best current late-phase driver anchor is now the non-function region
+  around `2000:861d`
+- after successful `2000:6d9b -> 2000:5ee4` restore/validate flow, it runs a
+  fixed call chain:
+  - `2000:1da6`
+  - `2000:0c06`
+  - `2000:2db3`
+  - `2000:56be`
+  - conditional `2000:7659` if `0x169a != 0`
+
+Interpretation so far:
+
+- this is a late output/report tail, not the full gameplay core
+- `2000:56be` is strongly report-oriented:
+  - its string family includes mission-report labels for invasion,
+    colonization, scouting, seek-home, and starbase/guard-blockade paths
+- `2000:0c06` also looks player-report oriented and includes starbase-loss text
+- `2000:2db3` is now the strongest `DATABASE.DAT` rebuild candidate:
+  - it scales work by `planet_count * 100`
+  - this matches the earlier recovered `DATABASE.DAT` `100`-byte slot model
+
+Practical consequence:
+
+- the turn-cycle model is tighter now:
+  - restore / validate
+  - late report/output tail
+  - explicit `1..52` weekly summary loop
+- the still-missing gameplay core is now more likely earlier than this
+  `861d` tail, or hidden behind helpers feeding it

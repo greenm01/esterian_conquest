@@ -267,6 +267,39 @@ Important caution:
 - what is proven is that the late report/timing stage explicitly iterates over
   `1..52`
 
+### 6a. Fixed post-validate report/output tail
+
+Confidence: `Medium`
+
+New static anchor:
+
+- a larger driver region around `2000:861d` now shows a fixed late call order
+  after successful restore/validation:
+  - `2000:1da6`
+  - `2000:0c06`
+  - `2000:2db3`
+  - `2000:56be`
+  - conditional `2000:7659` when `0x169a != 0`
+
+What is already clear:
+
+- this is a late-phase tail, not the whole gameplay simulation core
+- `2000:56be` is strongly report-oriented:
+  - it references mission-report text families including invasion,
+    colonization, scouting, seek-home, and starbase/guard-blockade reports
+- `2000:0c06` also looks report/output-oriented:
+  - it references player-facing starbase/crew loss text
+- `2000:2db3` is the strongest current `DATABASE.DAT` rebuild candidate:
+  - it sizes work by `planet_count * 100`
+  - that matches the already recovered `DATABASE.DAT` `100`-byte slot model
+
+Practical meaning:
+
+- after validation, `ECMAINT` enters a structured late-output tail before the
+  explicit weekly `1..52` emission pass completes
+- the still-missing "core simulation" is now more likely earlier than this
+  `861d` tail, or partly hidden behind helpers that feed it
+
 ### 7. Final Flush, Writes, And Cleanup
 
 Confidence: `Medium`
