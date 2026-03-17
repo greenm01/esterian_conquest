@@ -821,8 +821,43 @@ Tooling delivered:
 Cross-scenario comparison artifact:
 `artifacts/ecmaint-fileio-trace/cross_scenario_comparison.txt`
 
-Spec updates: `ec-turn-cycle-spec.md` sections 4i-4l,
-`rust-turn-cycle-implementation.md` updated block diagram and driver skeleton.
+Additional findings from deep analysis:
+
+6. **Fleet visit order is PRNG-shuffled**: four scenarios with identical
+   CONQUEST/SETUP/FLEETS but different PLANETS produce completely different
+   visit orders. Small planet data changes cascade into different orderings.
+   Likely seeded from Borland Pascal Random.
+
+7. **Combat resolution is triggered by first co-located hostile fleet**: in
+   fleet-battle pass 7, fleet 4 (empire 2) processing reads fleet 0
+   (empire 1), resolves combat, emits 11 RESULTS records inline, then
+   writes fleet 4. Fleet 0's writeback happens later in the same pass.
+
+8. **Fleet slot reassignment (capture)**: fleet-battle shows fleets 2, 3
+   changing owner empire 1→2 and fleet 8 changing 3→4. Reassigned fleet
+   slots are excluded from the weekly visit set.
+
+Spec updates: `ec-turn-cycle-spec.md` sections 4i-4o,
+`rust-turn-cycle-implementation.md` updated block diagram, driver skeleton,
+settled facts (6 new), and open questions (refined from 8 to 7).
+
+### Remaining gaps for faithful Rust reproduction
+
+Closed (high confidence, actionable):
+- [x] Outer loop structure: 52-week fleet processing loop
+- [x] Combat reports emitted inline during fleet processing
+- [x] Combat resolution triggered by first co-located hostile fleet
+- [x] Fleet visit order: PRNG-shuffled (deterministic per state)
+- [x] Fleet destruction/capture dynamics
+- [x] File write/flush ordering
+
+Still open:
+- [ ] Exact PRNG for visit order (needs Borland Pascal Random RE)
+- [ ] Economy/production timing relative to fleet loop
+- [ ] Inner per-fleet-per-week body structure (movement/combat/producer
+      ordering within each iteration)
+- [ ] Fleet incremental activation trigger in early passes
+- [ ] Mission-family aftermath timing differences
 
 ## Immediate Next Steps
 

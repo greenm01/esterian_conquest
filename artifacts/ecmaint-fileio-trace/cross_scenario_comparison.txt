@@ -1,0 +1,88 @@
+====================================================================================================
+CROSS-SCENARIO COMPARISON
+====================================================================================================
+
+Scenario              Events    Fleet Writes   Fleet Recs   Passes    DB Writes   Sim Start 
+--------------------------------------------------------------------------------------------
+bombard               4056      832            16           52        6           507       
+econ                  4056      832            16           52        6           507       
+fleet-battle          3794      735            15           57        5           507       
+fleet-order           4044      832            16           52        5           507       
+invade                3466      685            15           59        5           507       
+planet-build          4032      832            16           52        4           507       
+
+FLEET WRITE PASS ANALYSIS:
+  bombard             : 832 writes / 16 records = 52.0 passes
+  econ                : 832 writes / 16 records = 52.0 passes
+  fleet-battle        : 735 writes / 15 records = 49.0 passes
+  fleet-order         : 832 writes / 16 records = 52.0 passes
+  invade              : 685 writes / 15 records = 45.7 passes
+  planet-build        : 832 writes / 16 records = 52.0 passes
+
+FIRST WRITE ORDERING (by file):
+  bombard             : FLEETS.DAT[511] -> DATABASE.DAT[3910] -> PLAYER.DAT[4011] -> PLANETS.DAT[4016] -> CONQUEST.DAT[4037] -> RANKINGS.TXT[4039]
+  econ                : FLEETS.DAT[511] -> DATABASE.DAT[3910] -> PLAYER.DAT[4011] -> PLANETS.DAT[4016] -> CONQUEST.DAT[4037] -> RANKINGS.TXT[4039]
+  fleet-battle        : FLEETS.DAT[521] -> RESULTS.DAT[648] -> DATABASE.DAT[3662] -> PLAYER.DAT[3747] -> PLANETS.DAT[3752] -> CONQUEST.DAT[3773] -> RANKINGS.TXT[3775]
+  fleet-order         : FLEETS.DAT[511] -> DATABASE.DAT[3910] -> PLAYER.DAT[3999] -> PLANETS.DAT[4004] -> CONQUEST.DAT[4025] -> RANKINGS.TXT[4027]
+  invade              : FLEETS.DAT[521] -> DATABASE.DAT[3336] -> PLAYER.DAT[3419] -> PLANETS.DAT[3424] -> CONQUEST.DAT[3445] -> RANKINGS.TXT[3447]
+  planet-build        : FLEETS.DAT[511] -> DATABASE.DAT[3910] -> PLAYER.DAT[3987] -> PLANETS.DAT[3992] -> CONQUEST.DAT[4013] -> RANKINGS.TXT[4015]
+
+DATABASE.DAT PLANET INDICES:
+  bombard             : [44, 65, 32, 33, 14, 13]
+  econ                : [44, 65, 32, 33, 14, 13]
+  fleet-battle        : [44, 65, 32, 33, 14]
+  fleet-order         : [44, 65, 32, 13, 14]
+  invade              : [44, 65, 32, 33, 14]
+  planet-build        : [44, 65, 32, 14]
+
+FLEET RECORD VISIT ORDER (first pass):
+  bombard             : [11,15,0,10,4,3,2,1,14,5,13,8,7,6,9,12]
+  econ                : [11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  fleet-battle        : [1]
+  fleet-order         : [6,3,7,1,2,9,13,12,4,5,0,15,10,14,11,8]
+  invade              : [0]
+  planet-build        : [15,12,9,4,0,3,7,8,11,14,2,1,13,6,10,5]
+
+INTERLEAVED EVENTS WITHIN FLEET WRITE BLOCK:
+  bombard             : none
+  econ                : none
+  fleet-battle        : 36 interleaved events
+    pass 7, [ 640] open RESULTS.DAT 
+    pass 7, [ 641] seek RESULTS.DAT offset=0 whence=1
+    pass 7, [ 642] seek RESULTS.DAT offset=0 whence=2
+    pass 7, [ 643] seek RESULTS.DAT offset=0 whence=0
+    pass 7, [ 644] seek RESULTS.DAT offset=0 whence=0
+    pass 7, [ 645] seek RESULTS.DAT offset=0 whence=1
+    pass 7, [ 646] seek RESULTS.DAT offset=0 whence=2
+    pass 7, [ 647] seek RESULTS.DAT offset=0 whence=0
+    pass 7, [ 648] write RESULTS.DAT 84 bytes
+    pass 7, [ 649] write RESULTS.DAT 84 bytes
+    pass 7, [ 650] write RESULTS.DAT 84 bytes
+    pass 7, [ 651] write RESULTS.DAT 84 bytes
+    pass 7, [ 652] write RESULTS.DAT 84 bytes
+    pass 7, [ 653] close RESULTS.DAT 
+    pass 7, [ 656] open RESULTS.DAT 
+    pass 7, [ 657] seek RESULTS.DAT offset=0 whence=0
+    pass 7, [ 658] read RESULTS.DAT 84 bytes
+    pass 7, [ 659] seek RESULTS.DAT offset=0 whence=1
+    pass 7, [ 660] seek RESULTS.DAT offset=0 whence=2
+    pass 7, [ 661] seek RESULTS.DAT offset=84 whence=0
+    pass 7, [ 662] seek RESULTS.DAT offset=0 whence=0
+    pass 7, [ 663] write RESULTS.DAT 84 bytes
+    pass 7, [ 664] seek RESULTS.DAT offset=0 whence=1
+    pass 7, [ 665] seek RESULTS.DAT offset=0 whence=2
+    pass 7, [ 666] seek RESULTS.DAT offset=84 whence=0
+    pass 7, [ 667] seek RESULTS.DAT offset=420 whence=0
+    pass 7, [ 668] seek RESULTS.DAT offset=0 whence=1
+    pass 7, [ 669] seek RESULTS.DAT offset=0 whence=2
+    pass 7, [ 670] seek RESULTS.DAT offset=420 whence=0
+    pass 7, [ 671] write RESULTS.DAT 84 bytes
+    pass 7, [ 672] write RESULTS.DAT 84 bytes
+    pass 7, [ 673] write RESULTS.DAT 84 bytes
+    pass 7, [ 674] write RESULTS.DAT 84 bytes
+    pass 7, [ 675] write RESULTS.DAT 84 bytes
+    pass 7, [ 676] write RESULTS.DAT 84 bytes
+    pass 7, [ 677] close RESULTS.DAT 
+  fleet-order         : none
+  invade              : none
+  planet-build        : none

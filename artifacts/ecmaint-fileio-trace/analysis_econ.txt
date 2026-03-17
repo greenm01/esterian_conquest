@@ -1,0 +1,1787 @@
+====================================================================================================
+FILE I/O TRACE ANALYSIS — scenario=econ
+====================================================================================================
+
+PHASE BOUNDARIES:
+  Load phase:       events 0 .. 159
+  Validation phase: events 160 .. 506
+  Simulation phase: events 507 .. 4013
+  Flush phase:      events 4014 .. 4055
+
+FLEET WRITE BLOCK:
+  Event range:    511 .. 3835
+  Total writes:   832
+  Fleet records:  16
+  Detected passes: 52
+  Expected passes: 832 / 16 = 52
+
+FLEET WRITE PASSES (record index sequences):
+
+  Pass   1: events [ 511.. 574]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass   2: events [ 575.. 638]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass   3: events [ 639.. 702]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass   4: events [ 703.. 766]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass   5: events [ 767.. 830]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass   6: events [ 831.. 894]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass   7: events [ 895.. 958]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass   8: events [ 959..1022]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass   9: events [1023..1086]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  10: events [1087..1150]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  11: events [1151..1214]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  12: events [1215..1278]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  13: events [1279..1342]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  14: events [1343..1406]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  15: events [1407..1470]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  16: events [1471..1534]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  17: events [1535..1598]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  18: events [1599..1662]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  19: events [1663..1726]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  20: events [1727..1790]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  21: events [1791..1854]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  22: events [1855..1918]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  23: events [1919..1982]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  24: events [1983..2046]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  25: events [2047..2110]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  26: events [2111..2174]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  27: events [2175..2238]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  28: events [2239..2302]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  29: events [2303..2366]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  30: events [2367..2430]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  31: events [2431..2494]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  32: events [2495..2558]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  33: events [2559..2622]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  34: events [2623..2686]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  35: events [2687..2750]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  36: events [2751..2814]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  37: events [2815..2878]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  38: events [2879..2942]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  39: events [2943..3006]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  40: events [3007..3070]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  41: events [3071..3134]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  42: events [3135..3198]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  43: events [3199..3262]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  44: events [3263..3326]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  45: events [3327..3390]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  46: events [3391..3454]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  47: events [3455..3518]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  48: events [3519..3582]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  49: events [3583..3646]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  50: events [3647..3710]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  51: events [3711..3774]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+  Pass  52: events [3775..3835]  records=[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+
+FLEET PASS ORDER CONSISTENCY:
+  All 52 passes visit records in the SAME order: [11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]
+
+DATABASE.DAT WRITES:
+  Total writes: 6
+  Record indices (offset/100): [44, 65, 32, 33, 14, 13]
+
+  [3910] offset= 4400  record_index= 44 (planet)  bytes=100
+  [3922] offset= 6500  record_index= 65 (planet)  bytes=100
+  [3934] offset= 3200  record_index= 32 (planet)  bytes=100
+  [3946] offset= 3300  record_index= 33 (planet)  bytes=100
+  [3958] offset= 1400  record_index= 14 (planet)  bytes=100
+  [3970] offset= 1300  record_index= 13 (planet)  bytes=100
+
+SIMULATION PHASE FILE ACCESS TIMELINE:
+(non-seek events only, grouped by file)
+
+  [ 507] close  MOVE.TOK
+  [ 509] read   FLEETS.DAT
+  [ 511] write  FLEETS.DAT
+  [ 513] read   FLEETS.DAT
+  [ 515] write  FLEETS.DAT
+  [ 517] read   FLEETS.DAT
+  [ 519] write  FLEETS.DAT
+  [ 521] read   FLEETS.DAT
+  [ 523] write  FLEETS.DAT
+  [ 525] read   FLEETS.DAT
+  [ 527] write  FLEETS.DAT
+  [ 529] read   FLEETS.DAT
+  [ 531] write  FLEETS.DAT
+  [ 533] read   FLEETS.DAT
+  [ 535] write  FLEETS.DAT
+  [ 537] read   FLEETS.DAT
+  [ 539] write  FLEETS.DAT
+  [ 541] read   FLEETS.DAT
+  [ 543] write  FLEETS.DAT
+  [ 545] read   FLEETS.DAT
+  [ 547] write  FLEETS.DAT
+  [ 549] read   FLEETS.DAT
+  [ 551] write  FLEETS.DAT
+  [ 553] read   FLEETS.DAT
+  [ 555] write  FLEETS.DAT
+  [ 557] read   FLEETS.DAT
+  [ 559] write  FLEETS.DAT
+  [ 561] read   FLEETS.DAT
+  [ 563] write  FLEETS.DAT
+  [ 565] read   FLEETS.DAT
+  [ 567] write  FLEETS.DAT
+  [ 569] read   FLEETS.DAT
+  [ 571] write  FLEETS.DAT
+  [ 573] read   FLEETS.DAT
+  [ 575] write  FLEETS.DAT
+  [ 577] read   FLEETS.DAT
+  [ 579] write  FLEETS.DAT
+  [ 581] read   FLEETS.DAT
+  [ 583] write  FLEETS.DAT
+  [ 585] read   FLEETS.DAT
+  [ 587] write  FLEETS.DAT
+  [ 589] read   FLEETS.DAT
+  [ 591] write  FLEETS.DAT
+  [ 593] read   FLEETS.DAT
+  [ 595] write  FLEETS.DAT
+  [ 597] read   FLEETS.DAT
+  [ 599] write  FLEETS.DAT
+  [ 601] read   FLEETS.DAT
+  [ 603] write  FLEETS.DAT
+  [ 605] read   FLEETS.DAT
+  [ 607] write  FLEETS.DAT
+  [ 609] read   FLEETS.DAT
+  [ 611] write  FLEETS.DAT
+  [ 613] read   FLEETS.DAT
+  [ 615] write  FLEETS.DAT
+  [ 617] read   FLEETS.DAT
+  [ 619] write  FLEETS.DAT
+  [ 621] read   FLEETS.DAT
+  [ 623] write  FLEETS.DAT
+  [ 625] read   FLEETS.DAT
+  [ 627] write  FLEETS.DAT
+  [ 629] read   FLEETS.DAT
+  [ 631] write  FLEETS.DAT
+  [ 633] read   FLEETS.DAT
+  [ 635] write  FLEETS.DAT
+  [ 637] read   FLEETS.DAT
+  [ 639] write  FLEETS.DAT
+  [ 641] read   FLEETS.DAT
+  [ 643] write  FLEETS.DAT
+  [ 645] read   FLEETS.DAT
+  [ 647] write  FLEETS.DAT
+  [ 649] read   FLEETS.DAT
+  [ 651] write  FLEETS.DAT
+  [ 653] read   FLEETS.DAT
+  [ 655] write  FLEETS.DAT
+  [ 657] read   FLEETS.DAT
+  [ 659] write  FLEETS.DAT
+  [ 661] read   FLEETS.DAT
+  [ 663] write  FLEETS.DAT
+  [ 665] read   FLEETS.DAT
+  [ 667] write  FLEETS.DAT
+  [ 669] read   FLEETS.DAT
+  [ 671] write  FLEETS.DAT
+  [ 673] read   FLEETS.DAT
+  [ 675] write  FLEETS.DAT
+  [ 677] read   FLEETS.DAT
+  [ 679] write  FLEETS.DAT
+  [ 681] read   FLEETS.DAT
+  [ 683] write  FLEETS.DAT
+  [ 685] read   FLEETS.DAT
+  [ 687] write  FLEETS.DAT
+  [ 689] read   FLEETS.DAT
+  [ 691] write  FLEETS.DAT
+  [ 693] read   FLEETS.DAT
+  [ 695] write  FLEETS.DAT
+  [ 697] read   FLEETS.DAT
+  [ 699] write  FLEETS.DAT
+  [ 701] read   FLEETS.DAT
+  [ 703] write  FLEETS.DAT
+  [ 705] read   FLEETS.DAT
+  [ 707] write  FLEETS.DAT
+  [ 709] read   FLEETS.DAT
+  [ 711] write  FLEETS.DAT
+  [ 713] read   FLEETS.DAT
+  [ 715] write  FLEETS.DAT
+  [ 717] read   FLEETS.DAT
+  [ 719] write  FLEETS.DAT
+  [ 721] read   FLEETS.DAT
+  [ 723] write  FLEETS.DAT
+  [ 725] read   FLEETS.DAT
+  [ 727] write  FLEETS.DAT
+  [ 729] read   FLEETS.DAT
+  [ 731] write  FLEETS.DAT
+  [ 733] read   FLEETS.DAT
+  [ 735] write  FLEETS.DAT
+  [ 737] read   FLEETS.DAT
+  [ 739] write  FLEETS.DAT
+  [ 741] read   FLEETS.DAT
+  [ 743] write  FLEETS.DAT
+  [ 745] read   FLEETS.DAT
+  [ 747] write  FLEETS.DAT
+  [ 749] read   FLEETS.DAT
+  [ 751] write  FLEETS.DAT
+  [ 753] read   FLEETS.DAT
+  [ 755] write  FLEETS.DAT
+  [ 757] read   FLEETS.DAT
+  [ 759] write  FLEETS.DAT
+  [ 761] read   FLEETS.DAT
+  [ 763] write  FLEETS.DAT
+  [ 765] read   FLEETS.DAT
+  [ 767] write  FLEETS.DAT
+  [ 769] read   FLEETS.DAT
+  [ 771] write  FLEETS.DAT
+  [ 773] read   FLEETS.DAT
+  [ 775] write  FLEETS.DAT
+  [ 777] read   FLEETS.DAT
+  [ 779] write  FLEETS.DAT
+  [ 781] read   FLEETS.DAT
+  [ 783] write  FLEETS.DAT
+  [ 785] read   FLEETS.DAT
+  [ 787] write  FLEETS.DAT
+  [ 789] read   FLEETS.DAT
+  [ 791] write  FLEETS.DAT
+  [ 793] read   FLEETS.DAT
+  [ 795] write  FLEETS.DAT
+  [ 797] read   FLEETS.DAT
+  [ 799] write  FLEETS.DAT
+  [ 801] read   FLEETS.DAT
+  [ 803] write  FLEETS.DAT
+  [ 805] read   FLEETS.DAT
+  [ 807] write  FLEETS.DAT
+  [ 809] read   FLEETS.DAT
+  [ 811] write  FLEETS.DAT
+  [ 813] read   FLEETS.DAT
+  [ 815] write  FLEETS.DAT
+  [ 817] read   FLEETS.DAT
+  [ 819] write  FLEETS.DAT
+  [ 821] read   FLEETS.DAT
+  [ 823] write  FLEETS.DAT
+  [ 825] read   FLEETS.DAT
+  [ 827] write  FLEETS.DAT
+  [ 829] read   FLEETS.DAT
+  [ 831] write  FLEETS.DAT
+  [ 833] read   FLEETS.DAT
+  [ 835] write  FLEETS.DAT
+  [ 837] read   FLEETS.DAT
+  [ 839] write  FLEETS.DAT
+  [ 841] read   FLEETS.DAT
+  [ 843] write  FLEETS.DAT
+  [ 845] read   FLEETS.DAT
+  [ 847] write  FLEETS.DAT
+  [ 849] read   FLEETS.DAT
+  [ 851] write  FLEETS.DAT
+  [ 853] read   FLEETS.DAT
+  [ 855] write  FLEETS.DAT
+  [ 857] read   FLEETS.DAT
+  [ 859] write  FLEETS.DAT
+  [ 861] read   FLEETS.DAT
+  [ 863] write  FLEETS.DAT
+  [ 865] read   FLEETS.DAT
+  [ 867] write  FLEETS.DAT
+  [ 869] read   FLEETS.DAT
+  [ 871] write  FLEETS.DAT
+  [ 873] read   FLEETS.DAT
+  [ 875] write  FLEETS.DAT
+  [ 877] read   FLEETS.DAT
+  [ 879] write  FLEETS.DAT
+  [ 881] read   FLEETS.DAT
+  [ 883] write  FLEETS.DAT
+  [ 885] read   FLEETS.DAT
+  [ 887] write  FLEETS.DAT
+  [ 889] read   FLEETS.DAT
+  [ 891] write  FLEETS.DAT
+  [ 893] read   FLEETS.DAT
+  [ 895] write  FLEETS.DAT
+  [ 897] read   FLEETS.DAT
+  [ 899] write  FLEETS.DAT
+  [ 901] read   FLEETS.DAT
+  [ 903] write  FLEETS.DAT
+  [ 905] read   FLEETS.DAT
+  [ 907] write  FLEETS.DAT
+  [ 909] read   FLEETS.DAT
+  [ 911] write  FLEETS.DAT
+  [ 913] read   FLEETS.DAT
+  [ 915] write  FLEETS.DAT
+  [ 917] read   FLEETS.DAT
+  [ 919] write  FLEETS.DAT
+  [ 921] read   FLEETS.DAT
+  [ 923] write  FLEETS.DAT
+  [ 925] read   FLEETS.DAT
+  [ 927] write  FLEETS.DAT
+  [ 929] read   FLEETS.DAT
+  [ 931] write  FLEETS.DAT
+  [ 933] read   FLEETS.DAT
+  [ 935] write  FLEETS.DAT
+  [ 937] read   FLEETS.DAT
+  [ 939] write  FLEETS.DAT
+  [ 941] read   FLEETS.DAT
+  [ 943] write  FLEETS.DAT
+  [ 945] read   FLEETS.DAT
+  [ 947] write  FLEETS.DAT
+  [ 949] read   FLEETS.DAT
+  [ 951] write  FLEETS.DAT
+  [ 953] read   FLEETS.DAT
+  [ 955] write  FLEETS.DAT
+  [ 957] read   FLEETS.DAT
+  [ 959] write  FLEETS.DAT
+  [ 961] read   FLEETS.DAT
+  [ 963] write  FLEETS.DAT
+  [ 965] read   FLEETS.DAT
+  [ 967] write  FLEETS.DAT
+  [ 969] read   FLEETS.DAT
+  [ 971] write  FLEETS.DAT
+  [ 973] read   FLEETS.DAT
+  [ 975] write  FLEETS.DAT
+  [ 977] read   FLEETS.DAT
+  [ 979] write  FLEETS.DAT
+  [ 981] read   FLEETS.DAT
+  [ 983] write  FLEETS.DAT
+  [ 985] read   FLEETS.DAT
+  [ 987] write  FLEETS.DAT
+  [ 989] read   FLEETS.DAT
+  [ 991] write  FLEETS.DAT
+  [ 993] read   FLEETS.DAT
+  [ 995] write  FLEETS.DAT
+  [ 997] read   FLEETS.DAT
+  [ 999] write  FLEETS.DAT
+  [1001] read   FLEETS.DAT
+  [1003] write  FLEETS.DAT
+  [1005] read   FLEETS.DAT
+  [1007] write  FLEETS.DAT
+  [1009] read   FLEETS.DAT
+  [1011] write  FLEETS.DAT
+  [1013] read   FLEETS.DAT
+  [1015] write  FLEETS.DAT
+  [1017] read   FLEETS.DAT
+  [1019] write  FLEETS.DAT
+  [1021] read   FLEETS.DAT
+  [1023] write  FLEETS.DAT
+  [1025] read   FLEETS.DAT
+  [1027] write  FLEETS.DAT
+  [1029] read   FLEETS.DAT
+  [1031] write  FLEETS.DAT
+  [1033] read   FLEETS.DAT
+  [1035] write  FLEETS.DAT
+  [1037] read   FLEETS.DAT
+  [1039] write  FLEETS.DAT
+  [1041] read   FLEETS.DAT
+  [1043] write  FLEETS.DAT
+  [1045] read   FLEETS.DAT
+  [1047] write  FLEETS.DAT
+  [1049] read   FLEETS.DAT
+  [1051] write  FLEETS.DAT
+  [1053] read   FLEETS.DAT
+  [1055] write  FLEETS.DAT
+  [1057] read   FLEETS.DAT
+  [1059] write  FLEETS.DAT
+  [1061] read   FLEETS.DAT
+  [1063] write  FLEETS.DAT
+  [1065] read   FLEETS.DAT
+  [1067] write  FLEETS.DAT
+  [1069] read   FLEETS.DAT
+  [1071] write  FLEETS.DAT
+  [1073] read   FLEETS.DAT
+  [1075] write  FLEETS.DAT
+  [1077] read   FLEETS.DAT
+  [1079] write  FLEETS.DAT
+  [1081] read   FLEETS.DAT
+  [1083] write  FLEETS.DAT
+  [1085] read   FLEETS.DAT
+  [1087] write  FLEETS.DAT
+  [1089] read   FLEETS.DAT
+  [1091] write  FLEETS.DAT
+  [1093] read   FLEETS.DAT
+  [1095] write  FLEETS.DAT
+  [1097] read   FLEETS.DAT
+  [1099] write  FLEETS.DAT
+  [1101] read   FLEETS.DAT
+  [1103] write  FLEETS.DAT
+  [1105] read   FLEETS.DAT
+  [1107] write  FLEETS.DAT
+  [1109] read   FLEETS.DAT
+  [1111] write  FLEETS.DAT
+  [1113] read   FLEETS.DAT
+  [1115] write  FLEETS.DAT
+  [1117] read   FLEETS.DAT
+  [1119] write  FLEETS.DAT
+  [1121] read   FLEETS.DAT
+  [1123] write  FLEETS.DAT
+  [1125] read   FLEETS.DAT
+  [1127] write  FLEETS.DAT
+  [1129] read   FLEETS.DAT
+  [1131] write  FLEETS.DAT
+  [1133] read   FLEETS.DAT
+  [1135] write  FLEETS.DAT
+  [1137] read   FLEETS.DAT
+  [1139] write  FLEETS.DAT
+  [1141] read   FLEETS.DAT
+  [1143] write  FLEETS.DAT
+  [1145] read   FLEETS.DAT
+  [1147] write  FLEETS.DAT
+  [1149] read   FLEETS.DAT
+  [1151] write  FLEETS.DAT
+  [1153] read   FLEETS.DAT
+  [1155] write  FLEETS.DAT
+  [1157] read   FLEETS.DAT
+  [1159] write  FLEETS.DAT
+  [1161] read   FLEETS.DAT
+  [1163] write  FLEETS.DAT
+  [1165] read   FLEETS.DAT
+  [1167] write  FLEETS.DAT
+  [1169] read   FLEETS.DAT
+  [1171] write  FLEETS.DAT
+  [1173] read   FLEETS.DAT
+  [1175] write  FLEETS.DAT
+  [1177] read   FLEETS.DAT
+  [1179] write  FLEETS.DAT
+  [1181] read   FLEETS.DAT
+  [1183] write  FLEETS.DAT
+  [1185] read   FLEETS.DAT
+  [1187] write  FLEETS.DAT
+  [1189] read   FLEETS.DAT
+  [1191] write  FLEETS.DAT
+  [1193] read   FLEETS.DAT
+  [1195] write  FLEETS.DAT
+  [1197] read   FLEETS.DAT
+  [1199] write  FLEETS.DAT
+  [1201] read   FLEETS.DAT
+  [1203] write  FLEETS.DAT
+  [1205] read   FLEETS.DAT
+  [1207] write  FLEETS.DAT
+  [1209] read   FLEETS.DAT
+  [1211] write  FLEETS.DAT
+  [1213] read   FLEETS.DAT
+  [1215] write  FLEETS.DAT
+  [1217] read   FLEETS.DAT
+  [1219] write  FLEETS.DAT
+  [1221] read   FLEETS.DAT
+  [1223] write  FLEETS.DAT
+  [1225] read   FLEETS.DAT
+  [1227] write  FLEETS.DAT
+  [1229] read   FLEETS.DAT
+  [1231] write  FLEETS.DAT
+  [1233] read   FLEETS.DAT
+  [1235] write  FLEETS.DAT
+  [1237] read   FLEETS.DAT
+  [1239] write  FLEETS.DAT
+  [1241] read   FLEETS.DAT
+  [1243] write  FLEETS.DAT
+  [1245] read   FLEETS.DAT
+  [1247] write  FLEETS.DAT
+  [1249] read   FLEETS.DAT
+  [1251] write  FLEETS.DAT
+  [1253] read   FLEETS.DAT
+  [1255] write  FLEETS.DAT
+  [1257] read   FLEETS.DAT
+  [1259] write  FLEETS.DAT
+  [1261] read   FLEETS.DAT
+  [1263] write  FLEETS.DAT
+  [1265] read   FLEETS.DAT
+  [1267] write  FLEETS.DAT
+  [1269] read   FLEETS.DAT
+  [1271] write  FLEETS.DAT
+  [1273] read   FLEETS.DAT
+  [1275] write  FLEETS.DAT
+  [1277] read   FLEETS.DAT
+  [1279] write  FLEETS.DAT
+  [1281] read   FLEETS.DAT
+  [1283] write  FLEETS.DAT
+  [1285] read   FLEETS.DAT
+  [1287] write  FLEETS.DAT
+  [1289] read   FLEETS.DAT
+  [1291] write  FLEETS.DAT
+  [1293] read   FLEETS.DAT
+  [1295] write  FLEETS.DAT
+  [1297] read   FLEETS.DAT
+  [1299] write  FLEETS.DAT
+  [1301] read   FLEETS.DAT
+  [1303] write  FLEETS.DAT
+  [1305] read   FLEETS.DAT
+  [1307] write  FLEETS.DAT
+  [1309] read   FLEETS.DAT
+  [1311] write  FLEETS.DAT
+  [1313] read   FLEETS.DAT
+  [1315] write  FLEETS.DAT
+  [1317] read   FLEETS.DAT
+  [1319] write  FLEETS.DAT
+  [1321] read   FLEETS.DAT
+  [1323] write  FLEETS.DAT
+  [1325] read   FLEETS.DAT
+  [1327] write  FLEETS.DAT
+  [1329] read   FLEETS.DAT
+  [1331] write  FLEETS.DAT
+  [1333] read   FLEETS.DAT
+  [1335] write  FLEETS.DAT
+  [1337] read   FLEETS.DAT
+  [1339] write  FLEETS.DAT
+  [1341] read   FLEETS.DAT
+  [1343] write  FLEETS.DAT
+  [1345] read   FLEETS.DAT
+  [1347] write  FLEETS.DAT
+  [1349] read   FLEETS.DAT
+  [1351] write  FLEETS.DAT
+  [1353] read   FLEETS.DAT
+  [1355] write  FLEETS.DAT
+  [1357] read   FLEETS.DAT
+  [1359] write  FLEETS.DAT
+  [1361] read   FLEETS.DAT
+  [1363] write  FLEETS.DAT
+  [1365] read   FLEETS.DAT
+  [1367] write  FLEETS.DAT
+  [1369] read   FLEETS.DAT
+  [1371] write  FLEETS.DAT
+  [1373] read   FLEETS.DAT
+  [1375] write  FLEETS.DAT
+  [1377] read   FLEETS.DAT
+  [1379] write  FLEETS.DAT
+  [1381] read   FLEETS.DAT
+  [1383] write  FLEETS.DAT
+  [1385] read   FLEETS.DAT
+  [1387] write  FLEETS.DAT
+  [1389] read   FLEETS.DAT
+  [1391] write  FLEETS.DAT
+  [1393] read   FLEETS.DAT
+  [1395] write  FLEETS.DAT
+  [1397] read   FLEETS.DAT
+  [1399] write  FLEETS.DAT
+  [1401] read   FLEETS.DAT
+  [1403] write  FLEETS.DAT
+  [1405] read   FLEETS.DAT
+  [1407] write  FLEETS.DAT
+  [1409] read   FLEETS.DAT
+  [1411] write  FLEETS.DAT
+  [1413] read   FLEETS.DAT
+  [1415] write  FLEETS.DAT
+  [1417] read   FLEETS.DAT
+  [1419] write  FLEETS.DAT
+  [1421] read   FLEETS.DAT
+  [1423] write  FLEETS.DAT
+  [1425] read   FLEETS.DAT
+  [1427] write  FLEETS.DAT
+  [1429] read   FLEETS.DAT
+  [1431] write  FLEETS.DAT
+  [1433] read   FLEETS.DAT
+  [1435] write  FLEETS.DAT
+  [1437] read   FLEETS.DAT
+  [1439] write  FLEETS.DAT
+  [1441] read   FLEETS.DAT
+  [1443] write  FLEETS.DAT
+  [1445] read   FLEETS.DAT
+  [1447] write  FLEETS.DAT
+  [1449] read   FLEETS.DAT
+  [1451] write  FLEETS.DAT
+  [1453] read   FLEETS.DAT
+  [1455] write  FLEETS.DAT
+  [1457] read   FLEETS.DAT
+  [1459] write  FLEETS.DAT
+  [1461] read   FLEETS.DAT
+  [1463] write  FLEETS.DAT
+  [1465] read   FLEETS.DAT
+  [1467] write  FLEETS.DAT
+  [1469] read   FLEETS.DAT
+  [1471] write  FLEETS.DAT
+  [1473] read   FLEETS.DAT
+  [1475] write  FLEETS.DAT
+  [1477] read   FLEETS.DAT
+  [1479] write  FLEETS.DAT
+  [1481] read   FLEETS.DAT
+  [1483] write  FLEETS.DAT
+  [1485] read   FLEETS.DAT
+  [1487] write  FLEETS.DAT
+  [1489] read   FLEETS.DAT
+  [1491] write  FLEETS.DAT
+  [1493] read   FLEETS.DAT
+  [1495] write  FLEETS.DAT
+  [1497] read   FLEETS.DAT
+  [1499] write  FLEETS.DAT
+  [1501] read   FLEETS.DAT
+  [1503] write  FLEETS.DAT
+  [1505] read   FLEETS.DAT
+  [1507] write  FLEETS.DAT
+  [1509] read   FLEETS.DAT
+  [1511] write  FLEETS.DAT
+  [1513] read   FLEETS.DAT
+  [1515] write  FLEETS.DAT
+  [1517] read   FLEETS.DAT
+  [1519] write  FLEETS.DAT
+  [1521] read   FLEETS.DAT
+  [1523] write  FLEETS.DAT
+  [1525] read   FLEETS.DAT
+  [1527] write  FLEETS.DAT
+  [1529] read   FLEETS.DAT
+  [1531] write  FLEETS.DAT
+  [1533] read   FLEETS.DAT
+  [1535] write  FLEETS.DAT
+  [1537] read   FLEETS.DAT
+  [1539] write  FLEETS.DAT
+  [1541] read   FLEETS.DAT
+  [1543] write  FLEETS.DAT
+  [1545] read   FLEETS.DAT
+  [1547] write  FLEETS.DAT
+  [1549] read   FLEETS.DAT
+  [1551] write  FLEETS.DAT
+  [1553] read   FLEETS.DAT
+  [1555] write  FLEETS.DAT
+  [1557] read   FLEETS.DAT
+  [1559] write  FLEETS.DAT
+  [1561] read   FLEETS.DAT
+  [1563] write  FLEETS.DAT
+  [1565] read   FLEETS.DAT
+  [1567] write  FLEETS.DAT
+  [1569] read   FLEETS.DAT
+  [1571] write  FLEETS.DAT
+  [1573] read   FLEETS.DAT
+  [1575] write  FLEETS.DAT
+  [1577] read   FLEETS.DAT
+  [1579] write  FLEETS.DAT
+  [1581] read   FLEETS.DAT
+  [1583] write  FLEETS.DAT
+  [1585] read   FLEETS.DAT
+  [1587] write  FLEETS.DAT
+  [1589] read   FLEETS.DAT
+  [1591] write  FLEETS.DAT
+  [1593] read   FLEETS.DAT
+  [1595] write  FLEETS.DAT
+  [1597] read   FLEETS.DAT
+  [1599] write  FLEETS.DAT
+  [1601] read   FLEETS.DAT
+  [1603] write  FLEETS.DAT
+  [1605] read   FLEETS.DAT
+  [1607] write  FLEETS.DAT
+  [1609] read   FLEETS.DAT
+  [1611] write  FLEETS.DAT
+  [1613] read   FLEETS.DAT
+  [1615] write  FLEETS.DAT
+  [1617] read   FLEETS.DAT
+  [1619] write  FLEETS.DAT
+  [1621] read   FLEETS.DAT
+  [1623] write  FLEETS.DAT
+  [1625] read   FLEETS.DAT
+  [1627] write  FLEETS.DAT
+  [1629] read   FLEETS.DAT
+  [1631] write  FLEETS.DAT
+  [1633] read   FLEETS.DAT
+  [1635] write  FLEETS.DAT
+  [1637] read   FLEETS.DAT
+  [1639] write  FLEETS.DAT
+  [1641] read   FLEETS.DAT
+  [1643] write  FLEETS.DAT
+  [1645] read   FLEETS.DAT
+  [1647] write  FLEETS.DAT
+  [1649] read   FLEETS.DAT
+  [1651] write  FLEETS.DAT
+  [1653] read   FLEETS.DAT
+  [1655] write  FLEETS.DAT
+  [1657] read   FLEETS.DAT
+  [1659] write  FLEETS.DAT
+  [1661] read   FLEETS.DAT
+  [1663] write  FLEETS.DAT
+  [1665] read   FLEETS.DAT
+  [1667] write  FLEETS.DAT
+  [1669] read   FLEETS.DAT
+  [1671] write  FLEETS.DAT
+  [1673] read   FLEETS.DAT
+  [1675] write  FLEETS.DAT
+  [1677] read   FLEETS.DAT
+  [1679] write  FLEETS.DAT
+  [1681] read   FLEETS.DAT
+  [1683] write  FLEETS.DAT
+  [1685] read   FLEETS.DAT
+  [1687] write  FLEETS.DAT
+  [1689] read   FLEETS.DAT
+  [1691] write  FLEETS.DAT
+  [1693] read   FLEETS.DAT
+  [1695] write  FLEETS.DAT
+  [1697] read   FLEETS.DAT
+  [1699] write  FLEETS.DAT
+  [1701] read   FLEETS.DAT
+  [1703] write  FLEETS.DAT
+  [1705] read   FLEETS.DAT
+  [1707] write  FLEETS.DAT
+  [1709] read   FLEETS.DAT
+  [1711] write  FLEETS.DAT
+  [1713] read   FLEETS.DAT
+  [1715] write  FLEETS.DAT
+  [1717] read   FLEETS.DAT
+  [1719] write  FLEETS.DAT
+  [1721] read   FLEETS.DAT
+  [1723] write  FLEETS.DAT
+  [1725] read   FLEETS.DAT
+  [1727] write  FLEETS.DAT
+  [1729] read   FLEETS.DAT
+  [1731] write  FLEETS.DAT
+  [1733] read   FLEETS.DAT
+  [1735] write  FLEETS.DAT
+  [1737] read   FLEETS.DAT
+  [1739] write  FLEETS.DAT
+  [1741] read   FLEETS.DAT
+  [1743] write  FLEETS.DAT
+  [1745] read   FLEETS.DAT
+  [1747] write  FLEETS.DAT
+  [1749] read   FLEETS.DAT
+  [1751] write  FLEETS.DAT
+  [1753] read   FLEETS.DAT
+  [1755] write  FLEETS.DAT
+  [1757] read   FLEETS.DAT
+  [1759] write  FLEETS.DAT
+  [1761] read   FLEETS.DAT
+  [1763] write  FLEETS.DAT
+  [1765] read   FLEETS.DAT
+  [1767] write  FLEETS.DAT
+  [1769] read   FLEETS.DAT
+  [1771] write  FLEETS.DAT
+  [1773] read   FLEETS.DAT
+  [1775] write  FLEETS.DAT
+  [1777] read   FLEETS.DAT
+  [1779] write  FLEETS.DAT
+  [1781] read   FLEETS.DAT
+  [1783] write  FLEETS.DAT
+  [1785] read   FLEETS.DAT
+  [1787] write  FLEETS.DAT
+  [1789] read   FLEETS.DAT
+  [1791] write  FLEETS.DAT
+  [1793] read   FLEETS.DAT
+  [1795] write  FLEETS.DAT
+  [1797] read   FLEETS.DAT
+  [1799] write  FLEETS.DAT
+  [1801] read   FLEETS.DAT
+  [1803] write  FLEETS.DAT
+  [1805] read   FLEETS.DAT
+  [1807] write  FLEETS.DAT
+  [1809] read   FLEETS.DAT
+  [1811] write  FLEETS.DAT
+  [1813] read   FLEETS.DAT
+  [1815] write  FLEETS.DAT
+  [1817] read   FLEETS.DAT
+  [1819] write  FLEETS.DAT
+  [1821] read   FLEETS.DAT
+  [1823] write  FLEETS.DAT
+  [1825] read   FLEETS.DAT
+  [1827] write  FLEETS.DAT
+  [1829] read   FLEETS.DAT
+  [1831] write  FLEETS.DAT
+  [1833] read   FLEETS.DAT
+  [1835] write  FLEETS.DAT
+  [1837] read   FLEETS.DAT
+  [1839] write  FLEETS.DAT
+  [1841] read   FLEETS.DAT
+  [1843] write  FLEETS.DAT
+  [1845] read   FLEETS.DAT
+  [1847] write  FLEETS.DAT
+  [1849] read   FLEETS.DAT
+  [1851] write  FLEETS.DAT
+  [1853] read   FLEETS.DAT
+  [1855] write  FLEETS.DAT
+  [1857] read   FLEETS.DAT
+  [1859] write  FLEETS.DAT
+  [1861] read   FLEETS.DAT
+  [1863] write  FLEETS.DAT
+  [1865] read   FLEETS.DAT
+  [1867] write  FLEETS.DAT
+  [1869] read   FLEETS.DAT
+  [1871] write  FLEETS.DAT
+  [1873] read   FLEETS.DAT
+  [1875] write  FLEETS.DAT
+  [1877] read   FLEETS.DAT
+  [1879] write  FLEETS.DAT
+  [1881] read   FLEETS.DAT
+  [1883] write  FLEETS.DAT
+  [1885] read   FLEETS.DAT
+  [1887] write  FLEETS.DAT
+  [1889] read   FLEETS.DAT
+  [1891] write  FLEETS.DAT
+  [1893] read   FLEETS.DAT
+  [1895] write  FLEETS.DAT
+  [1897] read   FLEETS.DAT
+  [1899] write  FLEETS.DAT
+  [1901] read   FLEETS.DAT
+  [1903] write  FLEETS.DAT
+  [1905] read   FLEETS.DAT
+  [1907] write  FLEETS.DAT
+  [1909] read   FLEETS.DAT
+  [1911] write  FLEETS.DAT
+  [1913] read   FLEETS.DAT
+  [1915] write  FLEETS.DAT
+  [1917] read   FLEETS.DAT
+  [1919] write  FLEETS.DAT
+  [1921] read   FLEETS.DAT
+  [1923] write  FLEETS.DAT
+  [1925] read   FLEETS.DAT
+  [1927] write  FLEETS.DAT
+  [1929] read   FLEETS.DAT
+  [1931] write  FLEETS.DAT
+  [1933] read   FLEETS.DAT
+  [1935] write  FLEETS.DAT
+  [1937] read   FLEETS.DAT
+  [1939] write  FLEETS.DAT
+  [1941] read   FLEETS.DAT
+  [1943] write  FLEETS.DAT
+  [1945] read   FLEETS.DAT
+  [1947] write  FLEETS.DAT
+  [1949] read   FLEETS.DAT
+  [1951] write  FLEETS.DAT
+  [1953] read   FLEETS.DAT
+  [1955] write  FLEETS.DAT
+  [1957] read   FLEETS.DAT
+  [1959] write  FLEETS.DAT
+  [1961] read   FLEETS.DAT
+  [1963] write  FLEETS.DAT
+  [1965] read   FLEETS.DAT
+  [1967] write  FLEETS.DAT
+  [1969] read   FLEETS.DAT
+  [1971] write  FLEETS.DAT
+  [1973] read   FLEETS.DAT
+  [1975] write  FLEETS.DAT
+  [1977] read   FLEETS.DAT
+  [1979] write  FLEETS.DAT
+  [1981] read   FLEETS.DAT
+  [1983] write  FLEETS.DAT
+  [1985] read   FLEETS.DAT
+  [1987] write  FLEETS.DAT
+  [1989] read   FLEETS.DAT
+  [1991] write  FLEETS.DAT
+  [1993] read   FLEETS.DAT
+  [1995] write  FLEETS.DAT
+  [1997] read   FLEETS.DAT
+  [1999] write  FLEETS.DAT
+  [2001] read   FLEETS.DAT
+  [2003] write  FLEETS.DAT
+  [2005] read   FLEETS.DAT
+  [2007] write  FLEETS.DAT
+  [2009] read   FLEETS.DAT
+  [2011] write  FLEETS.DAT
+  [2013] read   FLEETS.DAT
+  [2015] write  FLEETS.DAT
+  [2017] read   FLEETS.DAT
+  [2019] write  FLEETS.DAT
+  [2021] read   FLEETS.DAT
+  [2023] write  FLEETS.DAT
+  [2025] read   FLEETS.DAT
+  [2027] write  FLEETS.DAT
+  [2029] read   FLEETS.DAT
+  [2031] write  FLEETS.DAT
+  [2033] read   FLEETS.DAT
+  [2035] write  FLEETS.DAT
+  [2037] read   FLEETS.DAT
+  [2039] write  FLEETS.DAT
+  [2041] read   FLEETS.DAT
+  [2043] write  FLEETS.DAT
+  [2045] read   FLEETS.DAT
+  [2047] write  FLEETS.DAT
+  [2049] read   FLEETS.DAT
+  [2051] write  FLEETS.DAT
+  [2053] read   FLEETS.DAT
+  [2055] write  FLEETS.DAT
+  [2057] read   FLEETS.DAT
+  [2059] write  FLEETS.DAT
+  [2061] read   FLEETS.DAT
+  [2063] write  FLEETS.DAT
+  [2065] read   FLEETS.DAT
+  [2067] write  FLEETS.DAT
+  [2069] read   FLEETS.DAT
+  [2071] write  FLEETS.DAT
+  [2073] read   FLEETS.DAT
+  [2075] write  FLEETS.DAT
+  [2077] read   FLEETS.DAT
+  [2079] write  FLEETS.DAT
+  [2081] read   FLEETS.DAT
+  [2083] write  FLEETS.DAT
+  [2085] read   FLEETS.DAT
+  [2087] write  FLEETS.DAT
+  [2089] read   FLEETS.DAT
+  [2091] write  FLEETS.DAT
+  [2093] read   FLEETS.DAT
+  [2095] write  FLEETS.DAT
+  [2097] read   FLEETS.DAT
+  [2099] write  FLEETS.DAT
+  [2101] read   FLEETS.DAT
+  [2103] write  FLEETS.DAT
+  [2105] read   FLEETS.DAT
+  [2107] write  FLEETS.DAT
+  [2109] read   FLEETS.DAT
+  [2111] write  FLEETS.DAT
+  [2113] read   FLEETS.DAT
+  [2115] write  FLEETS.DAT
+  [2117] read   FLEETS.DAT
+  [2119] write  FLEETS.DAT
+  [2121] read   FLEETS.DAT
+  [2123] write  FLEETS.DAT
+  [2125] read   FLEETS.DAT
+  [2127] write  FLEETS.DAT
+  [2129] read   FLEETS.DAT
+  [2131] write  FLEETS.DAT
+  [2133] read   FLEETS.DAT
+  [2135] write  FLEETS.DAT
+  [2137] read   FLEETS.DAT
+  [2139] write  FLEETS.DAT
+  [2141] read   FLEETS.DAT
+  [2143] write  FLEETS.DAT
+  [2145] read   FLEETS.DAT
+  [2147] write  FLEETS.DAT
+  [2149] read   FLEETS.DAT
+  [2151] write  FLEETS.DAT
+  [2153] read   FLEETS.DAT
+  [2155] write  FLEETS.DAT
+  [2157] read   FLEETS.DAT
+  [2159] write  FLEETS.DAT
+  [2161] read   FLEETS.DAT
+  [2163] write  FLEETS.DAT
+  [2165] read   FLEETS.DAT
+  [2167] write  FLEETS.DAT
+  [2169] read   FLEETS.DAT
+  [2171] write  FLEETS.DAT
+  [2173] read   FLEETS.DAT
+  [2175] write  FLEETS.DAT
+  [2177] read   FLEETS.DAT
+  [2179] write  FLEETS.DAT
+  [2181] read   FLEETS.DAT
+  [2183] write  FLEETS.DAT
+  [2185] read   FLEETS.DAT
+  [2187] write  FLEETS.DAT
+  [2189] read   FLEETS.DAT
+  [2191] write  FLEETS.DAT
+  [2193] read   FLEETS.DAT
+  [2195] write  FLEETS.DAT
+  [2197] read   FLEETS.DAT
+  [2199] write  FLEETS.DAT
+  [2201] read   FLEETS.DAT
+  [2203] write  FLEETS.DAT
+  [2205] read   FLEETS.DAT
+  [2207] write  FLEETS.DAT
+  [2209] read   FLEETS.DAT
+  [2211] write  FLEETS.DAT
+  [2213] read   FLEETS.DAT
+  [2215] write  FLEETS.DAT
+  [2217] read   FLEETS.DAT
+  [2219] write  FLEETS.DAT
+  [2221] read   FLEETS.DAT
+  [2223] write  FLEETS.DAT
+  [2225] read   FLEETS.DAT
+  [2227] write  FLEETS.DAT
+  [2229] read   FLEETS.DAT
+  [2231] write  FLEETS.DAT
+  [2233] read   FLEETS.DAT
+  [2235] write  FLEETS.DAT
+  [2237] read   FLEETS.DAT
+  [2239] write  FLEETS.DAT
+  [2241] read   FLEETS.DAT
+  [2243] write  FLEETS.DAT
+  [2245] read   FLEETS.DAT
+  [2247] write  FLEETS.DAT
+  [2249] read   FLEETS.DAT
+  [2251] write  FLEETS.DAT
+  [2253] read   FLEETS.DAT
+  [2255] write  FLEETS.DAT
+  [2257] read   FLEETS.DAT
+  [2259] write  FLEETS.DAT
+  [2261] read   FLEETS.DAT
+  [2263] write  FLEETS.DAT
+  [2265] read   FLEETS.DAT
+  [2267] write  FLEETS.DAT
+  [2269] read   FLEETS.DAT
+  [2271] write  FLEETS.DAT
+  [2273] read   FLEETS.DAT
+  [2275] write  FLEETS.DAT
+  [2277] read   FLEETS.DAT
+  [2279] write  FLEETS.DAT
+  [2281] read   FLEETS.DAT
+  [2283] write  FLEETS.DAT
+  [2285] read   FLEETS.DAT
+  [2287] write  FLEETS.DAT
+  [2289] read   FLEETS.DAT
+  [2291] write  FLEETS.DAT
+  [2293] read   FLEETS.DAT
+  [2295] write  FLEETS.DAT
+  [2297] read   FLEETS.DAT
+  [2299] write  FLEETS.DAT
+  [2301] read   FLEETS.DAT
+  [2303] write  FLEETS.DAT
+  [2305] read   FLEETS.DAT
+  [2307] write  FLEETS.DAT
+  [2309] read   FLEETS.DAT
+  [2311] write  FLEETS.DAT
+  [2313] read   FLEETS.DAT
+  [2315] write  FLEETS.DAT
+  [2317] read   FLEETS.DAT
+  [2319] write  FLEETS.DAT
+  [2321] read   FLEETS.DAT
+  [2323] write  FLEETS.DAT
+  [2325] read   FLEETS.DAT
+  [2327] write  FLEETS.DAT
+  [2329] read   FLEETS.DAT
+  [2331] write  FLEETS.DAT
+  [2333] read   FLEETS.DAT
+  [2335] write  FLEETS.DAT
+  [2337] read   FLEETS.DAT
+  [2339] write  FLEETS.DAT
+  [2341] read   FLEETS.DAT
+  [2343] write  FLEETS.DAT
+  [2345] read   FLEETS.DAT
+  [2347] write  FLEETS.DAT
+  [2349] read   FLEETS.DAT
+  [2351] write  FLEETS.DAT
+  [2353] read   FLEETS.DAT
+  [2355] write  FLEETS.DAT
+  [2357] read   FLEETS.DAT
+  [2359] write  FLEETS.DAT
+  [2361] read   FLEETS.DAT
+  [2363] write  FLEETS.DAT
+  [2365] read   FLEETS.DAT
+  [2367] write  FLEETS.DAT
+  [2369] read   FLEETS.DAT
+  [2371] write  FLEETS.DAT
+  [2373] read   FLEETS.DAT
+  [2375] write  FLEETS.DAT
+  [2377] read   FLEETS.DAT
+  [2379] write  FLEETS.DAT
+  [2381] read   FLEETS.DAT
+  [2383] write  FLEETS.DAT
+  [2385] read   FLEETS.DAT
+  [2387] write  FLEETS.DAT
+  [2389] read   FLEETS.DAT
+  [2391] write  FLEETS.DAT
+  [2393] read   FLEETS.DAT
+  [2395] write  FLEETS.DAT
+  [2397] read   FLEETS.DAT
+  [2399] write  FLEETS.DAT
+  [2401] read   FLEETS.DAT
+  [2403] write  FLEETS.DAT
+  [2405] read   FLEETS.DAT
+  [2407] write  FLEETS.DAT
+  [2409] read   FLEETS.DAT
+  [2411] write  FLEETS.DAT
+  [2413] read   FLEETS.DAT
+  [2415] write  FLEETS.DAT
+  [2417] read   FLEETS.DAT
+  [2419] write  FLEETS.DAT
+  [2421] read   FLEETS.DAT
+  [2423] write  FLEETS.DAT
+  [2425] read   FLEETS.DAT
+  [2427] write  FLEETS.DAT
+  [2429] read   FLEETS.DAT
+  [2431] write  FLEETS.DAT
+  [2433] read   FLEETS.DAT
+  [2435] write  FLEETS.DAT
+  [2437] read   FLEETS.DAT
+  [2439] write  FLEETS.DAT
+  [2441] read   FLEETS.DAT
+  [2443] write  FLEETS.DAT
+  [2445] read   FLEETS.DAT
+  [2447] write  FLEETS.DAT
+  [2449] read   FLEETS.DAT
+  [2451] write  FLEETS.DAT
+  [2453] read   FLEETS.DAT
+  [2455] write  FLEETS.DAT
+  [2457] read   FLEETS.DAT
+  [2459] write  FLEETS.DAT
+  [2461] read   FLEETS.DAT
+  [2463] write  FLEETS.DAT
+  [2465] read   FLEETS.DAT
+  [2467] write  FLEETS.DAT
+  [2469] read   FLEETS.DAT
+  [2471] write  FLEETS.DAT
+  [2473] read   FLEETS.DAT
+  [2475] write  FLEETS.DAT
+  [2477] read   FLEETS.DAT
+  [2479] write  FLEETS.DAT
+  [2481] read   FLEETS.DAT
+  [2483] write  FLEETS.DAT
+  [2485] read   FLEETS.DAT
+  [2487] write  FLEETS.DAT
+  [2489] read   FLEETS.DAT
+  [2491] write  FLEETS.DAT
+  [2493] read   FLEETS.DAT
+  [2495] write  FLEETS.DAT
+  [2497] read   FLEETS.DAT
+  [2499] write  FLEETS.DAT
+  [2501] read   FLEETS.DAT
+  [2503] write  FLEETS.DAT
+  [2505] read   FLEETS.DAT
+  [2507] write  FLEETS.DAT
+  [2509] read   FLEETS.DAT
+  [2511] write  FLEETS.DAT
+  [2513] read   FLEETS.DAT
+  [2515] write  FLEETS.DAT
+  [2517] read   FLEETS.DAT
+  [2519] write  FLEETS.DAT
+  [2521] read   FLEETS.DAT
+  [2523] write  FLEETS.DAT
+  [2525] read   FLEETS.DAT
+  [2527] write  FLEETS.DAT
+  [2529] read   FLEETS.DAT
+  [2531] write  FLEETS.DAT
+  [2533] read   FLEETS.DAT
+  [2535] write  FLEETS.DAT
+  [2537] read   FLEETS.DAT
+  [2539] write  FLEETS.DAT
+  [2541] read   FLEETS.DAT
+  [2543] write  FLEETS.DAT
+  [2545] read   FLEETS.DAT
+  [2547] write  FLEETS.DAT
+  [2549] read   FLEETS.DAT
+  [2551] write  FLEETS.DAT
+  [2553] read   FLEETS.DAT
+  [2555] write  FLEETS.DAT
+  [2557] read   FLEETS.DAT
+  [2559] write  FLEETS.DAT
+  [2561] read   FLEETS.DAT
+  [2563] write  FLEETS.DAT
+  [2565] read   FLEETS.DAT
+  [2567] write  FLEETS.DAT
+  [2569] read   FLEETS.DAT
+  [2571] write  FLEETS.DAT
+  [2573] read   FLEETS.DAT
+  [2575] write  FLEETS.DAT
+  [2577] read   FLEETS.DAT
+  [2579] write  FLEETS.DAT
+  [2581] read   FLEETS.DAT
+  [2583] write  FLEETS.DAT
+  [2585] read   FLEETS.DAT
+  [2587] write  FLEETS.DAT
+  [2589] read   FLEETS.DAT
+  [2591] write  FLEETS.DAT
+  [2593] read   FLEETS.DAT
+  [2595] write  FLEETS.DAT
+  [2597] read   FLEETS.DAT
+  [2599] write  FLEETS.DAT
+  [2601] read   FLEETS.DAT
+  [2603] write  FLEETS.DAT
+  [2605] read   FLEETS.DAT
+  [2607] write  FLEETS.DAT
+  [2609] read   FLEETS.DAT
+  [2611] write  FLEETS.DAT
+  [2613] read   FLEETS.DAT
+  [2615] write  FLEETS.DAT
+  [2617] read   FLEETS.DAT
+  [2619] write  FLEETS.DAT
+  [2621] read   FLEETS.DAT
+  [2623] write  FLEETS.DAT
+  [2625] read   FLEETS.DAT
+  [2627] write  FLEETS.DAT
+  [2629] read   FLEETS.DAT
+  [2631] write  FLEETS.DAT
+  [2633] read   FLEETS.DAT
+  [2635] write  FLEETS.DAT
+  [2637] read   FLEETS.DAT
+  [2639] write  FLEETS.DAT
+  [2641] read   FLEETS.DAT
+  [2643] write  FLEETS.DAT
+  [2645] read   FLEETS.DAT
+  [2647] write  FLEETS.DAT
+  [2649] read   FLEETS.DAT
+  [2651] write  FLEETS.DAT
+  [2653] read   FLEETS.DAT
+  [2655] write  FLEETS.DAT
+  [2657] read   FLEETS.DAT
+  [2659] write  FLEETS.DAT
+  [2661] read   FLEETS.DAT
+  [2663] write  FLEETS.DAT
+  [2665] read   FLEETS.DAT
+  [2667] write  FLEETS.DAT
+  [2669] read   FLEETS.DAT
+  [2671] write  FLEETS.DAT
+  [2673] read   FLEETS.DAT
+  [2675] write  FLEETS.DAT
+  [2677] read   FLEETS.DAT
+  [2679] write  FLEETS.DAT
+  [2681] read   FLEETS.DAT
+  [2683] write  FLEETS.DAT
+  [2685] read   FLEETS.DAT
+  [2687] write  FLEETS.DAT
+  [2689] read   FLEETS.DAT
+  [2691] write  FLEETS.DAT
+  [2693] read   FLEETS.DAT
+  [2695] write  FLEETS.DAT
+  [2697] read   FLEETS.DAT
+  [2699] write  FLEETS.DAT
+  [2701] read   FLEETS.DAT
+  [2703] write  FLEETS.DAT
+  [2705] read   FLEETS.DAT
+  [2707] write  FLEETS.DAT
+  [2709] read   FLEETS.DAT
+  [2711] write  FLEETS.DAT
+  [2713] read   FLEETS.DAT
+  [2715] write  FLEETS.DAT
+  [2717] read   FLEETS.DAT
+  [2719] write  FLEETS.DAT
+  [2721] read   FLEETS.DAT
+  [2723] write  FLEETS.DAT
+  [2725] read   FLEETS.DAT
+  [2727] write  FLEETS.DAT
+  [2729] read   FLEETS.DAT
+  [2731] write  FLEETS.DAT
+  [2733] read   FLEETS.DAT
+  [2735] write  FLEETS.DAT
+  [2737] read   FLEETS.DAT
+  [2739] write  FLEETS.DAT
+  [2741] read   FLEETS.DAT
+  [2743] write  FLEETS.DAT
+  [2745] read   FLEETS.DAT
+  [2747] write  FLEETS.DAT
+  [2749] read   FLEETS.DAT
+  [2751] write  FLEETS.DAT
+  [2753] read   FLEETS.DAT
+  [2755] write  FLEETS.DAT
+  [2757] read   FLEETS.DAT
+  [2759] write  FLEETS.DAT
+  [2761] read   FLEETS.DAT
+  [2763] write  FLEETS.DAT
+  [2765] read   FLEETS.DAT
+  [2767] write  FLEETS.DAT
+  [2769] read   FLEETS.DAT
+  [2771] write  FLEETS.DAT
+  [2773] read   FLEETS.DAT
+  [2775] write  FLEETS.DAT
+  [2777] read   FLEETS.DAT
+  [2779] write  FLEETS.DAT
+  [2781] read   FLEETS.DAT
+  [2783] write  FLEETS.DAT
+  [2785] read   FLEETS.DAT
+  [2787] write  FLEETS.DAT
+  [2789] read   FLEETS.DAT
+  [2791] write  FLEETS.DAT
+  [2793] read   FLEETS.DAT
+  [2795] write  FLEETS.DAT
+  [2797] read   FLEETS.DAT
+  [2799] write  FLEETS.DAT
+  [2801] read   FLEETS.DAT
+  [2803] write  FLEETS.DAT
+  [2805] read   FLEETS.DAT
+  [2807] write  FLEETS.DAT
+  [2809] read   FLEETS.DAT
+  [2811] write  FLEETS.DAT
+  [2813] read   FLEETS.DAT
+  [2815] write  FLEETS.DAT
+  [2817] read   FLEETS.DAT
+  [2819] write  FLEETS.DAT
+  [2821] read   FLEETS.DAT
+  [2823] write  FLEETS.DAT
+  [2825] read   FLEETS.DAT
+  [2827] write  FLEETS.DAT
+  [2829] read   FLEETS.DAT
+  [2831] write  FLEETS.DAT
+  [2833] read   FLEETS.DAT
+  [2835] write  FLEETS.DAT
+  [2837] read   FLEETS.DAT
+  [2839] write  FLEETS.DAT
+  [2841] read   FLEETS.DAT
+  [2843] write  FLEETS.DAT
+  [2845] read   FLEETS.DAT
+  [2847] write  FLEETS.DAT
+  [2849] read   FLEETS.DAT
+  [2851] write  FLEETS.DAT
+  [2853] read   FLEETS.DAT
+  [2855] write  FLEETS.DAT
+  [2857] read   FLEETS.DAT
+  [2859] write  FLEETS.DAT
+  [2861] read   FLEETS.DAT
+  [2863] write  FLEETS.DAT
+  [2865] read   FLEETS.DAT
+  [2867] write  FLEETS.DAT
+  [2869] read   FLEETS.DAT
+  [2871] write  FLEETS.DAT
+  [2873] read   FLEETS.DAT
+  [2875] write  FLEETS.DAT
+  [2877] read   FLEETS.DAT
+  [2879] write  FLEETS.DAT
+  [2881] read   FLEETS.DAT
+  [2883] write  FLEETS.DAT
+  [2885] read   FLEETS.DAT
+  [2887] write  FLEETS.DAT
+  [2889] read   FLEETS.DAT
+  [2891] write  FLEETS.DAT
+  [2893] read   FLEETS.DAT
+  [2895] write  FLEETS.DAT
+  [2897] read   FLEETS.DAT
+  [2899] write  FLEETS.DAT
+  [2901] read   FLEETS.DAT
+  [2903] write  FLEETS.DAT
+  [2905] read   FLEETS.DAT
+  [2907] write  FLEETS.DAT
+  [2909] read   FLEETS.DAT
+  [2911] write  FLEETS.DAT
+  [2913] read   FLEETS.DAT
+  [2915] write  FLEETS.DAT
+  [2917] read   FLEETS.DAT
+  [2919] write  FLEETS.DAT
+  [2921] read   FLEETS.DAT
+  [2923] write  FLEETS.DAT
+  [2925] read   FLEETS.DAT
+  [2927] write  FLEETS.DAT
+  [2929] read   FLEETS.DAT
+  [2931] write  FLEETS.DAT
+  [2933] read   FLEETS.DAT
+  [2935] write  FLEETS.DAT
+  [2937] read   FLEETS.DAT
+  [2939] write  FLEETS.DAT
+  [2941] read   FLEETS.DAT
+  [2943] write  FLEETS.DAT
+  [2945] read   FLEETS.DAT
+  [2947] write  FLEETS.DAT
+  [2949] read   FLEETS.DAT
+  [2951] write  FLEETS.DAT
+  [2953] read   FLEETS.DAT
+  [2955] write  FLEETS.DAT
+  [2957] read   FLEETS.DAT
+  [2959] write  FLEETS.DAT
+  [2961] read   FLEETS.DAT
+  [2963] write  FLEETS.DAT
+  [2965] read   FLEETS.DAT
+  [2967] write  FLEETS.DAT
+  [2969] read   FLEETS.DAT
+  [2971] write  FLEETS.DAT
+  [2973] read   FLEETS.DAT
+  [2975] write  FLEETS.DAT
+  [2977] read   FLEETS.DAT
+  [2979] write  FLEETS.DAT
+  [2981] read   FLEETS.DAT
+  [2983] write  FLEETS.DAT
+  [2985] read   FLEETS.DAT
+  [2987] write  FLEETS.DAT
+  [2989] read   FLEETS.DAT
+  [2991] write  FLEETS.DAT
+  [2993] read   FLEETS.DAT
+  [2995] write  FLEETS.DAT
+  [2997] read   FLEETS.DAT
+  [2999] write  FLEETS.DAT
+  [3001] read   FLEETS.DAT
+  [3003] write  FLEETS.DAT
+  [3005] read   FLEETS.DAT
+  [3007] write  FLEETS.DAT
+  [3009] read   FLEETS.DAT
+  [3011] write  FLEETS.DAT
+  [3013] read   FLEETS.DAT
+  [3015] write  FLEETS.DAT
+  [3017] read   FLEETS.DAT
+  [3019] write  FLEETS.DAT
+  [3021] read   FLEETS.DAT
+  [3023] write  FLEETS.DAT
+  [3025] read   FLEETS.DAT
+  [3027] write  FLEETS.DAT
+  [3029] read   FLEETS.DAT
+  [3031] write  FLEETS.DAT
+  [3033] read   FLEETS.DAT
+  [3035] write  FLEETS.DAT
+  [3037] read   FLEETS.DAT
+  [3039] write  FLEETS.DAT
+  [3041] read   FLEETS.DAT
+  [3043] write  FLEETS.DAT
+  [3045] read   FLEETS.DAT
+  [3047] write  FLEETS.DAT
+  [3049] read   FLEETS.DAT
+  [3051] write  FLEETS.DAT
+  [3053] read   FLEETS.DAT
+  [3055] write  FLEETS.DAT
+  [3057] read   FLEETS.DAT
+  [3059] write  FLEETS.DAT
+  [3061] read   FLEETS.DAT
+  [3063] write  FLEETS.DAT
+  [3065] read   FLEETS.DAT
+  [3067] write  FLEETS.DAT
+  [3069] read   FLEETS.DAT
+  [3071] write  FLEETS.DAT
+  [3073] read   FLEETS.DAT
+  [3075] write  FLEETS.DAT
+  [3077] read   FLEETS.DAT
+  [3079] write  FLEETS.DAT
+  [3081] read   FLEETS.DAT
+  [3083] write  FLEETS.DAT
+  [3085] read   FLEETS.DAT
+  [3087] write  FLEETS.DAT
+  [3089] read   FLEETS.DAT
+  [3091] write  FLEETS.DAT
+  [3093] read   FLEETS.DAT
+  [3095] write  FLEETS.DAT
+  [3097] read   FLEETS.DAT
+  [3099] write  FLEETS.DAT
+  [3101] read   FLEETS.DAT
+  [3103] write  FLEETS.DAT
+  [3105] read   FLEETS.DAT
+  [3107] write  FLEETS.DAT
+  [3109] read   FLEETS.DAT
+  [3111] write  FLEETS.DAT
+  [3113] read   FLEETS.DAT
+  [3115] write  FLEETS.DAT
+  [3117] read   FLEETS.DAT
+  [3119] write  FLEETS.DAT
+  [3121] read   FLEETS.DAT
+  [3123] write  FLEETS.DAT
+  [3125] read   FLEETS.DAT
+  [3127] write  FLEETS.DAT
+  [3129] read   FLEETS.DAT
+  [3131] write  FLEETS.DAT
+  [3133] read   FLEETS.DAT
+  [3135] write  FLEETS.DAT
+  [3137] read   FLEETS.DAT
+  [3139] write  FLEETS.DAT
+  [3141] read   FLEETS.DAT
+  [3143] write  FLEETS.DAT
+  [3145] read   FLEETS.DAT
+  [3147] write  FLEETS.DAT
+  [3149] read   FLEETS.DAT
+  [3151] write  FLEETS.DAT
+  [3153] read   FLEETS.DAT
+  [3155] write  FLEETS.DAT
+  [3157] read   FLEETS.DAT
+  [3159] write  FLEETS.DAT
+  [3161] read   FLEETS.DAT
+  [3163] write  FLEETS.DAT
+  [3165] read   FLEETS.DAT
+  [3167] write  FLEETS.DAT
+  [3169] read   FLEETS.DAT
+  [3171] write  FLEETS.DAT
+  [3173] read   FLEETS.DAT
+  [3175] write  FLEETS.DAT
+  [3177] read   FLEETS.DAT
+  [3179] write  FLEETS.DAT
+  [3181] read   FLEETS.DAT
+  [3183] write  FLEETS.DAT
+  [3185] read   FLEETS.DAT
+  [3187] write  FLEETS.DAT
+  [3189] read   FLEETS.DAT
+  [3191] write  FLEETS.DAT
+  [3193] read   FLEETS.DAT
+  [3195] write  FLEETS.DAT
+  [3197] read   FLEETS.DAT
+  [3199] write  FLEETS.DAT
+  [3201] read   FLEETS.DAT
+  [3203] write  FLEETS.DAT
+  [3205] read   FLEETS.DAT
+  [3207] write  FLEETS.DAT
+  [3209] read   FLEETS.DAT
+  [3211] write  FLEETS.DAT
+  [3213] read   FLEETS.DAT
+  [3215] write  FLEETS.DAT
+  [3217] read   FLEETS.DAT
+  [3219] write  FLEETS.DAT
+  [3221] read   FLEETS.DAT
+  [3223] write  FLEETS.DAT
+  [3225] read   FLEETS.DAT
+  [3227] write  FLEETS.DAT
+  [3229] read   FLEETS.DAT
+  [3231] write  FLEETS.DAT
+  [3233] read   FLEETS.DAT
+  [3235] write  FLEETS.DAT
+  [3237] read   FLEETS.DAT
+  [3239] write  FLEETS.DAT
+  [3241] read   FLEETS.DAT
+  [3243] write  FLEETS.DAT
+  [3245] read   FLEETS.DAT
+  [3247] write  FLEETS.DAT
+  [3249] read   FLEETS.DAT
+  [3251] write  FLEETS.DAT
+  [3253] read   FLEETS.DAT
+  [3255] write  FLEETS.DAT
+  [3257] read   FLEETS.DAT
+  [3259] write  FLEETS.DAT
+  [3261] read   FLEETS.DAT
+  [3263] write  FLEETS.DAT
+  [3265] read   FLEETS.DAT
+  [3267] write  FLEETS.DAT
+  [3269] read   FLEETS.DAT
+  [3271] write  FLEETS.DAT
+  [3273] read   FLEETS.DAT
+  [3275] write  FLEETS.DAT
+  [3277] read   FLEETS.DAT
+  [3279] write  FLEETS.DAT
+  [3281] read   FLEETS.DAT
+  [3283] write  FLEETS.DAT
+  [3285] read   FLEETS.DAT
+  [3287] write  FLEETS.DAT
+  [3289] read   FLEETS.DAT
+  [3291] write  FLEETS.DAT
+  [3293] read   FLEETS.DAT
+  [3295] write  FLEETS.DAT
+  [3297] read   FLEETS.DAT
+  [3299] write  FLEETS.DAT
+  [3301] read   FLEETS.DAT
+  [3303] write  FLEETS.DAT
+  [3305] read   FLEETS.DAT
+  [3307] write  FLEETS.DAT
+  [3309] read   FLEETS.DAT
+  [3311] write  FLEETS.DAT
+  [3313] read   FLEETS.DAT
+  [3315] write  FLEETS.DAT
+  [3317] read   FLEETS.DAT
+  [3319] write  FLEETS.DAT
+  [3321] read   FLEETS.DAT
+  [3323] write  FLEETS.DAT
+  [3325] read   FLEETS.DAT
+  [3327] write  FLEETS.DAT
+  [3329] read   FLEETS.DAT
+  [3331] write  FLEETS.DAT
+  [3333] read   FLEETS.DAT
+  [3335] write  FLEETS.DAT
+  [3337] read   FLEETS.DAT
+  [3339] write  FLEETS.DAT
+  [3341] read   FLEETS.DAT
+  [3343] write  FLEETS.DAT
+  [3345] read   FLEETS.DAT
+  [3347] write  FLEETS.DAT
+  [3349] read   FLEETS.DAT
+  [3351] write  FLEETS.DAT
+  [3353] read   FLEETS.DAT
+  [3355] write  FLEETS.DAT
+  [3357] read   FLEETS.DAT
+  [3359] write  FLEETS.DAT
+  [3361] read   FLEETS.DAT
+  [3363] write  FLEETS.DAT
+  [3365] read   FLEETS.DAT
+  [3367] write  FLEETS.DAT
+  [3369] read   FLEETS.DAT
+  [3371] write  FLEETS.DAT
+  [3373] read   FLEETS.DAT
+  [3375] write  FLEETS.DAT
+  [3377] read   FLEETS.DAT
+  [3379] write  FLEETS.DAT
+  [3381] read   FLEETS.DAT
+  [3383] write  FLEETS.DAT
+  [3385] read   FLEETS.DAT
+  [3387] write  FLEETS.DAT
+  [3389] read   FLEETS.DAT
+  [3391] write  FLEETS.DAT
+  [3393] read   FLEETS.DAT
+  [3395] write  FLEETS.DAT
+  [3397] read   FLEETS.DAT
+  [3399] write  FLEETS.DAT
+  [3401] read   FLEETS.DAT
+  [3403] write  FLEETS.DAT
+  [3405] read   FLEETS.DAT
+  [3407] write  FLEETS.DAT
+  [3409] read   FLEETS.DAT
+  [3411] write  FLEETS.DAT
+  [3413] read   FLEETS.DAT
+  [3415] write  FLEETS.DAT
+  [3417] read   FLEETS.DAT
+  [3419] write  FLEETS.DAT
+  [3421] read   FLEETS.DAT
+  [3423] write  FLEETS.DAT
+  [3425] read   FLEETS.DAT
+  [3427] write  FLEETS.DAT
+  [3429] read   FLEETS.DAT
+  [3431] write  FLEETS.DAT
+  [3433] read   FLEETS.DAT
+  [3435] write  FLEETS.DAT
+  [3437] read   FLEETS.DAT
+  [3439] write  FLEETS.DAT
+  [3441] read   FLEETS.DAT
+  [3443] write  FLEETS.DAT
+  [3445] read   FLEETS.DAT
+  [3447] write  FLEETS.DAT
+  [3449] read   FLEETS.DAT
+  [3451] write  FLEETS.DAT
+  [3453] read   FLEETS.DAT
+  [3455] write  FLEETS.DAT
+  [3457] read   FLEETS.DAT
+  [3459] write  FLEETS.DAT
+  [3461] read   FLEETS.DAT
+  [3463] write  FLEETS.DAT
+  [3465] read   FLEETS.DAT
+  [3467] write  FLEETS.DAT
+  [3469] read   FLEETS.DAT
+  [3471] write  FLEETS.DAT
+  [3473] read   FLEETS.DAT
+  [3475] write  FLEETS.DAT
+  [3477] read   FLEETS.DAT
+  [3479] write  FLEETS.DAT
+  [3481] read   FLEETS.DAT
+  [3483] write  FLEETS.DAT
+  [3485] read   FLEETS.DAT
+  [3487] write  FLEETS.DAT
+  [3489] read   FLEETS.DAT
+  [3491] write  FLEETS.DAT
+  [3493] read   FLEETS.DAT
+  [3495] write  FLEETS.DAT
+  [3497] read   FLEETS.DAT
+  [3499] write  FLEETS.DAT
+  [3501] read   FLEETS.DAT
+  [3503] write  FLEETS.DAT
+  [3505] read   FLEETS.DAT
+  [3507] write  FLEETS.DAT
+  [3509] read   FLEETS.DAT
+  [3511] write  FLEETS.DAT
+  [3513] read   FLEETS.DAT
+  [3515] write  FLEETS.DAT
+  [3517] read   FLEETS.DAT
+  [3519] write  FLEETS.DAT
+  [3521] read   FLEETS.DAT
+  [3523] write  FLEETS.DAT
+  [3525] read   FLEETS.DAT
+  [3527] write  FLEETS.DAT
+  [3529] read   FLEETS.DAT
+  [3531] write  FLEETS.DAT
+  [3533] read   FLEETS.DAT
+  [3535] write  FLEETS.DAT
+  [3537] read   FLEETS.DAT
+  [3539] write  FLEETS.DAT
+  [3541] read   FLEETS.DAT
+  [3543] write  FLEETS.DAT
+  [3545] read   FLEETS.DAT
+  [3547] write  FLEETS.DAT
+  [3549] read   FLEETS.DAT
+  [3551] write  FLEETS.DAT
+  [3553] read   FLEETS.DAT
+  [3555] write  FLEETS.DAT
+  [3557] read   FLEETS.DAT
+  [3559] write  FLEETS.DAT
+  [3561] read   FLEETS.DAT
+  [3563] write  FLEETS.DAT
+  [3565] read   FLEETS.DAT
+  [3567] write  FLEETS.DAT
+  [3569] read   FLEETS.DAT
+  [3571] write  FLEETS.DAT
+  [3573] read   FLEETS.DAT
+  [3575] write  FLEETS.DAT
+  [3577] read   FLEETS.DAT
+  [3579] write  FLEETS.DAT
+  [3581] read   FLEETS.DAT
+  [3583] write  FLEETS.DAT
+  [3585] read   FLEETS.DAT
+  [3587] write  FLEETS.DAT
+  [3589] read   FLEETS.DAT
+  [3591] write  FLEETS.DAT
+  [3593] read   FLEETS.DAT
+  [3595] write  FLEETS.DAT
+  [3597] read   FLEETS.DAT
+  [3599] write  FLEETS.DAT
+  [3601] read   FLEETS.DAT
+  [3603] write  FLEETS.DAT
+  [3605] read   FLEETS.DAT
+  [3607] write  FLEETS.DAT
+  [3609] read   FLEETS.DAT
+  [3611] write  FLEETS.DAT
+  [3613] read   FLEETS.DAT
+  [3615] write  FLEETS.DAT
+  [3617] read   FLEETS.DAT
+  [3619] write  FLEETS.DAT
+  [3621] read   FLEETS.DAT
+  [3623] write  FLEETS.DAT
+  [3625] read   FLEETS.DAT
+  [3627] write  FLEETS.DAT
+  [3629] read   FLEETS.DAT
+  [3631] write  FLEETS.DAT
+  [3633] read   FLEETS.DAT
+  [3635] write  FLEETS.DAT
+  [3637] read   FLEETS.DAT
+  [3639] write  FLEETS.DAT
+  [3641] read   FLEETS.DAT
+  [3643] write  FLEETS.DAT
+  [3645] read   FLEETS.DAT
+  [3647] write  FLEETS.DAT
+  [3649] read   FLEETS.DAT
+  [3651] write  FLEETS.DAT
+  [3653] read   FLEETS.DAT
+  [3655] write  FLEETS.DAT
+  [3657] read   FLEETS.DAT
+  [3659] write  FLEETS.DAT
+  [3661] read   FLEETS.DAT
+  [3663] write  FLEETS.DAT
+  [3665] read   FLEETS.DAT
+  [3667] write  FLEETS.DAT
+  [3669] read   FLEETS.DAT
+  [3671] write  FLEETS.DAT
+  [3673] read   FLEETS.DAT
+  [3675] write  FLEETS.DAT
+  [3677] read   FLEETS.DAT
+  [3679] write  FLEETS.DAT
+  [3681] read   FLEETS.DAT
+  [3683] write  FLEETS.DAT
+  [3685] read   FLEETS.DAT
+  [3687] write  FLEETS.DAT
+  [3689] read   FLEETS.DAT
+  [3691] write  FLEETS.DAT
+  [3693] read   FLEETS.DAT
+  [3695] write  FLEETS.DAT
+  [3697] read   FLEETS.DAT
+  [3699] write  FLEETS.DAT
+  [3701] read   FLEETS.DAT
+  [3703] write  FLEETS.DAT
+  [3705] read   FLEETS.DAT
+  [3707] write  FLEETS.DAT
+  [3709] read   FLEETS.DAT
+  [3711] write  FLEETS.DAT
+  [3713] read   FLEETS.DAT
+  [3715] write  FLEETS.DAT
+  [3717] read   FLEETS.DAT
+  [3719] write  FLEETS.DAT
+  [3721] read   FLEETS.DAT
+  [3723] write  FLEETS.DAT
+  [3725] read   FLEETS.DAT
+  [3727] write  FLEETS.DAT
+  [3729] read   FLEETS.DAT
+  [3731] write  FLEETS.DAT
+  [3733] read   FLEETS.DAT
+  [3735] write  FLEETS.DAT
+  [3737] read   FLEETS.DAT
+  [3739] write  FLEETS.DAT
+  [3741] read   FLEETS.DAT
+  [3743] write  FLEETS.DAT
+  [3745] read   FLEETS.DAT
+  [3747] write  FLEETS.DAT
+  [3749] read   FLEETS.DAT
+  [3751] write  FLEETS.DAT
+  [3753] read   FLEETS.DAT
+  [3755] write  FLEETS.DAT
+  [3757] read   FLEETS.DAT
+  [3759] write  FLEETS.DAT
+  [3761] read   FLEETS.DAT
+  [3763] write  FLEETS.DAT
+  [3765] read   FLEETS.DAT
+  [3767] write  FLEETS.DAT
+  [3769] read   FLEETS.DAT
+  [3771] write  FLEETS.DAT
+  [3773] read   FLEETS.DAT
+  [3775] write  FLEETS.DAT
+  [3777] read   FLEETS.DAT
+  [3779] write  FLEETS.DAT
+  [3781] read   FLEETS.DAT
+  [3783] write  FLEETS.DAT
+  [3785] read   FLEETS.DAT
+  [3787] write  FLEETS.DAT
+  [3789] read   FLEETS.DAT
+  [3791] write  FLEETS.DAT
+  [3793] read   FLEETS.DAT
+  [3795] write  FLEETS.DAT
+  [3797] read   FLEETS.DAT
+  [3799] write  FLEETS.DAT
+  [3801] read   FLEETS.DAT
+  [3803] write  FLEETS.DAT
+  [3805] read   FLEETS.DAT
+  [3807] write  FLEETS.DAT
+  [3809] read   FLEETS.DAT
+  [3811] write  FLEETS.DAT
+  [3813] read   FLEETS.DAT
+  [3815] write  FLEETS.DAT
+  [3817] read   FLEETS.DAT
+  [3819] write  FLEETS.DAT
+  [3821] read   FLEETS.DAT
+  [3823] write  FLEETS.DAT
+  [3825] read   FLEETS.DAT
+  [3827] write  FLEETS.DAT
+  [3829] read   FLEETS.DAT
+  [3831] write  FLEETS.DAT
+  [3833] read   FLEETS.DAT
+  [3835] write  FLEETS.DAT
+  [3837] read   FLEETS.DAT  x32
+  [3900] open   DATABASE.DAT
+  [3905] read   DATABASE.DAT
+  [3910] write  DATABASE.DAT
+  [3911] close  DATABASE.DAT
+  [3912] open   DATABASE.DAT
+  [3917] read   DATABASE.DAT
+  [3922] write  DATABASE.DAT
+  [3923] close  DATABASE.DAT
+  [3924] open   DATABASE.DAT
+  [3929] read   DATABASE.DAT
+  [3934] write  DATABASE.DAT
+  [3935] close  DATABASE.DAT
+  [3936] open   DATABASE.DAT
+  [3941] read   DATABASE.DAT
+  [3946] write  DATABASE.DAT
+  [3947] close  DATABASE.DAT
+  [3948] open   DATABASE.DAT
+  [3953] read   DATABASE.DAT
+  [3958] write  DATABASE.DAT
+  [3959] close  DATABASE.DAT
+  [3960] open   DATABASE.DAT
+  [3965] read   DATABASE.DAT
+  [3970] write  DATABASE.DAT
+  [3971] close  FLEETS.DAT
+  [3972] open   FLEETS.DAT
+  [3974] read   FLEETS.DAT  x16
+  [4005] close  FLEETS.DAT
+  [4006] close  BASES.DAT
+  [4007] open   BASES.DAT
+  [4008] close  BASES.DAT
+  [4009] open   PLAYER.DAT
+  [4011] write  PLAYER.DAT  x3

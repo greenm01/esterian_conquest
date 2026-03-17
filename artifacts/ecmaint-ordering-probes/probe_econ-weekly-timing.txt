@@ -1,0 +1,21 @@
+====================================================================================================
+ORDERING PROBE: econ-weekly-timing
+CONCLUSION: INCONCLUSIVE
+====================================================================================================
+
+  Source fixture: econ (ticks=2)
+  Initial planet economy state:
+    Planet 4: owner=3 status=0x02 stored_goods=0
+    Planet 5: owner=4 status=0x02 stored_goods=0
+    Planet 12: owner=2 status=0x02 stored_goods=0
+    Planet 13: owner=2 status=0x02 stored_goods=0
+    Planet 14: owner=1 status=0x02 stored_goods=0
+  
+  === Tick 1 ===
+    RESULTS records after tick 1: 0
+  
+  === Tick 2 ===
+    Planet 13 changes: {'potential_prod_hi': (135, 133), 'economy_marker': (4, 0), 'army_count': (142, 60), 'ground_batteries': (15, 0)}
+    RESULTS records after tick 2: 0
+
+DETAIL: Compare stored_goods changes across ticks with report stardate references.

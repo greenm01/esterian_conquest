@@ -1,0 +1,34 @@
+====================================================================================================
+ORDERING PROBE: econ-vs-movement
+CONCLUSION: INCONCLUSIVE
+====================================================================================================
+
+  Source fixture: econ (ticks=2)
+  Planets loaded: 20
+  Fleets loaded: 16
+    Fleet 0: owner=1 order=0x05 loc=(16,13) target=(16,13) speed=0
+    Fleet 1: owner=1 order=0x05 loc=(16,13) target=(16,13) speed=0
+    Fleet 2: owner=1 order=0x06 loc=(16,13) target=(15,13) speed=3
+    Fleet 3: owner=1 order=0x05 loc=(16,13) target=(16,13) speed=0
+    Fleet 4: owner=2 order=0x05 loc=(4,13) target=(4,13) speed=0
+    Fleet 5: owner=2 order=0x05 loc=(4,13) target=(4,13) speed=0
+    Fleet 6: owner=2 order=0x05 loc=(4,13) target=(4,13) speed=0
+    Fleet 7: owner=2 order=0x05 loc=(4,13) target=(4,13) speed=0
+    Fleet 8: owner=3 order=0x05 loc=(6,5) target=(6,5) speed=0
+    Fleet 9: owner=3 order=0x05 loc=(6,5) target=(6,5) speed=0
+    Fleet 10: owner=3 order=0x05 loc=(6,5) target=(6,5) speed=0
+    Fleet 11: owner=3 order=0x05 loc=(6,5) target=(6,5) speed=0
+    Fleet 12: owner=4 order=0x05 loc=(13,5) target=(13,5) speed=0
+    Fleet 13: owner=4 order=0x05 loc=(13,5) target=(13,5) speed=0
+    Fleet 14: owner=4 order=0x05 loc=(13,5) target=(13,5) speed=0
+    Fleet 15: owner=4 order=0x05 loc=(13,5) target=(13,5) speed=0
+  
+  Planet economy changes:
+    Planet 13: {'potential_prod_hi': (135, 132), 'economy_marker': (4, 0), 'army_count': (142, 68), 'ground_batteries': (15, 0)}
+  
+  Fleet changes:
+    Fleet 2: {'current_speed': (3, 0), 'location_x': (16, 15), 'standing_order': (6, 0), 'cruiser_count': (50, 32), 'destroyer_count': (50, 35)}
+  
+  RESULTS.DAT records: 0
+
+DETAIL: Need to compare fleet arrival reports against economy state changes.

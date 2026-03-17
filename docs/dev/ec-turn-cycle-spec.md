@@ -606,7 +606,83 @@ Practical meaning:
   never in the write set — its mission may have resolved differently or it
   was absorbed before the main loop started
 
-#### 4l. File write ordering is stable across scenarios
+#### 4l. Fleet visit order is PRNG-shuffled, seeded from game state
+
+Confidence: `High`
+
+Source: cross-fixture comparison. Four scenarios with identical
+CONQUEST.DAT, SETUP.DAT, and nearly identical FLEETS.DAT (only fleet 2's
+ship counts differ) but different PLANETS.DAT produce completely different
+visit orders.
+
+Evidence:
+
+- bombard:     `[11,15,0,10,4,3,2,1,14,5,13,8,7,6,9,12]`
+- econ:        `[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]`
+- fleet-order: `[6,3,7,1,2,9,13,12,4,5,0,15,10,14,11,8]`
+- planet-build:`[15,12,9,4,0,3,7,8,11,14,2,1,13,6,10,5]`
+
+The linked list traversal (`next_fleet_link`) does NOT match any of these
+orderings. The fleet data is nearly identical but the orderings are
+completely different, ruling out all simple fleet-field-based sort keys.
+
+The only varying file among these four fixtures is PLANETS.DAT (planet 13's
+name and numeric fields differ). Small planet data changes cascade into
+completely different fleet orderings — characteristic of PRNG seeding.
+
+Practical meaning:
+
+- the fleet visit order is determined by a shuffle or sort using a PRNG
+  seeded from game state (likely including planet data)
+- the PRNG is probably Borland Pascal's `Random` function
+- for Rust oracle parity, either replicate the exact PRNG or accept that
+  visit order is deterministic-per-state but not trivially reproducible
+- the visit order affects combat timing within weekly passes: when two
+  hostile fleets are co-located, the first-visited fleet triggers combat
+  resolution and report emission
+
+#### 4m. Combat resolution is triggered by the first co-located hostile fleet processed
+
+Confidence: `High`
+
+Source: fleet-battle pass 7 inner event analysis.
+
+When fleet 4 (empire 2, PatrolSector, 100 BS at (10,10)) is processed in
+weekly pass 7:
+
+1. read fleet 4
+2. read fleet 0 (empire 1, co-located hostile, 50 BS/CA/DD at (10,10))
+3. open RESULTS.DAT
+4. write 5 report records (84 bytes each)
+5. close RESULTS.DAT
+6. read fleet 0 again
+7. open RESULTS.DAT, read 1 record back, write 7 more records
+8. close RESULTS.DAT
+9. write fleet 4
+
+The engine reads the opposing fleet's state during the processing fleet's
+iteration, resolves combat, emits reports inline, then writes the
+processing fleet's updated state. Fleet 0's state update happens later in
+the same pass when it reaches its own position in the visit order.
+
+#### 4n. Fleet slots can be reassigned between empires during the simulation
+
+Confidence: `High`
+
+Source: fleet-battle preserved pre/post fixture comparison.
+
+Observed fleet ownership changes:
+
+- fleet 2: empire 1 → empire 2 (reassigned)
+- fleet 3: empire 1 → empire 2 (reassigned)
+- fleet 8: empire 3 → empire 4 (reassigned)
+
+Fleet 2 (empire 1's bombard fleet) is absent from the entire weekly visit
+set (only 14 of 16 fleet slots participate in the 52-pass loop). This
+suggests fleet slots that are being reassigned/captured are excluded from
+the weekly processing loop, or they are processed through a separate path.
+
+#### 4o. File write ordering is stable across scenarios
 
 Confidence: `High`
 

@@ -1,0 +1,54 @@
+====================================================================================================
+ORDERING PROBE: command-normalization
+CONCLUSION: INCONCLUSIVE
+====================================================================================================
+
+  Source fixture: fleet-battle (ticks=1)
+  Fleet state before ECMAINT:
+    Fleet 0: owner=1 order=0x05 loc=(10,10) target=(10,10) ships={'BS': 50, 'CA': 50, 'DD': 50, 'TT': 0, 'army': 0}
+    Fleet 1: owner=1 order=0x05 loc=(16,13) target=(16,13) ships={'BS': 0, 'CA': 1, 'DD': 0, 'TT': 0, 'army': 0}
+    Fleet 2: owner=1 order=0x06 loc=(16,13) target=(15,13) ships={'BS': 0, 'CA': 50, 'DD': 50, 'TT': 0, 'army': 0}
+    Fleet 3: owner=1 order=0x05 loc=(16,13) target=(16,13) ships={'BS': 0, 'CA': 0, 'DD': 1, 'TT': 0, 'army': 0}
+    Fleet 4: owner=2 order=0x03 loc=(10,10) target=(10,10) ships={'BS': 100, 'CA': 0, 'DD': 0, 'TT': 0, 'army': 0}
+    Fleet 5: owner=2 order=0x05 loc=(4,13) target=(4,13) ships={'BS': 0, 'CA': 1, 'DD': 0, 'TT': 0, 'army': 0}
+    Fleet 6: owner=2 order=0x05 loc=(4,13) target=(4,13) ships={'BS': 0, 'CA': 0, 'DD': 1, 'TT': 0, 'army': 0}
+    Fleet 7: owner=2 order=0x05 loc=(4,13) target=(4,13) ships={'BS': 0, 'CA': 0, 'DD': 1, 'TT': 0, 'army': 0}
+    Fleet 8: owner=3 order=0x01 loc=(9,10) target=(10,10) ships={'BS': 1, 'CA': 0, 'DD': 0, 'TT': 0, 'army': 0}
+    Fleet 9: owner=3 order=0x05 loc=(6,5) target=(6,5) ships={'BS': 0, 'CA': 1, 'DD': 0, 'TT': 0, 'army': 0}
+    Fleet 10: owner=3 order=0x05 loc=(6,5) target=(6,5) ships={'BS': 0, 'CA': 0, 'DD': 1, 'TT': 0, 'army': 0}
+    Fleet 11: owner=3 order=0x05 loc=(6,5) target=(6,5) ships={'BS': 0, 'CA': 0, 'DD': 1, 'TT': 0, 'army': 0}
+    Fleet 12: owner=4 order=0x05 loc=(13,5) target=(13,5) ships={'BS': 0, 'CA': 1, 'DD': 0, 'TT': 0, 'army': 0}
+    Fleet 13: owner=4 order=0x05 loc=(13,5) target=(13,5) ships={'BS': 0, 'CA': 1, 'DD': 0, 'TT': 0, 'army': 0}
+    Fleet 14: owner=4 order=0x05 loc=(13,5) target=(13,5) ships={'BS': 0, 'CA': 0, 'DD': 1, 'TT': 0, 'army': 0}
+    Fleet 15: owner=4 order=0x05 loc=(13,5) target=(13,5) ships={'BS': 0, 'CA': 0, 'DD': 1, 'TT': 0, 'army': 0}
+  
+  Fleet state after ECMAINT:
+    Fleet 0: {'current_speed': (0, 3), 'location_x': (10, 12), 'location_y': (10, 11), 'standing_order': (5, 2), 'target_x': (10, 16), 'target_y': (10, 13)}
+    Fleet 1: {'cruiser_count': (1, 51), 'destroyer_count': (0, 51)}
+    Fleet 2: {'owner_empire': (1, 2), 'max_speed': (3, 6), 'current_speed': (3, 0), 'location_x': (16, 10), 'location_y': (13, 10), 'standing_order': (6, 3), 'target_x': (15, 10), 'target_y': (13, 10), 'scout_count': (0, 10), 'battleship_count': (0, 100), 'cruiser_count': (50, 0), 'destroyer_count': (50, 0), 'etac_count': (0, 1)}
+    Fleet 3: {'owner_empire': (1, 2), 'max_speed': (6, 3), 'location_x': (16, 4), 'target_x': (16, 4), 'cruiser_count': (0, 1), 'destroyer_count': (1, 0), 'etac_count': (0, 1)}
+    Fleet 4: {'location_x': (10, 4), 'location_y': (10, 13), 'standing_order': (3, 5), 'target_x': (10, 4), 'target_y': (10, 13), 'scout_count': (10, 0), 'battleship_count': (100, 0), 'destroyer_count': (0, 1), 'etac_count': (1, 0)}
+    Fleet 5: {'max_speed': (3, 6), 'cruiser_count': (1, 0), 'destroyer_count': (0, 1), 'etac_count': (1, 0)}
+    Fleet 6: {'owner_empire': (2, 3), 'current_speed': (0, 3), 'location_x': (4, 10), 'location_y': (13, 10), 'standing_order': (5, 1), 'target_x': (4, 10), 'target_y': (13, 10), 'scout_count': (0, 10), 'battleship_count': (0, 1), 'destroyer_count': (1, 0), 'etac_count': (0, 1)}
+    Fleet 7: {'owner_empire': (2, 3), 'max_speed': (6, 3), 'location_x': (4, 6), 'location_y': (13, 5), 'target_x': (4, 6), 'target_y': (13, 5), 'cruiser_count': (0, 1), 'destroyer_count': (1, 0), 'etac_count': (0, 1)}
+    Fleet 8: {'current_speed': (3, 0), 'location_x': (9, 6), 'location_y': (10, 5), 'standing_order': (1, 5), 'target_x': (10, 6), 'target_y': (10, 5), 'scout_count': (10, 0), 'battleship_count': (1, 0), 'destroyer_count': (0, 1), 'etac_count': (1, 0)}
+    Fleet 9: {'max_speed': (3, 6), 'cruiser_count': (1, 0), 'destroyer_count': (0, 1), 'etac_count': (1, 0)}
+    Fleet 10: {'owner_empire': (3, 4), 'max_speed': (6, 3), 'location_x': (6, 13), 'target_x': (6, 13), 'cruiser_count': (0, 1), 'destroyer_count': (1, 0), 'etac_count': (0, 1)}
+    Fleet 11: {'owner_empire': (3, 4), 'max_speed': (6, 3), 'location_x': (6, 13), 'target_x': (6, 13), 'cruiser_count': (0, 1), 'destroyer_count': (1, 0), 'etac_count': (0, 1)}
+    Fleet 12: {'max_speed': (3, 6), 'cruiser_count': (1, 0), 'destroyer_count': (0, 1), 'etac_count': (1, 0)}
+    Fleet 13: {'max_speed': (3, 6), 'cruiser_count': (1, 0), 'destroyer_count': (0, 1), 'etac_count': (1, 0)}
+  
+  RESULTS.DAT records: 11
+    [  0] kind=0x05 HFrom your 1st Fleet, located in System(10,10)           Stardate: 1/3
+    [  1] kind=0x05 >Patrol mission report: Sensor contact shows an alien fleet in te: 1/3
+    [  2] kind=0x05 HSystem(10,10) traveling at a translight speed of 3. Closing to check 
+    [  3] kind=0x05 out...(10,10) traveling at a translight speed of 3. Closing to check 
+    [  4] kind=0x05 <end of transmission>ng at a translight speed of 3. Closing to check 
+    [  5] kind=0x06 HFrom your 1st Fleet, located in System(10,10)           Stardate: 1/3
+    [  6] kind=0x06 FPatrol mission report: We have located and identified the alien fleet
+    [  7] kind=0x06 Fin System(10,10). It is the 1st Fleet of "Rogues", (Empire #1). Their
+    [  8] kind=0x06 Ffleet contains 51 large, 50 medium, and 50 small vessel(s) of unknown
+    [  9] kind=0x06 type. Ignoring alien fleet...edium, and 50 small vessel(s) of unknown
+    [ 10] kind=0x06 <end of transmission>fleet...edium, and 50 small vessel(s) of unknown
+
+DETAIL: Found 6 battle reports. Check if fleets with orders against destroyed targets were redirected or if they attempted to execute the original orders.

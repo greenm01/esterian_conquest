@@ -1,0 +1,14 @@
+====================================================================================================
+ORDERING PROBE: production-vs-combat
+CONCLUSION: INCONCLUSIVE
+====================================================================================================
+
+  === Baseline: planet-build (no combat) ===
+    Planet 14 changes: {'economy_marker': (12, 0)}
+    RESULTS records: 0
+  
+  === Comparison: bombard (combat at planet) ===
+    Hostile fleet 2: owner=1 order=0x06 target=(15,13)
+    RESULTS records: 0
+
+DETAIL: Compare planet defense state changes between build-only and build+combat scenarios. If newly built units appear in combat reports, production completes before combat.

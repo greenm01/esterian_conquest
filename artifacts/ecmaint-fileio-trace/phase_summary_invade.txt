@@ -1,0 +1,30 @@
+====================================================================================================
+FILE I/O PHASE SUMMARY
+====================================================================================================
+
+WRITE ORDER (first write to each file):
+  [ 521] FLEETS.DAT            writes=685  total_bytes=36990
+  [3336] DATABASE.DAT          writes=5  total_bytes=500
+  [3419] PLAYER.DAT            writes=4  total_bytes=440
+  [3424] PLANETS.DAT           writes=20  total_bytes=1940
+  [3445] CONQUEST.DAT          writes=1  total_bytes=2085
+  [3447] RANKINGS.TXT          writes=12  total_bytes=1508
+
+READ ORDER (first read of each file):
+  [   2] CONQUEST.DAT          reads=1
+  [   5] SETUP.DAT             reads=1
+  [  18] PLAYER.DAT            reads=8
+  [  39] PLANETS.DAT           reads=40
+  [ 122] FLEETS.DAT            reads=769
+  [ 179] DATABASE.DAT          reads=13
+
+====================================================================================================
+WRITE CLUSTERING (groups of consecutive writes to same file):
+====================================================================================================
+
+  [ 521] FLEETS.DAT            685 writes   36990 bytes
+  [3336] DATABASE.DAT            5 writes     500 bytes
+  [3419] PLAYER.DAT              4 writes     440 bytes
+  [3424] PLANETS.DAT            20 writes    1940 bytes
+  [3445] CONQUEST.DAT            1 writes    2085 bytes
+  [3447] RANKINGS.TXT           12 writes    1508 bytes
