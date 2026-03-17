@@ -7991,14 +7991,27 @@ Debugger-capture follow-up:
     - `00e8`
     - `024d`
     - plus `861d` only as an upper fence
-- current DOSBox debugger limitation is now explicit:
-  - if breakpoints are armed only after the first file-open stop, the run has
-    already passed the earlier seams and only `861d` is still catchable
-  - if those same breakpoints are armed immediately at debugger startup, the
-    run falls through to exit without hitting the loaded-image addresses
+- staged bridge result is now tighter:
+  - `INT 21h / AH=3D` still works as the first reliable "loaded image is now
+    present" stop
+  - after that stop, arming `2814:96c4` again works as a clean post-load bridge
+    into the unpacked ECMAINT image
+  - the live stop surfaced at normalized `CS:EIP = 3159:0274`, which matches
+    the same linear address as `2814:96c4`
+- current DOSBox debugger limitation is now narrower and more concrete:
+  - arming the full earlier-driver breakpoint set only after the first
+    file-open stop is still too late for those seams
+  - arming that same full set immediately at debugger startup still misses the
+    loaded image and falls straight through to exit
+  - but the two-stage bridge `first file-open -> 96c4` is now confirmed
+  - the remaining problem is specifically the larger post-bridge breakpoint set,
+    which still destabilizes or stalls the run before a clean next stop is
+    captured
 
 Practical next step:
 
-- keep the top-down plan, but aim the next dynamic pass at finding a reliable
-  post-load / pre-run debugger stop before trying to place more step-4
-  interior helpers
+- keep the top-down plan, but use the confirmed `first file-open -> 96c4`
+  bridge as the staging seam for the next dynamic pass
+- next dynamic work should bisect which post-bridge startup / driver
+  breakpoints are individually safe to catch before trying to trace the full
+  earlier-driver set in one run

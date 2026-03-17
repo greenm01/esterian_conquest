@@ -672,13 +672,18 @@ Combat policy for the Rust clone remains:
         before the derived-output tail, but not as evidence for the exact
         order of economy, movement, combat, or producer passes inside step `4`
     - current DOSBox debugger capture caveat:
-      - arming breakpoints only after the first file-open stop misses the
-        earlier startup/driver seams entirely
-      - arming the same breakpoints immediately at debugger start misses the
+      - a narrower staged bridge now works:
+        first file-open (`INT 21h / AH=3D`) then `2814:96c4`
+      - that `96c4` stop surfaced live as normalized `3159:0274`, confirming
+        the same linear-address bridge into the unpacked image
+      - arming the full earlier-driver breakpoint set only after first
+        file-open still misses those seams
+      - arming that full set immediately at debugger start still misses the
         loaded image and falls straight through to exit
       - practical implication:
-        keep the top-down dynamic-trace plan, but the current `DEBUGBOX`
-        arming method still needs a better "post-load, pre-run" stop point
+        keep the top-down dynamic-trace plan, but stage through the confirmed
+        `first file-open -> 96c4` bridge and bisect which later startup/driver
+        breakpoints are individually safe before trying the whole set again
   - still-open middle block:
     - exact ordering of economy / production / movement / combat / assaults
     - weekly aftermath timing is now clearly mission-family dependent rather
@@ -775,6 +780,49 @@ Treat the login/startup side as one explicit pre-command-center pipeline:
     - then Main Menu
 - keep this as one Rust client flow so onboarding, login-time review, naming,
   and menu entry are modeled together instead of as disconnected screens
+
+## Step-4 RE Findings (2026-03-17)
+
+Major structural recovery from enriched file-I/O trace analysis across 6
+scenarios (bombard, econ, fleet-order, fleet-battle, invade, planet-build):
+
+1. **The yearly simulation is a 52-pass weekly fleet-processing loop**:
+   all non-destructive scenarios show exactly 832 fleet writes = 52 passes ×
+   16 records. Each pass reads-then-writes every active fleet record once.
+
+2. **Fleet visit order is data-dependent**: varies by scenario but is stable
+   within a scenario (all 52 passes use the same order). Not sequential by
+   slot index.
+
+3. **Combat reports are emitted inline during the weekly loop**: in
+   fleet-battle, RESULTS.DAT writes (11 × 84 bytes) are interleaved
+   inside fleet write pass 7. Report generation is NOT deferred to a
+   post-simulation phase.
+
+4. **Fleet destruction is dynamic**: fleet-battle has 15 active records
+   (one fleet absent), invade has non-integer passes/records (685/15 = 45.7)
+   indicating mid-pass fleet destruction.
+
+5. **Incremental fleet activation**: fleet-battle early passes show fleets
+   entering the active write set gradually (1 record in pass 1, growing to
+   14 by pass 6), suggesting movement arrival activates fleets dynamically.
+
+Tooling delivered:
+- `tools/analyze_fileio_trace.py` — mines existing traces for fleet pass
+  timelines, cross-file interleaves, database slot correlations
+- `tools/step4_ordering_probes.py` — 5 black-box ordering probes
+  (econ-vs-movement, production-vs-combat, command-normalization,
+  econ-weekly-timing, invade-ordering)
+- `tools/capture_ecmaint_fileio_trace.py` — now accumulates per-scenario
+  artifacts and runs auto-analysis
+- `tools/capture_ecmaint_sim_driver_trace.py` — breakpoints now
+  parameterizable via `-b label` for safe single-breakpoint probing
+
+Cross-scenario comparison artifact:
+`artifacts/ecmaint-fileio-trace/cross_scenario_comparison.txt`
+
+Spec updates: `ec-turn-cycle-spec.md` sections 4i-4l,
+`rust-turn-cycle-implementation.md` updated block diagram and driver skeleton.
 
 ## Immediate Next Steps
 

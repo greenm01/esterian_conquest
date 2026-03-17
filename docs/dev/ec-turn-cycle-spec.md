@@ -515,6 +515,126 @@ Current rule:
 - do not model combat aftermath in Rust as one uniform post-combat delay; it
   is increasingly clear that mission family matters
 
+#### 4i. The yearly simulation is a weekly fleet-processing loop
+
+Confidence: `High`
+
+Source: enriched file-I/O trace analysis across 6 scenarios (bombard, econ,
+fleet-order, fleet-battle, invade, planet-build).
+
+Settled structure:
+
+- the fleet write block inside step `4` consists of **exactly 52 passes**
+  through the fleet table in scenarios without fleet destruction (bombard,
+  econ, fleet-order, planet-build all show `832 writes / 16 records = 52`)
+- each pass reads-then-writes every active fleet record once
+- 52 passes = 52 simulated weeks
+- the simulation phase always starts at event index `507`, consistent across
+  all 6 scenarios tested
+
+Fleet visit order is **data-dependent, not sequential**:
+
+- bombard:     `[11,15,0,10,4,3,2,1,14,5,13,8,7,6,9,12]`
+- econ:        `[11,1,4,14,12,8,3,15,0,5,7,6,9,13,2,10]`
+- fleet-order: `[6,3,7,1,2,9,13,12,4,5,0,15,10,14,11,8]`
+- planet-build: `[15,12,9,4,0,3,7,8,11,14,2,1,13,6,10,5]`
+- fleet-battle: `[1,14,7,4,9,8,12,15,0,13,10,5,11,6]` (14 records)
+- invade:       not a fixed sequence (variable due to destruction mid-pass)
+
+Fleet visit order is stable within a scenario: all 52 passes visit the
+same records in the same order (confirmed by pass-order consistency check
+in bombard, econ, fleet-order, and planet-build).
+
+Fleet destruction reduces record count and pass count:
+
+- fleet-battle: 15 records × 49 passes = 735 writes (one fleet absent)
+- invade: 15 records × ~45.7 passes = 685 writes (non-integer ratio
+  implies fleet destruction mid-pass, reducing write count for later
+  passes)
+
+#### 4j. Combat reports are emitted inside the weekly fleet loop, not after
+
+Confidence: `High`
+
+Source: fleet-battle file-I/O trace interleave analysis.
+
+Key finding:
+
+- in the fleet-battle scenario, **RESULTS.DAT writes are interleaved inside
+  fleet write pass 7** (events 640-677)
+- 11 RESULTS.DAT records (84 bytes each) are written in two bursts:
+  - first burst: 5 records (events 648-652)
+  - second burst: 6 records (events 663-676), with a seek-read-rewrite
+    pattern suggesting report insertion/reordering
+- this happens between fleet record writes within the same weekly pass
+
+Practical meaning:
+
+- report generation is not deferred to a separate post-simulation phase
+- the weekly fleet-processing loop itself generates combat reports inline
+- the Rust engine should allow report emission during fleet processing, not
+  only after all fleet passes complete
+- the RESULTS.DAT write at pass 7 correlates with the Stardate `1/3` seen
+  in the report text (7th weekly pass maps to week 3 via some scheduling
+  offset or initialization)
+
+#### 4k. Early fleet-battle passes show incremental fleet activation
+
+Confidence: `High`
+
+Source: fleet-battle trace pass-by-pass record indices.
+
+The first 5 passes show fleet records appearing incrementally:
+
+- pass 1: `[1]` (1 record)
+- pass 2: `[1,3]` (2 records)
+- pass 3: `[1]` (1 record)
+- pass 4: `[1,0]` (2 records)
+- pass 5: `[1,11,6]` (3 records)
+- pass 6+: stable 14-record set `[1,14,7,4,9,8,12,15,0,13,10,5,11,6]`
+
+The final pass (57) shows 12 records: `[1,14,7,4,9,8,12,15,0,13,10,5]` —
+fleets 11 and 6 were dropped (destroyed in combat).
+
+Practical meaning:
+
+- the weekly loop does not iterate a static full-size fleet table from the
+  start; fleet records enter the active write set dynamically
+- the incremental startup may reflect movement arrival: fleets reaching
+  their destinations and becoming "active" in the simulation sense
+- fleet 2 (empire 1's bombard fleet targeting planet 14 from (16,13)) is
+  never in the write set — its mission may have resolved differently or it
+  was absorbed before the main loop started
+
+#### 4l. File write ordering is stable across scenarios
+
+Confidence: `High`
+
+Source: cross-scenario first-write ordering comparison.
+
+All 6 scenarios follow the same first-write file ordering:
+
+```
+FLEETS.DAT -> [RESULTS.DAT in combat scenarios] -> DATABASE.DAT ->
+PLAYER.DAT -> PLANETS.DAT -> CONQUEST.DAT -> RANKINGS.TXT
+```
+
+RESULTS.DAT appears only in fleet-battle (the only single-tick scenario
+with active combat at the start). The remaining files always appear in
+the same order in the flush phase.
+
+DATABASE.DAT writes correlate with specific planet record indices:
+
+- bombard/econ: planets `[44, 65, 32, 33, 14, 13]`
+- fleet-battle: planets `[44, 65, 32, 33, 14]`
+- fleet-order: planets `[44, 65, 32, 13, 14]`
+- invade: planets `[44, 65, 32, 33, 14]`
+- planet-build: planets `[44, 65, 32, 14]`
+
+Planets 44, 65, and 32 appear in every scenario — they are likely
+homeworld or structurally significant planets whose database entries are
+always refreshed.
+
 ### 5. Late Summary Canonicalization And Sort
 
 Confidence: `High`

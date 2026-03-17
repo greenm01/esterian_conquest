@@ -113,6 +113,11 @@ For the Rust `ECGAME` clone, preserve the original pre-menu player flow too:
 - treat the recent Guard Starbase / `unknown starbase` investigation as the
   template for a justified deep-dive blocker, not as the default workflow for
   every mechanic
+- for the active `ECMAINT` turn-order / step-4 recovery thread, prefer a
+  top-down driver search once targeted mechanic probes plateau:
+  - aim earlier startup and producer seams first
+  - treat the already-bounded late `861d` output tail only as an upper fence,
+    not as the main search corridor
 
 8. Prefer controlled order -> `ECMAINT` -> diff loops for new mechanics
 
@@ -122,6 +127,11 @@ For the Rust `ECGAME` clone, preserve the original pre-menu player flow too:
 - diff `.DAT`, `MESSAGES.DAT`, `RESULTS.DAT`, and `ERRORS.TXT`
 - promote only repeated deterministic effects into `CoreGameData`
 - use deep RE only after this loop stops yielding reusable rules
+- treat DOSBox file-I/O traces as coarse phase-boundary evidence only:
+  - they can prove broad clustering such as "heavy fleet-state mutation first,
+    derived-file rebuild later"
+  - they are not proof of exact movement, economy, or combat ordering inside a
+    yearly simulation pass
 
 9. Treat setup and map generation as gameplay semantics, not scaffolding
 

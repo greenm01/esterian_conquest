@@ -209,18 +209,33 @@ Validated Durable State
     v
 +------------------------------+
 | Step 4 Simulation Driver     |
+| (weekly fleet-processing     |
+|  loop, 52 iterations)        |
 +------------------------------+
     |
-    +--> movement phase
-    |
-    +--> contact / combat / mission consequences
-    |
-    +--> producer/mutator passes
-    |      |
-    |      +--> durable state mutation
-    |      +--> durable event creation
-    |
-    +--> internal weekly timing assignments
+    +--[for week 1..52]------+
+    |                         |
+    |  +--> fleet activation  |
+    |  |    (data-dependent   |
+    |  |     visit order)     |
+    |  |                      |
+    |  +--> movement          |
+    |  |                      |
+    |  +--> contact / combat  |
+    |  |    / mission resolve |
+    |  |                      |
+    |  +--> inline report     |
+    |  |    emission          |
+    |  |    (RESULTS.DAT      |
+    |  |     writes happen    |
+    |  |     mid-loop)        |
+    |  |                      |
+    |  +--> producer/mutator  |
+    |       passes            |
+    |       (state mutation + |
+    |        event creation)  |
+    |                         |
+    +-------------------------+
     |
     v
 Updated Durable State + Durable Event Pool
@@ -239,6 +254,11 @@ Updated Durable State + Durable Event Pool
 | Some producer-side world mutation is silent | do not assume every important step-4 change creates a report/message immediately |
 | Some neighboring step-4 subphases appear to write overlapping target-world state | do not assume one clean owner per world field; the driver needs ordered overwrite behavior and explicit subphase boundaries |
 | Some natural hostile-resolution target-world consequences depend on the starting world payload/class | do not key target-world aftermath only by mission family; keep room for world-state-sensitive aftermath rules |
+| **The yearly simulation is a 52-iteration weekly fleet-processing loop** | the Rust driver should model step 4 as a `for week in 1..=52` loop over the fleet table, not as separate movement/combat/producer macro-phases |
+| **Fleet visit order is data-dependent, not sequential** | do not iterate fleets in slot order; the engine uses a scenario-dependent ordering (likely linked-list or sorted) that is stable within a run but varies between scenarios |
+| **Combat reports are emitted inline during the weekly loop** | RESULTS.DAT writes happen inside the fleet pass (observed at pass 7 in fleet-battle). Do not defer all report generation to a post-simulation phase |
+| **Fleet destruction reduces the active fleet set mid-simulation** | the weekly loop must handle fleet removal during iteration; destroyed fleets are dropped from subsequent passes |
+| **File write ordering is stable**: FLEETS first, then RESULTS (in combat), then DATABASE, PLAYER, PLANETS, CONQUEST, RANKINGS | keep the Rust flush phase in this order for oracle parity |
 
 ### What Is Still Open
 
@@ -259,17 +279,23 @@ The current best implementation shape for step `4` is:
 
 ```text
 4a. Prepare transient simulation workspaces
-4b. Run explicit movement phase
-4c. Resolve contact/combat and immediate redirects/retreats
-4d. Run yearly producer/mutator passes
-4e. Schedule and/or apply delayed mission consequences
-4f. Finish durable event creation for later canonicalization
+4b. Determine fleet visit order (data-dependent, not sequential)
+4c. For each week 1..52:
+      4c1. Activate/deactivate fleets as needed
+      4c2. Process each fleet in visit order:
+             - movement/arrival
+             - contact/combat resolution
+             - inline report emission (RESULTS.DAT)
+             - producer/mutator state updates
+             - durable event creation
+      4c3. Remove destroyed fleets from active set
+4d. Finish any remaining durable event creation
 ```
 
 Important constraint:
 
-- this is a practical Rust shape, not a claim that the oracle executes these
-  in exactly this final order in every case
+- this is a practical Rust shape informed by file-I/O trace evidence
+  showing exactly 52 fleet write passes with inline RESULTS.DAT emission
 - the driver should therefore make these boundaries explicit enough to reorder
   later if new oracle evidence demands it
 - it should also allow later subphases to overwrite some earlier world-state
@@ -391,7 +417,9 @@ classic predicates are still being recovered.
 
 ## Recommended Driver Skeleton
 
-This is the current recommended engine shape for `rust-maint`.
+This is the current recommended engine shape for `rust-maint`, updated to
+reflect the weekly fleet-processing loop structure recovered from file-I/O
+trace analysis.
 
 ```text
 run_turn(directory):
@@ -403,19 +431,39 @@ run_turn(directory):
 
   work = create_turn_workspaces(state)
   events = create_event_pool()
+  fleet_order = compute_fleet_visit_order(state)
 
-  run_movement_phase(state, work, events)
-  run_contact_and_combat_phase(state, work, events)
-  run_producer_passes(state, work, events)
-  run_delayed_mission_phase(state, work, events)
+  for week in 1..=52:
+      for fleet in fleet_order.active_fleets():
+          run_fleet_movement(state, fleet, week)
+          run_fleet_contact_and_combat(state, fleet, week, events)
+          run_fleet_producer_pass(state, fleet, week, events)
+          emit_inline_reports_if_needed(state, fleet, week, events)
+      fleet_order.remove_destroyed_fleets(state)
+
+  run_post_loop_producer_passes(state, work, events)
 
   canonicalize_events(events)
-  emit_weekly_reports(state, events)
+  emit_remaining_reports(state, events)
   rebuild_derived_outputs(state, events)
   flush_and_cleanup(directory, state, events)
 ```
 
 Use that as a shape guide, not a frozen final ordering contract.
+
+Key structural notes:
+
+- the weekly loop is the primary new structural finding: file-I/O traces
+  show exactly 52 fleet write passes with identical record ordering per pass
+- fleet visit order is data-dependent and must be computed, not assumed
+  sequential by slot index
+- RESULTS.DAT writes happen inside the loop (observed at pass 7 in
+  fleet-battle), so report emission must be possible mid-loop
+- fleet destruction is dynamic: destroyed fleets are removed from the active
+  set and subsequent passes iterate fewer records
+- what happens inside each per-fleet-per-week iteration is still partially
+  open; the movement/contact/producer ordering within that inner body is
+  provisional
 
 Practical refinement:
 

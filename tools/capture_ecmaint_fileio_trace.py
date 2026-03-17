@@ -243,9 +243,7 @@ def main() -> int:
     print(f"Parsed {len(events)} game-file I/O events")
 
     # Write artifacts
-    if ARTIFACT_DIR.exists():
-        shutil.rmtree(ARTIFACT_DIR)
-    ARTIFACT_DIR.mkdir(parents=True)
+    ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
 
     # Full event trace
     trace_lines = []
@@ -261,6 +259,15 @@ def main() -> int:
     (ARTIFACT_DIR / f"phase_summary_{scenario}.txt").write_text(summary)
     print()
     print(summary)
+
+    # Run fleet/database analysis
+    from analyze_fileio_trace import analyze_trace, format_analysis
+    trace_file = ARTIFACT_DIR / f"fileio_trace_{scenario}.txt"
+    analysis = analyze_trace(trace_file)
+    analysis_text = format_analysis(analysis)
+    (ARTIFACT_DIR / f"analysis_{scenario}.txt").write_text(analysis_text)
+    print()
+    print(analysis_text)
 
     print(f"\nArtifacts written to: {ARTIFACT_DIR}")
     return 0

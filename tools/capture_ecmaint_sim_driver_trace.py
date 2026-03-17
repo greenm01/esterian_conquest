@@ -50,6 +50,12 @@ BREAKPOINTS: list[tuple[str, str, int]] = [
     ("weekly-loop-entry-127a", "0814:127a", 0x127a),
 ]
 
+# The first currently reliable post-load bridge into the unpacked ECMAINT image.
+# We cannot arm the real code breakpoints before load, but waiting until too
+# late also misses the startup seams we care about. The known stable staging is:
+# first file-open stop -> arm 96c4 bridge -> arm the real targets once 96c4 hits.
+BRIDGE_BREAKPOINT = ("token-bridge-96c4", "2814:96c4", 0)
+
 # How many RUN iterations before giving up
 MAX_ITERATIONS = 200
 
@@ -125,7 +131,7 @@ def capture_stack_words(child, regs: dict[str, int], count: int = 8) -> str:
 
 def identify_hit(regs: dict[str, int]) -> str | None:
     actual = linear_addr(regs["CS"], regs["EIP"])
-    for label, addr, expected_eip in BREAKPOINTS:
+    for label, addr, expected_eip in [BRIDGE_BREAKPOINT, *BREAKPOINTS]:
         seg_text, off_text = addr.split(":")
         expected = linear_addr(int(seg_text, 16), int(off_text, 16))
         if actual == expected:
@@ -148,7 +154,43 @@ def prepare_scenario(fixture_src: Path, target: Path) -> None:
 
 
 def main() -> int:
-    scenario = sys.argv[1] if len(sys.argv) > 1 else "fleet-order"
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("scenario", nargs="?", default="fleet-order", help="scenario name")
+    parser.add_argument(
+        "-b", "--breakpoint",
+        action="append",
+        dest="breakpoints",
+        default=None,
+        help="breakpoint label to arm (repeatable); if omitted, arm all",
+    )
+    parser.add_argument(
+        "--list-breakpoints",
+        action="store_true",
+        help="list available breakpoint labels and exit",
+    )
+    args = parser.parse_args()
+
+    if args.list_breakpoints:
+        for label, addr, _ in BREAKPOINTS:
+            print(f"  {label:<45s}  {addr}")
+        return 0
+
+    scenario = args.scenario
+
+    # Filter breakpoints if specified
+    if args.breakpoints:
+        selected = []
+        for label in args.breakpoints:
+            matches = [bp for bp in BREAKPOINTS if bp[0] == label]
+            if not matches:
+                print(f"Unknown breakpoint label: {label}")
+                print(f"Known: {', '.join(bp[0] for bp in BREAKPOINTS)}")
+                return 1
+            selected.extend(matches)
+        active_breakpoints = selected
+    else:
+        active_breakpoints = list(BREAKPOINTS)
 
     # Resolve scenario fixture
     from ecmaint_oracle import KNOWN_SCENARIOS
@@ -224,18 +266,85 @@ def main() -> int:
         time.sleep(3)
         transcript.append(read_available(child, 1.0))
 
-        # Arm the real breakpoints immediately. The earlier approach of first
-        # stopping on INT 21/3D was too late: by that point ECMAINT had already
-        # passed the startup/driver seams we care about.
+        # Stage 1: stop on the first file-open after the LZEXE stub has
+        # unpacked the real image. Code breakpoints armed before this point are
+        # not reliable against the still-unloaded image.
         send(child, "BPDEL *", 0.5)
-        for label, addr, _eip in BREAKPOINTS:
-            send(child, f"BP {addr}", 0.3)
-            print(f"  BP set: {addr} ({label})")
+        send(child, "BPINT 21 3D", 0.3)
+        print("  BP set: INT 21h / AH=3Dh (first file-open bridge)")
+        send(child, "BPINT 21 4C", 0.3)
+        print("  BP set: INT 21h / AH=4Ch (program exit)")
 
-        # Also break on INT 21/4C (program exit)
+        print("\nRunning to first file-open stop...")
+        send(child, "RUN", 3.0)
+        transcript.append(read_available(child, 0.8))
+
+        ev_block, regs = capture_ev(child)
+        if regs["AX"] >> 8 == 0x4C:
+            raise RuntimeError("Program exited before first file-open stop")
+
+        print(
+            f"  File-open stop  CS:EIP={regs['CS']:04X}:{regs['EIP']:04X}  "
+            f"AX={regs['AX']:04X} BX={regs['BX']:04X} CX={regs['CX']:04X} DX={regs['DX']:04X}"
+        )
+
+        # Stage 2: use the known-good 96c4 bridge to enter the live unpacked
+        # program before arming the deeper startup/driver breakpoints.
+        send(child, "BPDEL *", 0.3)
+        send(child, f"BP {BRIDGE_BREAKPOINT[1]}", 0.3)
+        print(f"  BP set: {BRIDGE_BREAKPOINT[1]} ({BRIDGE_BREAKPOINT[0]})")
         send(child, "BPINT 21 4C", 0.3)
 
-        print(f"\nRunning with {len(BREAKPOINTS)} breakpoints (max {MAX_ITERATIONS} iterations)...")
+        print("Running to post-load bridge stop...")
+        send(child, "RUN", 3.0)
+        transcript.append(read_available(child, 0.8))
+
+        bridge_ev, bridge_regs = capture_ev(child)
+        if bridge_regs["AX"] >> 8 == 0x4C:
+            raise RuntimeError("Program exited before reaching 96c4 bridge stop")
+
+        bridge_label = identify_hit(bridge_regs)
+        if bridge_label != BRIDGE_BREAKPOINT[0]:
+            raise RuntimeError(
+                "Expected 96c4 bridge stop, got "
+                f"{bridge_label or f'{bridge_regs['CS']:04X}:{bridge_regs['EIP']:04X}'}"
+            )
+
+        hits.append(
+            BreakpointHit(
+                iteration=0,
+                label=BRIDGE_BREAKPOINT[0],
+                cs=bridge_regs["CS"],
+                eip=bridge_regs["EIP"],
+                ds=bridge_regs["DS"],
+                es=bridge_regs["ES"],
+                ss=bridge_regs["SS"],
+                sp=bridge_regs["SP"],
+                bp=bridge_regs["BP"],
+                ax=bridge_regs["AX"],
+                bx=bridge_regs["BX"],
+                cx=bridge_regs["CX"],
+                dx=bridge_regs["DX"],
+                si=bridge_regs["SI"],
+                di=bridge_regs["DI"],
+                raw_ev=bridge_ev,
+            )
+        )
+        print(
+            f"  Bridge hit       CS:EIP={bridge_regs['CS']:04X}:{bridge_regs['EIP']:04X}  "
+            f"AX={bridge_regs['AX']:04X} BX={bridge_regs['BX']:04X} "
+            f"CX={bridge_regs['CX']:04X} DX={bridge_regs['DX']:04X}"
+        )
+
+        # Stage 3: arm the real startup/driver probes now that the image is
+        # confirmed live.
+        send(child, "BPDEL *", 0.3)
+        for label, addr, _eip in active_breakpoints:
+            send(child, f"BP {addr}", 0.3)
+            print(f"  BP set: {addr} ({label})")
+        send(child, "BPINT 21 4C", 0.3)
+
+        print(f"\nRunning with {len(active_breakpoints)} staged breakpoints (max {MAX_ITERATIONS} iterations)...")
         print()
 
         seen_late_tail = False
