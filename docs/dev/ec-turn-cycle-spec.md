@@ -208,6 +208,15 @@ Practical meaning:
   - `1000:e31b` / probe point `1000:e569` appends kind-`2` `0x0c` entries
   - both write owner/coords/common key words into the exact pool later read by
     the `87f4 -> 8b15` matcher/coalescer
+- the first recovered ordering between those durable producers is now better
+  bounded:
+  - sibling drivers `1000:00e8` and `1000:024d` both call `1000:f71d` first
+  - `1000:f71d` reaches the kind-`1` writer via `1000:f8a9 -> 1000:dddb`
+  - only after that do those same drivers call `1000:e31b` for kind-`2`
+    emission
+  - practical reading: at least this durable event family is not built by one
+    unordered bulk pass; producer order matters before the later matcher pairs
+    kind `2` against kind `1`
 - this further narrows the unresolved gameplay-core search away from the
   already-recovered `5ee4` tail exits
 

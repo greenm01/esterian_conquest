@@ -6870,6 +6870,20 @@ Additional durable-writer recovery:
   post-validation summary-generation phase driven by separate producer helpers,
   not as a continuation of `5ee4` scratch emission
 
+Further ordering gain:
+
+- the durable kind-1 / kind-2 writers are now placed inside sibling `1000`
+  driver routines rather than treated as unrelated helpers:
+  - `1000:00e8` calls `1000:f71d`, then later calls `1000:e31b`
+  - `1000:024d` does the same
+- `1000:f71d` reaches the kind-1 writer through `1000:f8a9 -> 1000:dddb`
+- so, for this recovered durable-event family, kind-`1` emission precedes the
+  direct kind-`2` emission in the same higher-level yearly flow
+- practical Rust implication:
+  do not collapse kind-`1` and kind-`2` durable event creation into one
+  unordered "derive all summaries" sweep; preserve producer-pass ordering and
+  append order as part of the event-generation phase
+
 #### `2000:6d9b` tightened as restore/validation wrapper with recursive retry path
 
 Added probe:

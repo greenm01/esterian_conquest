@@ -205,6 +205,13 @@ Latest static tightening on the turn-cycle side:
   - `1000:e31b` / `1000:e569` emits kind-`2` pool entries
   - both allocate `0x0c` records and fill owner / coords / payload fields in
     the shared pool after `5ee4` has already cleared the validation scratch
+- the first recovered ordering between those durable producers is now concrete:
+  - sibling drivers `1000:00e8` and `1000:024d` both call `1000:f71d` first
+  - `1000:f71d` reaches the kind-`1` writer through `1000:f8a9 -> 1000:dddb`
+  - only after that do the same drivers call `1000:e31b` for kind-`2` entries
+  - practical implication:
+    preserve durable producer-pass ordering in Rust instead of collapsing kind
+    creation into one unordered post-pass
 - `2000:6d9b` is now better bounded as restore/validation scaffolding:
   - `arg=0` goes through `0x6f20`, calls `5ee4`, and on failure emits
     recovery/error text before recursively calling `6d9b(arg=1)`
