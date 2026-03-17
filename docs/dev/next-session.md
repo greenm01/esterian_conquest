@@ -298,6 +298,8 @@ Combat policy for the Rust clone remains:
       that outer startup/status path is likely indirect/table-driven
   - still-open middle block:
     - exact ordering of economy / production / movement / combat / assaults
+    - weekly aftermath timing is now clearly mission-family dependent rather
+      than one universal delay
 - for the Rust client, do not infer "returning joined player" from
   `PLAYER.DAT` assigned-player fields alone:
   - live classic probing now shows caller/dropfile identity matching the

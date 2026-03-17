@@ -6623,3 +6623,37 @@ Practical consequence:
 - the unresolved gameplay core ordering is therefore increasingly likely to sit
   before this chain, or behind the earlier setup/helpers feeding it, rather
   than inside these functions themselves
+
+#### Mission-family timing after combat is not one universal lag
+
+Extended the report-corpus analysis with mission-family-specific lag checks for
+combat-facing transitions.
+
+Current results:
+
+- bombardment:
+  - `attacked -> bombing-run` appears at gaps `0`, `5`, `6`, and `7`
+- invasion:
+  - `attacked -> invaded` observed at gap `7`
+- colonization:
+  - `attacked -> arrived-target` observed at gap `2`
+- guard/blockade:
+  - `arrived-world -> intercepted` observed at gaps `1`, `6`, `27`, and `43`
+
+Practical consequence:
+
+- there is no single global "combat consequence delay" rule that Rust can copy
+  across all mission families
+- the oracle is placing outcomes onto the weekly schedule in a
+  mission-context-dependent way
+- this reinforces the intended Rust architecture:
+  - deterministic combat resolution stays Rust-native
+  - but the resulting aftermath must be placed into mission-specific weekly
+    scheduling and report sequencing that mirrors the oracle
+
+Additional same-week aftermath evidence:
+
+- `bombing-run -> invaded` same week appears `2x`
+  - this strongly suggests different fleets' mission outcomes are interleaved
+    into one shared weekly event stream rather than emitted in isolated
+    per-feature batches

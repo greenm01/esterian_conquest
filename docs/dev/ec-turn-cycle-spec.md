@@ -228,10 +228,24 @@ What is not yet settled:
 - when player-order sanitation/normalization happens relative to economic
   updates
 - whether some command effects are expanded before movement and others after
+- exactly how each mission family maps combat outcomes onto the weekly
+  scheduler
+
+What is now constrained:
+
+- the weekly aftermath delay is not one universal rule across all missions
+- current corpus evidence shows:
+  - bombardment `attacked -> bombing-run` at gaps `0`, `5`, `6`, and `7`
+  - invasion `attacked -> invaded` at gap `7`
+  - colonization `attacked -> arrived-target` at gap `2`
+  - guard/blockade `arrived-world -> intercepted` at gaps `1`, `6`, `27`, and
+    `43`
 
 Current rule:
 
 - do not claim a full canonical middle-cycle order yet
+- do not model combat aftermath in Rust as one uniform post-combat delay; it
+  is increasingly clear that mission family matters
 
 ### 5. Late Summary Canonicalization And Sort
 
