@@ -18,10 +18,13 @@ Enforce these as standing requirements:
 
 - agents shall use data-oriented design
 - agents shall keep logic DRY
+- agents shall keep source files mean and lean
 - agents shall keep binary layout explicit
 - agents shall use plain record/file data plus focused functions
 - agents shall avoid deep object hierarchies and abstraction-heavy designs
-- agents shall avoid monolithic source files when feature-oriented submodules are clearer
+- agents shall not create giant monolithic source files
+- agents shall organize code with focused subdirectories, submodules, and crates when that keeps features clearer and reuse cleaner
+- if a file starts getting too large or unmanageable, agents shall stop and reassess the structure before growing that file further
 
 In practice:
 
@@ -29,6 +32,8 @@ In practice:
 - `ec-cli` shall stay organized around command-family submodules
 - shared parsing, path, and reporting helpers shall live in support modules
 - batch/report commands shall reuse pure validators rather than duplicate checks
+- larger features shall be split across focused modules instead of accumulating in oversized files
+- when a file starts to feel crowded, agents shall pause and split or reorganize it instead of continuing to extend it by default
 
 See [docs/rust-architecture.md](docs/dev/rust-architecture.md) for the fuller rationale.
 
@@ -141,7 +146,8 @@ Prefer rule-shaped generators and validators over preserved-byte blob emission.
 
 ## Avoid
 
-- large catch-all `main.rs` growth
+- large catch-all `main.rs` growth or other giant monolithic source files
 - copy-pasted scenario logic across commands
+- duplicated logic that should be shared through focused helpers or modules
 - mixing semantic RE guesses into typed APIs too early
 - treating preserved fixture recreation as the end state; it is only the first milestone
