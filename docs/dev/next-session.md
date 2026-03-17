@@ -188,6 +188,24 @@ Current Rust-facing implication:
   - practical implication:
     `00e8/024d` now looks like a real bridge between step-4 planet mutation
     and durable event creation
+- direct black-box tightening on the same pass now points at planet `+0x60` as
+  the strongest current selector candidate inside that deeper `024d` interior:
+  - on `fixtures/ecmaint-econ-pre/v1.5`, forcing target-world `+0x60 = 1`
+    caused direct mutation of that same world's `+0x03..+0x0e` block after two
+    classic maint ticks
+  - forcing `+0x5c = 0` or `1` only normalized it back to `2` and perturbed
+    neighboring econ-world outcomes
+  - forcing `+0x5a = 0` alone did not activate the same deep rewrite
+  - practical implication:
+    do not currently treat `+0x5a` as the main selector for the deep `024d`
+    planet path; `+0x60` is the stronger raw candidate
+  - follow-up on the maintenance-stable `ecmaint-post` baseline confirms the
+    same thing:
+    `+0x60 = 1` alone still triggers the direct `+0x03..+0x0e` rewrite on that
+    world, while `+0x5c = 0` only normalizes back to `2`
+  - preserved-fixture sweep so far shows `+0x60 = 0` everywhere in the sampled
+    corpus, so this looks like a latent branch byte rather than a commonly
+    exercised visible world-state flag
 
 Latest static tightening on the turn-cycle side:
 

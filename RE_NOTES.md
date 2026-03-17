@@ -7284,3 +7284,105 @@ Practical consequence for Rust:
   - compare `00e8` vs `024d` semantics more tightly
   - determine what planet bytes `+0x5c` and `+0x60` mean operationally
   - identify where `024d` is entered from in the broader yearly flow
+
+#### Direct oracle matrix on `PLANETS.DAT[+0x5a/+0x5c/+0x60]` against `ecmaint-econ-pre`
+
+Controlled probe:
+
+- baseline: `fixtures/ecmaint-econ-pre/v1.5`
+- target world: record `15` at `(16,13)` owned by empire `1`
+- direct matrix over one world only:
+  - control
+  - `+0x5a = 0`
+  - `+0x5c = 0`
+  - `+0x5c = 1`
+  - `+0x60 = 1`
+  - `+0x5a = 0` plus `+0x60 = 1`
+- each case ran through classic `ECMAINT` for `2` maint ticks
+
+Observed result:
+
+- control case:
+  - only record `14` changed
+  - same broad planet-side diff family already expected from the econ fixture:
+    - `+0x03..+0x09`
+    - `+0x0e`
+    - `+0x58`
+    - `+0x5a`
+- forcing target-world `+0x5a = 0`:
+  - produced the same changed-record shape as control
+  - no direct changes landed in record `15`
+- forcing target-world `+0x5c = 0` or `+0x5c = 1`:
+  - record `15` changed only at `+0x5c`
+  - classic normalized that byte back to `2`
+  - record `14` still took the usual deeper planet-side mutation, but with
+    altered numeric outcomes in the real/value block and final `+0x58`
+- forcing target-world `+0x60 = 1`:
+  - record `15` now changed strongly at `+0x03..+0x0e`
+  - no `ERRORS.TXT`
+  - no `RESULTS.DAT` payload
+  - record `14` still changed in its usual econ-family block
+- forcing `+0x5a = 0` plus `+0x60 = 1`:
+  - record `15` still changed strongly at `+0x03..+0x0e`
+  - target `+0x5a` then also cleared from `4 -> 0`
+
+Current practical reading:
+
+- `planet[+0x60]` is the strongest currently observed selector for the deeper
+  `1000:024d` interior:
+  - setting it to `1` activates direct mutation of that same world's
+    `+0x03..+0x0e` block
+  - this happened without any report output side effects, which reinforces
+    that the path is genuine planet-state mutation rather than text staging
+- `planet[+0x5c]` currently looks more like a normalized status/input byte than
+  the main deep-branch selector:
+  - values `0` and `1` both normalized back to `2`
+  - they influenced the neighboring econ-world outcome but did not activate
+    the large direct `+0x03..+0x0e` rewrite on the edited world
+- in this probe family, `planet[+0x5a]` did **not** decide whether the deeper
+  `+0x03..+0x0e` rewrite occurred:
+  - zeroing `+0x5a` alone did not trigger it
+  - `+0x60 = 1` still triggered it even when `+0x5a` was zero
+
+Practical consequence for Rust step-4 modeling:
+
+- do not treat `+0x5a > 0` as the main selector for the deep `024d` planet
+  path just because the front half gates `db04` on it
+- treat `+0x60` as the highest-priority raw candidate for a planet-local
+  branch inside the richer `024d` producer pass
+- treat `+0x5c` as a likely normalized ownership/development-status input that
+  affects outcomes but is not itself the same deep-branch bit
+
+Follow-up confirmation on a maintenance-stable baseline:
+
+- repeated the narrower probe against `fixtures/ecmaint-post/v1.5`
+- target world again: record `15` at `(16,13)`
+- results after `2` maint ticks:
+  - control: no record-`15` changes
+  - `+0x5c = 0`: only `+0x5c` normalized back to `2`
+  - `+0x60 = 1`: direct rewrite again landed at `+0x03..+0x0e`
+
+This strengthens the reading that:
+
+- `+0x60` is a local branch/control byte for the deeper `024d` planet-mutator
+  path, not just an econ-fixture-specific coincidence
+- `+0x5c` is still behaving like a normalizable status field rather than the
+  primary deep selector
+
+Fixture-corpus sweep:
+
+- checked the preserved `PLANETS.DAT` files in:
+  - `ecmaint-post`
+  - `ecmaint-econ-pre`
+  - `ecmaint-econ-post`
+  - `ecmaint-build-pre`
+  - `ecmaint-invade-pre`
+  - `ecmaint-fleet-pre`
+  - `ecmaint-move-pre`
+- every sampled planet record had `+0x60 = 0`
+
+Practical implication:
+
+- `+0x60` is currently a latent branch/control byte in the preserved corpus
+- that explains why the deeper `024d` same-world rewrite path stayed hidden in
+  fixture diffs until we forced the byte nonzero directly
