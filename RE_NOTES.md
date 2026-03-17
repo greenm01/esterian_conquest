@@ -6421,3 +6421,31 @@ Practical interpretation:
 - the current evidence now supports a mechanical weekly scheduler with both:
   - same-week event bundles
   - cross-week mission progression
+
+#### Canonical turn-cycle spec promoted
+
+Added a stable phase-order note:
+
+- `docs/dev/ec-turn-cycle-spec.md`
+
+Current promoted result:
+
+- settled front half:
+  - schedule/token gate
+  - `Move.Tok` restore-from-backup
+  - cross-file integrity validation / load
+- settled late half:
+  - summary canonicalization / sort
+  - explicit late `1..52` weekly loop over active summary entries
+- still-open middle:
+  - exact placement of economy / production / movement / combat / assault
+    resolution inside the yearly simulation core
+
+Most important practical conclusion:
+
+- `ECMAINT` is now clearly more structured than a flat "one yearly step"
+  engine
+- the oracle-backed model is:
+  - gate / recover / validate
+  - yearly simulation core
+  - late weekly summary/report loop

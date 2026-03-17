@@ -7,6 +7,9 @@ It is intentionally narrower than a full maintenance-phase spec. The goal here
 is to separate what is already supported by historical logs and static RE from
 what still needs deeper report-writer recovery.
 
+For the broader recovered phase ordering, see
+[ec-turn-cycle-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-turn-cycle-spec.md).
+
 ## Settled So Far
 
 - player-facing `Stardate` values are not just yearly labels

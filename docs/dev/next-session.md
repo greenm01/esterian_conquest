@@ -253,6 +253,15 @@ Primary goal:
       formatter in the token path, not the player-report `Stardate` emitter
   - the actual report/rankings timestamp writer and any persisted per-day field
     are still open
+- `ECMAINT` canonical phase-order recovery now has a dedicated stable note at
+  [ec-turn-cycle-spec.md](ec-turn-cycle-spec.md)
+  - settled front/back boundaries:
+    - schedule/token gate
+    - `Move.Tok` crash restore before integrity validation
+    - late summary canonicalization
+    - late `1..52` weekly report loop
+  - still-open middle block:
+    - exact ordering of economy / production / movement / combat / assaults
 - for the Rust client, do not infer "returning joined player" from
   `PLAYER.DAT` assigned-player fields alone:
   - live classic probing now shows caller/dropfile identity matching the
