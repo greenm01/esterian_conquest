@@ -375,6 +375,20 @@ Combat policy for the Rust clone remains:
       rebuild candidate
       - its internal helper `33f7` now ties directly to
         `Backing up intelligence database...`
+    - `7659` is now better bounded as optional rankings/output generation:
+      - only called when late flag `0x169a != 0`
+      - loops staged player-side `0x16ae` records
+      - allocates fixed `0x49`-byte blocks
+      - looks like end-of-tail report/ranking work, not yearly simulation
+    - `8b4a` is now a useful end-of-tail cleanup anchor:
+      - resets `0x169a`
+      - sets `0x634 = 1`
+      - clears `0x635` / `0x636`
+      - sets `0x638 = 1`
+      - practical implication:
+        keep the `169a/634/635/636/638` family out of Rust gameplay-order
+        reasoning unless new evidence ties it back to simulation rather than
+        output housekeeping
     - the startup `main.tok` / `Creating main work file...` / `Merging joint
       fleets...` cluster still has no direct scalar xrefs in the live dump, so
       that outer startup/status path is likely indirect/table-driven

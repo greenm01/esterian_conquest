@@ -6624,6 +6624,51 @@ Practical consequence:
   before this chain, or behind the earlier setup/helpers feeding it, rather
   than inside these functions themselves
 
+#### `2000:7659` and `2000:8b4a` tightened as end-of-tail rankings/output cleanup
+
+Reviewed:
+
+- `artifacts/ghidra/ecmaint-live/probe-2000_7659.txt`
+- `artifacts/ghidra/ecmaint-live/probe-2000_8b4a.txt`
+- `artifacts/ghidra/ecmaint-live/turn-cycle-anchors.txt`
+
+Current static result:
+
+- `2000:7659` is only reached from the already-late `861d` tail when
+  `0x169a != 0`
+- inside `7659`:
+  - it loops over staged `0x16ae` records, not live fleet/base summary pools
+  - it allocates fixed `0x49`-byte blocks
+  - it uses the same `3f17 / 3d84 / 3eea / 41b0` helper cluster already seen
+    from other output-heavy regions
+  - the surrounding timing/string work still fits the previously recovered
+    player-ranking output anchor better than gameplay simulation
+- `2000:8b4a` immediately after the late summary/coalescing region performs
+  only flag reset/arming work:
+  - `word [0x638] = 1`
+  - `byte [0x636] = 0`
+  - `byte [0x169a] = 0`
+  - `byte [0x634] = 1`
+  - `byte [0x635] = 0`
+- side signal:
+  - `0x169a` is set earlier in the restore/startup path (`6e91` / `6fb1`)
+  - then gates `0c06`, `2db3`, and the optional `7659` call
+  - this makes the `169a` family look like late output/ranking/report-control
+    state, not middle simulation state
+
+Practical consequence:
+
+- `7659` is now best treated as optional rankings/output generation appended to
+  the already-late report tail, not part of yearly gameplay mutation
+- `8b4a` is the corresponding end-of-tail cleanup/reset point
+- practical Rust implication:
+  - do not use the `169a` / `634` / `635` / `636` / `638` flag family as
+    evidence for economy, movement, combat, or other gameplay-core ordering
+  - keep `rust-maint` split between:
+    - state mutation
+    - durable report/event creation
+    - optional report/ranking/output regeneration plus final housekeeping
+
 #### Mission-family timing after combat is not one universal lag
 
 Extended the report-corpus analysis with mission-family-specific lag checks for
