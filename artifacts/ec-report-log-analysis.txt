@@ -1,0 +1,255 @@
+EC report log timing analysis
+
+files with events: 47
+total events: 735
+
+all files nondecreasing by (year, week): True
+files spanning multiple report years: 5
+  - ec2.txt: [3001, 3002]
+  - ec3.txt: [3002, 3003]
+  - ec37.txt: [3037, 3038]
+  - ec47.txt: [3049, 3050, 3051]
+  - ec48.txt: [3050, 3052]
+
+week range: 1..52
+week median: 22
+week quartile buckets (1-13 / 14-26 / 27-39 / 40-52):
+  - bucket 0: 302
+  - bucket 1: 107
+  - bucket 2: 170
+  - bucket 3: 156
+
+event kinds:
+  - fleet-report-other: 227
+  - guard-world: 219
+  - rendezvous: 68
+  - planet-damage: 35
+  - colonize: 33
+  - fleet-command-center: 28
+  - planet-report: 28
+  - bombard: 27
+  - join: 26
+  - guard-starbase: 11
+  - seek-home: 10
+  - starbase-report: 7
+  - move: 6
+  - view: 5
+  - salvage: 4
+  - patrol: 1
+
+same-source same-week bundles: 94
+representative same-week bundles:
+  - ec4.txt 29/3005 your 7th Fleet, located in System(6,3)
+    * Scouting mission report: Sensor contact shows an alien fleet in
+    * Scouting mission report: We have located and identified the alien fleet
+  - ec4.txt 35/3005 your 7th Fleet, located in System(6,3)
+    * Scouting mission report: Sensor contact shows an alien fleet in
+    * Scouting mission report: We have located and identified the alien fleet
+  - ec5.txt 3/3006 your 7th Fleet, located in System(6,3)
+    * Scouting mission report: Sensor contact shows an alien fleet in
+    * Scouting mission report: We have located and identified the alien fleet
+  - ec5.txt 5/3006 your 7th Fleet, located in System(6,3)
+    * Scouting mission report: Sensor contact shows an alien fleet in
+    * Scouting mission report: We have located and identified the alien fleet
+  - ec8.txt 15/3009 your 11th Fleet, located in System(21,14)
+    * Scouting mission report: Sensor contact shows an alien fleet in
+    * Scouting mission report: We have located and identified the alien fleet
+  - ec8.txt 29/3009 your 11th Fleet, located in System(21,14)
+    * Scouting mission report: Sensor contact shows an alien fleet in
+    * Scouting mission report: We have located and identified the alien fleet
+  - ec8.txt 44/3009 your 16th Fleet, located in System(14,7)
+    * Guard/Blockade World mission report: Sensor contact shows an alien
+    * Guard/Blockade World mission report: We have located and identified the
+    * Guard/Blockade World mission report: We successfully intercepted the
+  - ec10.txt 52/3011 your 13th Fleet, located in System(24,14)
+    * Sensor contact shows an alien fleet in System(24,14) traveling at a
+    * We have located and identified the alien fleet in System(24,14). It is
+  - ec11.txt 4/3012 your 1st Fleet, located in System(4,24)
+    * Colonization mission report: We have entered System(4,24) and have
+    * Move mission report: We were attacked by the 3rd Fleet of "In Civil
+  - ec12.txt 41/3013 your 3rd Fleet, located in System(23,5)
+    * Guard/Blockade World mission report: Sensor contact shows an alien
+    * Guard/Blockade World mission report: We have located and identified the
+    * Guard/Blockade World mission report: We successfully intercepted the
+  - ec14.txt 29/3015 your 11th Fleet, located in System(25,12)
+    * Scouting mission report: Sensor contact shows an alien fleet in
+    * Scouting mission report: We have located and identified the alien fleet
+  - ec14.txt 42/3015 your 3rd Fleet, located in System(23,5)
+    * Guard/Blockade World mission report: Sensor contact shows an alien
+    * Guard/Blockade World mission report: We have located and identified the
+    * Guard/Blockade World mission report: We successfully intercepted the
+
+same-source multi-week sequences: 65
+representative multi-week sequences:
+  - ec4.txt 3005 your 9th Fleet, located in System(21,14)
+    * week 28: Colonization mission report: We have entered System(21,14) and have
+    * week 29: Move mission report: We were attacked by the 1st Fleet of "In Civil
+  - ec4.txt 3005 your 7th Fleet, located in System(6,3)
+    * week 29: Scouting mission report: Sensor contact shows an alien fleet in
+    * week 29: Scouting mission report: We have located and identified the alien fleet
+    * week 30: Scouting mission report: We are in extended orbit around planet "Not
+    * week 35: Scouting mission report: Sensor contact shows an alien fleet in
+    * week 35: Scouting mission report: We have located and identified the alien fleet
+  - ec5.txt 3006 your 7th Fleet, located in System(6,3)
+    * week 1: Scouting mission report: We are in extended orbit around planet "Not
+    * week 3: Scouting mission report: Sensor contact shows an alien fleet in
+    * week 3: Scouting mission report: We have located and identified the alien fleet
+    * week 5: Scouting mission report: Sensor contact shows an alien fleet in
+    * week 5: Scouting mission report: We have located and identified the alien fleet
+  - ec7.txt 3008 your 1st Fleet, located in System(2,20)
+    * week 30: Colonization mission report: We were attacked by the 7th Fleet of
+    * week 32: Colonization mission report: We have arrived at our target world,
+  - ec8.txt 3009 your 16th Fleet, located in System(14,7)
+    * week 1: Guard/Blockade World mission report: We have arrived at planet
+    * week 44: Guard/Blockade World mission report: Sensor contact shows an alien
+    * week 44: Guard/Blockade World mission report: We have located and identified the
+    * week 44: Guard/Blockade World mission report: We successfully intercepted the
+  - ec8.txt 3009 your 11th Fleet, located in System(21,14)
+    * week 15: Scouting mission report: Sensor contact shows an alien fleet in
+    * week 15: Scouting mission report: We have located and identified the alien fleet
+    * week 19: Scouting mission report: We are in extended orbit around planet "Not
+    * week 29: Scouting mission report: Sensor contact shows an alien fleet in
+    * week 29: Scouting mission report: We have located and identified the alien fleet
+  - ec10.txt 3011 your 13th Fleet, located in System(24,14)
+    * week 32: Bombardment mission report: We have just concluded a bombing run
+    * week 52: Sensor contact shows an alien fleet in System(24,14) traveling at a
+    * week 52: We have located and identified the alien fleet in System(24,14). It is
+  - ec14.txt 3015 your 11th Fleet, located in System(25,12)
+    * week 1: Scouting mission report: We are in extended orbit around planet "90"
+    * week 29: Scouting mission report: Sensor contact shows an alien fleet in
+    * week 29: Scouting mission report: We have located and identified the alien fleet
+    * week 45: Scouting mission report: We have an update concerning the world in
+    * week 46: Scouting mission report: Since we now control System(25,12), we are
+  - ec14.txt 3015 your 13th Fleet, located in System(25,12)
+    * week 38: Bombardment mission report: We were attacked by the 10th Fleet of
+    * week 45: Bombardment mission report: We have just concluded a bombing run
+  - ec16.txt 3017 your 6th Fleet, located in System(25,22)
+    * week 1: Scouting mission report: We are in extended orbit around planet "Fran"
+    * week 2: Scouting mission report: Sensor contact shows an alien fleet in
+    * week 2: Scouting mission report: We have located and identified the alien fleet
+  - ec16.txt 3017 your 9th Fleet, located in System(3,4)
+    * week 1: Scouting mission report: We are in extended orbit around the world in
+    * week 20: Scouting mission report: Since we now control System(3,4), we are
+  - ec16.txt 3017 your 3rd Fleet, located in System(23,5)
+    * week 38: Guard/Blockade World mission report: We successfully intercepted the
+    * week 49: Guard/Blockade World mission report: We were attacked by the 27th Fleet
+
+fleet-command-center reports: 28
+sample fleet-command-center sequencing:
+  - ec3.txt 28/3003
+    prev: 27/3003 your 6th Fleet, located in System(21,14) :: Viewing mission report: We were attacked by the 3rd Fleet of "In Civil
+    body: We lost all contact with the 6th Fleet shortly after it was attacked by
+  - ec4.txt 29/3005
+    prev: 29/3005 your 7th Fleet, located in System(6,3) :: Scouting mission report: We have located and identified the alien fleet
+    body: We lost all contact with the 9th Fleet shortly after it was attacked by
+    next: 30/3005 your 7th Fleet, located in System(6,3) :: Scouting mission report: We are in extended orbit around planet "Not
+  - ec5.txt 52/3006
+    prev: 52/3006 your 2nd Fleet, located in System(23,4) :: Colonization mission report: We have arrived at our target world,
+    body: We lost all contact with the 7th Fleet shortly after it was attacked by
+  - ec16.txt 50/3017
+    prev: 49/3017 your 3rd Fleet, located in System(23,5) :: Guard/Blockade World mission report: We were attacked by the 27th Fleet
+    body: We lost all contact with the 3rd Fleet shortly after it was attacked by
+    next: 52/3017 your 7th Fleet, located in System(27,12) :: Invasion mission report: Our invasion attempt was defeated. We failed
+  - ec17.txt 1/3018
+    prev: 1/3018 your 24th Fleet, located in System(23,5) :: Join mission report: We have located and identified the alien fleet in
+    body: We lost all contact with the 24th Fleet shortly after it intercepted
+    next: 1/3018 your 27th Fleet, located in System(2,12) :: Guard/Blockade World mission report: We have arrived at planet "bertha"
+  - ec19.txt 26/3020
+    prev: 8/3020 your 2nd Fleet, located in System(6,2) :: Salvage mission report: We have arrived at planet "haha" in System(6,2)
+    body: We lost all contact with the 14th Fleet shortly after it intercepted
+    next: 42/3020 planet "you're my bitch" in System(23,5): :: We have been bombarded by the 6th Fleet of empire "Melody Lake",
+  - ec20.txt 40/3021
+    prev: 40/3021 your 7th Fleet, located in System(25,12) :: Guard/Blockade World mission report: We have located and identified the
+    body: We lost all contact with the 7th Fleet shortly after it intercepted the
+    next: 40/3021 your 4th Fleet, located in Sector(17,13) :: Join mission report: In light of the destruction of the 7th Fleet, we
+  - ec21.txt 46/3022
+    prev: 40/3022 planet "buzz" in System(23,4): :: We have been bombarded by the 27th Fleet of empire "Melody Lake",
+    body: We lost all contact with the 9th Fleet shortly after it was attacked by
+    next: 52/3022 your 11th Fleet, located in System(27,12) :: Scouting mission report: We are in extended orbit around planet "126"
+  - ec26.txt 13/3027
+    prev: 13/3027 your 18th Fleet, located in Sector(27,12) :: Invasion mission report: We have located and identified the alien fleet
+    body: We lost all contact with the 18th Fleet shortly after it intercepted
+    next: 14/3027 your Fleet Command Center: :: We lost all contact with the 4th Fleet shortly after it intercepted the
+  - ec26.txt 14/3027
+    prev: 13/3027 your Fleet Command Center: :: We lost all contact with the 18th Fleet shortly after it intercepted
+    body: We lost all contact with the 4th Fleet shortly after it intercepted the
+    next: 38/3027 your 20th Fleet, located in System(14,7) :: Guard/Blockade World mission report: Sensor contact shows an alien
+  - ec26.txt 38/3027
+    prev: 38/3027 your 20th Fleet, located in System(14,7) :: Guard/Blockade World mission report: We have located and identified the
+    body: We lost all contact with the 20th Fleet shortly after it intercepted
+    next: 39/3027 your 41st Fleet, located in System(23,17) :: Bombardment mission report: We have just concluded a bombing run
+  - ec29.txt 43/3030
+    prev: 39/3030 your 11th Fleet, located in System(23,5) :: Scouting mission report: We have located and identified the alien fleet
+    body: We lost all contact with the 11th Fleet shortly after it was attacked
+    next: 44/3030 your 2nd Fleet, located in System(25,12) :: Invasion mission report: We have successfully invaded and taken planet
+  - ec31.txt 11/3032
+    prev: 11/3032 your 20th Fleet, located in System(23,5) :: Guard/Blockade World mission report: We have located and identified the
+    body: We lost all contact with the 20th Fleet shortly after it intercepted
+    next: 42/3032 your 12th Fleet, located in System(23,1) :: Bombardment mission report: We have just concluded a bombing run
+  - ec36.txt 1/3037
+    prev: 1/3037 your 49th Fleet, located in System(21,6) :: Rendezvous mission report: We have located and identified the alien
+    body: We lost all contact with the 49th Fleet shortly after it intercepted
+    next: 1/3037 your 61st Fleet, located in System(27,12) :: Guard/Blockade World mission report: We have arrived at planet "126" in
+  - ec36.txt 24/3037
+    prev: 24/3037 your 60th Fleet, located in System(25,12) :: Guard/Blockade World mission report: We have located and identified the
+    body: We lost all contact with the 60th Fleet shortly after it intercepted
+  - ec37.txt 30/3038
+    prev: 30/3038 your 57th Fleet, located in System(9,5) :: Guard/Blockade World mission report: We have located and identified the
+    body: We lost all contact with the 57th Fleet shortly after it intercepted
+    next: 33/3038 planet "126" in System(27,12): :: We have been bombarded by the 19th Fleet of empire "Melody Lake",
+  - ec37.txt 43/3038
+    prev: 43/3038 your 54th Fleet, located in System(5,3) :: Guard/Blockade World mission report: We have located and identified the
+    body: We lost all contact with the 54th Fleet shortly after it intercepted
+    next: 45/3038 your 58th Fleet, located in System(14,7) :: Guard/Blockade World mission report: Sensor contact shows an alien
+  - ec37.txt 49/3038
+    prev: 46/3038 planet "haha" in System(6,2): :: We have been bombarded by the 26th Fleet of empire "Melody Lake",
+    body: We lost all contact with the 64th Fleet shortly after it was attacked
+    next: 49/3038 planet "89, bitch!" in System(5,3): :: We have been bombarded by the 6th Fleet of empire "Melody Lake",
+  - ec38.txt 1/3039
+    prev: 1/3039 your 21st Fleet, located in System(24,14) :: We have located and identified the alien fleet in System(24,14). It is
+    body: We lost all contact with the 21st Fleet shortly after it intercepted
+    next: 1/3039 planet "haha" in System(6,2): :: We have been bombarded by the 26th Fleet of empire "Melody Lake",
+  - ec39.txt 4/3040
+    prev: 4/3040 planet "pint" in System(3,4): :: We have been bombarded by the 6th Fleet of empire "Melody Lake",
+    body: We lost all contact with the 58th Fleet shortly after it was attacked
+    next: 24/3040 your 53rd Fleet, located in System(12,2) :: Guard/Blockade World mission report: Sensor contact shows an alien
+  - ec41.txt 31/3042
+    prev: 31/3042 your 32nd Fleet, located in System(23,5) :: Guard/Blockade World mission report: We have located and identified the
+    body: We lost all contact with the 32nd Fleet shortly after it intercepted
+    next: 33/3042 your Fleet Command Center: :: We lost all contact with Starbase 2 shortly after it was attacked by
+  - ec41.txt 33/3042
+    prev: 31/3042 your Fleet Command Center: :: We lost all contact with the 32nd Fleet shortly after it intercepted
+    body: We lost all contact with Starbase 2 shortly after it was attacked by
+    next: 33/3042 planet "hector" in System(7,16): :: We have been bombarded by the 25th Fleet of empire "Melody Lake",
+  - ec42.txt 1/3043
+    prev: 1/3043 your 66th Fleet, located in System(7,16) :: Guard/Blockade World mission report: We successfully intercepted the
+    body: We lost all contact with the 66th Fleet shortly after it was attacked
+    next: 1/3043 your 26th Fleet, located in System(4,18) :: Join mission report: In light of the destruction of the 66th Fleet, we
+  - ec42.txt 10/3043
+    prev: 2/3043 your 6th Fleet, located in System(21,14) :: Scouting mission report: Since we now control System(21,14), we are
+    body: We lost all contact with the 22nd Fleet shortly after it was attacked
+    next: 16/3043 your 55th Fleet, located in System(12,2) :: Seek-Home mission report: We have arrived at our destination and are
+  - ec43.txt 20/3044
+    prev: 18/3044 your 7th Fleet, located in System(4,24) :: Viewing mission report: We have entered System(4,24) and have completed
+    body: We lost all contact with the 7th Fleet shortly after it was attacked by
+    next: 26/3044 your 33rd Fleet, located in System(23,5) :: Guard/Blockade World mission report: We have arrived at planet "you're
+  - ec44.txt 7/3045
+    prev: 1/3045 your 9th Fleet, located in System(14,7) :: Guard/Blockade World mission report: We have arrived at planet
+    body: We lost all contact with both Starbase 3 and the 71st Fleet shortly
+    next: 7/3045 planet "helix" in System(2,20): :: We have been bombarded by the 25th Fleet of empire "Melody Lake",
+  - ec44.txt 38/3045
+    prev: 30/3045 your 55th Fleet, located in System(11,1) :: Join mission report: We have joined the 51st Fleet and are now merging
+    body: We lost all contact with the 62nd Fleet shortly after it intercepted
+    next: 39/3045 your 3rd Fleet, located in System(25,22) :: Bombardment mission report: We have just concluded a bombing run
+  - ec47.txt 22/3049
+    prev: 19/3049 your 12th Fleet, located in System(2,12) :: Guard/Blockade World mission report: We have arrived at planet "bertha"
+    body: We lost all contact with the 10th Fleet shortly after it was attacked
+    next: 34/3049 your 13th Fleet, located in System(14,7) :: Guard/Blockade World mission report: Sensor contact shows an alien
+
+high-signal conclusions:
+  - Report logs are strictly sorted by (year, week).
+  - Unread reports can persist across years; some files contain multiple report years.
+  - Same-week bundles are common for one source, especially sensor-contact + identification + interception chains.
+  - Multi-week sequences from the same source are also common, showing missions progressing across weeks inside one year.
+  - Fleet Command Center reports act like administrative loss summaries and are interleaved into the same weekly ordering.
+  - The log corpus therefore supports a real sub-year scheduler, not just decorative timestamps.

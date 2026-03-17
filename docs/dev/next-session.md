@@ -239,6 +239,12 @@ Primary goal:
     with rollover from `52/YYYY` to `1/YYYY+1`
   - the leading semantic interpretation is now week-of-year rather than
     literal day-of-year
+  - black-box behavior now also shows this timeline is mechanically relevant,
+    not just report narration:
+    - `ec.txt -> ec2.txt` shows fleets with `Travel Time: 1/2 years` resolving
+      at specific in-year stardates
+    - the same `3rd Fleet` produces ordered reports in `3002` at weeks `12`
+      and `21`, showing intra-year mission sequencing
   - the new timing-focused Ghidra report lives at
     [ec-timing-spec.md](ec-timing-spec.md) and
     `artifacts/ghidra/ecmaint-live/timing-flow.txt`

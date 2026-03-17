@@ -6246,6 +6246,39 @@ This does **not** yet prove where the day lives in memory or on disk, only
 that the player-facing reports behave as if `ECMAINT` is assigning event ticks
 within a 52-step year.
 
+#### Behavioral proof that the 52-step scale is mechanical, not just narrative
+
+The strongest black-box evidence so far comes from the shipped `ec.txt` ->
+`ec2.txt` campaign progression.
+
+In `ec.txt` (`3001 A.D.`), the fleet review shows:
+
+- `1st Fleet`: colonize `(13,15)`, `Travel Time: 1 year`
+- `2nd Fleet`: colonize `(20,11)`, `Travel Time: 2 years`
+- `3rd Fleet`: view `(23,5)`, `Travel Time: 2 years`
+- `4th Fleet`: guard/blockade homeworld, `Travel Time: None`
+
+Then `ec2.txt` shows the resulting unread reports with exact in-year
+stardates:
+
+- `1st Fleet` colonization completes at `Stardate: 32/3001`
+- `4th Fleet` guard-starbase arrival reports at `Stardate: 1/3002`
+- `3rd Fleet` viewing mission reports entry into `System(23,5)` at
+  `Stardate: 12/3002`
+- the **same 3rd Fleet** later reports move completion at
+  `Stardate: 21/3002`
+- `2nd Fleet` colonization completes at `Stardate: 25/3002`
+
+Practical conclusion:
+
+- the `1..52` scale is not just decorative report prose
+- `ECMAINT` is sequencing mission progress and report emission on a real
+  sub-year timeline
+- the presence of two ordered `3002` reports for the same fleet is especially
+  strong evidence for a mechanical intra-year schedule
+- the main remaining question is the exact implementation of that scheduler,
+  not whether it exists
+
 #### New reusable static extractor
 
 Added a focused headless Ghidra script:
@@ -6308,6 +6341,8 @@ Practical interpretation:
 - the leading semantic interpretation of that timeline is week-of-year
 - player-visible reports appear to be stamped with event ticks inside that
   yearly timeline, not just with "the date maintenance ran"
+- this timeline is mechanically relevant to mission/report sequencing, not just
+  narrative decoration
 
 #### Still open
 
@@ -6347,3 +6382,42 @@ Practical interpretation:
   immediates in the analyzed memory image
 - the next static step should look for string-table walkers, pointer tables, or
   data-segment base calculations rather than only direct references
+
+#### Full shipped-log aggregate timing sweep
+
+Added a reusable log-analysis helper:
+
+- `tools/analyze_ec_report_logs.py`
+
+Command:
+
+- `python3 tools/analyze_ec_report_logs.py`
+
+Current output:
+
+- `artifacts/ec-report-log-analysis.txt`
+
+Aggregate findings from the shipped `ec*.txt` logs:
+
+- `47` files contain `735` timestamped report events
+- every file is strictly nondecreasing by `(year, week)`
+- `5` files span multiple report years, so unread reports can persist into
+  later login sessions
+- same-source same-week bundles are common:
+  - especially `sensor contact -> identification -> interception`
+- same-source multi-week sequences are also common:
+  - `extended orbit`
+  - later contact/identification
+  - later world updates / aborts / interceptions
+- Fleet Command Center reports are part of the same weekly ordering rather than
+  a separate annual appendix
+  - they usually read as administrative loss summaries after combat or
+    interception outcomes
+
+Practical interpretation:
+
+- the report corpus has clear intra-year ordering structure
+- the stardates are doing real sequencing work
+- the current evidence now supports a mechanical weekly scheduler with both:
+  - same-week event bundles
+  - cross-week mission progression
