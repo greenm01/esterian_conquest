@@ -145,6 +145,18 @@ Highest-value remaining `ECMAINT` oracle RE targets:
    and rankings output
 5. economy / production application timing
 
+Current best workflow for target `1`:
+
+- start with controlled one-mechanic oracle scenarios, not broad static
+  disassembly
+- diff persistent `.DAT` state and durable summary/event outputs after classic
+  `ECMAINT`
+- use those repeated mutations to choose the next static seam
+- treat the partially recovered `1000:03ff..0d53` owned-planet body as the
+  current strongest step-4 candidate until a better earlier driver appears
+- avoid spending more time in already-bounded late summary/report families
+  unless a scenario diff points back there
+
 Current Rust-facing implication:
 
 - keep treating `rust-maint` as three distinct boundaries:
@@ -165,6 +177,17 @@ Current Rust-facing implication:
 - do not keep tuning Rust gameplay order against the already-recovered late
   `5ee4` / `6d9b` / `8652` machinery; the remaining ordering risk is now more
   likely in earlier simulation helpers
+- but do now treat `1000:024d` as a mixed yearly producer pass rather than a
+  pure report helper:
+  - its front half still matches the known durable kind-`2` producer family
+  - its deeper interior `1000:03ff..0d53` is inside that same function, not a
+    separate hidden driver
+  - that interior iterates owned planets from `0x1712`, mutates live planet
+    fields including `+0x58/+0x5a` and real triples at `+0x03..+0x0d`, and
+    consults staged player state plus durable kind-`2` entries before looping
+  - practical implication:
+    `00e8/024d` now looks like a real bridge between step-4 planet mutation
+    and durable event creation
 
 Latest static tightening on the turn-cycle side:
 

@@ -7211,3 +7211,76 @@ Practical consequence:
   - `6d9b` still does not look like the missing yearly gameplay-core phase
   - the unresolved ordering remains more likely in earlier helpers or outside
     the already-fixed `6d9b -> 5ee4 -> 8652` framing path
+
+#### Step-4 workflow and `1000:024d` interior tightened
+
+Added probes:
+
+- `artifacts/ghidra/ecmaint-live/probe-1000_03ff.txt`
+- `artifacts/ghidra/ecmaint-live/probe-1000_07ff.txt`
+- `artifacts/ghidra/ecmaint-live/probe-1000_0b67.txt`
+- `artifacts/ghidra/ecmaint-live/probe-1000_0d53.txt`
+- `artifacts/ghidra/ecmaint-live/probe-1000_0dda.txt`
+
+Current structural result:
+
+- the partially recovered `1000:03ff..0d53` owned-planet body is **not** a
+  standalone hidden driver
+- it sits inside sibling durable-summary driver `1000:024d`
+- `1000:0138` already showed the `1000:00e8` sibling stop before this region,
+  while `1000:024d` continues through the deeper planet-side loop
+
+What `1000:024d` now concretely does before returning:
+
+- starts with the already known durable-event front half:
+  - `cce7`
+  - `f71d`
+  - `d5d2`
+  - `b6d8`
+  - optional `db04(arg=0x0a)` when current planet `+0x5a > 0`
+  - `f2c7`
+  - `e31b`
+  - `e1c0`
+  - `f9ff`
+  - `f914`
+  - `c025`
+  - `c9a0`
+  - `fe73`
+- then enters a deeper per-owned-planet loop at `03ff`:
+  - iterates current planet records from staged table `0x1712`
+  - skips entries with owner byte `planet[+0x5d] == 0`
+  - advances byte `planet[+0x5c]` through a small state ladder
+  - seeds local numeric triples from that ladder
+  - gates on owner player `player[+0x44] > 0`
+  - scans durable kind-`2` entries for current coords/owner with active flag
+  - decodes them through `2000:c09a`
+  - folds per-slot `entry[+0x22]` into running `+0x34/+0x36`
+  - writes results back into planet words `+0x58/+0x5a`
+  - applies additional real-valued transforms to planet `+0x09/+0x0b/+0x0d`
+  - clears the temporary slot accumulators before looping
+
+Late-half tightening from `07ff` and `0b67`:
+
+- this deeper `024d` interior still mutates live planet fields directly
+- it is not just report formatting:
+  - clamps / updates planet reals at `+0x03/+0x05/+0x07`
+  - clamps / updates another real triple at `+0x09/+0x0b/+0x0d`
+  - uses owner player byte `player[+0x51]`
+  - branches on planet byte `+0x60`
+- practical reading:
+  `024d` is a mixed step-4 pass that combines planet-side state mutation with
+  later kind-`2` summary/event staging
+
+Practical consequence for Rust:
+
+- do not demote `1000:024d` to "late output helper"
+- also do not treat `03ff..0d53` as a separate earlier global scheduler
+- the safer current model is:
+  - `00e8` / `024d` are sibling yearly producer passes
+  - `024d` owns a materially richer planet-side mutation interior than `00e8`
+  - this family is now a real bridge between step-4 state mutation and durable
+    event creation
+- best next RE target inside step `4` is now:
+  - compare `00e8` vs `024d` semantics more tightly
+  - determine what planet bytes `+0x5c` and `+0x60` mean operationally
+  - identify where `024d` is entered from in the broader yearly flow

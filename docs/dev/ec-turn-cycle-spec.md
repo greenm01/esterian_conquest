@@ -62,6 +62,45 @@ Current practical guidance for `rust-maint`:
 - this means the remaining Rust turn-order risk is concentrated in the still
   unresolved earlier simulation helpers, not in the late report pipeline
 
+## Best Recovery Workflow For Step 4
+
+Current best method for uncovering the yearly simulation core:
+
+1. build controlled one-mechanic oracle scenarios first
+2. run classic `ECMAINT` and diff persistent state plus durable summary outputs
+3. promote repeated field-level mutations into a step-4 evidence matrix
+4. use static RE only on the specific helpers that those scenario diffs keep
+   pointing at
+5. stop once the ordering boundary is explicit enough to guide Rust
+
+Practical rule:
+
+- a full linear assembly dump is possible, but it is not the highest-yield tool
+  for this problem by itself
+- the hard part is trustworthy structure:
+  - code vs data separation
+  - real function boundaries
+  - cross-segment control flow
+  - deciding which routines mutate durable game state and which only format
+    late reports
+- the current late-summary work recovered around `5ee4`, `861d`, `87f4`,
+  `f319`, and `f34a` is the cautionary example:
+  - broad static coverage alone can spend a lot of time on important-looking
+    code that is still only report/output plumbing
+
+Current highest-yield step-4 target:
+
+- keep pairing controlled oracle diffs with the partially recovered
+  `1000:024d` owned-planet interior
+- the strongest current seam is now the `1000:03ff..0d53` body *inside*
+  `1000:024d`, because it:
+  - iterates owned planets directly
+  - gates on owner/player state
+  - reads durable kind-`2` entries
+  - folds derived values back into planet fields
+- treat `024d` as the current leading seam for practical Rust modeling until a
+  stronger earlier simulation driver is recovered
+
 ## Evidence Backbone
 
 This spec is built from four independent evidence sources:
