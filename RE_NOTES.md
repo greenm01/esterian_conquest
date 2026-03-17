@@ -6845,6 +6845,31 @@ Additional practical tightening:
   structure by default just because they share the same backing workspace in
   DOS memory; lifetimes appear to differ even if storage is reused
 
+Additional durable-writer recovery:
+
+- the first currently confirmed non-`5ee4` writers to the durable
+  `0x2f72 / 0x2f76` pool are in segment `1000`, not `2000`
+  - `1000:dddb` / probe point `1000:e09d`
+  - `1000:e31b` / probe point `1000:e569`
+- both functions:
+  - `INC [0x2f76]`
+  - allocate `0x0c` bytes via `0x3000:1c53`
+  - store the new pointer in the shared pool table at `0x2f72`
+  - then fill the entry in place
+- the recovered layouts match the later kind-1 / kind-2 pipeline:
+  - `1000:dddb` writes `entry[+0x04] = 1`
+  - `1000:e31b` writes `entry[+0x04] = 2`
+  - both also write:
+    - `entry[+0x03] = 1`
+    - owner / actor byte at `+0x00`
+    - coords at `+0x01/+0x02`
+    - payload word at `+0x06`
+    - key-ish word at `+0x0a`
+- practical Rust implication:
+  the durable late report-event pool is now better modeled as a dedicated
+  post-validation summary-generation phase driven by separate producer helpers,
+  not as a continuation of `5ee4` scratch emission
+
 #### `2000:6d9b` tightened as restore/validation wrapper with recursive retry path
 
 Added probe:

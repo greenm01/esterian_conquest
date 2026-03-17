@@ -156,6 +156,12 @@ Current Rust-facing implication:
   - `5ee4` increments `0x2f76`
   - tail `0x6ac3` then clears `0x2f76` before returning
   - current best reading is "shared workspace, different lifetime"
+- do now treat durable report-event creation as a separate later phase:
+  - first confirmed non-`5ee4` writers are `1000:dddb` and `1000:e31b`
+  - they append fresh `0x0c` entries after the `5ee4` scratch clear
+  - they write the later-consumed kind bytes directly:
+    - `1000:dddb` -> kind `1`
+    - `1000:e31b` -> kind `2`
 - do not keep tuning Rust gameplay order against the already-recovered late
   `5ee4` / `6d9b` / `8652` machinery; the remaining ordering risk is now more
   likely in earlier simulation helpers
@@ -194,6 +200,11 @@ Latest static tightening on the turn-cycle side:
   not as additional direct summary kinds hidden in the `5ee4` tail; and the
   `5ee4`-time `0x2f76` entries themselves are increasingly likely to be
   transient validation scratch rather than the final late-report event pool
+- later durable summary production is now anchored more concretely:
+  - `1000:dddb` / `1000:e09d` emits kind-`1` pool entries
+  - `1000:e31b` / `1000:e569` emits kind-`2` pool entries
+  - both allocate `0x0c` records and fill owner / coords / payload fields in
+    the shared pool after `5ee4` has already cleared the validation scratch
 - `2000:6d9b` is now better bounded as restore/validation scaffolding:
   - `arg=0` goes through `0x6f20`, calls `5ee4`, and on failure emits
     recovery/error text before recursively calling `6d9b(arg=1)`

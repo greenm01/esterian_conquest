@@ -46,6 +46,13 @@ Current practical guidance for `rust-maint`:
   - but `6ac3` zeroes `0x2f76` before `5ee4` returns
   - current best practical reading is that `5ee4` uses the shared workspace as
     temporary validation scratch, not as the final persistent report-event set
+- do treat the durable report-event pool as a later producer phase:
+  - first confirmed non-`5ee4` durable writers are `1000:dddb` and `1000:e31b`
+  - they allocate fresh `0x0c` records after `5ee4` has already cleared the
+    scratch count
+  - they write the later-consumed kind bytes directly:
+    - `1000:dddb` -> kind `1`
+    - `1000:e31b` -> kind `2`
 - do not shape Rust gameplay order around the already-recovered late helpers:
   - `9e1e` is startup summary-workspace plumbing
   - `6d9b` is restore/integrity wrapper logic
@@ -196,6 +203,11 @@ Practical meaning:
   - practical reading: those validation-time entries are temporary scratch for
     integrity/link checks, not the durable late-report summary set consumed by
     later canonicalization/coalescing passes
+- the first confirmed durable event emitters now sit later in segment `1000`:
+  - `1000:dddb` / probe point `1000:e09d` appends kind-`1` `0x0c` entries
+  - `1000:e31b` / probe point `1000:e569` appends kind-`2` `0x0c` entries
+  - both write owner/coords/common key words into the exact pool later read by
+    the `87f4 -> 8b15` matcher/coalescer
 - this further narrows the unresolved gameplay-core search away from the
   already-recovered `5ee4` tail exits
 
