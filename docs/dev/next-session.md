@@ -245,6 +245,30 @@ Current Rust-facing implication:
     - practical implication:
       at least some `024d`-side planet mutation can land earlier in step `4`
       than later visible combat/mission consequences
+  - new reusable direct-probe harness now exists at:
+    `tools/step4_oracle_probe.py`
+    - clones a disposable working directory
+    - applies direct planet-byte edits
+    - snapshots each maint tick
+    - summarizes watched-world deltas plus
+      `RESULTS.DAT` / `MESSAGES.DAT` / `ERRORS.TXT` / `DATABASE.DAT` /
+      `RANKINGS.TXT`
+    - practical implication:
+      keep using this harness for step-`4` timing work rather than ad hoc
+      manual diff loops
+  - first harness-driven per-tick shape comparison now tightens the earlier
+    timing result:
+    - `invade-pre` with forced target `+0x60 = 1` rewrites the watched world
+      broadly on tick `1` while `RESULTS.DAT` is still empty
+    - `bombard-pre` also rewrites the watched world on tick `1` with
+      `RESULTS.DAT` still empty, but in a narrower early shape
+    - `fleet-battle-pre` changes the watched world on tick `1` when
+      `RESULTS.DAT` is already non-empty, and the world-delta shape differs
+      again
+    - practical implication:
+      the remaining step-`4` puzzle is likely not just "one producer pass plus
+      one generic report delay"; mission-family context appears to change which
+      portion of the planet-local rewrite has landed by a given yearly tick
 
 Latest static tightening on the turn-cycle side:
 

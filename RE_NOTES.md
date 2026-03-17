@@ -7569,3 +7569,81 @@ What this still does **not** prove:
   in those preserved combat fixtures without the direct byte override
 - it does not yet distinguish "before combat resolution" from "before visible
   combat/report emission"
+
+#### Reusable step-4 direct-probe harness added
+
+New tool:
+
+- `tools/step4_oracle_probe.py`
+
+Purpose:
+
+- clone a preserved or disposable baseline into a throwaway working directory
+- apply direct `PLANETS.DAT` byte edits to chosen records
+- snapshot the directory before and after each maint tick
+- summarize per-tick file drift across:
+  - `PLAYER.DAT`
+  - `PLANETS.DAT`
+  - `FLEETS.DAT`
+  - `CONQUEST.DAT`
+  - `DATABASE.DAT`
+  - `RESULTS.DAT`
+  - `MESSAGES.DAT`
+  - `RANKINGS.TXT`
+  - `ERRORS.TXT`
+- also summarize watched-planet per-record offset changes after each tick
+
+Practical consequence:
+
+- the direct step-4 workflow is now reproducible and report-aware by default
+- this should replace ad hoc one-off probe loops when checking whether a
+  candidate state mutation is:
+  - silent planet-state work
+  - visible report-side work
+  - or a mixed case
+
+#### Per-tick shape tightening on the forced `+0x60` branch
+
+Using the new direct-probe harness on:
+
+- `fixtures/ecmaint-invade-pre/v1.5`
+- `fixtures/ecmaint-bombard-pre/v1.5`
+- `fixtures/ecmaint-fleet-battle-pre/v1.5`
+
+all with forced target-world `record 14, +0x60 = 1` and watching planet record
+`14`:
+
+Observed result:
+
+- `invade-pre`, tick `1`:
+  - watched world already rewrites broadly at:
+    - `+0x03..+0x04`
+    - `+0x08..+0x0e`
+    - `+0x58`
+  - `RESULTS.DAT` still empty
+- `bombard-pre`, tick `1`:
+  - watched world rewrites more narrowly at:
+    - `+0x03..+0x04`
+    - `+0x08..+0x09`
+    - `+0x0e`
+  - `RESULTS.DAT` still empty
+- `fleet-battle-pre`, tick `1`:
+  - watched world changes again on the same tick that `RESULTS.DAT` becomes
+    non-empty
+  - but the shape is different from invade/bombard:
+    - `+0x03`
+    - `+0x08..+0x09`
+    - `+0x0e`
+    - plus side bytes `+0x38` and `+0x3c`
+
+Current practical reading:
+
+- the earlier ordering result still holds:
+  some `024d`-side planet mutation can land before later visible delayed
+  mission consequences
+- the new detail is that the tick-`1` world-mutation *shape* is not uniform
+  across delayed mission and combat-heavy fixtures
+- this increases confidence that step `4` is not just one producer pass plus
+  one universal report delay:
+  mission family and/or neighboring subphase context appears to affect which
+  part of the planet-local rewrite has landed by a given yearly tick
