@@ -145,6 +145,18 @@ Highest-value remaining `ECMAINT` oracle RE targets:
    and rankings output
 5. economy / production application timing
 
+Latest static tightening on the turn-cycle side:
+
+- `2000:87f4 -> 2000:8b15` is now better classified as a late summary
+  coalescing pass:
+  - it walks the summary table at `0x2f72` / `0x2f76`
+  - pairs kind-`2` entries against kind-`1` entries on owner/coords/flag keys
+  - then feeds late text/output helpers
+- practical implication:
+  - do not keep treating that region as a candidate gameplay-core phase
+  - the missing yearly simulation order is increasingly likely to sit earlier
+    than the `861d` late tail or behind helpers that populate the summary pool
+
 Combat policy for the Rust clone remains:
 
 - do not chase original combat RNG parity

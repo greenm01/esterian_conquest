@@ -344,6 +344,32 @@ Practical meaning:
 - the still-missing "core simulation" is now more likely earlier than this
   `861d` tail, or partly hidden behind helpers that feed it
 
+### 6b. Kind-`2` summary coalescing happens in the late weekly/report side
+
+Confidence: `Medium`
+
+New static tightening from `2000:87f4 -> 2000:8b15`:
+
+- this region iterates over the summary pointer table at `0x2f72` / `0x2f76`
+- it selects summary kind `2` entries and scans for matching kind `1` entries
+- the structural match keys are currently:
+  - owner byte `+0x00`
+  - X byte `+0x01`
+  - Y byte `+0x02`
+  - flag/mode byte `+0x05`
+- after that match, it decodes summary payload word `+0x06` through helper
+  pair `2000:3f5a` / `2000:3f27`
+- matched entries then feed more late text/output helpers rather than obvious
+  movement/combat/economy code
+
+Practical meaning:
+
+- this is another late summary coalescing / report-prep stage, not the missing
+  yearly gameplay simulation core
+- the unresolved middle ordering is therefore even less likely to live in the
+  `861d -> 8b3d` region and more likely earlier in the run or behind helpers
+  that populate the summary table before this pass
+
 ### 7. Final Flush, Writes, And Cleanup
 
 Confidence: `Medium`

@@ -6695,3 +6695,48 @@ Practical interpretation:
   - `2db3` belongs to the late derived-file/output side of `ECMAINT`
   - the unresolved gameplay simulation core still lies earlier than the
     `8652` call chain, or in the setup path feeding it
+
+#### Late kind-`2` weekly loop tightened as summary coalescer, not gameplay core
+
+Reviewed the larger `2000:87f4 -> 2000:8b15` region from
+`artifacts/ghidra/ecmaint-live/turn-cycle-anchors.txt`.
+
+Current static result:
+
+- this region sits after the already-identified late post-validate call chain:
+  - `2000:1da6`
+  - `2000:0c06`
+  - `2000:2db3`
+  - `2000:56be`
+- it iterates over the summary pointer table at:
+  - `0x2f72`
+  - count `0x2f76`
+- outer selection is gated to summary kind `2`
+- for each kind-`2` entry, it scans other summary entries looking for kind `1`
+  candidates that match:
+  - owner byte `+0x00`
+  - X byte `+0x01`
+  - Y byte `+0x02`
+  - mode/flag byte `+0x05`
+- once those structural keys match, it decodes summary payload word `+0x06`
+  through helper pair:
+  - `2000:3f5a`
+  - `2000:3f27`
+- the matched payloads then feed more late text/output helpers:
+  - `2000:49f2`
+  - `0x3000:4202`
+  - `2000:47fe`
+  - `0x3000:428f`
+
+Practical consequence:
+
+- `2000:87f4 -> 2000:8b15` is another late summary merge/coalescing stage
+  inside the report/weekly side of the pipeline
+- it is not the missing yearly gameplay simulation core
+- that further narrows the real unresolved turn-order target:
+  - not `2000:6d9b`
+  - not `2000:5ee4`
+  - not the fixed `8652` post-validate call chain
+  - not the later kind-`2` / kind-`1` summary pairing loop
+- the missing middle simulation ordering is therefore increasingly likely to be
+  earlier than the `861d` tail or hidden behind helpers feeding that tail
