@@ -1,103 +1,104 @@
-mod buffer;
-mod build_help;
-mod delete_reviewables;
-mod empire_profile;
-mod empire_status;
-mod enemies;
-mod first_time;
-mod fleet;
-mod fleet_help;
-mod general_help;
-mod general_menu;
-mod layout;
-mod main_help;
-mod main_menu;
-mod message_compose;
-mod partial_starmap;
-mod planet_auto_commission;
-mod planet_build;
-mod planet_commission;
-mod planet_database;
-mod planet_help;
-mod planet_info;
-mod planet_list;
-mod planet_menu;
-mod planet_tax;
-mod planet_transport;
-mod rankings;
-mod reports;
-mod starbase;
-mod starmap;
-mod startup;
-mod table;
+pub mod buffer;
+pub mod layout;
+pub mod table;
+
+pub mod build_help { pub use crate::domains::planet::screens::build_help::*; }
+pub mod delete_reviewables { pub use crate::domains::messaging::screens::delete_reviewables::*; }
+pub mod empire_profile { pub use crate::domains::empire::screens::empire_profile::*; }
+pub mod empire_status { pub use crate::domains::empire::screens::empire_status::*; }
+pub mod enemies { pub use crate::domains::empire::screens::enemies::*; }
+pub mod first_time { pub use crate::domains::startup::screens::first_time::*; }
+pub mod fleet { pub use crate::domains::fleet::screens::fleet::*; }
+pub mod fleet_help { pub use crate::domains::fleet::screens::fleet_help::*; }
+pub mod general_help { pub use crate::domains::startup::screens::general_help::*; }
+pub mod general_menu { pub use crate::domains::startup::screens::general_menu::*; }
+pub mod main_help { pub use crate::domains::startup::screens::main_help::*; }
+pub mod main_menu { pub use crate::domains::startup::screens::main_menu::*; }
+pub mod message_compose { pub use crate::domains::messaging::screens::message_compose::*; }
+pub mod partial_starmap { pub use crate::domains::starmap::screens::partial_starmap::*; }
+pub mod planet_auto_commission { pub use crate::domains::planet::screens::planet_auto_commission::*; }
+pub mod planet_build { pub use crate::domains::planet::screens::planet_build::*; }
+pub mod planet_commission { pub use crate::domains::planet::screens::planet_commission::*; }
+pub mod planet_database { pub use crate::domains::planet::screens::planet_database::*; }
+pub mod planet_help { pub use crate::domains::planet::screens::planet_help::*; }
+pub mod planet_info { pub use crate::domains::planet::screens::planet_info::*; }
+pub mod planet_list { pub use crate::domains::planet::screens::planet_list::*; }
+pub mod planet_menu { pub use crate::domains::planet::screens::planet_menu::*; }
+pub mod planet_tax { pub use crate::domains::planet::screens::planet_tax::*; }
+pub mod planet_transport { pub use crate::domains::planet::screens::planet_transport::*; }
+pub mod rankings { pub use crate::domains::empire::screens::rankings::*; }
+pub mod reports { pub use crate::domains::startup::screens::reports::*; }
+pub mod starbase { pub use crate::domains::starbase::screens::starbase::*; }
+pub mod starmap { pub use crate::domains::starmap::screens::starmap::*; }
+pub mod startup { pub use crate::domains::startup::screens::startup::*; }
 
 pub use buffer::{Cell, CellStyle, PlayfieldBuffer, RgbColor, StyledSpan};
-pub use build_help::BuildHelpScreen;
-pub use delete_reviewables::DeleteReviewablesScreen;
-pub use empire_profile::EmpireProfileScreen;
-pub use empire_status::EmpireStatusScreen;
-pub(crate) use enemies::ENEMIES_VISIBLE_ROWS;
-pub use enemies::EnemiesScreen;
-pub(crate) use first_time::FIRST_TIME_INTRO_PAGE_COUNT;
-pub use first_time::{
+pub use crate::domains::planet::screens::build_help::BuildHelpScreen;
+pub use crate::domains::messaging::screens::delete_reviewables::DeleteReviewablesScreen;
+pub use crate::domains::empire::screens::empire_profile::EmpireProfileScreen;
+pub use crate::domains::empire::screens::empire_status::EmpireStatusScreen;
+pub(crate) use crate::domains::empire::screens::enemies::ENEMIES_VISIBLE_ROWS;
+pub use crate::domains::empire::screens::enemies::EnemiesScreen;
+pub(crate) use crate::domains::startup::screens::first_time::FIRST_TIME_INTRO_PAGE_COUNT;
+pub use crate::domains::startup::screens::first_time::{
     FirstTimeEmpiresScreen, FirstTimeHelpScreen, FirstTimeIntroScreen, FirstTimeMenuScreen,
     render_colony_world_confirm, render_colony_world_name, render_first_time_homeworld_confirm,
     render_first_time_homeworld_name, render_first_time_join_name,
     render_first_time_join_name_confirm, render_first_time_join_no_pending,
     render_first_time_join_summary, render_preloaded_first_login_rename_prompt,
 };
-pub(crate) use fleet::FLEET_VISIBLE_ROWS;
-pub use fleet::{
+pub(crate) use crate::domains::fleet::screens::fleet::FLEET_VISIBLE_ROWS;
+pub use crate::domains::fleet::screens::fleet::{
     FLEET_MISSION_OPTIONS, FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen,
     FleetGroupOrderMode, FleetGroupScreen, FleetListMode, FleetListScreen, FleetMenuScreen,
     FleetMergeMode, FleetMergeScreen, FleetMissionOption, FleetMissionPickerScreen,
     FleetReviewScreen, FleetRoeScreen, FleetRow, FleetSingleOrderMode, FleetSingleOrderScreen,
     FleetTransferMode, FleetTransferScreen,
 };
-pub use fleet_help::FleetHelpScreen;
-pub use general_help::GeneralHelpScreen;
-pub use general_menu::GeneralMenuScreen;
+pub use crate::domains::fleet::screens::fleet_help::FleetHelpScreen;
+pub use crate::domains::startup::screens::general_help::GeneralHelpScreen;
+pub use crate::domains::startup::screens::general_menu::GeneralMenuScreen;
 pub(crate) use layout::draw_command_line_notice;
 pub use layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
-pub use main_help::MainHelpScreen;
-pub use main_menu::MainMenuScreen;
-pub use message_compose::MessageComposeScreen;
-pub(crate) use message_compose::{
+pub use crate::domains::startup::screens::main_help::MainHelpScreen;
+pub use crate::domains::startup::screens::main_menu::MainMenuScreen;
+pub use crate::domains::messaging::screens::message_compose::MessageComposeScreen;
+pub(crate) use crate::domains::messaging::screens::message_compose::{
     COMPOSE_BODY_LIMIT, COMPOSE_SUBJECT_LIMIT, OUTBOX_VISIBLE_ROWS, RECIPIENT_VISIBLE_ROWS,
 };
-pub use partial_starmap::PartialStarmapScreen;
-pub use planet_auto_commission::PlanetAutoCommissionScreen;
-pub use planet_build::{
+pub use crate::domains::starmap::screens::partial_starmap::PartialStarmapScreen;
+pub use crate::domains::planet::screens::planet_auto_commission::PlanetAutoCommissionScreen;
+pub use crate::domains::planet::screens::planet_build::{
     BuildUnitSpec, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildOrder,
     PlanetBuildScreen, build_kind_name, build_order_summary, build_unit_spec,
     build_unit_spec_by_kind, infer_quantity, max_quantity,
 };
-pub(crate) use planet_build::{PLANET_BUILD_CHANGE_VISIBLE_ROWS, PLANET_BUILD_LIST_VISIBLE_ROWS};
-pub(crate) use planet_commission::PLANET_COMMISSION_VISIBLE_ROWS;
-pub use planet_commission::{PlanetCommissionRow, PlanetCommissionScreen, PlanetCommissionView};
-pub(crate) use planet_database::PLANET_DATABASE_VISIBLE_ROWS;
-pub use planet_database::{PlanetDatabaseRow, PlanetDatabaseScreen};
-pub use planet_help::PlanetHelpScreen;
-pub use planet_info::{PlanetInfoScreen, parse_planet_coords};
-pub(crate) use planet_list::PLANET_BRIEF_VISIBLE_ROWS;
-pub use planet_list::{PlanetListMode, PlanetListScreen, PlanetListSort};
-pub use planet_menu::PlanetMenuScreen;
-pub use planet_tax::PlanetTaxScreen;
-pub(crate) use planet_transport::PLANET_TRANSPORT_VISIBLE_ROWS;
-pub use planet_transport::{
+pub(crate) use crate::domains::planet::screens::planet_build::{PLANET_BUILD_CHANGE_VISIBLE_ROWS, PLANET_BUILD_LIST_VISIBLE_ROWS};
+pub(crate) use crate::domains::planet::screens::planet_commission::PLANET_COMMISSION_VISIBLE_ROWS;
+pub use crate::domains::planet::screens::planet_commission::{PlanetCommissionRow, PlanetCommissionScreen, PlanetCommissionView};
+pub(crate) use crate::domains::planet::screens::planet_database::PLANET_DATABASE_VISIBLE_ROWS;
+pub use crate::domains::planet::screens::planet_database::{PlanetDatabaseRow, PlanetDatabaseScreen};
+pub use crate::domains::planet::screens::planet_help::PlanetHelpScreen;
+pub use crate::domains::planet::screens::planet_info::{PlanetInfoScreen, parse_planet_coords};
+pub(crate) use crate::domains::planet::screens::planet_list::PLANET_BRIEF_VISIBLE_ROWS;
+pub use crate::domains::planet::screens::planet_list::{PlanetListMode, PlanetListScreen, PlanetListSort};
+pub use crate::domains::planet::screens::planet_menu::PlanetMenuScreen;
+pub use crate::domains::planet::screens::planet_tax::PlanetTaxScreen;
+pub(crate) use crate::domains::planet::screens::planet_transport::PLANET_TRANSPORT_VISIBLE_ROWS;
+pub use crate::domains::planet::screens::planet_transport::{
     PlanetTransportFleetRow, PlanetTransportMode, PlanetTransportPlanetRow, PlanetTransportScreen,
 };
-pub use rankings::RankingsScreen;
-pub use reports::ReportsScreen;
-pub(crate) use starbase::STARBASE_VISIBLE_ROWS;
-pub use starbase::{
+pub use crate::domains::empire::screens::rankings::RankingsScreen;
+pub use crate::domains::startup::screens::reports::ReportsScreen;
+pub(crate) use crate::domains::starbase::screens::starbase::STARBASE_VISIBLE_ROWS;
+pub use crate::domains::starbase::screens::starbase::{
     StarbaseHelpScreen, StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen, StarbaseRow,
 };
-pub use starmap::StarmapScreen;
-pub use startup::GAME_VERSION;
-pub(crate) use startup::STARTUP_INTRO_PAGE_COUNT;
-pub(crate) use startup::STARTUP_SPLASH_PAGE_COUNT;
-pub use startup::{StartupReviewMode, StartupScreen};
+pub use crate::domains::starmap::screens::starmap::StarmapScreen;
+pub use crate::domains::startup::screens::startup::GAME_VERSION;
+pub(crate) use crate::domains::startup::screens::startup::STARTUP_INTRO_PAGE_COUNT;
+pub(crate) use crate::domains::startup::screens::startup::STARTUP_SPLASH_PAGE_COUNT;
+pub use crate::domains::startup::screens::startup::{StartupReviewMode, StartupScreen};
 pub(crate) use table::format_fleet_number;
 
 use std::collections::BTreeMap;

@@ -4,6 +4,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ec_client::app::{Action, App, AppConfig, AppOutcome, apply_action};
+use ec_client::domains::empire::EmpireAction;
+use ec_client::domains::fleet::FleetAction;
+use ec_client::domains::messaging::MessagingAction;
+use ec_client::domains::planet::PlanetAction;
+use ec_client::domains::starbase::StarbaseAction;
+use ec_client::domains::starmap::StarmapAction;
+use ec_client::domains::startup::StartupAction;
 use ec_client::model::ClassicLoginState;
 use ec_client::screen::{
     CommandMenu, FleetListMode, FleetRoeScreen, FleetRow, PlanetBuildMenuView, PlanetBuildOrder,
@@ -255,19 +262,19 @@ fn apply_action_switches_between_client_screens() {
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenStartupIntro),
+        apply_action(&mut app, Action::Startup(StartupAction::OpenIntro)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::Intro));
 
     assert_eq!(
-        apply_action(&mut app, Action::AdvanceStartup),
+        apply_action(&mut app, Action::Startup(StartupAction::Advance)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::Startup(StartupPhase::Intro));
 
     assert_eq!(
-        apply_action(&mut app, Action::AdvanceStartup),
+        apply_action(&mut app, Action::Startup(StartupAction::Advance)),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -276,7 +283,7 @@ fn apply_action_switches_between_client_screens() {
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::AdvanceStartup),
+        apply_action(&mut app, Action::Startup(StartupAction::Advance)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
@@ -301,7 +308,7 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenStarmap),
+        apply_action(&mut app, Action::Starmap(StarmapAction::OpenFull)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::Starmap);
@@ -319,19 +326,19 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::GeneralHelp);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetMenu),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetList(FleetListMode::Brief)),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList(FleetListMode::Brief))),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -340,130 +347,130 @@ fn apply_action_switches_between_client_screens() {
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetReviewSelect),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewSelect)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetReviewSelect);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetReview),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenReview)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetReview);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetRoeSelect),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenRoeSelect)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetDetach),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenDetach)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetDetach);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetHelp),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenHelp)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetHelp);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetHelp),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenHelp)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetHelp);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetAutoCommissionConfirm),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenAutoCommissionConfirm)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::ConfirmPlanetAutoCommission),
+        apply_action(&mut app, Action::Planet(PlanetAction::ConfirmAutoCommission)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetCommissionMenu),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenCommissionMenu)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetBuildMenu),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildMenu)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetBuildHelp),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildHelp)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetBuildHelp);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetBuildReview),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildReview)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetBuildReview);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetBuildList),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildList)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetBuildList);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetBuildAbortConfirm),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildAbortConfirm)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetBuildAbortConfirm);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetBuildSpecify),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildSpecify)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetBuildSpecify);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetTaxPrompt),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenTaxPrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetTaxPrompt);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetDatabase),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabase)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseList);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetDatabaseDetail),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabaseDetail)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseDetail);
 
     assert_eq!(
-        apply_action(&mut app, Action::BackspacePlanetTaxInput),
+        apply_action(&mut app, Action::Planet(PlanetAction::BackspaceTaxInput)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::BackspacePlanetTaxInput),
+        apply_action(&mut app, Action::Planet(PlanetAction::BackspaceTaxInput)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendPlanetTaxChar('6')),
+        apply_action(&mut app, Action::Planet(PlanetAction::AppendTaxChar('6'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendPlanetTaxChar('5')),
+        apply_action(&mut app, Action::Planet(PlanetAction::AppendTaxChar('5'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitPlanetTax),
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitTax)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetTaxDone);
@@ -471,7 +478,7 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(
         apply_action(
             &mut app,
-            Action::SubmitPlanetListSort(PlanetListMode::Brief, PlanetListSort::CurrentProduction)
+            Action::Planet(PlanetAction::SubmitListSort(PlanetListMode::Brief, PlanetListSort::CurrentProduction))
         ),
         AppOutcome::Continue
     );
@@ -483,7 +490,7 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(
         apply_action(
             &mut app,
-            Action::SubmitPlanetListSort(PlanetListMode::Detail, PlanetListSort::Location)
+            Action::Planet(PlanetAction::SubmitListSort(PlanetListMode::Detail, PlanetListSort::Location))
         ),
         AppOutcome::Continue
     );
@@ -499,14 +506,14 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetInfoPrompt(CommandMenu::General)),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::General))),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
     assert_eq!(app.planet_info_input(), "");
 
     assert_eq!(
-        apply_action(&mut app, Action::SubmitPlanetInfoPrompt),
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitInfoPrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetInfoDetail);
@@ -515,32 +522,32 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(
         apply_action(
             &mut app,
-            Action::OpenPartialStarmapPrompt(CommandMenu::General)
+            Action::Starmap(StarmapAction::OpenPartialPrompt(CommandMenu::General))
         ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapPrompt);
 
     assert_eq!(
-        apply_action(&mut app, Action::SubmitPartialStarmapPrompt),
+        apply_action(&mut app, Action::Starmap(StarmapAction::SubmitPartialPrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenReports),
+        apply_action(&mut app, Action::Startup(StartupAction::OpenReports)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::Reports);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenEmpireStatus),
+        apply_action(&mut app, Action::Empire(EmpireAction::OpenStatus)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::EmpireStatus);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenEmpireProfile),
+        apply_action(&mut app, Action::Empire(EmpireAction::OpenProfile)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::EmpireProfile);
@@ -548,7 +555,7 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(
         apply_action(
             &mut app,
-            Action::OpenRankingsTable(EmpireProductionRankingSort::Production)
+            Action::Empire(EmpireAction::OpenRankingsTable(EmpireProductionRankingSort::Production))
         ),
         AppOutcome::Continue
     );
@@ -584,19 +591,19 @@ fn first_time_menu_branch_opens_help_intro_and_empire_list() {
     assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFirstTimeHelp),
+        apply_action(&mut app, Action::Startup(StartupAction::OpenFirstTimeHelp)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHelp);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFirstTimeEmpires),
+        apply_action(&mut app, Action::Startup(StartupAction::OpenFirstTimeEmpires)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeEmpires);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFirstTimeIntro),
+        apply_action(&mut app, Action::Startup(StartupAction::OpenFirstTimeIntro)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeIntro);
@@ -618,7 +625,7 @@ fn first_time_startup_skips_joined_player_login_summary() {
         ScreenId::Startup(StartupPhase::Splash)
     );
 
-    apply_action(&mut app, Action::AdvanceStartup);
+    apply_action(&mut app, Action::Startup(StartupAction::Advance));
     assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
     assert_eq!(app.classic_login_state(), ClassicLoginState::FirstTimeMenu);
 }
@@ -731,34 +738,34 @@ fn preloaded_first_login_becomes_returning_player_after_homeworld_naming() {
         ScreenId::FirstTimePreloadedRenamePrompt
     );
     assert_eq!(
-        apply_action(&mut app, Action::RejectFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::RejectFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinSummary);
     assert_eq!(
-        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinNoPending);
     assert_eq!(
-        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
 
     for ch in "Codex Prime".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFirstTimeInputChar(ch)),
+            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFirstTimeInput),
+        apply_action(&mut app, Action::Startup(StartupAction::SubmitFirstTimeInput)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldConfirm);
     assert_eq!(
-        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
@@ -804,7 +811,7 @@ fn preloaded_first_login_can_rename_empire_before_homeworld_naming() {
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
@@ -820,33 +827,33 @@ fn preloaded_first_login_can_rename_empire_before_homeworld_naming() {
 
     for _ in 0..24 {
         assert_eq!(
-            apply_action(&mut app, Action::BackspaceFirstTimeInput),
+            apply_action(&mut app, Action::Startup(StartupAction::BackspaceFirstTimeInput)),
             AppOutcome::Continue
         );
     }
     for ch in "Codex Dominion".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFirstTimeInputChar(ch)),
+            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFirstTimeInput),
+        apply_action(&mut app, Action::Startup(StartupAction::SubmitFirstTimeInput)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireConfirm);
     assert_eq!(
-        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinSummary);
     assert_eq!(
-        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinNoPending);
     assert_eq!(
-        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
@@ -932,17 +939,17 @@ fn colony_world_naming_updates_planet_and_enters_main_menu() {
 
     for ch in "New Horizon".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFirstTimeInputChar(ch)),
+            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFirstTimeInput),
+        apply_action(&mut app, Action::Startup(StartupAction::SubmitFirstTimeInput)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ColonyWorldConfirm);
     assert_eq!(
-        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
@@ -999,7 +1006,7 @@ fn colony_world_naming_cannot_be_escaped_to_main_menu() {
     assert_eq!(app.current_screen(), ScreenId::ColonyWorldName);
 
     assert_eq!(
-        apply_action(&mut app, Action::RejectFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::RejectFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ColonyWorldName);
@@ -1054,51 +1061,51 @@ fn first_time_join_routes_from_homeworld_naming_to_colony_naming_when_needed() {
         ScreenId::FirstTimePreloadedRenamePrompt
     );
     assert_eq!(
-        apply_action(&mut app, Action::RejectFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::RejectFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinSummary);
     assert_eq!(
-        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinNoPending);
     assert_eq!(
-        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
 
     for ch in "Codex Prime".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFirstTimeInputChar(ch)),
+            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFirstTimeInput),
+        apply_action(&mut app, Action::Startup(StartupAction::SubmitFirstTimeInput)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldConfirm);
     assert_eq!(
-        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ColonyWorldName);
 
     for ch in "New Horizon".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFirstTimeInputChar(ch)),
+            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFirstTimeInput),
+        apply_action(&mut app, Action::Startup(StartupAction::SubmitFirstTimeInput)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ColonyWorldConfirm);
     assert_eq!(
-        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
@@ -1153,34 +1160,34 @@ fn returning_player_with_multiple_unnamed_colonies_is_prompted_for_each_in_turn(
 
     for ch in "New Horizon".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFirstTimeInputChar(ch)),
+            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFirstTimeInput),
+        apply_action(&mut app, Action::Startup(StartupAction::SubmitFirstTimeInput)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ColonyWorldConfirm);
     assert_eq!(
-        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ColonyWorldName);
 
     for ch in "Second Dawn".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFirstTimeInputChar(ch)),
+            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFirstTimeInput),
+        apply_action(&mut app, Action::Startup(StartupAction::SubmitFirstTimeInput)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ColonyWorldConfirm);
     assert_eq!(
-        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
@@ -1249,20 +1256,20 @@ fn escaping_empire_name_does_not_partially_join_player() {
     .expect("app should load");
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFirstTimeJoinName),
+        apply_action(&mut app, Action::Startup(StartupAction::OpenFirstTimeJoinName)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
 
     for ch in "Codex Dominion".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFirstTimeInputChar(ch)),
+            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
             AppOutcome::Continue
         );
     }
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFirstTimeMenu),
+        apply_action(&mut app, Action::Startup(StartupAction::OpenFirstTimeMenu)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeMenu);
@@ -1295,55 +1302,55 @@ fn first_time_join_flow_updates_player_and_homeworld_then_enters_main_menu() {
     .expect("app should load");
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFirstTimeJoinName),
+        apply_action(&mut app, Action::Startup(StartupAction::OpenFirstTimeJoinName)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
 
     for ch in "Codex Dominion".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFirstTimeInputChar(ch)),
+            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFirstTimeInput),
+        apply_action(&mut app, Action::Startup(StartupAction::SubmitFirstTimeInput)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireConfirm);
 
     assert_eq!(
-        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinSummary);
 
     assert_eq!(
-        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinNoPending);
 
     assert_eq!(
-        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
 
     for ch in "Codex Prime".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFirstTimeInputChar(ch)),
+            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFirstTimeInput),
+        apply_action(&mut app, Action::Startup(StartupAction::SubmitFirstTimeInput)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldConfirm);
 
     assert_eq!(
-        apply_action(&mut app, Action::AcceptFirstTimePrompt),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
@@ -1399,10 +1406,10 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
 
     assert_eq!(
         app.handle_key(key(KeyCode::Char('b'))),
-        Action::OpenEmpireStatus
+        Action::Empire(EmpireAction::OpenStatus)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenEmpireStatus),
+        apply_action(&mut app, Action::Empire(EmpireAction::OpenStatus)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::EmpireStatus);
@@ -1418,34 +1425,34 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
 
     assert_eq!(
         app.handle_key(key(KeyCode::Char('f'))),
-        Action::OpenFleetMenu
+        Action::Fleet(FleetAction::OpenMenu)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('h'))),
-        Action::OpenFleetHelp
+        Action::Fleet(FleetAction::OpenHelp)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetHelp),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenHelp)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetHelp);
-    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::OpenFleetMenu);
+    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::Fleet(FleetAction::OpenMenu));
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('i'))),
-        Action::OpenPlanetInfoPrompt(CommandMenu::Fleet)
+        Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Fleet))
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetInfoPrompt(CommandMenu::Fleet)),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Fleet))),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
@@ -1460,18 +1467,18 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('v'))),
-        Action::OpenPartialStarmapPrompt(CommandMenu::Fleet)
+        Action::Starmap(StarmapAction::OpenPartialPrompt(CommandMenu::Fleet))
     );
     assert_eq!(
         apply_action(
             &mut app,
-            Action::OpenPartialStarmapPrompt(CommandMenu::Fleet)
+            Action::Starmap(StarmapAction::OpenPartialPrompt(CommandMenu::Fleet))
         ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapPrompt);
     assert_eq!(
-        apply_action(&mut app, Action::SubmitPartialStarmapPrompt),
+        apply_action(&mut app, Action::Starmap(StarmapAction::SubmitPartialPrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
@@ -1486,111 +1493,111 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('c'))),
-        Action::OpenFleetRoeSelect
+        Action::Fleet(FleetAction::OpenRoeSelect)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetRoeSelect),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenRoeSelect)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetRoeChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendRoeChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetRoe),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitRoe)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetRoeChar('4')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendRoeChar('4'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetRoe),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitRoe)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_fleet_roe_by_id(1), Some(4));
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
-        Action::OpenFleetMenu
+        Action::Fleet(FleetAction::OpenMenu)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('e'))),
-        Action::OpenFleetEta
+        Action::Fleet(FleetAction::OpenEta)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetEta),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenEta)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetEta);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
-        Action::OpenFleetMenu
+        Action::Fleet(FleetAction::OpenMenu)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('b'))),
-        Action::OpenFleetList(FleetListMode::Brief)
+        Action::Fleet(FleetAction::OpenList(FleetListMode::Brief))
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetList(FleetListMode::Brief)),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList(FleetListMode::Brief))),
         AppOutcome::Continue
     );
     assert_eq!(
         app.current_screen(),
         ScreenId::FleetList(FleetListMode::Brief)
     );
-    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::OpenFleetReview);
+    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::Fleet(FleetAction::OpenReview));
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetReview),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenReview)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetReview);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('r'))),
-        Action::OpenFleetReviewSelect
+        Action::Fleet(FleetAction::OpenReviewSelect)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetReviewSelect),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewSelect)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetReviewSelect);
     assert_eq!(
         app.handle_key(key(KeyCode::Down)),
-        Action::MoveFleetReviewSelect(1)
+        Action::Fleet(FleetAction::MoveReviewSelect(1))
     );
     assert_eq!(
         app.handle_key(key(KeyCode::Char('7'))),
-        Action::AppendFleetReviewChar('7')
+        Action::Fleet(FleetAction::AppendReviewChar('7'))
     );
     assert_eq!(
         app.handle_key(key(KeyCode::Backspace)),
-        Action::BackspaceFleetReviewInput
+        Action::Fleet(FleetAction::BackspaceReviewInput)
     );
     assert_eq!(
         app.handle_key(key(KeyCode::Enter)),
-        Action::SubmitFleetReviewSelect
+        Action::Fleet(FleetAction::SubmitReviewSelect)
     );
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
-        Action::OpenFleetMenu
+        Action::Fleet(FleetAction::OpenMenu)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
@@ -1606,10 +1613,10 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
 
     assert_eq!(
         app.handle_key(key(KeyCode::Char('i'))),
-        Action::OpenPlanetInfoPrompt(CommandMenu::Main)
+        Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Main))
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetInfoPrompt(CommandMenu::Main)),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Main))),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
@@ -1624,12 +1631,12 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetInfoPrompt(CommandMenu::Main)),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Main))),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
     assert_eq!(
-        apply_action(&mut app, Action::SubmitPlanetInfoPrompt),
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitInfoPrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetInfoDetail);
@@ -1645,18 +1652,18 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
 
     assert_eq!(
         app.handle_key(key(KeyCode::Char('v'))),
-        Action::OpenPartialStarmapPrompt(CommandMenu::Main)
+        Action::Starmap(StarmapAction::OpenPartialPrompt(CommandMenu::Main))
     );
     assert_eq!(
         apply_action(
             &mut app,
-            Action::OpenPartialStarmapPrompt(CommandMenu::Main)
+            Action::Starmap(StarmapAction::OpenPartialPrompt(CommandMenu::Main))
         ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapPrompt);
     assert_eq!(
-        apply_action(&mut app, Action::SubmitPartialStarmapPrompt),
+        apply_action(&mut app, Action::Starmap(StarmapAction::SubmitPartialPrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
@@ -1672,28 +1679,28 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
 
     assert_eq!(
         app.handle_key(key(KeyCode::Char('t'))),
-        Action::OpenPlanetDatabase
+        Action::Planet(PlanetAction::OpenDatabase)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetDatabase),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabase)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseList);
     assert_eq!(
         app.handle_key(key(KeyCode::Enter)),
-        Action::SubmitPlanetDatabaseLookup
+        Action::Planet(PlanetAction::SubmitDatabaseLookup)
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitPlanetDatabaseLookup),
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitDatabaseLookup)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseDetail);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
-        Action::OpenPlanetDatabase
+        Action::Planet(PlanetAction::OpenDatabase)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetDatabase),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabase)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseList);
@@ -1720,24 +1727,24 @@ fn fleet_review_detail_q_returns_to_review_picker() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetReviewSelect),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewSelect)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetReviewSelect),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitReviewSelect)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetReview);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
-        Action::OpenFleetReviewSelect
+        Action::Fleet(FleetAction::OpenReviewSelect)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetReviewSelect),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewSelect)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetReviewSelect);
@@ -1755,7 +1762,7 @@ fn fleet_menu_matches_verified_v15_command_layout() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
 
@@ -1795,11 +1802,11 @@ fn starbase_menu_matches_verified_v15_command_layout() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenStarbaseMenu),
+        apply_action(&mut app, Action::Starbase(StarbaseAction::OpenMenu)),
         AppOutcome::Continue
     );
 
@@ -1836,19 +1843,19 @@ fn starbase_review_matches_verified_v15_review_content() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenStarbaseMenu),
+        apply_action(&mut app, Action::Starbase(StarbaseAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenStarbaseReviewSelect),
+        apply_action(&mut app, Action::Starbase(StarbaseAction::OpenReviewSelect)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitStarbaseReviewSelect),
+        apply_action(&mut app, Action::Starbase(StarbaseAction::SubmitReviewSelect)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::StarbaseReview);
@@ -1888,11 +1895,11 @@ fn fleet_transfer_uses_two_fleet_selector_and_groups_same_sector_rows() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetTransfer),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransfer)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetTransfer);
@@ -2040,7 +2047,7 @@ fn first_time_and_main_help_share_the_same_ansi_always_on_text() {
     advance_to_first_time_menu(&mut app);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFirstTimeHelp),
+        apply_action(&mut app, Action::Startup(StartupAction::OpenFirstTimeHelp)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHelp);
@@ -2066,7 +2073,7 @@ fn planet_menu_matches_verified_v15_command_layout() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetMenu),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenMenu)),
         AppOutcome::Continue
     );
 
@@ -2105,7 +2112,7 @@ fn planet_commission_menu_renders_without_crashing_when_no_stardock_units_exist(
 
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetCommissionMenu),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenCommissionMenu)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
@@ -2134,7 +2141,7 @@ fn planet_build_menu_and_subscreens_render_without_crashing_when_no_owned_planet
     advance_to_main_menu(&mut app);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetBuildMenu),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildMenu)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
@@ -2148,7 +2155,7 @@ fn planet_build_menu_and_subscreens_render_without_crashing_when_no_owned_planet
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetBuildReview),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildReview)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
@@ -2156,7 +2163,7 @@ fn planet_build_menu_and_subscreens_render_without_crashing_when_no_owned_planet
         .expect("build review fallback render succeeds");
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetBuildList),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildList)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
@@ -2164,7 +2171,7 @@ fn planet_build_menu_and_subscreens_render_without_crashing_when_no_owned_planet
         .expect("build list fallback render succeeds");
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetBuildAbortConfirm),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildAbortConfirm)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
@@ -2172,7 +2179,7 @@ fn planet_build_menu_and_subscreens_render_without_crashing_when_no_owned_planet
         .expect("build abort fallback render succeeds");
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetBuildSpecify),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildSpecify)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
@@ -2192,7 +2199,7 @@ fn planet_build_menu_matches_verified_v15_command_layout() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetBuildMenu),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildMenu)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
@@ -2240,31 +2247,31 @@ fn command_menus_render_without_crashing_for_empty_empire_state() {
 
     let mut terminal = CaptureTerminal::new();
     for action in [
-        Action::OpenFleetMenu,
-        Action::OpenFleetList(FleetListMode::Brief),
-        Action::OpenFleetList(FleetListMode::Full),
-        Action::OpenFleetReviewSelect,
-        Action::OpenFleetReview,
-        Action::OpenFleetRoeSelect,
-        Action::OpenFleetDetach,
-        Action::OpenFleetEta,
-        Action::OpenFleetTransportLoad,
-        Action::OpenFleetTransportUnload,
-        Action::OpenPlanetMenu,
-        Action::OpenPlanetAutoCommissionConfirm,
-        Action::OpenPlanetCommissionMenu,
-        Action::OpenPlanetBuildMenu,
-        Action::OpenPlanetBuildReview,
-        Action::OpenPlanetBuildList,
-        Action::OpenPlanetBuildChange,
-        Action::OpenPlanetBuildAbortConfirm,
-        Action::OpenPlanetBuildSpecify,
-        Action::OpenPlanetTransportPlanetSelect(ec_client::screen::PlanetTransportMode::Load),
-        Action::OpenPlanetTransportPlanetSelect(ec_client::screen::PlanetTransportMode::Unload),
-        Action::OpenPlanetListSortPrompt(PlanetListMode::Brief),
-        Action::SubmitPlanetListSort(PlanetListMode::Brief, PlanetListSort::Location),
-        Action::OpenPlanetListSortPrompt(PlanetListMode::Detail),
-        Action::SubmitPlanetListSort(PlanetListMode::Detail, PlanetListSort::Location),
+        Action::Fleet(FleetAction::OpenMenu),
+        Action::Fleet(FleetAction::OpenList(FleetListMode::Brief)),
+        Action::Fleet(FleetAction::OpenList(FleetListMode::Full)),
+        Action::Fleet(FleetAction::OpenReviewSelect),
+        Action::Fleet(FleetAction::OpenReview),
+        Action::Fleet(FleetAction::OpenRoeSelect),
+        Action::Fleet(FleetAction::OpenDetach),
+        Action::Fleet(FleetAction::OpenEta),
+        Action::Fleet(FleetAction::OpenTransportLoad),
+        Action::Fleet(FleetAction::OpenTransportUnload),
+        Action::Planet(PlanetAction::OpenMenu),
+        Action::Planet(PlanetAction::OpenAutoCommissionConfirm),
+        Action::Planet(PlanetAction::OpenCommissionMenu),
+        Action::Planet(PlanetAction::OpenBuildMenu),
+        Action::Planet(PlanetAction::OpenBuildReview),
+        Action::Planet(PlanetAction::OpenBuildList),
+        Action::Planet(PlanetAction::OpenBuildChange),
+        Action::Planet(PlanetAction::OpenBuildAbortConfirm),
+        Action::Planet(PlanetAction::OpenBuildSpecify),
+        Action::Planet(PlanetAction::OpenTransportPlanetSelect(ec_client::screen::PlanetTransportMode::Load)),
+        Action::Planet(PlanetAction::OpenTransportPlanetSelect(ec_client::screen::PlanetTransportMode::Unload)),
+        Action::Planet(PlanetAction::OpenListSortPrompt(PlanetListMode::Brief)),
+        Action::Planet(PlanetAction::SubmitListSort(PlanetListMode::Brief, PlanetListSort::Location)),
+        Action::Planet(PlanetAction::OpenListSortPrompt(PlanetListMode::Detail)),
+        Action::Planet(PlanetAction::SubmitListSort(PlanetListMode::Detail, PlanetListSort::Location)),
     ] {
         apply_action(&mut app, action);
         app.render(&mut terminal)
@@ -2285,11 +2292,11 @@ fn fleet_list_stays_on_fleet_menu_with_notice_when_no_fleets_exist() {
     advance_to_main_menu(&mut app);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetList(FleetListMode::Brief)),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList(FleetListMode::Brief))),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
@@ -2305,7 +2312,7 @@ fn fleet_list_stays_on_fleet_menu_with_notice_when_no_fleets_exist() {
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetList(FleetListMode::Full)),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenList(FleetListMode::Full))),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
@@ -2324,13 +2331,13 @@ fn planet_list_commands_stay_on_planet_menu_with_notice_when_no_owned_planets_ex
     advance_to_main_menu(&mut app);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetMenu),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
         apply_action(
             &mut app,
-            Action::OpenPlanetListSortPrompt(PlanetListMode::Brief)
+            Action::Planet(PlanetAction::OpenListSortPrompt(PlanetListMode::Brief))
         ),
         AppOutcome::Continue
     );
@@ -2349,7 +2356,7 @@ fn planet_list_commands_stay_on_planet_menu_with_notice_when_no_owned_planets_ex
     assert_eq!(
         apply_action(
             &mut app,
-            Action::OpenPlanetListSortPrompt(PlanetListMode::Detail)
+            Action::Planet(PlanetAction::OpenListSortPrompt(PlanetListMode::Detail))
         ),
         AppOutcome::Continue
     );
@@ -2378,7 +2385,7 @@ fn delete_reviewables_stays_on_general_menu_with_notice_when_nothing_is_reviewab
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenDeleteReviewables),
+        apply_action(&mut app, Action::Messaging(MessagingAction::OpenDeleteReviewables)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
@@ -2418,13 +2425,13 @@ fn delete_reviewables_opens_when_classic_pending_flags_are_set() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenDeleteReviewables),
+        apply_action(&mut app, Action::Messaging(MessagingAction::OpenDeleteReviewables)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::DeleteReviewables);
 
     assert_eq!(
-        apply_action(&mut app, Action::ConfirmDeleteReviewables),
+        apply_action(&mut app, Action::Messaging(MessagingAction::ConfirmDeleteReviewables)),
         AppOutcome::Continue
     );
 
@@ -2481,7 +2488,7 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
     }
 
     assert_eq!(
-        apply_action(&mut app, Action::AdvanceStartup),
+        apply_action(&mut app, Action::Startup(StartupAction::Advance)),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -2497,7 +2504,7 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
     }));
 
     assert_eq!(
-        apply_action(&mut app, Action::AdvanceStartup),
+        apply_action(&mut app, Action::Startup(StartupAction::Advance)),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -2516,7 +2523,7 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenReports),
+        apply_action(&mut app, Action::Startup(StartupAction::OpenReports)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::Reports);
@@ -2710,7 +2717,7 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
 
     // Accept default at DeletePrompt → delete Alpha → ContinuePrompt (Beta still exists).
     assert_eq!(
-        apply_action(&mut app, Action::StartupAcceptDefault),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptDefault)),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -2720,7 +2727,7 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
 
     // ContinuePrompt → ItemBody (shows Beta).
     assert_eq!(
-        apply_action(&mut app, Action::StartupAcceptDefault),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptDefault)),
         AppOutcome::Continue
     );
 
@@ -2770,7 +2777,7 @@ fn startup_message_review_shows_end_status_after_deleting_last_message() {
     app.advance_startup();
     // Accept delete → EndStatus (only 1 block).
     assert_eq!(
-        apply_action(&mut app, Action::StartupAcceptDefault),
+        apply_action(&mut app, Action::Startup(StartupAction::AcceptDefault)),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -2903,7 +2910,7 @@ fn reports_screen_preserves_blank_separator_lines() {
     advance_to_main_menu(&mut app);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenReports),
+        apply_action(&mut app, Action::Startup(StartupAction::OpenReports)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::Reports);
@@ -2939,7 +2946,7 @@ fn reports_screen_wraps_long_lines_within_the_playfield() {
     advance_to_main_menu(&mut app);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenReports),
+        apply_action(&mut app, Action::Startup(StartupAction::OpenReports)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::Reports);
@@ -2992,7 +2999,7 @@ fn reports_screen_keeps_both_sections_visible_when_results_are_long() {
     advance_to_main_menu(&mut app);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenReports),
+        apply_action(&mut app, Action::Startup(StartupAction::OpenReports)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::Reports);
@@ -3037,7 +3044,7 @@ fn reports_screen_shows_explicit_truncation_cue_when_wrapped_rows_overflow() {
     advance_to_main_menu(&mut app);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenReports),
+        apply_action(&mut app, Action::Startup(StartupAction::OpenReports)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::Reports);
@@ -3154,11 +3161,11 @@ fn fleet_review_opens_with_a_selection_table_first() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetReviewSelect),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewSelect)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetReviewSelect);
@@ -3188,19 +3195,19 @@ fn fleet_review_select_accepts_typed_fleet_id_and_opens_that_fleet() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetReviewSelect),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewSelect)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetReviewChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendReviewChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetReviewSelect),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitReviewSelect)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetReview);
@@ -3222,15 +3229,15 @@ fn fleet_review_select_navigation_updates_the_default_fleet_prompt() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetReviewSelect),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewSelect)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::MoveFleetReviewSelect(1)),
+        apply_action(&mut app, Action::Fleet(FleetAction::MoveReviewSelect(1))),
         AppOutcome::Continue
     );
 
@@ -3253,21 +3260,21 @@ fn fleet_review_select_shows_invalid_fleet_message_on_unknown_typed_id() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetReviewSelect),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewSelect)),
         AppOutcome::Continue
     );
     for ch in ['9', '9'] {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFleetReviewChar(ch)),
+            apply_action(&mut app, Action::Fleet(FleetAction::AppendReviewChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetReviewSelect),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitReviewSelect)),
         AppOutcome::Continue
     );
     let mut terminal = CaptureTerminal::new();
@@ -3300,16 +3307,16 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
 
     assert_eq!(
         app.handle_key(key(KeyCode::Char('l'))),
-        Action::OpenFleetTransportLoad
+        Action::Fleet(FleetAction::OpenTransportLoad)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetTransportLoad),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportLoad)),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -3334,10 +3341,10 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
 
     assert_eq!(
         app.handle_key(key(KeyCode::Char('u'))),
-        Action::OpenFleetTransportUnload
+        Action::Fleet(FleetAction::OpenTransportUnload)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetTransportUnload),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportUnload)),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -3362,12 +3369,12 @@ fn fleet_menu_load_and_unload_show_menu_notice_when_no_transport_action_is_avail
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetTransportLoad),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportLoad)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
@@ -3379,7 +3386,7 @@ fn fleet_menu_load_and_unload_show_menu_notice_when_no_transport_action_is_avail
     }));
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetTransportUnload),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportUnload)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
@@ -3416,11 +3423,11 @@ fn fleet_transport_planet_picker_accepts_typed_coordinates() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetTransportLoad),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportLoad)),
         AppOutcome::Continue
     );
     let mut terminal = CaptureTerminal::new();
@@ -3434,12 +3441,12 @@ fn fleet_transport_planet_picker_accepts_typed_coordinates() {
         .expect("default coords should be shown in prompt");
     for ch in default_coords.chars() {
         assert_eq!(
-            apply_action(&mut app, Action::AppendPlanetTransportPlanetChar(ch)),
+            apply_action(&mut app, Action::Planet(PlanetAction::AppendTransportPlanetChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitPlanetTransportPlanet),
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitTransportPlanet)),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -3460,11 +3467,11 @@ fn fleet_menu_long_notice_wraps_instead_of_clipping() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetTransportUnload),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenTransportUnload)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
@@ -3496,16 +3503,16 @@ fn fleet_menu_expert_mode_shows_notice_on_menu() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
 
     assert_eq!(
         app.handle_key(key(KeyCode::Char('x'))),
-        Action::ShowFleetExpertModeNotice
+        Action::Fleet(FleetAction::ShowExpertModeNotice)
     );
     assert_eq!(
-        apply_action(&mut app, Action::ShowFleetExpertModeNotice),
+        apply_action(&mut app, Action::Fleet(FleetAction::ShowExpertModeNotice)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
@@ -3535,31 +3542,31 @@ fn fleet_merge_sets_join_order_for_selected_source_and_host() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMerge),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::FleetMerge);
-
-    assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMergeChar('1')),
-        AppOutcome::Continue
-    );
-    assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMerge),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMerge)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMerge);
 
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMergeChar('2')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMergeChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMerge),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMerge)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FleetMerge);
+
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMergeChar('2'))),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMerge)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
@@ -3601,15 +3608,15 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
         app.handle_key(key(KeyCode::Char('g'))),
-        Action::OpenFleetGroupOrder
+        Action::Fleet(FleetAction::OpenGroupOrder)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetGroupOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
@@ -3623,7 +3630,7 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
     assert!(!terminal.line(5).contains(" X "));
 
     assert_eq!(
-        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
         AppOutcome::Continue
     );
     app.render(&mut terminal)
@@ -3643,23 +3650,23 @@ fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetGroupOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
         AppOutcome::Continue
     );
     assert_eq!(
         app.handle_key(key(KeyCode::Enter)),
-        Action::OpenFleetMissionPicker
+        Action::Fleet(FleetAction::OpenMissionPicker)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
@@ -3675,10 +3682,10 @@ fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
 
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
-        Action::OpenFleetMissionPicker
+        Action::Fleet(FleetAction::OpenMissionPicker)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
@@ -3696,21 +3703,21 @@ fn fleet_order_opens_mission_picker_and_q_returns_to_order_table() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
         app.handle_key(key(KeyCode::Char('o'))),
-        Action::OpenFleetOrder
+        Action::Fleet(FleetAction::OpenOrder)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetOrder);
     assert_eq!(
         app.handle_key(key(KeyCode::PageDown)),
-        Action::MoveFleetOrderSelect(8)
+        Action::Fleet(FleetAction::MoveOrderSelect(8))
     );
 
     let mut terminal = CaptureTerminal::new();
@@ -3721,20 +3728,20 @@ fn fleet_order_opens_mission_picker_and_q_returns_to_order_table() {
 
     assert_eq!(
         app.handle_key(key(KeyCode::Enter)),
-        Action::SubmitFleetOrder
+        Action::Fleet(FleetAction::SubmitOrder)
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
 
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
-        Action::OpenFleetMissionPicker
+        Action::Fleet(FleetAction::OpenMissionPicker)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetOrder);
@@ -3752,39 +3759,39 @@ fn fleet_order_applies_move_order_to_selected_fleet_only() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetOrderChar('2')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar('2'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetOrder);
     for ch in ['1', '4', ',', '9'] {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFleetOrderChar(ch)),
+            apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetOrder);
@@ -3839,28 +3846,28 @@ fn fleet_order_allows_guard_starbase_from_fleet_command() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetOrderChar('2')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar('2'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('4')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('4'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetOrder);
@@ -3879,7 +3886,7 @@ fn fleet_order_allows_guard_starbase_from_fleet_command() {
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
     );
 
@@ -3908,28 +3915,28 @@ fn fleet_order_blocks_guard_starbase_when_player_has_no_starbases() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetOrderChar('2')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar('2'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('4')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('4'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetOrder);
@@ -3956,32 +3963,32 @@ fn fleet_order_allows_join_another_fleet_from_fleet_command() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetOrderChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('3')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('3'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetOrder);
@@ -4000,7 +4007,7 @@ fn fleet_order_allows_join_another_fleet_from_fleet_command() {
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
     );
 
@@ -4037,37 +4044,37 @@ fn fleet_order_persists_immediately_and_reloaded_tables_reflect_it() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetOrderChar('2')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar('2'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
     for ch in ['1', '4', ',', '9'] {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFleetOrderChar(ch)),
+            apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetOrder);
@@ -4091,15 +4098,15 @@ fn fleet_order_persists_immediately_and_reloaded_tables_reflect_it() {
     .expect("reloaded app should load");
     advance_to_main_menu(&mut reloaded);
     assert_eq!(
-        apply_action(&mut reloaded, Action::OpenFleetMenu),
+        apply_action(&mut reloaded, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut reloaded, Action::OpenFleetOrder),
+        apply_action(&mut reloaded, Action::Fleet(FleetAction::OpenOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut reloaded, Action::AppendFleetOrderChar('2')),
+        apply_action(&mut reloaded, Action::Fleet(FleetAction::AppendOrderChar('2'))),
         AppOutcome::Continue
     );
     let mut terminal = CaptureTerminal::new();
@@ -4134,11 +4141,11 @@ fn fleet_tables_sort_by_mission_then_newest_fleet_id() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetReviewSelect),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenReviewSelect)),
         AppOutcome::Continue
     );
     let mut terminal = CaptureTerminal::new();
@@ -4195,27 +4202,27 @@ fn fleet_group_bombard_mission_defaults_to_closest_known_enemy_world() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetGroupOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('6')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('6'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
@@ -4295,31 +4302,31 @@ fn fleet_group_colonize_mission_skips_worlds_claimed_by_other_friendly_etacs() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetGroupOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('2')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('2'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
 
@@ -4385,31 +4392,31 @@ fn fleet_group_colonize_mission_allows_hidden_colonized_worlds_as_targets() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetGroupOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('2')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('2'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
 
@@ -4434,40 +4441,40 @@ fn fleet_mission_picker_rejects_missions_not_supported_by_all_selected_fleets() 
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetGroupOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::MoveFleetGroupOrder(6)),
+        apply_action(&mut app, Action::Fleet(FleetAction::MoveGroupOrder(6))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('0')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('0'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
 
@@ -4490,38 +4497,38 @@ fn fleet_group_order_rejects_empty_sector_for_world_targeting_mission() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetGroupOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('9')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('9'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
     for ch in ['1', ',', '1'] {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFleetGroupOrderChar(ch)),
+            apply_action(&mut app, Action::Fleet(FleetAction::AppendGroupOrderChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetGroupOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitGroupOrder)),
         AppOutcome::Continue
     );
 
@@ -4572,38 +4579,38 @@ fn fleet_group_order_allows_owned_planet_for_blockade_mission() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetGroupOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('5')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('5'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
     for ch in format!("{},{}", owned_target[0], owned_target[1]).chars() {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFleetGroupOrderChar(ch)),
+            apply_action(&mut app, Action::Fleet(FleetAction::AppendGroupOrderChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetGroupOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitGroupOrder)),
         AppOutcome::Continue
     );
 
@@ -4669,42 +4676,42 @@ fn fleet_group_order_allows_owned_planet_for_scout_mission() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetGroupOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('0')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('0'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
     for ch in format!("{},{}", owned_target[0], owned_target[1]).chars() {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFleetGroupOrderChar(ch)),
+            apply_action(&mut app, Action::Fleet(FleetAction::AppendGroupOrderChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetGroupOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitGroupOrder)),
         AppOutcome::Continue
     );
 
@@ -4766,31 +4773,31 @@ fn fleet_order_salvage_defaults_to_closest_owned_planet() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetOrderChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('5')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('5'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
 
@@ -4815,41 +4822,41 @@ fn fleet_order_salvage_rejects_empty_sector_target() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetOrderChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('5')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('5'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
     for ch in ['1', ',', '1'] {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFleetOrderChar(ch)),
+            apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
     );
 
@@ -4891,41 +4898,41 @@ fn fleet_order_salvage_rejects_foreign_planet_target() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetOrderChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('5')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('5'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
     for ch in format!("{},{}", foreign_target[0], foreign_target[1]).chars() {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFleetOrderChar(ch)),
+            apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
     );
 
@@ -4961,41 +4968,41 @@ fn fleet_order_salvage_rejects_unowned_planet_target() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetOrderChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('5')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('5'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
     for ch in format!("{},{}", unowned_target[0], unowned_target[1]).chars() {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFleetOrderChar(ch)),
+            apply_action(&mut app, Action::Fleet(FleetAction::AppendOrderChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitOrder)),
         AppOutcome::Continue
     );
 
@@ -5021,27 +5028,27 @@ fn fleet_group_order_allows_manual_combat_target_without_known_enemy_world() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetGroupOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('5')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('5'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
 
@@ -5080,31 +5087,31 @@ fn fleet_group_order_allows_manual_scout_target_without_known_enemy_world() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetGroupOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('0')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('0'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
 
@@ -5137,46 +5144,46 @@ fn fleet_group_order_applies_move_order_to_selected_fleets() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetGroupOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::MoveFleetGroupOrder(1)),
+        apply_action(&mut app, Action::Fleet(FleetAction::MoveGroupOrder(1))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
     for ch in ['1', '0', ',', '1', '3'] {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFleetGroupOrderChar(ch)),
+            apply_action(&mut app, Action::Fleet(FleetAction::AppendGroupOrderChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetGroupOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitGroupOrder)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
@@ -5218,32 +5225,32 @@ fn fleet_group_order_accepts_join_fleet_mission_number() {
     .expect("app should load");
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetGroupOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenGroupOrder)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::ToggleFleetGroupOrderSelection),
+        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMissionPicker)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetMissionPickerChar('3')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('3'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetMissionPicker),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitMissionPicker)),
         AppOutcome::Continue
     );
 
@@ -5262,7 +5269,7 @@ fn fleet_group_order_accepts_join_fleet_mission_number() {
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetGroupOrder),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitGroupOrder)),
         AppOutcome::Continue
     );
 
@@ -5298,49 +5305,49 @@ fn fleet_roe_accepts_typed_fleet_selection_and_q_cancels_edit_mode() {
 
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetRoeSelect),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenRoeSelect)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
 
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetRoeChar('4')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendRoeChar('4'))),
         AppOutcome::Continue
     );
     assert_eq!(app.selected_fleet_roe_id(), Some(4));
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetRoe),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitRoe)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
-        Action::OpenFleetRoeSelect
+        Action::Fleet(FleetAction::OpenRoeSelect)
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetRoeSelect),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenRoeSelect)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetRoeSelect);
 
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetRoeChar('4')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendRoeChar('4'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetRoe),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitRoe)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetRoeChar('7')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendRoeChar('7'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetRoe),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitRoe)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_fleet_roe_by_id(4), Some(7));
@@ -5360,24 +5367,24 @@ fn fleet_roe_empty_enter_accepts_displayed_default() {
 
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetRoeSelect),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenRoeSelect)),
         AppOutcome::Continue
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetRoeChar('4')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendRoeChar('4'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetRoe),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitRoe)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetRoe),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitRoe)),
         AppOutcome::Continue
     );
 
@@ -5399,27 +5406,27 @@ fn fleet_roe_success_returns_to_selector_prompt_without_confirmation_text() {
 
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetMenu),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetRoeSelect),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenRoeSelect)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetRoeChar('4')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendRoeChar('4'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetRoe),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitRoe)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetRoeChar('9')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendRoeChar('9'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetRoe),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitRoe)),
         AppOutcome::Continue
     );
 
@@ -5441,7 +5448,7 @@ fn planet_database_render_uses_year_and_tier_labels_on_bottom_row() {
 
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetDatabase),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabase)),
         AppOutcome::Continue
     );
 
@@ -5467,11 +5474,11 @@ fn planet_info_intel_detail_shows_last_intel_and_tier() {
 
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenPlanetInfoPrompt(CommandMenu::Main)),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Main))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitPlanetInfoPrompt),
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitInfoPrompt)),
         AppOutcome::Continue
     );
 
@@ -5654,51 +5661,51 @@ fn fleet_eta_accepts_typed_fleet_destination_and_default_include_system() {
 
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetEta),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenEta)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetEta);
 
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetEtaChar('4')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendEtaChar('4'))),
         AppOutcome::Continue
     );
     assert_eq!(app.selected_fleet_eta_id(), Some(4));
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetEta),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetEta);
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetEtaChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendEtaChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetEtaChar('0')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendEtaChar('0'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetEtaChar(',')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendEtaChar(','))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetEtaChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendEtaChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetEtaChar('3')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendEtaChar('3'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetEta),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetEta),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetEta);
-    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::SubmitFleetEta);
+    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::Fleet(FleetAction::SubmitEta));
 }
 
 #[test]
@@ -5724,31 +5731,31 @@ fn fleet_eta_uses_max_speed_when_selected_fleet_is_stopped() {
 
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetEta),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenEta)),
         AppOutcome::Continue
     );
     for ch in ['1'] {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFleetEtaChar(ch)),
+            apply_action(&mut app, Action::Fleet(FleetAction::AppendEtaChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetEta),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
         AppOutcome::Continue
     );
     for ch in format!("{},{}", current_coords[0], current_coords[1]).chars() {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFleetEtaChar(ch)),
+            apply_action(&mut app, Action::Fleet(FleetAction::AppendEtaChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetEta),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetEta),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
         AppOutcome::Continue
     );
 
@@ -5790,29 +5797,29 @@ fn fleet_eta_allows_empty_sector_targets_for_resting_hold_fleets() {
 
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetEta),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenEta)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetEtaChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendEtaChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetEta),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
         AppOutcome::Continue
     );
     for ch in ['1', ',', '1'] {
         assert_eq!(
-            apply_action(&mut app, Action::AppendFleetEtaChar(ch)),
+            apply_action(&mut app, Action::Fleet(FleetAction::AppendEtaChar(ch))),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetEta),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetEta),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitEta)),
         AppOutcome::Continue
     );
 
@@ -5938,12 +5945,12 @@ fn general_rankings_opens_production_table_and_returns_to_general_menu() {
 
     assert_eq!(
         app.handle_key(key(KeyCode::Char('o'))),
-        Action::OpenRankingsTable(EmpireProductionRankingSort::Production)
+        Action::Empire(EmpireAction::OpenRankingsTable(EmpireProductionRankingSort::Production))
     );
     assert_eq!(
         apply_action(
             &mut app,
-            Action::OpenRankingsTable(EmpireProductionRankingSort::Production)
+            Action::Empire(EmpireAction::OpenRankingsTable(EmpireProductionRankingSort::Production))
         ),
         AppOutcome::Continue
     );
@@ -5984,7 +5991,7 @@ fn apply_action_toggles_autopilot_and_enemy_relation() {
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenEnemies),
+        apply_action(&mut app, Action::Empire(EmpireAction::OpenEnemies)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::Enemies);
@@ -5994,11 +6001,11 @@ fn apply_action_toggles_autopilot_and_enemy_relation() {
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::AppendEnemiesChar('2')),
+        apply_action(&mut app, Action::Empire(EmpireAction::AppendEnemiesChar('2'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitEnemiesInput),
+        apply_action(&mut app, Action::Empire(EmpireAction::SubmitEnemiesInput)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_relation_to(2), Some(DiplomaticRelation::Enemy));
@@ -6016,14 +6023,14 @@ fn apply_action_clamps_enemies_scroll_to_visible_window() {
     .expect("app should load");
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenEnemies),
+        apply_action(&mut app, Action::Empire(EmpireAction::OpenEnemies)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::Enemies);
 
     for _ in 0..50 {
         assert_eq!(
-            apply_action(&mut app, Action::ScrollEnemies(1)),
+            apply_action(&mut app, Action::Empire(EmpireAction::ScrollEnemies(1))),
             AppOutcome::Continue
         );
     }
@@ -6050,13 +6057,13 @@ fn apply_action_deletes_reviewables() {
     .expect("app should load");
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenDeleteReviewables),
+        apply_action(&mut app, Action::Messaging(MessagingAction::OpenDeleteReviewables)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::DeleteReviewables);
 
     assert_eq!(
-        apply_action(&mut app, Action::ConfirmDeleteReviewables),
+        apply_action(&mut app, Action::Messaging(MessagingAction::ConfirmDeleteReviewables)),
         AppOutcome::Continue
     );
 
@@ -6079,47 +6086,47 @@ fn apply_action_queues_composed_message() {
     .expect("app should load");
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenComposeMessageRecipient),
+        apply_action(&mut app, Action::Messaging(MessagingAction::OpenComposeRecipient)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageRecipient);
     assert_eq!(
-        apply_action(&mut app, Action::AppendComposeRecipientChar('2')),
+        apply_action(&mut app, Action::Messaging(MessagingAction::AppendComposeRecipientChar('2'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitComposeRecipient),
+        apply_action(&mut app, Action::Messaging(MessagingAction::SubmitComposeRecipient)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageSubject);
     assert_eq!(
-        apply_action(&mut app, Action::AppendComposeSubjectChar('H')),
+        apply_action(&mut app, Action::Messaging(MessagingAction::AppendComposeSubjectChar('H'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendComposeSubjectChar('i')),
+        apply_action(&mut app, Action::Messaging(MessagingAction::AppendComposeSubjectChar('i'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitComposeSubject),
+        apply_action(&mut app, Action::Messaging(MessagingAction::SubmitComposeSubject)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageBody);
     assert_eq!(
-        apply_action(&mut app, Action::AppendComposeBodyChar('H')),
+        apply_action(&mut app, Action::Messaging(MessagingAction::AppendComposeBodyChar('H'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendComposeBodyChar('i')),
+        apply_action(&mut app, Action::Messaging(MessagingAction::AppendComposeBodyChar('i'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::OpenComposeMessageSendConfirm),
+        apply_action(&mut app, Action::Messaging(MessagingAction::OpenComposeSendConfirm)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageSendConfirm);
     assert_eq!(
-        apply_action(&mut app, Action::ConfirmSendComposedMessage),
+        apply_action(&mut app, Action::Messaging(MessagingAction::ConfirmSendComposedMessage)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageSent);
@@ -6152,16 +6159,16 @@ fn apply_action_deletes_queued_message_from_outbox() {
     .expect("app should load");
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenComposeMessageOutbox),
+        apply_action(&mut app, Action::Messaging(MessagingAction::OpenComposeOutbox)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageOutbox);
     assert_eq!(
-        apply_action(&mut app, Action::AppendComposeOutboxChar('1')),
+        apply_action(&mut app, Action::Messaging(MessagingAction::AppendComposeOutboxChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::DeleteQueuedComposeMessage),
+        apply_action(&mut app, Action::Messaging(MessagingAction::DeleteQueuedComposeMessage)),
         AppOutcome::Continue
     );
 
@@ -6181,41 +6188,41 @@ fn apply_action_confirms_before_discarding_composed_message() {
     .expect("app should load");
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenComposeMessageRecipient),
+        apply_action(&mut app, Action::Messaging(MessagingAction::OpenComposeRecipient)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::AppendComposeRecipientChar('2')),
+        apply_action(&mut app, Action::Messaging(MessagingAction::AppendComposeRecipientChar('2'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitComposeRecipient),
+        apply_action(&mut app, Action::Messaging(MessagingAction::SubmitComposeRecipient)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitComposeSubject),
+        apply_action(&mut app, Action::Messaging(MessagingAction::SubmitComposeSubject)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageBody);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenComposeMessageDiscardConfirm),
+        apply_action(&mut app, Action::Messaging(MessagingAction::OpenComposeDiscardConfirm)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageDiscardConfirm);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenComposeMessageBody),
+        apply_action(&mut app, Action::Messaging(MessagingAction::OpenComposeBody)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageBody);
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenComposeMessageDiscardConfirm),
+        apply_action(&mut app, Action::Messaging(MessagingAction::OpenComposeDiscardConfirm)),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::ConfirmDiscardComposedMessage),
+        apply_action(&mut app, Action::Messaging(MessagingAction::ConfirmDiscardComposedMessage)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageRecipient);
@@ -6251,7 +6258,7 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
     .expect("app should load");
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetDetach),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenDetach)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetDetach);
@@ -6261,12 +6268,12 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
     assert!(terminal.line(19).contains("Detach ships from fleet # ["));
     assert!(terminal.line(19).contains("<Q> ->"));
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetDetachChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendDetachChar('1'))),
         AppOutcome::Continue
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetDetach),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitDetach)),
         AppOutcome::Continue
     );
     app.render(&mut terminal).expect("render destroyer prompt");
@@ -6277,11 +6284,11 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetDetachChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendDetachChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetDetach),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitDetach)),
         AppOutcome::Continue
     );
     app.render(&mut terminal).expect("render etac prompt");
@@ -6292,18 +6299,18 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetDetachChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendDetachChar('1'))),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetDetach),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitDetach)),
         AppOutcome::Continue
     );
     app.render(&mut terminal).expect("render roe prompt");
     assert!(terminal.line(19).contains("New fleet ROE [6] <Q> ->"));
 
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetDetach),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitDetach)),
         AppOutcome::Continue
     );
     app.render(&mut terminal)
@@ -6332,7 +6339,7 @@ fn fleet_detach_with_zero_selected_ships_returns_to_the_table_without_a_warning(
     .expect("app should load");
 
     assert_eq!(
-        apply_action(&mut app, Action::OpenFleetDetach),
+        apply_action(&mut app, Action::Fleet(FleetAction::OpenDetach)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetDetach);
@@ -6342,12 +6349,12 @@ fn fleet_detach_with_zero_selected_ships_returns_to_the_table_without_a_warning(
     assert!(terminal.line(19).contains("Detach ships from fleet # ["));
     assert!(terminal.line(19).contains("<Q> ->"));
     assert_eq!(
-        apply_action(&mut app, Action::AppendFleetDetachChar('1')),
+        apply_action(&mut app, Action::Fleet(FleetAction::AppendDetachChar('1'))),
         AppOutcome::Continue
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::SubmitFleetDetach),
+        apply_action(&mut app, Action::Fleet(FleetAction::SubmitDetach)),
         AppOutcome::Continue
     );
     app.render(&mut terminal)
@@ -6360,7 +6367,7 @@ fn fleet_detach_with_zero_selected_ships_returns_to_the_table_without_a_warning(
             break;
         }
         assert_eq!(
-            apply_action(&mut app, Action::SubmitFleetDetach),
+            apply_action(&mut app, Action::Fleet(FleetAction::SubmitDetach)),
             AppOutcome::Continue
         );
         app.render(&mut terminal)

@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use ec_data::{
     AutoCommissionSummary, CampaignStore, CommissionResult, CoreGameData, DatabaseDat,
@@ -7,7 +7,15 @@ use ec_data::{
     ProductionItemKind, QueuedPlayerMail, build_player_starmap_projection, plan_route,
 };
 
-use crate::app::Action;
+use crate::app::action::Action;
+use crate::domains::empire::{EmpireAction, EmpireState};
+use crate::domains::fleet::{FleetAction, FleetState};
+use crate::domains::fleet::state::FleetMissionPickerCaller;
+use crate::domains::messaging::{MessagingAction, MessagingState};
+use crate::domains::planet::{PlanetAction, PlanetState};
+use crate::domains::starbase::{StarbaseAction, StarbaseState};
+use crate::domains::starmap::{StarmapAction, StarmapState};
+use crate::domains::startup::{StartupAction, StartupState};
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
 use crate::reports::{ReportsPreview, clear_report_bytes, rebuild_chunked_bytes};
 use crate::screen::{
@@ -34,6 +42,7 @@ use crate::screen::{
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
+use crate::theme::classic;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AppConfig {
@@ -43,231 +52,83 @@ pub struct AppConfig {
     pub queue_dir: Option<PathBuf>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum FleetMissionPickerCaller {
-    GroupOrder,
-    SingleOrder,
-}
-
 pub struct App {
-    game_dir: PathBuf,
-    game_data: CoreGameData,
-    database: DatabaseDat,
-    player: PlayerContext,
-    current_screen: ScreenId,
-    startup_sequence: StartupSequence,
-    startup: StartupScreen,
-    first_time_menu: FirstTimeMenuScreen,
-    first_time_help: FirstTimeHelpScreen,
-    first_time_empires: FirstTimeEmpiresScreen,
-    first_time_intro: FirstTimeIntroScreen,
-    main_menu: MainMenuScreen,
-    main_help: MainHelpScreen,
-    general_menu: GeneralMenuScreen,
-    general_help: GeneralHelpScreen,
-    fleet_help: FleetHelpScreen,
-    starbase_menu: StarbaseMenuScreen,
-    starbase_help: StarbaseHelpScreen,
-    starbase_list: StarbaseListScreen,
-    starbase_review: StarbaseReviewScreen,
-    fleet_menu: FleetMenuScreen,
-    fleet_list: FleetListScreen,
-    fleet_review: FleetReviewScreen,
-    fleet_roe: FleetRoeScreen,
-    fleet_order: FleetSingleOrderScreen,
-    fleet_group: FleetGroupScreen,
-    fleet_mission_picker: FleetMissionPickerScreen,
-    fleet_merge: FleetMergeScreen,
-    fleet_transfer: FleetTransferScreen,
-    fleet_detach: FleetDetachScreen,
-    fleet_eta: FleetEtaScreen,
-    planet_menu: PlanetMenuScreen,
-    planet_help: PlanetHelpScreen,
-    planet_auto_commission: PlanetAutoCommissionScreen,
-    planet_commission: PlanetCommissionScreen,
-    planet_transport: PlanetTransportScreen,
-    build_help: BuildHelpScreen,
-    planet_build: PlanetBuildScreen,
-    planet_list: PlanetListScreen,
-    planet_tax: PlanetTaxScreen,
-    starmap: StarmapScreen,
-    partial_starmap: PartialStarmapScreen,
-    planet_database: PlanetDatabaseScreen,
-    planet_info: PlanetInfoScreen,
-    enemies: EnemiesScreen,
-    delete_reviewables: DeleteReviewablesScreen,
-    message_compose: MessageComposeScreen,
-    empire_status: EmpireStatusScreen,
-    empire_profile: EmpireProfileScreen,
-    rankings: RankingsScreen,
-    reports: ReportsScreen,
-    planet_info_input: String,
-    planet_info_error: Option<String>,
-    planet_info_selected: Option<usize>,
-    partial_starmap_input: String,
-    partial_starmap_error: Option<String>,
-    partial_starmap_center: [u8; 2],
-    command_return_menu: CommandMenu,
-    enemies_input: String,
-    enemies_status: Option<String>,
-    enemies_scroll_offset: usize,
-    enemies_cursor: usize,
-    delete_reviewables_status: Option<String>,
-    compose_recipient_input: String,
-    compose_recipient_status: Option<String>,
-    compose_recipient_scroll_offset: usize,
-    compose_recipient_cursor: usize,
-    compose_recipient_empire: Option<u8>,
-    compose_subject: String,
-    compose_subject_status: Option<String>,
-    compose_body: String,
-    compose_body_cursor: usize,
-    compose_body_status: Option<String>,
-    compose_outbox_input: String,
-    compose_outbox_status: Option<String>,
-    compose_outbox_scroll_offset: usize,
-    compose_outbox_cursor: usize,
-    compose_sent_status: Option<String>,
-    planet_list_sort_status: Option<String>,
-    fleet_list_mode: FleetListMode,
-    starbase_scroll_offset: usize,
-    starbase_cursor: usize,
-    starbase_review_index: usize,
-    starbase_review_input: String,
-    starbase_review_status: Option<String>,
-    fleet_scroll_offset: usize,
-    fleet_cursor: usize,
-    fleet_review_index: usize,
-    fleet_review_select_input: String,
-    fleet_review_status: Option<String>,
-    fleet_roe_scroll_offset: usize,
-    fleet_roe_cursor: usize,
-    fleet_roe_editing: bool,
-    fleet_roe_select_input: String,
-    fleet_roe_input: String,
-    fleet_roe_status: Option<String>,
-    fleet_order_scroll_offset: usize,
-    fleet_order_cursor: usize,
-    fleet_order_mode: FleetSingleOrderMode,
-    fleet_order_fleet_record_index_1_based: Option<usize>,
-    fleet_order_input: String,
-    fleet_order_status: Option<String>,
-    fleet_order_mission_code: Option<u8>,
-    fleet_group_scroll_offset: usize,
-    fleet_group_cursor: usize,
-    fleet_group_mode: FleetGroupOrderMode,
-    fleet_group_selected_fleets: BTreeSet<usize>,
-    fleet_group_mission_code: Option<u8>,
-    fleet_group_input: String,
-    fleet_group_status: Option<String>,
-    fleet_mission_picker_cursor: usize,
-    fleet_mission_picker_input: String,
-    fleet_mission_picker_status: Option<String>,
-    fleet_mission_picker_caller: Option<FleetMissionPickerCaller>,
-    fleet_merge_scroll_offset: usize,
-    fleet_merge_cursor: usize,
-    fleet_merge_mode: FleetMergeMode,
-    fleet_merge_source_record_index_1_based: Option<usize>,
-    fleet_merge_source_input: String,
-    fleet_merge_host_input: String,
-    fleet_merge_status: Option<String>,
-    fleet_transfer_scroll_offset: usize,
-    fleet_transfer_cursor: usize,
-    fleet_transfer_mode: FleetTransferMode,
-    fleet_transfer_selected_fleets: BTreeSet<usize>,
-    fleet_transfer_donor_record_index_1_based: Option<usize>,
-    fleet_transfer_host_record_index_1_based: Option<usize>,
-    fleet_transfer_select_input: String,
-    fleet_transfer_input: String,
-    fleet_transfer_status: Option<String>,
-    fleet_transfer_selection: FleetDetachSelection,
-    fleet_detach_scroll_offset: usize,
-    fleet_detach_cursor: usize,
-    fleet_detach_mode: FleetDetachMode,
-    fleet_detach_select_input: String,
-    fleet_detach_input: String,
-    fleet_detach_status: Option<String>,
-    fleet_detach_selection: FleetDetachSelection,
-    fleet_detach_donor_speed: Option<u8>,
-    fleet_eta_scroll_offset: usize,
-    fleet_eta_cursor: usize,
-    fleet_eta_mode: FleetEtaMode,
-    fleet_eta_select_input: String,
-    fleet_eta_destination_input: String,
-    fleet_eta_include_system_input: String,
-    fleet_eta_status: Option<String>,
-    planet_brief_scroll_offset: usize,
-    planet_brief_cursor: usize,
-    planet_detail_index: usize,
-    planet_database_scroll_offset: usize,
-    planet_database_cursor: usize,
-    planet_database_detail_index: usize,
-    planet_database_input: String,
-    planet_database_status: Option<String>,
-    planet_commission_index: usize,
-    planet_commission_cursor: usize,
-    planet_commission_scroll_offset: usize,
-    planet_commission_selected_slots: BTreeSet<usize>,
-    planet_commission_status: Option<String>,
-    planet_auto_commission_status: Option<String>,
-    planet_transport_mode: Option<PlanetTransportMode>,
-    planet_transport_planet_cursor: usize,
-    planet_transport_planet_scroll_offset: usize,
-    planet_transport_selected_planet_record: Option<usize>,
-    planet_transport_planet_input: String,
-    planet_transport_fleet_cursor: usize,
-    planet_transport_fleet_scroll_offset: usize,
-    planet_transport_qty_input: String,
-    planet_transport_status: Option<String>,
-    planet_build_index: usize,
-    planet_build_status: Option<String>,
-    planet_build_unit_input: String,
-    planet_build_unit_status: Option<String>,
-    planet_build_quantity_input: String,
-    planet_build_quantity_status: Option<String>,
-    planet_build_selected_kind: Option<ProductionItemKind>,
-    planet_build_list_scroll_offset: usize,
-    planet_build_list_cursor: usize,
-    planet_build_list_confirming: bool,
-    planet_build_change_cursor: usize,
-    planet_build_change_scroll_offset: usize,
-    planet_tax_input: String,
-    planet_tax_status: Option<String>,
-    starmap_view_x: usize,
-    starmap_view_y: usize,
-    starmap_status: Option<String>,
-    starmap_dump_lines: Vec<String>,
-    starmap_dump_offset: usize,
-    starmap_dump_active: bool,
-    starmap_capture_complete: bool,
-    export_root: PathBuf,
-    queue_dir: Option<PathBuf>,
-    campaign_store: CampaignStore,
-    planet_intel_snapshots: BTreeMap<usize, PlanetIntelSnapshot>,
-    results_bytes: Vec<u8>,
-    messages_bytes: Vec<u8>,
-    queued_mail: Vec<QueuedPlayerMail>,
-    startup_splash_page: usize,
-    startup_intro_page: usize,
-    startup_results_block: usize,
-    startup_results_page: usize,
-    startup_results_mode: StartupReviewMode,
-    startup_results_nonstop: bool,
-    startup_results_deleted_any: bool,
-    startup_messages_block: usize,
-    startup_messages_page: usize,
-    startup_messages_mode: StartupReviewMode,
-    startup_messages_nonstop: bool,
-    startup_messages_deleted_any: bool,
-    first_time_intro_page: usize,
-    first_time_status: Option<String>,
-    first_time_input: String,
-    first_time_empire_name: String,
-    first_time_homeworld_name: String,
-    colony_world_name: String,
-    colony_world_planet_record_index_1_based: Option<usize>,
-    first_time_rename_preloaded_empire: bool,
-    command_menu_notice: Option<String>,
+    pub game_dir: PathBuf,
+    pub game_data: CoreGameData,
+    pub database: DatabaseDat,
+    pub player: PlayerContext,
+    pub current_screen: ScreenId,
+    pub startup_sequence: StartupSequence,
+    pub startup: StartupScreen,
+    pub first_time_menu: FirstTimeMenuScreen,
+    pub first_time_help: FirstTimeHelpScreen,
+    pub first_time_empires: FirstTimeEmpiresScreen,
+    pub first_time_intro: FirstTimeIntroScreen,
+    pub main_menu: MainMenuScreen,
+    pub main_help: MainHelpScreen,
+    pub general_menu: GeneralMenuScreen,
+    pub general_help: GeneralHelpScreen,
+    pub fleet_help: FleetHelpScreen,
+    pub starbase_menu: StarbaseMenuScreen,
+    pub starbase_help: StarbaseHelpScreen,
+    pub starbase_list: StarbaseListScreen,
+    pub starbase_review: StarbaseReviewScreen,
+    pub fleet_menu: FleetMenuScreen,
+    pub fleet_list: FleetListScreen,
+    pub fleet_review: FleetReviewScreen,
+    pub fleet_roe: FleetRoeScreen,
+    pub fleet_order: FleetSingleOrderScreen,
+    pub fleet_group: FleetGroupScreen,
+    pub fleet_mission_picker: FleetMissionPickerScreen,
+    pub fleet_merge: FleetMergeScreen,
+    pub fleet_transfer: FleetTransferScreen,
+    pub fleet_detach: FleetDetachScreen,
+    pub fleet_eta: FleetEtaScreen,
+    pub planet_menu: PlanetMenuScreen,
+    pub planet_help: PlanetHelpScreen,
+    pub planet_auto_commission: PlanetAutoCommissionScreen,
+    pub planet_commission: PlanetCommissionScreen,
+    pub planet_transport: PlanetTransportScreen,
+    pub build_help: BuildHelpScreen,
+    pub planet_build: PlanetBuildScreen,
+    pub planet_list: PlanetListScreen,
+    pub planet_tax: PlanetTaxScreen,
+    pub starmap: StarmapScreen,
+    pub partial_starmap: PartialStarmapScreen,
+    pub planet_database: PlanetDatabaseScreen,
+    pub planet_info: PlanetInfoScreen,
+    pub enemies: EnemiesScreen,
+    pub delete_reviewables: DeleteReviewablesScreen,
+    pub message_compose: MessageComposeScreen,
+    pub empire_status: EmpireStatusScreen,
+    pub empire_profile: EmpireProfileScreen,
+    pub rankings: RankingsScreen,
+    pub reports: ReportsScreen,
+
+    // Domain States
+    pub fleet: FleetState,
+    pub planet: PlanetState,
+    pub starbase: StarbaseState,
+    pub empire: EmpireState,
+    pub messaging: MessagingState,
+    pub starmap_state: StarmapState,
+    pub startup_state: StartupState,
+
+    pub command_return_menu: CommandMenu,
+    pub export_root: PathBuf,
+    pub queue_dir: Option<PathBuf>,
+    pub autopilot: bool,
+    pub results_bytes: Vec<u8>,
+    pub messages_bytes: Vec<u8>,
+    pub queued_mail: Vec<QueuedPlayerMail>,
+    pub first_time_status: Option<String>,
+    pub first_time_input: String,
+    pub first_time_empire_name: String,
+    pub first_time_homeworld_name: String,
+    pub colony_world_name: String,
+    pub colony_world_planet_record_index_1_based: Option<usize>,
+    pub command_menu_notice: Option<String>,
+    pub planet_intel_snapshots: BTreeMap<usize, PlanetIntelSnapshot>,
 }
 
 impl App {
@@ -361,173 +222,37 @@ impl App {
             empire_profile: EmpireProfileScreen::new(),
             rankings: RankingsScreen::new(),
             reports: ReportsScreen::new(reports, review_summary),
-            planet_info_input: String::new(),
-            planet_info_error: None,
-            planet_info_selected: None,
-            partial_starmap_input: "8,2".to_string(),
-            partial_starmap_error: None,
-            partial_starmap_center: [8, 2],
+
+            fleet: FleetState {
+                list_mode: FleetListMode::Brief,
+                ..Default::default()
+            },
+            planet: PlanetState::new(campaign_store, planet_intel_snapshots.clone()),
+            starbase: StarbaseState::default(),
+            empire: EmpireState::default(),
+            messaging: MessagingState::default(),
+            starmap_state: StarmapState {
+                partial_input: "8,2".to_string(),
+                partial_center: [8, 2],
+                ..Default::default()
+            },
+            startup_state: StartupState::default(),
+
             command_return_menu: CommandMenu::General,
-            enemies_input: String::new(),
-            enemies_status: None,
-            enemies_scroll_offset: 0,
-            enemies_cursor: 0,
-            delete_reviewables_status: None,
-            compose_recipient_input: String::new(),
-            compose_recipient_status: None,
-            compose_recipient_scroll_offset: 0,
-            compose_recipient_cursor: 0,
-            compose_recipient_empire: None,
-            compose_subject: String::new(),
-            compose_subject_status: None,
-            compose_body: String::new(),
-            compose_body_cursor: 0,
-            compose_body_status: None,
-            compose_outbox_input: String::new(),
-            compose_outbox_status: None,
-            compose_outbox_scroll_offset: 0,
-            compose_outbox_cursor: 0,
-            compose_sent_status: None,
-            planet_list_sort_status: None,
-            fleet_list_mode: FleetListMode::Brief,
-            starbase_scroll_offset: 0,
-            starbase_cursor: 0,
-            starbase_review_index: 0,
-            starbase_review_input: String::new(),
-            starbase_review_status: None,
-            fleet_scroll_offset: 0,
-            fleet_cursor: 0,
-            fleet_review_index: 0,
-            fleet_review_select_input: String::new(),
-            fleet_review_status: None,
-            fleet_roe_scroll_offset: 0,
-            fleet_roe_cursor: 0,
-            fleet_roe_editing: false,
-            fleet_roe_select_input: String::new(),
-            fleet_roe_input: String::new(),
-            fleet_roe_status: None,
-            fleet_order_scroll_offset: 0,
-            fleet_order_cursor: 0,
-            fleet_order_mode: FleetSingleOrderMode::SelectingFleet,
-            fleet_order_fleet_record_index_1_based: None,
-            fleet_order_input: String::new(),
-            fleet_order_status: None,
-            fleet_order_mission_code: None,
-            fleet_group_scroll_offset: 0,
-            fleet_group_cursor: 0,
-            fleet_group_mode: FleetGroupOrderMode::SelectingFleets,
-            fleet_group_selected_fleets: BTreeSet::new(),
-            fleet_group_mission_code: None,
-            fleet_group_input: String::new(),
-            fleet_group_status: None,
-            fleet_mission_picker_cursor: 1,
-            fleet_mission_picker_input: String::new(),
-            fleet_mission_picker_status: None,
-            fleet_mission_picker_caller: None,
-            fleet_merge_scroll_offset: 0,
-            fleet_merge_cursor: 0,
-            fleet_merge_mode: FleetMergeMode::SelectingSource,
-            fleet_merge_source_record_index_1_based: None,
-            fleet_merge_source_input: String::new(),
-            fleet_merge_host_input: String::new(),
-            fleet_merge_status: None,
-            fleet_transfer_scroll_offset: 0,
-            fleet_transfer_cursor: 0,
-            fleet_transfer_mode: FleetTransferMode::SelectingFleets,
-            fleet_transfer_selected_fleets: BTreeSet::new(),
-            fleet_transfer_donor_record_index_1_based: None,
-            fleet_transfer_host_record_index_1_based: None,
-            fleet_transfer_select_input: String::new(),
-            fleet_transfer_input: String::new(),
-            fleet_transfer_status: None,
-            fleet_transfer_selection: FleetDetachSelection::default(),
-            fleet_detach_scroll_offset: 0,
-            fleet_detach_cursor: 0,
-            fleet_detach_mode: FleetDetachMode::SelectingFleet,
-            fleet_detach_select_input: String::new(),
-            fleet_detach_input: String::new(),
-            fleet_detach_status: None,
-            fleet_detach_selection: FleetDetachSelection::default(),
-            fleet_detach_donor_speed: None,
-            fleet_eta_scroll_offset: 0,
-            fleet_eta_cursor: 0,
-            fleet_eta_mode: FleetEtaMode::SelectingFleet,
-            fleet_eta_select_input: String::new(),
-            fleet_eta_destination_input: String::new(),
-            fleet_eta_include_system_input: String::new(),
-            fleet_eta_status: None,
-            planet_brief_scroll_offset: 0,
-            planet_brief_cursor: 0,
-            planet_detail_index: 0,
-            planet_database_scroll_offset: 0,
-            planet_database_cursor: 0,
-            planet_database_detail_index: 0,
-            planet_database_input: String::new(),
-            planet_database_status: None,
-            planet_commission_index: 0,
-            planet_commission_cursor: 0,
-            planet_commission_scroll_offset: 0,
-            planet_commission_selected_slots: BTreeSet::new(),
-            planet_commission_status: None,
-            planet_auto_commission_status: None,
-            planet_transport_mode: None,
-            planet_transport_planet_cursor: 0,
-            planet_transport_planet_scroll_offset: 0,
-            planet_transport_selected_planet_record: None,
-            planet_transport_planet_input: String::new(),
-            planet_transport_fleet_cursor: 0,
-            planet_transport_fleet_scroll_offset: 0,
-            planet_transport_qty_input: String::new(),
-            planet_transport_status: None,
-            planet_build_index: 0,
-            planet_build_status: None,
-            planet_build_unit_input: String::new(),
-            planet_build_unit_status: None,
-            planet_build_quantity_input: String::new(),
-            planet_build_quantity_status: None,
-            planet_build_selected_kind: None,
-            planet_build_list_scroll_offset: 0,
-            planet_build_list_cursor: 0,
-            planet_build_list_confirming: false,
-            planet_build_change_cursor: 0,
-            planet_build_change_scroll_offset: 0,
-            planet_tax_input: "50".to_string(),
-            planet_tax_status: None,
-            starmap_view_x: 1,
-            starmap_view_y: 1,
-            starmap_status: None,
-            starmap_dump_lines: Vec::new(),
-            starmap_dump_offset: 0,
-            starmap_dump_active: false,
-            starmap_capture_complete: false,
             export_root,
             queue_dir: config.queue_dir,
-            campaign_store,
-            planet_intel_snapshots,
+            autopilot: false,
             results_bytes,
             messages_bytes,
             queued_mail,
-            startup_splash_page: 0,
-            startup_intro_page: 0,
-            startup_results_block: 0,
-            startup_results_page: 0,
-            startup_results_mode: StartupReviewMode::ViewPrompt,
-            startup_results_nonstop: false,
-            startup_results_deleted_any: false,
-            startup_messages_block: 0,
-            startup_messages_page: 0,
-            startup_messages_mode: StartupReviewMode::ViewPrompt,
-            startup_messages_nonstop: false,
-            startup_messages_deleted_any: false,
-            first_time_intro_page: 0,
             first_time_status: None,
             first_time_input: String::new(),
             first_time_empire_name: String::new(),
             first_time_homeworld_name: String::new(),
             colony_world_name: String::new(),
             colony_world_planet_record_index_1_based: None,
-            first_time_rename_preloaded_empire: false,
             command_menu_notice: None,
+            planet_intel_snapshots,
         })
     }
 
@@ -547,16 +272,16 @@ impl App {
             ScreenId::Startup(phase) => self.startup.render_phase(
                 &frame,
                 phase,
-                self.startup_splash_page,
-                self.startup_intro_page,
-                self.startup_results_block,
-                self.startup_results_page,
-                self.startup_results_mode,
-                self.startup_messages_block,
-                self.startup_messages_page,
-                self.startup_messages_mode,
-                self.startup_results_deleted_any,
-                self.startup_messages_deleted_any,
+                self.startup_state.splash_page,
+                self.startup_state.intro_page,
+                self.startup_state.results_block,
+                self.startup_state.results_page,
+                self.startup_state.results_mode,
+                self.startup_state.messages_block,
+                self.startup_state.messages_page,
+                self.startup_state.messages_mode,
+                self.startup_state.results_deleted_any,
+                self.startup_state.messages_deleted_any,
                 self.game_data.conquest.game_year(),
             )?,
             ScreenId::FirstTimeMenu => self
@@ -568,18 +293,18 @@ impl App {
                 .render_rows(&self.first_time_empire_rows())?,
             ScreenId::FirstTimeIntro => self
                 .first_time_intro
-                .render_page(self.first_time_intro_page)?,
+                .render_page(self.startup_state.first_time_intro_page)?,
             ScreenId::FirstTimePreloadedRenamePrompt => {
                 crate::screen::render_preloaded_first_login_rename_prompt(&self.player.empire_name)?
             }
             ScreenId::FirstTimeJoinEmpireName => render_first_time_join_name(
-                self.first_time_rename_preloaded_empire,
+                self.startup_state.first_time_rename_preloaded_empire,
                 &self.player.empire_name,
                 &self.first_time_input,
                 self.first_time_status.as_deref(),
             )?,
             ScreenId::FirstTimeJoinEmpireConfirm => render_first_time_join_name_confirm(
-                self.first_time_rename_preloaded_empire,
+                self.startup_state.first_time_rename_preloaded_empire,
                 &self.first_time_empire_name,
             )?,
             ScreenId::FirstTimeJoinSummary => render_first_time_join_summary(
@@ -640,20 +365,20 @@ impl App {
             ScreenId::StarbaseHelp => self.starbase_help.render(&frame)?,
             ScreenId::StarbaseList => self.starbase_list.render(
                 &self.starbase_rows(),
-                self.starbase_scroll_offset,
-                self.starbase_cursor,
+                self.starbase.scroll_offset,
+                self.starbase.cursor,
             )?,
             ScreenId::StarbaseReviewSelect => self.starbase_review.render_select(
                 &self.starbase_rows(),
-                self.starbase_scroll_offset,
-                self.starbase_cursor,
-                &self.starbase_review_input,
-                self.status_if_no_modal(self.starbase_review_status.as_deref()),
+                self.starbase.scroll_offset,
+                self.starbase.cursor,
+                &self.starbase.review_input,
+                self.status_if_no_modal(self.starbase.review_status.as_deref()),
             )?,
             ScreenId::StarbaseReview => {
                 let rows = self.starbase_rows();
                 let row = rows
-                    .get(self.starbase_review_index)
+                    .get(self.starbase.review_index)
                     .ok_or("starbase review row missing")?;
                 self.starbase_review.render_detail(row)?
             }
@@ -663,71 +388,71 @@ impl App {
             ScreenId::FleetList(mode) => self.fleet_list.render(
                 mode,
                 &self.fleet_rows(),
-                self.fleet_scroll_offset,
-                self.fleet_cursor,
+                self.fleet.scroll_offset,
+                self.fleet.cursor,
             )?,
             ScreenId::FleetReviewSelect => self.fleet_review.render_select(
                 &self.fleet_rows(),
-                self.fleet_scroll_offset,
-                self.fleet_cursor,
-                &self.fleet_review_select_input,
-                self.status_if_no_modal(self.fleet_review_status.as_deref()),
+                self.fleet.scroll_offset,
+                self.fleet.cursor,
+                &self.fleet.review_select_input,
+                self.status_if_no_modal(self.fleet.review_status.as_deref()),
             )?,
             ScreenId::FleetReview => {
                 let rows = self.fleet_rows();
                 let row = rows
-                    .get(self.fleet_review_index)
+                    .get(self.fleet.review_index)
                     .ok_or("fleet review row missing")?;
                 self.fleet_review
-                    .render(row, self.fleet_review_index, rows.len())?
+                    .render(row, self.fleet.review_index, rows.len())?
             }
             ScreenId::FleetRoeSelect => self.fleet_roe.render_select(
                 &self.fleet_rows(),
-                self.fleet_roe_scroll_offset,
-                self.fleet_roe_cursor,
-                self.fleet_roe_editing,
-                &self.fleet_roe_select_input,
-                &self.fleet_roe_input,
-                self.status_if_no_modal(self.fleet_roe_status.as_deref()),
+                self.fleet.roe_scroll_offset,
+                self.fleet.roe_cursor,
+                self.fleet.roe_editing,
+                &self.fleet.roe_select_input,
+                &self.fleet.roe_input,
+                self.status_if_no_modal(self.fleet.roe_status.as_deref()),
             )?,
             ScreenId::FleetOrder => self.fleet_order.render(
                 &self.fleet_rows(),
-                self.fleet_order_scroll_offset,
-                self.fleet_order_cursor,
-                self.fleet_order_mode,
+                self.fleet.order_scroll_offset,
+                self.fleet.order_cursor,
+                self.fleet.order_mode,
                 &self.fleet_order_target_status_line(),
                 &self.fleet_order_target_prompt(),
                 &self.fleet_order_target_default(),
-                &self.fleet_order_input,
-                self.status_if_no_modal(self.fleet_order_status.as_deref()),
+                &self.fleet.order_input,
+                self.status_if_no_modal(self.fleet.order_status.as_deref()),
             )?,
             ScreenId::FleetGroupOrder => self.fleet_group.render(
                 &self.fleet_rows(),
-                self.fleet_group_scroll_offset,
-                self.fleet_group_cursor,
-                &self.fleet_group_selected_fleets,
-                self.fleet_group_mode,
+                self.fleet.group_scroll_offset,
+                self.fleet.group_cursor,
+                &self.fleet.group_selected_fleets,
+                self.fleet.group_mode,
                 &self.fleet_group_target_status_line(),
                 &self.fleet_group_target_prompt(),
                 &self.fleet_group_target_default(),
-                &self.fleet_group_input,
-                self.status_if_no_modal(self.fleet_group_status.as_deref()),
+                &self.fleet.group_input,
+                self.status_if_no_modal(self.fleet.group_status.as_deref()),
             )?,
             ScreenId::FleetMissionPicker => self.fleet_mission_picker.render(
-                self.fleet_mission_picker_cursor,
-                &self.fleet_mission_picker_input,
+                self.fleet.mission_picker_cursor,
+                &self.fleet.mission_picker_input,
                 &self.fleet_mission_picker_enabled_flags(),
-                self.status_if_no_modal(self.fleet_mission_picker_status.as_deref()),
+                self.status_if_no_modal(self.fleet.mission_picker_status.as_deref()),
             )?,
             ScreenId::FleetMerge => {
                 let rows = self.current_fleet_merge_rows();
                 let input = self.current_fleet_merge_input().to_string();
-                let status = self.status_if_no_modal(self.fleet_merge_status.as_deref());
+                let status = self.status_if_no_modal(self.fleet.merge_status.as_deref());
                 self.fleet_merge.render(
                     &rows,
-                    self.fleet_merge_scroll_offset,
-                    self.fleet_merge_cursor,
-                    self.fleet_merge_mode,
+                    self.fleet.merge_scroll_offset,
+                    self.fleet.merge_cursor,
+                    self.fleet.merge_mode,
                     &input,
                     status,
                 )?
@@ -735,17 +460,17 @@ impl App {
             ScreenId::FleetTransfer => {
                 let rows = self.current_fleet_transfer_rows();
                 let input = self.current_fleet_transfer_input().to_string();
-                let status = self.status_if_no_modal(self.fleet_transfer_status.as_deref());
+                let status = self.status_if_no_modal(self.fleet.transfer_status.as_deref());
                 let (prompt, default) = self.fleet_transfer_prompt_and_default(&rows);
                 self.fleet_transfer.render(
                     &rows,
-                    self.fleet_transfer_scroll_offset,
-                    self.fleet_transfer_cursor,
-                    self.fleet_transfer_mode,
-                    &self.fleet_transfer_selected_fleets,
-                    self.fleet_transfer_donor_record_index_1_based
+                    self.fleet.transfer_scroll_offset,
+                    self.fleet.transfer_cursor,
+                    self.fleet.transfer_mode,
+                    &self.fleet.transfer_selected_fleets,
+                    self.fleet.transfer_donor_record_index_1_based
                         .and_then(|idx| self.fleet_number_for_record_index(idx)),
-                    self.fleet_transfer_host_record_index_1_based
+                    self.fleet.transfer_host_record_index_1_based
                         .and_then(|idx| self.fleet_number_for_record_index(idx)),
                     &input,
                     status,
@@ -757,11 +482,11 @@ impl App {
                 let rows = self.fleet_rows();
                 let (prompt, default) = self.fleet_detach_prompt_and_default(&rows);
                 let input = self.fleet_detach_current_input().to_string();
-                let status = self.status_if_no_modal(self.fleet_detach_status.as_deref());
+                let status = self.status_if_no_modal(self.fleet.detach_status.as_deref());
                 self.fleet_detach.render(
                     &rows,
-                    self.fleet_detach_scroll_offset,
-                    self.fleet_detach_cursor,
+                    self.fleet.detach_scroll_offset,
+                    self.fleet.detach_cursor,
                     &prompt,
                     &default,
                     &input,
@@ -770,14 +495,14 @@ impl App {
             }
             ScreenId::FleetEta => self.fleet_eta.render(
                 &self.fleet_rows(),
-                self.fleet_eta_scroll_offset,
-                self.fleet_eta_cursor,
-                self.fleet_eta_mode,
-                &self.fleet_eta_select_input,
+                self.fleet.eta_scroll_offset,
+                self.fleet.eta_cursor,
+                self.fleet.eta_mode,
+                &self.fleet.eta_select_input,
                 self.fleet_eta_default_destination(),
-                &self.fleet_eta_destination_input,
-                &self.fleet_eta_include_system_input,
-                self.status_if_no_modal(self.fleet_eta_status.as_deref()),
+                &self.fleet.eta_destination_input,
+                &self.fleet.eta_include_system_input,
+                self.status_if_no_modal(self.fleet.eta_status.as_deref()),
             )?,
             ScreenId::PlanetMenu => self
                 .planet_menu
@@ -787,7 +512,7 @@ impl App {
                 self.planet_auto_commission.render_confirm()?
             }
             ScreenId::PlanetAutoCommissionDone => self.planet_auto_commission.render_done(
-                self.planet_auto_commission_status
+                self.planet.auto_commission_status
                     .as_deref()
                     .unwrap_or("Auto-commission complete."),
             )?,
@@ -796,11 +521,11 @@ impl App {
                     crate::screen::command_menu_label(self.command_return_menu),
                     mode,
                     &self.planet_transport_planet_rows(mode),
-                    self.planet_transport_planet_scroll_offset,
-                    self.planet_transport_planet_cursor,
-                    &self.planet_transport_planet_input,
+                    self.planet.transport_planet_scroll_offset,
+                    self.planet.transport_planet_cursor,
+                    &self.planet.transport_planet_input,
                     self.planet_transport_planet_default_coords(mode),
-                    self.status_if_no_modal(self.planet_transport_status.as_deref()),
+                    self.status_if_no_modal(self.planet.transport_status.as_deref()),
                 )?
             }
             ScreenId::PlanetTransportFleetSelect(mode) => {
@@ -809,10 +534,10 @@ impl App {
                     mode,
                     &self.current_planet_transport_planet_row(mode)?,
                     &self.current_planet_transport_fleet_rows(mode)?,
-                    self.planet_transport_fleet_scroll_offset,
-                    self.planet_transport_fleet_cursor,
-                    &self.planet_transport_qty_input,
-                    self.status_if_no_modal(self.planet_transport_status.as_deref()),
+                    self.planet.transport_fleet_scroll_offset,
+                    self.planet.transport_fleet_cursor,
+                    &self.planet.transport_qty_input,
+                    self.status_if_no_modal(self.planet.transport_status.as_deref()),
                 )?
             }
             ScreenId::PlanetTransportQuantityPrompt(mode) => {
@@ -821,28 +546,28 @@ impl App {
                     mode,
                     &self.current_planet_transport_planet_row(mode)?,
                     &self.current_planet_transport_fleet_row(mode)?,
-                    &self.planet_transport_qty_input,
-                    self.status_if_no_modal(self.planet_transport_status.as_deref()),
+                    &self.planet.transport_qty_input,
+                    self.status_if_no_modal(self.planet.transport_status.as_deref()),
                 )?
             }
             ScreenId::PlanetTransportDone(mode) => self.planet_transport.render_done(
                 crate::screen::command_menu_label(self.command_return_menu),
                 mode,
-                self.planet_transport_status
+                self.planet.transport_status
                     .as_deref()
                     .unwrap_or("Transport order completed."),
             )?,
             ScreenId::PlanetCommissionMenu => self.planet_commission.render_menu(
                 &self.current_planet_commission_view()?,
-                self.planet_commission_scroll_offset,
-                self.planet_commission_cursor,
-                &self.planet_commission_selected_slots,
-                self.planet_commission_status.as_deref(),
+                self.planet.commission_scroll_offset,
+                self.planet.commission_cursor,
+                &self.planet.commission_selected_slots,
+                self.planet.commission_status.as_deref(),
             )?,
             ScreenId::PlanetBuildHelp => self.build_help.render(&frame)?,
             ScreenId::PlanetBuildMenu => self.planet_build.render_menu(
                 &self.current_planet_build_view()?,
-                self.planet_build_status.as_deref(),
+                self.planet.build_status.as_deref(),
             )?,
             ScreenId::PlanetBuildReview => self.planet_build.render_review(
                 &self.current_planet_build_view()?,
@@ -851,14 +576,14 @@ impl App {
             ScreenId::PlanetBuildList => self.planet_build.render_list(
                 &self.current_planet_build_view()?,
                 &self.planet_build_list_rows(),
-                self.planet_build_list_scroll_offset,
-                self.planet_build_list_cursor,
-                self.planet_build_list_confirming,
+                self.planet.build_list_scroll_offset,
+                self.planet.build_list_cursor,
+                self.planet.build_list_confirming,
             )?,
             ScreenId::PlanetBuildChange => self.planet_build.render_change(
                 &self.build_change_rows(),
-                self.planet_build_change_scroll_offset,
-                self.planet_build_change_cursor,
+                self.planet.build_change_scroll_offset,
+                self.planet.build_change_cursor,
             )?,
             ScreenId::PlanetBuildAbortConfirm => self.planet_build.render_abort_confirm(
                 &self.current_planet_build_view()?,
@@ -867,34 +592,34 @@ impl App {
             ScreenId::PlanetBuildSpecify => self.planet_build.render_specify(
                 &self.current_planet_build_view()?,
                 &self.current_planet_build_orders(),
-                &self.planet_build_unit_input,
-                self.planet_build_unit_status.as_deref(),
+                &self.planet.build_unit_input,
+                self.planet.build_unit_status.as_deref(),
             )?,
             ScreenId::PlanetBuildQuantity => self.planet_build.render_quantity_prompt(
                 &self.current_planet_build_view()?,
                 &self.current_planet_build_orders(),
                 build_unit_spec_by_kind(
-                    self.planet_build_selected_kind
+                    self.planet.build_selected_kind
                         .ok_or("planet build kind not selected")?,
                 )
                 .ok_or("planet build unit missing")?,
                 self.current_planet_build_max_quantity()?,
-                &self.planet_build_quantity_input,
-                self.planet_build_quantity_status.as_deref(),
+                &self.planet.build_quantity_input,
+                self.planet.build_quantity_status.as_deref(),
             )?,
             ScreenId::PlanetListSortPrompt(mode) => self
                 .planet_list
-                .render_sort_prompt(mode, self.planet_list_sort_status.as_deref())?,
+                .render_sort_prompt(mode, self.planet.list_sort_status.as_deref())?,
             ScreenId::PlanetBriefList(sort) => self.planet_list.render_brief_list(
                 &self.sorted_planet_rows(sort),
                 sort,
-                self.planet_brief_scroll_offset,
-                self.planet_brief_cursor,
+                self.planet.brief_scroll_offset,
+                self.planet.brief_cursor,
             )?,
             ScreenId::PlanetDetailList(sort) => self.planet_list.render_detail(
                 &frame,
                 &self.sorted_planet_rows(sort),
-                self.planet_detail_index,
+                self.planet.detail_index,
             )?,
             ScreenId::PlanetTaxPrompt => {
                 let current_tax = self.game_data.player.records
@@ -903,110 +628,110 @@ impl App {
                     .to_string();
                 self.planet_tax.render_prompt(
                     &current_tax,
-                    &self.planet_tax_input,
-                    self.planet_tax_status.as_deref(),
+                    &self.planet.tax_input,
+                    self.planet.tax_status.as_deref(),
                 )?
             }
             ScreenId::PlanetTaxDone => self.planet_tax.render_done(
-                self.planet_tax_status
+                self.planet.tax_status
                     .as_deref()
                     .unwrap_or("Tax rate updated."),
             )?,
-            ScreenId::Starmap if self.starmap_capture_complete => self.starmap.render_complete()?,
-            ScreenId::Starmap if self.starmap_dump_active => self
+            ScreenId::Starmap if self.starmap_state.capture_complete => self.starmap.render_complete()?,
+            ScreenId::Starmap if self.starmap_state.dump_active => self
                 .starmap
-                .render_dump_page(&self.starmap_dump_lines, self.starmap_dump_offset)?,
-            ScreenId::Starmap => self.starmap.render_prompt(self.starmap_status.as_deref())?,
+                .render_dump_page(&self.starmap_state.dump_lines, self.starmap_state.dump_offset)?,
+            ScreenId::Starmap => self.starmap.render_prompt(self.starmap_state.status.as_deref())?,
             ScreenId::PartialStarmapPrompt => self.partial_starmap.render_prompt(
-                self.partial_starmap_center,
-                &self.partial_starmap_input,
-                self.partial_starmap_error.as_deref(),
+                self.starmap_state.partial_center,
+                &self.starmap_state.partial_input,
+                self.starmap_state.partial_error.as_deref(),
                 self.command_return_menu,
             )?,
             ScreenId::PartialStarmapView => self.partial_starmap.render_view(
                 &frame,
                 &self.database,
-                self.partial_starmap_center,
+                self.starmap_state.partial_center,
             )?,
             ScreenId::PlanetDatabaseList => self.planet_database.render_list(
                 &self.planet_database_rows(),
-                self.planet_database_scroll_offset,
-                self.planet_database_cursor,
+                self.planet.database_scroll_offset,
+                self.planet.database_cursor,
                 self.default_planet_prompt_coords(),
-                &self.planet_database_input,
-                self.status_if_no_modal(self.planet_database_status.as_deref()),
+                &self.planet.database_input,
+                self.status_if_no_modal(self.planet.database_status.as_deref()),
                 self.command_return_menu,
             )?,
             ScreenId::PlanetDatabaseDetail => {
                 let rows = self.planet_database_rows();
                 let row = rows
-                    .get(self.planet_database_detail_index)
+                    .get(self.planet.database_detail_index)
                     .ok_or("planet database row missing")?;
                 self.planet_database.render_detail(
                     row,
-                    self.planet_database_detail_index,
+                    self.planet.database_detail_index,
                     rows.len(),
                 )?
             }
             ScreenId::PlanetInfoPrompt => self.planet_info.render_prompt(
                 self.default_planet_prompt_coords(),
-                &self.planet_info_input,
-                self.planet_info_error.as_deref(),
+                &self.planet.info_input,
+                self.planet.info_error.as_deref(),
                 self.command_return_menu,
             )?,
             ScreenId::PlanetInfoDetail => self.planet_info.render_detail(
                 &frame,
-                self.planet_info_selected
+                self.planet.info_selected
                     .ok_or("planet info detail not selected")?,
                 self.command_return_menu,
             )?,
             ScreenId::Enemies => self.enemies.render(
                 &frame,
-                &self.enemies_input,
-                self.status_if_no_modal(self.enemies_status.as_deref()),
-                self.enemies_scroll_offset,
-                self.enemies_cursor,
+                &self.empire.enemies_input,
+                self.status_if_no_modal(self.empire.enemies_status.as_deref()),
+                self.empire.enemies_scroll_offset,
+                self.empire.enemies_cursor,
             )?,
             ScreenId::DeleteReviewables => self
                 .delete_reviewables
-                .render(self.delete_reviewables_status.as_deref())?,
+                .render(self.messaging.delete_reviewables_status.as_deref())?,
             ScreenId::ComposeMessageRecipient => self.message_compose.render_recipient(
                 &frame,
-                &self.compose_recipient_input,
-                self.status_if_no_modal(self.compose_recipient_status.as_deref()),
-                self.compose_recipient_scroll_offset,
-                self.compose_recipient_cursor,
+                &self.messaging.compose_recipient_input,
+                self.status_if_no_modal(self.messaging.compose_recipient_status.as_deref()),
+                self.messaging.compose_recipient_scroll_offset,
+                self.messaging.compose_recipient_cursor,
             )?,
             ScreenId::ComposeMessageSubject => self.message_compose.render_subject(
-                &compose_recipient_label(&self.game_data, self.compose_recipient_empire),
-                &self.compose_subject,
-                self.compose_subject_status.as_deref(),
+                &compose_recipient_label(&self.game_data, self.messaging.compose_recipient_empire),
+                &self.messaging.compose_subject,
+                self.messaging.compose_subject_status.as_deref(),
             )?,
             ScreenId::ComposeMessageBody => self.message_compose.render_body(
-                &compose_recipient_label(&self.game_data, self.compose_recipient_empire),
-                &self.compose_subject,
-                &self.compose_body,
-                self.compose_body_cursor,
-                self.compose_body_status.as_deref(),
+                &compose_recipient_label(&self.game_data, self.messaging.compose_recipient_empire),
+                &self.messaging.compose_subject,
+                &self.messaging.compose_body,
+                self.messaging.compose_body_cursor,
+                self.messaging.compose_body_status.as_deref(),
             )?,
             ScreenId::ComposeMessageOutbox => self.message_compose.render_outbox(
                 &self.compose_outbox_queue()?,
-                &self.compose_outbox_input,
-                self.status_if_no_modal(self.compose_outbox_status.as_deref()),
-                self.compose_outbox_scroll_offset,
-                self.compose_outbox_cursor,
+                &self.messaging.compose_outbox_input,
+                self.status_if_no_modal(self.messaging.compose_outbox_status.as_deref()),
+                self.messaging.compose_outbox_scroll_offset,
+                self.messaging.compose_outbox_cursor,
                 &self.game_data,
             )?,
             ScreenId::ComposeMessageDiscardConfirm => {
                 self.message_compose.render_discard_confirm()?
             }
             ScreenId::ComposeMessageSendConfirm => self.message_compose.render_send_confirm(
-                &compose_recipient_label(&self.game_data, self.compose_recipient_empire),
-                &self.compose_subject,
-                &self.compose_body,
+                &compose_recipient_label(&self.game_data, self.messaging.compose_recipient_empire),
+                &self.messaging.compose_subject,
+                &self.messaging.compose_body,
             )?,
             ScreenId::ComposeMessageSent => self.message_compose.render_sent(
-                self.compose_sent_status
+                self.messaging.compose_sent_status
                     .as_deref()
                     .unwrap_or("Message queued."),
             )?,
@@ -1030,6 +755,7 @@ impl App {
         terminal.render(&playfield)
     }
 
+
     pub fn current_screen(&self) -> ScreenId {
         self.current_screen
     }
@@ -1044,17 +770,17 @@ impl App {
 
     pub fn advance_startup(&mut self) {
         if self.current_screen == ScreenId::FirstTimeIntro {
-            if self.first_time_intro_page + 1 < FIRST_TIME_INTRO_PAGE_COUNT {
-                self.first_time_intro_page += 1;
+            if self.startup_state.first_time_intro_page + 1 < FIRST_TIME_INTRO_PAGE_COUNT {
+                self.startup_state.first_time_intro_page += 1;
             } else {
                 self.current_screen = ScreenId::FirstTimeMenu;
             }
             return;
         }
         if self.current_screen == ScreenId::Startup(StartupPhase::Splash)
-            && self.startup_splash_page + 1 < STARTUP_SPLASH_PAGE_COUNT
+            && self.startup_state.splash_page + 1 < STARTUP_SPLASH_PAGE_COUNT
         {
-            self.startup_splash_page += 1;
+            self.startup_state.splash_page += 1;
             return;
         }
         if self.current_screen == ScreenId::Startup(StartupPhase::Splash) {
@@ -1063,9 +789,9 @@ impl App {
             return;
         }
         if self.current_screen == ScreenId::Startup(StartupPhase::Intro)
-            && self.startup_intro_page + 1 < crate::screen::STARTUP_INTRO_PAGE_COUNT
+            && self.startup_state.intro_page + 1 < crate::screen::STARTUP_INTRO_PAGE_COUNT
         {
-            self.startup_intro_page += 1;
+            self.startup_state.intro_page += 1;
             return;
         }
         if self.current_screen == ScreenId::Startup(StartupPhase::Results) {
@@ -1083,24 +809,24 @@ impl App {
 
     fn advance_startup_review_phase(&mut self, is_results: bool) {
         let mode = if is_results {
-            self.startup_results_mode
+            self.startup_state.results_mode
         } else {
-            self.startup_messages_mode
+            self.startup_state.messages_mode
         };
         let block = if is_results {
-            self.startup_results_block
+            self.startup_state.results_block
         } else {
-            self.startup_messages_block
+            self.startup_state.messages_block
         };
         let page = if is_results {
-            self.startup_results_page
+            self.startup_state.results_page
         } else {
-            self.startup_messages_page
+            self.startup_state.messages_page
         };
         let nonstop = if is_results {
-            self.startup_results_nonstop
+            self.startup_state.results_nonstop
         } else {
-            self.startup_messages_nonstop
+            self.startup_state.messages_nonstop
         };
         let block_count = if is_results {
             self.startup.result_block_count()
@@ -1159,15 +885,15 @@ impl App {
 
     fn advance_startup_phase(&mut self, is_results: bool) {
         if is_results {
-            self.startup_results_block = 0;
-            self.startup_results_page = 0;
-            self.startup_results_mode = StartupReviewMode::ViewPrompt;
-            self.startup_results_nonstop = false;
+            self.startup_state.results_block = 0;
+            self.startup_state.results_page = 0;
+            self.startup_state.results_mode = StartupReviewMode::ViewPrompt;
+            self.startup_state.results_nonstop = false;
         } else {
-            self.startup_messages_block = 0;
-            self.startup_messages_page = 0;
-            self.startup_messages_mode = StartupReviewMode::ViewPrompt;
-            self.startup_messages_nonstop = false;
+            self.startup_state.messages_block = 0;
+            self.startup_state.messages_page = 0;
+            self.startup_state.messages_mode = StartupReviewMode::ViewPrompt;
+            self.startup_state.messages_nonstop = false;
         }
         let next = self.startup_sequence.advance();
         self.current_screen = self.startup_target_screen(next);
@@ -1175,34 +901,34 @@ impl App {
 
     fn set_startup_review_mode(&mut self, is_results: bool, mode: StartupReviewMode) {
         if is_results {
-            self.startup_results_mode = mode;
+            self.startup_state.results_mode = mode;
         } else {
-            self.startup_messages_mode = mode;
+            self.startup_state.messages_mode = mode;
         }
     }
 
     fn set_startup_review_block(&mut self, is_results: bool, block: usize) {
         if is_results {
-            self.startup_results_block = block;
+            self.startup_state.results_block = block;
         } else {
-            self.startup_messages_block = block;
+            self.startup_state.messages_block = block;
         }
     }
 
     fn set_startup_review_page(&mut self, is_results: bool, page: usize) {
         if is_results {
-            self.startup_results_page = page;
+            self.startup_state.results_page = page;
         } else {
-            self.startup_messages_page = page;
+            self.startup_state.messages_page = page;
         }
     }
 
     pub fn open_startup_intro(&mut self) {
-        self.startup_intro_page = 0;
-        self.startup_results_block = 0;
-        self.startup_results_page = 0;
-        self.startup_messages_block = 0;
-        self.startup_messages_page = 0;
+        self.startup_state.intro_page = 0;
+        self.startup_state.results_block = 0;
+        self.startup_state.results_page = 0;
+        self.startup_state.messages_block = 0;
+        self.startup_state.messages_page = 0;
         let next = self.startup_sequence.open_intro();
         self.current_screen = self.startup_target_screen(next);
     }
@@ -1210,13 +936,13 @@ impl App {
     pub fn startup_accept_default(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         match self.current_screen {
             ScreenId::Startup(StartupPhase::Results) => {
-                match self.startup_results_mode {
+                match self.startup_state.results_mode {
                     StartupReviewMode::ViewPrompt => {
-                        self.startup_results_mode = StartupReviewMode::ItemBody;
-                        self.startup_results_page = 0;
+                        self.startup_state.results_mode = StartupReviewMode::ItemBody;
+                        self.startup_state.results_page = 0;
                     }
                     StartupReviewMode::DeletePrompt => {
-                        let block_idx = self.startup_results_block;
+                        let block_idx = self.startup_state.results_block;
                         let mut blocks = self.startup.result_blocks().to_vec();
                         if block_idx < blocks.len() {
                             blocks.remove(block_idx);
@@ -1225,29 +951,29 @@ impl App {
                         self.sync_player_review_flags();
                         self.save_game_data()?;
                         self.refresh_review_context()?;
-                        self.startup_results_deleted_any = true;
-                        self.startup_results_page = 0;
-                        if self.startup_results_block < self.startup.result_block_count() {
-                            self.startup_results_mode = StartupReviewMode::ContinuePrompt;
+                        self.startup_state.results_deleted_any = true;
+                        self.startup_state.results_page = 0;
+                        if self.startup_state.results_block < self.startup.result_block_count() {
+                            self.startup_state.results_mode = StartupReviewMode::ContinuePrompt;
                         } else {
-                            self.startup_results_mode = StartupReviewMode::EndStatus;
+                            self.startup_state.results_mode = StartupReviewMode::EndStatus;
                         }
                     }
                     StartupReviewMode::ContinuePrompt => {
-                        self.startup_results_mode = StartupReviewMode::ItemBody;
-                        self.startup_results_page = 0;
+                        self.startup_state.results_mode = StartupReviewMode::ItemBody;
+                        self.startup_state.results_page = 0;
                     }
                     _ => {}
                 }
             }
             ScreenId::Startup(StartupPhase::Messages) => {
-                match self.startup_messages_mode {
+                match self.startup_state.messages_mode {
                     StartupReviewMode::ViewPrompt => {
-                        self.startup_messages_mode = StartupReviewMode::ItemBody;
-                        self.startup_messages_page = 0;
+                        self.startup_state.messages_mode = StartupReviewMode::ItemBody;
+                        self.startup_state.messages_page = 0;
                     }
                     StartupReviewMode::DeletePrompt => {
-                        let block_idx = self.startup_messages_block;
+                        let block_idx = self.startup_state.messages_block;
                         let mut blocks = self.startup.message_blocks().to_vec();
                         if block_idx < blocks.len() {
                             blocks.remove(block_idx);
@@ -1256,17 +982,17 @@ impl App {
                         self.sync_player_review_flags();
                         self.save_game_data()?;
                         self.refresh_review_context()?;
-                        self.startup_messages_deleted_any = true;
-                        self.startup_messages_page = 0;
-                        if self.startup_messages_block < self.startup.message_block_count() {
-                            self.startup_messages_mode = StartupReviewMode::ContinuePrompt;
+                        self.startup_state.messages_deleted_any = true;
+                        self.startup_state.messages_page = 0;
+                        if self.startup_state.messages_block < self.startup.message_block_count() {
+                            self.startup_state.messages_mode = StartupReviewMode::ContinuePrompt;
                         } else {
-                            self.startup_messages_mode = StartupReviewMode::EndStatus;
+                            self.startup_state.messages_mode = StartupReviewMode::EndStatus;
                         }
                     }
                     StartupReviewMode::ContinuePrompt => {
-                        self.startup_messages_mode = StartupReviewMode::ItemBody;
-                        self.startup_messages_page = 0;
+                        self.startup_state.messages_mode = StartupReviewMode::ItemBody;
+                        self.startup_state.messages_page = 0;
                     }
                     _ => {}
                 }
@@ -1279,43 +1005,43 @@ impl App {
     pub fn startup_reject_choice(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         match self.current_screen {
             ScreenId::Startup(StartupPhase::Results) => {
-                match self.startup_results_mode {
+                match self.startup_state.results_mode {
                     StartupReviewMode::ViewPrompt => {
                         self.advance_startup_phase(true);
                     }
                     StartupReviewMode::DeletePrompt => {
-                        let next_block = self.startup_results_block + 1;
-                        self.startup_results_block = next_block;
-                        self.startup_results_page = 0;
+                        let next_block = self.startup_state.results_block + 1;
+                        self.startup_state.results_block = next_block;
+                        self.startup_state.results_page = 0;
                         if next_block < self.startup.result_block_count() {
-                            self.startup_results_mode = StartupReviewMode::ContinuePrompt;
+                            self.startup_state.results_mode = StartupReviewMode::ContinuePrompt;
                         } else {
-                            self.startup_results_mode = StartupReviewMode::EndStatus;
+                            self.startup_state.results_mode = StartupReviewMode::EndStatus;
                         }
                     }
                     StartupReviewMode::ContinuePrompt => {
-                        self.startup_results_mode = StartupReviewMode::EndStatus;
+                        self.startup_state.results_mode = StartupReviewMode::EndStatus;
                     }
                     _ => {}
                 }
             }
             ScreenId::Startup(StartupPhase::Messages) => {
-                match self.startup_messages_mode {
+                match self.startup_state.messages_mode {
                     StartupReviewMode::ViewPrompt => {
                         self.advance_startup_phase(false);
                     }
                     StartupReviewMode::DeletePrompt => {
-                        let next_block = self.startup_messages_block + 1;
-                        self.startup_messages_block = next_block;
-                        self.startup_messages_page = 0;
+                        let next_block = self.startup_state.messages_block + 1;
+                        self.startup_state.messages_block = next_block;
+                        self.startup_state.messages_page = 0;
                         if next_block < self.startup.message_block_count() {
-                            self.startup_messages_mode = StartupReviewMode::ContinuePrompt;
+                            self.startup_state.messages_mode = StartupReviewMode::ContinuePrompt;
                         } else {
-                            self.startup_messages_mode = StartupReviewMode::EndStatus;
+                            self.startup_state.messages_mode = StartupReviewMode::EndStatus;
                         }
                     }
                     StartupReviewMode::ContinuePrompt => {
-                        self.startup_messages_mode = StartupReviewMode::EndStatus;
+                        self.startup_state.messages_mode = StartupReviewMode::EndStatus;
                     }
                     _ => {}
                 }
@@ -1328,21 +1054,21 @@ impl App {
     pub fn startup_enable_nonstop(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         match self.current_screen {
             ScreenId::Startup(StartupPhase::Results) => {
-                match self.startup_results_mode {
+                match self.startup_state.results_mode {
                     StartupReviewMode::ViewPrompt | StartupReviewMode::ContinuePrompt => {
-                        self.startup_results_nonstop = true;
-                        self.startup_results_mode = StartupReviewMode::ItemBody;
-                        self.startup_results_page = 0;
+                        self.startup_state.results_nonstop = true;
+                        self.startup_state.results_mode = StartupReviewMode::ItemBody;
+                        self.startup_state.results_page = 0;
                     }
                     _ => {}
                 }
             }
             ScreenId::Startup(StartupPhase::Messages) => {
-                match self.startup_messages_mode {
+                match self.startup_state.messages_mode {
                     StartupReviewMode::ViewPrompt | StartupReviewMode::ContinuePrompt => {
-                        self.startup_messages_nonstop = true;
-                        self.startup_messages_mode = StartupReviewMode::ItemBody;
-                        self.startup_messages_page = 0;
+                        self.startup_state.messages_nonstop = true;
+                        self.startup_state.messages_mode = StartupReviewMode::ItemBody;
+                        self.startup_state.messages_page = 0;
                     }
                     _ => {}
                 }
@@ -1370,14 +1096,14 @@ impl App {
 
     pub fn open_first_time_intro(&mut self) {
         self.first_time_status = None;
-        self.first_time_intro_page = 0;
+        self.startup_state.first_time_intro_page = 0;
         self.current_screen = ScreenId::FirstTimeIntro;
     }
 
     pub fn open_first_time_join_name(&mut self) {
         self.first_time_status = None;
         self.first_time_input.clear();
-        self.first_time_rename_preloaded_empire = false;
+        self.startup_state.first_time_rename_preloaded_empire = false;
         self.current_screen = ScreenId::FirstTimeJoinEmpireName;
     }
 
@@ -1465,13 +1191,13 @@ impl App {
             ScreenId::FirstTimePreloadedRenamePrompt => {
                 self.first_time_status = None;
                 self.first_time_input = self.player.empire_name.clone();
-                self.first_time_rename_preloaded_empire = true;
+                self.startup_state.first_time_rename_preloaded_empire = true;
                 self.current_screen = ScreenId::FirstTimeJoinEmpireName;
             }
             ScreenId::FirstTimeJoinEmpireConfirm => {
-                if self.first_time_rename_preloaded_empire {
+                if self.startup_state.first_time_rename_preloaded_empire {
                     if self.complete_preloaded_empire_rename().is_ok() {
-                        self.first_time_rename_preloaded_empire = false;
+                        self.startup_state.first_time_rename_preloaded_empire = false;
                         self.current_screen = ScreenId::FirstTimeJoinSummary;
                     }
                 } else if self.complete_first_time_join().is_ok() {
@@ -1507,10 +1233,10 @@ impl App {
             ScreenId::FirstTimePreloadedRenamePrompt => {
                 self.first_time_status = None;
                 self.first_time_input.clear();
-                self.first_time_rename_preloaded_empire = false;
+                self.startup_state.first_time_rename_preloaded_empire = false;
                 self.current_screen = ScreenId::FirstTimeJoinSummary;
             }
-            ScreenId::FirstTimeJoinEmpireName if self.first_time_rename_preloaded_empire => {
+            ScreenId::FirstTimeJoinEmpireName if self.startup_state.first_time_rename_preloaded_empire => {
                 self.first_time_status = None;
                 self.first_time_input.clear();
                 self.current_screen = ScreenId::FirstTimePreloadedRenamePrompt;
@@ -1536,11 +1262,11 @@ impl App {
         }
     }
 
-    fn clear_command_menu_notice(&mut self) {
+    pub fn clear_command_menu_notice(&mut self) {
         self.command_menu_notice = None;
     }
 
-    fn show_command_menu_notice(&mut self, menu: CommandMenu, message: impl Into<String>) {
+    pub fn show_command_menu_notice(&mut self, menu: CommandMenu, message: impl Into<String>) {
         self.command_menu_notice = Some(message.into());
         self.command_return_menu = menu;
         self.current_screen = match menu {
@@ -1629,10 +1355,10 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
-        self.starbase_cursor = self.starbase_cursor.min(total - 1);
+        self.starbase.cursor = self.starbase.cursor.min(total - 1);
         center_scroll_to_cursor(
-            &mut self.starbase_scroll_offset,
-            self.starbase_cursor,
+            &mut self.starbase.scroll_offset,
+            self.starbase.cursor,
             crate::screen::STARBASE_VISIBLE_ROWS,
             total,
         );
@@ -1646,12 +1372,12 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
-        self.starbase_cursor = self.starbase_cursor.min(total - 1);
-        self.starbase_review_input.clear();
-        self.starbase_review_status = None;
+        self.starbase.cursor = self.starbase.cursor.min(total - 1);
+        self.starbase.review_input.clear();
+        self.starbase.review_status = None;
         center_scroll_to_cursor(
-            &mut self.starbase_scroll_offset,
-            self.starbase_cursor,
+            &mut self.starbase.scroll_offset,
+            self.starbase.cursor,
             crate::screen::STARBASE_VISIBLE_ROWS,
             total,
         );
@@ -1664,11 +1390,11 @@ impl App {
             self.show_command_menu_notice(CommandMenu::Starbase, "You have no active starbases.");
             return;
         }
-        let Some(_) = rows.get(self.starbase_cursor) else {
+        let Some(_) = rows.get(self.starbase.cursor) else {
             self.current_screen = ScreenId::StarbaseMenu;
             return;
         };
-        self.starbase_review_index = self.starbase_cursor;
+        self.starbase.review_index = self.starbase.cursor;
         self.current_screen = ScreenId::StarbaseReview;
     }
 
@@ -1678,9 +1404,9 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
-        self.fleet_list_mode = mode;
-        self.fleet_scroll_offset = 0;
-        self.fleet_cursor = 0;
+        self.fleet.list_mode = mode;
+        self.fleet.scroll_offset = 0;
+        self.fleet.cursor = 0;
         self.current_screen = ScreenId::FleetList(mode);
     }
 
@@ -1691,7 +1417,7 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
-        self.fleet_review_index = self.fleet_cursor.min(total - 1);
+        self.fleet.review_index = self.fleet.cursor.min(total - 1);
         self.current_screen = ScreenId::FleetReview;
     }
 
@@ -1700,15 +1426,15 @@ impl App {
             return;
         }
         let rows = self.fleet_rows();
-        let Some(_) = rows.get(self.fleet_cursor) else {
+        let Some(_) = rows.get(self.fleet.cursor) else {
             self.current_screen = ScreenId::FleetMenu;
             return;
         };
-        if !self.fleet_review_select_input.trim().is_empty() {
-            let target_fleet_id = match self.fleet_review_select_input.trim().parse::<u16>() {
+        if !self.fleet.review_select_input.trim().is_empty() {
+            let target_fleet_id = match self.fleet.review_select_input.trim().parse::<u16>() {
                 Ok(value) => value,
                 Err(_) => {
-                    self.fleet_review_status =
+                    self.fleet.review_status =
                         Some("Enter a fleet number from the table.".to_string());
                     return;
                 }
@@ -1717,20 +1443,20 @@ impl App {
                 .iter()
                 .position(|row| row.fleet_number == target_fleet_id)
             else {
-                self.fleet_review_status = Some(format!(
+                self.fleet.review_status = Some(format!(
                     "Fleet #{target_fleet_id} is not in your fleet list."
                 ));
                 return;
             };
-            self.fleet_cursor = index;
+            self.fleet.cursor = index;
             sync_scroll_to_cursor(
-                &mut self.fleet_scroll_offset,
-                self.fleet_cursor,
+                &mut self.fleet.scroll_offset,
+                self.fleet.cursor,
                 crate::screen::FLEET_VISIBLE_ROWS,
             );
         }
-        self.fleet_review_select_input.clear();
-        self.fleet_review_status = None;
+        self.fleet.review_select_input.clear();
+        self.fleet.review_status = None;
         self.open_fleet_review();
     }
 
@@ -1741,12 +1467,12 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
-        self.fleet_cursor = self.fleet_cursor.min(total - 1);
-        self.fleet_review_select_input.clear();
-        self.fleet_review_status = None;
+        self.fleet.cursor = self.fleet.cursor.min(total - 1);
+        self.fleet.review_select_input.clear();
+        self.fleet.review_status = None;
         center_scroll_to_cursor(
-            &mut self.fleet_scroll_offset,
-            self.fleet_cursor,
+            &mut self.fleet.scroll_offset,
+            self.fleet.cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
             total,
         );
@@ -1755,10 +1481,10 @@ impl App {
 
     pub fn open_fleet_roe_select(&mut self) {
         if self.current_screen == ScreenId::FleetRoeSelect {
-            self.fleet_roe_editing = false;
-            self.fleet_roe_select_input.clear();
-            self.fleet_roe_input.clear();
-            self.fleet_roe_status = None;
+            self.fleet.roe_editing = false;
+            self.fleet.roe_select_input.clear();
+            self.fleet.roe_input.clear();
+            self.fleet.roe_status = None;
             return;
         }
         if self.fleet_rows().is_empty() {
@@ -1766,18 +1492,18 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
-        self.fleet_roe_status = None;
-        self.fleet_roe_select_input.clear();
-        self.fleet_roe_input.clear();
+        self.fleet.roe_status = None;
+        self.fleet.roe_select_input.clear();
+        self.fleet.roe_input.clear();
         let total = self.fleet_rows().len();
-        self.fleet_roe_cursor = self.fleet_roe_cursor.min(total - 1);
+        self.fleet.roe_cursor = self.fleet.roe_cursor.min(total - 1);
         center_scroll_to_cursor(
-            &mut self.fleet_roe_scroll_offset,
-            self.fleet_roe_cursor,
+            &mut self.fleet.roe_scroll_offset,
+            self.fleet.roe_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
             total,
         );
-        self.fleet_roe_editing = false;
+        self.fleet.roe_editing = false;
         self.current_screen = ScreenId::FleetRoeSelect;
     }
 
@@ -1791,15 +1517,15 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
-        self.fleet_merge_status = None;
-        self.fleet_merge_source_input.clear();
-        self.fleet_merge_host_input.clear();
-        self.fleet_merge_source_record_index_1_based = None;
-        self.fleet_merge_mode = FleetMergeMode::SelectingSource;
-        self.fleet_merge_cursor = self.fleet_merge_cursor.min(total - 1);
+        self.fleet.merge_status = None;
+        self.fleet.merge_source_input.clear();
+        self.fleet.merge_host_input.clear();
+        self.fleet.merge_source_record_index_1_based = None;
+        self.fleet.merge_mode = FleetMergeMode::SelectingSource;
+        self.fleet.merge_cursor = self.fleet.merge_cursor.min(total - 1);
         center_scroll_to_cursor(
-            &mut self.fleet_merge_scroll_offset,
-            self.fleet_merge_cursor,
+            &mut self.fleet.merge_scroll_offset,
+            self.fleet.merge_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
             total,
         );
@@ -1816,18 +1542,18 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
-        self.fleet_transfer_status = None;
-        self.fleet_transfer_select_input.clear();
-        self.fleet_transfer_input.clear();
-        self.fleet_transfer_selected_fleets.clear();
-        self.fleet_transfer_donor_record_index_1_based = None;
-        self.fleet_transfer_host_record_index_1_based = None;
-        self.fleet_transfer_selection = FleetDetachSelection::default();
-        self.fleet_transfer_mode = FleetTransferMode::SelectingFleets;
-        self.fleet_transfer_cursor = self.fleet_transfer_cursor.min(total - 1);
+        self.fleet.transfer_status = None;
+        self.fleet.transfer_select_input.clear();
+        self.fleet.transfer_input.clear();
+        self.fleet.transfer_selected_fleets.clear();
+        self.fleet.transfer_donor_record_index_1_based = None;
+        self.fleet.transfer_host_record_index_1_based = None;
+        self.fleet.transfer_selection = FleetDetachSelection::default();
+        self.fleet.transfer_mode = FleetTransferMode::SelectingFleets;
+        self.fleet.transfer_cursor = self.fleet.transfer_cursor.min(total - 1);
         center_scroll_to_cursor(
-            &mut self.fleet_transfer_scroll_offset,
-            self.fleet_transfer_cursor,
+            &mut self.fleet.transfer_scroll_offset,
+            self.fleet.transfer_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
             total,
         );
@@ -1836,12 +1562,12 @@ impl App {
 
     pub fn open_fleet_order(&mut self) {
         if self.current_screen == ScreenId::FleetOrder
-            && self.fleet_order_mode != FleetSingleOrderMode::SelectingFleet
+            && self.fleet.order_mode != FleetSingleOrderMode::SelectingFleet
         {
-            self.fleet_order_mode = FleetSingleOrderMode::SelectingFleet;
-            self.fleet_order_mission_code = None;
-            self.fleet_order_input.clear();
-            self.fleet_order_status = None;
+            self.fleet.order_mode = FleetSingleOrderMode::SelectingFleet;
+            self.fleet.order_mission_code = None;
+            self.fleet.order_input.clear();
+            self.fleet.order_status = None;
             return;
         }
         let rows = self.fleet_rows();
@@ -1850,17 +1576,17 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
-        self.fleet_order_mode = FleetSingleOrderMode::SelectingFleet;
-        self.fleet_order_status = None;
-        self.fleet_order_mission_code = None;
-        self.fleet_order_input.clear();
+        self.fleet.order_mode = FleetSingleOrderMode::SelectingFleet;
+        self.fleet.order_status = None;
+        self.fleet.order_mission_code = None;
+        self.fleet.order_input.clear();
         let total = rows.len();
-        self.fleet_order_cursor = self.fleet_order_cursor.min(total - 1);
-        let selected_record = rows[self.fleet_order_cursor].fleet_record_index_1_based;
-        self.fleet_order_fleet_record_index_1_based = Some(selected_record);
+        self.fleet.order_cursor = self.fleet.order_cursor.min(total - 1);
+        let selected_record = rows[self.fleet.order_cursor].fleet_record_index_1_based;
+        self.fleet.order_fleet_record_index_1_based = Some(selected_record);
         center_scroll_to_cursor(
-            &mut self.fleet_order_scroll_offset,
-            self.fleet_order_cursor,
+            &mut self.fleet.order_scroll_offset,
+            self.fleet.order_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
             total,
         );
@@ -1869,12 +1595,12 @@ impl App {
 
     pub fn open_fleet_group_order(&mut self) {
         if self.current_screen == ScreenId::FleetGroupOrder
-            && self.fleet_group_mode != FleetGroupOrderMode::SelectingFleets
+            && self.fleet.group_mode != FleetGroupOrderMode::SelectingFleets
         {
-            self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
-            self.fleet_group_mission_code = None;
-            self.fleet_group_input.clear();
-            self.fleet_group_status = None;
+            self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
+            self.fleet.group_mission_code = None;
+            self.fleet.group_input.clear();
+            self.fleet.group_status = None;
             return;
         }
         let total = self.fleet_rows().len();
@@ -1883,15 +1609,15 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
-        self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
-        self.fleet_group_status = None;
-        self.fleet_group_mission_code = None;
-        self.fleet_group_input.clear();
-        self.fleet_group_selected_fleets.clear();
-        self.fleet_group_cursor = self.fleet_group_cursor.min(total - 1);
+        self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
+        self.fleet.group_status = None;
+        self.fleet.group_mission_code = None;
+        self.fleet.group_input.clear();
+        self.fleet.group_selected_fleets.clear();
+        self.fleet.group_cursor = self.fleet.group_cursor.min(total - 1);
         center_scroll_to_cursor(
-            &mut self.fleet_group_scroll_offset,
-            self.fleet_group_cursor,
+            &mut self.fleet.group_scroll_offset,
+            self.fleet.group_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
             total,
         );
@@ -1903,59 +1629,59 @@ impl App {
             ScreenId::FleetOrder => {
                 let rows = self.fleet_rows();
                 if rows.is_empty() {
-                    self.fleet_order_status = Some("You have no active fleets.".to_string());
+                    self.fleet.order_status = Some("You have no active fleets.".to_string());
                     return;
                 }
-                let Some(row) = rows.get(self.fleet_order_cursor) else {
-                    self.fleet_order_status = Some("Select a fleet.".to_string());
+                let Some(row) = rows.get(self.fleet.order_cursor) else {
+                    self.fleet.order_status = Some("Select a fleet.".to_string());
                     return;
                 };
-                self.fleet_order_fleet_record_index_1_based = Some(row.fleet_record_index_1_based);
-                self.fleet_mission_picker_caller = Some(FleetMissionPickerCaller::SingleOrder);
+                self.fleet.order_fleet_record_index_1_based = Some(row.fleet_record_index_1_based);
+                self.fleet.mission_picker_caller = Some(FleetMissionPickerCaller::SingleOrder);
             }
             ScreenId::FleetGroupOrder => {
-                if self.fleet_group_selected_fleets.is_empty() {
-                    self.fleet_group_status = Some("Select at least one fleet.".to_string());
+                if self.fleet.group_selected_fleets.is_empty() {
+                    self.fleet.group_status = Some("Select at least one fleet.".to_string());
                     return;
                 }
-                self.fleet_mission_picker_caller = Some(FleetMissionPickerCaller::GroupOrder);
+                self.fleet.mission_picker_caller = Some(FleetMissionPickerCaller::GroupOrder);
             }
-            ScreenId::FleetMissionPicker => match self.fleet_mission_picker_caller {
+            ScreenId::FleetMissionPicker => match self.fleet.mission_picker_caller {
                 Some(FleetMissionPickerCaller::GroupOrder) => {
                     self.current_screen = ScreenId::FleetGroupOrder;
-                    self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
-                    self.fleet_mission_picker_input.clear();
-                    self.fleet_mission_picker_status = None;
-                    self.fleet_mission_picker_caller = None;
+                    self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
+                    self.fleet.mission_picker_input.clear();
+                    self.fleet.mission_picker_status = None;
+                    self.fleet.mission_picker_caller = None;
                     return;
                 }
                 Some(FleetMissionPickerCaller::SingleOrder) => {
                     self.current_screen = ScreenId::FleetOrder;
-                    self.fleet_order_mode = FleetSingleOrderMode::SelectingFleet;
-                    self.fleet_mission_picker_input.clear();
-                    self.fleet_mission_picker_status = None;
-                    self.fleet_mission_picker_caller = None;
+                    self.fleet.order_mode = FleetSingleOrderMode::SelectingFleet;
+                    self.fleet.mission_picker_input.clear();
+                    self.fleet.mission_picker_status = None;
+                    self.fleet.mission_picker_caller = None;
                     return;
                 }
                 None => {}
             },
             _ => return,
         }
-        self.fleet_order_status = None;
-        self.fleet_group_status = None;
-        self.fleet_mission_picker_status = None;
-        self.fleet_mission_picker_input.clear();
-        self.fleet_mission_picker_cursor = self.first_enabled_fleet_mission_index().unwrap_or(1);
+        self.fleet.order_status = None;
+        self.fleet.group_status = None;
+        self.fleet.mission_picker_status = None;
+        self.fleet.mission_picker_input.clear();
+        self.fleet.mission_picker_cursor = self.first_enabled_fleet_mission_index().unwrap_or(1);
         self.current_screen = ScreenId::FleetMissionPicker;
     }
 
     pub fn open_fleet_detach(&mut self) {
         if self.current_screen == ScreenId::FleetDetach {
-            self.fleet_detach_mode = FleetDetachMode::SelectingFleet;
-            self.fleet_detach_input.clear();
-            self.fleet_detach_status = None;
-            self.fleet_detach_selection = FleetDetachSelection::default();
-            self.fleet_detach_donor_speed = None;
+            self.fleet.detach_mode = FleetDetachMode::SelectingFleet;
+            self.fleet.detach_input.clear();
+            self.fleet.detach_status = None;
+            self.fleet.detach_selection = FleetDetachSelection::default();
+            self.fleet.detach_donor_speed = None;
             return;
         }
         if self.fleet_rows().is_empty() {
@@ -1963,20 +1689,20 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
-        self.fleet_detach_status = None;
-        self.fleet_detach_select_input.clear();
-        self.fleet_detach_input.clear();
+        self.fleet.detach_status = None;
+        self.fleet.detach_select_input.clear();
+        self.fleet.detach_input.clear();
         let total = self.fleet_rows().len();
-        self.fleet_detach_cursor = self.fleet_detach_cursor.min(total - 1);
+        self.fleet.detach_cursor = self.fleet.detach_cursor.min(total - 1);
         center_scroll_to_cursor(
-            &mut self.fleet_detach_scroll_offset,
-            self.fleet_detach_cursor,
+            &mut self.fleet.detach_scroll_offset,
+            self.fleet.detach_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
             total,
         );
-        self.fleet_detach_mode = FleetDetachMode::SelectingFleet;
-        self.fleet_detach_selection = FleetDetachSelection::default();
-        self.fleet_detach_donor_speed = None;
+        self.fleet.detach_mode = FleetDetachMode::SelectingFleet;
+        self.fleet.detach_selection = FleetDetachSelection::default();
+        self.fleet.detach_donor_speed = None;
         self.current_screen = ScreenId::FleetDetach;
     }
 
@@ -1986,19 +1712,19 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
-        self.fleet_eta_status = None;
-        self.fleet_eta_select_input.clear();
-        self.fleet_eta_destination_input.clear();
-        self.fleet_eta_include_system_input.clear();
+        self.fleet.eta_status = None;
+        self.fleet.eta_select_input.clear();
+        self.fleet.eta_destination_input.clear();
+        self.fleet.eta_include_system_input.clear();
         let total = self.fleet_rows().len();
-        self.fleet_eta_cursor = self.fleet_eta_cursor.min(total - 1);
+        self.fleet.eta_cursor = self.fleet.eta_cursor.min(total - 1);
         center_scroll_to_cursor(
-            &mut self.fleet_eta_scroll_offset,
-            self.fleet_eta_cursor,
+            &mut self.fleet.eta_scroll_offset,
+            self.fleet.eta_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
             total,
         );
-        self.fleet_eta_mode = FleetEtaMode::SelectingFleet;
+        self.fleet.eta_mode = FleetEtaMode::SelectingFleet;
         self.current_screen = ScreenId::FleetEta;
     }
 
@@ -2008,7 +1734,7 @@ impl App {
     }
 
     pub fn open_planet_auto_commission_confirm(&mut self) {
-        self.planet_auto_commission_status = None;
+        self.planet.auto_commission_status = None;
         if self.commission_planet_rows().is_empty() {
             self.show_command_menu_notice(
                 CommandMenu::Planet,
@@ -2031,15 +1757,15 @@ impl App {
     }
 
     fn open_transport_planet_select(&mut self, mode: PlanetTransportMode) {
-        self.planet_transport_mode = Some(mode);
-        self.planet_transport_planet_cursor = 0;
-        self.planet_transport_planet_scroll_offset = 0;
-        self.planet_transport_selected_planet_record = None;
-        self.planet_transport_planet_input.clear();
-        self.planet_transport_fleet_cursor = 0;
-        self.planet_transport_fleet_scroll_offset = 0;
-        self.planet_transport_qty_input.clear();
-        self.planet_transport_status = None;
+        self.planet.transport_mode = Some(mode);
+        self.planet.transport_planet_cursor = 0;
+        self.planet.transport_planet_scroll_offset = 0;
+        self.planet.transport_selected_planet_record = None;
+        self.planet.transport_planet_input.clear();
+        self.planet.transport_fleet_cursor = 0;
+        self.planet.transport_fleet_scroll_offset = 0;
+        self.planet.transport_qty_input.clear();
+        self.planet.transport_status = None;
         if self.planet_transport_planet_rows(mode).is_empty() {
             self.show_command_menu_notice(
                 self.command_return_menu,
@@ -2060,13 +1786,13 @@ impl App {
 
     pub fn open_planet_commission_menu(&mut self) {
         self.command_return_menu = CommandMenu::Planet;
-        self.planet_commission_status = None;
-        self.planet_commission_cursor = 0;
-        self.planet_commission_scroll_offset = 0;
-        self.planet_commission_selected_slots.clear();
+        self.planet.commission_status = None;
+        self.planet.commission_cursor = 0;
+        self.planet.commission_scroll_offset = 0;
+        self.planet.commission_selected_slots.clear();
         let total = self.commission_planet_rows().len();
         if total == 0 {
-            self.planet_commission_index = 0;
+            self.planet.commission_index = 0;
             self.show_command_menu_notice(
                 CommandMenu::Planet,
                 "No owned planets have units waiting in stardock.",
@@ -2074,7 +1800,7 @@ impl App {
             return;
         } else {
             self.clear_command_menu_notice();
-            self.planet_commission_index = self.planet_commission_index.min(total - 1);
+            self.planet.commission_index = self.planet.commission_index.min(total - 1);
         }
         self.current_screen = ScreenId::PlanetCommissionMenu;
     }
@@ -2086,16 +1812,16 @@ impl App {
 
     pub fn open_planet_build_menu(&mut self) {
         self.command_return_menu = CommandMenu::PlanetBuild;
-        self.planet_build_status = None;
-        self.planet_build_unit_input.clear();
-        self.planet_build_unit_status = None;
-        self.planet_build_quantity_input.clear();
-        self.planet_build_quantity_status = None;
-        self.planet_build_selected_kind = None;
-        self.planet_build_list_scroll_offset = 0;
+        self.planet.build_status = None;
+        self.planet.build_unit_input.clear();
+        self.planet.build_unit_status = None;
+        self.planet.build_quantity_input.clear();
+        self.planet.build_quantity_status = None;
+        self.planet.build_selected_kind = None;
+        self.planet.build_list_scroll_offset = 0;
         let total = self.build_planet_rows().len();
         if total == 0 {
-            self.planet_build_index = 0;
+            self.planet.build_index = 0;
             self.show_command_menu_notice(
                 CommandMenu::Planet,
                 "No owned planets available for building.",
@@ -2103,7 +1829,7 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
-        self.planet_build_index = self.planet_build_index.min(total - 1);
+        self.planet.build_index = self.planet.build_index.min(total - 1);
         self.current_screen = ScreenId::PlanetBuildMenu;
     }
 
@@ -2120,19 +1846,19 @@ impl App {
             self.open_planet_build_menu();
             return;
         }
-        self.planet_build_list_scroll_offset = 0;
-        self.planet_build_list_cursor = 0;
-        self.planet_build_list_confirming = false;
+        self.planet.build_list_scroll_offset = 0;
+        self.planet.build_list_cursor = 0;
+        self.planet.build_list_confirming = false;
         self.current_screen = ScreenId::PlanetBuildList;
     }
 
     pub fn open_planet_build_change(&mut self) {
         // Pre-position cursor on the current planet so it's already highlighted.
-        self.planet_build_change_cursor = self.planet_build_index;
-        self.planet_build_change_scroll_offset = 0;
+        self.planet.build_change_cursor = self.planet.build_index;
+        self.planet.build_change_scroll_offset = 0;
         sync_scroll_to_cursor(
-            &mut self.planet_build_change_scroll_offset,
-            self.planet_build_change_cursor,
+            &mut self.planet.build_change_scroll_offset,
+            self.planet.build_change_cursor,
             crate::screen::PLANET_BUILD_CHANGE_VISIBLE_ROWS,
         );
         self.current_screen = ScreenId::PlanetBuildChange;
@@ -2146,11 +1872,11 @@ impl App {
         if total == 0 {
             return;
         }
-        let next = self.planet_build_change_cursor as isize + delta as isize;
-        self.planet_build_change_cursor = next.rem_euclid(total as isize) as usize;
+        let next = self.planet.build_change_cursor as isize + delta as isize;
+        self.planet.build_change_cursor = next.rem_euclid(total as isize) as usize;
         sync_scroll_to_cursor(
-            &mut self.planet_build_change_scroll_offset,
-            self.planet_build_change_cursor,
+            &mut self.planet.build_change_scroll_offset,
+            self.planet.build_change_cursor,
             crate::screen::PLANET_BUILD_CHANGE_VISIBLE_ROWS,
         );
     }
@@ -2161,8 +1887,8 @@ impl App {
             self.current_screen = ScreenId::PlanetBuildMenu;
             return;
         }
-        self.planet_build_index = self.planet_build_change_cursor.min(total - 1);
-        self.planet_build_status = None;
+        self.planet.build_index = self.planet.build_change_cursor.min(total - 1);
+        self.planet.build_status = None;
         self.current_screen = ScreenId::PlanetBuildMenu;
     }
 
@@ -2179,18 +1905,18 @@ impl App {
             self.open_planet_build_menu();
             return;
         }
-        self.planet_build_unit_input.clear();
-        self.planet_build_unit_status = None;
-        self.planet_build_quantity_input.clear();
-        self.planet_build_quantity_status = None;
-        self.planet_build_selected_kind = None;
+        self.planet.build_unit_input.clear();
+        self.planet.build_unit_status = None;
+        self.planet.build_quantity_input.clear();
+        self.planet.build_quantity_status = None;
+        self.planet.build_selected_kind = None;
         self.current_screen = ScreenId::PlanetBuildSpecify;
     }
 
     pub fn open_planet_tax_prompt(&mut self) {
         self.clear_command_menu_notice();
-        self.planet_tax_input = String::new();
-        self.planet_tax_status = None;
+        self.planet.tax_input = String::new();
+        self.planet.tax_status = None;
         self.current_screen = ScreenId::PlanetTaxPrompt;
     }
 
@@ -2206,12 +1932,12 @@ impl App {
                 .iter()
                 .position(|row| row.coords == default_coords)
                 .unwrap_or(0);
-            self.planet_database_cursor = default_index;
-            self.planet_database_detail_index = default_index;
-            self.planet_database_scroll_offset =
+            self.planet.database_cursor = default_index;
+            self.planet.database_detail_index = default_index;
+            self.planet.database_scroll_offset =
                 default_index.saturating_sub(crate::screen::PLANET_DATABASE_VISIBLE_ROWS / 2);
-            self.planet_database_input.clear();
-            self.planet_database_status = None;
+            self.planet.database_input.clear();
+            self.planet.database_status = None;
         }
         self.current_screen = ScreenId::PlanetDatabaseList;
     }
@@ -2222,7 +1948,7 @@ impl App {
             self.current_screen = ScreenId::PlanetDatabaseList;
             return;
         }
-        self.planet_database_detail_index = self.planet_database_cursor.min(total - 1);
+        self.planet.database_detail_index = self.planet.database_cursor.min(total - 1);
         self.current_screen = ScreenId::PlanetDatabaseDetail;
     }
 
@@ -2235,7 +1961,7 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
-        self.planet_list_sort_status = None;
+        self.planet.list_sort_status = None;
         self.current_screen = ScreenId::PlanetListSortPrompt(mode);
     }
 
@@ -2249,10 +1975,10 @@ impl App {
             return;
         }
         self.clear_command_menu_notice();
-        self.planet_list_sort_status = None;
-        self.planet_brief_scroll_offset = 0;
-        self.planet_brief_cursor = 0;
-        self.planet_detail_index = 0;
+        self.planet.list_sort_status = None;
+        self.planet.brief_scroll_offset = 0;
+        self.planet.brief_cursor = 0;
+        self.planet.detail_index = 0;
         self.current_screen = match mode {
             PlanetListMode::Brief => ScreenId::PlanetBriefList(sort),
             PlanetListMode::Detail => ScreenId::PlanetDetailList(sort),
@@ -2266,8 +1992,8 @@ impl App {
         };
         let total = self.sorted_planet_rows(sort).len();
         let max_offset = total.saturating_sub(crate::screen::PLANET_BRIEF_VISIBLE_ROWS);
-        self.planet_brief_scroll_offset = self
-            .planet_brief_scroll_offset
+        self.planet.brief_scroll_offset = self
+            .planet.brief_scroll_offset
             .saturating_add_signed(delta as isize)
             .min(max_offset);
     }
@@ -2278,14 +2004,14 @@ impl App {
         };
         let total = self.sorted_planet_rows(sort).len();
         if total == 0 {
-            self.planet_brief_cursor = 0;
+            self.planet.brief_cursor = 0;
             return;
         }
-        let next = self.planet_brief_cursor as isize + delta as isize;
-        self.planet_brief_cursor = next.rem_euclid(total as isize) as usize;
+        let next = self.planet.brief_cursor as isize + delta as isize;
+        self.planet.brief_cursor = next.rem_euclid(total as isize) as usize;
         sync_scroll_to_cursor(
-            &mut self.planet_brief_scroll_offset,
-            self.planet_brief_cursor,
+            &mut self.planet.brief_scroll_offset,
+            self.planet.brief_cursor,
             crate::screen::PLANET_BRIEF_VISIBLE_ROWS,
         );
     }
@@ -2296,14 +2022,14 @@ impl App {
         };
         let total = self.sorted_planet_rows(sort).len();
         if total == 0 {
-            self.planet_detail_index = 0;
+            self.planet.detail_index = 0;
             return;
         }
-        self.planet_detail_index = match delta {
+        self.planet.detail_index = match delta {
             i8::MIN => 0,
             i8::MAX => total - 1,
             _ => self
-                .planet_detail_index
+                .planet.detail_index
                 .saturating_add_signed(delta as isize)
                 .min(total - 1),
         };
@@ -2315,14 +2041,14 @@ impl App {
         };
         let total = self.fleet_rows().len();
         if total == 0 {
-            self.fleet_cursor = 0;
+            self.fleet.cursor = 0;
             return;
         }
-        let next = self.fleet_cursor as isize + delta as isize;
-        self.fleet_cursor = next.rem_euclid(total as isize) as usize;
+        let next = self.fleet.cursor as isize + delta as isize;
+        self.fleet.cursor = next.rem_euclid(total as isize) as usize;
         sync_scroll_to_cursor(
-            &mut self.fleet_scroll_offset,
-            self.fleet_cursor,
+            &mut self.fleet.scroll_offset,
+            self.fleet.cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
     }
@@ -2334,20 +2060,11 @@ impl App {
         ) {
             return;
         }
-        let total = self.starbase_rows().len();
-        if total == 0 {
-            self.starbase_cursor = 0;
-            return;
-        }
-        let next = self.starbase_cursor as isize + delta as isize;
-        self.starbase_cursor = next.rem_euclid(total as isize) as usize;
-        sync_scroll_to_cursor(
-            &mut self.starbase_scroll_offset,
-            self.starbase_cursor,
-            crate::screen::STARBASE_VISIBLE_ROWS,
+        self.starbase.move_select(
+            delta,
+            &self.game_data,
+            self.player.record_index_1_based,
         );
-        self.starbase_review_input.clear();
-        self.starbase_review_status = None;
     }
 
     pub fn move_fleet_review_select(&mut self, delta: i8) {
@@ -2356,18 +2073,18 @@ impl App {
         }
         let total = self.fleet_rows().len();
         if total == 0 {
-            self.fleet_cursor = 0;
+            self.fleet.cursor = 0;
             return;
         }
-        let next = self.fleet_cursor as isize + delta as isize;
-        self.fleet_cursor = next.rem_euclid(total as isize) as usize;
+        let next = self.fleet.cursor as isize + delta as isize;
+        self.fleet.cursor = next.rem_euclid(total as isize) as usize;
         sync_scroll_to_cursor(
-            &mut self.fleet_scroll_offset,
-            self.fleet_cursor,
+            &mut self.fleet.scroll_offset,
+            self.fleet.cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
-        self.fleet_review_select_input.clear();
-        self.fleet_review_status = None;
+        self.fleet.review_select_input.clear();
+        self.fleet.review_status = None;
     }
 
     pub fn move_fleet_review(&mut self, delta: i8) {
@@ -2376,43 +2093,43 @@ impl App {
         }
         let total = self.fleet_rows().len();
         if total == 0 {
-            self.fleet_review_index = 0;
+            self.fleet.review_index = 0;
             return;
         }
-        self.fleet_review_index = match delta {
+        self.fleet.review_index = match delta {
             i8::MIN => 0,
             i8::MAX => total - 1,
             _ => self
-                .fleet_review_index
+                .fleet.review_index
                 .saturating_add_signed(delta as isize)
                 .min(total - 1),
         };
-        self.fleet_cursor = self.fleet_review_index;
+        self.fleet.cursor = self.fleet.review_index;
         sync_scroll_to_cursor(
-            &mut self.fleet_scroll_offset,
-            self.fleet_cursor,
+            &mut self.fleet.scroll_offset,
+            self.fleet.cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
     }
 
     pub fn move_fleet_roe_select(&mut self, delta: i8) {
-        if self.current_screen != ScreenId::FleetRoeSelect || self.fleet_roe_editing {
+        if self.current_screen != ScreenId::FleetRoeSelect || self.fleet.roe_editing {
             return;
         }
         let total = self.fleet_rows().len();
         if total == 0 {
-            self.fleet_roe_cursor = 0;
+            self.fleet.roe_cursor = 0;
             return;
         }
-        let next = self.fleet_roe_cursor as isize + delta as isize;
-        self.fleet_roe_cursor = next.rem_euclid(total as isize) as usize;
+        let next = self.fleet.roe_cursor as isize + delta as isize;
+        self.fleet.roe_cursor = next.rem_euclid(total as isize) as usize;
         sync_scroll_to_cursor(
-            &mut self.fleet_roe_scroll_offset,
-            self.fleet_roe_cursor,
+            &mut self.fleet.roe_scroll_offset,
+            self.fleet.roe_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
-        self.fleet_roe_select_input.clear();
-        self.fleet_roe_status = None;
+        self.fleet.roe_select_input.clear();
+        self.fleet.roe_status = None;
     }
 
     pub fn move_fleet_merge_select(&mut self, delta: i8) {
@@ -2421,64 +2138,64 @@ impl App {
         }
         let total = self.current_fleet_merge_rows().len();
         if total == 0 {
-            self.fleet_merge_cursor = 0;
+            self.fleet.merge_cursor = 0;
             return;
         }
-        let next = self.fleet_merge_cursor as isize + delta as isize;
-        self.fleet_merge_cursor = next.rem_euclid(total as isize) as usize;
+        let next = self.fleet.merge_cursor as isize + delta as isize;
+        self.fleet.merge_cursor = next.rem_euclid(total as isize) as usize;
         sync_scroll_to_cursor(
-            &mut self.fleet_merge_scroll_offset,
-            self.fleet_merge_cursor,
+            &mut self.fleet.merge_scroll_offset,
+            self.fleet.merge_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
-        match self.fleet_merge_mode {
-            FleetMergeMode::SelectingSource => self.fleet_merge_source_input.clear(),
-            FleetMergeMode::SelectingHost => self.fleet_merge_host_input.clear(),
+        match self.fleet.merge_mode {
+            FleetMergeMode::SelectingSource => self.fleet.merge_source_input.clear(),
+            FleetMergeMode::SelectingHost => self.fleet.merge_host_input.clear(),
         }
-        self.fleet_merge_status = None;
+        self.fleet.merge_status = None;
     }
 
     pub fn move_fleet_transfer_select(&mut self, delta: i8) {
         if self.current_screen != ScreenId::FleetTransfer {
             return;
         }
-        if self.fleet_transfer_mode != FleetTransferMode::SelectingFleets {
+        if self.fleet.transfer_mode != FleetTransferMode::SelectingFleets {
             return;
         }
         let total = self.current_fleet_transfer_rows().len();
         if total == 0 {
-            self.fleet_transfer_cursor = 0;
+            self.fleet.transfer_cursor = 0;
             return;
         }
-        let next = self.fleet_transfer_cursor as isize + delta as isize;
-        self.fleet_transfer_cursor = next.rem_euclid(total as isize) as usize;
+        let next = self.fleet.transfer_cursor as isize + delta as isize;
+        self.fleet.transfer_cursor = next.rem_euclid(total as isize) as usize;
         sync_scroll_to_cursor(
-            &mut self.fleet_transfer_scroll_offset,
-            self.fleet_transfer_cursor,
+            &mut self.fleet.transfer_scroll_offset,
+            self.fleet.transfer_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
-        self.fleet_transfer_select_input.clear();
-        self.fleet_transfer_status = None;
+        self.fleet.transfer_select_input.clear();
+        self.fleet.transfer_status = None;
     }
 
     pub fn toggle_fleet_transfer_selection(&mut self) {
         if self.current_screen != ScreenId::FleetTransfer
-            || self.fleet_transfer_mode != FleetTransferMode::SelectingFleets
+            || self.fleet.transfer_mode != FleetTransferMode::SelectingFleets
         {
             return;
         }
         let rows = self.current_fleet_transfer_rows();
-        let Some(row) = rows.get(self.fleet_transfer_cursor) else {
+        let Some(row) = rows.get(self.fleet.transfer_cursor) else {
             return;
         };
         if !self
-            .fleet_transfer_selected_fleets
+            .fleet.transfer_selected_fleets
             .insert(row.fleet_record_index_1_based)
         {
-            self.fleet_transfer_selected_fleets
+            self.fleet.transfer_selected_fleets
                 .remove(&row.fleet_record_index_1_based);
         }
-        self.fleet_transfer_status = None;
+        self.fleet.transfer_status = None;
     }
 
     pub fn move_fleet_group_order(&mut self, delta: i8) {
@@ -2487,46 +2204,46 @@ impl App {
         }
         let total = self.fleet_rows().len();
         if total == 0 {
-            self.fleet_group_cursor = 0;
+            self.fleet.group_cursor = 0;
             return;
         }
-        let next = self.fleet_group_cursor as isize + delta as isize;
-        self.fleet_group_cursor = next.rem_euclid(total as isize) as usize;
+        let next = self.fleet.group_cursor as isize + delta as isize;
+        self.fleet.group_cursor = next.rem_euclid(total as isize) as usize;
         sync_scroll_to_cursor(
-            &mut self.fleet_group_scroll_offset,
-            self.fleet_group_cursor,
+            &mut self.fleet.group_scroll_offset,
+            self.fleet.group_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
-        if self.fleet_group_mode == FleetGroupOrderMode::SelectingFleets {
-            self.fleet_group_input.clear();
+        if self.fleet.group_mode == FleetGroupOrderMode::SelectingFleets {
+            self.fleet.group_input.clear();
         }
-        self.fleet_group_status = None;
+        self.fleet.group_status = None;
     }
 
     pub fn move_fleet_order_select(&mut self, delta: i8) {
         if self.current_screen != ScreenId::FleetOrder
-            || self.fleet_order_mode != FleetSingleOrderMode::SelectingFleet
+            || self.fleet.order_mode != FleetSingleOrderMode::SelectingFleet
         {
             return;
         }
         let rows = self.fleet_rows();
         let total = rows.len();
         if total == 0 {
-            self.fleet_order_cursor = 0;
-            self.fleet_order_fleet_record_index_1_based = None;
+            self.fleet.order_cursor = 0;
+            self.fleet.order_fleet_record_index_1_based = None;
             return;
         }
-        let next = self.fleet_order_cursor as isize + delta as isize;
-        self.fleet_order_cursor = next.rem_euclid(total as isize) as usize;
-        self.fleet_order_fleet_record_index_1_based =
-            Some(rows[self.fleet_order_cursor].fleet_record_index_1_based);
+        let next = self.fleet.order_cursor as isize + delta as isize;
+        self.fleet.order_cursor = next.rem_euclid(total as isize) as usize;
+        self.fleet.order_fleet_record_index_1_based =
+            Some(rows[self.fleet.order_cursor].fleet_record_index_1_based);
         sync_scroll_to_cursor(
-            &mut self.fleet_order_scroll_offset,
-            self.fleet_order_cursor,
+            &mut self.fleet.order_scroll_offset,
+            self.fleet.order_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
-        self.fleet_order_input.clear();
-        self.fleet_order_status = None;
+        self.fleet.order_input.clear();
+        self.fleet.order_status = None;
     }
 
     pub fn move_fleet_mission_picker(&mut self, delta: i8) {
@@ -2535,16 +2252,16 @@ impl App {
         }
         let total = FLEET_MISSION_OPTIONS.len();
         if total == 0 {
-            self.fleet_mission_picker_cursor = 0;
+            self.fleet.mission_picker_cursor = 0;
             return;
         }
         let enabled = self.fleet_mission_picker_enabled_flags();
         if !enabled.iter().any(|flag| *flag) {
-            self.fleet_mission_picker_status =
+            self.fleet.mission_picker_status =
                 Some("No missions are available for the selected fleets.".to_string());
             return;
         }
-        let mut next = self.fleet_mission_picker_cursor as isize;
+        let mut next = self.fleet.mission_picker_cursor as isize;
         let step = if delta >= 0 { 1 } else { -1 };
         let hops = delta.unsigned_abs().max(1) as usize;
         for _ in 0..hops {
@@ -2555,70 +2272,70 @@ impl App {
                 }
             }
         }
-        self.fleet_mission_picker_cursor = next as usize;
-        self.fleet_mission_picker_input.clear();
-        self.fleet_mission_picker_status = None;
+        self.fleet.mission_picker_cursor = next as usize;
+        self.fleet.mission_picker_input.clear();
+        self.fleet.mission_picker_status = None;
     }
 
     pub fn move_fleet_detach_select(&mut self, delta: i8) {
         if self.current_screen != ScreenId::FleetDetach
-            || self.fleet_detach_mode != FleetDetachMode::SelectingFleet
+            || self.fleet.detach_mode != FleetDetachMode::SelectingFleet
         {
             return;
         }
         let total = self.fleet_rows().len();
         if total == 0 {
-            self.fleet_detach_cursor = 0;
+            self.fleet.detach_cursor = 0;
             return;
         }
-        let next = self.fleet_detach_cursor as isize + delta as isize;
-        self.fleet_detach_cursor = next.rem_euclid(total as isize) as usize;
+        let next = self.fleet.detach_cursor as isize + delta as isize;
+        self.fleet.detach_cursor = next.rem_euclid(total as isize) as usize;
         sync_scroll_to_cursor(
-            &mut self.fleet_detach_scroll_offset,
-            self.fleet_detach_cursor,
+            &mut self.fleet.detach_scroll_offset,
+            self.fleet.detach_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
-        self.fleet_detach_select_input.clear();
-        self.fleet_detach_status = None;
+        self.fleet.detach_select_input.clear();
+        self.fleet.detach_status = None;
     }
 
     pub fn move_fleet_eta_select(&mut self, delta: i8) {
         if self.current_screen != ScreenId::FleetEta
-            || self.fleet_eta_mode != FleetEtaMode::SelectingFleet
+            || self.fleet.eta_mode != FleetEtaMode::SelectingFleet
         {
             return;
         }
         let total = self.fleet_rows().len();
         if total == 0 {
-            self.fleet_eta_cursor = 0;
+            self.fleet.eta_cursor = 0;
             return;
         }
-        let next = self.fleet_eta_cursor as isize + delta as isize;
-        self.fleet_eta_cursor = next.rem_euclid(total as isize) as usize;
+        let next = self.fleet.eta_cursor as isize + delta as isize;
+        self.fleet.eta_cursor = next.rem_euclid(total as isize) as usize;
         sync_scroll_to_cursor(
-            &mut self.fleet_eta_scroll_offset,
-            self.fleet_eta_cursor,
+            &mut self.fleet.eta_scroll_offset,
+            self.fleet.eta_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
-        self.fleet_eta_select_input.clear();
-        self.fleet_eta_status = None;
+        self.fleet.eta_select_input.clear();
+        self.fleet.eta_status = None;
     }
 
     pub fn append_fleet_roe_char(&mut self, ch: char) {
         if self.current_screen == ScreenId::FleetRoeSelect
-            && if self.fleet_roe_editing {
-                self.fleet_roe_input.len() < 2
+            && if self.fleet.roe_editing {
+                self.fleet.roe_input.len() < 2
             } else {
-                self.fleet_roe_select_input.len() < 2
+                self.fleet.roe_select_input.len() < 2
             }
         {
-            if self.fleet_roe_editing {
-                self.fleet_roe_input.push(ch);
+            if self.fleet.roe_editing {
+                self.fleet.roe_input.push(ch);
             } else {
-                self.fleet_roe_select_input.push(ch);
+                self.fleet.roe_select_input.push(ch);
                 self.sync_fleet_roe_cursor_to_input();
             }
-            self.fleet_roe_status = None;
+            self.fleet.roe_status = None;
         }
     }
 
@@ -2626,52 +2343,54 @@ impl App {
         if self.current_screen != ScreenId::FleetReviewSelect || !ch.is_ascii_digit() {
             return;
         }
-        if self.fleet_review_select_input.len() >= 4 {
+        if self.fleet.review_select_input.len() >= 4 {
             return;
         }
-        self.fleet_review_select_input.push(ch);
+        self.fleet.review_select_input.push(ch);
         self.sync_fleet_review_cursor_to_input();
-        self.fleet_review_status = None;
+        self.fleet.review_status = None;
     }
 
     pub fn append_starbase_char(&mut self, ch: char) {
         if self.current_screen != ScreenId::StarbaseReviewSelect || !ch.is_ascii_digit() {
             return;
         }
-        if self.starbase_review_input.len() >= 3 {
+        if self.starbase.review_input.len() >= 3 {
             return;
         }
-        self.starbase_review_input.push(ch);
-        self.sync_starbase_cursor_to_input();
-        self.starbase_review_status = None;
+        self.starbase.append_char(
+            ch,
+            &self.game_data,
+            self.player.record_index_1_based,
+        );
     }
 
     pub fn append_fleet_merge_char(&mut self, ch: char) {
         if self.current_screen != ScreenId::FleetMerge || !ch.is_ascii_digit() {
             return;
         }
-        let input = match self.fleet_merge_mode {
-            FleetMergeMode::SelectingSource => &mut self.fleet_merge_source_input,
-            FleetMergeMode::SelectingHost => &mut self.fleet_merge_host_input,
+        let input = match self.fleet.merge_mode {
+            FleetMergeMode::SelectingSource => &mut self.fleet.merge_source_input,
+            FleetMergeMode::SelectingHost => &mut self.fleet.merge_host_input,
         };
         if input.len() >= 4 {
             return;
         }
         input.push(ch);
         self.sync_fleet_merge_cursor_to_input();
-        self.fleet_merge_status = None;
+        self.fleet.merge_status = None;
     }
 
     pub fn append_fleet_transfer_char(&mut self, ch: char) {
         if self.current_screen != ScreenId::FleetTransfer || !ch.is_ascii_digit() {
             return;
         }
-        let input = if self.fleet_transfer_mode == FleetTransferMode::SelectingFleets {
-            &mut self.fleet_transfer_select_input
+        let input = if self.fleet.transfer_mode == FleetTransferMode::SelectingFleets {
+            &mut self.fleet.transfer_select_input
         } else {
-            &mut self.fleet_transfer_input
+            &mut self.fleet.transfer_input
         };
-        let limit = if self.fleet_transfer_mode == FleetTransferMode::SelectingFleets {
+        let limit = if self.fleet.transfer_mode == FleetTransferMode::SelectingFleets {
             4
         } else {
             3
@@ -2680,26 +2399,26 @@ impl App {
             return;
         }
         input.push(ch);
-        if self.fleet_transfer_mode == FleetTransferMode::SelectingFleets {
+        if self.fleet.transfer_mode == FleetTransferMode::SelectingFleets {
             self.sync_fleet_transfer_cursor_to_input();
         }
-        self.fleet_transfer_status = None;
+        self.fleet.transfer_status = None;
     }
 
     pub fn append_fleet_order_char(&mut self, ch: char) {
         if self.current_screen != ScreenId::FleetOrder {
             return;
         }
-        match self.fleet_order_mode {
+        match self.fleet.order_mode {
             FleetSingleOrderMode::SelectingFleet => {
-                if ch.is_ascii_digit() && self.fleet_order_input.len() < 4 {
-                    self.fleet_order_input.push(ch);
+                if ch.is_ascii_digit() && self.fleet.order_input.len() < 4 {
+                    self.fleet.order_input.push(ch);
                     self.sync_fleet_order_cursor_to_input();
-                    self.fleet_order_status = None;
+                    self.fleet.order_status = None;
                 }
             }
             FleetSingleOrderMode::EnteringTarget => {
-                let allow_char = match fleet_target_input_kind(self.fleet_order_mission_code) {
+                let allow_char = match fleet_target_input_kind(self.fleet.order_mission_code) {
                     FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
                         ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']')
                     }
@@ -2707,9 +2426,9 @@ impl App {
                         ch.is_ascii_digit()
                     }
                 };
-                if self.fleet_order_input.len() < 16 && allow_char {
-                    self.fleet_order_input.push(ch);
-                    self.fleet_order_status = None;
+                if self.fleet.order_input.len() < 16 && allow_char {
+                    self.fleet.order_input.push(ch);
+                    self.fleet.order_status = None;
                 }
             }
         }
@@ -2719,53 +2438,53 @@ impl App {
         if self.current_screen != ScreenId::FleetDetach || !ch.is_ascii_digit() {
             return;
         }
-        let limit = if self.fleet_detach_mode == FleetDetachMode::SelectingFleet {
+        let limit = if self.fleet.detach_mode == FleetDetachMode::SelectingFleet {
             4
         } else {
             3
         };
-        let input = if self.fleet_detach_mode == FleetDetachMode::SelectingFleet {
-            &mut self.fleet_detach_select_input
+        let input = if self.fleet.detach_mode == FleetDetachMode::SelectingFleet {
+            &mut self.fleet.detach_select_input
         } else {
-            &mut self.fleet_detach_input
+            &mut self.fleet.detach_input
         };
         if input.len() >= limit {
             return;
         }
         input.push(ch);
-        if self.fleet_detach_mode == FleetDetachMode::SelectingFleet {
+        if self.fleet.detach_mode == FleetDetachMode::SelectingFleet {
             self.sync_fleet_detach_cursor_to_input();
         }
-        self.fleet_detach_status = None;
+        self.fleet.detach_status = None;
     }
 
     pub fn append_fleet_eta_char(&mut self, ch: char) {
         if self.current_screen != ScreenId::FleetEta {
             return;
         }
-        match self.fleet_eta_mode {
+        match self.fleet.eta_mode {
             FleetEtaMode::SelectingFleet => {
-                if ch.is_ascii_digit() && self.fleet_eta_select_input.len() < 4 {
-                    self.fleet_eta_select_input.push(ch);
+                if ch.is_ascii_digit() && self.fleet.eta_select_input.len() < 4 {
+                    self.fleet.eta_select_input.push(ch);
                     self.sync_fleet_eta_cursor_to_input();
-                    self.fleet_eta_status = None;
+                    self.fleet.eta_status = None;
                 }
             }
             FleetEtaMode::EnteringDestination => {
-                if self.fleet_eta_destination_input.len() < 16
+                if self.fleet.eta_destination_input.len() < 16
                     && (ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']'))
                 {
-                    self.fleet_eta_destination_input.push(ch);
-                    self.fleet_eta_status = None;
+                    self.fleet.eta_destination_input.push(ch);
+                    self.fleet.eta_status = None;
                 }
             }
             FleetEtaMode::ConfirmingSystemEntry => {
                 if matches!(ch, 'y' | 'Y' | 'n' | 'N')
-                    && self.fleet_eta_include_system_input.is_empty()
+                    && self.fleet.eta_include_system_input.is_empty()
                 {
-                    self.fleet_eta_include_system_input
+                    self.fleet.eta_include_system_input
                         .push(ch.to_ascii_uppercase());
-                    self.fleet_eta_status = None;
+                    self.fleet.eta_status = None;
                 }
             }
             FleetEtaMode::ShowingResult => {}
@@ -2774,13 +2493,13 @@ impl App {
 
     pub fn backspace_fleet_roe_input(&mut self) {
         if self.current_screen == ScreenId::FleetRoeSelect {
-            if self.fleet_roe_editing {
-                self.fleet_roe_input.pop();
+            if self.fleet.roe_editing {
+                self.fleet.roe_input.pop();
             } else {
-                self.fleet_roe_select_input.pop();
+                self.fleet.roe_select_input.pop();
                 self.sync_fleet_roe_cursor_to_input();
             }
-            self.fleet_roe_status = None;
+            self.fleet.roe_status = None;
         }
     }
 
@@ -2788,18 +2507,19 @@ impl App {
         if self.current_screen != ScreenId::FleetReviewSelect {
             return;
         }
-        self.fleet_review_select_input.pop();
+        self.fleet.review_select_input.pop();
         self.sync_fleet_review_cursor_to_input();
-        self.fleet_review_status = None;
+        self.fleet.review_status = None;
     }
 
     pub fn backspace_starbase_input(&mut self) {
         if self.current_screen != ScreenId::StarbaseReviewSelect {
             return;
         }
-        self.starbase_review_input.pop();
-        self.sync_starbase_cursor_to_input();
-        self.starbase_review_status = None;
+        self.starbase.backspace_input(
+            &self.game_data,
+            self.player.record_index_1_based,
+        );
     }
 
     pub fn submit_starbase_review_select(&mut self) {
@@ -2807,33 +2527,33 @@ impl App {
             return;
         }
         let rows = self.starbase_rows();
-        let Some(_) = rows.get(self.starbase_cursor) else {
+        let Some(_) = rows.get(self.starbase.cursor) else {
             self.current_screen = ScreenId::StarbaseMenu;
             return;
         };
-        if !self.starbase_review_input.trim().is_empty() {
-            let target_base_id = match self.starbase_review_input.trim().parse::<u8>() {
+        if !self.starbase.review_input.trim().is_empty() {
+            let target_base_id = match self.starbase.review_input.trim().parse::<u8>() {
                 Ok(value) => value,
                 Err(_) => {
-                    self.starbase_review_status =
+                    self.starbase.review_status =
                         Some("Enter a starbase number from the table.".to_string());
                     return;
                 }
             };
             let Some(index) = rows.iter().position(|row| row.base_id == target_base_id) else {
-                self.starbase_review_status =
+                self.starbase.review_status =
                     Some(format!("Starbase #{target_base_id} is not in your list."));
                 return;
             };
-            self.starbase_cursor = index;
+            self.starbase.cursor = index;
             sync_scroll_to_cursor(
-                &mut self.starbase_scroll_offset,
-                self.starbase_cursor,
+                &mut self.starbase.scroll_offset,
+                self.starbase.cursor,
                 crate::screen::STARBASE_VISIBLE_ROWS,
             );
         }
-        self.starbase_review_input.clear();
-        self.starbase_review_status = None;
+        self.starbase.review_input.clear();
+        self.starbase.review_status = None;
         self.open_starbase_review();
     }
 
@@ -2841,67 +2561,67 @@ impl App {
         if self.current_screen != ScreenId::FleetMerge {
             return;
         }
-        match self.fleet_merge_mode {
-            FleetMergeMode::SelectingSource => self.fleet_merge_source_input.pop(),
-            FleetMergeMode::SelectingHost => self.fleet_merge_host_input.pop(),
+        match self.fleet.merge_mode {
+            FleetMergeMode::SelectingSource => self.fleet.merge_source_input.pop(),
+            FleetMergeMode::SelectingHost => self.fleet.merge_host_input.pop(),
         };
         self.sync_fleet_merge_cursor_to_input();
-        self.fleet_merge_status = None;
+        self.fleet.merge_status = None;
     }
 
     pub fn backspace_fleet_transfer_input(&mut self) {
         if self.current_screen != ScreenId::FleetTransfer {
             return;
         }
-        if self.fleet_transfer_mode == FleetTransferMode::SelectingFleets {
-            self.fleet_transfer_select_input.pop();
+        if self.fleet.transfer_mode == FleetTransferMode::SelectingFleets {
+            self.fleet.transfer_select_input.pop();
             self.sync_fleet_transfer_cursor_to_input();
         } else {
-            self.fleet_transfer_input.pop();
+            self.fleet.transfer_input.pop();
         }
-        self.fleet_transfer_status = None;
+        self.fleet.transfer_status = None;
     }
 
     pub fn backspace_fleet_order_input(&mut self) {
         if self.current_screen != ScreenId::FleetOrder {
             return;
         }
-        self.fleet_order_input.pop();
-        if self.fleet_order_mode == FleetSingleOrderMode::SelectingFleet {
+        self.fleet.order_input.pop();
+        if self.fleet.order_mode == FleetSingleOrderMode::SelectingFleet {
             self.sync_fleet_order_cursor_to_input();
         }
-        self.fleet_order_status = None;
+        self.fleet.order_status = None;
     }
 
     pub fn toggle_fleet_group_order_selection(&mut self) {
         if self.current_screen != ScreenId::FleetGroupOrder {
             return;
         }
-        if self.fleet_group_mode != FleetGroupOrderMode::SelectingFleets {
+        if self.fleet.group_mode != FleetGroupOrderMode::SelectingFleets {
             return;
         }
         let rows = self.fleet_rows();
-        let Some(row) = rows.get(self.fleet_group_cursor) else {
+        let Some(row) = rows.get(self.fleet.group_cursor) else {
             return;
         };
         if !self
-            .fleet_group_selected_fleets
+            .fleet.group_selected_fleets
             .insert(row.fleet_record_index_1_based)
         {
-            self.fleet_group_selected_fleets
+            self.fleet.group_selected_fleets
                 .remove(&row.fleet_record_index_1_based);
         }
-        self.fleet_group_status = None;
+        self.fleet.group_status = None;
     }
 
     pub fn append_fleet_group_order_char(&mut self, ch: char) {
         if self.current_screen != ScreenId::FleetGroupOrder {
             return;
         }
-        match self.fleet_group_mode {
+        match self.fleet.group_mode {
             FleetGroupOrderMode::SelectingFleets => {}
             FleetGroupOrderMode::EnteringTarget => {
-                let allow_char = match fleet_target_input_kind(self.fleet_group_mission_code) {
+                let allow_char = match fleet_target_input_kind(self.fleet.group_mission_code) {
                     FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
                         ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']')
                     }
@@ -2909,9 +2629,9 @@ impl App {
                         ch.is_ascii_digit()
                     }
                 };
-                if self.fleet_group_input.len() < 16 && allow_char {
-                    self.fleet_group_input.push(ch);
-                    self.fleet_group_status = None;
+                if self.fleet.group_input.len() < 16 && allow_char {
+                    self.fleet.group_input.push(ch);
+                    self.fleet.group_status = None;
                 }
             }
         }
@@ -2921,21 +2641,21 @@ impl App {
         if self.current_screen != ScreenId::FleetMissionPicker || !ch.is_ascii_digit() {
             return;
         }
-        if self.fleet_mission_picker_input.len() >= 2 {
+        if self.fleet.mission_picker_input.len() >= 2 {
             return;
         }
-        self.fleet_mission_picker_input.push(ch);
+        self.fleet.mission_picker_input.push(ch);
         self.sync_fleet_mission_picker_cursor_to_input();
-        self.fleet_mission_picker_status = None;
+        self.fleet.mission_picker_status = None;
     }
 
     pub fn backspace_fleet_group_order_input(&mut self) {
         if self.current_screen != ScreenId::FleetGroupOrder {
             return;
         }
-        if self.fleet_group_mode != FleetGroupOrderMode::SelectingFleets {
-            self.fleet_group_input.pop();
-            self.fleet_group_status = None;
+        if self.fleet.group_mode != FleetGroupOrderMode::SelectingFleets {
+            self.fleet.group_input.pop();
+            self.fleet.group_status = None;
         }
     }
 
@@ -2943,61 +2663,61 @@ impl App {
         if self.current_screen != ScreenId::FleetMissionPicker {
             return;
         }
-        self.fleet_mission_picker_input.pop();
+        self.fleet.mission_picker_input.pop();
         self.sync_fleet_mission_picker_cursor_to_input();
-        self.fleet_mission_picker_status = None;
+        self.fleet.mission_picker_status = None;
     }
 
     pub fn backspace_fleet_detach_input(&mut self) {
         if self.current_screen != ScreenId::FleetDetach {
             return;
         }
-        if self.fleet_detach_mode == FleetDetachMode::SelectingFleet {
-            self.fleet_detach_select_input.pop();
+        if self.fleet.detach_mode == FleetDetachMode::SelectingFleet {
+            self.fleet.detach_select_input.pop();
             self.sync_fleet_detach_cursor_to_input();
         } else {
-            self.fleet_detach_input.pop();
+            self.fleet.detach_input.pop();
         }
-        self.fleet_detach_status = None;
+        self.fleet.detach_status = None;
     }
 
     pub fn backspace_fleet_eta_input(&mut self) {
         if self.current_screen != ScreenId::FleetEta {
             return;
         }
-        match self.fleet_eta_mode {
+        match self.fleet.eta_mode {
             FleetEtaMode::SelectingFleet => {
-                self.fleet_eta_select_input.pop();
+                self.fleet.eta_select_input.pop();
                 self.sync_fleet_eta_cursor_to_input();
             }
             FleetEtaMode::EnteringDestination => {
-                self.fleet_eta_destination_input.pop();
+                self.fleet.eta_destination_input.pop();
             }
             FleetEtaMode::ConfirmingSystemEntry => {
-                self.fleet_eta_include_system_input.pop();
+                self.fleet.eta_include_system_input.pop();
             }
             FleetEtaMode::ShowingResult => {}
         }
-        self.fleet_eta_status = None;
+        self.fleet.eta_status = None;
     }
 
     pub fn submit_fleet_roe(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if self.current_screen != ScreenId::FleetRoeSelect {
             return Ok(());
         }
-        if !self.fleet_roe_editing {
+        if !self.fleet.roe_editing {
             let rows = self.fleet_rows();
             if rows.is_empty() {
                 self.current_screen = ScreenId::FleetMenu;
                 return Ok(());
             }
-            if self.fleet_roe_select_input.trim().is_empty() {
-                self.fleet_roe_cursor = self.fleet_roe_cursor.min(rows.len() - 1);
+            if self.fleet.roe_select_input.trim().is_empty() {
+                self.fleet.roe_cursor = self.fleet.roe_cursor.min(rows.len() - 1);
             } else {
-                let target_fleet_id = match self.fleet_roe_select_input.trim().parse::<u16>() {
+                let target_fleet_id = match self.fleet.roe_select_input.trim().parse::<u16>() {
                     Ok(value) => value,
                     Err(_) => {
-                        self.fleet_roe_status =
+                        self.fleet.roe_status =
                             Some("Enter a fleet number from the table.".to_string());
                         return Ok(());
                     }
@@ -3006,42 +2726,42 @@ impl App {
                     .iter()
                     .position(|row| row.fleet_number == target_fleet_id)
                 else {
-                    self.fleet_roe_status = Some(format!(
+                    self.fleet.roe_status = Some(format!(
                         "Fleet #{target_fleet_id} is not in your fleet list."
                     ));
                     return Ok(());
                 };
-                self.fleet_roe_cursor = index;
+                self.fleet.roe_cursor = index;
                 sync_scroll_to_cursor(
-                    &mut self.fleet_roe_scroll_offset,
-                    self.fleet_roe_cursor,
+                    &mut self.fleet.roe_scroll_offset,
+                    self.fleet.roe_cursor,
                     crate::screen::FLEET_VISIBLE_ROWS,
                 );
             }
-            self.fleet_roe_select_input.clear();
-            self.fleet_roe_input.clear();
-            self.fleet_roe_status = None;
-            self.fleet_roe_editing = true;
+            self.fleet.roe_select_input.clear();
+            self.fleet.roe_input.clear();
+            self.fleet.roe_status = None;
+            self.fleet.roe_editing = true;
             return Ok(());
         }
         let rows = self.fleet_rows();
-        let Some(selected_row) = rows.get(self.fleet_roe_cursor) else {
+        let Some(selected_row) = rows.get(self.fleet.roe_cursor) else {
             self.current_screen = ScreenId::FleetMenu;
             return Ok(());
         };
-        let parsed = if self.fleet_roe_input.trim().is_empty() {
+        let parsed = if self.fleet.roe_input.trim().is_empty() {
             selected_row.rules_of_engagement
         } else {
-            match self.fleet_roe_input.trim().parse::<u8>() {
+            match self.fleet.roe_input.trim().parse::<u8>() {
                 Ok(value) => value,
                 Err(_) => {
-                    self.fleet_roe_status = Some("Enter an ROE from 0 to 10.".to_string());
+                    self.fleet.roe_status = Some("Enter an ROE from 0 to 10.".to_string());
                     return Ok(());
                 }
             }
         };
         if parsed > 10 {
-            self.fleet_roe_status = Some("Enter an ROE from 0 to 10.".to_string());
+            self.fleet.roe_status = Some("Enter an ROE from 0 to 10.".to_string());
             return Ok(());
         }
         if let Err(err) = self.game_data.set_fleet_rules_of_engagement(
@@ -3049,7 +2769,7 @@ impl App {
             selected_row.fleet_record_index_1_based,
             parsed,
         ) {
-            self.fleet_roe_status = Some(match err {
+            self.fleet.roe_status = Some(match err {
                 ec_data::GameStateMutationError::InvalidFleetPlayerInput {
                     reason:
                         ec_data::FleetPlayerInputValidationError::NonCombatFleetMustUseZeroRoe {
@@ -3067,9 +2787,9 @@ impl App {
             return Ok(());
         }
         self.save_game_data()?;
-        self.fleet_roe_input.clear();
-        self.fleet_roe_status = None;
-        self.fleet_roe_editing = false;
+        self.fleet.roe_input.clear();
+        self.fleet.roe_status = None;
+        self.fleet.roe_editing = false;
         Ok(())
     }
 
@@ -3078,17 +2798,17 @@ impl App {
             return Ok(());
         }
         let rows = self.current_fleet_merge_rows();
-        let Some(_) = rows.get(self.fleet_merge_cursor) else {
+        let Some(_) = rows.get(self.fleet.merge_cursor) else {
             self.current_screen = ScreenId::FleetMenu;
             return Ok(());
         };
 
         let target_fleet_id = match self.current_fleet_merge_input().trim() {
-            "" => rows[self.fleet_merge_cursor].fleet_number,
+            "" => rows[self.fleet.merge_cursor].fleet_number,
             raw => match raw.parse::<u16>() {
                 Ok(value) => value,
                 Err(_) => {
-                    self.fleet_merge_status =
+                    self.fleet.merge_status =
                         Some("Enter a fleet number from the table.".to_string());
                     return Ok(());
                 }
@@ -3098,29 +2818,29 @@ impl App {
             .iter()
             .position(|row| row.fleet_number == target_fleet_id)
         else {
-            self.fleet_merge_status = Some(format!(
+            self.fleet.merge_status = Some(format!(
                 "Fleet #{target_fleet_id} is not in your fleet list."
             ));
             return Ok(());
         };
-        self.fleet_merge_cursor = index;
+        self.fleet.merge_cursor = index;
         sync_scroll_to_cursor(
-            &mut self.fleet_merge_scroll_offset,
-            self.fleet_merge_cursor,
+            &mut self.fleet.merge_scroll_offset,
+            self.fleet.merge_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
 
-        match self.fleet_merge_mode {
+        match self.fleet.merge_mode {
             FleetMergeMode::SelectingSource => {
-                let source = &rows[self.fleet_merge_cursor];
-                self.fleet_merge_source_record_index_1_based =
+                let source = &rows[self.fleet.merge_cursor];
+                self.fleet.merge_source_record_index_1_based =
                     Some(source.fleet_record_index_1_based);
-                self.fleet_merge_source_input.clear();
-                self.fleet_merge_host_input.clear();
-                self.fleet_merge_status = None;
-                self.fleet_merge_mode = FleetMergeMode::SelectingHost;
-                self.fleet_merge_cursor = 0;
-                self.fleet_merge_scroll_offset = 0;
+                self.fleet.merge_source_input.clear();
+                self.fleet.merge_host_input.clear();
+                self.fleet.merge_status = None;
+                self.fleet.merge_mode = FleetMergeMode::SelectingHost;
+                self.fleet.merge_cursor = 0;
+                self.fleet.merge_scroll_offset = 0;
                 let host_total = self.current_fleet_merge_rows().len();
                 if host_total == 0 {
                     self.show_command_menu_notice(
@@ -3130,16 +2850,16 @@ impl App {
                     return Ok(());
                 }
                 center_scroll_to_cursor(
-                    &mut self.fleet_merge_scroll_offset,
-                    self.fleet_merge_cursor,
+                    &mut self.fleet.merge_scroll_offset,
+                    self.fleet.merge_cursor,
                     crate::screen::FLEET_VISIBLE_ROWS,
                     host_total,
                 );
             }
             FleetMergeMode::SelectingHost => {
-                let host = &rows[self.fleet_merge_cursor];
+                let host = &rows[self.fleet.merge_cursor];
                 let source_record_index_1_based = self
-                    .fleet_merge_source_record_index_1_based
+                    .fleet.merge_source_record_index_1_based
                     .ok_or("fleet merge source missing")?;
                 let source_fleet_number = self
                     .fleet_rows()
@@ -3153,11 +2873,11 @@ impl App {
                     host.fleet_record_index_1_based,
                 )?;
                 self.save_game_data()?;
-                self.fleet_merge_source_record_index_1_based = None;
-                self.fleet_merge_source_input.clear();
-                self.fleet_merge_host_input.clear();
-                self.fleet_merge_status = None;
-                self.fleet_merge_mode = FleetMergeMode::SelectingSource;
+                self.fleet.merge_source_record_index_1_based = None;
+                self.fleet.merge_source_input.clear();
+                self.fleet.merge_host_input.clear();
+                self.fleet.merge_status = None;
+                self.fleet.merge_mode = FleetMergeMode::SelectingSource;
                 self.show_command_menu_notice(
                     CommandMenu::Fleet,
                     format!(
@@ -3175,99 +2895,99 @@ impl App {
             return Ok(());
         }
         let rows = self.current_fleet_transfer_rows();
-        match self.fleet_transfer_mode {
+        match self.fleet.transfer_mode {
             FleetTransferMode::SelectingFleets => {
-                if self.fleet_transfer_selected_fleets.len() != 2 {
-                    self.fleet_transfer_status =
+                if self.fleet.transfer_selected_fleets.len() != 2 {
+                    self.fleet.transfer_status =
                         Some("Select exactly two fleets for transfer.".to_string());
                     return Ok(());
                 }
-                let Some(host_row) = rows.get(self.fleet_transfer_cursor) else {
+                let Some(host_row) = rows.get(self.fleet.transfer_cursor) else {
                     return Ok(());
                 };
                 if !self
-                    .fleet_transfer_selected_fleets
+                    .fleet.transfer_selected_fleets
                     .contains(&host_row.fleet_record_index_1_based)
                 {
-                    self.fleet_transfer_status =
+                    self.fleet.transfer_status =
                         Some("Highlight one selected fleet as the host.".to_string());
                     return Ok(());
                 }
                 let selected_rows = rows
                     .iter()
                     .filter(|row| {
-                        self.fleet_transfer_selected_fleets
+                        self.fleet.transfer_selected_fleets
                             .contains(&row.fleet_record_index_1_based)
                     })
                     .collect::<Vec<_>>();
                 if selected_rows.len() != 2 {
-                    self.fleet_transfer_status =
+                    self.fleet.transfer_status =
                         Some("Select exactly two fleets for transfer.".to_string());
                     return Ok(());
                 }
                 if selected_rows[0].coords != selected_rows[1].coords {
-                    self.fleet_transfer_status =
+                    self.fleet.transfer_status =
                         Some("Transfer fleets must share one sector.".to_string());
                     return Ok(());
                 }
-                self.fleet_transfer_host_record_index_1_based =
+                self.fleet.transfer_host_record_index_1_based =
                     Some(host_row.fleet_record_index_1_based);
-                self.fleet_transfer_donor_record_index_1_based = selected_rows
+                self.fleet.transfer_donor_record_index_1_based = selected_rows
                     .iter()
                     .find(|row| {
                         row.fleet_record_index_1_based != host_row.fleet_record_index_1_based
                     })
                     .map(|row| row.fleet_record_index_1_based);
-                self.fleet_transfer_mode = FleetTransferMode::EnteringBattleships;
-                self.fleet_transfer_input.clear();
-                self.fleet_transfer_status = None;
-                self.fleet_transfer_selection = FleetDetachSelection::default();
+                self.fleet.transfer_mode = FleetTransferMode::EnteringBattleships;
+                self.fleet.transfer_input.clear();
+                self.fleet.transfer_status = None;
+                self.fleet.transfer_selection = FleetDetachSelection::default();
             }
             _ => {
-                let value = if self.fleet_transfer_input.trim().is_empty() {
+                let value = if self.fleet.transfer_input.trim().is_empty() {
                     0
                 } else {
-                    match self.fleet_transfer_input.trim().parse::<u16>() {
+                    match self.fleet.transfer_input.trim().parse::<u16>() {
                         Ok(value) => value,
                         Err(_) => {
-                            self.fleet_transfer_status =
+                            self.fleet.transfer_status =
                                 Some("Enter a number from 0 up.".to_string());
                             return Ok(());
                         }
                     }
                 };
-                match self.fleet_transfer_mode {
+                match self.fleet.transfer_mode {
                     FleetTransferMode::EnteringBattleships => {
-                        self.fleet_transfer_selection.battleships = value;
-                        self.fleet_transfer_mode = FleetTransferMode::EnteringCruisers;
+                        self.fleet.transfer_selection.battleships = value;
+                        self.fleet.transfer_mode = FleetTransferMode::EnteringCruisers;
                     }
                     FleetTransferMode::EnteringCruisers => {
-                        self.fleet_transfer_selection.cruisers = value;
-                        self.fleet_transfer_mode = FleetTransferMode::EnteringDestroyers;
+                        self.fleet.transfer_selection.cruisers = value;
+                        self.fleet.transfer_mode = FleetTransferMode::EnteringDestroyers;
                     }
                     FleetTransferMode::EnteringDestroyers => {
-                        self.fleet_transfer_selection.destroyers = value;
-                        self.fleet_transfer_mode = FleetTransferMode::EnteringFullTransports;
+                        self.fleet.transfer_selection.destroyers = value;
+                        self.fleet.transfer_mode = FleetTransferMode::EnteringFullTransports;
                     }
                     FleetTransferMode::EnteringFullTransports => {
-                        self.fleet_transfer_selection.full_transports = value;
-                        self.fleet_transfer_mode = FleetTransferMode::EnteringEmptyTransports;
+                        self.fleet.transfer_selection.full_transports = value;
+                        self.fleet.transfer_mode = FleetTransferMode::EnteringEmptyTransports;
                     }
                     FleetTransferMode::EnteringEmptyTransports => {
-                        self.fleet_transfer_selection.empty_transports = value;
-                        self.fleet_transfer_mode = FleetTransferMode::EnteringScouts;
+                        self.fleet.transfer_selection.empty_transports = value;
+                        self.fleet.transfer_mode = FleetTransferMode::EnteringScouts;
                     }
                     FleetTransferMode::EnteringScouts => {
-                        self.fleet_transfer_selection.scouts = value.min(u16::from(u8::MAX)) as u8;
-                        self.fleet_transfer_mode = FleetTransferMode::EnteringEtacs;
+                        self.fleet.transfer_selection.scouts = value.min(u16::from(u8::MAX)) as u8;
+                        self.fleet.transfer_mode = FleetTransferMode::EnteringEtacs;
                     }
                     FleetTransferMode::EnteringEtacs => {
-                        self.fleet_transfer_selection.etacs = value;
+                        self.fleet.transfer_selection.etacs = value;
                         self.finish_fleet_transfer()?;
                     }
                     FleetTransferMode::SelectingFleets => {}
                 }
-                self.fleet_transfer_input.clear();
+                self.fleet.transfer_input.clear();
             }
         }
         Ok(())
@@ -3277,25 +2997,25 @@ impl App {
         if self.current_screen != ScreenId::FleetGroupOrder {
             return;
         }
-        match self.fleet_group_mode {
+        match self.fleet.group_mode {
             FleetGroupOrderMode::SelectingFleets => {
                 self.open_fleet_mission_picker();
             }
             FleetGroupOrderMode::EnteringTarget => {
-                let Some(mission_code) = self.fleet_group_mission_code else {
-                    self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
-                    self.fleet_group_status = Some("Choose a group mission first.".to_string());
+                let Some(mission_code) = self.fleet.group_mission_code else {
+                    self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
+                    self.fleet.group_status = Some("Choose a group mission first.".to_string());
                     return;
                 };
                 let (destination, aux0, aux1) = match fleet_target_input_kind(Some(mission_code)) {
                     FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
                         let destination = match resolve_default_coords_input(
-                            &self.fleet_group_input,
+                            &self.fleet.group_input,
                             self.fleet_group_default_target(),
                         ) {
                             Some(coords) => coords,
                             None => {
-                                self.fleet_group_status =
+                                self.fleet.group_status =
                                     Some("Enter a sector as [x,y].".to_string());
                                 return;
                             }
@@ -3306,7 +3026,7 @@ impl App {
                         let Some(base) =
                             self.resolve_fleet_group_starbase_target_for_current_mission()
                         else {
-                            self.fleet_group_status = Some(
+                            self.fleet.group_status = Some(
                                 "Enter a starbase number from your starbase list.".to_string(),
                             );
                             return;
@@ -3316,13 +3036,13 @@ impl App {
                     FleetTargetInputKind::FleetId => {
                         let Some(host) = self.resolve_fleet_group_host_fleet_for_current_mission()
                         else {
-                            self.fleet_group_status = Some(
+                            self.fleet.group_status = Some(
                                 "Enter another fleet number from your fleet list.".to_string(),
                             );
                             return;
                         };
                         if let Err(err) = self.apply_fleet_group_join_order(host) {
-                            self.fleet_group_status = Some(err.to_string());
+                            self.fleet.group_status = Some(err.to_string());
                         }
                         return;
                     }
@@ -3336,8 +3056,8 @@ impl App {
                 if fleet_order_target_requires_planet_system(mission_code)
                     && target_planet.is_none()
                 {
-                    self.fleet_group_input.clear();
-                    self.fleet_group_status = Some(
+                    self.fleet.group_input.clear();
+                    self.fleet.group_status = Some(
                         "That mission requires a system with a planet at the target coordinates."
                             .to_string(),
                     );
@@ -3351,8 +3071,8 @@ impl App {
                         })
                         .unwrap_or(false)
                 {
-                    self.fleet_group_input.clear();
-                    self.fleet_group_status = Some(
+                    self.fleet.group_input.clear();
+                    self.fleet.group_status = Some(
                         "You cannot order that combat mission against your own planet.".to_string(),
                     );
                     return;
@@ -3365,15 +3085,15 @@ impl App {
                         })
                         .unwrap_or(true)
                 {
-                    self.fleet_group_input.clear();
-                    self.fleet_group_status =
+                    self.fleet.group_input.clear();
+                    self.fleet.group_status =
                         Some("That mission requires one of your owned planets.".to_string());
                     return;
                 }
                 if let Err(err) =
                     self.apply_fleet_group_order(mission_code, destination, aux0, aux1)
                 {
-                    self.fleet_group_status = Some(err.to_string());
+                    self.fleet.group_status = Some(err.to_string());
                 }
             }
         }
@@ -3388,13 +3108,13 @@ impl App {
             self.current_screen = ScreenId::FleetMenu;
             return Ok(());
         }
-        match self.fleet_order_mode {
+        match self.fleet.order_mode {
             FleetSingleOrderMode::SelectingFleet => {
-                if !self.fleet_order_input.trim().is_empty() {
-                    let target_fleet_id = match self.fleet_order_input.trim().parse::<u16>() {
+                if !self.fleet.order_input.trim().is_empty() {
+                    let target_fleet_id = match self.fleet.order_input.trim().parse::<u16>() {
                         Ok(value) => value,
                         Err(_) => {
-                            self.fleet_order_status =
+                            self.fleet.order_status =
                                 Some("Enter a fleet number from the table.".to_string());
                             return Ok(());
                         }
@@ -3403,42 +3123,42 @@ impl App {
                         .iter()
                         .position(|row| row.fleet_number == target_fleet_id)
                     else {
-                        self.fleet_order_status = Some(format!(
+                        self.fleet.order_status = Some(format!(
                             "Fleet #{target_fleet_id} is not in your fleet list."
                         ));
                         return Ok(());
                     };
-                    self.fleet_order_cursor = index;
-                    self.fleet_order_fleet_record_index_1_based =
+                    self.fleet.order_cursor = index;
+                    self.fleet.order_fleet_record_index_1_based =
                         Some(rows[index].fleet_record_index_1_based);
                     sync_scroll_to_cursor(
-                        &mut self.fleet_order_scroll_offset,
-                        self.fleet_order_cursor,
+                        &mut self.fleet.order_scroll_offset,
+                        self.fleet.order_cursor,
                         crate::screen::FLEET_VISIBLE_ROWS,
                     );
                 } else {
-                    self.fleet_order_fleet_record_index_1_based =
-                        Some(rows[self.fleet_order_cursor].fleet_record_index_1_based);
+                    self.fleet.order_fleet_record_index_1_based =
+                        Some(rows[self.fleet.order_cursor].fleet_record_index_1_based);
                 }
-                self.fleet_order_input.clear();
-                self.fleet_order_status = None;
+                self.fleet.order_input.clear();
+                self.fleet.order_status = None;
                 self.open_fleet_mission_picker();
             }
             FleetSingleOrderMode::EnteringTarget => {
-                let Some(mission_code) = self.fleet_order_mission_code else {
-                    self.fleet_order_mode = FleetSingleOrderMode::SelectingFleet;
-                    self.fleet_order_status = Some("Choose a fleet mission first.".to_string());
+                let Some(mission_code) = self.fleet.order_mission_code else {
+                    self.fleet.order_mode = FleetSingleOrderMode::SelectingFleet;
+                    self.fleet.order_status = Some("Choose a fleet mission first.".to_string());
                     return Ok(());
                 };
                 let (destination, aux0, aux1) = match fleet_target_input_kind(Some(mission_code)) {
                     FleetTargetInputKind::Coordinates | FleetTargetInputKind::None => {
                         let destination = match resolve_default_coords_input(
-                            &self.fleet_order_input,
+                            &self.fleet.order_input,
                             self.fleet_order_default_target(),
                         ) {
                             Some(coords) => coords,
                             None => {
-                                self.fleet_order_status =
+                                self.fleet.order_status =
                                     Some("Enter a sector as [x,y].".to_string());
                                 return Ok(());
                             }
@@ -3449,7 +3169,7 @@ impl App {
                         let Some(base) =
                             self.resolve_fleet_order_starbase_target_for_current_mission()
                         else {
-                            self.fleet_order_status = Some(
+                            self.fleet.order_status = Some(
                                 "Enter a starbase number from your starbase list.".to_string(),
                             );
                             return Ok(());
@@ -3459,13 +3179,13 @@ impl App {
                     FleetTargetInputKind::FleetId => {
                         let Some(host) = self.resolve_fleet_order_host_fleet_for_current_mission()
                         else {
-                            self.fleet_order_status = Some(
+                            self.fleet.order_status = Some(
                                 "Enter another fleet number from your fleet list.".to_string(),
                             );
                             return Ok(());
                         };
                         if let Err(err) = self.apply_fleet_single_join_order(host) {
-                            self.fleet_order_status = Some(err.to_string());
+                            self.fleet.order_status = Some(err.to_string());
                         }
                         return Ok(());
                     }
@@ -3479,8 +3199,8 @@ impl App {
                 if fleet_order_target_requires_planet_system(mission_code)
                     && target_planet.is_none()
                 {
-                    self.fleet_order_input.clear();
-                    self.fleet_order_status = Some(
+                    self.fleet.order_input.clear();
+                    self.fleet.order_status = Some(
                         "That mission needs a system with a planet at the target.".to_string(),
                     );
                     return Ok(());
@@ -3493,8 +3213,8 @@ impl App {
                         })
                         .unwrap_or(false)
                 {
-                    self.fleet_order_input.clear();
-                    self.fleet_order_status =
+                    self.fleet.order_input.clear();
+                    self.fleet.order_status =
                         Some("You cannot send that mission to your own world.".to_string());
                     return Ok(());
                 }
@@ -3506,15 +3226,15 @@ impl App {
                         })
                         .unwrap_or(true)
                 {
-                    self.fleet_order_input.clear();
-                    self.fleet_order_status =
+                    self.fleet.order_input.clear();
+                    self.fleet.order_status =
                         Some("That mission requires one of your owned planets.".to_string());
                     return Ok(());
                 }
                 if let Err(err) =
                     self.apply_fleet_single_order(mission_code, destination, aux0, aux1)
                 {
-                    self.fleet_order_status = Some(err.to_string());
+                    self.fleet.order_status = Some(err.to_string());
                 }
             }
         }
@@ -3525,22 +3245,22 @@ impl App {
         if self.current_screen != ScreenId::FleetMissionPicker {
             return;
         }
-        let mission_code = match self.fleet_mission_picker_input.trim() {
+        let mission_code = match self.fleet.mission_picker_input.trim() {
             "" => FLEET_MISSION_OPTIONS
-                .get(self.fleet_mission_picker_cursor)
+                .get(self.fleet.mission_picker_cursor)
                 .map(|option| option.code)
                 .unwrap_or(1),
             raw => match raw.parse::<u8>() {
                 Ok(value) => value,
                 Err(_) => {
-                    self.fleet_mission_picker_status =
+                    self.fleet.mission_picker_status =
                         Some("Enter a mission number from 0 to 15.".to_string());
                     return;
                 }
             },
         };
         if mission_code > 15 {
-            self.fleet_mission_picker_status =
+            self.fleet.mission_picker_status =
                 Some("Enter a mission number from 0 to 15.".to_string());
             return;
         }
@@ -3549,27 +3269,27 @@ impl App {
             .iter()
             .position(|option| option.code == mission_code)
         else {
-            self.fleet_mission_picker_status =
+            self.fleet.mission_picker_status =
                 Some("Enter a mission number from 0 to 15.".to_string());
             return;
         };
         if !enabled.get(index).copied().unwrap_or(false) {
-            self.fleet_mission_picker_status =
+            self.fleet.mission_picker_status =
                 Some("That mission does not apply to all selected fleets.".to_string());
             return;
         }
-        self.fleet_mission_picker_cursor = index;
-        self.fleet_mission_picker_input.clear();
-        match self.fleet_mission_picker_caller {
+        self.fleet.mission_picker_cursor = index;
+        self.fleet.mission_picker_input.clear();
+        match self.fleet.mission_picker_caller {
             Some(FleetMissionPickerCaller::SingleOrder) => {
-                self.fleet_order_mission_code = Some(mission_code);
-                self.fleet_mission_picker_status = None;
-                self.fleet_mission_picker_caller = None;
+                self.fleet.order_mission_code = Some(mission_code);
+                self.fleet.mission_picker_status = None;
+                self.fleet.mission_picker_caller = None;
                 self.current_screen = ScreenId::FleetOrder;
                 if fleet_group_order_requires_target(mission_code) {
                     if !self.fleet_order_has_target_available(mission_code) {
-                        self.fleet_order_mode = FleetSingleOrderMode::SelectingFleet;
-                        self.fleet_order_status = Some(match mission_code {
+                        self.fleet.order_mode = FleetSingleOrderMode::SelectingFleet;
+                        self.fleet.order_status = Some(match mission_code {
                             4 => "You have no starbases available to guard.".to_string(),
                             12 => "No colonize target available.".to_string(),
                             13 => "You need another fleet available to join.".to_string(),
@@ -3577,23 +3297,23 @@ impl App {
                         });
                         return;
                     }
-                    self.fleet_order_mode = FleetSingleOrderMode::EnteringTarget;
-                    self.fleet_order_input.clear();
+                    self.fleet.order_mode = FleetSingleOrderMode::EnteringTarget;
+                    self.fleet.order_input.clear();
                 } else if let Err(err) = self.apply_fleet_single_order(mission_code, [0, 0], 0, 0) {
                     self.current_screen = ScreenId::FleetMissionPicker;
-                    self.fleet_mission_picker_caller = Some(FleetMissionPickerCaller::SingleOrder);
-                    self.fleet_mission_picker_status = Some(err.to_string());
+                    self.fleet.mission_picker_caller = Some(FleetMissionPickerCaller::SingleOrder);
+                    self.fleet.mission_picker_status = Some(err.to_string());
                 }
             }
             Some(FleetMissionPickerCaller::GroupOrder) => {
-                self.fleet_group_mission_code = Some(mission_code);
-                self.fleet_mission_picker_status = None;
-                self.fleet_mission_picker_caller = None;
+                self.fleet.group_mission_code = Some(mission_code);
+                self.fleet.mission_picker_status = None;
+                self.fleet.mission_picker_caller = None;
                 self.current_screen = ScreenId::FleetGroupOrder;
                 if fleet_group_order_requires_target(mission_code) {
                     if !self.fleet_group_has_target_available(mission_code) {
-                        self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
-                        self.fleet_group_status = Some(match mission_code {
+                        self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
+                        self.fleet.group_status = Some(match mission_code {
                             4 => "You have no starbases available to guard.".to_string(),
                             12 => "No colonize target available.".to_string(),
                             13 => "You need another fleet available to join.".to_string(),
@@ -3601,15 +3321,15 @@ impl App {
                         });
                         return;
                     }
-                    self.fleet_group_mode = FleetGroupOrderMode::EnteringTarget;
+                    self.fleet.group_mode = FleetGroupOrderMode::EnteringTarget;
                 } else if let Err(err) = self.apply_fleet_group_order(mission_code, [0, 0], 0, 0) {
                     self.current_screen = ScreenId::FleetMissionPicker;
-                    self.fleet_mission_picker_caller = Some(FleetMissionPickerCaller::GroupOrder);
-                    self.fleet_mission_picker_status = Some(err.to_string());
+                    self.fleet.mission_picker_caller = Some(FleetMissionPickerCaller::GroupOrder);
+                    self.fleet.mission_picker_status = Some(err.to_string());
                 }
             }
             None => {
-                self.fleet_mission_picker_status =
+                self.fleet.mission_picker_status =
                     Some("Mission picker has no caller.".to_string());
             }
         }
@@ -3620,17 +3340,17 @@ impl App {
             return Ok(());
         }
         let rows = self.fleet_rows();
-        let Some(selected_row) = rows.get(self.fleet_detach_cursor) else {
+        let Some(selected_row) = rows.get(self.fleet.detach_cursor) else {
             self.current_screen = ScreenId::FleetMenu;
             return Ok(());
         };
 
-        if self.fleet_detach_mode == FleetDetachMode::SelectingFleet {
-            if !self.fleet_detach_select_input.trim().is_empty() {
-                let target_fleet_id = match self.fleet_detach_select_input.trim().parse::<u16>() {
+        if self.fleet.detach_mode == FleetDetachMode::SelectingFleet {
+            if !self.fleet.detach_select_input.trim().is_empty() {
+                let target_fleet_id = match self.fleet.detach_select_input.trim().parse::<u16>() {
                     Ok(value) => value,
                     Err(_) => {
-                        self.fleet_detach_status =
+                        self.fleet.detach_status =
                             Some("Enter a fleet number from the table.".to_string());
                         return Ok(());
                     }
@@ -3639,29 +3359,29 @@ impl App {
                     .iter()
                     .position(|row| row.fleet_number == target_fleet_id)
                 else {
-                    self.fleet_detach_status = Some(format!(
+                    self.fleet.detach_status = Some(format!(
                         "Fleet #{target_fleet_id} is not in your fleet list."
                     ));
                     return Ok(());
                 };
-                self.fleet_detach_cursor = index;
+                self.fleet.detach_cursor = index;
                 sync_scroll_to_cursor(
-                    &mut self.fleet_detach_scroll_offset,
-                    self.fleet_detach_cursor,
+                    &mut self.fleet.detach_scroll_offset,
+                    self.fleet.detach_cursor,
                     crate::screen::FLEET_VISIBLE_ROWS,
                 );
             }
             if self.current_fleet_detach_ship_total() <= 1 {
-                self.fleet_detach_status =
+                self.fleet.detach_status =
                     Some("A fleet must contain at least two ships to detach.".to_string());
                 return Ok(());
             }
-            self.fleet_detach_select_input.clear();
-            self.fleet_detach_input.clear();
-            self.fleet_detach_status = None;
-            self.fleet_detach_selection = FleetDetachSelection::default();
-            self.fleet_detach_donor_speed = None;
-            self.fleet_detach_mode = self
+            self.fleet.detach_select_input.clear();
+            self.fleet.detach_input.clear();
+            self.fleet.detach_status = None;
+            self.fleet.detach_selection = FleetDetachSelection::default();
+            self.fleet.detach_donor_speed = None;
+            self.fleet.detach_mode = self
                 .next_fleet_detach_prompt_mode(FleetDetachMode::SelectingFleet)
                 .unwrap_or(FleetDetachMode::SettingNewFleetRoe);
             return Ok(());
@@ -3678,7 +3398,7 @@ impl App {
             return Ok(());
         };
 
-        match self.fleet_detach_mode {
+        match self.fleet.detach_mode {
             FleetDetachMode::EnteringBattleships
             | FleetDetachMode::EnteringCruisers
             | FleetDetachMode::EnteringDestroyers
@@ -3687,81 +3407,81 @@ impl App {
             | FleetDetachMode::EnteringScouts
             | FleetDetachMode::EnteringEtacs => {
                 let value = self.resolve_fleet_detach_numeric_input(0)?;
-                match self.fleet_detach_mode {
+                match self.fleet.detach_mode {
                     FleetDetachMode::EnteringBattleships => {
                         if value > record.battleship_count() {
-                            self.fleet_detach_status =
+                            self.fleet.detach_status =
                                 Some("Enter a value from 0 to the table limit.".to_string());
                             return Ok(());
                         }
-                        self.fleet_detach_selection.battleships = value;
+                        self.fleet.detach_selection.battleships = value;
                     }
                     FleetDetachMode::EnteringCruisers => {
                         if value > record.cruiser_count() {
-                            self.fleet_detach_status =
+                            self.fleet.detach_status =
                                 Some("Enter a value from 0 to the table limit.".to_string());
                             return Ok(());
                         }
-                        self.fleet_detach_selection.cruisers = value;
+                        self.fleet.detach_selection.cruisers = value;
                     }
                     FleetDetachMode::EnteringDestroyers => {
                         if value > record.destroyer_count() {
-                            self.fleet_detach_status =
+                            self.fleet.detach_status =
                                 Some("Enter a value from 0 to the table limit.".to_string());
                             return Ok(());
                         }
-                        self.fleet_detach_selection.destroyers = value;
+                        self.fleet.detach_selection.destroyers = value;
                     }
                     FleetDetachMode::EnteringFullTransports => {
                         if value > record.army_count() {
-                            self.fleet_detach_status =
+                            self.fleet.detach_status =
                                 Some("Enter a value from 0 to the table limit.".to_string());
                             return Ok(());
                         }
-                        self.fleet_detach_selection.full_transports = value;
+                        self.fleet.detach_selection.full_transports = value;
                     }
                     FleetDetachMode::EnteringEmptyTransports => {
                         let available = record
                             .troop_transport_count()
                             .saturating_sub(record.army_count());
                         if value > available {
-                            self.fleet_detach_status =
+                            self.fleet.detach_status =
                                 Some("Enter a value from 0 to the table limit.".to_string());
                             return Ok(());
                         }
-                        self.fleet_detach_selection.empty_transports = value;
+                        self.fleet.detach_selection.empty_transports = value;
                     }
                     FleetDetachMode::EnteringScouts => {
                         if value > u16::from(record.scout_count()) {
-                            self.fleet_detach_status =
+                            self.fleet.detach_status =
                                 Some("Enter a value from 0 to the table limit.".to_string());
                             return Ok(());
                         }
-                        self.fleet_detach_selection.scouts = value as u8;
+                        self.fleet.detach_selection.scouts = value as u8;
                     }
                     FleetDetachMode::EnteringEtacs => {
                         if value > record.etac_count() {
-                            self.fleet_detach_status =
+                            self.fleet.detach_status =
                                 Some("Enter a value from 0 to the table limit.".to_string());
                             return Ok(());
                         }
-                        self.fleet_detach_selection.etacs = value;
+                        self.fleet.detach_selection.etacs = value;
                     }
                     _ => {}
                 }
-                self.fleet_detach_input.clear();
-                self.fleet_detach_status = None;
-                if let Some(next_mode) = self.next_fleet_detach_prompt_mode(self.fleet_detach_mode)
+                self.fleet.detach_input.clear();
+                self.fleet.detach_status = None;
+                if let Some(next_mode) = self.next_fleet_detach_prompt_mode(self.fleet.detach_mode)
                 {
-                    self.fleet_detach_mode = next_mode;
-                } else if self.fleet_detach_selection.total_ships() == 0 {
+                    self.fleet.detach_mode = next_mode;
+                } else if self.fleet.detach_selection.total_ships() == 0 {
                     self.open_fleet_detach();
                 } else if self.fleet_detach_requires_speed_prompt() {
-                    self.fleet_detach_donor_speed = None;
-                    self.fleet_detach_mode = FleetDetachMode::AdjustingDonorSpeed;
+                    self.fleet.detach_donor_speed = None;
+                    self.fleet.detach_mode = FleetDetachMode::AdjustingDonorSpeed;
                 } else {
-                    self.fleet_detach_donor_speed = None;
-                    self.fleet_detach_mode = FleetDetachMode::SettingNewFleetRoe;
+                    self.fleet.detach_donor_speed = None;
+                    self.fleet.detach_mode = FleetDetachMode::SettingNewFleetRoe;
                 }
             }
             FleetDetachMode::AdjustingDonorSpeed => {
@@ -3769,32 +3489,32 @@ impl App {
                 let speed = self.resolve_fleet_detach_numeric_input(default_speed as u16)? as u8;
                 let max_speed = self.fleet_detach_donor_default_speed();
                 if speed == 0 || speed > max_speed {
-                    self.fleet_detach_status =
+                    self.fleet.detach_status =
                         Some(format!("Enter a speed from 1 to {max_speed}."));
                     return Ok(());
                 }
-                self.fleet_detach_donor_speed = Some(speed);
-                self.fleet_detach_input.clear();
-                self.fleet_detach_status = None;
-                self.fleet_detach_mode = FleetDetachMode::SettingNewFleetRoe;
+                self.fleet.detach_donor_speed = Some(speed);
+                self.fleet.detach_input.clear();
+                self.fleet.detach_status = None;
+                self.fleet.detach_mode = FleetDetachMode::SettingNewFleetRoe;
             }
             FleetDetachMode::SettingNewFleetRoe => {
                 let new_roe = self.resolve_fleet_detach_numeric_input(6)? as u8;
                 if new_roe > 10 {
-                    self.fleet_detach_status = Some("Enter an ROE from 0 to 10.".to_string());
+                    self.fleet.detach_status = Some("Enter an ROE from 0 to 10.".to_string());
                     return Ok(());
                 }
-                let detached_has_combat_ships = self.fleet_detach_selection.battleships > 0
-                    || self.fleet_detach_selection.cruisers > 0
-                    || self.fleet_detach_selection.destroyers > 0;
+                let detached_has_combat_ships = self.fleet.detach_selection.battleships > 0
+                    || self.fleet.detach_selection.cruisers > 0
+                    || self.fleet.detach_selection.destroyers > 0;
                 if !detached_has_combat_ships && new_roe != 0 {
-                    self.fleet_detach_status =
+                    self.fleet.detach_status =
                         Some("Non-combat fleets must use ROE 0.".to_string());
                     return Ok(());
                 }
                 let donor_speed = if self.fleet_detach_requires_speed_prompt() {
                     Some(
-                        self.fleet_detach_donor_speed
+                        self.fleet.detach_donor_speed
                             .unwrap_or(self.fleet_detach_donor_default_speed()),
                     )
                 } else {
@@ -3803,17 +3523,17 @@ impl App {
                 self.game_data.detach_ships_to_new_fleet(
                     self.player.record_index_1_based,
                     selected_row.fleet_record_index_1_based,
-                    self.fleet_detach_selection,
+                    self.fleet.detach_selection,
                     donor_speed,
                     new_roe,
                 )?;
                 self.save_game_data()?;
-                self.fleet_detach_mode = FleetDetachMode::SelectingFleet;
-                self.fleet_detach_input.clear();
-                self.fleet_detach_select_input.clear();
-                self.fleet_detach_status = None;
-                self.fleet_detach_selection = FleetDetachSelection::default();
-                self.fleet_detach_donor_speed = None;
+                self.fleet.detach_mode = FleetDetachMode::SelectingFleet;
+                self.fleet.detach_input.clear();
+                self.fleet.detach_select_input.clear();
+                self.fleet.detach_status = None;
+                self.fleet.detach_selection = FleetDetachSelection::default();
+                self.fleet.detach_donor_speed = None;
             }
             FleetDetachMode::SelectingFleet => {}
         }
@@ -3825,18 +3545,18 @@ impl App {
             return;
         }
         let rows = self.fleet_rows();
-        let Some(selected_row) = rows.get(self.fleet_eta_cursor) else {
-            self.fleet_eta_status = Some("You have no active fleets.".to_string());
-            self.fleet_eta_mode = FleetEtaMode::SelectingFleet;
+        let Some(selected_row) = rows.get(self.fleet.eta_cursor) else {
+            self.fleet.eta_status = Some("You have no active fleets.".to_string());
+            self.fleet.eta_mode = FleetEtaMode::SelectingFleet;
             return;
         };
-        match self.fleet_eta_mode {
+        match self.fleet.eta_mode {
             FleetEtaMode::SelectingFleet => {
-                if !self.fleet_eta_select_input.trim().is_empty() {
-                    let target_fleet_id = match self.fleet_eta_select_input.trim().parse::<u16>() {
+                if !self.fleet.eta_select_input.trim().is_empty() {
+                    let target_fleet_id = match self.fleet.eta_select_input.trim().parse::<u16>() {
                         Ok(value) => value,
                         Err(_) => {
-                            self.fleet_eta_status =
+                            self.fleet.eta_status =
                                 Some("Enter a fleet number from the table.".to_string());
                             return;
                         }
@@ -3845,30 +3565,30 @@ impl App {
                         .iter()
                         .position(|row| row.fleet_number == target_fleet_id)
                     else {
-                        self.fleet_eta_status =
+                        self.fleet.eta_status =
                             Some("Enter a fleet number from the table.".to_string());
                         return;
                     };
-                    self.fleet_eta_cursor = index;
+                    self.fleet.eta_cursor = index;
                     sync_scroll_to_cursor(
-                        &mut self.fleet_eta_scroll_offset,
-                        self.fleet_eta_cursor,
+                        &mut self.fleet.eta_scroll_offset,
+                        self.fleet.eta_cursor,
                         crate::screen::FLEET_VISIBLE_ROWS,
                     );
                 }
-                self.fleet_eta_select_input.clear();
-                self.fleet_eta_destination_input.clear();
-                self.fleet_eta_include_system_input.clear();
-                self.fleet_eta_status = None;
-                self.fleet_eta_mode = FleetEtaMode::EnteringDestination;
+                self.fleet.eta_select_input.clear();
+                self.fleet.eta_destination_input.clear();
+                self.fleet.eta_include_system_input.clear();
+                self.fleet.eta_status = None;
+                self.fleet.eta_mode = FleetEtaMode::EnteringDestination;
             }
             FleetEtaMode::EnteringDestination => {
                 let default_destination = self.fleet_eta_default_destination();
                 let Some(destination) = resolve_default_coords_input(
-                    &self.fleet_eta_destination_input,
+                    &self.fleet.eta_destination_input,
                     default_destination,
                 ) else {
-                    self.fleet_eta_status = Some("Enter coordinates like 10,13".to_string());
+                    self.fleet.eta_status = Some("Enter coordinates like 10,13".to_string());
                     return;
                 };
                 let map_size =
@@ -3878,33 +3598,33 @@ impl App {
                     || destination[0] > map_size
                     || destination[1] > map_size
                 {
-                    self.fleet_eta_status = Some(format!("Enter coordinates within 1..{map_size}"));
+                    self.fleet.eta_status = Some(format!("Enter coordinates within 1..{map_size}"));
                     return;
                 }
-                self.fleet_eta_destination_input = format!("{},{}", destination[0], destination[1]);
-                self.fleet_eta_include_system_input.clear();
-                self.fleet_eta_status = None;
-                self.fleet_eta_mode = FleetEtaMode::ConfirmingSystemEntry;
+                self.fleet.eta_destination_input = format!("{},{}", destination[0], destination[1]);
+                self.fleet.eta_include_system_input.clear();
+                self.fleet.eta_status = None;
+                self.fleet.eta_mode = FleetEtaMode::ConfirmingSystemEntry;
             }
             FleetEtaMode::ConfirmingSystemEntry => {
                 let include_system =
-                    resolve_yes_no_input(&self.fleet_eta_include_system_input, false);
+                    resolve_yes_no_input(&self.fleet.eta_include_system_input, false);
                 let destination = resolve_default_coords_input(
-                    &self.fleet_eta_destination_input,
+                    &self.fleet.eta_destination_input,
                     self.fleet_eta_default_destination(),
                 )
                 .unwrap_or(self.fleet_eta_default_destination());
                 let result =
                     self.calculate_fleet_eta_message(selected_row, destination, include_system);
-                self.fleet_eta_status = Some(result);
-                self.fleet_eta_include_system_input.clear();
-                self.fleet_eta_mode = FleetEtaMode::ShowingResult;
+                self.fleet.eta_status = Some(result);
+                self.fleet.eta_include_system_input.clear();
+                self.fleet.eta_mode = FleetEtaMode::ShowingResult;
             }
             FleetEtaMode::ShowingResult => {
-                self.fleet_eta_status = None;
-                self.fleet_eta_destination_input.clear();
-                self.fleet_eta_include_system_input.clear();
-                self.fleet_eta_mode = FleetEtaMode::SelectingFleet;
+                self.fleet.eta_status = None;
+                self.fleet.eta_destination_input.clear();
+                self.fleet.eta_include_system_input.clear();
+                self.fleet.eta_mode = FleetEtaMode::SelectingFleet;
             }
         }
     }
@@ -3915,14 +3635,14 @@ impl App {
         }
         let total = self.planet_database_rows().len();
         if total == 0 {
-            self.planet_database_cursor = 0;
+            self.planet.database_cursor = 0;
             return;
         }
-        let next = self.planet_database_cursor as isize + delta as isize;
-        self.planet_database_cursor = next.rem_euclid(total as isize) as usize;
+        let next = self.planet.database_cursor as isize + delta as isize;
+        self.planet.database_cursor = next.rem_euclid(total as isize) as usize;
         sync_scroll_to_cursor(
-            &mut self.planet_database_scroll_offset,
-            self.planet_database_cursor,
+            &mut self.planet.database_scroll_offset,
+            self.planet.database_cursor,
             crate::screen::PLANET_DATABASE_VISIBLE_ROWS,
         );
     }
@@ -3933,21 +3653,21 @@ impl App {
         }
         let total = self.planet_database_rows().len();
         if total == 0 {
-            self.planet_database_detail_index = 0;
+            self.planet.database_detail_index = 0;
             return;
         }
-        self.planet_database_detail_index = match delta {
+        self.planet.database_detail_index = match delta {
             i8::MIN => 0,
             i8::MAX => total - 1,
             _ => self
-                .planet_database_detail_index
+                .planet.database_detail_index
                 .saturating_add_signed(delta as isize)
                 .min(total - 1),
         };
-        self.planet_database_cursor = self.planet_database_detail_index;
+        self.planet.database_cursor = self.planet.database_detail_index;
         sync_scroll_to_cursor(
-            &mut self.planet_database_scroll_offset,
-            self.planet_database_cursor,
+            &mut self.planet.database_scroll_offset,
+            self.planet.database_cursor,
             crate::screen::PLANET_DATABASE_VISIBLE_ROWS,
         );
     }
@@ -3956,10 +3676,10 @@ impl App {
         if self.current_screen != ScreenId::PlanetDatabaseList {
             return;
         }
-        if self.planet_database_input.len() < 16 && (ch.is_ascii_digit() || ch == ',' || ch == ' ')
+        if self.planet.database_input.len() < 16 && (ch.is_ascii_digit() || ch == ',' || ch == ' ')
         {
-            self.planet_database_input.push(ch);
-            self.planet_database_status = None;
+            self.planet.database_input.push(ch);
+            self.planet.database_status = None;
         }
     }
 
@@ -3967,8 +3687,8 @@ impl App {
         if self.current_screen != ScreenId::PlanetDatabaseList {
             return;
         }
-        self.planet_database_input.pop();
-        self.planet_database_status = None;
+        self.planet.database_input.pop();
+        self.planet.database_status = None;
     }
 
     pub fn submit_planet_database_lookup(&mut self) {
@@ -3976,43 +3696,43 @@ impl App {
             return;
         }
         let rows = self.planet_database_rows();
-        if self.planet_database_input.trim().is_empty() {
+        if self.planet.database_input.trim().is_empty() {
             self.open_planet_database_detail();
             return;
         }
         let Some(coords) = resolve_default_coords_input(
-            &self.planet_database_input,
+            &self.planet.database_input,
             self.default_planet_prompt_coords(),
         ) else {
-            self.planet_database_status = Some("Enter coordinates like 5,2".to_string());
+            self.planet.database_status = Some("Enter coordinates like 5,2".to_string());
             return;
         };
         let Some(index) = rows.iter().position(|row| row.coords == coords) else {
-            self.planet_database_status =
+            self.planet.database_status =
                 Some(format!("No world found at [{},{}]", coords[0], coords[1]));
             return;
         };
-        self.planet_database_cursor = index;
+        self.planet.database_cursor = index;
         sync_scroll_to_cursor(
-            &mut self.planet_database_scroll_offset,
-            self.planet_database_cursor,
+            &mut self.planet.database_scroll_offset,
+            self.planet.database_cursor,
             crate::screen::PLANET_DATABASE_VISIBLE_ROWS,
         );
-        self.planet_database_status = None;
-        self.planet_database_input.clear();
+        self.planet.database_status = None;
+        self.planet.database_input.clear();
         self.open_planet_database_detail();
     }
 
     pub fn move_planet_build(&mut self, delta: i8) {
         let total = self.build_planet_rows().len();
         if total == 0 {
-            self.planet_build_index = 0;
+            self.planet.build_index = 0;
             return;
         }
         // Wrap around so N on the last planet returns to the first.
-        let next = self.planet_build_index as isize + delta as isize;
-        self.planet_build_index = next.rem_euclid(total as isize) as usize;
-        self.planet_build_status = None;
+        let next = self.planet.build_index as isize + delta as isize;
+        self.planet.build_index = next.rem_euclid(total as isize) as usize;
+        self.planet.build_status = None;
     }
 
     pub fn move_planet_commission_planet(&mut self, delta: i8) {
@@ -4021,15 +3741,15 @@ impl App {
         }
         let total = self.commission_planet_rows().len();
         if total == 0 {
-            self.planet_commission_index = 0;
+            self.planet.commission_index = 0;
             return;
         }
-        let next = self.planet_commission_index as isize + delta as isize;
-        self.planet_commission_index = next.rem_euclid(total as isize) as usize;
-        self.planet_commission_cursor = 0;
-        self.planet_commission_scroll_offset = 0;
-        self.planet_commission_selected_slots.clear();
-        self.planet_commission_status = None;
+        let next = self.planet.commission_index as isize + delta as isize;
+        self.planet.commission_index = next.rem_euclid(total as isize) as usize;
+        self.planet.commission_cursor = 0;
+        self.planet.commission_scroll_offset = 0;
+        self.planet.commission_selected_slots.clear();
+        self.planet.commission_status = None;
     }
 
     pub fn move_planet_commission_row(&mut self, delta: i8) {
@@ -4038,18 +3758,18 @@ impl App {
         }
         let total = self.current_planet_commission_rows().len();
         if total == 0 {
-            self.planet_commission_cursor = 0;
+            self.planet.commission_cursor = 0;
             return;
         }
-        let next = self.planet_commission_cursor as isize + delta as isize;
-        self.planet_commission_cursor = next.rem_euclid(total as isize) as usize;
-        if self.planet_commission_cursor < self.planet_commission_scroll_offset {
-            self.planet_commission_scroll_offset = self.planet_commission_cursor;
-        } else if self.planet_commission_cursor
-            >= self.planet_commission_scroll_offset + crate::screen::PLANET_COMMISSION_VISIBLE_ROWS
+        let next = self.planet.commission_cursor as isize + delta as isize;
+        self.planet.commission_cursor = next.rem_euclid(total as isize) as usize;
+        if self.planet.commission_cursor < self.planet.commission_scroll_offset {
+            self.planet.commission_scroll_offset = self.planet.commission_cursor;
+        } else if self.planet.commission_cursor
+            >= self.planet.commission_scroll_offset + crate::screen::PLANET_COMMISSION_VISIBLE_ROWS
         {
-            self.planet_commission_scroll_offset =
-                self.planet_commission_cursor + 1 - crate::screen::PLANET_COMMISSION_VISIBLE_ROWS;
+            self.planet.commission_scroll_offset =
+                self.planet.commission_cursor + 1 - crate::screen::PLANET_COMMISSION_VISIBLE_ROWS;
         }
     }
 
@@ -4058,16 +3778,16 @@ impl App {
             return Ok(());
         }
         let rows = self.current_planet_commission_rows();
-        let Some(current_row) = rows.get(self.planet_commission_cursor) else {
-            self.planet_commission_status = Some("No stardock units are available.".to_string());
+        let Some(current_row) = rows.get(self.planet.commission_cursor) else {
+            self.planet.commission_status = Some("No stardock units are available.".to_string());
             return Ok(());
         };
-        let selected_slots: Vec<usize> = if self.planet_commission_selected_slots.is_empty() {
+        let selected_slots: Vec<usize> = if self.planet.commission_selected_slots.is_empty() {
             vec![current_row.slot_0_based]
         } else {
             rows.iter()
                 .filter(|row| {
-                    self.planet_commission_selected_slots
+                    self.planet.commission_selected_slots
                         .contains(&row.slot_0_based)
                 })
                 .map(|row| row.slot_0_based)
@@ -4083,7 +3803,7 @@ impl App {
         ) {
             Ok(result) => result,
             Err(GameStateMutationError::InvalidCommissionSelection) => {
-                self.planet_commission_status = Some(
+                self.planet.commission_status = Some(
                     "Select either ships for one fleet or one starbase by itself.".to_string(),
                 );
                 return Ok(());
@@ -4107,24 +3827,24 @@ impl App {
                 base_record_index_1_based: _,
             } => {}
         }
-        self.planet_commission_status = None;
+        self.planet.commission_status = None;
 
         let planet_rows = self.commission_planet_rows();
         if planet_rows.is_empty() {
-            self.planet_commission_index = 0;
-            self.planet_commission_cursor = 0;
-            self.planet_commission_scroll_offset = 0;
+            self.planet.commission_index = 0;
+            self.planet.commission_cursor = 0;
+            self.planet.commission_scroll_offset = 0;
         } else {
-            self.planet_commission_index = self.planet_commission_index.min(planet_rows.len() - 1);
+            self.planet.commission_index = self.planet.commission_index.min(planet_rows.len() - 1);
             let current_rows = self.current_planet_commission_rows();
             if current_rows.is_empty() {
                 self.move_planet_commission_planet(1);
             } else {
-                self.planet_commission_cursor =
-                    self.planet_commission_cursor.min(current_rows.len() - 1);
+                self.planet.commission_cursor =
+                    self.planet.commission_cursor.min(current_rows.len() - 1);
             }
         }
-        self.planet_commission_selected_slots.clear();
+        self.planet.commission_selected_slots.clear();
         Ok(())
     }
 
@@ -4136,7 +3856,7 @@ impl App {
             .game_data
             .auto_commission_all_stardock_units(self.player.record_index_1_based)?;
         self.save_game_data()?;
-        self.planet_auto_commission_status = Some(format_auto_commission_status(summary));
+        self.planet.auto_commission_status = Some(format_auto_commission_status(summary));
         self.current_screen = ScreenId::PlanetAutoCommissionDone;
         Ok(())
     }
@@ -4147,18 +3867,18 @@ impl App {
         };
         let total = self.planet_transport_planet_rows(mode).len();
         if total == 0 {
-            self.planet_transport_planet_cursor = 0;
+            self.planet.transport_planet_cursor = 0;
             return;
         }
-        let next = self.planet_transport_planet_cursor as isize + delta as isize;
-        self.planet_transport_planet_cursor = next.rem_euclid(total as isize) as usize;
+        let next = self.planet.transport_planet_cursor as isize + delta as isize;
+        self.planet.transport_planet_cursor = next.rem_euclid(total as isize) as usize;
         sync_scroll_to_cursor(
-            &mut self.planet_transport_planet_scroll_offset,
-            self.planet_transport_planet_cursor,
+            &mut self.planet.transport_planet_scroll_offset,
+            self.planet.transport_planet_cursor,
             crate::screen::PLANET_TRANSPORT_VISIBLE_ROWS,
         );
-        self.planet_transport_planet_input.clear();
-        self.planet_transport_status = None;
+        self.planet.transport_planet_input.clear();
+        self.planet.transport_status = None;
     }
 
     pub fn confirm_planet_transport_planet(&mut self) {
@@ -4167,23 +3887,23 @@ impl App {
         };
         let Some(selected_planet) = self
             .planet_transport_planet_rows(mode)
-            .get(self.planet_transport_planet_cursor)
+            .get(self.planet.transport_planet_cursor)
             .cloned()
         else {
             return;
         };
-        self.planet_transport_selected_planet_record =
+        self.planet.transport_selected_planet_record =
             Some(selected_planet.planet_record_index_1_based);
-        self.planet_transport_fleet_cursor = 0;
-        self.planet_transport_fleet_scroll_offset = 0;
-        self.planet_transport_qty_input.clear();
-        self.planet_transport_status = None;
+        self.planet.transport_fleet_cursor = 0;
+        self.planet.transport_fleet_scroll_offset = 0;
+        self.planet.transport_qty_input.clear();
+        self.planet.transport_status = None;
         if self
             .current_planet_transport_fleet_rows(mode)
             .unwrap_or_default()
             .is_empty()
         {
-            self.planet_transport_status = Some(match mode {
+            self.planet.transport_status = Some(match mode {
                 PlanetTransportMode::Load => "No fleets here can take more armies.".to_string(),
                 PlanetTransportMode::Unload => "No fleets here have loaded armies.".to_string(),
             });
@@ -4198,10 +3918,10 @@ impl App {
             self.current_screen,
             ScreenId::PlanetTransportPlanetSelect(PlanetTransportMode::Load)
                 | ScreenId::PlanetTransportPlanetSelect(PlanetTransportMode::Unload)
-        ) && self.planet_transport_planet_input.len() < 16
+        ) && self.planet.transport_planet_input.len() < 16
         {
-            self.planet_transport_planet_input.push(ch);
-            self.planet_transport_status = None;
+            self.planet.transport_planet_input.push(ch);
+            self.planet.transport_status = None;
         }
     }
 
@@ -4211,8 +3931,8 @@ impl App {
             ScreenId::PlanetTransportPlanetSelect(PlanetTransportMode::Load)
                 | ScreenId::PlanetTransportPlanetSelect(PlanetTransportMode::Unload)
         ) {
-            self.planet_transport_planet_input.pop();
-            self.planet_transport_status = None;
+            self.planet.transport_planet_input.pop();
+            self.planet.transport_status = None;
         }
     }
 
@@ -4220,34 +3940,34 @@ impl App {
         let ScreenId::PlanetTransportPlanetSelect(mode) = self.current_screen else {
             return;
         };
-        if self.planet_transport_planet_input.trim().is_empty() {
+        if self.planet.transport_planet_input.trim().is_empty() {
             self.confirm_planet_transport_planet();
             return;
         }
         let Some(coords) = resolve_default_coords_input(
-            &self.planet_transport_planet_input,
+            &self.planet.transport_planet_input,
             self.planet_transport_planet_default_coords(mode),
         ) else {
-            self.planet_transport_status = Some("Enter coordinates like 5,2".to_string());
+            self.planet.transport_status = Some("Enter coordinates like 5,2".to_string());
             return;
         };
         let rows = self.planet_transport_planet_rows(mode);
         let Some(index) = rows.iter().position(|row| row.coords == coords) else {
-            self.planet_transport_status = Some(format!(
+            self.planet.transport_status = Some(format!(
                 "No eligible planet found at [{},{}].",
                 coords[0], coords[1]
             ));
             return;
         };
-        self.planet_transport_planet_cursor = index;
+        self.planet.transport_planet_cursor = index;
         center_scroll_to_cursor(
-            &mut self.planet_transport_planet_scroll_offset,
-            self.planet_transport_planet_cursor,
+            &mut self.planet.transport_planet_scroll_offset,
+            self.planet.transport_planet_cursor,
             crate::screen::PLANET_TRANSPORT_VISIBLE_ROWS,
             rows.len(),
         );
-        self.planet_transport_planet_input.clear();
-        self.planet_transport_status = None;
+        self.planet.transport_planet_input.clear();
+        self.planet.transport_status = None;
         self.confirm_planet_transport_planet();
     }
 
@@ -4260,26 +3980,26 @@ impl App {
             .map(|rows| rows.len())
             .unwrap_or(0);
         if total == 0 {
-            self.planet_transport_fleet_cursor = 0;
+            self.planet.transport_fleet_cursor = 0;
             return;
         }
-        let next = self.planet_transport_fleet_cursor as isize + delta as isize;
-        self.planet_transport_fleet_cursor = next.rem_euclid(total as isize) as usize;
+        let next = self.planet.transport_fleet_cursor as isize + delta as isize;
+        self.planet.transport_fleet_cursor = next.rem_euclid(total as isize) as usize;
         sync_scroll_to_cursor(
-            &mut self.planet_transport_fleet_scroll_offset,
-            self.planet_transport_fleet_cursor,
+            &mut self.planet.transport_fleet_scroll_offset,
+            self.planet.transport_fleet_cursor,
             crate::screen::PLANET_TRANSPORT_VISIBLE_ROWS,
         );
-        self.planet_transport_qty_input.clear();
-        self.planet_transport_status = None;
+        self.planet.transport_qty_input.clear();
+        self.planet.transport_status = None;
     }
 
     pub fn confirm_planet_transport_fleet(&mut self) {
         let ScreenId::PlanetTransportFleetSelect(mode) = self.current_screen else {
             return;
         };
-        self.planet_transport_qty_input.clear();
-        self.planet_transport_status = None;
+        self.planet.transport_qty_input.clear();
+        self.planet.transport_status = None;
         self.current_screen = ScreenId::PlanetTransportFleetSelect(mode);
     }
 
@@ -4287,10 +4007,10 @@ impl App {
         if matches!(
             self.current_screen,
             ScreenId::PlanetTransportFleetSelect(_) | ScreenId::PlanetTransportQuantityPrompt(_)
-        ) && self.planet_transport_qty_input.len() < 3
+        ) && self.planet.transport_qty_input.len() < 3
         {
-            self.planet_transport_qty_input.push(ch);
-            self.planet_transport_status = None;
+            self.planet.transport_qty_input.push(ch);
+            self.planet.transport_status = None;
         }
     }
 
@@ -4299,8 +4019,8 @@ impl App {
             self.current_screen,
             ScreenId::PlanetTransportFleetSelect(_) | ScreenId::PlanetTransportQuantityPrompt(_)
         ) {
-            self.planet_transport_qty_input.pop();
-            self.planet_transport_status = None;
+            self.planet.transport_qty_input.pop();
+            self.planet.transport_status = None;
         }
     }
 
@@ -4313,7 +4033,7 @@ impl App {
         let fleet = self.current_planet_transport_fleet_row(mode)?;
         let max_qty = fleet.available_qty;
         if max_qty == 0 {
-            self.planet_transport_status = Some(match mode {
+            self.planet.transport_status = Some(match mode {
                 PlanetTransportMode::Load => {
                     format!("Fleet {} cannot take any more armies.", fleet.fleet_number)
                 }
@@ -4327,19 +4047,19 @@ impl App {
             self.current_screen = ScreenId::PlanetTransportFleetSelect(mode);
             return Ok(());
         }
-        let qty = if self.planet_transport_qty_input.trim().is_empty() {
+        let qty = if self.planet.transport_qty_input.trim().is_empty() {
             max_qty
         } else {
-            match self.planet_transport_qty_input.trim().parse::<u16>() {
+            match self.planet.transport_qty_input.trim().parse::<u16>() {
                 Ok(value) if value > 0 => value,
                 _ => {
-                    self.planet_transport_status = Some("Enter a positive army count.".to_string());
+                    self.planet.transport_status = Some("Enter a positive army count.".to_string());
                     return Ok(());
                 }
             }
         };
         if qty > max_qty {
-            self.planet_transport_status = Some(format!("Enter a value from 1 to {max_qty}."));
+            self.planet.transport_status = Some(format!("Enter a value from 1 to {max_qty}."));
             return Ok(());
         }
         let planet = self.current_planet_transport_planet_row(mode)?;
@@ -4360,7 +4080,7 @@ impl App {
         match result {
             Ok(()) => {}
             Err(GameStateMutationError::PlanetArmyCapacityExceeded { available, .. }) => {
-                self.planet_transport_status = Some(if available == 0 {
+                self.planet.transport_status = Some(if available == 0 {
                     "This planet is already at the maximum 255 armies.".to_string()
                 } else {
                     format!("Planet can receive only {available} more armies.")
@@ -4371,8 +4091,8 @@ impl App {
             Err(err) => return Err(err.into()),
         }
         self.save_game_data()?;
-        self.planet_transport_status = None;
-        self.planet_transport_qty_input.clear();
+        self.planet.transport_status = None;
+        self.planet.transport_qty_input.clear();
         let base_row = self
             .build_planet_rows()
             .into_iter()
@@ -4380,20 +4100,20 @@ impl App {
             .ok_or("transport planet row missing after submit")?;
         let eligible_fleets = self.planet_transport_eligible_fleet_rows_for_planet(mode, &base_row);
         if !eligible_fleets.is_empty() {
-            self.planet_transport_fleet_cursor = self
-                .planet_transport_fleet_cursor
+            self.planet.transport_fleet_cursor = self
+                .planet.transport_fleet_cursor
                 .min(eligible_fleets.len() - 1);
             self.current_screen = ScreenId::PlanetTransportFleetSelect(mode);
         } else {
             let planet_rows = self.planet_transport_planet_rows(mode);
-            self.planet_transport_selected_planet_record = None;
+            self.planet.transport_selected_planet_record = None;
             if !planet_rows.is_empty() {
-                self.planet_transport_planet_cursor = self
-                    .planet_transport_planet_cursor
+                self.planet.transport_planet_cursor = self
+                    .planet.transport_planet_cursor
                     .min(planet_rows.len() - 1);
                 self.current_screen = ScreenId::PlanetTransportPlanetSelect(mode);
             } else {
-                self.planet_transport_status = None;
+                self.planet.transport_status = None;
                 self.return_to_command_menu();
             }
         }
@@ -4402,7 +4122,7 @@ impl App {
 
     fn planet_transport_planet_default_coords(&self, mode: PlanetTransportMode) -> [u8; 2] {
         self.planet_transport_planet_rows(mode)
-            .get(self.planet_transport_planet_cursor)
+            .get(self.planet.transport_planet_cursor)
             .map(|row| row.coords)
             .unwrap_or_else(|| self.default_planet_prompt_coords())
     }
@@ -4412,20 +4132,20 @@ impl App {
             return;
         }
         let rows = self.current_planet_commission_rows();
-        let Some(row) = rows.get(self.planet_commission_cursor) else {
+        let Some(row) = rows.get(self.planet.commission_cursor) else {
             return;
         };
         if self
-            .planet_commission_selected_slots
+            .planet.commission_selected_slots
             .contains(&row.slot_0_based)
         {
-            self.planet_commission_selected_slots
+            self.planet.commission_selected_slots
                 .remove(&row.slot_0_based);
         } else {
-            self.planet_commission_selected_slots
+            self.planet.commission_selected_slots
                 .insert(row.slot_0_based);
         }
-        self.planet_commission_status = None;
+        self.planet.commission_status = None;
     }
 
     pub fn scroll_planet_build_list(&mut self, delta: i8) {
@@ -4434,8 +4154,8 @@ impl App {
         }
         let total = self.planet_build_list_rows().len();
         let max_offset = total.saturating_sub(crate::screen::PLANET_BUILD_LIST_VISIBLE_ROWS);
-        self.planet_build_list_scroll_offset = self
-            .planet_build_list_scroll_offset
+        self.planet.build_list_scroll_offset = self
+            .planet.build_list_scroll_offset
             .saturating_add_signed(delta as isize)
             .min(max_offset);
     }
@@ -4446,19 +4166,19 @@ impl App {
         }
         let total = self.planet_build_list_rows().len();
         if total == 0 {
-            self.planet_build_list_cursor = 0;
+            self.planet.build_list_cursor = 0;
             return;
         }
-        let next = self.planet_build_list_cursor as isize + delta as isize;
-        self.planet_build_list_cursor = next.rem_euclid(total as isize) as usize;
+        let next = self.planet.build_list_cursor as isize + delta as isize;
+        self.planet.build_list_cursor = next.rem_euclid(total as isize) as usize;
         // Keep scroll window in sync: ensure cursor is visible.
-        if self.planet_build_list_cursor < self.planet_build_list_scroll_offset {
-            self.planet_build_list_scroll_offset = self.planet_build_list_cursor;
-        } else if self.planet_build_list_cursor
-            >= self.planet_build_list_scroll_offset + crate::screen::PLANET_BUILD_LIST_VISIBLE_ROWS
+        if self.planet.build_list_cursor < self.planet.build_list_scroll_offset {
+            self.planet.build_list_scroll_offset = self.planet.build_list_cursor;
+        } else if self.planet.build_list_cursor
+            >= self.planet.build_list_scroll_offset + crate::screen::PLANET_BUILD_LIST_VISIBLE_ROWS
         {
-            self.planet_build_list_scroll_offset =
-                self.planet_build_list_cursor + 1 - crate::screen::PLANET_BUILD_LIST_VISIBLE_ROWS;
+            self.planet.build_list_scroll_offset =
+                self.planet.build_list_cursor + 1 - crate::screen::PLANET_BUILD_LIST_VISIBLE_ROWS;
         }
     }
 
@@ -4467,67 +4187,67 @@ impl App {
             return;
         }
         let rows = self.planet_build_list_rows();
-        let Some(row) = rows.get(self.planet_build_list_cursor) else {
+        let Some(row) = rows.get(self.planet.build_list_cursor) else {
             return;
         };
         if row.queue_qty == 0 {
             return;
         }
-        self.planet_build_list_confirming = true;
+        self.planet.build_list_confirming = true;
     }
 
     pub fn confirm_delete_planet_build_slot(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        if !self.planet_build_list_confirming {
+        if !self.planet.build_list_confirming {
             return Ok(());
         }
         let rows = self.planet_build_list_rows();
-        let Some(row) = rows.get(self.planet_build_list_cursor) else {
-            self.planet_build_list_confirming = false;
+        let Some(row) = rows.get(self.planet.build_list_cursor) else {
+            self.planet.build_list_confirming = false;
             return Ok(());
         };
         let planet_record = self.current_build_planet_row()?.planet_record_index_1_based;
         self.game_data
             .clear_planet_build_orders_by_kind(planet_record, row.kind)?;
         self.save_game_data()?;
-        self.planet_build_list_confirming = false;
+        self.planet.build_list_confirming = false;
         // Clamp cursor after deletion.
         let new_total = self.planet_build_list_rows().len();
         if new_total == 0 {
-            self.planet_build_list_cursor = 0;
+            self.planet.build_list_cursor = 0;
         } else {
-            self.planet_build_list_cursor = self.planet_build_list_cursor.min(new_total - 1);
+            self.planet.build_list_cursor = self.planet.build_list_cursor.min(new_total - 1);
         }
         Ok(())
     }
 
     pub fn cancel_delete_planet_build_slot(&mut self) {
-        self.planet_build_list_confirming = false;
+        self.planet.build_list_confirming = false;
     }
 
     pub fn append_planet_build_unit_char(&mut self, ch: char) {
         if self.current_screen == ScreenId::PlanetBuildSpecify
-            && self.planet_build_unit_input.len() < 2
+            && self.planet.build_unit_input.len() < 2
         {
-            self.planet_build_unit_input.push(ch);
-            self.planet_build_unit_status = None;
+            self.planet.build_unit_input.push(ch);
+            self.planet.build_unit_status = None;
         }
     }
 
     pub fn backspace_planet_build_unit_input(&mut self) {
         if self.current_screen == ScreenId::PlanetBuildSpecify {
-            self.planet_build_unit_input.pop();
-            self.planet_build_unit_status = None;
+            self.planet.build_unit_input.pop();
+            self.planet.build_unit_status = None;
         }
     }
 
     pub fn submit_planet_build_unit(&mut self) {
-        let raw = self.planet_build_unit_input.trim();
+        let raw = self.planet.build_unit_input.trim();
         let number = if raw.is_empty() {
             0
         } else if let Ok(value) = raw.parse::<u8>() {
             value
         } else {
-            self.planet_build_unit_status = Some("Enter a valid unit number.".to_string());
+            self.planet.build_unit_status = Some("Enter a valid unit number.".to_string());
             return;
         };
 
@@ -4537,46 +4257,46 @@ impl App {
         }
 
         let Some(unit) = build_unit_spec(number) else {
-            self.planet_build_unit_status = Some("That unit is not available.".to_string());
+            self.planet.build_unit_status = Some("That unit is not available.".to_string());
             return;
         };
 
         let Ok(max_qty) = self.current_planet_build_max_quantity_for(unit.kind) else {
-            self.planet_build_unit_status = Some("No points are available to spend.".to_string());
+            self.planet.build_unit_status = Some("No points are available to spend.".to_string());
             return;
         };
         if max_qty == 0 {
-            self.planet_build_unit_status = Some(
+            self.planet.build_unit_status = Some(
                 self.planet_build_unavailable_message(unit.kind)
                     .unwrap_or_else(|_| "No points are available to spend.".to_string()),
             );
             return;
         }
 
-        self.planet_build_selected_kind = Some(unit.kind);
-        self.planet_build_quantity_input.clear();
-        self.planet_build_quantity_status = None;
+        self.planet.build_selected_kind = Some(unit.kind);
+        self.planet.build_quantity_input.clear();
+        self.planet.build_quantity_status = None;
         self.current_screen = ScreenId::PlanetBuildQuantity;
     }
 
     pub fn append_planet_build_quantity_char(&mut self, ch: char) {
         if self.current_screen == ScreenId::PlanetBuildQuantity
-            && self.planet_build_quantity_input.len() < 3
+            && self.planet.build_quantity_input.len() < 3
         {
-            self.planet_build_quantity_input.push(ch);
-            self.planet_build_quantity_status = None;
+            self.planet.build_quantity_input.push(ch);
+            self.planet.build_quantity_status = None;
         }
     }
 
     pub fn backspace_planet_build_quantity_input(&mut self) {
         if self.current_screen == ScreenId::PlanetBuildQuantity {
-            self.planet_build_quantity_input.pop();
-            self.planet_build_quantity_status = None;
+            self.planet.build_quantity_input.pop();
+            self.planet.build_quantity_status = None;
         }
     }
 
     pub fn submit_planet_build_quantity(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(kind) = self.planet_build_selected_kind else {
+        let Some(kind) = self.planet.build_selected_kind else {
             self.current_screen = ScreenId::PlanetBuildSpecify;
             return Ok(());
         };
@@ -4586,17 +4306,17 @@ impl App {
         };
         let max_qty = self.current_planet_build_max_quantity_for(kind)?;
         if max_qty == 0 {
-            self.planet_build_quantity_status = Some(self.planet_build_unavailable_message(kind)?);
+            self.planet.build_quantity_status = Some(self.planet_build_unavailable_message(kind)?);
             return Ok(());
         }
 
-        let qty = if self.planet_build_quantity_input.trim().is_empty() {
+        let qty = if self.planet.build_quantity_input.trim().is_empty() {
             max_qty
         } else {
-            match self.planet_build_quantity_input.trim().parse::<u32>() {
+            match self.planet.build_quantity_input.trim().parse::<u32>() {
                 Ok(value) => value,
                 Err(_) => {
-                    self.planet_build_quantity_status = Some("Enter a valid quantity.".to_string());
+                    self.planet.build_quantity_status = Some("Enter a valid quantity.".to_string());
                     return Ok(());
                 }
             }
@@ -4604,11 +4324,11 @@ impl App {
 
         if qty == 0 {
             self.current_screen = ScreenId::PlanetBuildSpecify;
-            self.planet_build_quantity_input.clear();
+            self.planet.build_quantity_input.clear();
             return Ok(());
         }
         if qty > max_qty {
-            self.planet_build_quantity_status =
+            self.planet.build_quantity_status =
                 Some(format!("Enter a quantity from 0 to {}.", max_qty));
             return Ok(());
         }
@@ -4625,7 +4345,7 @@ impl App {
         if needs_stardock {
             let free = self.game_data.planet_free_stardock_slots(planet_record)?;
             if free == 0 {
-                self.planet_build_quantity_status =
+                self.planet.build_quantity_status =
                     Some("Stardock is full — commission ships first to free space.".to_string());
                 return Ok(());
             }
@@ -4639,18 +4359,18 @@ impl App {
         ) {
             Ok(()) => {}
             Err(GameStateMutationError::PlanetBuildQueueFull { .. }) => {
-                self.planet_build_quantity_status =
+                self.planet.build_quantity_status =
                     Some("Build queue is full (10 orders maximum).".to_string());
                 return Ok(());
             }
             Err(e) => return Err(e.into()),
         }
         self.save_game_data()?;
-        self.planet_build_unit_input.clear();
-        self.planet_build_unit_status = Some(format!("Queued {} {}.", qty, unit.label));
-        self.planet_build_quantity_input.clear();
-        self.planet_build_quantity_status = None;
-        self.planet_build_selected_kind = None;
+        self.planet.build_unit_input.clear();
+        self.planet.build_unit_status = Some(format!("Queued {} {}.", qty, unit.label));
+        self.planet.build_quantity_input.clear();
+        self.planet.build_quantity_status = None;
+        self.planet.build_selected_kind = None;
         self.current_screen = ScreenId::PlanetBuildSpecify;
         Ok(())
     }
@@ -4660,48 +4380,48 @@ impl App {
         self.game_data
             .clear_planet_build_queue(row.planet_record_index_1_based)?;
         self.save_game_data()?;
-        self.planet_build_status = Some("Build orders aborted.".to_string());
+        self.planet.build_status = Some("Build orders aborted.".to_string());
         self.current_screen = ScreenId::PlanetBuildMenu;
         Ok(())
     }
 
     pub fn append_planet_tax_char(&mut self, ch: char) {
-        if self.current_screen == ScreenId::PlanetTaxPrompt && self.planet_tax_input.len() < 3 {
-            self.planet_tax_input.push(ch);
-            self.planet_tax_status = None;
+        if self.current_screen == ScreenId::PlanetTaxPrompt && self.planet.tax_input.len() < 3 {
+            self.planet.tax_input.push(ch);
+            self.planet.tax_status = None;
         }
     }
 
     pub fn backspace_planet_tax_input(&mut self) {
         if self.current_screen == ScreenId::PlanetTaxPrompt {
-            self.planet_tax_input.pop();
-            self.planet_tax_status = None;
+            self.planet.tax_input.pop();
+            self.planet.tax_status = None;
         }
     }
 
     pub fn submit_planet_tax(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let raw = self.planet_tax_input.trim();
+        let raw = self.planet.tax_input.trim();
         let parsed = if raw.is_empty() {
             self.game_data.player.records[self.player.record_index_1_based - 1].tax_rate()
         } else {
             match raw.parse::<u8>() {
                 Ok(value) => value,
                 Err(_) => {
-                    self.planet_tax_status =
+                    self.planet.tax_status =
                         Some("Enter an integer tax rate from 0 to 100.".to_string());
                     return Ok(());
                 }
             }
         };
         if parsed > 100 {
-            self.planet_tax_status = Some("Enter an integer tax rate from 0 to 100.".to_string());
+            self.planet.tax_status = Some("Enter an integer tax rate from 0 to 100.".to_string());
             return Ok(());
         }
         self.game_data
             .set_player_tax_rate(self.player.record_index_1_based, parsed)?;
         self.save_game_data()?;
-        self.planet_tax_input = parsed.to_string();
-        self.planet_tax_status = Some(format!("Empire tax rate set to {parsed}%."));
+        self.planet.tax_input = parsed.to_string();
+        self.planet.tax_status = Some(format!("Empire tax rate set to {parsed}%."));
         self.current_screen = ScreenId::PlanetTaxDone;
         Ok(())
     }
@@ -4712,13 +4432,13 @@ impl App {
         }
         match self.current_screen {
             ScreenId::Startup(StartupPhase::Splash)
-                if self.startup_splash_page + 1 < STARTUP_SPLASH_PAGE_COUNT =>
+                if self.startup_state.splash_page + 1 < STARTUP_SPLASH_PAGE_COUNT =>
             {
                 match key.code {
                     crossterm::event::KeyCode::Char('q') | crossterm::event::KeyCode::Char('Q') => {
                         Action::Quit
                     }
-                    _ => Action::AdvanceStartup,
+                    _ => Action::Startup(StartupAction::Advance),
                 }
             }
             ScreenId::Startup(phase) => self.handle_startup_key(phase, key),
@@ -4727,86 +4447,86 @@ impl App {
             ScreenId::FirstTimeEmpires => self.first_time_empires.handle_key(key),
             ScreenId::FirstTimePreloadedRenamePrompt => match key.code {
                 crossterm::event::KeyCode::Char('y') | crossterm::event::KeyCode::Char('Y') => {
-                    Action::AcceptFirstTimePrompt
+                    Action::Startup(StartupAction::AcceptFirstTimePrompt)
                 }
                 crossterm::event::KeyCode::Enter
                 | crossterm::event::KeyCode::Char('n')
                 | crossterm::event::KeyCode::Char('N')
-                | crossterm::event::KeyCode::Esc => Action::RejectFirstTimePrompt,
+                | crossterm::event::KeyCode::Esc => Action::Startup(StartupAction::RejectFirstTimePrompt),
                 _ => Action::Noop,
             },
             ScreenId::FirstTimeIntro
-                if self.first_time_intro_page + 1 < FIRST_TIME_INTRO_PAGE_COUNT =>
+                if self.startup_state.first_time_intro_page + 1 < FIRST_TIME_INTRO_PAGE_COUNT =>
             {
-                Action::AdvanceStartup
+                Action::Startup(StartupAction::Advance)
             }
             ScreenId::FirstTimeIntro => self.first_time_intro.handle_key(key),
             ScreenId::FirstTimeJoinEmpireName | ScreenId::FirstTimeHomeworldName => {
                 match key.code {
-                    crossterm::event::KeyCode::Char(ch) => Action::AppendFirstTimeInputChar(ch),
-                    crossterm::event::KeyCode::Backspace => Action::BackspaceFirstTimeInput,
-                    crossterm::event::KeyCode::Enter => Action::SubmitFirstTimeInput,
+                    crossterm::event::KeyCode::Char(ch) => Action::Startup(StartupAction::AppendFirstTimeInputChar(ch)),
+                    crossterm::event::KeyCode::Backspace => Action::Startup(StartupAction::BackspaceFirstTimeInput),
+                    crossterm::event::KeyCode::Enter => Action::Startup(StartupAction::SubmitFirstTimeInput),
                     crossterm::event::KeyCode::Esc => {
-                        if self.first_time_rename_preloaded_empire {
-                            Action::RejectFirstTimePrompt
+                        if self.startup_state.first_time_rename_preloaded_empire {
+                            Action::Startup(StartupAction::RejectFirstTimePrompt)
                         } else {
-                            Action::OpenFirstTimeMenu
+                            Action::Startup(StartupAction::OpenFirstTimeMenu)
                         }
                     }
                     _ => Action::Noop,
                 }
             }
             ScreenId::ColonyWorldName => match key.code {
-                crossterm::event::KeyCode::Char(ch) => Action::AppendFirstTimeInputChar(ch),
-                crossterm::event::KeyCode::Backspace => Action::BackspaceFirstTimeInput,
-                crossterm::event::KeyCode::Enter => Action::SubmitFirstTimeInput,
-                crossterm::event::KeyCode::Esc => Action::RejectFirstTimePrompt,
+                crossterm::event::KeyCode::Char(ch) => Action::Startup(StartupAction::AppendFirstTimeInputChar(ch)),
+                crossterm::event::KeyCode::Backspace => Action::Startup(StartupAction::BackspaceFirstTimeInput),
+                crossterm::event::KeyCode::Enter => Action::Startup(StartupAction::SubmitFirstTimeInput),
+                crossterm::event::KeyCode::Esc => Action::Startup(StartupAction::RejectFirstTimePrompt),
                 _ => Action::Noop,
             },
             ScreenId::FirstTimeJoinEmpireConfirm => {
-                if self.first_time_rename_preloaded_empire {
+                if self.startup_state.first_time_rename_preloaded_empire {
                     match key.code {
                         crossterm::event::KeyCode::Char('y')
-                        | crossterm::event::KeyCode::Char('Y') => Action::AcceptFirstTimePrompt,
+                        | crossterm::event::KeyCode::Char('Y') => Action::Startup(StartupAction::AcceptFirstTimePrompt),
                         crossterm::event::KeyCode::Enter
                         | crossterm::event::KeyCode::Char('n')
                         | crossterm::event::KeyCode::Char('N')
-                        | crossterm::event::KeyCode::Esc => Action::RejectFirstTimePrompt,
+                        | crossterm::event::KeyCode::Esc => Action::Startup(StartupAction::RejectFirstTimePrompt),
                         _ => Action::Noop,
                     }
                 } else {
                     match key.code {
                         crossterm::event::KeyCode::Enter
                         | crossterm::event::KeyCode::Char('y')
-                        | crossterm::event::KeyCode::Char('Y') => Action::AcceptFirstTimePrompt,
+                        | crossterm::event::KeyCode::Char('Y') => Action::Startup(StartupAction::AcceptFirstTimePrompt),
                         crossterm::event::KeyCode::Char('n')
                         | crossterm::event::KeyCode::Char('N')
-                        | crossterm::event::KeyCode::Esc => Action::RejectFirstTimePrompt,
+                        | crossterm::event::KeyCode::Esc => Action::Startup(StartupAction::RejectFirstTimePrompt),
                         _ => Action::Noop,
                     }
                 }
             }
             ScreenId::FirstTimeJoinSummary | ScreenId::FirstTimeJoinNoPending => match key.code {
-                crossterm::event::KeyCode::Enter => Action::AcceptFirstTimePrompt,
+                crossterm::event::KeyCode::Enter => Action::Startup(StartupAction::AcceptFirstTimePrompt),
                 _ => Action::Noop,
             },
             ScreenId::FirstTimeHomeworldConfirm => match key.code {
                 crossterm::event::KeyCode::Char('y') | crossterm::event::KeyCode::Char('Y') => {
-                    Action::AcceptFirstTimePrompt
+                    Action::Startup(StartupAction::AcceptFirstTimePrompt)
                 }
                 crossterm::event::KeyCode::Enter
                 | crossterm::event::KeyCode::Char('n')
                 | crossterm::event::KeyCode::Char('N')
-                | crossterm::event::KeyCode::Esc => Action::RejectFirstTimePrompt,
+                | crossterm::event::KeyCode::Esc => Action::Startup(StartupAction::RejectFirstTimePrompt),
                 _ => Action::Noop,
             },
             ScreenId::ColonyWorldConfirm => match key.code {
                 crossterm::event::KeyCode::Enter
                 | crossterm::event::KeyCode::Char('y')
-                | crossterm::event::KeyCode::Char('Y') => Action::AcceptFirstTimePrompt,
+                | crossterm::event::KeyCode::Char('Y') => Action::Startup(StartupAction::AcceptFirstTimePrompt),
                 crossterm::event::KeyCode::Char('n')
                 | crossterm::event::KeyCode::Char('N')
-                | crossterm::event::KeyCode::Esc => Action::RejectFirstTimePrompt,
+                | crossterm::event::KeyCode::Esc => Action::Startup(StartupAction::RejectFirstTimePrompt),
                 _ => Action::Noop,
             },
             ScreenId::MainMenu => self.main_menu.handle_key(key),
@@ -4818,7 +4538,7 @@ impl App {
             ScreenId::StarbaseHelp => self.starbase_help.handle_key(key),
             ScreenId::StarbaseList => self.starbase_list.handle_key(key),
             ScreenId::StarbaseReviewSelect => self.handle_starbase_review_select_key(key),
-            ScreenId::StarbaseReview => Action::OpenStarbaseReviewSelect,
+            ScreenId::StarbaseReview => Action::Starbase(StarbaseAction::OpenReviewSelect),
             ScreenId::FleetMenu => self.fleet_menu.handle_key(key),
             ScreenId::FleetList(_) => self.fleet_list.handle_key(key),
             ScreenId::FleetReviewSelect => self.handle_fleet_review_select_key(key),
@@ -4834,7 +4554,7 @@ impl App {
             ScreenId::PlanetMenu => self.planet_menu.handle_key(key),
             ScreenId::PlanetHelp => self.planet_help.handle_key(key),
             ScreenId::PlanetAutoCommissionConfirm => self.planet_auto_commission.handle_key(key),
-            ScreenId::PlanetAutoCommissionDone => Action::OpenPlanetMenu,
+            ScreenId::PlanetAutoCommissionDone => Action::Planet(PlanetAction::OpenMenu),
             ScreenId::PlanetCommissionMenu => self.planet_commission.handle_key(key),
             ScreenId::PlanetTransportPlanetSelect(_) => {
                 self.planet_transport.handle_planet_key(key)
@@ -4843,27 +4563,27 @@ impl App {
             ScreenId::PlanetTransportQuantityPrompt(_) => {
                 self.planet_transport.handle_quantity_key(key)
             }
-            ScreenId::PlanetTransportDone(_) => Action::OpenPlanetMenu,
+            ScreenId::PlanetTransportDone(_) => Action::Planet(PlanetAction::OpenMenu),
             ScreenId::PlanetBuildHelp => self.build_help.handle_key(key),
             ScreenId::PlanetBuildMenu => self.planet_build.handle_menu_key(key),
             ScreenId::PlanetBuildReview => self.planet_build.handle_review_key(key),
             ScreenId::PlanetBuildList => self
                 .planet_build
-                .handle_list_key(key, self.planet_build_list_confirming),
+                .handle_list_key(key, self.planet.build_list_confirming),
             ScreenId::PlanetBuildChange => self.planet_build.handle_change_key(key),
             ScreenId::PlanetBuildAbortConfirm => self.planet_build.handle_abort_key(key),
             ScreenId::PlanetBuildSpecify => self.planet_build.handle_specify_key(key),
             ScreenId::PlanetBuildQuantity => self.planet_build.handle_quantity_key(key),
-            ScreenId::PlanetListSortPrompt(PlanetListMode::Stub(_)) => Action::OpenPlanetMenu,
+            ScreenId::PlanetListSortPrompt(PlanetListMode::Stub(_)) => Action::Planet(PlanetAction::OpenMenu),
             ScreenId::PlanetListSortPrompt(_) => self.planet_list.handle_sort_prompt_key(key),
             ScreenId::PlanetBriefList(_) => self.planet_list.handle_brief_key(key),
             ScreenId::PlanetDetailList(_) => self.planet_list.handle_detail_key(key),
             ScreenId::PlanetTaxPrompt => self.planet_tax.handle_prompt_key(key),
             ScreenId::PlanetTaxDone => self.planet_tax.handle_done_key(key),
-            ScreenId::Starmap if self.starmap_capture_complete => {
+            ScreenId::Starmap if self.starmap_state.capture_complete => {
                 self.starmap.handle_complete_key(key)
             }
-            ScreenId::Starmap if self.starmap_dump_active => self.starmap.handle_dump_key(key),
+            ScreenId::Starmap if self.starmap_state.dump_active => self.starmap.handle_dump_key(key),
             ScreenId::Starmap => self.starmap.handle_prompt_key(key),
             ScreenId::PartialStarmapPrompt => self.partial_starmap.handle_prompt_key(key),
             ScreenId::PartialStarmapView => self.partial_starmap.handle_view_key(key),
@@ -4900,37 +4620,37 @@ impl App {
 
         match phase {
             StartupPhase::Splash => match key.code {
-                KeyCode::Char('y') | KeyCode::Char('Y') => Action::OpenStartupIntro,
+                KeyCode::Char('y') | KeyCode::Char('Y') => Action::Startup(StartupAction::OpenIntro),
                 KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
-                _ => Action::AdvanceStartup,
+                _ => Action::Startup(StartupAction::Advance),
             },
             StartupPhase::Intro | StartupPhase::LoginSummary => match key.code {
                 KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
-                _ => Action::AdvanceStartup,
+                _ => Action::Startup(StartupAction::Advance),
             },
             StartupPhase::Results => {
-                if self.startup_results_mode == StartupReviewMode::ItemBody {
+                if self.startup_state.results_mode == StartupReviewMode::ItemBody {
                     let page_count = self
                         .startup
-                        .results_block_page_count(self.startup_results_block);
-                    if self.startup_results_page + 1 < page_count {
+                        .results_block_page_count(self.startup_state.results_block);
+                    if self.startup_state.results_page + 1 < page_count {
                         return match key.code {
                             KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
-                            _ => Action::AdvanceStartup,
+                            _ => Action::Startup(StartupAction::Advance),
                         };
                     }
                 }
-                match self.startup_results_mode {
+                match self.startup_state.results_mode {
                     StartupReviewMode::ViewPrompt | StartupReviewMode::ContinuePrompt => {
                         match key.code {
                             KeyCode::Enter
                             | KeyCode::Char('y')
-                            | KeyCode::Char('Y') => Action::StartupAcceptDefault,
+                            | KeyCode::Char('Y') => Action::Startup(StartupAction::AcceptDefault),
                             KeyCode::Char('n') | KeyCode::Char('N') => {
-                                Action::StartupRejectChoice
+                                Action::Startup(StartupAction::RejectChoice)
                             }
                             KeyCode::Char('s') | KeyCode::Char('S') => {
-                                Action::StartupEnableNonstop
+                                Action::Startup(StartupAction::EnableNonstop)
                             }
                             KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
                             _ => Action::Noop,
@@ -4938,45 +4658,45 @@ impl App {
                     }
                     StartupReviewMode::ItemBody => match key.code {
                         KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
-                        _ => Action::AdvanceStartup,
+                        _ => Action::Startup(StartupAction::Advance),
                     },
                     StartupReviewMode::DeletePrompt => match key.code {
-                        KeyCode::Char('y') | KeyCode::Char('Y') => Action::StartupAcceptDefault,
+                        KeyCode::Char('y') | KeyCode::Char('Y') => Action::Startup(StartupAction::AcceptDefault),
                         KeyCode::Enter | KeyCode::Char('n') | KeyCode::Char('N') => {
-                            Action::StartupRejectChoice
+                            Action::Startup(StartupAction::RejectChoice)
                         }
                         KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
                         _ => Action::Noop,
                     },
                     StartupReviewMode::EndStatus => match key.code {
                         KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
-                        _ => Action::AdvanceStartup,
+                        _ => Action::Startup(StartupAction::Advance),
                     },
                 }
             }
             StartupPhase::Messages => {
-                if self.startup_messages_mode == StartupReviewMode::ItemBody {
+                if self.startup_state.messages_mode == StartupReviewMode::ItemBody {
                     let page_count = self
                         .startup
-                        .messages_block_page_count(self.startup_messages_block);
-                    if self.startup_messages_page + 1 < page_count {
+                        .messages_block_page_count(self.startup_state.messages_block);
+                    if self.startup_state.messages_page + 1 < page_count {
                         return match key.code {
                             KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
-                            _ => Action::AdvanceStartup,
+                            _ => Action::Startup(StartupAction::Advance),
                         };
                     }
                 }
-                match self.startup_messages_mode {
+                match self.startup_state.messages_mode {
                     StartupReviewMode::ViewPrompt | StartupReviewMode::ContinuePrompt => {
                         match key.code {
                             KeyCode::Enter
                             | KeyCode::Char('y')
-                            | KeyCode::Char('Y') => Action::StartupAcceptDefault,
+                            | KeyCode::Char('Y') => Action::Startup(StartupAction::AcceptDefault),
                             KeyCode::Char('n') | KeyCode::Char('N') => {
-                                Action::StartupRejectChoice
+                                Action::Startup(StartupAction::RejectChoice)
                             }
                             KeyCode::Char('s') | KeyCode::Char('S') => {
-                                Action::StartupEnableNonstop
+                                Action::Startup(StartupAction::EnableNonstop)
                             }
                             KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
                             _ => Action::Noop,
@@ -4984,19 +4704,19 @@ impl App {
                     }
                     StartupReviewMode::ItemBody => match key.code {
                         KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
-                        _ => Action::AdvanceStartup,
+                        _ => Action::Startup(StartupAction::Advance),
                     },
                     StartupReviewMode::DeletePrompt => match key.code {
-                        KeyCode::Char('y') | KeyCode::Char('Y') => Action::StartupAcceptDefault,
+                        KeyCode::Char('y') | KeyCode::Char('Y') => Action::Startup(StartupAction::AcceptDefault),
                         KeyCode::Enter | KeyCode::Char('n') | KeyCode::Char('N') => {
-                            Action::StartupRejectChoice
+                            Action::Startup(StartupAction::RejectChoice)
                         }
                         KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
                         _ => Action::Noop,
                     },
                     StartupReviewMode::EndStatus => match key.code {
                         KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
-                        _ => Action::AdvanceStartup,
+                        _ => Action::Startup(StartupAction::Advance),
                     },
                 }
             }
@@ -5006,17 +4726,17 @@ impl App {
 
     pub fn open_planet_info_prompt(&mut self, menu: CommandMenu) {
         self.command_return_menu = menu;
-        self.planet_info_input.clear();
-        self.planet_info_error = None;
-        self.planet_info_selected = None;
+        self.planet.info_input.clear();
+        self.planet.info_error = None;
+        self.planet.info_selected = None;
         self.current_screen = ScreenId::PlanetInfoPrompt;
     }
 
     pub fn open_enemies(&mut self) {
-        self.enemies_input.clear();
-        self.enemies_status = None;
-        self.enemies_scroll_offset = 0;
-        self.enemies_cursor = 0;
+        self.empire.enemies_input.clear();
+        self.empire.enemies_status = None;
+        self.empire.enemies_scroll_offset = 0;
+        self.empire.enemies_cursor = 0;
         self.current_screen = ScreenId::Enemies;
     }
 
@@ -5035,7 +4755,7 @@ impl App {
             );
             return;
         }
-        self.delete_reviewables_status = None;
+        self.messaging.delete_reviewables_status = None;
         self.current_screen = ScreenId::DeleteReviewables;
     }
 
@@ -5060,46 +4780,46 @@ impl App {
     }
 
     pub fn open_compose_message_recipient(&mut self) {
-        self.compose_recipient_input.clear();
-        self.compose_recipient_status = None;
-        self.compose_recipient_scroll_offset = 0;
-        self.compose_recipient_cursor = 0;
-        self.compose_recipient_empire = None;
-        self.compose_subject.clear();
-        self.compose_subject_status = None;
-        self.compose_body.clear();
-        self.compose_body_cursor = 0;
-        self.compose_body_status = None;
-        self.compose_outbox_input.clear();
-        self.compose_outbox_status = None;
-        self.compose_outbox_scroll_offset = 0;
-        self.compose_sent_status = None;
+        self.messaging.compose_recipient_input.clear();
+        self.messaging.compose_recipient_status = None;
+        self.messaging.compose_recipient_scroll_offset = 0;
+        self.messaging.compose_recipient_cursor = 0;
+        self.messaging.compose_recipient_empire = None;
+        self.messaging.compose_subject.clear();
+        self.messaging.compose_subject_status = None;
+        self.messaging.compose_body.clear();
+        self.messaging.compose_body_cursor = 0;
+        self.messaging.compose_body_status = None;
+        self.messaging.compose_outbox_input.clear();
+        self.messaging.compose_outbox_status = None;
+        self.messaging.compose_outbox_scroll_offset = 0;
+        self.messaging.compose_sent_status = None;
         self.current_screen = ScreenId::ComposeMessageRecipient;
     }
 
     pub fn open_compose_message_subject(&mut self) {
-        if self.compose_recipient_empire.is_none() {
+        if self.messaging.compose_recipient_empire.is_none() {
             self.open_compose_message_recipient();
             return;
         }
-        self.compose_subject_status = None;
+        self.messaging.compose_subject_status = None;
         self.current_screen = ScreenId::ComposeMessageSubject;
     }
 
     pub fn open_compose_message_body(&mut self) {
-        if self.compose_recipient_empire.is_none() {
+        if self.messaging.compose_recipient_empire.is_none() {
             self.open_compose_message_recipient();
             return;
         }
-        self.compose_body_status = None;
+        self.messaging.compose_body_status = None;
         self.current_screen = ScreenId::ComposeMessageBody;
     }
 
     pub fn open_compose_message_outbox(&mut self) {
-        self.compose_outbox_input.clear();
-        self.compose_outbox_status = None;
-        self.compose_outbox_scroll_offset = 0;
-        self.compose_outbox_cursor = 0;
+        self.messaging.compose_outbox_input.clear();
+        self.messaging.compose_outbox_status = None;
+        self.messaging.compose_outbox_scroll_offset = 0;
+        self.messaging.compose_outbox_cursor = 0;
         self.current_screen = ScreenId::ComposeMessageOutbox;
     }
 
@@ -5111,9 +4831,9 @@ impl App {
 
     pub fn open_compose_message_send_confirm(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody {
-            let body = self.compose_body.trim();
+            let body = self.messaging.compose_body.trim();
             if body.is_empty() {
-                self.compose_body_status = Some("Message body cannot be empty.".to_string());
+                self.messaging.compose_body_status = Some("Message body cannot be empty.".to_string());
                 return;
             }
             self.current_screen = ScreenId::ComposeMessageSendConfirm;
@@ -5126,8 +4846,8 @@ impl App {
         }
         let total = self.game_data.player.records.len().saturating_sub(1);
         let max_offset = total.saturating_sub(crate::screen::ENEMIES_VISIBLE_ROWS);
-        self.enemies_scroll_offset = self
-            .enemies_scroll_offset
+        self.empire.enemies_scroll_offset = self
+            .empire.enemies_scroll_offset
             .saturating_add_signed(delta as isize)
             .min(max_offset);
     }
@@ -5141,11 +4861,11 @@ impl App {
         if total == 0 {
             return;
         }
-        let next = self.enemies_cursor as isize + delta as isize;
-        self.enemies_cursor = next.rem_euclid(total as isize) as usize;
+        let next = self.empire.enemies_cursor as isize + delta as isize;
+        self.empire.enemies_cursor = next.rem_euclid(total as isize) as usize;
         sync_scroll_to_cursor(
-            &mut self.enemies_scroll_offset,
-            self.enemies_cursor,
+            &mut self.empire.enemies_scroll_offset,
+            self.empire.enemies_cursor,
             crate::screen::ENEMIES_VISIBLE_ROWS,
         );
     }
@@ -5153,9 +4873,9 @@ impl App {
     pub fn open_partial_starmap_prompt(&mut self, menu: CommandMenu) {
         self.command_return_menu = menu;
         let default = self.default_planet_prompt_coords();
-        self.partial_starmap_input.clear();
-        self.partial_starmap_error = None;
-        self.partial_starmap_center = default;
+        self.starmap_state.partial_input.clear();
+        self.starmap_state.partial_error = None;
+        self.starmap_state.partial_center = default;
         self.current_screen = ScreenId::PartialStarmapPrompt;
     }
 
@@ -5263,25 +4983,25 @@ impl App {
 
     fn current_modal_notice(&self) -> Option<&str> {
         match self.current_screen {
-            ScreenId::StarbaseReviewSelect => self.starbase_review_status.as_deref(),
-            ScreenId::FleetReviewSelect => self.fleet_review_status.as_deref(),
-            ScreenId::FleetRoeSelect => self.fleet_roe_status.as_deref(),
-            ScreenId::FleetOrder => self.fleet_order_status.as_deref(),
-            ScreenId::FleetGroupOrder => self.fleet_group_status.as_deref(),
-            ScreenId::FleetMissionPicker => self.fleet_mission_picker_status.as_deref(),
-            ScreenId::FleetMerge => self.fleet_merge_status.as_deref(),
-            ScreenId::FleetTransfer => self.fleet_transfer_status.as_deref(),
-            ScreenId::FleetDetach => self.fleet_detach_status.as_deref(),
-            ScreenId::FleetEta if self.fleet_eta_mode != FleetEtaMode::ShowingResult => {
-                self.fleet_eta_status.as_deref()
+            ScreenId::StarbaseReviewSelect => self.starbase.review_status.as_deref(),
+            ScreenId::FleetReviewSelect => self.fleet.review_status.as_deref(),
+            ScreenId::FleetRoeSelect => self.fleet.roe_status.as_deref(),
+            ScreenId::FleetOrder => self.fleet.order_status.as_deref(),
+            ScreenId::FleetGroupOrder => self.fleet.group_status.as_deref(),
+            ScreenId::FleetMissionPicker => self.fleet.mission_picker_status.as_deref(),
+            ScreenId::FleetMerge => self.fleet.merge_status.as_deref(),
+            ScreenId::FleetTransfer => self.fleet.transfer_status.as_deref(),
+            ScreenId::FleetDetach => self.fleet.detach_status.as_deref(),
+            ScreenId::FleetEta if self.fleet.eta_mode != FleetEtaMode::ShowingResult => {
+                self.fleet.eta_status.as_deref()
             }
-            ScreenId::PlanetDatabaseList => self.planet_database_status.as_deref(),
+            ScreenId::PlanetDatabaseList => self.planet.database_status.as_deref(),
             ScreenId::PlanetTransportPlanetSelect(_)
             | ScreenId::PlanetTransportFleetSelect(_)
-            | ScreenId::PlanetTransportQuantityPrompt(_) => self.planet_transport_status.as_deref(),
-            ScreenId::Enemies => self.enemies_status.as_deref(),
-            ScreenId::ComposeMessageRecipient => self.compose_recipient_status.as_deref(),
-            ScreenId::ComposeMessageOutbox => self.compose_outbox_status.as_deref(),
+            | ScreenId::PlanetTransportQuantityPrompt(_) => self.planet.transport_status.as_deref(),
+            ScreenId::Enemies => self.empire.enemies_status.as_deref(),
+            ScreenId::ComposeMessageRecipient => self.messaging.compose_recipient_status.as_deref(),
+            ScreenId::ComposeMessageOutbox => self.messaging.compose_outbox_status.as_deref(),
             _ => None,
         }
     }
@@ -5289,91 +5009,91 @@ impl App {
     pub fn dismiss_modal_notice(&mut self) {
         match self.current_screen {
             ScreenId::StarbaseReviewSelect => {
-                self.starbase_review_status = None;
-                self.starbase_review_input.clear();
+                self.starbase.review_status = None;
+                self.starbase.review_input.clear();
             }
             ScreenId::FleetReviewSelect => {
-                self.fleet_review_status = None;
-                self.fleet_review_select_input.clear();
+                self.fleet.review_status = None;
+                self.fleet.review_select_input.clear();
             }
             ScreenId::FleetRoeSelect => {
-                self.fleet_roe_status = None;
-                if self.fleet_roe_editing {
-                    self.fleet_roe_input.clear();
+                self.fleet.roe_status = None;
+                if self.fleet.roe_editing {
+                    self.fleet.roe_input.clear();
                 } else {
-                    self.fleet_roe_select_input.clear();
+                    self.fleet.roe_select_input.clear();
                 }
             }
             ScreenId::FleetOrder => {
-                self.fleet_order_status = None;
-                self.fleet_order_input.clear();
+                self.fleet.order_status = None;
+                self.fleet.order_input.clear();
             }
             ScreenId::FleetGroupOrder => {
-                self.fleet_group_status = None;
-                self.fleet_group_input.clear();
+                self.fleet.group_status = None;
+                self.fleet.group_input.clear();
             }
             ScreenId::FleetMissionPicker => {
-                self.fleet_mission_picker_status = None;
-                self.fleet_mission_picker_input.clear();
+                self.fleet.mission_picker_status = None;
+                self.fleet.mission_picker_input.clear();
             }
             ScreenId::FleetMerge => {
-                self.fleet_merge_status = None;
-                match self.fleet_merge_mode {
-                    FleetMergeMode::SelectingSource => self.fleet_merge_source_input.clear(),
-                    FleetMergeMode::SelectingHost => self.fleet_merge_host_input.clear(),
+                self.fleet.merge_status = None;
+                match self.fleet.merge_mode {
+                    FleetMergeMode::SelectingSource => self.fleet.merge_source_input.clear(),
+                    FleetMergeMode::SelectingHost => self.fleet.merge_host_input.clear(),
                 }
             }
             ScreenId::FleetTransfer => {
-                self.fleet_transfer_status = None;
-                if self.fleet_transfer_mode == FleetTransferMode::SelectingFleets {
-                    self.fleet_transfer_select_input.clear();
+                self.fleet.transfer_status = None;
+                if self.fleet.transfer_mode == FleetTransferMode::SelectingFleets {
+                    self.fleet.transfer_select_input.clear();
                 } else {
-                    self.fleet_transfer_input.clear();
+                    self.fleet.transfer_input.clear();
                 }
             }
             ScreenId::FleetDetach => {
-                self.fleet_detach_status = None;
-                if self.fleet_detach_mode == FleetDetachMode::SelectingFleet {
-                    self.fleet_detach_select_input.clear();
+                self.fleet.detach_status = None;
+                if self.fleet.detach_mode == FleetDetachMode::SelectingFleet {
+                    self.fleet.detach_select_input.clear();
                 } else {
-                    self.fleet_detach_input.clear();
+                    self.fleet.detach_input.clear();
                 }
             }
             ScreenId::FleetEta => {
-                self.fleet_eta_status = None;
-                match self.fleet_eta_mode {
-                    FleetEtaMode::SelectingFleet => self.fleet_eta_select_input.clear(),
-                    FleetEtaMode::EnteringDestination => self.fleet_eta_destination_input.clear(),
+                self.fleet.eta_status = None;
+                match self.fleet.eta_mode {
+                    FleetEtaMode::SelectingFleet => self.fleet.eta_select_input.clear(),
+                    FleetEtaMode::EnteringDestination => self.fleet.eta_destination_input.clear(),
                     FleetEtaMode::ConfirmingSystemEntry => {
-                        self.fleet_eta_include_system_input.clear()
+                        self.fleet.eta_include_system_input.clear()
                     }
                     FleetEtaMode::ShowingResult => {}
                 }
             }
             ScreenId::PlanetDatabaseList => {
-                self.planet_database_status = None;
-                self.planet_database_input.clear();
+                self.planet.database_status = None;
+                self.planet.database_input.clear();
             }
             ScreenId::PlanetTransportPlanetSelect(_) => {
-                self.planet_transport_status = None;
-                self.planet_transport_planet_input.clear();
+                self.planet.transport_status = None;
+                self.planet.transport_planet_input.clear();
             }
             ScreenId::PlanetTransportFleetSelect(_)
             | ScreenId::PlanetTransportQuantityPrompt(_) => {
-                self.planet_transport_status = None;
-                self.planet_transport_qty_input.clear();
+                self.planet.transport_status = None;
+                self.planet.transport_qty_input.clear();
             }
             ScreenId::Enemies => {
-                self.enemies_status = None;
-                self.enemies_input.clear();
+                self.empire.enemies_status = None;
+                self.empire.enemies_input.clear();
             }
             ScreenId::ComposeMessageRecipient => {
-                self.compose_recipient_status = None;
-                self.compose_recipient_input.clear();
+                self.messaging.compose_recipient_status = None;
+                self.messaging.compose_recipient_input.clear();
             }
             ScreenId::ComposeMessageOutbox => {
-                self.compose_outbox_status = None;
-                self.compose_outbox_input.clear();
+                self.messaging.compose_outbox_status = None;
+                self.messaging.compose_outbox_input.clear();
             }
             _ => {}
         }
@@ -5381,43 +5101,43 @@ impl App {
 
     pub fn append_partial_starmap_char(&mut self, ch: char) {
         if self.current_screen == ScreenId::PartialStarmapPrompt
-            && self.partial_starmap_input.len() < 16
+            && self.starmap_state.partial_input.len() < 16
         {
-            self.partial_starmap_input.push(ch);
-            self.partial_starmap_error = None;
+            self.starmap_state.partial_input.push(ch);
+            self.starmap_state.partial_error = None;
         }
     }
 
     pub fn backspace_partial_starmap_input(&mut self) {
         if self.current_screen == ScreenId::PartialStarmapPrompt {
-            self.partial_starmap_input.pop();
-            self.partial_starmap_error = None;
+            self.starmap_state.partial_input.pop();
+            self.starmap_state.partial_error = None;
         }
     }
 
     pub fn submit_partial_starmap_prompt(&mut self) {
         let Some(coords) =
-            resolve_default_coords_input(&self.partial_starmap_input, self.partial_starmap_center)
+            resolve_default_coords_input(&self.starmap_state.partial_input, self.starmap_state.partial_center)
         else {
-            self.partial_starmap_error = Some("Enter coordinates like 5,2".to_string());
+            self.starmap_state.partial_error = Some("Enter coordinates like 5,2".to_string());
             return;
         };
         let map_size = ec_data::map_size_for_player_count(self.game_data.conquest.player_count());
         if coords[0] == 0 || coords[1] == 0 || coords[0] > map_size || coords[1] > map_size {
-            self.partial_starmap_error = Some(format!("Enter coordinates within 1..{map_size}"));
+            self.starmap_state.partial_error = Some(format!("Enter coordinates within 1..{map_size}"));
             return;
         }
-        self.partial_starmap_center = coords;
-        self.partial_starmap_error = None;
+        self.starmap_state.partial_center = coords;
+        self.starmap_state.partial_error = None;
         self.current_screen = ScreenId::PartialStarmapView;
     }
 
     pub fn move_partial_starmap(&mut self, dx: i8, dy: i8) {
         let map_size = ec_data::map_size_for_player_count(self.game_data.conquest.player_count());
-        self.partial_starmap_center[0] = self.partial_starmap_center[0]
+        self.starmap_state.partial_center[0] = self.starmap_state.partial_center[0]
             .saturating_add_signed(dx)
             .clamp(1, map_size);
-        self.partial_starmap_center[1] = self.partial_starmap_center[1]
+        self.starmap_state.partial_center[1] = self.starmap_state.partial_center[1]
             .saturating_add_signed(dy)
             .clamp(1, map_size);
     }
@@ -5431,22 +5151,22 @@ impl App {
     }
 
     pub fn append_enemies_char(&mut self, ch: char) {
-        if self.current_screen == ScreenId::Enemies && self.enemies_input.len() < 2 {
-            self.enemies_input.push(ch);
-            self.enemies_status = None;
+        if self.current_screen == ScreenId::Enemies && self.empire.enemies_input.len() < 2 {
+            self.empire.enemies_input.push(ch);
+            self.empire.enemies_status = None;
         }
     }
 
     pub fn backspace_enemies_input(&mut self) {
         if self.current_screen == ScreenId::Enemies {
-            self.enemies_input.pop();
-            self.enemies_status = None;
+            self.empire.enemies_input.pop();
+            self.empire.enemies_status = None;
         }
     }
 
     pub fn submit_enemies_input(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         // If the input box is empty, derive the empire id from the cursor row.
-        let empire_id = if self.enemies_input.trim().is_empty() {
+        let empire_id = if self.empire.enemies_input.trim().is_empty() {
             let mut ids: Vec<u8> = self
                 .game_data
                 .player
@@ -5457,29 +5177,29 @@ impl App {
                 .map(|(idx, _)| (idx + 1) as u8)
                 .collect();
             ids.sort_unstable();
-            match ids.get(self.enemies_cursor) {
+            match ids.get(self.empire.enemies_cursor) {
                 Some(&id) => id,
                 None => {
-                    self.enemies_status = Some("No empire selected.".to_string());
+                    self.empire.enemies_status = Some("No empire selected.".to_string());
                     return Ok(());
                 }
             }
         } else {
-            match self.enemies_input.parse::<u8>() {
+            match self.empire.enemies_input.parse::<u8>() {
                 Ok(id) => id,
                 Err(_) => {
-                    self.enemies_status = Some("Enter an empire number.".to_string());
+                    self.empire.enemies_status = Some("Enter an empire number.".to_string());
                     return Ok(());
                 }
             }
         };
         let max_empire = self.game_data.conquest.player_count();
         if !(1..=max_empire).contains(&empire_id) {
-            self.enemies_status = Some(format!("Enter an empire number in 1..={max_empire}."));
+            self.empire.enemies_status = Some(format!("Enter an empire number in 1..={max_empire}."));
             return Ok(());
         }
         if empire_id as usize == self.player.record_index_1_based {
-            self.enemies_status = Some("You cannot target your own empire.".to_string());
+            self.empire.enemies_status = Some("You cannot target your own empire.".to_string());
             return Ok(());
         }
         let current = self
@@ -5496,17 +5216,17 @@ impl App {
             next,
         )?;
         self.save_game_data()?;
-        self.enemies_status = None;
-        self.enemies_input.clear();
+        self.empire.enemies_status = None;
+        self.empire.enemies_input.clear();
         Ok(())
     }
 
     pub fn append_compose_recipient_char(&mut self, ch: char) {
         if self.current_screen == ScreenId::ComposeMessageRecipient
-            && self.compose_recipient_input.len() < 2
+            && self.messaging.compose_recipient_input.len() < 2
         {
-            self.compose_recipient_input.push(ch);
-            self.compose_recipient_status = None;
+            self.messaging.compose_recipient_input.push(ch);
+            self.messaging.compose_recipient_status = None;
         }
     }
 
@@ -5516,8 +5236,8 @@ impl App {
         }
         let total = self.game_data.player.records.len().saturating_sub(1);
         let max_offset = total.saturating_sub(crate::screen::RECIPIENT_VISIBLE_ROWS);
-        self.compose_recipient_scroll_offset = self
-            .compose_recipient_scroll_offset
+        self.messaging.compose_recipient_scroll_offset = self
+            .messaging.compose_recipient_scroll_offset
             .saturating_add_signed(delta as isize)
             .min(max_offset);
     }
@@ -5530,25 +5250,25 @@ impl App {
         if total == 0 {
             return;
         }
-        let next = self.compose_recipient_cursor as isize + delta as isize;
-        self.compose_recipient_cursor = next.rem_euclid(total as isize) as usize;
+        let next = self.messaging.compose_recipient_cursor as isize + delta as isize;
+        self.messaging.compose_recipient_cursor = next.rem_euclid(total as isize) as usize;
         sync_scroll_to_cursor(
-            &mut self.compose_recipient_scroll_offset,
-            self.compose_recipient_cursor,
+            &mut self.messaging.compose_recipient_scroll_offset,
+            self.messaging.compose_recipient_cursor,
             crate::screen::RECIPIENT_VISIBLE_ROWS,
         );
     }
 
     pub fn backspace_compose_recipient(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageRecipient {
-            self.compose_recipient_input.pop();
-            self.compose_recipient_status = None;
+            self.messaging.compose_recipient_input.pop();
+            self.messaging.compose_recipient_status = None;
         }
     }
 
     pub fn submit_compose_recipient(&mut self) {
         // If the input box is empty, derive the empire id from the cursor row.
-        let empire_id = if self.compose_recipient_input.trim().is_empty() {
+        let empire_id = if self.messaging.compose_recipient_input.trim().is_empty() {
             let ids: Vec<u8> = self
                 .game_data
                 .player
@@ -5558,54 +5278,54 @@ impl App {
                 .filter(|(idx, _)| *idx + 1 != self.player.record_index_1_based)
                 .map(|(idx, _)| (idx + 1) as u8)
                 .collect();
-            match ids.get(self.compose_recipient_cursor) {
+            match ids.get(self.messaging.compose_recipient_cursor) {
                 Some(&id) => id,
                 None => {
-                    self.compose_recipient_status = Some("No empire selected.".to_string());
+                    self.messaging.compose_recipient_status = Some("No empire selected.".to_string());
                     return;
                 }
             }
         } else {
-            match self.compose_recipient_input.parse::<u8>() {
+            match self.messaging.compose_recipient_input.parse::<u8>() {
                 Ok(id) => id,
                 Err(_) => {
-                    self.compose_recipient_status = Some("Enter an empire number.".to_string());
+                    self.messaging.compose_recipient_status = Some("Enter an empire number.".to_string());
                     return;
                 }
             }
         };
         let max_empire = self.game_data.conquest.player_count();
         if !(1..=max_empire).contains(&empire_id) {
-            self.compose_recipient_status =
+            self.messaging.compose_recipient_status =
                 Some(format!("Enter an empire number in 1..={max_empire}."));
             return;
         }
         if empire_id as usize == self.player.record_index_1_based {
-            self.compose_recipient_status = Some("You cannot message your own empire.".to_string());
+            self.messaging.compose_recipient_status = Some("You cannot message your own empire.".to_string());
             return;
         }
-        self.compose_recipient_empire = Some(empire_id);
-        self.compose_subject.clear();
-        self.compose_subject_status = None;
-        self.compose_body.clear();
-        self.compose_body_cursor = 0;
-        self.compose_body_status = None;
+        self.messaging.compose_recipient_empire = Some(empire_id);
+        self.messaging.compose_subject.clear();
+        self.messaging.compose_subject_status = None;
+        self.messaging.compose_body.clear();
+        self.messaging.compose_body_cursor = 0;
+        self.messaging.compose_body_status = None;
         self.current_screen = ScreenId::ComposeMessageSubject;
     }
 
     pub fn append_compose_subject_char(&mut self, ch: char) {
         if self.current_screen == ScreenId::ComposeMessageSubject
-            && self.compose_subject.chars().count() < crate::screen::COMPOSE_SUBJECT_LIMIT
+            && self.messaging.compose_subject.chars().count() < crate::screen::COMPOSE_SUBJECT_LIMIT
         {
-            self.compose_subject.push(ch);
-            self.compose_subject_status = None;
+            self.messaging.compose_subject.push(ch);
+            self.messaging.compose_subject_status = None;
         }
     }
 
     pub fn backspace_compose_subject(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageSubject {
-            self.compose_subject.pop();
-            self.compose_subject_status = None;
+            self.messaging.compose_subject.pop();
+            self.messaging.compose_subject_status = None;
         }
     }
 
@@ -5613,8 +5333,8 @@ impl App {
         if self.current_screen != ScreenId::ComposeMessageSubject {
             return;
         }
-        self.compose_body_cursor = self.compose_body.chars().count();
-        self.compose_body_status = None;
+        self.messaging.compose_body_cursor = self.messaging.compose_body.chars().count();
+        self.messaging.compose_body_status = None;
         self.current_screen = ScreenId::ComposeMessageBody;
     }
 
@@ -5624,13 +5344,13 @@ impl App {
 
     pub fn append_compose_body_char(&mut self, ch: char) {
         if self.current_screen == ScreenId::ComposeMessageBody
-            && self.compose_body.chars().count() < crate::screen::COMPOSE_BODY_LIMIT
+            && self.messaging.compose_body.chars().count() < crate::screen::COMPOSE_BODY_LIMIT
         {
-            insert_char_at(&mut self.compose_body, self.compose_body_cursor, ch);
-            self.compose_body_cursor += 1;
-            self.compose_body_status = None;
+            insert_char_at(&mut self.messaging.compose_body, self.messaging.compose_body_cursor, ch);
+            self.messaging.compose_body_cursor += 1;
+            self.messaging.compose_body_status = None;
         } else if self.current_screen == ScreenId::ComposeMessageBody {
-            self.compose_body_status = Some(format!(
+            self.messaging.compose_body_status = Some(format!(
                 "Message length limit is {} characters.",
                 crate::screen::COMPOSE_BODY_LIMIT
             ));
@@ -5639,30 +5359,30 @@ impl App {
 
     pub fn backspace_compose_body(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody {
-            if self.compose_body_cursor > 0 {
-                remove_char_before(&mut self.compose_body, self.compose_body_cursor);
-                self.compose_body_cursor -= 1;
+            if self.messaging.compose_body_cursor > 0 {
+                remove_char_before(&mut self.messaging.compose_body, self.messaging.compose_body_cursor);
+                self.messaging.compose_body_cursor -= 1;
             }
-            self.compose_body_status = None;
+            self.messaging.compose_body_status = None;
         }
     }
 
     pub fn delete_compose_body_char(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody {
-            remove_char_at(&mut self.compose_body, self.compose_body_cursor);
-            self.compose_body_status = None;
+            remove_char_at(&mut self.messaging.compose_body, self.messaging.compose_body_cursor);
+            self.messaging.compose_body_status = None;
         }
     }
 
     pub fn insert_compose_newline(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody
-            && self.compose_body.chars().count() < crate::screen::COMPOSE_BODY_LIMIT
+            && self.messaging.compose_body.chars().count() < crate::screen::COMPOSE_BODY_LIMIT
         {
-            insert_char_at(&mut self.compose_body, self.compose_body_cursor, '\n');
-            self.compose_body_cursor += 1;
-            self.compose_body_status = None;
+            insert_char_at(&mut self.messaging.compose_body, self.messaging.compose_body_cursor, '\n');
+            self.messaging.compose_body_cursor += 1;
+            self.messaging.compose_body_status = None;
         } else if self.current_screen == ScreenId::ComposeMessageBody {
-            self.compose_body_status = Some(format!(
+            self.messaging.compose_body_status = Some(format!(
                 "Message length limit is {} characters.",
                 crate::screen::COMPOSE_BODY_LIMIT
             ));
@@ -5671,41 +5391,41 @@ impl App {
 
     pub fn move_compose_body_cursor_left(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody {
-            self.compose_body_cursor = self.compose_body_cursor.saturating_sub(1);
+            self.messaging.compose_body_cursor = self.messaging.compose_body_cursor.saturating_sub(1);
         }
     }
 
     pub fn move_compose_body_cursor_right(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody {
-            self.compose_body_cursor =
-                (self.compose_body_cursor + 1).min(self.compose_body.chars().count());
+            self.messaging.compose_body_cursor =
+                (self.messaging.compose_body_cursor + 1).min(self.messaging.compose_body.chars().count());
         }
     }
 
     pub fn move_compose_body_cursor_home(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody {
-            self.compose_body_cursor =
-                line_start_index(&self.compose_body, self.compose_body_cursor);
+            self.messaging.compose_body_cursor =
+                line_start_index(&self.messaging.compose_body, self.messaging.compose_body_cursor);
         }
     }
 
     pub fn move_compose_body_cursor_end(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody {
-            self.compose_body_cursor = line_end_index(&self.compose_body, self.compose_body_cursor);
+            self.messaging.compose_body_cursor = line_end_index(&self.messaging.compose_body, self.messaging.compose_body_cursor);
         }
     }
 
     pub fn move_compose_body_cursor_up(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody {
-            self.compose_body_cursor =
-                vertical_cursor_target(&self.compose_body, self.compose_body_cursor, -1);
+            self.messaging.compose_body_cursor =
+                vertical_cursor_target(&self.messaging.compose_body, self.messaging.compose_body_cursor, -1);
         }
     }
 
     pub fn move_compose_body_cursor_down(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody {
-            self.compose_body_cursor =
-                vertical_cursor_target(&self.compose_body, self.compose_body_cursor, 1);
+            self.messaging.compose_body_cursor =
+                vertical_cursor_target(&self.messaging.compose_body, self.messaging.compose_body_cursor, 1);
         }
     }
 
@@ -5713,24 +5433,24 @@ impl App {
         if self.current_screen != ScreenId::ComposeMessageSendConfirm {
             return Ok(());
         }
-        let Some(recipient_empire_id) = self.compose_recipient_empire else {
-            self.compose_body_status = Some("Choose a recipient first.".to_string());
+        let Some(recipient_empire_id) = self.messaging.compose_recipient_empire else {
+            self.messaging.compose_body_status = Some("Choose a recipient first.".to_string());
             return Ok(());
         };
-        let body = self.compose_body.trim();
+        let body = self.messaging.compose_body.trim();
         if body.is_empty() {
-            self.compose_body_status = Some("Message body cannot be empty.".to_string());
+            self.messaging.compose_body_status = Some("Message body cannot be empty.".to_string());
             return Ok(());
         }
         self.queued_mail.push(QueuedPlayerMail {
             sender_empire_id: self.player.record_index_1_based as u8,
             recipient_empire_id,
             year: self.game_data.conquest.game_year(),
-            subject: self.compose_subject.trim().to_string(),
+            subject: self.messaging.compose_subject.trim().to_string(),
             body: body.to_string(),
         });
         self.save_game_data()?;
-        self.compose_sent_status = Some(format!(
+        self.messaging.compose_sent_status = Some(format!(
             "Message queued for Empire {recipient_empire_id}. It will be delivered after turn maintenance."
         ));
         self.current_screen = ScreenId::ComposeMessageSent;
@@ -5743,8 +5463,8 @@ impl App {
         }
         let total = self.compose_outbox_queue_len();
         let max_offset = total.saturating_sub(crate::screen::OUTBOX_VISIBLE_ROWS);
-        self.compose_outbox_scroll_offset = self
-            .compose_outbox_scroll_offset
+        self.messaging.compose_outbox_scroll_offset = self
+            .messaging.compose_outbox_scroll_offset
             .saturating_add_signed(delta as isize)
             .min(max_offset);
     }
@@ -5757,28 +5477,28 @@ impl App {
         if total == 0 {
             return;
         }
-        let next = self.compose_outbox_cursor as isize + delta as isize;
-        self.compose_outbox_cursor = next.rem_euclid(total as isize) as usize;
+        let next = self.messaging.compose_outbox_cursor as isize + delta as isize;
+        self.messaging.compose_outbox_cursor = next.rem_euclid(total as isize) as usize;
         sync_scroll_to_cursor(
-            &mut self.compose_outbox_scroll_offset,
-            self.compose_outbox_cursor,
+            &mut self.messaging.compose_outbox_scroll_offset,
+            self.messaging.compose_outbox_cursor,
             crate::screen::OUTBOX_VISIBLE_ROWS,
         );
     }
 
     pub fn append_compose_outbox_char(&mut self, ch: char) {
         if self.current_screen == ScreenId::ComposeMessageOutbox
-            && self.compose_outbox_input.len() < 2
+            && self.messaging.compose_outbox_input.len() < 2
         {
-            self.compose_outbox_input.push(ch);
-            self.compose_outbox_status = None;
+            self.messaging.compose_outbox_input.push(ch);
+            self.messaging.compose_outbox_status = None;
         }
     }
 
     pub fn backspace_compose_outbox_input(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageOutbox {
-            self.compose_outbox_input.pop();
-            self.compose_outbox_status = None;
+            self.messaging.compose_outbox_input.pop();
+            self.messaging.compose_outbox_status = None;
         }
     }
 
@@ -5787,15 +5507,15 @@ impl App {
             return Ok(());
         }
         // If the input box is empty, use the cursor row (1-based queue_no).
-        let queue_no = if self.compose_outbox_input.trim().is_empty() {
-            self.compose_outbox_cursor + 1
+        let queue_no = if self.messaging.compose_outbox_input.trim().is_empty() {
+            self.messaging.compose_outbox_cursor + 1
         } else {
-            let Ok(n) = self.compose_outbox_input.parse::<usize>() else {
-                self.compose_outbox_status = Some("Enter a queued message number.".to_string());
+            let Ok(n) = self.messaging.compose_outbox_input.parse::<usize>() else {
+                self.messaging.compose_outbox_status = Some("Enter a queued message number.".to_string());
                 return Ok(());
             };
             if n == 0 {
-                self.compose_outbox_status = Some("Enter a queued message number.".to_string());
+                self.messaging.compose_outbox_status = Some("Enter a queued message number.".to_string());
                 return Ok(());
             }
             n
@@ -5809,7 +5529,7 @@ impl App {
             .filter_map(|(idx, mail)| (mail.sender_empire_id == sender_empire_id).then_some(idx))
             .collect::<Vec<_>>();
         let Some(queue_index) = own_indexes.get(queue_no - 1).copied() else {
-            self.compose_outbox_status = Some(format!(
+            self.messaging.compose_outbox_status = Some(format!(
                 "Enter a queued message number in 1..={}.",
                 own_indexes.len()
             ));
@@ -5819,14 +5539,14 @@ impl App {
         queue.remove(queue_index);
         self.queued_mail = queue;
         self.save_game_data()?;
-        self.compose_outbox_input.clear();
-        self.compose_outbox_status = None;
+        self.messaging.compose_outbox_input.clear();
+        self.messaging.compose_outbox_status = None;
 
         // Clamp cursor and scroll offset to the new (smaller) queue.
         let new_len = own_indexes.len().saturating_sub(1);
-        self.compose_outbox_cursor = self.compose_outbox_cursor.min(new_len.saturating_sub(1));
+        self.messaging.compose_outbox_cursor = self.messaging.compose_outbox_cursor.min(new_len.saturating_sub(1));
         let max_offset = new_len.saturating_sub(crate::screen::OUTBOX_VISIBLE_ROWS);
-        self.compose_outbox_scroll_offset = self.compose_outbox_scroll_offset.min(max_offset);
+        self.messaging.compose_outbox_scroll_offset = self.messaging.compose_outbox_scroll_offset.min(max_offset);
         Ok(())
     }
 
@@ -5851,18 +5571,18 @@ impl App {
         );
         self.reports
             .replace(refreshed, ReviewSummary::from_main_menu(&summary));
-        self.delete_reviewables_status = Some("Messages and results deleted.".to_string());
+        self.messaging.delete_reviewables_status = Some("Messages and results deleted.".to_string());
         Ok(())
     }
 
     pub fn open_starmap(&mut self) {
-        self.starmap_view_x = 1;
-        self.starmap_view_y = 1;
-        self.starmap_status = None;
-        self.starmap_dump_lines.clear();
-        self.starmap_dump_offset = 0;
-        self.starmap_dump_active = false;
-        self.starmap_capture_complete = false;
+        self.starmap_state.view_x = 1;
+        self.starmap_state.view_y = 1;
+        self.starmap_state.status = None;
+        self.starmap_state.dump_lines.clear();
+        self.starmap_state.dump_offset = 0;
+        self.starmap_state.dump_active = false;
+        self.starmap_state.capture_complete = false;
         self.current_screen = ScreenId::Starmap;
     }
 
@@ -5894,12 +5614,12 @@ impl App {
                 &details_csv_path,
                 queue_dir.join(details_csv_path.file_name().unwrap()),
             )?;
-            self.starmap_status = Some(format!(
+            self.starmap_state.status = Some(format!(
                 "Exported TXT + grid CSV + details CSV and queued copies in {}",
                 queue_dir.display()
             ));
         } else {
-            self.starmap_status = Some(format!(
+            self.starmap_state.status = Some(format!(
                 "Exported {}, {}, and {}",
                 export_path.display(),
                 csv_path.display(),
@@ -5919,68 +5639,68 @@ impl App {
     }
 
     pub fn begin_starmap_dump(&mut self) {
-        self.starmap_dump_lines = self
+        self.starmap_state.dump_lines = self
             .starmap_dump_text()
             .lines()
             .map(|line| line.to_string())
             .collect();
-        self.starmap_dump_offset = 0;
-        self.starmap_dump_active = true;
-        self.starmap_capture_complete = false;
+        self.starmap_state.dump_offset = 0;
+        self.starmap_state.dump_active = true;
+        self.starmap_state.capture_complete = false;
     }
 
     pub fn advance_starmap_page(&mut self) {
         const PAGE_LINES: usize = 16;
-        if !self.starmap_dump_active {
+        if !self.starmap_state.dump_active {
             return;
         }
-        let next_offset = self.starmap_dump_offset.saturating_add(PAGE_LINES);
-        if next_offset >= self.starmap_dump_lines.len() {
-            self.starmap_dump_active = false;
-            self.starmap_capture_complete = true;
+        let next_offset = self.starmap_state.dump_offset.saturating_add(PAGE_LINES);
+        if next_offset >= self.starmap_state.dump_lines.len() {
+            self.starmap_state.dump_active = false;
+            self.starmap_state.capture_complete = true;
         } else {
-            self.starmap_dump_offset = next_offset;
+            self.starmap_state.dump_offset = next_offset;
         }
     }
 
     pub fn append_planet_info_char(&mut self, ch: char) {
-        if self.planet_info_input.len() < 16 {
-            self.planet_info_input.push(ch);
-            self.planet_info_error = None;
+        if self.planet.info_input.len() < 16 {
+            self.planet.info_input.push(ch);
+            self.planet.info_error = None;
         }
     }
 
     pub fn backspace_planet_info_input(&mut self) {
-        self.planet_info_input.pop();
-        self.planet_info_error = None;
+        self.planet.info_input.pop();
+        self.planet.info_error = None;
     }
 
     pub fn submit_planet_info_prompt(&mut self) {
         let Some(coords) = resolve_default_coords_input(
-            &self.planet_info_input,
+            &self.planet.info_input,
             self.default_planet_prompt_coords(),
         ) else {
-            self.planet_info_error = Some("Enter coordinates like 5,2".to_string());
+            self.planet.info_error = Some("Enter coordinates like 5,2".to_string());
             return;
         };
 
         let Some(planet_idx) = self.game_data.planet_record_index_at_coords(coords) else {
-            self.planet_info_error =
+            self.planet.info_error =
                 Some(format!("No world found at [{},{}]", coords[0], coords[1]));
             return;
         };
 
-        self.planet_info_selected = Some(planet_idx);
-        self.planet_info_error = None;
+        self.planet.info_selected = Some(planet_idx);
+        self.planet.info_error = None;
         self.current_screen = ScreenId::PlanetInfoDetail;
     }
 
     pub fn planet_info_input(&self) -> &str {
-        &self.planet_info_input
+        &self.planet.info_input
     }
 
     pub fn selected_planet_info(&self) -> Option<usize> {
-        self.planet_info_selected
+        self.planet.info_selected
     }
 
     pub fn current_autopilot_flag(&self) -> u8 {
@@ -6001,12 +5721,12 @@ impl App {
 
     pub fn selected_fleet_roe_id(&self) -> Option<u16> {
         let rows = self.fleet_rows();
-        rows.get(self.fleet_roe_cursor).map(|row| row.fleet_number)
+        rows.get(self.fleet.roe_cursor).map(|row| row.fleet_number)
     }
 
     pub fn selected_fleet_eta_id(&self) -> Option<u16> {
         let rows = self.fleet_rows();
-        rows.get(self.fleet_eta_cursor).map(|row| row.fleet_number)
+        rows.get(self.fleet.eta_cursor).map(|row| row.fleet_number)
     }
 
     pub fn current_relation_to(&self, empire_id: u8) -> Option<ec_data::DiplomaticRelation> {
@@ -6015,7 +5735,7 @@ impl App {
     }
 
     pub fn enemies_scroll_offset(&self) -> usize {
-        self.enemies_scroll_offset
+        self.empire.enemies_scroll_offset
     }
 
     fn sorted_planet_rows(&self, sort: PlanetListSort) -> Vec<ec_data::EmpirePlanetEconomyRow> {
@@ -6069,53 +5789,8 @@ impl App {
     }
 
     fn starbase_rows(&self) -> Vec<StarbaseRow> {
-        let mut rows = self
-            .game_data
-            .bases
-            .records
-            .iter()
-            .enumerate()
-            .filter(|(_, base)| {
-                base.owner_empire_raw() as usize == self.player.record_index_1_based
-            })
-            .map(|(idx, base)| {
-                let escort_label = self
-                    .game_data
-                    .fleets
-                    .records
-                    .iter()
-                    .find(|fleet| fleet.fleet_id_word_raw() == base.chain_word_raw())
-                    .map(|fleet| {
-                        format!(
-                            "The {} Fleet",
-                            ordinal_number(fleet.local_slot_word_raw() as usize)
-                        )
-                    })
-                    .unwrap_or_else(|| "Unknown escort".to_string());
-                let destination_coords = base.trailing_coords_raw();
-                let operation_label = if destination_coords == base.coords_raw() {
-                    "Protection & Enhancement".to_string()
-                } else {
-                    "Starbase in transit".to_string()
-                };
-                let eta_label = if destination_coords == base.coords_raw() {
-                    "0".to_string()
-                } else {
-                    "?".to_string()
-                };
-                StarbaseRow {
-                    base_record_index_1_based: idx + 1,
-                    base_id: base.base_id_raw(),
-                    escort_label,
-                    coords: base.coords_raw(),
-                    destination_coords,
-                    eta_label,
-                    operation_label,
-                }
-            })
-            .collect::<Vec<_>>();
-        rows.sort_by_key(|row| row.base_id);
-        rows
+        self.starbase
+            .starbase_rows(&self.game_data, self.player.record_index_1_based)
     }
 
     fn planet_database_rows(&self) -> Vec<PlanetDatabaseRow> {
@@ -6220,7 +5895,7 @@ impl App {
     ) -> Result<PlanetTransportPlanetRow, Box<dyn std::error::Error>> {
         if matches!(self.current_screen, ScreenId::PlanetTransportFleetSelect(_)) {
             let selected_record = self
-                .planet_transport_selected_planet_record
+                .planet.transport_selected_planet_record
                 .ok_or_else(|| "current transport planet missing".to_string())?;
             let base_row = self
                 .build_planet_rows()
@@ -6242,7 +5917,7 @@ impl App {
         }
 
         self.planet_transport_planet_rows(mode)
-            .get(self.planet_transport_planet_cursor)
+            .get(self.planet.transport_planet_cursor)
             .cloned()
             .ok_or_else(|| "current transport planet missing".into())
     }
@@ -6265,7 +5940,7 @@ impl App {
         mode: PlanetTransportMode,
     ) -> Result<PlanetTransportFleetRow, Box<dyn std::error::Error>> {
         self.current_planet_transport_fleet_rows(mode)?
-            .get(self.planet_transport_fleet_cursor)
+            .get(self.planet.transport_fleet_cursor)
             .cloned()
             .ok_or_else(|| "current transport fleet missing".into())
     }
@@ -6320,7 +5995,7 @@ impl App {
         &self,
     ) -> Result<ec_data::EmpirePlanetEconomyRow, Box<dyn std::error::Error>> {
         self.commission_planet_rows()
-            .get(self.planet_commission_index)
+            .get(self.planet.commission_index)
             .cloned()
             .ok_or_else(|| "current commission planet missing".into())
     }
@@ -6402,7 +6077,7 @@ impl App {
         &self,
     ) -> Result<ec_data::EmpirePlanetEconomyRow, Box<dyn std::error::Error>> {
         self.build_planet_rows()
-            .get(self.planet_build_index)
+            .get(self.planet.build_index)
             .cloned()
             .ok_or_else(|| "current build planet missing".into())
     }
@@ -6514,7 +6189,7 @@ impl App {
 
     fn current_planet_build_max_quantity(&self) -> Result<u32, Box<dyn std::error::Error>> {
         let kind = self
-            .planet_build_selected_kind
+            .planet.build_selected_kind
             .ok_or("planet build kind missing")?;
         self.current_planet_build_max_quantity_for(kind)
     }
@@ -6655,13 +6330,13 @@ impl App {
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                 crate::app::Action::ReturnToCommandMenu
             }
-            KeyCode::Enter => crate::app::Action::SubmitPlanetInfoPrompt,
-            KeyCode::Backspace => crate::app::Action::BackspacePlanetInfoInput,
+            KeyCode::Enter => crate::app::Action::Planet(PlanetAction::SubmitInfoPrompt),
+            KeyCode::Backspace => crate::app::Action::Planet(PlanetAction::BackspaceInfoInput),
             KeyCode::Char(ch)
                 if ch.is_ascii_digit()
                     || matches!(ch, ',' | ' ' | ':' | '/' | '-' | '(' | ')' | '[' | ']') =>
             {
-                crate::app::Action::AppendPlanetInfoChar(ch)
+                crate::app::Action::Planet(PlanetAction::AppendInfoChar(ch))
             }
             _ => crate::app::Action::Noop,
         }
@@ -6670,35 +6345,35 @@ impl App {
     fn handle_fleet_roe_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
         use crossterm::event::KeyCode;
 
-        if self.fleet_roe_editing {
+        if self.fleet.roe_editing {
             match key.code {
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    crate::app::Action::OpenFleetRoeSelect
+                    crate::app::Action::Fleet(FleetAction::OpenRoeSelect)
                 }
-                KeyCode::Enter => crate::app::Action::SubmitFleetRoe,
-                KeyCode::Backspace => crate::app::Action::BackspaceFleetRoeInput,
+                KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitRoe),
+                KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceRoeInput),
                 KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                    crate::app::Action::AppendFleetRoeChar(ch)
+                    crate::app::Action::Fleet(FleetAction::AppendRoeChar(ch))
                 }
                 _ => crate::app::Action::Noop,
             }
         } else {
             match key.code {
                 KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                    crate::app::Action::MoveFleetRoeSelect(-1)
+                    crate::app::Action::Fleet(FleetAction::MoveRoeSelect(-1))
                 }
                 KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                    crate::app::Action::MoveFleetRoeSelect(1)
+                    crate::app::Action::Fleet(FleetAction::MoveRoeSelect(1))
                 }
-                KeyCode::PageUp => crate::app::Action::MoveFleetRoeSelect(-8),
-                KeyCode::PageDown => crate::app::Action::MoveFleetRoeSelect(8),
-                KeyCode::Enter => crate::app::Action::SubmitFleetRoe,
-                KeyCode::Backspace => crate::app::Action::BackspaceFleetRoeInput,
+                KeyCode::PageUp => crate::app::Action::Fleet(FleetAction::MoveRoeSelect(-8)),
+                KeyCode::PageDown => crate::app::Action::Fleet(FleetAction::MoveRoeSelect(8)),
+                KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitRoe),
+                KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceRoeInput),
                 KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                    crate::app::Action::AppendFleetRoeChar(ch)
+                    crate::app::Action::Fleet(FleetAction::AppendRoeChar(ch))
                 }
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    crate::app::Action::OpenFleetMenu
+                    crate::app::Action::Fleet(FleetAction::OpenMenu)
                 }
                 _ => crate::app::Action::Noop,
             }
@@ -6708,34 +6383,34 @@ impl App {
     fn handle_fleet_detach_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
         use crossterm::event::KeyCode;
 
-        match self.fleet_detach_mode {
+        match self.fleet.detach_mode {
             FleetDetachMode::SelectingFleet => match key.code {
                 KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                    crate::app::Action::MoveFleetDetachSelect(-1)
+                    crate::app::Action::Fleet(FleetAction::MoveDetachSelect(-1))
                 }
                 KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                    crate::app::Action::MoveFleetDetachSelect(1)
+                    crate::app::Action::Fleet(FleetAction::MoveDetachSelect(1))
                 }
-                KeyCode::PageUp => crate::app::Action::MoveFleetDetachSelect(-8),
-                KeyCode::PageDown => crate::app::Action::MoveFleetDetachSelect(8),
-                KeyCode::Enter => crate::app::Action::SubmitFleetDetach,
-                KeyCode::Backspace => crate::app::Action::BackspaceFleetDetachInput,
+                KeyCode::PageUp => crate::app::Action::Fleet(FleetAction::MoveDetachSelect(-8)),
+                KeyCode::PageDown => crate::app::Action::Fleet(FleetAction::MoveDetachSelect(8)),
+                KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitDetach),
+                KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceDetachInput),
                 KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                    crate::app::Action::AppendFleetDetachChar(ch)
+                    crate::app::Action::Fleet(FleetAction::AppendDetachChar(ch))
                 }
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    crate::app::Action::OpenFleetMenu
+                    crate::app::Action::Fleet(FleetAction::OpenMenu)
                 }
                 _ => crate::app::Action::Noop,
             },
             _ => match key.code {
-                KeyCode::Enter => crate::app::Action::SubmitFleetDetach,
-                KeyCode::Backspace => crate::app::Action::BackspaceFleetDetachInput,
+                KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitDetach),
+                KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceDetachInput),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    crate::app::Action::OpenFleetDetach
+                    crate::app::Action::Fleet(FleetAction::OpenDetach)
                 }
                 KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                    crate::app::Action::AppendFleetDetachChar(ch)
+                    crate::app::Action::Fleet(FleetAction::AppendDetachChar(ch))
                 }
                 _ => crate::app::Action::Noop,
             },
@@ -6750,20 +6425,20 @@ impl App {
 
         match key.code {
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                crate::app::Action::MoveFleetReviewSelect(-1)
+                crate::app::Action::Fleet(FleetAction::MoveReviewSelect(-1))
             }
             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                crate::app::Action::MoveFleetReviewSelect(1)
+                crate::app::Action::Fleet(FleetAction::MoveReviewSelect(1))
             }
-            KeyCode::PageUp => crate::app::Action::MoveFleetReviewSelect(-8),
-            KeyCode::PageDown => crate::app::Action::MoveFleetReviewSelect(8),
-            KeyCode::Enter => crate::app::Action::SubmitFleetReviewSelect,
-            KeyCode::Backspace => crate::app::Action::BackspaceFleetReviewInput,
+            KeyCode::PageUp => crate::app::Action::Fleet(FleetAction::MoveReviewSelect(-8)),
+            KeyCode::PageDown => crate::app::Action::Fleet(FleetAction::MoveReviewSelect(8)),
+            KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitReviewSelect),
+            KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceReviewInput),
             KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                crate::app::Action::AppendFleetReviewChar(ch)
+                crate::app::Action::Fleet(FleetAction::AppendReviewChar(ch))
             }
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                crate::app::Action::OpenFleetMenu
+                crate::app::Action::Fleet(FleetAction::OpenMenu)
             }
             _ => crate::app::Action::Noop,
         }
@@ -6777,18 +6452,18 @@ impl App {
 
         match key.code {
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                crate::app::Action::MoveStarbaseSelect(-1)
+                crate::app::Action::Starbase(StarbaseAction::MoveSelect(-1))
             }
             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                crate::app::Action::MoveStarbaseSelect(1)
+                crate::app::Action::Starbase(StarbaseAction::MoveSelect(1))
             }
-            KeyCode::PageUp => crate::app::Action::MoveStarbaseSelect(-8),
-            KeyCode::PageDown => crate::app::Action::MoveStarbaseSelect(8),
-            KeyCode::Enter => crate::app::Action::SubmitStarbaseReviewSelect,
-            KeyCode::Backspace => crate::app::Action::BackspaceStarbaseInput,
-            KeyCode::Char(ch) if ch.is_ascii_digit() => crate::app::Action::AppendStarbaseChar(ch),
+            KeyCode::PageUp => crate::app::Action::Starbase(StarbaseAction::MoveSelect(-8)),
+            KeyCode::PageDown => crate::app::Action::Starbase(StarbaseAction::MoveSelect(8)),
+            KeyCode::Enter => crate::app::Action::Starbase(StarbaseAction::SubmitReviewSelect),
+            KeyCode::Backspace => crate::app::Action::Starbase(StarbaseAction::BackspaceInput),
+            KeyCode::Char(ch) if ch.is_ascii_digit() => crate::app::Action::Starbase(StarbaseAction::AppendChar(ch)),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                crate::app::Action::OpenStarbaseMenu
+                crate::app::Action::Starbase(StarbaseAction::OpenMenu)
             }
             _ => crate::app::Action::Noop,
         }
@@ -6799,20 +6474,20 @@ impl App {
 
         match key.code {
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                crate::app::Action::MoveFleetMergeSelect(-1)
+                crate::app::Action::Fleet(FleetAction::MoveMergeSelect(-1))
             }
             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                crate::app::Action::MoveFleetMergeSelect(1)
+                crate::app::Action::Fleet(FleetAction::MoveMergeSelect(1))
             }
-            KeyCode::PageUp => crate::app::Action::MoveFleetMergeSelect(-8),
-            KeyCode::PageDown => crate::app::Action::MoveFleetMergeSelect(8),
-            KeyCode::Enter => crate::app::Action::SubmitFleetMerge,
-            KeyCode::Backspace => crate::app::Action::BackspaceFleetMergeInput,
+            KeyCode::PageUp => crate::app::Action::Fleet(FleetAction::MoveMergeSelect(-8)),
+            KeyCode::PageDown => crate::app::Action::Fleet(FleetAction::MoveMergeSelect(8)),
+            KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitMerge),
+            KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceMergeInput),
             KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                crate::app::Action::AppendFleetMergeChar(ch)
+                crate::app::Action::Fleet(FleetAction::AppendMergeChar(ch))
             }
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                crate::app::Action::OpenFleetMenu
+                crate::app::Action::Fleet(FleetAction::OpenMenu)
             }
             _ => crate::app::Action::Noop,
         }
@@ -6821,35 +6496,35 @@ impl App {
     fn handle_fleet_transfer_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
         use crossterm::event::KeyCode;
 
-        match self.fleet_transfer_mode {
+        match self.fleet.transfer_mode {
             FleetTransferMode::SelectingFleets => match key.code {
                 KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                    crate::app::Action::MoveFleetTransferSelect(-1)
+                    crate::app::Action::Fleet(FleetAction::MoveTransferSelect(-1))
                 }
                 KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                    crate::app::Action::MoveFleetTransferSelect(1)
+                    crate::app::Action::Fleet(FleetAction::MoveTransferSelect(1))
                 }
-                KeyCode::PageUp => crate::app::Action::MoveFleetTransferSelect(-8),
-                KeyCode::PageDown => crate::app::Action::MoveFleetTransferSelect(8),
-                KeyCode::Char(' ') => crate::app::Action::ToggleFleetTransferSelection,
-                KeyCode::Enter => crate::app::Action::SubmitFleetTransfer,
-                KeyCode::Backspace => crate::app::Action::BackspaceFleetTransferInput,
+                KeyCode::PageUp => crate::app::Action::Fleet(FleetAction::MoveTransferSelect(-8)),
+                KeyCode::PageDown => crate::app::Action::Fleet(FleetAction::MoveTransferSelect(8)),
+                KeyCode::Char(' ') => crate::app::Action::Fleet(FleetAction::ToggleTransferSelection),
+                KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitTransfer),
+                KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceTransferInput),
                 KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                    crate::app::Action::AppendFleetTransferChar(ch)
+                    crate::app::Action::Fleet(FleetAction::AppendTransferChar(ch))
                 }
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    crate::app::Action::OpenFleetMenu
+                    crate::app::Action::Fleet(FleetAction::OpenMenu)
                 }
                 _ => crate::app::Action::Noop,
             },
             _ => match key.code {
-                KeyCode::Enter => crate::app::Action::SubmitFleetTransfer,
-                KeyCode::Backspace => crate::app::Action::BackspaceFleetTransferInput,
+                KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitTransfer),
+                KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceTransferInput),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    crate::app::Action::OpenFleetTransfer
+                    crate::app::Action::Fleet(FleetAction::OpenTransfer)
                 }
                 KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                    crate::app::Action::AppendFleetTransferChar(ch)
+                    crate::app::Action::Fleet(FleetAction::AppendTransferChar(ch))
                 }
                 _ => crate::app::Action::Noop,
             },
@@ -6859,36 +6534,36 @@ impl App {
     fn handle_fleet_order_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
         use crossterm::event::KeyCode;
 
-        match self.fleet_order_mode {
+        match self.fleet.order_mode {
             FleetSingleOrderMode::SelectingFleet => match key.code {
                 KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                    crate::app::Action::MoveFleetOrderSelect(-1)
+                    crate::app::Action::Fleet(FleetAction::MoveOrderSelect(-1))
                 }
                 KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                    crate::app::Action::MoveFleetOrderSelect(1)
+                    crate::app::Action::Fleet(FleetAction::MoveOrderSelect(1))
                 }
-                KeyCode::PageUp => crate::app::Action::MoveFleetOrderSelect(-8),
-                KeyCode::PageDown => crate::app::Action::MoveFleetOrderSelect(8),
-                KeyCode::Enter => crate::app::Action::SubmitFleetOrder,
-                KeyCode::Backspace => crate::app::Action::BackspaceFleetOrderInput,
+                KeyCode::PageUp => crate::app::Action::Fleet(FleetAction::MoveOrderSelect(-8)),
+                KeyCode::PageDown => crate::app::Action::Fleet(FleetAction::MoveOrderSelect(8)),
+                KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitOrder),
+                KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceOrderInput),
                 KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                    crate::app::Action::AppendFleetOrderChar(ch)
+                    crate::app::Action::Fleet(FleetAction::AppendOrderChar(ch))
                 }
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    crate::app::Action::OpenFleetMenu
+                    crate::app::Action::Fleet(FleetAction::OpenMenu)
                 }
                 _ => crate::app::Action::Noop,
             },
             FleetSingleOrderMode::EnteringTarget => match key.code {
-                KeyCode::Enter => crate::app::Action::SubmitFleetOrder,
-                KeyCode::Backspace => crate::app::Action::BackspaceFleetOrderInput,
+                KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitOrder),
+                KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceOrderInput),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    crate::app::Action::OpenFleetOrder
+                    crate::app::Action::Fleet(FleetAction::OpenOrder)
                 }
                 KeyCode::Char(ch)
                     if ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']') =>
                 {
-                    crate::app::Action::AppendFleetOrderChar(ch)
+                    crate::app::Action::Fleet(FleetAction::AppendOrderChar(ch))
                 }
                 _ => crate::app::Action::Noop,
             },
@@ -6898,33 +6573,33 @@ impl App {
     fn handle_fleet_group_order_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
         use crossterm::event::KeyCode;
 
-        match self.fleet_group_mode {
+        match self.fleet.group_mode {
             FleetGroupOrderMode::SelectingFleets => match key.code {
                 KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                    crate::app::Action::MoveFleetGroupOrder(-1)
+                    crate::app::Action::Fleet(FleetAction::MoveGroupOrder(-1))
                 }
                 KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                    crate::app::Action::MoveFleetGroupOrder(1)
+                    crate::app::Action::Fleet(FleetAction::MoveGroupOrder(1))
                 }
-                KeyCode::PageUp => crate::app::Action::MoveFleetGroupOrder(-8),
-                KeyCode::PageDown => crate::app::Action::MoveFleetGroupOrder(8),
-                KeyCode::Char(' ') => crate::app::Action::ToggleFleetGroupOrderSelection,
-                KeyCode::Enter => crate::app::Action::OpenFleetMissionPicker,
+                KeyCode::PageUp => crate::app::Action::Fleet(FleetAction::MoveGroupOrder(-8)),
+                KeyCode::PageDown => crate::app::Action::Fleet(FleetAction::MoveGroupOrder(8)),
+                KeyCode::Char(' ') => crate::app::Action::Fleet(FleetAction::ToggleGroupOrderSelection),
+                KeyCode::Enter => crate::app::Action::Fleet(FleetAction::OpenMissionPicker),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    crate::app::Action::OpenFleetMenu
+                    crate::app::Action::Fleet(FleetAction::OpenMenu)
                 }
                 _ => crate::app::Action::Noop,
             },
             FleetGroupOrderMode::EnteringTarget => match key.code {
-                KeyCode::Enter => crate::app::Action::SubmitFleetGroupOrder,
-                KeyCode::Backspace => crate::app::Action::BackspaceFleetGroupOrderInput,
+                KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitGroupOrder),
+                KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceGroupOrderInput),
                 KeyCode::Char(ch)
                     if ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']') =>
                 {
-                    crate::app::Action::AppendFleetGroupOrderChar(ch)
+                    crate::app::Action::Fleet(FleetAction::AppendGroupOrderChar(ch))
                 }
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    crate::app::Action::OpenFleetGroupOrder
+                    crate::app::Action::Fleet(FleetAction::OpenGroupOrder)
                 }
                 _ => crate::app::Action::Noop,
             },
@@ -6939,30 +6614,30 @@ impl App {
 
         match key.code {
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                crate::app::Action::MoveFleetMissionPicker(-1)
+                crate::app::Action::Fleet(FleetAction::MoveMissionPicker(-1))
             }
             KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                crate::app::Action::MoveFleetMissionPicker(1)
+                crate::app::Action::Fleet(FleetAction::MoveMissionPicker(1))
             }
-            KeyCode::PageUp => crate::app::Action::MoveFleetMissionPicker(-8),
-            KeyCode::PageDown => crate::app::Action::MoveFleetMissionPicker(8),
-            KeyCode::Enter => crate::app::Action::SubmitFleetMissionPicker,
-            KeyCode::Backspace => crate::app::Action::BackspaceFleetMissionPickerInput,
+            KeyCode::PageUp => crate::app::Action::Fleet(FleetAction::MoveMissionPicker(-8)),
+            KeyCode::PageDown => crate::app::Action::Fleet(FleetAction::MoveMissionPicker(8)),
+            KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitMissionPicker),
+            KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceMissionPickerInput),
             KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                crate::app::Action::AppendFleetMissionPickerChar(ch)
+                crate::app::Action::Fleet(FleetAction::AppendMissionPickerChar(ch))
             }
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                crate::app::Action::OpenFleetMissionPicker
+                crate::app::Action::Fleet(FleetAction::OpenMissionPicker)
             }
             _ => crate::app::Action::Noop,
         }
     }
 
     fn sync_fleet_roe_cursor_to_input(&mut self) {
-        if self.current_screen != ScreenId::FleetRoeSelect || self.fleet_roe_editing {
+        if self.current_screen != ScreenId::FleetRoeSelect || self.fleet.roe_editing {
             return;
         }
-        let Ok(target_fleet_id) = self.fleet_roe_select_input.trim().parse::<u16>() else {
+        let Ok(target_fleet_id) = self.fleet.roe_select_input.trim().parse::<u16>() else {
             return;
         };
         let rows = self.fleet_rows();
@@ -6972,21 +6647,21 @@ impl App {
         else {
             return;
         };
-        self.fleet_roe_cursor = index;
+        self.fleet.roe_cursor = index;
         sync_scroll_to_cursor(
-            &mut self.fleet_roe_scroll_offset,
-            self.fleet_roe_cursor,
+            &mut self.fleet.roe_scroll_offset,
+            self.fleet.roe_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
     }
 
     fn sync_fleet_order_cursor_to_input(&mut self) {
         if self.current_screen != ScreenId::FleetOrder
-            || self.fleet_order_mode != FleetSingleOrderMode::SelectingFleet
+            || self.fleet.order_mode != FleetSingleOrderMode::SelectingFleet
         {
             return;
         }
-        let Ok(target_fleet_id) = self.fleet_order_input.trim().parse::<u16>() else {
+        let Ok(target_fleet_id) = self.fleet.order_input.trim().parse::<u16>() else {
             return;
         };
         let rows = self.fleet_rows();
@@ -6996,11 +6671,11 @@ impl App {
         else {
             return;
         };
-        self.fleet_order_cursor = index;
-        self.fleet_order_fleet_record_index_1_based = Some(rows[index].fleet_record_index_1_based);
+        self.fleet.order_cursor = index;
+        self.fleet.order_fleet_record_index_1_based = Some(rows[index].fleet_record_index_1_based);
         sync_scroll_to_cursor(
-            &mut self.fleet_order_scroll_offset,
-            self.fleet_order_cursor,
+            &mut self.fleet.order_scroll_offset,
+            self.fleet.order_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
     }
@@ -7009,7 +6684,7 @@ impl App {
         if self.current_screen != ScreenId::FleetMissionPicker {
             return;
         }
-        let Ok(target_code) = self.fleet_mission_picker_input.trim().parse::<u8>() else {
+        let Ok(target_code) = self.fleet.mission_picker_input.trim().parse::<u8>() else {
             return;
         };
         let Some(index) = FLEET_MISSION_OPTIONS
@@ -7024,7 +6699,7 @@ impl App {
             .copied()
             .unwrap_or(false)
         {
-            self.fleet_mission_picker_cursor = index;
+            self.fleet.mission_picker_cursor = index;
         }
     }
 
@@ -7032,7 +6707,7 @@ impl App {
         if self.current_screen != ScreenId::FleetReviewSelect {
             return;
         }
-        let Ok(target_fleet_id) = self.fleet_review_select_input.trim().parse::<u16>() else {
+        let Ok(target_fleet_id) = self.fleet.review_select_input.trim().parse::<u16>() else {
             return;
         };
         let rows = self.fleet_rows();
@@ -7042,10 +6717,10 @@ impl App {
         else {
             return;
         };
-        self.fleet_cursor = index;
+        self.fleet.cursor = index;
         sync_scroll_to_cursor(
-            &mut self.fleet_scroll_offset,
-            self.fleet_cursor,
+            &mut self.fleet.scroll_offset,
+            self.fleet.cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
     }
@@ -7054,17 +6729,17 @@ impl App {
         if self.current_screen != ScreenId::StarbaseReviewSelect {
             return;
         }
-        let Ok(target_base_id) = self.starbase_review_input.trim().parse::<u8>() else {
+        let Ok(target_base_id) = self.starbase.review_input.trim().parse::<u8>() else {
             return;
         };
         let rows = self.starbase_rows();
         let Some(index) = rows.iter().position(|row| row.base_id == target_base_id) else {
             return;
         };
-        self.starbase_cursor = index;
+        self.starbase.cursor = index;
         sync_scroll_to_cursor(
-            &mut self.starbase_scroll_offset,
-            self.starbase_cursor,
+            &mut self.starbase.scroll_offset,
+            self.starbase.cursor,
             crate::screen::STARBASE_VISIBLE_ROWS,
         );
     }
@@ -7083,21 +6758,21 @@ impl App {
         else {
             return;
         };
-        self.fleet_merge_cursor = index;
+        self.fleet.merge_cursor = index;
         sync_scroll_to_cursor(
-            &mut self.fleet_merge_scroll_offset,
-            self.fleet_merge_cursor,
+            &mut self.fleet.merge_scroll_offset,
+            self.fleet.merge_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
     }
 
     fn sync_fleet_transfer_cursor_to_input(&mut self) {
         if self.current_screen != ScreenId::FleetTransfer
-            || self.fleet_transfer_mode != FleetTransferMode::SelectingFleets
+            || self.fleet.transfer_mode != FleetTransferMode::SelectingFleets
         {
             return;
         }
-        let Ok(target_fleet_id) = self.fleet_transfer_select_input.trim().parse::<u16>() else {
+        let Ok(target_fleet_id) = self.fleet.transfer_select_input.trim().parse::<u16>() else {
             return;
         };
         let rows = self.current_fleet_transfer_rows();
@@ -7107,21 +6782,21 @@ impl App {
         else {
             return;
         };
-        self.fleet_transfer_cursor = index;
+        self.fleet.transfer_cursor = index;
         sync_scroll_to_cursor(
-            &mut self.fleet_transfer_scroll_offset,
-            self.fleet_transfer_cursor,
+            &mut self.fleet.transfer_scroll_offset,
+            self.fleet.transfer_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
     }
 
     fn sync_fleet_detach_cursor_to_input(&mut self) {
         if self.current_screen != ScreenId::FleetDetach
-            || self.fleet_detach_mode != FleetDetachMode::SelectingFleet
+            || self.fleet.detach_mode != FleetDetachMode::SelectingFleet
         {
             return;
         }
-        let Ok(target_fleet_id) = self.fleet_detach_select_input.trim().parse::<u16>() else {
+        let Ok(target_fleet_id) = self.fleet.detach_select_input.trim().parse::<u16>() else {
             return;
         };
         let rows = self.fleet_rows();
@@ -7131,20 +6806,20 @@ impl App {
         else {
             return;
         };
-        self.fleet_detach_cursor = index;
+        self.fleet.detach_cursor = index;
         sync_scroll_to_cursor(
-            &mut self.fleet_detach_scroll_offset,
-            self.fleet_detach_cursor,
+            &mut self.fleet.detach_scroll_offset,
+            self.fleet.detach_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
     }
 
     fn fleet_detach_prompt_and_default(&self, rows: &[FleetRow]) -> (String, String) {
         let fleet_number = rows
-            .get(self.fleet_detach_cursor)
+            .get(self.fleet.detach_cursor)
             .map(|row| row.fleet_number)
             .unwrap_or(1);
-        match self.fleet_detach_mode {
+        match self.fleet.detach_mode {
             FleetDetachMode::SelectingFleet => (
                 "Detach ships from fleet # ".to_string(),
                 format_fleet_number_for_rows(fleet_number, rows),
@@ -7182,16 +6857,16 @@ impl App {
     }
 
     fn fleet_detach_current_input(&self) -> &str {
-        if self.fleet_detach_mode == FleetDetachMode::SelectingFleet {
-            &self.fleet_detach_select_input
+        if self.fleet.detach_mode == FleetDetachMode::SelectingFleet {
+            &self.fleet.detach_select_input
         } else {
-            &self.fleet_detach_input
+            &self.fleet.detach_input
         }
     }
 
     fn current_fleet_detach_ship_total(&self) -> u32 {
         let rows = self.fleet_rows();
-        let Some(selected_row) = rows.get(self.fleet_detach_cursor) else {
+        let Some(selected_row) = rows.get(self.fleet.detach_cursor) else {
             return 0;
         };
         self.game_data
@@ -7211,7 +6886,7 @@ impl App {
 
     fn next_fleet_detach_prompt_mode(&self, current: FleetDetachMode) -> Option<FleetDetachMode> {
         let rows = self.fleet_rows();
-        let selected_row = rows.get(self.fleet_detach_cursor)?;
+        let selected_row = rows.get(self.fleet.detach_cursor)?;
         let fleet = self
             .game_data
             .fleets
@@ -7258,7 +6933,7 @@ impl App {
 
     fn fleet_detach_requires_speed_prompt(&self) -> bool {
         let rows = self.fleet_rows();
-        let Some(selected_row) = rows.get(self.fleet_detach_cursor) else {
+        let Some(selected_row) = rows.get(self.fleet.detach_cursor) else {
             return false;
         };
         let Some(fleet) = self
@@ -7273,36 +6948,36 @@ impl App {
         donor_after.set_battleship_count(
             donor_after
                 .battleship_count()
-                .saturating_sub(self.fleet_detach_selection.battleships),
+                .saturating_sub(self.fleet.detach_selection.battleships),
         );
         donor_after.set_cruiser_count(
             donor_after
                 .cruiser_count()
-                .saturating_sub(self.fleet_detach_selection.cruisers),
+                .saturating_sub(self.fleet.detach_selection.cruisers),
         );
         donor_after.set_destroyer_count(
             donor_after
                 .destroyer_count()
-                .saturating_sub(self.fleet_detach_selection.destroyers),
+                .saturating_sub(self.fleet.detach_selection.destroyers),
         );
         donor_after.set_troop_transport_count(donor_after.troop_transport_count().saturating_sub(
-            self.fleet_detach_selection.full_transports
-                + self.fleet_detach_selection.empty_transports,
+            self.fleet.detach_selection.full_transports
+                + self.fleet.detach_selection.empty_transports,
         ));
         donor_after.set_army_count(
             donor_after
                 .army_count()
-                .saturating_sub(self.fleet_detach_selection.full_transports),
+                .saturating_sub(self.fleet.detach_selection.full_transports),
         );
         donor_after.set_scout_count(
             donor_after
                 .scout_count()
-                .saturating_sub(self.fleet_detach_selection.scouts),
+                .saturating_sub(self.fleet.detach_selection.scouts),
         );
         donor_after.set_etac_count(
             donor_after
                 .etac_count()
-                .saturating_sub(self.fleet_detach_selection.etacs),
+                .saturating_sub(self.fleet.detach_selection.etacs),
         );
         donor_after.recompute_max_speed_from_composition();
         donor_after.max_speed() > 0 && fleet.current_speed() > donor_after.max_speed()
@@ -7310,7 +6985,7 @@ impl App {
 
     fn fleet_detach_donor_default_speed(&self) -> u8 {
         let rows = self.fleet_rows();
-        let Some(selected_row) = rows.get(self.fleet_detach_cursor) else {
+        let Some(selected_row) = rows.get(self.fleet.detach_cursor) else {
             return 1;
         };
         let Some(fleet) = self
@@ -7325,36 +7000,36 @@ impl App {
         donor_after.set_battleship_count(
             donor_after
                 .battleship_count()
-                .saturating_sub(self.fleet_detach_selection.battleships),
+                .saturating_sub(self.fleet.detach_selection.battleships),
         );
         donor_after.set_cruiser_count(
             donor_after
                 .cruiser_count()
-                .saturating_sub(self.fleet_detach_selection.cruisers),
+                .saturating_sub(self.fleet.detach_selection.cruisers),
         );
         donor_after.set_destroyer_count(
             donor_after
                 .destroyer_count()
-                .saturating_sub(self.fleet_detach_selection.destroyers),
+                .saturating_sub(self.fleet.detach_selection.destroyers),
         );
         donor_after.set_troop_transport_count(donor_after.troop_transport_count().saturating_sub(
-            self.fleet_detach_selection.full_transports
-                + self.fleet_detach_selection.empty_transports,
+            self.fleet.detach_selection.full_transports
+                + self.fleet.detach_selection.empty_transports,
         ));
         donor_after.set_army_count(
             donor_after
                 .army_count()
-                .saturating_sub(self.fleet_detach_selection.full_transports),
+                .saturating_sub(self.fleet.detach_selection.full_transports),
         );
         donor_after.set_scout_count(
             donor_after
                 .scout_count()
-                .saturating_sub(self.fleet_detach_selection.scouts),
+                .saturating_sub(self.fleet.detach_selection.scouts),
         );
         donor_after.set_etac_count(
             donor_after
                 .etac_count()
-                .saturating_sub(self.fleet_detach_selection.etacs),
+                .saturating_sub(self.fleet.detach_selection.etacs),
         );
         donor_after.recompute_max_speed_from_composition();
         donor_after.max_speed().max(1)
@@ -7364,14 +7039,14 @@ impl App {
         &mut self,
         default: u16,
     ) -> Result<u16, Box<dyn std::error::Error>> {
-        let raw = self.fleet_detach_input.trim();
+        let raw = self.fleet.detach_input.trim();
         if raw.is_empty() {
             return Ok(default);
         }
         match raw.parse::<u16>() {
             Ok(value) => Ok(value),
             Err(_) => {
-                self.fleet_detach_status = Some("Enter an integer value.".to_string());
+                self.fleet.detach_status = Some("Enter an integer value.".to_string());
                 Err("invalid detach numeric input".into())
             }
         }
@@ -7380,53 +7055,53 @@ impl App {
     fn handle_fleet_eta_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
         use crossterm::event::KeyCode;
 
-        match self.fleet_eta_mode {
+        match self.fleet.eta_mode {
             FleetEtaMode::SelectingFleet => match key.code {
                 KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                    crate::app::Action::MoveFleetEtaSelect(-1)
+                    crate::app::Action::Fleet(FleetAction::MoveEtaSelect(-1))
                 }
                 KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                    crate::app::Action::MoveFleetEtaSelect(1)
+                    crate::app::Action::Fleet(FleetAction::MoveEtaSelect(1))
                 }
-                KeyCode::PageUp => crate::app::Action::MoveFleetEtaSelect(-8),
-                KeyCode::PageDown => crate::app::Action::MoveFleetEtaSelect(8),
-                KeyCode::Enter => crate::app::Action::SubmitFleetEta,
-                KeyCode::Backspace => crate::app::Action::BackspaceFleetEtaInput,
+                KeyCode::PageUp => crate::app::Action::Fleet(FleetAction::MoveEtaSelect(-8)),
+                KeyCode::PageDown => crate::app::Action::Fleet(FleetAction::MoveEtaSelect(8)),
+                KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitEta),
+                KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceEtaInput),
                 KeyCode::Char(ch) if ch.is_ascii_digit() => {
-                    crate::app::Action::AppendFleetEtaChar(ch)
+                    crate::app::Action::Fleet(FleetAction::AppendEtaChar(ch))
                 }
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    crate::app::Action::OpenFleetMenu
+                    crate::app::Action::Fleet(FleetAction::OpenMenu)
                 }
                 _ => crate::app::Action::Noop,
             },
             FleetEtaMode::EnteringDestination => match key.code {
-                KeyCode::Enter => crate::app::Action::SubmitFleetEta,
-                KeyCode::Backspace => crate::app::Action::BackspaceFleetEtaInput,
+                KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitEta),
+                KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceEtaInput),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    crate::app::Action::OpenFleetEta
+                    crate::app::Action::Fleet(FleetAction::OpenEta)
                 }
                 KeyCode::Char(ch)
                     if ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']') =>
                 {
-                    crate::app::Action::AppendFleetEtaChar(ch)
+                    crate::app::Action::Fleet(FleetAction::AppendEtaChar(ch))
                 }
                 _ => crate::app::Action::Noop,
             },
             FleetEtaMode::ConfirmingSystemEntry => match key.code {
-                KeyCode::Enter => crate::app::Action::SubmitFleetEta,
-                KeyCode::Backspace => crate::app::Action::BackspaceFleetEtaInput,
+                KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitEta),
+                KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceEtaInput),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    crate::app::Action::OpenFleetEta
+                    crate::app::Action::Fleet(FleetAction::OpenEta)
                 }
                 KeyCode::Char(ch) if matches!(ch, 'y' | 'Y' | 'n' | 'N') => {
-                    crate::app::Action::AppendFleetEtaChar(ch)
+                    crate::app::Action::Fleet(FleetAction::AppendEtaChar(ch))
                 }
                 _ => crate::app::Action::Noop,
             },
             FleetEtaMode::ShowingResult => match key.code {
                 KeyCode::Enter | KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                    crate::app::Action::SubmitFleetEta
+                    crate::app::Action::Fleet(FleetAction::SubmitEta)
                 }
                 _ => crate::app::Action::Noop,
             },
@@ -7435,11 +7110,11 @@ impl App {
 
     fn sync_fleet_eta_cursor_to_input(&mut self) {
         if self.current_screen != ScreenId::FleetEta
-            || self.fleet_eta_mode != FleetEtaMode::SelectingFleet
+            || self.fleet.eta_mode != FleetEtaMode::SelectingFleet
         {
             return;
         }
-        let Ok(target_fleet_id) = self.fleet_eta_select_input.trim().parse::<u16>() else {
+        let Ok(target_fleet_id) = self.fleet.eta_select_input.trim().parse::<u16>() else {
             return;
         };
         let rows = self.fleet_rows();
@@ -7449,21 +7124,21 @@ impl App {
         else {
             return;
         };
-        self.fleet_eta_cursor = index;
+        self.fleet.eta_cursor = index;
         sync_scroll_to_cursor(
-            &mut self.fleet_eta_scroll_offset,
-            self.fleet_eta_cursor,
+            &mut self.fleet.eta_scroll_offset,
+            self.fleet.eta_cursor,
             crate::screen::FLEET_VISIBLE_ROWS,
         );
     }
 
     fn current_fleet_merge_rows(&self) -> Vec<FleetRow> {
         let rows = self.fleet_rows();
-        match self.fleet_merge_mode {
+        match self.fleet.merge_mode {
             FleetMergeMode::SelectingSource => rows,
             FleetMergeMode::SelectingHost => {
                 let Some(source_record_index_1_based) =
-                    self.fleet_merge_source_record_index_1_based
+                    self.fleet.merge_source_record_index_1_based
                 else {
                     return rows;
                 };
@@ -7475,17 +7150,17 @@ impl App {
     }
 
     fn current_fleet_merge_input(&self) -> &str {
-        match self.fleet_merge_mode {
-            FleetMergeMode::SelectingSource => &self.fleet_merge_source_input,
-            FleetMergeMode::SelectingHost => &self.fleet_merge_host_input,
+        match self.fleet.merge_mode {
+            FleetMergeMode::SelectingSource => &self.fleet.merge_source_input,
+            FleetMergeMode::SelectingHost => &self.fleet.merge_host_input,
         }
     }
 
     fn current_fleet_transfer_rows(&self) -> Vec<FleetRow> {
-        let mut rows = match self.fleet_transfer_mode {
+        let mut rows = match self.fleet.transfer_mode {
             FleetTransferMode::SelectingFleets => self.fleet_rows(),
             _ => self
-                .fleet_transfer_donor_record_index_1_based
+                .fleet.transfer_donor_record_index_1_based
                 .and_then(|idx| {
                     self.fleet_rows()
                         .into_iter()
@@ -7504,9 +7179,9 @@ impl App {
     }
 
     fn current_fleet_transfer_input(&self) -> &str {
-        match self.fleet_transfer_mode {
-            FleetTransferMode::SelectingFleets => &self.fleet_transfer_select_input,
-            _ => &self.fleet_transfer_input,
+        match self.fleet.transfer_mode {
+            FleetTransferMode::SelectingFleets => &self.fleet.transfer_select_input,
+            _ => &self.fleet.transfer_input,
         }
     }
 
@@ -7519,10 +7194,10 @@ impl App {
     }
 
     fn fleet_transfer_prompt_and_default(&self, rows: &[FleetRow]) -> (String, String) {
-        match self.fleet_transfer_mode {
+        match self.fleet.transfer_mode {
             FleetTransferMode::SelectingFleets => (
                 "Fleet # ".to_string(),
-                rows.get(self.fleet_transfer_cursor)
+                rows.get(self.fleet.transfer_cursor)
                     .map(|row| row.fleet_number.to_string())
                     .unwrap_or_else(|| "1".to_string()),
             ),
@@ -7566,7 +7241,7 @@ impl App {
     }
 
     fn save_game_data(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        self.campaign_store.save_runtime_state(
+        self.planet.campaign_store.save_runtime_state(
             &self.game_data,
             &self.database,
             &self.results_bytes,
@@ -7574,7 +7249,7 @@ impl App {
             &self.queued_mail,
         )?;
         self.planet_intel_snapshots = self
-            .campaign_store
+            .planet.campaign_store
             .latest_planet_intel_for_viewer(self.player.record_index_1_based as u8)?
             .into_iter()
             .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
@@ -7584,7 +7259,7 @@ impl App {
 
     fn fleet_eta_default_destination(&self) -> [u8; 2] {
         let rows = self.fleet_rows();
-        let Some(row) = rows.get(self.fleet_eta_cursor) else {
+        let Some(row) = rows.get(self.fleet.eta_cursor) else {
             return [8, 2];
         };
         if row.target_coords[0] > 0 && row.target_coords[1] > 0 {
@@ -7596,7 +7271,7 @@ impl App {
 
     fn fleet_order_selected_row(&self) -> Option<FleetRow> {
         let rows = self.fleet_rows();
-        if let Some(record_index) = self.fleet_order_fleet_record_index_1_based {
+        if let Some(record_index) = self.fleet.order_fleet_record_index_1_based {
             if let Some(row) = rows
                 .iter()
                 .find(|row| row.fleet_record_index_1_based == record_index)
@@ -7604,11 +7279,11 @@ impl App {
                 return Some(row.clone());
             }
         }
-        rows.get(self.fleet_order_cursor).cloned()
+        rows.get(self.fleet.order_cursor).cloned()
     }
 
     fn fleet_order_default_target(&self) -> [u8; 2] {
-        if let Some(mission_code) = self.fleet_order_mission_code {
+        if let Some(mission_code) = self.fleet.order_mission_code {
             if let Some(target) = self.fleet_order_default_target_for_mission(mission_code) {
                 return target;
             }
@@ -7624,11 +7299,11 @@ impl App {
     }
 
     fn fleet_order_target_status_line(&self) -> String {
-        fleet_target_status_line(self.fleet_order_mission_code)
+        fleet_target_status_line(self.fleet.order_mission_code)
     }
 
     fn fleet_order_target_prompt(&self) -> String {
-        match fleet_target_input_kind(self.fleet_order_mission_code) {
+        match fleet_target_input_kind(self.fleet.order_mission_code) {
             FleetTargetInputKind::StarbaseId => "Starbase # ".to_string(),
             FleetTargetInputKind::FleetId => "Fleet # ".to_string(),
             FleetTargetInputKind::Coordinates => "Target ".to_string(),
@@ -7637,7 +7312,7 @@ impl App {
     }
 
     fn fleet_order_target_default(&self) -> String {
-        match fleet_target_input_kind(self.fleet_order_mission_code) {
+        match fleet_target_input_kind(self.fleet.order_mission_code) {
             FleetTargetInputKind::StarbaseId => self
                 .fleet_order_default_starbase()
                 .map(|row| row.base_id.to_string())
@@ -7662,13 +7337,13 @@ impl App {
     }
 
     fn fleet_group_default_target(&self) -> [u8; 2] {
-        if let Some(mission_code) = self.fleet_group_mission_code {
+        if let Some(mission_code) = self.fleet.group_mission_code {
             if let Some(target) = self.fleet_group_default_target_for_mission(mission_code) {
                 return target;
             }
         }
         let rows = self.fleet_rows();
-        let Some(row) = rows.get(self.fleet_group_cursor) else {
+        let Some(row) = rows.get(self.fleet.group_cursor) else {
             return [8, 2];
         };
         if row.target_coords[0] > 0 && row.target_coords[1] > 0 {
@@ -7683,16 +7358,16 @@ impl App {
         self.recommended_fleet_target(
             mission_code,
             &selected,
-            self.fleet_group_selected_fleets.clone(),
+            self.fleet.group_selected_fleets.clone(),
         )
     }
 
     fn fleet_group_target_status_line(&self) -> String {
-        fleet_target_status_line(self.fleet_group_mission_code)
+        fleet_target_status_line(self.fleet.group_mission_code)
     }
 
     fn fleet_group_target_prompt(&self) -> String {
-        match fleet_target_input_kind(self.fleet_group_mission_code) {
+        match fleet_target_input_kind(self.fleet.group_mission_code) {
             FleetTargetInputKind::StarbaseId => "Starbase # ".to_string(),
             FleetTargetInputKind::FleetId => "Fleet # ".to_string(),
             FleetTargetInputKind::Coordinates => "Target ".to_string(),
@@ -7701,7 +7376,7 @@ impl App {
     }
 
     fn fleet_group_target_default(&self) -> String {
-        match fleet_target_input_kind(self.fleet_group_mission_code) {
+        match fleet_target_input_kind(self.fleet.group_mission_code) {
             FleetTargetInputKind::StarbaseId => self
                 .fleet_group_default_starbase()
                 .map(|row| row.base_id.to_string())
@@ -7766,7 +7441,7 @@ impl App {
         self.fleet_rows()
             .into_iter()
             .filter(|row| {
-                self.fleet_group_selected_fleets
+                self.fleet.group_selected_fleets
                     .contains(&row.fleet_record_index_1_based)
             })
             .collect()
@@ -7849,12 +7524,12 @@ impl App {
             .first()
             .map(|row| row.coords)
             .unwrap_or(self.default_planet_prompt_coords());
-        self.closest_owned_fleet_from(anchor, &self.fleet_group_selected_fleets)
+        self.closest_owned_fleet_from(anchor, &self.fleet.group_selected_fleets)
     }
 
     fn resolve_fleet_order_starbase_target_for_current_mission(&self) -> Option<StarbaseRow> {
         let default_base_id = self.fleet_order_default_starbase()?.base_id;
-        let base_id = resolve_default_u8_input(&self.fleet_order_input, default_base_id)?;
+        let base_id = resolve_default_u8_input(&self.fleet.order_input, default_base_id)?;
         self.starbase_rows()
             .into_iter()
             .find(|row| row.base_id == base_id)
@@ -7862,7 +7537,7 @@ impl App {
 
     fn resolve_fleet_group_starbase_target_for_current_mission(&self) -> Option<StarbaseRow> {
         let default_base_id = self.fleet_group_default_starbase()?.base_id;
-        let base_id = resolve_default_u8_input(&self.fleet_group_input, default_base_id)?;
+        let base_id = resolve_default_u8_input(&self.fleet.group_input, default_base_id)?;
         self.starbase_rows()
             .into_iter()
             .find(|row| row.base_id == base_id)
@@ -7871,7 +7546,7 @@ impl App {
     fn resolve_fleet_order_host_fleet_for_current_mission(&self) -> Option<FleetRow> {
         let default_fleet_number = self.fleet_order_default_host_fleet()?.fleet_number;
         let fleet_number =
-            resolve_default_u16_input(&self.fleet_order_input, default_fleet_number)?;
+            resolve_default_u16_input(&self.fleet.order_input, default_fleet_number)?;
         let selected_record = self.fleet_order_selected_row()?.fleet_record_index_1_based;
         self.fleet_rows().into_iter().find(|row| {
             row.fleet_number == fleet_number && row.fleet_record_index_1_based != selected_record
@@ -7881,11 +7556,11 @@ impl App {
     fn resolve_fleet_group_host_fleet_for_current_mission(&self) -> Option<FleetRow> {
         let default_fleet_number = self.fleet_group_default_host_fleet()?.fleet_number;
         let fleet_number =
-            resolve_default_u16_input(&self.fleet_group_input, default_fleet_number)?;
+            resolve_default_u16_input(&self.fleet.group_input, default_fleet_number)?;
         self.fleet_rows().into_iter().find(|row| {
             row.fleet_number == fleet_number
                 && !self
-                    .fleet_group_selected_fleets
+                    .fleet.group_selected_fleets
                     .contains(&row.fleet_record_index_1_based)
         })
     }
@@ -7966,7 +7641,7 @@ impl App {
     }
 
     fn fleet_mission_picker_enabled_flags(&self) -> Vec<bool> {
-        match self.fleet_mission_picker_caller {
+        match self.fleet.mission_picker_caller {
             Some(FleetMissionPickerCaller::SingleOrder) => {
                 let selected = self
                     .fleet_order_selected_row()
@@ -8046,18 +7721,18 @@ impl App {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let selected_rows = self.fleet_group_selected_rows();
         if selected_rows.is_empty() {
-            self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
-            self.fleet_group_status = Some("Select at least one fleet.".to_string());
+            self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
+            self.fleet.group_status = Some("Select at least one fleet.".to_string());
             return Ok(());
         }
         self.apply_fleet_orders_to_rows(&selected_rows, mission_code, target, aux0, aux1)?;
         let selected_count = selected_rows.len();
-        self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
-        self.fleet_group_mission_code = None;
-        self.fleet_group_input.clear();
-        self.fleet_group_selected_fleets.clear();
+        self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
+        self.fleet.group_mission_code = None;
+        self.fleet.group_input.clear();
+        self.fleet.group_selected_fleets.clear();
         self.current_screen = ScreenId::FleetGroupOrder;
-        self.fleet_group_status = Some(if fleet_group_order_requires_target(mission_code) {
+        self.fleet.group_status = Some(if fleet_group_order_requires_target(mission_code) {
             format!(
                 "Applied {} order to {} fleets for sector [{},{}].",
                 fleet_group_order_label(mission_code),
@@ -8081,8 +7756,8 @@ impl App {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let selected_rows = self.fleet_group_selected_rows();
         if selected_rows.is_empty() {
-            self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
-            self.fleet_group_status = Some("Select at least one fleet.".to_string());
+            self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
+            self.fleet.group_status = Some("Select at least one fleet.".to_string());
             return Ok(());
         }
         for row in &selected_rows {
@@ -8094,12 +7769,12 @@ impl App {
         }
         self.save_game_data()?;
         let selected_count = selected_rows.len();
-        self.fleet_group_mode = FleetGroupOrderMode::SelectingFleets;
-        self.fleet_group_mission_code = None;
-        self.fleet_group_input.clear();
-        self.fleet_group_selected_fleets.clear();
+        self.fleet.group_mode = FleetGroupOrderMode::SelectingFleets;
+        self.fleet.group_mission_code = None;
+        self.fleet.group_input.clear();
+        self.fleet.group_selected_fleets.clear();
         self.current_screen = ScreenId::FleetGroupOrder;
-        self.fleet_group_status = Some(format!(
+        self.fleet.group_status = Some(format!(
             "Applied join-fleet order to {} fleets with host Fleet #{}.",
             selected_count, host.fleet_number
         ));
@@ -8114,17 +7789,17 @@ impl App {
         aux1: u8,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let Some(selected_row) = self.fleet_order_selected_row() else {
-            self.fleet_order_mode = FleetSingleOrderMode::SelectingFleet;
-            self.fleet_order_status = Some("Select a fleet.".to_string());
+            self.fleet.order_mode = FleetSingleOrderMode::SelectingFleet;
+            self.fleet.order_status = Some("Select a fleet.".to_string());
             return Ok(());
         };
         self.apply_fleet_orders_to_rows(&[selected_row.clone()], mission_code, target, aux0, aux1)?;
-        self.fleet_order_mode = FleetSingleOrderMode::SelectingFleet;
-        self.fleet_order_mission_code = None;
-        self.fleet_order_input.clear();
-        self.fleet_order_fleet_record_index_1_based = Some(selected_row.fleet_record_index_1_based);
+        self.fleet.order_mode = FleetSingleOrderMode::SelectingFleet;
+        self.fleet.order_mission_code = None;
+        self.fleet.order_input.clear();
+        self.fleet.order_fleet_record_index_1_based = Some(selected_row.fleet_record_index_1_based);
         self.current_screen = ScreenId::FleetOrder;
-        self.fleet_order_status = Some(if fleet_group_order_requires_target(mission_code) {
+        self.fleet.order_status = Some(if fleet_group_order_requires_target(mission_code) {
             format!(
                 "Applied {} to Fleet #{} for sector [{},{}].",
                 fleet_group_order_label(mission_code),
@@ -8147,8 +7822,8 @@ impl App {
         host: FleetRow,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let Some(selected_row) = self.fleet_order_selected_row() else {
-            self.fleet_order_mode = FleetSingleOrderMode::SelectingFleet;
-            self.fleet_order_status = Some("Select a fleet.".to_string());
+            self.fleet.order_mode = FleetSingleOrderMode::SelectingFleet;
+            self.fleet.order_status = Some("Select a fleet.".to_string());
             return Ok(());
         };
         self.game_data.set_join_fleet_order(
@@ -8157,12 +7832,12 @@ impl App {
             host.fleet_record_index_1_based,
         )?;
         self.save_game_data()?;
-        self.fleet_order_mode = FleetSingleOrderMode::SelectingFleet;
-        self.fleet_order_mission_code = None;
-        self.fleet_order_input.clear();
-        self.fleet_order_fleet_record_index_1_based = Some(selected_row.fleet_record_index_1_based);
+        self.fleet.order_mode = FleetSingleOrderMode::SelectingFleet;
+        self.fleet.order_mission_code = None;
+        self.fleet.order_input.clear();
+        self.fleet.order_fleet_record_index_1_based = Some(selected_row.fleet_record_index_1_based);
         self.current_screen = ScreenId::FleetOrder;
-        self.fleet_order_status = Some(format!(
+        self.fleet.order_status = Some(format!(
             "Applied join-fleet order to Fleet #{} with host Fleet #{}.",
             selected_row.fleet_number, host.fleet_number
         ));
@@ -8170,20 +7845,20 @@ impl App {
     }
 
     fn finish_fleet_transfer(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let Some(donor_record_index_1_based) = self.fleet_transfer_donor_record_index_1_based
+        let Some(donor_record_index_1_based) = self.fleet.transfer_donor_record_index_1_based
         else {
-            self.fleet_transfer_status = Some("Select two fleets for transfer.".to_string());
+            self.fleet.transfer_status = Some("Select two fleets for transfer.".to_string());
             return Ok(());
         };
-        let Some(host_record_index_1_based) = self.fleet_transfer_host_record_index_1_based else {
-            self.fleet_transfer_status = Some("Select two fleets for transfer.".to_string());
+        let Some(host_record_index_1_based) = self.fleet.transfer_host_record_index_1_based else {
+            self.fleet.transfer_status = Some("Select two fleets for transfer.".to_string());
             return Ok(());
         };
         self.game_data.transfer_ships_between_fleets(
             self.player.record_index_1_based,
             donor_record_index_1_based,
             host_record_index_1_based,
-            self.fleet_transfer_selection.clone(),
+            self.fleet.transfer_selection.clone(),
         )?;
         self.save_game_data()?;
         let donor_fleet_number = self
@@ -8192,15 +7867,15 @@ impl App {
         let host_fleet_number = self
             .fleet_number_for_record_index(host_record_index_1_based)
             .unwrap_or(0);
-        self.fleet_transfer_mode = FleetTransferMode::SelectingFleets;
-        self.fleet_transfer_selected_fleets.clear();
-        self.fleet_transfer_donor_record_index_1_based = None;
-        self.fleet_transfer_host_record_index_1_based = None;
-        self.fleet_transfer_select_input.clear();
-        self.fleet_transfer_input.clear();
-        self.fleet_transfer_selection = FleetDetachSelection::default();
+        self.fleet.transfer_mode = FleetTransferMode::SelectingFleets;
+        self.fleet.transfer_selected_fleets.clear();
+        self.fleet.transfer_donor_record_index_1_based = None;
+        self.fleet.transfer_host_record_index_1_based = None;
+        self.fleet.transfer_select_input.clear();
+        self.fleet.transfer_input.clear();
+        self.fleet.transfer_selection = FleetDetachSelection::default();
         self.current_screen = ScreenId::FleetTransfer;
-        self.fleet_transfer_status = Some(format!(
+        self.fleet.transfer_status = Some(format!(
             "Transferred ships from fleet {} to fleet {}.",
             donor_fleet_number, host_fleet_number
         ));
@@ -8407,18 +8082,18 @@ impl App {
 
     fn reset_startup_review_cursors_for_phase_exit(&mut self) {
         if self.current_screen != ScreenId::Startup(StartupPhase::Results) {
-            self.startup_results_block = 0;
-            self.startup_results_page = 0;
-            self.startup_results_mode = StartupReviewMode::ViewPrompt;
-            self.startup_results_nonstop = false;
-            self.startup_results_deleted_any = false;
+            self.startup_state.results_block = 0;
+            self.startup_state.results_page = 0;
+            self.startup_state.results_mode = StartupReviewMode::ViewPrompt;
+            self.startup_state.results_nonstop = false;
+            self.startup_state.results_deleted_any = false;
         }
         if self.current_screen != ScreenId::Startup(StartupPhase::Messages) {
-            self.startup_messages_block = 0;
-            self.startup_messages_page = 0;
-            self.startup_messages_mode = StartupReviewMode::ViewPrompt;
-            self.startup_messages_nonstop = false;
-            self.startup_messages_deleted_any = false;
+            self.startup_state.messages_block = 0;
+            self.startup_state.messages_page = 0;
+            self.startup_state.messages_mode = StartupReviewMode::ViewPrompt;
+            self.startup_state.messages_nonstop = false;
+            self.startup_state.messages_deleted_any = false;
         }
     }
 
