@@ -7737,3 +7737,55 @@ Current practical reading:
   step `4` should currently be modeled as overlapping neighboring subphases
   that can write some of the same world-state fields, not as isolated
   non-interacting passes
+
+#### Target-world aftermath shape depends on starting world payload
+
+Important fixture fact:
+
+- `invade-pre` and `fleet-battle-pre` start with **identical** target-world
+  record `14`
+- `bombard-pre` uses a different weaker target-world seed at the same coords
+
+Direct transplant probe:
+
+- transplanted the weaker `bombard-pre` target-world record `14` into:
+  - `fleet-battle-pre`
+  - `invade-pre`
+- then reran the natural control maint ticks with no forced `+0x60`
+
+Observed result:
+
+- original `invade-pre` / `fleet-battle-pre` natural tick-`1` target-world
+  shape:
+  - `+0x09`
+  - `+0x0e`
+  - `+0x38`
+  - `+0x3c`
+- after transplanting the weaker bombard-style target-world seed into those
+  same scenarios, the natural tick-`1` shape collapses to:
+  - `+0x09`
+  - `+0x0e`
+  - `+0x58`
+- in both transplanted cases:
+  - `+0x38/+0x3c` no longer appear
+  - `invade` still keeps `RESULTS.DAT` empty on tick `1`
+  - `fleet-battle` still keeps `RESULTS.DAT` non-empty on tick `1`
+
+Current practical reading:
+
+- the natural target-world aftermath shape is not determined by mission family
+  alone
+- it depends strongly on the starting world payload/class
+- the shared `invade`/`fleet-battle` `+0x38/+0x3c` marks are therefore better
+  read as target-world-state-dependent aftermath fields, not generic "hostile
+  event happened" markers
+- `+0x09` and `+0x0e` look more stable across target-world seed classes
+- `+0x58` now looks like the fallback/alternate world-side consequence when
+  the weaker bombard-style seed is used
+
+Practical consequence for Rust step-4 modeling:
+
+- target-world aftermath should not be keyed only by mission family
+- it likely depends on both:
+  - the surrounding hostile-resolution context
+  - and the target world's current payload/class

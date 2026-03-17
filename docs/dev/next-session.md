@@ -289,6 +289,16 @@ Current Rust-facing implication:
     - practical implication:
       step `4` currently looks like overlapping neighboring subphases that can
       write some of the same world-state fields, not clean isolated passes
+  - target-world seed transplant now narrows the natural aftermath side too:
+    - `invade-pre` and `fleet-battle-pre` share the same starting target-world
+      record, while `bombard-pre` uses a weaker different seed
+    - transplanting the weaker bombard-style target-world record into either
+      `invade` or `fleet-battle` collapses the natural tick-`1` world delta
+      from `+0x09/+0x0e/+0x38/+0x3c` down to `+0x09/+0x0e/+0x58`
+    - practical implication:
+      the natural target-world aftermath shape depends strongly on target-world
+      payload/class, not only on mission family or whether report output is
+      already active
 
 Latest static tightening on the turn-cycle side:
 

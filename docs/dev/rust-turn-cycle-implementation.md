@@ -237,6 +237,7 @@ Updated Durable State + Durable Event Pool
 | `024d` mixes state mutation and event production | do not force a false boundary where all state mutation finishes before any durable event creation starts |
 | Some producer-side world mutation is silent | do not assume every important step-4 change creates a report/message immediately |
 | Some neighboring step-4 subphases appear to write overlapping target-world state | do not assume one clean owner per world field; the driver needs ordered overwrite behavior and explicit subphase boundaries |
+| Some natural hostile-resolution target-world consequences depend on the starting world payload/class | do not key target-world aftermath only by mission family; keep room for world-state-sensitive aftermath rules |
 
 ### What Is Still Open
 
@@ -248,6 +249,7 @@ Updated Durable State + Durable Event Pool
 | exact combat-placement relative to producer passes | keep combat/outcome handling and producer passes separable in the driver |
 | mission-family-specific aftermath timing | allow different mission families to schedule follow-on effects differently |
 | exact overwrite precedence when two subphases touch the same target-world fields | centralize world-state writes in ordered subphase functions; do not hide them behind unordered helper side effects |
+| exact target-world-state predicates that choose one aftermath shape over another | keep aftermath shaping behind explicit world-state inspection, not hard-coded per-mission tables alone |
 
 ## Current Practical Step-4 Shape
 
@@ -348,6 +350,31 @@ run producer/mutator subphase
 
 That keeps the engine faithful to current evidence without claiming the final
 oracle precedence is already fully solved.
+
+## Target-World Aftermath Should Be State-Sensitive
+
+Current practical evidence suggests that natural hostile-resolution aftermath on
+the target world depends on more than the mission family.
+
+In particular:
+
+- two scenarios with different surrounding context but the same starting
+  target-world payload can produce the same early target-world aftermath shape
+- transplanting a different target-world seed into those same scenarios can
+  change that shape materially
+
+Implementation consequence:
+
+- do not model target-world aftermath as:
+  - `if mission == invade, write X`
+  - `if mission == bombard, write Y`
+- instead, prefer a rule shape closer to:
+  - identify the hostile-resolution context
+  - inspect the target-world state/class
+  - choose the applicable aftermath update shape
+
+That keeps the Rust engine aligned with current oracle evidence while the exact
+classic predicates are still being recovered.
 
 ## Recommended Driver Skeleton
 
