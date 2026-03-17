@@ -415,6 +415,29 @@ Combat policy for the Rust clone remains:
         the live-dump project and the original-binary `ec-v15` project, so
         continue inferring them from callers/effects rather than waiting on
         direct disassembly first
+    - tighter `731f` feeder-side classification from the live dump:
+      - on the failure/recovery side of `6d9b`, `731f` first uses the same
+        `0x46cc` timestamp/message plumbing as the token-timeout helpers
+      - it allocates `0x20a` bytes at `0x33f8`, copies state from `0x2d68`,
+        parses a short bounded record into `0x2d6a..0x2d70`, then bulk-copies
+        that seeded state back into the `0x33f8` workspace
+      - practical implication:
+        treat `731f` as restore/workspace reconstruction or token-side
+        housekeeping, not as part of the missing economy/movement/combat turn
+        ordering
+    - tighter `1000:00e8` vs `1000:024d` durable-summary split:
+      - both still sit inside the same durable event-generation family:
+        `f71d -> dddb`, then later `e31b`
+      - only `024d` inserts an extra gate before the direct kind-2 append:
+        player `+0x5a` check, then `db04(arg=0x0a)`, then `0x5dc/0x5de`,
+        then the unmapped helper window around `f2c7`
+      - `db04`, `d5d2`, and the recovered `f2c7` local window all currently
+        look like per-player counter/timing / summary-prep helpers, not
+        gameplay-core phase drivers
+      - practical implication:
+        keep this branch point inside "durable summary/event creation" for
+        Rust-facing modeling; it is still not evidence for canonical
+        movement/combat/economy ordering
     - the startup `main.tok` / `Creating main work file...` / `Merging joint
       fleets...` cluster still has no direct scalar xrefs in the live dump, so
       that outer startup/status path is likely indirect/table-driven

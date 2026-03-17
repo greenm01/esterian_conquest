@@ -6699,6 +6699,59 @@ Practical consequence:
   - current best reading is not "those helpers do nothing", but "this region is
     still unmapped/undecoded in the available projects", so feeder-side RE must
     continue indirectly from callers and effects
+- the `731f` live-dump block on the recovery side of `6d9b` is now better
+  bounded as restore/workspace preparation, not turn simulation:
+  - entry sequence:
+    - checks a `3000:1804` result from CS:`6a22`
+    - on failure it emits status text through the same `0x46cc` +
+      `3000:4057/3f88/3be9` message path already seen in token-timeout helpers
+  - then:
+    - allocates `0x20a` bytes with destination `0x33f8`
+    - copies from `0x2d68` into that workspace
+    - reads a bounded record into stack scratch
+    - parses bytes out into `0x2d6a..0x2d70`
+    - bulk-copies the seeded block back into `0x33f8`
+  - current best reading:
+    this block is reconstructing or refreshing token/restore working state
+    after validation trouble, not running economy/movement/combat phases
+  - practical implication:
+    move remaining turn-order RE earlier than this feeder/recovery cluster
+- the sibling durable-summary drivers `1000:00e8` and `1000:024d` are now
+  better separated:
+  - both still share the same broad shape:
+    - reset local counters / flags
+    - call `1000:f71d` (which reaches kind-1 writer `1000:dddb`)
+    - call `1000:d5d2`
+    - call `1000:b6d8`
+    - eventually append kind-2 through `1000:e31b`
+  - only `1000:024d` inserts an extra gate before the kind-2 append:
+    - if player `+0x5a > 0`, call `1000:db04(arg=0x0a, player)`
+    - then test `0x5dc/0x5de`
+    - only when that pair stays zero does it call the unmapped helper window
+      around `1000:f2c7` and then `1000:e31b`
+  - `1000:db04` itself is not a top-level yearly phase:
+    - it mutates counters inside the current player-side record at
+      `+0x30`, `+0x34`, and `+0x36`
+    - these same fields are read later by `2000:0c06`
+    - current best reading is per-player timing / reviewable-state adjustment,
+      not a separate movement/combat/economy driver
+  - `1000:d5d2` is likewise better bounded as player-side prep/marking:
+    - it sanitizes/initializes bytes in the active `0x16ac` record
+    - then scans existing kind-1 entries in `0x2f72/0x2f76` for the same
+      owner before returning
+  - `1000:f2c7` is still not mapped as a named function boundary, but the
+    recovered local window is enough for one practical conclusion:
+    - it decodes a summary payload through `2000:c09a`
+    - runs a local matcher via `1000:d166`
+    - conditionally calls `2000:c151`
+    - so it also looks like local summary/timing gating, not a gameplay-core
+      subphase
+- practical implication:
+  - the `00e8/024d` split is currently best treated as conditional
+    per-player summary/timing preparation inside the durable event-generation
+    phase
+  - do not promote that branch point into Rust as evidence for the canonical
+    order of economy, movement, combat, or assaults
 - practical Rust implication:
   - do not use the `169a` / `634` / `635` / `636` / `638` flag family as
     evidence for economy, movement, combat, or other gameplay-core ordering
