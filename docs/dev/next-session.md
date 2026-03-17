@@ -177,6 +177,17 @@ Latest static tightening on the turn-cycle side:
   player-side and planet-side collections are currently best modeled as staged
   validation / lookup inputs for the known fleet/base/IPBM summary producers,
   not as additional direct summary kinds hidden in the `5ee4` tail
+- `2000:6d9b` is now better bounded as restore/validation scaffolding:
+  - `arg=0` goes through `0x6f20`, calls `5ee4`, and on failure emits
+    recovery/error text before recursively calling `6d9b(arg=1)`
+  - `arg=1` brackets `5ee4` with two `0x3000:4f4c` registration waves over
+    the stream anchors rooted at `0x2f78`, `0x2ff8`, `0x3078`, `0x30f8`,
+    `0x3178`, `0x31f8`, `0x3278`, `0x32f8`, and `0x3478`
+- practical implication:
+  `6d9b` is looking more like integrity/restore wrapper logic around `5ee4`
+  than a hidden gameplay-core phase; the missing middle turn order is still
+  more likely earlier than the fixed late `8652` chain or inside helpers not
+  yet split out
 
 Combat policy for the Rust clone remains:
 

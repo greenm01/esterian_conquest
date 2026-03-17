@@ -6828,3 +6828,43 @@ Practical consequence:
   be hiding in the already-recovered `5ee4` exits; the next productive RE
   target is the earlier helper chain that populates or consumes these staged
   collections before the late report side
+
+#### `2000:6d9b` tightened as restore/validation wrapper with recursive retry path
+
+Added probe:
+
+- `artifacts/ghidra/ecmaint-live/probe-2000_6f20.txt`
+
+Current static result:
+
+- `2000:6d9b` has two entry modes:
+  - if `[BP+0x04] != 0`, stay on the existing `6daa` path
+  - if `[BP+0x04] == 0`, jump to `2000:6f20`
+- `2000:6f20` does:
+  - call `5ee4`
+  - if `5ee4` succeeds, return success immediately
+  - if `5ee4` fails, emit recovery/error text through `46cc` / `159b`
+  - then call back into `2000:6d9b` with pushed argument `1`
+- the `arg = 1` path at `6daa`:
+  - registers two `0x3000:4f4c` callback waves around `5ee4`
+  - the registered stream anchors are:
+    - `0x2f78`
+    - `0x2ff8`
+    - `0x3078`
+    - `0x30f8`
+    - `0x3178`
+    - `0x31f8`
+    - `0x3278`
+    - `0x32f8`
+    - `0x3478`
+  - still funnels through `5ee4` and then returns a simple success/failure
+    byte
+
+Practical consequence:
+
+- `6d9b` is increasingly well-bounded as restore/integrity scaffolding around
+  `5ee4`, with an alternate registered-stream retry mode
+- this is another negative result for the middle-turn-order hunt:
+  - `6d9b` still does not look like the missing yearly gameplay-core phase
+  - the unresolved ordering remains more likely in earlier helpers or outside
+    the already-fixed `6d9b -> 5ee4 -> 8652` framing path

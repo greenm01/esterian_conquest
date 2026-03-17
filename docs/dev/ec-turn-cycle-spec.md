@@ -157,6 +157,14 @@ Practical meaning:
 - within the currently recovered `5ee4` body, those collections act as inputs
   to the fleet/base/IPBM validation and summary-emission paths; they are not
   yet supported as separate direct summary producers
+- wrapper `2000:6d9b` is now better bounded as restore/validation scaffolding:
+  - `arg = 0` jumps into `0x6f20`, calls `5ee4`, and on failure emits
+    recovery/error text before recursively re-entering `6d9b` with `arg = 1`
+  - `arg = 1` brackets `5ee4` with two `0x3000:4f4c` registration waves over
+    the stream anchors rooted at `0x2f78`, `0x2ff8`, `0x3078`, `0x30f8`,
+    `0x3178`, `0x31f8`, `0x3278`, `0x32f8`, and `0x3478`
+- this strengthens the reading that `6d9b` is integrity/restore framing around
+  `5ee4`, not another hidden yearly gameplay-core stage
 - this further narrows the unresolved gameplay-core search away from the
   already-recovered `5ee4` tail exits
 
