@@ -6773,3 +6773,58 @@ Practical consequence:
   - startup path seeds the summary workspace early
   - later gameplay/report helpers populate and consume it
   - `9e1e` itself is not the missing yearly simulation core
+
+#### `2000:5ee4` front half tightened as player/planet staging, with no new tail-side summary producer
+
+Added/used probes:
+
+- `artifacts/ghidra/ecmaint-live/probe-2000_5ee4.txt`
+- `artifacts/ghidra/ecmaint-live/probe-2000_63ca.txt`
+- `artifacts/ghidra/ecmaint-live/probe-2000_6ab4.txt`
+- `artifacts/ghidra/ecmaint-live/probe-2000_0796.txt`
+- `artifacts/ghidra/ecmaint-live/probe-2000_0c06.txt`
+- `artifacts/ghidra/ecmaint-live/5ee4-ipbm.txt`
+
+Current static result:
+
+- `2000:5ee4` starts by zeroing:
+  - `0x16ae`
+  - `0x1714`
+  - `0x190a`
+- it then stages two input collections before the already-known summary
+  branches:
+  - `0x3278` with record size `0x6e`
+    - loaded into far-pointer table `0x16ac`
+    - count tracked in `0x16ae`
+  - `0x2f78` with record size `0x61`
+    - loaded into far-pointer table `0x1712`
+    - count tracked in `0x1714`
+- the recovered direct summary-emission branches inside `5ee4` remain:
+  - `0x3178` fleet -> kind `1`
+  - `0x2ff8` base -> kind `2`
+  - `0x31f8` IPBM -> kind `3`
+- `2000:63ca` is the join from the front-half staging and fleet branch into the
+  base-side branch; it does not introduce a separate player-only producer
+- `2000:6ab4` is the tail gate:
+  - if validation failed, return failure immediately
+  - otherwise zero summary count `0x2f76`
+  - free every staged `0x3278` buffer via size `0x6e`
+  - free every staged `0x2f78` buffer via size `0x61`
+  - zero `0x16ae` / `0x1714` and return
+- supporting side evidence:
+  - `2000:0c06` walks `0x16ae` / `0x16ac`, which fits player-side late
+    processing rather than hidden simulation
+  - `2000:0788` / `0796` walks `0x1714` / `0x1712`, filters on owner byte
+    `+0x5d`, and sums byte `+0x02`, which fits planet-side aggregation
+
+Practical consequence:
+
+- current best model:
+  - `9e1e` seeds the shared summary workspace
+  - `5ee4` stages player-side and planet-side collections
+  - `5ee4` emits the currently known fleet/base/IPBM summary entries
+  - later canonicalization and weekly/report passes consume those summaries
+- the remaining unresolved gameplay-core ordering is therefore less likely to
+  be hiding in the already-recovered `5ee4` exits; the next productive RE
+  target is the earlier helper chain that populates or consumes these staged
+  collections before the late report side

@@ -164,6 +164,19 @@ Latest static tightening on the turn-cycle side:
 - practical implication:
   the late weekly/report machinery is consuming a workspace seeded early in
   startup, not inventing it only at the end
+- `2000:5ee4` is now better bounded internally:
+  - front half stages `0x3278` (`0x6e` records) into `0x16ac` / `0x16ae`
+  - then stages `0x2f78` (`0x61` records) into `0x1712` / `0x1714`
+  - the direct summary emitters still visible inside the function remain:
+    - `0x3178` fleet
+    - `0x2ff8` base
+    - `0x31f8` IPBM
+  - tail `0x6ac3..0x6b74` zeros `0x2f76`, frees the staged player/planet
+    buffers, and returns
+- practical implication:
+  player-side and planet-side collections are currently best modeled as staged
+  validation / lookup inputs for the known fleet/base/IPBM summary producers,
+  not as additional direct summary kinds hidden in the `5ee4` tail
 
 Combat policy for the Rust clone remains:
 

@@ -138,6 +138,27 @@ Practical meaning:
   startup/token-side path
 - that still does not place the missing gameplay-core ordering, but it narrows
   the boundary between startup plumbing and later summary/report processing
+- helper `2000:5ee4` now has a firmer internal shape:
+  - zeroes `0x16ae`, `0x1714`, and `0x190a`
+  - loads `0x3278` records of size `0x6e` into the far-pointer table rooted at
+    `0x16ac`, with count byte `0x16ae`
+  - loads `0x2f78` records of size `0x61` into the far-pointer table rooted at
+    `0x1712`, with count byte `0x1714`
+  - then runs the already-recovered summary emitters over:
+    - `0x3178` fleet records
+    - `0x2ff8` base records
+    - `0x31f8` IPBM records
+  - finally frees the staged `0x3278` / `0x2f78` buffers before returning
+
+Practical meaning:
+
+- current best reading is that `0x3278` is the player-side staging collection
+  and `0x2f78` is the planet-side staging collection
+- within the currently recovered `5ee4` body, those collections act as inputs
+  to the fleet/base/IPBM validation and summary-emission paths; they are not
+  yet supported as separate direct summary producers
+- this further narrows the unresolved gameplay-core search away from the
+  already-recovered `5ee4` tail exits
 
 ### 4. Yearly Simulation Core
 
