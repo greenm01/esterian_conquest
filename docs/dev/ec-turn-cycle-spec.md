@@ -100,6 +100,14 @@ Current highest-yield step-4 target:
   - folds derived values back into planet fields
 - treat `024d` as the current leading seam for practical Rust modeling until a
   stronger earlier simulation driver is recovered
+- when running direct oracle probes for that seam, always inspect both:
+  - persistent state/output drift (`*.DAT`, `RANKINGS.TXT`)
+  - player-visible report/error channels (`RESULTS.DAT`, `MESSAGES.DAT`,
+    `ERRORS.TXT`)
+- practical reason:
+  step-4 placement depends not only on which records mutate, but also on
+  whether a probe produces visible report traffic or only silent state /
+  derived-database changes
 
 ## Evidence Backbone
 

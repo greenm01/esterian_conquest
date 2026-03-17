@@ -151,6 +151,9 @@ Current best workflow for target `1`:
   disassembly
 - diff persistent `.DAT` state and durable summary/event outputs after classic
   `ECMAINT`
+- always inspect report/output files too:
+  `RESULTS.DAT`, `MESSAGES.DAT`, `ERRORS.TXT`, `DATABASE.DAT`,
+  `RANKINGS.TXT`
 - use those repeated mutations to choose the next static seam
 - treat the partially recovered `1000:03ff..0d53` owned-planet body as the
   current strongest step-4 candidate until a better earlier driver appears

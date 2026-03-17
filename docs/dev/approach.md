@@ -602,7 +602,16 @@ Default `ECMAINT` black-box loop for new mechanics:
 1. `python3 tools/ecmaint_oracle.py prepare <target_dir> [source_dir]`
 2. submit one controlled set of orders or mutate one narrow field family
 3. `python3 tools/ecmaint_oracle.py run <target_dir>`
-4. inspect the `.oracle/` snapshots plus the printed diff clusters
+4. inspect the `.oracle/` snapshots plus the printed diff clusters across:
+   - state files such as `PLAYER.DAT`, `PLANETS.DAT`, `FLEETS.DAT`,
+     `BASES.DAT`, `IPBM.DAT`, and `CONQUEST.DAT`
+   - report/output files:
+     `RESULTS.DAT`, `MESSAGES.DAT`, `ERRORS.TXT`, `DATABASE.DAT`,
+     `RANKINGS.TXT`
+5. treat "no report output" as evidence too:
+   - a mechanic that mutates persistent state while leaving
+     `RESULTS.DAT` / `MESSAGES.DAT` empty is still useful for placing the
+     mechanic inside the yearly simulation core rather than the report side
 5. promote only strong repeated rules into shared Rust logic
 
 Known-scenario replay loop:
