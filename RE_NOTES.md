@@ -6678,6 +6678,27 @@ Practical consequence:
   - current best reading:
     `0x169a` means "late tail is running after restore/recovery succeeded",
     not "rankings are generally enabled" and not any gameplay-core phase bit
+- the pre-`6d9b` feeder handshake is now tighter even though segment-`3000`
+  decode remains missing:
+  - at the outer driver:
+    - `8612  CALLF 3000:1abc`
+    - `8617  CALLF 3000:1e88`
+    - `861c  PUSH AX`
+    - `861d  CALL 2000:6d9b`
+  - practical implication:
+    - `3000:1abc` is side-effect only at this callsite
+    - `3000:1e88` is the direct producer of the `6d9b` mode argument
+    - so the feeder pair should be modeled as:
+      - pre-validation setup helper
+      - mode-selector/helper whose return becomes `6d9b(arg)`
+- negative result:
+  - probing `3000:1abc` and `3000:1e88` against both:
+    - the live dump project
+    - the original-binary `ec-v15` Ghidra project
+    still yields `<no instruction>` / `<no function>`
+  - current best reading is not "those helpers do nothing", but "this region is
+    still unmapped/undecoded in the available projects", so feeder-side RE must
+    continue indirectly from callers and effects
 - practical Rust implication:
   - do not use the `169a` / `634` / `635` / `636` / `638` flag family as
     evidence for economy, movement, combat, or other gameplay-core ordering

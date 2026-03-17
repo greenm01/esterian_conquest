@@ -403,6 +403,18 @@ Combat policy for the Rust clone remains:
       - practical implication:
         treat `0x169a` as "recovered restore mode reached the late tail", not
         as a generic rankings/gameplay phase flag
+    - tighter `8612/8617/861d` feeder read:
+      - `3000:1abc` is side-effect only at this callsite
+      - `3000:1e88` is the value-producing feeder whose `AX` return is pushed
+        directly into `6d9b(arg)`
+      - current best model:
+        pre-validation setup helper, then mode-selector helper, then
+        `6d9b(mode)`
+      - negative result:
+        both `3000:1abc` and `3000:1e88` are still unmapped as code in both
+        the live-dump project and the original-binary `ec-v15` project, so
+        continue inferring them from callers/effects rather than waiting on
+        direct disassembly first
     - the startup `main.tok` / `Creating main work file...` / `Merging joint
       fleets...` cluster still has no direct scalar xrefs in the live dump, so
       that outer startup/status path is likely indirect/table-driven
