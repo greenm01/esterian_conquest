@@ -453,6 +453,35 @@ Combat policy for the Rust clone remains:
         keep treating those fields as late player-output aggregation /
         reviewable-state counters, not evidence for gameplay-core yearly
         phase placement
+    - tighter `f319/f34a` summary-family split:
+      - `f1ee`, present only in `f319`, is now firmly a kind-2-only durable
+        pool postpass
+      - `eee7`, shared by both siblings, is the corresponding kind-1-side
+        classifier/postpass
+      - `d8a5` only derives a byte into player `+0x51`
+      - upstream anchors:
+        `2000:0788` can reach `f34a` directly from a planet-side owner-filtered
+        aggregation loop after marking player `+0x6d`
+      - stronger selector:
+        `2000:05df..06e5` is the first confirmed direct branch that chooses
+        between `f319` and `f34a` inside one late player loop:
+        `player[+0x00] == 0xff` plus `player[+0x50] > 0` reaches `f319`;
+        the non-`0xff` side runs `f713`, compares `0x190c - player[+0x4e]`
+        against `0x2f70`, may mark `player[+0x6d] = 1`, then reaches `f34a`
+      - tighter `+0x50/+0x52` bound:
+        this pair is now better treated as a late per-player quota/work
+        counter, not a phase flag:
+        `e79a` decrements it as a 32-bit value around repeated `e2da` calls,
+        `ea5f` gates on it, and summary-post-canonical refreshes it through
+        `8830 -> 4895`
+      - tighter `+0x6d` bound:
+        current live-dump coverage only shows it as a local scratch eligibility
+        mark inside `2000:05df..06e5`; it does not currently fan out into the
+        wider late pipeline
+      - practical implication:
+        this whole sibling family now looks like late durable-summary
+        production plus kind-specific follow-up, not hidden middle
+        turn-order sequencing
     - the startup `main.tok` / `Creating main work file...` / `Merging joint
       fleets...` cluster still has no direct scalar xrefs in the live dump, so
       that outer startup/status path is likely indirect/table-driven

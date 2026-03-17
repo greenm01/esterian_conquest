@@ -6803,6 +6803,107 @@ Practical consequence:
   - combined with `0c06`, `5404`, and `cba4`, the `+0x34/+0x36` family is now
     strongly bounded as derived late-state plumbing rather than movement,
     combat, or economy sequencing evidence
+- the `1000:f319` / `1000:f34a` sibling family is now tighter too:
+  - shared helper list:
+    - `d8a5`
+    - `e79a`
+    - `d92a`
+    - `ea5f`
+    - `eee7`
+  - only `f319` adds the final `f1ee` postpass
+  - `f1ee` is now firmly kind-2-only:
+    - scans the durable pool `0x2f72/0x2f76`
+    - filters on current owner and `entry[+0x04] == 2`
+    - decodes via `2000:c09a`
+    - runs `1000:d166`
+    - conditionally calls `2000:c151` / `2000:c100`
+  - `eee7` is the corresponding kind-1-side late classifier/postpass:
+    - scans the same durable pool for current-owner entries with
+      `entry[+0x04] == 1`
+    - decodes via `2000:c067`
+    - uses `d166`, `ba44`, `cc5b`, and `44b7`
+    - branches across small local mode bytes (`2`, `5`, `0xa`, etc.)
+  - `d8a5` is also bounded as local status derivation rather than a phase
+    driver:
+    - computes a value through `2000:88c8`, `2000:8830`, and numeric compare
+      helpers
+    - stores the resulting byte into player `+0x51`
+- practical implication:
+  - the whole `f319/f34a` family is now best treated as durable summary
+    production plus kind-specific follow-up passes
+  - it is no longer a promising place to search for the hidden middle
+    turn-order sequencing
+- first upstream anchor above that family:
+  - `2000:0788` is a planet-side loop over `0x1712/0x1714`
+  - it filters by owner byte `+0x5d`
+  - sums planet byte `+0x02`
+  - marks player byte `+0x6d = 1`
+  - emits a one-time status string through `0x46cc` / `3000:4057/3f88/3be9`
+  - then directly calls `2000:f34a` for the selected player
+- practical implication:
+  - `f34a` is at least sometimes entered from planet-side late aggregation,
+    not only from an opaque deeper dispatcher
+  - this still points to late summary/report generation rather than hidden
+    economy/movement/combat ordering, but it gives a concrete upstream seam for
+    future tracing
+- stronger upstream selector above the sibling split:
+  - `2000:05df..06e5` is now the first confirmed direct branch that chooses
+    between the sibling summary families
+  - inside its per-player loop:
+    - if player byte `+0x00 == 0xff`, it emits a one-time status string through
+      `0x46cc` / `3000:4057/3f88/3be9`
+    - then it checks player byte `+0x50`
+    - if `+0x50 > 0`, it directly calls `2000:f319`
+    - otherwise it falls into local helper `2000:d6ac`
+  - on the non-`0xff` branch, it resets `0x34fe/0x3500`, calls `2000:f713`,
+    compares `0x190c - player[+0x4e]` against `0x2f70`, may mark
+    `player[+0x6d] = 1`, then emits the later one-time string and calls
+    `2000:f34a`
+- practical implication:
+  - the old "no visible `f319` caller" result is now closed; `f319` is a real
+    sibling selected from the same late player loop as `f34a`
+  - this loop still looks like late player/report selection, not the hidden
+    gameplay-core yearly order
+  - the useful next questions are now the raw meanings of player `+0x50`,
+    `+0x4e`, and `+0x6d`, rather than whether `f319` is reachable at all
+- `player[+0x50/+0x52]` is now bounded more tightly too:
+  - in `2000:05df`, `player[+0x50] > 0` is the direct gate that selects the
+    `f319` sibling instead of the local `d6ac` fallback on the `player[0] == 0xff`
+    side of the late player loop
+  - in `1000:e79a`, `player[+0x50/+0x52]` is consumed as a decrementing
+    32-bit counter:
+    - it tests `+0x52`, then `+0x50`
+    - calls local helper `1000:e2da`
+    - subtracts `1` from `+0x50` with borrow into `+0x52`
+  - in `1000:ea5f`, the same family gates whether the shared kind-1-side scan
+    even runs (`player[+0x40] > 0` and `player[+0x50] > 0`)
+  - in the late summary-post-canonical pass, the same player family is
+    refreshed:
+    - clears `player[+0x50]`
+    - calls `2000:8830` then `3000:4895`
+    - stores the result into `player[+0x52]`
+- practical implication:
+  - `+0x50/+0x52` is best treated as a late per-player quota / work counter
+    used by summary/report generation, not as evidence for gameplay-core
+    sequencing
+  - exact gameplay meaning is still open; current evidence is strong on
+    lifetime and control use, but not yet enough to rename it semantically
+- `player[+0x6d]` is now bounded negatively:
+  - current live-dump text coverage only shows one writer and one reader, both
+    inside `2000:05df..06e5`
+  - writer:
+    - after `2000:f713`, if `0x190c - player[+0x4e] >= 0x2f70`
+    - and `0x2f70 > 0`
+    - and player byte `+0x00 == 1`
+    - then it sets `player[+0x6d] = 1`
+  - reader:
+    - the same loop immediately tests `player[+0x6d]`
+    - only then emits the one-time `0x3c80` status string and calls `f34a`
+- practical implication:
+  - `+0x6d` is currently best treated as a local late-loop eligibility scratch
+    mark, not durable player state and not evidence for gameplay-core ordering
+  - the remaining useful unknown in this branch is more likely the predicate
+    behind `player[+0x4e]` / `0x2f70` than the `+0x6d` byte itself
 - practical Rust implication:
   - do not use the `169a` / `634` / `635` / `636` / `638` flag family as
     evidence for economy, movement, combat, or other gameplay-core ordering
