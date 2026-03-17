@@ -122,6 +122,23 @@ Practical meaning:
 - the engine refuses to simulate from structurally inconsistent state
 - canonical turn processing starts only after this validation/load stage
 
+Additional static tightening:
+
+- startup helper `2000:9e1e` initializes the shared summary workspace before
+  the later phases run:
+  - stores a startup time tuple at `0x34fa/0x34fc`
+  - zeroes summary count `0x2f76`
+  - allocates `0xfa00` bytes through `2000:9b13`
+  - stores the resulting far pointer at `0x2f72/0x2f74`
+
+Practical meaning:
+
+- the summary/event table later used by canonicalization and weekly report
+  emission is not lazily invented at the end; it is seeded up front in the
+  startup/token-side path
+- that still does not place the missing gameplay-core ordering, but it narrows
+  the boundary between startup plumbing and later summary/report processing
+
 ### 4. Yearly Simulation Core
 
 Confidence: `Medium`

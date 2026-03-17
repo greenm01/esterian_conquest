@@ -6740,3 +6740,36 @@ Practical consequence:
   - not the later kind-`2` / kind-`1` summary pairing loop
 - the missing middle simulation ordering is therefore increasingly likely to be
   earlier than the `861d` tail or hidden behind helpers feeding that tail
+
+#### `2000:9e1e` tightened as summary-pool initializer
+
+Added direct probes:
+
+- `artifacts/ghidra/ecmaint-live/probe-2000_9e1e.txt`
+- `artifacts/ghidra/ecmaint-live/probe-2000_9b13.txt`
+
+Current static result:
+
+- `2000:9e1e` is not gameplay logic
+- it performs startup-side state initialization:
+  - calls `0x3000:39dc`
+  - stores the returned time tuple at `0x34fa/0x34fc`
+  - zeroes summary count `0x2f76`
+  - requests size `0xfa00` through `2000:9b13`
+  - stores the returned far pointer at `0x2f72/0x2f74`
+- `2000:9b13` is likewise startup/plumbing:
+  - time-delta / timeout flavored helper calls
+  - allocation through `0x3000:397f`
+  - timeout/failure text emission if the request cannot be satisfied
+
+Practical consequence:
+
+- the summary table consumed later by:
+  - post-canonical sorting
+  - the `1..52` weekly loop
+  - the late kind-`2` / kind-`1` coalescing pass
+  is explicitly initialized up front in the startup/token-side path
+- this strengthens the current turn-cycle boundary:
+  - startup path seeds the summary workspace early
+  - later gameplay/report helpers populate and consume it
+  - `9e1e` itself is not the missing yearly simulation core

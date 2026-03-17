@@ -153,9 +153,17 @@ Latest static tightening on the turn-cycle side:
   - pairs kind-`2` entries against kind-`1` entries on owner/coords/flag keys
   - then feeds late text/output helpers
 - practical implication:
-  - do not keep treating that region as a candidate gameplay-core phase
-  - the missing yearly simulation order is increasingly likely to sit earlier
-    than the `861d` late tail or behind helpers that populate the summary pool
+  do not keep treating that region as a candidate gameplay-core phase; the
+  missing yearly simulation order is increasingly likely to sit earlier than
+  the `861d` late tail or behind helpers that populate the summary pool
+- `2000:9e1e` is now better classified as the summary-pool initializer:
+  - records startup time at `0x34fa/0x34fc`
+  - zeroes summary count `0x2f76`
+  - allocates `0xfa00` bytes via `2000:9b13`
+  - stores the pool pointer at `0x2f72/0x2f74`
+- practical implication:
+  the late weekly/report machinery is consuming a workspace seeded early in
+  startup, not inventing it only at the end
 
 Combat policy for the Rust clone remains:
 
