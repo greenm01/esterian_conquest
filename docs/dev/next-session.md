@@ -209,6 +209,42 @@ Current Rust-facing implication:
   - preserved-fixture sweep so far shows `+0x60 = 0` everywhere in the sampled
     corpus, so this looks like a latent branch byte rather than a commonly
     exercised visible world-state flag
+  - nearby cofactor check on the same stable baseline did not reproduce the
+    branch through plausible neighboring fields alone:
+    `+0x0e`, `+0x58`, `+0x5a`, and simple combinations stayed inert unless
+    `+0x60` was also forced
+  - ownership/status follow-up narrows the preconditions further:
+    - forcing `+0x60 = 1` on multiple owned worlds across different empires
+      consistently triggered the same broad `+0x03..+0x0e` rewrite
+    - forcing it on an unowned world did not
+    - forcing `+0x5c = 0` or `1` together with `+0x60 = 1` still triggered the
+      rewrite, then normalized `+0x5c` back to `2`
+    - practical implication:
+      current best raw gate is "owned world plus `+0x60 != 0`"
+  - but direct promotion of an originally unowned world tightens that again:
+    - setting only owner/status and the visible owned-world bytes
+      (`+0x0e`, `+0x58`, `+0x5a`, `+0x5c`, `+0x5d`) was still not enough to
+      reproduce the full deep rewrite
+    - a near-full clone of an established owned-world record was enough
+    - practical implication:
+      `+0x60` is a real gate, but the branch also depends on a richer
+      established-world payload that is still partly hidden in `+0x03..+0x0d`
+  - direct payload bisect now reduces that hidden prerequisite further:
+    - lower block `+0x03..+0x08` and upper block `+0x09..+0x0d` can drive
+      matching lower/upper halves of the same-world rewrite independently
+    - byte `+0x09` is already enough to activate the upper-half rewrite shape
+      at `+0x09..+0x0e`
+    - copying `+0x03..+0x09` together reproduces the full broad rewrite
+    - practical implication:
+      the deeper `024d` path appears to consume two coupled world numeric
+      groups, not one undifferentiated opaque payload
+  - mixed combat-order probe now gives the first direct timing hint:
+    - forcing target-world `+0x60 = 1` in preserved invasion and bombardment
+      fixtures causes the deep `+0x03..+0x0e` rewrite to begin on tick `1`
+      while `RESULTS.DAT` is still empty
+    - practical implication:
+      at least some `024d`-side planet mutation can land earlier in step `4`
+      than later visible combat/mission consequences
 
 Latest static tightening on the turn-cycle side:
 

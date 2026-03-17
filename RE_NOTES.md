@@ -7386,3 +7386,186 @@ Practical implication:
 - `+0x60` is currently a latent branch/control byte in the preserved corpus
 - that explains why the deeper `024d` same-world rewrite path stayed hidden in
   fixture diffs until we forced the byte nonzero directly
+
+Direct cofactor check on neighboring world fields:
+
+- repeated a narrower matrix on the maintenance-stable `ecmaint-post` baseline
+  for target world record `15`
+- tested nearby plausible cofactors without forcing `+0x60`:
+  - `+0x0e = 4`
+  - `+0x58 = 35`
+  - `+0x5a = 0`
+  - combinations of those fields
+- result:
+  - none of those edits produced any record-`15` mutation after two maint
+    ticks
+  - the same deep `+0x03..+0x0e` rewrite only reappeared when `+0x60 = 1` was
+    included
+
+Practical consequence:
+
+- current evidence favors `+0x60` as a true gate/branch byte for this
+  planet-local `024d` path, not just as a proxy for the neighboring economy /
+  defense fields already visible in the record
+
+Owned/unowned and status follow-up on the same `+0x60` branch:
+
+- repeated the direct `+0x60 = 1` probe on several `ecmaint-post` worlds:
+  - owned record `15` (empire `1`)
+  - owned record `13` (empire `2`)
+  - owned record `5` (empire `3`)
+  - unowned record `14` with owner `0`
+- results after `2` maint ticks:
+  - all three owned worlds took the same broad direct rewrite at `+0x03..+0x0e`
+  - the exact numeric payload differed by world, but the structural rewrite
+    shape matched across owners
+  - the unowned world with owner `0` did **not** take that rewrite at all
+- status normalization still coexists with the branch:
+  - on owned record `15`, forcing `+0x5c = 0` or `1` together with `+0x60 = 1`
+    still triggered the deep rewrite
+  - classic then normalized `+0x5c` back to `2`
+
+Report/output side evidence for these cases:
+
+- `RESULTS.DAT`: empty
+- `MESSAGES.DAT`: empty
+- `ERRORS.TXT`: empty
+- `DATABASE.DAT` / `RANKINGS.TXT`: regenerated as usual
+
+Current practical reading:
+
+- the deep `024d` same-world branch currently looks gated by:
+  - `planet[+0x60] != 0`
+  - plus the world being owned (`owner byte +0x5d > 0`)
+- `planet[+0x5c]` still looks like a normalized status byte, not a blocker for
+  the branch as long as ownership remains present
+
+Unowned-world promotion follow-up:
+
+- used the originally unowned world at record `14` in `ecmaint-post`
+- tested four shapes with `+0x60 = 1`:
+  - owner only: `+0x5d = 1`
+  - owner plus `+0x5c = 2`
+  - owner plus minimal visible owned-world fields:
+    `+0x0e = 12`, `+0x58 = 10`, `+0x5a = 4`, `+0x5c = 2`, `+0x5d = 1`
+  - near-full clone of record `15` with record `14` coords/name preserved
+
+Observed result after `2` maint ticks:
+
+- owner-only / owner+status / owner+minimal-owned-shape cases did **not**
+  trigger the full deep rewrite
+  - they only changed:
+    - `+0x03: 0 -> 0x81`
+    - and, when needed, normalized `+0x5c` to `2`
+- the near-full clone **did** trigger the familiar deep rewrite shape:
+  - `+0x03..+0x0e` broad rewrite
+  - same silent-output profile:
+    no `RESULTS.DAT`, `MESSAGES.DAT`, or `ERRORS.TXT`
+
+Practical consequence:
+
+- refine the current gate model:
+  - `+0x60 != 0` is necessary for the deep same-world path in current probes
+  - ownership is also necessary
+  - but ownership alone is **not** sufficient
+- the branch appears to depend on some richer established-world payload beyond
+  the obvious visible bytes `+0x0e`, `+0x58`, `+0x5a`, `+0x5c`, and `+0x5d`
+- that makes the still-opaque block around `+0x03..+0x0d` an even stronger
+  candidate for the true semantic prerequisite set
+
+Payload bisect over the established-world block `+0x03..+0x0d`:
+
+- starting point:
+  the near-full clone of record `15` into record `14` with `+0x60 = 1`
+  reproduces the deep same-world rewrite
+- bisected the `+0x03..+0x0d` block into lower and upper halves while keeping
+  the rest of the cloned owned-world shape intact
+
+Observed result after `2` maint ticks:
+
+- resetting all of `+0x03..+0x0d` back to the unowned record shape collapses
+  the effect to a minimal `+0x03: 0 -> 0x81`
+- copying only the lower half:
+  - `+0x03..+0x08`
+  - produces a lower-half-only rewrite on output:
+    offsets `+0x03..+0x08` move, but `+0x09..+0x0e` stay inert
+- copying only the upper half:
+  - `+0x09..+0x0d`
+  - produces an upper-half-only rewrite on output:
+    offsets `+0x09..+0x0e` move, while the lower half still collapses to the
+    minimal `+0x03 -> 0x81` behavior
+- copying just byte `+0x09` is already enough to activate the upper-half
+  rewrite shape at `+0x09..+0x0e`
+- copying `+0x03..+0x09` together reproduces the full broad same-world rewrite
+
+Current practical reading:
+
+- the prerequisite payload is no longer one undifferentiated opaque block
+- it has at least two semantically separable sub-blocks:
+  - lower sub-block around `+0x03..+0x08`
+  - upper sub-block keyed by `+0x09` and the surrounding `+0x09..+0x0d`
+- the deep `024d` planet-local path therefore appears to consume two coupled
+  world-state numeric groups rather than one single flag family
+
+Practical consequence for Rust step-4 modeling:
+
+- do not treat `+0x03..+0x0d` as one all-or-nothing prerequisite anymore
+- current best reduction is:
+  - `+0x60` gate
+  - owned-world requirement
+  - lower numeric prerequisite block `+0x03..+0x08`
+  - upper numeric prerequisite block keyed by `+0x09..+0x0d`
+- that is enough to justify modeling the deeper `024d` branch as a distinct
+  planet-state subphase that consumes two world numeric groups, even though the
+  exact semantics of those groups are still unnamed
+
+Mixed order probe: target-world `+0x60` against invasion / bombardment / fleet battle fixtures
+
+Controlled probe:
+
+- took the target world in three preserved pre-maint fixtures and forced
+  `planet[+0x60] = 1`
+  - `ecmaint-invade-pre`, record `14`
+  - `ecmaint-bombard-pre`, record `14`
+  - `ecmaint-fleet-battle-pre`, record `14`
+- then inspected the target world after each maint tick together with:
+  - `RESULTS.DAT`
+  - `MESSAGES.DAT`
+  - `ERRORS.TXT`
+
+Observed result:
+
+- `invade-pre` target world:
+  - tick `1`: target world already took a substantial direct rewrite in
+    `+0x03..+0x0e`
+  - tick `1`: `RESULTS.DAT` still empty
+  - tick `2`: target world rewrote again; `RESULTS.DAT` still empty in this
+    forced-byte probe
+- `bombard-pre` target world:
+  - tick `1`: target world already changed in the same deep block
+  - tick `1`: `RESULTS.DAT` still empty
+  - tick `2`: deeper rewrite continued and ground batteries changed
+  - tick `2`: `RESULTS.DAT` still empty in this forced-byte probe
+- `fleet-battle-pre` target world:
+  - tick `1`: target world changed in the deep block
+  - tick `1`: `RESULTS.DAT` was non-empty the same tick
+
+Current practical ordering implication:
+
+- the `024d`-side planet-local mutator can definitely run in a yearly tick
+  **before** the delayed visible mission consequences seen in invasion and
+  bombardment fixtures
+- so, at minimum, this producer-side planet mutation is not merely a late
+  consequence formatter that waits for the same output timing as
+  bombard/invade reports
+- this is the strongest current evidence that step `4` contains multiple
+  subphases inside the same yearly tick, with some silent planet-state work
+  landing earlier than at least some later visible combat/mission outcomes
+
+What this still does **not** prove:
+
+- it does not yet place the `024d` family cleanly before all combat logic
+- it does not yet prove whether the forced `+0x60` branch is naturally reached
+  in those preserved combat fixtures without the direct byte override
+- it does not yet distinguish "before combat resolution" from "before visible
+  combat/report emission"

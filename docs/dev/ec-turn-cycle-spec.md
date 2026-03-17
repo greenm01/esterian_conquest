@@ -366,6 +366,125 @@ Practical meaning:
 
 Confidence: `Low`
 
+What is now settled:
+
+- sibling drivers `1000:00e8` and `1000:024d` belong to the yearly producer
+  family, not the late report tail
+- both call `1000:f71d` first
+- `1000:f71d` reaches the durable kind-`1` writer through
+  `1000:f8a9 -> 1000:dddb`
+- only after that do those same drivers call `1000:e31b` for durable
+  kind-`2` emission
+- `1000:024d` continues into the partially recovered `1000:03ff..0d53`
+  interior, while `1000:00e8` stops earlier
+- practical reading:
+  this is not one flat unordered event dump; at least one real producer family
+  inside step `4` has internal ordering and sibling specialization
+
+#### 4f. `1000:024d` is a mixed planet-state producer pass
+
+Confidence: `Medium`
+
+Settled structure:
+
+- `1000:024d` starts with the already known producer/event front half:
+  - `cce7`
+  - `f71d`
+  - `d5d2`
+  - `b6d8`
+  - optional `db04(arg=0x0a)` when current planet `+0x5a > 0`
+  - `f2c7`
+  - `e31b`
+  - `e1c0`
+  - `f9ff`
+  - `f914`
+  - `c025`
+  - `c9a0`
+  - `fe73`
+- it then enters a deeper owned-planet loop at `1000:03ff`
+- that interior:
+  - iterates staged planets from `0x1712`
+  - skips `planet[+0x5d] == 0`
+  - advances `planet[+0x5c]` through a small state ladder
+  - gates on owner-player state
+  - scans durable kind-`2` entries
+  - folds `entry[+0x22]` into running planet-side accumulators
+  - writes results into `planet[+0x58/+0x5a]`
+  - directly transforms planet numeric fields at
+    `+0x03/+0x05/+0x07` and `+0x09/+0x0b/+0x0d`
+  - branches on `planet[+0x60]`
+
+Practical meaning:
+
+- `024d` is not just a late summary helper
+- it is a genuine step-`4` bridge between planet-side state mutation and
+  durable event creation
+- some of that work is silent:
+  - direct oracle probes can change `PLANETS.DAT`, `DATABASE.DAT`, and
+    `RANKINGS.TXT`
+  - while leaving `RESULTS.DAT`, `MESSAGES.DAT`, and `ERRORS.TXT` empty
+
+#### 4g. Deep `024d` planet mutation is gated by more than ownership
+
+Confidence: `Medium`
+
+Current strongest black-box constraints:
+
+- forcing `planet[+0x60] = 1` on an owned world consistently activates the
+  deeper same-world rewrite at `+0x03..+0x0e`
+- forcing nearby visible fields without `+0x60` does not reproduce that path:
+  - `+0x0e`
+  - `+0x58`
+  - `+0x5a`
+  - simple combinations
+- forcing `+0x60 = 1` on an unowned world does not reproduce the broad rewrite
+- forcing `+0x5c = 0` or `1` together with `+0x60 = 1` still triggers the
+  rewrite and then normalizes `+0x5c` back to `2`
+
+Payload bisect result:
+
+- ownership plus `+0x60 != 0` is still not sufficient by itself
+- the branch also depends on a richer established-world payload in
+  `planet[+0x03..+0x0d]`
+- that prerequisite is not one opaque blob:
+  - lower block `+0x03..+0x08` can drive the lower half of the rewrite
+  - upper block keyed by `+0x09..+0x0d` can drive the upper half
+  - byte `+0x09` alone is already enough to activate the upper-half rewrite
+    shape at `+0x09..+0x0e`
+  - copying `+0x03..+0x09` together reproduces the full broad rewrite
+
+Practical meaning:
+
+- the current best raw gate is:
+  owned world plus `planet[+0x60] != 0` plus an established-world numeric
+  payload
+- for Rust modeling, treat this as evidence for at least two coupled
+  planet-state numeric groups inside step `4`, not one undifferentiated world
+  blob
+
+#### 4h. First ordering signal: some `024d` planet mutation precedes visible delayed consequences
+
+Confidence: `Medium`
+
+Current direct timing evidence:
+
+- in preserved invasion and bombardment pre-fixtures, forcing target-world
+  `+0x60 = 1` causes the deep `+0x03..+0x0e` world rewrite to begin on tick
+  `1`
+- in those same forced probes, `RESULTS.DAT` is still empty on tick `1`
+- in a fleet-battle probe, the same kind of world rewrite also lands on tick
+  `1`, but `RESULTS.DAT` is non-empty that tick
+
+Practical meaning:
+
+- at least some `024d`-side planet mutation can occur earlier in step `4`
+  than later visible mission/combat consequences, especially for delayed
+  families like invasion and bombardment
+- this is enough to reject the old "producer passes are only late aftermath"
+  model
+- it is not enough to claim the full canonical order among economy, movement,
+  combat resolution, and these producer passes
+
 What is not yet settled:
 
 - whether economic growth runs before or after movement/combat
