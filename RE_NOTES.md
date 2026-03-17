@@ -6576,3 +6576,50 @@ Practical consequence:
 - this further supports a staged but shared event pipeline:
   - simulation consequences land on ordered weekly ticks
   - admin/follow-on reports are injected into that same sequence
+
+#### Post-validate phase-call roles tightened
+
+Added a focused helper script:
+
+- `tools/ghidra_scripts/ECMaintPhaseCalls.java`
+
+Current artifact:
+
+- `artifacts/ghidra/ecmaint-live/phase-calls.txt`
+
+Most useful new static result:
+
+- `2000:56be` is now even more clearly a mission-report emitter rather than a
+  gameplay-core routine
+  - it repeatedly walks summary-like pools rooted at:
+    - `0x2f78`
+    - `0x2ff8`
+    - `0x31f8`
+    - `0x3178`
+  - it emits mission-family prefixes including:
+    - invasion
+    - colonization
+    - scouting / viewing / move-like families
+    - seek-home
+    - starbase / guard-blockade world
+- `2000:1da6` and `2000:0c06` also show the same broad output-heavy shape:
+  - repeated `0x3000:4057 / 3f88 / 3fac / 3be9 / 159b` status/message writes
+  - repeated file-ish helper usage around `4f4c / 4f7a / 4f83 / 4ffb / 502f /
+    5036 / 50cd / 50fd / 5114 / 5189 / 51a0`
+- `2000:2db3` still remains the strongest derived-output rebuild candidate
+  - it shows the same file-ish helper family plus unique internal calls to
+    `2000:33f7`
+  - this still fits the earlier `DATABASE.DAT` rebuild hypothesis better than
+    a direct simulation-core role
+
+Practical consequence:
+
+- the full `8652` post-validate chain now looks even more like a
+  report/regeneration/output tail:
+  - `1da6`
+  - `0c06`
+  - `2db3`
+  - `56be`
+- the unresolved gameplay core ordering is therefore increasingly likely to sit
+  before this chain, or behind the earlier setup/helpers feeding it, rather
+  than inside these functions themselves

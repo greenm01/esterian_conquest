@@ -282,6 +282,7 @@ Highest-value remaining `ECMAINT` oracle RE targets:
     - fixed call chain at `2000:861d`:
       `1da6 -> 0c06 -> 2db3 -> 56be -> [7659?]`
     - `56be` is mission-report oriented
+    - `1da6` and `0c06` also now look heavily report/message oriented
     - `2db3` is the strongest current `DATABASE.DAT` rebuild candidate
     - the startup `main.tok` / `Creating main work file...` / `Merging joint
       fleets...` cluster still has no direct scalar xrefs in the live dump, so

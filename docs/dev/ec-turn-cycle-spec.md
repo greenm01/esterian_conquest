@@ -250,6 +250,12 @@ Practical meaning:
 - major simulation outcomes are first collapsed into a summary table
 - only after that summary table is canonicalized and sorted does the later
   report/timing pipeline consume it
+- the post-validate call chain recovered so far now supports that separation
+  more strongly:
+  - `1da6`, `0c06`, and especially `56be` are increasingly report/message
+    oriented rather than core simulation routines
+  - `2db3` still looks more like derived-output regeneration than combat or
+    movement logic
 
 ### 6. Weekly Report Emission Loop
 
