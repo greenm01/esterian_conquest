@@ -6316,3 +6316,34 @@ Practical interpretation:
   scratch/runtime state
 - which exact `CONQUEST.DAT` fields feed the maintenance schedule gate
 - how specific movement/combat/report subphases map onto individual tick numbers
+
+#### Follow-up static ref sweep
+
+Added one narrower report helper:
+
+- `tools/ghidra_scripts/ECMaintTimingRefs.java`
+
+Command:
+
+- `tools/run_ghidra_script.sh ecmaint-live ECMaintTimingRefs.java`
+
+Current output:
+
+- `artifacts/ghidra/ecmaint-live/timing-refs.txt`
+
+Result:
+
+- `2000:945b` still shows only the same four direct call sites in the
+  token/schedule region
+- `3000:39dc` still shows only the two token-timeout/schedule callers already
+  suspected
+- `2000:6fc6` and `3000:189c` show **no direct xrefs**
+- there are also **no simple 16-bit scalar hits** for `0x6fc6`, `0x189c`,
+  `0x39dc`, or `0x945b` in the current live dump
+
+Practical interpretation:
+
+- the ranking/schedule strings are probably not reached through trivial direct
+  immediates in the analyzed memory image
+- the next static step should look for string-table walkers, pointer tables, or
+  data-segment base calculations rather than only direct references

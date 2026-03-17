@@ -60,6 +60,16 @@ Its current output is written to:
 
 - `artifacts/ghidra/ecmaint-live/timing-flow.txt`
 
+The follow-up direct-reference sweep is:
+
+```bash
+tools/run_ghidra_script.sh ecmaint-live ECMaintTimingRefs.java
+```
+
+Its current output is written to:
+
+- `artifacts/ghidra/ecmaint-live/timing-refs.txt`
+
 ## Important Correction
 
 The first timing-focused pass changed one earlier assumption:
@@ -73,6 +83,9 @@ Practical interpretation:
 - `2000:945b` is currently best treated as a current-date/status formatter used
   during maintenance scheduling/token handling
 - do not treat it as the recovered player-report `Stardate` emitter yet
+- `2000:6fc6` and `3000:189c` currently show no direct xrefs in the live dump,
+  so the schedule/rankings strings are probably reached through indirect
+  string-table handling rather than simple immediate references
 
 ## Open Questions
 
