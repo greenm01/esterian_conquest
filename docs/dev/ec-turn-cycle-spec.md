@@ -592,33 +592,42 @@ Practical meaning:
   in the report text (7th weekly pass maps to week 3 via some scheduling
   offset or initialization)
 
-#### 4k. Early fleet-battle passes show incremental fleet activation
+#### 4k. Fleet-battle has a pre-loop fleet setup phase before the 52-week loop
 
 Confidence: `High`
 
-Source: fleet-battle trace pass-by-pass record indices.
+Source: fleet-battle trace pass-by-pass record indices vs non-combat traces.
 
-The first 5 passes show fleet records appearing incrementally:
+Non-combat scenarios (bombard, econ, fleet-order, planet-build) all show
+exactly **52 passes** with all 16 fleet records from pass 1. Fleet-battle
+shows **57 passes**: 5 pre-loop passes with varying fleet subsets, then 52
+passes with a stable 14-fleet set.
+
+Pre-loop passes (fleet-battle only):
 
 - pass 1: `[1]` (1 record)
 - pass 2: `[1,3]` (2 records)
 - pass 3: `[1]` (1 record)
 - pass 4: `[1,0]` (2 records)
 - pass 5: `[1,11,6]` (3 records)
-- pass 6+: stable 14-record set `[1,14,7,4,9,8,12,15,0,13,10,5,11,6]`
+- pass 6-57: stable 14-record set `[1,14,7,4,9,8,12,15,0,13,10,5,11,6]`
 
-The final pass (57) shows 12 records: `[1,14,7,4,9,8,12,15,0,13,10,5]` —
-fleets 11 and 6 were dropped (destroyed in combat).
+The final pass (57) shows 12 records — fleets 11 and 6 were dropped
+(destroyed during combat in pass 7, which is weekly pass 2).
+
+Fleet 2 (empire 1's bombard fleet, speed 3) and fleet 3 (captured in
+pre-loop) are absent from the stable 52-week set.
 
 Practical meaning:
 
-- the weekly loop does not iterate a static full-size fleet table from the
-  start; fleet records enter the active write set dynamically
-- the incremental startup may reflect movement arrival: fleets reaching
-  their destinations and becoming "active" in the simulation sense
-- fleet 2 (empire 1's bombard fleet targeting planet 14 from (16,13)) is
-  never in the write set — its mission may have resolved differently or it
-  was absorbed before the main loop started
+- passes 6-57 = exactly 52 weekly passes = the main simulation loop
+- passes 1-5 are a **pre-loop fleet setup phase** that handles fleet
+  captures, reassignments, and initial fleet-set construction
+- this phase only produces fleet writes when there are fleets to
+  capture/reassign (non-combat scenarios skip it entirely)
+- the "incremental activation" previously attributed to movement arrival
+  is better understood as a capture/setup phase that runs before the weekly
+  loop, not as gradual fleet awakening during the loop itself
 
 #### 4l. Fleet visit order is PRNG-shuffled, seeded from game state
 
@@ -790,6 +799,33 @@ where player 1 was already `0xFF`.
 
 The `autopilot_flag` at `player[0x6D]` is the companion that drives
 army/battery building within the rogue pass, per existing Rust RE.
+
+#### 4s. Economy/autopilot runs after the fleet loop and reads combat outcomes
+
+Confidence: `High`
+
+Source: controlled fleet-battle comparison with and without combat
+(Phase C, 2026-03-17).
+
+Comparing the same fleet-battle fixture with and without hostile fleets at
+(10,10):
+
+- **with combat**: planet 14 (empire 1 homeworld at 16,13) → armies 10→27,
+  econ_marker 12→4
+- **without combat** (fleet 4 and fleet 8 moved away): planet 14 → armies
+  unchanged (10), econ_marker 12→2, stardock fields change instead
+
+The economy/autopilot pass reads post-combat fleet state to determine
+its behavior. With fleet losses at (10,10), the rogue AI builds armies on
+the homeworld. Without losses, it does not.
+
+Combined with the file-I/O evidence (PLANETS.DAT is never accessed during
+the 52-pass fleet loop), this confirms:
+
+- economy/autopilot runs **after** the fleet loop, not before or during
+- it reads post-combat game state and adjusts planet production accordingly
+- the econ_marker value depends on the full post-fleet-loop game state, not
+  just the planet's own pre-existing economy
 
 ### 5. Late Summary Canonicalization And Sort
 
@@ -1003,7 +1039,9 @@ This is the tightest oracle-backed statement today:
 4. It runs the yearly simulation core:
    a. Prepare transient workspaces.
    b. Compute fleet visit order (PRNG shuffle seeded from game state).
-   c. Run a 52-iteration weekly fleet-processing loop:
+   c. Pre-loop fleet setup phase (captures/reassignments; skipped when no
+      fleets need reassignment).
+   d. Run a 52-iteration weekly fleet-processing loop:
       - for each week 1..52:
         - for each fleet in visit order:
           - read fleet record
@@ -1012,11 +1050,11 @@ This is the tightest oracle-backed statement today:
           - update fleet state (movement, order execution)
           - write fleet record
         - remove destroyed/captured fleets from active set
-   d. Post-loop fleet summary scan (2 sequential reads of all fleet records).
-   e. Economy/autopilot pass over owned planets (rogue empires only, separate
-      from fleet loop).
-   f. Producer/mutator passes on planet state (`024d` interior).
-   g. DATABASE.DAT planet-specific updates.
+   e. Post-loop fleet summary scan (2 sequential reads of all fleet records).
+   f. Economy/autopilot pass over owned planets (rogue empires only, separate
+      from fleet loop, reads post-combat fleet state).
+   g. Producer/mutator passes on planet state (`024d` interior).
+   h. DATABASE.DAT planet-specific updates.
 5. It canonicalizes and sorts summary entries from those outcomes.
 6. It performs a late `1..52` weekly report/timing loop over the active
    summaries.

@@ -853,14 +853,16 @@ Closed (high confidence, actionable):
 - [x] Movement is position-first, mission resolves next year
 - [x] Colonization is atomic on arrival (ownership+armies+name+status)
 - [x] Economy/autopilot processing gated by `player[0]` (rogue vs civil disorder)
+- [x] Economy runs AFTER fleet loop (PLANETS.DAT never accessed during loop;
+      economy outcomes depend on post-combat fleet state)
+
+- [x] Fleet "incremental activation" is a pre-loop capture/setup phase
+      (5 passes in fleet-battle, 0 in non-combat; passes 6-57 = exactly 52 weeks)
 
 Still open:
-- [ ] Exact PRNG for visit order (needs Borland Pascal Random RE)
-- [ ] Economy timing relative to fleet loop (runs only for rogue empires,
-      likely a separate pre/post-loop pass rather than inside the 52-week loop)
+- [ ] Exact PRNG for visit order (needs Borland Pascal Random RE or Ghidra)
 - [ ] Inner per-fleet-per-week body structure (movement/combat/producer
       ordering within each iteration)
-- [ ] Fleet incremental activation trigger in early passes
 - [ ] Mission-family aftermath timing differences
 
 ## Immediate Next Steps

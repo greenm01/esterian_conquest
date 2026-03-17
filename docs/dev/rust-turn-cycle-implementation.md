@@ -287,18 +287,19 @@ Updated Durable State + Durable Event Pool
 | **Movement is position-first, mission-resolution-next-year** | a fleet that arrives at its target during the 52-week loop updates its position, but the mission (bombard, colonize, etc.) resolves only the following year — the fleet must be at its target at the start of the year for resolution. Co-located fleets resolve within the same tick |
 | **Colonization is atomic on arrival** | when a colonize fleet resolves, ownership, armies (=1), name, status, and potential production are all set in one pass; economy starts the following tick |
 | **Economy/autopilot processing gated by `player[0]`** | only empires with `player[0] = 0xFF` (rogue mode) get economy/army/battery growth; civil disorder empires (`player[0] = 0x00`) are frozen. `player[0x6D]` (autopilot flag) drives army/battery building within the rogue pass |
+| **Economy/autopilot runs after the fleet loop** | PLANETS.DAT is never accessed during the 52-pass fleet loop (file-I/O evidence); economy outcomes depend on post-combat fleet state (with/without combat comparison shows different army growth). Keep economy as a post-fleet-loop pass in Rust |
+| **Pre-loop fleet setup phase exists for captures/reassignments** | fleet-battle has 5 pre-loop fleet write passes before the 52-week loop; non-combat scenarios skip it entirely (0 pre-loop passes, exactly 52 total passes). Model as a distinct pre-loop subphase |
 
 ### What Is Still Open
 
 | Open question | Current safe implementation posture |
 | --- | --- |
 | exact PRNG for fleet visit order shuffle | use a deterministic order for now; exact parity requires reverse-engineering the Borland Pascal Random seed from game state |
-| economy timing relative to fleet loop | economy changes only appear for rogue empires and not inside the 52-pass fleet loop; they may run as a separate pre- or post-loop pass |
 | production completion timing | avoid promising exact parity until more oracle evidence lands |
 | exact inner-loop body structure | the per-fleet-per-week body does: read → combat check → report emit → write; but the exact placement of movement decrement, order execution, and producer passes within that body is not fully settled |
 | mission-family-specific aftermath timing | allow different mission families to schedule follow-on effects differently |
 | exact target-world-state predicates that choose one aftermath shape over another | keep aftermath shaping behind explicit world-state inspection, not hard-coded per-mission tables alone |
-| fleet incremental activation in early passes | fleet-battle shows fleets entering the active set gradually (1→2→1→2→3→14 records over passes 1-6); the activation trigger is unknown |
+| pre-loop fleet setup phase | fleet-battle has 5 pre-loop fleet write passes (captures/reassignments) before the 52-week loop; non-combat scenarios skip this entirely. Model as a distinct pre-loop subphase in Rust |
 
 ## Current Practical Step-4 Shape
 
