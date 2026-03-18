@@ -61,8 +61,9 @@ The yearly simulation core (step `4`) is now substantially recovered:
   composition (starbase/BS/CA-TT-army/scout-DD).
 
 Remaining unresolved areas: exact runtime provenance/reachability of
-timing codes 7 and 8, exact target-world aftermath predicates, and
-production completion timing.
+timing codes 7 and 8, the exact hostile-context selector for the
+watched-world aftermath family, and exact interaction between build
+completion and immediate same-tick combat.
 
 ## Practical Rust Consequences
 
@@ -519,6 +520,28 @@ Current rule:
 - do not model combat aftermath in Rust as one uniform post-combat delay; it
   is increasingly clear that mission family matters
 
+Current replay correction:
+
+- fresh direct reruns against the preserved fixtures show the watched world in
+  `invade-pre`, `bombard-pre`, and `fleet-battle-pre` starts from the same
+  record-`14` seed in the current corpus
+- despite that shared watched-world seed, the immediate yearly aftermath is
+  still different by hostile context:
+  - `bombard`: watched world unchanged through tick `2`
+  - `invade`: tick `1` writes `+0x09`, `+0x0e`, `+0x58`; tick `2` later adds
+    `+0x3c` and `+0x50`
+  - `fleet-battle`: tick `1` writes `+0x09`, `+0x0e`, `+0x38`, `+0x3c`
+- the older archive note that treated this as primarily a watched-world
+  payload/class selector does not reproduce cleanly on the current preserved
+  fixtures
+
+Practical meaning:
+
+- the watched-world aftermath branch is definitely hostile-context-sensitive
+- the remaining open question is the exact selector between the observed
+  no-change / `+0x58` / `+0x38,+0x3c` families, not a generic "target-world
+  payload decides everything" rule
+
 #### 4i. The yearly simulation is a weekly fleet-processing loop
 
 Confidence: `High`
@@ -863,6 +886,44 @@ the 52-pass fleet loop), this confirms:
 - the econ_marker value depends on the full post-fleet-loop game state, not
   just the planet's own pre-existing economy
 
+#### 4t. Build completion is a late per-player pass, not part of the fleet loop
+
+Confidence: `Medium`
+
+Source: preserved `planet-build` fixture, hostile build-queue probes, and
+static RE around `1000:e79a -> 1000:dddb` and `2000:05df -> 2000:f319/f34a`
+(2026-03-18).
+
+Build completion is now bounded more tightly than before:
+
+- the preserved `planet-build` fixture shows queue slot `build_raw=03/01`
+  on planet record `15` becoming `stardock_count=03`, `stardock_kind=01`
+  after one maint tick, with `RESULTS.DAT` still empty
+- injecting the same build queue into hostile bombardment still completes
+  the stardock write on tick `1`, while `RESULTS.DAT` remains empty there too
+- static RE ties the stardock/build write path to `1000:e79a`, which:
+  - calls `1000:dddb`
+  - clears the corresponding queue/stardock fields after processing
+  - consumes a per-player counter at `player[+0x50/+0x52]`
+- that routine is reached from the late per-player selector
+  `2000:05df..06e5` via `2000:f319` / `2000:f34a`, not from the 52-pass
+  fleet-loop body
+
+Practical meaning:
+
+- build completion is real step-4 state mutation, not final flush noise
+- it is not interleaved inside the weekly fleet-processing loop
+- it can complete in the same yearly tick as hostile scenarios, before at
+  least some delayed visible mission consequences appear
+
+What remains open is narrower:
+
+- exact interaction between build completion and immediate same-tick combat
+  remains unresolved
+- current evidence places build completion in the late middle
+  player/producer region, but does not yet prove whether it lands before or
+  after every immediate combat-side state mutation
+
 ### 5. Late Summary Canonicalization And Sort
 
 Confidence: `High`
@@ -1091,9 +1152,9 @@ To complete the canonical cycle to full oracle parity, we still need:
 - the exact runtime provenance/reachability of timing codes 7 and 8
   (durable producer-side `entry[+0x09]` mapping is recovered only for
   codes `3..6`; `02c0` also seeds local timing-state values including `7`)
-- exact target-world-state predicates that choose one aftermath shape over
-  another
-- production completion timing relative to other subphases
+- the exact hostile-context selector that chooses the observed watched-world
+  aftermath family (`unchanged`, `+0x58`, or `+0x38/+0x3c`)
+- exact interaction between build completion and immediate same-tick combat
 
 None of these block Rust implementation. They affect oracle parity and report
 fidelity, not engine structure.
