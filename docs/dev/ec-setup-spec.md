@@ -8,6 +8,15 @@ recreation from one historical game is not required. What matters is faithful
 adherence to the documented setup rules while preserving classic-compatible
 save directories.
 
+The important split is:
+
+- original EC docs settle the hard setup constraints
+  - square grid
+  - map size by player-count tier
+  - `5 * player_count` solar systems / planets
+- the Rust clone is free to improve poor classic homeworld and neutral-world
+  distribution inside those constraints
+
 ## Source Authority
 
 Primary source:
@@ -162,16 +171,18 @@ at the setup/storage level.
 So the current code should now be understood as:
 
 - compatible setup/storage infrastructure for all documented player-count tiers
-- a manual-faithful generated new-game path
-- still open to later tuning of map shape and pathfinding policy, but no longer
-  blocked on fixed-size file assumptions
+- a manual-faithful generated new-game path on the original square-grid /
+  player-tier map model
+- no remaining open question about map shape or player-count-based map sizing
+- future setup work is now about generator quality and play balance, not about
+  recovering more core setup rules
 
 ## Audit Consequences
 
 The setup roadmap is now split differently:
 
 1. preserve the accepted generated setup path across all documented player-count tiers
-2. refine the quality of map generation and later movement/pathfinding on top of that base
+2. refine generator quality inside that fixed square-grid / player-tier model
 
 ## Current Generated Path
 
@@ -210,6 +221,8 @@ Current behavior:
 This is a deliberate bridge:
 
 - more manual-faithful than fixed sysop-authored homeworld coordinates
+- intentionally better distributed than the original game's weaker random
+  homeworld/planet placement
 - still interoperable with the classic `.DAT` compatibility boundary
 - already accepted by the original `ECMAINT` oracle across multiple seeds and
   all currently supported manual player tiers
@@ -219,8 +232,9 @@ This is a deliberate bridge:
 This spec does not yet define:
 
 - the exact procedural RNG used by the DOS binaries
-- the full planet-distribution algorithm
+- the exact classic solar-system distribution algorithm
 - exact homeworld placement heuristics used by `ECUTIL`
 
-Those may be recovered later, but they are not prerequisites for a faithful
-manual-driven setup implementation.
+Those are not prerequisites for a faithful manual-driven Rust setup
+implementation, because the Rust clone intentionally improves map quality while
+preserving the manuals' hard setup constraints.

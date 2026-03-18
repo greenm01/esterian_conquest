@@ -13,6 +13,12 @@ The manuals do not define a good algorithm for fair or interesting maps. The
 Rust port should therefore use a canonical generation algorithm that preserves
 those constraints while improving map quality.
 
+This is an intentional Rust policy choice, not an unresolved oracle gap:
+
+- preserve the original hard constraints from the manuals
+- improve the original game's weaker homeworld and planet distribution quality
+  inside those constraints
+
 ## Goals
 
 The generator should produce maps that are:
@@ -168,20 +174,23 @@ This gives both:
 
 ## Current Implementation Scope
 
-The current Rust implementation now covers the intended first-tier generator:
+The current Rust implementation now covers the active canonical generator for
+the documented manual player tiers:
 
-1. deterministic fair homeworld placement for the current `1..=4` compatibility tier
+1. deterministic fair homeworld placement across the supported player-count
+   tiers
 2. region-based homeworld placement with quadrant/sector ownership seeds
 3. region-aware neutral-planet placement after homeworld placement
 4. fairness scoring and reroll selection
 5. noise-shaped density weighting for frontier placement
 6. explicit one-planet-per-system enforcement by unique coordinates
 
-Still pending after this tier:
+Future work here is tuning, not rule recovery:
 
 1. richer void/corridor shaping beyond the current lightweight noise field
 2. deeper reachable-production graph scoring for larger galaxies
-3. future tuning of region/frontier weights based on playtesting rather than only oracle acceptance
+3. future tuning of region/frontier weights based on playtesting rather than
+   only oracle acceptance
 
 ## Relationship To KDL
 
