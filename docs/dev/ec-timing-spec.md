@@ -243,9 +243,16 @@ Practical interpretation:
   - it is assigned only in the kind-`3` branch
   - the archived summary-dispatch RE already identifies kind `3` as the
     `IPBM` summary family
-- the main remaining unknown is therefore narrower:
+- whole-image timing-entry scans now also bound code `8` more tightly:
+  - consumer-side helpers still compare against code `8`
+  - no preserved ES-side writer feeds timing-entry code `8`
+  - the only newly found `[-0x0a]` writes are SS-local scratch writes,
+    not entry-table writes
+- so code `8` is best treated as an unfed consumer-side case in the
+  preserved image, not a reachable timing class
+- the remaining semantic unknown is therefore narrower:
   - what exact semantic classes feed the remaining non-durable local timing
-    codes (`1`, `2`, and especially `8`)
+    codes `1` and `2`
   - not whether the late scheduler has real weekly selection logic
 
 ## Working Model

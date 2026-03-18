@@ -455,7 +455,7 @@ multiple targets in one round.
 
 Bombardment hits are allocated in this order:
 
-1. stardock ships in orbit
+1. planet-owned stardock contents (docked ships / starbases)
 2. ground batteries
 3. armies
 4. stored goods
@@ -463,8 +463,11 @@ Bombardment hits are allocated in this order:
 
 Rationale:
 
-- the manuals describe bombardment as damaging orbiting assets and production
+- the manuals describe bombardment as damaging local orbital/planetary assets
+  and production
 - observed fixtures show bombardment also kills batteries and armies
+- preserved reports show stardock losses are reported as planet-side asset
+  losses, not as separate fleet participants
 - bombardment is meant to cripple a world even when not capturing it
 
 The exact bombardment weights and planetary return-fire formulas below are
@@ -845,7 +848,7 @@ claimed original-engine formula.
 
 - bombardment always consumes the bombard order once the fleet is already in orbit
 - the fleet remains at the target world
-- bombardment can destroy orbiting stardock ships
+- bombardment can destroy planet-owned stardock contents
 - bombardment can reduce batteries, armies, goods, and factories
 - planets may survive bombardment intact enough to remain enemy-held
 
@@ -970,6 +973,8 @@ At minimum, combat events should be capable of expressing:
 
 - participating fleets and defending world
 - pre-battle and post-battle ship counts
+- planet-side stardock-content losses when hostile world resolution destroys
+  docked ships or starbases
 - batteries destroyed
 - armies lost on both sides
 - industrial damage from bombardment / invasion

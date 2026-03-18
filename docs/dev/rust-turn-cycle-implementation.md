@@ -325,11 +325,12 @@ Updated Durable State + Durable Event Pool
 | **Movement is annual, not per-week** | fleet positions are updated once per year (storing fractional travel state in tuple_c for multi-year journeys). Keep movement as a distinct pre-loop subphase |
 | **Mission resolution requires start-of-year position** | bombard, colonize, invade resolve only when the fleet is at its target at the start of the year. Co-located fleets resolve within the same tick |
 | **The 52-week loop is event scheduling, not physics** | the loop schedules encounter detection, combat resolution, and report emission from post-movement positions. Stardates come from timing codes, not physical arrival time |
-| **Timing-window constants are recovered** | the scheduler constants are recovered, and kind-1 producer assignment is recovered for codes `3..6` (starbase, BS, CA/TT/army, scout/DD). Only starbase fleets get a delayed timing offset. Keep producer assignment for codes `7` and `8` explicitly open |
+| **Timing-window constants are recovered** | the scheduler constants are recovered; kind-1 producer assignment is recovered for codes `3..6`; code `7` is the decoder-local `IPBM` timing class; code `8` is an unfed consumer-side case in the preserved image. Only starbase fleets get a delayed producer-side timing offset |
 | **Fleet visit order is sort-by-random-priority** | Classic assigns `Random(N)+1` to each fleet as a sort key (extraction: `(seed>>16) % N`), then processes in ascending key order. The Range `N` is dynamic per player. Exact replication requires the full PRNG call chain from validation, which is infeasible. **Rust uses deterministic slot order**, which produces byte-identical results against the oracle for all tested scenarios |
 | **The weekly fleet loop is a real 52-pass processing loop** | treat the yearly core as 52 stable weekly passes over the active fleet set, with the set shrinking only when fleets are destroyed or captured |
 | **Combat reports emitted inline during weekly loop** | RESULTS.DAT writes happen inside the fleet pass. Do not defer all report generation to a post-simulation phase |
 | **Combat triggered by first co-located hostile fleet** | the engine reads the opposing fleet, resolves combat, emits reports inline, then writes back. Opposing fleet's writeback happens later in the same pass |
+| **Some hostile world-resolution paths can destroy stardock contents** | preserved evidence shows at least bombardment-side hostile resolution can remove planet-owned stardock contents on the target world. Rust must model those losses as real planet-state mutation and mirror the matching player-facing turn reports, but should not overclaim the exact stardock-damage mechanics yet |
 | **Fleet destruction/capture dynamic** | destroyed fleets dropped from subsequent passes; captured fleets change ownership mid-simulation |
 | **Pre-loop fleet setup phase** | fleet-battle has 5 pre-loop passes for captures/reassignments; non-combat scenarios skip this entirely |
 | **Colonization is atomic on arrival** | ownership, armies (=1), name, status, production all set in one pass; economy starts the following tick |
@@ -345,7 +346,6 @@ Updated Durable State + Durable Event Pool
 
 | Open question | Current safe implementation posture |
 | --- | --- |
-| producer assignment for timing codes `7` and `8` | keep those assignments explicitly open; do not claim more than the recovered kind-1 `3..6` mapping |
 | exact target-world aftermath predicates | keep aftermath behind world-state inspection, not hard-coded per-mission tables |
 | production completion timing | avoid promising exact parity until more oracle evidence lands |
 
@@ -393,6 +393,9 @@ Key structural evidence:
   seek, read, seek, write
 - combat processing adds extra reads of opposing fleet(s) and inline
   RESULTS.DAT writes
+- at least some hostile world-resolution paths can mutate the target world's
+  stardock contents, and the corresponding stardock-loss reports belong in the
+  same player-visible turn-report stream
 - PLANETS.DAT is **never accessed** during the 52-pass fleet loop; planet
   economy/production changes happen after the fleet loop
 - in both the recovered spec and current Rust structure, economy-facing world
@@ -496,6 +499,9 @@ Implementation consequence:
 - the event pool and weekly scheduler should be capable of carrying both
   hostile-contact/combat outcomes and later administrative consequences in the
   same timed stream
+- when a hostile world-resolution path destroys stardock contents, emit the
+  matching player-facing losses through that same event/report path rather
+  than as a detached late summary
 
 ## Target-World Aftermath Should Be State-Sensitive
 
@@ -567,7 +573,10 @@ run_turn(directory):
       for fleet in fleet_order.active_fleets():
           process_fleet_week(state, fleet, week, events)
           // inner body: read fleet, timing-window check,
-          // combat if hostile, update weekly state, write fleet
+          // combat if hostile, update weekly state, emit reports
+          // inline, including stardock-loss reports when a
+          // recovered hostile world-resolution path destroys them,
+          // then write fleet
       fleet_order.remove_destroyed_and_captured(state)
 
   // Phase 4f: post-loop fleet summary scan
@@ -683,7 +692,6 @@ Flushed
 
 This document does not claim:
 
-- the exact producers for timing codes 7 and 8
 - the exact target-world aftermath predicates
 - production completion timing vs other subphases
 - the semantic meaning of every still-raw planet/player field
@@ -696,7 +704,8 @@ It does claim:
 - **the 52-week fleet loop is event scheduling**, not physics simulation
 - the yearly simulation core is a real 52-pass fleet-processing loop
 - stardates come from timing codes (+2/+7/+21/+30), not physical arrival
-- kind-1 timing-code production for codes 3-6 is recovered
+- kind-1 timing-code production for codes 3-6 is recovered; code 7 is
+  decoder-local `IPBM`, and code 8 is an unfed consumer-side case
 - fleet visit order is sort-by-random-priority, with Rust free to use slot
   order pragmatically
 - mission resolution requires start-of-year position
@@ -704,6 +713,8 @@ It does claim:
 - the currently recovered classic gate for that pass is `player[0] == 0xFF`
 - colonization is atomic on arrival
 - combat reports are emitted inline during the weekly loop
+- at least some hostile world-resolution paths can destroy stardock
+  contents and must produce matching player-facing turn reports
 - producer/mutator passes are part of gameplay state mutation, not just
   report formatting
 - the late `861d` tail is output/report oriented, not gameplay-core ordering

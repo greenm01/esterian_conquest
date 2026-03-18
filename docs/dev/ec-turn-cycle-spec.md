@@ -60,10 +60,9 @@ The yearly simulation core (step `4`) is now substantially recovered:
   scheduling priorities. Kind-1 producer assigns codes 3-6 by fleet
   composition (starbase/BS/CA-TT-army/scout-DD).
 
-Remaining unresolved areas: whether timing code `8` is reachable at
-all, the exact hostile-context selector for the watched-world aftermath
-family, and exact interaction between build completion and immediate
-same-tick combat.
+Remaining unresolved areas: the exact hostile-context selector for the
+watched-world aftermath family, and exact interaction between build
+completion and immediate same-tick combat.
 
 ## Practical Rust Consequences
 
@@ -1007,7 +1006,7 @@ applies these fixed parameters:
 | 5 | +0 | ≥0 | 5 | immediate, medium priority |
 | 6 | +0 | ≥0 | 5 | immediate, medium priority |
 | 7 | +0 | ≥0 | 3 (high) | immediate, high priority |
-| 8 | +30 | ≥25 | 1 (highest) | late resolution (bombard/invade) |
+| 8 | +30 | ≥25 | 1 (highest) | unfed consumer-side case in preserved image |
 
 Key relationships:
 
@@ -1017,7 +1016,8 @@ Key relationships:
 - codes 4–7 are all immediate (offset +0) with varying priority for
   scheduling conflicts
 - code 8 is the latest placement (+30 weeks from base, earliest week 25)
-  with highest scheduling priority — likely bombardment/invasion resolution
+  with highest scheduling priority, but preserved evidence now bounds it as
+  an unfed consumer-side case rather than an observed runtime class
 
 The `min_week` floor prevents early events from being scheduled before
 their minimum week. The priority value resolves conflicts when multiple
@@ -1063,10 +1063,19 @@ also now tighten its semantic family:
 - archived RE already bounds kind `3` as the `IPBM` summary family
 
 So code `7` is now best treated as the decoder-local `IPBM` timing
-class. The remaining timing-side open item is narrower still:
+class. Timing code `8` is now also bounded more tightly:
 
-- whether code `8` is ever reachable in practice, since no preserved
-  producer or decoder assignment currently feeds it
+- whole-image timing-entry scans show consumer-side comparisons against
+  `ES:[DI-0x0a] == 8` in helpers such as `1000:a59c`, `1000:b67e`, and
+  `1000:c3d5`
+- the same scans do **not** show any preserved ES-side writer feeding
+  `entry[+0x09] = 8`
+- the only newly found `[-0x0a]` writes outside the durable producers are
+  SS-local scratch writes at `0000:f203` / `0000:f20d`, not entry-table
+  writes
+
+So code `8` is best treated as an unassigned dead consumer case in the
+preserved image, not a reachable timing class.
 
 The practical durable producer-side timing system is therefore:
 
@@ -1165,7 +1174,6 @@ Settled facts:
 
 To complete the canonical cycle to full oracle parity, we still need:
 
-- whether timing code `8` is reachable at all
 - the exact hostile-context selector that chooses the observed watched-world
   aftermath family (`unchanged`, `+0x58`, or `+0x38/+0x3c`)
 - exact interaction between build completion and immediate same-tick combat
