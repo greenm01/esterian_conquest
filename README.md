@@ -23,17 +23,22 @@ actively underway.
 
 ## Learn How To Play
 
-If you are new to Esterian Conquest, start with the original player docs first.
-They are still the clearest guide to the game itself:
+If you are new to Esterian Conquest, start with the readable manual
+transcriptions first:
 
-- [ECQSTART.DOC](original/v1.5/ECQSTART.DOC)
+- [ECQSTART.md](docs/manuals/ECQSTART.md)
   - quick-start overview
-- [ECPLAYER.DOC](original/v1.5/ECPLAYER.DOC)
+- [ECPLAYER.md](docs/manuals/ECPLAYER.md)
   - the main player manual
-- [ECREADME.DOC](original/v1.5/ECREADME.DOC)
+- [ECREADME.md](docs/manuals/ECREADME.md)
   - setup notes, release notes, and bundled guidance
-- [WHATSNEW.DOC](original/v1.5/WHATSNEW.DOC)
+- [WHATSNEW.md](docs/manuals/WHATSNEW.md)
   - version-history changes for late-classic EC
+
+Full manual index:
+- [docs/manuals/README.md](docs/manuals/README.md)
+
+The original `.DOC` files are still preserved in [original/v1.5](original/v1.5).
 
 Those manuals are not just historical reference. They are the canonical
 player-facing guide for how the game is supposed to work.
