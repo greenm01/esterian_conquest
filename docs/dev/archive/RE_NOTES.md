@@ -8009,6 +8009,25 @@ Practical consequence:
   exact mapping from concrete movement/combat/admin report families onto weeks
   within the internal `1..52` scheduler
 
+Focused shipped-log follow-up:
+
+- preserved focused extract:
+  - `artifacts/ec-report-transition-focus.txt`
+- newly strong concrete placement constraints:
+  - `sensor-contact -> identified` is same-week in all focused corpus cases
+    (`48x`)
+  - `identified -> intercepted` is same-week where directly chained (`3x`)
+  - `entered-system -> attacked` is not fixed to one gap: both same-week and
+    next-week cases exist
+  - `fleet-lost -> join-retarget` is same-week in the observed FCC follow-ons
+  - `fleet-lost -> planet-bombarded` and
+    `intercepted -> planet-bombarded` are not fixed-delay families
+  - `orbit-world -> sensor-contact` remains a wide-gap periodic family
+- practical consequence:
+  - the remaining Rust-facing timing question is narrower again:
+    exact week placement of the remaining variable-gap / periodic families,
+    not whether the yearly scheduler contains strong same-week bundles at all
+
 #### Top-down step-4 follow-up: earlier-driver target tightened, file-I/O trace added
 
 Continued the step-4 recovery thread from the new top-down premise.

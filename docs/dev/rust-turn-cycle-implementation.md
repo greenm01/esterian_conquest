@@ -618,6 +618,22 @@ Implementation consequence:
   matching player-facing losses through that same event/report path rather
   than as a detached late summary
 
+## Concrete Scheduler-Family Summary
+
+This is the Rust-facing summary of the concrete report-family placement rules
+already strong enough to encode. For corpus evidence and edge cases, use
+[ec-timing-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-timing-spec.md).
+
+| Report family / transition | Observed weekly placement | Rust implication |
+| --- | --- | --- |
+| `sensor-contact -> identified` | same week consistently in the shipped corpus | emit these as an ordered same-week pair; do not force a week advance between contact and identification |
+| `identified -> intercepted` | same week where directly chained | direct interception can continue inside the same weekly batch |
+| `entered-system -> attacked` | same week or next week | do not hardcode a universal one-week lag between system entry and attack |
+| `fleet-lost -> join-retarget` | same week in the observed Fleet Command Center follow-ons | administrative retarget consequences can share the same weekly stream as the loss summary |
+| `fleet-lost -> planet-bombarded` | same week in some cases, delayed in others | bombard aftermath belongs to the same scheduler stream, but not at one fixed delay |
+| `intercepted -> planet-bombarded` | next week is common, later gaps also exist | do not collapse interception and bombardment into one mandatory same-week bundle |
+| `orbit-world -> sensor-contact` | wide-gap periodic family | keep this family data-driven; it is still one of the main remaining week-assignment questions |
+
 ## Target-World Resolution Families
 
 Current oracle evidence now supports a tighter implementation rule than before.

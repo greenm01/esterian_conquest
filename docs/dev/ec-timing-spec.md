@@ -178,6 +178,29 @@ Practical conclusion:
 - the corpus supports a real sub-year scheduler with same-week and cross-week
   report phases
 
+## Concrete Report-Family Placement Constraints
+
+The shipped corpus now closes several concrete scheduler families strongly
+enough to promote into the Rust target spec.
+
+| Transition | Observed placement | Practical meaning |
+| --- | --- | --- |
+| `sensor-contact -> identified` | same week in all focused shipped-log cases (`48x`) | contact and identification form one ordered same-week bundle |
+| `identified -> intercepted` | same week where directly chained (`3x`) | direct interception can continue in that same weekly bundle |
+| `entered-system -> attacked` | both same-week and next-week cases (`1x/1x`) | there is no universal separate-week arrival/combat rule |
+| `fleet-lost -> join-retarget` | same week in observed cases (`2x`) | Fleet Command Center follow-ons can share the same weekly stream as the loss summary |
+| `fleet-lost -> planet-bombarded` | same-week cases exist, but delayed variants also exist (`0/3/16` week gaps observed) | hostile-world aftermath belongs to the same scheduler stream, but not at one fixed delay |
+| `intercepted -> planet-bombarded` | next week is common, but later gaps also exist (`1/2/3/5/6/7`) | interception does not force one universal bombardment week |
+| `orbit-world -> sensor-contact` | wide-gap periodic family (`1/2/3/5/8/10/12/14/16/26/28/36`) | periodic orbit/update/contact sequencing remains one of the main open timing families |
+
+Practical consequence:
+
+- the remaining Rust-facing timing question is no longer "does the yearly
+  scheduler contain concrete same-week rules?"
+- it now focuses on the families that still show variable or periodic gaps,
+  especially late orbit/update follow-ons and delayed hostile/admin aftermath
+  chains
+
 ## Current Static Anchors
 
 Static timing-focused analysis currently has these anchors:
@@ -288,8 +311,13 @@ Practical interpretation:
 
 ## Implementation-Relevant Open Questions
 
-- how the internal `1..52` tick is assigned to specific
-  movement/combat/report events within a yearly maintenance run
+- exact week placement for the remaining variable-gap and periodic
+  movement/combat/admin report families within a yearly maintenance run
+- especially:
+  - orbit/update/contact follow-ons
+  - delayed hostile-world aftermath chains
+  - other non-direct administrative follow-ons that are not yet fixed to a
+    same-week bundle
 
 This is the remaining timing question that still matters directly for the Rust
 clone, because it affects visible `Stardate` values and weekly report
@@ -310,8 +338,8 @@ recovered.
 
 ## Next RE Targets
 
-- tighten the mapping from concrete event families to same-week vs later-week
-  placement inside the `1..52` scheduler
+- tighten the remaining variable-gap families to more exact week-placement
+  rules inside the `1..52` scheduler
 - derive more week-placement constraints from the recovered late selector
   (`0000:02c0 -> 1000:9fa1/1000:a26e -> 1000:c102/1000:9c0e`) and the shipped
   log corpus rather than chasing more local code-byte labels
@@ -370,9 +398,12 @@ Practical interpretation:
   - no preserved writer currently feeds code `2` into either the scratch-local
     or ES-resident timing-entry tables captured so far
 - the remaining Rust-facing unknown is therefore narrower:
-  - exact week placement of concrete movement/combat/admin report families
-  - not whether some second hidden local timing code family still needs to be
-    recovered
+  - exact week placement of the remaining variable-gap and periodic
+    movement/combat/admin report families
+  - not the already-closed same-week bundles such as
+    `sensor-contact -> identified`
+  - and not whether some second hidden local timing code family still needs to
+    be recovered
 
 ## Working Model
 

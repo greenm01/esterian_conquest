@@ -1,0 +1,75 @@
+EC report transition focus
+
+GLOBAL ADJACENT
+sensor-contact->identified: {0: 48}
+  ex ('ec4.txt', 29, 3005, 'your 7th Fleet, located in System(6,3)', 29, 3005, 'your 7th Fleet, located in System(6,3)')
+  ex ('ec4.txt', 35, 3005, 'your 7th Fleet, located in System(6,3)', 35, 3005, 'your 7th Fleet, located in System(6,3)')
+  ex ('ec5.txt', 3, 3006, 'your 7th Fleet, located in System(6,3)', 3, 3006, 'your 7th Fleet, located in System(6,3)')
+  ex ('ec5.txt', 5, 3006, 'your 7th Fleet, located in System(6,3)', 5, 3006, 'your 7th Fleet, located in System(6,3)')
+  ex ('ec8.txt', 15, 3009, 'your 11th Fleet, located in System(21,14)', 15, 3009, 'your 11th Fleet, located in System(21,14)')
+identified->intercepted: {0: 3}
+  ex ('ec24.txt', 1, 3025, 'your 18th Fleet, located in System(19,5)', 1, 3025, 'your 18th Fleet, located in System(19,5)')
+  ex ('ec42.txt', 38, 3043, 'your 55th Fleet, located in System(12,2)', 38, 3043, 'your 55th Fleet, located in System(12,2)')
+  ex ('ec43.txt', 35, 3044, 'your 55th Fleet, located in System(12,2)', 35, 3044, 'your 55th Fleet, located in System(12,2)')
+identified->fleet-lost: {0: 4, 4: 1}
+  ex ('ec4.txt', 29, 3005, 'your 7th Fleet, located in System(6,3)', 29, 3005, 'your Fleet Command Center:')
+  ex ('ec17.txt', 1, 3018, 'your 24th Fleet, located in System(23,5)', 1, 3018, 'your Fleet Command Center:')
+  ex ('ec26.txt', 13, 3027, 'your 18th Fleet, located in Sector(27,12)', 13, 3027, 'your Fleet Command Center:')
+  ex ('ec29.txt', 39, 3030, 'your 11th Fleet, located in System(23,5)', 43, 3030, 'your Fleet Command Center:')
+  ex ('ec38.txt', 1, 3039, 'your 21st Fleet, located in System(24,14)', 1, 3039, 'your Fleet Command Center:')
+attacked->fleet-lost: {1: 2}
+  ex ('ec3.txt', 27, 3003, 'your 6th Fleet, located in System(21,14)', 28, 3003, 'your Fleet Command Center:')
+  ex ('ec16.txt', 49, 3017, 'your 3rd Fleet, located in System(23,5)', 50, 3017, 'your Fleet Command Center:')
+fleet-lost->join-retarget: {0: 2}
+  ex ('ec20.txt', 40, 3021, 'your Fleet Command Center:', 40, 3021, 'your 4th Fleet, located in Sector(17,13)')
+  ex ('ec42.txt', 1, 3043, 'your Fleet Command Center:', 1, 3043, 'your 26th Fleet, located in System(4,18)')
+fleet-lost->planet-bombarded: {0: 4, 3: 1, 16: 1}
+  ex ('ec19.txt', 26, 3020, 'your Fleet Command Center:', 42, 3020, 'planet "you\'re my bitch" in System(23,5):')
+  ex ('ec37.txt', 30, 3038, 'your Fleet Command Center:', 33, 3038, 'planet "126" in System(27,12):')
+  ex ('ec37.txt', 49, 3038, 'your Fleet Command Center:', 49, 3038, 'planet "89, bitch!" in System(5,3):')
+  ex ('ec38.txt', 1, 3039, 'your Fleet Command Center:', 1, 3039, 'planet "haha" in System(6,2):')
+  ex ('ec41.txt', 33, 3042, 'your Fleet Command Center:', 33, 3042, 'planet "hector" in System(7,16):')
+intercepted->planet-bombarded: {1: 3, 2: 1, 3: 1, 5: 1, 6: 1, 7: 1}
+  ex ('ec23.txt', 8, 3024, 'your 15th Fleet, located in System(23,1)', 14, 3024, 'planet "bananagrams" in System(23,1):')
+  ex ('ec24.txt', 2, 3025, 'your 10th Fleet, located in System(5,3)', 4, 3025, 'planet "humble" in System(19,5):')
+  ex ('ec37.txt', 45, 3038, 'your 58th Fleet, located in System(14,7)', 46, 3038, 'planet "haha" in System(6,2):')
+  ex ('ec39.txt', 27, 3040, 'your 68th Fleet, located in System(23,17)', 30, 3040, 'planet "SyncTERM" in System(12,2):')
+  ex ('ec39.txt', 31, 3040, 'your 1st Fleet, located in System(7,1)', 32, 3040, 'planet "Perch" in System(23,17):')
+entered-system->attacked: {0: 1, 1: 1}
+  ex ('ec4.txt', 28, 3005, 'your 9th Fleet, located in System(21,14)', 29, 3005, 'your 9th Fleet, located in System(21,14)')
+  ex ('ec11.txt', 4, 3012, 'your 1st Fleet, located in System(4,24)', 4, 3012, 'your 1st Fleet, located in System(4,24)')
+attacked->bombing-run: {3: 1, 5: 1}
+  ex ('ec32.txt', 22, 3033, 'your 40th Fleet, located in System(23,5)', 27, 3033, 'your 40th Fleet, located in System(23,5)')
+  ex ('ec45.txt', 49, 3046, 'your 8th Fleet, located in Sector(7,4)', 52, 3046, 'your 3rd Fleet, located in System(23,22)')
+orbit-world->sensor-contact: {0: 3, 2: 2, 3: 2, 5: 1, 7: 1, 10: 1}
+  ex ('ec4.txt', 30, 3005, 'your 7th Fleet, located in System(6,3)', 35, 3005, 'your 7th Fleet, located in System(6,3)')
+  ex ('ec5.txt', 1, 3006, 'your 7th Fleet, located in System(6,3)', 3, 3006, 'your 7th Fleet, located in System(6,3)')
+  ex ('ec8.txt', 19, 3009, 'your 9th Fleet, located in System(5,22)', 29, 3009, 'your 11th Fleet, located in System(21,14)')
+  ex ('ec17.txt', 1, 3018, 'your 6th Fleet, located in System(25,22)', 1, 3018, 'your 24th Fleet, located in System(23,5)')
+  ex ('ec18.txt', 1, 3019, 'your 6th Fleet, located in System(25,22)', 1, 3019, 'your 11th Fleet, located in System(27,8)')
+
+SAME SOURCE/YEAR ordered
+sensor-contact->identified: {0: 48}
+  ex ('ec4.txt', 'your 7th Fleet, located in System(6,3)', 3005, 29, 29)
+  ex ('ec4.txt', 'your 7th Fleet, located in System(6,3)', 3005, 35, 35)
+  ex ('ec5.txt', 'your 7th Fleet, located in System(6,3)', 3006, 3, 3)
+  ex ('ec5.txt', 'your 7th Fleet, located in System(6,3)', 3006, 5, 5)
+  ex ('ec8.txt', 'your 11th Fleet, located in System(21,14)', 3009, 15, 15)
+identified->intercepted: {0: 3}
+  ex ('ec24.txt', 'your 18th Fleet, located in System(19,5)', 3025, 1, 1)
+  ex ('ec42.txt', 'your 55th Fleet, located in System(12,2)', 3043, 38, 38)
+  ex ('ec43.txt', 'your 55th Fleet, located in System(12,2)', 3044, 35, 35)
+entered-system->attacked: {0: 1, 1: 1}
+  ex ('ec4.txt', 'your 9th Fleet, located in System(21,14)', 3005, 28, 29)
+  ex ('ec11.txt', 'your 1st Fleet, located in System(4,24)', 3012, 4, 4)
+attacked->bombing-run: {0: 1, 5: 1, 6: 1, 7: 1}
+  ex ('ec14.txt', 'your 13th Fleet, located in System(25,12)', 3015, 38, 45)
+  ex ('ec24.txt', 'your 4th Fleet, located in System(27,12)', 3025, 31, 37)
+  ex ('ec25.txt', 'your 4th Fleet, located in System(27,12)', 3026, 1, 1)
+  ex ('ec32.txt', 'your 40th Fleet, located in System(23,5)', 3033, 22, 27)
+orbit-world->sensor-contact: {1: 2, 2: 3, 3: 4, 5: 2, 8: 2, 10: 3, 12: 1, 14: 1, 16: 1, 26: 2, 28: 1, 36: 1}
+  ex ('ec4.txt', 'your 7th Fleet, located in System(6,3)', 3005, 30, 35)
+  ex ('ec5.txt', 'your 7th Fleet, located in System(6,3)', 3006, 1, 3)
+  ex ('ec8.txt', 'your 11th Fleet, located in System(21,14)', 3009, 19, 29)
+  ex ('ec14.txt', 'your 11th Fleet, located in System(25,12)', 3015, 1, 29)
+  ex ('ec16.txt', 'your 6th Fleet, located in System(25,22)', 3017, 1, 2)
