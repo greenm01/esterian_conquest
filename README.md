@@ -21,6 +21,23 @@ play while remaining accepted by the current oracle/toolchain checks. Full
 Rust maint compliance is still being finished, and the client phase is
 actively underway.
 
+## Learn How To Play
+
+If you are new to Esterian Conquest, start with the original player docs first.
+They are still the clearest guide to the game itself:
+
+- [ECQSTART.DOC](original/v1.5/ECQSTART.DOC)
+  - quick-start overview
+- [ECPLAYER.DOC](original/v1.5/ECPLAYER.DOC)
+  - the main player manual
+- [ECREADME.DOC](original/v1.5/ECREADME.DOC)
+  - setup notes, release notes, and bundled guidance
+- [WHATSNEW.DOC](original/v1.5/WHATSNEW.DOC)
+  - version-history changes for late-classic EC
+
+Those manuals are not just historical reference. They are the canonical
+player-facing guide for how the game is supposed to work.
+
 ## What You Can Do Today
 
 This is no longer just a preservation repo or an academic RE exercise.
