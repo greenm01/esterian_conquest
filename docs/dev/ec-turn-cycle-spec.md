@@ -32,100 +32,52 @@ Current best model:
 
 The yearly simulation core (step `4`) is now substantially recovered:
 
-- it is a **52-iteration weekly fleet-processing loop**
-- fleet visit order is **PRNG-shuffled** per game state
-- movement updates position within the loop; **mission resolution requires
-  the fleet to be at its target at the start of the year**
-- combat reports are emitted **inline** during the loop
+- **movement is annual** — fleet positions are updated once per year
+  (one-time advance), not per-week. Fractional travel state is stored in
+  the fleet tuple_c field (Real48) for multi-year journeys.
+- **the 52-week fleet loop is event scheduling, not physics** — it
+  schedules encounter detection, combat resolution, and report emission
+  from post-movement positions. Stardates come from timing codes, not
+  physical arrival time.
+- fleet visit order is **PRNG-shuffled** per game state (LCG confirmed
+  as Borland Pascal `$08088405`; exact shuffle algorithm unknown)
+- **mission resolution requires start-of-year position** — bombard,
+  colonize, invade resolve only when the fleet is at its target at the
+  start of the year
+- combat reports are emitted **inline** during the weekly loop
 - combat is triggered by the first co-located hostile fleet processed
 - fleet destruction and capture are dynamic mid-pass
+- a **pre-loop fleet setup phase** handles captures/reassignments before
+  the 52-week loop (non-combat scenarios skip it entirely)
 - economy/autopilot processing is **gated by `player[0] = 0xFF`** (rogue
-  mode) and runs as a **separate pass outside the fleet loop** (PLANETS.DAT
-  is never accessed during the 52-pass fleet loop)
+  mode), runs **after** the fleet loop, and reads post-combat fleet state
 - colonization is **atomic on arrival** (ownership, armies, name, status,
   production all set in one pass)
+- **timing-window constants** are fully recovered: 8 codes with fixed
+  week offsets (+2/+7/+21/+0/+0/+0/+0/+30), minimum week floors, and
+  scheduling priorities. Kind-1 producer assigns codes 3-6 by fleet
+  composition (starbase/BS/CA-TT-army/scout-DD).
 
-Remaining unresolved areas inside step `4`: exact PRNG for visit order,
-exact inner-loop body structure, production completion timing, fleet
-incremental activation trigger, and mission-family-specific aftermath timing.
+Remaining unresolved areas: exact PRNG shuffle algorithm, timing codes 7
+and 8 producer assignment, exact target-world aftermath predicates, and
+production completion timing.
 
 ## Practical Rust Consequences
 
-Current practical guidance for `rust-maint`:
+For implementation guidance, use the companion
+[rust-turn-cycle-implementation.md](/home/mag/dev/esterian_conquest/docs/dev/rust-turn-cycle-implementation.md).
 
-- keep cross-file validation as a distinct early phase, not mixed into yearly
-  state mutation
-- keep summary/event generation as a real intermediate boundary inside the
-  engine; the original binary clearly builds outcomes first and only later
-  canonicalizes, coalesces, and emits report text from them
-- do not assume every writer to the `0x2f72 / 0x2f76` workspace belongs to the
-  final late-report event pool:
-  - `5ee4` appends `0x0c` records there during validation
-  - but `6ac3` zeroes `0x2f76` before `5ee4` returns
-  - current best practical reading is that `5ee4` uses the shared workspace as
-    temporary validation scratch, not as the final persistent report-event set
-- do treat the durable report-event pool as a later producer phase:
-  - first confirmed non-`5ee4` durable writers are `1000:dddb` and `1000:e31b`
-  - they allocate fresh `0x0c` records after `5ee4` has already cleared the
-    scratch count
-  - they write the later-consumed kind bytes directly:
-    - `1000:dddb` -> kind `1`
-    - `1000:e31b` -> kind `2`
-- do not shape Rust gameplay order around the already-recovered late helpers:
-  - `9e1e` is startup summary-workspace plumbing
-  - `6d9b` is restore/integrity wrapper logic
-  - `5ee4` is staged validation plus known fleet/base/IPBM summary emission
-  - `8652 -> 1da6 / 0c06 / 2db3 / 56be` is late output/database/report side
-  - `87f4 -> 8b15` is late summary coalescing/report prep
-- this means the remaining Rust turn-order risk is concentrated in the still
-  unresolved earlier simulation helpers, not in the late report pipeline
+Key points:
 
-## Best Recovery Workflow For Step 4
-
-Current best method for uncovering the yearly simulation core:
-
-1. build controlled one-mechanic oracle scenarios first
-2. run classic `ECMAINT` and diff persistent state plus durable summary outputs
-3. promote repeated field-level mutations into a step-4 evidence matrix
-4. use static RE only on the specific helpers that those scenario diffs keep
-   pointing at
-5. stop once the ordering boundary is explicit enough to guide Rust
-
-Practical rule:
-
-- a full linear assembly dump is possible, but it is not the highest-yield tool
-  for this problem by itself
-- the hard part is trustworthy structure:
-  - code vs data separation
-  - real function boundaries
-  - cross-segment control flow
-  - deciding which routines mutate durable game state and which only format
-    late reports
-- the current late-summary work recovered around `5ee4`, `861d`, `87f4`,
-  `f319`, and `f34a` is the cautionary example:
-  - broad static coverage alone can spend a lot of time on important-looking
-    code that is still only report/output plumbing
-
-Current highest-yield step-4 target:
-
-- keep pairing controlled oracle diffs with the partially recovered
-  `1000:024d` owned-planet interior
-- the strongest current seam is now the `1000:03ff..0d53` body *inside*
-  `1000:024d`, because it:
-  - iterates owned planets directly
-  - gates on owner/player state
-  - reads durable kind-`2` entries
-  - folds derived values back into planet fields
-- treat `024d` as the current leading seam for practical Rust modeling until a
-  stronger earlier simulation driver is recovered
-- when running direct oracle probes for that seam, always inspect both:
-  - persistent state/output drift (`*.DAT`, `RANKINGS.TXT`)
-  - player-visible report/error channels (`RESULTS.DAT`, `MESSAGES.DAT`,
-    `ERRORS.TXT`)
-- practical reason:
-  step-4 placement depends not only on which records mutate, but also on
-  whether a probe produces visible report traffic or only silent state /
-  derived-database changes
+- movement is annual (pre-loop), not per-week
+- the 52-week loop is event scheduling, not physics simulation
+- economy/autopilot runs after the fleet loop, gated by `player[0]`
+- the late tail (`8652 → 1da6 / 0c06 / 2db3 / 56be`) is output/report
+  generation, not simulation — do not shape Rust gameplay order around it
+- the durable event pool (`0x2f72 / 0x2f76`) has two layers:
+  - transient validation scratch from `5ee4` (cleared before return)
+  - durable entries from `1000:dddb` (kind-1) and `1000:e31b` (kind-2),
+    later consumed by the canonicalizer and weekly report scheduler
 
 ## Evidence Backbone
 
@@ -302,14 +254,18 @@ Settled facts:
 
 What is currently settled inside this core:
 
-#### 4a. Movement is an explicit engine phase
+#### 4a. Movement is an annual pre-loop phase
 
 Confidence: `High`
 
 - the crash marker is literally `Move.Tok`
 - the restore message says the previous maintenance halted during the movement
   phase
+- movement updates fleet positions once per year (not per-week)
+- fractional travel state is stored in fleet tuple_c (Real48) for multi-year
+  journeys
 - this is the strongest recovered named phase boundary in the binary so far
+- see also 4b (event scheduling model) and 4p (position-first evidence)
 
 #### 4b. The 52-week fleet loop is event scheduling, not physics simulation
 
@@ -412,9 +368,9 @@ Practical meaning:
   emitted immediately or on the very next weekly tick, not in a detached
   end-of-year appendix
 
-#### 4e. Internal ordering of economy, production, tax growth, and command application remains open
+#### 4e. Producer pass internal ordering (partially recovered)
 
-Confidence: `Low`
+Confidence: `Medium`
 
 What is now settled:
 
@@ -1115,60 +1071,22 @@ What remains open:
   `DATABASE.DAT`, and ranking outputs
 - exact cleanup order for all token files
 
-## What The Oracle Already Proves About Turn Structure
-
-These are the most important practical conclusions:
-
-- `ECMAINT` has a sophisticated internal turn structure, not "one instant per
-  year"
-- the yearly simulation core is a **52-iteration weekly fleet-processing loop**
-- fleet visit order is **PRNG-shuffled** per game state, seeded from planet data
-- movement is a named crash-sensitive phase (`Move.Tok` recovery)
-- movement updates fleet position within the yearly loop, but **mission
-  resolution (bombard, colonize, invade) requires the fleet to already be at
-  its target at the start of the year** — position-first, resolve-next-year
-- co-located fleets resolve combat/contact within the same tick
-- combat reports (`RESULTS.DAT`) are emitted **inline** during the weekly
-  fleet-processing loop, not deferred to a post-simulation phase
-- combat is triggered when the first co-located hostile fleet is processed;
-  the opposing fleet's writeback happens later in the same pass
-- fleet destruction removes fleets from subsequent weekly passes
-- fleet slot reassignment (capture) changes ownership mid-simulation
-- some fleets enter the active visit set incrementally during early weekly
-  passes (fleet-battle shows 1→2→1→2→3→14 records over passes 1-6)
-- **economy/autopilot processing is gated by `player[0]`**: only rogue-mode
-  (`0xFF`) empires get economy/army/battery growth; civil disorder (`0x00`)
-  empires are frozen
-- economy runs as a **separate pass outside the 52-week fleet loop**:
-  PLANETS.DAT is never accessed during the fleet loop
-- **colonization is atomic on arrival**: ownership, armies (=1), name, status,
-  and potential production are all set in one pass; economy starts the
-  following tick
-- reports are stamped on a real internal `1..52` weekly scale
-- contact, interception, and command-center summaries participate in that same
-  timing stream
-- the engine performs a late summary sort/canonicalization pass before the
-  weekly report emission loop
-- file write/flush ordering is stable across scenarios:
-  `FLEETS.DAT` → `[RESULTS.DAT]` → `DATABASE.DAT` → `PLAYER.DAT` →
-  `PLANETS.DAT` → `CONQUEST.DAT` → `RANKINGS.TXT`
-
 ## What Is Still Missing
 
-To finish the canonical cycle, we still need:
+To complete the canonical cycle to full oracle parity, we still need:
 
-- the exact PRNG for fleet visit order (likely Borland Pascal `Random`)
-- the exact inner per-fleet-per-week body structure:
-  - read → combat check → report emit → write is established, but the
-    placement of movement decrement, order execution, and producer passes
-    within that body is not fully settled
-- the exact trigger for fleet incremental activation in early weekly passes
-- production completion timing relative to fleet loop
-- mission-family-specific aftermath timing (the weekly aftermath delay varies
-  by mission type, not a universal constant)
-- the direct code path that formats player-visible `Stardate: D/YYYY`
-- whether economy runs before or after the fleet loop (evidence currently
-  points to after, but direct proof is not yet confirmed)
+- the exact PRNG shuffle algorithm for fleet visit order (LCG confirmed as
+  Borland Pascal `$08088405`, but the shuffle variant and seed-at-shuffle-time
+  are unknown — full 2^32 search ruled out all standard Fisher-Yates and
+  sort-by-key variants)
+- the producer assignment for timing codes 7 and 8 (codes 3-6 are mapped from
+  `dddb` by fleet composition; 1,2 come from the `02c0` decoder)
+- exact target-world-state predicates that choose one aftermath shape over
+  another
+- production completion timing relative to other subphases
+
+None of these block Rust implementation. They affect oracle parity and report
+fidelity, not engine structure.
 
 ## Current Working Canonical Spec
 
@@ -1179,26 +1097,30 @@ This is the tightest oracle-backed statement today:
 3. It validates and loads the linked `.DAT` state.
 4. It runs the yearly simulation core:
    a. Prepare transient workspaces.
-   b. Compute fleet visit order (PRNG shuffle seeded from game state).
+   b. Annual movement update (one-time position advance for all fleets;
+      fractional travel state stored in fleet tuple_c Real48 field for
+      multi-year journeys).
    c. Pre-loop fleet setup phase (captures/reassignments; skipped when no
       fleets need reassignment).
-   d. Run a 52-iteration weekly fleet-processing loop:
+   d. Compute fleet visit order (PRNG shuffle seeded from game state).
+   e. Run a 52-iteration weekly event scheduling loop (NOT physics sim):
       - for each week 1..52:
         - for each fleet in visit order:
           - read fleet record
-          - if co-located hostile fleet: read opposing fleet, resolve combat,
-            emit RESULTS.DAT reports inline
-          - update fleet state (movement, order execution)
+          - timing-window check: events to emit this week?
+          - if co-located hostile: resolve combat, emit RESULTS.DAT inline
+          - update weekly event state in fleet record
           - write fleet record
         - remove destroyed/captured fleets from active set
-   e. Post-loop fleet summary scan (2 sequential reads of all fleet records).
-   f. Economy/autopilot pass over owned planets (rogue empires only, separate
-      from fleet loop, reads post-combat fleet state).
-   g. Producer/mutator passes on planet state (`024d` interior).
-   h. DATABASE.DAT planet-specific updates.
+   f. Post-loop fleet summary scan (2 sequential reads of all fleet records).
+   g. Economy/autopilot pass over owned planets (rogue empires only;
+      reads post-combat fleet state).
+   h. Producer/mutator passes on planet state (`024d` interior).
+   i. DATABASE.DAT planet-specific updates.
 5. It canonicalizes and sorts summary entries from those outcomes.
 6. It performs a late `1..52` weekly report/timing loop over the active
-   summaries.
+   summaries, using the recovered timing-window constants (8 codes with
+   offsets +2/+7/+21/+0/+0/+0/+0/+30 and minimum-week floors).
 7. It flushes outputs (`PLAYER.DAT`, `PLANETS.DAT`, `CONQUEST.DAT`,
    `RANKINGS.TXT`) and performs final cleanup.
 
