@@ -12,7 +12,8 @@ describe the turn-cycle as a practical engine/state-machine problem:
 - what each phase is responsible for
 - what state each phase may read or write
 - which boundaries are settled
-- which parts of step `4` remain open for refinement
+- which residual step-`4` details remain open after the now-recovered core
+  ordering
 
 For raw oracle evidence and confidence notes, use the canonical spec.
 
@@ -74,16 +75,19 @@ Classic Directory / Rust Directory
 | 4. Yearly Simulation Core    |
 |                              |
 | 4a. prepare workspaces       |
-| 4b. compute fleet visit      |
-|     order (PRNG shuffle)     |
-| 4c. 52-week fleet loop:      |
-|     movement, contact,       |
+| 4b. annual movement update   |
+| 4c. pre-loop fleet setup     |
+| 4d. determine fleet visit    |
+|     order (sort-by-random-   |
+|      priority)               |
+| 4e. 52-week fleet loop:      |
+|     event scheduling,        |
 |     combat, inline reports   |
-| 4d. post-loop fleet scan     |
-| 4e. economy/autopilot pass   |
+| 4f. post-loop fleet scan     |
+| 4g. economy/autopilot pass   |
 |     (rogue empires only)     |
-| 4f. producer/mutator passes  |
-| 4g. database updates         |
+| 4h. producer/mutator passes  |
+| 4i. database updates         |
 +------------------------------+
     |
     v
@@ -128,22 +132,29 @@ Load files into a coherent game-state model
 Create / reset transient workspaces
   |
   v
-Compute fleet visit order (PRNG shuffle seeded from game state)
+Run annual movement update
+  |
+  v
+Run pre-loop fleet setup if needed
+  |
+  v
+Determine fleet visit order (sort-by-random-priority; Rust may use slot order)
   |
   v
 52-week fleet-processing loop
   |
   +--> per week: process each fleet in visit order
-  |    +--> read fleet, check co-located hostiles
+  |    +--> read fleet, timing-window check
   |    +--> resolve combat + emit RESULTS.DAT inline
-  |    +--> update fleet state (movement, orders)
+  |    +--> update weekly fleet event state
   |    +--> write fleet, remove destroyed/captured
   |
   v
 Post-loop fleet summary scan (2 sequential reads)
   |
   v
-Economy/autopilot pass (rogue empires only, player[0]=0xFF)
+Economy/autopilot region (post-combat, post-fleet-loop; recovered classic
+pass is gated by player[0]=0xFF)
   |
   v
 Producer/mutator passes (planet state, durable events)
@@ -257,7 +268,7 @@ Validated Durable State
     +--[for week 1..52]------+
     |                         |
     |  for each fleet in      |
-    |  PRNG visit order:      |
+    |  visit order:           |
     |                         |
     |  +--> read fleet record |
     |  |                      |
@@ -314,22 +325,27 @@ Updated Durable State + Durable Event Pool
 | **Movement is annual, not per-week** | fleet positions are updated once per year (storing fractional travel state in tuple_c for multi-year journeys). Keep movement as a distinct pre-loop subphase |
 | **Mission resolution requires start-of-year position** | bombard, colonize, invade resolve only when the fleet is at its target at the start of the year. Co-located fleets resolve within the same tick |
 | **The 52-week loop is event scheduling, not physics** | the loop schedules encounter detection, combat resolution, and report emission from post-movement positions. Stardates come from timing codes, not physical arrival time |
-| **Timing system fully recovered** | only codes 3-6 are ever produced (starbase→3 +21wk, BS→4 immediate, CA/TT/army→5 immediate, scout/DD→6 immediate). Codes 1,2,7,8 in the `a26e` switch are dead code — never assigned by any producer (confirmed by full binary search). Only starbase fleets get a delayed timing offset |
+| **Timing-window constants are recovered** | the scheduler constants are recovered, and kind-1 producer assignment is recovered for codes `3..6` (starbase, BS, CA/TT/army, scout/DD). Only starbase fleets get a delayed timing offset. Keep producer assignment for codes `7` and `8` explicitly open |
 | **Fleet visit order is sort-by-random-priority** | Classic assigns `Random(N)+1` to each fleet as a sort key (extraction: `(seed>>16) % N`), then processes in ascending key order. The Range `N` is dynamic per player. Exact replication requires the full PRNG call chain from validation, which is infeasible. **Rust uses deterministic slot order**, which produces byte-identical results against the oracle for all tested scenarios |
+| **The weekly fleet loop is a real 52-pass processing loop** | treat the yearly core as 52 stable weekly passes over the active fleet set, with the set shrinking only when fleets are destroyed or captured |
 | **Combat reports emitted inline during weekly loop** | RESULTS.DAT writes happen inside the fleet pass. Do not defer all report generation to a post-simulation phase |
 | **Combat triggered by first co-located hostile fleet** | the engine reads the opposing fleet, resolves combat, emits reports inline, then writes back. Opposing fleet's writeback happens later in the same pass |
 | **Fleet destruction/capture dynamic** | destroyed fleets dropped from subsequent passes; captured fleets change ownership mid-simulation |
 | **Pre-loop fleet setup phase** | fleet-battle has 5 pre-loop passes for captures/reassignments; non-combat scenarios skip this entirely |
 | **Colonization is atomic on arrival** | ownership, armies (=1), name, status, production all set in one pass; economy starts the following tick |
-| **Economy/autopilot gated by `player[0]` and runs after fleet loop** | only rogue mode (`0xFF`) empires get growth; economy reads post-combat fleet state |
+| **Economy/autopilot is explicitly post-combat** | this phase runs after the weekly fleet/combat loop and reads post-combat fleet state before later planet/output work |
+| **Recovered classic economy/autopilot gate is `player[0] == 0xFF`** | the currently recovered classic pass applies to rogue-mode empires; civil-disorder `0x00` empires are frozen |
+| **Current Rust also does broader post-combat planet/economy recompute work here** | the Rust engine currently places normal planet-economy updates and per-player production/count recomputation in the same post-combat region, even though the oracle-backed classic gate currently only settles the `0xFF` autopilot/rogue pass |
 | **File write ordering is stable** | FLEETS → RESULTS → DATABASE → PLAYER → PLANETS → CONQUEST → RANKINGS |
-| **`00e8/024d` are yearly producer passes** | they mix state mutation and event production; some mutations are silent |
+| **Administrative summaries share the weekly event stream** | contact/combat summaries and at least some follow-on administrative consequences belong to one timed event stream, not a detached year-end appendix |
+| **`00e8/024d` are yearly producer passes with internal order** | they are part of the yearly producer family, not late report helpers; `f71d -> dddb` runs before `e31b`, and `024d` mixes real planet mutation with durable event production, sometimes silently |
+| **The `861d` tail is late report/output work** | treat `1da6 / 0c06 / 2db3 / 56be` as late output/report processing, not as the place to infer gameplay-core phase order |
 
 ### What Is Still Open
 
 | Open question | Current safe implementation posture |
 | --- | --- |
-| ~~exact PRNG shuffle algorithm~~ | **RESOLVED**: not a shuffle — sort-by-random-priority with dynamic Range. Exact replication infeasible. Slot order produces oracle-identical results |
+| producer assignment for timing codes `7` and `8` | keep those assignments explicitly open; do not claim more than the recovered kind-1 `3..6` mapping |
 | exact target-world aftermath predicates | keep aftermath behind world-state inspection, not hard-coded per-mission tables |
 | production completion timing | avoid promising exact parity until more oracle evidence lands |
 
@@ -342,7 +358,8 @@ The current best implementation shape for step `4` is:
 4b. Annual movement update (one-time position advance for all fleets;
     store fractional travel state in tuple_c for multi-year journeys)
 4c. Pre-loop fleet setup (captures/reassignments; skipped if none needed)
-4d. Determine fleet visit order (PRNG shuffle seeded from game state)
+4d. Determine fleet visit order (sort-by-random-priority; Rust may use
+    deterministic slot order)
 4e. For each week 1..52 (EVENT SCHEDULING, not physics):
       For each fleet in visit order:
         - read fleet record
@@ -352,7 +369,10 @@ The current best implementation shape for step `4` is:
         - write fleet record
       Remove destroyed/captured fleets from active set
 4f. Post-loop fleet scan (2 sequential reads of all fleet records)
-4g. Economy/autopilot pass (rogue empires only; reads post-combat state)
+4g. Post-combat economy/autopilot region:
+    - recovered classic autopilot/rogue pass reads post-combat state
+    - current Rust also performs normal planet-economy updates and
+      per-player production/count recomputation here
 4h. Producer/mutator passes on planet state (024d interior)
 4i. DATABASE.DAT planet-specific updates
 ```
@@ -366,12 +386,17 @@ Key structural evidence:
   codes (+2/+7/+21/+30 week offsets), not from physical arrival time.
   A speed-3 fleet traveling 1 sector shows contact at week 50 (timing-code
   scheduled), not week 19 (physical arrival)
+- the yearly core is a **real 52-pass fleet-processing loop** over the
+  active set; non-combat scenarios show stable per-pass visit order, while
+  combat/capture scenarios shrink the active set dynamically
 - non-combat fleet processing is exactly 4 I/O events per fleet per pass:
   seek, read, seek, write
 - combat processing adds extra reads of opposing fleet(s) and inline
   RESULTS.DAT writes
 - PLANETS.DAT is **never accessed** during the 52-pass fleet loop; planet
   economy/production changes happen after the fleet loop
+- in both the recovered spec and current Rust structure, economy-facing world
+  updates are therefore **post-combat**, not interleaved inside the fleet loop
 - after the fleet loop, 2 sequential reads of all fleet records occur
   (post-loop summary scan)
 - the flush order: PLAYER → PLANETS → CONQUEST → RANKINGS
@@ -387,6 +412,9 @@ Implementation consequence:
 - Rust should have a first-class concept of a producer pass that may do both:
   - mutate durable game state
   - append durable event records
+- preserve producer ordering inside that family:
+  - `f71d -> dddb` kind-1 work happens before later `e31b` kind-2 emission
+  - `024d` is not an unordered late helper; it is part of the simulation core
 
 That means the engine should not be shaped like this:
 
@@ -453,6 +481,22 @@ run producer/mutator subphase
 That keeps the engine faithful to current evidence without claiming the final
 oracle precedence is already fully solved.
 
+## Weekly Event Stream Implication
+
+Current spec evidence is now strong enough to guide one more implementation
+rule:
+
+- contact/combat reporting and at least some administrative follow-on
+  consequences share the same weekly event stream
+- do not treat Fleet Command Center loss summaries or retarget consequences as
+  a detached end-of-year appendix by default
+
+Implementation consequence:
+
+- the event pool and weekly scheduler should be capable of carrying both
+  hostile-contact/combat outcomes and later administrative consequences in the
+  same timed stream
+
 ## Target-World Aftermath Should Be State-Sensitive
 
 Current practical evidence suggests that natural hostile-resolution aftermath on
@@ -481,6 +525,8 @@ Practical rule:
 
 - neither hostile context alone nor target-world payload alone currently looks
   sufficient
+- mission family matters for timing and aftermath shape, but it is still not
+  safe to model all aftermath as one per-mission fixed write pattern
 - the engine should therefore choose target-world aftermath from the
   combination of:
   - hostile-resolution context
@@ -513,7 +559,8 @@ run_turn(directory):
   run_fleet_setup(state)  // skipped if no fleets need reassignment
 
   // Phase 4d: determine visit order
-  fleet_order = compute_fleet_visit_order(state)  // PRNG shuffle
+  fleet_order = compute_fleet_visit_order(state)  // sort-by-random-priority;
+                                                  // Rust may use slot order
 
   // Phase 4e: 52-week event scheduling loop (NOT physics sim)
   for week in 1..=52:
@@ -526,7 +573,9 @@ run_turn(directory):
   // Phase 4f: post-loop fleet summary scan
   scan_all_fleets_for_summary(state, events)
 
-  // Phase 4g: economy/autopilot (rogue empires only, post-combat)
+  // Phase 4g: post-combat economy/autopilot region
+  // Classic-recovered gate currently settles the rogue/autopilot side;
+  // Rust also keeps normal planet economy and player-stat recompute here.
   run_economy_autopilot(state)
 
   // Phase 4h: planet producer/mutator passes (024d interior)
@@ -542,7 +591,8 @@ run_turn(directory):
   flush_and_cleanup(directory, state, events)
 ```
 
-Use that as a shape guide, not a frozen final ordering contract.
+Use that as the current implementation skeleton for the recovered outer order.
+Keep caution only around the still-open subphase internals listed above.
 
 ## Allowed Writes By Phase
 
@@ -623,7 +673,7 @@ Flushed
 3. Allow simulation subphases to mutate state and emit events in the same pass.
 4. Keep canonicalization separate from event production.
 5. Keep report emission separate from gameplay mutation.
-6. Keep step `4` subphases explicit and reorderable.
+6. Keep step `4` subphases explicit and ordered.
 7. Treat mission-family timing as data/logic attached to the scheduler, not as
    one universal post-combat delay.
 8. Prefer typed event records and explicit phase functions over giant
@@ -633,7 +683,6 @@ Flushed
 
 This document does not claim:
 
-- ~~the exact PRNG shuffle algorithm for fleet visit order~~ (resolved: sort-by-random-priority, see ec-turn-cycle-spec.md section 4l)
 - the exact producers for timing codes 7 and 8
 - the exact target-world aftermath predicates
 - production completion timing vs other subphases
@@ -645,14 +694,19 @@ It does claim:
 - the major outer turn-cycle boundaries are strong enough to guide Rust
 - **movement is annual** (one-time position update), not per-week
 - **the 52-week fleet loop is event scheduling**, not physics simulation
+- the yearly simulation core is a real 52-pass fleet-processing loop
 - stardates come from timing codes (+2/+7/+21/+30), not physical arrival
-- timing codes 3-6 are assigned by fleet composition; 1,2 from decoder
+- kind-1 timing-code production for codes 3-6 is recovered
+- fleet visit order is sort-by-random-priority, with Rust free to use slot
+  order pragmatically
 - mission resolution requires start-of-year position
-- economy/autopilot is gated by `player[0]` and runs after the fleet loop
+- the recovered economy/autopilot phase is post-combat and post-fleet-loop
+- the currently recovered classic gate for that pass is `player[0] == 0xFF`
 - colonization is atomic on arrival
 - combat reports are emitted inline during the weekly loop
 - producer/mutator passes are part of gameplay state mutation, not just
   report formatting
+- the late `861d` tail is output/report oriented, not gameplay-core ordering
 - event production, canonicalization, and report emission are distinct
   responsibilities and should stay distinct in Rust
 
