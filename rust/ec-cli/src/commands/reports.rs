@@ -294,7 +294,7 @@ fn known_hostile_fleet_label(
 
 #[cfg(test)]
 mod tests {
-    use super::ordinal_number;
+    use super::{classic_results_lines, ordinal_number};
 
     #[test]
     fn ordinal_number_formats_st_nd_rd_and_teen_exceptions() {
@@ -309,30 +309,42 @@ mod tests {
         assert_eq!(ordinal_number(22), "22nd");
         assert_eq!(ordinal_number(23), "23rd");
     }
+
+    #[test]
+    fn classic_results_lines_wrap_body_without_leading_indent() {
+        let text = "From your 13th Fleet, located in System(24,14)         Stardate: 52/3011 Sensor contact shows an alien fleet in System(24,14) traveling at a translight speed of 5. Closing to check it out...";
+        let lines = classic_results_lines(text);
+        assert_eq!(
+            lines[0],
+            "From your 13th Fleet, located in System(24,14)         Stardate: 52/3011"
+        );
+        assert_eq!(
+            lines[1],
+            "Sensor contact shows an alien fleet in System(24,14) traveling at a"
+        );
+        assert_eq!(lines[2], "translight speed of 5. Closing to check it out...");
+        assert!(lines.iter().all(|line| line.chars().count() <= 72));
+        assert!(lines[1].starts_with("Sensor"));
+    }
 }
 
 fn push_classic_results_chunked(
     data: &mut Vec<u8>,
     kind: u8,
-    header_tail: [u8; 10],
-    continuation_tail: [u8; 10],
+    report_tail: [u8; 10],
     text: &str,
 ) {
-    let bytes = text.as_bytes();
-    if bytes.is_empty() {
+    let lines = classic_results_lines(text);
+    if lines.is_empty() {
         return;
     }
-    for (chunk_idx, chunk) in bytes.chunks(RESULTS_TEXT_SIZE).enumerate() {
+    for line in lines {
+        let chunk = line.as_bytes();
         let mut record = [0u8; RESULTS_RECORD_SIZE];
         record[0] = kind;
         record[1] = chunk.len() as u8;
         record[RESULTS_TEXT_START..RESULTS_TEXT_START + chunk.len()].copy_from_slice(chunk);
-        let tail = if chunk_idx == 0 {
-            header_tail
-        } else {
-            continuation_tail
-        };
-        record[RESULTS_TEXT_END..RESULTS_RECORD_SIZE].copy_from_slice(&tail);
+        record[RESULTS_TEXT_END..RESULTS_RECORD_SIZE].copy_from_slice(&report_tail);
         data.extend_from_slice(&record);
     }
 
@@ -341,16 +353,116 @@ fn push_classic_results_chunked(
     record[0] = kind;
     record[1] = eot.len() as u8;
     record[RESULTS_TEXT_START..RESULTS_TEXT_START + eot.len()].copy_from_slice(eot);
-    record[RESULTS_TEXT_END..RESULTS_RECORD_SIZE].copy_from_slice(&continuation_tail);
+    record[RESULTS_TEXT_END..RESULTS_RECORD_SIZE].copy_from_slice(&report_tail);
     data.extend_from_slice(&record);
 }
 
 fn classic_results_record_count(text: &str) -> usize {
-    let bytes = text.as_bytes();
-    if bytes.is_empty() {
+    let line_count = classic_results_lines(text).len();
+    if line_count == 0 {
         0
     } else {
-        bytes.len().div_ceil(RESULTS_TEXT_SIZE) + 1
+        line_count + 1
+    }
+}
+
+fn classic_results_lines(text: &str) -> Vec<String> {
+    if text.is_empty() {
+        return Vec::new();
+    }
+    let split = byte_index_for_char_width(text, RESULTS_TEXT_SIZE);
+    let first_line = text[..split].to_string();
+    let mut lines = vec![first_line];
+    let body = text[split..].trim_start();
+    if body.is_empty() {
+        return lines;
+    }
+    for paragraph in body.split('\n') {
+        let paragraph = paragraph.trim();
+        if paragraph.is_empty() {
+            continue;
+        }
+        wrap_classic_paragraph(paragraph, RESULTS_TEXT_SIZE, &mut lines);
+    }
+    lines
+}
+
+fn classic_message_text(text: &str) -> String {
+    classic_results_lines(text).join("\n")
+}
+
+fn byte_index_for_char_width(text: &str, width: usize) -> usize {
+    if width == 0 {
+        return 0;
+    }
+    let mut count = 0usize;
+    for (idx, ch) in text.char_indices() {
+        if count == width {
+            return idx;
+        }
+        count += 1;
+        if idx + ch.len_utf8() == text.len() && count <= width {
+            return text.len();
+        }
+    }
+    text.len()
+}
+
+fn char_width(text: &str) -> usize {
+    text.chars().count()
+}
+
+fn wrap_classic_paragraph(paragraph: &str, width: usize, lines: &mut Vec<String>) {
+    let mut current = String::new();
+    for word in paragraph.split_whitespace() {
+        let word_width = char_width(word);
+        if current.is_empty() {
+            if word_width <= width {
+                current.push_str(word);
+            } else {
+                push_split_long_word(word, width, lines, &mut current);
+            }
+            continue;
+        }
+
+        let candidate_width = char_width(&current) + 1 + word_width;
+        if candidate_width <= width {
+            current.push(' ');
+            current.push_str(word);
+        } else {
+            lines.push(std::mem::take(&mut current));
+            if word_width <= width {
+                current.push_str(word);
+            } else {
+                push_split_long_word(word, width, lines, &mut current);
+            }
+        }
+    }
+    if !current.is_empty() {
+        lines.push(current);
+    }
+}
+
+fn push_split_long_word(
+    word: &str,
+    width: usize,
+    lines: &mut Vec<String>,
+    current: &mut String,
+) {
+    let mut chunk = String::new();
+    for ch in word.chars() {
+        if char_width(&chunk) == width {
+            lines.push(std::mem::take(&mut chunk));
+        }
+        chunk.push(ch);
+    }
+    if chunk.is_empty() {
+        return;
+    }
+    if char_width(&chunk) == width {
+        lines.push(chunk);
+    } else {
+        current.push_str(&chunk);
     }
 }
 
@@ -966,7 +1078,7 @@ fn generate_report_entries(
                 );
                 entries.push(ReportEntry {
                     text: format!("{header}{contact_body}"),
-                    kind: 0x07,
+                    kind: 0x05,
                     tail: RESULTS_TAIL_SCOUTING,
                     target: ReportTarget::Both { recipient: event.viewer_empire_raw },
                 });
@@ -986,7 +1098,7 @@ fn generate_report_entries(
                 };
                 entries.push(ReportEntry {
                     text: format!("{header}{identified_body}"),
-                    kind: 0x07,
+                    kind: 0x06,
                     tail: RESULTS_TAIL_SCOUTING,
                     target: ReportTarget::Both { recipient: event.viewer_empire_raw },
                 });
@@ -1010,7 +1122,7 @@ fn generate_report_entries(
                 };
                 entries.push(ReportEntry {
                     text: format!("{header}{body}"),
-                    kind: 0x07,
+                    kind: 0x06,
                     tail: RESULTS_TAIL_SCOUTING,
                     target: ReportTarget::Both { recipient: event.viewer_empire_raw },
                 });
@@ -1034,7 +1146,7 @@ fn generate_report_entries(
                 };
                 entries.push(ReportEntry {
                     text: format!("{header}{body}"),
-                    kind: 0x07,
+                    kind: 0x06,
                     tail: RESULTS_TAIL_SCOUTING,
                     target: ReportTarget::Both { recipient: event.viewer_empire_raw },
                 });
@@ -1846,13 +1958,12 @@ pub(crate) fn build_results_dat(game_data: &mut CoreGameData, events: &Maintenan
         } else {
             0
         };
-        let header_tail = classic_results_chain_tail_for_year(entry.tail, year, chain_id, next_chain_id);
-        let continuation_tail = classic_results_chain_tail_for_year(entry.tail, year, chain_id, 0);
+        let report_tail =
+            classic_results_chain_tail_for_year(entry.tail, year, chain_id, next_chain_id);
         push_classic_results_chunked(
             &mut results,
             entry.kind,
-            header_tail,
-            continuation_tail,
+            report_tail,
             &entry.text,
         );
 
@@ -1907,7 +2018,7 @@ pub(crate) fn build_messages_dat(
             recipient,
             entry.kind,
             classic_results_tail_for_year(entry.tail, year),
-            &entry.text,
+            &classic_message_text(&entry.text),
         );
     }
 

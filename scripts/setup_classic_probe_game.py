@@ -224,6 +224,39 @@ def build_classic_results_records(
     routed_entries: list[tuple[int, bytes, str]],
     prefix: str,
 ) -> bytes:
+    def wrap_text(text: str, width: int) -> list[str]:
+        words = text.split()
+        if not words:
+            return []
+        lines: list[str] = []
+        current = words[0]
+        for word in words[1:]:
+            if len(current) + 1 + len(word) <= width:
+                current += " " + word
+            else:
+                lines.append(current)
+                current = word
+        lines.append(current)
+        return lines
+
+    def classic_lines(text: str) -> list[str]:
+        if "\n" in text:
+            raw_lines = [line.rstrip() for line in text.splitlines() if line.strip()]
+            lines: list[str] = []
+            for idx, line in enumerate(raw_lines):
+                if idx == 0:
+                    lines.append(line[:CLASSIC_RESULTS_TEXT_SIZE])
+                elif len(line) <= CLASSIC_RESULTS_TEXT_SIZE:
+                    lines.append(line)
+                else:
+                    lines.extend(wrap_text(line, CLASSIC_RESULTS_TEXT_SIZE))
+            return lines
+        header = text[:CLASSIC_RESULTS_TEXT_SIZE]
+        body = text[CLASSIC_RESULTS_TEXT_SIZE:].strip()
+        lines = [header]
+        lines.extend(wrap_text(body, CLASSIC_RESULTS_TEXT_SIZE))
+        return lines
+
     filtered: list[tuple[int, bytes, str]] = []
     for kind, tail_suffix, text in routed_entries:
         if not text.startswith(prefix):
@@ -235,12 +268,8 @@ def build_classic_results_records(
     if not filtered:
         return b""
 
-    record_counts = [
-        (len(text.encode("cp437", errors="replace")) + CLASSIC_RESULTS_TEXT_SIZE - 1)
-        // CLASSIC_RESULTS_TEXT_SIZE
-        + 1
-        for _, _, text in filtered
-    ]
+    report_lines = [classic_lines(text) for _, _, text in filtered]
+    record_counts = [len(lines) + 1 for lines in report_lines]
     header_record_indexes: list[int] = []
     next_header_record_index = 0
     for record_count in record_counts:
@@ -253,25 +282,19 @@ def build_classic_results_records(
         next_chain_id = (
             header_record_indexes[idx + 1] + 1 if idx + 1 < len(header_record_indexes) else 0
         )
-        header_tail = bytearray(tail_template)
-        header_tail[0:2] = chain_id.to_bytes(2, "little")
-        header_tail[2:4] = b"\x00\x00"
-        header_tail[4:6] = next_chain_id.to_bytes(2, "little")
-        header_tail[6:8] = b"\x00\x00"
+        report_tail = bytearray(tail_template)
+        report_tail[0:2] = chain_id.to_bytes(2, "little")
+        report_tail[2:4] = b"\x00\x00"
+        report_tail[4:6] = next_chain_id.to_bytes(2, "little")
+        report_tail[6:8] = b"\x00\x00"
 
-        continuation_tail = bytearray(tail_template)
-        continuation_tail[0:2] = chain_id.to_bytes(2, "little")
-        continuation_tail[2:4] = b"\x00\x00"
-        continuation_tail[4:8] = b"\x00\x00\x00\x00"
-
-        payload = text.encode("cp437", errors="replace")
-        for chunk_idx in range(0, len(payload), CLASSIC_RESULTS_TEXT_SIZE):
-            chunk = payload[chunk_idx : chunk_idx + CLASSIC_RESULTS_TEXT_SIZE]
+        for line in report_lines[idx]:
+            chunk = line.encode("cp437", errors="replace")
             record = bytearray(CLASSIC_RECORD_SIZE)
             record[0] = kind
             record[1] = len(chunk)
             record[2 : 2 + len(chunk)] = chunk
-            record[74:84] = header_tail if chunk_idx == 0 else continuation_tail
+            record[74:84] = report_tail
             output.extend(record)
 
         eot = END_OF_TRANSMISSION.encode("cp437")
@@ -279,7 +302,7 @@ def build_classic_results_records(
         record[0] = kind
         record[1] = len(eot)
         record[2 : 2 + len(eot)] = eot
-        record[74:84] = continuation_tail
+        record[74:84] = report_tail
         output.extend(record)
 
     return bytes(output)

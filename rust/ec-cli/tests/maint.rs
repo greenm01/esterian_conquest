@@ -50,6 +50,29 @@ fn result_header_record_indexes(records: &[&[u8]]) -> Vec<usize> {
         .collect()
 }
 
+fn result_record_text(record: &[u8]) -> String {
+    let used = record[1] as usize;
+    String::from_utf8_lossy(&record[2..2 + used.min(72)]).into_owned()
+}
+
+fn logical_result_reports(records: &[&[u8]]) -> Vec<(u8, Vec<String>)> {
+    let header_indexes = result_header_record_indexes(records);
+    let mut reports = Vec::new();
+    for (pos, start) in header_indexes.iter().enumerate() {
+        let end = header_indexes
+            .get(pos + 1)
+            .copied()
+            .unwrap_or(records.len());
+        let kind = records[*start][0];
+        let lines = records[*start..end]
+            .iter()
+            .map(|record| result_record_text(record))
+            .collect::<Vec<_>>();
+        reports.push((kind, lines));
+    }
+    reports
+}
+
 #[test]
 fn maint_rust_econ_updates_database_owner_intel_from_post_combat_planet_state() {
     let target = unique_temp_dir("ec-cli-maint-rust-econ");
@@ -263,8 +286,8 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     );
     assert_eq!(
         u16::from_le_bytes([records[1][78], records[1][79]]),
-        0,
-        "continuation records should not clone the header next-id"
+        first_next_id,
+        "continuation records should preserve the report's next header id"
     );
     let eot = records
         .iter()
@@ -277,8 +300,8 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     );
     assert_eq!(
         u16::from_le_bytes([eot[78], eot[79]]),
-        0,
-        "EOT should not advertise a new report id"
+        first_next_id,
+        "EOT should preserve the report's next header id"
     );
     assert_eq!(post.player.records[0].classic_results_chain_flag_raw(), 1);
     assert_eq!(
@@ -307,6 +330,127 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     );
     assert!(text.contains("Initial observed hostile composition:"));
     assert!(text.contains("For Empire #"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_scout_contact_and_identify_use_classic_result_kinds() {
+    let target = unique_temp_dir("ec-cli-maint-rust-classic-scout-kinds");
+    copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
+    write_mutual_enemy_diplomacy(&target, 1, 2);
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let records = results_records(&results);
+
+    let sensor_contact = records
+        .iter()
+        .find(|record| {
+            let used = record[1] as usize;
+            String::from_utf8_lossy(&record[2..2 + used.min(72)])
+                .contains("Sensor contact shows an alien fleet")
+        })
+        .expect("expected sensor contact report");
+    assert_eq!(
+        sensor_contact[0], 0x05,
+        "initial scout contact should use classic kind 0x05"
+    );
+
+    let identified = records
+        .iter()
+        .find(|record| {
+            let used = record[1] as usize;
+            String::from_utf8_lossy(&record[2..2 + used.min(72)])
+                .contains("We have located and identified the alien fleet")
+        })
+        .expect("expected identified scout report");
+    assert_eq!(
+        identified[0], 0x06,
+        "identified scout follow-up should use classic kind 0x06"
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_results_emit_left_justified_wrapped_lines_without_generic_fleet_headers() {
+    let target = unique_temp_dir("ec-cli-maint-rust-classic-results-lines");
+    copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
+    write_mutual_enemy_diplomacy(&target, 1, 2);
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let records = results_records(&results);
+    for record in &records {
+        let line = result_record_text(record);
+        assert!(
+            line.chars().count() <= 72,
+            "classic RESULTS line exceeded width: {:?}",
+            line
+        );
+        if !line.starts_with("From ") && line != "<end of transmission>" {
+            assert!(
+                !line.starts_with(' '),
+                "body lines should be left-justified: {:?}",
+                line
+            );
+        }
+    }
+
+    let normalized = decode_chunked_report(&results);
+    assert!(
+        !normalized.contains("From your fleet, located"),
+        "fleet-origin reports should name a specific fleet: {:?}",
+        normalized
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_scout_contact_and_identify_are_separate_classic_reports() {
+    let target = unique_temp_dir("ec-cli-maint-rust-classic-scout-boundaries");
+    copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
+    write_mutual_enemy_diplomacy(&target, 1, 2);
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let reports = logical_result_reports(&results_records(&results));
+    let sensor_idx = reports
+        .iter()
+        .position(|(_, lines)| {
+            lines
+                .iter()
+                .any(|line| line.contains("Sensor contact shows an alien fleet"))
+        })
+        .expect("expected sensor contact report");
+    let identify_idx = reports
+        .iter()
+        .position(|(_, lines)| {
+            lines
+                .iter()
+                .any(|line| line.contains("We have located and identified the alien fleet"))
+        })
+        .expect("expected identified report");
+
+    assert_eq!(sensor_idx + 1, identify_idx);
+    assert_eq!(reports[sensor_idx].0, 0x05);
+    assert_eq!(reports[identify_idx].0, 0x06);
+    assert_eq!(
+        reports[sensor_idx].1.last().map(String::as_str),
+        Some("<end of transmission>")
+    );
+    assert_eq!(
+        reports[identify_idx].1.last().map(String::as_str),
+        Some("<end of transmission>")
+    );
 
     cleanup_dir(&target);
 }
@@ -1325,10 +1469,14 @@ fn maint_rust_roe_withdrawal_generates_composition_and_loss_report() {
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    let text = decode_chunked_report(&results);
-    assert!(text.contains("withdrew under our ROE"));
-    assert!(text.contains("Initial observed hostile composition:"));
-    assert!(text.contains("We observed enemy losses of"));
+    let lines = results_records(&results)
+        .into_iter()
+        .map(result_record_text)
+        .collect::<Vec<_>>();
+    let normalized = lines.join(" ");
+    assert!(normalized.contains("withdrew under our ROE"));
+    assert!(normalized.contains("Initial observed hostile composition:"));
+    assert!(normalized.contains("We observed enemy losses of"));
 
     cleanup_dir(&target);
 }

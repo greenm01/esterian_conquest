@@ -488,6 +488,15 @@ fn single_named_fleet_id(game_data: &CoreGameData, fleet_indices: &[usize]) -> O
     }
 }
 
+fn preferred_reporting_fleet_id(game_data: &CoreGameData, fleet_indices: &[usize]) -> Option<u8> {
+    fleet_indices
+        .iter()
+        .filter_map(|idx| game_data.fleets.records.get(*idx))
+        .map(|fleet| fleet.fleet_id())
+        .filter(|fleet_id| *fleet_id != 0)
+        .min()
+}
+
 fn starbase_count_at(game_data: &CoreGameData, coords: [u8; 2], owner: u8) -> u32 {
     game_data
         .bases
@@ -1220,7 +1229,8 @@ pub(crate) fn process_fleet_battles(
                 })
                 .map(|tf| tf.empire)
                 .collect();
-            let reporting_fleet_id = single_named_fleet_id(game_data, &after_tf.fleet_indices);
+            let reporting_fleet_id =
+                preferred_reporting_fleet_id(game_data, &after_tf.fleet_indices);
             let primary_enemy_fleet_id = task_forces
                 .iter()
                 .filter(|tf| tf.empire != empire && tf.state.has_units())
@@ -1698,7 +1708,7 @@ pub(crate) fn process_planetary_assaults(
                 events.bombard_events.push(BombardEvent {
                     planet_idx,
                     attacker_empire_raw: winner_empire,
-                    attacker_fleet_id: single_named_fleet_id(game_data, &winner_fleets),
+                    attacker_fleet_id: preferred_reporting_fleet_id(game_data, &winner_fleets),
                     defender_empire_raw: game_data.planets.records[planet_idx]
                         .owner_empire_slot_raw(),
                     attacker_initial: ship_counts_from_state(&before),
@@ -1840,7 +1850,7 @@ pub(crate) fn process_planetary_assaults(
                         }
                         events.assault_report_events.push(AssaultReportEvent {
                             kind: Mission::InvadeWorld,
-                            attacker_fleet_id: single_named_fleet_id(game_data, &winner_fleets),
+                            attacker_fleet_id: preferred_reporting_fleet_id(game_data, &winner_fleets),
                             planet_idx,
                             attacker_empire_raw: winner_empire,
                             defender_empire_raw: previous_owner,
@@ -1879,7 +1889,7 @@ pub(crate) fn process_planetary_assaults(
                         }
                         events.assault_report_events.push(AssaultReportEvent {
                             kind: Mission::InvadeWorld,
-                            attacker_fleet_id: single_named_fleet_id(game_data, &winner_fleets),
+                            attacker_fleet_id: preferred_reporting_fleet_id(game_data, &winner_fleets),
                             planet_idx,
                             attacker_empire_raw: winner_empire,
                             defender_empire_raw: previous_owner,
@@ -1919,7 +1929,7 @@ pub(crate) fn process_planetary_assaults(
                     }
                     events.assault_report_events.push(AssaultReportEvent {
                         kind: Mission::InvadeWorld,
-                        attacker_fleet_id: single_named_fleet_id(game_data, &winner_fleets),
+                        attacker_fleet_id: preferred_reporting_fleet_id(game_data, &winner_fleets),
                         planet_idx,
                         attacker_empire_raw: winner_empire,
                         defender_empire_raw: previous_owner,
@@ -2023,7 +2033,7 @@ pub(crate) fn process_planetary_assaults(
                     }
                     events.assault_report_events.push(AssaultReportEvent {
                         kind: Mission::BlitzWorld,
-                        attacker_fleet_id: single_named_fleet_id(game_data, &winner_fleets),
+                        attacker_fleet_id: preferred_reporting_fleet_id(game_data, &winner_fleets),
                         planet_idx,
                         attacker_empire_raw: winner_empire,
                         defender_empire_raw: previous_owner,
@@ -2061,7 +2071,7 @@ pub(crate) fn process_planetary_assaults(
                     }
                     events.assault_report_events.push(AssaultReportEvent {
                         kind: Mission::BlitzWorld,
-                        attacker_fleet_id: single_named_fleet_id(game_data, &winner_fleets),
+                        attacker_fleet_id: preferred_reporting_fleet_id(game_data, &winner_fleets),
                         planet_idx,
                         attacker_empire_raw: winner_empire,
                         defender_empire_raw: previous_owner,
