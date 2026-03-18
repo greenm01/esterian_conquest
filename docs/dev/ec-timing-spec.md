@@ -257,35 +257,50 @@ Practical interpretation:
 - timing-window constants for the recovered late scheduler path are bounded
 - `CONQUEST.DAT[0x03..0x09]` is the maintenance-schedule block consulted by the
   outer schedule gate
+- for implementation depth, the schedule gate is now best treated as:
+  - current day-of-week query
+  - `CONQUEST.DAT[0x03..0x09]` raw schedule bytes
+  - no additional `CONQUEST.DAT` control field is currently required by the
+    recovered model
 - `2000:945b` is best treated as a schedule/status timestamp helper, not the
   player-report `Stardate` formatter
+- player-report generation sits in the late output tail reached from
+  `2000:8652 -> 2000:1da6 -> 2000:0c06 -> 2000:56be`
+- rankings generation sits in the optional late output branch
+  `2000:8665 -> 2000:7659`
+- no recovered dedicated core `.DAT` field stores the weekly tick:
+  - the recovered scheduler computes week placement in runtime/scratch state
+  - the visible week then persists in emitted text outputs rather than as a
+    named durable campaign-state field
 
-## Still Open
+## Implementation-Relevant Open Questions
 
-- where the player-report `Stardate: <week>/<year>` text is actually formatted
-- where the separate year-only rankings `Stardate: YYYY A.D.` banner text is
-  formatted
-- whether the weekly tick value is ever persisted durably or exists only in
-  scratch/runtime state during maintenance
-- whether the schedule gate uses only `CONQUEST.DAT[0x03..0x09]` or also reads
-  additional control fields
 - what exact semantic families feed the remaining non-durable local timing
   codes `1` and `2`
 - how the internal `1..52` tick is assigned to specific
   movement/combat/report events within a yearly maintenance run
 
+These are the remaining timing questions that still matter directly for the
+Rust clone, because they affect visible `Stardate` values and weekly report
+ordering.
+
+## Low-Value Remaining RE Trivia
+
+- which exact helper(s) inside the late player-report tail append the
+  `Stardate: <week>/<year>` header fragment
+- which exact helper(s) inside the optional rankings branch emit the year-only
+  `Stardate: YYYY A.D.` banner text
+
+These are still mildly interesting RE targets, but they do not block Rust
+implementation now that the output contract and phase placement are already
+recovered.
+
 ## Next RE Targets
 
-- trace the real player-report formatter/emitter path from the preserved
-  `Stardate` string anchors instead of from `2000:945b`
-- isolate the separate rankings-header path that emits the year-only rankings
-  `Stardate` banner
-- determine whether the week value is ever written to durable files or only
-  carried in stack/scratch locals during maintenance
-- tighten the schedule-gate consumer path beyond the already-confirmed
-  `CONQUEST.DAT[0x03..0x09]` schedule bytes
 - relate remaining local timing codes `1` and `2` back to concrete report or
   event families
+- tighten the mapping from concrete event families to same-week vs later-week
+  placement inside the `1..52` scheduler
 
 ## Strongest Late-Scheduler Static Path
 
