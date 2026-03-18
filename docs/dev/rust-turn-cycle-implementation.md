@@ -12,7 +12,7 @@ describe the turn-cycle as a practical engine/state-machine problem:
 - what each phase is responsible for
 - what state each phase may read or write
 - which boundaries are settled
-- which parts of step `4` are still provisional
+- which parts of step `4` remain open for refinement
 
 For raw oracle evidence and confidence notes, use the canonical spec.
 
@@ -33,7 +33,6 @@ It deliberately avoids:
 
 - low-level byte-field inventories
 - speculative semantic naming for still-unknown fields
-- pretending step `4` is fully recovered when it is not
 
 ## One-Page Model
 

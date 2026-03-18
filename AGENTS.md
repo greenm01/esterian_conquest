@@ -89,9 +89,10 @@ If the task is DOSBox-heavy, also check:
 - `docs/` holds stable engineering guidance and milestone docs
 - historical or bulky handoff detail shall be archived outside
   `docs/next-session.md`, for example in `docs/dev/archive/next-session-archive.md`
-- when a significant RE finding lands, update both:
+- the RE phase is complete for implementation; new findings are refinements only
+- if new RE evidence arises (edge cases, expanded oracle testing), update:
   - `docs/dev/archive/RE_NOTES.md`
-  - the relevant stable doc, usually `docs/next-session.md` and/or `docs/approach.md`
+  - the relevant spec doc, if the finding changes implementation guidance
 - prefer headless Ghidra scripts and reproducible artifacts over ad hoc manual notes
 - do not treat guessed semantics as settled; keep unknown fields raw until supported
 - agents shall check the shipped game docs in `original/v1.5/*.DOC` before

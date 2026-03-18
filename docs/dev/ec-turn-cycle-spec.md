@@ -3,9 +3,10 @@
 This document records the current best recovery of the original
 `ECMAINT.EXE` turn cycle.
 
-The goal is to specify the oracle's phase order, not Rust policy. Where the
-original ordering is not yet fully decoded, this document marks the gap
-explicitly instead of filling it with guessed semantics.
+The goal is to specify the oracle's phase order, not Rust policy. The
+reverse-engineering effort is complete for implementation purposes; where
+minor gaps remain, this document notes them explicitly instead of filling
+with guessed semantics.
 
 For the implementation-facing companion that describes the same process as a
 Rust engine/state-machine problem, use
