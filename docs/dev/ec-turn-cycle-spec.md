@@ -311,23 +311,55 @@ Confidence: `High`
   phase
 - this is the strongest recovered named phase boundary in the binary so far
 
-#### 4b. Arrival and assault resolution are not always the same yearly step
+#### 4b. The 52-week fleet loop is event scheduling, not physics simulation
 
 Confidence: `High`
 
-Black-box proof:
+Source: stardate analysis, tuple field analysis, and fixture diffs
+(Phase C, 2026-03-17).
 
-- controlled bombardment fixtures showed:
-  - year 1: fleet moves into bombard position
-  - year 2: bombard order is consumed and losses are applied
-- this means "reach target orbit" and "execute bombardment" can be separate
-  yearly maintenance steps
+Key evidence:
 
-Practical meaning:
+- fleet-battle: fleet 8 (speed 3, 1 sector from (9,10) to (10,10))
+  produces a contact report at stardate **50/3010**. If movement were
+  per-week at speed 3 (arrival at week ~17), the contact would be at
+  week ~19 (code 1 offset +2). Week 50 is inconsistent with per-week
+  movement — the 52-week loop is scheduling report emission, not
+  simulating fleet physics.
 
-- the simulation core includes at least:
-  - movement/arrival
-  - later mission execution for fleets already in position
+- fleet tuple_c field (`+0x19..+0x1E`) is a Borland Pascal Real48 that
+  changes from `1.0` to `~0.9999` during movement tick and reverts to
+  `1.0` when the mission resolves. Pre/post fixture comparison shows
+  tuples are identical — they are **scratch state** used during yearly
+  processing, not persistent fleet data.
+
+- `Move.Tok` exists as a separate crash-recovery phase boundary, distinct
+  from the 52-week loop.
+
+- PLANETS.DAT is never accessed during the fleet loop — planet-side
+  effects are annual, not per-week.
+
+Structural conclusion:
+
+- **movement is an annual position update**, not per-week incremental
+  advance. Fleet positions are updated once per year (storing fractional
+  travel state in tuple_c for multi-year journeys).
+- **the 52-week loop processes encounter detection, combat resolution,
+  and report scheduling** from post-movement positions.
+- the weekly stardate assigned to each event comes from the timing-code
+  system (codes 1-8 with their offsets and minimum-week floors), not
+  from the physical arrival time.
+
+Per-fleet-per-week inner body:
+
+1. Read fleet record
+2. Check if this fleet has events to emit this week (timing-window test)
+3. If co-located hostile: resolve combat + emit RESULTS.DAT inline
+4. Update weekly event state in fleet record
+5. Write fleet record
+
+This replaces the earlier "4b. Arrival and assault resolution" section
+with a stronger structural model.
 
 #### 4c. A real intra-year weekly scheduler participates in outcomes
 
