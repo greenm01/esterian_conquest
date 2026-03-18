@@ -34,7 +34,7 @@ use crate::commands::planet_build::{
     print_planet_build_report, set_planet_build, set_planet_name, set_planet_owner,
     set_planet_potential, set_planet_stardock_slot, set_planet_stats, set_planet_stored,
 };
-use crate::commands::player_setup::{prepare_classic_login, set_player_name};
+use crate::commands::player_setup::{join_player, prepare_classic_login, set_player_name};
 
 use crate::commands::bombard::{init_bombard, init_bombard_batch, set_bombard_onefleet};
 use crate::commands::econ::{init_econ, init_econ_batch, set_econ};
@@ -597,6 +597,29 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
                 parse_usize_1_based(&player_index, "player record index")?,
                 &handle,
                 &empire_name,
+            )?;
+        }
+        "player-join" => {
+            let dir = next_dir(&mut args);
+            let Some(player_index) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(caller_alias) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(empire_name) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let homeworld_name = args.next();
+            join_player(
+                &dir,
+                parse_usize_1_based(&player_index, "player record index")?,
+                &caller_alias,
+                &empire_name,
+                homeworld_name.as_deref(),
             )?;
         }
         "classic-login-prepare" => {

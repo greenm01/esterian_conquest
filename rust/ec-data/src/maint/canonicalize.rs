@@ -453,8 +453,10 @@ mod tests {
         let mut events = MaintenanceEvents::default();
         events.fleet_battle_events.push(FleetBattleEvent {
             reporting_empire_raw: 1,
+            reporting_fleet_id: Some(1),
             coords: [5, 5],
             enemy_empires_raw: vec![2],
+            primary_enemy_fleet_id: Some(5),
             held_field: true,
             friendly_losses: ShipLosses::default(),
             enemy_initial: ShipLosses::default(),

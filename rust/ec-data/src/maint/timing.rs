@@ -145,7 +145,8 @@ pub fn format_stardate(week: u8, year: u16) -> String {
 /// Format the first-line header for a player report entry.
 ///
 /// Classic EC places the `Stardate` right-justified on the same line as the
-/// source clause, with intervening spaces to fill to the record text width (75
+/// source clause, with intervening spaces to fill to the classic results-text
+/// payload width (72
 /// characters).
 ///
 /// ```text
@@ -153,10 +154,10 @@ pub fn format_stardate(week: u8, year: u16) -> String {
 /// ```
 ///
 /// `source_clause` should be the full "From …" phrase without a trailing
-/// newline.  The function pads with spaces so the combined length reaches 75
+/// newline.  The function pads with spaces so the combined length reaches 72
 /// characters (or inserts a single space if the clause is already too long).
 pub fn format_report_first_line(source_clause: &str, week: u8, year: u16) -> String {
-    const LINE_WIDTH: usize = 75;
+    const LINE_WIDTH: usize = 72;
     let stardate = format_stardate(week, year);
     let combined_min = source_clause.len() + 1 + stardate.len(); // at least one space
     if combined_min >= LINE_WIDTH {
@@ -240,6 +241,6 @@ mod tests {
         let source = "From your 1st Fleet, located in System(13,15)";
         let line = format_report_first_line(source, 32, 3001);
         assert!(line.ends_with("Stardate: 32/3001"));
-        assert!(line.len() == 75 || line.contains("  "), "should pad to 75 chars");
+        assert!(line.len() == 72 || line.contains("  "), "should pad to 72 chars");
     }
 }

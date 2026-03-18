@@ -130,11 +130,15 @@ impl MainMenuSummary {
             .records
             .get(player_record_index_1_based - 1);
         let pending_results = player_record
-            .map(|record| record.classic_reports_pending_flag_raw() != 0)
+            .map(|record| {
+                record.has_classic_results_chain_state()
+                    || record.has_classic_results_review_state()
+                    || record.has_any_classic_review_state()
+            })
             .unwrap_or(false)
             || results_bytes_present;
         let pending_messages = player_record
-            .map(|record| record.classic_messages_pending_flag_raw() != 0)
+            .map(|record| record.has_classic_messages_review_state() || record.has_any_classic_review_state())
             .unwrap_or(false)
             || messages_bytes_present;
 

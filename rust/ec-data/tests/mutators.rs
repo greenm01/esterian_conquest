@@ -107,6 +107,27 @@ fn controlled_empire_name_setter_does_not_clobber_later_player_fields() {
 }
 
 #[test]
+fn classic_login_reviewables_helper_mirrors_both_review_families() {
+    let mut record = PlayerRecord::new_zeroed();
+
+    record.set_classic_login_reviewables_present(true);
+    assert_eq!(record.classic_message_review_word_raw(), 1);
+    assert_eq!(record.classic_message_review_carry_word_raw(), 0);
+    assert_eq!(record.classic_results_review_word_raw(), 1);
+    assert_eq!(record.classic_results_review_carry_word_raw(), 0);
+    assert!(record.has_classic_messages_review_state());
+    assert!(record.has_classic_results_review_state());
+    assert!(record.has_any_classic_review_state());
+
+    record.set_classic_login_reviewables_present(false);
+    assert_eq!(record.classic_message_review_word_raw(), 0);
+    assert_eq!(record.classic_message_review_carry_word_raw(), 0);
+    assert_eq!(record.classic_results_review_word_raw(), 0);
+    assert_eq!(record.classic_results_review_carry_word_raw(), 0);
+    assert!(!record.has_any_classic_review_state());
+}
+
+#[test]
 fn rename_owned_planet_updates_name_for_matching_owner() {
     let mut planet = PlanetRecord::new_zeroed();
     planet.set_owner_empire_slot_raw(1);

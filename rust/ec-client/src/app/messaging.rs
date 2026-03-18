@@ -423,8 +423,8 @@ impl App {
             .records
             .get_mut(self.player.record_index_1_based - 1)
         {
-            player.set_classic_reports_pending_flag_raw(0);
-            player.set_classic_messages_pending_flag_raw(0);
+            player.set_classic_login_reviewables_present(false);
+            player.set_classic_results_chain_state(false, 0);
         }
         self.save_game_data()?;
         let refreshed = ReportsPreview::from_bytes(&self.results_bytes, &self.messages_bytes);
@@ -557,4 +557,3 @@ fn vertical_cursor_target(body: &str, cursor_index: usize, delta: isize) -> usiz
     let target_len = target_line_end.saturating_sub(target_line_start);
     target_line_start + column.min(target_len)
 }
-

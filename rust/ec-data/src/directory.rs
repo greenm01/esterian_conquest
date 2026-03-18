@@ -755,6 +755,7 @@ impl CoreGameData {
         player.set_tax_rate_raw(tax_rate);
         player.set_ipbm_count_raw(ipbm_count);
         player.set_autopilot_flag(0);
+        player.set_last_run_year_raw(self.conquest.game_year());
         if homeworld_planet_index_1_based != 0 {
             player.set_homeworld_planet_index_1_based_raw(homeworld_planet_index_1_based as u8);
             if let Some(planet) = self

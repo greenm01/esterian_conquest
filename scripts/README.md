@@ -7,6 +7,8 @@ These scripts are intended for:
 
 - creating fresh joinable test games quickly
 - creating richer stress-test campaigns for UI work
+- creating classic-probe campaigns that open in original `ECGAME` with a busy
+  player-1 report backlog
 - launching `ec-client` against a chosen campaign and player seat
 
 The current boundary is:
@@ -79,6 +81,44 @@ Use this when you want:
 - more meaningful general/intel screens
 - a useful maintenance test bed
 
+### `setup_classic_probe_game.py`
+
+Creates a fresh four-player Rust-backed campaign aimed at classic `ECGAME`
+playback and display checking.
+
+It currently:
+
+- creates a fresh `sysop new-game` directory
+- names all four players and empires
+- gives player 1 multiple owned worlds and a busier fleet roster
+- seeds nearby hostile target worlds and incoming enemy fleets
+- runs several Rust maint turns so `RESULTS.DAT` contains a busy maint-report
+  backlog when player 1 logs in
+- clears routed `MESSAGES.DAT` output back out of the classic probe directory,
+  because original `ECGAME` can display the maint reports from `RESULTS.DAT`
+  but the Rust-only routed `MESSAGES.DAT` format is not classic-compatible
+- prepares the classic login alias for player 1
+- launches original `ECGAME` through DOSBox-X unless `--no-launch` is used
+
+Example:
+
+```bash
+python3 scripts/setup_classic_probe_game.py /tmp/ec-classic-probe --force
+```
+
+Dry-run example:
+
+```bash
+python3 scripts/setup_classic_probe_game.py /tmp/ec-classic-probe --force --no-launch
+```
+
+Use this when you want:
+
+- the original DOS client, not `ec-client`
+- a busy unread-report backlog for player 1
+- multiple fleets and planets to inspect in classic menus
+- a practical hybrid-loop smoke test after Rust maint changes
+
 ### `run_client.py`
 
 Launches the Rust client against a chosen campaign directory and player seat.
@@ -109,6 +149,12 @@ python3 scripts/run_client.py /tmp/ec-join-test --player 1
 ```bash
 python3 scripts/setup_ui_stress_game.py /tmp/ec-ui-stress --force
 python3 scripts/run_client.py /tmp/ec-ui-stress --player 1
+```
+
+### Classic ECGAME playback test
+
+```bash
+python3 scripts/setup_classic_probe_game.py /tmp/ec-classic-probe --force
 ```
 
 ### Maintenance regression pass on a scripted game

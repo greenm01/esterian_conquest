@@ -22,6 +22,8 @@ pub struct BombardEvent {
     pub planet_idx: usize,
     /// Attacking fleet's owner_empire_raw (1-based player index).
     pub attacker_empire_raw: u8,
+    /// Attacking fleet ID when one specific fleet can be named.
+    pub attacker_fleet_id: Option<u8>,
     /// Defending empire that should receive the bombardment report, if any.
     pub defender_empire_raw: u8,
     /// Initial attacking fleet composition observed by both sides.
@@ -45,6 +47,8 @@ pub struct BombardEvent {
 pub struct AssaultReportEvent {
     /// Fleet mission kind that produced the assault.
     pub kind: Mission,
+    /// Attacking fleet ID when one specific fleet can be named.
+    pub attacker_fleet_id: Option<u8>,
     /// Planet index (into PLANETS.DAT records) that was attacked.
     pub planet_idx: usize,
     /// Acting empire that should receive the attacker-side report.
@@ -102,10 +106,14 @@ pub struct PlanetOwnershipChangeEvent {
 pub struct FleetBattleEvent {
     /// Empire that should receive this battle report.
     pub reporting_empire_raw: u8,
+    /// Reporting fleet ID when one specific fleet can be named.
+    pub reporting_fleet_id: Option<u8>,
     /// Coordinates where the battle took place.
     pub coords: [u8; 2],
     /// Hostile empires this side encountered.
     pub enemy_empires_raw: Vec<u8>,
+    /// Primary hostile fleet ID when one specific enemy fleet can be named.
+    pub primary_enemy_fleet_id: Option<u8>,
     /// Whether the reporting empire held the field after the battle.
     pub held_field: bool,
     /// Exact losses suffered by the reporting empire.
@@ -139,6 +147,8 @@ pub struct FleetDestroyedEvent {
     pub friendly_armies: u32,
     /// Hostile empire if a primary enemy can be named.
     pub primary_enemy_empire_raw: Option<u8>,
+    /// Hostile fleet ID if one specific enemy fleet can be named.
+    pub primary_enemy_fleet_id: Option<u8>,
     /// Week of year (1–52) when this event occurred; None until canonicalized.
     pub stardate_week: Option<u8>,
 }
@@ -158,6 +168,8 @@ pub struct StarbaseDestroyedEvent {
     pub enemy_losses: ShipLosses,
     /// Hostile empire if a primary enemy can be named.
     pub primary_enemy_empire_raw: Option<u8>,
+    /// Hostile fleet ID if one specific enemy fleet can be named.
+    pub primary_enemy_fleet_id: Option<u8>,
     /// Week of year (1–52) when this event occurred; None until canonicalized.
     pub stardate_week: Option<u8>,
 }
@@ -177,10 +189,14 @@ pub struct ScoutContactEvent {
     pub viewer_empire_raw: u8,
     /// Fleet or starbase source that made the contact.
     pub source: ContactReportSource,
+    /// Fleet ID of the reporting fleet when the source is a fleet.
+    pub reporting_fleet_id: Option<u8>,
     /// Coordinates where the contact occurred.
     pub coords: [u8; 2],
     /// Empire that was detected.
     pub target_empire_raw: u8,
+    /// Target fleet ID when one specific hostile fleet can be named.
+    pub target_fleet_id: Option<u8>,
     /// Aggregate "small vessel" count in the detected force.
     pub small_vessels: u32,
     /// Aggregate "medium vessel" count in the detected force.
@@ -324,6 +340,7 @@ pub enum EncounterDispositionEvent {
         mission: Option<Mission>,
         coords: [u8; 2],
         target_empire_raw: u8,
+        target_fleet_id: Option<u8>,
         small_vessels: u32,
         medium_vessels: u32,
         large_vessels: u32,
@@ -337,6 +354,7 @@ pub enum EncounterDispositionEvent {
         mission: Option<Mission>,
         coords: [u8; 2],
         target_empire_raw: u8,
+        target_fleet_id: Option<u8>,
         enemy_initial: ShipLosses,
         retreat_target_coords: [u8; 2],
         losses_sustained: ShipLosses,

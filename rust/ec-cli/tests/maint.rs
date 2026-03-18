@@ -34,6 +34,22 @@ fn decode_chunked_report(bytes: &[u8]) -> String {
         .collect::<String>()
 }
 
+fn results_records(bytes: &[u8]) -> Vec<&[u8]> {
+    bytes.chunks(84).filter(|chunk| chunk.len() == 84).collect()
+}
+
+fn result_header_record_indexes(records: &[&[u8]]) -> Vec<usize> {
+    records
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, record)| {
+            let used = record[1] as usize;
+            let text = String::from_utf8_lossy(&record[2..2 + used.min(72)]);
+            text.starts_with("From ").then_some(idx)
+        })
+        .collect()
+}
+
 #[test]
 fn maint_rust_econ_updates_database_owner_intel_from_post_combat_planet_state() {
     let target = unique_temp_dir("ec-cli-maint-rust-econ");
@@ -224,6 +240,63 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
         &results[82..84],
         &post.conquest.game_year().to_le_bytes(),
         "battle fixture should stamp the current report year into the results tail"
+    );
+    let records = results_records(&results);
+    assert!(!records.is_empty(), "expected RESULTS.DAT records");
+    let header_indexes = result_header_record_indexes(&records);
+    assert!(
+        header_indexes.len() >= 2,
+        "expected multiple logical reports in RESULTS.DAT"
+    );
+    let first_chain_id = u16::from_le_bytes([records[0][74], records[0][75]]);
+    let first_next_id = u16::from_le_bytes([records[0][78], records[0][79]]);
+    assert_eq!(first_chain_id, 0, "first logical report should start with cursor id 0");
+    assert_eq!(
+        first_next_id,
+        (header_indexes[1] + 1) as u16,
+        "header should point at the next header record index plus one"
+    );
+    assert_eq!(
+        u16::from_le_bytes([records[1][74], records[1][75]]),
+        first_chain_id,
+        "continuation should stay on the same report chain id"
+    );
+    assert_eq!(
+        u16::from_le_bytes([records[1][78], records[1][79]]),
+        0,
+        "continuation records should not clone the header next-id"
+    );
+    let eot = records
+        .iter()
+        .find(|record| record[1] == 21 && &record[2..23] == b"<end of transmission>")
+        .expect("expected explicit end-of-transmission record");
+    assert_eq!(
+        u16::from_le_bytes([eot[74], eot[75]]),
+        first_chain_id,
+        "EOT should remain part of the same report chain"
+    );
+    assert_eq!(
+        u16::from_le_bytes([eot[78], eot[79]]),
+        0,
+        "EOT should not advertise a new report id"
+    );
+    assert_eq!(post.player.records[0].classic_results_chain_flag_raw(), 1);
+    assert_eq!(
+        u16::from_le_bytes([
+            records[*header_indexes.last().unwrap()][74],
+            records[*header_indexes.last().unwrap()][75],
+        ]),
+        (header_indexes[header_indexes.len() - 2] + 1) as u16,
+        "later headers should inherit the previous header index plus one"
+    );
+    assert_eq!(
+        post.player.records[0].classic_results_chain_next_free_raw(),
+        (header_indexes.last().copied().unwrap() + 1) as u16,
+        "player review state should advertise the last header index plus one"
+    );
+    assert!(
+        post.player.records[0].classic_results_chain_next_free_raw() >= first_next_id,
+        "player should advertise classic undeleted results"
     );
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
     let text = decode_chunked_report(&messages);

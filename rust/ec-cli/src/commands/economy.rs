@@ -115,12 +115,12 @@ pub(crate) fn print_economy_report(
         player.controlled_empire_name_summary()
     );
     println!(
-        "  tax_rate={} present={} potential={} available={} stored_player_pts={}",
+        "  tax_rate={} present={} potential={} available={} last_run_year={}",
         economy.tax_rate,
         economy.present_production,
         economy.potential_production,
         economy.total_available_points,
-        player.stored_production_pts_raw()
+        player.last_run_year_raw()
     );
     println!(
         "  planets={} rank_planets={} rank_production={} efficiency={:.3}%",

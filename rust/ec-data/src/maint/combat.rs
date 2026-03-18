@@ -420,10 +420,11 @@ fn push_contact_event_for_task_force(
     game_data: &CoreGameData,
     coords: [u8; 2],
     task_force: &TaskForce,
-    target_empire: u8,
-    target_state: &FleetCombatState,
+    target_task_force: &TaskForce,
 ) {
-    let (small_vessels, medium_vessels, large_vessels) = vessel_size_summary(target_state);
+    let (small_vessels, medium_vessels, large_vessels) =
+        vessel_size_summary(&target_task_force.state);
+    let target_fleet_id = single_named_fleet_id(game_data, &target_task_force.fleet_indices);
 
     for &idx in &task_force.fleet_indices {
         let fleet = &game_data.fleets.records[idx];
@@ -433,8 +434,10 @@ fn push_contact_event_for_task_force(
         events.scout_contact_events.push(ScoutContactEvent {
             viewer_empire_raw: fleet.owner_empire_raw(),
             source,
+            reporting_fleet_id: Some(fleet.fleet_id()),
             coords,
-            target_empire_raw: target_empire,
+            target_empire_raw: target_task_force.empire,
+            target_fleet_id,
             small_vessels,
             medium_vessels,
             large_vessels,
@@ -450,13 +453,38 @@ fn push_contact_event_for_task_force(
         events.scout_contact_events.push(ScoutContactEvent {
             viewer_empire_raw: task_force.empire,
             source: ContactReportSource::Starbase(base.base_id_raw()),
+            reporting_fleet_id: None,
             coords,
-            target_empire_raw: target_empire,
+            target_empire_raw: target_task_force.empire,
+            target_fleet_id,
             small_vessels,
             medium_vessels,
             large_vessels,
             stardate_week: None,
         });
+    }
+}
+
+fn single_named_fleet_id(game_data: &CoreGameData, fleet_indices: &[usize]) -> Option<u8> {
+    let named_fleets = fleet_indices
+        .iter()
+        .filter_map(|idx| game_data.fleets.records.get(*idx))
+        .filter(|fleet| {
+            fleet.destroyer_count() > 0
+                || fleet.cruiser_count() > 0
+                || fleet.battleship_count() > 0
+                || fleet.scout_count() > 0
+                || fleet.troop_transport_count() > 0
+                || fleet.etac_count() > 0
+        })
+        .map(|fleet| fleet.fleet_id())
+        .filter(|fleet_id| *fleet_id != 0)
+        .collect::<Vec<_>>();
+
+    if named_fleets.len() == 1 {
+        Some(named_fleets[0])
+    } else {
+        None
     }
 }
 
@@ -781,16 +809,14 @@ pub(crate) fn process_fleet_battles(
                     game_data,
                     coords,
                     left,
-                    right.empire,
-                    &right.state,
+                    right,
                 );
                 push_contact_event_for_task_force(
                     &mut events,
                     game_data,
                     coords,
                     right,
-                    left.empire,
-                    &left.state,
+                    left,
                 );
             }
         }
@@ -995,6 +1021,12 @@ pub(crate) fn process_fleet_battles(
                                 ),
                                 coords,
                                 target_empire_raw: target_empire,
+                                target_fleet_id: task_forces
+                                    .iter()
+                                    .find(|other| other.empire == target_empire)
+                                    .and_then(|other| {
+                                        single_named_fleet_id(game_data, &other.fleet_indices)
+                                    }),
                                 small_vessels: vessel_size_summary(
                                     original_states
                                         .get(&target_empire)
@@ -1128,6 +1160,10 @@ pub(crate) fn process_fleet_battles(
                 .max_by_key(|other| other.state.total_combat_as())
                 .map(|other| other.empire)
                 .unwrap_or(0);
+            let target_fleet_id = task_forces
+                .iter()
+                .find(|other| other.empire == target_empire_raw)
+                .and_then(|other| single_named_fleet_id(game_data, &other.fleet_indices));
             for &idx in &tf.fleet_indices {
                 events
                     .encounter_disposition_events
@@ -1137,6 +1173,7 @@ pub(crate) fn process_fleet_battles(
                         mission: mission_kind_for_order(pre_encounter_orders.get(&idx).copied()),
                         coords,
                         target_empire_raw,
+                        target_fleet_id,
                         enemy_initial: ship_counts_from_state(&enemy_before),
                         retreat_target_coords: game_data.fleets.records[idx]
                             .standing_order_target_coords_raw(),
@@ -1175,13 +1212,26 @@ pub(crate) fn process_fleet_battles(
             let enemy_losses = ship_losses_from_states(&enemy_before, &enemy_after);
             let enemy_empires_raw = task_forces
                 .iter()
-                .filter(|tf| tf.empire != empire && tf.state.has_units())
+                .filter(|tf| {
+                    tf.empire != empire
+                        && original_states
+                            .get(&tf.empire)
+                            .is_some_and(FleetCombatState::has_units)
+                })
                 .map(|tf| tf.empire)
                 .collect();
+            let reporting_fleet_id = single_named_fleet_id(game_data, &after_tf.fleet_indices);
+            let primary_enemy_fleet_id = task_forces
+                .iter()
+                .filter(|tf| tf.empire != empire && tf.state.has_units())
+                .max_by_key(|tf| tf.state.total_combat_as())
+                .and_then(|tf| single_named_fleet_id(game_data, &tf.fleet_indices));
             events.fleet_battle_events.push(FleetBattleEvent {
                 reporting_empire_raw: empire,
+                reporting_fleet_id,
                 coords,
                 enemy_empires_raw,
+                primary_enemy_fleet_id,
                 held_field: winner_empire == Some(empire),
                 friendly_losses,
                 enemy_initial: ship_counts_from_state(&enemy_before),
@@ -1205,6 +1255,11 @@ pub(crate) fn process_fleet_battles(
                     .filter(|tf| tf.empire != empire)
                     .max_by_key(|tf| tf.state.total_combat_as())
                     .map(|tf| tf.empire);
+                let primary_enemy_fleet_id = task_forces
+                    .iter()
+                    .filter(|tf| tf.empire != empire)
+                    .max_by_key(|tf| tf.state.total_combat_as())
+                    .and_then(|tf| single_named_fleet_id(game_data, &tf.fleet_indices));
                 events.fleet_destroyed_events.push(FleetDestroyedEvent {
                     reporting_empire_raw: empire,
                     fleet_id,
@@ -1215,6 +1270,7 @@ pub(crate) fn process_fleet_battles(
                     enemy_losses,
                     friendly_armies,
                     primary_enemy_empire_raw,
+                    primary_enemy_fleet_id,
                     stardate_week: None,
                 });
             }
@@ -1226,6 +1282,11 @@ pub(crate) fn process_fleet_battles(
                     .filter(|tf| tf.empire != empire)
                     .max_by_key(|tf| tf.state.total_combat_as())
                     .map(|tf| tf.empire);
+                let primary_enemy_fleet_id = task_forces
+                    .iter()
+                    .filter(|tf| tf.empire != empire)
+                    .max_by_key(|tf| tf.state.total_combat_as())
+                    .and_then(|tf| single_named_fleet_id(game_data, &tf.fleet_indices));
                 if let Some(lost_ids) = destroyed_starbases_by_empire.get(&empire) {
                     for &starbase_id in lost_ids {
                         events
@@ -1237,6 +1298,7 @@ pub(crate) fn process_fleet_battles(
                                 enemy_initial: ship_counts_from_state(&enemy_before),
                                 enemy_losses,
                                 primary_enemy_empire_raw,
+                                primary_enemy_fleet_id,
                                 stardate_week: None,
                             });
                     }
@@ -1636,6 +1698,7 @@ pub(crate) fn process_planetary_assaults(
                 events.bombard_events.push(BombardEvent {
                     planet_idx,
                     attacker_empire_raw: winner_empire,
+                    attacker_fleet_id: single_named_fleet_id(game_data, &winner_fleets),
                     defender_empire_raw: game_data.planets.records[planet_idx]
                         .owner_empire_slot_raw(),
                     attacker_initial: ship_counts_from_state(&before),
@@ -1777,6 +1840,7 @@ pub(crate) fn process_planetary_assaults(
                         }
                         events.assault_report_events.push(AssaultReportEvent {
                             kind: Mission::InvadeWorld,
+                            attacker_fleet_id: single_named_fleet_id(game_data, &winner_fleets),
                             planet_idx,
                             attacker_empire_raw: winner_empire,
                             defender_empire_raw: previous_owner,
@@ -1815,6 +1879,7 @@ pub(crate) fn process_planetary_assaults(
                         }
                         events.assault_report_events.push(AssaultReportEvent {
                             kind: Mission::InvadeWorld,
+                            attacker_fleet_id: single_named_fleet_id(game_data, &winner_fleets),
                             planet_idx,
                             attacker_empire_raw: winner_empire,
                             defender_empire_raw: previous_owner,
@@ -1854,6 +1919,7 @@ pub(crate) fn process_planetary_assaults(
                     }
                     events.assault_report_events.push(AssaultReportEvent {
                         kind: Mission::InvadeWorld,
+                        attacker_fleet_id: single_named_fleet_id(game_data, &winner_fleets),
                         planet_idx,
                         attacker_empire_raw: winner_empire,
                         defender_empire_raw: previous_owner,
@@ -1957,6 +2023,7 @@ pub(crate) fn process_planetary_assaults(
                     }
                     events.assault_report_events.push(AssaultReportEvent {
                         kind: Mission::BlitzWorld,
+                        attacker_fleet_id: single_named_fleet_id(game_data, &winner_fleets),
                         planet_idx,
                         attacker_empire_raw: winner_empire,
                         defender_empire_raw: previous_owner,
@@ -1994,6 +2061,7 @@ pub(crate) fn process_planetary_assaults(
                     }
                     events.assault_report_events.push(AssaultReportEvent {
                         kind: Mission::BlitzWorld,
+                        attacker_fleet_id: single_named_fleet_id(game_data, &winner_fleets),
                         planet_idx,
                         attacker_empire_raw: winner_empire,
                         defender_empire_raw: previous_owner,

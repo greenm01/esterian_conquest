@@ -796,8 +796,13 @@ impl App {
             .records
             .get_mut(self.player.record_index_1_based - 1)
         {
-            player.set_classic_reports_pending_flag_raw(u8::from(!self.results_bytes.is_empty()));
-            player.set_classic_messages_pending_flag_raw(u8::from(!self.messages_bytes.is_empty()));
+            player.set_classic_login_reviewables_present(
+                !self.results_bytes.is_empty() || !self.messages_bytes.is_empty(),
+            );
+            player.set_classic_results_chain_state(
+                !self.results_bytes.is_empty(),
+                if self.results_bytes.is_empty() { 0 } else { 1 },
+            );
         }
     }
 

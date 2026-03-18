@@ -2681,8 +2681,8 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
     state.results_bytes.clear();
     state.messages_bytes =
         classic_chunked_report_blocks(&["From Alpha\nSubject: One\nBody one", "From Beta\nSubject: Two\nBody two"]);
-    state.game_data.player.records[0].raw[0x30] = 0;
-    state.game_data.player.records[0].raw[0x34] = 1;
+    state.game_data.player.records[0].raw[0x30] = 1;
+    state.game_data.player.records[0].raw[0x34] = 0;
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
@@ -2748,8 +2748,8 @@ fn startup_message_review_shows_end_status_after_deleting_last_message() {
     let mut state = latest_runtime_state(&fixture_dir);
     state.results_bytes.clear();
     state.messages_bytes = classic_chunked_report_bytes("From Alpha\nSubject: One\nBody one");
-    state.game_data.player.records[0].raw[0x30] = 0;
-    state.game_data.player.records[0].raw[0x34] = 1;
+    state.game_data.player.records[0].raw[0x30] = 1;
+    state.game_data.player.records[0].raw[0x34] = 0;
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
@@ -2805,8 +2805,8 @@ fn startup_results_wrap_long_lines_within_the_playfield() {
     let mut state = latest_runtime_state(&fixture_dir);
     state.results_bytes = b"This is a deliberately long startup results line that should wrap cleanly within the eighty column playfield instead of overrunning a single row.".to_vec();
     state.messages_bytes.clear();
-    state.game_data.player.records[0].raw[0x30] = 1;
-    state.game_data.player.records[0].raw[0x34] = 0;
+    state.game_data.player.records[0].raw[0x30] = 0;
+    state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
@@ -2857,8 +2857,8 @@ fn startup_results_preserve_blank_lines_as_classic_spacers() {
     let mut state = latest_runtime_state(&fixture_dir);
     state.results_bytes = classic_chunked_report_bytes("Line one\n\nLine two");
     state.messages_bytes.clear();
-    state.game_data.player.records[0].raw[0x30] = 1;
-    state.game_data.player.records[0].raw[0x34] = 0;
+    state.game_data.player.records[0].raw[0x30] = 0;
+    state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
@@ -2897,7 +2897,7 @@ fn reports_screen_preserves_blank_separator_lines() {
     let mut state = latest_runtime_state(&fixture_dir);
     state.results_bytes = classic_chunked_report_bytes("Line one\n\nLine two");
     state.messages_bytes.clear();
-    state.game_data.player.records[0].raw[0x30] = 1;
+    state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
@@ -2933,7 +2933,7 @@ fn reports_screen_wraps_long_lines_within_the_playfield() {
     let mut state = latest_runtime_state(&fixture_dir);
     state.results_bytes = b"This is a deliberately long reports review line that should wrap cleanly within the eighty column playfield instead of overrunning a single row.".to_vec();
     state.messages_bytes.clear();
-    state.game_data.player.records[0].raw[0x30] = 1;
+    state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
@@ -3031,7 +3031,7 @@ fn reports_screen_shows_explicit_truncation_cue_when_wrapped_rows_overflow() {
         .join("\n")
         .into_bytes();
     state.messages_bytes.clear();
-    state.game_data.player.records[0].raw[0x30] = 1;
+    state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {

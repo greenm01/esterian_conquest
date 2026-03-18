@@ -253,6 +253,7 @@ fn hostile_contact_with_roe_zero_emits_no_engagement_event() {
                 mission: Some(Mission::PatrolSector),
                 coords: event_coords,
                 target_empire_raw,
+                target_fleet_id: Some(5),
                 ..
             } if *owner_empire_raw == 1 && *event_coords == coords && *target_empire_raw == 2
         )
@@ -467,6 +468,7 @@ fn hostile_battle_can_trigger_roe_withdrawal_to_seek_home() {
                 owner_empire_raw,
                 mission: Some(Mission::PatrolSector),
                 coords: event_coords,
+                target_fleet_id: Some(5),
                 retreat_target_coords,
                 ..
             } if *owner_empire_raw == 1

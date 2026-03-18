@@ -181,7 +181,7 @@ pub fn run_rust_maintenance_with_options(
         game_data.conquest.game_year()
     );
 
-    let results_bytes = build_results_dat(&game_data, &all_events);
+    let results_bytes = build_results_dat(&mut game_data, &all_events);
     let messages_bytes = build_messages_dat(
         &mut game_data,
         &all_events,

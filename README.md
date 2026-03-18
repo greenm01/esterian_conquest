@@ -414,8 +414,21 @@ Test harness scripts live under [scripts/](scripts/):
 ```bash
 python3 scripts/new_test_game.py /tmp/ec-join-test --players 9 --force
 python3 scripts/setup_ui_stress_game.py /tmp/ec-ui-stress --force
+python3 scripts/setup_classic_probe_game.py /tmp/ec-classic-probe --force --no-launch
 python3 scripts/run_client.py /tmp/ec-ui-stress --player 1
 ```
+
+For the original DOS client specifically, the fastest “busy campaign” probe is:
+
+```bash
+python3 scripts/setup_classic_probe_game.py /tmp/ec-classic-probe --force
+```
+
+That path creates a fresh four-player Rust-backed campaign, seeds player 1 with
+multiple fleets and worlds, runs several Rust maint turns to populate
+`RESULTS.DAT`, suppresses the Rust-only routed `MESSAGES.DAT` payload for
+classic compatibility, prepares the classic login alias, and then
+launches original `ECGAME` in DOSBox-X.
 
 ## Useful Commands
 

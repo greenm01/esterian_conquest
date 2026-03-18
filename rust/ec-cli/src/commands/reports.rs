@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use ec_data::{
     ContactReportSource, CoreGameData, DatabaseDat, EmpireProductionRankingSort,
     FleetOrderValidationError, FleetPlayerInputValidationError, MaintenanceEvents, Mission,
@@ -239,6 +241,20 @@ fn classic_results_tail_for_year(mut template: [u8; 10], year: u16) -> [u8; 10] 
     template
 }
 
+fn classic_results_chain_tail_for_year(
+    template: [u8; 10],
+    year: u16,
+    chain_id: u16,
+    next_chain_id: u16,
+) -> [u8; 10] {
+    let mut tail = classic_results_tail_for_year(template, year);
+    tail[0..2].copy_from_slice(&chain_id.to_le_bytes());
+    tail[2..4].fill(0);
+    tail[4..6].copy_from_slice(&next_chain_id.to_le_bytes());
+    tail[6..8].fill(0);
+    tail
+}
+
 fn fleet_label(fleet_id: u8) -> String {
     format!("{} Fleet", ordinal_number(fleet_id as usize))
 }
@@ -295,16 +311,27 @@ mod tests {
     }
 }
 
-fn push_classic_results_chunked(data: &mut Vec<u8>, kind: u8, tail: [u8; 10], text: &str) {
+fn push_classic_results_chunked(
+    data: &mut Vec<u8>,
+    kind: u8,
+    header_tail: [u8; 10],
+    continuation_tail: [u8; 10],
+    text: &str,
+) {
     let bytes = text.as_bytes();
     if bytes.is_empty() {
         return;
     }
-    for chunk in bytes.chunks(RESULTS_TEXT_SIZE) {
+    for (chunk_idx, chunk) in bytes.chunks(RESULTS_TEXT_SIZE).enumerate() {
         let mut record = [0u8; RESULTS_RECORD_SIZE];
         record[0] = kind;
         record[1] = chunk.len() as u8;
         record[RESULTS_TEXT_START..RESULTS_TEXT_START + chunk.len()].copy_from_slice(chunk);
+        let tail = if chunk_idx == 0 {
+            header_tail
+        } else {
+            continuation_tail
+        };
         record[RESULTS_TEXT_END..RESULTS_RECORD_SIZE].copy_from_slice(&tail);
         data.extend_from_slice(&record);
     }
@@ -314,8 +341,17 @@ fn push_classic_results_chunked(data: &mut Vec<u8>, kind: u8, tail: [u8; 10], te
     record[0] = kind;
     record[1] = eot.len() as u8;
     record[RESULTS_TEXT_START..RESULTS_TEXT_START + eot.len()].copy_from_slice(eot);
-    record[RESULTS_TEXT_END..RESULTS_RECORD_SIZE].copy_from_slice(&tail);
+    record[RESULTS_TEXT_END..RESULTS_RECORD_SIZE].copy_from_slice(&continuation_tail);
     data.extend_from_slice(&record);
+}
+
+fn classic_results_record_count(text: &str) -> usize {
+    let bytes = text.as_bytes();
+    if bytes.is_empty() {
+        0
+    } else {
+        bytes.len().div_ceil(RESULTS_TEXT_SIZE) + 1
+    }
 }
 
 fn push_routed_message_legacy_chunked(
@@ -1780,19 +1816,72 @@ fn generate_report_entries(
 // ---------------------------------------------------------------------------
 
 /// Build the RESULTS.DAT binary from current game data and maintenance events.
-pub(crate) fn build_results_dat(game_data: &CoreGameData, events: &MaintenanceEvents) -> Vec<u8> {
+pub(crate) fn build_results_dat(game_data: &mut CoreGameData, events: &MaintenanceEvents) -> Vec<u8> {
+    let result_entries = generate_report_entries(game_data, events)
+        .into_iter()
+        .filter(|entry| !matches!(entry.target, ReportTarget::MessagesOnly { .. }))
+        .collect::<Vec<_>>();
     let mut results = Vec::new();
     let year = game_data.conquest.game_year();
-    for entry in generate_report_entries(game_data, events) {
-        if !matches!(entry.target, ReportTarget::MessagesOnly { .. }) {
-            push_classic_results_chunked(
-                &mut results,
-                entry.kind,
-                classic_results_tail_for_year(entry.tail, year),
-                &entry.text,
-            );
+    let mut recipient_slots = BTreeSet::new();
+    let record_counts = result_entries
+        .iter()
+        .map(|entry| classic_results_record_count(&entry.text))
+        .collect::<Vec<_>>();
+    let mut header_record_indexes = Vec::with_capacity(record_counts.len());
+    let mut next_header_record_index = 0usize;
+    for record_count in &record_counts {
+        header_record_indexes.push(next_header_record_index);
+        next_header_record_index += *record_count;
+    }
+
+    for (entry_idx, entry) in result_entries.iter().enumerate() {
+        let chain_id = if entry_idx == 0 {
+            0
+        } else {
+            (header_record_indexes[entry_idx - 1] + 1) as u16
+        };
+        let next_chain_id = if entry_idx + 1 < header_record_indexes.len() {
+            (header_record_indexes[entry_idx + 1] + 1) as u16
+        } else {
+            0
+        };
+        let header_tail = classic_results_chain_tail_for_year(entry.tail, year, chain_id, next_chain_id);
+        let continuation_tail = classic_results_chain_tail_for_year(entry.tail, year, chain_id, 0);
+        push_classic_results_chunked(
+            &mut results,
+            entry.kind,
+            header_tail,
+            continuation_tail,
+            &entry.text,
+        );
+
+        match entry.target {
+            ReportTarget::Both { recipient } if recipient != 0 => {
+                recipient_slots.insert(recipient.saturating_sub(1) as usize);
+            }
+            ReportTarget::ResultsOnly => {
+                for (idx, player) in game_data.player.records.iter().enumerate() {
+                    if player.owner_mode_raw() == (idx + 1) as u8 {
+                        recipient_slots.insert(idx);
+                    }
+                }
+            }
+            _ => {}
         }
     }
+
+    let next_free_chain_id = header_record_indexes
+        .last()
+        .map(|index| (index + 1) as u16)
+        .unwrap_or(0);
+    for (idx, player) in game_data.player.records.iter_mut().enumerate() {
+        player.set_classic_results_chain_state(
+            recipient_slots.contains(&idx) && !result_entries.is_empty(),
+            next_free_chain_id,
+        );
+    }
+
     results
 }
 

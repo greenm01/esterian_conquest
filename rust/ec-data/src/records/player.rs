@@ -74,28 +74,133 @@ impl PlayerRecord {
         trim_ascii_field(&self.raw[28..end])
     }
 
-    /// Strong candidate for classic "reports pending" state from live ECGAME
-    /// mail/report probes. Current known values:
-    /// - `0x00` when no pending review item is advertised
-    /// - `0x01` when classic reports/messages are pending during login flow
+    /// Classic login/review state low word for the message-side family.
+    ///
+    /// Late-output RE shows classic ECGAME/ECMAINT treating `+0x30/+0x32` and
+    /// `+0x34/+0x36` as two review-state families, not standalone booleans.
+    pub fn classic_message_review_word_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x30], self.raw[0x31]])
+    }
+
+    pub fn set_classic_message_review_word_raw(&mut self, value: u16) {
+        self.raw[0x30..0x32].copy_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn classic_message_review_carry_word_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x32], self.raw[0x33]])
+    }
+
+    pub fn set_classic_message_review_carry_word_raw(&mut self, value: u16) {
+        self.raw[0x32..0x34].copy_from_slice(&value.to_le_bytes());
+    }
+
+    /// Classic login/review state low word for the results/report-side family.
+    pub fn classic_results_review_word_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x34], self.raw[0x35]])
+    }
+
+    pub fn set_classic_results_review_word_raw(&mut self, value: u16) {
+        self.raw[0x34..0x36].copy_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn classic_results_review_carry_word_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x36], self.raw[0x37]])
+    }
+
+    pub fn set_classic_results_review_carry_word_raw(&mut self, value: u16) {
+        self.raw[0x36..0x38].copy_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn has_classic_messages_review_state(&self) -> bool {
+        self.classic_message_review_word_raw() != 0
+            || self.classic_message_review_carry_word_raw() != 0
+    }
+
+    pub fn has_classic_results_review_state(&self) -> bool {
+        self.classic_results_review_word_raw() != 0
+            || self.classic_results_review_carry_word_raw() != 0
+    }
+
+    /// Classic undeleted-results flag / cursor family.
+    ///
+    /// Recent live `ECGAME` report-view probes show the `+0x38..+0x3f` region
+    /// controlling whether classic offers undeleted `RESULTS.DAT` review at
+    /// login time. Preserved and oracle-compatible states consistently use:
+    ///
+    /// - `+0x38..+0x39 = 0x0001` when undeleted reports exist
+    /// - `+0x3c..+0x3d = next free report chain id`
+    /// - `+0x3a..+0x3b` and `+0x3e..+0x3f` remain zero in the recovered cases
+    pub fn classic_results_chain_flag_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x38], self.raw[0x39]])
+    }
+
+    pub fn set_classic_results_chain_flag_raw(&mut self, value: u16) {
+        self.raw[0x38..0x3A].copy_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn classic_results_chain_next_free_raw(&self) -> u16 {
+        u16::from_le_bytes([self.raw[0x3C], self.raw[0x3D]])
+    }
+
+    pub fn set_classic_results_chain_next_free_raw(&mut self, value: u16) {
+        self.raw[0x3C..0x3E].copy_from_slice(&value.to_le_bytes());
+    }
+
+    pub fn has_classic_results_chain_state(&self) -> bool {
+        self.classic_results_chain_flag_raw() != 0 || self.classic_results_chain_next_free_raw() != 0
+    }
+
+    pub fn has_any_classic_review_state(&self) -> bool {
+        self.has_classic_messages_review_state() || self.has_classic_results_review_state()
+    }
+
     pub fn classic_reports_pending_flag_raw(&self) -> u8 {
-        self.raw[0x30]
-    }
-
-    pub fn set_classic_reports_pending_flag_raw(&mut self, value: u8) {
-        self.raw[0x30] = value;
-    }
-
-    /// Strong candidate for classic "messages pending" state from live ECGAME
-    /// mail/report probes. Current known values:
-    /// - `0x00` when no pending review item is advertised
-    /// - `0x01` when classic reports/messages are pending during login flow
-    pub fn classic_messages_pending_flag_raw(&self) -> u8 {
         self.raw[0x34]
     }
 
-    pub fn set_classic_messages_pending_flag_raw(&mut self, value: u8) {
+    pub fn set_classic_reports_pending_flag_raw(&mut self, value: u8) {
         self.raw[0x34] = value;
+    }
+
+    pub fn classic_messages_pending_flag_raw(&self) -> u8 {
+        self.raw[0x30]
+    }
+
+    pub fn set_classic_messages_pending_flag_raw(&mut self, value: u8) {
+        self.raw[0x30] = value;
+    }
+
+    pub fn set_classic_results_review_state_present(&mut self, present: bool) {
+        self.set_classic_results_review_word_raw(u16::from(present));
+        self.set_classic_results_review_carry_word_raw(0);
+    }
+
+    pub fn set_classic_messages_review_state_present(&mut self, present: bool) {
+        self.set_classic_message_review_word_raw(u16::from(present));
+        self.set_classic_message_review_carry_word_raw(0);
+    }
+
+    /// Advertise login-time reviewables to classic ECGAME.
+    ///
+    /// Current compatibility rule:
+    /// - classic delivery/review probes use both low words together for unread
+    ///   mail
+    /// - results-only startup probing does not become reviewable when only the
+    ///   results-side low byte is set
+    ///
+    /// Until a stricter family split is proven in classic login flow, keep the
+    /// mirrored advertisement here and route all startup-review producers
+    /// through this helper.
+    pub fn set_classic_login_reviewables_present(&mut self, present: bool) {
+        self.set_classic_messages_review_state_present(present);
+        self.set_classic_results_review_state_present(present);
+    }
+
+    pub fn set_classic_results_chain_state(&mut self, present: bool, next_free_id: u16) {
+        self.set_classic_results_chain_flag_raw(u16::from(present));
+        self.raw[0x3A..0x3C].fill(0);
+        self.set_classic_results_chain_next_free_raw(if present { next_free_id } else { 0 });
+        self.raw[0x3E..0x40].fill(0);
     }
 
     pub fn set_controlled_empire_name_raw(&mut self, value: &str) {
@@ -185,11 +290,17 @@ impl PlayerRecord {
         self.raw[0x4D] = value;
     }
 
-    /// Accumulated production points available to spend this round.
-    /// Confirmed from original/v1.5 player 1 state (value=3022, tax=65).
-    /// Previously misnamed `last_run_year`.
-    pub fn stored_production_pts_raw(&self) -> u16 {
+    /// Last year this empire successfully entered the game.
+    ///
+    /// Classic `ECGAME` displays this as the `Last year on:` status line during
+    /// login/startup handling. Fresh pre-loaded slots keep this at `0`, while
+    /// established returning players carry the current or prior game year.
+    pub fn last_run_year_raw(&self) -> u16 {
         u16::from_le_bytes([self.raw[0x4E], self.raw[0x4F]])
+    }
+
+    pub fn set_last_run_year_raw(&mut self, value: u16) {
+        self.raw[0x4E..0x50].copy_from_slice(&value.to_le_bytes());
     }
 
     /// Unknown u16/u32-adjacent region beginning at 0x52. Current evidence:

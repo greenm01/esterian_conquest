@@ -17,15 +17,21 @@ pub(crate) fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> 
             .map(|state| state.as_str())
             .unwrap_or("unknown");
         println!(
-            "  slot {}: owner_mode={} assigned_player_flag={} tax={} stored_prod_pts={} autopilot={} reports_pending={} messages_pending={} campaign_state={} summary={}",
+            "  slot {}: owner_mode={} assigned_player_flag={} tax={} last_run_year={} autopilot={} reports_pending={} messages_pending={} message_review={:04x}/{:04x} results_review={:04x}/{:04x} results_chain={:04x}/{:04x} campaign_state={} summary={}",
             idx + 1,
             record.owner_mode_raw(),
             record.assigned_player_flag_raw(),
             record.tax_rate(),
-            record.stored_production_pts_raw(),
+            record.last_run_year_raw(),
             record.autopilot_flag(),
             record.classic_reports_pending_flag_raw(),
             record.classic_messages_pending_flag_raw(),
+            record.classic_message_review_word_raw(),
+            record.classic_message_review_carry_word_raw(),
+            record.classic_results_review_word_raw(),
+            record.classic_results_review_carry_word_raw(),
+            record.classic_results_chain_flag_raw(),
+            record.classic_results_chain_next_free_raw(),
             campaign_state,
             record.ownership_summary()
         );
@@ -238,7 +244,7 @@ pub(crate) fn inspect_classic_login(
         let classification = classify_classic_login_state(&data, slot as u8, caller_alias);
 
         println!(
-            "  slot {}: classification={} handle='{}' empire='{}' campaign_state={} homeworld='{}' reports_pending={} messages_pending={}",
+            "  slot {}: classification={} handle='{}' empire='{}' campaign_state={} homeworld='{}' reports_pending={} messages_pending={} message_review={:04x}/{:04x} results_review={:04x}/{:04x} results_chain={:04x}/{:04x}",
             slot,
             classification,
             handle,
@@ -246,7 +252,13 @@ pub(crate) fn inspect_classic_login(
             campaign_state,
             homeworld_name,
             player.classic_reports_pending_flag_raw(),
-            player.classic_messages_pending_flag_raw()
+            player.classic_messages_pending_flag_raw(),
+            player.classic_message_review_word_raw(),
+            player.classic_message_review_carry_word_raw(),
+            player.classic_results_review_word_raw(),
+            player.classic_results_review_carry_word_raw(),
+            player.classic_results_chain_flag_raw(),
+            player.classic_results_chain_next_free_raw()
         );
     }
 

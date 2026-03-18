@@ -85,6 +85,36 @@ fn classic_login_prepare_sets_matching_handle_without_renaming_empire_by_default
 }
 
 #[test]
+fn player_join_seeds_last_run_year_for_returning_player_state() {
+    let target = unique_temp_dir("ec-cli-player-join-last-run-year");
+    run_ec_cli(&[
+        "sysop",
+        "new-game",
+        target.to_str().unwrap(),
+        "--players",
+        "4",
+        "--seed",
+        "1515",
+    ]);
+
+    let stdout = run_ec_cli(&[
+        "player-join",
+        target.to_str().unwrap(),
+        "1",
+        "SYSOP",
+        "Auroran_Combine",
+        "Foundation",
+    ]);
+    assert!(stdout.contains("Joined player 1"));
+
+    let data = ec_data::CoreGameData::load(&target).unwrap();
+    assert_eq!(data.player.records[0].last_run_year_raw(), 3000);
+    assert_eq!(data.player.records[0].assigned_player_handle_summary(), "SYSOP");
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn fleet_ships_and_detach_create_varied_extra_fleet() {
     let target = unique_temp_dir("ec-cli-fleet-setup");
     run_ec_cli(&[

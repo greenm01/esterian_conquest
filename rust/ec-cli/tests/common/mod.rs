@@ -170,10 +170,21 @@ pub fn run_classic_ecgame_smoke_with_alias(
 }
 
 pub fn decode_results_text(raw: &[u8]) -> String {
+    const RESULTS_TEXT_SIZE: usize = 72;
+    const RESULTS_TEXT_START: usize = 2;
+    const RESULTS_TEXT_END: usize = RESULTS_TEXT_START + RESULTS_TEXT_SIZE;
     raw.chunks(84)
         .flat_map(|record| {
-            if record.len() < 76 {
+            if record.len() != 84 {
                 return Vec::new();
+            }
+            let used = record[1] as usize;
+            if used <= RESULTS_TEXT_SIZE
+                && record[RESULTS_TEXT_START + used..RESULTS_TEXT_END]
+                    .iter()
+                    .all(|byte| *byte == 0)
+            {
+                return record[RESULTS_TEXT_START..RESULTS_TEXT_START + used].to_vec();
             }
             let text = &record[1..76];
             let end = text.iter().position(|b| *b == 0).unwrap_or(text.len());

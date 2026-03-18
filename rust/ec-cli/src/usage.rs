@@ -71,6 +71,9 @@ pub fn print_usage() {
     );
     println!("  ec-cli planet-build <dir> <planet_record> <build_slot_raw> <build_kind_raw>");
     println!("  ec-cli player-name <dir> <player_record> <handle> <empire_name>");
+    println!(
+        "  ec-cli player-join <dir> <player_record> <caller_alias> <empire_name> [homeworld_name]"
+    );
     println!("  ec-cli classic-login-prepare <dir> <player_record> <caller_alias> [empire_name]");
     println!("  ec-cli planet-owner <dir> <planet_record> <owner_slot>");
     println!("  ec-cli planet-name <dir> <planet_record> <name>");

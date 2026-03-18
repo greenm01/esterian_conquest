@@ -34,6 +34,42 @@ pub(crate) fn set_player_name(
     Ok(())
 }
 
+pub(crate) fn join_player(
+    dir: &Path,
+    player_record_index_1_based: usize,
+    caller_alias: &str,
+    empire_name: &str,
+    homeworld_name: Option<&str>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    with_runtime_game_mut_and_export(dir, |data| {
+        data.join_player(player_record_index_1_based, empire_name)?;
+        let player = data
+            .player
+            .records
+            .get_mut(player_record_index_1_based - 1)
+            .ok_or_else(|| {
+                format!("player record index out of range: {player_record_index_1_based}")
+            })?;
+        player.set_assigned_player_handle_raw(caller_alias);
+        player.set_autopilot_flag(0);
+        if let Some(homeworld_name) = homeworld_name {
+            data.rename_player_homeworld(player_record_index_1_based, homeworld_name)?;
+        }
+        Ok(())
+    })?;
+
+    println!(
+        "Joined player {}: caller_alias='{}' empire='{}'{}",
+        player_record_index_1_based,
+        caller_alias,
+        empire_name,
+        homeworld_name
+            .map(|name| format!(" homeworld='{name}'"))
+            .unwrap_or_default()
+    );
+    Ok(())
+}
+
 pub(crate) fn prepare_classic_login(
     dir: &Path,
     player_record_index_1_based: usize,
