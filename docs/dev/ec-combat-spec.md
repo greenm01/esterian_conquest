@@ -1058,7 +1058,7 @@ Allocation sketch:
 
 - attacker first strips destroyer fresh steps, then uses remaining hits to
   destroy destroyers
-- defender strips fresh steps from the battleship line, but does not yet
+- defender strips fresh steps from the battleship line, but does not
   destroy all four battleships immediately
 
 The important intended outcome is structural:

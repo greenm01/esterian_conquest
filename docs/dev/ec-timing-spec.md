@@ -335,13 +335,14 @@ Practical interpretation:
 - no preserved ES-side writer currently feeds local timing code `2`
   - consumer-side helpers still recognize it
   - for implementation depth it is best treated as an unfed/reserved slot in
-    the preserved image, not as a still-missing active event family
+    the preserved image, not as an active event family Rust still needs to
+    recover
 
 ## Rust-Facing Closure
 
 No remaining timing questions in this document block Rust clone development.
 
-The direct movement/combat families that previously looked like unresolved
+The direct movement/combat families that once looked like week-placement
 week-placement holes are now bounded strongly enough to implement:
 
 - `entered-system -> attacked` is shared-stream arrival/contact behavior, not a
@@ -433,7 +434,7 @@ Practical interpretation:
   - the late static path no longer leaves a Rust-facing scheduler hole
   - the direct same-source variable-gap families above are better treated as
     standing mission/status behavior inside one shared weekly stream, not as
-    evidence of one missing global delay table
+    evidence of one global delay table Rust still needed
   - the cross-source Fleet Command Center / planet-loss adjacency patterns are
     likewise better treated as same-stream interleaving, not as same-source
     mission timing

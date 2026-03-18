@@ -1054,8 +1054,8 @@ events compete for the same weekly slot (lower number = higher priority).
 
 Important caution:
 
-- this does not yet prove that every gameplay mechanic is itself simulated
-  week-by-week in the same loop
+- this should not be read as a claim that every gameplay mechanic is itself
+  simulated week-by-week in the same loop
 - what is proven is that the late report/timing stage explicitly iterates over
   `1..52`
 Code-to-source mapping (current preserved evidence):
@@ -1176,8 +1176,8 @@ New static tightening from `2000:87f4 -> 2000:8b15`:
 
 Practical meaning:
 
-- this is another late summary coalescing / report-prep stage, not the missing
-  yearly gameplay simulation core
+- this is another late summary coalescing / report-prep stage, not the yearly
+  gameplay simulation core itself
 - the middle simulation-order evidence is therefore even less likely to live
   in the `861d -> 8b3d` region and more likely earlier in the run or behind
   helpers that populate the summary table before this pass

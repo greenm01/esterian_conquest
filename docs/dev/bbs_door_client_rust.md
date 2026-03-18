@@ -104,8 +104,8 @@ Current storage rules:
   snapshot there
 - classic `.DAT` directories should enter or leave the Rust runtime only
   through explicit CLI import/export workflows
-- unresolved or partially decoded classic outputs may still live in
-  compatibility-oriented tables while the normalized Rust-native model matures
+- some classic-shaped outputs may still live in compatibility-oriented tables
+  while the normalized Rust-native model matures
 - total planet database / Main / General intel views should be free to consume
   SQLite-backed metadata such as `Last Intel` year
 

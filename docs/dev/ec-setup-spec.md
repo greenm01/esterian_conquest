@@ -155,7 +155,8 @@ Refine setup in this order:
 ## Current Rust Audit
 
 The current Rust setup/builder layer is a compatibility-oriented baseline
-constructor, not yet a faithful full EC game initializer.
+constructor that now satisfies the manuals' hard setup constraints, while still
+leaving distribution quality as an intentional Rust policy layer.
 
 Recent Rust changes removed the old fixed `4 player / 20 planet` storage cap:
 
@@ -173,7 +174,7 @@ So the current code should now be understood as:
 - compatible setup/storage infrastructure for all documented player-count tiers
 - a manual-faithful generated new-game path on the original square-grid /
   player-tier map model
-- no remaining open question about map shape or player-count-based map sizing
+- map shape and player-count-based map sizing are now closed constraints
 - future setup work is now about generator quality and play balance, not about
   recovering more core setup rules
 
@@ -229,7 +230,7 @@ This is a deliberate bridge:
 
 ## Non-Goals
 
-This spec does not yet define:
+This spec does not try to reproduce:
 
 - the exact procedural RNG used by the DOS binaries
 - the exact classic solar-system distribution algorithm

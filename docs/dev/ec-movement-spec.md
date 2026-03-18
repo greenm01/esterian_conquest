@@ -50,13 +50,13 @@ Canonical Rust direction:
   - a defensive rule makes the contact hostile
   - blockade / system-entry rules apply
 
-## Current Limitation
+## Current Rust Simplification
 
 The current Rust maint path resolves contact from final post-movement
-co-location. It does not yet model true mid-course interception geometry for
-"crossed paths" between sectors.
+co-location. It intentionally does not model true mid-course interception
+geometry for "crossed paths" between sectors.
 
-That is a known simplification and should remain explicit in docs and tests.
+That simplification should remain explicit in docs and tests.
 
 ## Canonical Rust Pathfinding Extension
 
