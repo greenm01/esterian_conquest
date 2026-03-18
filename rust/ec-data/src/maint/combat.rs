@@ -677,7 +677,7 @@ fn retreat_task_force(game_data: &mut CoreGameData, task_force: &TaskForce) {
 
         fleet.set_standing_order_kind(Order::SeekHome);
         fleet.set_standing_order_target_coords_raw(retreat_target);
-        fleet.set_current_speed(fleet.max_speed().min(3).max(1));
+        fleet.set_current_speed(fleet.max_speed().clamp(1, 3));
         fleet.raw[0x0d] = 0x7f;
         fleet.raw[0x0e] = 0xc0;
         fleet.raw[0x10] = 0xff;
@@ -709,7 +709,7 @@ fn apply_roe_retreat_to_task_force(
         }
         fleet.set_standing_order_kind(Order::SeekHome);
         fleet.set_standing_order_target_coords_raw(retreat_target);
-        fleet.set_current_speed(fleet.max_speed().min(3).max(1));
+        fleet.set_current_speed(fleet.max_speed().clamp(1, 3));
         fleet.raw[0x0d] = 0x7f;
         fleet.raw[0x0e] = 0xc0;
         fleet.raw[0x10] = 0xff;
@@ -1397,7 +1397,7 @@ fn apply_planet_bombardment_damage(planet: &mut crate::PlanetRecord, mut hits: u
 }
 
 fn bombard_attack_as(state: &FleetCombatState) -> u32 {
-    state.counts[IDX_DD] * 1 / 2 + state.counts[IDX_CA] * 3 + state.counts[IDX_BB] * 9 * 3 / 2
+    state.counts[IDX_DD] / 2 + state.counts[IDX_CA] * 3 + state.counts[IDX_BB] * 9 * 3 / 2
 }
 
 fn blitz_cover_hits(state: &FleetCombatState) -> u32 {

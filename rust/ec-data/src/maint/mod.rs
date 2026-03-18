@@ -14,12 +14,7 @@ mod canonicalize;
 pub mod gate;
 pub mod recovery;
 
-use crate::{
-    CoreGameData, DiplomaticRelation, FleetOrderValidationError, FleetPlayerInputValidationError,
-    Order, PlanetPlayerInputValidationError, PlayerDiplomacyValidationError, ProductionItemKind,
-    VisibleHazardIntel, build_capacity, next_path_step, plan_route_with_intel, yearly_growth_delta,
-    yearly_high_tax_penalty, yearly_tax_revenue,
-};
+use crate::{CoreGameData, Order, VisibleHazardIntel};
 
 /// Event produced when a fleet completes a ColonizeWorld order.
 #[derive(Debug)]
@@ -324,28 +319,6 @@ pub fn run_maintenance_turn_with_context(
     Ok(events)
 }
 
-fn detect_campaign_outlook_events(
-    before: crate::CampaignOutlook,
-    after: crate::CampaignOutlook,
-    civil_disorder_events: &[CivilDisorderEvent],
-) -> Vec<CampaignOutlookEvent> {
-    campaign::detect_campaign_outlook_events(before, after, civil_disorder_events)
-}
-
-fn detect_campaign_outcome_events(
-    before: crate::CampaignOutcome,
-    after: crate::CampaignOutcome,
-) -> Vec<CampaignOutcomeEvent> {
-    campaign::detect_campaign_outcome_events(before, after)
-}
-
-fn apply_civil_disorder_fleet_defections(
-    game_data: &mut CoreGameData,
-    newly_disordered: &[CivilDisorderEvent],
-) -> Result<Vec<FleetDefectionEvent>, Box<dyn std::error::Error>> {
-    campaign::apply_civil_disorder_fleet_defections(game_data, newly_disordered)
-}
-
 fn fleet_has_presence(fleet: &crate::FleetRecord) -> bool {
     fleet.scout_count() > 0
         || fleet.battleship_count() > 0
@@ -444,78 +417,14 @@ fn remove_selected_fleets(game_data: &mut CoreGameData, to_remove: &[bool]) {
     apply_fleet_removal_remap(game_data, to_remove);
 }
 
-fn apply_stored_diplomatic_escalations(
-    game_data: &mut CoreGameData,
-    events: &MaintenanceEvents,
-) -> Result<(), Box<dyn std::error::Error>> {
-    campaign::apply_stored_diplomatic_escalations(game_data, events)
-}
-
 fn sanitize_invalid_player_inputs(game_data: &mut CoreGameData) -> Vec<InvalidPlayerStateEvent> {
     sanitize::sanitize_invalid_player_inputs(game_data)
-}
-
-fn process_join_host_updates(
-    game_data: &mut CoreGameData,
-    merge_events: &[FleetMergeEvent],
-) -> Vec<JoinMissionHostEvent> {
-    merging::process_join_host_updates(game_data, merge_events)
-}
-
-fn process_colonizations(
-    game_data: &mut CoreGameData,
-    events: &[ColonizationEvent],
-) -> Result<Vec<ColonizationResolvedEvent>, Box<dyn std::error::Error>> {
-    merging::process_colonizations(game_data, events)
-}
-
-fn process_fleet_merging(
-    game_data: &mut CoreGameData,
-) -> Result<Vec<FleetMergeEvent>, Box<dyn std::error::Error>> {
-    merging::process_fleet_merging(game_data)
-}
-
-fn process_mission_fleet_merging(
-    game_data: &mut CoreGameData,
-) -> Result<Vec<FleetMergeEvent>, Box<dyn std::error::Error>> {
-    merging::process_mission_fleet_merging(game_data)
-}
-
-fn process_build_completion(
-    game_data: &mut CoreGameData,
-) -> Result<Vec<usize>, Box<dyn std::error::Error>> {
-    economics::process_build_completion(game_data)
-}
-
-fn process_planet_economics(
-    game_data: &mut CoreGameData,
-    planets_with_builds: &[usize],
-) -> Result<(), Box<dyn std::error::Error>> {
-    economics::process_planet_economics(game_data, planets_with_builds)
 }
 
 pub fn process_autopilot_ai(
     game_data: &mut CoreGameData,
 ) -> Result<(), Box<dyn std::error::Error>> {
     economics::process_autopilot_ai(game_data)
-}
-
-fn recompute_player_planet_stats(game_data: &mut CoreGameData) {
-    economics::recompute_player_planet_stats(game_data)
-}
-fn apply_campaign_state_transitions(game_data: &mut CoreGameData) -> Vec<CivilDisorderEvent> {
-    campaign::apply_campaign_state_transitions(game_data)
-}
-
-fn update_player_starbase_flag(game_data: &mut CoreGameData) {
-    campaign::update_player_starbase_flag(game_data)
-}
-
-fn process_conquest_header(
-    game_data: &mut CoreGameData,
-    should_accumulate: bool,
-) -> Result<(), Box<dyn std::error::Error>> {
-    campaign::process_conquest_header(game_data, should_accumulate)
 }
 
 pub fn run_maintenance_turns(

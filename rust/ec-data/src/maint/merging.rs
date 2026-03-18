@@ -1,7 +1,7 @@
 use crate::{CoreGameData, Order};
 use super::{
     ColonizationEvent, ColonizationResolvedEvent, FleetMergeEvent, JoinMissionHostEvent,
-    Mission, MissionEvent, MissionOutcome,
+    Mission,
 };
 
 /// Apply colonization events to PLANETS.DAT and PLAYER.DAT.
@@ -127,8 +127,7 @@ pub(super) fn process_fleet_merging(
     let mut merge_events = Vec::new();
     let mut players_with_merges = vec![false; game_data.player.records.len()];
 
-    let player_count = game_data.player.records.len();
-    for player_idx in 0..player_count {
+    for (player_idx, player_merged) in players_with_merges.iter_mut().enumerate() {
         // Only merge fleets for players flagged with the combat-engagement byte 0xff.
         if game_data.player.records[player_idx].raw[0x00] != 0xff {
             continue;
@@ -216,7 +215,7 @@ pub(super) fn process_fleet_merging(
                 game_data.fleets.records[fi].raw[0x03] = 0x00; // next_fleet_id
                 game_data.fleets.records[fi].raw[0x07] = 0x00; // prev_fleet_id
                 game_data.fleets.records[fi].set_rules_of_engagement(10);
-                players_with_merges[player_idx] = true;
+                *player_merged = true;
             }
         }
     }

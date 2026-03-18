@@ -83,7 +83,7 @@ pub fn run_rust_maintenance_with_options(
     // in order to clear the 0x1e field in the corresponding orbit records.
     let pre_maint_planets = game_data.planets.clone();
 
-    // Phase 6: Cross-file validation — warn on structural inconsistencies.
+    // Cross-file validation: warn on structural inconsistencies.
     let preflight_errors = game_data.ecmaint_preflight_errors();
     if !preflight_errors.is_empty() {
         eprintln!("Warning: {} cross-file validation issue(s) detected:", preflight_errors.len());
@@ -92,7 +92,7 @@ pub fn run_rust_maintenance_with_options(
         }
     }
 
-    // Phase 5: Create movement backups before the movement phase begins.
+    // Create .SAV backups before movement phase.
     if let Err(e) = ec_data::maint::recovery::create_movement_backups(dir) {
         eprintln!("Warning: could not create movement backups: {e}");
     }
@@ -206,10 +206,10 @@ pub fn run_rust_maintenance_with_options(
         &diplomacy_overrides,
     )?;
 
-    // Phase 5: Cleanup crash marker after successful run.
+    // Remove Move.Tok crash marker after successful run.
     ec_data::maint::recovery::remove_crash_marker(dir);
 
-    // Phase 4: Release gate token.
+    // Release Main.Tok gate token.
     if !no_gate {
         ec_data::maint::gate::remove_maintenance_token(dir);
     }

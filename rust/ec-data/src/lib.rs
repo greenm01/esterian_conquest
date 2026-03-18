@@ -45,13 +45,14 @@ pub use economy::{
     build_capacity, yearly_growth_delta, yearly_high_tax_penalty, yearly_tax_revenue,
 };
 pub use maint::{
-    BombardEvent, CampaignOutcomeEvent, CampaignOutlookEvent, CivilDisorderEvent,
-    ColonizationResolvedEvent, ContactReportSource, DiplomacyOverride, EncounterDispositionEvent,
-    EncounterDispositionReason, FleetBattleEvent, FleetDefectionEvent, FleetDestroyedEvent,
-    FleetMergeEvent, InvalidPlayerStateEvent, JoinMissionHostEvent, MaintenanceEvents, Mission,
-    MissionEvent, MissionOutcome, MissionRetargetEvent, PlanetIntelEvent,
-    PlanetOwnershipChangeEvent, SalvageFailureReason, SalvageResolvedEvent, ScoutContactEvent,
-    ShipLosses, StarbaseDestroyedEvent, run_maintenance_turn, run_maintenance_turn_with_context,
+    AssaultReportEvent, BombardEvent, CampaignOutcomeEvent, CampaignOutlookEvent,
+    CivilDisorderEvent, ColonizationResolvedEvent, ContactReportSource, DiplomacyOverride,
+    DiplomaticEscalationEvent, EncounterDispositionEvent, EncounterDispositionReason,
+    FleetBattleEvent, FleetDefectionEvent, FleetDestroyedEvent, FleetMergeEvent,
+    InvalidPlayerStateEvent, JoinMissionHostEvent, MaintenanceEvents, Mission, MissionEvent,
+    MissionOutcome, MissionRetargetEvent, PlanetIntelEvent, PlanetOwnershipChangeEvent,
+    SalvageFailureReason, SalvageResolvedEvent, ScoutContactEvent, ShipLosses,
+    StarbaseDestroyedEvent, run_maintenance_turn, run_maintenance_turn_with_context,
     run_maintenance_turn_with_visible_hazards, run_maintenance_turns,
 };
 pub use mapgen::{
