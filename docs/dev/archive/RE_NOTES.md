@@ -7973,6 +7973,42 @@ Current practical timing model:
   meaning of those code bytes, not whether the scheduler has explicit
   acceptance / rejection logic
 
+#### Timing follow-up: local code-1 writer recovered, code-2 demoted
+
+Additional direct probes:
+
+- `artifacts/ghidra/ecmaint-live/probe-0000_f1ba.txt`
+- `artifacts/ghidra/ecmaint-live/probe-0000_f914.txt`
+
+Current timing-side refinement:
+
+- `0000:f1ba` is now a recovered scratch-local timing-entry initializer:
+  - it writes only `0` or `1` into the local timing-entry code byte
+  - it also seeds companion local flags at offsets `-0x09`, `-0x08`, and
+    `-0x07`
+- `0000:f914` is now a recovered late tally pass over the live timing-entry
+  table at `0x5c8`:
+  - it counts codes `1..7` into scratch counters rooted at
+    `352c/352a/3528/3534/352e/3530/3532`
+  - it then hands scratch block `3502` to `2000:ba44`
+- whole-image timing-entry write scans still show no preserved ES-side writer
+  for code `2`
+  - consumer-side helpers still recognize code `2`
+  - but the only explicit local code-byte writer recovered so far is
+    `0000:f1ba`, and it writes only `0/1`
+
+Practical consequence:
+
+- the old timing open item "what exact semantic families feed local codes `1`
+  and `2`" is no longer the right Rust-facing question
+- code `1` is now a real scratch-local timing class in the preserved image,
+  even if its historical label is still fuzzy
+- code `2` is now better treated as an unfed/reserved consumer-side slot until
+  contrary evidence appears
+- the remaining implementation-relevant timing question is narrower:
+  exact mapping from concrete movement/combat/admin report families onto weeks
+  within the internal `1..52` scheduler
+
 #### Top-down step-4 follow-up: earlier-driver target tightened, file-I/O trace added
 
 Continued the step-4 recovery thread from the new top-down premise.

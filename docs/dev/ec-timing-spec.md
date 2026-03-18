@@ -272,16 +272,27 @@ Practical interpretation:
   - the recovered scheduler computes week placement in runtime/scratch state
   - the visible week then persists in emitted text outputs rather than as a
     named durable campaign-state field
+- `0000:f1ba` is a recovered scratch-local timing-entry initializer:
+  - it writes only `0` or `1` into the local timing-entry code byte
+  - it also seeds companion local flags at offsets `-0x09`, `-0x08`, and
+    `-0x07`
+- `0000:f914` is a recovered late timing-entry tally pass over the live entry
+  table at `0x5c8`:
+  - it counts codes `1..7` into scratch counters rooted at
+    `352c/352a/3528/3534/352e/3530/3532`
+  - it then hands scratch block `3502` to `2000:ba44`
+- no preserved ES-side writer currently feeds local timing code `2`
+  - consumer-side helpers still recognize it
+  - for implementation depth it is best treated as an unfed/reserved slot in
+    the preserved image, not as a still-missing active event family
 
 ## Implementation-Relevant Open Questions
 
-- what exact semantic families feed the remaining non-durable local timing
-  codes `1` and `2`
 - how the internal `1..52` tick is assigned to specific
   movement/combat/report events within a yearly maintenance run
 
-These are the remaining timing questions that still matter directly for the
-Rust clone, because they affect visible `Stardate` values and weekly report
+This is the remaining timing question that still matters directly for the Rust
+clone, because it affects visible `Stardate` values and weekly report
 ordering.
 
 ## Low-Value Remaining RE Trivia
@@ -290,6 +301,8 @@ ordering.
   `Stardate: <week>/<year>` header fragment
 - which exact helper(s) inside the optional rankings branch emit the year-only
   `Stardate: YYYY A.D.` banner text
+- the exact historical label for the scratch-local code-`1` bucket now written
+  by `0000:f1ba`
 
 These are still mildly interesting RE targets, but they do not block Rust
 implementation now that the output contract and phase placement are already
@@ -297,10 +310,11 @@ recovered.
 
 ## Next RE Targets
 
-- relate remaining local timing codes `1` and `2` back to concrete report or
-  event families
 - tighten the mapping from concrete event families to same-week vs later-week
   placement inside the `1..52` scheduler
+- derive more week-placement constraints from the recovered late selector
+  (`0000:02c0 -> 1000:9fa1/1000:a26e -> 1000:c102/1000:9c0e`) and the shipped
+  log corpus rather than chasing more local code-byte labels
 
 ## Strongest Late-Scheduler Static Path
 
@@ -349,10 +363,16 @@ Practical interpretation:
     not entry-table writes
 - so code `8` is best treated as an unfed consumer-side case in the
   preserved image, not a reachable timing class
-- the remaining semantic unknown is therefore narrower:
-  - what exact semantic classes feed the remaining non-durable local timing
-    codes `1` and `2`
-  - not whether the late scheduler has real weekly selection logic
+- the later local timing-entry path now tightens `1/2` further:
+  - `0000:f1ba` writes only `0/1` into the scratch-local timing-entry code
+    byte
+  - `0000:f914` later tallies live entry-table codes `1..7` at `0x5c8`
+  - no preserved writer currently feeds code `2` into either the scratch-local
+    or ES-resident timing-entry tables captured so far
+- the remaining Rust-facing unknown is therefore narrower:
+  - exact week placement of concrete movement/combat/admin report families
+  - not whether some second hidden local timing code family still needs to be
+    recovered
 
 ## Working Model
 
