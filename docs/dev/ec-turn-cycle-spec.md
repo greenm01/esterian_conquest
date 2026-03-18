@@ -40,8 +40,9 @@ The yearly simulation core (step `4`) is now substantially recovered:
   schedules encounter detection, combat resolution, and report emission
   from post-movement positions. Stardates come from timing codes, not
   physical arrival time.
-- fleet visit order is **PRNG-shuffled** per game state (LCG confirmed
-  as Borland Pascal `$08088405`; exact shuffle algorithm unknown)
+- fleet visit order is **sort-by-random-priority** per game state
+  (Borland Pascal LCG confirmed as `$08088405`; the implementation uses
+  per-fleet random priorities rather than an in-place shuffle)
 - **mission resolution requires start-of-year position** — bombard,
   colonize, invade resolve only when the fleet is at its target at the
   start of the year
@@ -59,8 +60,8 @@ The yearly simulation core (step `4`) is now substantially recovered:
   scheduling priorities. Kind-1 producer assigns codes 3-6 by fleet
   composition (starbase/BS/CA-TT-army/scout-DD).
 
-Remaining unresolved areas: exact PRNG shuffle algorithm, timing codes 7
-and 8 producer assignment, exact target-world aftermath predicates, and
+Remaining unresolved areas: exact runtime provenance/reachability of
+timing codes 7 and 8, exact target-world aftermath predicates, and
 production completion timing.
 
 ## Practical Rust Consequences
@@ -743,6 +744,20 @@ RESULTS.DAT appears only in fleet-battle (the only single-tick scenario
 with active combat at the start). The remaining files always appear in
 the same order in the flush phase.
 
+The preserved traces also show a stable late close sequence after the
+final ranking writes:
+
+```
+close RANKINGS.TXT -> close PLAYER.DAT -> close PLANETS.DAT ->
+close BASES.DAT -> close IPBM.DAT -> close FLEETS.DAT ->
+close DATABASE.DAT
+```
+
+So the late file tail is now recovered to the level of exact observed
+write/close ordering for the traced scenarios. Raw DOSBox file-I/O logs
+also expose a stable token deletion tail, so this cleanup region is now
+recovered at the ordering level needed for implementation guidance.
+
 DATABASE.DAT writes correlate with specific planet record indices:
 
 - bombard/econ: planets `[44, 65, 32, 33, 14, 13]`
@@ -953,11 +968,12 @@ Important caution:
   week-by-week in the same loop
 - what is proven is that the late report/timing stage explicitly iterates over
   `1..52`
-Code-to-source mapping (definitively recovered):
+Code-to-source mapping (current preserved evidence):
 
-Full binary search of the memdump confirms that `entry[+0x09]` is ONLY
-ever written by the kind-1 producer at `1000:dddb`. The only values
-assigned are **3, 4, 5, 6**:
+The preserved timing-code scans show that the durable producer-side
+`entry[+0x09]` writes in the recovered producer regions come only from
+the kind-1 writer at `1000:dddb`, and the only observed values there are
+**3, 4, 5, 6**:
 
 | Condition | Code | Meaning |
 | :--- | ---: | :--- |
@@ -966,13 +982,16 @@ assigned are **3, 4, 5, 6**:
 | `source[+0x28] > 0` or `[+0x2c] > 0` or `[+0x2e] > 0` | 5 | cruiser/transport/army fleet (immediate) |
 | else (scouts/destroyers only) | 6 | light fleet (immediate) |
 
-**Codes 1, 2, 7, and 8 are dead code.** No producer in the entire binary
-ever writes these values to `entry[+0x09]`. The `a26e` switch handles
-them as defensive/complete case coverage, but the branches are unreachable.
-This was confirmed by searching the full memdump for `MOV byte ptr
-ES:[DI+0x09], imm8` — only codes 3, 4, 5, 6 appear.
+No scanned kind-1 or kind-2 durable producer writes `1`, `2`, `7`, or
+`8` to `entry[+0x09]`.
 
-The practical timing system is therefore:
+However, the preserved decoder scan for `0000:02c0` does assign local
+timing-state values `1` and `7`, and the `a26e` scheduler still carries
+explicit `7` and `8` cases. So the recovered durable producer mapping is
+definitive for `3..6`, but the exact runtime provenance/reachability of
+`7` and `8` in the later local timing table remains open.
+
+The practical durable producer-side timing system is therefore:
 
 - **Code 3** (+21 weeks, min week 20, priority 4): starbase fleets
 - **Code 4** (+0 weeks, immediate, priority 6): battleship fleets
@@ -1055,24 +1074,23 @@ Confidence: `Medium`
 Settled facts:
 
 - after the weekly loop, the pipeline flushes report output
+- the observed final file tail is stable across traced scenarios:
+  `DATABASE -> PLAYER -> PLANETS -> CONQUEST -> RANKINGS` for first
+  writes, then `RANKINGS -> PLAYER -> PLANETS -> BASES -> IPBM ->
+  FLEETS -> DATABASE` for the final close sequence
+- the observed token deletion order is stable in the traced logs:
+  `Move.Tok -> Database.Tok -> Planets.Tok -> Fleets.Tok ->
+  Player.Tok -> Conquest.Tok -> Main.Tok`
 - token deletion / cleanup exists elsewhere in the run
 - `Conquest.Tok` has explicit management code in the live image
-
-What remains open:
-
-- exact ordering of final file writes for `RESULTS.DAT`, `MESSAGES.DAT`,
-  `DATABASE.DAT`, and ranking outputs
-- exact cleanup order for all token files
 
 ## What Is Still Missing
 
 To complete the canonical cycle to full oracle parity, we still need:
 
-- ~~the exact PRNG shuffle algorithm for fleet visit order~~ **RESOLVED**:
-  not a shuffle — sort-by-random-priority with dynamic per-fleet Range
-  (see section 4l). Exact replication infeasible; Rust slot order suffices
-- the producer assignment for timing codes 7 and 8 (codes 3-6 are mapped from
-  `dddb` by fleet composition; 1,2 come from the `02c0` decoder)
+- the exact runtime provenance/reachability of timing codes 7 and 8
+  (durable producer-side `entry[+0x09]` mapping is recovered only for
+  codes `3..6`; `02c0` also seeds local timing-state values including `7`)
 - exact target-world-state predicates that choose one aftermath shape over
   another
 - production completion timing relative to other subphases

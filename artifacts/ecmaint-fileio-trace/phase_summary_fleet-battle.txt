@@ -4,31 +4,33 @@ FILE I/O PHASE SUMMARY
 
 WRITE ORDER (first write to each file):
   [ 521] FLEETS.DAT            writes=735  total_bytes=39690
-  [ 648] RESULTS.DAT           writes=12  total_bytes=1008
-  [3662] DATABASE.DAT          writes=5  total_bytes=500
-  [3747] PLAYER.DAT            writes=4  total_bytes=440
-  [3752] PLANETS.DAT           writes=20  total_bytes=1940
-  [3773] CONQUEST.DAT          writes=1  total_bytes=2085
-  [3775] RANKINGS.TXT          writes=12  total_bytes=1508
+  [ 598] RESULTS.DAT           writes=25  total_bytes=2100
+  [3699] DATABASE.DAT          writes=5  total_bytes=500
+  [3784] PLAYER.DAT            writes=4  total_bytes=440
+  [3789] PLANETS.DAT           writes=20  total_bytes=1940
+  [3810] CONQUEST.DAT          writes=1  total_bytes=2085
+  [3812] RANKINGS.TXT          writes=12  total_bytes=1508
 
 READ ORDER (first read of each file):
   [   2] CONQUEST.DAT          reads=1
   [   5] SETUP.DAT             reads=1
   [  18] PLAYER.DAT            reads=8
   [  39] PLANETS.DAT           reads=40
-  [ 122] FLEETS.DAT            reads=865
+  [ 122] FLEETS.DAT            reads=862
   [ 179] DATABASE.DAT          reads=13
-  [ 658] RESULTS.DAT           reads=1
+  [ 608] RESULTS.DAT           reads=3
 
 ====================================================================================================
 WRITE CLUSTERING (groups of consecutive writes to same file):
 ====================================================================================================
 
-  [ 521] FLEETS.DAT             26 writes    1404 bytes
-  [ 648] RESULTS.DAT            12 writes    1008 bytes
-  [ 679] FLEETS.DAT            709 writes   38286 bytes
-  [3662] DATABASE.DAT            5 writes     500 bytes
-  [3747] PLAYER.DAT              4 writes     440 bytes
-  [3752] PLANETS.DAT            20 writes    1940 bytes
-  [3773] CONQUEST.DAT            1 writes    2085 bytes
-  [3775] RANKINGS.TXT           12 writes    1508 bytes
+  [ 521] FLEETS.DAT             14 writes     756 bytes
+  [ 598] RESULTS.DAT            12 writes    1008 bytes
+  [ 629] FLEETS.DAT            700 writes   37800 bytes
+  [3507] RESULTS.DAT            13 writes    1092 bytes
+  [3546] FLEETS.DAT             21 writes    1134 bytes
+  [3699] DATABASE.DAT            5 writes     500 bytes
+  [3784] PLAYER.DAT              4 writes     440 bytes
+  [3789] PLANETS.DAT            20 writes    1940 bytes
+  [3810] CONQUEST.DAT            1 writes    2085 bytes
+  [3812] RANKINGS.TXT           12 writes    1508 bytes
