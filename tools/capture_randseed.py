@@ -124,7 +124,6 @@ def capture_for_scenario(scenario: str, fixture_src: Path) -> dict:
         "scenario": scenario,
         "post_run_seed": seed,
         "visit_order": KNOWN_VISIT_ORDERS.get(scenario),
-        "target_dir": str(target),
     }
 
 

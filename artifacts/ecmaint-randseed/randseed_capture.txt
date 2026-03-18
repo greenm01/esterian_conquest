@@ -1,0 +1,13 @@
+ECMAINT RandSeed Capture (COM-stub method)
+==================================================
+
+Method: READSEED.COM runs after ECMAINT /R in the same DOS session.
+READSEED.COM reads 4 bytes from 3529:03A6 (Borland Pascal RandSeed)
+and writes them to SEED.BIN.
+
+PRNG: RandSeed = RandSeed * 0x08088405 + 1 (Borland Pascal LCG)
+Initial seed at bridge (96c4): 0x000E000E
+
+Scenario: bombard
+  Post-run RandSeed: 0xB1F6ED91
+  Known visit order: [11, 15, 0, 10, 4, 3, 2, 1, 14, 5, 13, 8, 7, 6, 9, 12]
