@@ -11,6 +11,8 @@ mod economics;
 mod campaign;
 pub mod timing;
 mod canonicalize;
+pub mod gate;
+pub mod recovery;
 
 use crate::{
     CoreGameData, DiplomaticRelation, FleetOrderValidationError, FleetPlayerInputValidationError,

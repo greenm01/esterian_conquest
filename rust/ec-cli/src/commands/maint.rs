@@ -9,18 +9,63 @@ use ec_data::{
     visible_hazard_intel_from_database,
 };
 
-use crate::commands::reports::{build_database_dat, build_messages_dat, build_results_dat};
+use crate::commands::reports::{build_database_dat, build_messages_dat, build_rankings_text, build_results_dat};
 use crate::commands::runtime::load_runtime_state_preferring_live_directory;
 use crate::workspace::seed_classic_runtime_files;
 
-/// Run Rust maintenance on a game directory for specified number of turns
+/// Run Rust maintenance on a game directory for specified number of turns.
+///
+/// This is the programmatic API (used by tests and direct callers) — it skips
+/// the schedule/token gate.  Use `run_rust_maintenance_with_options` with
+/// `no_gate = false` for CLI invocations that should respect the schedule.
 pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::error::Error>> {
+    run_rust_maintenance_with_options(dir, turns, true)
+}
+
+pub fn run_rust_maintenance_with_options(
+    dir: &Path,
+    turns: u16,
+    no_gate: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
     println!(
         "Running Rust maintenance on: {} ({} turn{})",
         dir.display(),
         turns,
         if turns == 1 { "" } else { "s" }
     );
+
+    // Phase 4: Schedule / token gate.
+    if !no_gate {
+        let gate_conquest_path = dir.join("CONQUEST.DAT");
+        if gate_conquest_path.exists() {
+            let raw = fs::read(&gate_conquest_path)?;
+            if let Ok(conquest) = ec_data::maint::gate::check_gate_conquest(&raw) {
+                match ec_data::maint::gate::check_maintenance_schedule(&conquest) {
+                    ec_data::maint::gate::GateResult::Allowed => {}
+                    ec_data::maint::gate::GateResult::NotScheduled { day_name } => {
+                        println!("Today is {} - maintenance is not scheduled to run.", day_name);
+                        return Ok(());
+                    }
+                    ec_data::maint::gate::GateResult::TokenBusy => {
+                        println!("Maintenance token already held; skipping.");
+                        return Ok(());
+                    }
+                }
+            }
+        }
+        if ec_data::maint::gate::check_token_files(dir) {
+            println!("Maintenance token already held; skipping.");
+            return Ok(());
+        }
+        ec_data::maint::gate::create_maintenance_token(dir)?;
+    }
+
+    // Phase 5: Crash recovery — restore from .SAV if Move.Tok exists.
+    if ec_data::maint::recovery::check_crash_marker(dir) {
+        println!("Detected interrupted run (Move.Tok found); restoring from .SAV backups.");
+        ec_data::maint::recovery::restore_from_sav(dir)?;
+        ec_data::maint::recovery::remove_crash_marker(dir);
+    }
 
     let campaign_store = CampaignStore::open_default_in_dir(dir)?;
     let runtime_state = load_runtime_state_preferring_live_directory(dir, &campaign_store)?;
@@ -37,6 +82,20 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
     // DATABASE.DAT regeneration needs to know which planets had active builds
     // in order to clear the 0x1e field in the corresponding orbit records.
     let pre_maint_planets = game_data.planets.clone();
+
+    // Phase 6: Cross-file validation — warn on structural inconsistencies.
+    let preflight_errors = game_data.ecmaint_preflight_errors();
+    if !preflight_errors.is_empty() {
+        eprintln!("Warning: {} cross-file validation issue(s) detected:", preflight_errors.len());
+        for error in &preflight_errors {
+            eprintln!("  - {error}");
+        }
+    }
+
+    // Phase 5: Create movement backups before the movement phase begins.
+    if let Err(e) = ec_data::maint::recovery::create_movement_backups(dir) {
+        eprintln!("Warning: could not create movement backups: {e}");
+    }
 
     // Run maintenance logic for specified turns, accumulating events across all turns.
     let mut all_events = MaintenanceEvents::default();
@@ -138,11 +197,22 @@ pub fn run_rust_maintenance(dir: &Path, turns: u16) -> Result<(), Box<dyn std::e
     )?;
     campaign_store.export_latest_snapshot_to_dir(dir)?;
     seed_classic_runtime_files(dir)?;
+
+    let rankings_text = build_rankings_text(&game_data);
+    fs::write(dir.join("RANKINGS.TXT"), rankings_text.as_bytes())?;
     save_diplomacy_overrides_if_needed(
         dir,
         game_data.conquest.player_count(),
         &diplomacy_overrides,
     )?;
+
+    // Phase 5: Cleanup crash marker after successful run.
+    ec_data::maint::recovery::remove_crash_marker(dir);
+
+    // Phase 4: Release gate token.
+    if !no_gate {
+        ec_data::maint::gate::remove_maintenance_token(dir);
+    }
 
     println!("Rust maintenance complete.");
     Ok(())

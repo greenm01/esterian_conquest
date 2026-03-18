@@ -16,7 +16,7 @@ mod builder;
 mod config;
 mod directory;
 mod economy;
-mod maint;
+pub mod maint;
 mod mapgen;
 mod pathfinding;
 mod player_mail;
