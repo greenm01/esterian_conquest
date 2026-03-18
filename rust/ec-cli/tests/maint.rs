@@ -9,10 +9,27 @@ use ec_data::{CoreGameData, DatabaseDat, GameStateBuilder, Order};
 use std::fs;
 
 fn decode_chunked_report(bytes: &[u8]) -> String {
+    const RESULTS_TEXT_SIZE: usize = 72;
+    const RESULTS_TEXT_START: usize = 2;
+    const RESULTS_TEXT_END: usize = RESULTS_TEXT_START + RESULTS_TEXT_SIZE;
     bytes
         .chunks(84)
-        .flat_map(|chunk| chunk.get(1..76).unwrap_or(&[]).iter().copied())
-        .filter(|byte| *byte != 0)
+        .flat_map(|chunk| {
+            if chunk.len() != 84 {
+                return Vec::new();
+            }
+            let used = chunk[1] as usize;
+            if used <= RESULTS_TEXT_SIZE
+                && chunk[RESULTS_TEXT_START + used..RESULTS_TEXT_END]
+                    .iter()
+                    .all(|byte| *byte == 0)
+            {
+                return chunk[RESULTS_TEXT_START..RESULTS_TEXT_START + used].to_vec();
+            }
+            let text = &chunk[1..76];
+            let end = text.iter().position(|b| *b == 0).unwrap_or(text.len());
+            text[..end].to_vec()
+        })
         .map(char::from)
         .collect::<String>()
 }
@@ -197,10 +214,17 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
         !results.is_empty(),
         "RESULTS.DAT should contain battle summaries"
     );
+    let post = CoreGameData::load(&target).expect("maint-rust output should load");
     let text = String::from_utf8_lossy(&results);
     assert!(text.contains("Fleet battle report"));
+    assert!(text.contains("<end of transmission>"));
     assert!(text.contains("System("));
     assert!(text.contains("Initial observed hostile composition:"));
+    assert_eq!(
+        &results[82..84],
+        &post.conquest.game_year().to_le_bytes(),
+        "battle fixture should stamp the current report year into the results tail"
+    );
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
     let text = decode_chunked_report(&messages);
     assert!(
@@ -210,6 +234,28 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     );
     assert!(text.contains("Initial observed hostile composition:"));
     assert!(text.contains("For Empire #"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_routed_reports_set_classic_pending_flags() {
+    let target = unique_temp_dir("ec-cli-maint-rust-pending-flags");
+    copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
+    write_mutual_enemy_diplomacy(&target, 1, 2);
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
+    assert_eq!(game_data.player.records[0].classic_reports_pending_flag_raw(), 1);
+    assert_eq!(game_data.player.records[0].classic_messages_pending_flag_raw(), 1);
+    assert_eq!(game_data.player.records[0].classic_results_review_word_raw(), 1);
+    assert_eq!(game_data.player.records[0].classic_message_review_word_raw(), 1);
+    assert_eq!(game_data.player.records[1].classic_reports_pending_flag_raw(), 1);
+    assert_eq!(game_data.player.records[1].classic_messages_pending_flag_raw(), 1);
+    assert_eq!(game_data.player.records[1].classic_results_review_word_raw(), 1);
+    assert_eq!(game_data.player.records[1].classic_message_review_word_raw(), 1);
 
     cleanup_dir(&target);
 }
@@ -603,9 +649,8 @@ fn maint_rust_destroyed_starbase_generates_lost_contact_report() {
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    let text = String::from_utf8_lossy(&results);
+    let text = decode_chunked_report(&results);
     assert!(text.contains("From Starbase"));
-    assert!(text.contains("alerting all fleets"));
     assert!(text.contains("We lost all contact with Starbase"));
     assert!(text.contains("burnt flight recorder"));
 
@@ -637,8 +682,8 @@ fn maint_rust_colonization_generates_results_report_from_colony_event() {
         !results.is_empty(),
         "RESULTS.DAT should contain colonization summaries"
     );
-    let text = String::from_utf8_lossy(&results);
-    assert!(text.contains("From colony mission in System("));
+    let text = decode_chunked_report(&results);
+    assert!(text.contains("From your 1st Fleet, located in System("));
     assert!(text.contains("successfully established"));
     assert!(text.contains("Not Named Yet"));
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
@@ -706,8 +751,8 @@ fn maint_rust_colonization_blocked_by_owner_generates_report() {
         !results.is_empty(),
         "RESULTS.DAT should contain blocked colonization summaries"
     );
-    let text = String::from_utf8_lossy(&results);
-    assert!(text.contains("From colony mission in System("));
+    let text = decode_chunked_report(&results);
+    assert!(text.contains("From your 1st Fleet, located in System("));
     assert!(text.contains("ot establish a colony on planet"));
     assert!(text.contains("already occupie"));
     // Stardate header takes the first 75-byte chunk; planet name may span record
@@ -946,7 +991,7 @@ fn maint_rust_guard_blockade_generates_arrival_report() {
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    let text = String::from_utf8_lossy(&results);
+    let text = decode_chunked_report(&results);
     assert!(text.contains("Guard/Blockade World mission report"));
     assert!(text.contains("arrived at planet"));
     assert!(text.contains("assignment"));
@@ -1074,13 +1119,12 @@ fn maint_rust_invade_failure_generates_attacker_side_report() {
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    let text = String::from_utf8_lossy(&results);
+    let text = decode_chunked_report(&results);
     assert!(text.contains("Invasion mission report"));
     assert!(text.contains("repulsed") || text.contains("landing was"));
     // "defending world initially contained" may span a record boundary with the Stardate header.
     assert!(text.contains("defending world") || text.contains("initially contained"));
-    assert!(text.contains("Friendly losses:"));
-    assert!(text.contains("Enemy losses:"));
+    assert!(text.contains("ground batteries") || text.contains("armies"));
 
     cleanup_dir(&target);
 }
@@ -1493,10 +1537,12 @@ fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    let text = String::from_utf8_lossy(&results);
+    let text = decode_chunked_report(&results);
     assert!(text.contains("Scouting mission report"));
     assert!(text.contains("Sensor contact") || text.contains("contact shows"));
     assert!(text.contains("identified the alien fleet") || text.contains("located and ident"));
+    assert!(text.contains("From your 1st Fleet, located in"));
+    assert!(text.contains("the ") && text.contains(" Fleet of Empire #"));
     assert!(text.contains("withdraw toward") || text.contains("seeking safety"));
     assert!(text.contains("planet \"") || text.contains("System("));
 
@@ -1545,8 +1591,9 @@ fn maint_rust_join_merge_generates_join_report() {
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    let text = String::from_utf8_lossy(&results);
+    let text = decode_chunked_report(&results);
     assert!(text.contains("Join mission report"));
+    assert!(text.contains("From your 2nd Fleet, located in"));
     assert!(text.contains("now merging"));
 
     cleanup_dir(&target);
@@ -1659,12 +1706,7 @@ fn maint_rust_reports_empire_falling_into_civil_disorder() {
     );
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    let normalized = results
-        .chunks(84)
-        .flat_map(|chunk| chunk.get(1..76).unwrap_or(&[]).iter().copied())
-        .filter(|byte| *byte != 0)
-        .map(char::from)
-        .collect::<String>();
+    let normalized = decode_chunked_report(&results);
     assert!(
         normalized.to_ascii_lowercase().contains("civil disorder"),
         "RESULTS.DAT decoded text was: {:?}",
@@ -1714,12 +1756,7 @@ fn maint_rust_reports_when_one_serious_contender_remains() {
     );
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    let normalized = results
-        .chunks(84)
-        .flat_map(|chunk| chunk.get(1..76).unwrap_or(&[]).iter().copied())
-        .filter(|byte| *byte != 0)
-        .map(char::from)
-        .collect::<String>();
+    let normalized = decode_chunked_report(&results);
     assert!(
         normalized
             .to_ascii_lowercase()
@@ -1771,12 +1808,7 @@ fn maint_rust_reports_emperor_recognition_when_only_stable_empire_remains() {
     );
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    let normalized = results
-        .chunks(84)
-        .flat_map(|chunk| chunk.get(1..76).unwrap_or(&[]).iter().copied())
-        .filter(|byte| *byte != 0)
-        .map(char::from)
-        .collect::<String>();
+    let normalized = decode_chunked_report(&results);
     assert!(
         normalized
             .to_ascii_lowercase()
@@ -1825,12 +1857,7 @@ fn maint_rust_reports_fleet_defection_after_civil_disorder() {
     assert_eq!(remaining_player_fleets, 3);
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    let normalized = results
-        .chunks(84)
-        .flat_map(|chunk| chunk.get(1..76).unwrap_or(&[]).iter().copied())
-        .filter(|byte| *byte != 0)
-        .map(char::from)
-        .collect::<String>();
+    let normalized = decode_chunked_report(&results);
     assert!(
         normalized
             .to_ascii_lowercase()

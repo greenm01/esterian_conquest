@@ -74,6 +74,62 @@ fn decode_chunked_records(bytes: &[u8]) -> Option<Vec<ReviewBlock>> {
         return None;
     }
 
+    if let Some(blocks) = decode_length_prefixed_chunked_records(bytes) {
+        return Some(blocks);
+    }
+
+    decode_legacy_chunked_records(bytes)
+}
+
+fn decode_length_prefixed_chunked_records(bytes: &[u8]) -> Option<Vec<ReviewBlock>> {
+    const RESULTS_TEXT_SIZE: usize = 72;
+    const RESULTS_TEXT_START: usize = 2;
+    const RESULTS_TEXT_END: usize = RESULTS_TEXT_START + RESULTS_TEXT_SIZE;
+
+    let mut blocks = Vec::new();
+    let mut current_text = String::new();
+    let mut current_raw = Vec::new();
+
+    for chunk in bytes.chunks_exact(84) {
+        let used = chunk.get(1).copied()? as usize;
+        if used > RESULTS_TEXT_SIZE {
+            return None;
+        }
+        let text_bytes = chunk.get(RESULTS_TEXT_START..RESULTS_TEXT_START + used)?;
+        if !text_bytes.iter().all(|byte| {
+            byte.is_ascii_graphic() || *byte == b' ' || *byte == b'\r' || *byte == b'\n'
+        }) {
+            return None;
+        }
+        if chunk[RESULTS_TEXT_START + used..RESULTS_TEXT_END]
+            .iter()
+            .any(|byte| *byte != 0)
+        {
+            return None;
+        }
+        current_text.extend(text_bytes.iter().map(|byte| char::from(*byte)));
+        current_raw.extend_from_slice(chunk);
+
+        if used < RESULTS_TEXT_SIZE {
+            blocks.push(ReviewBlock {
+                lines: decode_text_lines(&current_text),
+                raw_chunked_bytes: Some(std::mem::take(&mut current_raw)),
+            });
+            current_text.clear();
+        }
+    }
+
+    if !current_text.is_empty() || !current_raw.is_empty() {
+        blocks.push(ReviewBlock {
+            lines: decode_text_lines(&current_text),
+            raw_chunked_bytes: Some(current_raw),
+        });
+    }
+
+    Some(blocks)
+}
+
+fn decode_legacy_chunked_records(bytes: &[u8]) -> Option<Vec<ReviewBlock>> {
     let mut blocks = Vec::new();
     let mut current_text = String::new();
     let mut current_raw = Vec::new();
@@ -107,7 +163,12 @@ fn decode_chunked_records(bytes: &[u8]) -> Option<Vec<ReviewBlock>> {
 }
 
 fn decode_text_lines(text: &str) -> Vec<String> {
-    let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
+    let normalized = text
+        .split("<end of transmission>")
+        .next()
+        .unwrap_or(text)
+        .replace("\r\n", "\n")
+        .replace('\r', "\n");
     let mut lines = normalized
         .split('\n')
         .map(str::trim)
