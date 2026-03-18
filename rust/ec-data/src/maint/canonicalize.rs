@@ -454,10 +454,13 @@ mod tests {
         events.fleet_battle_events.push(FleetBattleEvent {
             reporting_empire_raw: 1,
             reporting_fleet_id: Some(1),
+            reporting_mission: Some(Mission::GuardBlockadeWorld),
+            perspective: crate::maint::events::FleetBattlePerspective::Intercepted,
             coords: [5, 5],
             enemy_empires_raw: vec![2],
             primary_enemy_fleet_id: Some(5),
             held_field: true,
+            friendly_initial: ShipLosses::default(),
             friendly_losses: ShipLosses::default(),
             enemy_initial: ShipLosses::default(),
             enemy_losses: ShipLosses::default(),

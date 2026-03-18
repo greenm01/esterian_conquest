@@ -102,12 +102,23 @@ pub struct PlanetOwnershipChangeEvent {
 }
 
 /// A fleet battle resolved at one location.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetBattlePerspective {
+    Attacked,
+    Intercepted,
+}
+
+/// A fleet battle resolved at one location.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FleetBattleEvent {
     /// Empire that should receive this battle report.
     pub reporting_empire_raw: u8,
     /// Reporting fleet ID when one specific fleet can be named.
     pub reporting_fleet_id: Option<u8>,
+    /// Reporting fleet mission context when one classic mission-family label applies.
+    pub reporting_mission: Option<Mission>,
+    /// Whether the report should read as "we were attacked" or "we intercepted".
+    pub perspective: FleetBattlePerspective,
     /// Coordinates where the battle took place.
     pub coords: [u8; 2],
     /// Hostile empires this side encountered.
@@ -116,6 +127,8 @@ pub struct FleetBattleEvent {
     pub primary_enemy_fleet_id: Option<u8>,
     /// Whether the reporting empire held the field after the battle.
     pub held_field: bool,
+    /// Initial composition of the reporting force.
+    pub friendly_initial: ShipLosses,
     /// Exact losses suffered by the reporting empire.
     pub friendly_losses: ShipLosses,
     /// Initial observed hostile composition across opposing forces.

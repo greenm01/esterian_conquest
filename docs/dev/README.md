@@ -24,6 +24,9 @@ These are the docs that should drive engine/client behavior.
   - movement, contact, and planner-facing movement rules
 - [ec-setup-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-setup-spec.md)
   - setup/generator expectations and compatibility boundaries
+- [ec-reports.md](/home/mag/dev/esterian_conquest/docs/dev/ec-reports.md)
+  - canonical player-facing report wording, narrative style, and classic
+    `RESULTS.DAT` layout contract
 
 ## Architecture And Workflow Docs
 

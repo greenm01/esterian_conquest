@@ -1,7 +1,7 @@
 mod common;
 
 use common::{
-    cleanup_dir, copy_fixture_dir, run_classic_ecgame_smoke, run_ec_cli_in_dir,
+    cleanup_dir, copy_fixture_dir, repo_root, run_classic_ecgame_smoke, run_ec_cli_in_dir,
     run_maint_rust_failure_after_import, run_maint_rust_with_export,
     set_mutual_enemy_in_player_dat, unique_temp_dir, write_mutual_enemy_diplomacy,
 };
@@ -255,10 +255,10 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     );
     let post = CoreGameData::load(&target).expect("maint-rust output should load");
     let text = String::from_utf8_lossy(&results);
-    assert!(text.contains("Fleet battle report"));
+    assert!(text.contains("We successfully intercepted") || text.contains("We were attacked by"));
     assert!(text.contains("<end of transmission>"));
     assert!(text.contains("System("));
-    assert!(text.contains("Initial observed hostile composition:"));
+    assert!(text.contains("Alien force contained"));
     assert_eq!(
         &results[82..84],
         &post.conquest.game_year().to_le_bytes(),
@@ -286,8 +286,8 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     );
     assert_eq!(
         u16::from_le_bytes([records[1][78], records[1][79]]),
-        first_next_id,
-        "continuation records should preserve the report's next header id"
+        0,
+        "continuation records should clear the next-header id like classic RESULTS.DAT"
     );
     let eot = records
         .iter()
@@ -300,8 +300,8 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     );
     assert_eq!(
         u16::from_le_bytes([eot[78], eot[79]]),
-        first_next_id,
-        "EOT should preserve the report's next header id"
+        0,
+        "EOT should clear the next-header id like classic RESULTS.DAT"
     );
     assert_eq!(post.player.records[0].classic_results_chain_flag_raw(), 1);
     assert_eq!(
@@ -324,14 +324,92 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
     let text = decode_chunked_report(&messages);
     assert!(
-        text.contains("Fleet battle report"),
+        text.contains("We successfully intercepted") || text.contains("We were attacked by"),
         "MESSAGES.DAT decoded text was: {:?}",
         text
     );
-    assert!(text.contains("Initial observed hostile composition:"));
+    assert!(text.contains("Alien force contained"));
     assert!(text.contains("For Empire #"));
 
     cleanup_dir(&target);
+}
+
+#[test]
+fn preserved_classic_results_allow_long_multi_page_reports() {
+    let path = repo_root().join("fixtures/ecmaint-invade-post/v1.5/RESULTS.DAT");
+    let results = fs::read(path).expect("preserved RESULTS.DAT should exist");
+    let reports = logical_result_reports(&results_records(&results));
+    let long_report = reports
+        .iter()
+        .find(|(_, lines)| {
+            lines
+                .iter()
+                .any(|line| line.contains("We have been invaded and conquored"))
+        })
+        .expect("expected preserved invasion report");
+
+    assert!(
+        long_report.1.len() > 10,
+        "classic preserved output should include long logical reports"
+    );
+    assert_eq!(
+        long_report.1.first().map(String::as_str),
+        Some("From planet \"TargetPrime\" in System(15,13):             Stardate: 1/3011")
+    );
+    assert_eq!(
+        long_report.1.last().map(String::as_str),
+        Some("<end of transmission>")
+    );
+    assert_eq!(
+        long_report
+            .1
+            .iter()
+            .filter(|line| line.starts_with("From "))
+            .count(),
+        1,
+        "classic long reports do not restart with extra headers mid-report"
+    );
+}
+
+#[test]
+fn preserved_classic_results_only_set_next_header_on_header_records() {
+    let path = repo_root().join("fixtures/ecmaint-fleet-battle-pre/v1.5/.oracle/after-ecmaint/RESULTS.DAT");
+    let results = fs::read(path).expect("preserved oracle RESULTS.DAT should exist");
+    let records = results_records(&results);
+    let header_indexes = result_header_record_indexes(&records);
+    assert!(header_indexes.len() >= 2, "expected multiple preserved reports");
+
+    let first_header = records[header_indexes[0]];
+    assert_eq!(u16::from_le_bytes([first_header[74], first_header[75]]), 0);
+    assert_eq!(
+        u16::from_le_bytes([first_header[78], first_header[79]]),
+        (header_indexes[1] + 1) as u16
+    );
+
+    let continuation = records[header_indexes[0] + 1];
+    assert_eq!(
+        u16::from_le_bytes([continuation[74], continuation[75]]),
+        0,
+        "continuation should stay on the first report chain"
+    );
+    assert_eq!(
+        u16::from_le_bytes([continuation[78], continuation[79]]),
+        0,
+        "continuation should clear the next-header pointer in preserved output"
+    );
+
+    let eot = records[header_indexes[1] - 1];
+    assert_eq!(
+        result_record_text(eot),
+        "<end of transmission>",
+        "expected EOT before the next preserved report header"
+    );
+    assert_eq!(u16::from_le_bytes([eot[74], eot[75]]), 0);
+    assert_eq!(
+        u16::from_le_bytes([eot[78], eot[79]]),
+        0,
+        "EOT should clear the next-header pointer in preserved output"
+    );
 }
 
 #[test]
@@ -440,7 +518,10 @@ fn maint_rust_scout_contact_and_identify_are_separate_classic_reports() {
         })
         .expect("expected identified report");
 
-    assert_eq!(sensor_idx + 1, identify_idx);
+    assert!(
+        identify_idx > sensor_idx,
+        "identified scout follow-up should be a later logical report, not merged into the initial contact report"
+    );
     assert_eq!(reports[sensor_idx].0, 0x05);
     assert_eq!(reports[identify_idx].0, 0x06);
     assert_eq!(
@@ -450,6 +531,13 @@ fn maint_rust_scout_contact_and_identify_are_separate_classic_reports() {
     assert_eq!(
         reports[identify_idx].1.last().map(String::as_str),
         Some("<end of transmission>")
+    );
+    assert!(
+        !reports[sensor_idx]
+            .1
+            .iter()
+            .any(|line| line.contains("We have located and identified the alien fleet")),
+        "initial contact report should terminate before the identified follow-up text begins"
     );
 
     cleanup_dir(&target);
@@ -488,7 +576,7 @@ fn maint_rust_uses_stored_player_diplomacy_without_sidecar() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = String::from_utf8_lossy(&results);
-    assert!(text.contains("Fleet battle report"));
+    assert!(text.contains("We successfully intercepted") || text.contains("We were attacked by"));
     assert!(text.contains("We lost all contact") || text.contains("held the field"));
 
     let diplomacy_sidecar = target.join("diplomacy.kdl");
@@ -593,7 +681,7 @@ fn maint_rust_uses_stored_player_diplomacy_without_sidecar_for_large_games() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = String::from_utf8_lossy(&results);
-    assert!(text.contains("Fleet battle report"));
+    assert!(text.contains("We successfully intercepted") || text.contains("We were attacked by"));
 
     let diplomacy_sidecar = target.join("diplomacy.kdl");
     assert!(
@@ -753,7 +841,7 @@ fn maint_rust_without_enemy_declaration_reports_contact_without_forcing_battle()
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = String::from_utf8_lossy(&results);
     assert!(text.contains("Sensor contact") || text.contains("contact shows"));
-    assert!(!text.contains("Fleet battle report"));
+    assert!(!text.contains("We successfully intercepted"));
     assert!(!text.contains("We lost all contact"));
 
     cleanup_dir(&target);
@@ -901,12 +989,12 @@ fn maint_rust_colonization_generates_results_report_from_colony_event() {
     );
     let text = decode_chunked_report(&results);
     assert!(text.contains("From your 1st Fleet, located in System("));
-    assert!(text.contains("successfully established"));
-    assert!(text.contains("Not Named Yet"));
+    assert!(text.contains("successfully terraformed"));
+    assert!(text.contains("started a new colony"));
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
     let message_text = decode_chunked_report(&messages);
     assert!(
-        message_text.contains("successfully established"),
+        message_text.contains("successfully terraformed"),
         "MESSAGES.DAT decoded text was: {:?}",
         message_text
     );
@@ -970,11 +1058,8 @@ fn maint_rust_colonization_blocked_by_owner_generates_report() {
     );
     let text = decode_chunked_report(&results);
     assert!(text.contains("From your 1st Fleet, located in System("));
-    assert!(text.contains("ot establish a colony on planet"));
-    assert!(text.contains("already occupie"));
-    // Stardate header takes the first 75-byte chunk; planet name may span record
-    // boundaries depending on empire-label length. Check independently for both halves.
-    assert!(text.contains("Targ") || text.contains("etPrime"), "Planet name should appear in report");
+    assert!(text.contains("aliens are already living on the world found within"));
+    assert!(text.contains("aborting our mission"));
     assert!(text.contains("Empire #2"));
 
     cleanup_dir(&target);
@@ -1037,8 +1122,8 @@ fn maint_rust_scout_system_generates_results_report() {
     );
     let text = String::from_utf8_lossy(&results);
     assert!(text.contains("Scouting mission report"));
-    assert!(text.contains("Owner:"));
-    assert!(text.contains("Ground batteries:"));
+    assert!(text.contains("Owned by:"));
+    assert!(text.contains("Number of ground batteries:"));
     assert!(text.contains("System(15,13)"));
 
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
@@ -1289,7 +1374,7 @@ fn maint_rust_bombardment_generates_attacker_side_report() {
     let text = decode_chunked_report(&results);
     assert!(text.contains("Bombardment mission report"));
     assert!(text.contains("bombing run"));
-    assert!(text.contains("The defending world initially contained"));
+    assert!(text.contains("The target world was defended by"));
 
     cleanup_dir(&target);
 }
@@ -1474,9 +1559,9 @@ fn maint_rust_roe_withdrawal_generates_composition_and_loss_report() {
         .map(result_record_text)
         .collect::<Vec<_>>();
     let normalized = lines.join(" ");
-    assert!(normalized.contains("withdrew under our ROE"));
-    assert!(normalized.contains("Initial observed hostile composition:"));
-    assert!(normalized.contains("We observed enemy losses of"));
+    assert!(normalized.contains("In accordance to our ROE, we withdrew"));
+    assert!(normalized.contains("Alien force contained"));
+    assert!(normalized.contains("alien ship casualties"));
 
     cleanup_dir(&target);
 }
@@ -1506,7 +1591,7 @@ fn maint_rust_invalid_fleet_order_generates_sanitization_report() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
-    assert!(text.contains("Order validation report"));
+    assert!(text.contains("Maintenance canceled this fleet's orders because"));
     assert!(text.contains("required combat ships"));
 
     cleanup_dir(&target);
@@ -1536,7 +1621,7 @@ fn maint_rust_invalid_planet_inputs_generate_admin_report() {
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
-    assert!(text.contains("Administration report"));
+    assert!(text.contains("Maintenance cleared invalid player input because"));
     assert!(text.contains("Tax rate input 255%"));
 
     cleanup_dir(&target);
@@ -1584,15 +1669,15 @@ fn maint_rust_sanitizes_mixed_invalid_player_inputs_and_exports_loadable_state()
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let result_text = decode_chunked_report(&results);
-    assert!(result_text.contains("Order validation report"));
-    assert!(result_text.contains("Fleet readiness report"));
-    assert!(result_text.contains("Administration report"));
+    assert!(result_text.contains("Maintenance canceled this fleet's orders because"));
+    assert!(result_text.contains("Maintenance corrected invalid fleet input because"));
+    assert!(result_text.contains("Maintenance cleared invalid player input because"));
     assert!(result_text.contains("Tax rate input 255%"));
 
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
     let message_text = decode_chunked_report(&messages);
-    assert!(message_text.contains("Fleet readiness report"));
-    assert!(message_text.contains("Order validation report"));
+    assert!(message_text.contains("Maintenance corrected invalid fleet input because"));
+    assert!(message_text.contains("Maintenance canceled this fleet's orders because"));
 
     cleanup_dir(&target);
 }
@@ -1643,8 +1728,8 @@ fn maint_rust_survives_deterministic_malformed_directory_matrix() {
         let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
         let result_text = decode_chunked_report(&results);
         assert!(
-            result_text.contains("Order validation report")
-                || result_text.contains("Fleet readiness report"),
+            result_text.contains("Maintenance canceled this fleet's orders because")
+                || result_text.contains("Maintenance corrected invalid fleet input because"),
             "RESULTS.DAT decoded text was: {:?}",
             result_text
         );
@@ -1703,8 +1788,8 @@ fn maint_rust_survives_multi_fixture_invalid_input_sweep() {
         let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
         let text = decode_chunked_report(&results);
         assert!(
-            text.contains("Order validation report")
-                || text.contains("Fleet readiness report")
+            text.contains("Maintenance canceled this fleet's orders because")
+                || text.contains("Maintenance corrected invalid fleet input because")
                 || text.contains("foreign ministry"),
             "fixture {fixture} produced unexpected RESULTS.DAT text: {:?}",
             text
@@ -1763,7 +1848,8 @@ fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
     assert!(text.contains("Sensor contact") || text.contains("contact shows"));
     assert!(text.contains("identified the alien fleet") || text.contains("located and ident"));
     assert!(text.contains("From your 1st Fleet, located in"));
-    assert!(text.contains("the ") && text.contains(" Fleet of Empire #"));
+    assert!(text.contains("the ") && text.contains(" Fleet of "));
+    assert!(text.contains("Empire #"));
     assert!(text.contains("withdraw toward") || text.contains("seeking safety"));
     assert!(text.contains("planet \"") || text.contains("System("));
 

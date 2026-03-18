@@ -282,19 +282,25 @@ def build_classic_results_records(
         next_chain_id = (
             header_record_indexes[idx + 1] + 1 if idx + 1 < len(header_record_indexes) else 0
         )
-        report_tail = bytearray(tail_template)
-        report_tail[0:2] = chain_id.to_bytes(2, "little")
-        report_tail[2:4] = b"\x00\x00"
-        report_tail[4:6] = next_chain_id.to_bytes(2, "little")
-        report_tail[6:8] = b"\x00\x00"
+        header_tail = bytearray(tail_template)
+        header_tail[0:2] = chain_id.to_bytes(2, "little")
+        header_tail[2:4] = b"\x00\x00"
+        header_tail[4:6] = next_chain_id.to_bytes(2, "little")
+        header_tail[6:8] = b"\x00\x00"
 
-        for line in report_lines[idx]:
+        continuation_tail = bytearray(tail_template)
+        continuation_tail[0:2] = chain_id.to_bytes(2, "little")
+        continuation_tail[2:4] = b"\x00\x00"
+        continuation_tail[4:6] = b"\x00\x00"
+        continuation_tail[6:8] = b"\x00\x00"
+
+        for line_idx, line in enumerate(report_lines[idx]):
             chunk = line.encode("cp437", errors="replace")
             record = bytearray(CLASSIC_RECORD_SIZE)
             record[0] = kind
             record[1] = len(chunk)
             record[2 : 2 + len(chunk)] = chunk
-            record[74:84] = report_tail
+            record[74:84] = header_tail if line_idx == 0 else continuation_tail
             output.extend(record)
 
         eot = END_OF_TRANSMISSION.encode("cp437")
@@ -302,7 +308,7 @@ def build_classic_results_records(
         record[0] = kind
         record[1] = len(eot)
         record[2 : 2 + len(eot)] = eot
-        record[74:84] = report_tail
+        record[74:84] = continuation_tail
         output.extend(record)
 
     return bytes(output)

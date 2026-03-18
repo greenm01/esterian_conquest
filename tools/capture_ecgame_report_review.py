@@ -1,0 +1,167 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import os
+import time
+from pathlib import Path
+
+from ecgame_dropfiles import write_chain_txt
+from pexpect_argv import spawn_argv
+
+
+DEFAULT_KEYS = ["ENTER", "Y", "ENTER", "Y", "ENTER", "Y"]
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Capture classic ECGAME report-review screens headlessly."
+    )
+    parser.add_argument("game_dir", type=Path, help="Prepared classic game directory")
+    parser.add_argument("--player", type=int, default=1, help="Classic player number")
+    parser.add_argument("--alias", default="SYSOP", help="Caller alias for CHAIN.TXT")
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("/tmp/ecgame-report-review"),
+        help="Directory for captured text screens and raw dumps",
+    )
+    parser.add_argument(
+        "--keys",
+        default=",".join(DEFAULT_KEYS),
+        help="Comma-separated key sequence after the initial report screen",
+    )
+    return parser.parse_args()
+
+
+def decode_b800_screen(data: bytes) -> str:
+    cells = bytearray()
+    for idx in range(0, min(len(data), 4000), 2):
+        cells.append(data[idx])
+    text = cells.decode("cp437", errors="replace")
+    lines = [text[row : row + 80].rstrip() for row in range(0, len(text), 80)]
+    while lines and not lines[-1]:
+        lines.pop()
+    return "\n".join(lines) + ("\n" if lines else "")
+
+
+def dump_screen(child, game_dir: Path, output_dir: Path, step: int) -> str:
+    dump_path = game_dir / "MEMDUMP.BIN"
+    if dump_path.exists():
+        dump_path.unlink()
+    child.sendline("MEMDUMPBIN B800:0000 4000")
+    time.sleep(1)
+    for _ in range(20):
+        if dump_path.exists():
+            break
+        time.sleep(0.1)
+    data = dump_path.read_bytes()
+    raw_path = output_dir / f"screen_{step:02}.bin"
+    text_path = output_dir / f"screen_{step:02}.txt"
+    raw_path.write_bytes(data)
+    decoded = decode_b800_screen(data)
+    text_path.write_text(decoded, encoding="utf-8")
+    dump_path.unlink()
+    return decoded
+
+
+def normalize_key(token: str) -> str:
+    token = token.strip().upper()
+    if token in {"ENTER", "RETURN"}:
+        return "\r"
+    if token == "SPACE":
+        return " "
+    return token
+
+
+def main() -> None:
+    args = parse_args()
+    game_dir = args.game_dir.resolve()
+    output_dir = args.output_dir.resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    write_chain_txt(
+        game_dir / "CHAIN.TXT",
+        player_number=args.player,
+        alias=args.alias,
+        real_name=args.alias,
+    )
+
+    exe_name = "ECGAME.EXE" if (game_dir / "ECGAME.EXE").exists() else "ECGAME"
+    cmd = [
+        "dosbox-x",
+        "-defaultconf",
+        "-nopromptfolder",
+        "-nogui",
+        "-nomenu",
+        "-defaultdir",
+        str(game_dir),
+        "-set",
+        "dosv=off",
+        "-set",
+        "machine=vgaonly",
+        "-set",
+        "core=normal",
+        "-set",
+        "cputype=386_prefetch",
+        "-set",
+        "cycles=fixed 3000",
+        "-set",
+        "xms=false",
+        "-set",
+        "ems=false",
+        "-set",
+        "umb=false",
+        "-set",
+        "output=surface",
+        "-c",
+        f"mount c {game_dir}",
+        "-c",
+        "c:",
+        "-c",
+        "mode co80",
+        "-c",
+        f"DEBUGBOX {exe_name}",
+    ]
+
+    env = os.environ.copy()
+    env["SDL_VIDEODRIVER"] = "dummy"
+    env["SDL_AUDIODRIVER"] = "dummy"
+    env["TERM"] = "dumb"
+
+    child = spawn_argv(cmd, env=env, timeout=20, encoding="cp437")
+    transcript: list[str] = []
+    try:
+        time.sleep(3)
+        child.sendline("BPINT 16 00")
+        time.sleep(1)
+
+        child.sendline("RUN")
+        time.sleep(6)
+        transcript.append("=== screen_00 ===\n")
+        transcript.append(dump_screen(child, game_dir, output_dir, 0))
+
+        keys = [normalize_key(token) for token in args.keys.split(",") if token.strip()]
+        for step, key in enumerate(keys, start=1):
+            child.sendline("RUN")
+            time.sleep(0.2)
+            child.send(key)
+            time.sleep(3)
+            transcript.append(f"\n=== screen_{step:02} key={key.encode('unicode_escape').decode()} ===\n")
+            transcript.append(dump_screen(child, game_dir, output_dir, step))
+
+        (output_dir / "transcript.txt").write_text(
+            "".join(transcript), encoding="utf-8"
+        )
+
+        child.sendline("EXIT")
+        time.sleep(1)
+        child.close()
+        print(f"Captured report-review screens in {output_dir}")
+    finally:
+        if child.isalive():
+            child.close(force=True)
+
+
+if __name__ == "__main__":
+    main()

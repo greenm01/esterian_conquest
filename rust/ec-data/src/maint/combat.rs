@@ -12,9 +12,10 @@ use crate::{CoreGameData, DiplomaticRelation, Order};
 
 use super::{
     AssaultReportEvent, BombardEvent, ContactReportSource, DiplomacyOverride,
-    EncounterDispositionEvent, EncounterDispositionReason, FleetBattleEvent, FleetDestroyedEvent,
-    Mission, MissionEvent, MissionOutcome, PlanetIntelEvent, PlanetOwnershipChangeEvent,
-    ScoutContactEvent, ShipLosses, StarbaseDestroyedEvent,
+    EncounterDispositionEvent, EncounterDispositionReason, FleetBattleEvent,
+    FleetBattlePerspective, FleetDestroyedEvent, Mission, MissionEvent, MissionOutcome,
+    PlanetIntelEvent, PlanetOwnershipChangeEvent, ScoutContactEvent, ShipLosses,
+    StarbaseDestroyedEvent,
 };
 
 const IDX_DD: usize = 0;
@@ -495,6 +496,50 @@ fn preferred_reporting_fleet_id(game_data: &CoreGameData, fleet_indices: &[usize
         .map(|fleet| fleet.fleet_id())
         .filter(|fleet_id| *fleet_id != 0)
         .min()
+}
+
+fn preferred_reporting_fleet_index(game_data: &CoreGameData, fleet_indices: &[usize]) -> Option<usize> {
+    fleet_indices
+        .iter()
+        .copied()
+        .filter(|idx| game_data.fleets.records.get(*idx).is_some())
+        .filter(|idx| game_data.fleets.records[*idx].fleet_id() != 0)
+        .min_by_key(|idx| game_data.fleets.records[*idx].fleet_id())
+}
+
+fn report_perspective_for_mission(
+    mission: Option<Mission>,
+    role: BattleRole,
+) -> FleetBattlePerspective {
+    match mission {
+        Some(Mission::GuardStarbase | Mission::GuardBlockadeWorld) => {
+            FleetBattlePerspective::Intercepted
+        }
+        Some(
+            Mission::MoveOnly
+            | Mission::SeekHome
+            | Mission::PatrolSector
+            | Mission::ViewWorld
+            | Mission::ColonizeWorld
+            | Mission::ScoutSector
+            | Mission::ScoutSolarSystem,
+        ) => FleetBattlePerspective::Attacked,
+        Some(
+            Mission::BombardWorld
+            | Mission::InvadeWorld
+            | Mission::BlitzWorld
+            | Mission::JoinAnotherFleet
+            | Mission::RendezvousSector
+            | Mission::Salvage,
+        ) => FleetBattlePerspective::Intercepted,
+        None => {
+            if matches!(role, BattleRole::GuardingDefender) {
+                FleetBattlePerspective::Intercepted
+            } else {
+                FleetBattlePerspective::Attacked
+            }
+        }
+    }
 }
 
 fn starbase_count_at(game_data: &CoreGameData, coords: [u8; 2], owner: u8) -> u32 {
@@ -1229,8 +1274,14 @@ pub(crate) fn process_fleet_battles(
                 })
                 .map(|tf| tf.empire)
                 .collect();
-            let reporting_fleet_id =
-                preferred_reporting_fleet_id(game_data, &after_tf.fleet_indices);
+            let reporting_fleet_idx =
+                preferred_reporting_fleet_index(game_data, &after_tf.fleet_indices);
+            let reporting_fleet_id = reporting_fleet_idx
+                .map(|idx| game_data.fleets.records[idx].fleet_id())
+                .filter(|fleet_id| *fleet_id != 0);
+            let reporting_mission = reporting_fleet_idx.and_then(|idx| {
+                mission_kind_for_order(pre_encounter_orders.get(&idx).copied())
+            });
             let primary_enemy_fleet_id = task_forces
                 .iter()
                 .filter(|tf| tf.empire != empire && tf.state.has_units())
@@ -1239,10 +1290,13 @@ pub(crate) fn process_fleet_battles(
             events.fleet_battle_events.push(FleetBattleEvent {
                 reporting_empire_raw: empire,
                 reporting_fleet_id,
+                reporting_mission,
+                perspective: report_perspective_for_mission(reporting_mission, after_tf.role),
                 coords,
                 enemy_empires_raw,
                 primary_enemy_fleet_id,
                 held_field: winner_empire == Some(empire),
+                friendly_initial: ship_counts_from_state(before),
                 friendly_losses,
                 enemy_initial: ship_counts_from_state(&enemy_before),
                 enemy_losses,
