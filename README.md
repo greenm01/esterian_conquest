@@ -426,7 +426,7 @@ Useful supporting docs:
 - `original/`: original EC 1.5 materials used as primary sources and oracle
   artifacts
 - `docs/`: stable engineering, RE, and design docs
-- `RE_NOTES.md`: chronological reverse-engineering notebook
+- `docs/dev/RE_NOTES.md`: chronological reverse-engineering notebook (archival)
 - `rust/ec-data`: canonical Rust state/model/engine crate
 - `rust/ec-cli`: sysop/admin/oracle/inspection CLI
 - `rust/ec-client`: Rust `ECGAME` replacement in active development

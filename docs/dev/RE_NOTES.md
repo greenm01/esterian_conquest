@@ -1,3 +1,36 @@
+> **Archival working document.** This file is the original chronological
+> reverse-engineering notebook. Most findings have been formalized into
+> dedicated spec docs in this directory. Consult those for canonical
+> information; this file preserves the exploratory record.
+>
+> | Section | Status | Canonical doc |
+> |---|---|---|
+> | Session 2026-03-14 - growth rule | Superseded | `economics.md` |
+> | RE Policy: Stochastic Mechanics | Canonical | `approach.md` §9 |
+> | Current Status | Partially stale | Language confirmed as Borland Pascal |
+> | Known Working Runtime / Launch Recipe | Stale | `dosbox-workflow.md` |
+> | Door File Findings | Mixed | `dosbox-workflow.md` |
+> | Reverse Engineering Notes | Stale | Compiler confirmed as Borland Pascal |
+> | Data Files To Decode Next | Stale | All decoded in `ec-data` |
+> | Draft File Layouts | Superseded | Rust record definitions in `ec-data` |
+> | ECMAINT File-I/O Trace | Superseded | `ec-turn-cycle-spec.md` |
+> | ECMAINT Live Memory Dump Anchors | Reference | Ghidra catalog, still unique |
+> | ECUTIL Surface | Mixed | Unique setup utility notes |
+> | Modern TUI Direction | Stale | `refactor-tui.md` |
+> | ECMAINT Build/Fleet Scenarios | Superseded | Fixtures + spec docs |
+> | Historical Combat References | Reference | Unique doc text captures |
+> | Synthetic Bombardment Sequence | Superseded | `ec-combat-spec.md` |
+> | Fleet Command Surface | Mixed | Some unique fleet order detail |
+> | Porting Strategy / Preservation | Stale | `approach.md`, `rust-architecture.md` |
+> | Session 2026-03-10: Invasions | Superseded | `ec-combat-spec.md` |
+> | Session 2026-03-10: Starbases | Mixed | Some unique starbase detail |
+> | Environment Setup Notes | Stale | `dosbox-workflow.md` |
+> | Guard Starbase / Build Queue | Superseded | `ec-turn-cycle-spec.md` |
+> | Oracle-First Method Shift | Stale | `approach.md` |
+> | Economy sessions | Superseded | `economics.md` |
+> | Fleet oracle verification | Superseded | `ec-turn-cycle-spec.md` |
+> | ECMAINT timing/stardate | Superseded | `ec-timing-spec.md` |
+
 # Esterian Conquest v1.5 RE Notes
 
 ## Session 2026-03-14 - Canonical planet growth rule adopted

@@ -76,7 +76,7 @@ Default choice:
 
 - `fixtures/ecutil-init/v1.5/`
 
-Use `fixtures/ecmaint-post/v1.5/` only if the scenario requires a post-maint-derived file to exist first, and record that exception explicitly in `RE_NOTES.md`.
+Use `fixtures/ecmaint-post/v1.5/` only if the scenario requires a post-maint-derived file to exist first, and record that exception explicitly in `docs/dev/RE_NOTES.md`.
 
 ### 2. Create one controlled pre-maint change
 
@@ -100,7 +100,7 @@ Create:
 
 Copy the full scenario directory there, not only the changed files.
 
-The fixture note in `RE_NOTES.md` must include:
+The fixture note in `docs/dev/RE_NOTES.md` must include:
 
 - baseline fixture used
 - exact planet/build order
@@ -180,7 +180,7 @@ This phase should explicitly use:
 - `fixtures/ecutil-init/v1.5/`
 - `fixtures/ecmaint-post/v1.5/`
 - `docs/fixtures.md`
-- `RE_NOTES.md`
+- `docs/dev/RE_NOTES.md`
 - `rust/ec-data`
 - `rust/ec-cli`
 
@@ -195,7 +195,7 @@ Phase 1 is complete only when all of the following exist:
 
 1. a preserved pre-maint build fixture
 2. a preserved post-maint build fixture
-3. a diff summary recorded in `RE_NOTES.md`
+3. a diff summary recorded in `docs/dev/RE_NOTES.md`
 4. at least one confirmed maintenance-driven field or record transition
 5. at least one new fixture-backed Rust test
 

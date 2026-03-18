@@ -236,7 +236,7 @@ This matrix is the working synthesis of the player manual and the oracle notes.
 as enemy-focused deep-space interception, says fleets also attack when another
 player's fleets enter one of their solar systems, and describes
 `Guard/Blockade` as preventing alien contact with the guarded planet.
-[`RE_NOTES.md`](../../RE_NOTES.md) already records both sides of that split:
+[`RE_NOTES.md`](RE_NOTES.md) already records both sides of that split:
 patrol/deep-space contact reports that can end in `Ignoring alien fleet...`,
 and classic local interception of bombardment fleets at the defended world.
 The intended rule is therefore narrow in deep space and broader at the local
@@ -1035,5 +1035,5 @@ When implementing this spec in Rust:
 - keep class weights and `CER` tables explicit constants
 - keep hit allocation pure and testable
 - store intermediate “virtual step” damage only inside battle resolution
-- update `RE_NOTES.md` only when fixture/oracle evidence forces a spec revision
+- update `docs/dev/RE_NOTES.md` only when fixture/oracle evidence forces a spec revision
 - treat this document as the normative combat rulebook for Rust maintenance

@@ -13,7 +13,7 @@ Primary sources:
 
 - [ECPLAYER.DOC](../../original/v1.5/ECPLAYER.DOC)
 - current movement RE and fixtures in
-  [RE_NOTES.md](../../RE_NOTES.md)
+  [RE_NOTES.md](RE_NOTES.md)
 
 ## Classic Movement Semantics
 
