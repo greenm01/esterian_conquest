@@ -13,6 +13,16 @@ Read it together with:
 - [ec-timing-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-timing-spec.md)
   for weekly scheduler and report `Stardate` behavior
 
+Ownership boundary:
+
+- this document owns yearly phase placement and turn-order boundaries
+- [ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md)
+  owns combat and hostile world-resolution mechanics
+- [ec-timing-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-timing-spec.md)
+  owns weekly timing, report-week assignment, and `Stardate` header formatting
+- [economics.md](/home/mag/dev/esterian_conquest/docs/dev/economics.md) owns
+  the Rust economy/build policy inside the post-loop world/player update region
+
 Use it when designing or refactoring the Rust maintenance engine.
 
 This is not the raw RE notebook and not a byte-offset map. Its job is to
@@ -692,14 +702,16 @@ run_turn(directory):
 ```
 
 Use that as the current implementation skeleton for the recovered turn order.
-Keep caution around combat-mechanics detail, not around the phase placement
-itself.
+Keep caution around current-code drift, not around the recovered phase
+placement itself. For combat mechanics, defer to
+[ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md).
 
 ## Current Rust Driver Snapshot
 
 This is a non-authoritative snapshot of the current refactored Rust maint
 driver. Keep it separate from the target turn order above. If the code and the
-spec disagree, the spec wins and the code should move.
+spec disagree, the spec wins and the code should move. The same is true if this
+snapshot drifts from the companion combat, timing, or economics specs.
 
 1. advance the game year
 2. merge co-located friendly fleets before movement

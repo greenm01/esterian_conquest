@@ -14,6 +14,8 @@ This includes both:
 
 For the broader recovered phase ordering, see
 [ec-turn-cycle-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-turn-cycle-spec.md).
+For phase placement in the Rust target engine, also see
+[rust-turn-cycle-implementation.md](/home/mag/dev/esterian_conquest/docs/dev/rust-turn-cycle-implementation.md).
 
 ## Settled So Far
 
@@ -25,7 +27,7 @@ For the broader recovered phase ordering, see
     stardates
   - one fleet can emit multiple ordered reports within the same year at
     different stardates as a mission progresses
-- multiple report families use the same day/year form:
+- multiple report families use the same week/year form:
   - fleet reports
   - planet reports
   - starbase reports
@@ -49,12 +51,21 @@ formatting requirement, not just an implementation detail.
 
 Settled presentation rule:
 
-- every classic report family carries `Stardate: MM/YYYY` on the **first
+- every classic player report family carries `Stardate: <week>/<year>` on the
+  **first
   line** of the report
 - that `Stardate` text is **right-justified** on the first line, after the
   source clause, rather than emitted as its own separate header line
 - Rust should preserve that classic first-line shape for fleet, planet,
   starbase, and Fleet Command Center reports
+- the week field is rendered in classic EC notation:
+  - integer `1..52`
+  - no zero padding
+- the year field is rendered as a four-digit year
+- this weekly first-line rule applies to player report entries, not to the
+  separate rankings banner text
+- preserved rankings headers use a separate year-only form:
+  `Stardate: YYYY A.D.`
 
 Examples from the shipped historical logs:
 
@@ -65,9 +76,9 @@ Examples from the shipped historical logs:
 
 Practical meaning:
 
-- the surface format is `Stardate: MM/YYYY`, even though the recovered
-  semantics of the leading field behave like a week-of-year tick rather than a
-  literal calendar month
+- the surface format is `Stardate: <week>/<year>`
+- the leading field behaves like a week-of-year tick, not a literal calendar
+  month
 - do not emit Rust report timestamps on a separate line above the report body
 - do not left-align `Stardate:` directly after the source phrase with no
   spacing; preserve the classic padded first-line look
@@ -231,14 +242,50 @@ Practical interpretation:
     reaching those messages through an indirect string/pointer path rather than
     inline `MOV DI, imm16` references
 
-## Open Questions
+## Already Closed
 
-- where the real report/rankings `Stardate: D/YYYY` text is formatted
-- whether the day value is persisted on disk or only carried in scratch/runtime
-  state during maintenance
-- which `CONQUEST.DAT` fields feed the maintenance schedule gate
-- how the internal `1..52` tick is assigned to specific movement/combat/report
-  events within a yearly maintenance run
+- `ECMAINT` uses a real internal `1..52` yearly timeline rather than a
+  decorative year-only timestamp
+- the leading `Stardate` field in classic player reports is week-of-year, not
+  month-of-year
+- classic player report entries render `Stardate: <week>/<year>` as a
+  right-justified first-line fragment
+- preserved rankings headers use a separate year-only `Stardate: YYYY A.D.`
+  banner form
+- the weekly scheduler has an explicit late `1..52` loop with decode,
+  timing-window derivation, and accept/reject testing
+- timing-window constants for the recovered late scheduler path are bounded
+- `CONQUEST.DAT[0x03..0x09]` is the maintenance-schedule block consulted by the
+  outer schedule gate
+- `2000:945b` is best treated as a schedule/status timestamp helper, not the
+  player-report `Stardate` formatter
+
+## Still Open
+
+- where the player-report `Stardate: <week>/<year>` text is actually formatted
+- where the separate year-only rankings `Stardate: YYYY A.D.` banner text is
+  formatted
+- whether the weekly tick value is ever persisted durably or exists only in
+  scratch/runtime state during maintenance
+- whether the schedule gate uses only `CONQUEST.DAT[0x03..0x09]` or also reads
+  additional control fields
+- what exact semantic families feed the remaining non-durable local timing
+  codes `1` and `2`
+- how the internal `1..52` tick is assigned to specific
+  movement/combat/report events within a yearly maintenance run
+
+## Next RE Targets
+
+- trace the real player-report formatter/emitter path from the preserved
+  `Stardate` string anchors instead of from `2000:945b`
+- isolate the separate rankings-header path that emits the year-only rankings
+  `Stardate` banner
+- determine whether the week value is ever written to durable files or only
+  carried in stack/scratch locals during maintenance
+- tighten the schedule-gate consumer path beyond the already-confirmed
+  `CONQUEST.DAT[0x03..0x09]` schedule bytes
+- relate remaining local timing codes `1` and `2` back to concrete report or
+  event families
 
 ## Strongest Late-Scheduler Static Path
 
@@ -303,7 +350,7 @@ Current best model:
 - reports are timestamped with event ticks inside that yearly timeline, not
   just "the date maintenance ran"
 - those timestamps are rendered in classic player reports as a right-justified
-  first-line `Stardate: MM/YYYY` header fragment
+  first-line `Stardate: <week>/<year>` header fragment
 - this timeline is mechanically relevant to mission/report sequencing, not
   just decorative report narration
 

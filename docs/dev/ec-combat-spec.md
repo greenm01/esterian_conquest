@@ -14,6 +14,16 @@ RNG and processing order, this spec assumes a more legible universe: forces
 meet, both strike from the same instant, and history is written from the
 survivors.
 
+Read it together with:
+
+- [rust-turn-cycle-implementation.md](/home/mag/dev/esterian_conquest/docs/dev/rust-turn-cycle-implementation.md)
+  for where fleet combat, post-loop build/economy work, and later hostile
+  world-resolution phases sit in the yearly turn
+- [ec-turn-cycle-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-turn-cycle-spec.md)
+  for the oracle-backed classic phase ordering that the Rust target follows
+- [ec-timing-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-timing-spec.md)
+  for weekly report timing and `Stardate` header formatting
+
 ## Status
 
 This is a design spec for implementation. It is the source of truth for:
@@ -27,6 +37,11 @@ This is a design spec for implementation. It is the source of truth for:
 It does **not** replace the original manuals as historical sources. It
 translates them into a deterministic Rust rule set suitable for reproducible
 maintenance runs.
+
+It also does **not** decide yearly phase placement. This document defines what
+happens when fleet combat, bombardment, invasion, blitz, retreat, and related
+hostile world-resolution mechanics resolve. The turn-cycle specs decide where
+those mechanics sit in the yearly maintenance loop.
 
 ## Source Basis
 
@@ -993,6 +1008,13 @@ At minimum, combat events should be capable of expressing:
 - whether a fleet broke off due to ROE
 - whether a world changed ownership
 
+For where those combat events are produced in the yearly loop, use
+[rust-turn-cycle-implementation.md](/home/mag/dev/esterian_conquest/docs/dev/rust-turn-cycle-implementation.md)
+and
+[ec-turn-cycle-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-turn-cycle-spec.md).
+For player-visible `Stardate` placement and formatting, use
+[ec-timing-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-timing-spec.md).
+
 ## Explicit Non-Goals
 
 This spec intentionally does not attempt to reproduce:
@@ -1054,3 +1076,5 @@ When implementing this spec in Rust:
 - store intermediate “virtual step” damage only inside battle resolution
 - update `docs/dev/archive/RE_NOTES.md` only when fixture/oracle evidence forces a spec revision
 - treat this document as the normative combat rulebook for Rust maintenance
+- do not use this document to infer yearly phase placement when the turn-cycle
+  specs say otherwise
