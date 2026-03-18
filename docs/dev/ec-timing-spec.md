@@ -7,6 +7,11 @@ It is intentionally narrower than a full maintenance-phase spec. The goal here
 is to separate what is already supported by historical logs and static RE from
 what still needs deeper report-writer recovery.
 
+This includes both:
+
+- the internal `1..52` timing model behind report emission
+- the player-visible `Stardate` header contract that classic reports render
+
 For the broader recovered phase ordering, see
 [ec-turn-cycle-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-turn-cycle-spec.md).
 
@@ -36,6 +41,38 @@ Examples from the shipped historical captures:
 This is strong evidence for a real internal yearly tick scale rather than a
 purely cosmetic year stamp. The leading semantic interpretation is now
 "week-of-year", since `52` fits weeks much better than literal days or months.
+
+## Report Header Contract
+
+The classic player-visible report shape is now clear enough to treat as a
+formatting requirement, not just an implementation detail.
+
+Settled presentation rule:
+
+- every classic report family carries `Stardate: MM/YYYY` on the **first
+  line** of the report
+- that `Stardate` text is **right-justified** on the first line, after the
+  source clause, rather than emitted as its own separate header line
+- Rust should preserve that classic first-line shape for fleet, planet,
+  starbase, and Fleet Command Center reports
+
+Examples from the shipped historical logs:
+
+```text
+ -> From your 1st Fleet, located in System(13,15)          Stardate: 32/3001
+ -> From planet "you're my bitch" in System(23,5):          Stardate: 1/3021
+```
+
+Practical meaning:
+
+- the surface format is `Stardate: MM/YYYY`, even though the recovered
+  semantics of the leading field behave like a week-of-year tick rather than a
+  literal calendar month
+- do not emit Rust report timestamps on a separate line above the report body
+- do not left-align `Stardate:` directly after the source phrase with no
+  spacing; preserve the classic padded first-line look
+- the exact formatter routine is still not statically recovered, but the
+  output contract is strong enough to implement directly
 
 ## Strongest Behavioral Evidence
 
@@ -265,6 +302,8 @@ Current best model:
 - the leading semantic interpretation of that timeline is week-of-year
 - reports are timestamped with event ticks inside that yearly timeline, not
   just "the date maintenance ran"
+- those timestamps are rendered in classic player reports as a right-justified
+  first-line `Stardate: MM/YYYY` header fragment
 - this timeline is mechanically relevant to mission/report sequencing, not
   just decorative report narration
 

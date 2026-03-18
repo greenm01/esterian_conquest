@@ -8,6 +8,12 @@ formulas. It is the project’s explicit, auditable economy rule where the
 manuals are clear and the original replay/oracle path is still awkward to
 probe directly.
 
+For recovered phase placement and mission interaction, read this together with:
+
+- [ec-turn-cycle-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-turn-cycle-spec.md)
+- [rust-turn-cycle-implementation.md](/home/mag/dev/esterian_conquest/docs/dev/rust-turn-cycle-implementation.md)
+- [ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md)
+
 ## Status
 
 This is the current source of truth for:
@@ -21,6 +27,31 @@ This is the current source of truth for:
 
 It does not replace the original manuals as historical sources. It translates
 them into an explicit Rust rule set suitable for reproducible maintenance.
+
+It does **not** define the whole maintenance turn order by itself. This
+document defines the Rust economy/build policy that runs inside the recovered
+post-loop world/player update region.
+
+## Turn-Order Placement
+
+The recovered yearly turn order now constrains where economy/build behavior
+lives:
+
+- build completion and economy run in the **post-loop world/player update
+  region**
+- that region happens **after** the weekly `52`-pass fleet-combat loop
+- it happens **before** the later ready hostile world-resolution region
+  (`BombardWorld` / `InvadeWorld` / `BlitzWorld`)
+
+Practical consequences:
+
+- ship and starbase builds can enter stardock before a ready hostile
+  world-resolution path hits the same planet
+- ready bombardment/invasion therefore sees post-build planet state
+- armies and ground batteries that complete in this region go straight onto the
+  planet rather than into stardock
+- later same-turn hostile world-resolution reads those units as planet state,
+  not as stardock inventory
 
 ## Source Basis
 
@@ -161,6 +192,9 @@ Starbases affect economy in two separate ways.
 If a planet has a friendly active starbase in orbit at its coordinates, yearly
 current-production growth is boosted by `+50%` over the base growth amount.
 
+This refers to an active commissioned starbase, not an uncommissioned starbase
+item still sitting in stardock.
+
 ### 2. Build capacity multiplier
 
 The manuals say a starbase lets a planet spend up to `5x` its current
@@ -192,8 +226,16 @@ True homeworld seeds start at full production from the opening turn.
 
 ### Civil disorder and rogue paths
 
-The general canonical economy pass currently skips those empires so preserved
-maintenance fixtures remain stable.
+The normal Rust economy formulas in this document do not replace the recovered
+classic rogue/autopilot gate.
+
+Current practical split:
+
+- the recovered classic autopilot/rogue pass is gated by `player[0] == 0xFF`
+- civil-disorder `0x00` empires are economically frozen in the recovered
+  classic path
+- the broader Rust normal-planet economy policy is documented here as the
+  explicit Rust rule set for maintainable implementation
 
 Their specialized maintenance behavior is handled separately.
 
@@ -223,6 +265,9 @@ commission.
 
 - They must be commissioned by the player before they can be used.
 - Uncommissioned ships in stardock can be destroyed by a bombardment mission.
+- Because build completion happens before ready hostile world resolution,
+  newly completed stardock contents are already exposed to same-turn ready
+  bombardment / invasion losses.
 - This matches the manual: "Bombard a world: destroy its production and anything
   orbiting the world, including recently built ships stored in stardock."
 
@@ -262,9 +307,11 @@ Rationale:
   requiring commission. Stardock is explicitly a ship staging area.
 - Commission is a fleet-building concept; you commission ships into fleets.
   Armies are loaded onto troop transports separately. Batteries are fixed.
-- Armies and batteries deployed to the planet surface cannot be wiped out by
-  a bombardment targeting stardocked ships. They are already on the ground,
-  defending the planet.
+- Armies and batteries deployed to the planet surface are **not** handled as
+  stardock losses. They are already on the ground and belong to the planet's
+  defensive state.
+- They may still be lost later through normal planet bombardment / assault
+  damage, but that is hostile world-resolution damage, not stardock handling.
 - Treating them as stardocked units would mean a player could lose an entire
   army build to a bombardment before ever using them, which contradicts the
   manual's framing of armies as planet defenders.

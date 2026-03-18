@@ -846,8 +846,13 @@ claimed original-engine formula.
 
 ### Bombardment outcome rules
 
+- bombardment only resolves if the fleet is already in orbit at tick start;
+  fleets that arrive this tick bombard on the next maintenance tick
 - bombardment always consumes the bombard order once the fleet is already in orbit
 - the fleet remains at the target world
+- build completion happens earlier in the same turn, so newly completed
+  planet-owned stardock contents are already eligible to be destroyed by a
+  ready bombardment
 - bombardment can destroy planet-owned stardock contents
 - bombardment can reduce batteries, armies, goods, and factories
 - planets may survive bombardment intact enough to remain enemy-held
@@ -855,6 +860,13 @@ claimed original-engine formula.
 ## Invasion
 
 Invasion is explicitly a three-stage attack, matching the player manual.
+
+It only resolves if the fleet is already at the target world at tick start;
+fleets that arrive this tick invade on the next maintenance tick.
+
+Like bombardment, ready invasion reads post-build planet state, so completed
+planet-owned stardock contents are already part of the target world seen by the
+assault path.
 
 ### Stage 1: Orbital suppression
 

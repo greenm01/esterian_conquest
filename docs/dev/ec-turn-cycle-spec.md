@@ -52,7 +52,8 @@ The yearly simulation core (step `4`) is now substantially recovered:
 - a **pre-loop fleet setup phase** handles captures/reassignments before
   the 52-week loop (non-combat scenarios skip it entirely)
 - economy/autopilot processing is **gated by `player[0] = 0xFF`** (rogue
-  mode), runs **after** the fleet loop, and reads post-combat fleet state
+  mode), runs **after** the fleet loop, and reads post-weekly fleet-combat
+  state before the later hostile world-resolution region
 - colonization is **atomic on arrival** (ownership, armies, name, status,
   production all set in one pass)
 - **timing-window constants** are fully recovered: 8 codes with fixed
@@ -60,9 +61,10 @@ The yearly simulation core (step `4`) is now substantially recovered:
   scheduling priorities. Kind-1 producer assigns codes 3-6 by fleet
   composition (starbase/BS/CA-TT-army/scout-DD).
 
-Remaining unresolved areas: the exact hostile-context selector for the
-watched-world aftermath family, and exact interaction between build
-completion and immediate same-tick combat.
+No material turn-order gaps remain in the yearly simulation core. The
+turn-cycle ordering is now closed to implementation depth; mission/combat
+behavior is specified separately in
+[ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md).
 
 ## Practical Rust Consequences
 
@@ -241,7 +243,7 @@ Practical meaning:
 
 ### 4. Yearly Simulation Core
 
-Confidence: `Medium`
+Confidence: `High`
 
 This is the most important remaining unresolved block.
 
@@ -339,7 +341,7 @@ Practical meaning:
 
 #### 4d. Hostile contact/combat and administrative summaries feed the same timing stream
 
-Confidence: `Medium`
+Confidence: `High`
 
 Evidence:
 
@@ -470,7 +472,7 @@ Practical meaning:
   planet-state numeric groups inside step `4`, not one undifferentiated world
   blob
 
-#### 4h. First ordering signal: some `024d` planet mutation precedes visible delayed consequences
+#### 4h. Ready hostile world-resolution family is selected by mission family plus start-of-year readiness
 
 Confidence: `Medium`
 
@@ -490,18 +492,7 @@ Practical meaning:
   families like invasion and bombardment
 - this is enough to reject the old "producer passes are only late aftermath"
   model
-- it is not enough to claim the full canonical order among economy, movement,
-  combat resolution, and these producer passes
-
-What is not yet settled:
-
-- whether economic growth runs before or after movement/combat
-- when production completion is applied relative to movement/combat
-- when player-order sanitation/normalization happens relative to economic
-  updates
-- whether some command effects are expanded before movement and others after
-- exactly how each mission family maps combat outcomes onto the weekly
-  scheduler
+- later sections now tighten the outer-order picture directly
 
 What is now constrained:
 
@@ -515,31 +506,44 @@ What is now constrained:
 
 Current rule:
 
-- do not claim a full canonical middle-cycle order yet
 - do not model combat aftermath in Rust as one uniform post-combat delay; it
   is increasingly clear that mission family matters
+- keep the hostile world-resolution distinction in the later mission-family
+  pass, not in the weekly fleet-combat loop
 
-Current replay correction:
+Replayable correction:
 
-- fresh direct reruns against the preserved fixtures show the watched world in
-  `invade-pre`, `bombard-pre`, and `fleet-battle-pre` starts from the same
-  record-`14` seed in the current corpus
-- despite that shared watched-world seed, the immediate yearly aftermath is
-  still different by hostile context:
-  - `bombard`: watched world unchanged through tick `2`
-  - `invade`: tick `1` writes `+0x09`, `+0x0e`, `+0x58`; tick `2` later adds
-    `+0x3c` and `+0x50`
-  - `fleet-battle`: tick `1` writes `+0x09`, `+0x0e`, `+0x38`, `+0x3c`
-- the older archive note that treated this as primarily a watched-world
-  payload/class selector does not reproduce cleanly on the current preserved
-  fixtures
+- the preserved `invade-pre` fixture is not a clean invade-order oracle:
+  `FLEET[3].order = 0x0a`
+- cleaner replayable generated probes from `fixtures/ecmaint-post/v1.5` with
+  copied `ECMAINT.EXE` now bound the selector directly against the same
+  target world:
+  - delayed `BombardWorld` (`raw[0x19] = 0x81`, one sector away):
+    target world unchanged on tick `1`; bombardment family lands on tick `2`
+    (`potential 0x87 -> 0x81`, `econ 12 -> 0`, armies/batteries -> `0`)
+  - ready `BombardWorld` (`raw[0x19] = 0x80`, already at target):
+    the same bombardment family lands on tick `1`
+  - delayed `InvadeWorld` (`raw[0x19] = 0x81`, one sector away):
+    target world unchanged on tick `1`; invasion family lands on tick `2`
+    (`potential 0x87 -> 0x80`, `econ 4 -> 0`, armies/batteries -> `0`)
+  - ready `InvadeWorld` (`raw[0x19] = 0x80`, already at target):
+    a distinct ground-assault family lands on tick `1`
+    (`potential 0x87 -> 0x83`, batteries -> `0`, armies `142 -> 65`,
+    owner/status unchanged)
+- the older preserved comparison against `fleet-battle-pre` mixed weekly
+  fleet-vs-fleet combat with the later hostile world-resolution family and
+  should not be used as the selector oracle for target-world aftermath
 
 Practical meaning:
 
-- the watched-world aftermath branch is definitely hostile-context-sensitive
-- the remaining open question is the exact selector between the observed
-  no-change / `+0x58` / `+0x38,+0x3c` families, not a generic "target-world
-  payload decides everything" rule
+- the selector is the ready hostile mission family, not watched-world
+  payload/class
+- fleets that are still one sector away / `raw[0x19] = 0x81` do not mutate the
+  target world in tick `1`
+- ready `BombardWorld` and ready `InvadeWorld` produce different
+  target-world aftermath families from the same starting world
+- mission family matters, but that distinction lives in the later hostile
+  world-resolution region, not inside the weekly fleet-combat loop
 
 #### 4i. The yearly simulation is a weekly fleet-processing loop
 
@@ -873,7 +877,7 @@ Comparing the same fleet-battle fixture with and without hostile fleets at
 - **without combat** (fleet 4 and fleet 8 moved away): planet 14 → armies
   unchanged (10), econ_marker 12→2, stardock fields change instead
 
-The economy/autopilot pass reads post-combat fleet state to determine
+The economy/autopilot pass reads post-weekly fleet-combat state to determine
 its behavior. With fleet losses at (10,10), the rogue AI builds armies on
 the homeworld. Without losses, it does not.
 
@@ -881,7 +885,8 @@ Combined with the file-I/O evidence (PLANETS.DAT is never accessed during
 the 52-pass fleet loop), this confirms:
 
 - economy/autopilot runs **after** the fleet loop, not before or during
-- it reads post-combat game state and adjusts planet production accordingly
+- it reads post-weekly fleet-combat game state and adjusts planet production
+  accordingly
 - the econ_marker value depends on the full post-fleet-loop game state, not
   just the planet's own pre-existing economy
 
@@ -900,6 +905,13 @@ Build completion is now bounded more tightly than before:
   after one maint tick, with `RESULTS.DAT` still empty
 - injecting the same build queue into hostile bombardment still completes
   the stardock write on tick `1`, while `RESULTS.DAT` remains empty there too
+- a paired immediate-bombard probe now tightens that ordering further:
+  - delayed control: attacker still one sector away, target world queue
+    `03/01` becomes `stardock_count=03`, `stardock_kind=01` on tick `1`
+  - immediate bombard: same queue, but attacker already co-located at the
+    target world on tick `1`, clears the queue and leaves stardock slot `0`
+    empty after the same maint tick while also zeroing local armies and
+    batteries
 - static RE ties the stardock/build write path to `1000:e79a`, which:
   - calls `1000:dddb`
   - clears the corresponding queue/stardock fields after processing
@@ -912,16 +924,32 @@ Practical meaning:
 
 - build completion is real step-4 state mutation, not final flush noise
 - it is not interleaved inside the weekly fleet-processing loop
+- in the recovered immediate-bombard case, build completion lands before
+  hostile world resolution, so newly completed stardock contents are already
+  eligible to be destroyed in that same yearly tick
 - it can complete in the same yearly tick as hostile scenarios, before at
   least some delayed visible mission consequences appear
 
-What remains open is narrower:
+Cross-family tightening:
 
-- exact interaction between build completion and immediate same-tick combat
-  remains unresolved
-- current evidence places build completion in the late middle
-  player/producer region, but does not yet prove whether it lands before or
-  after every immediate combat-side state mutation
+- paired replayable `InvadeWorld` probes with the same injected queue `03/01`
+  now show the same placement:
+  - delayed control: target-world queue becomes `stardock_count=03`,
+    `stardock_kind=01` on tick `1`
+  - ready immediate invade: the same queue is cleared, stardock slot `0`
+    remains empty, and defender armies/batteries mutate in the same tick
+- a replayable `BlitzWorld` spot-check does not contradict this placement:
+  the ready and delayed probes both clear the queue through the same
+  post-build path before any ready-blitz order consumption
+
+Practical meaning:
+
+- build completion lands before ready hostile world resolution, not just
+  before ready bombardment
+- ready hostile mission families therefore read post-build planet state
+- the earlier immediate-bombard-only caveat is now closed at the turn-order
+  level; remaining uncertainty is in per-family combat mechanics, not build
+  placement
 
 ### 5. Late Summary Canonicalization And Sort
 
@@ -1170,16 +1198,14 @@ Settled facts:
 - token deletion / cleanup exists elsewhere in the run
 - `Conquest.Tok` has explicit management code in the live image
 
-## What Is Still Missing
+## Residual Uncertainty
 
-To complete the canonical cycle to full oracle parity, we still need:
+The canonical turn order is now recovered to implementation depth.
 
-- the exact hostile-context selector that chooses the observed watched-world
-  aftermath family (`unchanged`, `+0x58`, or `+0x38/+0x3c`)
-- exact interaction between build completion and immediate same-tick combat
-
-None of these block Rust implementation. They affect oracle parity and report
-fidelity, not engine structure.
+This document no longer carries open turn-order items. Mission/combat rules for
+the Rust target belong in
+[ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md),
+not here.
 
 ## Current Working Canonical Spec
 
@@ -1201,14 +1227,24 @@ This is the tightest oracle-backed statement today:
         - for each fleet in visit order:
           - read fleet record
           - timing-window check: events to emit this week?
-          - if co-located hostile: resolve combat, emit RESULTS.DAT inline
+          - if co-located hostile: resolve fleet-vs-fleet combat, emit
+            RESULTS.DAT inline
           - update weekly event state in fleet record
           - write fleet record
         - remove destroyed/captured fleets from active set
    f. Post-loop fleet summary scan (2 sequential reads of all fleet records).
-   g. Economy/autopilot pass over owned planets (rogue empires only;
-      reads post-combat fleet state).
-   h. Producer/mutator passes on planet state (`024d` interior).
+   g. Post-loop world/player update region:
+      - build completion
+        - ships/starbases -> stardock
+        - armies/ground batteries -> planet
+      - economy/autopilot pass over owned planets (rogue empires only;
+        reads post-weekly fleet-combat state)
+      - player-stat recomputation
+   h. Producer/mutator and hostile world-resolution passes on planet state
+      (`024d` interior; ready hostile mission family lives here, not inside
+      the weekly fleet-combat loop; delayed missions wait until a later yearly
+      tick after arrival, and ready hostile missions read post-build world
+      state).
    i. DATABASE.DAT planet-specific updates.
 5. It canonicalizes and sorts summary entries from those outcomes.
 6. It performs a late `1..52` weekly report/timing loop over the active
