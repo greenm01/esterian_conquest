@@ -617,11 +617,12 @@ Practical meaning:
   is better understood as a capture/setup phase that runs before the weekly
   loop, not as gradual fleet awakening during the loop itself
 
-#### 4l. Fleet visit order is PRNG-shuffled, seeded from accumulated game-state processing
+#### 4l. Fleet visit order is determined by PRNG-assigned sort priority
 
 Confidence: `High`
 
-Source: cross-fixture comparison plus PRNG reverse-engineering
+Source: cross-fixture comparison, PRNG reverse-engineering, and
+disassembly of the System.Random and fleet-processing functions
 (Phase C/D, 2026-03-17).
 
 Four scenarios with identical CONQUEST.DAT, SETUP.DAT, and nearly identical
@@ -633,74 +634,55 @@ produce completely different visit orders:
 - fleet-order: `[6,3,7,1,2,9,13,12,4,5,0,15,10,14,11,8]`
 - planet-build:`[15,12,9,4,0,3,7,8,11,14,2,1,13,6,10,5]`
 
-The linked list traversal (`next_fleet_link`) does NOT match any of these
-orderings. Fleet data is identical across all 4 fixtures. No simple
-fleet-field sort produces any of the orderings.
+**Mechanism (confirmed from disassembly):**
 
-The only varying file is PLANETS.DAT (planet 13's name and numeric fields
-differ). Small planet data changes — even just 2 bytes — cascade into
-completely different fleet orderings, characteristic of PRNG sensitivity.
+The visit order is NOT a permutation shuffle. It is a **sort-by-random-
+priority**: during fleet loop setup, each fleet is assigned a priority
+value `Random(N) + 1` written to fleet record offset `0x08` (a transient
+field, zero in both pre- and post-maintenance states). Fleets are then
+processed in ascending priority order; ties are broken by slot index
+(stable sort). The Range `N` for each `Random(N)` call is dynamic,
+read from per-player arrays.
 
-PRNG identification (from binary analysis of the memdump):
+The code was found at segment `16AE:CA50+` in the unpacked memdump.
+The assignment uses conditional logic to select between two per-player
+arrays for the Range, depending on game state flags.
 
-- the LCG is confirmed as standard Borland Pascal:
-  `RandSeed = RandSeed * $08088405 + 1`
-- the Random function was located via its shift-and-add multiply pattern
-  in the memdump (the 32-bit multiply by `$08088405` is decomposed into
-  16-bit partial products with shifts)
-- `RandSeed` is stored at `DS:0x03A6` (32-bit, low word at `0x03A6`,
-  high word at `0x03A8`)
-- the `Randomize` function (seeds from DOS `INT 21h/2Ch` Get Time) sits
-  immediately after the Random function body
+**PRNG details:**
 
-Runtime values captured via DOSBox-X debugger (bombard scenario):
+- LCG: `RandSeed = RandSeed * $08088405 + 1` (standard Borland Pascal)
+- `Random(Range)` extraction: `(RandSeed >> 16) % Range` — confirmed by
+  disassembly of System.Random at CS:15EA. This uses unsigned 16-bit
+  `DIV` (remainder), NOT the TP7 multiply-extract often documented
+- `RandSeed` at `DS:0x03A6`, `Randomize` (DOS clock seed) immediately
+  after the Random function body
+- `RandSeed = 0x000E000E` at the post-load bridge (`96c4`)
 
-- `DS = 0x3529` at runtime
-- `RandSeed = 0x000E000E` at the post-load bridge point (`96c4`),
-  before the validation/simulation phases have run
+The seed at priority-assignment time is the **accumulated RandSeed after
+all Random() calls during validation** (step 3). Different planet data
+takes different validation branch paths, advancing the PRNG differently,
+producing completely different priority assignments.
 
-Shuffle algorithm investigation:
+**Why exhaustive search failed to find a standard shuffle:**
 
-Exhaustive black-box search ruled out all standard approaches across
-the full 2^32 seed space:
+Full 2^32 seed search was run against Fisher-Yates (forward, reverse,
+off-by-one), inside-out FY, simple swap, rejection sampling, reservoir
+sampling, and sort-by-fixed-key — with 5 extraction variants each
+(TP7 multiply, full-32, lo16, mod, hi16mod). All returned no match
+because the mechanism is not a permutation shuffle at all: it is a
+sort-by-random-key with **dynamic per-fleet Range** and **+1 offset**.
 
-- Fisher-Yates reverse shuffle (for i=N-1 downto 1): no seed in 0..50M
-  matches for any Random extraction variant (multiplicative, shift, TP7)
-- Fisher-Yates forward shuffle (for i=0 to N-2): same result
-- Simple swap shuffle (for i=0 to N-1): same result
-- Sort-by-Random-key (assign key[i]=Random() for each fleet, sort by key):
-  no match in full 2^32 seed space (4.3 billion seeds tested)
-- Sort-by-Random(10000)-key: no match in 10M seeds
-- TP7 16-bit Random(Range) extraction `((seed >> 16) * Range) >> 16`:
-  full seed_1 range searched for both Fisher-Yates variants, no match
+**Practical meaning:**
 
-The conclusion is that the seed at shuffle time is the **accumulated
-RandSeed after all Random() calls during validation and loading** (step 3).
-Processing different planet data takes different branch paths during
-validation, each advancing the PRNG state differently. By the time the
-shuffle runs, the seed is completely different for each fixture.
-
-This means the shuffle algorithm cannot be cracked from black-box data
-alone — it requires either:
-
-1. a DOSBox breakpoint at `DS:0x03A6` write to capture the pre-shuffle
-   seed value, or
-2. Ghidra RE of the shuffle call site inside the fleet loop setup
-
-With the actual seed in hand, the algorithm (likely standard Fisher-Yates)
-should be identifiable from a single test.
-
-Practical meaning:
-
-- for Rust oracle parity, exact PRNG replication requires knowing both
-  the shuffle algorithm and the full PRNG call chain from program start
-  through validation to the shuffle point
-- for practical Rust implementation, use a deterministic visit order
-  (e.g., slot order or a seeded shuffle from a Rust-native PRNG) and
-  accept that visit order will differ from the original
-- the visit order affects combat timing within weekly passes: when two
-  hostile fleets are co-located, the first-visited fleet triggers combat
-  resolution and report emission
+- the visit order is cosmetic for non-combat scenarios — all fleets see
+  the same world state each week regardless of iteration order
+- it only affects **combat report ordering** when hostile fleets share a
+  sector: the lower-priority fleet triggers combat resolution first
+- exact replication would require tracing the full PRNG call chain from
+  program start through validation to the priority-assignment point,
+  which is infeasible without replicating the entire validation phase
+- Rust uses deterministic slot order, which produces byte-identical
+  results against the oracle for all tested scenarios
 
 #### 4m. Combat resolution is triggered by the first co-located hostile fleet processed
 
@@ -1085,10 +1067,9 @@ What remains open:
 
 To complete the canonical cycle to full oracle parity, we still need:
 
-- the exact PRNG shuffle algorithm for fleet visit order (LCG confirmed as
-  Borland Pascal `$08088405`, but the shuffle variant and seed-at-shuffle-time
-  are unknown — full 2^32 search ruled out all standard Fisher-Yates and
-  sort-by-key variants)
+- ~~the exact PRNG shuffle algorithm for fleet visit order~~ **RESOLVED**:
+  not a shuffle — sort-by-random-priority with dynamic per-fleet Range
+  (see section 4l). Exact replication infeasible; Rust slot order suffices
 - the producer assignment for timing codes 7 and 8 (codes 3-6 are mapped from
   `dddb` by fleet composition; 1,2 come from the `02c0` decoder)
 - exact target-world-state predicates that choose one aftermath shape over
@@ -1112,7 +1093,7 @@ This is the tightest oracle-backed statement today:
       multi-year journeys).
    c. Pre-loop fleet setup phase (captures/reassignments; skipped when no
       fleets need reassignment).
-   d. Compute fleet visit order (PRNG shuffle seeded from game state).
+   d. Compute fleet visit order (sort-by-random-priority; see section 4l).
    e. Run a 52-iteration weekly event scheduling loop (NOT physics sim):
       - for each week 1..52:
         - for each fleet in visit order:

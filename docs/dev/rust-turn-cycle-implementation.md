@@ -316,7 +316,7 @@ Updated Durable State + Durable Event Pool
 | **Mission resolution requires start-of-year position** | bombard, colonize, invade resolve only when the fleet is at its target at the start of the year. Co-located fleets resolve within the same tick |
 | **The 52-week loop is event scheduling, not physics** | the loop schedules encounter detection, combat resolution, and report emission from post-movement positions. Stardates come from timing codes, not physical arrival time |
 | **Timing system fully recovered** | only codes 3-6 are ever produced (starbase→3 +21wk, BS→4 immediate, CA/TT/army→5 immediate, scout/DD→6 immediate). Codes 1,2,7,8 in the `a26e` switch are dead code — never assigned by any producer (confirmed by full binary search). Only starbase fleets get a delayed timing offset |
-| **Fleet visit order is PRNG-shuffled** | LCG is Borland Pascal `$08088405`, RandSeed at `DS:0x03A6`. Exact shuffle algorithm unknown. Use deterministic slot order in Rust for now |
+| **Fleet visit order is sort-by-random-priority** | Classic assigns `Random(N)+1` to each fleet as a sort key (extraction: `(seed>>16) % N`), then processes in ascending key order. The Range `N` is dynamic per player. Exact replication requires the full PRNG call chain from validation, which is infeasible. **Rust uses deterministic slot order**, which produces byte-identical results against the oracle for all tested scenarios |
 | **Combat reports emitted inline during weekly loop** | RESULTS.DAT writes happen inside the fleet pass. Do not defer all report generation to a post-simulation phase |
 | **Combat triggered by first co-located hostile fleet** | the engine reads the opposing fleet, resolves combat, emits reports inline, then writes back. Opposing fleet's writeback happens later in the same pass |
 | **Fleet destruction/capture dynamic** | destroyed fleets dropped from subsequent passes; captured fleets change ownership mid-simulation |
@@ -330,7 +330,7 @@ Updated Durable State + Durable Event Pool
 
 | Open question | Current safe implementation posture |
 | --- | --- |
-| exact PRNG shuffle algorithm | LCG confirmed, full 2^32 search ruled out standard variants. Seed is accumulated validation-phase state. Use deterministic slot order in Rust for now |
+| ~~exact PRNG shuffle algorithm~~ | **RESOLVED**: not a shuffle — sort-by-random-priority with dynamic Range. Exact replication infeasible. Slot order produces oracle-identical results |
 | exact target-world aftermath predicates | keep aftermath behind world-state inspection, not hard-coded per-mission tables |
 | production completion timing | avoid promising exact parity until more oracle evidence lands |
 
@@ -634,7 +634,7 @@ Flushed
 
 This document does not claim:
 
-- the exact PRNG shuffle algorithm for fleet visit order
+- ~~the exact PRNG shuffle algorithm for fleet visit order~~ (resolved: sort-by-random-priority, see ec-turn-cycle-spec.md section 4l)
 - the exact producers for timing codes 7 and 8
 - the exact target-world aftermath predicates
 - production completion timing vs other subphases

@@ -847,7 +847,8 @@ Closed (high confidence, actionable):
 - [x] Outer loop structure: 52-week fleet processing loop
 - [x] Combat reports emitted inline during fleet processing
 - [x] Combat resolution triggered by first co-located hostile fleet
-- [x] Fleet visit order: PRNG-shuffled (deterministic per state)
+- [x] Fleet visit order: sort-by-random-priority (mechanism fully recovered;
+      exact replication infeasible but slot order produces oracle-identical results)
 - [x] Fleet destruction/capture dynamics
 - [x] File write/flush ordering
 - [x] Movement is position-first, mission resolves next year

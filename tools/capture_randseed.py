@@ -1,253 +1,131 @@
 #!/usr/bin/env python3
-"""Capture Borland Pascal RandSeed at the first FLEETS.DAT write event.
+"""Capture Borland Pascal RandSeed after ECMAINT exits using a DOS COM stub.
 
-The first FLEETS.DAT write marks the start of the fleet-processing loop.
-At that point, RandSeed (DS:0x03A6, 32-bit LE) reflects the accumulated
-PRNG state after validation/loading. Reading it gives us the seed that
-was used to generate the fleet visit order.
+Instead of driving the DOSBox debugger via pexpect (slow, fragile), this
+runs ECMAINT normally and then immediately runs READSEED.COM in the same
+DOS session.  READSEED.COM reads the 4-byte RandSeed from the still-intact
+ECMAINT data segment (3529:03A6) and writes it to SEED.BIN.
 
-Strategy:
-  1. Stage through first-file-open → 96c4 bridge (standard two-stage load)
-  2. Arm INT 21h/40h (file write) breakpoint
-  3. Run until a write to FLEETS.DAT (file handle check)
-  4. Read DS:0x03A6 (4 bytes) via DOSBox D command
-  5. Also capture the first few fleet record write offsets to verify visit order
+The captured seed is the *post-run* RandSeed.  Combined with the known
+initial seed (0x000E000E at the 96c4 bridge) and the Borland Pascal LCG
+(seed = seed * 0x08088405 + 1), every intermediate seed value can be
+computed by forward-stepping the LCG from the initial seed or
+reverse-stepping from the final seed.
 
 Usage:
-    python3 tools/capture_randseed.py [scenario]
+    python3 tools/capture_randseed.py [scenario ...]
     python3 tools/capture_randseed.py all
+
+Scenarios: bombard, econ, fleet-order, planet-build (the 4 non-combat,
+non-destruction scenarios with known visit orders from file-I/O traces).
 """
 
 from __future__ import annotations
 
+import json
 import os
-import re
 import shutil
 import struct
+import subprocess
 import sys
-import time
 from pathlib import Path
-
-from pexpect_argv import spawn_argv
 
 ROOT = Path(__file__).resolve().parents[1]
 
-BRIDGE_BP = "2814:96c4"
-FLEET_RECORD_SIZE = 54
-
-
-def read_available(child, timeout: float = 0.3) -> str:
-    text = ""
-    while True:
-        try:
-            text += child.read_nonblocking(size=4096, timeout=timeout)
-        except Exception:
-            break
-    return text
-
-
-def send(child, cmd: str, delay: float = 0.5) -> str:
-    child.sendline(cmd)
-    time.sleep(delay)
-    return read_available(child)
-
-
-def parse_ev(child) -> dict[str, int]:
-    text = send(child, "EV CS EIP DS ES SS SP BP AX BX CX DX SI DI", 0.5)
-    m = re.search(
-        r"EV of 'CS EIP DS ES SS SP BP AX BX CX DX SI DI' is:\s*LOG:\s*([0-9a-fA-F ]+)",
-        text,
-    )
-    if not m:
-        raise RuntimeError(f"EV parse failed:\n{text!r}")
-    parts = [int(x, 16) for x in m.group(1).split()]
-    names = ["CS", "EIP", "DS", "ES", "SS", "SP", "BP", "AX", "BX", "CX", "DX", "SI", "DI"]
-    return dict(zip(names, parts, strict=True))
-
-
-def read_memory(child, seg: int, off: int, length: int) -> bytes:
-    """Read bytes from DOSBox memory via EV of memory expressions."""
-    # DOSBox DEBUGBOX D command output is unreliable to parse.
-    # Instead, use EV to read individual words.
-    result = bytearray()
-    for i in range(0, length, 2):
-        addr = off + i
-        text = send(child, f"EV word [DS:{addr:04X}]", 0.5)
-        # Parse: "EV of 'word [DS:XXXX]' is: LOG:  YYYY"
-        m = re.search(r"is:\s*LOG:\s*([0-9a-fA-F]+)", text)
-        if m:
-            val = int(m.group(1), 16)
-            result.append(val & 0xFF)
-            result.append((val >> 8) & 0xFF)
-        else:
-            # Try alternate: just look for a hex number after LOG:
-            m2 = re.search(r"LOG:\s+([0-9a-fA-F]{1,8})", text)
-            if m2:
-                val = int(m2.group(1), 16)
-                result.append(val & 0xFF)
-                result.append((val >> 8) & 0xFF)
-            else:
-                print(f"    WARNING: could not parse EV output for [{seg:04X}:{addr:04X}]: {text[:100]!r}")
-                result.extend(b'\x00\x00')
-    return bytes(result[:length])
+# Known visit orders from artifacts/ecmaint-fileio-trace/cross_scenario_comparison.txt
+KNOWN_VISIT_ORDERS: dict[str, list[int]] = {
+    "bombard":      [11, 15, 0, 10, 4, 3, 2, 1, 14, 5, 13, 8, 7, 6, 9, 12],
+    "econ":         [11, 1, 4, 14, 12, 8, 3, 15, 0, 5, 7, 6, 9, 13, 2, 10],
+    "fleet-order":  [6, 3, 7, 1, 2, 9, 13, 12, 4, 5, 0, 15, 10, 14, 11, 8],
+    "planet-build": [15, 12, 9, 4, 0, 3, 7, 8, 11, 14, 2, 1, 13, 6, 10, 5],
+}
 
 
 def prepare(fixture_src: Path, target: Path) -> None:
+    """Copy fixture to working directory, add ECMAINT.EXE and READSEED.COM."""
     if target.exists():
         shutil.rmtree(target)
     shutil.copytree(fixture_src, target)
     engine = target / "ECMAINT.EXE"
     if not engine.exists():
         shutil.copy2(ROOT / "original" / "v1.5" / "ECMAINT.EXE", engine)
+    # Generate READSEED.COM if needed, then copy to target
+    readseed_src = ROOT / "tools" / "READSEED.COM"
+    if not readseed_src.exists():
+        subprocess.run(
+            [sys.executable, str(ROOT / "tools" / "readseed_com.py")],
+            check=True,
+        )
+    shutil.copy2(readseed_src, target / "READSEED.COM")
 
 
-def capture_randseed_for_scenario(scenario: str, fixture_src: Path) -> dict | None:
-    target = Path(f"/tmp/ecmaint-randseed-{scenario}")
-    prepare(fixture_src, target)
-
+def run_ecmaint_then_readseed(target: Path) -> subprocess.CompletedProcess[str]:
+    """Run ECMAINT /R then READSEED in the same DOS session."""
     env = os.environ.copy()
     env["SDL_VIDEODRIVER"] = "dummy"
     env["SDL_AUDIODRIVER"] = "dummy"
-    env["TERM"] = "dumb"
-
     cmd = [
-        "dosbox-x", "-defaultconf", "-nopromptfolder", "-nogui", "-nomenu",
+        "dosbox-x",
+        "-defaultconf", "-nopromptfolder", "-nogui", "-nomenu",
         "-defaultdir", str(target),
-        "-set", "dosv=off", "-set", "machine=vgaonly", "-set", "core=normal",
-        "-set", "cputype=386_prefetch", "-set", "cycles=fixed 50000",
-        "-set", "xms=false", "-set", "ems=false", "-set", "umb=false",
+        "-set", "dosv=off",
+        "-set", "machine=vgaonly",
+        "-set", "core=normal",
+        "-set", "cputype=386_prefetch",
+        "-set", "cycles=fixed 3000",
+        "-set", "xms=false",
+        "-set", "ems=false",
+        "-set", "umb=false",
         "-set", "output=surface",
-        "-c", f"mount c {target}", "-c", "c:",
-        "-c", "DEBUGBOX ECMAINT /R",
+        "-c", f"mount c {target}",
+        "-c", "c:",
+        "-c", "ECMAINT /R",
+        "-c", "READSEED",
+        "-c", "exit",
     ]
+    return subprocess.run(cmd, env=env, text=True, capture_output=True, timeout=120)
 
-    child = spawn_argv(cmd, env=env, timeout=60, encoding="utf-8")
 
-    try:
-        time.sleep(3)
-        read_available(child, 1.0)
+def read_seed_bin(target: Path) -> int | None:
+    """Read the 4-byte little-endian seed from SEED.BIN."""
+    seed_path = target / "SEED.BIN"
+    if not seed_path.exists():
+        return None
+    data = seed_path.read_bytes()
+    if len(data) < 4:
+        return None
+    return struct.unpack("<I", data[:4])[0]
 
-        # Stage 1: first file-open
-        send(child, "BPDEL *")
-        send(child, "BPINT 21 3D", 0.3)
-        send(child, "BPINT 21 4C", 0.3)
-        send(child, "RUN", 3.0)
-        read_available(child, 0.8)
 
-        regs = parse_ev(child)
-        if regs["AX"] >> 8 == 0x4C:
-            print(f"  {scenario}: exited before file-open")
-            return None
+def capture_for_scenario(scenario: str, fixture_src: Path) -> dict:
+    """Run one scenario and capture the post-run RandSeed."""
+    target = Path(f"/tmp/ecmaint-randseed-{scenario}")
+    prepare(fixture_src, target)
 
-        # Stage 2: bridge to unpacked image
-        send(child, "BPDEL *")
-        send(child, f"BP {BRIDGE_BP}", 0.3)
-        send(child, "BPINT 21 4C", 0.3)
-        send(child, "RUN", 3.0)
-        read_available(child, 0.8)
+    print(f"  Running ECMAINT /R + READSEED for {scenario}...")
+    result = run_ecmaint_then_readseed(target)
 
-        regs = parse_ev(child)
-        if regs["AX"] >> 8 == 0x4C:
-            print(f"  {scenario}: exited before bridge")
-            return None
+    if result.returncode != 0:
+        print(f"  WARNING: DOSBox exited with code {result.returncode}")
 
-        ds_value = regs["DS"]
-        print(f"  Bridge hit: DS={ds_value:04X}")
+    errors_path = target / "ERRORS.TXT"
+    if errors_path.exists():
+        first = errors_path.read_text(errors="ignore").splitlines()[:1]
+        if first:
+            print(f"  ERRORS.TXT: {first[0]}")
 
-        # Read initial RandSeed
-        seed_bytes = read_memory(child, ds_value, 0x03A6, 4)
-        if len(seed_bytes) >= 4:
-            initial_seed = struct.unpack_from("<I", seed_bytes, 0)[0]
-            print(f"  Initial RandSeed (at bridge): 0x{initial_seed:08X}")
-        else:
-            print(f"  WARNING: could not read initial RandSeed (got {len(seed_bytes)} bytes)")
-            initial_seed = None
+    seed = read_seed_bin(target)
+    if seed is not None:
+        print(f"  Post-run RandSeed: 0x{seed:08X}")
+    else:
+        print("  WARNING: SEED.BIN not found or too short")
 
-        # Stage 3: use code breakpoints at key phases to capture RandSeed.
-        # The bridge was at 2814:96c4 (Ghidra 2000:96c4).
-        # We know the code segment for Ghidra seg 2000 is 0x2814 in DOSBox.
-        # But DOSBox may renormalize CS:EIP, so also accept EIP-only matches.
-        #
-        # Key addresses (Ghidra -> DOSBox):
-        #   2000:861d -> 2814:861d  (the call to 6d9b, BEFORE validation)
-        #   2000:8652 -> 2814:8652  (AFTER validation, start of late tail)
-        #
-        # 861d is better than 6d9b because:
-        #   - 861d is the CALL instruction site (we catch it before 6d9b runs)
-        #   - 8652 is right after the JNZ that skips error handling
-        #
-        # Strategy: BP at 861d (pre-validation), read RandSeed.
-        #           BP at 8652 (post-validation/fleet-loop), read RandSeed.
-        #           The fleet loop + economy happen inside the 6d9b call.
-
-        send(child, "BPDEL *")
-        # Use just one BP first to verify it works
-        send(child, "BP 2814:861d", 0.3)
-        send(child, "BPINT 21 4C", 0.3)
-        print("  BPs set: 2814:861d (pre-validation), INT 21/4C (exit)")
-
-        seeds_at_phases = {}
-
-        # Phase 1: run to 861d (pre-validation)
-        print("  Running to 861d...")
-        child.sendline("RUN")
-        # Wait for breakpoint hit - DOSBox debugger may take a while
-        time.sleep(30)
-        text = read_available(child, 5.0)
-        print(f"    RUN output ({len(text)} chars): {text[:200]!r}")
-
-        regs = parse_ev(child)
-        eip = regs["EIP"]
-        cs = regs["CS"]
-        print(f"    Stopped at CS:EIP={cs:04X}:{eip:04X} AX={regs['AX']:04X}")
-
-        if regs["AX"] >> 8 == 0x4C:
-            print(f"  Program exited before 861d")
-            return {"scenario": scenario, "ds": ds_value, "initial_seed": initial_seed, "seeds_at_phases": {}}
-
-        # Read RandSeed at this point
-        seed_bytes = read_memory(child, ds_value, 0x03A6, 4)
-        seed_pre = struct.unpack_from("<I", seed_bytes, 0)[0] if len(seed_bytes) >= 4 else None
-        seeds_at_phases["pre-validation-861d"] = seed_pre
-        print(f"  RandSeed at 861d (pre-validation): 0x{seed_pre:08X}" if seed_pre else "  RandSeed: UNKNOWN")
-
-        # Phase 2: set BP at 8652 (post-validation, after fleet loop)
-        send(child, "BPDEL *")
-        send(child, "BP 2814:8652", 0.3)
-        send(child, "BPINT 21 4C", 0.3)
-        print("  Running to 8652 (post-validation/fleet-loop)...")
-        send(child, "RUN", 30.0)
-        text = read_available(child, 3.0)
-
-        regs = parse_ev(child)
-        eip = regs["EIP"]
-        cs = regs["CS"]
-        print(f"    Stopped at CS:EIP={cs:04X}:{eip:04X} AX={regs['AX']:04X}")
-
-        if regs["AX"] >> 8 == 0x4C:
-            print(f"  Program exited before 8652")
-        else:
-            seed_bytes = read_memory(child, ds_value, 0x03A6, 4)
-            seed_post = struct.unpack_from("<I", seed_bytes, 0)[0] if len(seed_bytes) >= 4 else None
-            seeds_at_phases["post-fleet-loop-8652"] = seed_post
-            print(f"  RandSeed at 8652 (post-fleet-loop): 0x{seed_post:08X}" if seed_post else "  RandSeed: UNKNOWN")
-
-        return {
-            "scenario": scenario,
-            "ds": ds_value,
-            "initial_seed": initial_seed,
-            "seeds_at_phases": seeds_at_phases,
-        }
-
-    finally:
-        try:
-            child.sendcontrol("c")
-            time.sleep(0.5)
-            child.sendline("y")
-            time.sleep(0.5)
-        except Exception:
-            pass
-        child.close(force=True)
+    return {
+        "scenario": scenario,
+        "post_run_seed": seed,
+        "visit_order": KNOWN_VISIT_ORDERS.get(scenario),
+        "target_dir": str(target),
+    }
 
 
 def main() -> int:
@@ -255,7 +133,7 @@ def main() -> int:
 
     scenarios = sys.argv[1:] if len(sys.argv) > 1 else ["bombard"]
     if scenarios == ["all"]:
-        scenarios = ["bombard", "econ", "fleet-order", "planet-build"]
+        scenarios = list(KNOWN_VISIT_ORDERS.keys())
 
     results = []
     for scenario in scenarios:
@@ -265,38 +143,51 @@ def main() -> int:
         print(f"\n{'='*60}")
         print(f"Scenario: {scenario}")
         print(f"{'='*60}")
-        result = capture_randseed_for_scenario(scenario, KNOWN_SCENARIOS[scenario]["pre"])
-        if result:
-            results.append(result)
+        result = capture_for_scenario(scenario, KNOWN_SCENARIOS[scenario]["pre"])
+        results.append(result)
 
     # Summary
     print(f"\n{'='*60}")
-    print("RANDSEED SUMMARY")
+    print("RANDSEED CAPTURE SUMMARY")
     print(f"{'='*60}")
     for r in results:
-        print(f"\n  {r['scenario']}:")
-        print(f"    DS = 0x{r['ds']:04X}")
-        if r['initial_seed'] is not None:
-            print(f"    initial (bridge)    = 0x{r['initial_seed']:08X}")
-        for phase, seed in r.get('seeds_at_phases', {}).items():
-            if seed is not None:
-                print(f"    {phase:22s} = 0x{seed:08X}")
+        seed_str = f"0x{r['post_run_seed']:08X}" if r['post_run_seed'] is not None else "MISSING"
+        print(f"  {r['scenario']:15s} post_seed={seed_str}")
+        if r['visit_order']:
+            print(f"  {'':15s} visit_order={r['visit_order']}")
 
     # Write artifact
     artifact_dir = ROOT / "artifacts" / "ecmaint-randseed"
     artifact_dir.mkdir(parents=True, exist_ok=True)
-    lines = ["ECMAINT RandSeed Capture Results", ""]
+
+    lines = [
+        "ECMAINT RandSeed Capture (COM-stub method)",
+        "=" * 50,
+        "",
+        "Method: READSEED.COM runs after ECMAINT /R in the same DOS session.",
+        "READSEED.COM reads 4 bytes from 3529:03A6 (Borland Pascal RandSeed)",
+        "and writes them to SEED.BIN.",
+        "",
+        "PRNG: RandSeed = RandSeed * 0x08088405 + 1 (Borland Pascal LCG)",
+        "Initial seed at bridge (96c4): 0x000E000E",
+        "",
+    ]
     for r in results:
+        seed_str = f"0x{r['post_run_seed']:08X}" if r['post_run_seed'] is not None else "MISSING"
         lines.append(f"Scenario: {r['scenario']}")
-        lines.append(f"  DS segment: 0x{r['ds']:04X}")
-        if r['initial_seed'] is not None:
-            lines.append(f"  Initial RandSeed (at bridge): 0x{r['initial_seed']:08X}")
-        for phase, seed in r.get('seeds_at_phases', {}).items():
-            lines.append(f"  RandSeed at {phase}: 0x{seed:08X}" if seed is not None
-                         else f"  RandSeed at {phase}: unknown")
+        lines.append(f"  Post-run RandSeed: {seed_str}")
+        if r['visit_order']:
+            lines.append(f"  Known visit order: {r['visit_order']}")
         lines.append("")
-    (artifact_dir / "randseed_capture.txt").write_text("\n".join(lines))
-    print(f"\nArtifact written to: {artifact_dir / 'randseed_capture.txt'}")
+
+    artifact_path = artifact_dir / "randseed_capture.txt"
+    artifact_path.write_text("\n".join(lines))
+    print(f"\nArtifact: {artifact_path}")
+
+    # Also write machine-readable JSON
+    json_path = artifact_dir / "randseed_capture.json"
+    json_path.write_text(json.dumps(results, indent=2))
+    print(f"JSON:     {json_path}")
 
     return 0
 
