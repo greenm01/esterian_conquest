@@ -60,10 +60,11 @@ The yearly simulation core (step `4`) is now substantially recovered:
   scheduling priorities. Kind-1 producer assigns codes 3-6 by fleet
   composition (starbase/BS/CA-TT-army/scout-DD).
 
-Remaining unresolved areas: exact runtime provenance/reachability of
-timing codes 7 and 8, the exact hostile-context selector for the
-watched-world aftermath family, and exact interaction between build
-completion and immediate same-tick combat.
+Remaining unresolved areas: the exact semantic class behind the
+decoder-local timing code `7`, whether timing code `8` is reachable at
+all, the exact hostile-context selector for the watched-world aftermath
+family, and exact interaction between build completion and immediate
+same-tick combat.
 
 ## Practical Rust Consequences
 
@@ -1046,11 +1047,22 @@ the kind-1 writer at `1000:dddb`, and the only observed values there are
 No scanned kind-1 or kind-2 durable producer writes `1`, `2`, `7`, or
 `8` to `entry[+0x09]`.
 
-However, the preserved decoder scan for `0000:02c0` does assign local
-timing-state values `1` and `7`, and the `a26e` scheduler still carries
-explicit `7` and `8` cases. So the recovered durable producer mapping is
-definitive for `3..6`, but the exact runtime provenance/reachability of
-`7` and `8` in the later local timing table remains open.
+However, the preserved decoder scan for `0000:02c0` does more than leave
+those codes hypothetical:
+
+- it assigns local timing-state value `1` in an earlier decoded branch
+- it assigns local timing-state value `7` in the later branch around
+  `0000:079a..07da`
+- the `a26e` scheduler still carries explicit `7` and `8` cases
+
+So the recovered durable producer mapping is definitive for `3..6`, and
+code `7` is now bounded as a real decoder-local class rather than an
+unknown producer-side write. What remains open is narrower:
+
+- the exact semantic family represented by that decoder-local code-`7`
+  branch
+- whether code `8` is ever reachable in practice, since no preserved
+  producer or decoder assignment currently feeds it
 
 The practical durable producer-side timing system is therefore:
 
@@ -1149,9 +1161,8 @@ Settled facts:
 
 To complete the canonical cycle to full oracle parity, we still need:
 
-- the exact runtime provenance/reachability of timing codes 7 and 8
-  (durable producer-side `entry[+0x09]` mapping is recovered only for
-  codes `3..6`; `02c0` also seeds local timing-state values including `7`)
+- the exact semantic class behind the decoder-local timing code `7`, and
+  whether timing code `8` is reachable at all
 - the exact hostile-context selector that chooses the observed watched-world
   aftermath family (`unchanged`, `+0x58`, or `+0x38/+0x3c`)
 - exact interaction between build completion and immediate same-tick combat
