@@ -438,6 +438,7 @@ fn push_contact_event_for_task_force(
             small_vessels,
             medium_vessels,
             large_vessels,
+            stardate_week: None,
         });
     }
 
@@ -454,6 +455,7 @@ fn push_contact_event_for_task_force(
             small_vessels,
             medium_vessels,
             large_vessels,
+            stardate_week: None,
         });
     }
 }
@@ -1012,6 +1014,7 @@ pub(crate) fn process_fleet_battles(
                                 )
                                 .2,
                                 reason: EncounterDispositionReason::RoeDeclined,
+                                stardate_week: None,
                             },
                         );
                     }
@@ -1087,6 +1090,7 @@ pub(crate) fn process_fleet_battles(
                             planet_idx: None,
                             location_coords: Some(coords),
                             target_coords: Some(fleet.standing_order_target_coords_raw()),
+                            stardate_week: None,
                         });
                     }
                 }
@@ -1139,6 +1143,7 @@ pub(crate) fn process_fleet_battles(
                         losses_sustained: losses,
                         enemy_losses_inflicted,
                         reason: EncounterDispositionReason::RoeWithdrawal,
+                        stardate_week: None,
                     });
             }
         }
@@ -1181,6 +1186,7 @@ pub(crate) fn process_fleet_battles(
                 friendly_losses,
                 enemy_initial: ship_counts_from_state(&enemy_before),
                 enemy_losses,
+                stardate_week: None,
             });
 
             if !tf_has_any_units(after_tf) && !after_tf.fleet_indices.is_empty() {
@@ -1209,6 +1215,7 @@ pub(crate) fn process_fleet_battles(
                     enemy_losses,
                     friendly_armies,
                     primary_enemy_empire_raw,
+                    stardate_week: None,
                 });
             }
 
@@ -1230,6 +1237,7 @@ pub(crate) fn process_fleet_battles(
                                 enemy_initial: ship_counts_from_state(&enemy_before),
                                 enemy_losses,
                                 primary_enemy_empire_raw,
+                                stardate_week: None,
                             });
                     }
                 }
@@ -1573,6 +1581,7 @@ pub(crate) fn process_planetary_assaults(
                                 game_data.planets.records[planet_idx].coords_raw(),
                             ),
                             target_coords: Some(game_data.planets.records[planet_idx].coords_raw()),
+                            stardate_week: None,
                         });
                     }
                 }
@@ -1638,6 +1647,7 @@ pub(crate) fn process_planetary_assaults(
                     ),
                     defender_army_losses: pre_armies
                         .saturating_sub(game_data.planets.records[planet_idx].army_count_raw()),
+                    stardate_week: None,
                 });
                 for &fleet_idx in &winner_fleets {
                     if bombard_set.contains(&fleet_idx) {
@@ -1651,6 +1661,7 @@ pub(crate) fn process_planetary_assaults(
                                 game_data.planets.records[planet_idx].coords_raw(),
                             ),
                             target_coords: Some(game_data.planets.records[planet_idx].coords_raw()),
+                            stardate_week: None,
                         });
                     }
                 }
@@ -1744,6 +1755,7 @@ pub(crate) fn process_planetary_assaults(
                                 reporting_empire_raw: previous_owner,
                                 previous_owner_empire_raw: previous_owner,
                                 new_owner_empire_raw: winner_empire,
+                                stardate_week: None,
                             });
                         for &fleet_idx in &winner_fleets {
                             if invade_set.contains(&fleet_idx) {
@@ -1759,6 +1771,7 @@ pub(crate) fn process_planetary_assaults(
                                     target_coords: Some(
                                         game_data.planets.records[planet_idx].coords_raw(),
                                     ),
+                                    stardate_week: None,
                                 });
                             }
                         }
@@ -1777,6 +1790,7 @@ pub(crate) fn process_planetary_assaults(
                             defender_battery_losses,
                             defender_army_losses,
                             outcome: MissionOutcome::Succeeded,
+                            stardate_week: None,
                         });
                     } else {
                         game_data.planets.records[planet_idx]
@@ -1795,6 +1809,7 @@ pub(crate) fn process_planetary_assaults(
                                     target_coords: Some(
                                         game_data.planets.records[planet_idx].coords_raw(),
                                     ),
+                                    stardate_week: None,
                                 });
                             }
                         }
@@ -1812,6 +1827,7 @@ pub(crate) fn process_planetary_assaults(
                             defender_battery_losses,
                             defender_army_losses,
                             outcome: MissionOutcome::Failed,
+                            stardate_week: None,
                         });
                     }
                 } else {
@@ -1832,6 +1848,7 @@ pub(crate) fn process_planetary_assaults(
                                 target_coords: Some(
                                     game_data.planets.records[planet_idx].coords_raw(),
                                 ),
+                                stardate_week: None,
                             });
                         }
                     }
@@ -1851,6 +1868,7 @@ pub(crate) fn process_planetary_assaults(
                         ),
                         defender_army_losses: 0,
                         outcome: MissionOutcome::Aborted,
+                        stardate_week: None,
                     });
                 }
 
@@ -1917,6 +1935,7 @@ pub(crate) fn process_planetary_assaults(
                             reporting_empire_raw: previous_owner,
                             previous_owner_empire_raw: previous_owner,
                             new_owner_empire_raw: winner_empire,
+                            stardate_week: None,
                         });
                     for &fleet_idx in &winner_fleets {
                         if blitz_set.contains(&fleet_idx) {
@@ -1932,6 +1951,7 @@ pub(crate) fn process_planetary_assaults(
                                 target_coords: Some(
                                     game_data.planets.records[planet_idx].coords_raw(),
                                 ),
+                                stardate_week: None,
                             });
                         }
                     }
@@ -1949,6 +1969,7 @@ pub(crate) fn process_planetary_assaults(
                         defender_battery_losses,
                         defender_army_losses,
                         outcome: MissionOutcome::Succeeded,
+                        stardate_week: None,
                     });
                 } else {
                     game_data.planets.records[planet_idx]
@@ -1967,6 +1988,7 @@ pub(crate) fn process_planetary_assaults(
                                 target_coords: Some(
                                     game_data.planets.records[planet_idx].coords_raw(),
                                 ),
+                                stardate_week: None,
                             });
                         }
                     }
@@ -1984,6 +2006,7 @@ pub(crate) fn process_planetary_assaults(
                         defender_battery_losses,
                         defender_army_losses,
                         outcome: MissionOutcome::Failed,
+                        stardate_week: None,
                     });
                 }
 

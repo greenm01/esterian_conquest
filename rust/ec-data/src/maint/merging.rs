@@ -70,6 +70,7 @@ pub(super) fn process_colonizations(
                     fleet_idx: event.fleet_idx,
                     planet_idx: idx,
                     colonizer_empire_raw: event.owner_empire,
+                    stardate_week: None,
                 });
             } else {
                 resolved.push(ColonizationResolvedEvent::BlockedByOwner {
@@ -77,6 +78,7 @@ pub(super) fn process_colonizations(
                     planet_idx: idx,
                     colonizer_empire_raw: event.owner_empire,
                     owner_empire_raw: planet.owner_empire_slot_raw(),
+                    stardate_week: None,
                 });
             }
         }
@@ -164,6 +166,7 @@ pub(super) fn process_fleet_merging(
                         absorbed_fleet_id: game_data.fleets.records[fi].fleet_id(),
                         coords,
                         survivor_side: false,
+                        stardate_week: None,
                     });
                     if kind == Mission::RendezvousSector {
                         merge_events.push(FleetMergeEvent {
@@ -174,6 +177,7 @@ pub(super) fn process_fleet_merging(
                             absorbed_fleet_id: game_data.fleets.records[fi].fleet_id(),
                             coords,
                             survivor_side: true,
+                            stardate_week: None,
                         });
                     }
                 }
@@ -283,6 +287,7 @@ pub(super) fn process_mission_fleet_merging(
             absorbed_fleet_id: joiner_fleet_id,
             coords: joiner_coords,
             survivor_side: false,
+            stardate_week: None,
         });
     }
 
@@ -323,6 +328,7 @@ pub(super) fn process_mission_fleet_merging(
                 absorbed_fleet_id: absorbed_id,
                 coords,
                 survivor_side: false,
+                stardate_week: None,
             });
             merge_events.push(FleetMergeEvent {
                 fleet_idx: survivor_idx,
@@ -332,6 +338,7 @@ pub(super) fn process_mission_fleet_merging(
                 absorbed_fleet_id: absorbed_id,
                 coords,
                 survivor_side: true,
+                stardate_week: None,
             });
         }
     }

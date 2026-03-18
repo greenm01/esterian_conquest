@@ -19,6 +19,7 @@ fn queue_local_intrusion_escalation(
             .push(DiplomaticEscalationEvent {
                 left_empire_raw: owner_empire_raw,
                 right_empire_raw: defender_empire_raw,
+                stardate_week: None,
             });
     }
 }
@@ -101,6 +102,7 @@ pub(super) fn process_fleet_movement(
                             planet_idx: None,
                             location_coords: Some([target_x, target_y]),
                             target_coords: Some([target_x, target_y]),
+                            stardate_week: None,
                         });
                     }
                     Order::ScoutSolarSystem => {
@@ -123,6 +125,7 @@ pub(super) fn process_fleet_movement(
                             planet_idx: None,
                             location_coords: Some([target_x, target_y]),
                             target_coords: Some([target_x, target_y]),
+                            stardate_week: None,
                         });
                     }
                     Order::ViewWorld => {
@@ -149,6 +152,7 @@ pub(super) fn process_fleet_movement(
                             planet_idx,
                             location_coords: Some([target_x, target_y]),
                             target_coords: Some([target_x, target_y]),
+                            stardate_week: None,
                         });
                         set_fleet_to_deep_space_hold(&mut game_data.fleets.records[i]);
                     }
@@ -177,6 +181,7 @@ pub(super) fn process_fleet_movement(
                             planet_idx: None,
                             location_coords: Some([target_x, target_y]),
                             target_coords: Some([target_x, target_y]),
+                            stardate_week: None,
                         });
                     }
                     Order::GuardBlockadeWorld => {
@@ -202,6 +207,7 @@ pub(super) fn process_fleet_movement(
                             planet_idx,
                             location_coords: Some([target_x, target_y]),
                             target_coords: Some([target_x, target_y]),
+                            stardate_week: None,
                         });
                     }
                     Order::RendezvousSector => {
@@ -213,6 +219,7 @@ pub(super) fn process_fleet_movement(
                             planet_idx: None,
                             location_coords: Some([target_x, target_y]),
                             target_coords: Some([target_x, target_y]),
+                            stardate_week: None,
                         });
                     }
                     Order::MoveOnly => {
@@ -224,6 +231,7 @@ pub(super) fn process_fleet_movement(
                             planet_idx: None,
                             location_coords: Some([target_x, target_y]),
                             target_coords: Some([target_x, target_y]),
+                            stardate_week: None,
                         });
                     }
                     Order::PatrolSector => {
@@ -235,6 +243,7 @@ pub(super) fn process_fleet_movement(
                             planet_idx: None,
                             location_coords: Some([target_x, target_y]),
                             target_coords: Some([target_x, target_y]),
+                            stardate_week: None,
                         });
                     }
                     Order::SeekHome => {
@@ -250,6 +259,7 @@ pub(super) fn process_fleet_movement(
                                 .position(|planet| planet.coords_raw() == [target_x, target_y]),
                             location_coords: Some([target_x, target_y]),
                             target_coords: Some([target_x, target_y]),
+                            stardate_week: None,
                         });
                     }
                     Order::BombardWorld => {
@@ -279,6 +289,7 @@ pub(super) fn process_fleet_movement(
                                 .position(|planet| planet.coords_raw() == [target_x, target_y]),
                             location_coords: Some([target_x, target_y]),
                             target_coords: Some([target_x, target_y]),
+                            stardate_week: None,
                         });
                     }
                     Order::InvadeWorld => {
@@ -308,6 +319,7 @@ pub(super) fn process_fleet_movement(
                                 .position(|planet| planet.coords_raw() == [target_x, target_y]),
                             location_coords: Some([target_x, target_y]),
                             target_coords: Some([target_x, target_y]),
+                            stardate_week: None,
                         });
                     }
                     Order::BlitzWorld => {
@@ -333,6 +345,7 @@ pub(super) fn process_fleet_movement(
                             planet_idx,
                             location_coords: Some([target_x, target_y]),
                             target_coords: Some([target_x, target_y]),
+                            stardate_week: None,
                         });
                     }
                     _ => {}
@@ -372,6 +385,7 @@ fn queue_salvage_resolution(
                 planet_idx,
                 location_coords: Some(coords),
                 target_coords: Some(coords),
+                stardate_week: None,
             });
             movement_events.salvage_events.push(salvage_event);
             if recovered_points > 0 {
@@ -387,6 +401,7 @@ fn queue_salvage_resolution(
                 planet_idx,
                 location_coords: Some(coords),
                 target_coords: Some(coords),
+                stardate_week: None,
             });
             movement_events.salvage_events.push(salvage_event);
         }
@@ -412,6 +427,7 @@ fn resolve_salvage_arrival(
             planet_idx: None,
             coords,
             reason: SalvageFailureReason::NoPlanetAtTarget,
+            stardate_week: None,
         });
     };
 
@@ -425,6 +441,7 @@ fn resolve_salvage_arrival(
             planet_idx: Some(planet_idx),
             coords,
             reason: SalvageFailureReason::PlanetNotOwned,
+            stardate_week: None,
         });
     }
 
@@ -439,6 +456,7 @@ fn resolve_salvage_arrival(
         planet_idx,
         coords,
         recovered_points,
+        stardate_week: None,
     })
 }
 

@@ -155,14 +155,15 @@ fn test_colonization_emits_success_event() {
     let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
 
     assert_eq!(events.colonization_events.len(), 1);
-    assert_eq!(
+    assert!(matches!(
         events.colonization_events[0],
         ColonizationResolvedEvent::Succeeded {
             fleet_idx: 0,
             planet_idx: 13,
             colonizer_empire_raw: 1,
+            ..
         }
-    );
+    ));
     assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 0
             && event.kind == Mission::ColonizeWorld
@@ -183,15 +184,16 @@ fn test_colonization_emits_blocked_event_for_occupied_world() {
     let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
 
     assert_eq!(events.colonization_events.len(), 1);
-    assert_eq!(
+    assert!(matches!(
         events.colonization_events[0],
         ColonizationResolvedEvent::BlockedByOwner {
             fleet_idx: 0,
             planet_idx: 13,
             colonizer_empire_raw: 1,
             owner_empire_raw: 2,
+            ..
         }
-    );
+    ));
     assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 0
             && event.kind == Mission::ColonizeWorld

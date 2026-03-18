@@ -11,7 +11,7 @@ pub(super) fn detect_campaign_outlook_events(
 ) -> Vec<CampaignOutlookEvent> {
     match after {
         crate::CampaignOutlook::SoleContender(empire_raw) => {
-            vec![CampaignOutlookEvent { empire_raw }]
+            vec![CampaignOutlookEvent { empire_raw, stardate_week: None }]
         }
         _ => Vec::new(),
     }
@@ -23,7 +23,7 @@ pub(super) fn detect_campaign_outcome_events(
 ) -> Vec<CampaignOutcomeEvent> {
     match after {
         crate::CampaignOutcome::RecognizedEmperor(emperor_empire_raw) => {
-            vec![CampaignOutcomeEvent { emperor_empire_raw }]
+            vec![CampaignOutcomeEvent { emperor_empire_raw, stardate_week: None }]
         }
         _ => Vec::new(),
     }
@@ -77,6 +77,7 @@ pub(super) fn apply_civil_disorder_fleet_defections(
             events.push(FleetDefectionEvent {
                 reporting_empire_raw: empire_raw,
                 fleet_id: fleet.fleet_id(),
+                stardate_week: None,
             });
         }
     }
@@ -155,6 +156,7 @@ pub(super) fn apply_campaign_state_transitions(game_data: &mut CoreGameData) -> 
                     events.push(CivilDisorderEvent {
                         reporting_empire_raw: empire_raw,
                         prior_label,
+                        stardate_week: None,
                     });
                 }
             }

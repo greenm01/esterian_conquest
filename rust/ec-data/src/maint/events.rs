@@ -36,6 +36,8 @@ pub struct BombardEvent {
     pub defender_battery_losses: u8,
     /// Observed defender army losses.
     pub defender_army_losses: u8,
+    /// Week of year (1–52) when this event occurred; None until canonicalized.
+    pub stardate_week: Option<u8>,
 }
 
 /// A ground-assault event for invade/blitz mission reporting.
@@ -67,6 +69,8 @@ pub struct AssaultReportEvent {
     pub defender_army_losses: u8,
     /// Final mission outcome.
     pub outcome: MissionOutcome,
+    /// Week of year (1–52) when this event occurred; None until canonicalized.
+    pub stardate_week: Option<u8>,
 }
 
 /// A combat-triggered intel refresh for one player's DATABASE view of one planet.
@@ -89,6 +93,8 @@ pub struct PlanetOwnershipChangeEvent {
     pub previous_owner_empire_raw: u8,
     /// New owner empire slot (1-based).
     pub new_owner_empire_raw: u8,
+    /// Week of year (1–52) when this event occurred; None until canonicalized.
+    pub stardate_week: Option<u8>,
 }
 
 /// A fleet battle resolved at one location.
@@ -108,6 +114,8 @@ pub struct FleetBattleEvent {
     pub enemy_initial: ShipLosses,
     /// Observed hostile losses across the opposing forces.
     pub enemy_losses: ShipLosses,
+    /// Week of year (1–52) when this event occurred; None until canonicalized.
+    pub stardate_week: Option<u8>,
 }
 
 /// A fleet was completely destroyed and command lost all contact with it.
@@ -131,6 +139,8 @@ pub struct FleetDestroyedEvent {
     pub friendly_armies: u32,
     /// Hostile empire if a primary enemy can be named.
     pub primary_enemy_empire_raw: Option<u8>,
+    /// Week of year (1–52) when this event occurred; None until canonicalized.
+    pub stardate_week: Option<u8>,
 }
 
 /// A starbase was completely destroyed and command lost all contact with it.
@@ -148,6 +158,8 @@ pub struct StarbaseDestroyedEvent {
     pub enemy_losses: ShipLosses,
     /// Hostile empire if a primary enemy can be named.
     pub primary_enemy_empire_raw: Option<u8>,
+    /// Week of year (1–52) when this event occurred; None until canonicalized.
+    pub stardate_week: Option<u8>,
 }
 
 /// A scout-style hostile contact report resolved during maintenance.
@@ -175,6 +187,8 @@ pub struct ScoutContactEvent {
     pub medium_vessels: u32,
     /// Aggregate "large vessel" count in the detected force.
     pub large_vessels: u32,
+    /// Week of year (1–52) when this event occurred; None until canonicalized.
+    pub stardate_week: Option<u8>,
 }
 
 /// A friendly merge result for join/rendezvous style orders.
@@ -194,6 +208,8 @@ pub struct FleetMergeEvent {
     pub coords: [u8; 2],
     /// Whether this is the survivor-side "absorbing" report.
     pub survivor_side: bool,
+    /// Week of year (1–52) when this event occurred; None until canonicalized.
+    pub stardate_week: Option<u8>,
 }
 
 /// A join mission whose host fleet changed or was lost during maintenance.
@@ -290,6 +306,8 @@ pub struct MissionEvent {
     pub location_coords: Option<[u8; 2]>,
     /// Original mission target coordinates, if known.
     pub target_coords: Option<[u8; 2]>,
+    /// Week of year (1–52) when this event occurred; None until canonicalized.
+    pub stardate_week: Option<u8>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -310,6 +328,8 @@ pub enum EncounterDispositionEvent {
         medium_vessels: u32,
         large_vessels: u32,
         reason: EncounterDispositionReason,
+        /// Week of year (1–52) when this event occurred; None until canonicalized.
+        stardate_week: Option<u8>,
     },
     Retreated {
         fleet_idx: usize,
@@ -322,6 +342,8 @@ pub enum EncounterDispositionEvent {
         losses_sustained: ShipLosses,
         enemy_losses_inflicted: ShipLosses,
         reason: EncounterDispositionReason,
+        /// Week of year (1–52) when this event occurred; None until canonicalized.
+        stardate_week: Option<u8>,
     },
 }
 
@@ -372,6 +394,8 @@ pub enum SalvageResolvedEvent {
         planet_idx: usize,
         coords: [u8; 2],
         recovered_points: u32,
+        /// Week of year (1–52) when this event occurred; None until canonicalized.
+        stardate_week: Option<u8>,
     },
     Failed {
         fleet_idx: usize,
@@ -379,6 +403,8 @@ pub enum SalvageResolvedEvent {
         planet_idx: Option<usize>,
         coords: [u8; 2],
         reason: SalvageFailureReason,
+        /// Week of year (1–52) when this event occurred; None until canonicalized.
+        stardate_week: Option<u8>,
     },
 }
 
@@ -393,28 +419,38 @@ pub struct DiplomacyOverride {
 pub struct DiplomaticEscalationEvent {
     pub left_empire_raw: u8,
     pub right_empire_raw: u8,
+    /// Week of year (1–52) when this event occurred; None until canonicalized.
+    pub stardate_week: Option<u8>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CivilDisorderEvent {
     pub reporting_empire_raw: u8,
     pub prior_label: String,
+    /// Week of year (1–52) when this event occurred; None until canonicalized.
+    pub stardate_week: Option<u8>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CampaignOutlookEvent {
     pub empire_raw: u8,
+    /// Week of year (1–52) when this event occurred; None until canonicalized.
+    pub stardate_week: Option<u8>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CampaignOutcomeEvent {
     pub emperor_empire_raw: u8,
+    /// Week of year (1–52) when this event occurred; None until canonicalized.
+    pub stardate_week: Option<u8>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FleetDefectionEvent {
     pub reporting_empire_raw: u8,
     pub fleet_id: u8,
+    /// Week of year (1–52) when this event occurred; None until canonicalized.
+    pub stardate_week: Option<u8>,
 }
 
 /// A colonization outcome resolved during maintenance.
@@ -428,6 +464,8 @@ pub enum ColonizationResolvedEvent {
         planet_idx: usize,
         /// Empire that established the colony (1-based player index).
         colonizer_empire_raw: u8,
+        /// Week of year (1–52) when this event occurred; None until canonicalized.
+        stardate_week: Option<u8>,
     },
     /// The fleet reached the target world but it was already occupied.
     BlockedByOwner {
@@ -439,6 +477,8 @@ pub enum ColonizationResolvedEvent {
         colonizer_empire_raw: u8,
         /// Current owner of the world (1-based player index).
         owner_empire_raw: u8,
+        /// Week of year (1–52) when this event occurred; None until canonicalized.
+        stardate_week: Option<u8>,
     },
 }
 

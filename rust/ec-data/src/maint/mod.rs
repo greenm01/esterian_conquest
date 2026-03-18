@@ -9,6 +9,8 @@ mod movement;
 mod merging;
 mod economics;
 mod campaign;
+pub mod timing;
+mod canonicalize;
 
 use crate::{
     CoreGameData, DiplomaticRelation, FleetOrderValidationError, FleetPlayerInputValidationError,
@@ -254,6 +256,7 @@ pub fn run_maintenance_turn_with_context(
                 fleet_idx,
                 planet_idx,
                 colonizer_empire_raw,
+                ..
             } => mission_events.push(MissionEvent {
                 fleet_idx,
                 owner_empire_raw: colonizer_empire_raw,
@@ -262,6 +265,7 @@ pub fn run_maintenance_turn_with_context(
                 planet_idx: Some(planet_idx),
                 location_coords: Some(game_data.planets.records[planet_idx].coords_raw()),
                 target_coords: Some(game_data.planets.records[planet_idx].coords_raw()),
+                stardate_week: None,
             }),
             ColonizationResolvedEvent::BlockedByOwner {
                 fleet_idx,
@@ -276,6 +280,7 @@ pub fn run_maintenance_turn_with_context(
                 planet_idx: Some(planet_idx),
                 location_coords: Some(game_data.planets.records[planet_idx].coords_raw()),
                 target_coords: Some(game_data.planets.records[planet_idx].coords_raw()),
+                stardate_week: None,
             }),
         }
     }
@@ -309,6 +314,10 @@ pub fn run_maintenance_turn_with_context(
     };
 
     campaign::apply_stored_diplomatic_escalations(game_data, &events)?;
+
+    // Assign stardate week values and sort event vectors chronologically.
+    let mut events = events;
+    canonicalize::canonicalize_events(&mut events, game_data);
 
     Ok(events)
 }
