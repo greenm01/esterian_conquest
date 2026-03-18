@@ -1,0 +1,146 @@
+EC report cadence focus
+
+This artifact is the compact Rust-facing evidence extract for the last timing
+families that remained ambiguous after the broader `ec-report-transition-*`
+work.
+
+The important conclusion is not one more hidden delay table. The preserved
+corpus instead supports:
+
+- standing extended-orbit status carry across years
+- later hostile-contact reports while orbiting as independent weekly-stream
+  events
+- standing bombardment continuation after hostile encounter, not one fixed
+  `attacked -> bombing-run` delay
+
+MULTI-YEAR EXTENDED-ORBIT CARRY
+
+Fleets that remain in extended orbit commonly emit `orbit-world` again at
+week `1` in later years.
+
+Examples:
+
+- `your 6th Fleet, located in System(25,22)`
+  - `(3012, 14, ec11.txt)`
+  - `(3013, 1, ec12.txt)`
+  - `(3014, 1, ec13.txt)`
+  - `(3015, 1, ec14.txt)`
+  - `(3016, 1, ec15.txt)`
+  - `(3017, 1, ec16.txt)`
+  - `(3018, 1, ec17.txt)`
+  - `(3019, 1, ec18.txt)`
+  - `(3020, 1, ec19.txt)`
+  - `(3021, 1, ec20.txt)`
+
+- `your 11th Fleet, located in System(27,12)`
+  - `(3022, 52, ec21.txt)`
+  - `(3023, 1, ec22.txt)`
+  - `(3024, 1, ec23.txt)`
+  - `(3025, 1, ec24.txt)`
+  - `(3026, 1, ec25.txt)`
+  - `(3027, 1, ec26.txt)`
+  - `(3028, 1, ec27.txt)`
+
+- `your 6th Fleet, located in System(21,14)`
+  - `(3035, 35, ec34.txt)`
+  - `(3036, 1, ec35.txt)`
+  - `(3037, 1, ec36.txt)`
+  - `(3038, 1, ec37.txt)`
+  - `(3039, 1, ec38.txt)`
+  - `(3040, 1, ec39.txt)`
+  - `(3041, 1, ec40.txt)`
+  - `(3042, 1, ec41.txt)`
+  - `(3043, 1, ec42.txt)`
+
+Practical meaning:
+
+- `orbit-world` is a standing mission/status family
+- week-`1` orbit reports are normal round-start carry for fleets already in
+  extended orbit
+- the preserved zero-gap `identified -> orbit-world` cases are therefore not
+  evidence of a universal same-week delay collapse
+
+DIRECT SAME-SOURCE / SAME-YEAR PROGRESSION
+
+- `entered-system -> attacked`
+  - count: `2`
+  - gaps: `{0: 1, 1: 1}`
+  - interpretation: arrival and hostile contact are separate weekly-stream
+    events; attack week is not derived mechanically from entry week
+
+- `identified -> orbit-world`
+  - count: `7`
+  - gaps: `{0: 5, 1: 1, 4: 1}`
+  - all `0`-gap cases are week `1`
+  - interpretation: standing extended-orbit status, not one fixed follow-on
+    timer
+
+- `orbit-world -> sensor-contact`
+  - count: `23`
+  - gaps: `{1: 2, 2: 3, 3: 4, 5: 2, 8: 2, 10: 3, 12: 1, 14: 1, 16: 1, 26: 2, 28: 1, 36: 1}`
+  - interpretation: later contact while orbiting reflects independent hostile
+    traffic/detection while the standing orbit status persists
+
+- `attacked -> bombing-run`
+  - count: `4`
+  - gaps: `{0: 1, 5: 1, 6: 1, 7: 1}`
+  - the `0`-gap case is week `1`
+  - interpretation: standing bombardment continuation after hostile contact,
+    not one fixed post-attack delay
+
+- `intercepted -> bombing-run`
+  - count: `1`
+  - gaps: `{6: 1}`
+  - interpretation: the bombardment continuation family is not tied only to
+    the literal `attacked` wording; hostile encounter during standing
+    bombardment is the better model
+
+SELECTED SEQUENCES
+
+Scouting / orbit examples:
+
+- `ec4.txt`, `your 7th Fleet, located in System(6,3)`, year `3005`
+  - week `29`: `sensor-contact`
+  - week `29`: `identified`
+  - week `30`: `orbit-world`
+  - week `35`: `sensor-contact`
+  - week `35`: `identified`
+
+- `ec8.txt`, `your 11th Fleet, located in System(21,14)`, year `3009`
+  - week `15`: `sensor-contact`
+  - week `15`: `identified`
+  - week `19`: `orbit-world`
+  - week `29`: `sensor-contact`
+  - week `29`: `identified`
+
+Bombardment continuation examples:
+
+- `ec14.txt`, `your 13th Fleet, located in System(25,12)`, year `3015`
+  - week `38`: `attacked`
+  - week `45`: `bombing-run`
+
+- `ec24.txt`, `your 4th Fleet, located in System(27,12)`, year `3025`
+  - week `31`: `attacked`
+  - week `37`: `bombing-run`
+
+- `ec25.txt`, `your 4th Fleet, located in System(27,12)`, year `3026`
+  - week `1`: `attacked`
+  - week `1`: `bombing-run`
+
+- `ec32.txt`, `your 40th Fleet, located in System(23,5)`, year `3033`
+  - week `22`: `attacked`
+  - week `27`: `bombing-run`
+
+- `ec41.txt`, `your 2nd Fleet, located in System(21,14)`, year `3042`
+  - week `22`: `intercepted`
+  - week `28`: `bombing-run`
+
+RUST-FACING CONCLUSION
+
+These families no longer need to be modeled as unresolved delay constants.
+
+- `entered-system -> attacked` belongs to shared-stream arrival/contact logic
+- `identified -> orbit-world` and `orbit-world -> sensor-contact` belong to
+  the standing extended-orbit family
+- hostile encounter during bombardment can be followed by later
+  `bombing-run` continuation without one single global offset

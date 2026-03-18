@@ -12,6 +12,9 @@ Read it together with:
   world/player update region
 - [ec-timing-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-timing-spec.md)
   for weekly scheduler and report `Stardate` behavior
+- [rust-architecture.md](/home/mag/dev/esterian_conquest/docs/dev/rust-architecture.md)
+  for the repository-wide data-oriented/module-boundary rules this engine
+  implementation should follow
 
 Ownership boundary:
 
@@ -617,6 +620,12 @@ Implementation consequence:
 - when a hostile world-resolution path destroys stardock contents, emit the
   matching player-facing losses through that same event/report path rather
   than as a detached late summary
+- standing mission/status families can also recur across years:
+  - fleets already in extended orbit commonly emit `orbit-world` again at week
+    `1` of later years
+  - standing bombardment can resume with an immediate week-`1` bombing report
+    after hostile contact when the fleet was already in bombard posture at
+    round start
 
 ## Concrete Scheduler-Family Summary
 
@@ -628,10 +637,11 @@ already strong enough to encode. For corpus evidence and edge cases, use
 | --- | --- | --- |
 | `sensor-contact -> identified` | same week consistently in the shipped corpus | emit these as an ordered same-week pair; do not force a week advance between contact and identification |
 | `identified -> intercepted` | same week where directly chained | direct interception can continue inside the same weekly batch |
-| `entered-system -> attacked` | same week or next week | do not hardcode a universal one-week lag between system entry and attack |
-| `identified -> orbit-world` | same source/year gaps `0`, `1`, or `4` in the shipped corpus; the zero-gap cases are all week `1` | scouting follow-on orbit reports are not locked to one fixed delay, but the preserved zero-gap cases look like a special year-start shape rather than arbitrary mid-year collapse |
-| `orbit-world -> sensor-contact` | wide-gap periodic same-source family | keep extended-orbit follow-ons data-driven; this remains one of the main open week-assignment questions |
-| `attacked -> bombing-run` | same source/year gaps `0`, `5`, `6`, or `7` in the shipped corpus; the zero-gap case is week `1` | bombardment continuation is state-driven, not one fixed post-attack delay, and the immediate variant currently looks like a year-start special case |
+| `entered-system -> attacked` | same week or next week | treat attack timing as a separate hostile-contact event in the shared weekly stream; do not derive it mechanically from system-entry week |
+| `identified -> orbit-world` | same source/year gaps `0`, `1`, or `4` in the shipped corpus; the zero-gap cases are all week `1` | treat `extended orbit` as a standing mission/status family; fleets already orbiting at round start may emit a week-`1` orbit report in the same yearly stream |
+| `orbit-world -> sensor-contact` | wide-gap periodic same-source family | while extended orbit persists, later `sensor-contact` is an independent weekly-stream event driven by hostile presence/traffic, not by one internal orbit timer |
+| `attacked -> bombing-run` | same source/year gaps `0`, `5`, `6`, or `7` in the shipped corpus; the zero-gap case is week `1` | standing bombardment can continue after hostile contact without one fixed delay table; support same-year continuation and the round-start immediate variant |
+| `intercepted -> bombing-run` | one direct same-source case at gap `6` | generalize the bombardment continuation rule to hostile encounter during standing bombardment, not only to the literal `attacked` wording |
 | `identified -> Fleet Command Center fleet-lost` | same-week cross-source interleaving is common but not universal | treat loss summaries as separate weekly-stream events, not as same-source mission progression |
 | `attacked -> Fleet Command Center fleet-lost` | next-week cross-source interleaving in the observed corpus | do not force immediate same-week loss-summary emission after every attack report |
 | `fleet-lost -> join-retarget` | same-week cross-source interleaving is observed | administrative retarget consequences can share the same weekly stream as the loss summary |
@@ -690,9 +700,7 @@ run_turn(directory):
           process_fleet_week(state, fleet, week, events)
           // inner body: read fleet, timing-window check,
           // fleet-vs-fleet combat if hostile, update weekly state,
-          // emit reports inline, including stardock-loss reports when a
-          // recovered hostile world-resolution path destroys them,
-          // then write fleet
+          // emit fleet-loop reports inline, then write fleet
       fleet_order.remove_destroyed_and_captured(state)
 
   // Phase 4f: post-loop fleet summary scan
@@ -709,6 +717,8 @@ run_turn(directory):
   // Phase 4h: producer/mutator + hostile world-resolution + assault/campaign region
   run_planet_producer_passes(state, work, events)
   run_planetary_assaults_and_campaign_updates(state, events)
+  // ready hostile world resolution mutates target planets and emits any
+  // matching planet-side loss reports, including stardock-content losses
 
   // Phase 4i: database / header updates
   update_database_and_headers(state)

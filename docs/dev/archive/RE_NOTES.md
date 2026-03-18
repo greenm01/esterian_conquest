@@ -8014,6 +8014,7 @@ Focused shipped-log follow-up:
 - preserved focused extract:
   - `artifacts/ec-report-transition-focus.txt`
   - `artifacts/ec-report-transition-splits.txt`
+  - `artifacts/ec-report-cadence-focus.txt`
 - newly strong concrete placement constraints:
   - `sensor-contact -> identified` is same-week in all focused corpus cases
     (`48x`)
@@ -8040,6 +8041,40 @@ Focused shipped-log follow-up:
     periodic families, not whether the yearly scheduler contains strong
     same-week bundles at all and not whether the cross-source loss/admin pairs
     hide one missing fixed delay rule
+
+Final timing-family cadence follow-up:
+
+- `artifacts/ec-report-cadence-focus.txt` now captures the strongest compact
+  evidence for the remaining direct same-source families
+- multi-year extended-orbit carry is now clear in the shipped log corpus:
+  fleets that remain in `extended orbit` commonly emit `orbit-world` again at
+  week `1` of later years
+  - this closes the best Rust-facing interpretation of the preserved
+    zero-gap `identified -> orbit-world` cases:
+    they are round-start carry inside the standing extended-orbit family, not
+    evidence of an arbitrary universal same-week follow-on delay
+- the wide `orbit-world -> sensor-contact` gaps are likewise now better read as
+  independent hostile traffic/detection while the standing orbit status
+  persists, not as one hidden orbit countdown
+- bombardment continuation is also better bounded now:
+  - `attacked -> bombing-run` appears at gaps `0/5/6/7`
+  - a preserved `intercepted -> bombing-run` case appears at gap `6`
+  - practical reading:
+    hostile encounter during standing bombardment can be followed by later
+    `bombing-run` continuation without one single global offset and without
+    tying the family only to the literal `attacked` wording
+- practical consequence:
+  - no remaining timing questions in this thread block Rust implementation
+  - the Rust-facing closure is now:
+    - `entered-system -> attacked` belongs to shared-stream arrival/contact
+      behavior, not one fixed delay
+    - `identified -> orbit-world` and `orbit-world -> sensor-contact` belong
+      to the standing extended-orbit family
+    - hostile encounter during bombardment can be followed by continued
+      bombardment without one single fixed delay rule
+  - what remains open on the timing side is now low-value historical/static
+    trivia such as exact formatter helpers or the historical label behind
+    scratch-local code `1`
 
 #### Top-down step-4 follow-up: earlier-driver target tightened, file-I/O trace added
 

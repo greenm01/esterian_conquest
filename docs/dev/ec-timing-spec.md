@@ -187,6 +187,7 @@ Focused source-split extract:
 
 - `artifacts/ec-report-transition-focus.txt`
 - `artifacts/ec-report-transition-splits.txt`
+- `artifacts/ec-report-cadence-focus.txt`
 
 Direct same-source / same-year progression:
 
@@ -194,10 +195,11 @@ Direct same-source / same-year progression:
 | --- | --- | --- |
 | `sensor-contact -> identified` | same week in all focused shipped-log cases (`48x`) | contact and identification form one ordered same-week bundle |
 | `identified -> intercepted` | same week where directly chained (`3x`) | direct interception can continue in that same weekly bundle |
-| `entered-system -> attacked` | both same-week and next-week cases (`1x/1x`) | there is no universal separate-week arrival/combat rule |
-| `identified -> orbit-world` | same-source/year gaps `0/1/4`; the zero-gap cases are all week `1` in the preserved corpus | scouting follow-on orbit reports are not fixed to one delay, but the immediate variant currently looks like a year-start special case |
-| `orbit-world -> sensor-contact` | wide-gap periodic family (`1/2/3/5/8/10/12/14/16/26/28/36`) | periodic orbit/update/contact sequencing remains one of the main open timing families |
-| `attacked -> bombing-run` | same-source/year gaps `0/5/6/7`; the zero-gap case is week `1` in the preserved corpus | bombardment continuation is state-driven, not a single fixed offset, and the immediate variant currently looks like a year-start special case |
+| `entered-system -> attacked` | both same-week and next-week cases (`1x/1x`) | arrival and hostile combat are separate weekly-stream events; do not derive attack week directly from system-entry week |
+| `identified -> orbit-world` | same-source/year gaps `0/1/4`; the zero-gap cases are all week `1` in the preserved corpus | `extended orbit` is a standing mission/status family, not a fixed post-identification delay; the zero-gap cases are best explained by fleets already orbiting at round start |
+| `orbit-world -> sensor-contact` | wide-gap periodic family (`1/2/3/5/8/10/12/14/16/26/28/36`) | later contact while orbiting reflects independent hostile traffic/detection while the standing orbit status persists, not a self-timed orbit countdown |
+| `attacked -> bombing-run` | same-source/year gaps `0/5/6/7`; the zero-gap case is week `1` in the preserved corpus | bombardment continuation after hostile contact is a standing mission cadence, not one fixed post-attack delay; the immediate variant is a round-start continuation case |
+| `intercepted -> bombing-run` | one direct same-source case at gap `6` | the bombardment continuation family is not specific to the `attacked` wording; it follows hostile encounter while a bombardment mission is already active |
 
 Cross-source same-week interleaving in the shared weekly stream:
 
@@ -210,10 +212,18 @@ Cross-source same-week interleaving in the shared weekly stream:
 
 Practical consequence:
 
-- the remaining Rust-facing timing question is no longer "does the yearly
-  scheduler contain concrete same-week rules?"
-- it now focuses on the direct same-source families that still show variable or
-  periodic gaps
+- the remaining Rust-facing timing question is no longer "which missing delay
+  table explains these four families?"
+- the direct same-source families above are now better read as state-family
+  rules inside one shared weekly stream:
+  - `entered-system` is not a countdown seed for `attacked`
+  - `orbit-world` is a standing extended-orbit status family with round-start
+    week-`1` carry
+  - later `sensor-contact` while orbiting is driven by independent hostile
+    presence, not by one internal orbit timer
+  - bombardment continuation after hostile contact belongs to a standing
+    bombardment mission cadence rather than to one universal
+    `attack -> bombing-run` offset
 - the Fleet Command Center and planet-loss follow-ons above are better treated
   as same-stream cross-source interleaving, not as one hidden same-source delay
   rule that Rust still needs to recover
@@ -326,20 +336,22 @@ Practical interpretation:
   - for implementation depth it is best treated as an unfed/reserved slot in
     the preserved image, not as a still-missing active event family
 
-## Implementation-Relevant Open Questions
+## Rust-Facing Closure
 
-- exact week placement for the remaining variable-gap and periodic
-  direct same-source movement/combat report families within a yearly
-  maintenance run
-- especially:
-  - `identified -> orbit-world`
-  - `orbit-world -> sensor-contact`
-  - `attacked -> bombing-run`
-  - `entered-system -> attacked`
+No remaining timing questions in this document block Rust clone development.
 
-This is the remaining timing question that still matters directly for the Rust
-clone, because it affects visible `Stardate` values and weekly report
-ordering.
+The direct movement/combat families that previously looked like unresolved
+week-placement holes are now bounded strongly enough to implement:
+
+- `entered-system -> attacked` is shared-stream arrival/contact behavior, not a
+  fixed delay
+- `identified -> orbit-world` and `orbit-world -> sensor-contact` belong to the
+  standing extended-orbit status family
+- bombardment continuation after hostile encounter is a standing mission
+  cadence, not a single hidden `attack -> bombing-run` offset
+
+What remains open here is now historical/static detail, not Rust-facing weekly
+behavior.
 
 ## Low-Value Remaining RE Trivia
 
@@ -354,16 +366,14 @@ These are still mildly interesting RE targets, but they do not block Rust
 implementation now that the output contract and phase placement are already
 recovered.
 
-## Next RE Targets
+## Optional Historical Follow-Up
 
-- tighten the remaining variable-gap families to more exact week-placement
-  rules inside the `1..52` scheduler
-- keep separating direct same-source progression from cross-source weekly
-  interleaving so Rust does not encode global adjacent report pairs as if they
-  were one per-mission delay rule
-- derive more week-placement constraints from the recovered late selector
-  (`0000:02c0 -> 1000:9fa1/1000:a26e -> 1000:c102/1000:9c0e`) and the shipped
-  log corpus rather than chasing more local code-byte labels
+- if useful later, identify the exact helper inside the late player-report tail
+  that appends the already-settled `Stardate: <week>/<year>` fragment
+- if useful later, identify the exact helper inside the rankings branch that
+  emits the already-settled `Stardate: YYYY A.D.` banner
+- if useful later, recover the historical label behind the scratch-local
+  timing code `1`
 
 ## Strongest Late-Scheduler Static Path
 
@@ -418,15 +428,14 @@ Practical interpretation:
   - `0000:f914` later tallies live entry-table codes `1..7` at `0x5c8`
   - no preserved writer currently feeds code `2` into either the scratch-local
     or ES-resident timing-entry tables captured so far
-- the remaining Rust-facing unknown is therefore narrower:
-  - exact week placement of the remaining variable-gap and periodic
-    direct same-source movement/combat report families
-  - not the cross-source Fleet Command Center / planet-loss adjacency patterns,
-    which are better treated as same-stream interleaving
-  - not the already-closed same-week bundles such as
-    `sensor-contact -> identified`
-  - and not whether some second hidden local timing code family still needs to
-    be recovered
+- practical implementation consequence:
+  - the late static path no longer leaves a Rust-facing scheduler hole
+  - the direct same-source variable-gap families above are better treated as
+    standing mission/status behavior inside one shared weekly stream, not as
+    evidence of one missing global delay table
+  - the cross-source Fleet Command Center / planet-loss adjacency patterns are
+    likewise better treated as same-stream interleaving, not as same-source
+    mission timing
 
 ## Working Model
 
@@ -443,5 +452,6 @@ Current best model:
 - this timeline is mechanically relevant to mission/report sequencing, not
   just decorative report narration
 
-That model is well supported by the shipped logs, but the exact report-writer
-implementation path is still open.
+That model is well supported by the shipped logs. The exact report-writer
+helper path is still only partially mapped, but that no longer changes the
+Rust timing contract.
