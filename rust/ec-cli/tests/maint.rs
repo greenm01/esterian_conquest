@@ -286,8 +286,8 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     );
     assert_eq!(
         u16::from_le_bytes([records[1][78], records[1][79]]),
-        0,
-        "continuation records should clear the next-header id like classic RESULTS.DAT"
+        first_next_id,
+        "continuation records should preserve the report next-header id in accumulated classic backlogs"
     );
     let eot = records
         .iter()
@@ -300,8 +300,8 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     );
     assert_eq!(
         u16::from_le_bytes([eot[78], eot[79]]),
-        0,
-        "EOT should clear the next-header id like classic RESULTS.DAT"
+        first_next_id,
+        "EOT should preserve the report next-header id in accumulated classic backlogs"
     );
     assert_eq!(post.player.records[0].classic_results_chain_flag_raw(), 1);
     assert_eq!(
@@ -372,7 +372,7 @@ fn preserved_classic_results_allow_long_multi_page_reports() {
 }
 
 #[test]
-fn preserved_classic_results_only_set_next_header_on_header_records() {
+fn preserved_classic_results_can_zero_next_header_on_continuations_in_immediate_oracle_output() {
     let path = repo_root().join("fixtures/ecmaint-fleet-battle-pre/v1.5/.oracle/after-ecmaint/RESULTS.DAT");
     let results = fs::read(path).expect("preserved oracle RESULTS.DAT should exist");
     let records = results_records(&results);
@@ -395,7 +395,7 @@ fn preserved_classic_results_only_set_next_header_on_header_records() {
     assert_eq!(
         u16::from_le_bytes([continuation[78], continuation[79]]),
         0,
-        "continuation should clear the next-header pointer in preserved output"
+        "immediate oracle output can clear the next-header pointer on continuation records"
     );
 
     let eot = records[header_indexes[1] - 1];
@@ -408,7 +408,44 @@ fn preserved_classic_results_only_set_next_header_on_header_records() {
     assert_eq!(
         u16::from_le_bytes([eot[78], eot[79]]),
         0,
-        "EOT should clear the next-header pointer in preserved output"
+        "immediate oracle output can clear the next-header pointer on EOT records"
+    );
+}
+
+#[test]
+fn preserved_classic_results_can_repeat_next_header_on_all_report_records() {
+    let path = repo_root().join("fixtures/ecmaint-fleet-battle-post/v1.5/RESULTS.DAT");
+    let results = fs::read(path).expect("preserved RESULTS.DAT should exist");
+    let records = results_records(&results);
+    let header_indexes = result_header_record_indexes(&records);
+    assert!(header_indexes.len() >= 2, "expected multiple preserved reports");
+
+    let first_header = records[header_indexes[0]];
+    let first_next = u16::from_le_bytes([first_header[78], first_header[79]]);
+    assert_ne!(first_next, 0, "expected a later preserved report header");
+
+    let continuation = records[header_indexes[0] + 1];
+    assert_eq!(
+        u16::from_le_bytes([continuation[74], continuation[75]]),
+        0,
+        "continuation should stay on the first report chain"
+    );
+    assert_eq!(
+        u16::from_le_bytes([continuation[78], continuation[79]]),
+        first_next,
+        "preserved accumulated output can repeat the next-header pointer on continuation records"
+    );
+
+    let eot = records[header_indexes[1] - 1];
+    assert_eq!(
+        result_record_text(eot),
+        "<end of transmission>",
+        "expected EOT before the next preserved report header"
+    );
+    assert_eq!(
+        u16::from_le_bytes([eot[78], eot[79]]),
+        first_next,
+        "preserved accumulated output can repeat the next-header pointer on EOT records"
     );
 }
 
@@ -1060,7 +1097,7 @@ fn maint_rust_colonization_blocked_by_owner_generates_report() {
     assert!(text.contains("From your 1st Fleet, located in System("));
     assert!(text.contains("aliens are already living on the world found within"));
     assert!(text.contains("aborting our mission"));
-    assert!(text.contains("Empire #2"));
+    assert!(!text.contains("(Empire #"));
 
     cleanup_dir(&target);
 }
@@ -1849,7 +1886,8 @@ fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
     assert!(text.contains("identified the alien fleet") || text.contains("located and ident"));
     assert!(text.contains("From your 1st Fleet, located in"));
     assert!(text.contains("the ") && text.contains(" Fleet of "));
-    assert!(text.contains("Empire #"));
+    assert!(text.contains("Fleet of \""));
+    assert!(!text.contains("(Empire #"));
     assert!(text.contains("withdraw toward") || text.contains("seeking safety"));
     assert!(text.contains("planet \"") || text.contains("System("));
 

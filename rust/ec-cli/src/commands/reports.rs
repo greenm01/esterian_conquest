@@ -241,7 +241,7 @@ fn classic_empire_display_name(game_data: &CoreGameData, empire_raw: u8) -> Opti
 
 fn classic_empire_clause(game_data: &CoreGameData, empire_raw: u8) -> String {
     if let Some(name) = classic_empire_display_name(game_data, empire_raw) {
-        format!("\"{name}\", (Empire #{empire_raw})")
+        format!("\"{name}\"")
     } else {
         format!("Empire #{empire_raw}")
     }
@@ -868,6 +868,32 @@ struct ReportEntry {
     kind: u8,
     tail: [u8; 10],
     target: ReportTarget,
+    repeat_next_pointer: bool,
+}
+
+fn report_entry(text: String, kind: u8, tail: [u8; 10], target: ReportTarget) -> ReportEntry {
+    ReportEntry {
+        text,
+        kind,
+        tail,
+        target,
+        repeat_next_pointer: false,
+    }
+}
+
+fn report_entry_repeat_next(
+    text: String,
+    kind: u8,
+    tail: [u8; 10],
+    target: ReportTarget,
+) -> ReportEntry {
+    ReportEntry {
+        text,
+        kind,
+        tail,
+        target,
+        repeat_next_pointer: true,
+    }
 }
 
 /// Build the right-justified Stardate first-line header for a report entry.
@@ -923,6 +949,7 @@ fn generate_report_entries(
             kind: 0x08,
             tail: RESULTS_TAIL_BOMBARD,
             target: ReportTarget::Both { recipient: event.defender_empire_raw },
+            repeat_next_pointer: false,
         });
     }
 
@@ -973,6 +1000,7 @@ fn generate_report_entries(
             kind: 0x06,
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::Both { recipient: event.reporting_empire_raw },
+            repeat_next_pointer: true,
         });
     }
 
@@ -1005,6 +1033,7 @@ fn generate_report_entries(
             kind: 0x06,
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::Both { recipient: event.reporting_empire_raw },
+            repeat_next_pointer: false,
         });
     }
 
@@ -1032,6 +1061,7 @@ fn generate_report_entries(
             kind: 0x06,
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::Both { recipient: event.reporting_empire_raw },
+            repeat_next_pointer: false,
         });
     }
 
@@ -1048,6 +1078,7 @@ fn generate_report_entries(
             kind: 0x06,
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::Both { recipient: event.reporting_empire_raw },
+            repeat_next_pointer: false,
         });
     }
 
@@ -1064,6 +1095,7 @@ fn generate_report_entries(
             kind: 0x06,
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::ResultsOnly,
+            repeat_next_pointer: false,
         });
     }
 
@@ -1080,6 +1112,7 @@ fn generate_report_entries(
             kind: 0x06,
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::ResultsOnly,
+            repeat_next_pointer: false,
         });
     }
 
@@ -1096,6 +1129,7 @@ fn generate_report_entries(
             kind: 0x06,
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::Both { recipient: event.reporting_empire_raw },
+            repeat_next_pointer: false,
         });
     }
 
@@ -1179,6 +1213,7 @@ fn generate_report_entries(
             kind: 0x0c,
             tail: RESULTS_TAIL_INVASION,
             target: ReportTarget::Both { recipient: event.attacker_empire_raw },
+            repeat_next_pointer: false,
         });
     }
 
@@ -1200,6 +1235,7 @@ fn generate_report_entries(
                     kind: 0x05,
                     tail: RESULTS_TAIL_SCOUTING,
                     target: ReportTarget::Both { recipient: event.viewer_empire_raw },
+            repeat_next_pointer: false,
                 });
                 let identified_body = if let Some(enemy) = known_hostile_fleet_label(
                     game_data,
@@ -1220,6 +1256,7 @@ fn generate_report_entries(
                     kind: 0x06,
                     tail: RESULTS_TAIL_SCOUTING,
                     target: ReportTarget::Both { recipient: event.viewer_empire_raw },
+            repeat_next_pointer: false,
                 });
             }
             ContactReportSource::Fleet(fleet_id) => {
@@ -1233,6 +1270,7 @@ fn generate_report_entries(
                     kind: 0x05,
                     tail: RESULTS_TAIL_SCOUTING,
                     target: ReportTarget::Both { recipient: event.viewer_empire_raw },
+            repeat_next_pointer: false,
                 });
                 let identified_body = if let Some(enemy) = known_hostile_fleet_label(
                     game_data,
@@ -1253,6 +1291,7 @@ fn generate_report_entries(
                     kind: 0x06,
                     tail: RESULTS_TAIL_SCOUTING,
                     target: ReportTarget::Both { recipient: event.viewer_empire_raw },
+            repeat_next_pointer: false,
                 });
             }
             ContactReportSource::Starbase(starbase_id) => {
@@ -1277,6 +1316,7 @@ fn generate_report_entries(
                     kind: 0x06,
                     tail: RESULTS_TAIL_SCOUTING,
                     target: ReportTarget::Both { recipient: event.viewer_empire_raw },
+            repeat_next_pointer: false,
                 });
             }
         }
@@ -1308,6 +1348,7 @@ fn generate_report_entries(
             kind: 0x0c,
             tail: RESULTS_TAIL_INVASION,
             target: ReportTarget::Both { recipient: event.reporting_empire_raw },
+            repeat_next_pointer: false,
         });
     }
 
@@ -1347,6 +1388,7 @@ fn generate_report_entries(
             kind: 0x09,
             tail: RESULTS_TAIL_COLONIZATION,
             target: ReportTarget::Both { recipient: colonizer_empire_raw },
+            repeat_next_pointer: false,
         });
     }
 
@@ -1615,6 +1657,7 @@ fn generate_report_entries(
             kind,
             tail,
             target: ReportTarget::Both { recipient: event.owner_empire_raw },
+            repeat_next_pointer: false,
         });
     }
 
@@ -1703,6 +1746,7 @@ fn generate_report_entries(
             kind: 0x05,
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::Both { recipient: owner_empire_raw },
+            repeat_next_pointer: false,
         });
     }
 
@@ -1795,6 +1839,7 @@ fn generate_report_entries(
             kind: 0x05,
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::Both { recipient: owner_empire_raw },
+            repeat_next_pointer: false,
         });
     }
 
@@ -1859,6 +1904,7 @@ fn generate_report_entries(
             kind: 0x05,
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::Both { recipient: owner_empire_raw },
+            repeat_next_pointer: false,
         });
     }
 
@@ -1895,6 +1941,7 @@ fn generate_report_entries(
             kind: 0x05,
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::Both { recipient: event.owner_empire_raw },
+            repeat_next_pointer: false,
         });
     }
 
@@ -1952,6 +1999,7 @@ fn generate_report_entries(
             kind: 0x05,
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::Both { recipient },
+            repeat_next_pointer: false,
         });
     }
 
@@ -2048,6 +2096,7 @@ fn generate_report_entries(
             kind: 0x05,
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::Both { recipient },
+            repeat_next_pointer: false,
         });
     }
 
@@ -2064,6 +2113,7 @@ fn generate_report_entries(
             kind: 0x06,
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::MessagesOnly { recipient: event.left_empire_raw },
+            repeat_next_pointer: false,
         });
         let right_body = format!(
             " Hostile action has escalated our relations with {} to enemy status.",
@@ -2074,6 +2124,7 @@ fn generate_report_entries(
             kind: 0x06,
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::MessagesOnly { recipient: event.right_empire_raw },
+            repeat_next_pointer: false,
         });
     }
 
@@ -2117,8 +2168,17 @@ pub(crate) fn build_results_dat(game_data: &mut CoreGameData, events: &Maintenan
         };
         let header_tail =
             classic_results_chain_tail_for_year(entry.tail, year, chain_id, next_chain_id);
-        let continuation_tail =
-            classic_results_chain_tail_for_year(entry.tail, year, chain_id, 0);
+        let continuation_next_chain_id = if entry.repeat_next_pointer {
+            next_chain_id
+        } else {
+            0
+        };
+        let continuation_tail = classic_results_chain_tail_for_year(
+            entry.tail,
+            year,
+            chain_id,
+            continuation_next_chain_id,
+        );
         push_classic_results_chunked(
             &mut results,
             entry.kind,

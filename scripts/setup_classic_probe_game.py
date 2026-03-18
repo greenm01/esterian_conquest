@@ -36,7 +36,6 @@ PLANET_SPECS = [
 ]
 
 REPORT_FAMILY_LABELS = [
-    ("Fleet battle report", "fleet-battle"),
     ("Bombardment mission report", "bombard"),
     ("Invasion mission report", "invade"),
     ("Blitz mission report", "blitz"),
@@ -45,7 +44,8 @@ REPORT_FAMILY_LABELS = [
     ("Guard/Blockade World mission report", "guard-blockade"),
     ("Salvage mission report", "salvage"),
     ("Move mission report", "move"),
-    ("Fleet encounter report", "fleet-encounter"),
+    ("Sensor contact shows an alien fleet", "contact"),
+    ("We have located and identified the alien fleet", "identify"),
 ]
 
 PLAYER_RECORD_SIZE = 110
@@ -291,7 +291,7 @@ def build_classic_results_records(
         continuation_tail = bytearray(tail_template)
         continuation_tail[0:2] = chain_id.to_bytes(2, "little")
         continuation_tail[2:4] = b"\x00\x00"
-        continuation_tail[4:6] = b"\x00\x00"
+        continuation_tail[4:6] = next_chain_id.to_bytes(2, "little")
         continuation_tail[6:8] = b"\x00\x00"
 
         for line_idx, line in enumerate(report_lines[idx]):
@@ -314,16 +314,126 @@ def build_classic_results_records(
     return bytes(output)
 
 
+def parse_classic_results_groups(results_bytes: bytes) -> list[list[bytearray]]:
+    records = [
+        bytearray(results_bytes[offset : offset + CLASSIC_RECORD_SIZE])
+        for offset in range(0, len(results_bytes), CLASSIC_RECORD_SIZE)
+        if len(results_bytes[offset : offset + CLASSIC_RECORD_SIZE]) == CLASSIC_RECORD_SIZE
+    ]
+    if not records:
+        return []
+
+    header_indexes = [
+        idx
+        for idx, record in enumerate(records)
+        if record[2 : 2 + 4].decode("cp437", errors="replace") == "From"
+    ]
+    groups: list[list[bytearray]] = []
+    for pos, start in enumerate(header_indexes):
+        end = header_indexes[pos + 1] if pos + 1 < len(header_indexes) else len(records)
+        groups.append([bytearray(record) for record in records[start:end]])
+    return groups
+
+
+def decode_classic_results_group_text(group: list[bytearray]) -> str:
+    lines: list[str] = []
+    for record in group:
+        used = record[1]
+        text = record[2 : 2 + used].decode("cp437", errors="replace")
+        if text == END_OF_TRANSMISSION:
+            continue
+        lines.append(text)
+    return "\n".join(lines)
+
+
+def normalize_report_text(text: str) -> str:
+    return "\n".join(line.rstrip() for line in text.strip().splitlines())
+
+
+def filter_player_classic_results_from_raw(
+    raw_results_bytes: bytes,
+    routed_entries: list[tuple[int, bytes, str]],
+    prefix: str,
+) -> bytes:
+    candidate_keys = [
+        (kind, normalize_report_text(text[len(prefix) :]))
+        for kind, _, text in routed_entries
+        if text.startswith(prefix)
+    ]
+    if not candidate_keys:
+        return b""
+
+    raw_groups = parse_classic_results_groups(raw_results_bytes)
+    matched: list[list[bytearray]] = []
+    search_start = 0
+    for key_kind, key_text in candidate_keys:
+        match_idx = None
+        for idx in range(search_start, len(raw_groups)):
+            group = raw_groups[idx]
+            if not group:
+                continue
+            group_kind = group[0][0]
+            group_text = normalize_report_text(decode_classic_results_group_text(group))
+            if group_kind == key_kind and group_text == key_text:
+                match_idx = idx
+                break
+        if match_idx is None:
+            continue
+        matched.append(raw_groups[match_idx])
+        search_start = match_idx + 1
+
+    if not matched:
+        return b""
+
+    header_record_indexes: list[int] = []
+    next_header_record_index = 0
+    for group in matched:
+        header_record_indexes.append(next_header_record_index)
+        next_header_record_index += len(group)
+
+    output = bytearray()
+    for idx, group in enumerate(matched):
+        chain_id = 0 if idx == 0 else header_record_indexes[idx - 1] + 1
+        next_chain_id = (
+            header_record_indexes[idx + 1] + 1 if idx + 1 < len(header_record_indexes) else 0
+        )
+        original_header_next = int.from_bytes(group[0][78:80], "little")
+        repeat_next_pointer = original_header_next != 0 and all(
+            int.from_bytes(record[78:80], "little") == original_header_next for record in group
+        )
+
+        for record_idx, original in enumerate(group):
+            record = bytearray(original)
+            tail = bytearray(record[74:84])
+            tail[0:2] = chain_id.to_bytes(2, "little")
+            tail[2:4] = b"\x00\x00"
+            tail[4:6] = (
+                next_chain_id.to_bytes(2, "little")
+                if record_idx == 0 or repeat_next_pointer
+                else b"\x00\x00"
+            )
+            tail[6:8] = b"\x00\x00"
+            record[74:84] = tail
+            output.extend(record)
+
+    return bytes(output)
+
+
 def prepare_player_one_classic_report_probe(
     target: Path,
     *,
     player_record: int,
     empire_name: str,
 ) -> None:
+    raw_results_bytes = (target / "RESULTS.DAT").read_bytes()
     messages_bytes = (target / "MESSAGES.DAT").read_bytes()
     routed_entries = routed_message_entries(messages_bytes)
     routed_prefix = f'For Empire #{player_record} "{empire_name}": '
-    results_bytes = build_classic_results_records(routed_entries, routed_prefix)
+    results_bytes = filter_player_classic_results_from_raw(
+        raw_results_bytes, routed_entries, routed_prefix
+    )
+    if not results_bytes:
+        results_bytes = build_classic_results_records(routed_entries, routed_prefix)
     (target / "RESULTS.DAT").write_bytes(results_bytes)
     (target / "MESSAGES.DAT").write_bytes(b"")
 
