@@ -239,9 +239,14 @@ Practical interpretation:
 - the late weekly side now looks like an explicit placement mechanism with
   decode, window-derivation, and accept/reject testing
 - this is stronger than the earlier "maybe offset shaping" read
-- the main remaining unknown is what semantic event classes feed the local
-  timing-code table, not whether the late scheduler has real weekly selection
-  logic
+- the preserved `0000:02c0` dispatch now bounds code `7` more tightly:
+  - it is assigned only in the kind-`3` branch
+  - the archived summary-dispatch RE already identifies kind `3` as the
+    `IPBM` summary family
+- the main remaining unknown is therefore narrower:
+  - what exact semantic classes feed the remaining non-durable local timing
+    codes (`1`, `2`, and especially `8`)
+  - not whether the late scheduler has real weekly selection logic
 
 ## Working Model
 
