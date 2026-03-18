@@ -183,23 +183,40 @@ Practical conclusion:
 The shipped corpus now closes several concrete scheduler families strongly
 enough to promote into the Rust target spec.
 
+Focused source-split extract:
+
+- `artifacts/ec-report-transition-focus.txt`
+- `artifacts/ec-report-transition-splits.txt`
+
+Direct same-source / same-year progression:
+
 | Transition | Observed placement | Practical meaning |
 | --- | --- | --- |
 | `sensor-contact -> identified` | same week in all focused shipped-log cases (`48x`) | contact and identification form one ordered same-week bundle |
 | `identified -> intercepted` | same week where directly chained (`3x`) | direct interception can continue in that same weekly bundle |
 | `entered-system -> attacked` | both same-week and next-week cases (`1x/1x`) | there is no universal separate-week arrival/combat rule |
-| `fleet-lost -> join-retarget` | same week in observed cases (`2x`) | Fleet Command Center follow-ons can share the same weekly stream as the loss summary |
-| `fleet-lost -> planet-bombarded` | same-week cases exist, but delayed variants also exist (`0/3/16` week gaps observed) | hostile-world aftermath belongs to the same scheduler stream, but not at one fixed delay |
-| `intercepted -> planet-bombarded` | next week is common, but later gaps also exist (`1/2/3/5/6/7`) | interception does not force one universal bombardment week |
+| `identified -> orbit-world` | same-source/year gaps `0/1/4` | scouting follow-on orbit reports are not fixed to one delay |
 | `orbit-world -> sensor-contact` | wide-gap periodic family (`1/2/3/5/8/10/12/14/16/26/28/36`) | periodic orbit/update/contact sequencing remains one of the main open timing families |
+| `attacked -> bombing-run` | same-source/year gaps `0/5/6/7` | bombardment continuation is state-driven, not a single fixed offset |
+
+Cross-source same-week interleaving in the shared weekly stream:
+
+| Transition | Observed placement | Practical meaning |
+| --- | --- | --- |
+| `identified -> fleet-lost` | same-week cross-source adjacent in `4x`, with one later outlier at gap `4` | Fleet Command Center loss summaries are separate stream entries, not same-source mission progression |
+| `attacked -> fleet-lost` | next-week cross-source adjacent in `2x` | attack reports do not imply immediate same-week FCC loss summaries |
+| `fleet-lost -> join-retarget` | same-week cross-source adjacent in `2x` | some administrative follow-ons share the same weekly stream as the loss summary |
+| `fleet-lost -> planet-bombarded` | same-week cross-source adjacent in `4x`, with delayed variants at gaps `3` and `16` | hostile-world aftermath shares the stream, but not as one fixed direct timing chain |
 
 Practical consequence:
 
 - the remaining Rust-facing timing question is no longer "does the yearly
   scheduler contain concrete same-week rules?"
-- it now focuses on the families that still show variable or periodic gaps,
-  especially late orbit/update follow-ons and delayed hostile/admin aftermath
-  chains
+- it now focuses on the direct same-source families that still show variable or
+  periodic gaps
+- the Fleet Command Center and planet-loss follow-ons above are better treated
+  as same-stream cross-source interleaving, not as one hidden same-source delay
+  rule that Rust still needs to recover
 
 ## Current Static Anchors
 
@@ -312,12 +329,13 @@ Practical interpretation:
 ## Implementation-Relevant Open Questions
 
 - exact week placement for the remaining variable-gap and periodic
-  movement/combat/admin report families within a yearly maintenance run
+  direct same-source movement/combat report families within a yearly
+  maintenance run
 - especially:
-  - orbit/update/contact follow-ons
-  - delayed hostile-world aftermath chains
-  - other non-direct administrative follow-ons that are not yet fixed to a
-    same-week bundle
+  - `identified -> orbit-world`
+  - `orbit-world -> sensor-contact`
+  - `attacked -> bombing-run`
+  - `entered-system -> attacked`
 
 This is the remaining timing question that still matters directly for the Rust
 clone, because it affects visible `Stardate` values and weekly report
@@ -340,6 +358,9 @@ recovered.
 
 - tighten the remaining variable-gap families to more exact week-placement
   rules inside the `1..52` scheduler
+- keep separating direct same-source progression from cross-source weekly
+  interleaving so Rust does not encode global adjacent report pairs as if they
+  were one per-mission delay rule
 - derive more week-placement constraints from the recovered late selector
   (`0000:02c0 -> 1000:9fa1/1000:a26e -> 1000:c102/1000:9c0e`) and the shipped
   log corpus rather than chasing more local code-byte labels
@@ -399,7 +420,9 @@ Practical interpretation:
     or ES-resident timing-entry tables captured so far
 - the remaining Rust-facing unknown is therefore narrower:
   - exact week placement of the remaining variable-gap and periodic
-    movement/combat/admin report families
+    direct same-source movement/combat report families
+  - not the cross-source Fleet Command Center / planet-loss adjacency patterns,
+    which are better treated as same-stream interleaving
   - not the already-closed same-week bundles such as
     `sensor-contact -> identified`
   - and not whether some second hidden local timing code family still needs to

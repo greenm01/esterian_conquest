@@ -8013,20 +8013,31 @@ Focused shipped-log follow-up:
 
 - preserved focused extract:
   - `artifacts/ec-report-transition-focus.txt`
+  - `artifacts/ec-report-transition-splits.txt`
 - newly strong concrete placement constraints:
   - `sensor-contact -> identified` is same-week in all focused corpus cases
     (`48x`)
   - `identified -> intercepted` is same-week where directly chained (`3x`)
-  - `entered-system -> attacked` is not fixed to one gap: both same-week and
-    next-week cases exist
-  - `fleet-lost -> join-retarget` is same-week in the observed FCC follow-ons
-  - `fleet-lost -> planet-bombarded` and
-    `intercepted -> planet-bombarded` are not fixed-delay families
-  - `orbit-world -> sensor-contact` remains a wide-gap periodic family
+  - direct same-source variable-gap families are now better bounded:
+    - `entered-system -> attacked`: gaps `0/1`
+    - `identified -> orbit-world`: gaps `0/1/4`
+    - `orbit-world -> sensor-contact`: wide periodic gaps
+      `1/2/3/5/8/10/12/14/16/26/28/36`
+    - `attacked -> bombing-run`: gaps `0/5/6/7`
+  - several loss/admin chains are now better classified as cross-source weekly
+    interleaving rather than same-source mission progression:
+    - `identified -> fleet-lost`: same-week cross-source adjacency in `4x`,
+      with one later outlier at gap `4`
+    - `attacked -> fleet-lost`: next-week cross-source adjacency in `2x`
+    - `fleet-lost -> join-retarget`: same-week cross-source adjacency in `2x`
+    - `fleet-lost -> planet-bombarded`: same-week cross-source adjacency in
+      `4x`, with delayed variants at gaps `3` and `16`
 - practical consequence:
   - the remaining Rust-facing timing question is narrower again:
-    exact week placement of the remaining variable-gap / periodic families,
-    not whether the yearly scheduler contains strong same-week bundles at all
+    exact week placement of the remaining direct same-source variable-gap /
+    periodic families, not whether the yearly scheduler contains strong
+    same-week bundles at all and not whether the cross-source loss/admin pairs
+    hide one missing fixed delay rule
 
 #### Top-down step-4 follow-up: earlier-driver target tightened, file-I/O trace added
 
