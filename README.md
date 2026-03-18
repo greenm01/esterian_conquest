@@ -2,7 +2,9 @@
 
 ![Esterian Conquest banner](capture/ec_v1.5_banner.png)
 
-Rust preservation and reimplementation work for Esterian Conquest v1.5.
+Rust resurrection of Esterian Conquest v1.5, with classic `.DAT`
+interoperability, a growing native client, and a maintenance engine nearing
+full compliance.
 
 **[Read the Grand Vision: From BBS to the Decentralized Web](docs/grand-vision.md)**
 
@@ -14,9 +16,33 @@ Phase 1 of the grand vision, the modern drop-in BBS door replacement:
 - a Rust sysop/admin/oracle toolchain
 - a Rust player client intended to replace `ECGAME`
 
-The engine is already strong enough to run full campaigns while remaining
-accepted by the original DOS toolchain under the project's actual
-compatibility standard. The client phase is now actively underway.
+The engine is already strong enough for serious campaign testing and hybrid
+play while remaining accepted by the current oracle/toolchain checks. Full
+Rust maint compliance is still being finished, and the client phase is
+actively underway.
+
+## What You Can Do Today
+
+This is no longer just a preservation repo or an academic RE exercise.
+It is also not finished enough yet to call the Rust replacement fully playable
+end to end.
+
+Today you can:
+
+- create fresh Rust-backed campaigns across the documented `4 / 9 / 16 / 25`
+  player tiers
+- run yearly turns through the current Rust maintenance engine while compliance
+  work continues
+- play substantial parts of those campaigns through the growing native Rust
+  client
+- keep using the original DOS `ECGAME` in a supported hybrid loop when you want
+  classic order entry and viewing
+- preserve classic `.DAT` interoperability while the Rust engine and client
+  continue taking over more of the game
+- validate Rust-generated directories and turn behavior against the original
+  manuals and binaries
+
+If you want to jump in immediately, start with [Quick Start](#quick-start).
 
 ## Premise
 
@@ -67,15 +93,37 @@ In plain terms: this project is aiming at a complete Rust engine/client
 replacement for Esterian Conquest, while preserving the original campaign
 feel, data layout, and BBS-era workflow where those still matter.
 
+## How EC Was Recovered
+
+The Rust version was not built from guesswork. The current engine and docs came
+from repeated cross-checking between the original manuals, the original DOS
+binaries, preserved fixtures, and Rust-generated controlled scenarios.
+
+| Tool / source | What it was used for | Why it mattered |
+| --- | --- | --- |
+| Original EC manuals in [`original/v1.5/*.DOC`](original/v1.5) | Treated as the canonical guide for player-facing rules, setup constraints, turn structure, and terminology | Kept the Rust clone grounded in intended game behavior instead of raw binary quirks alone |
+| Ghidra disassembly and headless scripts | Static recovery of file layouts, maintenance flow, scheduler logic, and helper call structure | Let us turn opaque Pascal-era code paths into stable Rust-facing specs |
+| DOSBox-X debugger, INT 21 tracing, and memory dumps | Dynamic tracing of `ECGAME` / `ECMAINT` behavior, file I/O order, token handling, and live state changes | Proved phase ordering, runtime state transitions, and report/output boundaries that static RE alone could not settle |
+| Controlled gamestate file diffs | Compared Rust-generated or hand-shaped directories against classic `.DAT` outputs before and after maintenance | Exposed real cross-file invariants and kept the Rust side honest at the compatibility boundary |
+| Extensive report and log analysis | Studied `RESULTS.DAT`, `MESSAGES.DAT`, shipped `ec*.txt` logs, and preserved output captures | Recovered player-visible timing, report cadence, `Stardate` behavior, and event sequencing |
+| Rust-generated scenarios and oracle sweeps | Created narrow test cases, ran the original binaries as oracle, and promoted repeated outcomes into shared rules | Turned reverse engineering into reusable implementation guidance instead of one-off notes |
+
+The project rule that fell out of that work is simple:
+
+- the manuals are the gameplay guide
+- the original binaries are the compatibility oracle
+- the Rust side is allowed to be explicit, deterministic, and testable where
+  the original implementation was hidden or stochastic
+
 ## Current Status
 
-The project is in a mixed engine-complete / client-in-progress phase.
+The project is in a mixed engine-near-complete / client-in-progress phase.
 
 Today the Rust side can:
 
 - generate joinable new games across the documented `4 / 9 / 16 / 25` player
   tiers
-- run repeated maintenance turns through the Rust engine
+- run repeated maintenance turns through the current Rust engine
 - handle movement, economy, scouting, diplomacy, conquest, civil disorder,
   fleet defection, and campaign-end recognition
 - write classic-compatible `PLAYER.DAT`, `PLANETS.DAT`, `FLEETS.DAT`,
@@ -125,7 +173,8 @@ Recent validation:
 In plain terms:
 
 - Rust is no longer just a scenario generator or fixture toy
-- `rust-maint` is usable as a real campaign engine
+- `rust-maint` is close to a real drop-in campaign engine, but final
+  compliance work is still active
 - the maintenance engine is now the authority for the major gameplay inputs it
   consumes; frontend validation is convenience, not the trust boundary
 - the Rust client is no longer speculative UI work; it is actively replacing
@@ -136,9 +185,11 @@ In plain terms:
 
 Maintenance engine status, approximately:
 
-- valid mission behavior against `ECPLAYER.DOC`: `A+`
-- engine authority / invalid-input resistance: `A+`
-- overall maintenance-engine status: `A+`
+- core turn-cycle, timing, combat, movement, and economy specs are now closed
+- Rust maint compliance against those recovered rules is the main remaining
+  engine task
+- the engine is close enough for serious testing and hybrid play, but not yet
+  finished enough to call complete
 
 That does not mean every client/menu path is finished. It means the engine is
 now in the shape we need for Phase 1: shared rules live in `ec-data`, malformed
@@ -147,7 +198,8 @@ deterministic malformed-directory stress coverage.
 
 Player client status, approximately:
 
-- engine / maintenance / storage: effectively in late Phase 1 shape
+- engine / maintenance / storage: strong enough to support real client work,
+  with maint compliance still being finished
 - player TUI: roughly `85%` of the classic v1.5 feature surface is now present
   in some usable form
 - remaining work is less about proving the architecture and more about:
@@ -431,6 +483,22 @@ Useful supporting docs:
 - `rust/ec-cli`: sysop/admin/oracle/inspection CLI
 - `rust/ec-client`: Rust `ECGAME` replacement in active development
 - `tools/`: oracle runners, DOSBox helpers, and analysis scripts
+
+## Contributions Welcome
+
+This project is now at the point where outside help is genuinely useful.
+
+High-value contributions right now:
+
+- playtesters who are willing to run real campaigns or focused turn-by-turn
+  probes and report where the Rust client or Rust maint still feels wrong
+- ANSI / CP437 artists who can help preserve the classic BBS mood while giving
+  the Rust client cleaner splash screens, framing, and in-client presentation
+- terminal UI polish work, especially around menus, layout, readability, and
+  classic-feeling presentation that still works well on modern terminals
+
+If you know classic BBS games, ANSI presentation, or just want to help beat on
+the near-finished Rust maintenance/client loop, this is a good time to jump in.
 
 ## License
 
