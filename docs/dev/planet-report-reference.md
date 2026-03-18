@@ -3,6 +3,15 @@
 This document records coordinate-linked scouting and bombardment reference
 worlds from the preserved text captures.
 
+Status:
+
+- this is a reference-only report-side catalog, not a canonical Rust behavior
+  spec
+- use [ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md),
+  [economics.md](/home/mag/dev/esterian_conquest/docs/dev/economics.md), and
+  [ec-turn-cycle-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-turn-cycle-spec.md)
+  for authoritative implementation behavior
+
 Purpose:
 
 - provide repeatable target-world profiles for future `ECMAINT` black-box
@@ -11,8 +20,9 @@ Purpose:
 - avoid inventing synthetic target values when historical report data already
   exists
 
-These references are not yet tied to matching `.DAT` snapshots in the repo.
-They are report-side evidence only.
+These references are currently not tied to matching `.DAT` snapshots in the
+repo. They are report-side evidence only and do not block Rust implementation
+by themselves.
 
 ## Reference Worlds
 

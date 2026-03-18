@@ -5,7 +5,7 @@ This document captures the current stable timing-related findings for
 
 It is intentionally narrower than a full maintenance-phase spec. The goal here
 is to separate what is already supported by historical logs and static RE from
-what still needs deeper report-writer recovery.
+the low-value report-writer details that remain only partially mapped.
 
 This includes both:
 
@@ -115,8 +115,9 @@ Practical conclusion:
 - `ECMAINT` is using a real sub-year event timeline for movement/report
   sequencing
 - the leading semantic interpretation remains week-of-year
-- the open question is now the exact implementation of that weekly scheduler,
-  not whether it exists
+- the remaining low-value follow-up is the exact helper path that formats and
+  emits some of that already-recovered weekly output, not whether the weekly
+  scheduler exists
 
 ## Full Log Corpus Patterns
 
@@ -212,8 +213,8 @@ Cross-source same-week interleaving in the shared weekly stream:
 
 Practical consequence:
 
-- the remaining Rust-facing timing question is no longer "which missing delay
-  table explains these four families?"
+- the Rust-facing timing gap is now closed; there is no missing delay table
+  that Rust still needs in order to implement these four families
 - the direct same-source families above are now better read as state-family
   rules inside one shared weekly stream:
   - `entered-system` is not a countdown seed for `attacked`
@@ -350,7 +351,7 @@ week-placement holes are now bounded strongly enough to implement:
 - bombardment continuation after hostile encounter is a standing mission
   cadence, not a single hidden `attack -> bombing-run` offset
 
-What remains open here is now historical/static detail, not Rust-facing weekly
+What remains here is historical/static detail, not Rust-facing weekly
 behavior.
 
 ## Low-Value Remaining RE Trivia

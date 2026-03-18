@@ -4,13 +4,23 @@ This document records observed combat-oriented maintenance outcomes from
 preserved text captures. The goal is to ground future `ECMAINT` black-box
 fixtures in real historical behavior rather than invented scenarios.
 
+Status:
+
+- this is a historical/reference document, not the canonical Rust combat spec
+- use [ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md)
+  for Rust combat mechanics
+- use [ec-turn-cycle-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-turn-cycle-spec.md)
+  and
+  [rust-turn-cycle-implementation.md](/home/mag/dev/esterian_conquest/docs/dev/rust-turn-cycle-implementation.md)
+  for yearly phase placement
+
 ## Source Set
 
 Primary external reference:
 
 - `/home/niltempus/Documents/esterian-conquest/ec-logs-2022/`
 
-These files are not yet part of the repo snapshot, but they provide
+These files are not part of the repo snapshot, but they provide optional
 high-value evidence for:
 
 - bombardment resolution
@@ -73,9 +83,9 @@ Synthetic-fixture correction from the current repo work:
 
 Practical consequence:
 
-- the next bombardment fixture should be built around a mature colony-style
-  target record, not another initialized homeworld seed clone
-- any follow-up fixture should compare at least:
+- the historical fixture lesson from that thread was to use a mature
+  colony-style target record, not another initialized homeworld seed clone
+- future follow-up fixtures should compare at least:
   - the mature planet record in `PLANETS.DAT`
   - the corresponding `DATABASE.DAT` state
   - any empire/ownership linkage needed to make the target world fully valid
@@ -87,8 +97,8 @@ Additional correction from the throwaway `Dust Bowl` clone test:
 - when the shipped mature colony `Dust Bowl` was cloned onto the synthetic
   target coordinates, `ECMAINT` converted the attacker's standing order from
   `bombard` to `guard/blockade` on arrival and never produced world-side damage
-- the next combat fixture therefore needs a mature enemy colony, not merely a
-  mature colony
+- the historical takeaway was that a useful combat fixture needs a mature
+  enemy colony, not merely a mature colony
 
 Further correction from the hybrid mature-enemy throwaway test:
 
@@ -98,11 +108,11 @@ Further correction from the hybrid mature-enemy throwaway test:
 - however, even that hybrid target still produced no `PLANETS.DAT` damage and
   no `MESSAGES.DAT` / `RESULTS.DAT` output
 
-Current interpretation:
+Historical interpretation from that probe thread:
 
 - ownership hostility is necessary, but not sufficient
-- the remaining missing state is most likely inside other developed-world
-  fields in `PLANETS.DAT` rather than in the derived `DATABASE.DAT` intel cache
+- the then-missing state was most likely inside other developed-world fields
+  in `PLANETS.DAT` rather than in the derived `DATABASE.DAT` intel cache
 
 Field-isolation follow-up:
 

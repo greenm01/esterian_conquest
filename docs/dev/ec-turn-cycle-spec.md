@@ -188,8 +188,9 @@ Practical meaning:
 - the summary/event table later used by canonicalization and weekly report
   emission is not lazily invented at the end; it is seeded up front in the
   startup/token-side path
-- that still does not place the missing gameplay-core ordering, but it narrows
-  the boundary between startup plumbing and later summary/report processing
+- that does not by itself spell out every later yearly subphase, but it
+  narrows the boundary between startup plumbing and later summary/report
+  processing
 - helper `2000:5ee4` now has a firmer internal shape:
   - zeroes `0x16ae`, `0x1714`, and `0x190a`
   - loads `0x3278` records of size `0x6e` into the far-pointer table rooted at
@@ -238,14 +239,14 @@ Practical meaning:
   - practical reading: at least this durable event family is not built by one
     unordered bulk pass; producer order matters before the later matcher pairs
     kind `2` against kind `1`
-- this further narrows the unresolved gameplay-core search away from the
+- this further narrows the gameplay-core evidence search away from the
   already-recovered `5ee4` tail exits
 
 ### 4. Yearly Simulation Core
 
 Confidence: `High`
 
-This is the most important remaining unresolved block.
+This is the recovered yearly simulation region that matters most for Rust.
 
 Settled facts:
 
@@ -1152,8 +1153,8 @@ Practical meaning:
 
 - after validation, `ECMAINT` enters a structured late-output tail before the
   explicit weekly `1..52` emission pass completes
-- the still-missing "core simulation" is now more likely earlier than this
-  `861d` tail, or partly hidden behind helpers that feed it
+- the core simulation evidence sits earlier than this `861d` tail, or partly
+  behind helpers that feed it
 
 ### 6b. Kind-`2` summary coalescing happens in the late weekly/report side
 
@@ -1177,9 +1178,9 @@ Practical meaning:
 
 - this is another late summary coalescing / report-prep stage, not the missing
   yearly gameplay simulation core
-- the unresolved middle ordering is therefore even less likely to live in the
-  `861d -> 8b3d` region and more likely earlier in the run or behind helpers
-  that populate the summary table before this pass
+- the middle simulation-order evidence is therefore even less likely to live
+  in the `861d -> 8b3d` region and more likely earlier in the run or behind
+  helpers that populate the summary table before this pass
 
 ### 7. Final Flush, Writes, And Cleanup
 
