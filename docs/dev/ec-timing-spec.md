@@ -195,9 +195,9 @@ Direct same-source / same-year progression:
 | `sensor-contact -> identified` | same week in all focused shipped-log cases (`48x`) | contact and identification form one ordered same-week bundle |
 | `identified -> intercepted` | same week where directly chained (`3x`) | direct interception can continue in that same weekly bundle |
 | `entered-system -> attacked` | both same-week and next-week cases (`1x/1x`) | there is no universal separate-week arrival/combat rule |
-| `identified -> orbit-world` | same-source/year gaps `0/1/4` | scouting follow-on orbit reports are not fixed to one delay |
+| `identified -> orbit-world` | same-source/year gaps `0/1/4`; the zero-gap cases are all week `1` in the preserved corpus | scouting follow-on orbit reports are not fixed to one delay, but the immediate variant currently looks like a year-start special case |
 | `orbit-world -> sensor-contact` | wide-gap periodic family (`1/2/3/5/8/10/12/14/16/26/28/36`) | periodic orbit/update/contact sequencing remains one of the main open timing families |
-| `attacked -> bombing-run` | same-source/year gaps `0/5/6/7` | bombardment continuation is state-driven, not a single fixed offset |
+| `attacked -> bombing-run` | same-source/year gaps `0/5/6/7`; the zero-gap case is week `1` in the preserved corpus | bombardment continuation is state-driven, not a single fixed offset, and the immediate variant currently looks like a year-start special case |
 
 Cross-source same-week interleaving in the shared weekly stream:
 

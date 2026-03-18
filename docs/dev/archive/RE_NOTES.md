@@ -8021,9 +8021,11 @@ Focused shipped-log follow-up:
   - direct same-source variable-gap families are now better bounded:
     - `entered-system -> attacked`: gaps `0/1`
     - `identified -> orbit-world`: gaps `0/1/4`
+      - the preserved `0`-gap cases are all week `1`
     - `orbit-world -> sensor-contact`: wide periodic gaps
       `1/2/3/5/8/10/12/14/16/26/28/36`
     - `attacked -> bombing-run`: gaps `0/5/6/7`
+      - the preserved `0`-gap case is week `1`
   - several loss/admin chains are now better classified as cross-source weekly
     interleaving rather than same-source mission progression:
     - `identified -> fleet-lost`: same-week cross-source adjacency in `4x`,

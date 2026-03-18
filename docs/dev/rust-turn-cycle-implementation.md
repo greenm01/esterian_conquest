@@ -629,9 +629,9 @@ already strong enough to encode. For corpus evidence and edge cases, use
 | `sensor-contact -> identified` | same week consistently in the shipped corpus | emit these as an ordered same-week pair; do not force a week advance between contact and identification |
 | `identified -> intercepted` | same week where directly chained | direct interception can continue inside the same weekly batch |
 | `entered-system -> attacked` | same week or next week | do not hardcode a universal one-week lag between system entry and attack |
-| `identified -> orbit-world` | same source/year gaps `0`, `1`, or `4` in the shipped corpus | scouting follow-on orbit reports are not locked to one fixed delay |
+| `identified -> orbit-world` | same source/year gaps `0`, `1`, or `4` in the shipped corpus; the zero-gap cases are all week `1` | scouting follow-on orbit reports are not locked to one fixed delay, but the preserved zero-gap cases look like a special year-start shape rather than arbitrary mid-year collapse |
 | `orbit-world -> sensor-contact` | wide-gap periodic same-source family | keep extended-orbit follow-ons data-driven; this remains one of the main open week-assignment questions |
-| `attacked -> bombing-run` | same source/year gaps `0`, `5`, `6`, or `7` in the shipped corpus | bombardment continuation is state-driven, not one fixed post-attack delay |
+| `attacked -> bombing-run` | same source/year gaps `0`, `5`, `6`, or `7` in the shipped corpus; the zero-gap case is week `1` | bombardment continuation is state-driven, not one fixed post-attack delay, and the immediate variant currently looks like a year-start special case |
 | `identified -> Fleet Command Center fleet-lost` | same-week cross-source interleaving is common but not universal | treat loss summaries as separate weekly-stream events, not as same-source mission progression |
 | `attacked -> Fleet Command Center fleet-lost` | next-week cross-source interleaving in the observed corpus | do not force immediate same-week loss-summary emission after every attack report |
 | `fleet-lost -> join-retarget` | same-week cross-source interleaving is observed | administrative retarget consequences can share the same weekly stream as the loss summary |
