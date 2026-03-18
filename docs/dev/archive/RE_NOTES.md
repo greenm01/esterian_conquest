@@ -978,7 +978,7 @@ Practical inference:
 Token gate investigation (resolved):
 
 - The token-gate question is now closed. The detailed exploratory work is
-  preserved in `docs/token-investigation.md`; the summary below is the final
+  preserved in `docs/dev/archive/token-investigation.md`; the summary below is the final
   model that supersedes the earlier speculative token notes.
 - Key static anchors:
   - `2000:9430`: global option/flag initializer

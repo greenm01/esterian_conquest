@@ -84,8 +84,8 @@ Key points:
 This spec is built from four independent evidence sources:
 
 - token and restore-path RE in
-  [token-investigation.md](/home/mag/dev/esterian_conquest/docs/dev/token-investigation.md)
-- startup integrity/load RE in [RE_NOTES.md](/home/mag/dev/esterian_conquest/docs/dev/RE_NOTES.md)
+  [token-investigation.md](/home/mag/dev/esterian_conquest/docs/dev/archive/token-investigation.md)
+- startup integrity/load RE in [RE_NOTES.md](/home/mag/dev/esterian_conquest/docs/dev/archive/RE_NOTES.md)
 - timing/log analysis in
   [ec-timing-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-timing-spec.md)
 - late summary/report pipeline RE in

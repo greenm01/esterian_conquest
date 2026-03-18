@@ -53,7 +53,7 @@ For the `ECMAINT` turn-cycle RE specifically, the target is explicit:
 
 3. Separate stable docs from lab notes
 
-- `docs/dev/RE_NOTES.md` is the chronological investigation notebook (archival)
+- `docs/dev/archive/RE_NOTES.md` is the chronological investigation notebook (archival)
 - `docs/` holds stable, reusable engineering docs
 
 4. Keep the architecture layered
@@ -437,7 +437,7 @@ mission edge cases in random order.
     conditions)
   - define our own canonical rules for the *magnitude* of random effects
     (e.g. bombardment ship losses, battle attrition rates, AI economy choices)
-  - document those rules here and in `docs/dev/RE_NOTES.md` so they are auditable
+  - document those rules here and in `docs/dev/archive/RE_NOTES.md` so they are auditable
     and tunable independently of the original binary
 - the acceptance criterion for these mechanics is internal consistency and
   gameplay plausibility, not byte-exact fixture match

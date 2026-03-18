@@ -1484,7 +1484,7 @@ fn nearest_owned_planet_target_from_list(
 
 /// Process fleet movement for all fleets with active movement.
 ///
-/// Based on docs/dev/RE_NOTES.md section "Fleet Movement: Speed and Distance":
+/// Based on docs/dev/archive/RE_NOTES.md section "Fleet Movement: Speed and Distance":
 /// - Distance per turn = speed / 1.5 (approximately)
 /// - Any order kind with speed > 0 and target ≠ current position triggers movement
 /// - Coordinates stored at FLEETS.DAT[0x0B..0x0C] (x, y)
@@ -2778,7 +2778,7 @@ fn planet_has_friendly_starbase(
 ///    resets it to ~4 after spending. Exact accumulator arithmetic is not yet decoded
 ///    but setting 4 matches the oracle output for pot_prod=100 homeworlds.
 ///
-/// Sources: docs/dev/RE_NOTES.md "Rogue AI / autopilot planet economics — Session 2026-03-13".
+/// Sources: docs/dev/archive/RE_NOTES.md "Rogue AI / autopilot planet economics — Session 2026-03-13".
 pub fn process_autopilot_ai(
     game_data: &mut CoreGameData,
 ) -> Result<(), Box<dyn std::error::Error>> {

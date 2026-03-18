@@ -1,7 +1,7 @@
 # Next Session
 
 Use this as the restart brief. Historical detail belongs in
-[next-session-archive.md](next-session-archive.md),
+[next-session-archive.md](archive/next-session-archive.md),
 not here.
 
 ## Current State
@@ -24,6 +24,14 @@ Current grade:
 - maintenance engine authority / invalid-input resistance: `A+`
 - maintenance engine behavior against `ECPLAYER.DOC`: `A+`
 - overall `rust-maint` status: `A+`
+
+### RE phase status
+
+The reverse-engineering effort is **complete** for implementation purposes.
+All findings are formalized in the spec docs in this directory. The sole
+remaining open item (exact PRNG shuffle algorithm for fleet visit order)
+does not block Rust implementation — slot-order sorting produces
+oracle-compatible results.
 
 Local development baseline:
 
@@ -843,36 +851,10 @@ settled facts (6 new), and open questions (refined from 8 to 7).
 
 ### Remaining gaps for faithful Rust reproduction
 
-Closed (high confidence, actionable):
-- [x] Outer loop structure: 52-week fleet processing loop
-- [x] Combat reports emitted inline during fleet processing
-- [x] Combat resolution triggered by first co-located hostile fleet
-- [x] Fleet visit order: sort-by-random-priority (mechanism fully recovered;
-      exact replication infeasible but slot order produces oracle-identical results)
-- [x] Fleet destruction/capture dynamics
-- [x] File write/flush ordering
-- [x] Movement is position-first, mission resolves next year
-- [x] Colonization is atomic on arrival (ownership+armies+name+status)
-- [x] Economy/autopilot processing gated by `player[0]` (rogue vs civil disorder)
-- [x] Economy runs AFTER fleet loop (PLANETS.DAT never accessed during loop;
-      economy outcomes depend on post-combat fleet state)
-
-- [x] Fleet "incremental activation" is a pre-loop capture/setup phase
-      (5 passes in fleet-battle, 0 in non-combat; passes 6-57 = exactly 52 weeks)
-
-- [x] Mission-family timing constants recovered from `1000:a26e` switch:
-      8 codes with offsets +2/+7/+21/+0/+0/+0/+0/+30, min weeks
-      10/15/20/0/0/0/0/25, priorities 6/5/4/6/5/5/3/1. Contact→ID=5wk
-      gap, ID→intercept=14wk gap, late resolution=+30wk
-- [x] Code-to-fleet-composition mapping FULLY recovered: only codes 3-6
-      are ever written (starbase→3, BS→4, CA/TT/army→5, scout/DD→6).
-      Codes 1,2,7,8 are dead code — never assigned by any producer in the
-      entire binary (confirmed by full memdump search)
-
-- [x] Inner loop body resolved: 52-week loop is event scheduling, not
-      physics simulation. Movement is annual (position + tuple_c scratch).
-      Weekly passes handle encounter detection, combat, report emission.
-      Stardates from timing codes, not physical arrival time.
+All major turn-cycle mechanics have been recovered and implemented
+(outer loop, combat, movement, colonization, economy, fleet visit order,
+timing constants, inner loop structure). See `ec-turn-cycle-spec.md`
+for the full settled-facts list.
 
 Still open:
 - [ ] Exact PRNG for visit order: LCG confirmed ($08088405), RandSeed at

@@ -607,7 +607,7 @@ Milestone ladder:
      - record size `0x20`
      - `PLAYER[0x48]` is the record count gate
      - the raw record copies contiguously into `DS:3538`
-     - the overlapping field map is documented in `docs/dev/RE_NOTES.md`
+     - the overlapping field map is documented in `docs/dev/archive/RE_NOTES.md`
    - Remaining work is semantic naming of some tuple payloads, not file-layout
      discovery or integrity-critical structure.
      - script: `tools/ghidra_scripts_tmp/ReportIPBMTailTransition.java`

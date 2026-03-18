@@ -51,7 +51,7 @@ At the start of a development or agent session, read these in order:
    Reconfirm the project goal, milestone ladder, and acceptance criteria.
 3. [docs/rust-architecture.md](docs/dev/rust-architecture.md)
    Reconfirm the DOD/DRY/module-organization rules before editing Rust code.
-4. [docs/dev/RE_NOTES.md](docs/dev/RE_NOTES.md)
+4. [docs/dev/archive/RE_NOTES.md](docs/dev/archive/RE_NOTES.md)
    Read only the sections relevant to the current task; do not reload the full notebook unless needed.
 5. [README.md](README.md)
    Check current user-facing commands/workflows before changing the CLI surface.
@@ -85,12 +85,12 @@ If the task is DOSBox-heavy, also check:
 
 ## Reverse-Engineering Rules
 
-- `docs/dev/RE_NOTES.md` is the chronological RE notebook (archival; prefer dedicated spec docs)
+- `docs/dev/archive/RE_NOTES.md` is the chronological RE notebook (archival; prefer dedicated spec docs)
 - `docs/` holds stable engineering guidance and milestone docs
 - historical or bulky handoff detail shall be archived outside
-  `docs/next-session.md`, for example in `docs/next-session-archive.md`
+  `docs/next-session.md`, for example in `docs/dev/archive/next-session-archive.md`
 - when a significant RE finding lands, update both:
-  - `docs/dev/RE_NOTES.md`
+  - `docs/dev/archive/RE_NOTES.md`
   - the relevant stable doc, usually `docs/next-session.md` and/or `docs/approach.md`
 - prefer headless Ghidra scripts and reproducible artifacts over ad hoc manual notes
 - do not treat guessed semantics as settled; keep unknown fields raw until supported
