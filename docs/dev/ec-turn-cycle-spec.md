@@ -665,16 +665,24 @@ PRNG identification (from binary analysis of the memdump):
 - the `Randomize` function (seeds from DOS `INT 21h/2Ch` Get Time) sits
   immediately after the Random function body
 
+Runtime values captured via DOSBox-X debugger (bombard scenario):
+
+- `DS = 0x3529` at runtime
+- `RandSeed = 0x000E000E` at the post-load bridge point (`96c4`),
+  before the validation/simulation phases have run
+
 Shuffle algorithm investigation:
 
-Exhaustive black-box search ruled out all standard approaches:
+Exhaustive black-box search ruled out all standard approaches across
+the full 2^32 seed space:
 
 - Fisher-Yates reverse shuffle (for i=N-1 downto 1): no seed in 0..50M
-  matches for any Random extraction variant (multiplicative or shift)
+  matches for any Random extraction variant (multiplicative, shift, TP7)
 - Fisher-Yates forward shuffle (for i=0 to N-2): same result
 - Simple swap shuffle (for i=0 to N-1): same result
 - Sort-by-Random-key (assign key[i]=Random() for each fleet, sort by key):
-  no seed in full 2^32 space matches
+  no match in full 2^32 seed space (4.3 billion seeds tested)
+- Sort-by-Random(10000)-key: no match in 10M seeds
 - TP7 16-bit Random(Range) extraction `((seed >> 16) * Range) >> 16`:
   full seed_1 range searched for both Fisher-Yates variants, no match
 

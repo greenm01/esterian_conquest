@@ -861,9 +861,12 @@ Closed (high confidence, actionable):
 
 Still open:
 - [ ] Exact PRNG for visit order: LCG confirmed ($08088405), RandSeed at
-      DS:0x03A6, but shuffle algorithm unknown — full 2^32 black-box search
-      exhausted all standard variants. Seed is accumulated state from
-      validation-phase calls. Needs DOSBox RandSeed capture or Ghidra RE
+      DS:0x03A6, DS=0x3529 at runtime, RandSeed=0x000E000E at bridge.
+      Full 2^32 search ruled out Fisher-Yates and sort-by-key. Seed is
+      accumulated from validation-phase calls. `capture_randseed.py` tool
+      works through bridge but needs segment-renormalization fix to reach
+      deeper breakpoints (861d/8652). Next: either fix the DOSBox BP
+      staging or use Ghidra to find the shuffle call site directly
 - [ ] Inner per-fleet-per-week body structure (movement/combat/producer
       ordering within each iteration)
 - [ ] Mission-family aftermath timing differences
