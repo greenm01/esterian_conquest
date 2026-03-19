@@ -71,13 +71,55 @@ No known oracle/spec blockers remain in:
 
 The main risks are implementation drift and regression, not missing core rules.
 
+## Recent Changes (2026-03-18)
+
+### ECGAME Runtime Error 201 — Fixed
+
+- **Root cause:** `setup_classic_probe_game.py` wrote `PLANET.raw[0x03] = 0x00`
+  for owned planets. ECGAME requires `0x87` (developed colony flag) to correctly
+  interpret the planet record. Without it, planet detail view crashes with a BP
+  range check error.
+- **Fix:** setup script now passes `135` (`0x87`) as the second `planet-potential`
+  argument. All 54 maint tests pass.
+
+### DATABASE.DAT fog-of-war — owned planet population added
+
+- `build_database_dat()` in `reports.rs` now unconditionally stamps each player's
+  DATABASE.DAT entries for planets they own with full intel (name, owner,
+  production, armies, batteries, discovery year).
+- Previously this only happened through template-dependent `is_owned_unknown` and
+  `planet_intel_events` paths, leaving owned planets as "UNKNOWN" on fresh games.
+
+### ECGAME DATABASE.DAT overwrite behavior — discovered
+
+- ECGAME regenerates `DATABASE.DAT` on player login, overwriting what
+  `rust-maint` wrote.
+- Only `is_orbit_record` scan marker entries (0x01-0x04) are confirmed as
+  surviving ECGAME's login rewrite.
+- **Open question:** what DATABASE.DAT field values does ECGAME require to
+  preserve an entry across login? Understanding this is needed before the total
+  planet database view will show player-owned planets correctly.
+
+### Stardock display — open
+
+- Stardock items in `PLANETS.DAT` are not shown in ECGAME's "Docked:" field.
+- ECGAME may read docked ships from `DATABASE.DAT` or require additional state.
+- The stardock data layout (u16 counts at 0x38-0x4B, u8 kinds at 0x4C-0x55) is
+  confirmed correct from fixtures.
+
 ## Immediate Next Steps
 
-1. keep using the canonical docs above as the source of truth while Rust code
-   moves
-2. after meaningful `rust-maint` behavior changes, rerun:
+1. **DATABASE.DAT ECGAME compatibility:** reverse-engineer which fields/markers
+   ECGAME checks when deciding to display a DATABASE.DAT entry in the total
+   planet database. The `is_orbit_record` markers (scan 0x01-0x04 with
+   `raw[0x00]=0`) are the only confirmed pattern. Compare against an ECGAME
+   session that runs the original `ECMAINT.EXE` to see what entries survive.
+2. **Stardock display:** determine how ECGAME populates the "Docked:" field in
+   planet detail view — does it read from DATABASE.DAT, PLANETS.DAT, or both?
+3. Keep using the canonical docs as the source of truth while Rust code moves.
+4. After meaningful `rust-maint` behavior changes, rerun:
    - `python3 tools/oracle_sweep.py --mode seeded`
    - `python3 tools/rust_maint_sweep.py --turns 3`
    - `cargo test -q`
-3. keep `next-session.md` short; move bulky historical detail to
+5. Keep `next-session.md` short; move bulky historical detail to
    `archive/` instead of re-growing this file

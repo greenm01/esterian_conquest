@@ -199,6 +199,61 @@ pub(crate) fn build_database_dat(
         }
     }
 
+    // Ensure every player has full intel on their own planets in DATABASE.DAT,
+    // regardless of template state or scan markers.
+    {
+        let year_bytes = discovery_year.to_le_bytes();
+        for player in 0..player_count {
+            let owner_slot = (player + 1) as u8;
+            for planet in 0..planet_count {
+                if planet >= game_data.planets.records.len() {
+                    continue;
+                }
+                let p = &game_data.planets.records[planet];
+                if p.owner_empire_slot_raw() != owner_slot {
+                    continue;
+                }
+                let record_idx =
+                    DatabaseDat::record_index(planet, player, planet_count);
+                if record_idx >= new_database.records.len() {
+                    continue;
+                }
+
+                let planet_name = p.planet_name();
+                let is_new_colony = planet_name.eq_ignore_ascii_case("not named yet");
+                let pot_prod_lo = p.raw[0x02];
+                let armies = p.army_count_raw();
+                let batteries = p.ground_batteries_raw();
+
+                new_database.records[record_idx].set_planet_name(&planet_name);
+                new_database.records[record_idx].raw[0x15] =
+                    if is_new_colony { 0x01 } else { owner_slot };
+                new_database.records[record_idx].raw[0x16] = year_bytes[0];
+                new_database.records[record_idx].raw[0x17] = year_bytes[1];
+                new_database.records[record_idx].raw[0x18] = year_bytes[0];
+                new_database.records[record_idx].raw[0x19] = year_bytes[1];
+                new_database.records[record_idx].raw[0x1c] = pot_prod_lo;
+                new_database.records[record_idx].raw[0x1d] = if is_new_colony {
+                    owner_slot
+                } else {
+                    pot_prod_lo
+                };
+                new_database.records[record_idx].raw[0x1e] = if is_new_colony {
+                    0x00
+                } else {
+                    0x40 + owner_slot
+                };
+                new_database.records[record_idx].raw[0x1f] = 0x00;
+                new_database.records[record_idx].raw[0x23] = armies;
+                new_database.records[record_idx].raw[0x24] = 0x00;
+                new_database.records[record_idx].raw[0x25] = batteries;
+                new_database.records[record_idx].raw[0x26] = 0x00;
+                new_database.records[record_idx].raw[0x27] = year_bytes[0];
+                new_database.records[record_idx].raw[0x28] = year_bytes[1];
+            }
+        }
+    }
+
     new_database
 }
 

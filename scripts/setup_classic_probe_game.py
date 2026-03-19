@@ -113,7 +113,7 @@ def set_planet_specs(cli_binary: Path, target: Path) -> None:
     for record, owner, name, potential, stored, armies, batteries in PLANET_SPECS:
         run_ec_cli(cli_binary, "planet-owner", str(target), str(record), str(owner))
         run_ec_cli(cli_binary, "planet-name", str(target), str(record), name)
-        run_ec_cli(cli_binary, "planet-potential", str(target), str(record), str(potential), "0")
+        run_ec_cli(cli_binary, "planet-potential", str(target), str(record), str(potential), "135")
         run_ec_cli(cli_binary, "planet-stored", str(target), str(record), str(stored))
         run_ec_cli(cli_binary, "planet-stats", str(target), str(record), str(armies), str(batteries))
 

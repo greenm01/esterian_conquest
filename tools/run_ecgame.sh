@@ -44,7 +44,7 @@ write_chain_txt(
 )
 PY
 
-export SDL_VIDEODRIVER="${SDL_VIDEODRIVER_OVERRIDE:-wayland}"
+export SDL_VIDEODRIVER="${SDL_VIDEODRIVER_OVERRIDE:-x11}"
 export SDL_AUDIODRIVER="${SDL_AUDIODRIVER_OVERRIDE:-dummy}"
 
 dosbox-x \

@@ -8151,3 +8151,67 @@ Practical next step:
 - next dynamic work should bisect which post-bridge startup / driver
   breakpoints are individually safe to catch before trying to trace the full
   earlier-driver set in one run
+
+---
+
+## ECGAME Planet Detail View — Runtime Error 201 Investigation — Session 2026-03-18
+
+### Symptom
+
+ECGAME crashes with "Runtime error 201 at 1958:76DE" (Borland Pascal range check
+error) when opening the planet detail view (`<d>` or `<i>`) for certain owned
+planets in the `setup_classic_probe_game.py` test environment. The crash occurs
+after "Surface Forces: N fleet" is displayed but before "Building:" / "Docked:"
+lines render.
+
+### Root cause: `PLANET.raw[0x03]` must be `0x87` for owned/developed colonies
+
+The probe game setup was writing `raw[0x03] = 0x00` for all owned planets. In
+every real game fixture, owned planets have `raw[0x03] = 0x87` (the "developed
+colony" type flag). ECGAME uses this byte to determine code paths for planet
+display and economics. With `raw[0x03] = 0x00`, ECGAME misinterprets the planet
+record layout and hits a range check error.
+
+**Fix:** `setup_classic_probe_game.py` now passes `135` (`0x87`) as the second
+argument to `planet-potential` instead of `0`.
+
+Known values of `raw[0x03]`:
+
+| Value  | Meaning |
+|--------|---------|
+| `0x87` | Developed colony (homeworld type) — required for normal ECGAME display and AI economics |
+| `0x86` | Partially developed (observed in some mid-game states) |
+| `0x85` | Damaged colony (observed after heavy bombardment) |
+| `0x81` | Newly colonized (colonization flag, set by merging.rs) |
+| `0x00` | Unowned / uninitialized — ECGAME cannot safely display planet details |
+
+### Secondary finding: stardock items + `raw[0x03]=0x00` is the crash trigger
+
+The crash only occurred when stardock items (ships docked at the planet) were
+present AND `raw[0x03]` was `0x00`. With `raw[0x03]=0x87`, stardock items display
+correctly (or are harmlessly empty) without crashing.
+
+### DATABASE.DAT fog-of-war behavior
+
+**Discovery:** ECGAME overwrites `DATABASE.DAT` on player login. The file written
+by `rust-maint` serves as a starting template, but ECGAME regenerates the player's
+fog-of-war database from its own internal state when the player enters the game.
+
+Maintenance populates `DATABASE.DAT` entries for:
+- **Owned planets:** always stamped with full intel (name, owner, production, armies, batteries, year)
+- **Intel events:** planets revealed by scouting, viewing, or combat during the maintenance turn
+- **Template preservation:** previously known planets are carried forward from the template
+
+However, ECGAME's login rewrite means the DATABASE.DAT must also satisfy whatever
+internal validation ECGAME performs. The exact criteria for ECGAME to "accept" a
+DATABASE.DAT entry as valid intel remain partially undocumented — only the
+`is_orbit_record` scan markers (0x01-0x04) are currently confirmed as entries that
+ECGAME preserves across login.
+
+### Stardock display in ECGAME
+
+Stardock items written to `PLANETS.DAT` (u16 counts at `0x38..0x4B`, u8 kinds at
+`0x4C..0x55`) are not visible in ECGAME's "Docked:" display field. ECGAME likely
+reads docked ship info from `DATABASE.DAT` or requires additional state beyond the
+raw stardock bytes. Further investigation needed to understand ECGAME's stardock
+display requirements.
