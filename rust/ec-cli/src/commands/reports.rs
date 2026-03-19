@@ -1619,7 +1619,7 @@ fn generate_report_entries(
             ec_data::ColonizationResolvedEvent::BlockedByOwner { owner_empire_raw, .. } => format!(
                 " Colonization mission report: We have entered System({x},{y}) and have determined that aliens are already living on the world found within! We have gone ahead and performed a long range viewing analysis and have determined that the world is owned by {} and has a potential of {} points. We are aborting our mission and are leaving the alien solar system.",
                 classic_empire_clause(game_data, owner_empire_raw),
-                u16::from_le_bytes(planet.potential_production_raw()),
+                planet.potential_production_points_current_known(),
             ),
         };
         entries.push(ReportEntry {
@@ -1756,7 +1756,7 @@ fn generate_report_entries(
                         };
                         format!(
                             " Viewing mission report: We have entered System({x},{y}) and have completed a long range viewing analysis of the world found within. The world is {owner_clause} and has a potential of {} points. Until ordered otherwise, we will be moving out of the solar system.",
-                            u16::from_le_bytes(planet.potential_production_raw()),
+                            planet.potential_production_points_current_known(),
                         )
                     } else {
                         format!(" Viewing mission report: We have entered System({x},{y}) and completed a long range viewing analysis.")

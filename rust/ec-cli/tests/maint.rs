@@ -1263,9 +1263,9 @@ fn maint_rust_view_world_generates_results_and_database_intel() {
     // Strings near the 75-byte chunk boundary may be split across records in the new Stardate
     // header format. Check for unambiguous early-body content instead.
     assert!(text.contains("entered System(15,13)") || text.contains("long range"));
-    assert!(text.contains("has a") || text.contains("potential"));
-
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
+    let expected_potential = game_data.planets.records[13].potential_production_points_current_known();
+    assert!(text.contains(&format!("potential of {expected_potential} points")));
     let database_bytes = fs::read(target.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
     let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
     let viewer_record = database.record(13, 0, game_data.planets.records.len());

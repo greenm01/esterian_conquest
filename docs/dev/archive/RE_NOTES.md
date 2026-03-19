@@ -8342,6 +8342,58 @@ Crash note:
 - `capture/command_009.png` shows this is the pre-existing planet-command-menu
   crash path, not a new failure of the partial-intel Total Planet Database row
 
+### View-only foreign-intel Helios Prime probe
+
+A follow-up manual probe switched the same controlled `Helios Prime` case to a
+`View World` grant instead of `Scout Solar System`. The exported player-1 row in
+`/tmp/ecgame-view-probe/DATABASE.DAT` was:
+
+- owner `4`
+- seen/scout years `3003`
+- max production `136`
+- `raw[0x1d] = 0xff`
+- `raw[0x1e..0x1f] = 0xffff`
+- `raw[0x23..0x26] = ff ff ff ff`
+
+Screenshots:
+
+- `capture/ecgame_076.png`
+- `capture/ecgame_077.png`
+
+Observed behavior:
+
+- `Helios Prime` still appears in the Total Planet Database list
+- the list row shows:
+  - owner `#4`
+  - max produx `136`
+  - year seen `3003`
+  - `ARs = 65535`
+  - `GBs = 65535`
+  - `Curr Prod = 255`
+  - `Stored Points = 65535`
+  - `Year Scout = 3003`
+- opening `Helios Prime` through the Total Planet Database detail path works
+- the detail screen shows:
+  - `PLANET INFO (posted 3003: 1 yrs ago)`
+  - `SCOUT INFO (posted 3003: 1 yrs ago)`
+  - maximum production `136`
+  - current production `UNKNOWN`
+  - production points stored `65535`
+  - armies `UNKNOWN`
+  - ground batteries `UNKNOWN`
+
+Practical interpretation:
+
+- the `ViewWorld` row family is accepted by original `ECGAME` on both list and
+  detail screens
+- original `ECGAME` still routes the detail screen through the same `SCOUT INFO`
+  section label even when the row only contains view-level intel
+- the list path renders unknown current production as raw `0xff` (`255`)
+- both list and detail paths render the unknown stored-points word as raw
+  `0xffff` (`65535`), not as `UNKNOWN`
+- `Year Scout` / `posted ...` still come from the seen-year words for this
+  view-only row family too
+
 ### Year-split Helios Prime probe
 
 Another follow-up probe copied the accepted full-intel `Helios Prime` row into

@@ -43,6 +43,13 @@ Recent validation baseline:
     list shows `ARs=65535`, `GBs=65535`, current produx `136`, stored points
     `35`, year scout `3003`; detail shows `Armies: UNKNOWN` and
     `Ground Batteries: UNKNOWN`
+  - follow-up `ViewWorld` probe on `/tmp/ecgame-view-probe` confirmed that
+    original `ECGAME` also accepts the view-only foreign row on both list and
+    detail screens:
+    list shows `Curr Prod=255`, `Stored Points=65535`, `ARs=65535`,
+    `GBs=65535`, `Year Scout=3003`; detail shows `Current Production: UNKNOWN`,
+    `Production Points Stored: 65535`, `Armies: UNKNOWN`, and
+    `Ground Batteries: UNKNOWN`
   - clearing `raw[0x27..0x28]` to zero did not stop `ECGAME` from showing
     posted/scout year `3003`, so that display year is not fully decoded yet
   - year-split follow-up on `/tmp/ecgame-yearsplit-probe` set
@@ -121,9 +128,10 @@ remaining risks are:
 1. Keep oracle probing focused on classic export behavior, especially
    newly granted foreign intel rather than already-known homeworld/detail
    screens.
-2. Keep the accepted `Helios Prime` scout row as the locked positive compat
-   case. New probes should target other row families, especially `ViewWorld`,
-   combat-granted rows, and orbit-record preservation.
+2. Keep the accepted `Helios Prime` scout row and the accepted `Helios Prime`
+   `ViewWorld` row as locked positive compat cases. New probes should target
+   other row families, especially combat-granted rows and orbit-record
+   preservation.
 3. Treat the seen-year words (`raw[0x16..0x19]`) as the visible year source
    for current Total Planet Database list/detail displays. The scout-year word
    (`raw[0x27..0x28]`) remains unresolved but is not driving those screens.

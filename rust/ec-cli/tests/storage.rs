@@ -99,6 +99,31 @@ fn setup_classic_probe_scout_order(target: &Path) {
     ]);
 }
 
+fn setup_classic_probe_view_order(target: &Path) {
+    run_ec_cli(&[
+        "fleet-ships",
+        target.to_str().unwrap(),
+        "2",
+        "1",
+        "0",
+        "1",
+        "2",
+        "0",
+        "0",
+        "0",
+    ]);
+
+    run_ec_cli(&[
+        "fleet-order",
+        target.to_str().unwrap(),
+        "2",
+        "3",
+        "9",
+        "9",
+        "2",
+    ]);
+}
+
 #[test]
 fn db_import_and_export_round_trip_fixture() {
     let source = unique_temp_dir("ec-cli-db-import");
@@ -363,6 +388,57 @@ fn db_export_emits_ecgame_accepted_foreign_full_intel_row_shape() {
     assert_eq!(row.raw[0x24], 0x00);
     assert_eq!(row.raw[0x25], 6);
     assert_eq!(row.raw[0x26], 0x00);
+    assert_eq!(u16::from_le_bytes([row.raw[0x16], row.raw[0x17]]), 3003);
+    assert_eq!(u16::from_le_bytes([row.raw[0x27], row.raw[0x28]]), 3003);
+
+    cleanup_dir(&source);
+    cleanup_dir(&exported);
+}
+
+#[test]
+fn db_export_emits_ecgame_accepted_foreign_view_only_row_shape() {
+    let source = unique_temp_dir("ec-cli-db-export-foreign-view-intel-source");
+    let exported = unique_temp_dir("ec-cli-db-export-foreign-view-intel-exported");
+
+    let stdout = run_ec_cli(&[
+        "sysop",
+        "new-game",
+        source.to_str().unwrap(),
+        "--players",
+        "4",
+        "--seed",
+        "1515",
+    ]);
+    assert!(stdout.contains("Initialized new game"));
+
+    setup_classic_probe_players(&source);
+    setup_classic_probe_planets(&source);
+    setup_classic_probe_view_order(&source);
+
+    let maint_stdout = run_ec_cli(&["maint-rust", source.to_str().unwrap(), "4"]);
+    assert!(maint_stdout.contains("Rust maintenance complete."));
+
+    let export_stdout = run_ec_cli(&[
+        "db-export",
+        source.to_str().unwrap(),
+        exported.to_str().unwrap(),
+    ]);
+    assert!(export_stdout.contains("Exported year 3004"));
+
+    let exported_data = ec_data::CoreGameData::load(&exported).expect("exported game should load");
+    let database_bytes =
+        fs::read(exported.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+    let row = database.record(4, 0, exported_data.planets.records.len());
+    assert_eq!(row.planet_name_bytes(), b"Helios Prime");
+    assert_eq!(row.raw[0x15], 4);
+    assert_eq!(row.raw[0x1c], 136);
+    assert_eq!(row.raw[0x1d], 0xff);
+    assert_eq!(u16::from_le_bytes([row.raw[0x1e], row.raw[0x1f]]), u16::MAX);
+    assert_eq!(row.raw[0x23], 0xff);
+    assert_eq!(row.raw[0x24], 0xff);
+    assert_eq!(row.raw[0x25], 0xff);
+    assert_eq!(row.raw[0x26], 0xff);
     assert_eq!(u16::from_le_bytes([row.raw[0x16], row.raw[0x17]]), 3003);
     assert_eq!(u16::from_le_bytes([row.raw[0x27], row.raw[0x28]]), 3003);
 
