@@ -250,7 +250,7 @@ fn apply_intel_grant_row(
     let potential = planet.potential_production_points_current_known();
     let (current_production, word_1e, armies, batteries, seen_year, scout_year) = match source {
         PlanetIntelSource::ScoutSolarSystem => (
-            template_current_production(template_record).or(Some(potential)),
+            Some(scout_visible_current_production(planet)),
             template_word_1e(template_record).or(Some(0x23)),
             Some(planet.army_count_raw()),
             Some(planet.ground_batteries_raw()),
@@ -350,6 +350,12 @@ fn template_word_1e(template_record: Option<&DatabaseRecord>) -> Option<u16> {
     template_record
         .map(|record| record.word_at(0x1e))
         .filter(|value| *value != u16::MAX)
+}
+
+fn scout_visible_current_production(planet: &ec_data::PlanetRecord) -> u16 {
+    planet
+        .present_production_points_current_known()
+        .unwrap_or_else(|| planet.potential_production_points_current_known())
 }
 
 fn owned_row_word_1e(

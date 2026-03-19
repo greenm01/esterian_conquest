@@ -9015,3 +9015,95 @@ Important conclusion:
 - `ECGAME` did not normalize or rewrite that patched row on login
 - for accepted foreign scout rows, `DATABASE.DAT[0x25..0x26]` is the direct
   ground-batteries display word
+
+### Successful original-ECMAINT scout refreshes rewrite stale current production
+
+The earlier stale-`Curr Prod` scout-refresh attempts were not actually clean:
+they mixed transit-family fleet tuple bytes, same-sector merge noise, or other
+fixture state that made original `ECMAINT` abort the scout with the classic
+report:
+
+- `Scouting mission report: Since we have lost all of our scouts, we must abort
+  our mission ...`
+
+The first clean accepted scout pre-state in original `ECMAINT` was reproduced
+at `/tmp/ecgame-classic-atrest-purescout.gMcRea`:
+
+- base: `fixtures/ecmaint-invade-pre/v1.5`
+- fleet 3 patched to a pure single-scout fleet
+- fleet 3 kept in the classic at-rest tuple family:
+  - `tupleA = 80 00 00 00 00`
+  - `tupleB = 80 00 00 00 00`
+  - `tupleC = 81 00 00 00 00`
+- order patched from `Scout Sector (0x0a)` to `Scout Solar System (0x0b)`
+- other player-1 fleets moved out of the same sector to avoid merge/contact
+  noise
+
+Original `ECMAINT` accepted that run:
+
+- no scout-abort report was emitted
+- fleet 3 ended the turn at hold with its scout intact
+- `DATABASE.DAT` gained a visible `TargetPrime` row at record `34`
+
+That accepted baseline was then used to probe stale-row refresh directly at
+`/tmp/ecgame-scout-refresh-row34.QYjsVJ`:
+
+- source row `34` was preseeded as visible:
+  - name `TargetPrime`
+  - owner marker `0x02`
+  - seen/scout years `2999`
+  - max produx `100`
+  - current produx `44` (deliberately stale)
+  - word `0x1e..0x1f = 66`
+  - armies `142`
+  - batteries `15`
+- the same accepted at-rest pure-scout fleet state was preserved
+
+Original `ECMAINT` rewrote only these row-34 bytes:
+
+- `0x16..0x17`: `2999 -> 3010`
+- `0x18..0x19`: `2999 -> 3010`
+- `0x1d`: `44 -> 100`
+- `0x27..0x28`: `2999 -> 3010`
+
+It **did not** rewrite the other visible scout payload bytes in that row:
+
+- `0x1e..0x1f` stayed `66`
+- armies stayed `142`
+- batteries stayed `15`
+
+Important conclusion:
+
+- successful `Scout Solar System` refreshes do rewrite stale
+  `DATABASE.DAT[0x1d]` current-production bytes from live planet state
+- they also rewrite the visible year words to the current intel year
+- but they do **not** yet justify a general rule that `0x1e..0x1f` must always
+  be overwritten from live stored goods; that word still behaves like a
+  row-family-specific compat display field
+
+Follow-up probe `/tmp/ecgame-scout-refresh-arbg.SnZG9j` used the same accepted
+at-rest pure-scout baseline but preseeded row `34` with:
+
+- current produx `44`
+- armies `17`
+- batteries `9`
+- stored/display word `66`
+- visible years `2999`
+
+Original `ECMAINT` rewrote that row to:
+
+- current produx `100`
+- armies `142`
+- batteries `15`
+- visible years `3010`
+
+while still preserving:
+
+- `0x1e..0x1f = 66`
+
+Important refinement:
+
+- successful scout refreshes rewrite stale visible `Curr Prod`, `ARs`, and
+  `GBs` from live planet state
+- they still do not justify forcing `0x1e..0x1f` to live stored goods in the
+  compat exporter

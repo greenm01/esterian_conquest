@@ -217,18 +217,33 @@ remaining risks are:
 5. Treat owned-world `Docked:` as closed: it comes from planet state, not
    `DATABASE.DAT`. The remaining orbit-row work is now mainly about whether
    any non-owned/foreign-intel display path reuses the same `0x23` family.
-6. Use the new `planet-present` probe helper to build a clean original-ECMAINT
-   foreign-scout refresh case before changing scout export semantics.
-   The current stale-`Curr Prod` attempts on ad hoc new-game harnesses were
-   inconclusive because they did not produce a clean player-1 foreign-scout
-   refresh in original `ECMAINT`.
-7. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
+6. Treat successful `ScoutSolarSystem` refreshes as rewriting stale
+   `DATABASE.DAT[0x1d]` current-production bytes from live planet state.
+   The clean oracle proof is `/tmp/ecgame-scout-refresh-row34.QYjsVJ`, where a
+   stale visible row (`Curr Prod = 44`, years `2999`) was refreshed by original
+   `ECMAINT` to `Curr Prod = 100`, seen/scout years `3010`.
+   Follow-up `/tmp/ecgame-scout-refresh-arbg.SnZG9j` also showed stale
+   `ARs/GBs` (`17/9`) refreshing to live `142/15`.
+7. Treat scout acceptance as sensitive to classic fleet pre-state. A clean
+   original-ECMAINT scout run was only reproduced with an at-rest pure scout
+   fleet (`tupleA/B = 0x80...`, `tupleC = 0x81...`, no attached DDs, no same-
+   sector merge partner) in `/tmp/ecgame-classic-atrest-purescout.gMcRea`.
+   The older synthetic `Helios Prime` probes were failing because they mixed
+   transit-family tuple bytes and other scenario noise into the scout order.
+8. The `0x1e..0x1f` word for successful scout rows remains row-family-specific.
+   Do not generalize it to live `PLANETS.DAT` stored goods yet:
+   - regular `Helios Prime` scout rows still accept `35`
+   - the successful unknown->visible `TargetPrime` scout row in the classic
+     homeworld-style fixture came out as `0x42` (`66` displayed)
+   - current compat policy should therefore refresh stale scout `0x1d`, but
+     preserve accepted/template `0x1e..0x1f` until a tighter oracle rule exists
+9. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
    direct `.DAT` ownership back into the client/runtime.
-8. When classic tooling changes a directory, fold those edits back through
+10. When classic tooling changes a directory, fold those edits back through
    `db-import` before the next Rust maint/client step.
-9. After meaningful Rust changes, rerun:
+11. After meaningful Rust changes, rerun:
    - `python3 tools/oracle_sweep.py --mode seeded`
    - `python3 tools/rust_maint_sweep.py --turns 3`
    - `cargo test -q`
-9. Keep `next-session.md` short and current; archive bulky probe history
+12. Keep `next-session.md` short and current; archive bulky probe history
    instead of rebuilding a running notebook here.

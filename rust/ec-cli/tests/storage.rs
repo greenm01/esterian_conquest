@@ -396,6 +396,74 @@ fn db_export_emits_ecgame_accepted_foreign_full_intel_row_shape() {
 }
 
 #[test]
+fn db_export_refreshes_stale_foreign_scout_row_visible_stats() {
+    let source = unique_temp_dir("ec-cli-db-export-refresh-stale-scout-source");
+    let exported = unique_temp_dir("ec-cli-db-export-refresh-stale-scout-exported");
+
+    let stdout = run_ec_cli(&[
+        "sysop",
+        "new-game",
+        source.to_str().unwrap(),
+        "--players",
+        "4",
+        "--seed",
+        "1515",
+    ]);
+    assert!(stdout.contains("Initialized new game"));
+
+    setup_classic_probe_players(&source);
+    setup_classic_probe_planets(&source);
+    setup_classic_probe_scout_order(&source);
+
+    let database_bytes = fs::read(source.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let mut database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+    let row = database.record_mut(4, 0, 20);
+    row.set_planet_name("Helios Prime");
+    row.raw[0x15] = 4;
+    row.raw[0x1c] = 136;
+    row.raw[0x1d] = 44;
+    row.set_word_at(0x1e, 35);
+    row.raw[0x23] = 17;
+    row.raw[0x24] = 0x00;
+    row.raw[0x25] = 9;
+    row.raw[0x26] = 0x00;
+    row.set_word_at(0x16, 2999);
+    row.set_word_at(0x18, 2999);
+    row.set_word_at(0x27, 2999);
+    fs::write(source.join("DATABASE.DAT"), database.to_bytes()).expect("DATABASE.DAT should save");
+
+    let maint_stdout = run_ec_cli(&["maint-rust", source.to_str().unwrap(), "4"]);
+    assert!(maint_stdout.contains("Rust maintenance complete."));
+
+    let export_stdout = run_ec_cli(&[
+        "db-export",
+        source.to_str().unwrap(),
+        exported.to_str().unwrap(),
+    ]);
+    assert!(export_stdout.contains("Exported year 3004"));
+
+    let exported_data = ec_data::CoreGameData::load(&exported).expect("exported game should load");
+    let database_bytes =
+        fs::read(exported.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+    let row = database.record(4, 0, exported_data.planets.records.len());
+    assert_eq!(row.planet_name_bytes(), b"Helios Prime");
+    assert_eq!(row.raw[0x15], 4);
+    assert_eq!(row.raw[0x1c], 136);
+    assert_eq!(row.raw[0x1d], 136);
+    assert_eq!(u16::from_le_bytes([row.raw[0x1e], row.raw[0x1f]]), 35);
+    assert_eq!(row.raw[0x23], 10);
+    assert_eq!(row.raw[0x24], 0x00);
+    assert_eq!(row.raw[0x25], 6);
+    assert_eq!(row.raw[0x26], 0x00);
+    assert_eq!(u16::from_le_bytes([row.raw[0x16], row.raw[0x17]]), 3003);
+    assert_eq!(u16::from_le_bytes([row.raw[0x27], row.raw[0x28]]), 3003);
+
+    cleanup_dir(&source);
+    cleanup_dir(&exported);
+}
+
+#[test]
 fn db_export_emits_ecgame_accepted_foreign_view_only_row_shape() {
     let source = unique_temp_dir("ec-cli-db-export-foreign-view-intel-source");
     let exported = unique_temp_dir("ec-cli-db-export-foreign-view-intel-exported");
