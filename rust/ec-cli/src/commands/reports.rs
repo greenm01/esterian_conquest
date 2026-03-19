@@ -413,30 +413,21 @@ mod tests {
 
 fn push_classic_results_chunked(
     data: &mut Vec<u8>,
-    kind: u8,
+    _kind: u8,
     header_tail: [u8; 10],
     continuation_tail: [u8; 10],
     text: &str,
 ) {
-    // ECGAME reads exactly `kind` records per report.  The kind byte doubles
-    // as the record count: 0x05 → 5 records, 0x06 → 6, 0x08 → 8, etc.
-    // We must emit exactly that many records (header + body + padding + EOT).
-    let target_count = kind as usize;
     let lines = classic_results_lines(text);
     if lines.is_empty() {
         return;
     }
-    // Max body lines = target_count - 2 (header + EOT).
-    let max_body = target_count.saturating_sub(2);
-    // Truncate body if it exceeds the available slots.
-    let body_lines = if lines.len() > max_body + 1 {
-        // First line is header; remaining lines are body.
-        max_body + 1
-    } else {
-        lines.len()
-    };
+    // ECGAME reads exactly `kind` records per report.  The kind byte doubles
+    // as the record count.  Compute it from the actual text so every report
+    // is exactly the right size — no padding, no truncation.
+    let kind = (lines.len() + 1) as u8; // text lines + EOT
 
-    for (line_idx, line) in lines[..body_lines].iter().enumerate() {
+    for (line_idx, line) in lines.iter().enumerate() {
         let chunk = line.as_bytes();
         let mut record = [0u8; RESULTS_RECORD_SIZE];
         record[0] = kind;
@@ -451,7 +442,6 @@ fn push_classic_results_chunked(
         data.extend_from_slice(&record);
     }
 
-    // Emit EOT immediately after the text so it reads naturally.
     let eot = RESULTS_END_OF_TRANSMISSION.as_bytes();
     let mut record = [0u8; RESULTS_RECORD_SIZE];
     record[0] = kind;
@@ -459,21 +449,15 @@ fn push_classic_results_chunked(
     record[RESULTS_TEXT_START..RESULTS_TEXT_START + eot.len()].copy_from_slice(eot);
     record[RESULTS_TEXT_END..RESULTS_RECORD_SIZE].copy_from_slice(&continuation_tail);
     data.extend_from_slice(&record);
-
-    // Pad with blank records AFTER EOT so total records == target_count.
-    let emitted = body_lines + 1; // text lines + EOT
-    let padding = target_count.saturating_sub(emitted);
-    for _ in 0..padding {
-        let mut record = [0u8; RESULTS_RECORD_SIZE];
-        record[0] = kind;
-        record[RESULTS_TEXT_END..RESULTS_RECORD_SIZE].copy_from_slice(&continuation_tail);
-        data.extend_from_slice(&record);
-    }
 }
 
-fn classic_results_record_count(_text: &str, kind: u8) -> usize {
-    // Each report occupies exactly `kind` records in RESULTS.DAT.
-    kind as usize
+fn classic_results_record_count(text: &str, _kind: u8) -> usize {
+    let line_count = classic_results_lines(text).len();
+    if line_count == 0 {
+        0
+    } else {
+        line_count + 1
+    }
 }
 
 fn classic_results_lines(text: &str) -> Vec<String> {
