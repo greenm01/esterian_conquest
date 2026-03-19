@@ -1,7 +1,7 @@
+use super::helpers::{center_scroll_to_cursor, sync_scroll_to_cursor};
 use crate::app::state::App;
-use super::helpers::{sync_scroll_to_cursor, center_scroll_to_cursor};
-use crate::screen::{CommandMenu, ScreenId, StarbaseRow};
 use crate::domains::starbase::StarbaseAction;
+use crate::screen::{CommandMenu, ScreenId, StarbaseRow};
 
 impl App {
     pub fn show_starbase_expert_mode_notice(&mut self) {
@@ -71,11 +71,8 @@ impl App {
         ) {
             return;
         }
-        self.starbase.move_select(
-            delta,
-            &self.game_data,
-            self.player.record_index_1_based,
-        );
+        self.starbase
+            .move_select(delta, &self.game_data, self.player.record_index_1_based);
     }
 
     pub fn append_starbase_char(&mut self, ch: char) {
@@ -85,21 +82,16 @@ impl App {
         if self.starbase.review_input.len() >= 3 {
             return;
         }
-        self.starbase.append_char(
-            ch,
-            &self.game_data,
-            self.player.record_index_1_based,
-        );
+        self.starbase
+            .append_char(ch, &self.game_data, self.player.record_index_1_based);
     }
 
     pub fn backspace_starbase_input(&mut self) {
         if self.current_screen != ScreenId::StarbaseReviewSelect {
             return;
         }
-        self.starbase.backspace_input(
-            &self.game_data,
-            self.player.record_index_1_based,
-        );
+        self.starbase
+            .backspace_input(&self.game_data, self.player.record_index_1_based);
     }
 
     pub fn submit_starbase_review_select(&mut self) {
@@ -159,31 +151,14 @@ impl App {
             KeyCode::PageDown => crate::app::Action::Starbase(StarbaseAction::MoveSelect(8)),
             KeyCode::Enter => crate::app::Action::Starbase(StarbaseAction::SubmitReviewSelect),
             KeyCode::Backspace => crate::app::Action::Starbase(StarbaseAction::BackspaceInput),
-            KeyCode::Char(ch) if ch.is_ascii_digit() => crate::app::Action::Starbase(StarbaseAction::AppendChar(ch)),
+            KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                crate::app::Action::Starbase(StarbaseAction::AppendChar(ch))
+            }
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                 crate::app::Action::Starbase(StarbaseAction::OpenMenu)
             }
             _ => crate::app::Action::Noop,
         }
-    }
-
-    fn sync_starbase_cursor_to_input(&mut self) {
-        if self.current_screen != ScreenId::StarbaseReviewSelect {
-            return;
-        }
-        let Ok(target_base_id) = self.starbase.review_input.trim().parse::<u8>() else {
-            return;
-        };
-        let rows = self.starbase_rows();
-        let Some(index) = rows.iter().position(|row| row.base_id == target_base_id) else {
-            return;
-        };
-        self.starbase.cursor = index;
-        sync_scroll_to_cursor(
-            &mut self.starbase.scroll_offset,
-            self.starbase.cursor,
-            crate::screen::STARBASE_VISIBLE_ROWS,
-        );
     }
 
     pub fn open_starbase_review(&mut self) {

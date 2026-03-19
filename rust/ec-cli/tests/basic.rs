@@ -1,6 +1,6 @@
 mod common;
 
-use common::{cleanup_dir, run_ec_cli, run_ec_cli_in_dir, unique_temp_dir};
+use common::{cleanup_dir, export_campaign_db, run_ec_cli, run_ec_cli_in_dir, unique_temp_dir};
 use ec_data::CoreGameData;
 use std::fs;
 
@@ -171,6 +171,7 @@ fn planet_stored_sets_stored_production_points() {
     let stdout = run_ec_cli(&["planet-stored", target.to_str().unwrap(), "1", "50"]);
     assert!(stdout.contains("stored production points set to 50"));
 
+    export_campaign_db(&target, &target);
     let game_data = CoreGameData::load(&target).unwrap();
     assert_eq!(game_data.planets.records[0].stored_production_points(), 50);
 
@@ -192,6 +193,7 @@ fn planet_stardock_sets_a_stardock_slot() {
     ]);
     assert!(stdout.contains("stardock slot 0 set"));
 
+    export_campaign_db(&target, &target);
     let game_data = CoreGameData::load(&target).unwrap();
     assert_eq!(game_data.planets.records[0].stardock_kind_raw(0), 1);
     assert_eq!(game_data.planets.records[0].stardock_count_raw(0), 2);

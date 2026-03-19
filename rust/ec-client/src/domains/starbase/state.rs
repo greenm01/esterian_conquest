@@ -1,5 +1,5 @@
+use crate::domains::starbase::screens::starbase::{STARBASE_VISIBLE_ROWS, StarbaseRow};
 use ec_data::CoreGameData;
-use crate::domains::starbase::screens::starbase::{StarbaseRow, STARBASE_VISIBLE_ROWS};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct StarbaseState {
@@ -11,15 +11,17 @@ pub struct StarbaseState {
 }
 
 impl StarbaseState {
-    pub fn starbase_rows(&self, game_data: &CoreGameData, player_record_index_1_based: usize) -> Vec<StarbaseRow> {
+    pub fn starbase_rows(
+        &self,
+        game_data: &CoreGameData,
+        player_record_index_1_based: usize,
+    ) -> Vec<StarbaseRow> {
         let mut rows = game_data
             .bases
             .records
             .iter()
             .enumerate()
-            .filter(|(_, base)| {
-                base.owner_empire_raw() as usize == player_record_index_1_based
-            })
+            .filter(|(_, base)| base.owner_empire_raw() as usize == player_record_index_1_based)
             .map(|(idx, base)| {
                 let escort_label = game_data
                     .fleets

@@ -1,17 +1,44 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::{CoreGameData, DatabaseDat, build_player_starmap_projection};
+use ec_data::{
+    CampaignStore, CoreGameData, DEFAULT_CAMPAIGN_DB_NAME, DatabaseDat,
+    build_player_starmap_projection, build_player_starmap_projection_from_snapshots,
+};
 
 pub fn export_player_starmap(
     dir: &Path,
     player_record_index_1_based: usize,
     output_path: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let game_data = CoreGameData::load(dir)?;
-    let database = load_database_dat(dir)?;
-    let projection =
-        build_player_starmap_projection(&game_data, &database, player_record_index_1_based as u8);
+    let store_path = dir.join(DEFAULT_CAMPAIGN_DB_NAME);
+    let projection = if store_path.exists() {
+        let store = CampaignStore::open(store_path)?;
+        if let Some(runtime_state) = store.load_latest_runtime_state()? {
+            let snapshots = store
+                .latest_planet_intel_for_viewer(player_record_index_1_based as u8)?
+                .into_iter()
+                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                .collect();
+            build_player_starmap_projection_from_snapshots(
+                &runtime_state.game_data,
+                &snapshots,
+                player_record_index_1_based as u8,
+            )
+        } else {
+            let game_data = CoreGameData::load(dir)?;
+            let database = DatabaseDat::parse(&fs::read(dir.join("DATABASE.DAT"))?)?;
+            build_player_starmap_projection(
+                &game_data,
+                &database,
+                player_record_index_1_based as u8,
+            )
+        }
+    } else {
+        let game_data = CoreGameData::load(dir)?;
+        let database = DatabaseDat::parse(&fs::read(dir.join("DATABASE.DAT"))?)?;
+        build_player_starmap_projection(&game_data, &database, player_record_index_1_based as u8)
+    };
     let csv_path = output_path.with_extension("csv");
     let details_csv_path = output_path.with_file_name(
         output_path
@@ -30,9 +57,4 @@ pub fn export_player_starmap(
         details_csv_path.display()
     );
     Ok(())
-}
-
-fn load_database_dat(dir: &Path) -> Result<DatabaseDat, Box<dyn std::error::Error>> {
-    let bytes = fs::read(dir.join("DATABASE.DAT"))?;
-    Ok(DatabaseDat::parse(&bytes)?)
 }

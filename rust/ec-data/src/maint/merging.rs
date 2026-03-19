@@ -1,8 +1,7 @@
-use crate::{CoreGameData, Order};
 use super::{
-    ColonizationEvent, ColonizationResolvedEvent, FleetMergeEvent, JoinMissionHostEvent,
-    Mission,
+    ColonizationEvent, ColonizationResolvedEvent, FleetMergeEvent, JoinMissionHostEvent, Mission,
 };
+use crate::{CoreGameData, Order};
 
 /// Apply colonization events to PLANETS.DAT and PLAYER.DAT.
 ///

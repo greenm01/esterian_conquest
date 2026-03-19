@@ -1,7 +1,8 @@
 mod common;
 
 use common::{
-    cleanup_dir, copy_fixture_dir, repo_root, run_ec_cli, run_ec_cli_in_dir, unique_temp_dir,
+    cleanup_dir, copy_fixture_dir, export_campaign_db, repo_root, run_ec_cli, run_ec_cli_in_dir,
+    unique_temp_dir,
 };
 use std::fs;
 
@@ -22,6 +23,7 @@ fn planet_build_recreates_known_valid_build_pre_fixture() {
     );
     assert!(stdout.contains("Planet record 15 updated: build_slot=0x03 build_kind=0x01"));
 
+    export_campaign_db(&target, &target);
     let expected = repo_root().join("fixtures/ecmaint-build-pre/v1.5/PLANETS.DAT");
     let actual = fs::read(target.join("PLANETS.DAT")).unwrap();
     assert_eq!(actual, fs::read(expected).unwrap());
@@ -112,6 +114,7 @@ fn scenario_planet_build_recreates_known_valid_build_pre_fixture() {
     );
     assert!(stdout.contains("Applied scenario: planet-build"));
 
+    export_campaign_db(&target, &target);
     let expected = repo_root().join("fixtures/ecmaint-build-pre/v1.5/PLANETS.DAT");
     let actual = fs::read(target.join("PLANETS.DAT")).unwrap();
     assert_eq!(actual, fs::read(expected).unwrap());
@@ -156,6 +159,7 @@ fn scenario_init_planet_build_materializes_runnable_directory() {
     assert!(stdout.contains("Applied scenario: planet-build"));
     assert!(stdout.contains("Scenario directory initialized at"));
 
+    export_campaign_db(&target, &target);
     let expected_planets = repo_root().join("fixtures/ecmaint-build-pre/v1.5/PLANETS.DAT");
     let expected_fleets = repo_root().join("fixtures/ecmaint-post/v1.5/FLEETS.DAT");
 
@@ -227,10 +231,23 @@ fn planet_init_original_updates_runtime_store_for_db_export() {
         common::rust_workspace(),
     );
 
-    assert_eq!(
+    assert_ne!(
         fs::read(source.join("PLANETS.DAT")).unwrap(),
         fs::read(exported.join("PLANETS.DAT")).unwrap()
     );
+    let exported_data = ec_data::CoreGameData::load(&exported)
+        .expect("exported original-sample topology should load");
+    assert_eq!(exported_data.planets.records[0].coords_raw(), [0x06, 0x01]);
+    assert_eq!(exported_data.planets.records[0].owner_empire_slot_raw(), 0);
+    assert_eq!(exported_data.planets.records[4].coords_raw(), [0x07, 0x04]);
+    assert_eq!(exported_data.planets.records[4].owner_empire_slot_raw(), 4);
+    assert_eq!(
+        exported_data.planets.records[4].planet_name(),
+        "Not Named Yet"
+    );
+    assert_eq!(exported_data.planets.records[15].coords_raw(), [0x10, 0x0D]);
+    assert_eq!(exported_data.planets.records[15].owner_empire_slot_raw(), 1);
+    assert_eq!(exported_data.planets.records[15].planet_name(), "Dust Bowl");
 
     cleanup_dir(&source);
     cleanup_dir(&exported);

@@ -1,17 +1,19 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
 
 use ec_data::{
-    CampaignStore, CoreGameData, DatabaseDat, DiplomacyConfig, DiplomacyOverride,
-    DiplomaticRelation, MaintenanceEvents, VisibleHazardIntel, run_maintenance_turn,
-    run_maintenance_turn_with_context, run_maintenance_turn_with_visible_hazards,
-    visible_hazard_intel_from_database,
+    CampaignStore, CoreGameData, DiplomacyConfig, DiplomacyOverride, DiplomaticRelation,
+    MaintenanceEvents, PlanetIntelSnapshot, VisibleHazardIntel, merge_player_intel_from_compat,
+    run_maintenance_turn, run_maintenance_turn_with_context,
+    run_maintenance_turn_with_visible_hazards, visible_hazard_intel_from_snapshots,
 };
 
-use crate::commands::reports::{build_database_dat, build_messages_dat, build_rankings_text, build_results_dat};
+use crate::commands::reports::{
+    build_database_dat, build_messages_dat, build_rankings_text, build_results_dat,
+};
 use crate::commands::runtime::load_runtime_state_preferring_live_directory;
-use crate::workspace::seed_classic_runtime_files;
 
 /// Run Rust maintenance on a game directory for specified number of turns.
 ///
@@ -43,7 +45,10 @@ pub fn run_rust_maintenance_with_options(
                 match ec_data::maint::gate::check_maintenance_schedule(&conquest) {
                     ec_data::maint::gate::GateResult::Allowed => {}
                     ec_data::maint::gate::GateResult::NotScheduled { day_name } => {
-                        println!("Today is {} - maintenance is not scheduled to run.", day_name);
+                        println!(
+                            "Today is {} - maintenance is not scheduled to run.",
+                            day_name
+                        );
                         return Ok(());
                     }
                     ec_data::maint::gate::GateResult::TokenBusy => {
@@ -76,6 +81,7 @@ pub fn run_rust_maintenance_with_options(
     let existing_messages = runtime_state.messages_bytes;
     let queued_mail = runtime_state.queued_mail;
     let mut diplomacy_overrides = load_diplomacy_overrides_if_present(dir, &game_data)?;
+    let mut planet_intel_by_viewer = load_runtime_intel_by_viewer(&campaign_store, &game_data)?;
     absorb_persistable_diplomacy_overrides(&mut game_data, &mut diplomacy_overrides)?;
 
     // Save a snapshot of the pre-maint planets so we can inspect build queues later.
@@ -86,7 +92,10 @@ pub fn run_rust_maintenance_with_options(
     // Cross-file validation: warn on structural inconsistencies.
     let preflight_errors = game_data.ecmaint_preflight_errors();
     if !preflight_errors.is_empty() {
-        eprintln!("Warning: {} cross-file validation issue(s) detected:", preflight_errors.len());
+        eprintln!(
+            "Warning: {} cross-file validation issue(s) detected:",
+            preflight_errors.len()
+        );
         for error in &preflight_errors {
             eprintln!("  - {error}");
         }
@@ -100,7 +109,7 @@ pub fn run_rust_maintenance_with_options(
     // Run maintenance logic for specified turns, accumulating events across all turns.
     let mut all_events = MaintenanceEvents::default();
     for turn in 1..=turns {
-        let visible_hazards = visible_hazards_from_database(&game_data, &database);
+        let visible_hazards = visible_hazards_from_snapshots(&game_data, &planet_intel_by_viewer);
         let events = if visible_hazards.is_empty() && diplomacy_overrides.is_empty() {
             run_maintenance_turn(&mut game_data)?
         } else if diplomacy_overrides.is_empty() {
@@ -171,6 +180,20 @@ pub fn run_rust_maintenance_with_options(
         apply_diplomatic_escalations(&mut game_data, &mut diplomacy_overrides, &all_events)?;
 
         database = build_database_dat(&game_data, &pre_maint_planets, &all_events, Some(&database));
+        for viewer_empire_id in 1..=game_data.conquest.player_count() {
+            let viewer_idx = viewer_empire_id.saturating_sub(1) as usize;
+            let previous = planet_intel_by_viewer
+                .get(viewer_idx)
+                .cloned()
+                .unwrap_or_default();
+            planet_intel_by_viewer[viewer_idx] = merge_player_intel_from_compat(
+                &game_data,
+                &database,
+                viewer_empire_id,
+                game_data.conquest.game_year(),
+                Some(&previous),
+            );
+        }
 
         println!("  Turn {}: year {}", turn, game_data.conquest.game_year());
     }
@@ -195,8 +218,6 @@ pub fn run_rust_maintenance_with_options(
         &messages_bytes,
         &Vec::new(),
     )?;
-    campaign_store.export_latest_snapshot_to_dir(dir)?;
-    seed_classic_runtime_files(dir)?;
 
     let rankings_text = build_rankings_text(&game_data);
     fs::write(dir.join("RANKINGS.TXT"), rankings_text.as_bytes())?;
@@ -508,12 +529,34 @@ fn absorb_persistable_diplomacy_overrides(
     Ok(())
 }
 
-fn visible_hazards_from_database(
+fn visible_hazards_from_snapshots(
     game_data: &CoreGameData,
-    database: &DatabaseDat,
+    planet_intel_by_viewer: &[BTreeMap<usize, PlanetIntelSnapshot>],
 ) -> Vec<VisibleHazardIntel> {
+    (1..=game_data.conquest.player_count() as usize)
+        .map(|viewer_idx| {
+            let empty = BTreeMap::new();
+            visible_hazard_intel_from_snapshots(
+                game_data,
+                planet_intel_by_viewer.get(viewer_idx - 1).unwrap_or(&empty),
+                viewer_idx as u8,
+            )
+        })
+        .collect()
+}
+
+fn load_runtime_intel_by_viewer(
+    campaign_store: &CampaignStore,
+    game_data: &CoreGameData,
+) -> Result<Vec<BTreeMap<usize, PlanetIntelSnapshot>>, Box<dyn std::error::Error>> {
     (1..=game_data.conquest.player_count())
-        .map(|empire_raw| visible_hazard_intel_from_database(game_data, database, empire_raw))
+        .map(|viewer_empire_id| {
+            Ok(campaign_store
+                .latest_planet_intel_for_viewer(viewer_empire_id)?
+                .into_iter()
+                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                .collect::<BTreeMap<_, _>>())
+        })
         .collect()
 }
 

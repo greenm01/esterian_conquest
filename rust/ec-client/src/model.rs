@@ -138,7 +138,9 @@ impl MainMenuSummary {
             .unwrap_or(false)
             || results_bytes_present;
         let pending_messages = player_record
-            .map(|record| record.has_classic_messages_review_state() || record.has_any_classic_review_state())
+            .map(|record| {
+                record.has_classic_messages_review_state() || record.has_any_classic_review_state()
+            })
             .unwrap_or(false)
             || messages_bytes_present;
 

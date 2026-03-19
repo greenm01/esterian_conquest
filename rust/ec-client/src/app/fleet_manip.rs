@@ -1,11 +1,10 @@
+use super::helpers::{center_scroll_to_cursor, sync_scroll_to_cursor};
 use crate::app::state::App;
-use super::helpers::{sync_scroll_to_cursor, center_scroll_to_cursor};
-use ec_data::{CoreGameData, FleetDetachSelection, plan_route};
-use crate::screen::{
-    CommandMenu, FleetDetachMode, FleetMergeMode, FleetRow,
-    FleetTransferMode, ScreenId,
-};
 use crate::domains::fleet::FleetAction;
+use crate::screen::{
+    CommandMenu, FleetDetachMode, FleetMergeMode, FleetRow, FleetTransferMode, ScreenId,
+};
+use ec_data::{CoreGameData, FleetDetachSelection, plan_route};
 
 impl App {
     pub fn open_fleet_merge(&mut self) {
@@ -149,10 +148,12 @@ impl App {
             return;
         };
         if !self
-            .fleet.transfer_selected_fleets
+            .fleet
+            .transfer_selected_fleets
             .insert(row.fleet_record_index_1_based)
         {
-            self.fleet.transfer_selected_fleets
+            self.fleet
+                .transfer_selected_fleets
                 .remove(&row.fleet_record_index_1_based);
         }
         self.fleet.transfer_status = None;
@@ -348,7 +349,8 @@ impl App {
             FleetMergeMode::SelectingHost => {
                 let host = &rows[self.fleet.merge_cursor];
                 let source_record_index_1_based = self
-                    .fleet.merge_source_record_index_1_based
+                    .fleet
+                    .merge_source_record_index_1_based
                     .ok_or("fleet merge source missing")?;
                 let source_fleet_number = self
                     .fleet_rows()
@@ -395,7 +397,8 @@ impl App {
                     return Ok(());
                 };
                 if !self
-                    .fleet.transfer_selected_fleets
+                    .fleet
+                    .transfer_selected_fleets
                     .contains(&host_row.fleet_record_index_1_based)
                 {
                     self.fleet.transfer_status =
@@ -405,7 +408,8 @@ impl App {
                 let selected_rows = rows
                     .iter()
                     .filter(|row| {
-                        self.fleet.transfer_selected_fleets
+                        self.fleet
+                            .transfer_selected_fleets
                             .contains(&row.fleet_record_index_1_based)
                     })
                     .collect::<Vec<_>>();
@@ -661,7 +665,8 @@ impl App {
                 }
                 let donor_speed = if self.fleet_detach_requires_speed_prompt() {
                     Some(
-                        self.fleet.detach_donor_speed
+                        self.fleet
+                            .detach_donor_speed
                             .unwrap_or(self.fleet_detach_donor_default_speed()),
                     )
                 } else {
@@ -687,7 +692,10 @@ impl App {
         Ok(())
     }
 
-    pub(super) fn handle_fleet_detach_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
+    pub(super) fn handle_fleet_detach_key(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> crate::app::Action {
         use crossterm::event::KeyCode;
 
         match self.fleet.detach_mode {
@@ -724,7 +732,10 @@ impl App {
         }
     }
 
-    pub(super) fn handle_fleet_merge_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
+    pub(super) fn handle_fleet_merge_key(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> crate::app::Action {
         use crossterm::event::KeyCode;
 
         match key.code {
@@ -748,7 +759,10 @@ impl App {
         }
     }
 
-    pub(super) fn handle_fleet_transfer_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
+    pub(super) fn handle_fleet_transfer_key(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> crate::app::Action {
         use crossterm::event::KeyCode;
 
         match self.fleet.transfer_mode {
@@ -761,9 +775,13 @@ impl App {
                 }
                 KeyCode::PageUp => crate::app::Action::Fleet(FleetAction::MoveTransferSelect(-8)),
                 KeyCode::PageDown => crate::app::Action::Fleet(FleetAction::MoveTransferSelect(8)),
-                KeyCode::Char(' ') => crate::app::Action::Fleet(FleetAction::ToggleTransferSelection),
+                KeyCode::Char(' ') => {
+                    crate::app::Action::Fleet(FleetAction::ToggleTransferSelection)
+                }
                 KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitTransfer),
-                KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceTransferInput),
+                KeyCode::Backspace => {
+                    crate::app::Action::Fleet(FleetAction::BackspaceTransferInput)
+                }
                 KeyCode::Char(ch) if ch.is_ascii_digit() => {
                     crate::app::Action::Fleet(FleetAction::AppendTransferChar(ch))
                 }
@@ -774,7 +792,9 @@ impl App {
             },
             _ => match key.code {
                 KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitTransfer),
-                KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceTransferInput),
+                KeyCode::Backspace => {
+                    crate::app::Action::Fleet(FleetAction::BackspaceTransferInput)
+                }
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     crate::app::Action::Fleet(FleetAction::OpenTransfer)
                 }
@@ -1105,7 +1125,8 @@ impl App {
         let mut rows = match self.fleet.transfer_mode {
             FleetTransferMode::SelectingFleets => self.fleet_rows(),
             _ => self
-                .fleet.transfer_donor_record_index_1_based
+                .fleet
+                .transfer_donor_record_index_1_based
                 .and_then(|idx| {
                     self.fleet_rows()
                         .into_iter()
@@ -1285,4 +1306,3 @@ pub(super) fn fleet_eta_label(game_data: &CoreGameData, fleet_idx: usize) -> Str
 
     steps_remaining.div_ceil(speed).to_string()
 }
-

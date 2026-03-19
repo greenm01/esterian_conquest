@@ -1,10 +1,10 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::CoreGameData;
+use crate::commands::runtime::load_runtime_game_data;
 
 pub(crate) fn print_compliance_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
     let status = data.current_known_compliance_status();
     let summary = data.current_known_key_word_summary();
     let preflight_errors = data.ecmaint_preflight_errors();
@@ -104,7 +104,7 @@ pub(crate) fn print_compliance_batch_report(root: &Path) -> Result<(), Box<dyn s
             "{}: ",
             dir.file_name().unwrap_or_default().to_string_lossy()
         );
-        let status = CoreGameData::load(&dir)
+        let status = load_runtime_game_data(&dir)
             .ok()
             .map(|data| data.current_known_compliance_status());
         println!(

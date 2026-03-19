@@ -1,8 +1,6 @@
 use std::path::Path;
 
-use ec_data::CoreGameData;
-
-use crate::commands::runtime::with_runtime_game_mut_and_export;
+use crate::commands::runtime::{load_runtime_game_data, with_runtime_game_mut};
 
 const PROBE_COLONY_SPECS: [(&str, u16, u16, u8, u8); 2] =
     [("Mid Colony", 50, 100, 3, 1), ("New Colony", 25, 100, 1, 0)];
@@ -12,7 +10,7 @@ pub(crate) fn init_tax_growth_probe(
     player_record_index_1_based: usize,
     tax_rate: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    with_runtime_game_mut_and_export(dir, |data| {
+    with_runtime_game_mut(dir, |data| {
         data.set_player_tax_rate(player_record_index_1_based, tax_rate)?;
 
         let empire_raw = player_record_index_1_based as u8;
@@ -100,7 +98,7 @@ pub(crate) fn print_economy_report(
     dir: &Path,
     player_record_index_1_based: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
     let economy = data.empire_economy_summary(player_record_index_1_based);
     let player = data
         .player

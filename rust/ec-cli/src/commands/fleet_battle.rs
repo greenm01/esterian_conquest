@@ -3,7 +3,9 @@ use std::path::Path;
 
 use ec_data::{CoreGameData, Order};
 
-use crate::commands::runtime::with_runtime_game_mut_and_export;
+use crate::commands::runtime::{
+    export_runtime_snapshot_in_place, with_runtime_game_mut_and_export,
+};
 use crate::workspace::copy_init_files;
 
 /// Apply the fleet-battle scenario to an already-initialized game directory.
@@ -203,6 +205,7 @@ pub(crate) fn init_fleet_battle(
         p14_armies,
         p14_batteries,
     )?;
+    export_runtime_snapshot_in_place(target)?;
     println!("Fleet-battle directory initialized at {}", target.display());
     Ok(())
 }

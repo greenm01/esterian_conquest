@@ -55,7 +55,7 @@ behavior by themselves.
 - [planet-report-reference.md](/home/mag/dev/esterian_conquest/docs/dev/planet-report-reference.md)
   - report-side target-world reference profiles
 - [bbs_door_client_rust.md](/home/mag/dev/esterian_conquest/docs/dev/bbs_door_client_rust.md)
-  - client/delivery direction for the Rust player-side stack
+  - client/delivery direction for the SQLite-native Rust player-side stack
 - [config-architecture.md](/home/mag/dev/esterian_conquest/docs/dev/config-architecture.md)
   - KDL/config extraction boundaries and sequencing
 

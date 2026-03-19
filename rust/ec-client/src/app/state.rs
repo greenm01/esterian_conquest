@@ -1,10 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-
-use ec_data::{
-    CampaignStore, CoreGameData, DatabaseDat, PlanetIntelSnapshot, QueuedPlayerMail,
-};
+use ec_data::{CampaignStore, CoreGameData, PlanetIntelSnapshot, QueuedPlayerMail};
 
 use crate::app::action::Action;
 use crate::domains::empire::EmpireState;
@@ -18,18 +15,17 @@ use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
 use crate::reports::ReportsPreview;
 use crate::screen::{
     BuildHelpScreen, CommandMenu, DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen,
-    EnemiesScreen, FIRST_TIME_INTRO_PAGE_COUNT, FirstTimeEmpiresScreen,
-    FirstTimeHelpScreen, FirstTimeIntroScreen, FirstTimeMenuScreen, FleetDetachMode,
-    FleetDetachScreen, FleetEtaMode, FleetEtaScreen, FleetGroupScreen,
-    FleetHelpScreen, FleetListMode, FleetListScreen, FleetMenuScreen, FleetMergeMode,
-    FleetMergeScreen, FleetMissionPickerScreen, FleetReviewScreen, FleetRoeScreen, FleetSingleOrderScreen, FleetTransferMode, FleetTransferScreen,
+    EnemiesScreen, FIRST_TIME_INTRO_PAGE_COUNT, FirstTimeEmpiresScreen, FirstTimeHelpScreen,
+    FirstTimeIntroScreen, FirstTimeMenuScreen, FleetDetachMode, FleetDetachScreen, FleetEtaMode,
+    FleetEtaScreen, FleetGroupScreen, FleetHelpScreen, FleetListMode, FleetListScreen,
+    FleetMenuScreen, FleetMergeMode, FleetMergeScreen, FleetMissionPickerScreen, FleetReviewScreen,
+    FleetRoeScreen, FleetSingleOrderScreen, FleetTransferMode, FleetTransferScreen,
     GeneralHelpScreen, GeneralMenuScreen, MainHelpScreen, MainMenuScreen, MessageComposeScreen,
-    PartialStarmapScreen, PlanetAutoCommissionScreen, PlanetBuildScreen,
-    PlanetCommissionScreen, PlanetDatabaseScreen,
-    PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen,
+    PartialStarmapScreen, PlanetAutoCommissionScreen, PlanetBuildScreen, PlanetCommissionScreen,
+    PlanetDatabaseScreen, PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen,
     PlanetMenuScreen, PlanetTaxScreen, PlanetTransportScreen, RankingsScreen, ReportsScreen,
-    STARTUP_SPLASH_PAGE_COUNT, Screen, ScreenId, StarbaseHelpScreen,
-    StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen, StarmapScreen, StartupScreen,
+    STARTUP_SPLASH_PAGE_COUNT, Screen, ScreenId, StarbaseHelpScreen, StarbaseListScreen,
+    StarbaseMenuScreen, StarbaseReviewScreen, StarmapScreen, StartupScreen,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -45,7 +41,6 @@ pub struct AppConfig {
 pub struct App {
     pub game_dir: PathBuf,
     pub game_data: CoreGameData,
-    pub database: DatabaseDat,
     pub player: PlayerContext,
     pub current_screen: ScreenId,
     pub startup_sequence: StartupSequence,
@@ -129,7 +124,6 @@ impl App {
         let reports =
             ReportsPreview::from_bytes(&runtime_state.results_bytes, &runtime_state.messages_bytes);
         let game_data = runtime_state.game_data;
-        let database = runtime_state.database;
         let queued_mail = runtime_state.queued_mail;
         let results_bytes = runtime_state.results_bytes;
         let messages_bytes = runtime_state.messages_bytes;
@@ -157,7 +151,6 @@ impl App {
         Ok(Self {
             game_dir,
             game_data,
-            database,
             player,
             current_screen: ScreenId::Startup(startup_sequence.current()),
             startup_sequence,
@@ -321,16 +314,15 @@ impl App {
             | ScreenId::ComposeMessageSendConfirm
             | ScreenId::ComposeMessageSent => domains::messaging::views::render(self)?,
 
-            ScreenId::Starmap
-            | ScreenId::PartialStarmapPrompt
-            | ScreenId::PartialStarmapView => domains::starmap::views::render(self)?,
+            ScreenId::Starmap | ScreenId::PartialStarmapPrompt | ScreenId::PartialStarmapView => {
+                domains::starmap::views::render(self)?
+            }
         };
         if let Some(notice) = self.current_modal_notice() {
             crate::screen::draw_command_line_notice(&mut playfield, notice);
         }
         terminal.render(&playfield)
     }
-
 
     pub fn current_screen(&self) -> ScreenId {
         self.current_screen
@@ -409,7 +401,9 @@ impl App {
                 crossterm::event::KeyCode::Enter
                 | crossterm::event::KeyCode::Char('n')
                 | crossterm::event::KeyCode::Char('N')
-                | crossterm::event::KeyCode::Esc => Action::Startup(StartupAction::RejectFirstTimePrompt),
+                | crossterm::event::KeyCode::Esc => {
+                    Action::Startup(StartupAction::RejectFirstTimePrompt)
+                }
                 _ => Action::Noop,
             },
             ScreenId::FirstTimeIntro
@@ -420,9 +414,15 @@ impl App {
             ScreenId::FirstTimeIntro => self.first_time_intro.handle_key(key),
             ScreenId::FirstTimeJoinEmpireName | ScreenId::FirstTimeHomeworldName => {
                 match key.code {
-                    crossterm::event::KeyCode::Char(ch) => Action::Startup(StartupAction::AppendFirstTimeInputChar(ch)),
-                    crossterm::event::KeyCode::Backspace => Action::Startup(StartupAction::BackspaceFirstTimeInput),
-                    crossterm::event::KeyCode::Enter => Action::Startup(StartupAction::SubmitFirstTimeInput),
+                    crossterm::event::KeyCode::Char(ch) => {
+                        Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))
+                    }
+                    crossterm::event::KeyCode::Backspace => {
+                        Action::Startup(StartupAction::BackspaceFirstTimeInput)
+                    }
+                    crossterm::event::KeyCode::Enter => {
+                        Action::Startup(StartupAction::SubmitFirstTimeInput)
+                    }
                     crossterm::event::KeyCode::Esc => {
                         if self.startup_state.first_time_rename_preloaded_empire {
                             Action::Startup(StartupAction::RejectFirstTimePrompt)
@@ -434,37 +434,55 @@ impl App {
                 }
             }
             ScreenId::ColonyWorldName => match key.code {
-                crossterm::event::KeyCode::Char(ch) => Action::Startup(StartupAction::AppendFirstTimeInputChar(ch)),
-                crossterm::event::KeyCode::Backspace => Action::Startup(StartupAction::BackspaceFirstTimeInput),
-                crossterm::event::KeyCode::Enter => Action::Startup(StartupAction::SubmitFirstTimeInput),
-                crossterm::event::KeyCode::Esc => Action::Startup(StartupAction::RejectFirstTimePrompt),
+                crossterm::event::KeyCode::Char(ch) => {
+                    Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))
+                }
+                crossterm::event::KeyCode::Backspace => {
+                    Action::Startup(StartupAction::BackspaceFirstTimeInput)
+                }
+                crossterm::event::KeyCode::Enter => {
+                    Action::Startup(StartupAction::SubmitFirstTimeInput)
+                }
+                crossterm::event::KeyCode::Esc => {
+                    Action::Startup(StartupAction::RejectFirstTimePrompt)
+                }
                 _ => Action::Noop,
             },
             ScreenId::FirstTimeJoinEmpireConfirm => {
                 if self.startup_state.first_time_rename_preloaded_empire {
                     match key.code {
                         crossterm::event::KeyCode::Char('y')
-                        | crossterm::event::KeyCode::Char('Y') => Action::Startup(StartupAction::AcceptFirstTimePrompt),
+                        | crossterm::event::KeyCode::Char('Y') => {
+                            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+                        }
                         crossterm::event::KeyCode::Enter
                         | crossterm::event::KeyCode::Char('n')
                         | crossterm::event::KeyCode::Char('N')
-                        | crossterm::event::KeyCode::Esc => Action::Startup(StartupAction::RejectFirstTimePrompt),
+                        | crossterm::event::KeyCode::Esc => {
+                            Action::Startup(StartupAction::RejectFirstTimePrompt)
+                        }
                         _ => Action::Noop,
                     }
                 } else {
                     match key.code {
                         crossterm::event::KeyCode::Enter
                         | crossterm::event::KeyCode::Char('y')
-                        | crossterm::event::KeyCode::Char('Y') => Action::Startup(StartupAction::AcceptFirstTimePrompt),
+                        | crossterm::event::KeyCode::Char('Y') => {
+                            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+                        }
                         crossterm::event::KeyCode::Char('n')
                         | crossterm::event::KeyCode::Char('N')
-                        | crossterm::event::KeyCode::Esc => Action::Startup(StartupAction::RejectFirstTimePrompt),
+                        | crossterm::event::KeyCode::Esc => {
+                            Action::Startup(StartupAction::RejectFirstTimePrompt)
+                        }
                         _ => Action::Noop,
                     }
                 }
             }
             ScreenId::FirstTimeJoinSummary | ScreenId::FirstTimeJoinNoPending => match key.code {
-                crossterm::event::KeyCode::Enter => Action::Startup(StartupAction::AcceptFirstTimePrompt),
+                crossterm::event::KeyCode::Enter => {
+                    Action::Startup(StartupAction::AcceptFirstTimePrompt)
+                }
                 _ => Action::Noop,
             },
             ScreenId::FirstTimeHomeworldConfirm => match key.code {
@@ -474,16 +492,22 @@ impl App {
                 crossterm::event::KeyCode::Enter
                 | crossterm::event::KeyCode::Char('n')
                 | crossterm::event::KeyCode::Char('N')
-                | crossterm::event::KeyCode::Esc => Action::Startup(StartupAction::RejectFirstTimePrompt),
+                | crossterm::event::KeyCode::Esc => {
+                    Action::Startup(StartupAction::RejectFirstTimePrompt)
+                }
                 _ => Action::Noop,
             },
             ScreenId::ColonyWorldConfirm => match key.code {
                 crossterm::event::KeyCode::Enter
                 | crossterm::event::KeyCode::Char('y')
-                | crossterm::event::KeyCode::Char('Y') => Action::Startup(StartupAction::AcceptFirstTimePrompt),
+                | crossterm::event::KeyCode::Char('Y') => {
+                    Action::Startup(StartupAction::AcceptFirstTimePrompt)
+                }
                 crossterm::event::KeyCode::Char('n')
                 | crossterm::event::KeyCode::Char('N')
-                | crossterm::event::KeyCode::Esc => Action::Startup(StartupAction::RejectFirstTimePrompt),
+                | crossterm::event::KeyCode::Esc => {
+                    Action::Startup(StartupAction::RejectFirstTimePrompt)
+                }
                 _ => Action::Noop,
             },
             ScreenId::MainMenu => self.main_menu.handle_key(key),
@@ -531,7 +555,9 @@ impl App {
             ScreenId::PlanetBuildAbortConfirm => self.planet_build.handle_abort_key(key),
             ScreenId::PlanetBuildSpecify => self.planet_build.handle_specify_key(key),
             ScreenId::PlanetBuildQuantity => self.planet_build.handle_quantity_key(key),
-            ScreenId::PlanetListSortPrompt(PlanetListMode::Stub(_)) => Action::Planet(PlanetAction::OpenMenu),
+            ScreenId::PlanetListSortPrompt(PlanetListMode::Stub(_)) => {
+                Action::Planet(PlanetAction::OpenMenu)
+            }
             ScreenId::PlanetListSortPrompt(_) => self.planet_list.handle_sort_prompt_key(key),
             ScreenId::PlanetBriefList(_) => self.planet_list.handle_brief_key(key),
             ScreenId::PlanetDetailList(_) => self.planet_list.handle_detail_key(key),
@@ -540,7 +566,9 @@ impl App {
             ScreenId::Starmap if self.starmap_state.capture_complete => {
                 self.starmap.handle_complete_key(key)
             }
-            ScreenId::Starmap if self.starmap_state.dump_active => self.starmap.handle_dump_key(key),
+            ScreenId::Starmap if self.starmap_state.dump_active => {
+                self.starmap.handle_dump_key(key)
+            }
             ScreenId::Starmap => self.starmap.handle_prompt_key(key),
             ScreenId::PartialStarmapPrompt => self.partial_starmap.handle_prompt_key(key),
             ScreenId::PartialStarmapView => self.partial_starmap.handle_view_key(key),
@@ -789,33 +817,27 @@ impl App {
     }
 
     pub(super) fn save_game_data(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let database = self
+            .planet
+            .campaign_store
+            .load_latest_runtime_state()?
+            .ok_or("campaign store has no snapshots")?
+            .database;
         self.planet.campaign_store.save_runtime_state(
             &self.game_data,
-            &self.database,
+            &database,
             &self.results_bytes,
             &self.messages_bytes,
             &self.queued_mail,
         )?;
         self.planet_intel_snapshots = self
-            .planet.campaign_store
+            .planet
+            .campaign_store
             .latest_planet_intel_for_viewer(self.player.record_index_1_based as u8)?
             .into_iter()
             .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
             .collect::<BTreeMap<_, _>>();
+        self.planet.intel_snapshots = self.planet_intel_snapshots.clone();
         Ok(())
     }
-}
-
-
-fn ordinal_number(value: usize) -> String {
-    let suffix = match value % 100 {
-        11..=13 => "th",
-        _ => match value % 10 {
-            1 => "st",
-            2 => "nd",
-            3 => "rd",
-            _ => "th",
-        },
-    };
-    format!("{value}{suffix}")
 }

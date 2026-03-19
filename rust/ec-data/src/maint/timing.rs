@@ -241,6 +241,9 @@ mod tests {
         let source = "From your 1st Fleet, located in System(13,15)";
         let line = format_report_first_line(source, 32, 3001);
         assert!(line.ends_with("Stardate: 32/3001"));
-        assert!(line.len() == 72 || line.contains("  "), "should pad to 72 chars");
+        assert!(
+            line.len() == 72 || line.contains("  "),
+            "should pad to 72 chars"
+        );
     }
 }

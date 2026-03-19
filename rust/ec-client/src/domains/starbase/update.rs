@@ -1,6 +1,6 @@
 use crate::app::state::App;
 use crate::domains::starbase::StarbaseAction;
-use crate::screen::{ScreenId, CommandMenu, STARBASE_VISIBLE_ROWS};
+use crate::screen::{CommandMenu, STARBASE_VISIBLE_ROWS, ScreenId};
 
 pub fn update(app: &mut App, action: StarbaseAction) {
     match action {

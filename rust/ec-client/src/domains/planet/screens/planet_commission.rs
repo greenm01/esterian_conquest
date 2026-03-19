@@ -151,7 +151,9 @@ impl Screen for PlanetCommissionScreen {
             KeyCode::PageDown => Action::Planet(PlanetAction::MoveCommissionRow(8)),
             KeyCode::Char(' ') => Action::Planet(PlanetAction::ToggleCommissionSelection),
             KeyCode::Enter => Action::Planet(PlanetAction::CommissionStardockSelection),
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::Planet(PlanetAction::OpenMenu),
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                Action::Planet(PlanetAction::OpenMenu)
+            }
             _ => Action::Noop,
         }
     }

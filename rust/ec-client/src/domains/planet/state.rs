@@ -1,6 +1,6 @@
-use std::collections::{BTreeMap, BTreeSet};
-use ec_data::{ProductionItemKind, CampaignStore, PlanetIntelSnapshot};
 use crate::domains::planet::screens::planet_transport::PlanetTransportMode;
+use ec_data::{CampaignStore, PlanetIntelSnapshot, ProductionItemKind};
+use std::collections::{BTreeMap, BTreeSet};
 
 pub struct PlanetState {
     pub campaign_store: CampaignStore,
@@ -49,7 +49,10 @@ pub struct PlanetState {
 }
 
 impl PlanetState {
-    pub fn new(campaign_store: CampaignStore, intel_snapshots: BTreeMap<usize, PlanetIntelSnapshot>) -> Self {
+    pub fn new(
+        campaign_store: CampaignStore,
+        intel_snapshots: BTreeMap<usize, PlanetIntelSnapshot>,
+    ) -> Self {
         Self {
             campaign_store,
             intel_snapshots,

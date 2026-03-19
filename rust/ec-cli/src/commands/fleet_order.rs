@@ -3,7 +3,9 @@ use std::path::Path;
 
 use ec_data::CoreGameData;
 
-use crate::commands::runtime::with_runtime_game_mut_and_export;
+use crate::commands::runtime::{
+    export_runtime_snapshot_in_place, load_runtime_game_data, with_runtime_game_mut,
+};
 use crate::workspace::copy_init_files;
 
 pub(crate) fn set_fleet_order(
@@ -16,7 +18,7 @@ pub(crate) fn set_fleet_order(
     aux0: Option<u8>,
     aux1: Option<u8>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let final_aux = with_runtime_game_mut_and_export(dir, |data| {
+    let final_aux = with_runtime_game_mut(dir, |data| {
         ensure_planet_target_for_order(data, order_code, [target_x, target_y])?;
         data.set_fleet_order(
             record_index_1_based,
@@ -89,7 +91,7 @@ pub(crate) fn print_fleet_order_report(
     dir: &Path,
     record_index_1_based: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
     let record = data
         .fleets
         .records
@@ -133,6 +135,7 @@ pub(crate) fn init_fleet_order_scenario(
         aux0,
         aux1,
     )?;
+    export_runtime_snapshot_in_place(target)?;
     println!("Fleet-order directory initialized at {}", target.display());
     Ok(())
 }

@@ -1,5 +1,5 @@
 use crossterm::event::KeyEvent;
-use ec_data::{IntelTier, PlanetIntelSnapshot, build_player_starmap_projection};
+use ec_data::{IntelTier, PlanetIntelSnapshot, build_player_starmap_projection_from_snapshots};
 
 use crate::app::Action;
 use crate::screen::layout::{
@@ -139,9 +139,9 @@ impl PlanetInfoScreen {
         planet_idx: usize,
         menu: CommandMenu,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let projection = build_player_starmap_projection(
+        let projection = build_player_starmap_projection_from_snapshots(
             frame.game_data,
-            frame.database,
+            frame.planet_intel_snapshots,
             frame.player.record_index_1_based as u8,
         );
         let world = projection

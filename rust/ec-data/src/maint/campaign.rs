@@ -1,8 +1,8 @@
-use crate::{CoreGameData, DiplomaticRelation};
 use super::{
     CampaignOutcomeEvent, CampaignOutlookEvent, CivilDisorderEvent, FleetDefectionEvent,
     MaintenanceEvents,
 };
+use crate::{CoreGameData, DiplomaticRelation};
 
 pub(super) fn detect_campaign_outlook_events(
     _before: crate::CampaignOutlook,
@@ -11,7 +11,10 @@ pub(super) fn detect_campaign_outlook_events(
 ) -> Vec<CampaignOutlookEvent> {
     match after {
         crate::CampaignOutlook::SoleContender(empire_raw) => {
-            vec![CampaignOutlookEvent { empire_raw, stardate_week: None }]
+            vec![CampaignOutlookEvent {
+                empire_raw,
+                stardate_week: None,
+            }]
         }
         _ => Vec::new(),
     }
@@ -23,7 +26,10 @@ pub(super) fn detect_campaign_outcome_events(
 ) -> Vec<CampaignOutcomeEvent> {
     match after {
         crate::CampaignOutcome::RecognizedEmperor(emperor_empire_raw) => {
-            vec![CampaignOutcomeEvent { emperor_empire_raw, stardate_week: None }]
+            vec![CampaignOutcomeEvent {
+                emperor_empire_raw,
+                stardate_week: None,
+            }]
         }
         _ => Vec::new(),
     }
@@ -128,7 +134,9 @@ pub(super) fn apply_stored_diplomatic_escalations(
     Ok(())
 }
 
-pub(super) fn apply_campaign_state_transitions(game_data: &mut CoreGameData) -> Vec<CivilDisorderEvent> {
+pub(super) fn apply_campaign_state_transitions(
+    game_data: &mut CoreGameData,
+) -> Vec<CivilDisorderEvent> {
     let player_count = game_data.player.records.len() as u8;
     let mut events = Vec::new();
     for empire_raw in 1..=player_count {

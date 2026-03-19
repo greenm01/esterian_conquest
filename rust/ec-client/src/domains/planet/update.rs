@@ -46,9 +46,7 @@ pub fn update(app: &mut App, action: PlanetAction) {
         }
         PlanetAction::MoveTransportPlanet(delta) => app.move_planet_transport_planet(delta),
         PlanetAction::ConfirmTransportPlanet => app.confirm_planet_transport_planet(),
-        PlanetAction::AppendTransportPlanetChar(ch) => {
-            app.append_planet_transport_planet_char(ch)
-        }
+        PlanetAction::AppendTransportPlanetChar(ch) => app.append_planet_transport_planet_char(ch),
         PlanetAction::BackspaceTransportPlanetInput => {
             app.backspace_planet_transport_planet_input()
         }

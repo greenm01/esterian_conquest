@@ -338,7 +338,10 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenList(FleetListMode::Brief))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::OpenList(FleetListMode::Brief))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -382,13 +385,19 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::PlanetHelp);
 
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::OpenAutoCommissionConfirm)),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenAutoCommissionConfirm)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::ConfirmAutoCommission)),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::ConfirmAutoCommission)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
@@ -424,7 +433,10 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::PlanetBuildList);
 
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildAbortConfirm)),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenBuildAbortConfirm)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetBuildAbortConfirm);
@@ -478,7 +490,10 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(
         apply_action(
             &mut app,
-            Action::Planet(PlanetAction::SubmitListSort(PlanetListMode::Brief, PlanetListSort::CurrentProduction))
+            Action::Planet(PlanetAction::SubmitListSort(
+                PlanetListMode::Brief,
+                PlanetListSort::CurrentProduction
+            ))
         ),
         AppOutcome::Continue
     );
@@ -490,7 +505,10 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(
         apply_action(
             &mut app,
-            Action::Planet(PlanetAction::SubmitListSort(PlanetListMode::Detail, PlanetListSort::Location))
+            Action::Planet(PlanetAction::SubmitListSort(
+                PlanetListMode::Detail,
+                PlanetListSort::Location
+            ))
         ),
         AppOutcome::Continue
     );
@@ -506,7 +524,10 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::General))),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::General))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
@@ -529,7 +550,10 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapPrompt);
 
     assert_eq!(
-        apply_action(&mut app, Action::Starmap(StarmapAction::SubmitPartialPrompt)),
+        apply_action(
+            &mut app,
+            Action::Starmap(StarmapAction::SubmitPartialPrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
@@ -555,7 +579,9 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(
         apply_action(
             &mut app,
-            Action::Empire(EmpireAction::OpenRankingsTable(EmpireProductionRankingSort::Production))
+            Action::Empire(EmpireAction::OpenRankingsTable(
+                EmpireProductionRankingSort::Production
+            ))
         ),
         AppOutcome::Continue
     );
@@ -597,7 +623,10 @@ fn first_time_menu_branch_opens_help_intro_and_empire_list() {
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHelp);
 
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::OpenFirstTimeEmpires)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::OpenFirstTimeEmpires)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeEmpires);
@@ -738,34 +767,52 @@ fn preloaded_first_login_becomes_returning_player_after_homeworld_naming() {
         ScreenId::FirstTimePreloadedRenamePrompt
     );
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::RejectFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::RejectFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinSummary);
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinNoPending);
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
 
     for ch in "Codex Prime".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
+            apply_action(
+                &mut app,
+                Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))
+            ),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::SubmitFirstTimeInput)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::SubmitFirstTimeInput)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldConfirm);
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
@@ -811,7 +858,10 @@ fn preloaded_first_login_can_rename_empire_before_homeworld_naming() {
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
@@ -827,33 +877,51 @@ fn preloaded_first_login_can_rename_empire_before_homeworld_naming() {
 
     for _ in 0..24 {
         assert_eq!(
-            apply_action(&mut app, Action::Startup(StartupAction::BackspaceFirstTimeInput)),
+            apply_action(
+                &mut app,
+                Action::Startup(StartupAction::BackspaceFirstTimeInput)
+            ),
             AppOutcome::Continue
         );
     }
     for ch in "Codex Dominion".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
+            apply_action(
+                &mut app,
+                Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))
+            ),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::SubmitFirstTimeInput)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::SubmitFirstTimeInput)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireConfirm);
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinSummary);
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinNoPending);
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
@@ -939,17 +1007,26 @@ fn colony_world_naming_updates_planet_and_enters_main_menu() {
 
     for ch in "New Horizon".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
+            apply_action(
+                &mut app,
+                Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))
+            ),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::SubmitFirstTimeInput)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::SubmitFirstTimeInput)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ColonyWorldConfirm);
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
@@ -1006,7 +1083,10 @@ fn colony_world_naming_cannot_be_escaped_to_main_menu() {
     assert_eq!(app.current_screen(), ScreenId::ColonyWorldName);
 
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::RejectFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::RejectFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ColonyWorldName);
@@ -1061,51 +1141,78 @@ fn first_time_join_routes_from_homeworld_naming_to_colony_naming_when_needed() {
         ScreenId::FirstTimePreloadedRenamePrompt
     );
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::RejectFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::RejectFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinSummary);
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinNoPending);
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
 
     for ch in "Codex Prime".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
+            apply_action(
+                &mut app,
+                Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))
+            ),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::SubmitFirstTimeInput)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::SubmitFirstTimeInput)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldConfirm);
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ColonyWorldName);
 
     for ch in "New Horizon".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
+            apply_action(
+                &mut app,
+                Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))
+            ),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::SubmitFirstTimeInput)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::SubmitFirstTimeInput)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ColonyWorldConfirm);
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
@@ -1160,34 +1267,52 @@ fn returning_player_with_multiple_unnamed_colonies_is_prompted_for_each_in_turn(
 
     for ch in "New Horizon".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
+            apply_action(
+                &mut app,
+                Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))
+            ),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::SubmitFirstTimeInput)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::SubmitFirstTimeInput)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ColonyWorldConfirm);
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ColonyWorldName);
 
     for ch in "Second Dawn".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
+            apply_action(
+                &mut app,
+                Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))
+            ),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::SubmitFirstTimeInput)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::SubmitFirstTimeInput)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ColonyWorldConfirm);
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
@@ -1256,14 +1381,20 @@ fn escaping_empire_name_does_not_partially_join_player() {
     .expect("app should load");
 
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::OpenFirstTimeJoinName)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::OpenFirstTimeJoinName)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
 
     for ch in "Codex Dominion".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
+            apply_action(
+                &mut app,
+                Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))
+            ),
             AppOutcome::Continue
         );
     }
@@ -1302,55 +1433,82 @@ fn first_time_join_flow_updates_player_and_homeworld_then_enters_main_menu() {
     .expect("app should load");
 
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::OpenFirstTimeJoinName)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::OpenFirstTimeJoinName)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireName);
 
     for ch in "Codex Dominion".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
+            apply_action(
+                &mut app,
+                Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))
+            ),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::SubmitFirstTimeInput)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::SubmitFirstTimeInput)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinEmpireConfirm);
 
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinSummary);
 
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinNoPending);
 
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
 
     for ch in "Codex Prime".chars() {
         assert_eq!(
-            apply_action(&mut app, Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))),
+            apply_action(
+                &mut app,
+                Action::Startup(StartupAction::AppendFirstTimeInputChar(ch))
+            ),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::SubmitFirstTimeInput)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::SubmitFirstTimeInput)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldConfirm);
 
     assert_eq!(
-        apply_action(&mut app, Action::Startup(StartupAction::AcceptFirstTimePrompt)),
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
@@ -1441,7 +1599,10 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetHelp);
-    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::Fleet(FleetAction::OpenMenu));
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        Action::Fleet(FleetAction::OpenMenu)
+    );
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::OpenMenu)),
         AppOutcome::Continue
@@ -1452,7 +1613,10 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Fleet))
     );
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Fleet))),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Fleet))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
@@ -1478,7 +1642,10 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapPrompt);
     assert_eq!(
-        apply_action(&mut app, Action::Starmap(StarmapAction::SubmitPartialPrompt)),
+        apply_action(
+            &mut app,
+            Action::Starmap(StarmapAction::SubmitPartialPrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
@@ -1549,14 +1716,20 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         Action::Fleet(FleetAction::OpenList(FleetListMode::Brief))
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenList(FleetListMode::Brief))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::OpenList(FleetListMode::Brief))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
         app.current_screen(),
         ScreenId::FleetList(FleetListMode::Brief)
     );
-    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::Fleet(FleetAction::OpenReview));
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        Action::Fleet(FleetAction::OpenReview)
+    );
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::OpenReview)),
         AppOutcome::Continue
@@ -1616,7 +1789,10 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Main))
     );
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Main))),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Main))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
@@ -1631,7 +1807,10 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
 
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Main))),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Main))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetInfoPrompt);
@@ -1663,7 +1842,10 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapPrompt);
     assert_eq!(
-        apply_action(&mut app, Action::Starmap(StarmapAction::SubmitPartialPrompt)),
+        apply_action(
+            &mut app,
+            Action::Starmap(StarmapAction::SubmitPartialPrompt)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
@@ -1855,7 +2037,10 @@ fn starbase_review_matches_verified_v15_review_content() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Starbase(StarbaseAction::SubmitReviewSelect)),
+        apply_action(
+            &mut app,
+            Action::Starbase(StarbaseAction::SubmitReviewSelect)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::StarbaseReview);
@@ -2171,7 +2356,10 @@ fn planet_build_menu_and_subscreens_render_without_crashing_when_no_owned_planet
         .expect("build list fallback render succeeds");
 
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildAbortConfirm)),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenBuildAbortConfirm)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
@@ -2266,12 +2454,22 @@ fn command_menus_render_without_crashing_for_empty_empire_state() {
         Action::Planet(PlanetAction::OpenBuildChange),
         Action::Planet(PlanetAction::OpenBuildAbortConfirm),
         Action::Planet(PlanetAction::OpenBuildSpecify),
-        Action::Planet(PlanetAction::OpenTransportPlanetSelect(ec_client::screen::PlanetTransportMode::Load)),
-        Action::Planet(PlanetAction::OpenTransportPlanetSelect(ec_client::screen::PlanetTransportMode::Unload)),
+        Action::Planet(PlanetAction::OpenTransportPlanetSelect(
+            ec_client::screen::PlanetTransportMode::Load,
+        )),
+        Action::Planet(PlanetAction::OpenTransportPlanetSelect(
+            ec_client::screen::PlanetTransportMode::Unload,
+        )),
         Action::Planet(PlanetAction::OpenListSortPrompt(PlanetListMode::Brief)),
-        Action::Planet(PlanetAction::SubmitListSort(PlanetListMode::Brief, PlanetListSort::Location)),
+        Action::Planet(PlanetAction::SubmitListSort(
+            PlanetListMode::Brief,
+            PlanetListSort::Location,
+        )),
         Action::Planet(PlanetAction::OpenListSortPrompt(PlanetListMode::Detail)),
-        Action::Planet(PlanetAction::SubmitListSort(PlanetListMode::Detail, PlanetListSort::Location)),
+        Action::Planet(PlanetAction::SubmitListSort(
+            PlanetListMode::Detail,
+            PlanetListSort::Location,
+        )),
     ] {
         apply_action(&mut app, action);
         app.render(&mut terminal)
@@ -2296,7 +2494,10 @@ fn fleet_list_stays_on_fleet_menu_with_notice_when_no_fleets_exist() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenList(FleetListMode::Brief))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::OpenList(FleetListMode::Brief))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
@@ -2312,7 +2513,10 @@ fn fleet_list_stays_on_fleet_menu_with_notice_when_no_fleets_exist() {
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::OpenList(FleetListMode::Full))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::OpenList(FleetListMode::Full))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
@@ -2385,7 +2589,10 @@ fn delete_reviewables_stays_on_general_menu_with_notice_when_nothing_is_reviewab
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::OpenDeleteReviewables)),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::OpenDeleteReviewables)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
@@ -2425,13 +2632,19 @@ fn delete_reviewables_opens_when_classic_pending_flags_are_set() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::OpenDeleteReviewables)),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::OpenDeleteReviewables)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::DeleteReviewables);
 
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::ConfirmDeleteReviewables)),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::ConfirmDeleteReviewables)
+        ),
         AppOutcome::Continue
     );
 
@@ -2679,8 +2892,10 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
     state.results_bytes.clear();
-    state.messages_bytes =
-        classic_chunked_report_blocks(&["From Alpha\nSubject: One\nBody one", "From Beta\nSubject: Two\nBody two"]);
+    state.messages_bytes = classic_chunked_report_blocks(&[
+        "From Alpha\nSubject: One\nBody one",
+        "From Beta\nSubject: Two\nBody two",
+    ]);
     state.game_data.player.records[0].raw[0x30] = 1;
     state.game_data.player.records[0].raw[0x34] = 0;
     save_runtime_state(&fixture_dir, &state);
@@ -2710,7 +2925,12 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("first startup message should render");
-    assert!(terminal.lines.iter().any(|line| line.contains(" -> From Alpha")));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains(" -> From Alpha"))
+    );
 
     // ItemBody last page → DeletePrompt.
     app.advance_startup();
@@ -2734,12 +2954,25 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
     let mut after_delete = CaptureTerminal::new();
     app.render(&mut after_delete)
         .expect("next startup message should render");
-    assert!(after_delete.lines.iter().any(|line| line.contains(" -> From Beta")));
+    assert!(
+        after_delete
+            .lines
+            .iter()
+            .any(|line| line.contains(" -> From Beta"))
+    );
 
     let runtime = latest_runtime_state(&fixture_dir);
-    let preview = ec_client::reports::ReportsPreview::from_bytes(&runtime.results_bytes, &runtime.messages_bytes);
+    let preview = ec_client::reports::ReportsPreview::from_bytes(
+        &runtime.results_bytes,
+        &runtime.messages_bytes,
+    );
     assert_eq!(preview.message_blocks.len(), 1);
-    assert!(preview.message_lines.iter().any(|line| line.contains("From Beta")));
+    assert!(
+        preview
+            .message_lines
+            .iter()
+            .any(|line| line.contains("From Beta"))
+    );
 }
 
 #[test]
@@ -2788,7 +3021,12 @@ fn startup_message_review_shows_end_status_after_deleting_last_message() {
     let mut end_status = CaptureTerminal::new();
     app.render(&mut end_status)
         .expect("end status should render");
-    assert!(end_status.lines.iter().any(|line| line.contains("Messages deleted.")));
+    assert!(
+        end_status
+            .lines
+            .iter()
+            .any(|line| line.contains("Messages deleted."))
+    );
 
     // Advance from EndStatus → phase exit → MainMenu.
     app.advance_startup();
@@ -2796,7 +3034,10 @@ fn startup_message_review_shows_end_status_after_deleting_last_message() {
 
     let runtime = latest_runtime_state(&fixture_dir);
     assert!(runtime.messages_bytes.is_empty());
-    assert_eq!(runtime.game_data.player.records[0].classic_messages_pending_flag_raw(), 0);
+    assert_eq!(
+        runtime.game_data.player.records[0].classic_messages_pending_flag_raw(),
+        0
+    );
 }
 
 #[test]
@@ -3441,12 +3682,18 @@ fn fleet_transport_planet_picker_accepts_typed_coordinates() {
         .expect("default coords should be shown in prompt");
     for ch in default_coords.chars() {
         assert_eq!(
-            apply_action(&mut app, Action::Planet(PlanetAction::AppendTransportPlanetChar(ch))),
+            apply_action(
+                &mut app,
+                Action::Planet(PlanetAction::AppendTransportPlanetChar(ch))
+            ),
             AppOutcome::Continue
         );
     }
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::SubmitTransportPlanet)),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::SubmitTransportPlanet)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -3630,7 +3877,10 @@ fn fleet_group_order_uses_select_column_and_space_toggles_rows() {
     assert!(!terminal.line(5).contains(" X "));
 
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
         AppOutcome::Continue
     );
     app.render(&mut terminal)
@@ -3658,7 +3908,10 @@ fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -3776,7 +4029,10 @@ fn fleet_order_applies_move_order_to_selected_fleet_only() {
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -3863,7 +4119,10 @@ fn fleet_order_allows_guard_starbase_from_fleet_command() {
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('4'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('4'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -3932,7 +4191,10 @@ fn fleet_order_blocks_guard_starbase_when_player_has_no_starbases() {
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('4'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('4'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -3980,11 +4242,17 @@ fn fleet_order_allows_join_another_fleet_from_fleet_command() {
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('3'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('3'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4060,7 +4328,10 @@ fn fleet_order_persists_immediately_and_reloaded_tables_reflect_it() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4106,7 +4377,10 @@ fn fleet_order_persists_immediately_and_reloaded_tables_reflect_it() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut reloaded, Action::Fleet(FleetAction::AppendOrderChar('2'))),
+        apply_action(
+            &mut reloaded,
+            Action::Fleet(FleetAction::AppendOrderChar('2'))
+        ),
         AppOutcome::Continue
     );
     let mut terminal = CaptureTerminal::new();
@@ -4210,7 +4484,10 @@ fn fleet_group_bombard_mission_defaults_to_closest_known_enemy_world() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4218,7 +4495,10 @@ fn fleet_group_bombard_mission_defaults_to_closest_known_enemy_world() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('6'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('6'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4310,7 +4590,10 @@ fn fleet_group_colonize_mission_skips_worlds_claimed_by_other_friendly_etacs() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4318,11 +4601,17 @@ fn fleet_group_colonize_mission_skips_worlds_claimed_by_other_friendly_etacs() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('2'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('2'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4400,7 +4689,10 @@ fn fleet_group_colonize_mission_allows_hidden_colonized_worlds_as_targets() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4408,11 +4700,17 @@ fn fleet_group_colonize_mission_allows_hidden_colonized_worlds_as_targets() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('2'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('2'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4449,7 +4747,10 @@ fn fleet_mission_picker_rejects_missions_not_supported_by_all_selected_fleets() 
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4457,7 +4758,10 @@ fn fleet_mission_picker_rejects_missions_not_supported_by_all_selected_fleets() 
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4466,11 +4770,17 @@ fn fleet_mission_picker_rejects_missions_not_supported_by_all_selected_fleets() 
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('0'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('0'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4505,7 +4815,10 @@ fn fleet_group_order_rejects_empty_sector_for_world_targeting_mission() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4513,7 +4826,10 @@ fn fleet_group_order_rejects_empty_sector_for_world_targeting_mission() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('9'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('9'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4523,7 +4839,10 @@ fn fleet_group_order_rejects_empty_sector_for_world_targeting_mission() {
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
     for ch in ['1', ',', '1'] {
         assert_eq!(
-            apply_action(&mut app, Action::Fleet(FleetAction::AppendGroupOrderChar(ch))),
+            apply_action(
+                &mut app,
+                Action::Fleet(FleetAction::AppendGroupOrderChar(ch))
+            ),
             AppOutcome::Continue
         );
     }
@@ -4587,7 +4906,10 @@ fn fleet_group_order_allows_owned_planet_for_blockade_mission() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4595,7 +4917,10 @@ fn fleet_group_order_allows_owned_planet_for_blockade_mission() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('5'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('5'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4605,7 +4930,10 @@ fn fleet_group_order_allows_owned_planet_for_blockade_mission() {
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
     for ch in format!("{},{}", owned_target[0], owned_target[1]).chars() {
         assert_eq!(
-            apply_action(&mut app, Action::Fleet(FleetAction::AppendGroupOrderChar(ch))),
+            apply_action(
+                &mut app,
+                Action::Fleet(FleetAction::AppendGroupOrderChar(ch))
+            ),
             AppOutcome::Continue
         );
     }
@@ -4684,7 +5012,10 @@ fn fleet_group_order_allows_owned_planet_for_scout_mission() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4692,11 +5023,17 @@ fn fleet_group_order_allows_owned_planet_for_scout_mission() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('0'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('0'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4706,7 +5043,10 @@ fn fleet_group_order_allows_owned_planet_for_scout_mission() {
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
     for ch in format!("{},{}", owned_target[0], owned_target[1]).chars() {
         assert_eq!(
-            apply_action(&mut app, Action::Fleet(FleetAction::AppendGroupOrderChar(ch))),
+            apply_action(
+                &mut app,
+                Action::Fleet(FleetAction::AppendGroupOrderChar(ch))
+            ),
             AppOutcome::Continue
         );
     }
@@ -4789,11 +5129,17 @@ fn fleet_order_salvage_defaults_to_closest_owned_planet() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('5'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('5'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4838,11 +5184,17 @@ fn fleet_order_salvage_rejects_empty_sector_target() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('5'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('5'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4914,11 +5266,17 @@ fn fleet_order_salvage_rejects_foreign_planet_target() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('5'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('5'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -4984,11 +5342,17 @@ fn fleet_order_salvage_rejects_unowned_planet_target() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('5'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('5'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -5036,7 +5400,10 @@ fn fleet_group_order_allows_manual_combat_target_without_known_enemy_world() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -5044,7 +5411,10 @@ fn fleet_group_order_allows_manual_combat_target_without_known_enemy_world() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('5'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('5'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -5095,7 +5465,10 @@ fn fleet_group_order_allows_manual_scout_target_without_known_enemy_world() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -5103,11 +5476,17 @@ fn fleet_group_order_allows_manual_scout_target_without_known_enemy_world() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('0'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('0'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -5152,7 +5531,10 @@ fn fleet_group_order_applies_move_order_to_selected_fleets() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -5160,7 +5542,10 @@ fn fleet_group_order_applies_move_order_to_selected_fleets() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -5169,7 +5554,10 @@ fn fleet_group_order_applies_move_order_to_selected_fleets() {
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -5178,7 +5566,10 @@ fn fleet_group_order_applies_move_order_to_selected_fleets() {
     );
     for ch in ['1', '0', ',', '1', '3'] {
         assert_eq!(
-            apply_action(&mut app, Action::Fleet(FleetAction::AppendGroupOrderChar(ch))),
+            apply_action(
+                &mut app,
+                Action::Fleet(FleetAction::AppendGroupOrderChar(ch))
+            ),
             AppOutcome::Continue
         );
     }
@@ -5233,7 +5624,10 @@ fn fleet_group_order_accepts_join_fleet_mission_number() {
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::ToggleGroupOrderSelection)),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -5242,11 +5636,17 @@ fn fleet_group_order_accepts_join_fleet_mission_number() {
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMissionPicker);
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('1'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('1'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::AppendMissionPickerChar('3'))),
+        apply_action(
+            &mut app,
+            Action::Fleet(FleetAction::AppendMissionPickerChar('3'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -5474,7 +5874,10 @@ fn planet_info_intel_detail_shows_last_intel_and_tier() {
 
     advance_to_main_menu(&mut app);
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Main))),
+        apply_action(
+            &mut app,
+            Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Main))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -5705,7 +6108,10 @@ fn fleet_eta_accepts_typed_fleet_destination_and_default_include_system() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetEta);
-    assert_eq!(app.handle_key(key(KeyCode::Enter)), Action::Fleet(FleetAction::SubmitEta));
+    assert_eq!(
+        app.handle_key(key(KeyCode::Enter)),
+        Action::Fleet(FleetAction::SubmitEta)
+    );
 }
 
 #[test]
@@ -5945,12 +6351,16 @@ fn general_rankings_opens_production_table_and_returns_to_general_menu() {
 
     assert_eq!(
         app.handle_key(key(KeyCode::Char('o'))),
-        Action::Empire(EmpireAction::OpenRankingsTable(EmpireProductionRankingSort::Production))
+        Action::Empire(EmpireAction::OpenRankingsTable(
+            EmpireProductionRankingSort::Production
+        ))
     );
     assert_eq!(
         apply_action(
             &mut app,
-            Action::Empire(EmpireAction::OpenRankingsTable(EmpireProductionRankingSort::Production))
+            Action::Empire(EmpireAction::OpenRankingsTable(
+                EmpireProductionRankingSort::Production
+            ))
         ),
         AppOutcome::Continue
     );
@@ -6001,7 +6411,10 @@ fn apply_action_toggles_autopilot_and_enemy_relation() {
     );
 
     assert_eq!(
-        apply_action(&mut app, Action::Empire(EmpireAction::AppendEnemiesChar('2'))),
+        apply_action(
+            &mut app,
+            Action::Empire(EmpireAction::AppendEnemiesChar('2'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
@@ -6057,13 +6470,19 @@ fn apply_action_deletes_reviewables() {
     .expect("app should load");
 
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::OpenDeleteReviewables)),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::OpenDeleteReviewables)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::DeleteReviewables);
 
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::ConfirmDeleteReviewables)),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::ConfirmDeleteReviewables)
+        ),
         AppOutcome::Continue
     );
 
@@ -6086,47 +6505,77 @@ fn apply_action_queues_composed_message() {
     .expect("app should load");
 
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::OpenComposeRecipient)),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::OpenComposeRecipient)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageRecipient);
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::AppendComposeRecipientChar('2'))),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::AppendComposeRecipientChar('2'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::SubmitComposeRecipient)),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::SubmitComposeRecipient)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageSubject);
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::AppendComposeSubjectChar('H'))),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::AppendComposeSubjectChar('H'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::AppendComposeSubjectChar('i'))),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::AppendComposeSubjectChar('i'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::SubmitComposeSubject)),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::SubmitComposeSubject)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageBody);
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::AppendComposeBodyChar('H'))),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::AppendComposeBodyChar('H'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::AppendComposeBodyChar('i'))),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::AppendComposeBodyChar('i'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::OpenComposeSendConfirm)),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::OpenComposeSendConfirm)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageSendConfirm);
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::ConfirmSendComposedMessage)),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::ConfirmSendComposedMessage)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageSent);
@@ -6159,16 +6608,25 @@ fn apply_action_deletes_queued_message_from_outbox() {
     .expect("app should load");
 
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::OpenComposeOutbox)),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::OpenComposeOutbox)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageOutbox);
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::AppendComposeOutboxChar('1'))),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::AppendComposeOutboxChar('1'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::DeleteQueuedComposeMessage)),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::DeleteQueuedComposeMessage)
+        ),
         AppOutcome::Continue
     );
 
@@ -6188,41 +6646,65 @@ fn apply_action_confirms_before_discarding_composed_message() {
     .expect("app should load");
 
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::OpenComposeRecipient)),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::OpenComposeRecipient)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::AppendComposeRecipientChar('2'))),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::AppendComposeRecipientChar('2'))
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::SubmitComposeRecipient)),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::SubmitComposeRecipient)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::SubmitComposeSubject)),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::SubmitComposeSubject)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageBody);
 
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::OpenComposeDiscardConfirm)),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::OpenComposeDiscardConfirm)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageDiscardConfirm);
 
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::OpenComposeBody)),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::OpenComposeBody)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageBody);
 
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::OpenComposeDiscardConfirm)),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::OpenComposeDiscardConfirm)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(
-        apply_action(&mut app, Action::Messaging(MessagingAction::ConfirmDiscardComposedMessage)),
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::ConfirmDiscardComposedMessage)
+        ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageRecipient);

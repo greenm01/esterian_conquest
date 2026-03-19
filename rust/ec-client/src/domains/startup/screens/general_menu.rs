@@ -1,11 +1,11 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
-use crate::domains::startup::StartupAction;
-use crate::domains::planet::PlanetAction;
-use crate::domains::messaging::MessagingAction;
 use crate::domains::empire::EmpireAction;
+use crate::domains::messaging::MessagingAction;
+use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
+use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
     CMD_COL_1, CMD_COL_2, MenuEntry, draw_command_center, draw_wrapped_status, new_playfield,
 };
@@ -95,9 +95,9 @@ impl Screen for GeneralMenuScreen {
             KeyCode::Char('d') | KeyCode::Char('D') => {
                 Action::Messaging(MessagingAction::OpenDeleteReviewables)
             }
-            KeyCode::Char('o') | KeyCode::Char('O') => Action::Empire(EmpireAction::OpenRankingsTable(
-                ec_data::EmpireProductionRankingSort::Production,
-            )),
+            KeyCode::Char('o') | KeyCode::Char('O') => Action::Empire(
+                EmpireAction::OpenRankingsTable(ec_data::EmpireProductionRankingSort::Production),
+            ),
             KeyCode::Char('r') | KeyCode::Char('R') => Action::Startup(StartupAction::OpenReports),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenMainMenu,
             _ => Action::Noop,

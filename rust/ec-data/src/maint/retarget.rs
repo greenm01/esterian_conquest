@@ -1,5 +1,5 @@
-use crate::{CoreGameData, Order};
 use super::{Mission, MissionRetargetEvent};
+use crate::{CoreGameData, Order};
 
 pub(super) fn refresh_seek_home_targets(game_data: &mut CoreGameData) -> Vec<MissionRetargetEvent> {
     let owned_planets: Vec<(u8, [u8; 2])> = game_data
@@ -103,7 +103,9 @@ pub(super) fn refresh_join_host_targets(game_data: &mut CoreGameData) -> Vec<Mis
     events
 }
 
-pub(super) fn refresh_guard_starbase_targets(game_data: &mut CoreGameData) -> Vec<MissionRetargetEvent> {
+pub(super) fn refresh_guard_starbase_targets(
+    game_data: &mut CoreGameData,
+) -> Vec<MissionRetargetEvent> {
     let active_bases: std::collections::HashMap<(u8, u8), [u8; 2]> = game_data
         .bases
         .records

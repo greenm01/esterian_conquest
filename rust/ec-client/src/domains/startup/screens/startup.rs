@@ -1,5 +1,5 @@
 use crate::model::ClassicLoginState;
-use crate::reports::{ReviewBlock, ReportsPreview};
+use crate::reports::{ReportsPreview, ReviewBlock};
 use crate::screen::layout::{
     PLAYFIELD_WIDTH, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
 };
@@ -187,11 +187,7 @@ impl StartupScreen {
                 if end < rows.len() {
                     draw_plain_prompt(&mut buffer, 19, "(Slap a key for more)");
                 } else if mode == StartupReviewMode::DeletePrompt {
-                    draw_plain_prompt(
-                        &mut buffer,
-                        19,
-                        &format!("Delete this {singular} Y/[N] ->"),
-                    );
+                    draw_plain_prompt(&mut buffer, 19, &format!("Delete this {singular} Y/[N] ->"));
                 } else {
                     draw_plain_prompt(&mut buffer, 19, "(Slap a key)");
                 }
@@ -201,9 +197,7 @@ impl StartupScreen {
                 draw_plain_prompt(
                     &mut buffer,
                     4,
-                    &format!(
-                        "There are more {plural}. Continue? [Y]es, <N>o, <NS> (non-stop) ->"
-                    ),
+                    &format!("There are more {plural}. Continue? [Y]es, <N>o, <NS> (non-stop) ->"),
                 );
             }
             StartupReviewMode::EndStatus => {
@@ -316,9 +310,7 @@ pub fn render_game_intro_page(
     Ok(buffer)
 }
 
-fn render_splash(
-    _splash_page: usize,
-) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+fn render_splash(_splash_page: usize) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
     let version = version_title();
     let logo_width = INTRO_LOGO.iter().map(|line| line.len()).max().unwrap_or(0);
@@ -347,10 +339,13 @@ fn block_review_rows(lines: &[String], empty_notice: &str) -> Vec<String> {
         if empty_notice.is_empty() {
             return Vec::new();
         }
-        return wrap_review_text(empty_notice, PLAYFIELD_WIDTH.saturating_sub(ITEM_BODY_PREFIX.len()))
-            .into_iter()
-            .map(|line| format!("{ITEM_BODY_PREFIX}{line}"))
-            .collect();
+        return wrap_review_text(
+            empty_notice,
+            PLAYFIELD_WIDTH.saturating_sub(ITEM_BODY_PREFIX.len()),
+        )
+        .into_iter()
+        .map(|line| format!("{ITEM_BODY_PREFIX}{line}"))
+        .collect();
     }
 
     let mut rows = Vec::new();

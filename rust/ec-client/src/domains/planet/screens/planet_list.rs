@@ -255,14 +255,15 @@ impl PlanetListScreen {
                     PlanetListSort::CurrentProduction,
                 ))
             }
-            KeyCode::Char('l') | KeyCode::Char('L') => Action::Planet(PlanetAction::SubmitListSort(
-                PlanetListMode::Brief,
-                PlanetListSort::Location,
-            )),
-            KeyCode::Char('p') | KeyCode::Char('P') => Action::Planet(PlanetAction::SubmitListSort(
-                PlanetListMode::Brief,
-                PlanetListSort::PotentialProduction,
-            )),
+            KeyCode::Char('l') | KeyCode::Char('L') => Action::Planet(
+                PlanetAction::SubmitListSort(PlanetListMode::Brief, PlanetListSort::Location),
+            ),
+            KeyCode::Char('p') | KeyCode::Char('P') => {
+                Action::Planet(PlanetAction::SubmitListSort(
+                    PlanetListMode::Brief,
+                    PlanetListSort::PotentialProduction,
+                ))
+            }
             KeyCode::Char('a') | KeyCode::Char('A') | KeyCode::Esc => {
                 Action::Planet(PlanetAction::OpenMenu)
             }

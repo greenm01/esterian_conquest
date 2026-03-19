@@ -1,5 +1,5 @@
-use crate::app::state::App;
 use super::helpers::sync_scroll_to_cursor;
+use crate::app::state::App;
 use crate::screen::ScreenId;
 
 impl App {
@@ -38,7 +38,8 @@ impl App {
         let total = self.game_data.player.records.len().saturating_sub(1);
         let max_offset = total.saturating_sub(crate::screen::ENEMIES_VISIBLE_ROWS);
         self.empire.enemies_scroll_offset = self
-            .empire.enemies_scroll_offset
+            .empire
+            .enemies_scroll_offset
             .saturating_add_signed(delta as isize)
             .min(max_offset);
     }
@@ -114,7 +115,8 @@ impl App {
         };
         let max_empire = self.game_data.conquest.player_count();
         if !(1..=max_empire).contains(&empire_id) {
-            self.empire.enemies_status = Some(format!("Enter an empire number in 1..={max_empire}."));
+            self.empire.enemies_status =
+                Some(format!("Enter an empire number in 1..={max_empire}."));
             return Ok(());
         }
         if empire_id as usize == self.player.record_index_1_based {

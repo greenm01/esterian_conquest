@@ -1,9 +1,9 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::CoreGameData;
-
-use crate::commands::runtime::with_runtime_game_mut_and_export;
+use crate::commands::runtime::{
+    export_runtime_snapshot_in_place, load_runtime_game_data, with_runtime_game_mut,
+};
 use crate::workspace::copy_init_files;
 
 pub(crate) fn apply_guard_starbase_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -17,7 +17,7 @@ pub(crate) fn set_guard_starbase_onebase(
     target_x: u8,
     target_y: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    with_runtime_game_mut_and_export(dir, |data| {
+    with_runtime_game_mut(dir, |data| {
         data.set_guard_starbase(1, 1, [target_x, target_y], 1, 1)
             .map_err(|err| err.to_string().into())
     })?;
@@ -34,7 +34,7 @@ pub(crate) fn set_guard_starbase_onebase(
 pub(crate) fn validate_guard_starbase_scenario(
     dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
     let errors = data.guard_starbase_linkage_errors_current_known(1, 1);
 
     if errors.is_empty() {
@@ -69,7 +69,7 @@ pub(crate) fn validate_guard_starbase_scenario(
 }
 
 pub(crate) fn print_guard_starbase_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
     let player1 = data
         .player
         .records
@@ -154,6 +154,7 @@ pub(crate) fn init_guard_starbase_onebase(
 ) -> Result<(), Box<dyn std::error::Error>> {
     copy_init_files(source, target)?;
     set_guard_starbase_onebase(target, target_x, target_y)?;
+    export_runtime_snapshot_in_place(target)?;
     println!(
         "Guard Starbase directory initialized at {}",
         target.display()

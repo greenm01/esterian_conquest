@@ -3,16 +3,16 @@
 mod combat;
 mod events;
 pub use events::*;
-mod sanitize;
-mod retarget;
-mod movement;
-mod merging;
-mod economics;
 mod campaign;
-pub mod timing;
 mod canonicalize;
+mod economics;
 pub mod gate;
+mod merging;
+mod movement;
 pub mod recovery;
+mod retarget;
+mod sanitize;
+pub mod timing;
 
 use crate::{CoreGameData, Order, VisibleHazardIntel};
 
@@ -227,8 +227,10 @@ pub fn run_maintenance_turn_with_context(
         game_data.campaign_outlook(),
         &civil_disorder_events,
     );
-    let campaign_outcome_events =
-        campaign::detect_campaign_outcome_events(initial_campaign_outcome, game_data.campaign_outcome());
+    let campaign_outcome_events = campaign::detect_campaign_outcome_events(
+        initial_campaign_outcome,
+        game_data.campaign_outcome(),
+    );
 
     // Update PLAYER.DAT raw[0x46]: set to 0x01 for any player with starbase_count > 0.
     // Confirmed from starbase fixture: player 0 (starbase_count=1) gets raw[0x46]=0x01 after maint.

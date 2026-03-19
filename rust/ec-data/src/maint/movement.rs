@@ -1,10 +1,10 @@
-use crate::{
-    CoreGameData, Order, ProductionItemKind, VisibleHazardIntel,
-    next_path_step, plan_route_with_intel,
-};
 use super::{
-    ColonizationEvent, Mission, MissionEvent, MissionOutcome, MovementEvents,
-    PlanetIntelEvent, SalvageFailureReason, SalvageResolvedEvent, DiplomaticEscalationEvent,
+    ColonizationEvent, DiplomaticEscalationEvent, Mission, MissionEvent, MissionOutcome,
+    MovementEvents, PlanetIntelEvent, SalvageFailureReason, SalvageResolvedEvent,
+};
+use crate::{
+    CoreGameData, Order, ProductionItemKind, VisibleHazardIntel, next_path_step,
+    plan_route_with_intel,
 };
 
 fn queue_local_intrusion_escalation(

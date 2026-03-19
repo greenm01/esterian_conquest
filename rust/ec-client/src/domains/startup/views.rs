@@ -1,16 +1,15 @@
 use crate::app::state::App;
 use crate::screen::{
-    PlayfieldBuffer, Screen, ScreenFrame, ScreenId,
-    render_first_time_homeworld_confirm, render_first_time_homeworld_name,
-    render_first_time_join_name, render_first_time_join_name_confirm,
-    render_first_time_join_no_pending, render_first_time_join_summary,
+    PlayfieldBuffer, Screen, ScreenFrame, ScreenId, render_first_time_homeworld_confirm,
+    render_first_time_homeworld_name, render_first_time_join_name,
+    render_first_time_join_name_confirm, render_first_time_join_no_pending,
+    render_first_time_join_summary,
 };
 
 pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let frame = ScreenFrame {
         game_dir: &app.game_dir,
         game_data: &app.game_data,
-        database: &app.database,
         player: &app.player,
         planet_intel_snapshots: &app.planet_intel_snapshots,
     };
@@ -94,10 +93,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         }
         ScreenId::ColonyWorldConfirm => {
             let (coords, _, _) = app.colony_world_summary()?;
-            crate::screen::render_colony_world_confirm(
-                coords,
-                &app.startup_state.colony_world_name,
-            )
+            crate::screen::render_colony_world_confirm(coords, &app.startup_state.colony_world_name)
         }
         ScreenId::MainMenu => app
             .main_menu

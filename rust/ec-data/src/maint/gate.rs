@@ -10,7 +10,7 @@
 
 use std::path::Path;
 
-use crate::{ConquestDat, CONQUEST_DAT_SIZE};
+use crate::{CONQUEST_DAT_SIZE, ConquestDat};
 
 /// Result of a maintenance schedule gate check.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,7 +35,13 @@ fn today_weekday() -> u8 {
 }
 
 const DAY_NAMES: [&str; 7] = [
-    "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
 ];
 
 /// Check whether maintenance is scheduled for today according to `CONQUEST.DAT`.
@@ -48,7 +54,9 @@ pub fn check_maintenance_schedule(conquest: &ConquestDat) -> GateResult {
     if schedule[today] {
         GateResult::Allowed
     } else {
-        GateResult::NotScheduled { day_name: DAY_NAMES[today] }
+        GateResult::NotScheduled {
+            day_name: DAY_NAMES[today],
+        }
     }
 }
 

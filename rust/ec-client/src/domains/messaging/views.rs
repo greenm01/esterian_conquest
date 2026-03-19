@@ -1,12 +1,11 @@
-use crate::app::state::App;
 use crate::app::messaging::compose_recipient_label;
+use crate::app::state::App;
 use crate::screen::{PlayfieldBuffer, ScreenFrame, ScreenId};
 
 pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let frame = ScreenFrame {
         game_dir: &app.game_dir,
         game_data: &app.game_data,
-        database: &app.database,
         player: &app.player,
         planet_intel_snapshots: &app.planet_intel_snapshots,
     };
@@ -41,16 +40,15 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.messaging.compose_outbox_cursor,
             &app.game_data,
         ),
-        ScreenId::ComposeMessageDiscardConfirm => {
-            app.message_compose.render_discard_confirm()
-        }
+        ScreenId::ComposeMessageDiscardConfirm => app.message_compose.render_discard_confirm(),
         ScreenId::ComposeMessageSendConfirm => app.message_compose.render_send_confirm(
             &compose_recipient_label(&app.game_data, app.messaging.compose_recipient_empire),
             &app.messaging.compose_subject,
             &app.messaging.compose_body,
         ),
         ScreenId::ComposeMessageSent => app.message_compose.render_sent(
-            app.messaging.compose_sent_status
+            app.messaging
+                .compose_sent_status
                 .as_deref()
                 .unwrap_or("Message queued."),
         ),

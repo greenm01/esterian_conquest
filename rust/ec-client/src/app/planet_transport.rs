@@ -1,9 +1,11 @@
+use super::helpers::{
+    center_scroll_to_cursor, resolve_default_coords_input, sync_scroll_to_cursor,
+};
 use crate::app::state::App;
-use super::helpers::{sync_scroll_to_cursor, center_scroll_to_cursor, resolve_default_coords_input};
-use ec_data::GameStateMutationError;
 use crate::screen::{
     CommandMenu, PlanetTransportFleetRow, PlanetTransportMode, PlanetTransportPlanetRow, ScreenId,
 };
+use ec_data::GameStateMutationError;
 
 impl App {
     pub fn open_planet_transport_planet_select(&mut self, mode: PlanetTransportMode) {
@@ -284,7 +286,8 @@ impl App {
         let eligible_fleets = self.planet_transport_eligible_fleet_rows_for_planet(mode, &base_row);
         if !eligible_fleets.is_empty() {
             self.planet.transport_fleet_cursor = self
-                .planet.transport_fleet_cursor
+                .planet
+                .transport_fleet_cursor
                 .min(eligible_fleets.len() - 1);
             self.current_screen = ScreenId::PlanetTransportFleetSelect(mode);
         } else {
@@ -292,7 +295,8 @@ impl App {
             self.planet.transport_selected_planet_record = None;
             if !planet_rows.is_empty() {
                 self.planet.transport_planet_cursor = self
-                    .planet.transport_planet_cursor
+                    .planet
+                    .transport_planet_cursor
                     .min(planet_rows.len() - 1);
                 self.current_screen = ScreenId::PlanetTransportPlanetSelect(mode);
             } else {
@@ -303,7 +307,10 @@ impl App {
         Ok(())
     }
 
-    pub(crate) fn planet_transport_planet_default_coords(&self, mode: PlanetTransportMode) -> [u8; 2] {
+    pub(crate) fn planet_transport_planet_default_coords(
+        &self,
+        mode: PlanetTransportMode,
+    ) -> [u8; 2] {
         self.planet_transport_planet_rows(mode)
             .get(self.planet.transport_planet_cursor)
             .map(|row| row.coords)
@@ -341,7 +348,8 @@ impl App {
     ) -> Result<PlanetTransportPlanetRow, Box<dyn std::error::Error>> {
         if matches!(self.current_screen, ScreenId::PlanetTransportFleetSelect(_)) {
             let selected_record = self
-                .planet.transport_selected_planet_record
+                .planet
+                .transport_selected_planet_record
                 .ok_or_else(|| "current transport planet missing".to_string())?;
             let base_row = self
                 .build_planet_rows()

@@ -105,14 +105,18 @@ impl Screen for PlanetMenuScreen {
             KeyCode::Char('i') | KeyCode::Char('I') => {
                 Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Planet))
             }
-            KeyCode::Char('p') | KeyCode::Char('P') => Action::Planet(PlanetAction::SubmitListSort(
-                PlanetListMode::Brief,
-                PlanetListSort::CurrentProduction,
-            )),
-            KeyCode::Char('d') | KeyCode::Char('D') => Action::Planet(PlanetAction::SubmitListSort(
-                PlanetListMode::Detail,
-                PlanetListSort::CurrentProduction,
-            )),
+            KeyCode::Char('p') | KeyCode::Char('P') => {
+                Action::Planet(PlanetAction::SubmitListSort(
+                    PlanetListMode::Brief,
+                    PlanetListSort::CurrentProduction,
+                ))
+            }
+            KeyCode::Char('d') | KeyCode::Char('D') => {
+                Action::Planet(PlanetAction::SubmitListSort(
+                    PlanetListMode::Detail,
+                    PlanetListSort::CurrentProduction,
+                ))
+            }
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenMainMenu,
             KeyCode::Char('b') | KeyCode::Char('B') => Action::Planet(PlanetAction::OpenBuildMenu),
             KeyCode::Char('c') | KeyCode::Char('C') => {
@@ -126,12 +130,12 @@ impl Screen for PlanetMenuScreen {
                     planet_stub_label(key.code).unwrap_or(""),
                 )))
             }
-            KeyCode::Char('l') | KeyCode::Char('L') => {
-                Action::Planet(PlanetAction::OpenTransportPlanetSelect(PlanetTransportMode::Load))
-            }
-            KeyCode::Char('u') | KeyCode::Char('U') => {
-                Action::Planet(PlanetAction::OpenTransportPlanetSelect(PlanetTransportMode::Unload))
-            }
+            KeyCode::Char('l') | KeyCode::Char('L') => Action::Planet(
+                PlanetAction::OpenTransportPlanetSelect(PlanetTransportMode::Load),
+            ),
+            KeyCode::Char('u') | KeyCode::Char('U') => Action::Planet(
+                PlanetAction::OpenTransportPlanetSelect(PlanetTransportMode::Unload),
+            ),
             KeyCode::Char('t') | KeyCode::Char('T') => Action::Planet(PlanetAction::OpenTaxPrompt),
             _ => Action::Noop,
         }

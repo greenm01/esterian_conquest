@@ -97,6 +97,8 @@ It is responsible for:
 It should not duplicate game rules. The client consumes `ec-data` types and
 storage/runtime helpers instead of re-deriving combat, movement, build, or
 maintenance semantics locally.
+It also should not own classic `.DAT` projection; if a workflow needs classic
+files, that belongs in `ec-cli` export/materialization code.
 
 ## Current Structural Direction
 
@@ -159,7 +161,9 @@ detail into submodules instead of extending the driver further.
 
 ## Shared Model Boundary
 
-`CoreGameData` remains the canonical gameplay-state model inside `ec-data`.
+`CoreGameData` remains the canonical gameplay-state snapshot model inside
+`ec-data`.
+`CampaignStore` is the persisted source of truth for active campaigns.
 
 Use it when the code needs:
 
@@ -186,21 +190,31 @@ The CLI and client should orchestrate those helpers, not replace them.
 
 The runtime storage direction is now active, not deferred:
 
-- `CoreGameData` is the canonical gameplay-state shape
-- `CampaignStore` / `CampaignRuntimeState` persist Rust runtime snapshots in
-  `ecgame.db`
+- `CampaignStore` / `CampaignRuntimeState` in `ecgame.db` are the runtime
+  source of truth for active campaigns
+- `CoreGameData` is the canonical snapshot shape carried through storage and
+  shared engine helpers
 - classic `.DAT` files remain the compatibility boundary and oracle artifact set
-- `DATABASE.DAT`, `MESSAGES.DAT`, `RESULTS.DAT`, and queued mail remain part of
-  the persisted runtime/report picture
+- compatibility-oriented shadow data may still be stored when classic export
+  needs raw markers or undecoded bytes
 
 Practical rule:
 
-- `ec-client` and Rust maintenance operate on runtime state
-- classic directories enter or leave that runtime through explicit import/export
-  and oracle workflows
-- SQLite is additive to the compatibility boundary, not a replacement for it
+- `ec-client` and normal Rust maintenance/mutator paths read and write SQLite
+  runtime state
+- explicit compatibility paths such as `db-export`, scenario materialization,
+  and oracle setup are the only places that should intentionally write classic
+  `.DAT` outputs
+- explicit import paths such as `db-import` are the only places that should
+  rebuild runtime state from a classic directory
+- read-only inspection/report commands must not create or update `ecgame.db`
+  as a side effect
+- SQLite is the runtime source of truth; classic files remain the compatibility
+  and oracle projection boundary
 
-Do not bypass classic compatibility just because Rust-native storage exists.
+Do not bypass classic compatibility just because Rust-native storage exists, and
+do not couple client/runtime logic directly to `DATABASE.DAT` or other classic
+report artifacts.
 
 ## Command And Report Ownership
 

@@ -323,7 +323,9 @@ impl PlanetTransportScreen {
             }
             KeyCode::PageUp => Action::Planet(PlanetAction::MoveTransportFleet(-8)),
             KeyCode::PageDown => Action::Planet(PlanetAction::MoveTransportFleet(8)),
-            KeyCode::Char(ch) if ch.is_ascii_digit() => Action::Planet(PlanetAction::AppendTransportQtyChar(ch)),
+            KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                Action::Planet(PlanetAction::AppendTransportQtyChar(ch))
+            }
             KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceTransportQty),
             KeyCode::Enter => Action::Planet(PlanetAction::SubmitTransportQty),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::ReturnToCommandMenu,
@@ -333,7 +335,9 @@ impl PlanetTransportScreen {
 
     pub fn handle_quantity_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Char(ch) if ch.is_ascii_digit() => Action::Planet(PlanetAction::AppendTransportQtyChar(ch)),
+            KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                Action::Planet(PlanetAction::AppendTransportQtyChar(ch))
+            }
             KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceTransportQty),
             KeyCode::Enter => Action::Planet(PlanetAction::SubmitTransportQty),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::ReturnToCommandMenu,

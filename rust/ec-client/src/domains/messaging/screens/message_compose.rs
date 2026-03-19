@@ -298,11 +298,15 @@ impl MessageComposeScreen {
             }
             KeyCode::PageUp => Action::Messaging(MessagingAction::MoveComposeRecipient(-8)),
             KeyCode::PageDown => Action::Messaging(MessagingAction::MoveComposeRecipient(8)),
-            KeyCode::Char('d') | KeyCode::Char('D') => Action::Messaging(MessagingAction::OpenComposeOutbox),
+            KeyCode::Char('d') | KeyCode::Char('D') => {
+                Action::Messaging(MessagingAction::OpenComposeOutbox)
+            }
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenGeneralMenu,
             KeyCode::Enter => Action::Messaging(MessagingAction::SubmitComposeRecipient),
             KeyCode::Backspace => Action::Messaging(MessagingAction::BackspaceComposeRecipient),
-            KeyCode::Char(ch) if ch.is_ascii_digit() => Action::Messaging(MessagingAction::AppendComposeRecipientChar(ch)),
+            KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                Action::Messaging(MessagingAction::AppendComposeRecipientChar(ch))
+            }
             _ => Action::Noop,
         }
     }
@@ -351,22 +355,30 @@ impl MessageComposeScreen {
 
     pub fn handle_discard_confirm_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Char('y') | KeyCode::Char('Y') => Action::Messaging(MessagingAction::ConfirmDiscardComposedMessage),
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                Action::Messaging(MessagingAction::ConfirmDiscardComposedMessage)
+            }
             _ => Action::Messaging(MessagingAction::OpenComposeBody),
         }
     }
 
     pub fn handle_send_confirm_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Char('y') | KeyCode::Char('Y') => Action::Messaging(MessagingAction::ConfirmSendComposedMessage),
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                Action::Messaging(MessagingAction::ConfirmSendComposedMessage)
+            }
             _ => Action::Messaging(MessagingAction::OpenComposeBody),
         }
     }
 
     pub fn handle_outbox_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => Action::Messaging(MessagingAction::MoveComposeOutbox(-1)),
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => Action::Messaging(MessagingAction::MoveComposeOutbox(1)),
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                Action::Messaging(MessagingAction::MoveComposeOutbox(-1))
+            }
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                Action::Messaging(MessagingAction::MoveComposeOutbox(1))
+            }
             KeyCode::PageUp => Action::Messaging(MessagingAction::MoveComposeOutbox(-8)),
             KeyCode::PageDown => Action::Messaging(MessagingAction::MoveComposeOutbox(8)),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
@@ -374,7 +386,9 @@ impl MessageComposeScreen {
             }
             KeyCode::Enter => Action::Messaging(MessagingAction::DeleteQueuedComposeMessage),
             KeyCode::Backspace => Action::Messaging(MessagingAction::BackspaceComposeOutboxInput),
-            KeyCode::Char(ch) if ch.is_ascii_digit() => Action::Messaging(MessagingAction::AppendComposeOutboxChar(ch)),
+            KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                Action::Messaging(MessagingAction::AppendComposeOutboxChar(ch))
+            }
             _ => Action::Noop,
         }
     }

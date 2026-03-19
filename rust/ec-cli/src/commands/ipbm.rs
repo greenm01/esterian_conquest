@@ -2,11 +2,13 @@ use std::path::Path;
 
 use ec_data::{CoreGameData, IPBM_RECORD_SIZE};
 
-use crate::commands::runtime::with_runtime_game_mut_and_export;
+use crate::commands::runtime::{
+    export_runtime_snapshot_in_place, load_runtime_game_data, with_runtime_game_mut,
+};
 use crate::workspace::copy_init_files;
 
 pub(crate) fn print_ipbm_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
     let ipbm_bytes = data.ipbm.to_bytes();
 
     println!("IPBM Report");
@@ -46,7 +48,7 @@ pub(crate) fn set_ipbm_zero_records(
     dir: &Path,
     count: u16,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    with_runtime_game_mut_and_export(dir, |data| {
+    with_runtime_game_mut(dir, |data| {
         data.set_ipbm_zero_records(count);
         Ok(())
     })?;
@@ -65,7 +67,7 @@ pub(crate) fn set_ipbm_record_prefix(
     gate: u16,
     follow_on: u16,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    with_runtime_game_mut_and_export(dir, |data| {
+    with_runtime_game_mut(dir, |data| {
         data.set_ipbm_record_prefix(record_index_1_based, primary, owner, gate, follow_on)?;
         Ok(())
     })?;
@@ -104,12 +106,13 @@ pub(crate) fn init_ipbm_zero_records(
 ) -> Result<(), Box<dyn std::error::Error>> {
     copy_init_files(source, target)?;
     set_ipbm_zero_records(target, count)?;
+    export_runtime_snapshot_in_place(target)?;
     println!("IPBM directory initialized at {}", target.display());
     Ok(())
 }
 
 pub(crate) fn apply_ipbm_scenario(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    with_runtime_game_mut_and_export(dir, |data| {
+    with_runtime_game_mut(dir, |data| {
         data.set_ipbm_zero_records(0);
         Ok(())
     })

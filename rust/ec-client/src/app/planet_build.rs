@@ -1,12 +1,14 @@
-use crate::app::state::App;
 use super::helpers::sync_scroll_to_cursor;
-use std::collections::BTreeMap;
-use ec_data::{AutoCommissionSummary, CommissionResult, GameStateMutationError, ProductionItemKind};
+use crate::app::state::App;
 use crate::screen::{
-    CommandMenu, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView,
-    PlanetBuildOrder, PlanetCommissionRow, PlanetCommissionView, PlanetListSort, ScreenId,
-    build_unit_spec, build_unit_spec_by_kind, max_quantity,
+    CommandMenu, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildOrder,
+    PlanetCommissionRow, PlanetCommissionView, PlanetListSort, ScreenId, build_unit_spec,
+    build_unit_spec_by_kind, max_quantity,
 };
+use ec_data::{
+    AutoCommissionSummary, CommissionResult, GameStateMutationError, ProductionItemKind,
+};
+use std::collections::BTreeMap;
 
 impl App {
     pub fn open_planet_auto_commission_confirm(&mut self) {
@@ -215,7 +217,8 @@ impl App {
         } else {
             rows.iter()
                 .filter(|row| {
-                    self.planet.commission_selected_slots
+                    self.planet
+                        .commission_selected_slots
                         .contains(&row.slot_0_based)
                 })
                 .map(|row| row.slot_0_based)
@@ -298,13 +301,16 @@ impl App {
             return;
         };
         if self
-            .planet.commission_selected_slots
+            .planet
+            .commission_selected_slots
             .contains(&row.slot_0_based)
         {
-            self.planet.commission_selected_slots
+            self.planet
+                .commission_selected_slots
                 .remove(&row.slot_0_based);
         } else {
-            self.planet.commission_selected_slots
+            self.planet
+                .commission_selected_slots
                 .insert(row.slot_0_based);
         }
         self.planet.commission_status = None;
@@ -317,7 +323,8 @@ impl App {
         let total = self.planet_build_list_rows().len();
         let max_offset = total.saturating_sub(crate::screen::PLANET_BUILD_LIST_VISIBLE_ROWS);
         self.planet.build_list_scroll_offset = self
-            .planet.build_list_scroll_offset
+            .planet
+            .build_list_scroll_offset
             .saturating_add_signed(delta as isize)
             .min(max_offset);
     }
@@ -675,7 +682,9 @@ impl App {
             .collect()
     }
 
-    pub(crate) fn current_planet_build_view(&self) -> Result<PlanetBuildMenuView, Box<dyn std::error::Error>> {
+    pub(crate) fn current_planet_build_view(
+        &self,
+    ) -> Result<PlanetBuildMenuView, Box<dyn std::error::Error>> {
         let row = match self.current_build_planet_row() {
             Ok(row) => row,
             Err(_) => {
@@ -752,9 +761,12 @@ impl App {
             .sum::<u32>())
     }
 
-    pub(crate) fn current_planet_build_max_quantity(&self) -> Result<u32, Box<dyn std::error::Error>> {
+    pub(crate) fn current_planet_build_max_quantity(
+        &self,
+    ) -> Result<u32, Box<dyn std::error::Error>> {
         let kind = self
-            .planet.build_selected_kind
+            .planet
+            .build_selected_kind
             .ok_or("planet build kind missing")?;
         self.current_planet_build_max_quantity_for(kind)
     }
@@ -897,4 +909,3 @@ fn format_auto_commission_status(summary: AutoCommissionSummary) -> String {
         summary.planets_used
     )
 }
-

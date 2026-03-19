@@ -1,12 +1,12 @@
 use std::collections::BTreeSet;
 
+use ec_data::maint::{FleetBattlePerspective, timing::format_report_first_line};
 use ec_data::{
     ContactReportSource, CoreGameData, DatabaseDat, EmpireProductionRankingSort,
     FleetOrderValidationError, FleetPlayerInputValidationError, MaintenanceEvents, Mission,
     MissionOutcome, PlanetDat, PlanetPlayerInputValidationError, PlayerDiplomacyValidationError,
     QueuedPlayerMail, ShipLosses,
 };
-use ec_data::maint::{FleetBattlePerspective, timing::format_report_first_line};
 
 const RESULTS_RECORD_SIZE: usize = 84;
 const RESULTS_TEXT_SIZE: usize = 72;
@@ -213,8 +213,7 @@ pub(crate) fn build_database_dat(
                 if p.owner_empire_slot_raw() != owner_slot {
                     continue;
                 }
-                let record_idx =
-                    DatabaseDat::record_index(planet, player, planet_count);
+                let record_idx = DatabaseDat::record_index(planet, player, planet_count);
                 if record_idx >= new_database.records.len() {
                     continue;
                 }
@@ -342,7 +341,11 @@ fn fleet_label(fleet_id: u8) -> String {
 
 fn owned_fleet_source_clause(fleet_id: Option<u8>, location: &str) -> String {
     match fleet_id.filter(|fleet_id| *fleet_id != 0) {
-        Some(fleet_id) => format!("From your {}, located in {}:", fleet_label(fleet_id), location),
+        Some(fleet_id) => format!(
+            "From your {}, located in {}:",
+            fleet_label(fleet_id),
+            location
+        ),
         None => format!("From your fleet, located in {}:", location),
     }
 }
@@ -460,7 +463,10 @@ mod tests {
             lines[1],
             "Sensor contact shows an alien fleet in System(24,14) traveling at a"
         );
-        assert_eq!(lines[2], "translight speed of 5. Closing to check it out...");
+        assert_eq!(
+            lines[2],
+            "translight speed of 5. Closing to check it out..."
+        );
         assert!(lines.iter().all(|line| line.chars().count() <= 72));
         assert!(lines[1].starts_with("Sensor"));
     }
@@ -508,11 +514,7 @@ fn push_classic_results_chunked(
 
 fn classic_results_record_count(text: &str, _kind: u8) -> usize {
     let line_count = classic_results_lines(text).len();
-    if line_count == 0 {
-        0
-    } else {
-        line_count + 1
-    }
+    if line_count == 0 { 0 } else { line_count + 1 }
 }
 
 fn classic_results_lines(text: &str) -> Vec<String> {
@@ -592,12 +594,7 @@ fn wrap_classic_paragraph(paragraph: &str, width: usize, lines: &mut Vec<String>
     }
 }
 
-fn push_split_long_word(
-    word: &str,
-    width: usize,
-    lines: &mut Vec<String>,
-    current: &mut String,
-) {
+fn push_split_long_word(word: &str, width: usize, lines: &mut Vec<String>, current: &mut String) {
     let mut chunk = String::new();
     for ch in word.chars() {
         if char_width(&chunk) == width {
@@ -615,12 +612,7 @@ fn push_split_long_word(
     }
 }
 
-fn push_routed_message_legacy_chunked(
-    data: &mut Vec<u8>,
-    kind: u8,
-    tail: [u8; 10],
-    text: &str,
-) {
+fn push_routed_message_legacy_chunked(data: &mut Vec<u8>, kind: u8, tail: [u8; 10], text: &str) {
     let bytes = text.as_bytes();
     if bytes.is_empty() {
         return;
@@ -813,24 +805,18 @@ fn stardock_scan_summary(planet: &ec_data::PlanetRecord) -> String {
             ProductionItemKind::Destroyer => {
                 unit_count_text(count as u32, "destroyer", "destroyers")
             }
-            ProductionItemKind::Cruiser => {
-                unit_count_text(count as u32, "cruiser", "cruisers")
-            }
+            ProductionItemKind::Cruiser => unit_count_text(count as u32, "cruiser", "cruisers"),
             ProductionItemKind::Battleship => {
                 unit_count_text(count as u32, "battleship", "battleships")
             }
-            ProductionItemKind::Scout => {
-                unit_count_text(count as u32, "scout ship", "scout ships")
-            }
-            ProductionItemKind::Transport => {
-                unit_count_text(count as u32, "troop transport ship", "troop transport ships")
-            }
-            ProductionItemKind::Etac => {
-                unit_count_text(count as u32, "ETAC ship", "ETAC ships")
-            }
-            ProductionItemKind::Starbase => {
-                unit_count_text(count as u32, "starbase", "starbases")
-            }
+            ProductionItemKind::Scout => unit_count_text(count as u32, "scout ship", "scout ships"),
+            ProductionItemKind::Transport => unit_count_text(
+                count as u32,
+                "troop transport ship",
+                "troop transport ships",
+            ),
+            ProductionItemKind::Etac => unit_count_text(count as u32, "ETAC ship", "ETAC ships"),
+            ProductionItemKind::Starbase => unit_count_text(count as u32, "starbase", "starbases"),
             ProductionItemKind::GroundBattery
             | ProductionItemKind::Army
             | ProductionItemKind::Unknown(_) => continue,
@@ -1011,7 +997,10 @@ fn generate_report_entries(
             continue;
         };
         let [x, y] = planet.coords_raw();
-        let source = format!("From planet \"{}\" in System({x},{y}):", planet.planet_name());
+        let source = format!(
+            "From planet \"{}\" in System({x},{y}):",
+            planet.planet_name()
+        );
         let header = report_header(&source, event.stardate_week, year);
         let attacker = known_hostile_fleet_label(
             game_data,
@@ -1023,7 +1012,10 @@ fn generate_report_entries(
             " We have been bombarded by {}. The attacking fleet initially appeared to contain {}. Our defenses initially contained {}. We observed losses of {} ground batteries and {} armies.",
             attacker,
             ship_loss_summary(event.attacker_initial),
-            planet_defense_summary(event.defender_batteries_initial, event.defender_armies_initial),
+            planet_defense_summary(
+                event.defender_batteries_initial,
+                event.defender_armies_initial
+            ),
             event.defender_battery_losses,
             event.defender_army_losses,
         );
@@ -1031,7 +1023,9 @@ fn generate_report_entries(
             text: format!("{header}{body}"),
             kind: 0x08,
             tail: RESULTS_TAIL_BOMBARD,
-            target: ReportTarget::Both { recipient: event.defender_empire_raw },
+            target: ReportTarget::Both {
+                recipient: event.defender_empire_raw,
+            },
             repeat_next_pointer: false,
         });
     }
@@ -1082,7 +1076,9 @@ fn generate_report_entries(
             text: format!("{header}{body}"),
             kind: 0x06,
             tail: RESULTS_TAIL_FLEET,
-            target: ReportTarget::Both { recipient: event.reporting_empire_raw },
+            target: ReportTarget::Both {
+                recipient: event.reporting_empire_raw,
+            },
             repeat_next_pointer: false,
         });
     }
@@ -1097,7 +1093,11 @@ fn generate_report_entries(
                     .or_else(|| Some(classic_empire_clause(game_data, empire)))
             })
             .unwrap_or_else(|| "an alien fleet".to_string());
-        let verb = if event.was_intercepting { "intercepted" } else { "was attacked by" };
+        let verb = if event.was_intercepting {
+            "intercepted"
+        } else {
+            "was attacked by"
+        };
         let source = "From your Fleet Command Center:";
         let header = report_header(source, event.stardate_week, year);
         let body = format!(
@@ -1115,7 +1115,9 @@ fn generate_report_entries(
             text: format!("{header}{body}"),
             kind: 0x06,
             tail: RESULTS_TAIL_FLEET,
-            target: ReportTarget::Both { recipient: event.reporting_empire_raw },
+            target: ReportTarget::Both {
+                recipient: event.reporting_empire_raw,
+            },
             repeat_next_pointer: false,
         });
     }
@@ -1143,7 +1145,9 @@ fn generate_report_entries(
             text: format!("{header}{body}"),
             kind: 0x06,
             tail: RESULTS_TAIL_FLEET,
-            target: ReportTarget::Both { recipient: event.reporting_empire_raw },
+            target: ReportTarget::Both {
+                recipient: event.reporting_empire_raw,
+            },
             repeat_next_pointer: false,
         });
     }
@@ -1160,7 +1164,9 @@ fn generate_report_entries(
             text: format!("{header}{body}"),
             kind: 0x06,
             tail: RESULTS_TAIL_FLEET,
-            target: ReportTarget::Both { recipient: event.reporting_empire_raw },
+            target: ReportTarget::Both {
+                recipient: event.reporting_empire_raw,
+            },
             repeat_next_pointer: false,
         });
     }
@@ -1211,7 +1217,9 @@ fn generate_report_entries(
             text: format!("{header}{body}"),
             kind: 0x06,
             tail: RESULTS_TAIL_FLEET,
-            target: ReportTarget::Both { recipient: event.reporting_empire_raw },
+            target: ReportTarget::Both {
+                recipient: event.reporting_empire_raw,
+            },
             repeat_next_pointer: false,
         });
     }
@@ -1237,7 +1245,8 @@ fn generate_report_entries(
                 event.defender_battery_losses
             )
         } else {
-            " Our cover fire failed to suppress the defending batteries before the descent.".to_string()
+            " Our cover fire failed to suppress the defending batteries before the descent."
+                .to_string()
         };
         let source =
             owned_fleet_source_clause(event.attacker_fleet_id, &format!("System({x},{y})"));
@@ -1246,7 +1255,10 @@ fn generate_report_entries(
             (Mission::InvadeWorld, MissionOutcome::Succeeded) => format!(
                 " Invasion mission report: Our armies have captured planet \"{}\". The defending world initially contained {}. Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
                 planet.planet_name(),
-                planet_defense_summary(event.defender_batteries_initial, event.defender_armies_initial),
+                planet_defense_summary(
+                    event.defender_batteries_initial,
+                    event.defender_armies_initial
+                ),
                 ship_losses,
                 event.attacker_army_losses,
                 event.defender_battery_losses,
@@ -1254,7 +1266,10 @@ fn generate_report_entries(
             ),
             (Mission::InvadeWorld, MissionOutcome::Failed) => format!(
                 " Invasion mission report: The landing was repulsed. The defending world initially contained {}. Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
-                planet_defense_summary(event.defender_batteries_initial, event.defender_armies_initial),
+                planet_defense_summary(
+                    event.defender_batteries_initial,
+                    event.defender_armies_initial
+                ),
                 ship_losses,
                 event.attacker_army_losses,
                 event.defender_battery_losses,
@@ -1262,7 +1277,10 @@ fn generate_report_entries(
             ),
             (Mission::InvadeWorld, MissionOutcome::Aborted) => format!(
                 " Invasion mission report: Enemy ground batteries prevented a landing. The defending world initially contained {}. Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.",
-                planet_defense_summary(event.defender_batteries_initial, event.defender_armies_initial),
+                planet_defense_summary(
+                    event.defender_batteries_initial,
+                    event.defender_armies_initial
+                ),
                 ship_losses,
                 event.attacker_army_losses,
                 event.defender_battery_losses,
@@ -1271,7 +1289,10 @@ fn generate_report_entries(
             (Mission::BlitzWorld, MissionOutcome::Succeeded) => format!(
                 " Blitz mission report: We have seized planet \"{}\" in a fast assault. The defending world initially contained {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
                 planet.planet_name(),
-                planet_defense_summary(event.defender_batteries_initial, event.defender_armies_initial),
+                planet_defense_summary(
+                    event.defender_batteries_initial,
+                    event.defender_armies_initial
+                ),
                 blitz_cover_note,
                 ship_losses,
                 event.attacker_army_losses,
@@ -1281,7 +1302,10 @@ fn generate_report_entries(
             ),
             (Mission::BlitzWorld, MissionOutcome::Failed) => format!(
                 " Blitz mission report: The blitz attack failed. The defending world initially contained {}.{} Friendly losses: {} and {} armies. Enemy losses: {} ground batteries and {} armies.{}",
-                planet_defense_summary(event.defender_batteries_initial, event.defender_armies_initial),
+                planet_defense_summary(
+                    event.defender_batteries_initial,
+                    event.defender_armies_initial
+                ),
                 blitz_cover_note,
                 ship_losses,
                 event.attacker_army_losses,
@@ -1295,7 +1319,9 @@ fn generate_report_entries(
             text: format!("{header}{body}"),
             kind: 0x0c,
             tail: RESULTS_TAIL_INVASION,
-            target: ReportTarget::Both { recipient: event.attacker_empire_raw },
+            target: ReportTarget::Both {
+                recipient: event.attacker_empire_raw,
+            },
             repeat_next_pointer: false,
         });
     }
@@ -1317,8 +1343,10 @@ fn generate_report_entries(
                     text: format!("{header}{contact_body}"),
                     kind: 0x05,
                     tail: RESULTS_TAIL_SCOUTING,
-                    target: ReportTarget::Both { recipient: event.viewer_empire_raw },
-            repeat_next_pointer: false,
+                    target: ReportTarget::Both {
+                        recipient: event.viewer_empire_raw,
+                    },
+                    repeat_next_pointer: false,
                 });
                 let identified_body = if let Some(enemy) = known_hostile_fleet_label(
                     game_data,
@@ -1338,8 +1366,10 @@ fn generate_report_entries(
                     text: format!("{header}{identified_body}"),
                     kind: 0x06,
                     tail: RESULTS_TAIL_SCOUTING,
-                    target: ReportTarget::Both { recipient: event.viewer_empire_raw },
-            repeat_next_pointer: false,
+                    target: ReportTarget::Both {
+                        recipient: event.viewer_empire_raw,
+                    },
+                    repeat_next_pointer: false,
                 });
             }
             ContactReportSource::Fleet(fleet_id) => {
@@ -1352,8 +1382,10 @@ fn generate_report_entries(
                     text: format!("{header}{contact_body}"),
                     kind: 0x05,
                     tail: RESULTS_TAIL_SCOUTING,
-                    target: ReportTarget::Both { recipient: event.viewer_empire_raw },
-            repeat_next_pointer: false,
+                    target: ReportTarget::Both {
+                        recipient: event.viewer_empire_raw,
+                    },
+                    repeat_next_pointer: false,
                 });
                 let identified_body = if let Some(enemy) = known_hostile_fleet_label(
                     game_data,
@@ -1373,8 +1405,10 @@ fn generate_report_entries(
                     text: format!("{header}{identified_body}"),
                     kind: 0x06,
                     tail: RESULTS_TAIL_SCOUTING,
-                    target: ReportTarget::Both { recipient: event.viewer_empire_raw },
-            repeat_next_pointer: false,
+                    target: ReportTarget::Both {
+                        recipient: event.viewer_empire_raw,
+                    },
+                    repeat_next_pointer: false,
                 });
             }
             ContactReportSource::Starbase(starbase_id) => {
@@ -1398,8 +1432,10 @@ fn generate_report_entries(
                     text: format!("{header}{body}"),
                     kind: 0x06,
                     tail: RESULTS_TAIL_SCOUTING,
-                    target: ReportTarget::Both { recipient: event.viewer_empire_raw },
-            repeat_next_pointer: false,
+                    target: ReportTarget::Both {
+                        recipient: event.viewer_empire_raw,
+                    },
+                    repeat_next_pointer: false,
                 });
             }
         }
@@ -1419,7 +1455,10 @@ fn generate_report_entries(
         } else {
             classic_empire_clause(game_data, event.previous_owner_empire_raw)
         };
-        let source = format!("From planet \"{}\" in System({x},{y}):", planet.planet_name());
+        let source = format!(
+            "From planet \"{}\" in System({x},{y}):",
+            planet.planet_name()
+        );
         let header = report_header(&source, event.stardate_week, year);
         let body = format!(
             " We have been invaded and captured by {} from {}.",
@@ -1430,7 +1469,9 @@ fn generate_report_entries(
             text: format!("{header}{body}"),
             kind: 0x0c,
             tail: RESULTS_TAIL_INVASION,
-            target: ReportTarget::Both { recipient: event.reporting_empire_raw },
+            target: ReportTarget::Both {
+                recipient: event.reporting_empire_raw,
+            },
             repeat_next_pointer: false,
         });
     }
@@ -1438,12 +1479,18 @@ fn generate_report_entries(
     // ----- Colonization events -----
     for event in &events.colonization_events {
         let (planet_idx, colonizer_empire_raw, event_week) = match *event {
-            ec_data::ColonizationResolvedEvent::Succeeded { planet_idx, colonizer_empire_raw, stardate_week, .. } => {
-                (planet_idx, colonizer_empire_raw, stardate_week)
-            }
-            ec_data::ColonizationResolvedEvent::BlockedByOwner { planet_idx, colonizer_empire_raw, stardate_week, .. } => {
-                (planet_idx, colonizer_empire_raw, stardate_week)
-            }
+            ec_data::ColonizationResolvedEvent::Succeeded {
+                planet_idx,
+                colonizer_empire_raw,
+                stardate_week,
+                ..
+            } => (planet_idx, colonizer_empire_raw, stardate_week),
+            ec_data::ColonizationResolvedEvent::BlockedByOwner {
+                planet_idx,
+                colonizer_empire_raw,
+                stardate_week,
+                ..
+            } => (planet_idx, colonizer_empire_raw, stardate_week),
         };
         let Some(planet) = game_data.planets.records.get(planet_idx) else {
             continue;
@@ -1470,7 +1517,9 @@ fn generate_report_entries(
             text: format!("{header}{body}"),
             kind: 0x09,
             tail: RESULTS_TAIL_COLONIZATION,
-            target: ReportTarget::Both { recipient: colonizer_empire_raw },
+            target: ReportTarget::Both {
+                recipient: colonizer_empire_raw,
+            },
             repeat_next_pointer: false,
         });
     }
@@ -1744,7 +1793,9 @@ fn generate_report_entries(
             text: format!("{header}{body}"),
             kind,
             tail,
-            target: ReportTarget::Both { recipient: event.owner_empire_raw },
+            target: ReportTarget::Both {
+                recipient: event.owner_empire_raw,
+            },
             repeat_next_pointer: false,
         });
     }
@@ -1776,7 +1827,9 @@ fn generate_report_entries(
                         fleet_idx,
                         &format!("System({x},{y})"),
                     ),
-                    format!(" Salvage mission report: We have arrived at planet \"{planet_name}\" in System({x},{y}) and have begun salvaging our fleet. We estimate that our fleet will yield {recovered_points} production point(s)."),
+                    format!(
+                        " Salvage mission report: We have arrived at planet \"{planet_name}\" in System({x},{y}) and have begun salvaging our fleet. We estimate that our fleet will yield {recovered_points} production point(s)."
+                    ),
                 )
             }
             ec_data::SalvageResolvedEvent::Failed {
@@ -1803,7 +1856,9 @@ fn generate_report_entries(
                         fleet_idx,
                         &format!("System({x},{y})"),
                     ),
-                    format!(" Salvage mission report: We have arrived at planet \"{planet_name}\" in System({x},{y}), but it is not under our control so we cannot salvage our fleet there."),
+                    format!(
+                        " Salvage mission report: We have arrived at planet \"{planet_name}\" in System({x},{y}), but it is not under our control so we cannot salvage our fleet there."
+                    ),
                 )
             }
             ec_data::SalvageResolvedEvent::Failed {
@@ -1833,7 +1888,9 @@ fn generate_report_entries(
             text: format!("{header}{body}"),
             kind: 0x05,
             tail: RESULTS_TAIL_FLEET,
-            target: ReportTarget::Both { recipient: owner_empire_raw },
+            target: ReportTarget::Both {
+                recipient: owner_empire_raw,
+            },
             repeat_next_pointer: false,
         });
     }
@@ -1926,7 +1983,9 @@ fn generate_report_entries(
             text: format!("{header}{body}"),
             kind: 0x05,
             tail: RESULTS_TAIL_FLEET,
-            target: ReportTarget::Both { recipient: owner_empire_raw },
+            target: ReportTarget::Both {
+                recipient: owner_empire_raw,
+            },
             repeat_next_pointer: false,
         });
     }
@@ -1934,7 +1993,13 @@ fn generate_report_entries(
     // ----- Invalid player state events -----
     for event in &events.invalid_player_state_events {
         let (owner_empire_raw, source, body) = match *event {
-            ec_data::InvalidPlayerStateEvent::FleetMission { fleet_idx, owner_empire_raw, coords, reason, .. } => (
+            ec_data::InvalidPlayerStateEvent::FleetMission {
+                fleet_idx,
+                owner_empire_raw,
+                coords,
+                reason,
+                ..
+            } => (
                 owner_empire_raw,
                 owned_fleet_source_clause_from_idx(
                     game_data,
@@ -1946,7 +2011,13 @@ fn generate_report_entries(
                     fleet_order_validation_reason_text(reason)
                 ),
             ),
-            ec_data::InvalidPlayerStateEvent::FleetInput { fleet_idx, owner_empire_raw, coords, reason, .. } => (
+            ec_data::InvalidPlayerStateEvent::FleetInput {
+                fleet_idx,
+                owner_empire_raw,
+                coords,
+                reason,
+                ..
+            } => (
                 owner_empire_raw,
                 owned_fleet_source_clause_from_idx(
                     game_data,
@@ -1958,7 +2029,12 @@ fn generate_report_entries(
                     fleet_player_input_validation_reason_text(reason)
                 ),
             ),
-            ec_data::InvalidPlayerStateEvent::PlanetInput { owner_empire_raw, coords, reason, .. } => (
+            ec_data::InvalidPlayerStateEvent::PlanetInput {
+                owner_empire_raw,
+                coords,
+                reason,
+                ..
+            } => (
                 owner_empire_raw.max(1),
                 format!("From planet in System({},{}) :", coords[0], coords[1]),
                 format!(
@@ -1966,7 +2042,11 @@ fn generate_report_entries(
                     planet_input_validation_reason_text(reason)
                 ),
             ),
-            ec_data::InvalidPlayerStateEvent::PlayerTaxRate { owner_empire_raw, tax_rate, .. } => (
+            ec_data::InvalidPlayerStateEvent::PlayerTaxRate {
+                owner_empire_raw,
+                tax_rate,
+                ..
+            } => (
                 owner_empire_raw,
                 "From your central administration:".to_string(),
                 format!(
@@ -1975,7 +2055,11 @@ fn generate_report_entries(
                     empire_label(game_data, owner_empire_raw)
                 ),
             ),
-            ec_data::InvalidPlayerStateEvent::DiplomacyInput { owner_empire_raw, reason, .. } => (
+            ec_data::InvalidPlayerStateEvent::DiplomacyInput {
+                owner_empire_raw,
+                reason,
+                ..
+            } => (
                 owner_empire_raw,
                 "From your foreign ministry:".to_string(),
                 format!(
@@ -1991,7 +2075,9 @@ fn generate_report_entries(
             text: format!("{header}{body}"),
             kind: 0x05,
             tail: RESULTS_TAIL_FLEET,
-            target: ReportTarget::Both { recipient: owner_empire_raw },
+            target: ReportTarget::Both {
+                recipient: owner_empire_raw,
+            },
             repeat_next_pointer: false,
         });
     }
@@ -2001,7 +2087,10 @@ fn generate_report_entries(
         let [x, y] = event.coords;
         let (source, body) = match event.kind {
             Mission::JoinAnotherFleet => (
-                owned_fleet_source_clause(Some(event.absorbed_fleet_id), &format!("System({x},{y})")),
+                owned_fleet_source_clause(
+                    Some(event.absorbed_fleet_id),
+                    &format!("System({x},{y})"),
+                ),
                 format!(
                     " Join mission report: We have joined the {} and are now merging with them.",
                     fleet_label(event.host_fleet_id)
@@ -2015,7 +2104,10 @@ fn generate_report_entries(
                 ),
             ),
             Mission::RendezvousSector => (
-                owned_fleet_source_clause(Some(event.absorbed_fleet_id), &format!("Sector({x},{y})")),
+                owned_fleet_source_clause(
+                    Some(event.absorbed_fleet_id),
+                    &format!("Sector({x},{y})"),
+                ),
                 format!(
                     " Rendezvous mission report: We have arrived at the our rendezvous point and are merging with the {}.",
                     fleet_label(event.host_fleet_id)
@@ -2028,7 +2120,9 @@ fn generate_report_entries(
             text: format!("{header}{body}"),
             kind: 0x05,
             tail: RESULTS_TAIL_FLEET,
-            target: ReportTarget::Both { recipient: event.owner_empire_raw },
+            target: ReportTarget::Both {
+                recipient: event.owner_empire_raw,
+            },
             repeat_next_pointer: false,
         });
     }
@@ -2094,20 +2188,22 @@ fn generate_report_entries(
     // ----- Mission retarget events -----
     for event in &events.mission_retarget_events {
         let source = match *event {
-            ec_data::MissionRetargetEvent::Retargeted { fleet_idx, new_target_coords, .. } => {
-                owned_fleet_source_clause_from_idx(
-                    game_data,
-                    fleet_idx,
-                    &format!("Sector({},{})", new_target_coords[0], new_target_coords[1]),
-                )
-            }
-            ec_data::MissionRetargetEvent::Abandoned { fleet_idx, coords, .. } => {
-                owned_fleet_source_clause_from_idx(
-                    game_data,
-                    fleet_idx,
-                    &format!("Sector({},{})", coords[0], coords[1]),
-                )
-            }
+            ec_data::MissionRetargetEvent::Retargeted {
+                fleet_idx,
+                new_target_coords,
+                ..
+            } => owned_fleet_source_clause_from_idx(
+                game_data,
+                fleet_idx,
+                &format!("Sector({},{})", new_target_coords[0], new_target_coords[1]),
+            ),
+            ec_data::MissionRetargetEvent::Abandoned {
+                fleet_idx, coords, ..
+            } => owned_fleet_source_clause_from_idx(
+                game_data,
+                fleet_idx,
+                &format!("Sector({},{})", coords[0], coords[1]),
+            ),
         };
         let (recipient, body) = match *event {
             ec_data::MissionRetargetEvent::Retargeted {
@@ -2120,8 +2216,10 @@ fn generate_report_entries(
                 owner_empire_raw,
                 format!(
                     "Seek-Home mission report: Our original refuge at Sector({},{}) is no longer suitable, so we are now seeking home at Sector({},{}) instead.",
-                    previous_target_coords[0], previous_target_coords[1],
-                    new_target_coords[0], new_target_coords[1]
+                    previous_target_coords[0],
+                    previous_target_coords[1],
+                    new_target_coords[0],
+                    new_target_coords[1]
                 ),
             ),
             ec_data::MissionRetargetEvent::Abandoned {
@@ -2146,8 +2244,10 @@ fn generate_report_entries(
                 owner_empire_raw,
                 format!(
                     "Guard Starbase mission report: The guarded starbase is no longer at Sector({},{}) and we are now moving to Sector({},{}) to resume escort duty.",
-                    previous_target_coords[0], previous_target_coords[1],
-                    new_target_coords[0], new_target_coords[1]
+                    previous_target_coords[0],
+                    previous_target_coords[1],
+                    new_target_coords[0],
+                    new_target_coords[1]
                 ),
             ),
             ec_data::MissionRetargetEvent::Abandoned {
@@ -2172,8 +2272,10 @@ fn generate_report_entries(
                 owner_empire_raw,
                 format!(
                     "Join mission report: Our host fleet has changed position from Sector({},{}) to Sector({},{}) and we are continuing pursuit.",
-                    previous_target_coords[0], previous_target_coords[1],
-                    new_target_coords[0], new_target_coords[1]
+                    previous_target_coords[0],
+                    previous_target_coords[1],
+                    new_target_coords[0],
+                    new_target_coords[1]
                 ),
             ),
             _ => continue,
@@ -2200,7 +2302,9 @@ fn generate_report_entries(
             text: format!("{left_header}{left_body}"),
             kind: 0x06,
             tail: RESULTS_TAIL_FLEET,
-            target: ReportTarget::MessagesOnly { recipient: event.left_empire_raw },
+            target: ReportTarget::MessagesOnly {
+                recipient: event.left_empire_raw,
+            },
             repeat_next_pointer: false,
         });
         let right_body = format!(
@@ -2211,7 +2315,9 @@ fn generate_report_entries(
             text: format!("{left_header}{right_body}"),
             kind: 0x06,
             tail: RESULTS_TAIL_FLEET,
-            target: ReportTarget::MessagesOnly { recipient: event.right_empire_raw },
+            target: ReportTarget::MessagesOnly {
+                recipient: event.right_empire_raw,
+            },
             repeat_next_pointer: false,
         });
     }
@@ -2224,7 +2330,10 @@ fn generate_report_entries(
 // ---------------------------------------------------------------------------
 
 /// Build the RESULTS.DAT binary from current game data and maintenance events.
-pub(crate) fn build_results_dat(game_data: &mut CoreGameData, events: &MaintenanceEvents) -> Vec<u8> {
+pub(crate) fn build_results_dat(
+    game_data: &mut CoreGameData,
+    events: &MaintenanceEvents,
+) -> Vec<u8> {
     let result_entries = generate_report_entries(game_data, events)
         .into_iter()
         .filter(|entry| !matches!(entry.target, ReportTarget::MessagesOnly { .. }))

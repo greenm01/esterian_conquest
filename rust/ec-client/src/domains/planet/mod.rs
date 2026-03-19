@@ -1,6 +1,6 @@
 pub mod action;
-pub mod state;
 pub mod screens;
+pub mod state;
 pub mod update;
 
 pub use action::PlanetAction;

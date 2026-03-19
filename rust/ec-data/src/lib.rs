@@ -16,6 +16,7 @@ mod builder;
 mod config;
 mod directory;
 mod economy;
+mod intel;
 pub mod maint;
 mod mapgen;
 mod pathfinding;
@@ -44,6 +45,7 @@ pub use directory::{
 pub use economy::{
     build_capacity, yearly_growth_delta, yearly_high_tax_penalty, yearly_tax_revenue,
 };
+pub use intel::merge_player_intel_from_compat;
 pub use maint::{
     AssaultReportEvent, BombardEvent, CampaignOutcomeEvent, CampaignOutlookEvent,
     CivilDisorderEvent, ColonizationResolvedEvent, ContactReportSource, DiplomacyOverride,
@@ -61,7 +63,7 @@ pub use mapgen::{
 };
 pub use pathfinding::{
     PlannedRoute, RouteStep, VisibleHazardIntel, next_path_step, plan_route, plan_route_with_intel,
-    visible_hazard_intel_from_database,
+    visible_hazard_intel_from_database, visible_hazard_intel_from_snapshots,
 };
 pub use player_mail::{
     QueuedPlayerMail, append_mail_queue, clear_mail_queue, load_mail_queue, save_mail_queue,
@@ -74,7 +76,10 @@ pub use records::ipbm::{IpbmDat, IpbmRecord};
 pub use records::planet::{PlanetDat, PlanetRecord, ProductionItemKind};
 pub use records::player::{DiplomaticRelation, PlayerDat, PlayerRecord};
 pub use records::setup::SetupDat;
-pub use starmap::{PlayerStarmapProjection, PlayerStarmapWorld, build_player_starmap_projection};
+pub use starmap::{
+    PlayerStarmapProjection, PlayerStarmapWorld, build_player_starmap_projection,
+    build_player_starmap_projection_from_snapshots,
+};
 pub use storage::{
     CampaignRuntimeState, CampaignStore, CampaignStoreError, DEFAULT_CAMPAIGN_DB_NAME, IntelTier,
     PlanetIntelSnapshot,

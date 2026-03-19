@@ -1,13 +1,15 @@
-use crate::app::state::App;
-use super::helpers::{sync_scroll_to_cursor, center_scroll_to_cursor, resolve_default_coords_input};
-use std::collections::BTreeSet;
-use ec_data::build_player_starmap_projection;
-use crate::screen::{
-    CommandMenu, FLEET_MISSION_OPTIONS, FleetGroupOrderMode, FleetRow,
-    FleetSingleOrderMode, StarbaseRow, ScreenId,
+use super::helpers::{
+    center_scroll_to_cursor, resolve_default_coords_input, sync_scroll_to_cursor,
 };
+use crate::app::state::App;
 use crate::domains::fleet::FleetAction;
 use crate::domains::fleet::state::FleetMissionPickerCaller;
+use crate::screen::{
+    CommandMenu, FLEET_MISSION_OPTIONS, FleetGroupOrderMode, FleetRow, FleetSingleOrderMode,
+    ScreenId, StarbaseRow,
+};
+use ec_data::build_player_starmap_projection_from_snapshots;
+use std::collections::BTreeSet;
 
 impl App {
     pub fn open_fleet_order(&mut self) {
@@ -256,10 +258,12 @@ impl App {
             return;
         };
         if !self
-            .fleet.group_selected_fleets
+            .fleet
+            .group_selected_fleets
             .insert(row.fleet_record_index_1_based)
         {
-            self.fleet.group_selected_fleets
+            self.fleet
+                .group_selected_fleets
                 .remove(&row.fleet_record_index_1_based);
         }
         self.fleet.group_status = None;
@@ -661,7 +665,10 @@ impl App {
         }
     }
 
-    pub(super) fn handle_fleet_order_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
+    pub(super) fn handle_fleet_order_key(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> crate::app::Action {
         use crossterm::event::KeyCode;
 
         match self.fleet.order_mode {
@@ -700,7 +707,10 @@ impl App {
         }
     }
 
-    pub(super) fn handle_fleet_group_order_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
+    pub(super) fn handle_fleet_group_order_key(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> crate::app::Action {
         use crossterm::event::KeyCode;
 
         match self.fleet.group_mode {
@@ -713,7 +723,9 @@ impl App {
                 }
                 KeyCode::PageUp => crate::app::Action::Fleet(FleetAction::MoveGroupOrder(-8)),
                 KeyCode::PageDown => crate::app::Action::Fleet(FleetAction::MoveGroupOrder(8)),
-                KeyCode::Char(' ') => crate::app::Action::Fleet(FleetAction::ToggleGroupOrderSelection),
+                KeyCode::Char(' ') => {
+                    crate::app::Action::Fleet(FleetAction::ToggleGroupOrderSelection)
+                }
                 KeyCode::Enter => crate::app::Action::Fleet(FleetAction::OpenMissionPicker),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                     crate::app::Action::Fleet(FleetAction::OpenMenu)
@@ -722,7 +734,9 @@ impl App {
             },
             FleetGroupOrderMode::EnteringTarget => match key.code {
                 KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitGroupOrder),
-                KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceGroupOrderInput),
+                KeyCode::Backspace => {
+                    crate::app::Action::Fleet(FleetAction::BackspaceGroupOrderInput)
+                }
                 KeyCode::Char(ch)
                     if ch.is_ascii_digit() || matches!(ch, ',' | ' ' | '(' | ')' | '[' | ']') =>
                 {
@@ -752,7 +766,9 @@ impl App {
             KeyCode::PageUp => crate::app::Action::Fleet(FleetAction::MoveMissionPicker(-8)),
             KeyCode::PageDown => crate::app::Action::Fleet(FleetAction::MoveMissionPicker(8)),
             KeyCode::Enter => crate::app::Action::Fleet(FleetAction::SubmitMissionPicker),
-            KeyCode::Backspace => crate::app::Action::Fleet(FleetAction::BackspaceMissionPickerInput),
+            KeyCode::Backspace => {
+                crate::app::Action::Fleet(FleetAction::BackspaceMissionPickerInput)
+            }
             KeyCode::Char(ch) if ch.is_ascii_digit() => {
                 crate::app::Action::Fleet(FleetAction::AppendMissionPickerChar(ch))
             }
@@ -953,7 +969,8 @@ impl App {
         self.fleet_rows()
             .into_iter()
             .filter(|row| {
-                self.fleet.group_selected_fleets
+                self.fleet
+                    .group_selected_fleets
                     .contains(&row.fleet_record_index_1_based)
             })
             .collect()
@@ -1072,15 +1089,16 @@ impl App {
         self.fleet_rows().into_iter().find(|row| {
             row.fleet_number == fleet_number
                 && !self
-                    .fleet.group_selected_fleets
+                    .fleet
+                    .group_selected_fleets
                     .contains(&row.fleet_record_index_1_based)
         })
     }
 
     fn closest_known_non_owned_planet_target_from(&self, anchor: [u8; 2]) -> Option<[u8; 2]> {
-        build_player_starmap_projection(
+        build_player_starmap_projection_from_snapshots(
             &self.game_data,
-            &self.database,
+            &self.planet_intel_snapshots,
             self.player.record_index_1_based as u8,
         )
         .worlds
@@ -1110,9 +1128,9 @@ impl App {
         anchor: [u8; 2],
         selected_records: &BTreeSet<usize>,
     ) -> Option<[u8; 2]> {
-        build_player_starmap_projection(
+        build_player_starmap_projection_from_snapshots(
             &self.game_data,
-            &self.database,
+            &self.planet_intel_snapshots,
             self.player.record_index_1_based as u8,
         )
         .worlds
@@ -1468,4 +1486,3 @@ pub(super) fn resolve_yes_no_input(input: &str, default: bool) -> bool {
         _ => default,
     }
 }
-

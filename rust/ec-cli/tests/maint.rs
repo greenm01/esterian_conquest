@@ -129,7 +129,7 @@ fn maint_rust_econ_updates_database_owner_intel_from_post_combat_planet_state() 
 }
 
 #[test]
-fn maint_rust_projects_latest_snapshot_back_into_working_directory() {
+fn maint_rust_requires_explicit_export_to_project_snapshot_into_directory() {
     let target = unique_temp_dir("ec-cli-maint-rust-in-place-classic");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
 
@@ -140,7 +140,14 @@ fn maint_rust_projects_latest_snapshot_back_into_working_directory() {
     );
     assert!(stdout.contains("Rust maintenance complete."));
 
-    let post = CoreGameData::load(&target).expect("maint-rust should project latest snapshot");
+    let post = CoreGameData::load(&target).expect("maint-rust should leave directory untouched");
+    assert_eq!(post.conquest.game_year(), pre.conquest.game_year());
+    assert!(!target.join("ECGAME.EXE").exists());
+    assert!(!target.join("ECMAINT.EXE").exists());
+
+    common::export_campaign_db(&target, &target);
+
+    let post = CoreGameData::load(&target).expect("explicit export should project latest snapshot");
     assert_eq!(post.conquest.game_year(), pre.conquest.game_year() + 1);
     assert!(target.join("DATABASE.DAT").exists());
     assert!(target.join("RESULTS.DAT").exists());
@@ -152,7 +159,7 @@ fn maint_rust_projects_latest_snapshot_back_into_working_directory() {
 }
 
 #[test]
-fn maint_rust_reimports_live_classic_directory_changes_before_processing() {
+fn maint_rust_ignores_live_classic_directory_changes_until_explicit_import() {
     let target = unique_temp_dir("ec-cli-maint-rust-live-classic-sync");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
     common::import_campaign_db(&target);
@@ -170,12 +177,14 @@ fn maint_rust_reimports_live_classic_directory_changes_before_processing() {
     );
     assert!(stdout.contains("Rust maintenance complete."));
 
-    let post = CoreGameData::load(&target).expect("maint-rust output should load");
-    assert_eq!(
+    common::export_campaign_db(&target, &target);
+
+    let post = CoreGameData::load(&target).expect("exported runtime should load");
+    assert_ne!(
         post.player.records[1].assigned_player_handle_summary(),
         "SYSOP"
     );
-    assert_eq!(
+    assert_ne!(
         post.player.records[1].controlled_empire_name_summary(),
         "foo"
     );
@@ -273,7 +282,10 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     );
     let first_chain_id = u16::from_le_bytes([records[0][74], records[0][75]]);
     let first_next_id = u16::from_le_bytes([records[0][78], records[0][79]]);
-    assert_eq!(first_chain_id, 0, "first logical report should start with cursor id 0");
+    assert_eq!(
+        first_chain_id, 0,
+        "first logical report should start with cursor id 0"
+    );
     assert_eq!(
         first_next_id,
         (header_indexes[1] + 1) as u16,
@@ -373,11 +385,15 @@ fn preserved_classic_results_allow_long_multi_page_reports() {
 
 #[test]
 fn preserved_classic_results_can_zero_next_header_on_continuations_in_immediate_oracle_output() {
-    let path = repo_root().join("fixtures/ecmaint-fleet-battle-pre/v1.5/.oracle/after-ecmaint/RESULTS.DAT");
+    let path = repo_root()
+        .join("fixtures/ecmaint-fleet-battle-pre/v1.5/.oracle/after-ecmaint/RESULTS.DAT");
     let results = fs::read(path).expect("preserved oracle RESULTS.DAT should exist");
     let records = results_records(&results);
     let header_indexes = result_header_record_indexes(&records);
-    assert!(header_indexes.len() >= 2, "expected multiple preserved reports");
+    assert!(
+        header_indexes.len() >= 2,
+        "expected multiple preserved reports"
+    );
 
     let first_header = records[header_indexes[0]];
     assert_eq!(u16::from_le_bytes([first_header[74], first_header[75]]), 0);
@@ -418,7 +434,10 @@ fn preserved_classic_results_can_repeat_next_header_on_all_report_records() {
     let results = fs::read(path).expect("preserved RESULTS.DAT should exist");
     let records = results_records(&results);
     let header_indexes = result_header_record_indexes(&records);
-    assert!(header_indexes.len() >= 2, "expected multiple preserved reports");
+    assert!(
+        header_indexes.len() >= 2,
+        "expected multiple preserved reports"
+    );
 
     let first_header = records[header_indexes[0]];
     let first_next = u16::from_le_bytes([first_header[78], first_header[79]]);
@@ -487,8 +506,7 @@ fn maint_rust_scout_contact_and_identify_use_classic_result_kinds() {
         "identified scout follow-up kind should be non-zero (equals record count)"
     );
     assert_ne!(
-        sensor_contact as *const _ as usize,
-        identified as *const _ as usize,
+        sensor_contact as *const _ as usize, identified as *const _ as usize,
         "contact and identify should be different records"
     );
 
@@ -565,13 +583,22 @@ fn maint_rust_scout_contact_and_identify_are_separate_classic_reports() {
         "identified scout follow-up should be a later logical report, not merged into the initial contact report"
     );
     assert!(reports[sensor_idx].0 > 0, "contact kind should be non-zero");
-    assert!(reports[identify_idx].0 > 0, "identify kind should be non-zero");
     assert!(
-        reports[sensor_idx].1.iter().any(|l| l == "<end of transmission>"),
+        reports[identify_idx].0 > 0,
+        "identify kind should be non-zero"
+    );
+    assert!(
+        reports[sensor_idx]
+            .1
+            .iter()
+            .any(|l| l == "<end of transmission>"),
         "sensor contact report should contain end-of-transmission marker"
     );
     assert!(
-        reports[identify_idx].1.iter().any(|l| l == "<end of transmission>"),
+        reports[identify_idx]
+            .1
+            .iter()
+            .any(|l| l == "<end of transmission>"),
         "identify report should contain end-of-transmission marker"
     );
     assert!(
@@ -595,14 +622,38 @@ fn maint_rust_routed_reports_set_classic_pending_flags() {
     assert!(stdout.contains("Rust maintenance complete."));
 
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
-    assert_eq!(game_data.player.records[0].classic_reports_pending_flag_raw(), 1);
-    assert_eq!(game_data.player.records[0].classic_messages_pending_flag_raw(), 1);
-    assert_eq!(game_data.player.records[0].classic_results_review_word_raw(), 1);
-    assert_eq!(game_data.player.records[0].classic_message_review_word_raw(), 1);
-    assert_eq!(game_data.player.records[1].classic_reports_pending_flag_raw(), 1);
-    assert_eq!(game_data.player.records[1].classic_messages_pending_flag_raw(), 1);
-    assert_eq!(game_data.player.records[1].classic_results_review_word_raw(), 1);
-    assert_eq!(game_data.player.records[1].classic_message_review_word_raw(), 1);
+    assert_eq!(
+        game_data.player.records[0].classic_reports_pending_flag_raw(),
+        1
+    );
+    assert_eq!(
+        game_data.player.records[0].classic_messages_pending_flag_raw(),
+        1
+    );
+    assert_eq!(
+        game_data.player.records[0].classic_results_review_word_raw(),
+        1
+    );
+    assert_eq!(
+        game_data.player.records[0].classic_message_review_word_raw(),
+        1
+    );
+    assert_eq!(
+        game_data.player.records[1].classic_reports_pending_flag_raw(),
+        1
+    );
+    assert_eq!(
+        game_data.player.records[1].classic_messages_pending_flag_raw(),
+        1
+    );
+    assert_eq!(
+        game_data.player.records[1].classic_results_review_word_raw(),
+        1
+    );
+    assert_eq!(
+        game_data.player.records[1].classic_message_review_word_raw(),
+        1
+    );
 
     cleanup_dir(&target);
 }

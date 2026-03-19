@@ -1,7 +1,7 @@
-use crate::app::state::App;
 use super::helpers::resolve_default_coords_input;
-use ec_data::build_player_starmap_projection;
-use crate::screen::{ScreenId, CommandMenu};
+use crate::app::state::App;
+use crate::screen::{CommandMenu, ScreenId};
+use ec_data::build_player_starmap_projection_from_snapshots;
 
 impl App {
     pub fn open_partial_starmap_prompt(&mut self, menu: CommandMenu) {
@@ -41,15 +41,17 @@ impl App {
     }
 
     pub fn submit_partial_starmap_prompt(&mut self) {
-        let Some(coords) =
-            resolve_default_coords_input(&self.starmap_state.partial_input, self.starmap_state.partial_center)
-        else {
+        let Some(coords) = resolve_default_coords_input(
+            &self.starmap_state.partial_input,
+            self.starmap_state.partial_center,
+        ) else {
             self.starmap_state.partial_error = Some("Enter coordinates like 5,2".to_string());
             return;
         };
         let map_size = ec_data::map_size_for_player_count(self.game_data.conquest.player_count());
         if coords[0] == 0 || coords[1] == 0 || coords[0] > map_size || coords[1] > map_size {
-            self.starmap_state.partial_error = Some(format!("Enter coordinates within 1..{map_size}"));
+            self.starmap_state.partial_error =
+                Some(format!("Enter coordinates within 1..{map_size}"));
             return;
         }
         self.starmap_state.partial_center = coords;
@@ -68,9 +70,9 @@ impl App {
     }
 
     pub fn export_starmap(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let projection = build_player_starmap_projection(
+        let projection = build_player_starmap_projection_from_snapshots(
             &self.game_data,
-            &self.database,
+            &self.planet_intel_snapshots,
             self.player.record_index_1_based as u8,
         );
         std::fs::create_dir_all(&self.export_root)?;
@@ -111,9 +113,9 @@ impl App {
     }
 
     pub fn starmap_dump_text(&self) -> String {
-        build_player_starmap_projection(
+        build_player_starmap_projection_from_snapshots(
             &self.game_data,
-            &self.database,
+            &self.planet_intel_snapshots,
             self.player.record_index_1_based as u8,
         )
         .render_ascii_map()

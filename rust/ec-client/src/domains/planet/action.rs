@@ -1,4 +1,4 @@
-use crate::screen::{PlanetListMode, PlanetListSort, PlanetTransportMode, CommandMenu};
+use crate::screen::{CommandMenu, PlanetListMode, PlanetListSort, PlanetTransportMode};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetAction {

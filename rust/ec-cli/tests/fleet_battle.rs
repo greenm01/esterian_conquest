@@ -1,6 +1,8 @@
 mod common;
 
-use common::{cleanup_dir, repo_root, run_ec_cli, run_ec_cli_in_dir, unique_temp_dir};
+use common::{
+    cleanup_dir, export_campaign_db, repo_root, run_ec_cli, run_ec_cli_in_dir, unique_temp_dir,
+};
 use std::fs;
 
 #[test]
@@ -14,6 +16,7 @@ fn scenario_fleet_battle_recreates_known_valid_pre_fixture() {
     );
     assert!(stdout.contains("Applied scenario: fleet-battle"));
 
+    export_campaign_db(&target, &target);
     let fixture_pre = repo_root().join("fixtures/ecmaint-fleet-battle-pre/v1.5");
     for name in ["FLEETS.DAT", "PLANETS.DAT"] {
         let expected = fs::read(fixture_pre.join(name)).unwrap();
@@ -103,6 +106,7 @@ fn fleet_battle_init_recreates_known_valid_pre_fixture() {
     );
     assert!(stdout.contains("Fleet-battle directory initialized at"));
 
+    export_campaign_db(&target, &target);
     let fixture_pre = repo_root().join("fixtures/ecmaint-fleet-battle-pre/v1.5");
     for name in ["FLEETS.DAT", "PLANETS.DAT"] {
         let expected = fs::read(fixture_pre.join(name)).unwrap();

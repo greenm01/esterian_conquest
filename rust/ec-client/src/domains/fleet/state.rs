@@ -1,10 +1,10 @@
-use std::collections::BTreeSet;
-use ec_data::FleetDetachSelection;
-use crate::screen::FleetListMode;
 use crate::domains::fleet::screens::fleet::{
-    FleetSingleOrderMode, FleetGroupOrderMode, FleetMergeMode, FleetTransferMode,
-    FleetDetachMode, FleetEtaMode,
+    FleetDetachMode, FleetEtaMode, FleetGroupOrderMode, FleetMergeMode, FleetSingleOrderMode,
+    FleetTransferMode,
 };
+use crate::screen::FleetListMode;
+use ec_data::FleetDetachSelection;
+use std::collections::BTreeSet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FleetMissionPickerCaller {

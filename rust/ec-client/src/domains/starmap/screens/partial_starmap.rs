@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use ec_data::{DatabaseDat, build_player_starmap_projection};
+use ec_data::build_player_starmap_projection_from_snapshots;
 
 use crate::app::Action;
 use crate::domains::starmap::StarmapAction;
@@ -49,12 +49,11 @@ impl PartialStarmapScreen {
     pub fn render_view(
         &mut self,
         frame: &ScreenFrame<'_>,
-        database: &DatabaseDat,
         center: [u8; 2],
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let projection = build_player_starmap_projection(
+        let projection = build_player_starmap_projection_from_snapshots(
             frame.game_data,
-            database,
+            frame.planet_intel_snapshots,
             frame.player.record_index_1_based as u8,
         );
         let mut buffer = new_playfield();
@@ -119,16 +118,9 @@ impl PartialStarmapScreen {
             }
             let screen_col = 5 + (x - start_x) * 3;
             let screen_row = 17 - (y - start_y);
-            let actual_owner = frame
-                .game_data
-                .planet_record_index_at_coords(world.coords)
-                .and_then(|idx| frame.game_data.planets.records.get(idx))
-                .map(|planet| planet.owner_empire_slot_raw() as usize)
-                .unwrap_or(0);
             let symbol = match world.known_owner_empire_id {
                 Some(empire_id) if empire_id as usize == frame.player.record_index_1_based => 'O',
                 Some(_) => '#',
-                None if actual_owner == frame.player.record_index_1_based => 'O',
                 None if world.known_name.is_some()
                     || world.known_potential_production.is_some()
                     || world.known_armies.is_some()

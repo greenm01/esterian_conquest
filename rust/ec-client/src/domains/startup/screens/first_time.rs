@@ -66,11 +66,19 @@ impl Screen for FirstTimeMenuScreen {
 
     fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Char('h') | KeyCode::Char('H') => Action::Startup(StartupAction::OpenFirstTimeHelp),
-            KeyCode::Char('l') | KeyCode::Char('L') => Action::Startup(StartupAction::OpenFirstTimeEmpires),
-            KeyCode::Char('v') | KeyCode::Char('V') => Action::Startup(StartupAction::OpenFirstTimeIntro),
+            KeyCode::Char('h') | KeyCode::Char('H') => {
+                Action::Startup(StartupAction::OpenFirstTimeHelp)
+            }
+            KeyCode::Char('l') | KeyCode::Char('L') => {
+                Action::Startup(StartupAction::OpenFirstTimeEmpires)
+            }
+            KeyCode::Char('v') | KeyCode::Char('V') => {
+                Action::Startup(StartupAction::OpenFirstTimeIntro)
+            }
             KeyCode::Char('a') | KeyCode::Char('A') => Action::ShowAnsiAlwaysOnNotice,
-            KeyCode::Char('j') | KeyCode::Char('J') => Action::Startup(StartupAction::OpenFirstTimeJoinName),
+            KeyCode::Char('j') | KeyCode::Char('J') => {
+                Action::Startup(StartupAction::OpenFirstTimeJoinName)
+            }
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::Quit,
             _ => Action::Noop,
         }

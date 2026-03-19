@@ -7,7 +7,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::{
     BASE_RECORD_SIZE, BaseDat, CoreGameData, DatabaseDat, FLEET_RECORD_SIZE, FleetDat,
     IPBM_RECORD_SIZE, IpbmDat, PLANET_RECORD_SIZE, PLAYER_RECORD_SIZE, PlanetDat, PlayerDat,
-    PlayerStarmapWorld, QueuedPlayerMail, SetupDat, build_player_starmap_projection,
+    QueuedPlayerMail, SetupDat,
 };
 
 pub const DEFAULT_CAMPAIGN_DB_NAME: &str = "ecgame.db";
@@ -37,6 +37,11 @@ pub struct PlanetIntelSnapshot {
     pub planet_record_index_1_based: usize,
     pub intel_tier: IntelTier,
     pub last_intel_year: Option<u16>,
+    pub known_name: Option<String>,
+    pub known_owner_empire_id: Option<u8>,
+    pub known_potential_production: Option<u16>,
+    pub known_armies: Option<u8>,
+    pub known_ground_batteries: Option<u8>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -53,17 +58,6 @@ pub struct CampaignRuntimeState {
     pub results_bytes: Vec<u8>,
     pub messages_bytes: Vec<u8>,
     pub queued_mail: Vec<QueuedPlayerMail>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct IntelSnapshotRow {
-    intel_tier: IntelTier,
-    last_intel_year: Option<u16>,
-    known_name: Option<String>,
-    known_owner_empire_id: Option<u8>,
-    known_potential_production: Option<u16>,
-    known_armies: Option<u8>,
-    known_ground_batteries: Option<u8>,
 }
 
 impl std::fmt::Display for CampaignStoreError {
@@ -199,7 +193,9 @@ impl CampaignStore {
             return Ok(Vec::new());
         };
         let mut stmt = conn.prepare(
-            "SELECT planet_record_index, intel_tier, last_intel_year
+            "SELECT planet_record_index, intel_tier, last_intel_year,
+                    known_name, known_owner_empire_id, known_potential_production,
+                    known_armies, known_ground_batteries
              FROM planet_intel
              WHERE snapshot_id = ?1 AND viewer_empire_id = ?2
              ORDER BY planet_record_index",
@@ -210,6 +206,13 @@ impl CampaignStore {
                     planet_record_index_1_based: row.get::<_, i64>(0)? as usize,
                     intel_tier: IntelTier::from_str(&row.get::<_, String>(1)?),
                     last_intel_year: row.get::<_, Option<i64>>(2)?.map(|value| value as u16),
+                    known_name: row.get(3)?,
+                    known_owner_empire_id: row.get::<_, Option<i64>>(4)?.map(|value| value as u8),
+                    known_potential_production: row
+                        .get::<_, Option<i64>>(5)?
+                        .map(|value| value as u16),
+                    known_armies: row.get::<_, Option<i64>>(6)?.map(|value| value as u8),
+                    known_ground_batteries: row.get::<_, Option<i64>>(7)?.map(|value| value as u8),
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?;
@@ -540,7 +543,7 @@ fn compat_file_bytes(
 fn load_intel_rows(
     tx: &rusqlite::Transaction<'_>,
     snapshot_id: i64,
-) -> Result<BTreeMap<(u8, usize), IntelSnapshotRow>, CampaignStoreError> {
+) -> Result<BTreeMap<(u8, usize), PlanetIntelSnapshot>, CampaignStoreError> {
     let mut stmt = tx.prepare(
         "SELECT viewer_empire_id, planet_record_index, intel_tier, last_intel_year,
                 known_name, known_owner_empire_id, known_potential_production,
@@ -551,7 +554,8 @@ fn load_intel_rows(
     let rows = stmt.query_map(params![snapshot_id], |row| {
         Ok((
             (row.get::<_, i64>(0)? as u8, row.get::<_, i64>(1)? as usize),
-            IntelSnapshotRow {
+            PlanetIntelSnapshot {
+                planet_record_index_1_based: row.get::<_, i64>(1)? as usize,
                 intel_tier: IntelTier::from_str(&row.get::<_, String>(2)?),
                 last_intel_year: row.get::<_, Option<i64>>(3)?.map(|value| value as u16),
                 known_name: row.get(4)?,
@@ -571,7 +575,7 @@ fn write_planet_intel_rows(
     game_data: &CoreGameData,
     database: &DatabaseDat,
     year: u16,
-    previous: &BTreeMap<(u8, usize), IntelSnapshotRow>,
+    previous: &BTreeMap<(u8, usize), PlanetIntelSnapshot>,
 ) -> Result<(), CampaignStoreError> {
     let player_count = game_data.conquest.player_count();
     let mut stmt = tx.prepare(
@@ -582,97 +586,35 @@ fn write_planet_intel_rows(
          ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
     )?;
     for viewer_empire_id in 1..=player_count {
-        let projection = build_player_starmap_projection(game_data, database, viewer_empire_id);
-        for world in projection.worlds {
-            let planet_record_index_1_based = world.planet_record_index_1_based;
-            let intel_tier = infer_intel_tier(viewer_empire_id, &world);
-            let previous_row = previous.get(&(viewer_empire_id, planet_record_index_1_based));
-            let current_fingerprint = intel_fingerprint(intel_tier, &world);
-            let last_intel_year = if intel_tier == IntelTier::Unknown {
-                None
-            } else if intel_tier == IntelTier::Owned {
-                Some(year)
-            } else if previous_row
-                .map(|row| intel_snapshot_row_fingerprint(row) == current_fingerprint)
-                .unwrap_or(false)
-            {
-                previous_row
-                    .and_then(|row| row.last_intel_year)
-                    .or(Some(year))
-            } else {
-                Some(year)
-            };
+        let previous_rows = previous
+            .iter()
+            .filter_map(|((empire_id, planet_record_index), snapshot)| {
+                (*empire_id == viewer_empire_id).then_some((*planet_record_index, snapshot.clone()))
+            })
+            .collect::<BTreeMap<_, _>>();
+        let merged_rows = crate::intel::merge_player_intel_from_compat(
+            game_data,
+            database,
+            viewer_empire_id,
+            year,
+            Some(&previous_rows),
+        );
+        for (planet_record_index_1_based, snapshot) in merged_rows {
             stmt.execute(params![
                 snapshot_id,
                 i64::from(viewer_empire_id),
                 planet_record_index_1_based as i64,
-                intel_tier.as_str(),
-                last_intel_year.map(i64::from),
-                world.known_name,
-                world.known_owner_empire_id.map(i64::from),
-                world.known_potential_production.map(i64::from),
-                world.known_armies.map(i64::from),
-                world.known_ground_batteries.map(i64::from),
+                snapshot.intel_tier.as_str(),
+                snapshot.last_intel_year.map(i64::from),
+                snapshot.known_name,
+                snapshot.known_owner_empire_id.map(i64::from),
+                snapshot.known_potential_production.map(i64::from),
+                snapshot.known_armies.map(i64::from),
+                snapshot.known_ground_batteries.map(i64::from),
             ])?;
         }
     }
     Ok(())
-}
-
-fn infer_intel_tier(viewer_empire_id: u8, world: &PlayerStarmapWorld) -> IntelTier {
-    if world.known_owner_empire_id == Some(viewer_empire_id) {
-        IntelTier::Owned
-    } else if world.known_armies.is_some() || world.known_ground_batteries.is_some() {
-        IntelTier::Full
-    } else if world.known_name.is_some()
-        || world.known_owner_empire_id.is_some()
-        || world.known_potential_production.is_some()
-    {
-        IntelTier::Partial
-    } else {
-        IntelTier::Unknown
-    }
-}
-
-fn intel_fingerprint(
-    intel_tier: IntelTier,
-    world: &PlayerStarmapWorld,
-) -> (
-    IntelTier,
-    Option<String>,
-    Option<u8>,
-    Option<u16>,
-    Option<u8>,
-    Option<u8>,
-) {
-    (
-        intel_tier,
-        world.known_name.clone(),
-        world.known_owner_empire_id,
-        world.known_potential_production,
-        world.known_armies,
-        world.known_ground_batteries,
-    )
-}
-
-fn intel_snapshot_row_fingerprint(
-    row: &IntelSnapshotRow,
-) -> (
-    IntelTier,
-    Option<String>,
-    Option<u8>,
-    Option<u16>,
-    Option<u8>,
-    Option<u8>,
-) {
-    (
-        row.intel_tier,
-        row.known_name.clone(),
-        row.known_owner_empire_id,
-        row.known_potential_production,
-        row.known_armies,
-        row.known_ground_batteries,
-    )
 }
 
 fn read_optional_path(path: PathBuf) -> Result<Vec<u8>, CampaignStoreError> {

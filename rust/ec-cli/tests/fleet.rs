@@ -1,7 +1,8 @@
 mod common;
 
 use common::{
-    cleanup_dir, copy_fixture_dir, repo_root, run_ec_cli, run_ec_cli_in_dir, unique_temp_dir,
+    cleanup_dir, copy_fixture_dir, export_campaign_db, repo_root, run_ec_cli, run_ec_cli_in_dir,
+    unique_temp_dir,
 };
 use std::fs;
 
@@ -24,6 +25,7 @@ fn fleet_order_recreates_known_valid_fleet_pre_fixture() {
     );
     assert!(stdout.contains("Fleet record 1 updated: speed=3 order=0x0c target=(15, 13)"));
 
+    export_campaign_db(&target, &target);
     let expected = repo_root().join("fixtures/ecmaint-fleet-pre/v1.5/FLEETS.DAT");
     let actual = fs::read(target.join("FLEETS.DAT")).unwrap();
     assert_eq!(actual, fs::read(expected).unwrap());
@@ -111,6 +113,7 @@ fn scenario_fleet_order_recreates_known_valid_fleet_pre_fixture() {
     );
     assert!(stdout.contains("Applied scenario: fleet-order"));
 
+    export_campaign_db(&target, &target);
     let expected = repo_root().join("fixtures/ecmaint-fleet-pre/v1.5/FLEETS.DAT");
     let actual = fs::read(target.join("FLEETS.DAT")).unwrap();
     assert_eq!(actual, fs::read(expected).unwrap());
@@ -162,6 +165,7 @@ fn scenario_init_fleet_order_materializes_runnable_directory() {
     assert!(stdout.contains("Applied scenario: fleet-order"));
     assert!(stdout.contains("Scenario directory initialized at"));
 
+    export_campaign_db(&target, &target);
     let expected_fleets = repo_root().join("fixtures/ecmaint-fleet-pre/v1.5/FLEETS.DAT");
     let expected_planets = repo_root().join("fixtures/ecmaint-post/v1.5/PLANETS.DAT");
 

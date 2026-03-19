@@ -159,11 +159,11 @@ Today the Rust side can:
   player TUI or Rust maintenance runtime
 - create default `sysop new-game` directories that `ECGAME` can actually join
   through the original onboarding flow
-- project the latest Rust-maintained snapshot back into the working game
-  directory so classic `ECGAME` can continue using the same campaign directory
-- re-import live classic `.DAT` edits from that working directory before the
-  next `maint-rust` turn, so old `ECGAME` order entry is not bypassed by a
-  stale SQLite snapshot
+- export the latest SQLite-backed snapshot to classic `.DAT` only when an
+  explicit `db-export` or classic materialization workflow asks for it
+- import classic `.DAT` edits back into SQLite with `db-import` when DOS
+  tooling changed a directory and Rust should resume from that compatibility
+  state
 - enforce major player-input legality in the shared Rust engine instead of
   trusting the player client:
   - fleet orders and mission payloads
@@ -335,11 +335,11 @@ cargo run -q -p ec-cli -- maint-rust /tmp/ec-game 3
 ```
 
 `maint-rust` now reads and writes the campaign's `ecgame.db`. Classic `.DAT`
-directories are imported/exported through the CLI compatibility bridge, and the
-latest snapshot is also projected back into the working directory for classic
-`ECGAME` play. If classic `ECGAME` changes the working directory between Rust
-turns, `maint-rust` now refreshes SQLite from those live `.DAT` edits before it
-processes the next year.
+directories are imported/exported through the CLI compatibility bridge.
+`maint-rust` does not project the latest snapshot back into the working
+directory automatically. Use `db-export` when you intentionally want classic
+`.DAT` output for oracle runs or DOS `ECGAME`, and use `db-import` if classic
+tools changed the directory and you want SQLite to pick up those edits.
 
 Run the original oracle against that directory:
 
@@ -382,8 +382,10 @@ cargo run -q -p ec-cli -- sysop new-game /tmp/ec-game --players 4 --seed 1515
 cargo run -q -p ec-cli -- inspect-classic-login /tmp/ec-game SYSOP
 ../tools/run_ecgame.sh /tmp/ec-game 1
 cargo run -q -p ec-cli -- classic-login-prepare /tmp/ec-game 1 SYSOP foo
+cargo run -q -p ec-cli -- db-export /tmp/ec-game /tmp/ec-game
 ../tools/run_ecgame.sh /tmp/ec-game 1 SYSOP
 cargo run -q -p ec-cli -- maint-rust /tmp/ec-game 1
+cargo run -q -p ec-cli -- db-export /tmp/ec-game /tmp/ec-game
 ../tools/run_ecgame.sh /tmp/ec-game 1 SYSOP
 ```
 

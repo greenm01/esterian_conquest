@@ -498,7 +498,10 @@ fn preferred_reporting_fleet_id(game_data: &CoreGameData, fleet_indices: &[usize
         .min()
 }
 
-fn preferred_reporting_fleet_index(game_data: &CoreGameData, fleet_indices: &[usize]) -> Option<usize> {
+fn preferred_reporting_fleet_index(
+    game_data: &CoreGameData,
+    fleet_indices: &[usize],
+) -> Option<usize> {
     fleet_indices
         .iter()
         .copied()
@@ -858,20 +861,8 @@ pub(crate) fn process_fleet_battles(
                 {
                     continue;
                 }
-                push_contact_event_for_task_force(
-                    &mut events,
-                    game_data,
-                    coords,
-                    left,
-                    right,
-                );
-                push_contact_event_for_task_force(
-                    &mut events,
-                    game_data,
-                    coords,
-                    right,
-                    left,
-                );
+                push_contact_event_for_task_force(&mut events, game_data, coords, left, right);
+                push_contact_event_for_task_force(&mut events, game_data, coords, right, left);
             }
         }
 
@@ -1279,9 +1270,8 @@ pub(crate) fn process_fleet_battles(
             let reporting_fleet_id = reporting_fleet_idx
                 .map(|idx| game_data.fleets.records[idx].fleet_id())
                 .filter(|fleet_id| *fleet_id != 0);
-            let reporting_mission = reporting_fleet_idx.and_then(|idx| {
-                mission_kind_for_order(pre_encounter_orders.get(&idx).copied())
-            });
+            let reporting_mission = reporting_fleet_idx
+                .and_then(|idx| mission_kind_for_order(pre_encounter_orders.get(&idx).copied()));
             let primary_enemy_fleet_id = task_forces
                 .iter()
                 .filter(|tf| tf.empire != empire && tf.state.has_units())
@@ -1904,7 +1894,10 @@ pub(crate) fn process_planetary_assaults(
                         }
                         events.assault_report_events.push(AssaultReportEvent {
                             kind: Mission::InvadeWorld,
-                            attacker_fleet_id: preferred_reporting_fleet_id(game_data, &winner_fleets),
+                            attacker_fleet_id: preferred_reporting_fleet_id(
+                                game_data,
+                                &winner_fleets,
+                            ),
                             planet_idx,
                             attacker_empire_raw: winner_empire,
                             defender_empire_raw: previous_owner,
@@ -1943,7 +1936,10 @@ pub(crate) fn process_planetary_assaults(
                         }
                         events.assault_report_events.push(AssaultReportEvent {
                             kind: Mission::InvadeWorld,
-                            attacker_fleet_id: preferred_reporting_fleet_id(game_data, &winner_fleets),
+                            attacker_fleet_id: preferred_reporting_fleet_id(
+                                game_data,
+                                &winner_fleets,
+                            ),
                             planet_idx,
                             attacker_empire_raw: winner_empire,
                             defender_empire_raw: previous_owner,

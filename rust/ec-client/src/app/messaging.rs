@@ -1,9 +1,9 @@
-use crate::app::state::App;
 use super::helpers::sync_scroll_to_cursor;
-use ec_data::{CoreGameData, QueuedPlayerMail};
-use crate::reports::{ReportsPreview, clear_report_bytes};
-use crate::screen::{ScreenId, CommandMenu};
+use crate::app::state::App;
 use crate::model::{MainMenuSummary, ReviewSummary};
+use crate::reports::{ReportsPreview, clear_report_bytes};
+use crate::screen::{CommandMenu, ScreenId};
+use ec_data::{CoreGameData, QueuedPlayerMail};
 
 impl App {
     pub fn open_delete_reviewables(&mut self) {
@@ -79,7 +79,8 @@ impl App {
         if self.current_screen == ScreenId::ComposeMessageBody {
             let body = self.messaging.compose_body.trim();
             if body.is_empty() {
-                self.messaging.compose_body_status = Some("Message body cannot be empty.".to_string());
+                self.messaging.compose_body_status =
+                    Some("Message body cannot be empty.".to_string());
                 return;
             }
             self.current_screen = ScreenId::ComposeMessageSendConfirm;
@@ -102,7 +103,8 @@ impl App {
         let total = self.game_data.player.records.len().saturating_sub(1);
         let max_offset = total.saturating_sub(crate::screen::RECIPIENT_VISIBLE_ROWS);
         self.messaging.compose_recipient_scroll_offset = self
-            .messaging.compose_recipient_scroll_offset
+            .messaging
+            .compose_recipient_scroll_offset
             .saturating_add_signed(delta as isize)
             .min(max_offset);
     }
@@ -146,7 +148,8 @@ impl App {
             match ids.get(self.messaging.compose_recipient_cursor) {
                 Some(&id) => id,
                 None => {
-                    self.messaging.compose_recipient_status = Some("No empire selected.".to_string());
+                    self.messaging.compose_recipient_status =
+                        Some("No empire selected.".to_string());
                     return;
                 }
             }
@@ -154,7 +157,8 @@ impl App {
             match self.messaging.compose_recipient_input.parse::<u8>() {
                 Ok(id) => id,
                 Err(_) => {
-                    self.messaging.compose_recipient_status = Some("Enter an empire number.".to_string());
+                    self.messaging.compose_recipient_status =
+                        Some("Enter an empire number.".to_string());
                     return;
                 }
             }
@@ -166,7 +170,8 @@ impl App {
             return;
         }
         if empire_id as usize == self.player.record_index_1_based {
-            self.messaging.compose_recipient_status = Some("You cannot message your own empire.".to_string());
+            self.messaging.compose_recipient_status =
+                Some("You cannot message your own empire.".to_string());
             return;
         }
         self.messaging.compose_recipient_empire = Some(empire_id);
@@ -211,7 +216,11 @@ impl App {
         if self.current_screen == ScreenId::ComposeMessageBody
             && self.messaging.compose_body.chars().count() < crate::screen::COMPOSE_BODY_LIMIT
         {
-            insert_char_at(&mut self.messaging.compose_body, self.messaging.compose_body_cursor, ch);
+            insert_char_at(
+                &mut self.messaging.compose_body,
+                self.messaging.compose_body_cursor,
+                ch,
+            );
             self.messaging.compose_body_cursor += 1;
             self.messaging.compose_body_status = None;
         } else if self.current_screen == ScreenId::ComposeMessageBody {
@@ -225,7 +234,10 @@ impl App {
     pub fn backspace_compose_body(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody {
             if self.messaging.compose_body_cursor > 0 {
-                remove_char_before(&mut self.messaging.compose_body, self.messaging.compose_body_cursor);
+                remove_char_before(
+                    &mut self.messaging.compose_body,
+                    self.messaging.compose_body_cursor,
+                );
                 self.messaging.compose_body_cursor -= 1;
             }
             self.messaging.compose_body_status = None;
@@ -234,7 +246,10 @@ impl App {
 
     pub fn delete_compose_body_char(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody {
-            remove_char_at(&mut self.messaging.compose_body, self.messaging.compose_body_cursor);
+            remove_char_at(
+                &mut self.messaging.compose_body,
+                self.messaging.compose_body_cursor,
+            );
             self.messaging.compose_body_status = None;
         }
     }
@@ -243,7 +258,11 @@ impl App {
         if self.current_screen == ScreenId::ComposeMessageBody
             && self.messaging.compose_body.chars().count() < crate::screen::COMPOSE_BODY_LIMIT
         {
-            insert_char_at(&mut self.messaging.compose_body, self.messaging.compose_body_cursor, '\n');
+            insert_char_at(
+                &mut self.messaging.compose_body,
+                self.messaging.compose_body_cursor,
+                '\n',
+            );
             self.messaging.compose_body_cursor += 1;
             self.messaging.compose_body_status = None;
         } else if self.current_screen == ScreenId::ComposeMessageBody {
@@ -256,41 +275,53 @@ impl App {
 
     pub fn move_compose_body_cursor_left(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody {
-            self.messaging.compose_body_cursor = self.messaging.compose_body_cursor.saturating_sub(1);
+            self.messaging.compose_body_cursor =
+                self.messaging.compose_body_cursor.saturating_sub(1);
         }
     }
 
     pub fn move_compose_body_cursor_right(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody {
-            self.messaging.compose_body_cursor =
-                (self.messaging.compose_body_cursor + 1).min(self.messaging.compose_body.chars().count());
+            self.messaging.compose_body_cursor = (self.messaging.compose_body_cursor + 1)
+                .min(self.messaging.compose_body.chars().count());
         }
     }
 
     pub fn move_compose_body_cursor_home(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody {
-            self.messaging.compose_body_cursor =
-                line_start_index(&self.messaging.compose_body, self.messaging.compose_body_cursor);
+            self.messaging.compose_body_cursor = line_start_index(
+                &self.messaging.compose_body,
+                self.messaging.compose_body_cursor,
+            );
         }
     }
 
     pub fn move_compose_body_cursor_end(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody {
-            self.messaging.compose_body_cursor = line_end_index(&self.messaging.compose_body, self.messaging.compose_body_cursor);
+            self.messaging.compose_body_cursor = line_end_index(
+                &self.messaging.compose_body,
+                self.messaging.compose_body_cursor,
+            );
         }
     }
 
     pub fn move_compose_body_cursor_up(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody {
-            self.messaging.compose_body_cursor =
-                vertical_cursor_target(&self.messaging.compose_body, self.messaging.compose_body_cursor, -1);
+            self.messaging.compose_body_cursor = vertical_cursor_target(
+                &self.messaging.compose_body,
+                self.messaging.compose_body_cursor,
+                -1,
+            );
         }
     }
 
     pub fn move_compose_body_cursor_down(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageBody {
-            self.messaging.compose_body_cursor =
-                vertical_cursor_target(&self.messaging.compose_body, self.messaging.compose_body_cursor, 1);
+            self.messaging.compose_body_cursor = vertical_cursor_target(
+                &self.messaging.compose_body,
+                self.messaging.compose_body_cursor,
+                1,
+            );
         }
     }
 
@@ -329,7 +360,8 @@ impl App {
         let total = self.compose_outbox_queue_len();
         let max_offset = total.saturating_sub(crate::screen::OUTBOX_VISIBLE_ROWS);
         self.messaging.compose_outbox_scroll_offset = self
-            .messaging.compose_outbox_scroll_offset
+            .messaging
+            .compose_outbox_scroll_offset
             .saturating_add_signed(delta as isize)
             .min(max_offset);
     }
@@ -376,11 +408,13 @@ impl App {
             self.messaging.compose_outbox_cursor + 1
         } else {
             let Ok(n) = self.messaging.compose_outbox_input.parse::<usize>() else {
-                self.messaging.compose_outbox_status = Some("Enter a queued message number.".to_string());
+                self.messaging.compose_outbox_status =
+                    Some("Enter a queued message number.".to_string());
                 return Ok(());
             };
             if n == 0 {
-                self.messaging.compose_outbox_status = Some("Enter a queued message number.".to_string());
+                self.messaging.compose_outbox_status =
+                    Some("Enter a queued message number.".to_string());
                 return Ok(());
             }
             n
@@ -409,9 +443,13 @@ impl App {
 
         // Clamp cursor and scroll offset to the new (smaller) queue.
         let new_len = own_indexes.len().saturating_sub(1);
-        self.messaging.compose_outbox_cursor = self.messaging.compose_outbox_cursor.min(new_len.saturating_sub(1));
+        self.messaging.compose_outbox_cursor = self
+            .messaging
+            .compose_outbox_cursor
+            .min(new_len.saturating_sub(1));
         let max_offset = new_len.saturating_sub(crate::screen::OUTBOX_VISIBLE_ROWS);
-        self.messaging.compose_outbox_scroll_offset = self.messaging.compose_outbox_scroll_offset.min(max_offset);
+        self.messaging.compose_outbox_scroll_offset =
+            self.messaging.compose_outbox_scroll_offset.min(max_offset);
         Ok(())
     }
 
@@ -436,11 +474,14 @@ impl App {
         );
         self.reports
             .replace(refreshed, ReviewSummary::from_main_menu(&summary));
-        self.messaging.delete_reviewables_status = Some("Messages and results deleted.".to_string());
+        self.messaging.delete_reviewables_status =
+            Some("Messages and results deleted.".to_string());
         Ok(())
     }
 
-    pub(crate) fn compose_outbox_queue(&self) -> Result<Vec<QueuedPlayerMail>, Box<dyn std::error::Error>> {
+    pub(crate) fn compose_outbox_queue(
+        &self,
+    ) -> Result<Vec<QueuedPlayerMail>, Box<dyn std::error::Error>> {
         let sender_empire_id = self.player.record_index_1_based as u8;
         Ok(self
             .queued_mail

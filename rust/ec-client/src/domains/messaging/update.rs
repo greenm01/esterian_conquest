@@ -19,9 +19,7 @@ pub fn update(app: &mut App, action: MessagingAction) {
                 eprintln!("delete reviewables failed: {err}");
             }
         }
-        MessagingAction::AppendComposeRecipientChar(ch) => {
-            app.append_compose_recipient_char(ch)
-        }
+        MessagingAction::AppendComposeRecipientChar(ch) => app.append_compose_recipient_char(ch),
         MessagingAction::BackspaceComposeRecipient => app.backspace_compose_recipient(),
         MessagingAction::SubmitComposeRecipient => app.submit_compose_recipient(),
         MessagingAction::AppendComposeSubjectChar(ch) => app.append_compose_subject_char(ch),

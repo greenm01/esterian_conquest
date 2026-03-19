@@ -5,7 +5,6 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
     let frame = ScreenFrame {
         game_dir: &app.game_dir,
         game_data: &app.game_data,
-        database: &app.database,
         player: &app.player,
         planet_intel_snapshots: &app.planet_intel_snapshots,
     };
@@ -97,9 +96,11 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
                 app.fleet.transfer_cursor,
                 app.fleet.transfer_mode,
                 &app.fleet.transfer_selected_fleets,
-                app.fleet.transfer_donor_record_index_1_based
+                app.fleet
+                    .transfer_donor_record_index_1_based
                     .and_then(|idx| app.fleet_number_for_record_index(idx)),
-                app.fleet.transfer_host_record_index_1_based
+                app.fleet
+                    .transfer_host_record_index_1_based
                     .and_then(|idx| app.fleet_number_for_record_index(idx)),
                 &input,
                 status,

@@ -1,10 +1,12 @@
+use super::InvalidPlayerStateEvent;
 use crate::{
     CoreGameData, FleetOrderValidationError, FleetPlayerInputValidationError, Order,
     PlayerDiplomacyValidationError, ProductionItemKind,
 };
-use super::InvalidPlayerStateEvent;
 
-pub(super) fn sanitize_invalid_player_inputs(game_data: &mut CoreGameData) -> Vec<InvalidPlayerStateEvent> {
+pub(super) fn sanitize_invalid_player_inputs(
+    game_data: &mut CoreGameData,
+) -> Vec<InvalidPlayerStateEvent> {
     let mut events = Vec::new();
 
     for fleet_idx in 0..game_data.fleets.records.len() {

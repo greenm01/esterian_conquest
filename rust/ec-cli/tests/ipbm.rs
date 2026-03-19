@@ -1,6 +1,9 @@
 mod common;
 
-use common::{cleanup_dir, copy_fixture_dir, run_ec_cli, run_ec_cli_in_dir, unique_temp_dir};
+use common::{
+    cleanup_dir, copy_fixture_dir, export_campaign_db, run_ec_cli, run_ec_cli_in_dir,
+    unique_temp_dir,
+};
 use std::fs;
 
 #[test]
@@ -85,6 +88,7 @@ fn ipbm_validate_rejects_count_length_mismatch() {
         &["ipbm-zero", target.to_str().unwrap(), "2"],
         common::rust_workspace(),
     );
+    export_campaign_db(&target, &target);
     fs::write(target.join("IPBM.DAT"), vec![0u8; 32]).unwrap();
 
     let stderr = common::run_ec_cli_failure_in_dir(

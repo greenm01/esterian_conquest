@@ -1,6 +1,6 @@
 mod common;
 
-use common::{cleanup_dir, run_ec_cli, unique_temp_dir};
+use common::{cleanup_dir, export_campaign_db, run_ec_cli, unique_temp_dir};
 
 #[test]
 fn player_name_updates_handle_and_empire() {
@@ -26,6 +26,7 @@ fn player_name_updates_handle_and_empire() {
     ]);
     assert!(stdout.contains("Player 1 renamed"));
 
+    export_campaign_db(&target, &target);
     let data = ec_data::CoreGameData::load(&target).unwrap();
     assert_eq!(
         data.player.records[0].assigned_player_handle_summary(),
@@ -71,6 +72,7 @@ fn classic_login_prepare_sets_matching_handle_without_renaming_empire_by_default
     ]);
     assert!(prepare_stdout.contains("Prepared classic login for player 1"));
 
+    export_campaign_db(&target, &target);
     let data = ec_data::CoreGameData::load(&target).unwrap();
     assert_eq!(
         data.player.records[0].assigned_player_handle_summary(),
@@ -107,9 +109,13 @@ fn player_join_seeds_last_run_year_for_returning_player_state() {
     ]);
     assert!(stdout.contains("Joined player 1"));
 
+    export_campaign_db(&target, &target);
     let data = ec_data::CoreGameData::load(&target).unwrap();
     assert_eq!(data.player.records[0].last_run_year_raw(), 3000);
-    assert_eq!(data.player.records[0].assigned_player_handle_summary(), "SYSOP");
+    assert_eq!(
+        data.player.records[0].assigned_player_handle_summary(),
+        "SYSOP"
+    );
 
     cleanup_dir(&target);
 }
@@ -159,6 +165,7 @@ fn fleet_ships_and_detach_create_varied_extra_fleet() {
     ]);
     assert!(stdout.contains("Detached fleet 1 -> new fleet 17"));
 
+    export_campaign_db(&target, &target);
     let data = ec_data::CoreGameData::load(&target).unwrap();
     assert_eq!(data.fleets.records.len(), 17);
     let donor = &data.fleets.records[0];

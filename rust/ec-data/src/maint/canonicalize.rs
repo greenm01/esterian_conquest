@@ -40,23 +40,53 @@ pub fn canonicalize_events(events: &mut MaintenanceEvents, game_data: &CoreGameD
     assign_diplomatic_escalation_weeks(events);
 
     // Sort each event vector by week ascending.
-    events.mission_events.sort_by_key(|e| e.stardate_week.unwrap_or(1));
-    events.fleet_battle_events.sort_by_key(|e| e.stardate_week.unwrap_or(1));
-    events.fleet_destroyed_events.sort_by_key(|e| e.stardate_week.unwrap_or(1));
-    events.starbase_destroyed_events.sort_by_key(|e| e.stardate_week.unwrap_or(1));
-    events.assault_report_events.sort_by_key(|e| e.stardate_week.unwrap_or(1));
-    events.bombard_events.sort_by_key(|e| e.stardate_week.unwrap_or(1));
-    events.scout_contact_events.sort_by_key(|e| e.stardate_week.unwrap_or(1));
-    events.ownership_change_events.sort_by_key(|e| e.stardate_week.unwrap_or(1));
-    events.fleet_merge_events.sort_by_key(|e| e.stardate_week.unwrap_or(1));
+    events
+        .mission_events
+        .sort_by_key(|e| e.stardate_week.unwrap_or(1));
+    events
+        .fleet_battle_events
+        .sort_by_key(|e| e.stardate_week.unwrap_or(1));
+    events
+        .fleet_destroyed_events
+        .sort_by_key(|e| e.stardate_week.unwrap_or(1));
+    events
+        .starbase_destroyed_events
+        .sort_by_key(|e| e.stardate_week.unwrap_or(1));
+    events
+        .assault_report_events
+        .sort_by_key(|e| e.stardate_week.unwrap_or(1));
+    events
+        .bombard_events
+        .sort_by_key(|e| e.stardate_week.unwrap_or(1));
+    events
+        .scout_contact_events
+        .sort_by_key(|e| e.stardate_week.unwrap_or(1));
+    events
+        .ownership_change_events
+        .sort_by_key(|e| e.stardate_week.unwrap_or(1));
+    events
+        .fleet_merge_events
+        .sort_by_key(|e| e.stardate_week.unwrap_or(1));
     events.colonization_events.sort_by_key(colonization_week);
     events.salvage_events.sort_by_key(salvage_week);
-    events.encounter_disposition_events.sort_by_key(encounter_week);
-    events.civil_disorder_events.sort_by_key(|e| e.stardate_week.unwrap_or(52));
-    events.campaign_outlook_events.sort_by_key(|e| e.stardate_week.unwrap_or(52));
-    events.campaign_outcome_events.sort_by_key(|e| e.stardate_week.unwrap_or(52));
-    events.fleet_defection_events.sort_by_key(|e| e.stardate_week.unwrap_or(52));
-    events.diplomatic_escalation_events.sort_by_key(|e| e.stardate_week.unwrap_or(1));
+    events
+        .encounter_disposition_events
+        .sort_by_key(encounter_week);
+    events
+        .civil_disorder_events
+        .sort_by_key(|e| e.stardate_week.unwrap_or(52));
+    events
+        .campaign_outlook_events
+        .sort_by_key(|e| e.stardate_week.unwrap_or(52));
+    events
+        .campaign_outcome_events
+        .sort_by_key(|e| e.stardate_week.unwrap_or(52));
+    events
+        .fleet_defection_events
+        .sort_by_key(|e| e.stardate_week.unwrap_or(52));
+    events
+        .diplomatic_escalation_events
+        .sort_by_key(|e| e.stardate_week.unwrap_or(1));
 }
 
 // ---------------------------------------------------------------------------
@@ -371,9 +401,7 @@ fn colonization_week(e: &super::ColonizationResolvedEvent) -> u8 {
 
 fn salvage_week(e: &super::SalvageResolvedEvent) -> u8 {
     match e {
-        super::SalvageResolvedEvent::Succeeded { stardate_week, .. } => {
-            stardate_week.unwrap_or(1)
-        }
+        super::SalvageResolvedEvent::Succeeded { stardate_week, .. } => stardate_week.unwrap_or(1),
         super::SalvageResolvedEvent::Failed { stardate_week, .. } => stardate_week.unwrap_or(1),
     }
 }
@@ -425,10 +453,21 @@ mod tests {
     fn canonicalize_populates_mission_event_weeks() {
         let game_data = minimal_game_data();
         let mut events = MaintenanceEvents::default();
-        events.mission_events.push(make_mission_event(Mission::MoveOnly, MissionOutcome::Succeeded));
-        events.mission_events.push(make_mission_event(Mission::PatrolSector, MissionOutcome::Arrived));
+        events.mission_events.push(make_mission_event(
+            Mission::MoveOnly,
+            MissionOutcome::Succeeded,
+        ));
+        events.mission_events.push(make_mission_event(
+            Mission::PatrolSector,
+            MissionOutcome::Arrived,
+        ));
         canonicalize_events(&mut events, &game_data);
-        assert!(events.mission_events.iter().all(|e| e.stardate_week.is_some()));
+        assert!(
+            events
+                .mission_events
+                .iter()
+                .all(|e| e.stardate_week.is_some())
+        );
     }
 
     #[test]
@@ -436,14 +475,26 @@ mod tests {
         let game_data = minimal_game_data();
         let mut events = MaintenanceEvents::default();
         // PatrolSector is a standing mission (week 1); ScoutSector gets code 1 offset.
-        events.mission_events.push(make_mission_event(Mission::ScoutSector, MissionOutcome::Succeeded));
-        events.mission_events.push(make_mission_event(Mission::PatrolSector, MissionOutcome::Arrived));
+        events.mission_events.push(make_mission_event(
+            Mission::ScoutSector,
+            MissionOutcome::Succeeded,
+        ));
+        events.mission_events.push(make_mission_event(
+            Mission::PatrolSector,
+            MissionOutcome::Arrived,
+        ));
         canonicalize_events(&mut events, &game_data);
-        let weeks: Vec<u8> = events.mission_events.iter()
+        let weeks: Vec<u8> = events
+            .mission_events
+            .iter()
             .map(|e| e.stardate_week.unwrap())
             .collect();
         for pair in weeks.windows(2) {
-            assert!(pair[0] <= pair[1], "events should be sorted ascending: {:?}", weeks);
+            assert!(
+                pair[0] <= pair[1],
+                "events should be sorted ascending: {:?}",
+                weeks
+            );
         }
     }
 
@@ -510,12 +561,14 @@ mod tests {
             target_coords: Some([10, 10]),
             stardate_week: Some(30),
         });
-        events.colonization_events.push(ColonizationResolvedEvent::Succeeded {
-            fleet_idx: 3,
-            planet_idx: 5,
-            colonizer_empire_raw: 1,
-            stardate_week: None,
-        });
+        events
+            .colonization_events
+            .push(ColonizationResolvedEvent::Succeeded {
+                fleet_idx: 3,
+                planet_idx: 5,
+                colonizer_empire_raw: 1,
+                stardate_week: None,
+            });
         canonicalize_events(&mut events, &game_data);
         let col_week = match events.colonization_events[0] {
             ColonizationResolvedEvent::Succeeded { stardate_week, .. } => stardate_week,

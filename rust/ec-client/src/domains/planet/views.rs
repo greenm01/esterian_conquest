@@ -5,7 +5,6 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
     let frame = ScreenFrame {
         game_dir: &app.game_dir,
         game_data: &app.game_data,
-        database: &app.database,
         player: &app.player,
         planet_intel_snapshots: &app.planet_intel_snapshots,
     };
@@ -14,38 +13,33 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             .planet_menu
             .render_with_notice(app.command_menu_notice.as_deref()),
         ScreenId::PlanetHelp => app.planet_help.render(&frame),
-        ScreenId::PlanetAutoCommissionConfirm => {
-            app.planet_auto_commission.render_confirm()
-        }
+        ScreenId::PlanetAutoCommissionConfirm => app.planet_auto_commission.render_confirm(),
         ScreenId::PlanetAutoCommissionDone => app.planet_auto_commission.render_done(
-            app.planet.auto_commission_status
+            app.planet
+                .auto_commission_status
                 .as_deref()
                 .unwrap_or("Auto-commission complete."),
         ),
-        ScreenId::PlanetTransportPlanetSelect(mode) => {
-            app.planet_transport.render_planet_select(
-                crate::screen::command_menu_label(app.command_return_menu),
-                mode,
-                &app.planet_transport_planet_rows(mode),
-                app.planet.transport_planet_scroll_offset,
-                app.planet.transport_planet_cursor,
-                &app.planet.transport_planet_input,
-                app.planet_transport_planet_default_coords(mode),
-                app.status_if_no_modal(app.planet.transport_status.as_deref()),
-            )
-        }
-        ScreenId::PlanetTransportFleetSelect(mode) => {
-            app.planet_transport.render_fleet_select(
-                crate::screen::command_menu_label(app.command_return_menu),
-                mode,
-                &app.current_planet_transport_planet_row(mode)?,
-                &app.current_planet_transport_fleet_rows(mode)?,
-                app.planet.transport_fleet_scroll_offset,
-                app.planet.transport_fleet_cursor,
-                &app.planet.transport_qty_input,
-                app.status_if_no_modal(app.planet.transport_status.as_deref()),
-            )
-        }
+        ScreenId::PlanetTransportPlanetSelect(mode) => app.planet_transport.render_planet_select(
+            crate::screen::command_menu_label(app.command_return_menu),
+            mode,
+            &app.planet_transport_planet_rows(mode),
+            app.planet.transport_planet_scroll_offset,
+            app.planet.transport_planet_cursor,
+            &app.planet.transport_planet_input,
+            app.planet_transport_planet_default_coords(mode),
+            app.status_if_no_modal(app.planet.transport_status.as_deref()),
+        ),
+        ScreenId::PlanetTransportFleetSelect(mode) => app.planet_transport.render_fleet_select(
+            crate::screen::command_menu_label(app.command_return_menu),
+            mode,
+            &app.current_planet_transport_planet_row(mode)?,
+            &app.current_planet_transport_fleet_rows(mode)?,
+            app.planet.transport_fleet_scroll_offset,
+            app.planet.transport_fleet_cursor,
+            &app.planet.transport_qty_input,
+            app.status_if_no_modal(app.planet.transport_status.as_deref()),
+        ),
         ScreenId::PlanetTransportQuantityPrompt(mode) => {
             app.planet_transport.render_quantity_prompt(
                 crate::screen::command_menu_label(app.command_return_menu),
@@ -59,7 +53,8 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::PlanetTransportDone(mode) => app.planet_transport.render_done(
             crate::screen::command_menu_label(app.command_return_menu),
             mode,
-            app.planet.transport_status
+            app.planet
+                .transport_status
                 .as_deref()
                 .unwrap_or("Transport order completed."),
         ),
@@ -105,7 +100,8 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.current_planet_build_view()?,
             &app.current_planet_build_orders(),
             build_unit_spec_by_kind(
-                app.planet.build_selected_kind
+                app.planet
+                    .build_selected_kind
                     .ok_or("planet build kind not selected")?,
             )
             .ok_or("planet build unit missing")?,
@@ -128,8 +124,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.detail_index,
         ),
         ScreenId::PlanetTaxPrompt => {
-            let current_tax = app.game_data.player.records
-                [app.player.record_index_1_based - 1]
+            let current_tax = app.game_data.player.records[app.player.record_index_1_based - 1]
                 .tax_rate()
                 .to_string();
             app.planet_tax.render_prompt(
@@ -139,7 +134,8 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             )
         }
         ScreenId::PlanetTaxDone => app.planet_tax.render_done(
-            app.planet.tax_status
+            app.planet
+                .tax_status
                 .as_deref()
                 .unwrap_or("Tax rate updated."),
         ),
@@ -157,11 +153,8 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             let row = rows
                 .get(app.planet.database_detail_index)
                 .ok_or("planet database row missing")?;
-            app.planet_database.render_detail(
-                row,
-                app.planet.database_detail_index,
-                rows.len(),
-            )
+            app.planet_database
+                .render_detail(row, app.planet.database_detail_index, rows.len())
         }
         ScreenId::PlanetInfoPrompt => app.planet_info.render_prompt(
             app.default_planet_prompt_coords(),
@@ -171,7 +164,8 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ),
         ScreenId::PlanetInfoDetail => app.planet_info.render_detail(
             &frame,
-            app.planet.info_selected
+            app.planet
+                .info_selected
                 .ok_or("planet info detail not selected")?,
             app.command_return_menu,
         ),

@@ -4,7 +4,7 @@ use std::path::Path;
 use ec_data::{CoreGameData, FLEET_RECORD_SIZE, PLANET_RECORD_SIZE, PLAYER_RECORD_SIZE};
 
 use crate::commands::runtime::{
-    with_runtime_game_mut_and_export, with_runtime_game_mut_and_export_core,
+    load_runtime_game_data, with_runtime_game_mut_and_export, with_runtime_game_mut_and_export_core,
 };
 use crate::support::paths::post_maint_fixture_dir;
 use crate::workspace::{
@@ -13,7 +13,7 @@ use crate::workspace::{
 };
 
 pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
     let starbase_total = data.player1_starbase_count_current_known();
     let owned_base_total = data.player1_owned_base_record_count_current_known();
     let ipbm_total = data.player1_ipbm_count_current_known();
@@ -117,7 +117,7 @@ pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Er
 pub(crate) fn print_current_known_baseline_diff(
     dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
     let diffs = data.current_known_baseline_diff_counts();
 
     println!("Current-known Baseline Diff");
@@ -132,7 +132,7 @@ pub(crate) fn print_current_known_baseline_diff(
 pub(crate) fn print_canonical_current_known_baseline_diff(
     dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
     let baseline = CoreGameData::load(&post_maint_fixture_dir())?;
     let diffs = data.diff_counts_against(&baseline);
 
@@ -148,7 +148,7 @@ pub(crate) fn print_canonical_current_known_baseline_diff(
 pub(crate) fn print_current_known_baseline_diff_offsets(
     dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
     let diffs = data.current_known_baseline_diff_offsets();
 
     println!("Current-known Baseline Diff Offsets");
@@ -166,7 +166,7 @@ pub(crate) fn print_current_known_baseline_diff_offsets(
 pub(crate) fn print_canonical_current_known_baseline_diff_offsets(
     dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
     let baseline = CoreGameData::load(&post_maint_fixture_dir())?;
     let diffs = data.diff_offsets_against(&baseline);
 
@@ -185,7 +185,7 @@ pub(crate) fn print_canonical_current_known_baseline_diff_offsets(
 pub(crate) fn print_canonical_transition_clusters(
     dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
     let baseline = CoreGameData::load(&post_maint_fixture_dir())?;
     let diffs = data.diff_offsets_against(&baseline);
 
@@ -215,7 +215,7 @@ pub(crate) fn print_canonical_transition_clusters(
 pub(crate) fn print_canonical_transition_details(
     dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
     let baseline = CoreGameData::load(&post_maint_fixture_dir())?;
     let diffs = data.diff_offsets_against(&baseline);
 
@@ -347,7 +347,7 @@ fn unique_record_indexes(offsets: &[usize], record_size: usize) -> Vec<usize> {
 }
 
 pub(crate) fn validate_core_state(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
     let errors = data.current_known_core_state_errors();
 
     if errors.is_empty() {
@@ -425,7 +425,7 @@ pub(crate) fn validate_core_state(dir: &Path) -> Result<(), Box<dyn std::error::
 pub(crate) fn validate_current_known_baseline_exact(
     dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
     let baseline = CoreGameData::load(&post_maint_fixture_dir())?;
     let errors =
         data.exact_match_errors_against(&baseline, "canonical current-known post-maint baseline");
@@ -714,7 +714,7 @@ pub(crate) fn sync_canonical_current_known_baseline(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let baseline_dir = post_maint_fixture_dir();
     copy_current_known_core_files(&baseline_dir, dir)?;
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
 
     println!("Canonical current-known baseline synchronized");
     println!("  dir = {}", dir.display());

@@ -58,10 +58,14 @@ impl PlanetTaxScreen {
 
     pub fn handle_prompt_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::Planet(PlanetAction::OpenMenu),
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                Action::Planet(PlanetAction::OpenMenu)
+            }
             KeyCode::Enter => Action::Planet(PlanetAction::SubmitTax),
             KeyCode::Backspace => Action::Planet(PlanetAction::BackspaceTaxInput),
-            KeyCode::Char(ch) if ch.is_ascii_digit() => Action::Planet(PlanetAction::AppendTaxChar(ch)),
+            KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                Action::Planet(PlanetAction::AppendTaxChar(ch))
+            }
             _ => Action::Noop,
         }
     }

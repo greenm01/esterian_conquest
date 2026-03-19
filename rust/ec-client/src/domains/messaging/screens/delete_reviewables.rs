@@ -40,7 +40,9 @@ impl DeleteReviewablesScreen {
 
     pub fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Char('y') | KeyCode::Char('Y') => Action::Messaging(MessagingAction::ConfirmDeleteReviewables),
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                Action::Messaging(MessagingAction::ConfirmDeleteReviewables)
+            }
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenGeneralMenu,
             _ => Action::Noop,
         }

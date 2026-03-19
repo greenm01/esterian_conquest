@@ -1,11 +1,13 @@
-use crate::app::state::App;
-use super::helpers::{sync_scroll_to_cursor, center_scroll_to_cursor, resolve_default_coords_input};
-use super::fleet_order::{fleet_target_input_kind, fleet_target_status_line, FleetTargetInputKind, resolve_yes_no_input};
 use super::fleet_manip::fleet_eta_label;
-use crate::screen::{
-    CommandMenu, FleetEtaMode, FleetListMode, FleetRow, ScreenId,
+use super::fleet_order::{
+    FleetTargetInputKind, fleet_target_input_kind, fleet_target_status_line, resolve_yes_no_input,
 };
+use super::helpers::{
+    center_scroll_to_cursor, resolve_default_coords_input, sync_scroll_to_cursor,
+};
+use crate::app::state::App;
 use crate::domains::fleet::FleetAction;
+use crate::screen::{CommandMenu, FleetEtaMode, FleetListMode, FleetRow, ScreenId};
 
 impl App {
     pub fn show_fleet_expert_mode_notice(&mut self) {
@@ -207,7 +209,8 @@ impl App {
             i8::MIN => 0,
             i8::MAX => total - 1,
             _ => self
-                .fleet.review_index
+                .fleet
+                .review_index
                 .saturating_add_signed(delta as isize)
                 .min(total - 1),
         };
@@ -315,7 +318,8 @@ impl App {
                 if matches!(ch, 'y' | 'Y' | 'n' | 'N')
                     && self.fleet.eta_include_system_input.is_empty()
                 {
-                    self.fleet.eta_include_system_input
+                    self.fleet
+                        .eta_include_system_input
                         .push(ch.to_ascii_uppercase());
                     self.fleet.eta_status = None;
                 }
@@ -600,7 +604,10 @@ impl App {
         rows
     }
 
-    pub(super) fn handle_fleet_roe_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
+    pub(super) fn handle_fleet_roe_key(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> crate::app::Action {
         use crossterm::event::KeyCode;
 
         if self.fleet.roe_editing {
@@ -709,7 +716,10 @@ impl App {
         );
     }
 
-    pub(super) fn handle_fleet_eta_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
+    pub(super) fn handle_fleet_eta_key(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> crate::app::Action {
         use crossterm::event::KeyCode;
 
         match self.fleet.eta_mode {

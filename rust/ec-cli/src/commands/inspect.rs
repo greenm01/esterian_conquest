@@ -1,10 +1,11 @@
 use std::fs;
 use std::path::Path;
 
+use crate::commands::runtime::load_runtime_game_data;
 use ec_data::{ConquestDat, CoreGameData, PlanetRecord, SetupDat};
 
 pub(crate) fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
 
     println!("Directory: {}", dir.display());
     print_header_summary(&data.setup, &data.conquest);
@@ -223,7 +224,7 @@ pub(crate) fn inspect_classic_login(
     dir: &Path,
     caller_alias: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
 
     println!("Directory: {}", dir.display());
     println!("Caller alias: {caller_alias}");
@@ -266,8 +267,9 @@ pub(crate) fn inspect_classic_login(
 }
 
 pub(crate) fn dump_headers(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
-    let conquest = ConquestDat::parse(&fs::read(dir.join("CONQUEST.DAT"))?)?;
+    let game_data = load_runtime_game_data(dir)?;
+    let setup = &game_data.setup;
+    let conquest = &game_data.conquest;
 
     println!("Directory: {}", dir.display());
     println!(

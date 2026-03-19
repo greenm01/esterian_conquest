@@ -1,11 +1,10 @@
+use super::helpers::{resolve_default_coords_input, sync_scroll_to_cursor};
 use crate::app::state::App;
-use super::helpers::{sync_scroll_to_cursor, resolve_default_coords_input};
-use ec_data::{build_player_starmap_projection, PlanetIntelSnapshot, PlayerStarmapWorld};
-use crate::screen::{
-    CommandMenu, PlanetDatabaseRow, PlanetListMode,
-    PlanetListSort, ScreenId,
-};
 use crate::domains::planet::PlanetAction;
+use crate::screen::{CommandMenu, PlanetDatabaseRow, PlanetListMode, PlanetListSort, ScreenId};
+use ec_data::{
+    PlanetIntelSnapshot, PlayerStarmapWorld, build_player_starmap_projection_from_snapshots,
+};
 
 impl App {
     pub fn open_planet_menu(&mut self) {
@@ -99,7 +98,8 @@ impl App {
         let total = self.sorted_planet_rows(sort).len();
         let max_offset = total.saturating_sub(crate::screen::PLANET_BRIEF_VISIBLE_ROWS);
         self.planet.brief_scroll_offset = self
-            .planet.brief_scroll_offset
+            .planet
+            .brief_scroll_offset
             .saturating_add_signed(delta as isize)
             .min(max_offset);
     }
@@ -135,7 +135,8 @@ impl App {
             i8::MIN => 0,
             i8::MAX => total - 1,
             _ => self
-                .planet.detail_index
+                .planet
+                .detail_index
                 .saturating_add_signed(delta as isize)
                 .min(total - 1),
         };
@@ -172,7 +173,8 @@ impl App {
             i8::MIN => 0,
             i8::MAX => total - 1,
             _ => self
-                .planet.database_detail_index
+                .planet
+                .database_detail_index
                 .saturating_add_signed(delta as isize)
                 .min(total - 1),
         };
@@ -324,7 +326,10 @@ impl App {
         self.planet.info_selected
     }
 
-    pub(crate) fn sorted_planet_rows(&self, sort: PlanetListSort) -> Vec<ec_data::EmpirePlanetEconomyRow> {
+    pub(crate) fn sorted_planet_rows(
+        &self,
+        sort: PlanetListSort,
+    ) -> Vec<ec_data::EmpirePlanetEconomyRow> {
         let mut rows = self
             .game_data
             .empire_planet_economy_rows(self.player.record_index_1_based);
@@ -343,9 +348,9 @@ impl App {
     }
 
     pub(crate) fn planet_database_rows(&self) -> Vec<PlanetDatabaseRow> {
-        let mut rows = build_player_starmap_projection(
+        let mut rows = build_player_starmap_projection_from_snapshots(
             &self.game_data,
-            &self.database,
+            &self.planet_intel_snapshots,
             self.player.record_index_1_based as u8,
         )
         .worlds
@@ -395,7 +400,10 @@ impl App {
         rows
     }
 
-    pub(super) fn handle_planet_info_prompt_key(&self, key: crossterm::event::KeyEvent) -> crate::app::Action {
+    pub(super) fn handle_planet_info_prompt_key(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> crate::app::Action {
         use crossterm::event::KeyCode;
 
         match key.code {
@@ -467,4 +475,3 @@ fn planet_database_intel_label(
         "unknown".to_string()
     }
 }
-

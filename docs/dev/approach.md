@@ -209,18 +209,24 @@ For the Rust `ECGAME` clone, preserve the original pre-menu player flow too:
   starting to need history and richer intel semantics that the classic files do
   not encode well
 - KDL should remain focused on authored setup/config/scenario input
-- turn limits and other Rust-only campaign policy should be deferred until a
-  future SQLite layer exists
-- SQLite sits beside the `.DAT` flow, not in place of the classic compliance
-  boundary
+- turn limits and other Rust-only campaign policy should stay secondary to the
+  current runtime/export boundary until that split settles
+- SQLite now sits at the runtime center of the Rust stack without replacing the
+  classic compliance boundary
 - the intended shape is:
-  - `CoreGameData` remains the canonical in-memory model
-  - `ecgame.db` is the first-class persisted campaign store
-  - classic `.DAT` files remain import/export projections and oracle artifacts
-  - `ec-client` and Rust maintenance should operate on SQLite runtime state,
-    not on live `.DAT` mutation paths
-  - `ec-cli db-import` / `db-export` are the explicit compatibility bridge for
-    classic directories
+  - `CoreGameData` remains the canonical in-memory snapshot model
+  - `ecgame.db` is the first-class persisted source of truth for active
+    campaigns
+  - classic `.DAT` files remain explicit import/export projections and oracle
+    artifacts
+  - `ec-client` and normal Rust maintenance/mutator paths should operate on
+    SQLite runtime state, not on live `.DAT` mutation paths
+  - `ec-cli db-import` / `db-export` plus explicit classic materialization
+    helpers are the compatibility bridge for classic directories
+  - read-only inspection/report commands should not create `ecgame.db` as a
+    side effect
+  - runtime/client views and classic export may use different projections over
+    the same canonical facts; do not maintain two unrelated intel systems
 - unresolved or partially decoded classic outputs may still be preserved in
   compatibility-oriented SQLite tables while the Rust-native model matures
 - SQLite must be bundled/self-hosted in the compiled Rust application; sysops
@@ -266,9 +272,10 @@ Long term:
   or faithfully recreate important opening/menu/report screens in the Rust
   client
 - eventually support both:
-  - classic `.DAT` directory interchange with the DOS binaries
-  - a richer modern storage layer where useful, likely through SQLite
-    importing/exporting through the same canonical Rust state model
+  - classic `.DAT` directory interchange with the DOS binaries through explicit
+    import/export workflows
+  - the richer SQLite-backed runtime/history layer already used by the Rust
+    client and maintenance paths
   - per-campaign `ecgame.db` persistence with history, analytics, and richer
     player-facing intel views
 

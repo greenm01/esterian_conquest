@@ -147,7 +147,8 @@ impl PlayerRecord {
     }
 
     pub fn has_classic_results_chain_state(&self) -> bool {
-        self.classic_results_chain_flag_raw() != 0 || self.classic_results_chain_next_free_raw() != 0
+        self.classic_results_chain_flag_raw() != 0
+            || self.classic_results_chain_next_free_raw() != 0
     }
 
     pub fn has_any_classic_review_state(&self) -> bool {

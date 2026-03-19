@@ -6,11 +6,11 @@ use ec_data::{
     CampaignStore, ConquestDat, DatabaseDat, SetupConfig, SetupDat, build_seeded_new_game,
 };
 
-use crate::commands::runtime::with_runtime_game_mut_and_export_core;
+use crate::commands::runtime::{load_runtime_game_data, with_runtime_game_mut};
 use crate::workspace::seed_classic_runtime_files;
 
 pub(crate) fn print_maintenance_days(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let conquest = ConquestDat::parse(&fs::read(dir.join("CONQUEST.DAT"))?)?;
+    let conquest = load_runtime_conquest(dir)?;
     let enabled = conquest.maintenance_schedule_enabled();
     println!("Directory: {}", dir.display());
     println!(
@@ -140,7 +140,7 @@ pub(crate) fn set_maintenance_days(
         enabled[idx] = true;
     }
 
-    with_runtime_game_mut_and_export_core(dir, |data| {
+    with_runtime_game_mut(dir, |data| {
         data.conquest.set_maintenance_schedule_enabled(enabled);
         Ok(())
     })?;
@@ -153,14 +153,14 @@ fn with_runtime_setup_mut<F>(dir: &Path, mutate: F) -> Result<(), Box<dyn std::e
 where
     F: FnOnce(&mut SetupDat),
 {
-    with_runtime_game_mut_and_export_core(dir, |data| {
+    with_runtime_game_mut(dir, |data| {
         mutate(&mut data.setup);
         Ok(())
     })
 }
 
 pub(crate) fn print_port_setup(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    let setup = load_runtime_setup(dir)?;
     println!("Directory: {}", dir.display());
     println!("ECUTIL F5 Modem / Com Port Setup");
     for com_index in 0..4 {
@@ -185,7 +185,7 @@ pub(crate) fn print_port_setup(dir: &Path) -> Result<(), Box<dyn std::error::Err
 }
 
 pub(crate) fn print_snoop(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    let setup = load_runtime_setup(dir)?;
     println!("Directory: {}", dir.display());
     println!(
         "Snoop enabled: {}",
@@ -204,7 +204,7 @@ pub(crate) fn print_flow_control(
     dir: &Path,
     port_name: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    let setup = load_runtime_setup(dir)?;
     let com_index = com_index(port_name).ok_or_else(|| format!("unknown COM port: {port_name}"))?;
     println!("Directory: {}", dir.display());
     println!(
@@ -233,7 +233,7 @@ pub(crate) fn set_flow_control(
 }
 
 pub(crate) fn print_com_irq(dir: &Path, port_name: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    let setup = load_runtime_setup(dir)?;
     let com_index = com_index(port_name).ok_or_else(|| format!("unknown COM port: {port_name}"))?;
     println!("Directory: {}", dir.display());
     println!(
@@ -261,7 +261,7 @@ pub(crate) fn set_com_irq(
 }
 
 pub(crate) fn print_local_timeout(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    let setup = load_runtime_setup(dir)?;
     println!("Directory: {}", dir.display());
     println!(
         "Local timeout enabled: {}",
@@ -284,7 +284,7 @@ pub(crate) fn set_local_timeout(
 }
 
 pub(crate) fn print_remote_timeout(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    let setup = load_runtime_setup(dir)?;
     println!("Directory: {}", dir.display());
     println!(
         "Remote timeout enabled: {}",
@@ -307,7 +307,7 @@ pub(crate) fn set_remote_timeout(
 }
 
 pub(crate) fn print_max_key_gap(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    let setup = load_runtime_setup(dir)?;
     println!("Directory: {}", dir.display());
     println!(
         "Maximum time between key strokes (minutes): {}",
@@ -325,7 +325,7 @@ pub(crate) fn set_max_key_gap(dir: &Path, minutes: u8) -> Result<(), Box<dyn std
 }
 
 pub(crate) fn print_minimum_time(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    let setup = load_runtime_setup(dir)?;
     println!("Directory: {}", dir.display());
     println!(
         "Minimum time granted (minutes): {}",
@@ -343,14 +343,14 @@ pub(crate) fn set_minimum_time(dir: &Path, minutes: u8) -> Result<(), Box<dyn st
 }
 
 pub(crate) fn print_purge_after(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    let setup = load_runtime_setup(dir)?;
     println!("Directory: {}", dir.display());
     println!("Purge after turns (raw): {}", setup.purge_after_turns_raw());
     Ok(())
 }
 
 pub(crate) fn print_setup_programs(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    let setup = load_runtime_setup(dir)?;
     println!("Directory: {}", dir.display());
     println!("ECUTIL F4 Modify Program Options");
     println!(
@@ -388,7 +388,7 @@ pub(crate) fn set_purge_after(dir: &Path, turns: u8) -> Result<(), Box<dyn std::
 }
 
 pub(crate) fn print_autopilot_after(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let setup = SetupDat::parse(&fs::read(dir.join("SETUP.DAT"))?)?;
+    let setup = load_runtime_setup(dir)?;
     println!("Directory: {}", dir.display());
     println!(
         "Autopilot inactive turns (raw): {}",
@@ -405,6 +405,14 @@ pub(crate) fn set_autopilot_after(dir: &Path, turns: u8) -> Result<(), Box<dyn s
 
 fn weekday_labels() -> [&'static str; 7] {
     ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
+}
+
+fn load_runtime_setup(dir: &Path) -> Result<SetupDat, Box<dyn std::error::Error>> {
+    Ok(load_runtime_game_data(dir)?.setup)
+}
+
+fn load_runtime_conquest(dir: &Path) -> Result<ConquestDat, Box<dyn std::error::Error>> {
+    Ok(load_runtime_game_data(dir)?.conquest)
 }
 
 fn weekday_index(day_name: &str) -> Option<usize> {

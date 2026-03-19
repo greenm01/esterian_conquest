@@ -5,7 +5,6 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
     let frame = ScreenFrame {
         game_dir: &app.game_dir,
         game_data: &app.game_data,
-        database: &app.database,
         player: &app.player,
         planet_intel_snapshots: &app.planet_intel_snapshots,
     };

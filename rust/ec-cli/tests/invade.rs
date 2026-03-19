@@ -1,6 +1,6 @@
 mod common;
 
-use common::{cleanup_dir, repo_root, run_ec_cli_in_dir, unique_temp_dir};
+use common::{cleanup_dir, export_campaign_db, repo_root, run_ec_cli_in_dir, unique_temp_dir};
 use ec_data::FleetDat;
 use std::fs;
 
@@ -15,6 +15,7 @@ fn scenario_invade_recreates_known_valid_pre_fixture() {
     );
     assert!(stdout.contains("Applied scenario: invade"));
 
+    export_campaign_db(&target, &target);
     let fleets = FleetDat::parse(&fs::read(target.join("FLEETS.DAT")).unwrap()).unwrap();
     assert_eq!(fleets.records[2].standing_order_code_raw(), 0x07);
 
@@ -92,6 +93,7 @@ fn invade_init_uses_documented_order_code() {
     );
     assert!(stdout.contains("Invade directory initialized at"));
 
+    export_campaign_db(&target, &target);
     let fleets = FleetDat::parse(&fs::read(target.join("FLEETS.DAT")).unwrap()).unwrap();
     assert_eq!(fleets.records[2].standing_order_code_raw(), 0x07);
 

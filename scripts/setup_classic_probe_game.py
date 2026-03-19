@@ -588,6 +588,7 @@ def main() -> None:
     fleet_records = configure_player_one_fleets(cli_binary, target)
     write_diplomacy_sidecar(target)
     run_ec_cli(cli_binary, "maint-rust", str(target), str(args.turns))
+    run_ec_cli(cli_binary, "db-export", str(target), str(target))
     prepare_player_one_classic_report_probe(
         target,
         player_record=1,

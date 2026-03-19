@@ -336,19 +336,19 @@ impl Screen for FleetMenuScreen {
             KeyCode::Char('o') | KeyCode::Char('O') => Action::Fleet(FleetAction::OpenOrder),
             KeyCode::Char('t') | KeyCode::Char('T') => Action::Fleet(FleetAction::OpenTransfer),
             KeyCode::Char('c') | KeyCode::Char('C') => Action::Fleet(FleetAction::OpenRoeSelect),
-            KeyCode::Char('l') | KeyCode::Char('L') => Action::Fleet(FleetAction::OpenTransportLoad),
+            KeyCode::Char('l') | KeyCode::Char('L') => {
+                Action::Fleet(FleetAction::OpenTransportLoad)
+            }
             KeyCode::Char('u') | KeyCode::Char('U') => {
                 Action::Fleet(FleetAction::OpenTransportUnload)
             }
             KeyCode::Char('e') | KeyCode::Char('E') => Action::Fleet(FleetAction::OpenEta),
-            KeyCode::Char('v') | KeyCode::Char('V') => {
-                Action::Starmap(StarmapAction::OpenPartialPrompt(
-                    crate::screen::CommandMenu::Fleet,
-                ))
-            }
-            KeyCode::Char('i') | KeyCode::Char('I') => {
-                Action::Planet(PlanetAction::OpenInfoPrompt(crate::screen::CommandMenu::Fleet))
-            }
+            KeyCode::Char('v') | KeyCode::Char('V') => Action::Starmap(
+                StarmapAction::OpenPartialPrompt(crate::screen::CommandMenu::Fleet),
+            ),
+            KeyCode::Char('i') | KeyCode::Char('I') => Action::Planet(
+                PlanetAction::OpenInfoPrompt(crate::screen::CommandMenu::Fleet),
+            ),
             KeyCode::Char('g') | KeyCode::Char('G') => Action::Fleet(FleetAction::OpenGroupOrder),
             KeyCode::Char('x') | KeyCode::Char('X') => {
                 Action::Fleet(FleetAction::ShowExpertModeNotice)

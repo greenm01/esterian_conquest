@@ -3,7 +3,9 @@ use std::path::Path;
 
 use ec_data::{CoreGameData, Order};
 
-use crate::commands::runtime::with_runtime_game_mut_and_export;
+use crate::commands::runtime::{
+    export_runtime_snapshot_in_place, with_runtime_game_mut_and_export,
+};
 use crate::workspace::copy_init_files;
 
 /// Apply the bombard scenario to an already-initialized game directory.
@@ -94,6 +96,7 @@ pub(crate) fn init_bombard(
 ) -> Result<(), Box<dyn std::error::Error>> {
     copy_init_files(source, target)?;
     set_bombard_onefleet(target, target_x, target_y, ca, dd)?;
+    export_runtime_snapshot_in_place(target)?;
     println!("Bombard directory initialized at {}", target.display());
     Ok(())
 }

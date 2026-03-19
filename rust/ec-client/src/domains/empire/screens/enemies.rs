@@ -111,14 +111,20 @@ impl EnemiesScreen {
 
     pub fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => Action::Empire(EmpireAction::MoveEnemies(-1)),
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => Action::Empire(EmpireAction::MoveEnemies(1)),
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                Action::Empire(EmpireAction::MoveEnemies(-1))
+            }
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                Action::Empire(EmpireAction::MoveEnemies(1))
+            }
             KeyCode::PageUp => Action::Empire(EmpireAction::MoveEnemies(-8)),
             KeyCode::PageDown => Action::Empire(EmpireAction::MoveEnemies(8)),
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenGeneralMenu,
             KeyCode::Enter => Action::Empire(EmpireAction::SubmitEnemiesInput),
             KeyCode::Backspace => Action::Empire(EmpireAction::BackspaceEnemiesInput),
-            KeyCode::Char(ch) if ch.is_ascii_digit() => Action::Empire(EmpireAction::AppendEnemiesChar(ch)),
+            KeyCode::Char(ch) if ch.is_ascii_digit() => {
+                Action::Empire(EmpireAction::AppendEnemiesChar(ch))
+            }
             _ => Action::Noop,
         }
     }

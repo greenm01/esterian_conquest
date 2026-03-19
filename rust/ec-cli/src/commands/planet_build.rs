@@ -1,9 +1,9 @@
 use std::fs;
 use std::path::Path;
 
-use ec_data::CoreGameData;
-
-use crate::commands::runtime::with_runtime_game_mut_and_export;
+use crate::commands::runtime::{
+    export_runtime_snapshot_in_place, load_runtime_game_data, with_runtime_game_mut,
+};
 use crate::workspace::copy_init_files;
 
 pub(crate) fn set_planet_build(
@@ -12,7 +12,7 @@ pub(crate) fn set_planet_build(
     slot_raw: u8,
     kind_raw: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    with_runtime_game_mut_and_export(dir, |data| {
+    with_runtime_game_mut(dir, |data| {
         data.set_planet_build(record_index_1_based, slot_raw, kind_raw)
             .map_err(|err| err.to_string().into())
     })?;
@@ -29,7 +29,7 @@ pub(crate) fn set_planet_owner(
     record_index_1_based: usize,
     owner_slot: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    with_runtime_game_mut_and_export(dir, |data| {
+    with_runtime_game_mut(dir, |data| {
         let record = data
             .planets
             .records
@@ -52,7 +52,7 @@ pub(crate) fn set_planet_name(
     record_index_1_based: usize,
     name: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    with_runtime_game_mut_and_export(dir, |data| {
+    with_runtime_game_mut(dir, |data| {
         let record = data
             .planets
             .records
@@ -75,7 +75,7 @@ pub(crate) fn set_planet_stats(
     armies: u8,
     batteries: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    with_runtime_game_mut_and_export(dir, |data| {
+    with_runtime_game_mut(dir, |data| {
         let record = data
             .planets
             .records
@@ -99,7 +99,7 @@ pub(crate) fn set_planet_potential(
     p1: u8,
     p2: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    with_runtime_game_mut_and_export(dir, |data| {
+    with_runtime_game_mut(dir, |data| {
         let record = data
             .planets
             .records
@@ -121,7 +121,7 @@ pub(crate) fn set_planet_stored(
     record_index_1_based: usize,
     points: u32,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    with_runtime_game_mut_and_export(dir, |data| {
+    with_runtime_game_mut(dir, |data| {
         let record = data
             .planets
             .records
@@ -149,7 +149,7 @@ pub(crate) fn set_planet_stardock_slot(
         return Err(format!("stardock slot out of range: {slot}").into());
     }
 
-    with_runtime_game_mut_and_export(dir, |data| {
+    with_runtime_game_mut(dir, |data| {
         let record = data
             .planets
             .records
@@ -168,7 +168,7 @@ pub(crate) fn set_planet_stardock_slot(
 }
 
 pub(crate) fn init_planet_original(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    with_runtime_game_mut_and_export(dir, |data| {
+    with_runtime_game_mut(dir, |data| {
         // Homeworlds
         let hw_specs = [
             (
@@ -268,7 +268,7 @@ pub(crate) fn print_planet_build_report(
     dir: &Path,
     record_index_1_based: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
     let record = data
         .planets
         .records
@@ -296,6 +296,7 @@ pub(crate) fn init_planet_build_scenario(
 ) -> Result<(), Box<dyn std::error::Error>> {
     copy_init_files(source, target)?;
     set_planet_build(target, record_index_1_based, slot_raw, kind_raw)?;
+    export_runtime_snapshot_in_place(target)?;
     println!("Planet-build directory initialized at {}", target.display());
     Ok(())
 }

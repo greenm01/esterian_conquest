@@ -620,18 +620,26 @@ impl PlanetBuildScreen {
                 Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::PlanetBuild))
             }
             KeyCode::Char('h') | KeyCode::Char('H') => Action::Planet(PlanetAction::OpenBuildHelp),
-            KeyCode::Char('c') | KeyCode::Char('C') => Action::Planet(PlanetAction::OpenBuildChange),
+            KeyCode::Char('c') | KeyCode::Char('C') => {
+                Action::Planet(PlanetAction::OpenBuildChange)
+            }
             KeyCode::Char('n') | KeyCode::Char('N') => Action::Planet(PlanetAction::MoveBuild(1)),
-            KeyCode::Char('r') | KeyCode::Char('R') => Action::Planet(PlanetAction::OpenBuildReview),
+            KeyCode::Char('r') | KeyCode::Char('R') => {
+                Action::Planet(PlanetAction::OpenBuildReview)
+            }
             KeyCode::Char('l') | KeyCode::Char('L') => Action::Planet(PlanetAction::OpenBuildList),
             KeyCode::Char('a') | KeyCode::Char('A') => {
                 Action::Planet(PlanetAction::OpenBuildAbortConfirm)
             }
-            KeyCode::Char('s') | KeyCode::Char('S') => Action::Planet(PlanetAction::OpenBuildSpecify),
-            KeyCode::Char('p') | KeyCode::Char('P') => Action::Planet(PlanetAction::SubmitListSort(
-                crate::screen::PlanetListMode::Brief,
-                crate::screen::PlanetListSort::CurrentProduction,
-            )),
+            KeyCode::Char('s') | KeyCode::Char('S') => {
+                Action::Planet(PlanetAction::OpenBuildSpecify)
+            }
+            KeyCode::Char('p') | KeyCode::Char('P') => {
+                Action::Planet(PlanetAction::SubmitListSort(
+                    crate::screen::PlanetListMode::Brief,
+                    crate::screen::PlanetListSort::CurrentProduction,
+                ))
+            }
             _ => Action::Noop,
         }
     }
@@ -670,7 +678,9 @@ impl PlanetBuildScreen {
 
     pub fn handle_abort_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Char('y') | KeyCode::Char('Y') => Action::Planet(PlanetAction::ConfirmBuildAbort),
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                Action::Planet(PlanetAction::ConfirmBuildAbort)
+            }
             _ => Action::Planet(PlanetAction::OpenBuildMenu),
         }
     }

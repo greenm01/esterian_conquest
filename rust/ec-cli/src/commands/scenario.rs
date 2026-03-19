@@ -11,6 +11,10 @@ use crate::commands::guard_starbase::apply_guard_starbase_scenario;
 use crate::commands::invade::{apply_invade_scenario, validate_invade_data};
 use crate::commands::ipbm::{apply_ipbm_scenario, validate_ipbm_data};
 use crate::commands::planet_build::apply_planet_build_scenario;
+use crate::commands::runtime::{
+    export_runtime_core_projection_in_place, export_runtime_snapshot_in_place,
+    load_runtime_game_data,
+};
 use crate::support::paths::repo_root;
 use crate::workspace::{copy_init_files, copy_pre_maint_replay_context_files};
 
@@ -162,7 +166,7 @@ pub(crate) fn validate_known_scenario(
     dir: &Path,
     scenario: KnownScenario,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
     match scenario {
         KnownScenario::FleetOrder => validate_fleet_order_data(&data),
         KnownScenario::PlanetBuild => validate_planet_build_data(&data),
@@ -177,7 +181,7 @@ pub(crate) fn validate_known_scenario(
 }
 
 pub(crate) fn validate_all_known_scenarios(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let data = CoreGameData::load(dir)?;
+    let data = load_runtime_game_data(dir)?;
     let mut matched = 0usize;
     for scenario in KnownScenario::all() {
         let name = scenario.name();
@@ -264,6 +268,7 @@ pub(crate) fn init_known_scenario(
 ) -> Result<(), Box<dyn std::error::Error>> {
     copy_init_files(source, target)?;
     apply_known_scenario(target, scenario)?;
+    export_runtime_snapshot_in_place(target)?;
     println!("Scenario directory initialized at {}", target.display());
     Ok(())
 }
@@ -276,6 +281,7 @@ pub(crate) fn init_known_replayable_scenario(
     copy_init_files(source, target)?;
     copy_pre_maint_replay_context_files(target)?;
     apply_known_scenario(target, scenario)?;
+    export_runtime_core_projection_in_place(target)?;
     println!(
         "Replayable scenario directory initialized at {}",
         target.display()
@@ -320,6 +326,7 @@ pub(crate) fn init_known_scenario_chain(
 ) -> Result<(), Box<dyn std::error::Error>> {
     copy_init_files(source, target)?;
     apply_known_scenarios(target, scenarios)?;
+    export_runtime_snapshot_in_place(target)?;
     println!(
         "Scenario chain directory initialized at {}",
         target.display()

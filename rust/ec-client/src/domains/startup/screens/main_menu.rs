@@ -1,9 +1,9 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
+use crate::domains::empire::EmpireAction;
 use crate::domains::fleet::FleetAction;
 use crate::domains::planet::PlanetAction;
-use crate::domains::empire::EmpireAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
     MenuEntry, draw_command_prompt, draw_menu_row, draw_title_bar, draw_wrapped_status,

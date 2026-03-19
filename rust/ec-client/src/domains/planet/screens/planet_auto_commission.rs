@@ -54,8 +54,12 @@ impl Screen for PlanetAutoCommissionScreen {
 
     fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
-            KeyCode::Char('y') | KeyCode::Char('Y') => Action::Planet(PlanetAction::ConfirmAutoCommission),
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::Planet(PlanetAction::OpenMenu),
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                Action::Planet(PlanetAction::ConfirmAutoCommission)
+            }
+            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                Action::Planet(PlanetAction::OpenMenu)
+            }
             _ => Action::Planet(PlanetAction::OpenMenu),
         }
     }

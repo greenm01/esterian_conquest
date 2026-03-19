@@ -3,12 +3,13 @@
 This document captures the current path forward for the Rust player-side client
 after the engine/oracle milestone.
 
-It replaces older notes that assumed a different crate layout and an immediate
-SQLite pivot. The repository today is centered on:
+It replaces older notes that assumed a future client crate and a deferred
+runtime/storage split. The repository today is centered on:
 
 - `ec-data`: canonical game state, classic `.DAT` parsing/writing, maintenance,
   setup, validation
 - `ec-cli`: sysop/admin/oracle/inspection workflows on top of `ec-data`
+- `ec-client`: the SQLite-native player application layer
 
 The next client work should be built on top of that reality, not beside it.
 
@@ -20,8 +21,10 @@ real player client:
 - default `sysop new-game` creates a joinable `ECGAME`-compatible start
 - `maint-rust` runs repeated campaigns and stays green against the current
   oracle suite
-- `CoreGameData` is the canonical in-memory state boundary
-- classic `.DAT` directories remain the compatibility boundary
+- `ec-client` already runs against `ecgame.db`
+- `CoreGameData` is the canonical in-memory snapshot boundary
+- classic `.DAT` directories remain the compatibility boundary, but only
+  through explicit CLI import/export/materialization flows
 
 That means the next phase is not "finish the engine first, then think about the
 client." The next phase is building the player client on top of the engine we
@@ -56,18 +59,19 @@ Keep the current crate responsibilities:
   - continues to be the only place that knows classic file semantics
 - `ec-cli`
   - remains the sysop/admin/oracle/testing tool
-  - can keep growing inspection and setup helpers
-- future player client crate
+  - owns the explicit classic import/export/materialization bridge
+- `ec-client`
   - owns rendering, input, screen flow, and transport concerns
-  - does not reimplement game rules
+  - runs from SQLite-backed runtime state
+  - does not reimplement game rules or emit classic `.DAT` files directly
 
-Recommended next workspace shape:
+Current workspace shape:
 
 ```text
 rust/
 ├── ec-data     # state, rules, maintenance, setup, classic .DAT I/O
-├── ec-cli      # sysop/admin/oracle/inspection workflows
-└── ec-client   # future player-facing client (local first, door later)
+├── ec-cli      # sysop/admin/oracle/inspection workflows + compat bridge
+└── ec-client   # player-facing client (local first, door later)
 ```
 
 If BBS door concerns grow large enough, that can later split into:
@@ -86,13 +90,13 @@ That split should happen only if it buys clarity. It is not needed on day one.
 
 The storage direction is now:
 
-- `CoreGameData` is the canonical in-memory model
 - `ecgame.db` is the first-class persisted campaign store
+- `CoreGameData` is the canonical in-memory snapshot model
 - classic `.DAT` directories remain the required compatibility projection
 
-SQLite is still additive rather than replacing classic semantics, but it is no
-longer deferred. The player client can use SQLite-backed history and intel
-metadata while continuing to import/export classic files for oracle validation.
+SQLite is the runtime source of truth. Classic directories remain required for
+oracle validation and DOS interoperability, but they now sit behind explicit
+CLI import/export/materialization workflows instead of inside the player client.
 
 Current storage rules:
 
@@ -104,6 +108,8 @@ Current storage rules:
   snapshot there
 - classic `.DAT` directories should enter or leave the Rust runtime only
   through explicit CLI import/export workflows
+- `ec-client` should not create or refresh classic `.DAT` files as a side
+  effect of normal play
 - some classic-shaped outputs may still live in compatibility-oriented tables
   while the normalized Rust-native model matures
 - total planet database / Main / General intel views should be free to consume
@@ -328,25 +334,19 @@ Current startup-art policy:
 
 ## Suggested Near-Term Milestones
 
-### Milestone 1: Client Skeleton
+### Milestone 1: Close Remaining Command Gaps
 
-- add `ec-client` crate to the Rust workspace
-- load a game directory and player identity
-- render a static main menu / status shell in a local terminal
+- finish the remaining command/menu surfaces that are still missing or rough
+- keep screen flow and review/edit behavior aligned with classic `ECGAME`
 
-### Milestone 2: Read-Only Client
+### Milestone 2: Tighten Runtime Fidelity
 
-- show reports/messages
-- show empire/planet/fleet summaries
-- show database/starmap views
-- no order editing yet
+- keep client views driven by SQLite-backed runtime/intel state
+- remove any lingering assumptions that classic `.DAT` files are present or
+  current during normal client play
+- keep order-save paths on shared `ec-data` mutation helpers
 
-### Milestone 3: Order Workflow
-
-- edit and review fleet/planet/diplomacy orders
-- save back through existing `ec-data` mutation paths
-
-### Milestone 4: Door Wrapper
+### Milestone 3: Door Wrapper
 
 - add door launch mode
 - parse dropfiles
@@ -354,7 +354,7 @@ Current startup-art policy:
 
 ## Non-Goals For The First Client Pass
 
-- replacing `.DAT` with SQLite
+- teaching `ec-client` to own classic `.DAT` import/export directly
 - direct multiplayer networking
 - inventing a new game UX unrelated to EC
 - reproducing every DOS rendering quirk exactly
@@ -362,14 +362,15 @@ Current startup-art policy:
 
 ## Practical Recommendation
 
-Start with `ec-client` as a local terminal app that replays the current
-`ECGAME` command flow over `CoreGameData`.
+Continue building `ec-client` as a local terminal app that replays the current
+`ECGAME` command flow over SQLite-backed runtime state and shared `ec-data`
+helpers.
 
 That path:
 
 - uses the engine we already trust
-- keeps the compatibility boundary intact
-- avoids premature storage churn
+- keeps the compatibility boundary explicit in `ec-cli`
+- avoids reintroducing classic-file churn into normal client play
 - gives the fastest route to a usable Rust replacement for `ECGAME`
 
 Door support should follow once that local player workflow is solid.

@@ -1,10 +1,12 @@
-use crate::app::state::App;
 use crate::app::action::Action;
-use crate::reports::{ReportsPreview, rebuild_chunked_bytes};
-use crate::screen::{ScreenId, StartupReviewMode, STARTUP_SPLASH_PAGE_COUNT, FIRST_TIME_INTRO_PAGE_COUNT};
-use crate::startup::{StartupPhase, StartupSummary};
-use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
+use crate::app::state::App;
 use crate::domains::startup::StartupAction;
+use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
+use crate::reports::{ReportsPreview, rebuild_chunked_bytes};
+use crate::screen::{
+    FIRST_TIME_INTRO_PAGE_COUNT, STARTUP_SPLASH_PAGE_COUNT, ScreenId, StartupReviewMode,
+};
+use crate::startup::{StartupPhase, StartupSummary};
 
 impl App {
     pub fn advance_startup(&mut self) {
@@ -174,68 +176,64 @@ impl App {
 
     pub fn startup_accept_default(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         match self.current_screen {
-            ScreenId::Startup(StartupPhase::Results) => {
-                match self.startup_state.results_mode {
-                    StartupReviewMode::ViewPrompt => {
-                        self.startup_state.results_mode = StartupReviewMode::ItemBody;
-                        self.startup_state.results_page = 0;
-                    }
-                    StartupReviewMode::DeletePrompt => {
-                        let block_idx = self.startup_state.results_block;
-                        let mut blocks = self.startup.result_blocks().to_vec();
-                        if block_idx < blocks.len() {
-                            blocks.remove(block_idx);
-                        }
-                        self.results_bytes = rebuild_chunked_bytes(&blocks).unwrap_or_default();
-                        self.sync_player_review_flags();
-                        self.save_game_data()?;
-                        self.refresh_review_context()?;
-                        self.startup_state.results_deleted_any = true;
-                        self.startup_state.results_page = 0;
-                        if self.startup_state.results_block < self.startup.result_block_count() {
-                            self.startup_state.results_mode = StartupReviewMode::ContinuePrompt;
-                        } else {
-                            self.startup_state.results_mode = StartupReviewMode::EndStatus;
-                        }
-                    }
-                    StartupReviewMode::ContinuePrompt => {
-                        self.startup_state.results_mode = StartupReviewMode::ItemBody;
-                        self.startup_state.results_page = 0;
-                    }
-                    _ => {}
+            ScreenId::Startup(StartupPhase::Results) => match self.startup_state.results_mode {
+                StartupReviewMode::ViewPrompt => {
+                    self.startup_state.results_mode = StartupReviewMode::ItemBody;
+                    self.startup_state.results_page = 0;
                 }
-            }
-            ScreenId::Startup(StartupPhase::Messages) => {
-                match self.startup_state.messages_mode {
-                    StartupReviewMode::ViewPrompt => {
-                        self.startup_state.messages_mode = StartupReviewMode::ItemBody;
-                        self.startup_state.messages_page = 0;
+                StartupReviewMode::DeletePrompt => {
+                    let block_idx = self.startup_state.results_block;
+                    let mut blocks = self.startup.result_blocks().to_vec();
+                    if block_idx < blocks.len() {
+                        blocks.remove(block_idx);
                     }
-                    StartupReviewMode::DeletePrompt => {
-                        let block_idx = self.startup_state.messages_block;
-                        let mut blocks = self.startup.message_blocks().to_vec();
-                        if block_idx < blocks.len() {
-                            blocks.remove(block_idx);
-                        }
-                        self.messages_bytes = rebuild_chunked_bytes(&blocks).unwrap_or_default();
-                        self.sync_player_review_flags();
-                        self.save_game_data()?;
-                        self.refresh_review_context()?;
-                        self.startup_state.messages_deleted_any = true;
-                        self.startup_state.messages_page = 0;
-                        if self.startup_state.messages_block < self.startup.message_block_count() {
-                            self.startup_state.messages_mode = StartupReviewMode::ContinuePrompt;
-                        } else {
-                            self.startup_state.messages_mode = StartupReviewMode::EndStatus;
-                        }
+                    self.results_bytes = rebuild_chunked_bytes(&blocks).unwrap_or_default();
+                    self.sync_player_review_flags();
+                    self.save_game_data()?;
+                    self.refresh_review_context()?;
+                    self.startup_state.results_deleted_any = true;
+                    self.startup_state.results_page = 0;
+                    if self.startup_state.results_block < self.startup.result_block_count() {
+                        self.startup_state.results_mode = StartupReviewMode::ContinuePrompt;
+                    } else {
+                        self.startup_state.results_mode = StartupReviewMode::EndStatus;
                     }
-                    StartupReviewMode::ContinuePrompt => {
-                        self.startup_state.messages_mode = StartupReviewMode::ItemBody;
-                        self.startup_state.messages_page = 0;
-                    }
-                    _ => {}
                 }
-            }
+                StartupReviewMode::ContinuePrompt => {
+                    self.startup_state.results_mode = StartupReviewMode::ItemBody;
+                    self.startup_state.results_page = 0;
+                }
+                _ => {}
+            },
+            ScreenId::Startup(StartupPhase::Messages) => match self.startup_state.messages_mode {
+                StartupReviewMode::ViewPrompt => {
+                    self.startup_state.messages_mode = StartupReviewMode::ItemBody;
+                    self.startup_state.messages_page = 0;
+                }
+                StartupReviewMode::DeletePrompt => {
+                    let block_idx = self.startup_state.messages_block;
+                    let mut blocks = self.startup.message_blocks().to_vec();
+                    if block_idx < blocks.len() {
+                        blocks.remove(block_idx);
+                    }
+                    self.messages_bytes = rebuild_chunked_bytes(&blocks).unwrap_or_default();
+                    self.sync_player_review_flags();
+                    self.save_game_data()?;
+                    self.refresh_review_context()?;
+                    self.startup_state.messages_deleted_any = true;
+                    self.startup_state.messages_page = 0;
+                    if self.startup_state.messages_block < self.startup.message_block_count() {
+                        self.startup_state.messages_mode = StartupReviewMode::ContinuePrompt;
+                    } else {
+                        self.startup_state.messages_mode = StartupReviewMode::EndStatus;
+                    }
+                }
+                StartupReviewMode::ContinuePrompt => {
+                    self.startup_state.messages_mode = StartupReviewMode::ItemBody;
+                    self.startup_state.messages_page = 0;
+                }
+                _ => {}
+            },
             _ => {}
         }
         Ok(())
@@ -243,48 +241,44 @@ impl App {
 
     pub fn startup_reject_choice(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         match self.current_screen {
-            ScreenId::Startup(StartupPhase::Results) => {
-                match self.startup_state.results_mode {
-                    StartupReviewMode::ViewPrompt => {
-                        self.advance_startup_phase(true);
-                    }
-                    StartupReviewMode::DeletePrompt => {
-                        let next_block = self.startup_state.results_block + 1;
-                        self.startup_state.results_block = next_block;
-                        self.startup_state.results_page = 0;
-                        if next_block < self.startup.result_block_count() {
-                            self.startup_state.results_mode = StartupReviewMode::ContinuePrompt;
-                        } else {
-                            self.startup_state.results_mode = StartupReviewMode::EndStatus;
-                        }
-                    }
-                    StartupReviewMode::ContinuePrompt => {
+            ScreenId::Startup(StartupPhase::Results) => match self.startup_state.results_mode {
+                StartupReviewMode::ViewPrompt => {
+                    self.advance_startup_phase(true);
+                }
+                StartupReviewMode::DeletePrompt => {
+                    let next_block = self.startup_state.results_block + 1;
+                    self.startup_state.results_block = next_block;
+                    self.startup_state.results_page = 0;
+                    if next_block < self.startup.result_block_count() {
+                        self.startup_state.results_mode = StartupReviewMode::ContinuePrompt;
+                    } else {
                         self.startup_state.results_mode = StartupReviewMode::EndStatus;
                     }
-                    _ => {}
                 }
-            }
-            ScreenId::Startup(StartupPhase::Messages) => {
-                match self.startup_state.messages_mode {
-                    StartupReviewMode::ViewPrompt => {
-                        self.advance_startup_phase(false);
-                    }
-                    StartupReviewMode::DeletePrompt => {
-                        let next_block = self.startup_state.messages_block + 1;
-                        self.startup_state.messages_block = next_block;
-                        self.startup_state.messages_page = 0;
-                        if next_block < self.startup.message_block_count() {
-                            self.startup_state.messages_mode = StartupReviewMode::ContinuePrompt;
-                        } else {
-                            self.startup_state.messages_mode = StartupReviewMode::EndStatus;
-                        }
-                    }
-                    StartupReviewMode::ContinuePrompt => {
+                StartupReviewMode::ContinuePrompt => {
+                    self.startup_state.results_mode = StartupReviewMode::EndStatus;
+                }
+                _ => {}
+            },
+            ScreenId::Startup(StartupPhase::Messages) => match self.startup_state.messages_mode {
+                StartupReviewMode::ViewPrompt => {
+                    self.advance_startup_phase(false);
+                }
+                StartupReviewMode::DeletePrompt => {
+                    let next_block = self.startup_state.messages_block + 1;
+                    self.startup_state.messages_block = next_block;
+                    self.startup_state.messages_page = 0;
+                    if next_block < self.startup.message_block_count() {
+                        self.startup_state.messages_mode = StartupReviewMode::ContinuePrompt;
+                    } else {
                         self.startup_state.messages_mode = StartupReviewMode::EndStatus;
                     }
-                    _ => {}
                 }
-            }
+                StartupReviewMode::ContinuePrompt => {
+                    self.startup_state.messages_mode = StartupReviewMode::EndStatus;
+                }
+                _ => {}
+            },
             _ => {}
         }
         Ok(())
@@ -292,26 +286,22 @@ impl App {
 
     pub fn startup_enable_nonstop(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         match self.current_screen {
-            ScreenId::Startup(StartupPhase::Results) => {
-                match self.startup_state.results_mode {
-                    StartupReviewMode::ViewPrompt | StartupReviewMode::ContinuePrompt => {
-                        self.startup_state.results_nonstop = true;
-                        self.startup_state.results_mode = StartupReviewMode::ItemBody;
-                        self.startup_state.results_page = 0;
-                    }
-                    _ => {}
+            ScreenId::Startup(StartupPhase::Results) => match self.startup_state.results_mode {
+                StartupReviewMode::ViewPrompt | StartupReviewMode::ContinuePrompt => {
+                    self.startup_state.results_nonstop = true;
+                    self.startup_state.results_mode = StartupReviewMode::ItemBody;
+                    self.startup_state.results_page = 0;
                 }
-            }
-            ScreenId::Startup(StartupPhase::Messages) => {
-                match self.startup_state.messages_mode {
-                    StartupReviewMode::ViewPrompt | StartupReviewMode::ContinuePrompt => {
-                        self.startup_state.messages_nonstop = true;
-                        self.startup_state.messages_mode = StartupReviewMode::ItemBody;
-                        self.startup_state.messages_page = 0;
-                    }
-                    _ => {}
+                _ => {}
+            },
+            ScreenId::Startup(StartupPhase::Messages) => match self.startup_state.messages_mode {
+                StartupReviewMode::ViewPrompt | StartupReviewMode::ContinuePrompt => {
+                    self.startup_state.messages_nonstop = true;
+                    self.startup_state.messages_mode = StartupReviewMode::ItemBody;
+                    self.startup_state.messages_page = 0;
                 }
-            }
+                _ => {}
+            },
             _ => {}
         }
         Ok(())
@@ -347,7 +337,8 @@ impl App {
     }
 
     pub fn show_first_time_ansi_notice(&mut self) {
-        self.startup_state.first_time_status = Some("ANSI stays on. The stars look better in color.".to_string());
+        self.startup_state.first_time_status =
+            Some("ANSI stays on. The stars look better in color.".to_string());
         self.current_screen = ScreenId::FirstTimeMenu;
     }
 
@@ -475,17 +466,21 @@ impl App {
                 self.startup_state.first_time_rename_preloaded_empire = false;
                 self.current_screen = ScreenId::FirstTimeJoinSummary;
             }
-            ScreenId::FirstTimeJoinEmpireName if self.startup_state.first_time_rename_preloaded_empire => {
+            ScreenId::FirstTimeJoinEmpireName
+                if self.startup_state.first_time_rename_preloaded_empire =>
+            {
                 self.startup_state.first_time_status = None;
                 self.startup_state.first_time_input.clear();
                 self.current_screen = ScreenId::FirstTimePreloadedRenamePrompt;
             }
             ScreenId::FirstTimeJoinEmpireConfirm => {
-                self.startup_state.first_time_input = self.startup_state.first_time_empire_name.clone();
+                self.startup_state.first_time_input =
+                    self.startup_state.first_time_empire_name.clone();
                 self.current_screen = ScreenId::FirstTimeJoinEmpireName;
             }
             ScreenId::FirstTimeHomeworldConfirm => {
-                self.startup_state.first_time_input = self.startup_state.first_time_homeworld_name.clone();
+                self.startup_state.first_time_input =
+                    self.startup_state.first_time_homeworld_name.clone();
                 self.current_screen = ScreenId::FirstTimeHomeworldName;
             }
             ScreenId::ColonyWorldName => {
@@ -510,7 +505,9 @@ impl App {
 
         match phase {
             StartupPhase::Splash => match key.code {
-                KeyCode::Char('y') | KeyCode::Char('Y') => Action::Startup(StartupAction::OpenIntro),
+                KeyCode::Char('y') | KeyCode::Char('Y') => {
+                    Action::Startup(StartupAction::OpenIntro)
+                }
                 KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
                 _ => Action::Startup(StartupAction::Advance),
             },
@@ -533,9 +530,9 @@ impl App {
                 match self.startup_state.results_mode {
                     StartupReviewMode::ViewPrompt | StartupReviewMode::ContinuePrompt => {
                         match key.code {
-                            KeyCode::Enter
-                            | KeyCode::Char('y')
-                            | KeyCode::Char('Y') => Action::Startup(StartupAction::AcceptDefault),
+                            KeyCode::Enter | KeyCode::Char('y') | KeyCode::Char('Y') => {
+                                Action::Startup(StartupAction::AcceptDefault)
+                            }
                             KeyCode::Char('n') | KeyCode::Char('N') => {
                                 Action::Startup(StartupAction::RejectChoice)
                             }
@@ -551,7 +548,9 @@ impl App {
                         _ => Action::Startup(StartupAction::Advance),
                     },
                     StartupReviewMode::DeletePrompt => match key.code {
-                        KeyCode::Char('y') | KeyCode::Char('Y') => Action::Startup(StartupAction::AcceptDefault),
+                        KeyCode::Char('y') | KeyCode::Char('Y') => {
+                            Action::Startup(StartupAction::AcceptDefault)
+                        }
                         KeyCode::Enter | KeyCode::Char('n') | KeyCode::Char('N') => {
                             Action::Startup(StartupAction::RejectChoice)
                         }
@@ -579,9 +578,9 @@ impl App {
                 match self.startup_state.messages_mode {
                     StartupReviewMode::ViewPrompt | StartupReviewMode::ContinuePrompt => {
                         match key.code {
-                            KeyCode::Enter
-                            | KeyCode::Char('y')
-                            | KeyCode::Char('Y') => Action::Startup(StartupAction::AcceptDefault),
+                            KeyCode::Enter | KeyCode::Char('y') | KeyCode::Char('Y') => {
+                                Action::Startup(StartupAction::AcceptDefault)
+                            }
                             KeyCode::Char('n') | KeyCode::Char('N') => {
                                 Action::Startup(StartupAction::RejectChoice)
                             }
@@ -597,7 +596,9 @@ impl App {
                         _ => Action::Startup(StartupAction::Advance),
                     },
                     StartupReviewMode::DeletePrompt => match key.code {
-                        KeyCode::Char('y') | KeyCode::Char('Y') => Action::Startup(StartupAction::AcceptDefault),
+                        KeyCode::Char('y') | KeyCode::Char('Y') => {
+                            Action::Startup(StartupAction::AcceptDefault)
+                        }
                         KeyCode::Enter | KeyCode::Char('n') | KeyCode::Char('N') => {
                             Action::Startup(StartupAction::RejectChoice)
                         }
@@ -674,9 +675,12 @@ impl App {
         ))
     }
 
-    pub(crate) fn colony_world_summary(&self) -> Result<([u8; 2], u16, u16), Box<dyn std::error::Error>> {
+    pub(crate) fn colony_world_summary(
+        &self,
+    ) -> Result<([u8; 2], u16, u16), Box<dyn std::error::Error>> {
         let planet_index = self
-            .startup_state.colony_world_planet_record_index_1_based
+            .startup_state
+            .colony_world_planet_record_index_1_based
             .or_else(|| self.colony_world_target_planet_index())
             .ok_or("colony world prompt missing target planet")?;
         let planet = self
@@ -716,7 +720,8 @@ impl App {
 
     fn complete_colony_world_name(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let planet_index = self
-            .startup_state.colony_world_planet_record_index_1_based
+            .startup_state
+            .colony_world_planet_record_index_1_based
             .or_else(|| self.colony_world_target_planet_index())
             .ok_or("colony world prompt missing target planet")?;
         self.game_data.rename_owned_planet(
