@@ -118,12 +118,7 @@ fn maint_rust_econ_updates_database_owner_intel_from_post_combat_planet_state() 
     assert_eq!(unrelated_record.planet_name_bytes(), b"UNKNOWN");
     assert_eq!(unrelated_record.raw[0x15], 0xff);
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
-    let message_text = decode_chunked_report(&messages);
-    assert!(
-        message_text.contains("Bombardment mission report"),
-        "MESSAGES.DAT decoded text was: {:?}",
-        message_text
-    );
+    assert!(messages.is_empty());
 
     cleanup_dir(&target);
 }
@@ -334,14 +329,7 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
         "player should advertise classic undeleted results"
     );
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
-    let text = decode_chunked_report(&messages);
-    assert!(
-        text.contains("We successfully intercepted") || text.contains("We were attacked by"),
-        "MESSAGES.DAT decoded text was: {:?}",
-        text
-    );
-    assert!(text.contains("Alien force contained"));
-    assert!(text.contains("For Empire #"));
+    assert!(messages.is_empty());
 
     cleanup_dir(&target);
 }
@@ -628,7 +616,7 @@ fn maint_rust_routed_reports_set_classic_pending_flags() {
     );
     assert_eq!(
         game_data.player.records[0].classic_messages_pending_flag_raw(),
-        1
+        0
     );
     assert_eq!(
         game_data.player.records[0].classic_results_review_word_raw(),
@@ -636,7 +624,7 @@ fn maint_rust_routed_reports_set_classic_pending_flags() {
     );
     assert_eq!(
         game_data.player.records[0].classic_message_review_word_raw(),
-        1
+        0
     );
     assert_eq!(
         game_data.player.records[1].classic_reports_pending_flag_raw(),
@@ -644,7 +632,7 @@ fn maint_rust_routed_reports_set_classic_pending_flags() {
     );
     assert_eq!(
         game_data.player.records[1].classic_messages_pending_flag_raw(),
-        1
+        0
     );
     assert_eq!(
         game_data.player.records[1].classic_results_review_word_raw(),
@@ -652,7 +640,7 @@ fn maint_rust_routed_reports_set_classic_pending_flags() {
     );
     assert_eq!(
         game_data.player.records[1].classic_message_review_word_raw(),
-        1
+        0
     );
 
     cleanup_dir(&target);
@@ -1085,13 +1073,7 @@ fn maint_rust_colonization_generates_results_report_from_colony_event() {
     assert!(text.contains("successfully terraformed"));
     assert!(text.contains("started a new colony"));
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
-    let message_text = decode_chunked_report(&messages);
-    assert!(
-        message_text.contains("successfully terraformed"),
-        "MESSAGES.DAT decoded text was: {:?}",
-        message_text
-    );
-    assert!(message_text.contains("For Empire #"));
+    assert!(messages.is_empty());
 
     cleanup_dir(&target);
 }
@@ -1581,6 +1563,80 @@ fn maint_rust_invade_failure_generates_attacker_side_report() {
 }
 
 #[test]
+fn maint_rust_invade_success_exports_ecgame_accepted_owned_row_shape() {
+    let target = unique_temp_dir("ec-cli-maint-rust-invade-success-database");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let target_world = &mut game_data.planets.records[13];
+    target_world.set_as_owned_target_world(
+        [15, 13],
+        [0x64, 0x87],
+        [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],
+        0x04,
+        0x0b,
+        *b"TargetPrimeet",
+        [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05],
+        142,
+        15,
+        0,
+        2,
+    );
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_current_location_coords_raw([15, 13]);
+    attacker.set_standing_order_kind(Order::InvadeWorld);
+    attacker.set_standing_order_target_coords_raw([15, 13]);
+    attacker.set_current_speed(3);
+    attacker.raw[0x19] = 0x80;
+    attacker.set_rules_of_engagement(10);
+    attacker.set_scout_count(0);
+    attacker.set_battleship_count(20);
+    attacker.set_cruiser_count(20);
+    attacker.set_destroyer_count(20);
+    attacker.set_troop_transport_count(2);
+    attacker.set_army_count(2);
+    attacker.set_etac_count(0);
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let reloaded = CoreGameData::load(&target).expect("maint-rust output should load");
+    let expected_year = reloaded.conquest.game_year() - 1;
+    let database_bytes = fs::read(target.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+    let viewer_record = database.record(13, 0, reloaded.planets.records.len());
+    assert_eq!(viewer_record.planet_name_bytes(), b"TargetPrime");
+    assert_eq!(viewer_record.raw[0x15], 1);
+    assert_eq!(
+        u16::from_le_bytes([viewer_record.raw[0x16], viewer_record.raw[0x17]]),
+        expected_year
+    );
+    assert_eq!(
+        u16::from_le_bytes([viewer_record.raw[0x18], viewer_record.raw[0x19]]),
+        expected_year
+    );
+    assert_eq!(viewer_record.raw[0x1c], 100);
+    assert_eq!(viewer_record.raw[0x1d], 100);
+    assert_eq!(
+        u16::from_le_bytes([viewer_record.raw[0x1e], viewer_record.raw[0x1f]]),
+        65
+    );
+    assert_eq!(viewer_record.raw[0x23], 2);
+    assert_eq!(viewer_record.raw[0x24], 0x00);
+    assert_eq!(viewer_record.raw[0x25], 0);
+    assert_eq!(viewer_record.raw[0x26], 0x00);
+    assert_eq!(
+        u16::from_le_bytes([viewer_record.raw[0x27], viewer_record.raw[0x28]]),
+        expected_year
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_blitz_success_generates_attacker_side_report() {
     let target = unique_temp_dir("ec-cli-maint-rust-blitz-report");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
@@ -1824,9 +1880,7 @@ fn maint_rust_sanitizes_mixed_invalid_player_inputs_and_exports_loadable_state()
     assert!(result_text.contains("Tax rate input 255%"));
 
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
-    let message_text = decode_chunked_report(&messages);
-    assert!(message_text.contains("Maintenance corrected invalid fleet input because"));
-    assert!(message_text.contains("Maintenance canceled this fleet's orders because"));
+    assert!(messages.is_empty());
 
     cleanup_dir(&target);
 }

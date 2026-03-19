@@ -224,7 +224,7 @@ pub fn run_rust_maintenance_with_options(
         &database,
         &results_bytes,
         &messages_bytes,
-        &Vec::new(),
+        &queued_mail,
     )?;
 
     let rankings_text = build_rankings_text(&game_data);

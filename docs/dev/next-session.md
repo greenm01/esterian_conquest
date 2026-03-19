@@ -67,6 +67,19 @@ Recent validation baseline:
   - shipped docs plus the clean bombard-only probe now confirm the negative
     case: bombardment damages a world but does not capture it and should not be
     treated as a new foreign-intel source for Total Planet Database visibility
+  - live `ECGAME` review of the `TargetPrime` invade probe exposed a separate
+    classic compat issue: Rust-maint report routing into `MESSAGES.DAT` was
+    using the wrong on-disk format and produced garbled classic inbox output
+  - compat-safe policy is now: keep maintenance reports in `RESULTS.DAT`,
+    preserve existing classic `MESSAGES.DAT` unchanged, and keep Rust queued
+    mail in SQLite/runtime state until the classic mail format is recovered
+  - after removing the bad `MESSAGES.DAT` routing, original `ECGAME` accepts
+    the successful-invade `TargetPrime` row on the Total Planet Database list:
+    owner `#1`, max produx `100`, year seen `3003`, `ARs=2`, `GBs=0`,
+    current produx `100`, stored points `65`, year scout `3003`
+  - selecting that owned `TargetPrime` entry appears to route into the normal
+    owned-planet report path rather than the foreign-intel detail layout, so
+    list acceptance is the stronger compat contract for newly captured worlds
   - current compat export now keeps `ViewWorld` distinct from
     `ScoutSolarSystem`: view rows expose name/owner/potential without scout
     payload, while scout reports keep the stardock summary

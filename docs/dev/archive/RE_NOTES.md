@@ -8537,3 +8537,71 @@ Compat decision now locked in:
   unknown foreign world merely because it was bombarded
 - the remaining unresolved combat/intel family is invade/blitz assault, not
   bombardment
+
+### Rust-routed `MESSAGES.DAT` maintenance reports are not classic-compatible
+
+A live manual pass over the materialized `TargetPrime` invade probe showed:
+
+- `RESULTS.DAT` content itself was readable and the Total Planet Database list
+  accepted the exported conquered-world row
+- the classic message-review screen displayed garbled wrapped text for the
+  same maintenance consequences
+
+Inspection of the exported files showed the cause:
+
+- `RESULTS.DAT` used the recovered 84-byte chunked report format
+- `MESSAGES.DAT` was still being filled by a Rust-only routed-message writer
+  that reused maintenance report text even though earlier mail probing had
+  already shown classic `MESSAGES.DAT` uses a different compact mail format
+
+Compat decision now locked in:
+
+- do not route Rust maintenance reports into classic `MESSAGES.DAT`
+- preserve unknown existing classic `MESSAGES.DAT` payloads byte-for-byte
+- keep Rust queued mail in SQLite/runtime state until the classic mail format
+  is recovered
+- use `RESULTS.DAT` as the classic-compatible maint report surface for current
+  oracle gameplay probes
+
+### Successful invade row accepted on Total Planet Database list
+
+After removing the bad Rust-routed `MESSAGES.DAT` payload, the rebuilt invade
+probe `/tmp/ecgame-invade-probe.XfZwWl` produced a clean classic login flow:
+
+- `MESSAGES.DAT` empty
+- player 1 `reports_pending=1`
+- player 1 `messages_pending=0`
+
+Original `ECGAME` then accepted the player-1 `TargetPrime` row on the Total
+Planet Database list with:
+
+- owner `#1`
+- max production `100`
+- year seen `3003`
+- `ARs=2`
+- `GBs=0`
+- current production `100`
+- stored points `65`
+- year scout `3003`
+
+The exported compat row bytes for player 1 / planet record `14` were:
+
+- name `TargetPrime`
+- `0x15 = 0x01`
+- `0x16..0x19 = 3003`
+- `0x1c = 100`
+- `0x1d = 100`
+- `0x1e..0x1f = 65`
+- `0x23..0x24 = 0x0002`
+- `0x25..0x26 = 0x0000`
+- `0x27..0x28 = 3003`
+
+When selected from the list, `ECGAME` appears to route an owned world into the
+normal owned-planet report path rather than the foreign-intel detail layout.
+That owned report showed live planet-state fields such as current production
+`121`, not the list row's cached `DATABASE.DAT` values. Practical implication:
+
+- for newly captured worlds, list acceptance is the stronger `DATABASE.DAT`
+  compat contract
+- owned-world detail rendering is likely sourced from `PLANETS.DAT` / normal
+  owned-planet report code instead of the foreign-intel database-detail path

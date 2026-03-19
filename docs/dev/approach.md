@@ -610,20 +610,20 @@ Near-term policy:
 - every fleet encounter should eventually emit an intel/contact event even if
   no battle occurs; combat is only one possible consequence of contact
 - treat `RESULTS.DAT` as the active canonical maint report target
-- `MESSAGES.DAT` now carries a first-pass Rust-only routed message stream built
-  from recipient-scoped maintenance events, using the same chunked record shape
-  as `RESULTS.DAT` plus explicit recipient prefixes
-- this routed `MESSAGES.DAT` is a pragmatic Rust policy layer, not yet a claim
-  that the original classic per-player on-disk routing format has been
+- routed maintenance projection into classic `MESSAGES.DAT` is currently
+  disabled again for compatibility: live probing showed classic mail uses a
+  different on-disk format from the `RESULTS.DAT`-style 84-byte chunks
+- preserve existing classic `MESSAGES.DAT` payloads unchanged, and keep Rust
+  queued mail in SQLite/runtime state until the classic mail format is
   recovered
 - live `ECGAME` probing now confirms that classic player-to-player mail also
   lives in `MESSAGES.DAT`, and that recipient visibility is maintenance-gated
   rather than immediate
 - because of that overlap, `rust-maint` must preserve unknown existing classic
   `MESSAGES.DAT` payloads when it has no routed maintenance messages to write
-- current limitation: `RESULTS.DAT` still remains the aggregate canonical maint
-  report target, and `MESSAGES.DAT` routing is only a readable first-pass
-  projection while exact classic per-player semantics remain unsettled
+- current limitation: `RESULTS.DAT` remains the aggregate canonical maint
+  report target while exact classic per-player `MESSAGES.DAT` semantics remain
+  unsettled
 
 Default `ECMAINT` black-box loop for new mechanics:
 

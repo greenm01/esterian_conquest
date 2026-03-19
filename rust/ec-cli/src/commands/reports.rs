@@ -647,6 +647,7 @@ fn classic_results_lines(text: &str) -> Vec<String> {
     lines
 }
 
+#[allow(dead_code)]
 fn classic_message_text(text: &str) -> String {
     classic_results_lines(text).join("\n")
 }
@@ -721,6 +722,7 @@ fn push_split_long_word(word: &str, width: usize, lines: &mut Vec<String>, curre
     }
 }
 
+#[allow(dead_code)]
 fn push_routed_message_legacy_chunked(data: &mut Vec<u8>, kind: u8, tail: [u8; 10], text: &str) {
     let bytes = text.as_bytes();
     if bytes.is_empty() {
@@ -735,6 +737,7 @@ fn push_routed_message_legacy_chunked(data: &mut Vec<u8>, kind: u8, tail: [u8; 1
     }
 }
 
+#[allow(dead_code)]
 fn push_routed_message_chunked(
     data: &mut Vec<u8>,
     game_data: &mut CoreGameData,
@@ -1061,7 +1064,10 @@ enum ReportTarget {
     /// Only goes into RESULTS.DAT (global log, no per-player routing).
     ResultsOnly,
     /// Only goes into MESSAGES.DAT (routed to one empire).
-    MessagesOnly { recipient: u8 },
+    MessagesOnly {
+        #[allow(dead_code)]
+        recipient: u8,
+    },
     /// Goes into both; RESULTS.DAT gets unrouted text, MESSAGES.DAT routes to `recipient`.
     Both { recipient: u8 },
 }
@@ -2513,10 +2519,9 @@ pub(crate) fn build_results_dat(
         .map(|index| (index + 1) as u16)
         .unwrap_or(0);
     for (idx, player) in game_data.player.records.iter_mut().enumerate() {
-        player.set_classic_results_chain_state(
-            recipient_slots.contains(&idx) && !result_entries.is_empty(),
-            next_free_chain_id,
-        );
+        let has_results = recipient_slots.contains(&idx) && !result_entries.is_empty();
+        player.set_classic_results_review_state_present(has_results);
+        player.set_classic_results_chain_state(has_results, next_free_chain_id);
     }
 
     results
@@ -2529,64 +2534,18 @@ pub(crate) fn build_messages_dat(
     queued_mail: &[QueuedPlayerMail],
     existing_messages: &[u8],
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let mut messages = Vec::new();
-    let year = game_data.conquest.game_year();
+    let _ = events;
+    let _ = queued_mail;
 
-    for entry in generate_report_entries(game_data, events) {
-        let recipient = match entry.target {
-            ReportTarget::ResultsOnly => continue,
-            ReportTarget::MessagesOnly { recipient } => recipient,
-            ReportTarget::Both { recipient } => recipient,
-        };
-        push_routed_message_chunked(
-            &mut messages,
-            game_data,
-            recipient,
-            entry.kind,
-            classic_results_tail_for_year(entry.tail, year),
-            &classic_message_text(&entry.text),
-        );
-    }
-
-    for mail in queued_mail {
-        let subject = if mail.subject.trim().is_empty() {
-            "No Subject".to_string()
-        } else {
-            mail.subject.trim().to_string()
-        };
-        let text = format!(
-            "From {} (game year {}):\nSubject: {}\n{}",
-            empire_label(game_data, mail.sender_empire_id),
-            mail.year,
-            subject,
-            mail.body.trim(),
-        );
-        push_routed_message_chunked(
-            &mut messages,
-            game_data,
-            mail.recipient_empire_id,
-            0x08,
-            classic_results_tail_for_year(RESULTS_TAIL_BOMBARD, year),
-            &text,
-        );
-        if let Some(player) = game_data
-            .player
-            .records
-            .get_mut(mail.recipient_empire_id.saturating_sub(1) as usize)
-        {
-            player.set_classic_login_reviewables_present(true);
-        }
-    }
-
-    if !queued_mail.is_empty() && !existing_messages.is_empty() && existing_messages.len() % 84 != 0
-    {
-        return Ok(existing_messages.to_vec());
-    }
-    if messages.is_empty() && !existing_messages.is_empty() {
+    if !existing_messages.is_empty() {
         return Ok(existing_messages.to_vec());
     }
 
-    Ok(messages)
+    for player in &mut game_data.player.records {
+        player.set_classic_messages_review_state_present(false);
+    }
+
+    Ok(Vec::new())
 }
 
 // ---------------------------------------------------------------------------
