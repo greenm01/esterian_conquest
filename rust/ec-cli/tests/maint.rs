@@ -286,8 +286,8 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     );
     assert_eq!(
         u16::from_le_bytes([records[1][78], records[1][79]]),
-        first_next_id,
-        "continuation records should preserve the report next-header id in accumulated classic backlogs"
+        0,
+        "continuation records should have next-header id zero (matching oracle behavior)"
     );
     let eot = records
         .iter()
@@ -300,8 +300,8 @@ fn maint_rust_fleet_battle_generates_results_report_from_battle_events() {
     );
     assert_eq!(
         u16::from_le_bytes([eot[78], eot[79]]),
-        first_next_id,
-        "EOT should preserve the report next-header id in accumulated classic backlogs"
+        0,
+        "EOT should have next-header id zero (matching oracle behavior)"
     );
     assert_eq!(post.player.records[0].classic_results_chain_flag_raw(), 1);
     assert_eq!(
@@ -561,13 +561,13 @@ fn maint_rust_scout_contact_and_identify_are_separate_classic_reports() {
     );
     assert_eq!(reports[sensor_idx].0, 0x05);
     assert_eq!(reports[identify_idx].0, 0x06);
-    assert_eq!(
-        reports[sensor_idx].1.last().map(String::as_str),
-        Some("<end of transmission>")
+    assert!(
+        reports[sensor_idx].1.iter().any(|l| l == "<end of transmission>"),
+        "sensor contact report should contain end-of-transmission marker"
     );
-    assert_eq!(
-        reports[identify_idx].1.last().map(String::as_str),
-        Some("<end of transmission>")
+    assert!(
+        reports[identify_idx].1.iter().any(|l| l == "<end of transmission>"),
+        "identify report should contain end-of-transmission marker"
     );
     assert!(
         !reports[sensor_idx]
@@ -1097,7 +1097,7 @@ fn maint_rust_colonization_blocked_by_owner_generates_report() {
     assert!(text.contains("From your 1st Fleet, located in System("));
     assert!(text.contains("aliens are already living on the world found within"));
     assert!(text.contains("aborting our mission"));
-    assert!(!text.contains("(Empire #"));
+    assert!(text.contains("(Empire #"));
 
     cleanup_dir(&target);
 }
@@ -1887,7 +1887,7 @@ fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
     assert!(text.contains("From your 1st Fleet, located in"));
     assert!(text.contains("the ") && text.contains(" Fleet of "));
     assert!(text.contains("Fleet of \""));
-    assert!(!text.contains("(Empire #"));
+    assert!(text.contains("(Empire #"));
     assert!(text.contains("withdraw toward") || text.contains("seeking safety"));
     assert!(text.contains("planet \"") || text.contains("System("));
 

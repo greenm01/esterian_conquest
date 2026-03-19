@@ -241,7 +241,7 @@ fn classic_empire_display_name(game_data: &CoreGameData, empire_raw: u8) -> Opti
 
 fn classic_empire_clause(game_data: &CoreGameData, empire_raw: u8) -> String {
     if let Some(name) = classic_empire_display_name(game_data, empire_raw) {
-        format!("\"{name}\"")
+        format!("\"{name}\", (Empire #{empire_raw})")
     } else {
         format!("Empire #{empire_raw}")
     }
@@ -418,11 +418,25 @@ fn push_classic_results_chunked(
     continuation_tail: [u8; 10],
     text: &str,
 ) {
+    // ECGAME reads exactly `kind` records per report.  The kind byte doubles
+    // as the record count: 0x05 → 5 records, 0x06 → 6, 0x08 → 8, etc.
+    // We must emit exactly that many records (header + body + padding + EOT).
+    let target_count = kind as usize;
     let lines = classic_results_lines(text);
     if lines.is_empty() {
         return;
     }
-    for (line_idx, line) in lines.into_iter().enumerate() {
+    // Max body lines = target_count - 2 (header + EOT).
+    let max_body = target_count.saturating_sub(2);
+    // Truncate body if it exceeds the available slots.
+    let body_lines = if lines.len() > max_body + 1 {
+        // First line is header; remaining lines are body.
+        max_body + 1
+    } else {
+        lines.len()
+    };
+
+    for (line_idx, line) in lines[..body_lines].iter().enumerate() {
         let chunk = line.as_bytes();
         let mut record = [0u8; RESULTS_RECORD_SIZE];
         record[0] = kind;
@@ -437,6 +451,7 @@ fn push_classic_results_chunked(
         data.extend_from_slice(&record);
     }
 
+    // Emit EOT immediately after the text so it reads naturally.
     let eot = RESULTS_END_OF_TRANSMISSION.as_bytes();
     let mut record = [0u8; RESULTS_RECORD_SIZE];
     record[0] = kind;
@@ -444,15 +459,21 @@ fn push_classic_results_chunked(
     record[RESULTS_TEXT_START..RESULTS_TEXT_START + eot.len()].copy_from_slice(eot);
     record[RESULTS_TEXT_END..RESULTS_RECORD_SIZE].copy_from_slice(&continuation_tail);
     data.extend_from_slice(&record);
+
+    // Pad with blank records AFTER EOT so total records == target_count.
+    let emitted = body_lines + 1; // text lines + EOT
+    let padding = target_count.saturating_sub(emitted);
+    for _ in 0..padding {
+        let mut record = [0u8; RESULTS_RECORD_SIZE];
+        record[0] = kind;
+        record[RESULTS_TEXT_END..RESULTS_RECORD_SIZE].copy_from_slice(&continuation_tail);
+        data.extend_from_slice(&record);
+    }
 }
 
-fn classic_results_record_count(text: &str) -> usize {
-    let line_count = classic_results_lines(text).len();
-    if line_count == 0 {
-        0
-    } else {
-        line_count + 1
-    }
+fn classic_results_record_count(_text: &str, kind: u8) -> usize {
+    // Each report occupies exactly `kind` records in RESULTS.DAT.
+    kind as usize
 }
 
 fn classic_results_lines(text: &str) -> Vec<String> {
@@ -871,31 +892,6 @@ struct ReportEntry {
     repeat_next_pointer: bool,
 }
 
-fn report_entry(text: String, kind: u8, tail: [u8; 10], target: ReportTarget) -> ReportEntry {
-    ReportEntry {
-        text,
-        kind,
-        tail,
-        target,
-        repeat_next_pointer: false,
-    }
-}
-
-fn report_entry_repeat_next(
-    text: String,
-    kind: u8,
-    tail: [u8; 10],
-    target: ReportTarget,
-) -> ReportEntry {
-    ReportEntry {
-        text,
-        kind,
-        tail,
-        target,
-        repeat_next_pointer: true,
-    }
-}
-
 /// Build the right-justified Stardate first-line header for a report entry.
 ///
 /// `source_clause` should end with `:` (e.g. `"From your fleet in System(1,2):"`)
@@ -1000,7 +996,7 @@ fn generate_report_entries(
             kind: 0x06,
             tail: RESULTS_TAIL_FLEET,
             target: ReportTarget::Both { recipient: event.reporting_empire_raw },
-            repeat_next_pointer: true,
+            repeat_next_pointer: false,
         });
     }
 
@@ -1469,19 +1465,22 @@ fn generate_report_entries(
                 " Seek-Home mission report: We have arrived at our destination and are awaiting new orders.".to_string(),
             ),
             (Mission::BombardWorld, MissionOutcome::Arrived) => (
-                0x08,
+                // Arrival-only notice (Rust-only; original ECMAINT bombards
+                // on the same turn the fleet arrives). Use kind=0x05 to
+                // avoid blank padding — the text is only ~3 lines.
+                0x05,
                 RESULTS_TAIL_BOMBARD,
                 source_clause.clone(),
                 " Bombardment mission report: We have arrived at our target world and are preparing for bombardment.".to_string(),
             ),
             (Mission::InvadeWorld, MissionOutcome::Arrived) => (
-                0x08,
+                0x05,
                 RESULTS_TAIL_INVASION,
                 source_clause.clone(),
                 " Invasion mission report: We have arrived at our target world and are preparing to begin the invasion.".to_string(),
             ),
             (Mission::BlitzWorld, MissionOutcome::Arrived) => (
-                0x08,
+                0x05,
                 RESULTS_TAIL_INVASION,
                 source_clause.clone(),
                 " Blitz mission report: We have arrived at our target world and are preparing to launch the assault.".to_string(),
@@ -1597,7 +1596,7 @@ fn generate_report_entries(
                 )
             }
             (Mission::ScoutSolarSystem, MissionOutcome::Succeeded) => {
-                let body = if let Some(planet) = game_data
+                if let Some(planet) = game_data
                     .planets
                     .records
                     .iter()
@@ -1614,8 +1613,8 @@ fn generate_report_entries(
                     } else {
                         "The planet's stardock appears to be empty."
                     };
-                    format!(
-                        " Scouting mission report: We are in extended orbit around planet \"{}\" and have compiled the following data:\nOwned by: {}\nPotential production: {} points\nEstimated present production: {} points\nEstimated amount of stored goods: {} points\nNumber of armies: {}\nNumber of ground batteries: {}\n{}",
+                    let body = format!(
+                        " Scouting mission report: We are in extended orbit around planet \"{}\" and have compiled the following data:\n  Owned by: {}\n  Potential production: {} points\n  Estimated present production: {} points\n  Estimated amount of stored goods: {} points\n  Number of armies: {}\n  Number of ground batteries: {}\n  {}",
                         planet.planet_name(),
                         owner,
                         planet.potential_production_points(),
@@ -1626,16 +1625,23 @@ fn generate_report_entries(
                         planet.army_count_raw(),
                         planet.ground_batteries_raw(),
                         stardock_summary,
+                    );
+                    // Extended orbit report: 11 records (kind=0x0B) per
+                    // original ECMAINT, verified from shipped corpus logs.
+                    (
+                        0x0Bu8,
+                        RESULTS_TAIL_SCOUTING,
+                        source_clause.clone(),
+                        body,
                     )
                 } else {
-                    format!(" Scouting mission report: We have arrived at our destination and are beginning to scout this solar system.")
-                };
-                (
-                    0x07,
-                    RESULTS_TAIL_SCOUTING,
-                    source_clause.clone(),
-                    body,
-                )
+                    (
+                        0x07,
+                        RESULTS_TAIL_SCOUTING,
+                        source_clause.clone(),
+                        " Scouting mission report: We have arrived at our destination and are beginning to scout this solar system.".to_string(),
+                    )
+                }
             }
             (Mission::ScoutSolarSystem, MissionOutcome::Aborted) => {
                 let retreat = event
@@ -2146,7 +2152,7 @@ pub(crate) fn build_results_dat(game_data: &mut CoreGameData, events: &Maintenan
     let mut recipient_slots = BTreeSet::new();
     let record_counts = result_entries
         .iter()
-        .map(|entry| classic_results_record_count(&entry.text))
+        .map(|entry| classic_results_record_count(&entry.text, entry.kind))
         .collect::<Vec<_>>();
     let mut header_record_indexes = Vec::with_capacity(record_counts.len());
     let mut next_header_record_index = 0usize;
