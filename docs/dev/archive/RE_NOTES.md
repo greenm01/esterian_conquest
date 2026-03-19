@@ -8193,20 +8193,100 @@ correctly (or are harmlessly empty) without crashing.
 
 ### DATABASE.DAT fog-of-war behavior
 
-**Discovery:** ECGAME overwrites `DATABASE.DAT` on player login. The file written
-by `rust-maint` serves as a starting template, but ECGAME regenerates the player's
-fog-of-war database from its own internal state when the player enters the game.
+Earlier probing suggested that `ECGAME` rewrites `DATABASE.DAT` on login. The
+current live manual trace narrows that claim:
+
+- prepared directory:
+  - `/tmp/ecgame-planet-probe`
+- path exercised manually in a successful live run:
+  - launch `ECGAME`
+  - reach main menu
+  - open `Total Planet Database`
+  - accept default planet filter
+  - view the list screen
+  - open `Foundation` detail
+  - exit cleanly
+- concurrent watcher observations:
+  - reaching the main menu only touched `CHAIN.TXT`
+  - `DATABASE.DAT` bytes did not change at:
+    - main menu
+    - Total Planet Database filter prompt
+    - Total Planet Database list
+    - `Foundation` detail
+  - on exit, `DATABASE.DAT`, `PLANETS.DAT`, and `FLEETS.DAT` had their mtimes
+    touched, but their hashes remained byte-identical
+  - `PLAYER.DAT` changed by one byte only:
+    - player 1 offset `0x4E` (`last_run_year`) advanced from `3003` to `3004`
+
+Practical interpretation:
+
+- opening the Total Planet Database list/detail path does **not** by itself
+  produce a semantic `DATABASE.DAT` rebuild for already-known data
+- if `ECGAME` opens `DATABASE.DAT` on that path, it is either:
+  - read-only
+  - or a rewrite of identical bytes
+- the real compat question is now narrower:
+  - which newly granted intel rows (`Scout Solar System`, `View World`,
+    combat/contact, orbit markers) does `ECGAME` actually accept and surface
 
 Maintenance populates `DATABASE.DAT` entries for:
 - **Owned planets:** always stamped with full intel (name, owner, production, armies, batteries, year)
 - **Intel events:** planets revealed by scouting, viewing, or combat during the maintenance turn
 - **Template preservation:** previously known planets are carried forward from the template
 
-However, ECGAME's login rewrite means the DATABASE.DAT must also satisfy whatever
-internal validation ECGAME performs. The exact criteria for ECGAME to "accept" a
-DATABASE.DAT entry as valid intel remain partially undocumented — only the
-`is_orbit_record` scan markers (0x01-0x04) are currently confirmed as entries that
-ECGAME preserves across login.
+The exact criteria for `ECGAME` to "accept" a `DATABASE.DAT` entry as valid
+intel remain partially undocumented. Only the `is_orbit_record` scan markers
+(`0x01..0x04`) are currently confirmed as entries that `ECGAME` preserves.
+
+Current positive compat candidate:
+
+- in `/tmp/ecgame-planet-probe`, player 1 currently has a foreign visible row
+  for planet record `5` (`Helios Prime`) with:
+  - owner `4`
+  - potential `136`
+  - marker `0x23`
+  - armies `10`
+  - seen/scout years `3003`
+- manual oracle list-screen confirmation now exists:
+  - screenshots:
+    - `capture/ecgame_067.png`
+    - `capture/ecgame_068.png`
+  - `Helios Prime` appears in the Total Planet Database list for player 1 at
+    `(9,2)` with:
+    - owner `#4`
+    - max produx `136`
+    - year seen `3003`
+    - ARs `10`
+    - GBs `6`
+    - current produx `136`
+    - stored points `35`
+    - year scout `3003`
+- practical interpretation:
+  - the current Rust-exported foreign visible row shape for this
+    scout/view-style case is accepted by original `ECGAME` on the list screen
+- manual oracle detail-screen confirmation now exists:
+  - screenshot:
+    - `capture/ecgame_069.png`
+  - `Helios Prime` detail shows:
+    - `PLANET INFO (posted 3003: 1 yrs ago)`
+      - name `Helios Prime`
+      - location `(9,2)`
+      - owner `Helios Crown (#4)`
+      - `Owned for : N/A`
+      - `Prev Owner: UNKNOWN`
+    - `SCOUT INFO (posted 3003: 1 yrs ago)`
+      - maximum production `136`
+      - current production `(year 3003): 136`
+      - production points stored `35`
+      - armies `10`
+      - ground batteries `6`
+- practical interpretation:
+  - the current Rust-exported foreign visible row shape for this
+    scout/view-style case is accepted by original `ECGAME` on both:
+    - the Total Planet Database list
+    - the corresponding planet detail screen
+  - for at least this `0x23` marker family row, the current export is now a
+    positive oracle-compatible contract rather than a guess
 
 ### Stardock display in ECGAME
 

@@ -89,3 +89,33 @@ fn runtime_projection_keeps_owned_worlds_visible_without_snapshot_rows() {
         Some(game_data.planets.records[0].potential_production_points())
     );
 }
+
+#[test]
+fn generated_database_defaults_to_classic_unknown_sentinels() {
+    let game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3000)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    let database = DatabaseDat::generate_from_planets_and_year(
+        &game_data
+            .planets
+            .records
+            .iter()
+            .map(|planet| planet.planet_name())
+            .collect::<Vec<_>>(),
+        game_data.conquest.game_year(),
+        game_data.conquest.player_count() as usize,
+        None,
+    );
+    let record = database.record(0, 0, game_data.planets.records.len());
+    assert_eq!(record.planet_name_bytes(), b"UNKNOWN");
+    for offset in [
+        0x15usize, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x23, 0x24, 0x25, 0x26,
+    ] {
+        assert_eq!(
+            record.raw[offset], 0xff,
+            "offset {offset:#x} should use unknown sentinel"
+        );
+    }
+}

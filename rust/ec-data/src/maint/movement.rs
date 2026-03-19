@@ -1,6 +1,7 @@
 use super::{
     ColonizationEvent, DiplomaticEscalationEvent, Mission, MissionEvent, MissionOutcome,
-    MovementEvents, PlanetIntelEvent, SalvageFailureReason, SalvageResolvedEvent,
+    MovementEvents, PlanetIntelEvent, PlanetIntelSource, SalvageFailureReason,
+    SalvageResolvedEvent,
 };
 use crate::{
     CoreGameData, Order, ProductionItemKind, VisibleHazardIntel, next_path_step,
@@ -115,6 +116,7 @@ pub(super) fn process_fleet_movement(
                             movement_events.planet_intel_events.push(PlanetIntelEvent {
                                 planet_idx,
                                 viewer_empire_raw: owner_empire,
+                                source: PlanetIntelSource::ScoutSolarSystem,
                             });
                         }
                         movement_events.mission_events.push(MissionEvent {
@@ -138,6 +140,7 @@ pub(super) fn process_fleet_movement(
                             movement_events.planet_intel_events.push(PlanetIntelEvent {
                                 planet_idx,
                                 viewer_empire_raw: owner_empire,
+                                source: PlanetIntelSource::ViewWorld,
                             });
                         }
                         movement_events.mission_events.push(MissionEvent {

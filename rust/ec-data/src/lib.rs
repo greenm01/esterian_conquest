@@ -52,9 +52,9 @@ pub use maint::{
     DiplomaticEscalationEvent, EncounterDispositionEvent, EncounterDispositionReason,
     FleetBattleEvent, FleetDefectionEvent, FleetDestroyedEvent, FleetMergeEvent,
     InvalidPlayerStateEvent, JoinMissionHostEvent, MaintenanceEvents, Mission, MissionEvent,
-    MissionOutcome, MissionRetargetEvent, PlanetIntelEvent, PlanetOwnershipChangeEvent,
-    SalvageFailureReason, SalvageResolvedEvent, ScoutContactEvent, ShipLosses,
-    StarbaseDestroyedEvent, run_maintenance_turn, run_maintenance_turn_with_context,
+    MissionOutcome, MissionRetargetEvent, PlanetIntelEvent, PlanetIntelSource,
+    PlanetOwnershipChangeEvent, SalvageFailureReason, SalvageResolvedEvent, ScoutContactEvent,
+    ShipLosses, StarbaseDestroyedEvent, run_maintenance_turn, run_maintenance_turn_with_context,
     run_maintenance_turn_with_visible_hazards, run_maintenance_turns,
 };
 pub use mapgen::{

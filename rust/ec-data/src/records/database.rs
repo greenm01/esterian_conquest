@@ -83,6 +83,22 @@ impl DatabaseRecord {
     pub fn copy_from(&mut self, source: &DatabaseRecord) {
         self.raw.copy_from_slice(&source.raw);
     }
+
+    /// Reset the record to the classic "unknown planet" sentinel shape.
+    pub fn set_unknown_planet(&mut self) {
+        self.raw.fill(0);
+        self.set_planet_name("UNKNOWN");
+        self.raw[0x15] = 0xff;
+        self.raw[0x1c] = 0xff;
+        self.raw[0x1d] = 0xff;
+        self.raw[0x1e] = 0xff;
+        self.raw[0x1f] = 0xff;
+        self.raw[0x20] = 0xff;
+        self.raw[0x23] = 0xff;
+        self.raw[0x24] = 0xff;
+        self.raw[0x25] = 0xff;
+        self.raw[0x26] = 0xff;
+    }
 }
 
 /// The complete DATABASE.DAT file.
@@ -179,7 +195,7 @@ impl DatabaseDat {
             for player in 0..player_count {
                 for planet in 0..planet_names.len() {
                     let record = default.record_mut(planet, player, planet_names.len());
-                    record.set_planet_name("UNKNOWN");
+                    record.set_unknown_planet();
                 }
             }
             default

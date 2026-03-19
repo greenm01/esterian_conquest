@@ -1,8 +1,97 @@
 mod common;
 
 use std::fs;
+use std::path::Path;
 
 use common::{cleanup_dir, run_ec_cli, run_ecmaint_oracle, unique_temp_dir};
+use ec_data::DatabaseDat;
+
+fn setup_classic_probe_players(target: &Path) {
+    let player_specs = [
+        ("1", "SYSOP", "Auroran Combine", "Foundation", "42"),
+        ("2", "HECATE", "Red Horizon Pact", "Red Haven", "50"),
+        ("3", "ORION", "Vela Syndicate", "Vela Prime", "36"),
+        ("4", "TESS", "Helios Crown", "Crownfall", "58"),
+    ];
+
+    for (record, handle, empire, homeworld, tax_rate) in player_specs {
+        if record == "1" {
+            run_ec_cli(&[
+                "player-join",
+                target.to_str().unwrap(),
+                record,
+                handle,
+                empire,
+                homeworld,
+            ]);
+        } else {
+            run_ec_cli(&["player-name", target.to_str().unwrap(), record, handle, empire]);
+        }
+        run_ec_cli(&["player-tax", target.to_str().unwrap(), record, tax_rate]);
+    }
+}
+
+fn setup_classic_probe_planets(target: &Path) {
+    let planet_specs = [
+        ("1", "1", "Foundation", "100", "0", "10", "4"),
+        ("2", "2", "Red Haven", "100", "0", "10", "4"),
+        ("3", "3", "Vela Prime", "100", "0", "10", "4"),
+        ("4", "4", "Crownfall", "100", "0", "10", "4"),
+        ("5", "4", "Helios Prime", "136", "35", "10", "6"),
+        ("8", "3", "Outer Vela", "128", "26", "8", "5"),
+        ("12", "3", "Vela Gate", "104", "18", "7", "4"),
+        ("13", "2", "Red Bastion", "132", "28", "12", "7"),
+        ("15", "2", "Crucible", "118", "24", "14", "8"),
+        ("16", "1", "Aurora Prime", "144", "48", "12", "6"),
+        ("17", "1", "Relay", "96", "20", "5", "3"),
+        ("19", "1", "Outrider", "84", "14", "3", "2"),
+    ];
+
+    for (record, owner, name, potential, stored, armies, batteries) in planet_specs {
+        run_ec_cli(&["planet-owner", target.to_str().unwrap(), record, owner]);
+        run_ec_cli(&["planet-name", target.to_str().unwrap(), record, name]);
+        run_ec_cli(&[
+            "planet-potential",
+            target.to_str().unwrap(),
+            record,
+            potential,
+            "135",
+        ]);
+        run_ec_cli(&["planet-stored", target.to_str().unwrap(), record, stored]);
+        run_ec_cli(&[
+            "planet-stats",
+            target.to_str().unwrap(),
+            record,
+            armies,
+            batteries,
+        ]);
+    }
+}
+
+fn setup_classic_probe_scout_order(target: &Path) {
+    run_ec_cli(&[
+        "fleet-ships",
+        target.to_str().unwrap(),
+        "2",
+        "1",
+        "0",
+        "1",
+        "2",
+        "0",
+        "0",
+        "0",
+    ]);
+
+    run_ec_cli(&[
+        "fleet-order",
+        target.to_str().unwrap(),
+        "2",
+        "3",
+        "11",
+        "9",
+        "2",
+    ]);
+}
 
 #[test]
 fn db_import_and_export_round_trip_fixture() {
@@ -158,6 +247,127 @@ fn db_export_preserves_returning_player_classification() {
     ]);
     assert!(inspect_stdout.contains("slot 1: classification=returning-player"));
     assert!(inspect_stdout.contains("homeworld='Dust Bowl'"));
+
+    cleanup_dir(&source);
+    cleanup_dir(&exported);
+}
+
+#[test]
+fn db_export_preserves_owned_world_marker_family_from_imported_template() {
+    let source = unique_temp_dir("ec-cli-db-export-owned-marker-source");
+    let exported = unique_temp_dir("ec-cli-db-export-owned-marker-exported");
+    common::copy_fixture_dir("original/v1.5", &source);
+
+    let import_stdout = run_ec_cli(&["db-import", source.to_str().unwrap()]);
+    assert!(import_stdout.contains("Imported"));
+
+    let rename_stdout = run_ec_cli(&[
+        "planet-name",
+        source.to_str().unwrap(),
+        "16",
+        "Dust Bowl II",
+    ]);
+    assert!(rename_stdout.contains("Planet record 16 name set"));
+
+    let export_stdout = run_ec_cli(&[
+        "db-export",
+        source.to_str().unwrap(),
+        exported.to_str().unwrap(),
+    ]);
+    assert!(export_stdout.contains("Exported year"));
+
+    let exported_data = ec_data::CoreGameData::load(&exported).expect("exported game should load");
+    let database_bytes =
+        fs::read(exported.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+    let row = database.record(15, 0, exported_data.planets.records.len());
+    assert_eq!(row.planet_name_bytes(), b"Dust Bowl II");
+    assert_eq!(row.raw[0x1e], 0x42);
+
+    cleanup_dir(&source);
+    cleanup_dir(&exported);
+}
+
+#[test]
+fn db_export_keeps_unknown_rows_at_classic_sentinels() {
+    let source = unique_temp_dir("ec-cli-db-export-unknown-sentinels-source");
+    let exported = unique_temp_dir("ec-cli-db-export-unknown-sentinels-exported");
+
+    let stdout = run_ec_cli(&["sysop", "new-game", source.to_str().unwrap()]);
+    assert!(stdout.contains("Initialized new game"));
+
+    let export_stdout = run_ec_cli(&[
+        "db-export",
+        source.to_str().unwrap(),
+        exported.to_str().unwrap(),
+    ]);
+    assert!(export_stdout.contains("Exported year 3000"));
+
+    let exported_data = ec_data::CoreGameData::load(&exported).expect("exported game should load");
+    let database_bytes =
+        fs::read(exported.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+    let row = database.record(0, 0, exported_data.planets.records.len());
+    assert_eq!(row.planet_name_bytes(), b"UNKNOWN");
+    for offset in [
+        0x15usize, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x23, 0x24, 0x25, 0x26,
+    ] {
+        assert_eq!(
+            row.raw[offset], 0xff,
+            "offset {offset:#x} should be unknown"
+        );
+    }
+
+    cleanup_dir(&source);
+    cleanup_dir(&exported);
+}
+
+#[test]
+fn db_export_emits_ecgame_accepted_foreign_full_intel_row_shape() {
+    let source = unique_temp_dir("ec-cli-db-export-foreign-full-intel-source");
+    let exported = unique_temp_dir("ec-cli-db-export-foreign-full-intel-exported");
+
+    let stdout = run_ec_cli(&[
+        "sysop",
+        "new-game",
+        source.to_str().unwrap(),
+        "--players",
+        "4",
+        "--seed",
+        "1515",
+    ]);
+    assert!(stdout.contains("Initialized new game"));
+
+    setup_classic_probe_players(&source);
+    setup_classic_probe_planets(&source);
+    setup_classic_probe_scout_order(&source);
+
+    let maint_stdout = run_ec_cli(&["maint-rust", source.to_str().unwrap(), "4"]);
+    assert!(maint_stdout.contains("Rust maintenance complete."));
+
+    let export_stdout = run_ec_cli(&[
+        "db-export",
+        source.to_str().unwrap(),
+        exported.to_str().unwrap(),
+    ]);
+    assert!(export_stdout.contains("Exported year 3004"));
+
+    let exported_data = ec_data::CoreGameData::load(&exported).expect("exported game should load");
+    let database_bytes =
+        fs::read(exported.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+    let row = database.record(4, 0, exported_data.planets.records.len());
+    assert_eq!(row.planet_name_bytes(), b"Helios Prime");
+    assert_eq!(row.raw[0x15], 4);
+    assert_eq!(row.raw[0x1c], 136);
+    assert_eq!(row.raw[0x1d], 136);
+    assert_eq!(row.raw[0x1e], 0x23);
+    assert_eq!(row.raw[0x23], 10);
+    assert_eq!(row.raw[0x24], 0x00);
+    assert_eq!(row.raw[0x25], 6);
+    assert_eq!(row.raw[0x26], 0x00);
+    assert_eq!(u16::from_le_bytes([row.raw[0x16], row.raw[0x17]]), 3003);
+    assert_eq!(u16::from_le_bytes([row.raw[0x27], row.raw[0x28]]), 3003);
 
     cleanup_dir(&source);
     cleanup_dir(&exported);

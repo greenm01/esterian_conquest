@@ -77,13 +77,23 @@ pub struct AssaultReportEvent {
     pub stardate_week: Option<u8>,
 }
 
-/// A combat-triggered intel refresh for one player's DATABASE view of one planet.
+/// Source family for one player's classic planet-database refresh.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlanetIntelSource {
+    ScoutSolarSystem,
+    ViewWorld,
+    Combat,
+}
+
+/// A classic planet-database refresh for one player's view of one planet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PlanetIntelEvent {
     /// Planet index (into PLANETS.DAT records) whose intel should be refreshed.
     pub planet_idx: usize,
     /// Viewer empire (1-based player index) whose DATABASE record should be updated.
     pub viewer_empire_raw: u8,
+    /// Mission/combat family that produced this refresh.
+    pub source: PlanetIntelSource,
 }
 
 /// A combat-triggered planet ownership change.

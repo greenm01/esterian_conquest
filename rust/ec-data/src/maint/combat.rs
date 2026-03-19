@@ -14,7 +14,7 @@ use super::{
     AssaultReportEvent, BombardEvent, ContactReportSource, DiplomacyOverride,
     EncounterDispositionEvent, EncounterDispositionReason, FleetBattleEvent,
     FleetBattlePerspective, FleetDestroyedEvent, Mission, MissionEvent, MissionOutcome,
-    PlanetIntelEvent, PlanetOwnershipChangeEvent, ScoutContactEvent, ShipLosses,
+    PlanetIntelEvent, PlanetIntelSource, PlanetOwnershipChangeEvent, ScoutContactEvent, ShipLosses,
     StarbaseDestroyedEvent,
 };
 
@@ -1435,6 +1435,7 @@ fn push_planet_intel(events: &mut AssaultEvents, planet_idx: usize, viewer_empir
     events.planet_intel_events.push(PlanetIntelEvent {
         planet_idx,
         viewer_empire_raw,
+        source: PlanetIntelSource::Combat,
     });
 }
 

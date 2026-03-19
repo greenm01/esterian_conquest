@@ -13,7 +13,9 @@ use ec_data::{
 use crate::commands::reports::{
     build_database_dat, build_messages_dat, build_rankings_text, build_results_dat,
 };
-use crate::commands::runtime::load_runtime_state_preferring_live_directory;
+use crate::commands::runtime::{
+    load_runtime_intel_by_viewer, load_runtime_state_preferring_live_directory,
+};
 
 /// Run Rust maintenance on a game directory for specified number of turns.
 ///
@@ -179,7 +181,13 @@ pub fn run_rust_maintenance_with_options(
 
         apply_diplomatic_escalations(&mut game_data, &mut diplomacy_overrides, &all_events)?;
 
-        database = build_database_dat(&game_data, &pre_maint_planets, &all_events, Some(&database));
+        database = build_database_dat(
+            &game_data,
+            &pre_maint_planets,
+            &planet_intel_by_viewer,
+            &all_events,
+            Some(&database),
+        );
         for viewer_empire_id in 1..=game_data.conquest.player_count() {
             let viewer_idx = viewer_empire_id.saturating_sub(1) as usize;
             let previous = planet_intel_by_viewer
@@ -541,21 +549,6 @@ fn visible_hazards_from_snapshots(
                 planet_intel_by_viewer.get(viewer_idx - 1).unwrap_or(&empty),
                 viewer_idx as u8,
             )
-        })
-        .collect()
-}
-
-fn load_runtime_intel_by_viewer(
-    campaign_store: &CampaignStore,
-    game_data: &CoreGameData,
-) -> Result<Vec<BTreeMap<usize, PlanetIntelSnapshot>>, Box<dyn std::error::Error>> {
-    (1..=game_data.conquest.player_count())
-        .map(|viewer_empire_id| {
-            Ok(campaign_store
-                .latest_planet_intel_for_viewer(viewer_empire_id)?
-                .into_iter()
-                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
-                .collect::<BTreeMap<_, _>>())
         })
         .collect()
 }

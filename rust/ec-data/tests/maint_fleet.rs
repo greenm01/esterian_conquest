@@ -5,7 +5,7 @@
 
 use ec_data::{
     BaseDat, BaseRecord, ColonizationResolvedEvent, CoreGameData, DiplomaticRelation,
-    JoinMissionHostEvent, Mission, MissionOutcome, MissionRetargetEvent, Order,
+    JoinMissionHostEvent, Mission, MissionOutcome, MissionRetargetEvent, Order, PlanetIntelSource,
     SalvageFailureReason, SalvageResolvedEvent, run_maintenance_turn,
 };
 use std::path::Path;
@@ -287,6 +287,10 @@ fn test_scout_system_arrival_emits_success_event() {
     assert_eq!(events.planet_intel_events.len(), 1);
     assert_eq!(events.planet_intel_events[0].planet_idx, 13);
     assert_eq!(events.planet_intel_events[0].viewer_empire_raw, 1);
+    assert_eq!(
+        events.planet_intel_events[0].source,
+        PlanetIntelSource::ScoutSolarSystem
+    );
     assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 0
             && event.kind == Mission::ScoutSolarSystem
@@ -314,6 +318,10 @@ fn test_view_world_arrival_emits_success_and_intel_event() {
     assert_eq!(events.planet_intel_events.len(), 1);
     assert_eq!(events.planet_intel_events[0].planet_idx, 13);
     assert_eq!(events.planet_intel_events[0].viewer_empire_raw, 1);
+    assert_eq!(
+        events.planet_intel_events[0].source,
+        PlanetIntelSource::ViewWorld
+    );
     assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 0
             && event.kind == Mission::ViewWorld

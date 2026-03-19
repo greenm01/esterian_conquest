@@ -1,11 +1,11 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use ec_data::maint::{FleetBattlePerspective, timing::format_report_first_line};
 use ec_data::{
-    ContactReportSource, CoreGameData, DatabaseDat, EmpireProductionRankingSort,
+    ContactReportSource, CoreGameData, DatabaseDat, DatabaseRecord, EmpireProductionRankingSort,
     FleetOrderValidationError, FleetPlayerInputValidationError, MaintenanceEvents, Mission,
-    MissionOutcome, PlanetDat, PlanetPlayerInputValidationError, PlayerDiplomacyValidationError,
-    QueuedPlayerMail, ShipLosses,
+    MissionOutcome, PlanetDat, PlanetIntelSnapshot, PlanetIntelSource,
+    PlanetPlayerInputValidationError, PlayerDiplomacyValidationError, QueuedPlayerMail, ShipLosses,
 };
 
 const RESULTS_RECORD_SIZE: usize = 84;
@@ -26,25 +26,10 @@ const RESULTS_TAIL_SCOUTING: [u8; 10] = [0, 0, 0, 0, 0, 0, 0, 0, 186, 11];
 pub(crate) fn build_database_dat(
     game_data: &CoreGameData,
     pre_maint_planets: &PlanetDat,
+    planet_intel_by_viewer: &[BTreeMap<usize, PlanetIntelSnapshot>],
     events: &MaintenanceEvents,
     template: Option<&DatabaseDat>,
 ) -> DatabaseDat {
-    let planet_names: Vec<String> = game_data
-        .planets
-        .records
-        .iter()
-        .map(|p| {
-            let name = p.planet_name();
-            if name.eq_ignore_ascii_case("unowned") || name.eq_ignore_ascii_case("not named yet") {
-                "UNKNOWN".to_string()
-            } else {
-                name
-            }
-        })
-        .collect();
-
-    let year = game_data.conquest.game_year();
-    let discovery_year = year - 1;
     let player_count = game_data.conquest.player_count() as usize;
     let planet_count = game_data.planets.records.len();
     let expected_record_count = player_count * planet_count;
@@ -52,208 +37,284 @@ pub(crate) fn build_database_dat(
         .filter(|db| db.records.len() == expected_record_count)
         .cloned();
     let template = template.as_ref();
-    let mut new_database =
-        DatabaseDat::generate_from_planets_and_year(&planet_names, year, player_count, template);
+    let mut new_database = DatabaseDat::generate_from_planets_and_year(
+        &game_data
+            .planets
+            .records
+            .iter()
+            .map(|planet| planet.planet_name())
+            .collect::<Vec<_>>(),
+        game_data.conquest.game_year(),
+        player_count,
+        None,
+    );
+    let current_intel_year = game_data.conquest.game_year().saturating_sub(1);
+    let current_turn_grants = collect_planet_intel_sources(events);
 
-    if let Some(template_db) = template {
-        let year_bytes = discovery_year.to_le_bytes();
+    for player in 0..player_count {
+        let viewer_empire_raw = (player + 1) as u8;
+        let previous_rows = planet_intel_by_viewer.get(player);
+        for planet_idx in 0..planet_count {
+            let record_idx = DatabaseDat::record_index(planet_idx, player, planet_count);
+            let template_record = template.and_then(|db| db.records.get(record_idx));
+            let record = &mut new_database.records[record_idx];
+            let planet = &game_data.planets.records[planet_idx];
+            let snapshot = previous_rows.and_then(|rows| rows.get(&(planet_idx + 1)));
+            let current_turn_grant = current_turn_grants.get(&(viewer_empire_raw, planet_idx));
+            let owns_world = planet.owner_empire_slot_raw() == viewer_empire_raw;
 
-        for player in 0..player_count {
-            for planet in 0..planet_count {
-                let record_idx = player * planet_count + planet;
-                let template_record = &template_db.records[record_idx];
-                let scan_marker = template_record.raw[0x15];
-                let is_orbit_record =
-                    scan_marker >= 0x01 && scan_marker <= 0x04 && template_record.raw[0x00] == 0;
-
-                let planet_owner = if planet < game_data.planets.records.len() {
-                    game_data.planets.records[planet].owner_empire_slot_raw() as usize
-                } else {
-                    0
-                };
-                let is_owned_unknown = scan_marker == 0xff && planet_owner == player + 1;
-
-                if is_orbit_record {
-                    new_database.records[record_idx].set_planet_name("Not Named Yet");
-                    new_database.records[record_idx].raw[0x16] = year_bytes[0];
-                    new_database.records[record_idx].raw[0x17] = year_bytes[1];
-                    new_database.records[record_idx].raw[0x18] = year_bytes[0];
-                    new_database.records[record_idx].raw[0x19] = year_bytes[1];
-                    new_database.records[record_idx].raw[0x27] = year_bytes[0];
-                    new_database.records[record_idx].raw[0x28] = year_bytes[1];
-
-                    if planet < pre_maint_planets.records.len() {
-                        let had_build_queue = (0..10).any(|slot| {
-                            pre_maint_planets.records[planet].build_count_raw(slot) > 0
-                        });
-                        if had_build_queue {
-                            new_database.records[record_idx].raw[0x1e] = 0x00;
-                        }
-                    }
-
-                    if planet < game_data.planets.records.len()
-                        && game_data.planets.records[planet].raw[0x03] == 0x87
-                        && planet_owner > 0
-                        && planet_owner == player + 1
-                    {
-                        let player_mode = game_data.player.records[player].raw[0x00];
-                        let autopilot = game_data.player.records[player].raw[0x6D];
-                        let ai_ran =
-                            player_mode == 0xff || (player_mode == 0x01 && autopilot == 0x01);
-                        if ai_ran {
-                            let owner_slot = planet_owner as u8;
-                            let armies = game_data.planets.records[planet].army_count_raw();
-                            new_database.records[record_idx].raw[0x1e] = 0x40 + owner_slot;
-                            new_database.records[record_idx].raw[0x23] = armies;
-                        }
-                    }
-                } else if is_owned_unknown {
-                    let owner_slot = planet_owner as u8;
-                    let planet_name = if planet < game_data.planets.records.len() {
-                        game_data.planets.records[planet].planet_name()
-                    } else {
-                        String::new()
-                    };
-                    let is_new_colony = planet_name.eq_ignore_ascii_case("not named yet");
-
-                    new_database.records[record_idx].set_planet_name(&planet_name);
-                    new_database.records[record_idx].raw[0x15] =
-                        if is_new_colony { 0x01 } else { owner_slot };
-                    new_database.records[record_idx].raw[0x16] = year_bytes[0];
-                    new_database.records[record_idx].raw[0x17] = year_bytes[1];
-                    new_database.records[record_idx].raw[0x18] = year_bytes[0];
-                    new_database.records[record_idx].raw[0x19] = year_bytes[1];
-                    new_database.records[record_idx].raw[0x27] = year_bytes[0];
-                    new_database.records[record_idx].raw[0x28] = year_bytes[1];
-
-                    if planet < game_data.planets.records.len() {
-                        let p = &game_data.planets.records[planet];
-                        let pot_prod_lo = p.raw[0x02];
-                        let armies = p.army_count_raw();
-                        let batteries = p.ground_batteries_raw();
-
-                        new_database.records[record_idx].raw[0x1c] = pot_prod_lo;
-                        new_database.records[record_idx].raw[0x1d] = if is_new_colony {
-                            owner_slot
-                        } else {
-                            pot_prod_lo
-                        };
-                        new_database.records[record_idx].raw[0x1e] = if is_new_colony {
-                            0x00
-                        } else {
-                            0x40 + owner_slot
-                        };
-                        new_database.records[record_idx].raw[0x1f] = 0x00;
-                        new_database.records[record_idx].raw[0x23] = armies;
-                        new_database.records[record_idx].raw[0x24] = 0x00;
-                        new_database.records[record_idx].raw[0x25] = batteries;
-                        new_database.records[record_idx].raw[0x26] = 0x00;
-                    }
-                }
-            }
-        }
-    }
-
-    if template.is_some() {
-        let year_bytes = discovery_year.to_le_bytes();
-        for event in &events.planet_intel_events {
-            let planet_idx = event.planet_idx;
-            if planet_idx >= game_data.planets.records.len() {
+            if owns_world {
+                apply_owned_world_row(record, template_record, planet, current_intel_year);
                 continue;
             }
-            let planet = &game_data.planets.records[planet_idx];
-            let owner_slot = planet.owner_empire_slot_raw();
-            let pot_prod_lo = planet.raw[0x02];
-            let armies = planet.army_count_raw();
-            let batteries = planet.ground_batteries_raw();
-            let name_len = planet.raw[0x0F];
-            let planet_name: String = planet.raw[0x10..0x10 + name_len.min(13) as usize]
-                .iter()
-                .map(|&b| b as char)
-                .collect();
 
-            let viewer_player = event.viewer_empire_raw.saturating_sub(1) as usize;
-            let update_record = |new_database: &mut DatabaseDat, record_idx: usize| {
-                new_database.records[record_idx].set_planet_name(&planet_name);
-                new_database.records[record_idx].raw[0x15] = owner_slot;
-                new_database.records[record_idx].raw[0x16] = year_bytes[0];
-                new_database.records[record_idx].raw[0x17] = year_bytes[1];
-                new_database.records[record_idx].raw[0x18] = year_bytes[0];
-                new_database.records[record_idx].raw[0x19] = year_bytes[1];
-                new_database.records[record_idx].raw[0x1c] = pot_prod_lo;
-                new_database.records[record_idx].raw[0x1d] = pot_prod_lo;
-                new_database.records[record_idx].raw[0x1e] = 0x23;
-                new_database.records[record_idx].raw[0x1f] = 0x00;
-                new_database.records[record_idx].raw[0x23] = armies;
-                new_database.records[record_idx].raw[0x24] = 0x00;
-                new_database.records[record_idx].raw[0x25] = batteries;
-                new_database.records[record_idx].raw[0x26] = 0x00;
-                new_database.records[record_idx].raw[0x27] = year_bytes[0];
-                new_database.records[record_idx].raw[0x28] = year_bytes[1];
-            };
-
-            let record_idx = DatabaseDat::record_index(planet_idx, viewer_player, planet_count);
-            if record_idx < new_database.records.len() {
-                update_record(&mut new_database, record_idx);
+            if let Some(source) = current_turn_grant.copied() {
+                apply_full_intel_row(
+                    record,
+                    template_record,
+                    planet.planet_name().as_str(),
+                    planet.owner_empire_slot_raw(),
+                    planet.raw[0x02],
+                    planet.army_count_raw(),
+                    planet.ground_batteries_raw(),
+                    current_intel_year,
+                    source,
+                );
+                continue;
             }
-        }
-    }
 
-    // Ensure every player has full intel on their own planets in DATABASE.DAT,
-    // regardless of template state or scan markers.
-    {
-        let year_bytes = discovery_year.to_le_bytes();
-        for player in 0..player_count {
-            let owner_slot = (player + 1) as u8;
-            for planet in 0..planet_count {
-                if planet >= game_data.planets.records.len() {
-                    continue;
-                }
-                let p = &game_data.planets.records[planet];
-                if p.owner_empire_slot_raw() != owner_slot {
-                    continue;
-                }
-                let record_idx = DatabaseDat::record_index(planet, player, planet_count);
-                if record_idx >= new_database.records.len() {
-                    continue;
-                }
-
-                let planet_name = p.planet_name();
-                let is_new_colony = planet_name.eq_ignore_ascii_case("not named yet");
-                let pot_prod_lo = p.raw[0x02];
-                let armies = p.army_count_raw();
-                let batteries = p.ground_batteries_raw();
-
-                new_database.records[record_idx].set_planet_name(&planet_name);
-                new_database.records[record_idx].raw[0x15] =
-                    if is_new_colony { 0x01 } else { owner_slot };
-                new_database.records[record_idx].raw[0x16] = year_bytes[0];
-                new_database.records[record_idx].raw[0x17] = year_bytes[1];
-                new_database.records[record_idx].raw[0x18] = year_bytes[0];
-                new_database.records[record_idx].raw[0x19] = year_bytes[1];
-                new_database.records[record_idx].raw[0x1c] = pot_prod_lo;
-                new_database.records[record_idx].raw[0x1d] = if is_new_colony {
-                    owner_slot
-                } else {
-                    pot_prod_lo
-                };
-                new_database.records[record_idx].raw[0x1e] = if is_new_colony {
-                    0x00
-                } else {
-                    0x40 + owner_slot
-                };
-                new_database.records[record_idx].raw[0x1f] = 0x00;
-                new_database.records[record_idx].raw[0x23] = armies;
-                new_database.records[record_idx].raw[0x24] = 0x00;
-                new_database.records[record_idx].raw[0x25] = batteries;
-                new_database.records[record_idx].raw[0x26] = 0x00;
-                new_database.records[record_idx].raw[0x27] = year_bytes[0];
-                new_database.records[record_idx].raw[0x28] = year_bytes[1];
+            if let Some(snapshot) = snapshot {
+                apply_snapshot_row(record, template_record, snapshot);
+                continue;
             }
+
+            if let Some(template_record) = template_record.filter(|row| is_orbit_record(row)) {
+                preserve_orbit_record(
+                    record,
+                    template_record,
+                    game_data,
+                    pre_maint_planets,
+                    planet_idx,
+                    player,
+                    current_intel_year,
+                );
+                continue;
+            }
+
+            record.set_unknown_planet();
         }
     }
 
     new_database
+}
+
+fn collect_planet_intel_sources(
+    events: &MaintenanceEvents,
+) -> BTreeMap<(u8, usize), PlanetIntelSource> {
+    let mut sources = BTreeMap::new();
+    for event in &events.planet_intel_events {
+        sources.insert((event.viewer_empire_raw, event.planet_idx), event.source);
+    }
+    sources
+}
+
+fn is_orbit_record(record: &DatabaseRecord) -> bool {
+    let scan_marker = record.raw[0x15];
+    (0x01..=0x04).contains(&scan_marker) && record.raw[0x00] == 0
+}
+
+fn preserve_orbit_record(
+    record: &mut DatabaseRecord,
+    template_record: &DatabaseRecord,
+    game_data: &CoreGameData,
+    pre_maint_planets: &PlanetDat,
+    planet_idx: usize,
+    player_idx: usize,
+    intel_year: u16,
+) {
+    record.copy_from(template_record);
+    record.set_planet_name("Not Named Yet");
+    set_year_word(record, 0x16, Some(intel_year));
+    set_year_word(record, 0x18, Some(intel_year));
+    set_year_word(record, 0x27, Some(intel_year));
+
+    if planet_idx < pre_maint_planets.records.len() {
+        let had_build_queue =
+            (0..10).any(|slot| pre_maint_planets.records[planet_idx].build_count_raw(slot) > 0);
+        if had_build_queue {
+            record.raw[0x1e] = 0x00;
+        }
+    }
+
+    if planet_idx < game_data.planets.records.len() {
+        let planet = &game_data.planets.records[planet_idx];
+        let planet_owner = planet.owner_empire_slot_raw() as usize;
+        if planet.raw[0x03] == 0x87 && planet_owner > 0 && planet_owner == player_idx + 1 {
+            let player_mode = game_data.player.records[player_idx].raw[0x00];
+            let autopilot = game_data.player.records[player_idx].raw[0x6D];
+            let ai_ran = player_mode == 0xff || (player_mode == 0x01 && autopilot == 0x01);
+            if ai_ran {
+                let owner_slot = planet_owner as u8;
+                record.raw[0x1e] =
+                    owned_row_marker(owner_slot, &planet.planet_name(), Some(template_record));
+                record.raw[0x23] = planet.army_count_raw();
+                record.raw[0x24] = 0x00;
+            }
+        }
+    }
+}
+
+fn apply_snapshot_row(
+    record: &mut DatabaseRecord,
+    template_record: Option<&DatabaseRecord>,
+    snapshot: &PlanetIntelSnapshot,
+) {
+    let Some(name) = snapshot.known_name.as_deref() else {
+        record.set_unknown_planet();
+        return;
+    };
+    let Some(owner_slot) = snapshot.known_owner_empire_id else {
+        record.set_unknown_planet();
+        return;
+    };
+    let Some(potential) = snapshot.known_potential_production else {
+        record.set_unknown_planet();
+        return;
+    };
+    let potential = potential.min(u16::from(u8::MAX)) as u8;
+    if let (Some(armies), Some(batteries)) =
+        (snapshot.known_armies, snapshot.known_ground_batteries)
+    {
+        apply_visible_row(
+            record,
+            template_record,
+            name,
+            owner_slot,
+            potential,
+            Some(armies),
+            Some(batteries),
+            snapshot.last_intel_year,
+            snapshot.last_intel_year,
+            0x23,
+        );
+    } else {
+        apply_visible_row(
+            record,
+            template_record,
+            name,
+            owner_slot,
+            potential,
+            None,
+            None,
+            snapshot.last_intel_year,
+            None,
+            0x23,
+        );
+    }
+}
+
+fn apply_owned_world_row(
+    record: &mut DatabaseRecord,
+    template_record: Option<&DatabaseRecord>,
+    planet: &ec_data::PlanetRecord,
+    intel_year: u16,
+) {
+    let owner_slot = planet.owner_empire_slot_raw();
+    let marker = owned_row_marker(owner_slot, planet.planet_name().as_str(), template_record);
+    apply_visible_row(
+        record,
+        template_record,
+        planet.planet_name().as_str(),
+        owner_slot,
+        planet.raw[0x02],
+        Some(planet.army_count_raw()),
+        Some(planet.ground_batteries_raw()),
+        Some(intel_year),
+        Some(intel_year),
+        marker,
+    );
+}
+
+fn apply_full_intel_row(
+    record: &mut DatabaseRecord,
+    template_record: Option<&DatabaseRecord>,
+    planet_name: &str,
+    owner_slot: u8,
+    potential: u8,
+    armies: u8,
+    batteries: u8,
+    intel_year: u16,
+    _source: PlanetIntelSource,
+) {
+    apply_visible_row(
+        record,
+        template_record,
+        planet_name,
+        owner_slot,
+        potential,
+        Some(armies),
+        Some(batteries),
+        Some(intel_year),
+        Some(intel_year),
+        0x23,
+    );
+}
+
+fn apply_visible_row(
+    record: &mut DatabaseRecord,
+    template_record: Option<&DatabaseRecord>,
+    planet_name: &str,
+    owner_slot: u8,
+    potential: u8,
+    armies: Option<u8>,
+    batteries: Option<u8>,
+    seen_year: Option<u16>,
+    scout_year: Option<u16>,
+    marker: u8,
+) {
+    if let Some(template_record) = template_record {
+        record.copy_from(template_record);
+    } else {
+        record.set_unknown_planet();
+    }
+    record.set_planet_name(planet_name);
+    record.raw[0x15] = owner_slot;
+    set_year_word(record, 0x16, seen_year);
+    set_year_word(record, 0x18, seen_year);
+    record.raw[0x1c] = potential;
+    record.raw[0x1d] = potential;
+    record.raw[0x1e] = marker;
+    record.raw[0x1f] = 0x00;
+    record.raw[0x20] = 0xff;
+    record.raw[0x21] = 0x00;
+    record.raw[0x22] = 0x00;
+    record.raw[0x23] = armies.unwrap_or(0xff);
+    record.raw[0x24] = if armies.is_some() { 0x00 } else { 0xff };
+    record.raw[0x25] = batteries.unwrap_or(0xff);
+    record.raw[0x26] = if batteries.is_some() { 0x00 } else { 0xff };
+    set_year_word(record, 0x27, scout_year);
+}
+
+fn set_year_word(record: &mut DatabaseRecord, offset: usize, year: Option<u16>) {
+    let bytes = year.unwrap_or(0).to_le_bytes();
+    record.raw[offset] = bytes[0];
+    record.raw[offset + 1] = bytes[1];
+}
+
+fn owned_row_marker(
+    owner_slot: u8,
+    planet_name: &str,
+    template_record: Option<&DatabaseRecord>,
+) -> u8 {
+    if planet_name.eq_ignore_ascii_case("not named yet") {
+        0x23
+    } else if let Some(template_record) =
+        template_record.filter(|row| row.raw[0x1e] >= 0x41 && row.raw[0x1e] != 0xff)
+    {
+        template_record.raw[0x1e]
+    } else {
+        0x40u8.saturating_add(owner_slot)
+    }
 }
 
 fn empire_label(game_data: &CoreGameData, empire_raw: u8) -> String {
