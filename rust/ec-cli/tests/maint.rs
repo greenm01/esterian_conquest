@@ -1201,6 +1201,8 @@ fn maint_rust_scout_system_generates_results_report() {
     scout.set_standing_order_target_coords_raw([15, 13]);
     scout.set_scout_count(1);
     scout.set_etac_count(0);
+    game_data.planets.records[13].set_stardock_kind_raw(0, 1);
+    game_data.planets.records[13].set_stardock_count_raw(0, 2);
     game_data
         .save(&target)
         .expect("mutated fixture should save");
@@ -1217,6 +1219,8 @@ fn maint_rust_scout_system_generates_results_report() {
     assert!(text.contains("Scouting mission report"));
     assert!(text.contains("Owned by:"));
     assert!(text.contains("Number of ground batteries:"));
+    assert!(text.contains("Scanning the planet's stardock"));
+    assert!(text.contains("2 destroyers"));
     assert!(text.contains("System(15,13)"));
 
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
@@ -1269,6 +1273,18 @@ fn maint_rust_view_world_generates_results_and_database_intel() {
         viewer_record.planet_name_bytes(),
         game_data.planets.records[13].planet_name().as_bytes()
     );
+    assert_eq!(
+        viewer_record.raw[0x15],
+        game_data.planets.records[13].owner_empire_slot_raw()
+    );
+    assert_eq!(
+        viewer_record.raw[0x1c],
+        game_data.planets.records[13].potential_production_points_current_known() as u8
+    );
+    assert_eq!(viewer_record.raw[0x23], 0xff);
+    assert_eq!(viewer_record.raw[0x24], 0xff);
+    assert_eq!(viewer_record.raw[0x25], 0xff);
+    assert_eq!(viewer_record.raw[0x26], 0xff);
 
     cleanup_dir(&target);
 }

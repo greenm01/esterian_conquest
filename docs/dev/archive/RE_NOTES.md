@@ -8244,7 +8244,7 @@ Current positive compat candidate:
   for planet record `5` (`Helios Prime`) with:
   - owner `4`
   - potential `136`
-  - marker `0x23`
+  - compat word `raw[0x1e..0x1f] = 0x0023`
   - armies `10`
   - seen/scout years `3003`
 - manual oracle list-screen confirmation now exists:
@@ -8285,13 +8285,182 @@ Current positive compat candidate:
     scout/view-style case is accepted by original `ECGAME` on both:
     - the Total Planet Database list
     - the corresponding planet detail screen
-  - for at least this `0x23` marker family row, the current export is now a
+  - for at least this `0x0023` word-family row, the current export is now a
     positive oracle-compatible contract rather than a guess
 
-### Stardock display in ECGAME
+### Partial foreign-intel Helios Prime probe
 
-Stardock items written to `PLANETS.DAT` (u16 counts at `0x38..0x4B`, u8 kinds at
-`0x4C..0x55`) are not visible in ECGAME's "Docked:" display field. ECGAME likely
-reads docked ship info from `DATABASE.DAT` or requires additional state beyond the
-raw stardock bytes. Further investigation needed to understand ECGAME's stardock
-display requirements.
+A follow-up manual probe patched player 1's `Helios Prime` row in
+`/tmp/ecgame-partial-probe/DATABASE.DAT` to clear the scout payload while
+leaving the same visible foreign-world shell:
+
+- starting from the accepted full-intel row, the probe changed:
+  - `raw[0x23..0x26] = ff ff ff ff`
+  - `raw[0x27..0x28] = 00 00`
+- screenshots:
+  - `capture/ecgame_070.png`
+  - `capture/ecgame_071.png`
+  - `capture/command_009.png`
+
+Observed behavior:
+
+- `Helios Prime` still appears in the Total Planet Database list
+- the list row shows:
+  - owner `#4`
+  - max produx `136`
+  - year seen `3003`
+  - `ARs = 65535`
+  - `GBs = 65535`
+  - current produx `136`
+  - stored points `35`
+  - year scout `3003`
+- opening `Helios Prime` through the Total Planet Database detail path still
+  works
+- the detail screen shows:
+  - `SCOUT INFO (posted 3003: 1 yrs ago)`
+  - maximum production `136`
+  - current production `(year 3003): 136`
+  - production points stored `35`
+  - armies `UNKNOWN`
+  - ground batteries `UNKNOWN`
+
+Practical interpretation:
+
+- the partial foreign row family is also accepted by original `ECGAME` on both
+  the list and detail screens
+- the list path appears to render the cleared scout payload as raw `0xffff`
+  sentinel values (`65535`) rather than translating them to `UNKNOWN`
+- the detail path does translate the same cleared scout payload to `UNKNOWN`
+- clearing `raw[0x27..0x28]` to zero did **not** prevent `ECGAME` from showing
+  `posted 3003` / year scout `3003`, so the visible scout year is not explained
+  solely by that word as currently modeled
+
+Crash note:
+
+- opening a detail report from the separate planet command menu still hits the
+  old runtime error `201 at 1958:76DE`
+- `capture/command_009.png` shows this is the pre-existing planet-command-menu
+  crash path, not a new failure of the partial-intel Total Planet Database row
+
+### Year-split Helios Prime probe
+
+Another follow-up probe copied the accepted full-intel `Helios Prime` row into
+`/tmp/ecgame-yearsplit-probe` and forced the visible year fields to disagree:
+
+- `raw[0x16..0x17] = 3003`
+- `raw[0x18..0x19] = 3003`
+- `raw[0x27..0x28] = 2991`
+
+Screenshots:
+
+- `capture/ecgame_072.png`
+- `capture/ecgame_073.png`
+
+Observed behavior:
+
+- the Total Planet Database list still shows `Year Scout = 3003`
+- the `Helios Prime` detail screen still shows:
+  - `PLANET INFO (posted 3003: 1 yrs ago)`
+  - `SCOUT INFO (posted 3003: 1 yrs ago)`
+  - `Current Production (year 3003): 136`
+
+Practical interpretation:
+
+- original `ECGAME` is not using `raw[0x27..0x28]` directly as the displayed
+  scout year on either the list or detail screen
+- the visible `3003` may instead be coming from:
+  - the seen-year words at `raw[0x16..0x19]`
+  - some normalized/derived year such as `current game year - 1`
+- the next minimal probe should force **both** seen and scout words away from
+  `3003` so the display source can be distinguished cleanly
+
+### Year-source Helios Prime probe
+
+The next probe copied the accepted full-intel `Helios Prime` row into
+`/tmp/ecgame-yearsource-probe` and forced:
+
+- `raw[0x16..0x17] = 2992`
+- `raw[0x18..0x19] = 2992`
+- `raw[0x27..0x28] = 2991`
+- `CONQUEST.DAT` game year remained `3004`
+
+Screenshots:
+
+- `capture/ecgame_074.png`
+- `capture/ecgame_075.png`
+
+Observed behavior:
+
+- the Total Planet Database list shows for `Helios Prime`:
+  - `Year Seen = 2992`
+  - `Year Scout = 2992`
+- the detail screen shows:
+  - `PLANET INFO (posted 2992: 12 yrs ago)`
+  - `SCOUT INFO (posted 2992: 12 yrs ago)`
+  - `Current Production (year 2992): 136`
+
+Practical interpretation:
+
+- original `ECGAME` is using the seen-year words (`raw[0x16..0x19]`) as the
+  displayed year source for both:
+  - list `Year Seen`
+  - list `Year Scout`
+  - detail `PLANET INFO (posted ...)`
+  - detail `SCOUT INFO (posted ...)`
+  - detail `Current Production (year ...)`
+- `raw[0x27..0x28]` is not the displayed scout year for these screens
+- the current compat writer should continue treating the seen-year words as the
+  user-visible year source; `0x27..0x28` remains semantically unresolved but is
+  not needed to explain the current ECGAME displays
+
+### DATABASE.DAT display word `0x1e..0x1f` remains semantically unresolved
+
+Current evidence is strong enough to say original `ECGAME` uses
+`DATABASE.DAT[0x1d]` and `DATABASE.DAT[0x1e..0x1f]` directly for the Total
+Planet Database fields it labels as:
+
+- `Current Production (year ...)`
+- `Production Points Stored`
+
+But it is **not** yet safe to claim that `raw[0x1e..0x1f]` mirrors the
+authoritative stored-goods value in `PLANETS.DAT`.
+
+Concrete mismatch from the accepted `Helios Prime` probe:
+
+- accepted player-1 `DATABASE.DAT` row:
+  - `raw[0x1d] = 0x88` (`136`)
+  - `raw[0x1e..0x1f] = 0x0023` (`35`)
+- original `ECGAME` list/detail screens displayed:
+  - current production `136`
+  - stored points `35`
+- the same probe directory's `PLANETS.DAT` planet record currently stores:
+  - `stored_goods_raw() = 342`
+
+Practical interpretation:
+
+- `DATABASE.DAT[0x1e..0x1f]` is definitely a user-visible compat display word
+  on the Total Planet Database screens
+- it is **not** yet proven to equal `PLANETS.DAT stored_goods_raw()`
+- the compat writer should preserve accepted/template `0x1e` word families
+  rather than deriving them from SQLite / `PLANETS.DAT` economics without new
+  oracle proof
+
+### Scout intel and stardock contents
+
+Primary-source docs explicitly say scout missions reveal stardock contents:
+
+- `ECPLAYER.DOC`:
+  - `Scout a Solar System`: scouts estimate current production and the planet's
+    stardocks for currently built ships
+  - later fleet-intel guidance: scout ships give more detailed reports,
+    including the contents of the planet's stardock
+
+The Rust maint report path now matches this and is regression-tested: successful
+`Scout Solar System` reports include a stardock summary line.
+
+What remains unresolved is the narrower classic-display question:
+
+- whether the Total Planet Database / planet-detail `Docked:` field is driven by
+  `DATABASE.DAT`, `PLANETS.DAT`, or some other compat state
+- the earlier `raw[0x03]=0x87` crash work was about owned-planet detail
+  rendering safety, not a full decode of foreign-intel docked display rules

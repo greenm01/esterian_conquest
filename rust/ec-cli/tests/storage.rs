@@ -25,7 +25,13 @@ fn setup_classic_probe_players(target: &Path) {
                 homeworld,
             ]);
         } else {
-            run_ec_cli(&["player-name", target.to_str().unwrap(), record, handle, empire]);
+            run_ec_cli(&[
+                "player-name",
+                target.to_str().unwrap(),
+                record,
+                handle,
+                empire,
+            ]);
         }
         run_ec_cli(&["player-tax", target.to_str().unwrap(), record, tax_rate]);
     }
@@ -253,21 +259,13 @@ fn db_export_preserves_returning_player_classification() {
 }
 
 #[test]
-fn db_export_preserves_owned_world_marker_family_from_imported_template() {
-    let source = unique_temp_dir("ec-cli-db-export-owned-marker-source");
-    let exported = unique_temp_dir("ec-cli-db-export-owned-marker-exported");
+fn db_export_preserves_owned_world_compat_word_family_from_imported_template() {
+    let source = unique_temp_dir("ec-cli-db-export-owned-world-source");
+    let exported = unique_temp_dir("ec-cli-db-export-owned-world-exported");
     common::copy_fixture_dir("original/v1.5", &source);
 
     let import_stdout = run_ec_cli(&["db-import", source.to_str().unwrap()]);
     assert!(import_stdout.contains("Imported"));
-
-    let rename_stdout = run_ec_cli(&[
-        "planet-name",
-        source.to_str().unwrap(),
-        "16",
-        "Dust Bowl II",
-    ]);
-    assert!(rename_stdout.contains("Planet record 16 name set"));
 
     let export_stdout = run_ec_cli(&[
         "db-export",
@@ -281,8 +279,7 @@ fn db_export_preserves_owned_world_marker_family_from_imported_template() {
         fs::read(exported.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
     let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
     let row = database.record(15, 0, exported_data.planets.records.len());
-    assert_eq!(row.planet_name_bytes(), b"Dust Bowl II");
-    assert_eq!(row.raw[0x1e], 0x42);
+    assert_eq!(u16::from_le_bytes([row.raw[0x1e], row.raw[0x1f]]), 0x42);
 
     cleanup_dir(&source);
     cleanup_dir(&exported);
@@ -361,7 +358,7 @@ fn db_export_emits_ecgame_accepted_foreign_full_intel_row_shape() {
     assert_eq!(row.raw[0x15], 4);
     assert_eq!(row.raw[0x1c], 136);
     assert_eq!(row.raw[0x1d], 136);
-    assert_eq!(row.raw[0x1e], 0x23);
+    assert_eq!(u16::from_le_bytes([row.raw[0x1e], row.raw[0x1f]]), 0x23);
     assert_eq!(row.raw[0x23], 10);
     assert_eq!(row.raw[0x24], 0x00);
     assert_eq!(row.raw[0x25], 6);

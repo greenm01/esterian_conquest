@@ -69,17 +69,7 @@ pub(crate) fn build_database_dat(
             }
 
             if let Some(source) = current_turn_grant.copied() {
-                apply_full_intel_row(
-                    record,
-                    template_record,
-                    planet.planet_name().as_str(),
-                    planet.owner_empire_slot_raw(),
-                    planet.raw[0x02],
-                    planet.army_count_raw(),
-                    planet.ground_batteries_raw(),
-                    current_intel_year,
-                    source,
-                );
+                apply_intel_grant_row(record, template_record, planet, current_intel_year, source);
                 continue;
             }
 
@@ -155,8 +145,11 @@ fn preserve_orbit_record(
             let ai_ran = player_mode == 0xff || (player_mode == 0x01 && autopilot == 0x01);
             if ai_ran {
                 let owner_slot = planet_owner as u8;
-                record.raw[0x1e] =
-                    owned_row_marker(owner_slot, &planet.planet_name(), Some(template_record));
+                record.raw[0x1e] = unresolved_orbit_status_low_byte(
+                    owner_slot,
+                    &planet.planet_name(),
+                    Some(template_record),
+                );
                 record.raw[0x23] = planet.army_count_raw();
                 record.raw[0x24] = 0x00;
             }
@@ -181,7 +174,8 @@ fn apply_snapshot_row(
         record.set_unknown_planet();
         return;
     };
-    let potential = potential.min(u16::from(u8::MAX)) as u8;
+    let current_production = template_current_production(template_record);
+    let word_1e = template_word_1e(template_record);
     if let (Some(armies), Some(batteries)) =
         (snapshot.known_armies, snapshot.known_ground_batteries)
     {
@@ -191,11 +185,12 @@ fn apply_snapshot_row(
             name,
             owner_slot,
             potential,
+            current_production,
+            word_1e,
             Some(armies),
             Some(batteries),
             snapshot.last_intel_year,
             snapshot.last_intel_year,
-            0x23,
         );
     } else {
         apply_visible_row(
@@ -204,11 +199,12 @@ fn apply_snapshot_row(
             name,
             owner_slot,
             potential,
+            current_production,
+            word_1e,
             None,
             None,
             snapshot.last_intel_year,
             None,
-            0x23,
         );
     }
 }
@@ -219,44 +215,66 @@ fn apply_owned_world_row(
     planet: &ec_data::PlanetRecord,
     intel_year: u16,
 ) {
-    let owner_slot = planet.owner_empire_slot_raw();
-    let marker = owned_row_marker(owner_slot, planet.planet_name().as_str(), template_record);
+    let potential = planet.potential_production_points_current_known();
     apply_visible_row(
         record,
         template_record,
         planet.planet_name().as_str(),
-        owner_slot,
-        planet.raw[0x02],
+        planet.owner_empire_slot_raw(),
+        potential,
+        template_current_production(template_record).or(Some(potential)),
+        Some(owned_row_word_1e(
+            planet.owner_empire_slot_raw(),
+            planet.planet_name().as_str(),
+            template_record,
+        )),
         Some(planet.army_count_raw()),
         Some(planet.ground_batteries_raw()),
         Some(intel_year),
         Some(intel_year),
-        marker,
     );
 }
 
-fn apply_full_intel_row(
+fn apply_intel_grant_row(
     record: &mut DatabaseRecord,
     template_record: Option<&DatabaseRecord>,
-    planet_name: &str,
-    owner_slot: u8,
-    potential: u8,
-    armies: u8,
-    batteries: u8,
+    planet: &ec_data::PlanetRecord,
     intel_year: u16,
-    _source: PlanetIntelSource,
+    source: PlanetIntelSource,
 ) {
+    let potential = planet.potential_production_points_current_known();
+    let (current_production, word_1e, armies, batteries) = match source {
+        PlanetIntelSource::ScoutSolarSystem => (
+            template_current_production(template_record).or(Some(potential)),
+            template_word_1e(template_record).or(Some(0x23)),
+            Some(planet.army_count_raw()),
+            Some(planet.ground_batteries_raw()),
+        ),
+        PlanetIntelSource::ViewWorld => (
+            template_current_production(template_record),
+            template_word_1e(template_record),
+            None,
+            None,
+        ),
+        PlanetIntelSource::Combat => (
+            template_current_production(template_record),
+            template_word_1e(template_record),
+            Some(planet.army_count_raw()),
+            Some(planet.ground_batteries_raw()),
+        ),
+    };
     apply_visible_row(
         record,
         template_record,
-        planet_name,
-        owner_slot,
+        planet.planet_name().as_str(),
+        planet.owner_empire_slot_raw(),
         potential,
-        Some(armies),
-        Some(batteries),
+        current_production,
+        word_1e,
+        armies,
+        batteries,
         Some(intel_year),
         Some(intel_year),
-        0x23,
     );
 }
 
@@ -265,12 +283,13 @@ fn apply_visible_row(
     template_record: Option<&DatabaseRecord>,
     planet_name: &str,
     owner_slot: u8,
-    potential: u8,
+    potential: u16,
+    current_production: Option<u16>,
+    word_1e: Option<u16>,
     armies: Option<u8>,
     batteries: Option<u8>,
     seen_year: Option<u16>,
     scout_year: Option<u16>,
-    marker: u8,
 ) {
     if let Some(template_record) = template_record {
         record.copy_from(template_record);
@@ -281,13 +300,13 @@ fn apply_visible_row(
     record.raw[0x15] = owner_slot;
     set_year_word(record, 0x16, seen_year);
     set_year_word(record, 0x18, seen_year);
-    record.raw[0x1c] = potential;
-    record.raw[0x1d] = potential;
-    record.raw[0x1e] = marker;
-    record.raw[0x1f] = 0x00;
-    record.raw[0x20] = 0xff;
-    record.raw[0x21] = 0x00;
-    record.raw[0x22] = 0x00;
+    record.raw[0x1c] = potential.min(u16::from(u8::MAX)) as u8;
+    if let Some(current_production) = current_production {
+        record.raw[0x1d] = current_production.min(u16::from(u8::MAX)) as u8;
+    }
+    if let Some(word_1e) = word_1e {
+        record.set_word_at(0x1e, word_1e);
+    }
     record.raw[0x23] = armies.unwrap_or(0xff);
     record.raw[0x24] = if armies.is_some() { 0x00 } else { 0xff };
     record.raw[0x25] = batteries.unwrap_or(0xff);
@@ -301,7 +320,36 @@ fn set_year_word(record: &mut DatabaseRecord, offset: usize, year: Option<u16>) 
     record.raw[offset + 1] = bytes[1];
 }
 
-fn owned_row_marker(
+fn template_current_production(template_record: Option<&DatabaseRecord>) -> Option<u16> {
+    template_record
+        .map(|record| record.raw[0x1d])
+        .filter(|value| *value != 0xff)
+        .map(u16::from)
+}
+
+fn template_word_1e(template_record: Option<&DatabaseRecord>) -> Option<u16> {
+    template_record
+        .map(|record| record.word_at(0x1e))
+        .filter(|value| *value != u16::MAX)
+}
+
+fn owned_row_word_1e(
+    owner_slot: u8,
+    planet_name: &str,
+    template_record: Option<&DatabaseRecord>,
+) -> u16 {
+    if planet_name.eq_ignore_ascii_case("not named yet") {
+        0x23
+    } else if let Some(template_record) =
+        template_record.filter(|row| row.raw[0x1e] >= 0x41 && row.raw[0x1e] != 0xff)
+    {
+        template_record.word_at(0x1e)
+    } else {
+        u16::from(0x40u8.saturating_add(owner_slot))
+    }
+}
+
+fn unresolved_orbit_status_low_byte(
     owner_slot: u8,
     planet_name: &str,
     template_record: Option<&DatabaseRecord>,
