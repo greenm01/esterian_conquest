@@ -82,7 +82,7 @@ pub struct AssaultReportEvent {
 pub enum PlanetIntelSource {
     ScoutSolarSystem,
     ViewWorld,
-    Combat,
+    Assault,
 }
 
 /// A classic planet-database refresh for one player's view of one planet.

@@ -1264,7 +1264,8 @@ fn maint_rust_view_world_generates_results_and_database_intel() {
     // header format. Check for unambiguous early-body content instead.
     assert!(text.contains("entered System(15,13)") || text.contains("long range"));
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
-    let expected_potential = game_data.planets.records[13].potential_production_points_current_known();
+    let expected_potential =
+        game_data.planets.records[13].potential_production_points_current_known();
     assert!(text.contains(&format!("potential of {expected_potential} points")));
     let database_bytes = fs::read(target.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
     let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
@@ -1484,6 +1485,45 @@ fn maint_rust_bombardment_generates_attacker_side_report() {
     assert!(text.contains("Bombardment mission report"));
     assert!(text.contains("bombing run"));
     assert!(text.contains("The target world was defended by"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_bombardment_does_not_refresh_database_intel() {
+    let target = unique_temp_dir("ec-cli-maint-rust-bombard-database");
+    copy_fixture_dir("fixtures/ecmaint-bombard-arrive/v1.5", &target);
+
+    let game_data = CoreGameData::load(&target).expect("fixture should load");
+    let database = DatabaseDat::generate_from_planets_and_year(
+        &game_data
+            .planets
+            .records
+            .iter()
+            .map(|planet| planet.planet_name())
+            .collect::<Vec<_>>(),
+        game_data.conquest.game_year(),
+        game_data.conquest.player_count() as usize,
+        None,
+    );
+    fs::write(target.join("DATABASE.DAT"), database.to_bytes()).expect("DATABASE.DAT should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let reloaded = CoreGameData::load(&target).expect("maint-rust output should load");
+    let database_bytes = fs::read(target.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+    let viewer_record = database.record(13, 0, reloaded.planets.records.len());
+    assert_eq!(viewer_record.planet_name_bytes(), b"UNKNOWN");
+    for offset in [
+        0x15usize, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x23, 0x24, 0x25, 0x26,
+    ] {
+        assert_eq!(
+            viewer_record.raw[offset], 0xff,
+            "offset {offset:#x} should remain unknown after bombard-only intel"
+        );
+    }
 
     cleanup_dir(&target);
 }

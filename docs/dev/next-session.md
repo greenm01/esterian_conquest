@@ -64,6 +64,9 @@ Recent validation baseline:
     `Scout Solar System` reports also include stardock contents; this is proven
     for the mission-report path, not yet for any Total Planet Database
     `Docked:` display field
+  - shipped docs plus the clean bombard-only probe now confirm the negative
+    case: bombardment damages a world but does not capture it and should not be
+    treated as a new foreign-intel source for Total Planet Database visibility
   - current compat export now keeps `ViewWorld` distinct from
     `ScoutSolarSystem`: view rows expose name/owner/potential without scout
     payload, while scout reports keep the stardock summary
@@ -129,9 +132,10 @@ remaining risks are:
    newly granted foreign intel rather than already-known homeworld/detail
    screens.
 2. Keep the accepted `Helios Prime` scout row and the accepted `Helios Prime`
-   `ViewWorld` row as locked positive compat cases. New probes should target
-   other row families, especially combat-granted rows and orbit-record
-   preservation.
+   `ViewWorld` row as locked positive compat cases. Treat bombardment as a
+   negative case for new planet-database visibility and target the remaining
+   assault row families with failed/successful invade or blitz probes plus
+   orbit-record preservation.
 3. Treat the seen-year words (`raw[0x16..0x19]`) as the visible year source
    for current Total Planet Database list/detail displays. The scout-year word
    (`raw[0x27..0x28]`) remains unresolved but is not driving those screens.

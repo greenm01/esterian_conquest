@@ -8516,3 +8516,24 @@ What remains unresolved is the narrower classic-display question:
   `DATABASE.DAT`, `PLANETS.DAT`, or some other compat state
 - the earlier `raw[0x03]=0x87` crash work was about owned-planet detail
   rendering safety, not a full decode of foreign-intel docked display rules
+
+### Bombardment is a negative intel case for Total Planet Database visibility
+
+The shipped docs are explicit that bombardment damages a planet but does not
+capture it:
+
+- `ECPLAYER.DOC`
+  - blitz and invade attempt to capture the planet
+  - bombard pummels a planet to make it useless to its owner
+
+This matters for the compat layer because a clean bombard-only probe had
+already failed to reveal `Helios Prime`, and the Rust maint layer was still
+emitting generic combat planet-intel refreshes for bombard/invade/blitz alike.
+
+Compat decision now locked in:
+
+- bombardment does **not** create a new classic `PlanetIntelEvent`
+- classic `DATABASE.DAT` export should therefore not reveal a previously
+  unknown foreign world merely because it was bombarded
+- the remaining unresolved combat/intel family is invade/blitz assault, not
+  bombardment

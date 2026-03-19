@@ -256,7 +256,7 @@ fn apply_intel_grant_row(
             None,
             None,
         ),
-        PlanetIntelSource::Combat => (
+        PlanetIntelSource::Assault => (
             template_current_production(template_record),
             template_word_1e(template_record),
             Some(planet.army_count_raw()),

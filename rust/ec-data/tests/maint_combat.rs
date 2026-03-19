@@ -2,7 +2,8 @@ mod common;
 
 use ec_data::{
     ContactReportSource, CoreGameData, DiplomacyOverride, EncounterDispositionEvent, Mission,
-    MissionOutcome, Order, run_maintenance_turn, run_maintenance_turn_with_context,
+    MissionOutcome, Order, PlanetIntelSource, run_maintenance_turn,
+    run_maintenance_turn_with_context,
 };
 use std::path::Path;
 
@@ -90,18 +91,9 @@ fn canonical_bombardment_consumes_order_and_devastates_target() {
     assert_eq!(events.bombard_events.len(), 1);
     assert_eq!(events.bombard_events[0].planet_idx, 13);
     assert_eq!(events.bombard_events[0].attacker_empire_raw, 1);
-    assert_eq!(events.planet_intel_events.len(), 2);
     assert!(
-        events
-            .planet_intel_events
-            .iter()
-            .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 1)
-    );
-    assert!(
-        events
-            .planet_intel_events
-            .iter()
-            .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 2)
+        events.planet_intel_events.is_empty(),
+        "bombardment alone should not refresh classic planet-database intel"
     );
     assert!(events.colonization_events.is_empty());
 
@@ -665,6 +657,12 @@ fn canonical_blitz_success_transfers_surviving_batteries() {
             .planet_intel_events
             .iter()
             .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 2)
+    );
+    assert!(
+        events
+            .planet_intel_events
+            .iter()
+            .all(|event| event.source == PlanetIntelSource::Assault)
     );
     assert!(events.colonization_events.is_empty());
 }

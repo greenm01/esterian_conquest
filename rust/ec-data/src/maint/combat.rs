@@ -1428,14 +1428,19 @@ pub(crate) struct AssaultEvents {
     pub mission_events: Vec<MissionEvent>,
 }
 
-fn push_planet_intel(events: &mut AssaultEvents, planet_idx: usize, viewer_empire_raw: u8) {
+fn push_planet_intel(
+    events: &mut AssaultEvents,
+    planet_idx: usize,
+    viewer_empire_raw: u8,
+    source: PlanetIntelSource,
+) {
     if viewer_empire_raw == 0 {
         return;
     }
     events.planet_intel_events.push(PlanetIntelEvent {
         planet_idx,
         viewer_empire_raw,
-        source: PlanetIntelSource::Combat,
+        source,
     });
 }
 
@@ -1783,9 +1788,6 @@ pub(crate) fn process_planetary_assaults(
                         });
                     }
                 }
-                push_planet_intel(&mut events, planet_idx, winner_empire);
-                let owner_after = game_data.planets.records[planet_idx].owner_empire_slot_raw();
-                push_planet_intel(&mut events, planet_idx, owner_after);
             }
             MissionClass::Invade => {
                 let state = fleet_state_from_records(game_data, &winner_fleets, 0);
@@ -2000,10 +2002,25 @@ pub(crate) fn process_planetary_assaults(
                 }
 
                 clear_arrival_and_hold(game_data, &winner_fleets);
-                push_planet_intel(&mut events, planet_idx, winner_empire);
-                push_planet_intel(&mut events, planet_idx, previous_owner);
+                push_planet_intel(
+                    &mut events,
+                    planet_idx,
+                    winner_empire,
+                    PlanetIntelSource::Assault,
+                );
+                push_planet_intel(
+                    &mut events,
+                    planet_idx,
+                    previous_owner,
+                    PlanetIntelSource::Assault,
+                );
                 let owner_after = game_data.planets.records[planet_idx].owner_empire_slot_raw();
-                push_planet_intel(&mut events, planet_idx, owner_after);
+                push_planet_intel(
+                    &mut events,
+                    planet_idx,
+                    owner_after,
+                    PlanetIntelSource::Assault,
+                );
             }
             MissionClass::Blitz => {
                 let previous_owner = game_data.planets.records[planet_idx].owner_empire_slot_raw();
@@ -2140,10 +2157,25 @@ pub(crate) fn process_planetary_assaults(
                 }
 
                 clear_arrival_and_hold(game_data, &winner_fleets);
-                push_planet_intel(&mut events, planet_idx, winner_empire);
-                push_planet_intel(&mut events, planet_idx, previous_owner);
+                push_planet_intel(
+                    &mut events,
+                    planet_idx,
+                    winner_empire,
+                    PlanetIntelSource::Assault,
+                );
+                push_planet_intel(
+                    &mut events,
+                    planet_idx,
+                    previous_owner,
+                    PlanetIntelSource::Assault,
+                );
                 let owner_after = game_data.planets.records[planet_idx].owner_empire_slot_raw();
-                push_planet_intel(&mut events, planet_idx, owner_after);
+                push_planet_intel(
+                    &mut events,
+                    planet_idx,
+                    owner_after,
+                    PlanetIntelSource::Assault,
+                );
             }
             _ => {}
         }
