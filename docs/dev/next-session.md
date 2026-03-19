@@ -126,6 +126,23 @@ Recent validation baseline:
   - final live oracle validation on the repaired Rust-generated directory
     confirmed the same visible behavior on both list and detail/report screens;
     the remaining raw diff is only one non-displayed trailing name-area byte
+  - patched `Helios Prime` probe proved that `DATABASE.DAT[0x1e..0x1f]` is the
+    directly displayed `Stored Points` word on accepted foreign scout rows:
+    changing only that word from `35` to `77` made original `ECGAME` show `77`
+    on both the list and detail screens without rewriting the row
+  - patched `Helios Prime` probe also proved that `DATABASE.DAT[0x1d]` is the
+    directly displayed `Current Production` byte on accepted foreign scout
+    rows: changing only that byte from `136` to `99` made original `ECGAME`
+    show `99` on both the list and detail screens without rewriting the row
+  - patched `Helios Prime` probe also proved that `DATABASE.DAT[0x23..0x24]`
+    is the directly displayed `Armies` word on accepted foreign scout rows:
+    changing only that word from `10` to `17` made original `ECGAME` show `17`
+    on both the list and detail screens without rewriting the row
+  - patched `Helios Prime` probe also proved that `DATABASE.DAT[0x25..0x26]`
+    is the directly displayed `Ground Batteries` word on accepted foreign
+    scout rows: changing only that word from `6` to `9` made original
+    `ECGAME` show `9` on both the list and detail screens without rewriting
+    the row
   - the separate planet-command-menu detail path still hits the known
     `Runtime error 201 at 1958:76DE` crash
 
@@ -173,7 +190,8 @@ remaining risks are:
 - determining which foreign-intel row shapes `ECGAME` actually accepts as
   visible list/detail entries
 - determining the real semantics of the Total Planet Database display bytes,
-  especially `DATABASE.DAT[0x1d]` and `DATABASE.DAT[0x1e..0x1f]`
+  especially when `ECMAINT` refreshes or preserves cached values such as
+  `DATABASE.DAT[0x1d]` and `DATABASE.DAT[0x1e..0x1f]`
 - determining what original `ECGAME` does with the preserved init-fixture
   orbit-row family (`raw[0x15] in 0x01..0x04`)
 - keeping runtime/client code free of accidental classic-file side effects
@@ -190,17 +208,25 @@ remaining risks are:
 3. Treat the seen-year words (`raw[0x16..0x19]`) as the visible year source
    for current Total Planet Database list/detail displays. The scout-year word
    (`raw[0x27..0x28]`) remains unresolved but is not driving those screens.
-4. Treat `DATABASE.DAT[0x1e..0x1f]` as an unresolved compat display word, not
-   as proven `PLANETS.DAT stored_goods_raw()`. Preserve accepted/template word
-   families unless a new oracle probe proves a real semantic mapping.
+4. Treat accepted foreign scout rows as directly display-driven for at least:
+   `raw[0x1d]` = current production, `raw[0x1e..0x1f]` = stored points,
+   `raw[0x23..0x24]` = armies, and `raw[0x25..0x26]` = ground batteries.
+   These are not yet proven to equal canonical `PLANETS.DAT` values in
+   general, so preserve accepted/template values unless a row-family-specific
+   oracle probe proves a semantic mapping.
 5. Treat owned-world `Docked:` as closed: it comes from planet state, not
    `DATABASE.DAT`. The remaining orbit-row work is now mainly about whether
    any non-owned/foreign-intel display path reuses the same `0x23` family.
-6. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
+6. Use the new `planet-present` probe helper to build a clean original-ECMAINT
+   foreign-scout refresh case before changing scout export semantics.
+   The current stale-`Curr Prod` attempts on ad hoc new-game harnesses were
+   inconclusive because they did not produce a clean player-1 foreign-scout
+   refresh in original `ECMAINT`.
+7. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
    direct `.DAT` ownership back into the client/runtime.
-7. When classic tooling changes a directory, fold those edits back through
+8. When classic tooling changes a directory, fold those edits back through
    `db-import` before the next Rust maint/client step.
-8. After meaningful Rust changes, rerun:
+9. After meaningful Rust changes, rerun:
    - `python3 tools/oracle_sweep.py --mode seeded`
    - `python3 tools/rust_maint_sweep.py --turns 3`
    - `cargo test -q`

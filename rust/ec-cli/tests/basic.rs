@@ -179,6 +179,24 @@ fn planet_stored_sets_stored_production_points() {
 }
 
 #[test]
+fn planet_present_sets_present_production_points() {
+    let target = unique_temp_dir("ec-cli-planet-present");
+    common::copy_fixture_dir("fixtures/ecutil-init/v1.5", &target);
+
+    let stdout = run_ec_cli(&["planet-present", target.to_str().unwrap(), "1", "75"]);
+    assert!(stdout.contains("present production points set to 75"));
+
+    export_campaign_db(&target, &target);
+    let game_data = CoreGameData::load(&target).unwrap();
+    assert_eq!(
+        game_data.planets.records[0].present_production_points(),
+        Some(75)
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn planet_stardock_sets_a_stardock_slot() {
     let target = unique_temp_dir("ec-cli-planet-stardock");
     common::copy_fixture_dir("fixtures/ecutil-init/v1.5", &target);

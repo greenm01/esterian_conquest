@@ -8918,3 +8918,100 @@ behavior is accepted:
 So the maintained homeworld-seed row family is now visually compatible on the
 `Total Planet Database` path even though one non-displayed trailing byte in the
 name area still differs from the original-maintained file.
+
+### `DATABASE.DAT[0x1e..0x1f]` is directly displayed as stored points
+
+To isolate the unresolved display word, the accepted `Helios Prime` scout probe
+at `/tmp/ecgame-planet-probe` was copied to
+`/tmp/ecgame-word1e-probe.lWj12K` and only one field was changed:
+
+- player-1 / planet-5 row `raw[0x1e..0x1f]`: `35 -> 77`
+
+All other files and fields remained unchanged:
+
+- `PLAYER.DAT`, `PLANETS.DAT`, and `CONQUEST.DAT` stayed byte-identical to the
+  accepted source probe
+- `DATABASE.DAT` differed only at absolute offsets `430..431`
+
+Original `ECGAME` then showed the patched value directly on both screens:
+
+- `capture/ecgame_100.png` Total Planet Database list:
+  - `Helios Prime ... Stored Points 77`
+- `capture/ecgame_101.png` foreign detail screen:
+  - `Production Points Stored : 77`
+
+Important conclusion:
+
+- `ECGAME` did not normalize or rewrite that patched row on login
+- `DATABASE.DAT[0x1e..0x1f]` is not merely a fuzzy compat-family marker in this
+  row family
+- for accepted foreign scout rows, it is the direct stored-points display word
+
+### `DATABASE.DAT[0x1d]` is directly displayed as current production
+
+The same accepted `Helios Prime` scout probe was then copied to
+`/tmp/ecgame-curprod-probe.cUSCse` and only one field was changed:
+
+- player-1 / planet-5 row `raw[0x1d]`: `136 -> 99`
+
+All other files remained byte-identical to `/tmp/ecgame-planet-probe`, and
+`DATABASE.DAT` differed only at absolute offset `429`.
+
+Original `ECGAME` again showed the patched value directly on both screens:
+
+- `capture/ecgame_102.png` Total Planet Database list:
+  - `Helios Prime ... Curr Prod 99`
+- `capture/ecgame_103.png` foreign detail screen:
+  - `Current Production (year 3003): 99`
+
+Important conclusion:
+
+- `ECGAME` did not normalize or rewrite that patched row on login
+- for accepted foreign scout rows, `DATABASE.DAT[0x1d]` is the direct current
+  production display byte
+
+### `DATABASE.DAT[0x23..0x24]` is directly displayed as armies
+
+The same accepted `Helios Prime` scout probe was then copied to
+`/tmp/ecgame-armies-probe.E1jH6V` and only one field was changed:
+
+- player-1 / planet-5 row `raw[0x23..0x24]`: `10 -> 17`
+
+All other files remained byte-identical to `/tmp/ecgame-planet-probe`, and
+`DATABASE.DAT` differed only at absolute offsets `435..436`.
+
+Original `ECGAME` again showed the patched value directly on both screens:
+
+- `capture/ecgame_104.png` Total Planet Database list:
+  - `Helios Prime ... ARs 17`
+- `capture/ecgame_105.png` foreign detail screen:
+  - `Armies : 17`
+
+Important conclusion:
+
+- `ECGAME` did not normalize or rewrite that patched row on login
+- for accepted foreign scout rows, `DATABASE.DAT[0x23..0x24]` is the direct
+  armies display word
+
+### `DATABASE.DAT[0x25..0x26]` is directly displayed as ground batteries
+
+The same accepted `Helios Prime` scout probe was then copied to
+`/tmp/ecgame-gb-probe.QCXrvB` and only one field was changed:
+
+- player-1 / planet-5 row `raw[0x25..0x26]`: `6 -> 9`
+
+All other files remained byte-identical to `/tmp/ecgame-planet-probe`, and
+`DATABASE.DAT` differed only at the ground-batteries word.
+
+Original `ECGAME` again showed the patched value directly on both screens:
+
+- `capture/ecgame_106.png` Total Planet Database list:
+  - `Helios Prime ... GBs 9`
+- `capture/ecgame_107.png` foreign detail screen:
+  - `Ground Batteries : 9`
+
+Important conclusion:
+
+- `ECGAME` did not normalize or rewrite that patched row on login
+- for accepted foreign scout rows, `DATABASE.DAT[0x25..0x26]` is the direct
+  ground-batteries display word

@@ -116,6 +116,30 @@ pub(crate) fn set_planet_potential(
     Ok(())
 }
 
+pub(crate) fn set_planet_present(
+    dir: &Path,
+    record_index_1_based: usize,
+    points: u16,
+) -> Result<(), Box<dyn std::error::Error>> {
+    with_runtime_game_mut(dir, |data| {
+        let record = data
+            .planets
+            .records
+            .get_mut(record_index_1_based - 1)
+            .ok_or_else(|| format!("planet record index out of range: {record_index_1_based}"))?;
+        if !record.set_present_production_points(points) {
+            return Err(format!("planet present production out of range: {points}").into());
+        }
+        Ok(())
+    })?;
+
+    println!(
+        "Planet record {} present production points set to {}",
+        record_index_1_based, points
+    );
+    Ok(())
+}
+
 pub(crate) fn set_planet_stored(
     dir: &Path,
     record_index_1_based: usize,

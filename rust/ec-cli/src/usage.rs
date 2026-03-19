@@ -79,6 +79,7 @@ pub fn print_usage() {
     println!("  ec-cli planet-name <dir> <planet_record> <name>");
     println!("  ec-cli planet-stats <dir> <planet_record> <armies> <batteries>");
     println!("  ec-cli planet-potential <dir> <planet_record> <p1_raw> <p2_raw>");
+    println!("  ec-cli planet-present <dir> <planet_record> <points>");
     println!("  ec-cli planet-stored <dir> <planet_record> <points>");
     println!("  ec-cli planet-stardock <dir> <planet_record> <slot> <kind_raw> <count>");
     println!("  ec-cli planet-init-original <dir>");

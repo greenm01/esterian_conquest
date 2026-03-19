@@ -32,7 +32,8 @@ use crate::commands::ipbm::{
 use crate::commands::planet_build::{
     init_planet_build_batch, init_planet_build_scenario, init_planet_original,
     print_planet_build_report, set_planet_build, set_planet_name, set_planet_owner,
-    set_planet_potential, set_planet_stardock_slot, set_planet_stats, set_planet_stored,
+    set_planet_potential, set_planet_present, set_planet_stardock_slot, set_planet_stats,
+    set_planet_stored,
 };
 use crate::commands::player_setup::{join_player, prepare_classic_login, set_player_name};
 
@@ -577,6 +578,18 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
                 return Ok(());
             };
             set_planet_potential(&dir, record_index.parse()?, p1.parse()?, p2.parse()?)?;
+        }
+        "planet-present" => {
+            let dir = next_dir(&mut args);
+            let Some(record_index) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(points) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            set_planet_present(&dir, record_index.parse()?, points.parse()?)?;
         }
         "player-name" => {
             let dir = next_dir(&mut args);
