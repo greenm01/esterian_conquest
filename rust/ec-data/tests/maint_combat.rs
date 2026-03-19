@@ -81,6 +81,61 @@ fn mutual_enemy_overrides(left: u8, right: u8) -> [DiplomacyOverride; 2] {
     ]
 }
 
+fn configured_dominant_invalidated_invade_state() -> CoreGameData {
+    let mut game_data = load_fixture("ecmaint-post");
+    let coords = [15, 13];
+
+    game_data.bases.records.clear();
+    for fleet in &mut game_data.fleets.records {
+        let current = fleet.current_location_coords_raw();
+        fleet.set_current_speed(0);
+        fleet.set_standing_order_kind(Order::HoldPosition);
+        fleet.set_standing_order_target_coords_raw(current);
+        fleet.set_rules_of_engagement(10);
+        fleet.set_destroyer_count(0);
+        fleet.set_cruiser_count(0);
+        fleet.set_battleship_count(0);
+        fleet.set_scout_count(0);
+        fleet.set_troop_transport_count(0);
+        fleet.set_army_count(0);
+        fleet.set_etac_count(0);
+    }
+
+    let target = &mut game_data.planets.records[13];
+    target.set_as_owned_target_world(
+        coords,
+        [0x64, 0x87],
+        [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],
+        0x04,
+        0x0b,
+        *b"TargetPrimeet",
+        [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05],
+        10,
+        4,
+        2,
+        2,
+    );
+
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_current_location_coords_raw(coords);
+    attacker.set_standing_order_kind(Order::InvadeWorld);
+    attacker.set_standing_order_target_coords_raw(coords);
+    attacker.set_current_speed(3);
+    attacker.raw[0x19] = 0x80;
+    attacker.set_destroyer_count(1);
+    attacker.set_troop_transport_count(1);
+    attacker.set_army_count(1);
+
+    let defender = &mut game_data.fleets.records[4];
+    defender.set_current_location_coords_raw(coords);
+    defender.set_standing_order_kind(Order::HoldPosition);
+    defender.set_standing_order_target_coords_raw(coords);
+    defender.set_current_speed(0);
+    defender.set_destroyer_count(1);
+
+    game_data
+}
+
 #[test]
 fn canonical_bombardment_consumes_order_and_devastates_target() {
     let mut game_data = load_fixture("ecmaint-bombard-arrive");
@@ -203,6 +258,44 @@ fn declared_enemy_fleet_battle_removes_losers_without_garbage_counts() {
         assert!(fleet.destroyer_count() <= 100);
         assert!(fleet.troop_transport_count() <= 100);
     }
+}
+
+#[test]
+fn dominant_fleet_with_invalidated_invade_order_holds_and_skips_stale_assault() {
+    let mut game_data = configured_dominant_invalidated_invade_state();
+    let diplomacy = mutual_enemy_overrides(1, 2);
+
+    let events = run_maintenance_turn_with_context(&mut game_data, &[], &diplomacy)
+        .expect("maintenance should succeed");
+
+    let attacker = &game_data.fleets.records[0];
+    assert_eq!(attacker.current_location_coords_raw(), [15, 13]);
+    assert_eq!(attacker.standing_order_kind(), Order::HoldPosition);
+    assert_eq!(attacker.current_speed(), 0);
+    assert_eq!(attacker.destroyer_count(), 0);
+    assert_eq!(attacker.troop_transport_count(), 1);
+    assert_eq!(attacker.army_count(), 1);
+
+    assert_eq!(game_data.planets.records[13].owner_empire_slot_raw(), 2);
+    assert!(events.assault_report_events.is_empty());
+    assert!(events.ownership_change_events.is_empty());
+    assert_eq!(
+        events
+            .mission_events
+            .iter()
+            .filter(|event| {
+                event.fleet_idx == 0
+                    && event.kind == Mission::InvadeWorld
+                    && event.outcome == MissionOutcome::Aborted
+            })
+            .count(),
+        1,
+    );
+    assert!(events.fleet_battle_events.iter().any(|event| {
+        event.reporting_empire_raw == 1
+            && event.reporting_mission == Some(Mission::InvadeWorld)
+            && event.held_field
+    }));
 }
 
 #[test]

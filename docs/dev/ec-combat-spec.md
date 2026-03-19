@@ -692,8 +692,18 @@ After the open-space battle:
 
 - surviving fleets that disengaged continue with their mission only if the
   mission is still valid and the fleet remains combat-capable enough to do so
-- surviving fleets that lost and were forced to withdraw receive a retreat /
-  seek-home style post-battle destination as defined by implementation
+- if hostile action strips the ship class that makes a mission possible
+  (`Scout*`, `ColonizeWorld`, `BombardWorld`, `InvadeWorld`, `BlitzWorld`),
+  that mission aborts immediately instead of executing from a stale pre-battle
+  snapshot
+- Rust-native routing rule for those post-hostility aborts:
+  - if the fleet's empire still holds the local field after combat, the fleet
+    stops and `HoldPosition`s at the current sector/system
+  - otherwise the fleet withdraws with a retreat / `SeekHome` style
+    destination
+- do not silently auto-convert a failed `InvadeWorld` / `BlitzWorld` attempt
+  into `BombardWorld`; if the player still holds orbit, the fleet waits for new
+  orders so bombardment can be chosen explicitly on a later turn
 - if no battle occurs because all ROE checks refuse engagement in deep space,
   fleets coexist only if diplomacy allows it
 - defended-world and blockade-boundary intrusion are stricter: a fleet in

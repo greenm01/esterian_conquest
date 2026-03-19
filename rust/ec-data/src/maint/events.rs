@@ -522,6 +522,17 @@ pub enum ColonizationResolvedEvent {
         /// Week of year (1–52) when this event occurred; None until canonicalized.
         stardate_week: Option<u8>,
     },
+    /// Hostile action or ship losses forced the fleet to abandon the colony attempt.
+    Aborted {
+        /// Fleet index in FLEETS.DAT that attempted the mission.
+        fleet_idx: usize,
+        /// Empire that attempted the colony mission (1-based player index).
+        colonizer_empire_raw: u8,
+        /// Coordinates where the mission was aborted.
+        coords: [u8; 2],
+        /// Week of year (1–52) when this event occurred; None until canonicalized.
+        stardate_week: Option<u8>,
+    },
 }
 
 /// Events produced by a single maintenance turn, for use by callers

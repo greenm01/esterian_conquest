@@ -281,6 +281,25 @@ pub fn run_maintenance_turn_with_context(
                 target_coords: Some(game_data.planets.records[planet_idx].coords_raw()),
                 stardate_week: None,
             }),
+            ColonizationResolvedEvent::Aborted {
+                fleet_idx,
+                colonizer_empire_raw,
+                coords,
+                ..
+            } => mission_events.push(MissionEvent {
+                fleet_idx,
+                owner_empire_raw: colonizer_empire_raw,
+                kind: Mission::ColonizeWorld,
+                outcome: MissionOutcome::Aborted,
+                planet_idx: game_data
+                    .planets
+                    .records
+                    .iter()
+                    .position(|planet| planet.coords_raw() == coords),
+                location_coords: Some(coords),
+                target_coords: Some(coords),
+                stardate_week: None,
+            }),
         }
     }
 

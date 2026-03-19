@@ -308,7 +308,7 @@ The Rust engine should stay split by responsibility, not by one giant
 | Gate/recovery | schedule check, token coordination, interrupted-run recovery |
 | Loader/validator | file loading, cross-file linkage checks, structural normalization |
 | Simulation driver | orchestration of yearly simulation subphases |
-| Movement/contact/combat | fleet motion, encounters, combat outcomes, retreats, retargets |
+| Movement/contact/combat | fleet motion, encounters, combat outcomes, retreat-vs-hold routing for invalidated missions, retargets |
 | Producer passes | state-mutator/event-producer families inside step `4` |
 | Event pool | typed durable summary/event records |
 | Canonicalizer | matching/coalescing/sorting of event records |
@@ -749,7 +749,13 @@ snapshot drifts from the companion combat, timing, or economics specs.
 5. process fleet movement
 6. process mission-fleet merging
 7. resolve fleet battles
+   - if hostile action strips the ship class that makes the mission possible,
+     abort the mission immediately
+   - fleets that still hold the local field after that combat abort hold in
+     place; fleets that do not hold the field retreat / seek home
 8. apply colonization
+   - only from current post-combat fleet state; do not execute stale
+     pre-combat colonization arrivals after ETAC loss or forced retreat
 9. process build completion
    - ship/starbase builds stage into stardock
    - army/ground-battery builds apply directly to the planet
@@ -759,6 +765,8 @@ snapshot drifts from the companion combat, timing, or economics specs.
 13. apply campaign-state transitions and related player/fleet consequences
 14. update player starbase flags
 15. resolve ready planetary assaults
+   - revalidate assault fleets against current post-combat state before
+     bombard / invade / blitz execution; do not execute stale ready snapshots
 16. apply join-host updates
 17. normalize conquest header fields
 18. assemble maintenance events and apply stored diplomatic escalations

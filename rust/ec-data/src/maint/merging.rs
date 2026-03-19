@@ -23,6 +23,27 @@ pub(super) fn process_colonizations(
     let mut resolved = Vec::new();
     for event in events {
         let [cx, cy] = event.coords;
+        let Some(fleet) = game_data.fleets.records.get(event.fleet_idx) else {
+            resolved.push(ColonizationResolvedEvent::Aborted {
+                fleet_idx: event.fleet_idx,
+                colonizer_empire_raw: event.owner_empire,
+                coords: event.coords,
+                stardate_week: None,
+            });
+            continue;
+        };
+        let colonization_aborted = fleet.current_location_coords_raw() != event.coords
+            || fleet.standing_order_kind() == Order::SeekHome
+            || fleet.etac_count() == 0;
+        if colonization_aborted {
+            resolved.push(ColonizationResolvedEvent::Aborted {
+                fleet_idx: event.fleet_idx,
+                colonizer_empire_raw: event.owner_empire,
+                coords: event.coords,
+                stardate_week: None,
+            });
+            continue;
+        }
 
         // Find planet at colonization coordinates
         let planet_idx = game_data.planets.records.iter().position(|p| {

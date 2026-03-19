@@ -73,6 +73,61 @@ fn logical_result_reports(records: &[&[u8]]) -> Vec<(u8, Vec<String>)> {
     reports
 }
 
+fn configure_dominant_invalidated_invade_directory(target: &std::path::Path) {
+    let mut game_data = CoreGameData::load(target).expect("fixture should load");
+    let coords = [15, 13];
+
+    game_data.bases.records.clear();
+    for fleet in &mut game_data.fleets.records {
+        let current = fleet.current_location_coords_raw();
+        fleet.set_current_speed(0);
+        fleet.set_standing_order_kind(Order::HoldPosition);
+        fleet.set_standing_order_target_coords_raw(current);
+        fleet.set_rules_of_engagement(10);
+        fleet.set_destroyer_count(0);
+        fleet.set_cruiser_count(0);
+        fleet.set_battleship_count(0);
+        fleet.set_scout_count(0);
+        fleet.set_troop_transport_count(0);
+        fleet.set_army_count(0);
+        fleet.set_etac_count(0);
+    }
+
+    let target_world = &mut game_data.planets.records[13];
+    target_world.set_as_owned_target_world(
+        coords,
+        [0x64, 0x87],
+        [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],
+        0x04,
+        0x0b,
+        *b"TargetPrimeet",
+        [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05],
+        10,
+        4,
+        2,
+        2,
+    );
+
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_current_location_coords_raw(coords);
+    attacker.set_standing_order_kind(Order::InvadeWorld);
+    attacker.set_standing_order_target_coords_raw(coords);
+    attacker.set_current_speed(3);
+    attacker.raw[0x19] = 0x80;
+    attacker.set_destroyer_count(1);
+    attacker.set_troop_transport_count(1);
+    attacker.set_army_count(1);
+
+    let defender = &mut game_data.fleets.records[4];
+    defender.set_current_location_coords_raw(coords);
+    defender.set_standing_order_kind(Order::HoldPosition);
+    defender.set_standing_order_target_coords_raw(coords);
+    defender.set_current_speed(0);
+    defender.set_destroyer_count(1);
+
+    game_data.save(target).expect("mutated fixture should save");
+}
+
 #[test]
 fn maint_rust_econ_updates_database_owner_intel_from_post_combat_planet_state() {
     let target = unique_temp_dir("ec-cli-maint-rust-econ");
@@ -1999,6 +2054,31 @@ fn maint_rust_battle_abort_generates_move_abort_report() {
 }
 
 #[test]
+fn maint_rust_dominant_invalidated_invade_report_holds_position() {
+    let target = unique_temp_dir("ec-cli-maint-rust-invade-abort-hold");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+    write_mutual_enemy_diplomacy(&target, 1, 2);
+    configure_dominant_invalidated_invade_directory(&target);
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let reloaded = CoreGameData::load(&target).expect("maint-rust output should load");
+    let attacker = &reloaded.fleets.records[0];
+    assert_eq!(attacker.standing_order_kind(), Order::HoldPosition);
+    assert_eq!(attacker.current_speed(), 0);
+    assert_eq!(attacker.current_location_coords_raw(), [15, 13]);
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = decode_chunked_report(&results);
+    assert!(text.contains("Invasion mission report"));
+    assert!(text.contains("holding position and awaiting new orders"));
+    assert!(!text.contains("seeking safety"));
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_roe_withdrawal_generates_composition_and_loss_report() {
     let target = unique_temp_dir("ec-cli-maint-rust-roe-withdrawal");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
@@ -2338,7 +2418,7 @@ fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
     assert!(text.contains("the ") && text.contains(" Fleet of "));
     assert!(text.contains("Fleet of \""));
     assert!(text.contains("(Empire #"));
-    assert!(text.contains("withdraw toward") || text.contains("seeking safety"));
+    assert!(text.contains("seeking safety") || text.contains("holding position"));
     assert!(text.contains("planet \"") || text.contains("System("));
 
     cleanup_dir(&target);

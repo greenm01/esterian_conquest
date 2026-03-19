@@ -265,6 +265,7 @@ fn assign_colonization_weeks(events: &mut MaintenanceEvents) {
         let fleet_idx = match *e {
             super::ColonizationResolvedEvent::Succeeded { fleet_idx, .. } => fleet_idx,
             super::ColonizationResolvedEvent::BlockedByOwner { fleet_idx, .. } => fleet_idx,
+            super::ColonizationResolvedEvent::Aborted { fleet_idx, .. } => fleet_idx,
         };
         let week = colonize_weeks
             .iter()
@@ -278,6 +279,11 @@ fn assign_colonization_weeks(events: &mut MaintenanceEvents) {
                 }
             }
             super::ColonizationResolvedEvent::BlockedByOwner { stardate_week, .. } => {
+                if stardate_week.is_none() {
+                    *stardate_week = Some(week);
+                }
+            }
+            super::ColonizationResolvedEvent::Aborted { stardate_week, .. } => {
                 if stardate_week.is_none() {
                     *stardate_week = Some(week);
                 }
@@ -394,6 +400,9 @@ fn colonization_week(e: &super::ColonizationResolvedEvent) -> u8 {
             stardate_week.unwrap_or(1)
         }
         super::ColonizationResolvedEvent::BlockedByOwner { stardate_week, .. } => {
+            stardate_week.unwrap_or(1)
+        }
+        super::ColonizationResolvedEvent::Aborted { stardate_week, .. } => {
             stardate_week.unwrap_or(1)
         }
     }

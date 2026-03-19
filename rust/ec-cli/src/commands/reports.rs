@@ -4,7 +4,7 @@ use ec_data::maint::{FleetBattlePerspective, timing::format_report_first_line};
 use ec_data::{
     ContactReportSource, CoreGameData, DatabaseDat, DatabaseRecord, EmpireProductionRankingSort,
     FleetOrderValidationError, FleetPlayerInputValidationError, MaintenanceEvents, Mission,
-    MissionOutcome, PlanetDat, PlanetIntelSnapshot, PlanetIntelSource,
+    MissionOutcome, Order, PlanetDat, PlanetIntelSnapshot, PlanetIntelSource,
     PlanetPlayerInputValidationError, PlayerDiplomacyValidationError, QueuedPlayerMail, ShipLosses,
 };
 
@@ -873,6 +873,37 @@ fn nearest_owned_destination_text(
     }
 }
 
+fn aborted_mission_follow_on_text(
+    game_data: &CoreGameData,
+    fleet: &ec_data::FleetRecord,
+    empire_raw: u8,
+) -> String {
+    if fleet.standing_order_kind() == Order::SeekHome && fleet.current_speed() > 0 {
+        let retreat_target = fleet.standing_order_target_coords_raw();
+        format!(
+            "seeking safety at {}",
+            nearest_owned_destination_text(game_data, empire_raw, retreat_target)
+        )
+    } else {
+        "holding position and awaiting new orders".to_string()
+    }
+}
+
+fn mission_event_has_assault_report(
+    events: &MaintenanceEvents,
+    event: &ec_data::MissionEvent,
+) -> bool {
+    let Some(planet_idx) = event.planet_idx else {
+        return false;
+    };
+    events.assault_report_events.iter().any(|assault| {
+        assault.kind == event.kind
+            && assault.planet_idx == planet_idx
+            && assault.attacker_empire_raw == event.owner_empire_raw
+            && assault.outcome == event.outcome
+    })
+}
+
 fn ship_loss_summary(losses: ShipLosses) -> String {
     let mut parts = Vec::new();
     if losses.battleships > 0 {
@@ -1641,6 +1672,7 @@ fn generate_report_entries(
                 stardate_week,
                 ..
             } => (planet_idx, colonizer_empire_raw, stardate_week),
+            ec_data::ColonizationResolvedEvent::Aborted { .. } => continue,
         };
         let Some(planet) = game_data.planets.records.get(planet_idx) else {
             continue;
@@ -1649,6 +1681,7 @@ fn generate_report_entries(
         let fleet_idx = match *event {
             ec_data::ColonizationResolvedEvent::Succeeded { fleet_idx, .. } => fleet_idx,
             ec_data::ColonizationResolvedEvent::BlockedByOwner { fleet_idx, .. } => fleet_idx,
+            ec_data::ColonizationResolvedEvent::Aborted { .. } => continue,
         };
         let source =
             owned_fleet_source_clause_from_idx(game_data, fleet_idx, &format!("System({x},{y})"));
@@ -1662,6 +1695,7 @@ fn generate_report_entries(
                 classic_empire_clause(game_data, owner_empire_raw),
                 planet.potential_production_points_current_known(),
             ),
+            ec_data::ColonizationResolvedEvent::Aborted { .. } => continue,
         };
         entries.push(ReportEntry {
             text: format!("{header}{body}"),
@@ -1781,6 +1815,15 @@ fn generate_report_entries(
                     format!(" Move mission report: Hostile action forced us to abort our mission and seek safety in System({dx},{dy})."),
                 )
             }
+            (Mission::ColonizeWorld, MissionOutcome::Aborted) => (
+                0x09,
+                RESULTS_TAIL_COLONIZATION,
+                source_clause.clone(),
+                format!(
+                    " Colonization mission report: Hostile action forced us to abandon our colony attempt. We are {}.",
+                    aborted_mission_follow_on_text(game_data, fleet, event.owner_empire_raw)
+                ),
+            ),
             (Mission::ViewWorld, MissionOutcome::Succeeded) => {
                 let body = if let Some(planet_idx) = event.planet_idx {
                     if let Some(planet) = game_data.planets.records.get(planet_idx) {
@@ -1819,15 +1862,14 @@ fn generate_report_entries(
                 " Viewing mission report: We found no world to analyze at the assigned destination.".to_string(),
             ),
             (Mission::ViewWorld, MissionOutcome::Aborted) => {
-                let retreat = event
-                    .target_coords
-                    .map(|coords| nearest_owned_destination_text(game_data, event.owner_empire_raw, coords))
-                    .unwrap_or_else(|| "the nearest friendly controlled solar system".to_string());
                 (
                     0x07,
                     RESULTS_TAIL_SCOUTING,
                     source_clause.clone(),
-                    format!(" Viewing mission report: We were attacked before the viewing mission could be completed. We are aborting our assignment and seeking safety at {retreat}."),
+                    format!(
+                        " Viewing mission report: We were attacked before the viewing mission could be completed. We are aborting our assignment and {}.",
+                        aborted_mission_follow_on_text(game_data, fleet, event.owner_empire_raw)
+                    ),
                 )
             }
             (Mission::BombardWorld, MissionOutcome::Succeeded) => {
@@ -1862,6 +1904,43 @@ fn generate_report_entries(
                     body,
                 )
             }
+            (Mission::BombardWorld, MissionOutcome::Aborted) => (
+                0x08,
+                RESULTS_TAIL_BOMBARD,
+                source_clause.clone(),
+                format!(
+                    " Bombardment mission report: Hostile action stripped us of our bombardment capability. We are aborting the mission and {}.",
+                    aborted_mission_follow_on_text(game_data, fleet, event.owner_empire_raw)
+                ),
+            ),
+            (Mission::InvadeWorld, MissionOutcome::Aborted) => {
+                if mission_event_has_assault_report(events, event) {
+                    continue;
+                }
+                (
+                    0x0c,
+                    RESULTS_TAIL_INVASION,
+                    source_clause.clone(),
+                    format!(
+                        " Invasion mission report: Hostile action stripped us of our invasion capability before the landing could begin. We are aborting the mission and {}.",
+                        aborted_mission_follow_on_text(game_data, fleet, event.owner_empire_raw)
+                    ),
+                )
+            }
+            (Mission::BlitzWorld, MissionOutcome::Aborted) => {
+                if mission_event_has_assault_report(events, event) {
+                    continue;
+                }
+                (
+                    0x0c,
+                    RESULTS_TAIL_INVASION,
+                    source_clause.clone(),
+                    format!(
+                        " Blitz mission report: Hostile action stripped us of our assault capability before the landing could begin. We are aborting the mission and {}.",
+                        aborted_mission_follow_on_text(game_data, fleet, event.owner_empire_raw)
+                    ),
+                )
+            }
             (Mission::InvadeWorld, _) | (Mission::BlitzWorld, _) => continue,
             (Mission::ScoutSector, MissionOutcome::Succeeded) => (
                 0x07,
@@ -1870,15 +1949,14 @@ fn generate_report_entries(
                 " Scouting mission report: We have arrived at our destination and are beginning to scout this sector.".to_string(),
             ),
             (Mission::ScoutSector, MissionOutcome::Aborted) => {
-                let retreat = event
-                    .target_coords
-                    .map(|coords| nearest_owned_destination_text(game_data, event.owner_empire_raw, coords))
-                    .unwrap_or_else(|| "the nearest friendly controlled solar system".to_string());
                 (
                     0x07,
                     RESULTS_TAIL_SCOUTING,
                     source_clause.clone(),
-                    format!(" Scouting mission report: Hostile action forced us to abort our scouting mission and withdraw toward {retreat}."),
+                    format!(
+                        " Scouting mission report: Hostile action forced us to abort our scouting mission and {}.",
+                        aborted_mission_follow_on_text(game_data, fleet, event.owner_empire_raw)
+                    ),
                 )
             }
             (Mission::ScoutSolarSystem, MissionOutcome::Succeeded) => {
@@ -1925,15 +2003,14 @@ fn generate_report_entries(
                 }
             }
             (Mission::ScoutSolarSystem, MissionOutcome::Aborted) => {
-                let retreat = event
-                    .target_coords
-                    .map(|coords| nearest_owned_destination_text(game_data, event.owner_empire_raw, coords))
-                    .unwrap_or_else(|| "the nearest friendly controlled solar system".to_string());
                 (
                     0x07,
                     RESULTS_TAIL_SCOUTING,
                     source_clause.clone(),
-                    format!(" Scouting mission report: We were forced to break off our close reconnaissance and withdraw toward {retreat}."),
+                    format!(
+                        " Scouting mission report: We were forced to break off our close reconnaissance and {}.",
+                        aborted_mission_follow_on_text(game_data, fleet, event.owner_empire_raw)
+                    ),
                 )
             }
             _ => continue,

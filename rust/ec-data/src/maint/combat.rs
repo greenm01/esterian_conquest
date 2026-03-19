@@ -8,7 +8,7 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use crate::{CoreGameData, DiplomaticRelation, Order};
+use crate::{CoreGameData, DiplomaticRelation, FleetOrderValidationError, Order};
 
 use super::{
     AssaultReportEvent, BombardEvent, ContactReportSource, DiplomacyOverride,
@@ -741,6 +741,15 @@ fn tf_has_any_units(tf: &TaskForce) -> bool {
     tf.state.counts.iter().any(|&count| count > 0)
 }
 
+fn set_fleet_to_hold_current_position(fleet: &mut crate::FleetRecord) {
+    let coords = fleet.current_location_coords_raw();
+    fleet.set_current_speed(0);
+    fleet.set_standing_order_kind(Order::HoldPosition);
+    fleet.set_standing_order_target_coords_raw(coords);
+    fleet.set_tuple_c_payload_raw([0x81, 0x00, 0x00, 0x00, 0x00]);
+    fleet.raw[0x1e] = 0x00;
+}
+
 fn retreat_task_force(game_data: &mut CoreGameData, task_force: &TaskForce) {
     let retreat_target = nearest_owned_planet(game_data, task_force.empire, task_force.coords)
         .unwrap_or(task_force.coords);
@@ -754,8 +763,7 @@ fn retreat_task_force(game_data: &mut CoreGameData, task_force: &TaskForce) {
             && fleet.troop_transport_count() == 0
             && fleet.etac_count() == 0
         {
-            fleet.set_current_speed(0);
-            fleet.set_standing_order_kind(Order::HoldPosition);
+            set_fleet_to_hold_current_position(fleet);
             fleet.set_rules_of_engagement(0);
             continue;
         }
@@ -815,9 +823,118 @@ fn clear_empty_withdrawn_fleets(game_data: &mut CoreGameData, fleet_indices: &[u
             && fleet.troop_transport_count() == 0
             && fleet.etac_count() == 0
         {
-            fleet.set_current_speed(0);
-            fleet.set_standing_order_kind(Order::HoldPosition);
+            set_fleet_to_hold_current_position(fleet);
             fleet.set_rules_of_engagement(0);
+        }
+    }
+}
+
+fn dominant_empire_after_battle(
+    task_forces: &[TaskForce],
+    winner_empire: Option<u8>,
+) -> Option<u8> {
+    if winner_empire.is_some() {
+        return winner_empire;
+    }
+
+    let mut surviving_empires = task_forces
+        .iter()
+        .filter(|tf| tf.state.has_units())
+        .map(|tf| tf.empire)
+        .collect::<Vec<_>>();
+    surviving_empires.sort_unstable();
+    surviving_empires.dedup();
+    if surviving_empires.len() == 1 {
+        Some(surviving_empires[0])
+    } else {
+        None
+    }
+}
+
+fn is_ship_loss_abort_reason(order: Order, reason: FleetOrderValidationError) -> bool {
+    matches!(
+        (order, reason),
+        (
+            Order::BombardWorld,
+            FleetOrderValidationError::MissingCombatShips
+        ) | (
+            Order::InvadeWorld,
+            FleetOrderValidationError::MissingCombatShips
+                | FleetOrderValidationError::MissingLoadedTroopTransports,
+        ) | (
+            Order::BlitzWorld,
+            FleetOrderValidationError::MissingLoadedTroopTransports,
+        ) | (
+            Order::ScoutSector | Order::ScoutSolarSystem,
+            FleetOrderValidationError::MissingScoutShip,
+        )
+    )
+}
+
+fn planet_idx_at_coords(game_data: &CoreGameData, coords: [u8; 2]) -> Option<usize> {
+    game_data
+        .planets
+        .records
+        .iter()
+        .position(|planet| planet.coords_raw() == coords)
+}
+
+fn abort_invalid_dominant_missions_after_battle(
+    game_data: &mut CoreGameData,
+    events: &mut FleetBattlePhaseEvents,
+    task_forces: &[TaskForce],
+    dominant_empire: Option<u8>,
+    pre_retreat_orders: &HashMap<usize, Order>,
+    coords: [u8; 2],
+) {
+    let Some(dominant_empire) = dominant_empire else {
+        return;
+    };
+
+    for task_force in task_forces {
+        if task_force.empire != dominant_empire || task_force.withdrew_under_roe {
+            continue;
+        }
+        for &fleet_idx in &task_force.fleet_indices {
+            let Some(order) = pre_retreat_orders.get(&fleet_idx).copied() else {
+                continue;
+            };
+            let Some(kind) = mission_kind_for_order(Some(order)) else {
+                continue;
+            };
+            let target_coords =
+                game_data.fleets.records[fleet_idx].standing_order_target_coords_raw();
+            let validation = game_data.validate_fleet_order_payload(
+                fleet_idx + 1,
+                order.to_raw(),
+                target_coords,
+                None,
+                None,
+            );
+            let Err(reason) = validation else {
+                continue;
+            };
+            if !is_ship_loss_abort_reason(order, reason) {
+                continue;
+            }
+
+            let owner_empire_raw = game_data.fleets.records[fleet_idx].owner_empire_raw();
+            {
+                let fleet = &mut game_data.fleets.records[fleet_idx];
+                set_fleet_to_hold_current_position(fleet);
+            }
+            events.mission_events.push(MissionEvent {
+                fleet_idx,
+                owner_empire_raw,
+                kind,
+                outcome: MissionOutcome::Aborted,
+                planet_idx: planet_idx_at_coords(game_data, coords),
+                location_coords: Some(coords),
+                target_coords: Some(
+                    game_data.fleets.records[fleet_idx].standing_order_target_coords_raw(),
+                ),
+                stardate_week: None,
+            });
         }
     }
 }
@@ -1124,6 +1241,7 @@ pub(crate) fn process_fleet_battles(
                 Some(survivors[0].empire)
             }
         };
+        let dominant_empire = dominant_empire_after_battle(&task_forces, winner_empire);
 
         let mut destroyed_starbases_by_empire: HashMap<u8, Vec<u8>> = HashMap::new();
         for tf in &task_forces {
@@ -1152,7 +1270,7 @@ pub(crate) fn process_fleet_battles(
             .collect();
 
         for tf in &task_forces {
-            if Some(tf.empire) != winner_empire && !tf.withdrew_under_roe {
+            if Some(tf.empire) != dominant_empire && !tf.withdrew_under_roe {
                 retreat_task_force(game_data, tf);
                 for &idx in &tf.fleet_indices {
                     if let Some(kind) =
@@ -1173,6 +1291,14 @@ pub(crate) fn process_fleet_battles(
                 }
             }
         }
+        abort_invalid_dominant_missions_after_battle(
+            game_data,
+            &mut events,
+            &task_forces,
+            dominant_empire,
+            &pre_retreat_orders,
+            coords,
+        );
         for tf in &task_forces {
             if !tf.withdrew_under_roe {
                 continue;
@@ -1285,7 +1411,7 @@ pub(crate) fn process_fleet_battles(
                 coords,
                 enemy_empires_raw,
                 primary_enemy_fleet_id,
-                held_field: winner_empire == Some(empire),
+                held_field: dominant_empire == Some(empire),
                 friendly_initial: ship_counts_from_state(before),
                 friendly_losses,
                 enemy_initial: ship_counts_from_state(&enemy_before),
@@ -1463,16 +1589,21 @@ fn mission_kind_for_fleet(
 
 fn clear_arrival_and_hold(game_data: &mut CoreGameData, fleet_indices: &[usize]) {
     for &idx in fleet_indices {
-        let fleet = &mut game_data.fleets.records[idx];
-        fleet.set_standing_order_kind(Order::HoldPosition);
-        fleet.set_current_speed(0);
-        fleet.raw[0x19] = 0x81;
-        fleet.raw[0x1a] = 0x00;
-        fleet.raw[0x1b] = 0x00;
-        fleet.raw[0x1c] = 0x00;
-        fleet.raw[0x1d] = 0x00;
-        fleet.raw[0x1e] = 0x00;
+        set_fleet_to_hold_current_position(&mut game_data.fleets.records[idx]);
     }
+}
+
+fn fleet_still_ready_for_assault(game_data: &CoreGameData, fleet_idx: usize, order: Order) -> bool {
+    let Some(fleet) = game_data.fleets.records.get(fleet_idx) else {
+        return false;
+    };
+    if fleet.standing_order_kind() != order {
+        return false;
+    }
+    let target_coords = fleet.standing_order_target_coords_raw();
+    game_data
+        .validate_fleet_order_payload(fleet_idx + 1, order.to_raw(), target_coords, None, None)
+        .is_ok()
 }
 
 fn reduce_stardock(planet: &mut crate::PlanetRecord, mut hits: u32) -> u32 {
@@ -1662,14 +1793,40 @@ pub(crate) fn process_planetary_assaults(
     blitz_ready: &[usize],
 ) -> Result<AssaultEvents, Box<dyn std::error::Error>> {
     let mut by_planet: BTreeMap<usize, BTreeMap<u8, Vec<usize>>> = BTreeMap::new();
-    for &idx in bombard_ready.iter().chain(invade_ready).chain(blitz_ready) {
+    for &idx in bombard_ready {
+        if !fleet_still_ready_for_assault(game_data, idx, Order::BombardWorld) {
+            continue;
+        }
         let coords = game_data.fleets.records[idx].standing_order_target_coords_raw();
-        if let Some(planet_idx) = game_data
-            .planets
-            .records
-            .iter()
-            .position(|p| p.coords_raw() == coords)
-        {
+        if let Some(planet_idx) = planet_idx_at_coords(game_data, coords) {
+            by_planet
+                .entry(planet_idx)
+                .or_default()
+                .entry(game_data.fleets.records[idx].owner_empire_raw())
+                .or_default()
+                .push(idx);
+        }
+    }
+    for &idx in invade_ready {
+        if !fleet_still_ready_for_assault(game_data, idx, Order::InvadeWorld) {
+            continue;
+        }
+        let coords = game_data.fleets.records[idx].standing_order_target_coords_raw();
+        if let Some(planet_idx) = planet_idx_at_coords(game_data, coords) {
+            by_planet
+                .entry(planet_idx)
+                .or_default()
+                .entry(game_data.fleets.records[idx].owner_empire_raw())
+                .or_default()
+                .push(idx);
+        }
+    }
+    for &idx in blitz_ready {
+        if !fleet_still_ready_for_assault(game_data, idx, Order::BlitzWorld) {
+            continue;
+        }
+        let coords = game_data.fleets.records[idx].standing_order_target_coords_raw();
+        if let Some(planet_idx) = planet_idx_at_coords(game_data, coords) {
             by_planet
                 .entry(planet_idx)
                 .or_default()
