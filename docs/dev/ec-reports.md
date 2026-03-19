@@ -63,32 +63,30 @@ Offset  Size  Field
 
 ### Kind byte = record count (critical discovery)
 
-**The kind byte serves double duty: it identifies the report type AND tells
-ECGAME how many 84-byte records to read for this report.**
+**The kind byte tells ECGAME how many 84-byte records to read for this
+report.** ECGAME reads exactly `kind` records per logical report, then
+shows a `Delete this report Y/[N]` prompt.
 
-ECGAME reads exactly `kind` records per logical report, then shows a
-`Delete this report Y/[N]` prompt. This was verified against every available
-oracle/post-maintenance fixture:
+This was verified against every available oracle/post-maintenance fixture —
+in every case, the kind byte equals the number of records in that report:
 
-| Kind | Hex  | Record count | Report families |
-|------|------|-------------|-----------------|
-| 4    | 0x04 | 4           | (observed in fleet-battle-post) |
-| 5    | 0x05 | 5           | sensor contact, fleet movement, ROE events |
-| 6    | 0x06 | 6           | fleet battle, fleet destroyed, identify |
-| 7    | 0x07 | 7           | scouting/viewing missions |
-| 8    | 0x08 | 8           | bombardment |
-| 9    | 0x09 | 9           | colonization |
-| 12   | 0x0C | 12          | invasion/blitz |
+| Kind | Hex  | Report families (examples from oracle data) |
+|------|------|---------------------------------------------|
+| 4    | 0x04 | (observed in fleet-battle-post) |
+| 5    | 0x05 | sensor contact, fleet movement |
+| 6    | 0x06 | fleet battle, identify |
+| 8    | 0x08 | bombardment result |
+| 11   | 0x0B | scout system extended orbit (verified from shipped corpus) |
+| 12   | 0x0C | invasion/blitz result |
 
-**Consequences for report generation:**
+**The kind is NOT a fixed type identifier** — it is the record count.
+Different instances of the same report family may produce different kind
+values depending on how many lines the text wraps to.
 
-- every logical report MUST emit exactly `kind` records
-- if the text is shorter than `kind - 1` lines (header + body), pad with
-  blank records so the total reaches `kind`
-- if the text is longer than `kind - 1` lines, it must be truncated or
-  reformulated to fit — ECGAME will not display overflow records and they
-  will corrupt the next report's display
-- the `<end of transmission>` record counts toward the `kind` total
+**Implementation rule:** compute the kind byte dynamically as
+`text_lines + 1` (text records + EOT record). This ensures every report
+is exactly the right size with no blank padding and no truncation.
+The computed kind is written to byte 0 of every record in the report.
 
 ### Chain pointer semantics
 
@@ -138,8 +136,8 @@ These are part of the classic viewer contract, not optional style notes.
   left-justified body lines, followed by exactly one
   `<end of transmission>` line
 - **each logical report occupies exactly `kind` records** in RESULTS.DAT;
-  text that does not fill all slots must be padded; text that exceeds must
-  be truncated or reformulated to fit (see "Record budget discipline" below)
+  the kind byte is computed dynamically as `text_lines + 1` (EOT) so every
+  report is exactly the right size with no padding or truncation
 - `Stardate: <week>/<year>` appears on the first line only and is right-justified
 - body text must wrap on word boundaries to the classic 72-character record
   width
@@ -379,13 +377,24 @@ Scouting mission report: We have arrived at our destination and are beginning to
 Extended orbit detailed report:
 
 ```text
-Scouting mission report: In orbit around planet "<planet>". Owned by: <owner>. Potential: <production_points> pts. Present production: <production_points> pts. Stored goods: <goods_points> pts. Armies: <army_count>. Ground batteries: <ground_battery_count>. <stardock_summary>.
+Scouting mission report: We are in extended orbit around planet "<planet>" and have compiled the following data:
+  Owned by: "<empire>", (Empire #<empire_no>)
+  Potential production: <production_points> points
+  Estimated present production: <production_points> points
+  Estimated amount of stored goods: <goods_points> points
+  Number of armies: <army_count>
+  Number of ground batteries: <ground_battery_count>
+  The planet's stardock appears to be empty.
 ```
 
-This report uses kind 0x07 (7 records = header + 5 body + EOT). The stat
-fields are formatted as continuous prose to fit the 5 available body lines.
-The original spec used separate indented lines per stat, but that layout
-exceeds the 7-record budget and causes display corruption in ECGAME.
+When the stardock contains ships, the last line is replaced with:
+
+```text
+  Scanning the planet's stardock, we detected <ship_list>.
+```
+
+This report typically produces kind=0x0B (11 records). The kind is
+computed dynamically from the text — it is not hardcoded.
 
 Unowned/civil-disorder orbit reports may replace the owner clause with the
 classic visible equivalent for that world state.
@@ -552,28 +561,16 @@ Typical Rust-only families:
 - do not collapse classic suspense into one modern summary paragraph when the
   corpus clearly stages the report across multiple logical reports
 
-### Record budget discipline
+### Record budget — no fixed limit
 
-Every report text must fit the record budget imposed by its kind byte.
-Budget = `kind - 2` body lines (1 header + body + 1 EOT = kind total).
+Because the kind byte is computed dynamically from the text, there is no
+fixed record budget per report family. The text can be as long or short as
+needed — the kind will match automatically.
 
-| Kind | Budget (body lines) | Guidance |
-|------|-------------------|----------|
-| 0x05 | 3 | Short reports: contacts, arrivals, ROE. Keep text concise. |
-| 0x06 | 4 | Medium: fleet battles, identifies. ~280 chars of body. |
-| 0x07 | 5 | Detailed: scouting/viewing. ~360 chars of body max. |
-| 0x08 | 6 | Extended: bombardment results with losses. |
-| 0x09 | 7 | Long: colonization narratives. |
-| 0x0C | 10 | Full: invasion/blitz with complete loss accounting. |
-
-When the text naturally exceeds the budget:
-- reformulate to use shorter phrasing (preferred)
-- combine stat fields onto fewer lines using continuous prose
-- as a last resort, truncate — but this loses player-visible information
-
-When the text is shorter than the budget, the renderer pads to `kind`
-records. Padding records appear as blank `->` lines in ECGAME.
-Minimizing padding by filling the budget naturally is preferred.
+However, extremely long reports consume more display space in ECGAME and
+may scroll beyond what the player can comfortably read. As a practical
+guideline, keep reports under ~12 records (the invasion result report is
+the longest observed in the oracle corpus at 12 records).
 
 ## Evidence Pointers
 

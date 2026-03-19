@@ -744,6 +744,54 @@ fn planet_defense_summary(batteries: u8, armies: u8) -> String {
     format!("{batteries} ground battery(ies) and {armies} army(ies)")
 }
 
+fn stardock_scan_summary(planet: &ec_data::PlanetRecord) -> String {
+    use ec_data::ProductionItemKind;
+
+    let mut parts = Vec::new();
+    for slot in 0..6 {
+        let count = planet.stardock_count_raw(slot);
+        if count == 0 {
+            continue;
+        }
+        let kind = ProductionItemKind::from_raw(planet.stardock_kind_raw(slot));
+        let name = match kind {
+            ProductionItemKind::Destroyer => {
+                unit_count_text(count as u32, "destroyer", "destroyers")
+            }
+            ProductionItemKind::Cruiser => {
+                unit_count_text(count as u32, "cruiser", "cruisers")
+            }
+            ProductionItemKind::Battleship => {
+                unit_count_text(count as u32, "battleship", "battleships")
+            }
+            ProductionItemKind::Scout => {
+                unit_count_text(count as u32, "scout ship", "scout ships")
+            }
+            ProductionItemKind::Transport => {
+                unit_count_text(count as u32, "troop transport ship", "troop transport ships")
+            }
+            ProductionItemKind::Etac => {
+                unit_count_text(count as u32, "ETAC ship", "ETAC ships")
+            }
+            ProductionItemKind::Starbase => {
+                unit_count_text(count as u32, "starbase", "starbases")
+            }
+            ProductionItemKind::GroundBattery
+            | ProductionItemKind::Army
+            | ProductionItemKind::Unknown(_) => continue,
+        };
+        parts.push(name);
+    }
+    if parts.is_empty() {
+        "The planet's stardock appears to be empty.".to_string()
+    } else {
+        format!(
+            "Scanning the planet's stardock, we detected {}.",
+            join_report_parts(&parts)
+        )
+    }
+}
+
 fn fleet_order_validation_reason_text(reason: FleetOrderValidationError) -> String {
     match reason {
         FleetOrderValidationError::UnknownOrderCode(code) => {
@@ -1591,12 +1639,7 @@ fn generate_report_entries(
                     } else {
                         classic_empire_clause(game_data, planet.owner_empire_slot_raw())
                     };
-                    let stardock_summary = if (0..10).any(|slot| planet.stardock_count_raw(slot) > 0)
-                    {
-                        "The planet's stardock contains ships."
-                    } else {
-                        "The planet's stardock appears to be empty."
-                    };
+                    let stardock_summary = stardock_scan_summary(planet);
                     let body = format!(
                         " Scouting mission report: We are in extended orbit around planet \"{}\" and have compiled the following data:\n  Owned by: {}\n  Potential production: {} points\n  Estimated present production: {} points\n  Estimated amount of stored goods: {} points\n  Number of armies: {}\n  Number of ground batteries: {}\n  {}",
                         planet.planet_name(),

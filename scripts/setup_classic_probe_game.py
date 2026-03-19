@@ -122,6 +122,16 @@ def set_planet_specs(cli_binary: Path, target: Path) -> None:
     run_ec_cli(cli_binary, "planet-stardock", str(target), "16", "1", "1", "2")
     run_ec_cli(cli_binary, "planet-stardock", str(target), "17", "0", "2", "3")
 
+    # Fill Helios Prime (record 5, coords 9,2) stardock with every ship type.
+    # Use moderate quantities that fit within stardock capacity (6 slots).
+    # Kind: 1=DD, 2=CA, 3=BB, 4=SC, 5=TP, 6=ETAC
+    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "0", "1", "3")   # 3 destroyers
+    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "1", "2", "2")   # 2 cruisers
+    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "2", "3", "1")   # 1 battleship
+    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "3", "4", "4")   # 4 scout ships
+    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "4", "5", "2")   # 2 transports
+    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "5", "6", "1")   # 1 ETAC
+
 
 def write_diplomacy_sidecar(target: Path) -> None:
     lines = [
