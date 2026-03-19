@@ -17,7 +17,9 @@ use crate::commands::core::{
 use crate::commands::fleet_order::{
     init_fleet_order_batch, init_fleet_order_scenario, print_fleet_order_report, set_fleet_order,
 };
-use crate::commands::fleet_setup::{detach_fleet_to_new_record, set_fleet_ships};
+use crate::commands::fleet_setup::{
+    detach_fleet_to_new_record, set_fleet_location, set_fleet_ships,
+};
 use crate::commands::guard_starbase::{
     init_guard_starbase_batch, init_guard_starbase_onebase, print_guard_starbase_report,
     set_guard_starbase_onebase,
@@ -405,6 +407,27 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
                     .map(|value| parse_u16_arg(value, "etacs"))
                     .transpose()?
                     .unwrap_or(0),
+            )?;
+        }
+        "fleet-location" => {
+            let dir = next_dir(&mut args);
+            let Some(record_index) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(x) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(y) = args.next() else {
+                print_usage();
+                return Ok(());
+            };
+            set_fleet_location(
+                &dir,
+                parse_usize_1_based(&record_index, "fleet record index")?,
+                parse_u8_arg(&x, "x")?,
+                parse_u8_arg(&y, "y")?,
             )?;
         }
         "fleet-detach" => {

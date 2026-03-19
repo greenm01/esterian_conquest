@@ -58,6 +58,31 @@ pub(crate) fn set_fleet_ships(
     Ok(())
 }
 
+pub(crate) fn set_fleet_location(
+    dir: &Path,
+    fleet_record_index_1_based: usize,
+    x: u8,
+    y: u8,
+) -> Result<(), Box<dyn std::error::Error>> {
+    with_runtime_game_mut_and_export(dir, |data| {
+        let fleet = data
+            .fleets
+            .records
+            .get_mut(fleet_record_index_1_based - 1)
+            .ok_or_else(|| {
+                format!("fleet record index out of range: {fleet_record_index_1_based}")
+            })?;
+        fleet.set_current_location_coords_raw([x, y]);
+        Ok(())
+    })?;
+
+    println!(
+        "Fleet {} current location set to ({},{})",
+        fleet_record_index_1_based, x, y
+    );
+    Ok(())
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn detach_fleet_to_new_record(
     dir: &Path,

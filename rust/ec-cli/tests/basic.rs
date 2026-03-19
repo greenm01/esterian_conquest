@@ -197,6 +197,24 @@ fn planet_present_sets_present_production_points() {
 }
 
 #[test]
+fn fleet_location_sets_current_coords() {
+    let target = unique_temp_dir("ec-cli-fleet-location");
+    common::copy_fixture_dir("fixtures/ecutil-init/v1.5", &target);
+
+    let stdout = run_ec_cli(&["fleet-location", target.to_str().unwrap(), "1", "9", "2"]);
+    assert!(stdout.contains("current location set to (9,2)"));
+
+    export_campaign_db(&target, &target);
+    let game_data = CoreGameData::load(&target).unwrap();
+    assert_eq!(
+        game_data.fleets.records[0].current_location_coords_raw(),
+        [9, 2]
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn planet_stardock_sets_a_stardock_slot() {
     let target = unique_temp_dir("ec-cli-planet-stardock");
     common::copy_fixture_dir("fixtures/ecutil-init/v1.5", &target);

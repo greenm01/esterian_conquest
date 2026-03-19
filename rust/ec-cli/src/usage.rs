@@ -60,6 +60,7 @@ pub fn print_usage() {
     println!(
         "  ec-cli fleet-ships <dir> <fleet_record> <sc> <bb> <ca> <dd> <tt> [loaded_armies] [etac]"
     );
+    println!("  ec-cli fleet-location <dir> <fleet_record> <x> <y>");
     println!(
         "  ec-cli fleet-detach <dir> <player_record> <donor_fleet_record> <bb> <ca> <dd> <full_tt> <empty_tt> <sc> <etac> [donor_speed] [new_roe]"
     );
