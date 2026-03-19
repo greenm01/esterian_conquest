@@ -39,6 +39,97 @@ Implementation rule:
 - when the evidence is incomplete, keep the classic sentence shape, suspense,
   and cadence instead of switching to modern summary prose
 
+## RESULTS.DAT Binary Format
+
+Each record in RESULTS.DAT is an 84-byte packed Borland Pascal record:
+
+```
+Offset  Size  Field
+0       1     Kind byte (report type AND record count — see below)
+1       73    Text: String[72] (1 byte length prefix + 72 chars)
+74      10    Tail: chain pointers + year
+```
+
+Tail layout (10 bytes):
+
+```
+Offset  Size  Field
+74-75   2     ChainId (u16 LE) — previous report's header index + 1; 0 for first
+76-77   2     Reserved (zero)
+78-79   2     NextChainId (u16 LE) — next report's header index + 1; 0 for last
+80-81   2     Reserved (zero)
+82-83   2     Year (u16 LE)
+```
+
+### Kind byte = record count (critical discovery)
+
+**The kind byte serves double duty: it identifies the report type AND tells
+ECGAME how many 84-byte records to read for this report.**
+
+ECGAME reads exactly `kind` records per logical report, then shows a
+`Delete this report Y/[N]` prompt. This was verified against every available
+oracle/post-maintenance fixture:
+
+| Kind | Hex  | Record count | Report families |
+|------|------|-------------|-----------------|
+| 4    | 0x04 | 4           | (observed in fleet-battle-post) |
+| 5    | 0x05 | 5           | sensor contact, fleet movement, ROE events |
+| 6    | 0x06 | 6           | fleet battle, fleet destroyed, identify |
+| 7    | 0x07 | 7           | scouting/viewing missions |
+| 8    | 0x08 | 8           | bombardment |
+| 9    | 0x09 | 9           | colonization |
+| 12   | 0x0C | 12          | invasion/blitz |
+
+**Consequences for report generation:**
+
+- every logical report MUST emit exactly `kind` records
+- if the text is shorter than `kind - 1` lines (header + body), pad with
+  blank records so the total reaches `kind`
+- if the text is longer than `kind - 1` lines, it must be truncated or
+  reformulated to fit — ECGAME will not display overflow records and they
+  will corrupt the next report's display
+- the `<end of transmission>` record counts toward the `kind` total
+
+### Chain pointer semantics
+
+Chain pointers use 1-based record indexing:
+
+- `ChainId` on the header record = `previous_header_0based_index + 1`
+  (0 for the first report)
+- `NextChainId` on the header record = `next_header_0based_index + 1`
+  (0 for the last report)
+- **Continuation and EOT records** must have `NextChainId = 0`
+  (only the header carries the forward pointer)
+- All records within a report share the same `ChainId` as their header
+
+This was verified by comparing oracle RESULTS.DAT files through an FPC
+(Free Pascal) reader that uses the native `file of TResultsRecord` with
+`String[72]` layout.
+
+### String[72] and buffer semantics
+
+The Text field is a Borland Pascal `String[72]`: byte 0 is the length (0–72),
+bytes 1–72 are character data. Standard BP string comparison uses only the
+length-prefixed portion; trailing bytes after the declared length are ignored.
+
+Original ECMAINT exhibits buffer reuse: when writing a new string to the
+record variable, only the first N chars are overwritten, leaving previous
+record data in the trailing positions. Rust-generated records zero-fill the
+trailing bytes. This difference does not affect ECGAME display or EOT
+detection — BP string comparison is length-aware.
+
+### Empire clause format
+
+When naming an empire in report text, use the format:
+
+```
+"<empire>", (Empire #<empire_no>)
+```
+
+Example: `"Red Horizon Pact", (Empire #2)`
+
+When the empire name is unknown, fall back to `Empire #<empire_no>`.
+
 ## Classic Layout Contract
 
 These are part of the classic viewer contract, not optional style notes.
@@ -46,12 +137,14 @@ These are part of the classic viewer contract, not optional style notes.
 - one logical report is one source/header line, followed by zero or more
   left-justified body lines, followed by exactly one
   `<end of transmission>` line
+- **each logical report occupies exactly `kind` records** in RESULTS.DAT;
+  text that does not fill all slots must be padded; text that exceeds must
+  be truncated or reformulated to fit (see "Record budget discipline" below)
 - `Stardate: <week>/<year>` appears on the first line only and is right-justified
 - body text must wrap on word boundaries to the classic 72-character record
   width
-- body text must not overflow into the next logical report
-- long reports may span multiple visible screens; pagination is a viewer concern,
-  not a renderer excuse to truncate or restart the report
+- body text must not overflow into the next logical report — ECGAME reads a
+  fixed number of records per report and overflow corrupts subsequent reports
 - fleet-origin reports must name a fleet; do not emit `From your fleet...`
 - classic-facing reports use full ship names, never abbreviations such as `BB`,
   `CA`, or `DD`
@@ -286,16 +379,15 @@ Scouting mission report: We have arrived at our destination and are beginning to
 Extended orbit detailed report:
 
 ```text
-Scouting mission report: We are in extended orbit around planet "<planet>" and have compiled the following data:
-  Owned by: "<empire>", (Empire #<empire_no>)
-  Potential production: <production_points> points
-  Estimated present production: <production_points> points
-  Estimated amount of stored goods: <goods_points> points
-  Number of armies: <army_count>
-  Number of ground batteries: <ground_battery_count>
+Scouting mission report: In orbit around planet "<planet>". Owned by: <owner>. Potential: <production_points> pts. Present production: <production_points> pts. Stored goods: <goods_points> pts. Armies: <army_count>. Ground batteries: <ground_battery_count>. <stardock_summary>.
 ```
 
-Unowned/civil-disorder orbit reports may replace the owner line with the
+This report uses kind 0x07 (7 records = header + 5 body + EOT). The stat
+fields are formatted as continuous prose to fit the 5 available body lines.
+The original spec used separate indented lines per stat, but that layout
+exceeds the 7-record budget and causes display corruption in ECGAME.
+
+Unowned/civil-disorder orbit reports may replace the owner clause with the
 classic visible equivalent for that world state.
 
 Scout sensor contact:
@@ -460,6 +552,29 @@ Typical Rust-only families:
 - do not collapse classic suspense into one modern summary paragraph when the
   corpus clearly stages the report across multiple logical reports
 
+### Record budget discipline
+
+Every report text must fit the record budget imposed by its kind byte.
+Budget = `kind - 2` body lines (1 header + body + 1 EOT = kind total).
+
+| Kind | Budget (body lines) | Guidance |
+|------|-------------------|----------|
+| 0x05 | 3 | Short reports: contacts, arrivals, ROE. Keep text concise. |
+| 0x06 | 4 | Medium: fleet battles, identifies. ~280 chars of body. |
+| 0x07 | 5 | Detailed: scouting/viewing. ~360 chars of body max. |
+| 0x08 | 6 | Extended: bombardment results with losses. |
+| 0x09 | 7 | Long: colonization narratives. |
+| 0x0C | 10 | Full: invasion/blitz with complete loss accounting. |
+
+When the text naturally exceeds the budget:
+- reformulate to use shorter phrasing (preferred)
+- combine stat fields onto fewer lines using continuous prose
+- as a last resort, truncate — but this loses player-visible information
+
+When the text is shorter than the budget, the renderer pads to `kind`
+records. Padding records appear as blank `->` lines in ECGAME.
+Minimizing padding by filling the budget naturally is preferred.
+
 ## Evidence Pointers
 
 Primary binary-backed evidence:
@@ -474,6 +589,13 @@ Primary binary-backed evidence:
 - [string-xrefs.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/string-xrefs.txt)
 - [interesting-strings.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/interesting-strings.txt)
 - [unknown-starbase-strings.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/unknown-starbase-strings.txt)
+
+FPC verification tool:
+
+- [tools/fpc_results_reader.pas](/home/mag/dev/esterian_conquest/tools/fpc_results_reader.pas) —
+  Free Pascal program that reads RESULTS.DAT using native BP `file of TResultsRecord`
+  with `String[72]`. Compile with `fpc tools/fpc_results_reader.pas`. Dumps kind,
+  chain pointers, text, hex, and boundary analysis for each record.
 
 Secondary corpus used to fill binary gaps:
 
