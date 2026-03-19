@@ -2001,26 +2001,19 @@ pub(crate) fn process_planetary_assaults(
                     });
                 }
 
+                let intel_source = if game_data.planets.records[planet_idx].owner_empire_slot_raw()
+                    == winner_empire
+                {
+                    PlanetIntelSource::AssaultSuccess
+                } else {
+                    PlanetIntelSource::AssaultFailure
+                };
+
                 clear_arrival_and_hold(game_data, &winner_fleets);
-                push_planet_intel(
-                    &mut events,
-                    planet_idx,
-                    winner_empire,
-                    PlanetIntelSource::Assault,
-                );
-                push_planet_intel(
-                    &mut events,
-                    planet_idx,
-                    previous_owner,
-                    PlanetIntelSource::Assault,
-                );
+                push_planet_intel(&mut events, planet_idx, winner_empire, intel_source);
+                push_planet_intel(&mut events, planet_idx, previous_owner, intel_source);
                 let owner_after = game_data.planets.records[planet_idx].owner_empire_slot_raw();
-                push_planet_intel(
-                    &mut events,
-                    planet_idx,
-                    owner_after,
-                    PlanetIntelSource::Assault,
-                );
+                push_planet_intel(&mut events, planet_idx, owner_after, intel_source);
             }
             MissionClass::Blitz => {
                 let previous_owner = game_data.planets.records[planet_idx].owner_empire_slot_raw();
@@ -2156,26 +2149,19 @@ pub(crate) fn process_planetary_assaults(
                     });
                 }
 
+                let intel_source = if game_data.planets.records[planet_idx].owner_empire_slot_raw()
+                    == winner_empire
+                {
+                    PlanetIntelSource::AssaultSuccess
+                } else {
+                    PlanetIntelSource::AssaultFailure
+                };
+
                 clear_arrival_and_hold(game_data, &winner_fleets);
-                push_planet_intel(
-                    &mut events,
-                    planet_idx,
-                    winner_empire,
-                    PlanetIntelSource::Assault,
-                );
-                push_planet_intel(
-                    &mut events,
-                    planet_idx,
-                    previous_owner,
-                    PlanetIntelSource::Assault,
-                );
+                push_planet_intel(&mut events, planet_idx, winner_empire, intel_source);
+                push_planet_intel(&mut events, planet_idx, previous_owner, intel_source);
                 let owner_after = game_data.planets.records[planet_idx].owner_empire_slot_raw();
-                push_planet_intel(
-                    &mut events,
-                    planet_idx,
-                    owner_after,
-                    PlanetIntelSource::Assault,
-                );
+                push_planet_intel(&mut events, planet_idx, owner_after, intel_source);
             }
             _ => {}
         }

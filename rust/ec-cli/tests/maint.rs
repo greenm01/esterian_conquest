@@ -1563,6 +1563,79 @@ fn maint_rust_invade_failure_generates_attacker_side_report() {
 }
 
 #[test]
+fn maint_rust_invade_failure_exports_ecgame_accepted_enemy_view_row_shape() {
+    let target = unique_temp_dir("ec-cli-maint-rust-invade-failure-database");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let target_world = &mut game_data.planets.records[13];
+    target_world.set_as_owned_target_world(
+        [15, 13],
+        [0x64, 0x87],
+        [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],
+        0x04,
+        0x0b,
+        *b"TargetPrimeet",
+        [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05],
+        40,
+        0,
+        0,
+        2,
+    );
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_current_location_coords_raw([15, 13]);
+    attacker.set_standing_order_kind(Order::InvadeWorld);
+    attacker.set_standing_order_target_coords_raw([15, 13]);
+    attacker.set_current_speed(3);
+    attacker.raw[0x19] = 0x80;
+    attacker.set_rules_of_engagement(10);
+    attacker.set_scout_count(0);
+    attacker.set_battleship_count(0);
+    attacker.set_cruiser_count(0);
+    attacker.set_destroyer_count(1);
+    attacker.set_troop_transport_count(2);
+    attacker.set_army_count(2);
+    attacker.set_etac_count(0);
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let reloaded = CoreGameData::load(&target).expect("maint-rust output should load");
+    let database_bytes = fs::read(target.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+    let viewer_record = database.record(13, 0, reloaded.planets.records.len());
+    assert_eq!(viewer_record.planet_name_bytes(), b"TargetPrime");
+    assert_eq!(viewer_record.raw[0x15], 2);
+    assert_eq!(
+        u16::from_le_bytes([viewer_record.raw[0x16], viewer_record.raw[0x17]]),
+        reloaded.conquest.game_year()
+    );
+    assert_eq!(
+        u16::from_le_bytes([viewer_record.raw[0x18], viewer_record.raw[0x19]]),
+        reloaded.conquest.game_year()
+    );
+    assert_eq!(viewer_record.raw[0x1c], 100);
+    assert_eq!(viewer_record.raw[0x1d], 0xff);
+    assert_eq!(
+        u16::from_le_bytes([viewer_record.raw[0x1e], viewer_record.raw[0x1f]]),
+        u16::MAX
+    );
+    assert_eq!(viewer_record.raw[0x23], 0xff);
+    assert_eq!(viewer_record.raw[0x24], 0xff);
+    assert_eq!(viewer_record.raw[0x25], 0xff);
+    assert_eq!(viewer_record.raw[0x26], 0xff);
+    assert_eq!(
+        u16::from_le_bytes([viewer_record.raw[0x27], viewer_record.raw[0x28]]),
+        0
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_invade_success_exports_ecgame_accepted_owned_row_shape() {
     let target = unique_temp_dir("ec-cli-maint-rust-invade-success-database");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
@@ -1685,6 +1758,153 @@ fn maint_rust_blitz_success_generates_attacker_side_report() {
     assert!(text.contains("Enemy losses:"));
     assert!(text.contains("during the landing"));
     assert_eq!(text.matches("Blitz mission report").count(), 1);
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_blitz_success_exports_ecgame_accepted_owned_row_shape() {
+    let target = unique_temp_dir("ec-cli-maint-rust-blitz-success-database");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let target_world = &mut game_data.planets.records[13];
+    target_world.set_as_owned_target_world(
+        [15, 13],
+        [0x64, 0x87],
+        [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],
+        0x04,
+        0x0b,
+        *b"TargetPrimeet",
+        [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05],
+        1,
+        1,
+        0,
+        2,
+    );
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_current_location_coords_raw([15, 13]);
+    attacker.set_standing_order_kind(Order::BlitzWorld);
+    attacker.set_standing_order_target_coords_raw([15, 13]);
+    attacker.set_current_speed(3);
+    attacker.raw[0x19] = 0x80;
+    attacker.set_rules_of_engagement(10);
+    attacker.set_scout_count(0);
+    attacker.set_battleship_count(0);
+    attacker.set_cruiser_count(0);
+    attacker.set_destroyer_count(1);
+    attacker.set_troop_transport_count(10);
+    attacker.set_army_count(10);
+    attacker.set_etac_count(0);
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let reloaded = CoreGameData::load(&target).expect("maint-rust output should load");
+    let expected_year = reloaded.conquest.game_year() - 1;
+    let database_bytes = fs::read(target.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+    let viewer_record = database.record(13, 0, reloaded.planets.records.len());
+    assert_eq!(viewer_record.planet_name_bytes(), b"TargetPrime");
+    assert_eq!(viewer_record.raw[0x15], 1);
+    assert_eq!(
+        u16::from_le_bytes([viewer_record.raw[0x16], viewer_record.raw[0x17]]),
+        expected_year
+    );
+    assert_eq!(
+        u16::from_le_bytes([viewer_record.raw[0x18], viewer_record.raw[0x19]]),
+        expected_year
+    );
+    assert_eq!(viewer_record.raw[0x1c], 100);
+    assert_eq!(viewer_record.raw[0x1d], 100);
+    assert_eq!(
+        u16::from_le_bytes([viewer_record.raw[0x1e], viewer_record.raw[0x1f]]),
+        65
+    );
+    assert_eq!(viewer_record.raw[0x23], 8);
+    assert_eq!(viewer_record.raw[0x24], 0x00);
+    assert_eq!(viewer_record.raw[0x25], 0);
+    assert_eq!(viewer_record.raw[0x26], 0x00);
+    assert_eq!(
+        u16::from_le_bytes([viewer_record.raw[0x27], viewer_record.raw[0x28]]),
+        expected_year
+    );
+
+    cleanup_dir(&target);
+}
+
+#[test]
+fn maint_rust_blitz_failure_exports_ecgame_accepted_enemy_view_row_shape() {
+    let target = unique_temp_dir("ec-cli-maint-rust-blitz-failure-database");
+    copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
+
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+    let target_world = &mut game_data.planets.records[13];
+    target_world.set_as_owned_target_world(
+        [15, 13],
+        [0x64, 0x87],
+        [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],
+        0x04,
+        0x0b,
+        *b"TargetPrimeet",
+        [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05],
+        10,
+        2,
+        0,
+        2,
+    );
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_current_location_coords_raw([15, 13]);
+    attacker.set_standing_order_kind(Order::BlitzWorld);
+    attacker.set_standing_order_target_coords_raw([15, 13]);
+    attacker.set_current_speed(3);
+    attacker.raw[0x19] = 0x80;
+    attacker.set_rules_of_engagement(10);
+    attacker.set_scout_count(0);
+    attacker.set_battleship_count(0);
+    attacker.set_cruiser_count(0);
+    attacker.set_destroyer_count(1);
+    attacker.set_troop_transport_count(4);
+    attacker.set_army_count(4);
+    attacker.set_etac_count(0);
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let reloaded = CoreGameData::load(&target).expect("maint-rust output should load");
+    let database_bytes = fs::read(target.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+    let viewer_record = database.record(13, 0, reloaded.planets.records.len());
+    assert_eq!(viewer_record.planet_name_bytes(), b"TargetPrime");
+    assert_eq!(viewer_record.raw[0x15], 2);
+    assert_eq!(
+        u16::from_le_bytes([viewer_record.raw[0x16], viewer_record.raw[0x17]]),
+        reloaded.conquest.game_year()
+    );
+    assert_eq!(
+        u16::from_le_bytes([viewer_record.raw[0x18], viewer_record.raw[0x19]]),
+        reloaded.conquest.game_year()
+    );
+    assert_eq!(viewer_record.raw[0x1c], 100);
+    assert_eq!(viewer_record.raw[0x1d], 0xff);
+    assert_eq!(
+        u16::from_le_bytes([viewer_record.raw[0x1e], viewer_record.raw[0x1f]]),
+        u16::MAX
+    );
+    assert_eq!(viewer_record.raw[0x23], 0xff);
+    assert_eq!(viewer_record.raw[0x24], 0xff);
+    assert_eq!(viewer_record.raw[0x25], 0xff);
+    assert_eq!(viewer_record.raw[0x26], 0xff);
+    assert_eq!(
+        u16::from_le_bytes([viewer_record.raw[0x27], viewer_record.raw[0x28]]),
+        0
+    );
 
     cleanup_dir(&target);
 }

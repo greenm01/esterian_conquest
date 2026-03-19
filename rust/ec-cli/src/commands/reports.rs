@@ -49,6 +49,7 @@ pub(crate) fn build_database_dat(
         None,
     );
     let current_intel_year = game_data.conquest.game_year().saturating_sub(1);
+    let current_game_year = game_data.conquest.game_year();
     let current_turn_grants = collect_planet_intel_sources(events);
 
     for player in 0..player_count {
@@ -69,7 +70,14 @@ pub(crate) fn build_database_dat(
             }
 
             if let Some(source) = current_turn_grant.copied() {
-                apply_intel_grant_row(record, template_record, planet, current_intel_year, source);
+                apply_intel_grant_row(
+                    record,
+                    template_record,
+                    planet,
+                    current_intel_year,
+                    current_game_year,
+                    source,
+                );
                 continue;
             }
 
@@ -240,27 +248,42 @@ fn apply_intel_grant_row(
     template_record: Option<&DatabaseRecord>,
     planet: &ec_data::PlanetRecord,
     intel_year: u16,
+    current_game_year: u16,
     source: PlanetIntelSource,
 ) {
     let potential = planet.potential_production_points_current_known();
-    let (current_production, word_1e, armies, batteries) = match source {
+    let (current_production, word_1e, armies, batteries, seen_year, scout_year) = match source {
         PlanetIntelSource::ScoutSolarSystem => (
             template_current_production(template_record).or(Some(potential)),
             template_word_1e(template_record).or(Some(0x23)),
             Some(planet.army_count_raw()),
             Some(planet.ground_batteries_raw()),
+            Some(intel_year),
+            Some(intel_year),
         ),
         PlanetIntelSource::ViewWorld => (
             template_current_production(template_record),
             template_word_1e(template_record),
             None,
             None,
+            Some(intel_year),
+            Some(intel_year),
         ),
-        PlanetIntelSource::Assault => (
+        PlanetIntelSource::AssaultSuccess => (
             template_current_production(template_record),
             template_word_1e(template_record),
             Some(planet.army_count_raw()),
             Some(planet.ground_batteries_raw()),
+            Some(intel_year),
+            Some(intel_year),
+        ),
+        PlanetIntelSource::AssaultFailure => (
+            template_current_production(template_record),
+            template_word_1e(template_record),
+            None,
+            None,
+            Some(current_game_year),
+            None,
         ),
     };
     apply_visible_row(
@@ -273,8 +296,8 @@ fn apply_intel_grant_row(
         word_1e,
         armies,
         batteries,
-        Some(intel_year),
-        Some(intel_year),
+        seen_year,
+        scout_year,
     );
 }
 

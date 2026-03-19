@@ -8603,5 +8603,111 @@ That owned report showed live planet-state fields such as current production
 
 - for newly captured worlds, list acceptance is the stronger `DATABASE.DAT`
   compat contract
+
+### Failed invade row is a distinct accepted enemy-view family
+
+A clean failed-invade probe was exported to
+`/tmp/ecgame-assault-fail-probe-clean` and opened in original `ECGAME`. The
+relevant screenshots were:
+
+- `capture/ecgame_084.png` for the Total Planet Database list
+- `capture/ecgame_085.png` for the planet detail screen
+
+The accepted visible row family for player 1 / `TargetPrime` at `(15,13)` was:
+
+- owner `#2`
+- max production `100`
+- year seen `3004`
+- `ARs = 65535` / unknown on the list
+- `GBs = 65535` / unknown on the list
+- current production `255` / `UNKNOWN`
+- stored points `65535`
+- year scout column displayed `3004`
+
+The detail screen matched the same shape:
+
+- `PLANET INFO (posted 3004: 0 yrs ago)`
+- `SCOUT INFO (posted 3004: 0 yrs ago)`
+- owner shown as `In Civil Disorder (#2)`
+- maximum production `100`
+- current production `UNKNOWN`
+- production points stored `65535`
+- armies `UNKNOWN`
+- ground batteries `UNKNOWN`
+
+Important compat result:
+
+- the Rust-exported prelogin row that exposed defender armies (`39`) and
+  batteries (`0`) did **not** survive
+- original `ECGAME` rewrote that row on login into a view-only enemy-world
+  shape with current-year seen words and no scout payload
+- therefore failed invade/blitz must not be exported as the same classic
+  `DATABASE.DAT` row family as successful assault
+
+Compat decision now locked in:
+
+- successful invade/blitz uses the accepted assault-success row family
+- failed or aborted invade/blitz uses a view-only enemy-world row family
+- for this family, seen-year words track the current game year and the
+  scout-payload bytes remain unknown
 - owned-world detail rendering is likely sourced from `PLANETS.DAT` / normal
   owned-planet report code instead of the foreign-intel database-detail path
+
+### Failed blitz matches the same accepted enemy-view row family
+
+A clean failed-blitz probe was exported to `/tmp/ecgame-blitz-fail-clean.4etJ2e`
+and opened in original `ECGAME`. The relevant screenshots were:
+
+- `capture/ecgame_087.png` for the Total Planet Database list
+- `capture/ecgame_088.png` for the planet detail screen
+
+Those screens matched the failed-invade oracle shape exactly:
+
+- owner `#2`
+- max production `100`
+- year seen `3004`
+- current production `255` / `UNKNOWN`
+- stored points `65535`
+- armies `UNKNOWN`
+- ground batteries `UNKNOWN`
+- year scout displayed `3004`
+
+This confirms that failed invade and failed blitz share the same compat export
+family. No extra classic row variant is needed for blitz failure beyond the
+existing assault-failure view-only projection.
+
+### Successful blitz row accepted on Total Planet Database list
+
+A clean successful-blitz probe was exported to
+`/tmp/ecgame-blitz-success-clean.tvGa2w` and opened in original `ECGAME`. The
+relevant screenshots were:
+
+- `capture/ecgame_089.png` for the Total Planet Database list
+- `capture/ecgame_090.png` for the selected planet screen
+
+Original `ECGAME` accepted the player-1 `TargetPrime` row on the Total Planet
+Database list with:
+
+- owner `#1`
+- max production `100`
+- year seen `3003`
+- `ARs=8`
+- `GBs=0`
+- current production `100`
+- stored points `65`
+- year scout `3003`
+
+When selected from the list, `ECGAME` again routed the newly owned world into
+the normal owned-planet report path rather than the foreign-intel detail
+layout. The owned report showed live owned-world data such as:
+
+- `Surface Forces: 8 armies`
+- `Docked: Nothing`
+- `Points Available: 66`
+
+So the practical compat rule stays the same as invade-success:
+
+- list acceptance is the stronger `DATABASE.DAT` contract for newly captured
+  worlds
+- owned-world detail rendering is coming from normal owned-planet report code,
+  not the foreign-intel database-detail layout

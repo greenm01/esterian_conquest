@@ -77,6 +77,19 @@ Recent validation baseline:
     the successful-invade `TargetPrime` row on the Total Planet Database list:
     owner `#1`, max produx `100`, year seen `3003`, `ARs=2`, `GBs=0`,
     current produx `100`, stored points `65`, year scout `3003`
+  - original `ECGAME` also accepts a distinct failed-invade `TargetPrime` row
+    family: owner `#2`, max produx `100`, year seen `3004`, current produx
+    `UNKNOWN`, stored points `65535`, and no scout payload (`ARs/GBs UNKNOWN`);
+    the old Rust export that exposed defender armies/batteries was rewritten by
+    `ECGAME` on login, so failed assault must stay view-only in compat export
+  - failed blitz matches the same accepted enemy-view row family as failed
+    invade on both list and detail screens, so the shared assault-failure
+    compat export is now confirmed by oracle for both mission kinds
+  - successful blitz also matches the expected captured-world list row family:
+    owner `#1`, max produx `100`, year seen `3003`, `ARs=8`, `GBs=0`,
+    current produx `100`, stored points `65`, year scout `3003`
+  - selecting that successful-blitz `TargetPrime` entry again routes into the
+    normal owned-world report path, not the foreign-intel detail layout
   - selecting that owned `TargetPrime` entry appears to route into the normal
     owned-planet report path rather than the foreign-intel detail layout, so
     list acceptance is the stronger compat contract for newly captured worlds
@@ -146,9 +159,10 @@ remaining risks are:
    screens.
 2. Keep the accepted `Helios Prime` scout row and the accepted `Helios Prime`
    `ViewWorld` row as locked positive compat cases. Treat bombardment as a
-   negative case for new planet-database visibility and target the remaining
-   assault row families with failed/successful invade or blitz probes plus
-   orbit-record preservation.
+   negative case for new planet-database visibility. Treat successful invade
+   and failed invade as locked assault row families and target the remaining
+   gaps with blitz-failure/blitz-success parity checks plus orbit-record
+   preservation.
 3. Treat the seen-year words (`raw[0x16..0x19]`) as the visible year source
    for current Total Planet Database list/detail displays. The scout-year word
    (`raw[0x27..0x28]`) remains unresolved but is not driving those screens.

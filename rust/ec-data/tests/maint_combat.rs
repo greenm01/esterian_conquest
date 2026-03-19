@@ -662,7 +662,7 @@ fn canonical_blitz_success_transfers_surviving_batteries() {
         events
             .planet_intel_events
             .iter()
-            .all(|event| event.source == PlanetIntelSource::Assault)
+            .all(|event| event.source == PlanetIntelSource::AssaultSuccess)
     );
     assert!(events.colonization_events.is_empty());
 }
@@ -682,7 +682,7 @@ fn canonical_blitz_failure_leaves_defender_in_control() {
         target.set_ground_batteries_raw(2);
     }
 
-    run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
 
     let attacker = &game_data.fleets.records[0];
     let target = &game_data.planets.records[13];
@@ -693,4 +693,10 @@ fn canonical_blitz_failure_leaves_defender_in_control() {
     assert_eq!(target.ownership_status_raw(), 2);
     assert_eq!(target.army_count_raw(), 8);
     assert_eq!(target.ground_batteries_raw(), 1);
+    assert!(
+        events
+            .planet_intel_events
+            .iter()
+            .all(|event| event.source == PlanetIntelSource::AssaultFailure)
+    );
 }
