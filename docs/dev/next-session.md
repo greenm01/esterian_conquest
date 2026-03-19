@@ -143,6 +143,22 @@ Recent validation baseline:
     scout rows: changing only that word from `6` to `9` made original
     `ECGAME` show `9` on both the list and detail screens without rewriting
     the row
+  - follow-up original-`ECMAINT` probes against a valid zero-turn
+    `Helios Prime` campaign (`/tmp/ecgame-regular-preprobe`) still do not
+    reproduce a clean foreign regular-world scout refresh:
+    - a lone player-1 scout aimed at `(9,2)` repeatedly aborts with
+      `Since we have lost all of our scouts`
+    - that abort persists after stripping the fleet to one scout, moving the
+      other player-1 fleets out of the sector, freezing hostile fleets in
+      place, starting the scout one sector away, and matching the accepted
+      `max_speed=6/current_speed=3` speed shape
+    - the same runs still advance year/economy and rewrite owned-world
+      `DATABASE.DAT` rows, so the directory is valid; the unresolved issue is
+      specifically the regular foreign scout path, not general file integrity
+  - a separate raw transplant probe from the accepted `TargetPrime` scout
+    baseline to a regular-world-shaped target caused original `ECMAINT` to
+    perform zero writes at all, so raw planet-record substitution is too
+    integrity-sensitive to use as the next `0x1e..0x1f` oracle path
   - the separate planet-command-menu detail path still hits the known
     `Runtime error 201 at 1958:76DE` crash
 
@@ -218,12 +234,15 @@ remaining risks are:
    `DATABASE.DAT`. The remaining orbit-row work is now mainly about whether
    any non-owned/foreign-intel display path reuses the same `0x23` family.
 6. Treat successful `ScoutSolarSystem` refreshes as rewriting stale
-   `DATABASE.DAT[0x1d]` current-production bytes from live planet state.
+   visible scout-row payload, but not yet as a fully decoded semantic rebuild.
    The clean oracle proof is `/tmp/ecgame-scout-refresh-row34.QYjsVJ`, where a
    stale visible row (`Curr Prod = 44`, years `2999`) was refreshed by original
    `ECMAINT` to `Curr Prod = 100`, seen/scout years `3010`.
    Follow-up `/tmp/ecgame-scout-refresh-arbg.SnZG9j` also showed stale
    `ARs/GBs` (`17/9`) refreshing to live `142/15`.
+   Follow-up `/tmp/ecgame-scout-refresh-word1e.kawp4C` showed the same clean
+   scout path rewriting a stale visible `0x1e..0x1f` word (`77`) back to the
+   row-family value `66`.
 7. Treat scout acceptance as sensitive to classic fleet pre-state. A clean
    original-ECMAINT scout run was only reproduced with an at-rest pure scout
    fleet (`tupleA/B = 0x80...`, `tupleC = 0x81...`, no attached DDs, no same-
@@ -233,17 +252,28 @@ remaining risks are:
 8. The `0x1e..0x1f` word for successful scout rows remains row-family-specific.
    Do not generalize it to live `PLANETS.DAT` stored goods yet:
    - regular `Helios Prime` scout rows still accept `35`
+   - but that `35` family is still only `ECGAME`-accepted, not yet cleanly
+     reproduced from original `ECMAINT` on a valid regular-world scout probe
    - the successful unknown->visible `TargetPrime` scout row in the classic
      homeworld-style fixture came out as `0x42` (`66` displayed)
-   - current compat policy should therefore refresh stale scout `0x1d`, but
-     preserve accepted/template `0x1e..0x1f` until a tighter oracle rule exists
+   - the clean `word1e` refresh probe proves original `ECMAINT` can rewrite a
+     stale visible `0x1e..0x1f`, but the rewritten value is still not proven to
+     come from canonical live stored goods
+   - current compat policy should therefore refresh stale scout `0x1d`, and
+     keep treating `0x1e..0x1f` as a row-family-specific compat word until a
+     tighter oracle rule exists
 9. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
    direct `.DAT` ownership back into the client/runtime.
-10. When classic tooling changes a directory, fold those edits back through
+10. Keep the distinction explicit in docs/tests:
+   - `ECGAME`-accepted row shapes are not automatically original-`ECMAINT`
+     emitted row shapes
+   - the regular-world foreign scout family is still missing a clean oracle
+     maint proof
+11. When classic tooling changes a directory, fold those edits back through
    `db-import` before the next Rust maint/client step.
-11. After meaningful Rust changes, rerun:
+12. After meaningful Rust changes, rerun:
    - `python3 tools/oracle_sweep.py --mode seeded`
    - `python3 tools/rust_maint_sweep.py --turns 3`
    - `cargo test -q`
-12. Keep `next-session.md` short and current; archive bulky probe history
+13. Keep `next-session.md` short and current; archive bulky probe history
    instead of rebuilding a running notebook here.

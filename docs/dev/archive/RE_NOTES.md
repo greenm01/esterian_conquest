@@ -9107,3 +9107,106 @@ Important refinement:
   `GBs` from live planet state
 - they still do not justify forcing `0x1e..0x1f` to live stored goods in the
   compat exporter
+
+Follow-up probe `/tmp/ecgame-scout-refresh-word1e.kawp4C` used the same clean
+accepted at-rest pure-scout baseline but preseeded row `34` with:
+
+- current produx `100`
+- armies `142`
+- batteries `15`
+- visible years `2999`
+- stored/display word `0x1e..0x1f = 77` (deliberately stale)
+
+Original `ECMAINT` rewrote that row to:
+
+- current produx `100`
+- armies `142`
+- batteries `15`
+- visible years `3010`
+- stored/display word `0x1e..0x1f = 66`
+
+Important refinement:
+
+- successful scout refreshes can rewrite stale visible `0x1e..0x1f`
+- the rewritten value is still not proven to come from canonical live stored
+  goods:
+  - the accepted `TargetPrime` scout row refreshes to `66` even though the live
+    planet record does not expose stored goods `66`
+  - the accepted `Helios Prime` foreign scout family still shows `35`
+- `0x1e..0x1f` therefore remains a row-family-specific compat/display word, not
+  a proven direct mirror of `PLANETS.DAT` stored goods
+
+### Regular-world foreign scout refresh is still not cleanly reproduced in original ECMAINT
+
+To test whether the accepted `Helios Prime` foreign scout family can be emitted
+by original `ECMAINT` rather than only accepted by `ECGAME`, a valid zero-turn
+Rust-exported campaign was generated at `/tmp/ecgame-regular-preprobe` using
+`scripts/setup_classic_probe_game.py --turns 0`.
+
+That campaign is structurally valid:
+
+- original `ECMAINT` advances year/economy and rewrites owned-world
+  `DATABASE.DAT` rows
+- `PLANETS.DAT`, `FLEETS.DAT`, `PLAYER.DAT`, `CONQUEST.DAT`, and
+  `DATABASE.DAT` all mutate normally under maintenance
+
+The target world in that campaign is:
+
+- planet record `5`
+- coords `(9,2)`
+- owner `#4`
+- name `Helios Prime`
+- regular foreign world with armies `10`, batteries `6`, and nonzero stored
+  production
+
+Multiple narrowed scout probes were then tried:
+
+- `/tmp/ecgame-regular-scout-clean.kt0pgsls`
+  - fleet 2 rewritten to a pure single-scout fleet
+  - other player-1 fleets moved out of the sector and set to hold
+  - scout started at `(5,2)` with target `(9,2)`
+- `/tmp/ecgame-regular-scout-adjacent.7dw9hnfy`
+  - same, but scout started one sector away at `(10,2)`
+- `/tmp/ecgame-regular-scout-isolated.msti1fuv`
+  - same as adjacent, plus all non-player1 fleets frozen in place to remove
+    intercept/blockade noise
+- `/tmp/ecgame-regular-scout-speed3.208our_m`
+  - same as isolated, but matched the accepted clean-scout speed shape from the
+    `TargetPrime` oracle (`max_speed=6`, `current_speed=3`)
+
+All of those runs produced the same report in original `ECMAINT`:
+
+- `Scouting mission report: Since we have lost all of our scouts, we must abort our mission of scouting System(9,2).`
+
+Important conclusion:
+
+- the accepted `Helios Prime` full foreign scout row remains only
+  `ECGAME`-accepted evidence for now
+- it has **not** yet been reproduced as a clean original-`ECMAINT` output row
+  family
+- the blocker is now narrowed to the regular foreign scout path specifically,
+  not general directory integrity or generic scout-order encoding
+
+### Raw planet-record transplantation is too integrity-sensitive for the next regular-world probe
+
+As a shortcut, the accepted clean `TargetPrime` scout baseline was copied to
+`/tmp/ecgame-classic-atrest-helios.GZqvJH` and then to
+`/tmp/ecgame-classic-atrest-regular2.w73oqzuo` with planet record `14`
+replaced by a regular-world-shaped `Helios Prime` record.
+
+Two important outcomes:
+
+- copying the full `Helios Prime` record with owner `#4` let original
+  `ECMAINT` run, but it only refreshed the owner's self row and did not produce
+  the intended foreign scout row
+- copying the same regular-world-shaped record while forcing owner `#2`
+  resulted in a total no-op: original `ECMAINT` performed zero writes to any
+  `.DAT` file
+
+Important conclusion:
+
+- the target-world record in this classic scout baseline is coupled tightly
+  enough to other game state that blind raw record transplantation is not a
+  trustworthy next probe for the unresolved `0x1e..0x1f` rule
+- future regular-world scout probes should start from fully valid
+  Rust-generated/exported directories, not from raw planet-record substitution
