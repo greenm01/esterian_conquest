@@ -8711,3 +8711,210 @@ So the practical compat rule stays the same as invade-success:
   worlds
 - owned-world detail rendering is coming from normal owned-planet report code,
   not the foreign-intel database-detail layout
+
+### Owned-world `Docked:` display is driven by planet state, not `DATABASE.DAT`
+
+To isolate the owned-world detail source, a successful-blitz directory was
+copied to `/tmp/ecgame-docked-probe.T6LnL2`, then `TargetPrime` planet record
+`14` was given stardock contents in `PLANETS.DAT` / SQLite runtime state:
+
+- stardock slot `0`
+- `kind = 0x01` (`destroyer`)
+- `count = 2`
+
+The exported `DATABASE.DAT` row for player 1 / `TargetPrime` was left unchanged
+from the prior successful-blitz case:
+
+- owner `#1`
+- max production `100`
+- year seen `3003`
+- `ARs = 8`
+- `GBs = 0`
+- current production `100`
+- stored points `65`
+
+Original `ECGAME` detail screen in `capture/ecgame_091.png` then showed:
+
+- `Docked: 2 destroyers`
+- `1 ETAC`
+
+That display change happened without any corresponding `DATABASE.DAT` row
+change, so the owned-world `Docked:` field is not sourced from classic planet
+database row bytes. Practical implication:
+
+- there is no remaining `DATABASE.DAT` compat task for owned-world `Docked:`
+- owned-world detail screens should be treated as normal planet-state views
+  sourced from `PLANETS.DAT` / owned-world report logic
+
+### Preserved orbit rows survive init-fixture import/export and are ready for oracle probing
+
+The next unresolved classic family is the preserved orbit-row template already
+present in `fixtures/ecutil-init/v1.5/DATABASE.DAT`. A corrected scan of that
+file showed an earlier local note had used the wrong stride: `DATABASE.DAT`
+records are `100` bytes, not `40`.
+
+With the correct `100`-byte record size, the preserved orbit rows are:
+
+- record `14` = viewer `1`, planet `15`
+- record `32` = viewer `2`, planet `13`
+- record `44` = viewer `3`, planet `5`
+- record `65` = viewer `4`, planet `6`
+
+Those rows all share the same prelogin template shape:
+
+- name length `0`, but bytes `1..7` still contain `UNKNOWN`
+- owner/marker byte `0x15` set to `0x01..0x04`
+- seen year words `0x16..0x19 = 0`
+- unresolved display word `0x1e..0x1f = 35` (`0x0023`)
+- current production `0x1d = 100`
+- armies word `0x23..0x24 = 10`
+- batteries word `0x25..0x26 = 4`
+- scout year word `0x27..0x28 = 0`
+
+The viewer/planet mapping matches the four `Not Named Yet` homeworld-seed
+planets in `PLANETS.DAT`:
+
+- viewer `1` -> planet `15` at `(16,13)`
+- viewer `2` -> planet `13` at `(4,13)`
+- viewer `3` -> planet `5` at `(6,5)`
+- viewer `4` -> planet `6` at `(13,5)`
+
+A clean probe directory was then built at `/tmp/ecgame-orbit-probe.ygqfkV` by:
+
+- copying `fixtures/ecutil-init/v1.5`
+- running `classic-login-prepare` for slot `1` with caller alias `SYSOP`
+- running `db-export` back into the same directory
+
+Important result:
+
+- slot `1` now classifies as `matched-preloaded-first-login`
+- `PLAYER.DAT` changed as expected for the local alias
+- the preserved orbit rows in `DATABASE.DAT` remained byte-identical to the
+  original init fixture after export
+
+So the remaining unknown is now purely oracle-visible behavior:
+
+- does original `ECGAME` surface that preserved orbit row in the
+  `Total Planet Database`
+- if it does, what list/detail fields are shown for the unnamed homeworld seed
+
+### Preloaded first-login homeworld seed is not in Total Planet Database until maintenance
+
+The prepared orbit probe at `/tmp/ecgame-orbit-probe.ygqfkV` was launched in
+original `ECGAME` with slot `1` / alias `SYSOP`.
+
+On the first matched-preloaded login:
+
+- `ECGAME` asked for the player's homeworld name as expected
+- after naming the world `ssddsf`, `T)otal Planet Database` did **not** open
+- instead, `ECGAME` printed:
+  - `Sorry, your planetary database is not yet loaded.`
+  - `Please try again next year after maintenance has run.`
+- the direct `I)nfo about a Planet` / owned-world report path did work and
+  showed the named homeworld as a normal owned planet report
+
+Screenshots:
+
+- `capture/ecgame_092.png` for the Total Planet Database refusal
+- `capture/ecgame_093.png` for the direct owned-world report
+
+Directory diffs after that first-login run showed:
+
+- `PLAYER.DAT` changed only at player 1 `last_run_year`
+- `PLANETS.DAT` changed for the renamed homeworld
+- `DATABASE.DAT` changed only in the player-1 / planet-15 row name area
+
+The important detail is that the row family itself did **not** become a fully
+loaded database entry yet. Player 1 / planet 15 still had:
+
+- owner marker `1`
+- seen/scout year words still `0`
+- potential/current production `100`
+- unresolved display word `35`
+- armies `10`
+- ground batteries `4`
+
+So the naming step alone only renamed the preserved row; it did not load the
+planetary database.
+
+### Original ECMAINT loads the homeworld-seed orbit family into Total Planet Database
+
+The first-login directory was copied to `/tmp/ecgame-orbit-postmaint.H8PNNa`
+and run through original `ECMAINT` via `tools/ecmaint_oracle.py`.
+
+Important result:
+
+- `ECMAINT` rewrote all four homeworld-seed orbit rows in `DATABASE.DAT`
+- it did **not** change their basic row family
+- instead it stamped their seen/scout year words to `3000`
+
+Observed rows after original `ECMAINT`:
+
+- record `14` / viewer `1` / planet `15`: `ssddsf`, owner `1`, years `3000`,
+  current production `100`, word `0x1e = 35`, armies `10`, batteries `4`
+- records `32`, `44`, `65`: still `Not Named Yet`, owners `2`, `3`, `4`,
+  same `100 / 35 / 10 / 4` payload, years `3000`
+
+Launching original `ECGAME` on that maintained directory then showed:
+
+- `Total Planet Database` now opens normally
+- list row for `(16,13) ssddsf`:
+  - owner `#1`
+  - max production `100`
+  - year seen `3000`
+  - `ARs=10`
+  - `GBs=4`
+  - current production `100`
+  - stored points `35`
+  - year scout `3000`
+- selecting the row routes into the normal owned-world report path again
+
+Screenshots:
+
+- `capture/ecgame_094.png` for the loaded list
+- `capture/ecgame_095.png` for the owned-world report path
+
+Live post-maint browsing did not rewrite `DATABASE.DAT`; only
+`PLAYER.DAT[0x4E]` advanced from `3000` to `3001`.
+
+### Rust compat fix: named homeworld-seed rows must preserve `0x23`
+
+Comparing Rust-maint output against the oracle-maintained directory showed that
+Rust already matched the loaded homeworld-seed row family except for one real
+compat bug:
+
+- the player-owned named homeworld seed at record `14` was exporting
+  `DATABASE.DAT[0x1e..0x1f] = 65` (`0x41`)
+- original `ECMAINT` keeps that row on the orbit/homeworld-seed family and
+  preserves `DATABASE.DAT[0x1e..0x1f] = 35` (`0x23`)
+
+That compat rule is now patched in Rust:
+
+- named owned homeworld-seed rows preserve the `0x23` word family when they
+  come from the zero-year preserved seed template
+- captured-world owned rows still use the accepted `0x41`/`0x42`/... family
+
+Regression coverage was added in
+`rust/ec-cli/tests/maint.rs::maint_rust_named_homeworld_seed_preserves_oracle_compat_word_family`.
+
+Direct row diff after the patch:
+
+- Rust-maint output from the real first-login directory now matches the
+  oracle-maintained row family for records `32`, `44`, and `65` exactly
+- record `14` now differs only by one trailing name-area byte after the
+  Pascal-length prefix (`UNKNOWN` tail byte preserved by oracle, zeroed by
+  Rust). This byte is not displayed by `ECGAME` and did not affect the known
+  visible behavior
+
+Final oracle validation on the repaired Rust-generated directory
+`/tmp/ecgame-orbit-rust-from-oracle.IJvtGn` confirmed that the visible
+behavior is accepted:
+
+- `capture/ecgame_098.png` matched the oracle-maintained list screen for
+  `(16,13) ssddsf`
+- `capture/ecgame_099.png` matched the same owned-world report path and status
+  line (`Regular planet - factories fully functional`)
+
+So the maintained homeworld-seed row family is now visually compatible on the
+`Total Planet Database` path even though one non-displayed trailing byte in the
+name area still differs from the original-maintained file.

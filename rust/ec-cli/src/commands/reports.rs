@@ -231,11 +231,7 @@ fn apply_owned_world_row(
         planet.owner_empire_slot_raw(),
         potential,
         template_current_production(template_record).or(Some(potential)),
-        Some(owned_row_word_1e(
-            planet.owner_empire_slot_raw(),
-            planet.planet_name().as_str(),
-            template_record,
-        )),
+        Some(owned_row_word_1e(planet, template_record)),
         Some(planet.army_count_raw()),
         Some(planet.ground_batteries_raw()),
         Some(intel_year),
@@ -357,18 +353,28 @@ fn template_word_1e(template_record: Option<&DatabaseRecord>) -> Option<u16> {
 }
 
 fn owned_row_word_1e(
-    owner_slot: u8,
-    planet_name: &str,
+    planet: &ec_data::PlanetRecord,
     template_record: Option<&DatabaseRecord>,
 ) -> u16 {
-    if planet_name.eq_ignore_ascii_case("not named yet") {
+    if planet.is_homeworld_seed_ignoring_name()
+        && template_record
+            .filter(|row| {
+                row.word_at(0x1e) == 0x23
+                    && row.word_at(0x16) == 0
+                    && row.word_at(0x18) == 0
+                    && row.word_at(0x27) == 0
+            })
+            .is_some()
+    {
+        template_word_1e(template_record).unwrap_or(0x23)
+    } else if planet.planet_name().eq_ignore_ascii_case("not named yet") {
         0x23
     } else if let Some(template_record) =
         template_record.filter(|row| row.raw[0x1e] >= 0x41 && row.raw[0x1e] != 0xff)
     {
         template_record.word_at(0x1e)
     } else {
-        u16::from(0x40u8.saturating_add(owner_slot))
+        u16::from(0x40u8.saturating_add(planet.owner_empire_slot_raw()))
     }
 }
 

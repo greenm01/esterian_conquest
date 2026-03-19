@@ -90,15 +90,42 @@ Recent validation baseline:
     current produx `100`, stored points `65`, year scout `3003`
   - selecting that successful-blitz `TargetPrime` entry again routes into the
     normal owned-world report path, not the foreign-intel detail layout
+  - owned-world `Docked:` on that report path is driven by planet state, not
+    `DATABASE.DAT`: after adding docked ships to `TargetPrime` without changing
+    the compat database row, original `ECGAME` showed `Docked: 2 destroyers`
+    and `1 ETAC`
   - selecting that owned `TargetPrime` entry appears to route into the normal
     owned-planet report path rather than the foreign-intel detail layout, so
     list acceptance is the stronger compat contract for newly captured worlds
+  - corrected scan of `fixtures/ecutil-init/v1.5/DATABASE.DAT` confirmed that
+    classic orbit rows are `100`-byte records at viewer/planet pairs
+    `(1,15)`, `(2,13)`, `(3,5)`, and `(4,6)`; each row has zero years,
+    current production `100`, unresolved display word `35`, and armies/GBs
+    `10/4`
+  - a clean orbit probe at `/tmp/ecgame-orbit-probe.ygqfkV` now has slot `1`
+    prepared as `matched-preloaded-first-login` with alias `SYSOP`, while the
+    preserved init-fixture `DATABASE.DAT` orbit rows remain byte-identical
   - current compat export now keeps `ViewWorld` distinct from
     `ScoutSolarSystem`: view rows expose name/owner/potential without scout
     payload, while scout reports keep the stardock summary
   - `DATABASE.DAT[0x1e..0x1f]` must still be treated as an unresolved compat
     display word: the accepted `Helios Prime` row shows `35` there while the
     same probe directory's `PLANETS.DAT stored_goods_raw()` is `342`
+  - matched-preloaded first login on the homeworld-seed orbit probe confirmed
+    that naming the homeworld does not load `Total Planet Database` yet:
+    original `ECGAME` refused the database screen until after maintenance, but
+    still allowed the direct owned-world report path
+  - original `ECMAINT` then loaded that seed-family row into the database by
+    stamping years `3000` onto the same `100 / 35 / 10 / 4` homeworld-seed
+    payload; the maintained list row for `(16,13)` showed owner `#1`,
+    current/max production `100`, `ARs=10`, `GBs=4`, stored points `35`,
+    and year seen/scout `3000`
+  - Rust compat export now preserves `DATABASE.DAT[0x1e..0x1f] = 0x23` for
+    the named owned homeworld-seed row family; that fixes the only visible
+    oracle mismatch found in the Rust-vs-oracle post-maint comparison
+  - final live oracle validation on the repaired Rust-generated directory
+    confirmed the same visible behavior on both list and detail/report screens;
+    the remaining raw diff is only one non-displayed trailing name-area byte
   - the separate planet-command-menu detail path still hits the known
     `Runtime error 201 at 1958:76DE` crash
 
@@ -147,8 +174,8 @@ remaining risks are:
   visible list/detail entries
 - determining the real semantics of the Total Planet Database display bytes,
   especially `DATABASE.DAT[0x1d]` and `DATABASE.DAT[0x1e..0x1f]`
-- determining whether any classic `Docked:` / stardock display path depends on
-  `DATABASE.DAT`, `PLANETS.DAT`, or some other compat state
+- determining what original `ECGAME` does with the preserved init-fixture
+  orbit-row family (`raw[0x15] in 0x01..0x04`)
 - keeping runtime/client code free of accidental classic-file side effects
 - implementation drift between canonical SQLite intel facts and classic export
 
@@ -157,21 +184,18 @@ remaining risks are:
 1. Keep oracle probing focused on classic export behavior, especially
    newly granted foreign intel rather than already-known homeworld/detail
    screens.
-2. Keep the accepted `Helios Prime` scout row and the accepted `Helios Prime`
-   `ViewWorld` row as locked positive compat cases. Treat bombardment as a
-   negative case for new planet-database visibility. Treat successful invade
-   and failed invade as locked assault row families and target the remaining
-   gaps with blitz-failure/blitz-success parity checks plus orbit-record
-   preservation.
+2. Keep the accepted `Helios Prime` scout row, `ViewWorld` row, assault
+   success/failure row families, and maintained homeworld-seed row family as
+   locked compat cases.
 3. Treat the seen-year words (`raw[0x16..0x19]`) as the visible year source
    for current Total Planet Database list/detail displays. The scout-year word
    (`raw[0x27..0x28]`) remains unresolved but is not driving those screens.
 4. Treat `DATABASE.DAT[0x1e..0x1f]` as an unresolved compat display word, not
    as proven `PLANETS.DAT stored_goods_raw()`. Preserve accepted/template word
    families unless a new oracle probe proves a real semantic mapping.
-5. If probing stardock beyond the mission-report path, focus specifically on
-   whether any Total Planet Database / planet-detail `Docked:` display is
-   driven by `DATABASE.DAT`, `PLANETS.DAT`, or some other classic state.
+5. Treat owned-world `Docked:` as closed: it comes from planet state, not
+   `DATABASE.DAT`. The remaining orbit-row work is now mainly about whether
+   any non-owned/foreign-intel display path reuses the same `0x23` family.
 6. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
    direct `.DAT` ownership back into the client/runtime.
 7. When classic tooling changes a directory, fold those edits back through
