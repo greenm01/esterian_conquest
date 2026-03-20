@@ -45,6 +45,8 @@ AURORA_STARDOCK_MODES = (
     "single-scout",
     "single-dd-count2",
     "single-dd-slot1",
+    "single-scout-slot1",
+    "single-dd-slot2",
     "two-dd-slots",
     "mixed-light",
 )
@@ -145,6 +147,10 @@ def apply_probe_stardock_payload(
         run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "1", "2")
     elif aurora_stardock == "single-dd-slot1":
         run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "1", "1", "1")
+    elif aurora_stardock == "single-scout-slot1":
+        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "1", "4", "1")
+    elif aurora_stardock == "single-dd-slot2":
+        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "2", "1", "1")
     elif aurora_stardock == "two-dd-slots":
         run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "1", "1")
         run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "1", "1", "1")

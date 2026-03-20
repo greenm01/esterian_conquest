@@ -249,7 +249,7 @@ Recent validation baseline:
     those worlds now match the ordinary owned-world shape at `0x22..0x23`
     while classic login state still stays correct
   - the same harness now exposes an explicit Aurora Prime stardock bisect:
-    `--aurora-stardock {busy,empty,single-dd,single-scout,single-dd-count2,single-dd-slot1,two-dd-slots,mixed-light}`
+    `--aurora-stardock {busy,empty,single-dd,single-scout,single-dd-count2,single-dd-slot1,single-scout-slot1,single-dd-slot2,two-dd-slots,mixed-light}`
   - the same harness now also supports
     `--probe-dock-host {aurora,foundation}` so the exact same owned-world dock
     payload can be moved onto `Foundation` without changing the rest of the
@@ -263,27 +263,32 @@ Recent validation baseline:
     - `/tmp/ec-classic-probe-single-scout` = one scout in slot `0`
     - `/tmp/ec-classic-probe-single-dd-count2` = two destroyers in slot `0`
     - `/tmp/ec-classic-probe-single-dd-slot1` = one destroyer in slot `1`
+    - `/tmp/ec-classic-probe-single-scout-slot1` = one scout in slot `1`
+    - `/tmp/ec-classic-probe-single-dd-slot2` = one destroyer in slot `2`
     - `/tmp/ec-classic-probe-two-dd-slots` = one destroyer in slots `0` and `1`
     - `/tmp/ec-classic-probe-mixed-light` = one scout in slot `0`, one
       destroyer in slot `1`
-  - all nine variants keep slot 1 as a valid `returning-player`
+  - all eleven variants keep slot 1 as a valid `returning-player`
   - manual oracle results already prove:
     - `/tmp/ec-classic-probe-aurora-empty`: no crash
     - `/tmp/ec-classic-probe-aurora-single`: no crash
     - `/tmp/ec-classic-probe-word22`: crashes
     - `/tmp/ec-classic-probe-foundation-busy`: crashes on `Foundation`
     - `/tmp/ec-classic-probe-single-scout`: no crash
+    - `/tmp/ec-classic-probe-single-dd-count2`: no crash
+    - `/tmp/ec-classic-probe-single-dd-slot1`: crashes
     - `/tmp/ec-classic-probe-two-dd-slots`: crashes
     - `/tmp/ec-classic-probe-mixed-light`: crashes
   - that means the crash follows the richer busy stardock payload rather than
     `Aurora Prime` specifically; a non-empty dock alone and a single occupied
     destroyer slot are both safe, scout kind `4` alone is safe, and the
-    current trigger has narrowed to either slot `1` occupancy or multi-slot
-    occupied payloads
+    current trigger has narrowed further to slot `1` occupancy itself versus
+    any occupied slot beyond `0`
   - the next manual `P -> D` recheck should compare
-    `/tmp/ec-classic-probe-single-dd-count2` and
-    `/tmp/ec-classic-probe-single-dd-slot1` to isolate whether the remaining
-    trigger is slot `1` occupancy by itself, or only true multi-slot occupancy
+    `/tmp/ec-classic-probe-single-scout-slot1` and
+    `/tmp/ec-classic-probe-single-dd-slot2` to isolate whether slot `1` is
+    special regardless of kind, or whether any occupied slot beyond `0`
+    triggers the crash
 
 ## Canonical Docs
 

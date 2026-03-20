@@ -9806,3 +9806,41 @@ Practical next step:
     not slot index but a single-slot count/formatting bug
   - if both are safe, the remaining trigger is specifically multi-slot
     occupancy rather than a single second-slot item
+
+Manual oracle outcome from the slot-index/count split:
+
+- `/tmp/ec-classic-probe-single-dd-count2`: `P -> D` does **not** crash
+- `/tmp/ec-classic-probe-single-dd-slot1`: `P -> D` **does** crash
+
+Interpretation:
+
+- slot `1` occupancy alone is enough
+- a count of `2` in slot `0` is still safe
+- the remaining question is therefore:
+  - is slot `1` itself special regardless of ship kind
+  - or does any occupied slot beyond `0` trigger the crash
+
+Follow-up probe split for slot-position semantics:
+
+- `scripts/setup_classic_probe_game.py` now also accepts:
+  - `single-scout-slot1`
+  - `single-dd-slot2`
+- verified outputs:
+  - `/tmp/ec-classic-probe-single-scout-slot1`
+    - `Aurora Prime raw[0x38..0x4d] = 00 00 01 00 ... 00 04`
+  - `/tmp/ec-classic-probe-single-dd-slot2`
+    - `Aurora Prime raw[0x38..0x4d] = 00 00 00 00 01 00 ... 00 00`
+- both still pass `inspect-classic-login`, and both still keep
+  `raw[0x03] = 0x87` plus `word [0x22..0x23] = 0`
+
+Practical next step:
+
+- manual oracle check should now compare:
+  - `tools/run_ecgame.sh /tmp/ec-classic-probe-single-scout-slot1 1 SYSOP`
+  - `tools/run_ecgame.sh /tmp/ec-classic-probe-single-dd-slot2 1 SYSOP`
+- interpretation:
+  - if `single-scout-slot1` crashes, slot `1` is special regardless of kind
+  - if `single-dd-slot2` also crashes, the bug is likely any occupied slot
+    beyond `0`
+  - if `single-scout-slot1` crashes but `single-dd-slot2` is safe, slot `1`
+    itself is the strongest remaining trigger
