@@ -122,6 +122,9 @@ def set_planet_specs(cli_binary: Path, target: Path) -> None:
         run_ec_cli(cli_binary, "planet-stored", str(target), str(record), str(stored))
         run_ec_cli(cli_binary, "planet-stats", str(target), str(record), str(armies), str(batteries))
 
+    # The direct PLANETS.DAT rewrite below must start from the current runtime
+    # snapshot, not the stale first-login files left on disk by new-game.
+    run_ec_cli(cli_binary, "db-export", str(target), str(target))
     rewrite_player_one_owned_probe_worlds(target)
     run_ec_cli(cli_binary, "db-import", str(target))
 

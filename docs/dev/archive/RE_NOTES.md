@@ -9585,6 +9585,24 @@ Follow-up probe-harness correction:
 - this is only a harness mitigation, not a proof that orbiting-fleet state was
   the root cause
 
+Additional harness fix after stage-by-stage trace:
+
+- the earlier raw `PLANETS.DAT` rewrite for records `16/17/19` was being
+  followed immediately by `db-import`
+- because the probe script's prior `player-join`, `player-name`, and planet
+  mutators had only updated the runtime snapshot, not the stale classic files
+  still on disk, that `db-import` was reloading the old first-login
+  `PLAYER.DAT` and wiping the joined-player state back to
+  `In Civil Disorder`
+- `scripts/setup_classic_probe_game.py` now runs `db-export <dir> <dir>` before
+  the direct `PLANETS.DAT` rewrite so the raw patch starts from the live
+  runtime snapshot, then re-imports the patched planet file
+- controlled trace on `/tmp/ec-stage-trace2` now shows:
+  - player 1 stays `returning-player` with handle `SYSOP`
+  - player 2..4 keep their named empires/homeworlds
+  - that state survives `set_planet_specs`, `maint-rust`, and the final
+    report-prep `db-import`
+
 Open point:
 
 - a clean automated `ECGAME` recheck of `P -> D` / `I` is still pending

@@ -223,6 +223,10 @@ Recent validation baseline:
     `PLANETS.DAT` shape before `db-import` instead of relying only on sparse
     `planet-owner` / visible-field mutators; raw regeneration confirmed the
     target-world template bytes landed and later stardock writes still apply
+  - that rewrite path now does `db-export <dir> <dir>` first so the direct
+    `PLANETS.DAT` patch starts from the live joined-player snapshot instead of
+    the stale first-login files left on disk; stage tracing confirmed this
+    stops `db-import` from clobbering `PLAYER.DAT` back to civil-disorder
   - the same harness no longer parks player-1 fleet `3` on `Aurora Prime`;
     it now moves to empty sector `(5,4)` so the crash probe does not pile an
     orbiting fleet onto the same owned world already carrying docked ships
