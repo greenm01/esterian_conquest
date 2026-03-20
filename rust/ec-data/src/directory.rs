@@ -1033,7 +1033,7 @@ impl CoreGameData {
             if planet.owner_empire_slot_raw() != empire_raw {
                 continue;
             }
-            for slot in 0..10 {
+            for slot in 0..crate::STARDOCK_SLOT_COUNT {
                 let count = u32::from(planet.stardock_count_raw(slot));
                 if count == 0 {
                     continue;
@@ -1550,7 +1550,7 @@ impl CoreGameData {
                     record.set_build_count_raw(slot, 0);
                     record.set_build_kind_raw(slot, 0);
                 }
-                for slot in 0..6 {
+                for slot in 0..crate::STARDOCK_SLOT_COUNT {
                     record.set_stardock_count_raw(slot, 0);
                     record.set_stardock_kind_raw(slot, 0);
                 }
@@ -1567,7 +1567,7 @@ impl CoreGameData {
                     record.set_build_count_raw(slot, 0);
                     record.set_build_kind_raw(slot, 0);
                 }
-                for slot in 0..6 {
+                for slot in 0..crate::STARDOCK_SLOT_COUNT {
                     record.set_stardock_count_raw(slot, 0);
                     record.set_stardock_kind_raw(slot, 0);
                 }
@@ -1775,7 +1775,7 @@ impl CoreGameData {
                     planet_index_1_based
                 ));
             }
-            if (0..6).any(|slot| {
+            if (0..crate::STARDOCK_SLOT_COUNT).any(|slot| {
                 record.stardock_kind_raw(slot) != 0 || record.stardock_count_raw(slot) != 0
             }) {
                 errors.push(format!(
@@ -1867,7 +1867,7 @@ impl CoreGameData {
                     planet_index_1_based
                 ));
             }
-            if (0..6).any(|slot| {
+            if (0..crate::STARDOCK_SLOT_COUNT).any(|slot| {
                 record.stardock_kind_raw(slot) != 0 || record.stardock_count_raw(slot) != 0
             }) {
                 errors.push(format!(
@@ -2569,6 +2569,8 @@ impl CoreGameData {
                 ));
             }
 
+        }
+        for slot in 0..crate::STARDOCK_SLOT_COUNT {
             let stardock_count = planet.stardock_count_raw(slot);
             let stardock_kind = planet.stardock_kind_raw(slot);
             if stardock_count == 0 && stardock_kind != 0 {
@@ -2797,7 +2799,7 @@ impl CoreGameData {
             },
         )?;
 
-        let occupied_stardock = (0..10)
+        let occupied_stardock = (0..crate::STARDOCK_SLOT_COUNT)
             .filter(|&s| record.stardock_kind_raw(s) != 0)
             .count();
 
@@ -2818,7 +2820,7 @@ impl CoreGameData {
             .count();
 
         let reserved = occupied_stardock + pending_ship_slots;
-        Ok(10usize.saturating_sub(reserved))
+        Ok(crate::STARDOCK_SLOT_COUNT.saturating_sub(reserved))
     }
 
     /// Count how many stardock slots are currently empty on a planet.
@@ -2836,7 +2838,7 @@ impl CoreGameData {
             },
         )?;
 
-        Ok((0..10)
+        Ok((0..crate::STARDOCK_SLOT_COUNT)
             .filter(|&s| record.stardock_kind_raw(s) == 0)
             .count())
     }
@@ -2957,7 +2959,7 @@ impl CoreGameData {
         let coords = planet.coords_raw();
         let mut selected = Vec::with_capacity(slot_0_based_list.len());
         for &slot_0_based in slot_0_based_list {
-            if slot_0_based >= 10
+            if slot_0_based >= crate::STARDOCK_SLOT_COUNT
                 || planet.stardock_kind_raw(slot_0_based) == 0
                 || planet.stardock_count_raw(slot_0_based) == 0
             {
@@ -3134,7 +3136,7 @@ impl CoreGameData {
             let mut ship_slots = Vec::new();
             let mut starbase_slots = Vec::new();
             let mut ship_count = 0u32;
-            for slot in 0..10 {
+            for slot in 0..crate::STARDOCK_SLOT_COUNT {
                 let count = u32::from(planet.stardock_count_raw(slot));
                 if count == 0 {
                     continue;

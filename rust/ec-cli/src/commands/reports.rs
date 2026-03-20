@@ -1028,7 +1028,7 @@ fn stardock_scan_summary(planet: &ec_data::PlanetRecord) -> String {
     use ec_data::ProductionItemKind;
 
     let mut parts = Vec::new();
-    for slot in 0..6 {
+    for slot in 0..ec_data::STARDOCK_SLOT_COUNT {
         let count = planet.stardock_count_raw(slot);
         if count == 0 {
             continue;

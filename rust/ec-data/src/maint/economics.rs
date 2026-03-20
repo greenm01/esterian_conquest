@@ -60,7 +60,7 @@ pub(super) fn process_build_completion(
                 let points_spent = u32::from(decrement);
 
                 if build_item_kind.requires_stardock() {
-                    let has_open_stardock_slot = (0..10).any(|stardock_slot| {
+                    let has_open_stardock_slot = (0..crate::STARDOCK_SLOT_COUNT).any(|stardock_slot| {
                         game_data.planets.records[planet_idx].stardock_kind_raw(stardock_slot) == 0
                     });
                     if !has_open_stardock_slot {
@@ -113,7 +113,7 @@ pub(super) fn process_build_completion(
                         }
                         _ => {
                             // Ships and starbases stage in stardock awaiting commission.
-                            for stardock_slot in 0..10 {
+                            for stardock_slot in 0..crate::STARDOCK_SLOT_COUNT {
                                 let existing_kind = game_data.planets.records[planet_idx]
                                     .stardock_kind_raw(stardock_slot);
                                 if existing_kind == 0 {

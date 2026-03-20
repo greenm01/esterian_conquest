@@ -369,7 +369,7 @@ fn maintenance_ship_build_stays_queued_when_stardock_is_full() {
     let mut planet = owned_planet(1, 100, encode_real48(100.0).unwrap(), 0, 1, 0);
     planet.set_build_count_raw(0, 100);
     planet.set_build_kind_raw(0, 1);
-    for slot in 0..10 {
+    for slot in 0..ec_data::STARDOCK_SLOT_COUNT {
         planet.set_stardock_kind_raw(slot, 1);
         planet.set_stardock_count_raw(slot, 1);
     }
@@ -380,7 +380,7 @@ fn maintenance_ship_build_stays_queued_when_stardock_is_full() {
     let planet = &game.planets.records[0];
     assert_eq!(planet.build_count_raw(0), 100);
     assert_eq!(planet.build_kind_raw(0), 1);
-    for slot in 0..10 {
+    for slot in 0..ec_data::STARDOCK_SLOT_COUNT {
         assert_eq!(planet.stardock_kind_raw(slot), 1);
         assert_eq!(planet.stardock_count_raw(slot), 1);
     }
@@ -394,7 +394,7 @@ fn maintenance_starbase_build_stays_queued_when_stardock_is_full() {
     let mut planet = owned_planet(1, 100, encode_real48(100.0).unwrap(), 0, 1, 0);
     planet.set_build_count_raw(0, 100);
     planet.set_build_kind_raw(0, 9);
-    for slot in 0..10 {
+    for slot in 0..ec_data::STARDOCK_SLOT_COUNT {
         planet.set_stardock_kind_raw(slot, 1);
         planet.set_stardock_count_raw(slot, 1);
     }
@@ -405,7 +405,7 @@ fn maintenance_starbase_build_stays_queued_when_stardock_is_full() {
     let planet = &game.planets.records[0];
     assert_eq!(planet.build_count_raw(0), 100);
     assert_eq!(planet.build_kind_raw(0), 9);
-    for slot in 0..10 {
+    for slot in 0..ec_data::STARDOCK_SLOT_COUNT {
         assert_eq!(planet.stardock_kind_raw(slot), 1);
         assert_eq!(planet.stardock_count_raw(slot), 1);
     }
@@ -419,7 +419,7 @@ fn maintenance_army_build_completes_even_when_stardock_is_full() {
     let mut planet = owned_planet(1, 100, encode_real48(100.0).unwrap(), 0, 1, 0);
     planet.set_build_count_raw(0, 100);
     planet.set_build_kind_raw(0, 8);
-    for slot in 0..10 {
+    for slot in 0..ec_data::STARDOCK_SLOT_COUNT {
         planet.set_stardock_kind_raw(slot, 1);
         planet.set_stardock_count_raw(slot, 1);
     }
@@ -441,7 +441,7 @@ fn maintenance_ground_battery_build_completes_even_when_stardock_is_full() {
     let mut planet = owned_planet(1, 100, encode_real48(100.0).unwrap(), 0, 1, 0);
     planet.set_build_count_raw(0, 100);
     planet.set_build_kind_raw(0, 7);
-    for slot in 0..10 {
+    for slot in 0..ec_data::STARDOCK_SLOT_COUNT {
         planet.set_stardock_kind_raw(slot, 1);
         planet.set_stardock_count_raw(slot, 1);
     }

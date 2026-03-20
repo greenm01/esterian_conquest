@@ -284,11 +284,52 @@ Recent validation baseline:
     destroyer slot are both safe, scout kind `4` alone is safe, and the
     current trigger has narrowed further to slot `1` occupancy itself versus
     any occupied slot beyond `0`
-  - the next manual `P -> D` recheck should compare
-    `/tmp/ec-classic-probe-single-scout-slot1` and
-    `/tmp/ec-classic-probe-single-dd-slot2` to isolate whether slot `1` is
-    special regardless of kind, or whether any occupied slot beyond `0`
-    triggers the crash
+  - deeper original-`ECMAINT` oracle probes against
+    `fixtures/ecmaint-build-pre/v1.5` now show the underlying layout theory
+    was wrong: classic stardock is not a contiguous `10 x u16` count array plus
+    `10 x u8` kind array
+  - observed original post-maint placements:
+    - entry `0`: count `0x38`, kind `0x4c`
+    - entry `1`: count `0x39`, kind `0x4d`
+    - entry `2`: count `0x3c`, kind `0x50`
+  - current working classic model is a sparse `6`-entry dock shape with
+    count offsets `[0x38, 0x39, 0x3c, 0x3d, 0x40, 0x41]` and kind offsets
+    `[0x4c, 0x4d, 0x50, 0x51, 0x54, 0x55]`
+  - Rust now writes that recovered sparse layout, keeps the build queue at
+    `10` slots, and the classic probe harness now clears exactly `6` dock
+    entries instead of the old `10`
+  - regenerated busy probes now show the expected sparse bytes, e.g.
+    `Aurora Prime` on `/tmp/ec-classic-probe-word22` has
+    counts `[1, 2, 0, 0, 0, 0]` and kinds `[4, 1, 0, 0, 0, 0]`
+  - important probe note: the variant directory names are only conventions;
+    when regenerating a named variant, pass the matching
+    `--aurora-stardock ...` flag explicitly or the script defaults back to the
+    busy payload
+  - next oracle step:
+    - regenerate the old crash cases with explicit flags
+    - rerun manual `P -> D` in original `ECGAME`
+    - if the sparse classic layout is the full fix, the old slot-1/slot-2
+      crash variants should stop faulting
+  - manual recheck on regenerated explicit-flag probes now confirms the fix:
+    - `/tmp/ec-classic-probe-word22`: no crash
+    - `/tmp/ec-classic-probe-single-dd-slot1`: no crash
+    - `/tmp/ec-classic-probe-single-scout-slot1`: no crash
+    - `/tmp/ec-classic-probe-single-dd-slot2`: no crash
+  - practical conclusion: the owned-world Planet Command `P -> D` crash was
+    caused by malformed secondary stardock export, not by a gameplay rule that
+    forbids occupied classic dock slots beyond `0`
+  - this closes the `ECGAME` owned-world stardock crash thread for now; the
+    next compatibility focus should move back to remaining oracle gaps such as
+    the regular-world scout-abort path and other unresolved classic projection
+    families
+  - immediate scout-thread follow-up on the live dump tightened one more RE
+    assumption: direct pattern scans on `ecmaint_640k.bin` / the carved live
+    dump find only simple immediate writes of `0`, `1`, and `5` to `0x3521`
+  - the live-dispatched scout mission kinds `0x0a`, `0x0b`, and `0x0e`
+    therefore are not being raised by a trivial `mov byte [0x3521], imm8`
+    site in this segment; the next trace should bias toward indirect loads,
+    copied table values, or later-segment writes instead of more grep for
+    immediate setters
 
 ## Canonical Docs
 
@@ -340,6 +381,17 @@ remaining risks are:
   orbit-row family (`raw[0x15] in 0x01..0x04`)
 - keeping runtime/client code free of accidental classic-file side effects
 - implementation drift between canonical SQLite intel facts and classic export
+- **Unwrapped EXEs**: Two sets available in `tools/unlzexe/`:
+  - `*U.EXE` (memdump-extracted): Ghidra static analysis only. Carry
+    baked-in TP7 runtime state; cannot run under DOS.
+  - `*_CLEAN.EXE` (stream-cipher decrypted): **Runnable** under DOSBox-X.
+    Built by capturing decrypted body from DOSBox-X `memory file` and
+    prepending original MZ headers from stub+0x1B5. ECMAINT_CLEAN oracle
+    test: 3/6 DAT files byte-identical, others differ by 7-51 bytes due
+    to TP7 runtime-initialized bytes in the memory capture. The "LZEXE
+    compression" is actually a PRNG-based stream cipher, not LZ — see
+    `docs/dev/dosemu2-vm86-findings.md` and
+    `tools/capture_decrypted_body.py` for details.
 
 ## Immediate Next Steps
 

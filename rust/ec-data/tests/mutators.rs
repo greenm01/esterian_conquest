@@ -153,6 +153,36 @@ fn rename_owned_planet_updates_name_for_matching_owner() {
 }
 
 #[test]
+fn stardock_secondary_slots_round_trip_through_sparse_classic_offsets() {
+    let mut planet = PlanetRecord::new_zeroed();
+
+    planet.set_stardock_count_raw(0, 1);
+    planet.set_stardock_kind_raw(0, 1);
+    planet.set_stardock_count_raw(1, 2);
+    planet.set_stardock_kind_raw(1, 4);
+    planet.set_stardock_count_raw(2, 3);
+    planet.set_stardock_kind_raw(2, 9);
+
+    assert_eq!(planet.stardock_count_raw(0), 1);
+    assert_eq!(planet.stardock_count_raw(1), 2);
+    assert_eq!(planet.stardock_count_raw(2), 3);
+    assert_eq!(planet.stardock_kind_raw(0), 1);
+    assert_eq!(planet.stardock_kind_raw(1), 4);
+    assert_eq!(planet.stardock_kind_raw(2), 9);
+
+    assert_eq!(planet.raw[0x38], 1);
+    assert_eq!(planet.raw[0x39], 2);
+    assert_eq!(planet.raw[0x3A], 0);
+    assert_eq!(planet.raw[0x3B], 0);
+    assert_eq!(planet.raw[0x3C], 3);
+    assert_eq!(planet.raw[0x4C], 1);
+    assert_eq!(planet.raw[0x4D], 4);
+    assert_eq!(planet.raw[0x4E], 0);
+    assert_eq!(planet.raw[0x4F], 0);
+    assert_eq!(planet.raw[0x50], 9);
+}
+
+#[test]
 fn commission_ship_from_stardock_appends_fleet_and_clears_slot() {
     let mut player = PlayerRecord::new_zeroed();
     player.set_owner_empire_raw(1);
@@ -195,6 +225,38 @@ fn commission_ship_from_stardock_appends_fleet_and_clears_slot() {
     assert_eq!(fleet.destroyer_count(), 2);
     assert_eq!(fleet.current_location_coords_raw(), [6, 5]);
     assert_eq!(fleet.standing_order_kind(), Order::HoldPosition);
+}
+
+#[test]
+fn append_planet_build_order_still_uses_all_ten_queue_slots() {
+    let mut player = PlayerRecord::new_zeroed();
+    player.set_owner_empire_raw(1);
+
+    let mut planet = PlanetRecord::new_zeroed();
+    planet.set_owner_empire_slot_raw(1);
+    for slot in 0..9 {
+        planet.set_build_count_raw(slot, 1);
+        planet.set_build_kind_raw(slot, 1);
+    }
+
+    let mut data = CoreGameData {
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![planet],
+        },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: SetupDat::parse(&vec![0; SETUP_DAT_SIZE]).unwrap(),
+        conquest: ConquestDat::parse(&vec![0; CONQUEST_DAT_SIZE]).unwrap(),
+    };
+
+    data.append_planet_build_order(1, 2, 4).unwrap();
+
+    assert_eq!(data.planets.records[0].build_count_raw(9), 2);
+    assert_eq!(data.planets.records[0].build_kind_raw(9), 4);
 }
 
 #[test]

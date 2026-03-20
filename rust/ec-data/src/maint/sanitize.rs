@@ -129,6 +129,8 @@ pub(super) fn sanitize_invalid_player_inputs(
                     planet.set_build_count_raw(slot, 0);
                     planet.set_build_kind_raw(slot, 0);
                 }
+            }
+            for slot in 0..crate::STARDOCK_SLOT_COUNT {
                 let stardock_count = planet.stardock_count_raw(slot);
                 let stardock_kind = planet.stardock_kind_raw(slot);
                 if stardock_count == 0 && stardock_kind != 0

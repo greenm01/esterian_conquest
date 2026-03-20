@@ -1,6 +1,11 @@
 use crate::PLANET_RECORD_SIZE;
 use crate::support::{ParseError, copy_array, decode_real48, encode_real48};
 
+pub const STARDOCK_SLOT_COUNT: usize = 6;
+
+const STARDOCK_COUNT_OFFSETS: [usize; STARDOCK_SLOT_COUNT] = [0x38, 0x39, 0x3C, 0x3D, 0x40, 0x41];
+const STARDOCK_KIND_OFFSETS: [usize; STARDOCK_SLOT_COUNT] = [0x4C, 0x4D, 0x50, 0x51, 0x54, 0x55];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProductionItemKind {
     Destroyer,
@@ -214,11 +219,11 @@ impl PlanetRecord {
     }
 
     pub fn stardock_count_raw(&self, slot: usize) -> u16 {
-        u16::from_le_bytes([self.raw[0x38 + slot * 2], self.raw[0x38 + slot * 2 + 1]])
+        u16::from(self.raw[STARDOCK_COUNT_OFFSETS[slot]])
     }
 
     pub fn stardock_kind_raw(&self, slot: usize) -> u8 {
-        self.raw[0x4C + slot]
+        self.raw[STARDOCK_KIND_OFFSETS[slot]]
     }
 
     pub fn stardock_item_kind_current_known(&self, slot: usize) -> ProductionItemKind {
@@ -226,11 +231,11 @@ impl PlanetRecord {
     }
 
     pub fn set_stardock_count_raw(&mut self, slot: usize, value: u16) {
-        self.raw[0x38 + slot * 2..0x38 + slot * 2 + 2].copy_from_slice(&value.to_le_bytes());
+        self.raw[STARDOCK_COUNT_OFFSETS[slot]] = value.min(u16::from(u8::MAX)) as u8;
     }
 
     pub fn set_stardock_kind_raw(&mut self, slot: usize, value: u8) {
-        self.raw[0x4C + slot] = value;
+        self.raw[STARDOCK_KIND_OFFSETS[slot]] = value;
     }
 
     /// Set the 7 raw bytes at [0x1d..0x24] — the region between the end of the

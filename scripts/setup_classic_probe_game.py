@@ -78,6 +78,7 @@ PLAYER_RESULTS_CHAIN_FLAG_OFFSET = 0x38
 PLAYER_RESULTS_CHAIN_NEXT_FREE_OFFSET = 0x3C
 PLAYER_LAST_RUN_YEAR_OFFSET = 0x4E
 CLASSIC_RECORD_SIZE = 84
+CLASSIC_STARDOCK_SLOTS = 6
 CLASSIC_RESULTS_TEXT_SIZE = 72
 CLASSIC_MESSAGES_TEXT_SIZE = 75
 END_OF_TRANSMISSION = "<end of transmission>"
@@ -127,7 +128,7 @@ def set_player_specs(cli_binary: Path, target: Path, player_one_alias: str, play
 
 
 def clear_planet_stardock(cli_binary: Path, target: Path, record: int) -> None:
-    for slot in range(10):
+    for slot in range(CLASSIC_STARDOCK_SLOTS):
         run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), str(slot), "0", "0")
 
 

@@ -74,7 +74,7 @@ pub(crate) fn init_tax_growth_probe(
                 planet.set_build_count_raw(slot, 0);
                 planet.set_build_kind_raw(slot, 0);
             }
-            for slot in 0..6 {
+            for slot in 0..ec_data::STARDOCK_SLOT_COUNT {
                 planet.set_stardock_count_raw(slot, 0);
                 planet.set_stardock_kind_raw(slot, 0);
             }

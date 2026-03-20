@@ -9844,3 +9844,96 @@ Practical next step:
     beyond `0`
   - if `single-scout-slot1` crashes but `single-dd-slot2` is safe, slot `1`
     itself is the strongest remaining trigger
+
+### Original `ECMAINT` proves classic stardock secondary slots use sparse offsets
+
+The synthetic `ECGAME` crash matrix above was useful, but the follow-up oracle
+work showed the interpretation was wrong. The real issue was the on-disk
+stardock layout, not a gameplay rule that forbids slot `1+`.
+
+Focused original-`ECMAINT` probes were run against
+`fixtures/ecmaint-build-pre/v1.5` by directly mutating build queue bytes in
+`PLANETS.DAT` and then running `python3 tools/ecmaint_oracle.py run ...`.
+
+Observed post-maint placements on target record `15`:
+
+- two-build probe (`kind 1` then `kind 2`):
+  - counts landed at `0x38 = 1`, `0x39 = 1`
+  - kinds landed at `0x4c = 1`, `0x4d = 2`
+- three-build probe (`kind 1`, `kind 2`, `kind 3`):
+  - counts landed at `0x38 = 1`, `0x39 = 1`, `0x3c = 1`
+  - kinds landed at `0x4c = 1`, `0x4d = 2`, `0x50 = 3`
+- queue-slot isolation:
+  - queue slot `1` alone landed at count `0x39`, kind `0x4d`
+  - queue slot `2` alone landed at count `0x3c`, kind `0x50`
+
+Current working classic model:
+
+- stardock entry count = `6`
+- count offsets = `[0x38, 0x39, 0x3c, 0x3d, 0x40, 0x41]`
+- kind offsets = `[0x4c, 0x4d, 0x50, 0x51, 0x54, 0x55]`
+
+Practical conclusion:
+
+- Rust's old contiguous `10 x u16` stardock-count interpretation only matched
+  entry `0`
+- secondary entries were being written to the wrong bytes
+- that malformed export cleanly explains the earlier `ECGAME` owned-world
+  `P -> D` crashes on probes with occupied slot `1+`
+
+Rust follow-up:
+
+- `PlanetRecord` now uses the recovered sparse offsets and exports
+  `STARDOCK_SLOT_COUNT = 6`
+- build queues remain `10` slots; the earlier accidental shrink to `6` was
+  fixed before landing the layout correction
+- regression coverage now includes:
+  - raw sparse-offset round-trips for entries `0..2`
+  - explicit proof that the build queue still accepts slot `9`
+- the classic probe harness now clears exactly `6` stardock entries, matching
+  the recovered classic capacity
+
+Fresh regenerated busy probe after the fix:
+
+- `/tmp/ec-classic-probe-word22` record `16` (`Aurora Prime`) now exports:
+  - counts `[1, 2, 0, 0, 0, 0]`
+  - kinds `[4, 1, 0, 0, 0, 0]`
+  - raw tail `010200000000000000000000000000000000000004010000000000000000`
+
+Next step:
+
+- regenerate the old crash variants with explicit
+  `--aurora-stardock <mode>` flags
+- rerun manual original-`ECGAME` `P -> D`
+- if the sparse classic layout is sufficient, the former slot-1 / slot-2
+  crash probes should stop faulting
+
+Manual oracle recheck after the sparse-layout fix:
+
+- `/tmp/ec-classic-probe-word22`: `P -> D` does **not** crash
+- `/tmp/ec-classic-probe-single-dd-slot1`: `P -> D` does **not** crash
+- `/tmp/ec-classic-probe-single-scout-slot1`: `P -> D` does **not** crash
+- `/tmp/ec-classic-probe-single-dd-slot2`: `P -> D` does **not** crash
+
+Final conclusion for this thread:
+
+- the owned-world `ECGAME` Planet Command crash was caused by malformed Rust
+  export of secondary stardock entries
+- once Rust wrote the recovered sparse classic stardock layout, original
+  `ECGAME` accepted the same slot-1 / slot-2 occupancy patterns that had
+  previously faulted
+- this removes a major classic export blocker and strengthens the claim that
+  Rust-maintained directories are `ECGAME`-compatible across busy owned-world
+  dock states
+
+Scout-thread follow-up from the same live image:
+
+- direct byte-pattern scans on `tools/unlzexe/ecmaint_640k.bin` and the carved
+  live dump found only simple immediate writes of `0`, `1`, and `5` to
+  `0x3521`
+- no direct `mov byte [0x3521], 0x0a/0x0b/0x0e` site showed up in the current
+  segment image
+- practical implication:
+  - the regular-world scout mission-kind values later consumed at `0000:8a11`
+    are probably arriving via an indirect load, copied table value, or a later
+    segment write rather than a trivial absolute immediate setter

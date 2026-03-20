@@ -169,7 +169,7 @@ pub(crate) fn set_planet_stardock_slot(
     kind_raw: u8,
     count: u16,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if slot >= 10 {
+    if slot >= ec_data::STARDOCK_SLOT_COUNT {
         return Err(format!("stardock slot out of range: {slot}").into());
     }
 

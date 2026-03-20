@@ -1834,7 +1834,7 @@ fn fleet_still_ready_for_assault(game_data: &CoreGameData, fleet_idx: usize, ord
 }
 
 fn reduce_stardock(planet: &mut crate::PlanetRecord, mut hits: u32) -> u32 {
-    for slot in 0..10 {
+    for slot in 0..crate::STARDOCK_SLOT_COUNT {
         if hits == 0 {
             break;
         }
