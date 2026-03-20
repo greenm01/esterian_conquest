@@ -9566,6 +9566,24 @@ Regenerated raw check on `/tmp/ec-classic-probe-crash` confirmed:
 
 - records `16`, `17`, and `19` now carry the stable template bytes
 - later `planet-stardock` writes still land on top of the rewritten records
+- the only live player-1 fleet that had been landing on one of those extra
+  owned worlds was fleet `3` at `Aurora Prime` (`9,4`)
+
+Follow-up probe-harness correction:
+
+- `scripts/setup_classic_probe_game.py` now sends that player-1 move fleet to
+  empty sector `(5,4)` instead of `Aurora Prime`
+- reason:
+  - the current live `ECGAME` crash site is inside the owned-world
+    pre-`Building:` formatter
+  - `Aurora Prime` was the one crash-probe world combining:
+    - docked ships in `PLANETS.DAT`
+    - plus an orbiting player-1 fleet on the same coordinates
+  - moving that fleet off-planet keeps the busy classic probe useful while
+    removing the one mixed-force case currently most aligned with the runtime
+    error window
+- this is only a harness mitigation, not a proof that orbiting-fleet state was
+  the root cause
 
 Open point:
 

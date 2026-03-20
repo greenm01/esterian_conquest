@@ -221,7 +221,10 @@ def configure_player_one_fleets(cli_binary: Path, target: Path) -> dict[str, int
     run_ec_cli(cli_binary, "fleet-order", str(target), "2", "3", "11", "9", "2")
 
     run_ec_cli(cli_binary, "fleet-ships", str(target), "3", "1", "0", "0", "1", "0", "0", "0")
-    run_ec_cli(cli_binary, "fleet-order", str(target), "3", "3", "1", "9", "4")
+    # Keep the moving player-one fleet off Aurora Prime itself. The current
+    # classic crash thread points at the owned-world space-force formatter, and
+    # Aurora Prime is already carrying docked ships for detail-path inspection.
+    run_ec_cli(cli_binary, "fleet-order", str(target), "3", "3", "1", "5", "4")
 
     run_ec_cli(cli_binary, "fleet-ships", str(target), "4", "0", "1", "1", "1", "0", "0", "0")
     run_ec_cli(cli_binary, "fleet-order", str(target), "4", "3", "15", "5", "2")

@@ -223,6 +223,10 @@ Recent validation baseline:
     `PLANETS.DAT` shape before `db-import` instead of relying only on sparse
     `planet-owner` / visible-field mutators; raw regeneration confirmed the
     target-world template bytes landed and later stardock writes still apply
+  - the same harness no longer parks player-1 fleet `3` on `Aurora Prime`;
+    it now moves to empty sector `(5,4)` so the crash probe does not pile an
+    orbiting fleet onto the same owned world already carrying docked ships
+    while the owned-world space-force formatter is still under triage
   - the separate planet-command-menu detail path still hits the known
     `Runtime error 201 at 1958:76DE` crash, but the next manual recheck should
     use the patched probe harness first because the old sparse extra-colony
