@@ -38,6 +38,7 @@ PLANET_SPECS = [
 PLAYER_ONE_EXTRA_WORLD_RECORDS = {16, 17, 19}
 PLANET_RECORD_SIZE = 97
 STABLE_OWNED_WORLD_FACTORIES = bytes([0x00, 0x00, 0x00, 0x00, 0x48, 0x87])
+AURORA_STARDOCK_MODES = ("busy", "empty", "single-dd")
 
 REPORT_FAMILY_LABELS = [
     ("Bombardment mission report", "bombard"),
@@ -113,7 +114,38 @@ def set_player_specs(cli_binary: Path, target: Path, player_one_alias: str, play
         run_ec_cli(cli_binary, "player-tax", str(target), str(record), str(tax_rate))
 
 
-def set_planet_specs(cli_binary: Path, target: Path) -> None:
+def clear_planet_stardock(cli_binary: Path, target: Path, record: int) -> None:
+    for slot in range(10):
+        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), str(slot), "0", "0")
+
+
+def configure_probe_stardocks(cli_binary: Path, target: Path, aurora_stardock: str) -> None:
+    clear_planet_stardock(cli_binary, target, 16)
+    clear_planet_stardock(cli_binary, target, 17)
+    clear_planet_stardock(cli_binary, target, 5)
+
+    if aurora_stardock == "busy":
+        run_ec_cli(cli_binary, "planet-stardock", str(target), "16", "0", "4", "1")
+        run_ec_cli(cli_binary, "planet-stardock", str(target), "16", "1", "1", "2")
+    elif aurora_stardock == "single-dd":
+        run_ec_cli(cli_binary, "planet-stardock", str(target), "16", "0", "1", "1")
+    elif aurora_stardock != "empty":
+        raise ValueError(f"unknown Aurora stardock mode: {aurora_stardock}")
+
+    run_ec_cli(cli_binary, "planet-stardock", str(target), "17", "0", "2", "3")
+
+    # Fill Helios Prime (record 5, coords 9,2) stardock with every ship type.
+    # Use moderate quantities that fit within stardock capacity (6 slots).
+    # Kind: 1=DD, 2=CA, 3=BB, 4=SC, 5=TP, 6=ETAC
+    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "0", "1", "3")   # 3 destroyers
+    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "1", "2", "2")   # 2 cruisers
+    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "2", "3", "1")   # 1 battleship
+    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "3", "4", "4")   # 4 scout ships
+    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "4", "5", "2")   # 2 transports
+    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "5", "6", "1")   # 1 ETAC
+
+
+def set_planet_specs(cli_binary: Path, target: Path, aurora_stardock: str) -> None:
     for record, owner, name, potential, stored, armies, batteries in PLANET_SPECS:
         run_ec_cli(cli_binary, "planet-owner", str(target), str(record), str(owner))
         run_ec_cli(cli_binary, "planet-name", str(target), str(record), name)
@@ -127,20 +159,7 @@ def set_planet_specs(cli_binary: Path, target: Path) -> None:
     rewrite_player_one_owned_probe_worlds(target)
     run_ec_cli(cli_binary, "db-import", str(target))
 
-    # Keep a little visible stardock inventory on player one's worlds for classic inspection.
-    run_ec_cli(cli_binary, "planet-stardock", str(target), "16", "0", "4", "1")
-    run_ec_cli(cli_binary, "planet-stardock", str(target), "16", "1", "1", "2")
-    run_ec_cli(cli_binary, "planet-stardock", str(target), "17", "0", "2", "3")
-
-    # Fill Helios Prime (record 5, coords 9,2) stardock with every ship type.
-    # Use moderate quantities that fit within stardock capacity (6 slots).
-    # Kind: 1=DD, 2=CA, 3=BB, 4=SC, 5=TP, 6=ETAC
-    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "0", "1", "3")   # 3 destroyers
-    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "1", "2", "2")   # 2 cruisers
-    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "2", "3", "1")   # 1 battleship
-    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "3", "4", "4")   # 4 scout ships
-    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "4", "5", "2")   # 2 transports
-    run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "5", "6", "1")   # 1 ETAC
+    configure_probe_stardocks(cli_binary, target, aurora_stardock)
 
 
 def rewrite_player_one_owned_probe_worlds(target: Path) -> None:
@@ -547,7 +566,14 @@ def prepare_player_one_classic_report_probe(
     player_path.write_bytes(player_bytes)
 
 
-def print_summary(target: Path, turns: int, alias: str, empire: str, fleet_records: dict[str, int]) -> None:
+def print_summary(
+    target: Path,
+    turns: int,
+    alias: str,
+    empire: str,
+    fleet_records: dict[str, int],
+    aurora_stardock: str,
+) -> None:
     report_labels = summarize_reports(target)
     print()
     print(f"Prepared classic probe game at {target}")
@@ -555,6 +581,7 @@ def print_summary(target: Path, turns: int, alias: str, empire: str, fleet_recor
     print(f"Turns simulated with rust maint: {turns}")
     print(f"Classic caller alias for player 1: {alias}")
     print(f"Player 1 empire: {empire}")
+    print(f"Aurora Prime stardock mode: {aurora_stardock}")
     print("Configured player 1 fleets:")
     for label, record in fleet_records.items():
         print(f"  - {label}: fleet record {record}")
@@ -612,6 +639,12 @@ def main() -> None:
         action="store_true",
         help="Prepare the campaign but do not launch classic ECGAME.",
     )
+    parser.add_argument(
+        "--aurora-stardock",
+        choices=AURORA_STARDOCK_MODES,
+        default="busy",
+        help="Aurora Prime docked-ship variant for Planet Command crash triage.",
+    )
     args = parser.parse_args()
 
     target = Path(args.target_dir).resolve()
@@ -633,7 +666,7 @@ def main() -> None:
         str(args.seed),
     )
     set_player_specs(cli_binary, target, args.alias, args.empire)
-    set_planet_specs(cli_binary, target)
+    set_planet_specs(cli_binary, target, args.aurora_stardock)
     configure_enemy_fleets(cli_binary, target)
     fleet_records = configure_player_one_fleets(cli_binary, target)
     write_diplomacy_sidecar(target)
@@ -646,7 +679,14 @@ def main() -> None:
     )
     run_ec_cli(cli_binary, "db-import", str(target))
 
-    print_summary(target, args.turns, args.alias, args.empire, fleet_records)
+    print_summary(
+        target,
+        args.turns,
+        args.alias,
+        args.empire,
+        fleet_records,
+        args.aurora_stardock,
+    )
 
     if args.no_launch:
         return

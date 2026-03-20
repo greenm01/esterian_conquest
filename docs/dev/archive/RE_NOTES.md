@@ -9665,3 +9665,30 @@ Practical interpretation:
   the busy classic probe
 - the next manual oracle check should use `/tmp/ec-classic-probe-word22`
   instead of the earlier `/tmp/ec-classic-probe-verify`
+
+Follow-up harness split for Aurora Prime docked-ship bisection:
+
+- `scripts/setup_classic_probe_game.py` now accepts
+  `--aurora-stardock {busy,empty,single-dd}`
+- purpose:
+  - keep the same joined-player / owned-world / fleet baseline
+  - vary only Aurora Prime's docked-ship payload
+- verified outputs:
+  - `/tmp/ec-classic-probe-aurora-empty`
+    - `Aurora Prime` `raw[0x38..0x4d]` all zeroes
+  - `/tmp/ec-classic-probe-aurora-single`
+    - `Aurora Prime` slot `0` only: one destroyer
+  - `/tmp/ec-classic-probe-word22`
+    - current busy reference: scout + two destroyers
+- all three variants still pass `inspect-classic-login` with slot 1 as
+  `returning-player`
+
+Practical next step:
+
+- manual oracle check should now compare:
+  - `tools/run_ecgame.sh /tmp/ec-classic-probe-aurora-empty 1 SYSOP`
+  - `tools/run_ecgame.sh /tmp/ec-classic-probe-aurora-single 1 SYSOP`
+  - `tools/run_ecgame.sh /tmp/ec-classic-probe-word22 1 SYSOP`
+- if only the busy or single-slot variants crash, the remaining bug is in the
+  owned-world stardock encoding itself rather than general ownership/report
+  shape

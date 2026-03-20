@@ -248,10 +248,21 @@ Recent validation baseline:
     `17`, and `19`; fresh regen on `/tmp/ec-classic-probe-word22` confirmed
     those worlds now match the ordinary owned-world shape at `0x22..0x23`
     while classic login state still stays correct
+  - the same harness now exposes an explicit Aurora Prime stardock bisect:
+    `--aurora-stardock {busy,empty,single-dd}`
+  - verified variants:
+    - `/tmp/ec-classic-probe-word22` = busy reference (scout + two destroyers)
+    - `/tmp/ec-classic-probe-aurora-empty` = empty Aurora dock
+    - `/tmp/ec-classic-probe-aurora-single` = one destroyer in slot `0`
+  - all three variants keep slot 1 as a valid `returning-player`, so the next
+    manual `P -> D` check can isolate Aurora's docked-ship payload without
+    reintroducing the earlier login/ownership regressions
   - the separate planet-command-menu detail path still hits the known
     `Runtime error 201 at 1958:76DE` crash, but the next manual recheck should
-    use `/tmp/ec-classic-probe-word22` first because the earlier probe variants
-    were still carrying the bogus `0x051c` gate word on the extra owned worlds
+    compare `/tmp/ec-classic-probe-aurora-empty`,
+    `/tmp/ec-classic-probe-aurora-single`, and
+    `/tmp/ec-classic-probe-word22` because the old `0x051c` gate-word bug is
+    fixed and the remaining suspect is Aurora's docked-ship encoding itself
 
 ## Canonical Docs
 
