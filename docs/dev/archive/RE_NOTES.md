@@ -9641,3 +9641,27 @@ Practical interpretation:
   - did the corrected probe actually clear the crash
   - or is there a deeper `Space Forces:` report-state bug still reachable even
     when all owned worlds have empty orbit
+
+Follow-up harness correction after field-offset inspection:
+
+- the same `Space Forces:` routine later checks `word [planet+0x22]` as a
+  nonzero gate before entering another owned-world formatter path
+- the probe harness rewrite for records `16/17/19` had been copying the raw
+  suffix bytes `05 1d 0b 11 25 1c 05` into `PLANETS.DAT[0x1d..0x23]`
+- that left `word [0x22..0x23] = 0x051c` on the extra player-1 worlds, while
+  ordinary owned worlds in the same probe all had `0x0000` there
+- `scripts/setup_classic_probe_game.py` now zeros `0x1d..0x23` for those extra
+  rewritten worlds instead of copying that suffix, specifically to stop the
+  owned-world `Space Forces:` formatter from seeing a bogus live count there
+- fresh regen on `/tmp/ec-classic-probe-word22` confirmed:
+  - records `16`, `17`, and `19` now have `word [0x22..0x23] = 0`
+  - the same worlds still keep `raw[0x03] = 0x87`
+  - classic login state remains correct (`inspect-classic-login` still shows
+    slot 1 as `returning-player`)
+
+Practical interpretation:
+
+- this is the strongest current candidate for the persistent `P -> D` crash on
+  the busy classic probe
+- the next manual oracle check should use `/tmp/ec-classic-probe-word22`
+  instead of the earlier `/tmp/ec-classic-probe-verify`

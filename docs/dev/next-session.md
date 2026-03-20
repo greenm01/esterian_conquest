@@ -239,10 +239,19 @@ Recent validation baseline:
     coordinates, and no starbases at all, so the old simple
     `Aurora Prime` overlap theory is no longer sufficient if the crash still
     reproduces
+  - deeper field-offset inspection of the same `Space Forces:` routine found a
+    stronger harness bug: the rewritten extra player-1 worlds had inherited
+    `PLANETS.DAT[0x1d..0x23] = 05 1d 0b 11 25 1c 05`, which left
+    `word [0x22..0x23] = 0x051c` while every ordinary owned world in the same
+    probe had `0x0000` there
+  - `setup_classic_probe_game.py` now zeros `0x1d..0x23` for records `16`,
+    `17`, and `19`; fresh regen on `/tmp/ec-classic-probe-word22` confirmed
+    those worlds now match the ordinary owned-world shape at `0x22..0x23`
+    while classic login state still stays correct
   - the separate planet-command-menu detail path still hits the known
     `Runtime error 201 at 1958:76DE` crash, but the next manual recheck should
-    use the patched probe harness first because the old sparse extra-colony
-    payload is no longer the active test shape
+    use `/tmp/ec-classic-probe-word22` first because the earlier probe variants
+    were still carrying the bogus `0x051c` gate word on the extra owned worlds
 
 ## Canonical Docs
 

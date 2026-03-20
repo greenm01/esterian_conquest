@@ -38,7 +38,6 @@ PLANET_SPECS = [
 PLAYER_ONE_EXTRA_WORLD_RECORDS = {16, 17, 19}
 PLANET_RECORD_SIZE = 97
 STABLE_OWNED_WORLD_FACTORIES = bytes([0x00, 0x00, 0x00, 0x00, 0x48, 0x87])
-STABLE_OWNED_WORLD_SUFFIX = bytes([0x05, 0x1D, 0x0B, 0x11, 0x25, 0x1C, 0x05])
 
 REPORT_FAMILY_LABELS = [
     ("Bombardment mission report", "bombard"),
@@ -166,7 +165,11 @@ def rewrite_player_one_owned_probe_worlds(target: Path) -> None:
         rewritten[0x0F] = len(encoded_name)
         rewritten[0x10:0x1D] = b"\x00" * 13
         rewritten[0x10 : 0x10 + len(encoded_name)] = encoded_name
-        rewritten[0x1D:0x24] = STABLE_OWNED_WORLD_SUFFIX
+        # Keep the post-name fields aligned with the ordinary owned-world shape
+        # already present on the probe's other established planets. A copied
+        # nonzero suffix here leaves PLANET[0x22..0x23] looking like a live
+        # force count to ECGAME's Space Forces formatter.
+        rewritten[0x1D:0x24] = b"\x00" * 7
 
         rewritten[0x58] = armies & 0xFF
         rewritten[0x5A] = batteries & 0xFF
