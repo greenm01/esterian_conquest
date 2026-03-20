@@ -387,6 +387,24 @@ pub enum EncounterDispositionEvent {
         /// Week of year (1–52) when this event occurred; None until canonicalized.
         stardate_week: Option<u8>,
     },
+    /// Pursuit fire when withdrawing fleet is intercepted by guard/blockade.
+    /// Per spec: withdrawing fleet attempts to disengage but guard fires one
+    /// exchange at CER 0.50 before the withdrawer escapes.
+    PursuitFire {
+        fleet_idx: usize,
+        owner_empire_raw: u8,
+        mission: Option<Mission>,
+        coords: [u8; 2],
+        target_empire_raw: u8,
+        target_fleet_id: Option<u8>,
+        enemy_initial: ShipLosses,
+        retreat_target_coords: [u8; 2],
+        losses_sustained: ShipLosses, // What the withdrawing fleet lost
+        enemy_losses_inflicted: ShipLosses, // What the withdrawing fleet inflicted on pursuer
+        reason: EncounterDispositionReason,
+        /// Week of year (1–52) when this event occurred; None until canonicalized.
+        stardate_week: Option<u8>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

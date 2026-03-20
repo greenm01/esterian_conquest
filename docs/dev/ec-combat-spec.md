@@ -421,11 +421,23 @@ armies have 1 fresh step, while battleships and starbases have 2 fresh steps.
 This is the intended way the model expresses the manual claim that starbases
 and battleships withstand more punishment than lighter units.
 
-Hits are allocated in two passes:
+Hits are allocated in two phases:
 
-1. hits first remove fresh steps from eligible targets according to priority
-2. once a target has no fresh steps left, later hits destroy units and reduce
-   on-disk counts
+1. **Screening phase**: hits remove fresh steps in priority order across all
+   classes. Destroyers absorb punishment first (their fresh steps are hit),
+   then cruisers, then battleships, starbases, and finally non-combat ships.
+   No hulls are destroyed during screening—this represents escorts absorbing
+   the initial shock of combat to protect heavier assets.
+
+2. **Kill phase**: once all fresh steps on all classes are exhausted,
+   remaining hits destroy hulls in priority order. This is where permanent
+   losses occur and on-disk ship counts are reduced.
+
+This two-phase model makes mixed fleets resilient: lighter ships' fresh steps
+buffer the whole task force, and heavier ships' multiple fresh steps (battleships
+have 2) delay hull destruction until all screening has been exhausted. It
+creates the Empire of the Sun-style dynamic where screening forces absorb
+shock and the battle line endures, making between-round ROE decisions meaningful.
 
 Any partially used fresh-step damage disappears when the battle ends. Only
 destroyed units persist.

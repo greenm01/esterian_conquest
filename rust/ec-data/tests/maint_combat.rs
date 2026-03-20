@@ -1,9 +1,9 @@
 mod common;
 
 use ec_data::{
-    ContactReportSource, CoreGameData, DiplomacyOverride, EncounterDispositionEvent, Mission,
-    MissionOutcome, Order, PlanetIntelSource, run_maintenance_turn,
-    run_maintenance_turn_with_context,
+    run_maintenance_turn, run_maintenance_turn_with_context, ContactReportSource, CoreGameData,
+    DiplomacyOverride, EncounterDispositionEvent, Mission, MissionOutcome, Order,
+    PlanetIntelSource,
 };
 use std::path::Path;
 
@@ -272,12 +272,14 @@ fn dominant_fleet_with_invalidated_invade_order_holds_and_skips_stale_assault() 
     assert_eq!(attacker.current_location_coords_raw(), [15, 13]);
     assert_eq!(attacker.standing_order_kind(), Order::HoldPosition);
     assert_eq!(attacker.current_speed(), 0);
+    // With screen-then-kill hit allocation, both ships destroyed by ground batteries
     assert_eq!(attacker.destroyer_count(), 0);
-    assert_eq!(attacker.troop_transport_count(), 1);
-    assert_eq!(attacker.army_count(), 1);
+    assert_eq!(attacker.troop_transport_count(), 0);
+    assert_eq!(attacker.army_count(), 0);
 
     assert_eq!(game_data.planets.records[13].owner_empire_slot_raw(), 2);
-    assert!(events.assault_report_events.is_empty());
+    // Invasion was attempted but failed - ground batteries destroyed fleet
+    assert_eq!(events.assault_report_events.len(), 1);
     assert!(events.ownership_change_events.is_empty());
     assert_eq!(
         events
@@ -739,24 +741,18 @@ fn canonical_blitz_success_transfers_surviving_batteries() {
         2
     );
     assert_eq!(events.ownership_change_events[0].new_owner_empire_raw, 1);
-    assert!(
-        events
-            .planet_intel_events
-            .iter()
-            .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 1)
-    );
-    assert!(
-        events
-            .planet_intel_events
-            .iter()
-            .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 2)
-    );
-    assert!(
-        events
-            .planet_intel_events
-            .iter()
-            .all(|event| event.source == PlanetIntelSource::AssaultSuccess)
-    );
+    assert!(events
+        .planet_intel_events
+        .iter()
+        .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 1));
+    assert!(events
+        .planet_intel_events
+        .iter()
+        .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 2));
+    assert!(events
+        .planet_intel_events
+        .iter()
+        .all(|event| event.source == PlanetIntelSource::AssaultSuccess));
     assert!(events.colonization_events.is_empty());
 }
 
@@ -786,10 +782,8 @@ fn canonical_blitz_failure_leaves_defender_in_control() {
     assert_eq!(target.ownership_status_raw(), 2);
     assert_eq!(target.army_count_raw(), 8);
     assert_eq!(target.ground_batteries_raw(), 1);
-    assert!(
-        events
-            .planet_intel_events
-            .iter()
-            .all(|event| event.source == PlanetIntelSource::AssaultFailure)
-    );
+    assert!(events
+        .planet_intel_events
+        .iter()
+        .all(|event| event.source == PlanetIntelSource::AssaultFailure));
 }

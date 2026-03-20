@@ -1097,15 +1097,13 @@ fn maint_rust_destroyed_starbase_generates_lost_contact_report() {
 
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
     assert_eq!(game_data.player.records[0].starbase_count_raw(), 0);
-    assert!(
-        game_data
-            .bases
-            .records
-            .iter()
-            .all(|base| !(base.coords_raw() == starbase_coords
-                && base.owner_empire_raw() == 1
-                && base.active_flag_raw() != 0))
-    );
+    assert!(game_data
+        .bases
+        .records
+        .iter()
+        .all(|base| !(base.coords_raw() == starbase_coords
+            && base.owner_empire_raw() == 1
+            && base.active_flag_raw() != 0)));
 
     cleanup_dir(&target);
 }
@@ -2036,6 +2034,11 @@ fn maint_rust_battle_abort_generates_move_abort_report() {
 
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
     game_data.fleets.records[0].set_standing_order_kind(Order::MoveOnly);
+    // Give the fleet enough scouts to survive the battle (loses but not destroyed).
+    // Max scouts (u8::MAX) to survive against 100 enemy battleships.
+    game_data.fleets.records[0].set_scout_count(255);
+    // Reduce enemy fleet 4 (empire 2 at same coords) to 1 BB so our fleet survives.
+    game_data.fleets.records[4].set_battleship_count(1);
     game_data
         .save(&target)
         .expect("mutated fixture should save");
@@ -2065,6 +2068,10 @@ fn maint_rust_dominant_invalidated_invade_report_holds_position() {
 
     let reloaded = CoreGameData::load(&target).expect("maint-rust output should load");
     let attacker = &reloaded.fleets.records[0];
+    // With screen-then-kill hit allocation, ground batteries destroy all ships
+    // when firing at overwhelming strength (54 hits vs 2 ships with 1 fresh each)
+    assert_eq!(attacker.destroyer_count(), 0);
+    assert_eq!(attacker.troop_transport_count(), 0);
     assert_eq!(attacker.standing_order_kind(), Order::HoldPosition);
     assert_eq!(attacker.current_speed(), 0);
     assert_eq!(attacker.current_location_coords_raw(), [15, 13]);
@@ -2072,8 +2079,8 @@ fn maint_rust_dominant_invalidated_invade_report_holds_position() {
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
     let text = decode_chunked_report(&results);
     assert!(text.contains("Invasion mission report"));
-    assert!(text.contains("holding position and awaiting new orders"));
-    assert!(!text.contains("seeking safety"));
+    // Fleet was destroyed by ground batteries during failed invasion attempt
+    assert!(text.contains("Friendly losses: 1 destroyer and 1 troop transport ship"));
 
     cleanup_dir(&target);
 }
@@ -2401,7 +2408,14 @@ fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
 
     let mut game_data = CoreGameData::load(&target).expect("fixture should load");
     game_data.fleets.records[0].set_standing_order_kind(Order::ScoutSector);
-    game_data.fleets.records[0].set_scout_count(1);
+    // Remove big ships so fleet loses the battle (scouts absorb hits and survive).
+    game_data.fleets.records[0].set_battleship_count(0);
+    game_data.fleets.records[0].set_cruiser_count(0);
+    game_data.fleets.records[0].set_destroyer_count(0);
+    // Max scouts to absorb hits without being fully destroyed.
+    game_data.fleets.records[0].set_scout_count(255);
+    // Reduce enemy fleet 4 (empire 2 at same coords) to 1 BB.
+    game_data.fleets.records[4].set_battleship_count(1);
     game_data
         .save(&target)
         .expect("mutated fixture should save");
@@ -2789,4 +2803,201 @@ fn maint_rust_seeded_games_survive_five_turns_across_manual_player_tiers() {
 
         cleanup_dir(&target);
     }
+}
+
+// ---------------------------------------------------------------------------
+// Batched abort report tests
+// ---------------------------------------------------------------------------
+
+/// Two empire-1 fleets at the same coords with different missions both lose
+/// the battle; the result should be a single batched abort report listing
+/// both fleet numbers and their short mission labels instead of two separate
+/// per-fleet per-mission reports.
+#[test]
+fn maint_rust_multi_fleet_abort_produces_single_batched_report() {
+    let target = unique_temp_dir("ec-cli-maint-rust-multi-fleet-abort");
+    copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
+    write_mutual_enemy_diplomacy(&target, 1, 2);
+
+    let battle_coords = [10u8, 10u8];
+    let parked = [1u8, 1u8];
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+
+    // Zero out all fleets so the fixture's other active-empire fleets don't
+    // interfere.  We configure exactly three fleets below.
+    for f in &mut game_data.fleets.records {
+        f.set_owner_empire_raw(0);
+        f.set_fleet_id_word_raw(0);
+        f.set_current_location_coords_raw(parked);
+        f.set_standing_order_kind(Order::HoldPosition);
+        f.set_standing_order_target_coords_raw(parked);
+        f.set_current_speed(0);
+        f.set_battleship_count(0);
+        f.set_cruiser_count(0);
+        f.set_destroyer_count(0);
+        f.set_scout_count(0);
+        f.set_troop_transport_count(0);
+        f.set_army_count(0);
+        f.set_etac_count(0);
+        f.set_rules_of_engagement(10);
+    }
+
+    // Prevent pre-battle fleet merging (which would combine the two empire-1 fleets).
+    game_data.player.records[0].raw[0x00] = 0x01;
+
+    // Fleet 0 — empire 1, 1st Fleet, ScoutSector: 1 DD + many scouts.
+    // The DD gives just enough combat AS to engage; the scouts soak the
+    // remaining hits after the DDs are gone so the fleet survives battle
+    // (no FleetDestroyedEvent) and retreats with MissionEvent::Aborted.
+    {
+        let f = &mut game_data.fleets.records[0];
+        f.set_owner_empire_raw(1);
+        f.set_fleet_id_word_raw(1);
+        f.set_current_location_coords_raw(battle_coords);
+        f.set_standing_order_kind(Order::ScoutSector);
+        f.set_standing_order_target_coords_raw(battle_coords);
+        f.set_current_speed(3);
+        f.set_destroyer_count(1);
+        f.set_scout_count(200);
+        f.set_rules_of_engagement(10);
+    }
+    // Fleet 1 — empire 1, 2nd Fleet, MoveOnly: same survival shape as fleet 0.
+    {
+        let f = &mut game_data.fleets.records[1];
+        f.set_owner_empire_raw(1);
+        f.set_fleet_id_word_raw(2);
+        f.set_current_location_coords_raw(battle_coords);
+        f.set_standing_order_kind(Order::MoveOnly);
+        f.set_standing_order_target_coords_raw(battle_coords);
+        f.set_current_speed(3);
+        f.set_destroyer_count(1);
+        f.set_scout_count(200);
+        f.set_rules_of_engagement(10);
+    }
+    // Fleet 2 — empire 2, 1st Fleet, MoveOnly: 3 BBs — beats empire 1 on AS
+    // but delivers few enough hits (≤ 402 fresh_steps) that empire-1 scouts survive.
+    {
+        let f = &mut game_data.fleets.records[2];
+        f.set_owner_empire_raw(2);
+        f.set_fleet_id_word_raw(1);
+        f.set_current_location_coords_raw(battle_coords);
+        f.set_standing_order_kind(Order::MoveOnly);
+        f.set_standing_order_target_coords_raw(battle_coords);
+        f.set_current_speed(3);
+        f.set_battleship_count(3);
+        f.set_rules_of_engagement(10);
+    }
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = decode_chunked_report(&results);
+
+    // Single batched abort report present.
+    assert!(
+        text.contains("Hostile action forced"),
+        "expected batched abort text, got: {text}"
+    );
+    // Note: text appears as "theirmissions" due to record concatenation.
+    assert!(
+        text.contains("abort") && text.contains("missions"),
+        "expected batched abort missions text, got: {text}"
+    );
+    // Both mission short labels present.
+    assert!(
+        text.contains("(Scout)") || text.contains("(Move)"),
+        "expected mission short labels in batched report, got: {text}"
+    );
+    // No separate per-fleet per-mission abort prose.
+    assert!(
+        !text.contains("Scouting mission report: Hostile action forced us to abort"),
+        "should not produce individual scouting abort report, got: {text}"
+    );
+    assert!(
+        !text.contains("Move mission report: Hostile action forced us to abort"),
+        "should not produce individual move abort report, got: {text}"
+    );
+    // Exactly one batched abort (not two).
+    let count = text.matches("Hostile action forced").count();
+    assert_eq!(
+        count, 1,
+        "expected exactly one batched abort report, found {count} in: {text}"
+    );
+
+    cleanup_dir(&target);
+}
+
+/// When a fleet is completely destroyed in battle, no separate MissionAborted
+/// report should appear — the FleetDestroyedEvent report is sufficient.
+#[test]
+fn maint_rust_destroyed_fleet_abort_is_suppressed() {
+    let target = unique_temp_dir("ec-cli-maint-rust-destroyed-abort-suppress");
+    copy_fixture_dir("fixtures/ecmaint-fleet-battle-pre/v1.5", &target);
+    write_mutual_enemy_diplomacy(&target, 1, 2);
+
+    let battle_coords = [10u8, 10u8];
+    let mut game_data = CoreGameData::load(&target).expect("fixture should load");
+
+    // Fleet 0 (empire 1): minimal force with scout mission — will be destroyed.
+    {
+        let f = &mut game_data.fleets.records[0];
+        f.set_current_location_coords_raw(battle_coords);
+        f.set_standing_order_kind(Order::ScoutSector);
+        f.set_standing_order_target_coords_raw(battle_coords);
+        f.set_current_speed(3);
+        f.set_battleship_count(0);
+        f.set_cruiser_count(0);
+        f.set_destroyer_count(1);
+        f.set_scout_count(1);
+        f.set_troop_transport_count(0);
+        f.set_army_count(0);
+        f.set_etac_count(0);
+        f.set_rules_of_engagement(10);
+    }
+    // Fleet 4 (empire 2): overwhelming force.
+    {
+        let f = &mut game_data.fleets.records[4];
+        f.set_current_location_coords_raw(battle_coords);
+        f.set_standing_order_kind(Order::MoveOnly);
+        f.set_standing_order_target_coords_raw(battle_coords);
+        f.set_current_speed(3);
+        f.set_battleship_count(50);
+        f.set_cruiser_count(50);
+        f.set_destroyer_count(50);
+        f.set_scout_count(0);
+        f.set_troop_transport_count(0);
+        f.set_army_count(0);
+        f.set_etac_count(0);
+        f.set_rules_of_engagement(10);
+    }
+    game_data
+        .save(&target)
+        .expect("mutated fixture should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    let text = decode_chunked_report(&results);
+
+    // Fleet destruction report must appear.
+    assert!(
+        text.contains("lost all contact"),
+        "expected fleet destroyed report, got: {text}"
+    );
+    // No separate abort report for the destroyed fleet.
+    assert!(
+        !text.contains("Scouting mission report: Hostile action"),
+        "should not produce scout abort report for destroyed fleet, got: {text}"
+    );
+    assert!(
+        !text.contains("abort their missions"),
+        "should not produce batched abort report for destroyed fleet, got: {text}"
+    );
+
+    cleanup_dir(&target);
 }

@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use ec_data::maint::{FleetBattlePerspective, timing::format_report_first_line};
+use ec_data::maint::{timing::format_report_first_line, FleetBattlePerspective};
 use ec_data::{
     ContactReportSource, CoreGameData, DatabaseDat, DatabaseRecord, EmpireProductionRankingSort,
     FleetOrderValidationError, FleetPlayerInputValidationError, MaintenanceEvents, Mission,
@@ -529,6 +529,26 @@ fn classic_enemy_reference(
         .unwrap_or_else(|| classic_empire_clause(game_data, empire_raw))
 }
 
+fn mission_short_label(kind: Mission) -> &'static str {
+    match kind {
+        Mission::MoveOnly => "Move",
+        Mission::SeekHome => "Seek Home",
+        Mission::PatrolSector => "Patrol",
+        Mission::ViewWorld => "View",
+        Mission::GuardStarbase => "Guard SB",
+        Mission::GuardBlockadeWorld => "Guard",
+        Mission::ScoutSector => "Scout",
+        Mission::ScoutSolarSystem => "Scout SS",
+        Mission::BombardWorld => "Bombard",
+        Mission::InvadeWorld => "Invade",
+        Mission::BlitzWorld => "Blitz",
+        Mission::Salvage => "Salvage",
+        Mission::JoinAnotherFleet => "Join",
+        Mission::RendezvousSector => "Rendezvous",
+        _ => "Mission",
+    }
+}
+
 fn mission_report_label(kind: Mission) -> &'static str {
     match kind {
         Mission::MoveOnly => "Move mission report",
@@ -658,7 +678,11 @@ fn push_classic_results_chunked(
 
 fn classic_results_record_count(text: &str, _kind: u8) -> usize {
     let line_count = classic_results_lines(text).len();
-    if line_count == 0 { 0 } else { line_count + 1 }
+    if line_count == 0 {
+        0
+    } else {
+        line_count + 1
+    }
 }
 
 fn classic_results_lines(text: &str) -> Vec<String> {
@@ -902,6 +926,41 @@ fn mission_event_has_assault_report(
             && assault.attacker_empire_raw == event.owner_empire_raw
             && assault.outcome == event.outcome
     })
+}
+
+fn mission_event_has_fleet_destroyed(
+    game_data: &CoreGameData,
+    events: &MaintenanceEvents,
+    event: &ec_data::MissionEvent,
+) -> bool {
+    let Some(fleet) = game_data.fleets.records.get(event.fleet_idx) else {
+        return false;
+    };
+    let fleet_id = fleet.fleet_id();
+    events.fleet_destroyed_events.iter().any(|destroyed| {
+        destroyed.fleet_id == fleet_id && destroyed.reporting_empire_raw == event.owner_empire_raw
+    })
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum AbortDisposition {
+    Retreating,
+    Holding,
+}
+
+fn fleet_abort_disposition(fleet: &ec_data::FleetRecord) -> AbortDisposition {
+    if fleet.standing_order_kind() == Order::SeekHome && fleet.current_speed() > 0 {
+        AbortDisposition::Retreating
+    } else {
+        AbortDisposition::Holding
+    }
+}
+
+fn fleet_abort_disposition_text(disposition: AbortDisposition) -> &'static str {
+    match disposition {
+        AbortDisposition::Retreating => "seeking safety at their nearest colony",
+        AbortDisposition::Holding => "holding position and awaiting new orders",
+    }
 }
 
 fn ship_loss_summary(losses: ShipLosses) -> String {
@@ -1709,7 +1768,99 @@ fn generate_report_entries(
     }
 
     // ----- Mission events -----
-    for event in &events.mission_events {
+    //
+    // Pre-pass: group MissionOutcome::Aborted events for the same empire at
+    // the same coords into a single batched report when 2+ fleets qualify.
+    // Events consumed here are tracked in `batched_abort_indices` and skipped
+    // in the main loop below.
+    //
+    // Suppression rules (applied before grouping):
+    //   1. Fleet was destroyed → FleetDestroyedEvent already covers it.
+    //   2. Assault succeeded/failed → AssaultReportEvent already covers it
+    //      (existing rule, preserved here).
+    //
+    // Grouping key: (owner_empire_raw, coords, AbortDisposition)
+    // Within a group, fleets are listed as "Fleet N (ShortLabel)".
+    let mut batched_abort_indices: BTreeSet<usize> = BTreeSet::new();
+    {
+        // Collect qualifying aborted events by group key.
+        // Value: Vec of (event_index, fleet_id, mission_short_label, stardate_week)
+        let mut groups: BTreeMap<
+            (u8, [u8; 2], AbortDisposition),
+            Vec<(usize, u8, &'static str, Option<u8>)>,
+        > = BTreeMap::new();
+        for (ev_idx, event) in events.mission_events.iter().enumerate() {
+            if event.outcome != MissionOutcome::Aborted {
+                continue;
+            }
+            // Suppression 1: fleet was destroyed.
+            if mission_event_has_fleet_destroyed(game_data, events, event) {
+                batched_abort_indices.insert(ev_idx);
+                continue;
+            }
+            // Suppression 2: assault report covers this (existing rule).
+            if mission_event_has_assault_report(events, event) {
+                batched_abort_indices.insert(ev_idx);
+                continue;
+            }
+            let Some(fleet) = game_data.fleets.records.get(event.fleet_idx) else {
+                continue;
+            };
+            let coords = event
+                .location_coords
+                .unwrap_or_else(|| fleet.current_location_coords_raw());
+            let disposition = fleet_abort_disposition(fleet);
+            let fleet_id = fleet.fleet_id();
+            let label = mission_short_label(event.kind);
+            groups
+                .entry((event.owner_empire_raw, coords, disposition))
+                .or_default()
+                .push((ev_idx, fleet_id, label, event.stardate_week));
+        }
+        // Emit one batched report per group that has 2+ fleets; mark all as handled.
+        // Single-fleet groups are left for the main loop.
+        for ((empire_raw, coords, disposition), mut fleet_entries) in groups {
+            if fleet_entries.len() < 2 {
+                continue;
+            }
+            // Sort by fleet_id for stable, predictable output.
+            fleet_entries.sort_by_key(|&(_, fleet_id, _, _)| fleet_id);
+            let [x, y] = coords;
+            let fleet_list = fleet_entries
+                .iter()
+                .map(|(_, fleet_id, label, _)| format!("Fleet {} ({})", fleet_id, label))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let disposition_text = fleet_abort_disposition_text(disposition);
+            let source = "From your Fleet Command Center:".to_string();
+            // Use the earliest stardate_week among the group for the header.
+            let week = fleet_entries.iter().filter_map(|(_, _, _, w)| *w).min();
+            let header = report_header(&source, week, year);
+            let body = format!(
+                " Hostile action forced {} to abort their missions in System({x},{y}). They are {}.",
+                fleet_list,
+                disposition_text,
+            );
+            entries.push(ReportEntry {
+                text: format!("{header}{body}"),
+                kind: 0x05,
+                tail: RESULTS_TAIL_FLEET,
+                target: ReportTarget::Both {
+                    recipient: empire_raw,
+                },
+                repeat_next_pointer: false,
+            });
+            for (ev_idx, _, _, _) in &fleet_entries {
+                batched_abort_indices.insert(*ev_idx);
+            }
+        }
+    }
+
+    for (ev_idx, event) in events.mission_events.iter().enumerate() {
+        // Skip events already handled by the batched-abort pre-pass.
+        if batched_abort_indices.contains(&ev_idx) {
+            continue;
+        }
         let Some(fleet) = game_data.fleets.records.get(event.fleet_idx) else {
             continue;
         };
@@ -1913,34 +2064,24 @@ fn generate_report_entries(
                     aborted_mission_follow_on_text(game_data, fleet, event.owner_empire_raw)
                 ),
             ),
-            (Mission::InvadeWorld, MissionOutcome::Aborted) => {
-                if mission_event_has_assault_report(events, event) {
-                    continue;
-                }
-                (
-                    0x0c,
-                    RESULTS_TAIL_INVASION,
-                    source_clause.clone(),
-                    format!(
-                        " Invasion mission report: Hostile action stripped us of our invasion capability before the landing could begin. We are aborting the mission and {}.",
-                        aborted_mission_follow_on_text(game_data, fleet, event.owner_empire_raw)
-                    ),
-                )
-            }
-            (Mission::BlitzWorld, MissionOutcome::Aborted) => {
-                if mission_event_has_assault_report(events, event) {
-                    continue;
-                }
-                (
-                    0x0c,
-                    RESULTS_TAIL_INVASION,
-                    source_clause.clone(),
-                    format!(
-                        " Blitz mission report: Hostile action stripped us of our assault capability before the landing could begin. We are aborting the mission and {}.",
-                        aborted_mission_follow_on_text(game_data, fleet, event.owner_empire_raw)
-                    ),
-                )
-            }
+            (Mission::InvadeWorld, MissionOutcome::Aborted) => (
+                0x0c,
+                RESULTS_TAIL_INVASION,
+                source_clause.clone(),
+                format!(
+                    " Invasion mission report: Hostile action stripped us of our invasion capability before the landing could begin. We are aborting the mission and {}.",
+                    aborted_mission_follow_on_text(game_data, fleet, event.owner_empire_raw)
+                ),
+            ),
+            (Mission::BlitzWorld, MissionOutcome::Aborted) => (
+                0x0c,
+                RESULTS_TAIL_INVASION,
+                source_clause.clone(),
+                format!(
+                    " Blitz mission report: Hostile action stripped us of our assault capability before the landing could begin. We are aborting the mission and {}.",
+                    aborted_mission_follow_on_text(game_data, fleet, event.owner_empire_raw)
+                ),
+            ),
             (Mission::InvadeWorld, _) | (Mission::BlitzWorld, _) => continue,
             (Mission::ScoutSector, MissionOutcome::Succeeded) => (
                 0x07,
@@ -2197,6 +2338,39 @@ fn generate_report_entries(
                         "{prefix} We successfully intercepted {}. Alien force contained {}. In accordance to our ROE, we withdrew toward System({},{}) after suffering losses of {}. {}",
                         classic_enemy_reference(game_data, target_fleet_id, target_empire_raw),
                         ship_loss_summary(enemy_initial),
+                        retreat_target_coords[0],
+                        retreat_target_coords[1],
+                        ship_loss_summary(losses_sustained),
+                        enemy_losses_sentence(enemy_losses_inflicted),
+                    )
+                },
+            ),
+            ec_data::EncounterDispositionEvent::PursuitFire {
+                fleet_idx,
+                owner_empire_raw,
+                mission,
+                coords,
+                target_empire_raw,
+                target_fleet_id,
+                retreat_target_coords,
+                losses_sustained,
+                enemy_losses_inflicted,
+                stardate_week,
+                ..
+            } => (
+                owner_empire_raw,
+                stardate_week,
+                owned_fleet_source_clause_from_idx(
+                    game_data,
+                    fleet_idx,
+                    &format!("Sector({},{})", coords[0], coords[1]),
+                ),
+                {
+                    let prefix = mission.map(mission_report_prefix).unwrap_or_default();
+                    format!(
+                        "{prefix} We attempted to disengage from {} but were intercepted by {} and suffered pursuit fire. We withdrew toward System({},{}) after suffering losses of {}. {}",
+                        classic_enemy_reference(game_data, target_fleet_id, target_empire_raw),
+                        classic_enemy_reference(game_data, target_fleet_id, target_empire_raw),
                         retreat_target_coords[0],
                         retreat_target_coords[1],
                         ship_loss_summary(losses_sustained),

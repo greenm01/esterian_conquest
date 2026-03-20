@@ -82,6 +82,22 @@ struct TaskForce {
     engaged_in_battle: bool,
 }
 
+/// Tracks ROE decline scenarios that may trigger pursuit fire.
+/// When a fleet declines ROE before combat, and the target is a
+/// guard/blockade fleet, the withdrawing fleet suffers one pursuit
+/// fire exchange before escaping (per spec).
+enum RoeDeclineOutcome {
+    /// Clean escape - no guard/blockade to intercept.
+    NoEngagement { empire: u8, target_empire: u8 },
+    /// Pursuit fire - guard/blockade intercepts and fires one exchange.
+    PursuitFire {
+        withdrawer_empire: u8,
+        pursuer_empire: u8,
+        withdrawer_hits: u32,
+        pursuer_hits: u32,
+    },
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum HostilityReason {
     DeclaredEnemy,
@@ -227,11 +243,20 @@ fn ground_cer_percent(our_as: u32, enemy_as: u32, bonus: i32) -> u32 {
     (base + bonus * 100).clamp(50, 200) as u32
 }
 
+/// Pursuit fire CER: per spec, the pursuer fires at CER 0.50 flat.
+/// No modifiers apply—this is a hasty shot while giving chase.
+fn pursuit_cer_percent() -> u32 {
+    50
+}
+
 fn hits_from(as_total: u32, cer_percent: u32) -> u32 {
     (as_total.saturating_mul(cer_percent)).div_ceil(100)
 }
 
 fn apply_hits_to_fleet(state: &mut FleetCombatState, mut hits: u32) {
+    // Phase 1: Screening - remove fresh steps from all classes in priority order
+    // No hulls are destroyed during screening. This represents escorts
+    // absorbing initial combat shock before heavier assets take damage.
     for idx in fleet_combat_priority() {
         if hits == 0 {
             break;
@@ -239,6 +264,11 @@ fn apply_hits_to_fleet(state: &mut FleetCombatState, mut hits: u32) {
         let fresh_loss = hits.min(state.fresh[idx]);
         state.fresh[idx] -= fresh_loss;
         hits -= fresh_loss;
+    }
+
+    // Phase 2: Kill - once all fresh steps are gone, destroy hulls in priority order
+    // Remaining hits destroy units and reduce on-disk counts.
+    for idx in fleet_combat_priority() {
         if hits == 0 {
             break;
         }
@@ -783,14 +813,11 @@ fn retreat_task_force(game_data: &mut CoreGameData, task_force: &TaskForce) {
 
 fn apply_roe_retreat_to_task_force(
     game_data: &mut CoreGameData,
-    empire: u8,
-    coords: [u8; 2],
+    fleet_indices: &[usize],
     retreat_target: [u8; 2],
 ) {
-    for fleet in &mut game_data.fleets.records {
-        if fleet.owner_empire_raw() != empire || fleet.current_location_coords_raw() != coords {
-            continue;
-        }
+    for &idx in fleet_indices {
+        let fleet = &mut game_data.fleets.records[idx];
         if fleet.destroyer_count() == 0
             && fleet.cruiser_count() == 0
             && fleet.battleship_count() == 0
@@ -1001,7 +1028,7 @@ pub(crate) fn process_fleet_battles(
             .map(|p| p.owner_empire_slot_raw());
 
         let mut combat_occurred = false;
-        let mut roe_declined_pairs: Vec<(u8, u8)> = Vec::new();
+        let mut roe_declined_outcomes: Vec<RoeDeclineOutcome> = Vec::new();
         for _round in 0..3 {
             let active: Vec<u8> = task_forces
                 .iter()
@@ -1076,7 +1103,52 @@ pub(crate) fn process_fleet_battles(
                 if !forced_engagement && !rule_threshold_satisfied(roe, our_as, enemy_as) {
                     if !combat_occurred {
                         if target_empire != 0 {
-                            roe_declined_pairs.push((tf.empire, target_empire));
+                            // Check if target is a guard/blockade fleet for pursuit fire
+                            if let Some(target_tf) = task_forces
+                                .iter()
+                                .find(|other| other.empire == target_empire)
+                            {
+                                if matches!(
+                                    target_tf.role,
+                                    BattleRole::GuardingDefender | BattleRole::IncumbentDefender
+                                ) {
+                                    // Pursuit fire: guard/blockade intercepts fleeing fleet
+                                    // Pursuer fires at CER 0.50, withdrawer fires at normal CER
+                                    let withdrawer_starbase_bonus =
+                                        tf.state.counts[IDX_SB] > 0 && tf.state.fresh[IDX_SB] > 0;
+                                    let withdrawer_cer = space_cer_percent(
+                                        our_as,
+                                        enemy_as,
+                                        tf.state.is_mixed(),
+                                        withdrawer_starbase_bonus,
+                                    );
+                                    let withdrawer_hits = hits_from(our_as, withdrawer_cer);
+
+                                    let pursuer_as = target_tf.state.total_combat_as();
+                                    // Pursuer fires at flat CER 0.50, no modifiers
+                                    let pursuer_cer = pursuit_cer_percent();
+                                    let pursuer_hits = hits_from(pursuer_as, pursuer_cer);
+
+                                    roe_declined_outcomes.push(RoeDeclineOutcome::PursuitFire {
+                                        withdrawer_empire: tf.empire,
+                                        pursuer_empire: target_empire,
+                                        withdrawer_hits,
+                                        pursuer_hits,
+                                    });
+                                } else {
+                                    // No guard/blockade - clean escape
+                                    roe_declined_outcomes.push(RoeDeclineOutcome::NoEngagement {
+                                        empire: tf.empire,
+                                        target_empire,
+                                    });
+                                }
+                            } else {
+                                // Target task force not found - treat as no engagement
+                                roe_declined_outcomes.push(RoeDeclineOutcome::NoEngagement {
+                                    empire: tf.empire,
+                                    target_empire,
+                                });
+                            }
                         }
                     } else if let Some(retreat_target) =
                         nearest_owned_planet(game_data, tf.empire, coords)
@@ -1104,8 +1176,12 @@ pub(crate) fn process_fleet_battles(
                     task_forces.iter_mut().find(|other| other.empire == empire)
                 {
                     task_force.withdrew_under_roe = true;
+                    apply_roe_retreat_to_task_force(
+                        game_data,
+                        &task_force.fleet_indices,
+                        retreat_target,
+                    );
                 }
-                apply_roe_retreat_to_task_force(game_data, empire, coords, retreat_target);
             }
 
             if pending_hits.is_empty() {
@@ -1165,52 +1241,131 @@ pub(crate) fn process_fleet_battles(
             for (empire, _target_empire, retreat_target) in post_round_retreats {
                 if let Some(task_force) = task_forces.iter_mut().find(|tf| tf.empire == empire) {
                     task_force.withdrew_under_roe = true;
+                    apply_roe_retreat_to_task_force(
+                        game_data,
+                        &task_force.fleet_indices,
+                        retreat_target,
+                    );
                 }
-                apply_roe_retreat_to_task_force(game_data, empire, coords, retreat_target);
             }
         }
 
         if !combat_occurred {
-            for (empire, target_empire) in roe_declined_pairs {
-                if let Some(tf) = task_forces.iter().find(|tf| tf.empire == empire) {
-                    for &idx in &tf.fleet_indices {
-                        events.encounter_disposition_events.push(
-                            EncounterDispositionEvent::NoEngagement {
-                                fleet_idx: idx,
-                                owner_empire_raw: empire,
-                                mission: mission_kind_for_order(
-                                    pre_encounter_orders.get(&idx).copied(),
-                                ),
-                                coords,
-                                target_empire_raw: target_empire,
-                                target_fleet_id: task_forces
-                                    .iter()
-                                    .find(|other| other.empire == target_empire)
-                                    .and_then(|other| {
-                                        single_named_fleet_id(game_data, &other.fleet_indices)
-                                    }),
-                                small_vessels: vessel_size_summary(
-                                    original_states
-                                        .get(&target_empire)
-                                        .unwrap_or(&FleetCombatState::default()),
-                                )
-                                .0,
-                                medium_vessels: vessel_size_summary(
-                                    original_states
-                                        .get(&target_empire)
-                                        .unwrap_or(&FleetCombatState::default()),
-                                )
-                                .1,
-                                large_vessels: vessel_size_summary(
-                                    original_states
-                                        .get(&target_empire)
-                                        .unwrap_or(&FleetCombatState::default()),
-                                )
-                                .2,
-                                reason: EncounterDispositionReason::RoeDeclined,
-                                stardate_week: None,
-                            },
-                        );
+            for outcome in roe_declined_outcomes {
+                match outcome {
+                    RoeDeclineOutcome::NoEngagement {
+                        empire,
+                        target_empire,
+                    } => {
+                        if let Some(tf) = task_forces.iter().find(|tf| tf.empire == empire) {
+                            for &idx in &tf.fleet_indices {
+                                events.encounter_disposition_events.push(
+                                    EncounterDispositionEvent::NoEngagement {
+                                        fleet_idx: idx,
+                                        owner_empire_raw: empire,
+                                        mission: mission_kind_for_order(
+                                            pre_encounter_orders.get(&idx).copied(),
+                                        ),
+                                        coords,
+                                        target_empire_raw: target_empire,
+                                        target_fleet_id: task_forces
+                                            .iter()
+                                            .find(|other| other.empire == target_empire)
+                                            .and_then(|other| {
+                                                single_named_fleet_id(
+                                                    game_data,
+                                                    &other.fleet_indices,
+                                                )
+                                            }),
+                                        small_vessels: vessel_size_summary(
+                                            original_states
+                                                .get(&target_empire)
+                                                .unwrap_or(&FleetCombatState::default()),
+                                        )
+                                        .0,
+                                        medium_vessels: vessel_size_summary(
+                                            original_states
+                                                .get(&target_empire)
+                                                .unwrap_or(&FleetCombatState::default()),
+                                        )
+                                        .1,
+                                        large_vessels: vessel_size_summary(
+                                            original_states
+                                                .get(&target_empire)
+                                                .unwrap_or(&FleetCombatState::default()),
+                                        )
+                                        .2,
+                                        reason: EncounterDispositionReason::RoeDeclined,
+                                        stardate_week: None,
+                                    },
+                                );
+                            }
+                        }
+                    }
+                    RoeDeclineOutcome::PursuitFire {
+                        withdrawer_empire,
+                        pursuer_empire,
+                        withdrawer_hits,
+                        pursuer_hits,
+                    } => {
+                        // Apply pursuit fire hits simultaneously
+                        if let Some(withdrawer_tf) = task_forces
+                            .iter_mut()
+                            .find(|tf| tf.empire == withdrawer_empire)
+                        {
+                            apply_hits_to_fleet(&mut withdrawer_tf.state, pursuer_hits);
+                            withdrawer_tf.engaged_in_battle = true;
+                        }
+                        if let Some(pursuer_tf) = task_forces
+                            .iter_mut()
+                            .find(|tf| tf.empire == pursuer_empire)
+                        {
+                            apply_hits_to_fleet(&mut pursuer_tf.state, withdrawer_hits);
+                            pursuer_tf.engaged_in_battle = true;
+                        }
+                        combat_occurred = true;
+
+                        // Find retreat target for withdrawer
+                        let retreat_target =
+                            nearest_owned_planet(game_data, withdrawer_empire, coords)
+                                .unwrap_or(coords);
+
+                        // The withdrawer will be retreated by the normal post-battle logic
+                        // since it is now a combatant that didn't dominate (combat_occurred is set)
+
+                        // Emit PursuitFire events for each fleet in the withdrawing task force
+                        if let Some(withdrawer_tf) =
+                            task_forces.iter().find(|tf| tf.empire == withdrawer_empire)
+                        {
+                            for &idx in &withdrawer_tf.fleet_indices {
+                                events.encounter_disposition_events.push(
+                                    EncounterDispositionEvent::PursuitFire {
+                                        fleet_idx: idx,
+                                        owner_empire_raw: withdrawer_empire,
+                                        mission: mission_kind_for_order(
+                                            pre_encounter_orders.get(&idx).copied(),
+                                        ),
+                                        coords,
+                                        target_empire_raw: pursuer_empire,
+                                        target_fleet_id: task_forces
+                                            .iter()
+                                            .find(|other| other.empire == pursuer_empire)
+                                            .and_then(|other| {
+                                                single_named_fleet_id(
+                                                    game_data,
+                                                    &other.fleet_indices,
+                                                )
+                                            }),
+                                        enemy_initial: ShipLosses::default(), // TODO: populate
+                                        retreat_target_coords: retreat_target,
+                                        losses_sustained: ShipLosses::default(), // TODO: calculate
+                                        enemy_losses_inflicted: ShipLosses::default(), // TODO: calculate
+                                        reason: EncounterDispositionReason::RoeDeclined,
+                                        stardate_week: None,
+                                    },
+                                );
+                            }
+                        }
                     }
                 }
             }

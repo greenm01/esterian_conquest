@@ -16,8 +16,8 @@
 use crate::CoreGameData;
 
 use super::{
-    MaintenanceEvents, Mission, MissionEvent, MissionOutcome,
     timing::{apply_timing_offset, event_base_week, mission_timing_code},
+    MaintenanceEvents, Mission, MissionEvent, MissionOutcome,
 };
 
 /// Run the canonicalization pass over `events`.
@@ -340,6 +340,9 @@ fn assign_encounter_disposition_weeks(events: &mut MaintenanceEvents) {
             super::EncounterDispositionEvent::Retreated { stardate_week, .. } => {
                 stardate_week.is_some()
             }
+            super::EncounterDispositionEvent::PursuitFire { stardate_week, .. } => {
+                stardate_week.is_some()
+            }
         };
         if !already_set {
             match e {
@@ -347,6 +350,9 @@ fn assign_encounter_disposition_weeks(events: &mut MaintenanceEvents) {
                     *stardate_week = Some(2);
                 }
                 super::EncounterDispositionEvent::Retreated { stardate_week, .. } => {
+                    *stardate_week = Some(2);
+                }
+                super::EncounterDispositionEvent::PursuitFire { stardate_week, .. } => {
                     *stardate_week = Some(2);
                 }
             }
@@ -423,6 +429,9 @@ fn encounter_week(e: &super::EncounterDispositionEvent) -> u8 {
         super::EncounterDispositionEvent::Retreated { stardate_week, .. } => {
             stardate_week.unwrap_or(2)
         }
+        super::EncounterDispositionEvent::PursuitFire { stardate_week, .. } => {
+            stardate_week.unwrap_or(2)
+        }
     }
 }
 
@@ -471,12 +480,10 @@ mod tests {
             MissionOutcome::Arrived,
         ));
         canonicalize_events(&mut events, &game_data);
-        assert!(
-            events
-                .mission_events
-                .iter()
-                .all(|e| e.stardate_week.is_some())
-        );
+        assert!(events
+            .mission_events
+            .iter()
+            .all(|e| e.stardate_week.is_some()));
     }
 
     #[test]
