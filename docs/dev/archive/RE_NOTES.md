@@ -9717,3 +9717,51 @@ Practical interpretation:
   Aurora-specific coordinates/economy/name bytes
 - if `Foundation` is stable while `Aurora Prime` still crashes even when empty,
   then the remaining bug is no longer explained by the dock payload alone
+
+Manual oracle outcome from the four-way matrix:
+
+- `/tmp/ec-classic-probe-aurora-empty`: `P -> D` does **not** crash
+- `/tmp/ec-classic-probe-aurora-single`: `P -> D` does **not** crash
+- `/tmp/ec-classic-probe-word22`: `P -> D` **does** crash
+- `/tmp/ec-classic-probe-foundation-busy`: `P -> D` **does** crash on
+  `Foundation`
+
+Interpretation:
+
+- the crash no longer follows `Aurora Prime` specifically
+- a non-empty stardock by itself is not sufficient
+- a single occupied destroyer slot is safe
+- the current crash trigger is therefore somewhere inside the richer busy
+  payload shape: scout kind `4`, multiple occupied slots, mixed kinds across
+  slots, or the higher destroyer count in the second slot
+
+Follow-up probe split for the busy payload:
+
+- `scripts/setup_classic_probe_game.py` now also accepts these
+  `--aurora-stardock` modes:
+  - `single-scout`
+  - `two-dd-slots`
+  - `mixed-light`
+- verified outputs:
+  - `/tmp/ec-classic-probe-single-scout`
+    - `Aurora Prime raw[0x38..0x4d] = 01 00 00 00 ... 04 00`
+  - `/tmp/ec-classic-probe-two-dd-slots`
+    - `Aurora Prime raw[0x38..0x4d] = 01 00 01 00 ... 01 01`
+  - `/tmp/ec-classic-probe-mixed-light`
+    - `Aurora Prime raw[0x38..0x4d] = 01 00 01 00 ... 04 01`
+- all three still pass `inspect-classic-login`, and all still keep
+  `raw[0x03] = 0x87` plus `word [0x22..0x23] = 0`
+
+Practical next step:
+
+- manual oracle check should now compare:
+  - `tools/run_ecgame.sh /tmp/ec-classic-probe-single-scout 1 SYSOP`
+  - `tools/run_ecgame.sh /tmp/ec-classic-probe-two-dd-slots 1 SYSOP`
+  - `tools/run_ecgame.sh /tmp/ec-classic-probe-mixed-light 1 SYSOP`
+- interpretation:
+  - if `single-scout` crashes, scout kind `4` alone is enough
+  - if `two-dd-slots` crashes, multiple occupied slots alone are enough
+  - if `mixed-light` crashes while `single-scout` and `two-dd-slots` do not,
+    the crash depends on the mixed scout+destroyer slot family
+  - if only the original `busy` payload crashes, the extra destroyer count
+    (`slot 1 count = 2`) is the remaining differentiator

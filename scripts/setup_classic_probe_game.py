@@ -38,7 +38,14 @@ PLANET_SPECS = [
 PLAYER_ONE_EXTRA_WORLD_RECORDS = {16, 17, 19}
 PLANET_RECORD_SIZE = 97
 STABLE_OWNED_WORLD_FACTORIES = bytes([0x00, 0x00, 0x00, 0x00, 0x48, 0x87])
-AURORA_STARDOCK_MODES = ("busy", "empty", "single-dd")
+AURORA_STARDOCK_MODES = (
+    "busy",
+    "empty",
+    "single-dd",
+    "single-scout",
+    "two-dd-slots",
+    "mixed-light",
+)
 PROBE_STARDOCK_HOSTS = ("aurora", "foundation")
 
 REPORT_FAMILY_LABELS = [
@@ -130,6 +137,14 @@ def apply_probe_stardock_payload(
         run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "1", "1", "2")
     elif aurora_stardock == "single-dd":
         run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "1", "1")
+    elif aurora_stardock == "single-scout":
+        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "4", "1")
+    elif aurora_stardock == "two-dd-slots":
+        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "1", "1")
+        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "1", "1", "1")
+    elif aurora_stardock == "mixed-light":
+        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "4", "1")
+        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "1", "1", "1")
     elif aurora_stardock != "empty":
         raise ValueError(f"unknown Aurora stardock mode: {aurora_stardock}")
 
