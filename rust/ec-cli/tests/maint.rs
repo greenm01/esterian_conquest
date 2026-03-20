@@ -1097,13 +1097,15 @@ fn maint_rust_destroyed_starbase_generates_lost_contact_report() {
 
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
     assert_eq!(game_data.player.records[0].starbase_count_raw(), 0);
-    assert!(game_data
-        .bases
-        .records
-        .iter()
-        .all(|base| !(base.coords_raw() == starbase_coords
-            && base.owner_empire_raw() == 1
-            && base.active_flag_raw() != 0)));
+    assert!(
+        game_data
+            .bases
+            .records
+            .iter()
+            .all(|base| !(base.coords_raw() == starbase_coords
+                && base.owner_empire_raw() == 1
+                && base.active_flag_raw() != 0))
+    );
 
     cleanup_dir(&target);
 }

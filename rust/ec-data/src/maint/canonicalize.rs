@@ -16,8 +16,8 @@
 use crate::CoreGameData;
 
 use super::{
-    timing::{apply_timing_offset, event_base_week, mission_timing_code},
     MaintenanceEvents, Mission, MissionEvent, MissionOutcome,
+    timing::{apply_timing_offset, event_base_week, mission_timing_code},
 };
 
 /// Run the canonicalization pass over `events`.
@@ -480,10 +480,12 @@ mod tests {
             MissionOutcome::Arrived,
         ));
         canonicalize_events(&mut events, &game_data);
-        assert!(events
-            .mission_events
-            .iter()
-            .all(|e| e.stardate_week.is_some()));
+        assert!(
+            events
+                .mission_events
+                .iter()
+                .all(|e| e.stardate_week.is_some())
+        );
     }
 
     #[test]

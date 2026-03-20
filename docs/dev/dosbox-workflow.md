@@ -7,7 +7,15 @@ DOSBox-X in a headless environment.
 
 - `dosbox-x` binary in your `PATH` (the SDL2 version, e.g., `dosbox-x-sdl2`, is strongly recommended on Linux as SDL1 may segfault in headless environments)
 - `xvfb-run` for headless X11 (if not using the dummy driver below)
+- Python 3 plus `python-pexpect` if you want to use the debugger-driven helper
+  scripts under `tools/`
 - A scenario directory containing the game files to process
+
+On Arch/CachyOS, the practical package names are:
+
+```bash
+sudo pacman -S python-pexpect dosbox-x
+```
 
 ## Headless Execution Tip
 
@@ -229,6 +237,14 @@ code stop. If that breakpoint is deleted and execution continues with only
 surfaces. Treat that as a debugger/runtime interaction problem, not an address
 translation failure.
 
+Terminal caveat: do not use `foot` for DOSBox-X debugger capture work here.
+In local runs, `foot` can hide or fail to flush the debugger's live
+stop/register prompt output (`CS=` and related break banners) even when
+DOSBox-X is actually waiting for input. That makes both manual breakpoint work
+and `pexpect`-style automation look hung or promptless. Use a different
+terminal emulator when you need reliable live debugger I/O or `MEMDUMP.BIN`
+capture.
+
 Launch into the debugger at program entry:
 
 ```bash
@@ -265,6 +281,55 @@ MEMDUMPBIN 0814:0000 97EB0
 Expected output:
 
 - `MEMDUMP.BIN` in the scenario directory
+
+Fallback when the debugger prompt does not surface locally:
+
+If `DEBUGBOX` never gives you a usable live `CS=` prompt in this environment,
+the reliable local fallback is DOSBox-X guest-RAM capture via `memory file`.
+That avoids the prompt entirely and still yields the same PSP-sliced dump used
+for later Ghidra work.
+
+```bash
+SCENARIO=/tmp/ecmaint-debug
+MEMFILE=/tmp/ecmaint-runtime.mem
+export SCENARIO MEMFILE
+
+env SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
+dosbox-x \
+  -defaultconf \
+  -nopromptfolder \
+  -nogui \
+  -nomenu \
+  -defaultdir "$SCENARIO" \
+  -set "dosv=off" \
+  -set "machine=vgaonly" \
+  -set "core=normal" \
+  -set "cputype=386_prefetch" \
+  -set "cycles=fixed 3000" \
+  -set "xms=false" \
+  -set "ems=false" \
+  -set "umb=false" \
+  -set "output=surface" \
+  -set "memory file=$MEMFILE" \
+  -c "mount c $SCENARIO" \
+  -c "c:" \
+  -c "ECMAINT /R"
+
+python3 - <<'PY'
+import os
+from pathlib import Path
+
+guest = Path(os.environ["MEMFILE"]).read_bytes()
+Path(os.environ["SCENARIO"], "MEMDUMP.BIN").write_bytes(
+    guest[0x8140:0x8140 + 0x97EB0]
+)
+PY
+```
+
+Expected fallback output:
+
+- guest RAM image at `$MEMFILE`
+- carved `$SCENARIO/MEMDUMP.BIN`, equivalent to `MEMDUMPBIN 0814:0000 97EB0`
 
 Useful sanity check:
 

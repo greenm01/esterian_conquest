@@ -83,12 +83,13 @@ def normalize_key(token: str) -> str:
     return token
 
 
-def wait_for_prompt(child) -> None:
+def wait_for_prompt(child) -> bool:
     try:
-        child.expect(r"I-> _", timeout=15)
+        child.expect([r"I-> _", r"I->", r"> _", r"DBG>", r"CS="], timeout=5)
         time.sleep(0.1)
+        return True
     except Exception:
-        pass
+        return False
 
 
 def snapshot_database(game_dir: Path, output_dir: Path, label: str) -> None:
@@ -150,13 +151,13 @@ def main() -> None:
         "-c",
         "mode co80",
         "-c",
-        f"DEBUGBOX {exe_name} /L",
+        f"DEBUGBOX {exe_name}",
     ]
 
     env = os.environ.copy()
-    env["SDL_VIDEODRIVER"] = "dummy"
-    env["SDL_AUDIODRIVER"] = "dummy"
-    env["TERM"] = "dumb"
+    env.setdefault("SDL_VIDEODRIVER", "dummy")
+    env.setdefault("SDL_AUDIODRIVER", "dummy")
+    env.setdefault("TERM", "dumb")
 
     child = spawn_argv(cmd, env=env, timeout=20, encoding="cp437")
     log_path = output_dir / "debugbox.log"
@@ -169,6 +170,7 @@ def main() -> None:
         wait_for_prompt(child)
 
         child.sendline("RUN")
+        time.sleep(3)
         wait_for_prompt(child)
         transcript.append("=== screen_00 ===\n")
         transcript.append(dump_screen(child, game_dir, output_dir, 0))
@@ -178,6 +180,7 @@ def main() -> None:
             child.sendline("RUN")
             time.sleep(0.2)
             child.send(key)
+            time.sleep(3)
             wait_for_prompt(child)
             transcript.append(
                 f"\n=== screen_{step:02} key={key.encode('unicode_escape').decode()} ===\n"

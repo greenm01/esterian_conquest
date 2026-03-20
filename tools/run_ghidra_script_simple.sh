@@ -3,12 +3,13 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
-GHIDRA_HOME=$(ls -1d "$HOME"/tools/ghidra_*_PUBLIC 2>/dev/null | sort -V | tail -n 1)
+source "$SCRIPT_DIR/ghidra_env.sh"
+ANALYZE_HEADLESS=$(resolve_analyze_headless "$REPO_ROOT")
 
 export XDG_CONFIG_HOME="$REPO_ROOT/.ghidra/xdg-config"
 export XDG_CACHE_HOME="$REPO_ROOT/.ghidra/xdg-cache"
 
-"$GHIDRA_HOME/support/analyzeHeadless" \
+"$ANALYZE_HEADLESS" \
   "$REPO_ROOT/.ghidra/projects" \
   ecmaint-live \
   -process MEMDUMP.BIN \

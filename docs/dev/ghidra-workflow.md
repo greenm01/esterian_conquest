@@ -10,7 +10,7 @@ Ghidra ships as a zip archive. It does not need a traditional system install.
 
 ### 1. Install JDK 21
 
-Ghidra 12.0.2 expects a 64-bit JDK 21.
+The repo workflow expects a 64-bit JDK 21.
 
 On Debian or Ubuntu:
 
@@ -33,10 +33,16 @@ On Arch, CachyOS, or another Arch-derived distribution:
 sudo pacman -Syu ghidra jdk21-openjdk
 ```
 
-That typically installs Ghidra under:
+That packaged install typically puts Ghidra under:
 
 ```text
-/usr/share/ghidra
+/opt/ghidra
+```
+
+It also exposes a wrapper at:
+
+```text
+/usr/bin/ghidra-analyzeHeadless
 ```
 
 ### 2. Download and unpack Ghidra
@@ -69,7 +75,8 @@ Reload your shell or run the export in the current terminal.
 If Ghidra came from the Arch/CachyOS package, this is usually:
 
 ```bash
-export GHIDRA_HOME=/usr/share/ghidra
+export GHIDRA_HOME=/opt/ghidra
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk
 ```
 
 ### 4. Verify headless mode
@@ -79,6 +86,12 @@ export GHIDRA_HOME=/usr/share/ghidra
 ```
 
 It should print usage text.
+
+On packaged Arch/CachyOS installs, this also works:
+
+```bash
+ghidra-analyzeHeadless
+```
 
 ## Wayland Notes
 
@@ -102,7 +115,8 @@ Default behavior:
 - creates a Ghidra project under `.ghidra/projects`
 - writes logs under `artifacts/ghidra/ecmaint`
 - reuses the project on later runs
-- auto-detects packaged installs at `/usr/share/ghidra`
+- auto-detects packaged installs at `/opt/ghidra` and `/usr/share/ghidra`
+- also accepts the packaged `ghidra-analyzeHeadless` wrapper
 - stores Ghidra config/cache under repo-local `.ghidra/` paths
 
 Generated repo-local state:
@@ -150,7 +164,7 @@ Apply the live-dump integrity labels to the existing `ecmaint-live` project:
 XDG_CONFIG_HOME="$PWD/.ghidra/xdg-config" \
 XDG_CACHE_HOME="$PWD/.ghidra/xdg-cache" \
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk \
-"$HOME/tools/ghidra_12.0.2_PUBLIC/support/analyzeHeadless" \
+"$GHIDRA_HOME/support/analyzeHeadless" \
   "$PWD/.ghidra/projects" ecmaint-live \
   -process MEMDUMP.BIN \
   -scriptPath "$PWD/tools/ghidra_scripts" \
@@ -169,7 +183,7 @@ Apply the token-anchor labels/report to the same live-dump project:
 XDG_CONFIG_HOME="$PWD/.ghidra/xdg-config" \
 XDG_CACHE_HOME="$PWD/.ghidra/xdg-cache" \
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk \
-"$HOME/tools/ghidra_12.0.2_PUBLIC/support/analyzeHeadless" \
+"$GHIDRA_HOME/support/analyzeHeadless" \
   "$PWD/.ghidra/projects" ecmaint-live \
   -process MEMDUMP.BIN \
   -scriptPath "$PWD/tools/ghidra_scripts" \
@@ -192,7 +206,7 @@ Generate the deeper token reachability report from the same project:
 XDG_CONFIG_HOME="$PWD/.ghidra/xdg-config" \
 XDG_CACHE_HOME="$PWD/.ghidra/xdg-cache" \
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk \
-"$HOME/tools/ghidra_12.0.2_PUBLIC/support/analyzeHeadless" \
+"$GHIDRA_HOME/support/analyzeHeadless" \
   "$PWD/.ghidra/projects" ecmaint-live \
   -process MEMDUMP.BIN \
   -scriptPath "$PWD/tools/ghidra_scripts" \
@@ -216,7 +230,7 @@ Generate the stack-derived token caller report from the same project:
 XDG_CONFIG_HOME="$PWD/.ghidra/xdg-config" \
 XDG_CACHE_HOME="$PWD/.ghidra/xdg-cache" \
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk \
-"$HOME/tools/ghidra_12.0.2_PUBLIC/support/analyzeHeadless" \
+"$GHIDRA_HOME/support/analyzeHeadless" \
   "$PWD/.ghidra/projects" ecmaint-live \
   -process MEMDUMP.BIN \
   -scriptPath "$PWD/tools/ghidra_scripts" \

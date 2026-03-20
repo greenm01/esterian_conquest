@@ -288,7 +288,11 @@ For normal Rust development in this repo, the practical baseline is:
 
 - Rust toolchain with `cargo`
 - Python 3 for oracle/support scripts under `tools/`
-- DOSBox-X only if you want to launch the original DOS binaries locally
+- `python-pexpect` if you want to use the DOSBox-X debugger helpers under
+  `tools/`
+- DOSBox-X only if you want to launch the original DOS binaries locally or do
+  dynamic oracle/RE work
+- Ghidra plus JDK 21 only if you want to use the headless static-RE workflow
 
 Recommended local build-speed tooling:
 
@@ -297,7 +301,15 @@ Recommended local build-speed tooling:
 On Arch-based systems:
 
 ```bash
-sudo pacman -S sccache
+sudo pacman -S sccache python-pexpect dosbox-x ghidra jdk21-openjdk
+```
+
+If you use the packaged Arch/CachyOS Ghidra build, the practical repo settings
+are:
+
+```bash
+export GHIDRA_HOME=/opt/ghidra
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk
 ```
 
 Then enable it in your local Cargo config:

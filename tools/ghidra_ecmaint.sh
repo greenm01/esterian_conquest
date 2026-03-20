@@ -14,7 +14,9 @@ Defaults:
 Environment:
   GHIDRA_HOME    Path to the extracted Ghidra directory.
                  If unset, the script also checks:
+                 - /opt/ghidra
                  - /usr/share/ghidra
+                 - the ghidra-analyzeHeadless wrapper
                  - ./ghidra
                  - the newest $HOME/tools/ghidra_*_PUBLIC directory
 EOF
@@ -22,6 +24,7 @@ EOF
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
+source "$SCRIPT_DIR/ghidra_env.sh"
 
 PROJECT_NAME="ec-v15"
 OVERWRITE=0
@@ -82,40 +85,7 @@ if [[ ! -f "$TARGET_BINARY" ]]; then
   exit 1
 fi
 
-find_ghidra_home() {
-  if [[ -n "${GHIDRA_HOME:-}" && -x "${GHIDRA_HOME}/support/analyzeHeadless" ]]; then
-    printf '%s\n' "$GHIDRA_HOME"
-    return 0
-  fi
-
-  if [[ -x "/usr/share/ghidra/support/analyzeHeadless" ]]; then
-    printf '%s\n' "/usr/share/ghidra"
-    return 0
-  fi
-
-  if [[ -x "$REPO_ROOT/ghidra/support/analyzeHeadless" ]]; then
-    printf '%s\n' "$REPO_ROOT/ghidra"
-    return 0
-  fi
-
-  local candidate
-  for candidate in "$HOME"/tools/ghidra_*_PUBLIC; do
-    if [[ -x "$candidate/support/analyzeHeadless" ]]; then
-      printf '%s\n' "$candidate"
-    fi
-  done | sort -V | tail -n 1 | grep -q . && {
-    for candidate in "$HOME"/tools/ghidra_*_PUBLIC; do
-      if [[ -x "$candidate/support/analyzeHeadless" ]]; then
-        printf '%s\n' "$candidate"
-      fi
-    done | sort -V | tail -n 1
-    return 0
-  }
-
-  return 1
-}
-
-if ! GHIDRA_HOME=$(find_ghidra_home); then
+if ! GHIDRA_HOME=$(resolve_ghidra_home "$REPO_ROOT"); then
   cat >&2 <<'EOF'
 Could not find Ghidra.
 

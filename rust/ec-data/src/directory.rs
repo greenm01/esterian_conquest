@@ -705,7 +705,8 @@ impl CoreGameData {
             planets: load_parsed(dir, "PLANETS.DAT", PlanetDat::parse)?,
             fleets: load_parsed(dir, "FLEETS.DAT", FleetDat::parse)?,
             bases: load_parsed(dir, "BASES.DAT", BaseDat::parse)?,
-            ipbm: load_parsed(dir, "IPBM.DAT", IpbmDat::parse)?,
+            ipbm: load_optional_parsed(dir, "IPBM.DAT", IpbmDat::parse)?
+                .unwrap_or_else(|| IpbmDat { records: vec![] }),
             setup: load_parsed(dir, "SETUP.DAT", SetupDat::parse)?,
             conquest: load_parsed(dir, "CONQUEST.DAT", ConquestDat::parse)?,
         })
@@ -4456,6 +4457,27 @@ fn load_parsed<T>(
         source,
     })?;
     parse(&bytes).map_err(|source| GameDirectoryError::Parse { path, source })
+}
+
+fn load_optional_parsed<T>(
+    dir: &Path,
+    file_name: &'static str,
+    parse: impl Fn(&[u8]) -> Result<T, ParseError>,
+) -> Result<Option<T>, GameDirectoryError> {
+    let path = dir.join(file_name);
+    let bytes = match fs::read(&path) {
+        Ok(b) => b,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(source) => {
+            return Err(GameDirectoryError::Io {
+                path: path.clone(),
+                source,
+            });
+        }
+    };
+    parse(&bytes)
+        .map(Some)
+        .map_err(|source| GameDirectoryError::Parse { path, source })
 }
 
 fn save_bytes(dir: &Path, file_name: &'static str, bytes: &[u8]) -> Result<(), GameDirectoryError> {

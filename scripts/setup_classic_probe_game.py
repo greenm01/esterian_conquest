@@ -35,6 +35,11 @@ PLANET_SPECS = [
     (19, 1, "Outrider", 84, 14, 3, 2),
 ]
 
+PLAYER_ONE_EXTRA_WORLD_RECORDS = {16, 17, 19}
+PLANET_RECORD_SIZE = 97
+STABLE_OWNED_WORLD_FACTORIES = bytes([0x00, 0x00, 0x00, 0x00, 0x48, 0x87])
+STABLE_OWNED_WORLD_SUFFIX = bytes([0x05, 0x1D, 0x0B, 0x11, 0x25, 0x1C, 0x05])
+
 REPORT_FAMILY_LABELS = [
     ("Bombardment mission report", "bombard"),
     ("Invasion mission report", "invade"),
@@ -117,6 +122,9 @@ def set_planet_specs(cli_binary: Path, target: Path) -> None:
         run_ec_cli(cli_binary, "planet-stored", str(target), str(record), str(stored))
         run_ec_cli(cli_binary, "planet-stats", str(target), str(record), str(armies), str(batteries))
 
+    rewrite_player_one_owned_probe_worlds(target)
+    run_ec_cli(cli_binary, "db-import", str(target))
+
     # Keep a little visible stardock inventory on player one's worlds for classic inspection.
     run_ec_cli(cli_binary, "planet-stardock", str(target), "16", "0", "4", "1")
     run_ec_cli(cli_binary, "planet-stardock", str(target), "16", "1", "1", "2")
@@ -131,6 +139,39 @@ def set_planet_specs(cli_binary: Path, target: Path) -> None:
     run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "3", "4", "4")   # 4 scout ships
     run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "4", "5", "2")   # 2 transports
     run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "5", "6", "1")   # 1 ETAC
+
+
+def rewrite_player_one_owned_probe_worlds(target: Path) -> None:
+    planets_path = target / "PLANETS.DAT"
+    planets = bytearray(planets_path.read_bytes())
+
+    for record, owner, name, potential, stored, armies, batteries in PLANET_SPECS:
+        if owner != 1 or record not in PLAYER_ONE_EXTRA_WORLD_RECORDS:
+            continue
+
+        base = (record - 1) * PLANET_RECORD_SIZE
+        coords = planets[base : base + 2]
+        rewritten = bytearray(PLANET_RECORD_SIZE)
+        rewritten[0:2] = coords
+        rewritten[0x02] = potential & 0xFF
+        rewritten[0x03] = 0x87
+        rewritten[0x04:0x0A] = STABLE_OWNED_WORLD_FACTORIES
+        rewritten[0x0A:0x0E] = int(stored).to_bytes(4, "little")
+        rewritten[0x0E] = 0x04
+
+        encoded_name = name.encode("cp437", errors="replace")[:13]
+        rewritten[0x0F] = len(encoded_name)
+        rewritten[0x10:0x1D] = b"\x00" * 13
+        rewritten[0x10 : 0x10 + len(encoded_name)] = encoded_name
+        rewritten[0x1D:0x24] = STABLE_OWNED_WORLD_SUFFIX
+
+        rewritten[0x58] = armies & 0xFF
+        rewritten[0x5A] = batteries & 0xFF
+        rewritten[0x5C] = 0x02
+        rewritten[0x5D] = owner & 0xFF
+        planets[base : base + PLANET_RECORD_SIZE] = rewritten
+
+    planets_path.write_bytes(planets)
 
 
 def write_diplomacy_sidecar(target: Path) -> None:

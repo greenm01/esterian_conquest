@@ -1,9 +1,9 @@
 mod common;
 
 use ec_data::{
-    run_maintenance_turn, run_maintenance_turn_with_context, ContactReportSource, CoreGameData,
-    DiplomacyOverride, EncounterDispositionEvent, Mission, MissionOutcome, Order,
-    PlanetIntelSource,
+    ContactReportSource, CoreGameData, DiplomacyOverride, EncounterDispositionEvent, Mission,
+    MissionOutcome, Order, PlanetIntelSource, run_maintenance_turn,
+    run_maintenance_turn_with_context,
 };
 use std::path::Path;
 
@@ -741,18 +741,24 @@ fn canonical_blitz_success_transfers_surviving_batteries() {
         2
     );
     assert_eq!(events.ownership_change_events[0].new_owner_empire_raw, 1);
-    assert!(events
-        .planet_intel_events
-        .iter()
-        .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 1));
-    assert!(events
-        .planet_intel_events
-        .iter()
-        .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 2));
-    assert!(events
-        .planet_intel_events
-        .iter()
-        .all(|event| event.source == PlanetIntelSource::AssaultSuccess));
+    assert!(
+        events
+            .planet_intel_events
+            .iter()
+            .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 1)
+    );
+    assert!(
+        events
+            .planet_intel_events
+            .iter()
+            .any(|event| event.planet_idx == 13 && event.viewer_empire_raw == 2)
+    );
+    assert!(
+        events
+            .planet_intel_events
+            .iter()
+            .all(|event| event.source == PlanetIntelSource::AssaultSuccess)
+    );
     assert!(events.colonization_events.is_empty());
 }
 
@@ -782,10 +788,12 @@ fn canonical_blitz_failure_leaves_defender_in_control() {
     assert_eq!(target.ownership_status_raw(), 2);
     assert_eq!(target.army_count_raw(), 8);
     assert_eq!(target.ground_batteries_raw(), 1);
-    assert!(events
-        .planet_intel_events
-        .iter()
-        .all(|event| event.source == PlanetIntelSource::AssaultFailure));
+    assert!(
+        events
+            .planet_intel_events
+            .iter()
+            .all(|event| event.source == PlanetIntelSource::AssaultFailure)
+    );
 }
 
 #[test]

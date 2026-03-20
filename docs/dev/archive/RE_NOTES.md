@@ -9351,3 +9351,227 @@ Practical consequence:
 
 - the local runtime-dump regeneration path is still blocked by debugger I/O /
   terminal interaction, not by a missing debug build anymore
+
+### DOSBox-X `memory file` fallback produced a usable live scout-abort dump
+
+The debugger prompt still refused to surface reliably here, but DOSBox-X guest
+RAM capture via `memory file` did work on the known failing regular-world scout
+directory.
+
+Working capture:
+
+- source scenario: `/tmp/ecgame-fail-regular-speed3-fresh`
+- copied to: `/tmp/ecmaint-scout-abort-memfile`
+- launch used normal `ECMAINT /R` plus:
+  - `-set 'memory file=/tmp/ecmaint-scout-abort.mem'`
+- DOSBox-X confirmed:
+  - `Using memory file '/tmp/ecmaint-scout-abort.mem' as guest memory`
+  - `Memory file size will be 16384KB`
+
+The PSP-sliced runtime dump was then carved directly from guest RAM:
+
+- guest RAM file: `/tmp/ecmaint-scout-abort.mem`
+- carve start: `0x8140`
+- carve size: `0x97eb0`
+- carved dump: `/tmp/ecmaint-scout-abort-psp.MEMDUMP.BIN`
+
+Equivalent carve:
+
+- `guest_ram[0x8140 : 0x8140 + 0x97eb0]`
+- this matches the earlier debugger-side `MEMDUMPBIN 0814:0000 97EB0` model
+
+Runtime string anchors from the carved PSP dump:
+
+- raw offset `0x5adc`:
+  - `Since we have lost all of our scouts, we must abort our mission of`
+- raw offset `0x6c06`:
+  - second copy of the same scout-abort fragment
+- raw offset `0x248ff`:
+  - `Scouting mission report`
+
+Artifacts from the live dump import/probe pass:
+
+- `artifacts/ghidra/ecmaint-scout-live/string-probe-since-we-have-lost-all-of-our-scouts.txt`
+- `artifacts/ghidra/ecmaint-scout-live/string-probe-scouting-mission-report.txt`
+- `artifacts/ghidra/ecmaint-scout-live/string-probe-abort-our-mission.txt`
+- local project: `.ghidra/projects/ecmaint-scout-live-local`
+
+Important conclusion:
+
+- the scout-abort path is no longer blocked on producing a live runtime dump
+- the reliable local capture path here is currently DOSBox-X `memory file`
+  plus the fixed `0x8140 .. 0x8140 + 0x97eb0` carve, not the interactive
+  debugger prompt
+
+### Live scout-abort dump recovers the shared mission-kind dispatcher at `0000:8a11`
+
+With the carved PSP dump in hand, the live scout helpers were anchored first:
+
+- `0000:5c18` = system-scout abort helper
+- `0000:6c9d` = sector-scout abort helper
+- `0000:841a` = related shared predicate helper in the same family
+
+Even after Ghidra import, direct refs to those helper entrypoints were still
+missing. A raw near-call scan on `/tmp/ecmaint-scout-abort-psp.MEMDUMP.BIN`
+recovered unique caller sites:
+
+- `5c18` is called from `8baf`
+- `6c9d` is called from `8bc5`
+- `841a` is called from `8c13`
+- follow-on calls in the same block:
+  - `6817` from `8bb9`
+  - `6dda` from `8bcf`
+  - `8584` from `8c1d`
+
+Artifacts:
+
+- `artifacts/ghidra/ecmaint-scout-live/raw-call-scan.txt`
+- `artifacts/ghidra/ecmaint-scout-live/ndisasm-scout-dispatch-8a11.txt`
+
+Disassembly of the surrounding caller block showed a shared dispatcher at
+`0000:8a11` keyed by `[0x3521]`:
+
+- `0x0b`:
+  - call `0000:5c18`
+  - if nonzero, call `0000:6817`
+- `0x0a`:
+  - call `0000:6c9d`
+  - if nonzero, call `0000:6dda`
+- `0x0e`:
+  - call `0000:841a`
+  - if nonzero, call `0000:8584`
+
+Shared pre-dispatch state in `8a11` before the mission-kind split:
+
+- reads/sums `0x3528`, `0x352a`, `0x352c`
+- consults `0x3524`
+- compares `0x350d/0x350e` against `0x3522/0x3523`
+- consults `0x350b/0x350c`
+- reuses the same `0x351b/0x351d/0x351f` tuple seen inside the scout helpers
+
+Helper-level refinement from the live dump:
+
+- both `5c18` and `6c9d` gate first on `word [0x3534]`
+- both share the `0x350d/0x350e` vs `0x3522/0x3523` predicate
+- only `5c18` does the extra target-owner lookup through
+  `CALLF 0x3000:1f90` and `ES:[DI + 0x5d]`
+
+Important conclusion:
+
+- the live anchor has moved upstream from isolated abort strings to the common
+  mission-kind dispatcher at `0000:8a11`
+- the next useful RE step is now tracing who primes `0x3521`, `0x3534`,
+  `0x350c`, and the `0x350d..0x3524` target tuple before `8a11` runs
+
+### Raw write-site scan narrows the remaining scout-abort setup globals
+
+To tighten the next step further, the carved PSP dump was scanned for absolute
+stores to the shared scout-abort globals around `0x350c..0x3534`.
+
+Artifacts:
+
+- `artifacts/ghidra/ecmaint-scout-live/raw-write-scan.txt`
+- `artifacts/ghidra/ecmaint-scout-live/ndisasm-target-state-0be0.txt`
+- `artifacts/ghidra/ecmaint-scout-live/ndisasm-counter-state-f914.txt`
+
+Two especially useful hits:
+
+- `0x350d` and `0x350e` each have a single obvious store in the first
+  `64K` code segment:
+  - `0000:0c7a` -> `mov [0x350d], al`
+  - `0000:0ca4` -> `mov [0x350e], al`
+- those stores sit inside the same larger block that also writes:
+  - `0x350f..0x3519`
+  - `0x351b/0x351d/0x351f`
+- this strongly suggests that the `0x350d..0x351f` tuple is materialized in
+  one shared target-state builder before the later `8a11` mission dispatch
+
+The `0x3534` path is also now much tighter:
+
+- `0000:f941` -> `mov [0x3534], ax` after zeroing `ax`
+- `0000:f99b` -> `inc word [0x3534]`
+- both sit inside `0000:f914`, which also zeroes and tallies:
+  - `0x3528`
+  - `0x352a`
+  - `0x352c`
+  - `0x352e`
+  - `0x3530`
+  - `0x3532`
+- that same function resets `0x3521` to `0` at `0000:f9cf`
+
+Important conclusion:
+
+- `0x3534` is not a random one-off scratch word; it belongs to a small shared
+  counter family that is explicitly zeroed and then incremented in one loop
+- the next direct code-reading targets are now:
+  - the target-state builder around `0000:0c7a/0ca4`
+  - the counter/reset loop at `0000:f914..0xf9cf`
+  - the path that overwrites `0x3521` from `0` to the mission-kind values
+    later consumed by `0000:8a11`
+
+### Classic probe Planet Command crash triage: owned-world payload vs list ownership
+
+While following up the persistent `ECGAME` planet-command detail crash on the
+busy classic probe harness, the first ownership assumption turned out to be
+wrong: the current `setup_classic_probe_game.py` intentionally seeds
+`Aurora Prime` as a player-1 world.
+
+Controlled recheck on `/tmp/ec-classic-probe-crash` after:
+
+- `python3 scripts/setup_classic_probe_game.py /tmp/ec-classic-probe-crash --force --no-launch`
+
+Raw ownership confirmation:
+
+- `PLANETS.DAT` record `16` (`Aurora Prime`) shows:
+  - owner slot `1`
+  - ownership status `2`
+- the matching player-1 `DATABASE.DAT` row is also an owned row for
+  `Aurora Prime`
+
+So the remaining crash on the Planet Command detail path is not explained by a
+foreign planet leaking into the owned list. The better fit is the earlier
+established-world RE result from the deep `024d` thread:
+
+- owner plus status plus a few visible bytes is not enough to reproduce the
+  safe established-world path
+- a richer owned-world payload was required before original code took the
+  deeper developed-colony rewrite/display path
+
+That matched the probe harness structure at the time:
+
+- the extra player-1 colonies at records `16`, `17`, and `19` were being built
+  through CLI mutators like:
+  - `planet-owner`
+  - `planet-name`
+  - `planet-potential`
+  - `planet-stored`
+  - `planet-stats`
+- those mutators set the obvious visible fields but do not guarantee the same
+  full established-world raw shape as the known-good target-world fixtures
+
+Probe-harness patch:
+
+- `scripts/setup_classic_probe_game.py` now rewrites records `16`, `17`, and
+  `19` in `PLANETS.DAT` to the same stable owned-target template already used
+  elsewhere for accepted developed worlds:
+  - `raw[0x03] = 0x87`
+  - factories bytes `00 00 00 00 48 87`
+  - name-suffix bytes `05 1d 0b 11 25 1c 05`
+  - ownership status `2`
+  - owner slot `1`
+- the script then re-imports with `db-import` before applying its later
+  stardock mutations
+
+Regenerated raw check on `/tmp/ec-classic-probe-crash` confirmed:
+
+- records `16`, `17`, and `19` now carry the stable template bytes
+- later `planet-stardock` writes still land on top of the rewritten records
+
+Open point:
+
+- a clean automated `ECGAME` recheck of `P -> D` / `I` is still pending
+- current DOSBox debugger screen-dump helpers still fail to emit
+  `MEMDUMP.BIN` for `ECGAME` in this environment
+- the locally packaged `dosemu` path remains unreliable enough that this note
+  should be treated as a harness correction plus ownership clarification, not
+  yet a proven fix of the visible runtime-error path

@@ -214,8 +214,19 @@ Recent validation baseline:
     tracing who primes `0x3521`, `0x3534`, `0x350c`, and the
     `0x350d..0x3524` target tuple before `0000:8a11` dispatches into the
     mission-specific helper
+  - current classic probe crash triage on the separate planet-command-menu
+    detail path found that `setup_classic_probe_game.py` intentionally seeds
+    `Aurora Prime` as player 1-owned (`PLANETS.DAT` record `16`, owner slot
+    `1`), so the lingering confusion there is not a foreign-row leak
+  - that same probe harness now rewrites the extra player-1 colonies at
+    records `16`, `17`, and `19` to a stable established-world
+    `PLANETS.DAT` shape before `db-import` instead of relying only on sparse
+    `planet-owner` / visible-field mutators; raw regeneration confirmed the
+    target-world template bytes landed and later stardock writes still apply
   - the separate planet-command-menu detail path still hits the known
-    `Runtime error 201 at 1958:76DE` crash
+    `Runtime error 201 at 1958:76DE` crash, but the next manual recheck should
+    use the patched probe harness first because the old sparse extra-colony
+    payload is no longer the active test shape
 
 ## Canonical Docs
 
