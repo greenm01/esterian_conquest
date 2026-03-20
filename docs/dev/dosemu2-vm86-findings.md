@@ -178,6 +178,160 @@ This dump can be used to:
 2. Directly analyze the decompressed game code in Ghidra
 3. Compare with `emu8086.py` output to find emulator flag bugs
 
+## Stub Encryption Architecture (2026-03-20)
+
+### MZ Header Contains Plaintext Decrypted Code
+
+The ECGAME.EXE MZ header is **512 bytes** (32 paragraphs), vs the
+standard 32 bytes. File offsets `0xC8`–`0x1DF` (280 bytes) contain
+**plaintext 8086 code** — the fully decrypted version of what the
+stub's three XOR layers would produce if they ran correctly on a real
+8086.
+
+This means the EXE ships with both the encrypted stub AND the answer
+key in the header.
+
+### Three XOR Encryption Layers
+
+The stub code is protected by three nested XOR decryption layers:
+
+1. **Layer 1**: `XOR` with key `0xAD`, bytes +0x0F through +0x151
+2. **Layer 2**: `XOR` with key `0x3F`, bytes +0x53 through +0x150
+3. **Layer 3**: Rolling `XOR` with initial key `0x25` (ROR 1 each
+   iteration), bytes +0x150 down to +0x6C
+
+Layer 1 uses the `eb ff` anti-disassembly trick: `JMP $-1` at +0x27
+overlaps with `DEC BX` (`FF CB`) at +0x28, forming the decrypt loop.
+
+### "EAT SHIT AND DIE"
+
+After all three layers decrypt, the string **`EAT SHIT AND DIE`**
+appears at stub offset +0x77, loaded via a position-independent code
+trick:
+
+```
++6C: B2 00         MOV DL, 0x00
++6E: E8 00 00      CALL +0x0071       ; push return addr, jump to +71
++71: 5B            POP BX             ; BX = 0x0071
++72: 83 C3 06      ADD BX, 6          ; BX = 0x0077 (→ the string)
++75: EB 10         JMP +0x0087        ; skip over the string
+
++77: "EAT SHIT AND DIE"               ; 45 41 54 20 53 48 49 54
+                                       ; 20 41 4E 44 20 44 49 45
+
++87: F8            CLC
++88: 72 15         JC +0x009F         ; never taken (CF=0)
+```
+
+### Anti-Tamper Hash Check
+
+The hash verification at +0x8A–+0x9D operates on this string:
+
+```
++8A: 33 FF         XOR DI, DI         ; DI = 0
++8C: 8B F7         MOV SI, DI         ; SI = 0
++8E: B9 08 00      MOV CX, 8          ; 8 words
++91: 33 31         XOR SI, [BX+DI]    ; XOR with word from "EAT SH..."
++93: D1 CE         ROR SI, 1          ; rotate right
++95: 47            INC DI
++96: 47            INC DI             ; advance by word
++97: E2 F8         LOOP -8
++99: 81 FE B5 95   CMP SI, 0x95B5     ; ← THE DERIVED KEY
++9D: 74 27         JZ +0xC6           ; hash OK → skip to decompressor
+```
+
+**Derived hash key: `0x95B5`** — the XOR+ROR-1 accumulation over the
+8 little-endian words of `"EAT SHIT AND DIE"`:
+
+| Word | Hex    | Text | SI after XOR+ROR |
+|------|--------|------|------------------|
+| 0    | 0x4145 | "EA" | 0xA0A2           |
+| 1    | 0x2054 | "T " | 0x407B           |
+| 2    | 0x4853 | "SH" | 0x0414           |
+| 3    | 0x5449 | "IT" | 0xA82E           |
+| 4    | 0x4120 | " A" | 0x7487           |
+| 5    | 0x444E | "ND" | 0x9864           |
+| 6    | 0x4420 | " D" | 0x6E22           |
+| 7    | 0x4549 | "IE" | **0x95B5**       |
+
+If the hash fails (tampered decryption), execution falls through to
+the error handler at +0x9F.
+
+### Error Handler (+0x9F onward)
+
+If the hash fails, the error handler:
+1. Disables the floppy motor via I/O port 0x03F2
+2. Checks ROM BIOS model ID byte at `FFFF:000E` for PC-AT class
+3. Hijacks the NMI vector (INT 2) to point into the stub itself
+4. Enters an infinite loop (`EB FE`)
+
+This is an anti-debugging/anti-tampering response — if the
+decryption produced wrong code, the machine silently hangs.
+
+**Note**: The MZ header at file offset 0xC8–0x1DF contains a second
+copy of this code (the plaintext used by `--patch-stub`). The header
+copy uses different absolute offsets because it's a position-shifted
+duplicate, but the logic is identical.
+
+### Parameter Decode Loop (+0xC6 onward)
+
+After the hash check succeeds, the code pops saved state and derives
+runtime parameters from the "EAT SHIT AND DIE" string words:
+
+```
++C6: POP [data]         ; original DS
++CA: POP [data]         ; original FLAGS
++CE: POP [data]         ; original AX
++D2: MOV SI, 0x000E     ; read pointer (8 words from the string)
++D5: MOV DI, 0x0003     ; write index
++D8: MOV AX, [BX+SI]    ; read word from "EAT SHIT..."
++DA: ROR AX, 1
++DC: XOR AL, AH
+    ... (ROR/XOR derivation loop)
++F1: JNS -0x1B          ; loop while SI >= 0
++F3: OR BYTE [data], 1  ; set bit 0 of first derived byte
+```
+
+This derives 8 bytes of LZEXE decompressor parameters from the
+"EAT SHIT AND DIE" string itself — the message IS the key material.
+
+### Decompressor + Relocation Fixer
+
+After parameter derivation, the code uses the derived values as
+segment offsets and counts for the LZEXE decompressor:
+
+- CX = 0xC360 (49,888) — decompression word count
+- Relocation fixup loop (LODSW/ADD/MOV ES/ADD ES:[BX])
+- REP STOSW to zero the stub area (self-destruction)
+- RETF to the decompressed game entry point
+
+The decompressor parameters come from three sources:
+1. Derived from "EAT SHIT AND DIE" (via the decode loop)
+2. Saved registers from the stack (pushed before encryption layers)
+3. Data area at high stub offsets (decrypted by XOR layers)
+
+Source 3 lives **beyond** the 280-byte plaintext in the MZ header and
+must come from running the actual XOR layers or extracting from a
+DOSBox-X memory capture.
+
+### Current Status of emu8086.py
+
+New CLI flags added: `--patch-stub`, `--dos-mem PATH`, `--verify PATH`.
+
+**`--patch-stub` approach**: Overlays the 280-byte plaintext from the
+MZ header at CS:0000 and patches the anti-tamper JZ to JMP. The
+anti-tamper check is bypassed, but the decompressor exits immediately
+because the XOR-decrypted data table beyond the plaintext region is
+unpopulated.
+
+**Next steps**:
+1. Extract missing data table values from the DOSBox-X capture
+   (`ecgame_640k.bin`) at the stub segment's physical addresses
+2. Or: run the XOR layers in the emulator first (with correct IVT),
+   then let the decompressor proceed naturally
+3. Or: just use the DOSBox-X 640K capture directly for analysis and
+   skip offline decompression entirely
+
 ## References
 
 - dosemu2 source: https://github.com/dosemu2/dosemu2

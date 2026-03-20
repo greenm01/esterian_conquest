@@ -5,6 +5,7 @@ Handles the 'eb ff' anti-disassembly trick correctly, which Unicorn cannot.
 Uses a full 1MB physical address space with proper segment:offset addressing.
 Supports multi-layer self-modifying stubs (XOR decryption, code rewriting).
 """
+import argparse
 import struct
 import sys
 from pathlib import Path
@@ -1145,19 +1146,99 @@ def load_exe(emu, exe_path, load_seg=0x1010):
     emu.sregs['ds'] = psp_seg
     emu.sregs['es'] = psp_seg
 
-    return mz
+    return mz, data
+
+
+def load_dos_memory(emu, dump_path, max_addr):
+    """Load DOS memory dump into emulator, up to max_addr."""
+    dos = Path(dump_path).read_bytes()
+    n = min(len(dos), max_addr)
+    emu.mem[:n] = dos[:n]
+    print(f"Loaded DOS memory: {len(dos)} bytes from {dump_path}, "
+          f"copied {n} bytes (up to 0x{max_addr:05x})")
+
+
+def patch_encrypted_stub(emu, exe_data, cs_seg):
+    """Replace encrypted stub with plaintext code from MZ header offset 0xC8.
+
+    The plaintext at file offset 0xC8-0x1DF contains:
+      CS:0000-001E  Anti-tamper hash check (XORs 8 words, expects 0x95B5)
+      CS:001F-0045  Error handler (prints msg, enters EB FE infinite loop)
+      CS:0046-00B3  Relocation fixer
+      CS:00B4-00DF  Memory zeroing + far return to decompressed entry
+      CS:00E0-0117  Data area with relocation tables
+
+    Since patching changes the stub bytes, the hash check will fail.
+    We patch the JZ at CS:001D (74 27) to JMP (EB 27) to skip the
+    error handler unconditionally.
+    """
+    plaintext = bytearray(exe_data[0xC8:0x1E0])
+    # Bypass anti-tamper: change JZ +0x27 at offset 0x1D to JMP +0x27
+    if plaintext[0x1D] == 0x74:
+        plaintext[0x1D] = 0xEB
+        print(f"Bypassed anti-tamper hash check (JZ -> JMP at CS:001D)")
+    base = cs_seg << 4
+    emu.mem[base:base + len(plaintext)] = plaintext
+    print(f"Patched {len(plaintext)} bytes of plaintext stub at "
+          f"{cs_seg:04x}:0000 (phys 0x{base:05x})")
+
+
+def verify_output(emu, ref_path, load_seg):
+    """Compare emulator memory against a reference dump in the program area."""
+    ref = Path(ref_path).read_bytes()
+    base = load_seg << 4
+    # Compare program area: from load_seg to end of reference or memory
+    end = min(len(ref), len(emu.mem))
+    mismatches = 0
+    first_diff = None
+    for i in range(base, end):
+        if emu.mem[i] != ref[i]:
+            mismatches += 1
+            if first_diff is None:
+                first_diff = i
+    if mismatches == 0:
+        print(f"Verification PASSED: program area matches {ref_path} "
+              f"({end - base} bytes from 0x{base:05x})")
+    else:
+        print(f"Verification: {mismatches} mismatched bytes in range "
+              f"0x{base:05x}-0x{end:05x}")
+        if first_diff is not None:
+            print(f"  First diff at phys 0x{first_diff:05x}: "
+                  f"emu=0x{emu.mem[first_diff]:02x} ref=0x{ref[first_diff]:02x}")
+            # Show a few more around the first diff
+            for off in range(first_diff, min(first_diff + 16, end)):
+                if emu.mem[off] != ref[off]:
+                    seg = off >> 4
+                    print(f"    0x{off:05x} ({seg:04x}:{off - (seg << 4):04x}): "
+                          f"emu=0x{emu.mem[off]:02x} ref=0x{ref[off]:02x}")
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("usage: emu8086.py <input.exe> [output.bin]")
-        return 1
+    parser = argparse.ArgumentParser(
+        description='8086 emulator for decrypting LZEXE-wrapped DOS executables')
+    parser.add_argument('input_exe', help='DOS MZ executable to load')
+    parser.add_argument('output', nargs='?', help='Memory dump output path')
+    parser.add_argument('--dos-mem', metavar='PATH',
+                        help='Load a DOS memory dump before loading the EXE')
+    parser.add_argument('--patch-stub', action='store_true',
+                        help='Replace encrypted stub with plaintext from MZ header')
+    parser.add_argument('--verify', metavar='PATH',
+                        help='Compare output against a reference memory dump')
+    parser.add_argument('--max-insns', type=int, default=50_000_000,
+                        help='Max instructions to execute (default: 50M)')
+    args = parser.parse_args()
 
-    exe_path = sys.argv[1]
-    out_path = sys.argv[2] if len(sys.argv) > 2 else None
+    exe_path = args.input_exe
+    out_path = args.output
 
     emu = Emu8086()
-    mz = load_exe(emu, exe_path)
+
+    # Load DOS memory first (IVT, DOS kernel, etc.) if provided
+    load_seg = 0x1010
+    if args.dos_mem:
+        load_dos_memory(emu, args.dos_mem, load_seg << 4)
+
+    mz, exe_data = load_exe(emu, exe_path)
 
     init_cs = emu.sregs['cs']
     init_ip = emu.ip
@@ -1168,10 +1249,13 @@ def main():
           f"SS:SP={emu.sregs['ss']:04x}:{emu.regs['sp']:04x}, "
           f"load_seg={load_seg:04x}")
 
+    if args.patch_stub:
+        patch_encrypted_stub(emu, exe_data, stub_seg)
+
     # Run until CS changes (stub jumps to real program) or we hit an INT 21h
     prev_cs = init_cs
     try:
-        while emu.insn_count < 50_000_000:
+        while emu.insn_count < args.max_insns:
             cs = emu.sregs['cs']
 
             # Detect when CS changes — stub jumped to real code
@@ -1213,6 +1297,9 @@ def main():
         if pos >= 0:
             print(f"Found '{sig.decode()}' at phys 0x{pos:05x} "
                   f"(load+0x{pos - (load_seg << 4):05x})")
+
+    if args.verify:
+        verify_output(emu, args.verify, load_seg)
 
     if out_path:
         Path(out_path).write_bytes(mem)
