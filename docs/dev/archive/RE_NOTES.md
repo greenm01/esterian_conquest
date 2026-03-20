@@ -10003,3 +10003,69 @@ Important conclusion:
 
 - the remaining regular-world scout-abort gate is **not** explained by the
   missing `TargetPrime`-style nonzero mid-record suffix alone
+
+The earlier visibility / owner-slot / stardock eliminations were then rerun
+from the corrected baseline to confirm they still hold on a valid pure-scout
+probe, not just on the drifted older `/tmp` directories:
+
+- `/tmp/ecgame-regular-corrected-visible`
+  - copied only the preloaded visible player-1 `Helios Prime` `DATABASE.DAT`
+    row from the older visibility probe into the corrected baseline
+- `/tmp/ecgame-regular-corrected-owner2`
+  - changed only `Helios Prime owner_empire_slot` from `#4 -> #2`
+- `/tmp/ecgame-regular-corrected-nostardock`
+  - zeroed only the classic stardock counts/kinds on `Helios Prime`
+
+Original `ECMAINT` on all three corrected-baseline controls still emitted the
+exact same scout-abort report for fleet `2`.
+
+Important conclusion:
+
+- the corrected pure-scout baseline reconfirms the earlier negative findings:
+  the remaining regular-world scout-abort gate is still **not** explained by
+  preloaded `DATABASE.DAT` visibility, simple owner-slot identity, or Helios
+  Prime's populated stardock bytes
+
+One later lead turned out to be mostly a report-routing trap, not a clean
+scout success:
+
+- `/tmp/ecgame-regular-playerstate`
+  - copied the successful homeworld-case `PLAYER.DAT` from
+    `/tmp/ecgame-classic-atrest-purescout-new/.oracle/before-ecmaint`
+    onto the corrected regular-world baseline
+  - original `ECMAINT` then left `RESULTS.DAT` empty
+  - but the player-1 `Helios Prime` `DATABASE.DAT` row still did **not**
+    refresh from `UNKNOWN`
+
+That was narrowed further with controlled slot-1 player-record patches:
+
+- `/tmp/ecgame-regular-slot1good`
+  - swapping only slot-1 `PLAYER.DAT` from the successful homeworld case was
+    enough to suppress the abort report
+- `/tmp/ecgame-regular-slot1-review38_3d`
+  - patching only slot-1 review-family bytes `raw[0x38]=1`, `raw[0x3c]=1`
+    also suppressed the abort report
+  - raw fleet `2` stayed byte-for-byte identical to the normal failing
+    corrected baseline after `ECMAINT`
+- `/tmp/ecgame-regular-slot1-byte0-00`
+  - patching only slot-1 `raw[0x00]` from `0x01 -> 0x00` also suppressed the
+    abort report
+  - raw fleet `2` again stayed byte-for-byte identical to the normal failing
+    corrected baseline after `ECMAINT`
+- `/tmp/ecgame-regular-slot1-byte0-02`
+  - patching only slot-1 `raw[0x00]` from `0x01 -> 0x02` likewise suppressed
+    the abort report with no raw fleet `2` change
+- `/tmp/ecgame-regular-slot1-byte0-ff`
+  - patching only slot-1 `raw[0x00]` from `0x01 -> 0xff` suppressed the abort
+    report too, but this one also perturbed the whole player-1 fleet block
+    (rogue-handling side effects), so it is not a clean scout-success proof
+
+Important conclusion:
+
+- empty `RESULTS.DAT` is **not** a sufficient success oracle for this scout
+  thread
+- slot-1 player/campaign state can suppress or reroute the abort report
+  independently of the underlying scout outcome
+- future comparisons must judge success by the target `DATABASE.DAT` row
+  refresh and/or raw fleet-state changes, not just by the presence or absence
+  of the abort text

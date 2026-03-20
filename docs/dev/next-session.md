@@ -458,31 +458,55 @@ remaining risks are:
     `/tmp/ecgame-regular-stats0` (`armies=0, GBs=0`), and
     `/tmp/ecgame-regular-suffix` (copied `TargetPrime` suffix bytes) still
     emitted the exact same scout-abort report in original `ECMAINT`.
-12. The on-disk packed `ECMAINT.EXE` is not a useful string anchor for the
+12. The corrected pure-scout baseline also reconfirms the older eliminations:
+    `/tmp/ecgame-regular-corrected-visible`,
+    `/tmp/ecgame-regular-corrected-owner2`, and
+    `/tmp/ecgame-regular-corrected-nostardock` still all emit the same
+    scout-abort report, so preloaded `DATABASE.DAT` visibility, simple
+    owner-slot identity, and Helios Prime's populated stardock bytes remain
+    ruled out on a valid clean probe.
+13. Do **not** treat an empty `RESULTS.DAT` as scout success on this thread.
+    Swapping the successful homeworld-case `PLAYER.DAT` onto the corrected
+    regular baseline (`/tmp/ecgame-regular-playerstate`) suppresses the abort
+    report, but the player-1 `Helios Prime` row still does not refresh from
+    `UNKNOWN`. More narrowly:
+    - patching only slot-1 `PLAYER.DAT raw[0x00]` from `0x01 -> 0x00` or
+      `0x01 -> 0x02` also suppresses the abort report while leaving fleet `2`
+      unchanged
+    - patching only slot-1 results-review bytes `raw[0x38]=1`, `raw[0x3c]=1`
+      also suppresses the abort report while leaving fleet `2` unchanged
+    - `0x01 -> 0xff` on slot-1 `raw[0x00]` suppresses the report too, but it
+      also perturbs the whole player-1 fleet block via rogue handling, so it
+      is not a clean scout-success proof either
+14. Practical implication for future scout probes: judge success by the target
+    `DATABASE.DAT` row refresh and/or raw fleet-state changes, not by whether
+    `RESULTS.DAT` is empty. The player-table thread is currently a
+    report-routing / campaign-state side effect, not the resolved scout gate.
+15. The on-disk packed `ECMAINT.EXE` is not a useful string anchor for the
     scout-abort path. Headless Ghidra on local project `ec-v15-local` found no
     matches for `Scouting mission report`, `Since we have lost`, or
     `abort our mission`; use the live dump path instead of the packed EXE stub.
-13. Use DOSBox-X `memory file` rather than the interactive debugger prompt for
+16. Use DOSBox-X `memory file` rather than the interactive debugger prompt for
     local scout-abort dump capture here. The reliable carve is:
     `guest_ram[0x8140 : 0x8140 + 0x97eb0] ->
     /tmp/ecmaint-scout-abort-psp.MEMDUMP.BIN`.
-14. Treat `0000:8a11` as the current upstream live anchor for this RE thread:
+17. Treat `0000:8a11` as the current upstream live anchor for this RE thread:
     `[0x3521] = 0x0b -> 5c18 -> 6817`,
     `[0x3521] = 0x0a -> 6c9d -> 6dda`,
     `[0x3521] = 0x0e -> 841a -> 8584`.
-15. Next RE should trace the call path into:
+18. Next RE should trace the call path into:
     `0000:0c7a/0x0ca4` for the `0x350d..0x351f` target-state tuple,
     `0000:f914..0xf9cf` for the `0x3534` counter family and `0x3521` reset,
     and then the later write sites that raise `0x3521` from `0` to the
     mission-kind values consumed by `8a11`.
-16. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
+19. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
    direct `.DAT` ownership back into the client/runtime.
-17. Keep the distinction explicit in docs/tests:
+20. Keep the distinction explicit in docs/tests:
    - `ECGAME`-accepted row shapes are not automatically original-`ECMAINT`
      emitted row shapes
    - the regular-world foreign scout family is still missing a clean oracle
      maint proof
-18. When classic tooling changes a directory, fold those edits back through
+21. When classic tooling changes a directory, fold those edits back through
     `db-import` before the next Rust maint/client step.
 
 ## Combat System Status
