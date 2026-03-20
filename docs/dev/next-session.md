@@ -381,17 +381,14 @@ remaining risks are:
   orbit-row family (`raw[0x15] in 0x01..0x04`)
 - keeping runtime/client code free of accidental classic-file side effects
 - implementation drift between canonical SQLite intel facts and classic export
-- **Unwrapped EXEs**: Two sets available in `tools/unlzexe/`:
-  - `*U.EXE` (memdump-extracted): Ghidra static analysis only. Carry
-    baked-in TP7 runtime state; cannot run under DOS.
-  - `*_CLEAN.EXE` (stream-cipher decrypted): **Runnable** under DOSBox-X.
-    Built by capturing decrypted body from DOSBox-X `memory file` and
-    prepending original MZ headers from stub+0x1B5. ECMAINT_CLEAN oracle
-    test: 3/6 DAT files byte-identical, others differ by 7-51 bytes due
-    to TP7 runtime-initialized bytes in the memory capture. The "LZEXE
-    compression" is actually a PRNG-based stream cipher, not LZ — see
-    `docs/dev/dosemu2-vm86-findings.md` and
-    `tools/capture_decrypted_body.py` for details.
+- **Unwrapped EXEs**: Two sets available:
+  - `tools/unlzexe/*U.EXE` (memdump-extracted): Ghidra static analysis
+    only. Carry baked-in TP7 runtime state; cannot run under DOS.
+  - `tools/EC_UNLOCKED/` (stream-cipher decrypted): **Runnable** under
+    DOSBox-X with **100% oracle match**. Named with original filenames
+    (`ECMAINT.EXE` etc.) because DOS includes the filename in the
+    environment block, which shifts the load segment and affects TP7
+    fixups. See `tools/EC_UNLOCKED/README.md` for details.
 
 ## Immediate Next Steps
 
