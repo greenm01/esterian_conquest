@@ -384,11 +384,11 @@ remaining risks are:
 - **Unwrapped EXEs**: Two sets available:
   - `tools/unlzexe/*U.EXE` (memdump-extracted): Ghidra static analysis
     only. Carry baked-in TP7 runtime state; cannot run under DOS.
-  - `tools/EC_UNLOCKED/` (stream-cipher decrypted): **Runnable** under
+  - `EC_UNLOCKED/` (stream-cipher decrypted): **Runnable** under
     DOSBox-X with **100% oracle match**. Named with original filenames
     (`ECMAINT.EXE` etc.) because DOS includes the filename in the
     environment block, which shifts the load segment and affects TP7
-    fixups. See `tools/EC_UNLOCKED/README.md` for details.
+    fixups. See `EC_UNLOCKED/README.md` for details.
 
 ## Immediate Next Steps
 
@@ -439,35 +439,50 @@ remaining risks are:
    - current compat policy should therefore refresh stale scout `0x1d`, and
      keep treating `0x1e..0x1f` as a row-family-specific compat word until a
      tighter oracle rule exists
-9. Treat the remaining regular-world scout-abort gate as **not** explained by:
-   pre-existing `DATABASE.DAT` visibility state, simple target owner-slot
-   identity (`#4` vs `#2`), or Helios Prime's populated stardock bytes. Those
-   probes all preserved the exact same abort report in original `ECMAINT`.
-10. The on-disk packed `ECMAINT.EXE` is not a useful string anchor for the
+9. Do not trust the current on-disk `/tmp/ecgame-fail-regular-*-fresh`
+   directories as live scout baselines. The archived notebook recipe was
+   rechecked against `FLEETS.DAT`, and those names no longer match the
+   documented pure-single-scout / moved-player1 / frozen-hostiles state.
+   Rebuild from `/tmp/ecgame-regular-preprobe` when you need a fresh regular
+   scout control.
+10. The corrected rebuilt baseline is now `/tmp/ecgame-regular-purescout-clean`:
+    fleet `2` is the pure single-scout at-rest shape from the notes, player-1
+    fleets `1/3/4` are moved to hold at `(5,1)`, `(5,3)`, `(4,2)`, and all
+    non-player1 fleets are frozen to hold in place. Original `ECMAINT` still
+    emits the same scout-abort report there, so the regular-world gate is
+    still real after correcting the fleet pre-state.
+11. Treat the remaining regular-world scout-abort gate as **not** explained by
+    Helios Prime's armies / ground batteries alone, or by its missing
+    `TargetPrime`-style nonzero `raw[0x1d..0x23]` suffix. Follow-up
+    corrected-baseline controls at `/tmp/ecgame-regular-batt0` (`GBs=0`),
+    `/tmp/ecgame-regular-stats0` (`armies=0, GBs=0`), and
+    `/tmp/ecgame-regular-suffix` (copied `TargetPrime` suffix bytes) still
+    emitted the exact same scout-abort report in original `ECMAINT`.
+12. The on-disk packed `ECMAINT.EXE` is not a useful string anchor for the
     scout-abort path. Headless Ghidra on local project `ec-v15-local` found no
     matches for `Scouting mission report`, `Since we have lost`, or
     `abort our mission`; use the live dump path instead of the packed EXE stub.
-11. Use DOSBox-X `memory file` rather than the interactive debugger prompt for
+13. Use DOSBox-X `memory file` rather than the interactive debugger prompt for
     local scout-abort dump capture here. The reliable carve is:
     `guest_ram[0x8140 : 0x8140 + 0x97eb0] ->
     /tmp/ecmaint-scout-abort-psp.MEMDUMP.BIN`.
-12. Treat `0000:8a11` as the current upstream live anchor for this RE thread:
+14. Treat `0000:8a11` as the current upstream live anchor for this RE thread:
     `[0x3521] = 0x0b -> 5c18 -> 6817`,
     `[0x3521] = 0x0a -> 6c9d -> 6dda`,
     `[0x3521] = 0x0e -> 841a -> 8584`.
-13. Next RE should trace the call path into:
+15. Next RE should trace the call path into:
     `0000:0c7a/0x0ca4` for the `0x350d..0x351f` target-state tuple,
     `0000:f914..0xf9cf` for the `0x3534` counter family and `0x3521` reset,
     and then the later write sites that raise `0x3521` from `0` to the
     mission-kind values consumed by `8a11`.
-14. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
+16. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
    direct `.DAT` ownership back into the client/runtime.
-15. Keep the distinction explicit in docs/tests:
+17. Keep the distinction explicit in docs/tests:
    - `ECGAME`-accepted row shapes are not automatically original-`ECMAINT`
      emitted row shapes
    - the regular-world foreign scout family is still missing a clean oracle
      maint proof
-16. When classic tooling changes a directory, fold those edits back through
+18. When classic tooling changes a directory, fold those edits back through
     `db-import` before the next Rust maint/client step.
 
 ## Combat System Status

@@ -9937,3 +9937,69 @@ Scout-thread follow-up from the same live image:
   - the regular-world scout mission-kind values later consumed at `0000:8a11`
     are probably arriving via an indirect load, copied table value, or a later
     segment write rather than a trivial absolute immediate setter
+
+### Corrected regular-world scout baseline still aborts, and zeroing Helios defenses does not fix it
+
+While rebuilding the regular-world scout thread, the current `/tmp`
+`ecgame-fail-regular-*-fresh` directories were checked against the archived
+notes and found to have drifted: the live `FLEETS.DAT` files on disk no longer
+matched the documented pure-single-scout / moved-player1 / frozen-hostiles
+recipe. The archived conclusions from those names should therefore not be
+trusted from the current on-disk directories alone.
+
+A fresh corrected baseline was rebuilt directly from `/tmp/ecgame-regular-preprobe`
+at:
+
+- `/tmp/ecgame-regular-purescout-clean`
+
+Corrected fleet state in that directory:
+
+- fleet `2` rewritten to the documented pure single-scout shape:
+  - current location `(10,2)`
+  - `max_speed=6`, `current_speed=3`
+  - tuples `80 00 00 00 00`, `80 00 00 00 00`, `81 00 00 00 00`
+  - order `Scout Solar System (11)` targeting `(9,2)` with aux `(1,0)`
+- player-1 fleets `1`, `3`, and `4` moved to hold at:
+  - `(5,1)`, `(5,3)`, `(4,2)`
+- all non-player1 fleets rewritten to hold in place with at-rest tuples
+
+Original `ECMAINT` was rerun on that corrected baseline:
+
+- `python3 tools/ecmaint_oracle.py run /tmp/ecgame-regular-purescout-clean`
+- result:
+  - `RESULTS.DAT` again emitted:
+    - `Scouting mission report: Since we have lost all of our scouts, we must abort our mission of scouting System(9,2).`
+
+Important conclusion:
+
+- the regular-world scout-abort gate is still real after correcting the fleet
+  pre-state; it is not explained only by the stale mixed-fleet probe currently
+  sitting at `/tmp/ecgame-fail-regular-speed3-fresh`
+
+Two follow-up defense-strip controls were then run from the corrected baseline:
+
+- `/tmp/ecgame-regular-batt0`
+  - patched only `Helios Prime` ground batteries from `6 -> 0`
+- `/tmp/ecgame-regular-stats0`
+  - patched both `Helios Prime` armies and ground batteries from `10/6 -> 0/0`
+
+Original `ECMAINT` on both controls still emitted the exact same scout-abort
+report for fleet `2`.
+
+Important conclusion:
+
+- the remaining regular-world scout-abort gate is **not** explained by
+  `Helios Prime`'s armies / ground batteries alone
+
+One more narrow record-family control was run from the same corrected baseline:
+
+- `/tmp/ecgame-regular-suffix`
+  - patched only `Helios Prime raw[0x1d..0x23]` from zeroes to the nonzero
+    `TargetPrime` owned-world suffix `[05, 1d, 0b, 11, 25, 1c, 05]`
+
+Original `ECMAINT` still emitted the exact same scout-abort report.
+
+Important conclusion:
+
+- the remaining regular-world scout-abort gate is **not** explained by the
+  missing `TargetPrime`-style nonzero mid-record suffix alone

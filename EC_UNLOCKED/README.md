@@ -2,6 +2,10 @@
 
 Decrypted, runnable copies of the Esterian Conquest v1.5 DOS executables.
 
+This directory now lives at the project root so docs and RE workflows can
+reference the unlocked binaries with short stable paths such as
+`EC_UNLOCKED/ECMAINT.EXE`.
+
 ## What are these?
 
 The shipped `ECGAME.EXE`, `ECMAINT.EXE`, and `ECUTIL.EXE` in
