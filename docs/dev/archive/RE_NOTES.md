@@ -9611,3 +9611,33 @@ Open point:
 - the locally packaged `dosemu` path remains unreliable enough that this note
   should be treated as a harness correction plus ownership clarification, not
   yet a proven fix of the visible runtime-error path
+
+Static crash-window follow-up from the DOSBox-X live dump:
+
+- the runtime error address `1958:76DE` canonicalizes to the same linear code
+  location as `20C5:000E` in the decompressed image
+- disassembly from `tools/unlzexe/ecgame_640k.bin` around physical
+  `0x28da0..0x291a0` is saved in
+  `artifacts/ghidra/ecgame-planet-crash/ndisasm-spaceforces-window.txt`
+- that window is not in the later `Building:` / `Docked:` emitters
+- it sits inside the earlier `Space Forces:` formatter loop:
+  - iterates a fixed `1..8` category table
+  - formats count + label pairs
+  - special-cases category `6` for pluralization before the loop continues
+- the corrected probe at `/tmp/ec-classic-probe-verify` now shows all four
+  player-1 owned worlds with:
+  - `raw[0x03] = 0x87`
+  - no fleets on the same coordinates
+  - no starbases at all (`BASES.DAT` empty)
+- that owned-world snapshot is saved in
+  `artifacts/ghidra/ecgame-planet-crash/owned-world-orbit-summary.txt`
+
+Practical interpretation:
+
+- if the classic `P -> D` crash still reproduces on the corrected probe, the
+  remaining cause is no longer the earlier simple `Aurora Prime` overlap case
+  of "docked ships plus orbiting fleet on the same owned world"
+- the next useful manual check should answer the now much narrower question:
+  - did the corrected probe actually clear the crash
+  - or is there a deeper `Space Forces:` report-state bug still reachable even
+    when all owned worlds have empty orbit

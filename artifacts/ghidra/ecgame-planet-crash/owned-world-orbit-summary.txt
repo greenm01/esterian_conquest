@@ -1,0 +1,8 @@
+planet 01 Foundation (5,2) raw03=87 stored=200 armies=10 gb=4
+  fleets: none
+planet 16 Aurora Prime (9,4) raw03=87 stored=288 armies=12 gb=6
+  fleets: none
+planet 17 Relay (9,14) raw03=87 stored=182 armies=5 gb=3
+  fleets: none
+planet 19 Outrider (13,9) raw03=87 stored=161 armies=3 gb=2
+  fleets: none

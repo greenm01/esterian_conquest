@@ -231,6 +231,14 @@ Recent validation baseline:
     it now moves to empty sector `(5,4)` so the crash probe does not pile an
     orbiting fleet onto the same owned world already carrying docked ships
     while the owned-world space-force formatter is still under triage
+  - live-dump disassembly now narrows the crash site itself: the
+    `1958:76DE` runtime error aliases to the earlier `Space Forces:` formatter
+    loop, not the later `Building:` / `Docked:` emitters
+  - corrected-probe raw inspection on `/tmp/ec-classic-probe-verify` shows all
+    four player-1 owned worlds have `raw[0x03]=0x87`, no fleets on their
+    coordinates, and no starbases at all, so the old simple
+    `Aurora Prime` overlap theory is no longer sufficient if the crash still
+    reproduces
   - the separate planet-command-menu detail path still hits the known
     `Runtime error 201 at 1958:76DE` crash, but the next manual recheck should
     use the patched probe harness first because the old sparse extra-colony

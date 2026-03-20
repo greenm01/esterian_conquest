@@ -1,0 +1,365 @@
+00028DA0  0494              add al,0x94
+00028DA2  42                inc dx
+00028DA3  50                push ax
+00028DA4  BFFF6B            mov di,0x6bff
+00028DA7  0E                push cs
+00028DA8  57                push di
+00028DA9  9AF1055E41        call word 0x415e:word 0x5f1
+00028DAE  9A0A0C9442        call word 0x4294:word 0xc0a
+00028DB3  9AED10733E        call word 0x3e73:word 0x10ed
+00028DB8  EB10              jmp 0x8dca
+00028DBA  8DBE40FC          lea di,[bp-0x3c0]
+00028DBE  16                push ss
+00028DBF  57                push di
+00028DC0  9A9D024940        call word 0x4049:word 0x29d
+00028DC5  9A4610733E        call word 0x3e73:word 0x1046
+00028DCA  EB10              jmp 0x8ddc
+00028DCC  8DBE40FC          lea di,[bp-0x3c0]
+00028DD0  16                push ss
+00028DD1  57                push di
+00028DD2  9A9D024940        call word 0x4049:word 0x29d
+00028DD7  9A4610733E        call word 0x3e73:word 0x1046
+00028DDC  8DBE40FC          lea di,[bp-0x3c0]
+00028DE0  16                push ss
+00028DE1  57                push di
+00028DE2  9A9D024940        call word 0x4049:word 0x29d
+00028DE7  9A4610733E        call word 0x3e73:word 0x1046
+00028DEC  C68677FD00        mov byte [bp-0x289],0x0
+00028DF1  C68676FD00        mov byte [bp-0x28a],0x0
+00028DF6  C746FE0100        mov word [bp-0x2],0x1
+00028DFB  EB03              jmp 0x8e00
+00028DFD  FF46FE            inc word [bp-0x2]
+00028E00  8B46FE            mov ax,[bp-0x2]
+00028E03  99                cwd
+00028E04  BF176C            mov di,0x6c17
+00028E07  9AB7049442        call word 0x4294:word 0x4b7
+00028E0C  D1E0              shl ax,0x0
+00028E0E  D1E0              shl ax,0x0
+00028E10  C4BE40FD          les di,word [bp-0x2c0]
+00028E14  03F8              add di,ax
+00028E16  26837D3600        cmp word [es:di+0x36],0x0
+00028E1B  7F0F              jg 0x8e2c
+00028E1D  7D03              jnl 0x8e22
+00028E1F  E93901            jmp 0x8f5b
+00028E22  26837D3400        cmp word [es:di+0x34],0x0
+00028E27  7703              ja 0x8e2c
+00028E29  E92F01            jmp 0x8f5b
+00028E2C  FE8677FD          inc byte [bp-0x289]
+00028E30  8DBE40FB          lea di,[bp-0x4c0]
+00028E34  16                push ss
+00028E35  57                push di
+00028E36  8DBE40FC          lea di,[bp-0x3c0]
+00028E3A  16                push ss
+00028E3B  57                push di
+00028E3C  8B46FE            mov ax,[bp-0x2]
+00028E3F  99                cwd
+00028E40  BF176C            mov di,0x6c17
+00028E43  9AB7049442        call word 0x4294:word 0x4b7
+00028E48  D1E0              shl ax,0x0
+00028E4A  D1E0              shl ax,0x0
+00028E4C  C4BE40FD          les di,word [bp-0x2c0]
+00028E50  03F8              add di,ax
+00028E52  26FF7536          push word [es:di+0x36]
+00028E56  26FF7534          push word [es:di+0x34]
+00028E5A  9A88095E41        call word 0x415e:word 0x988
+00028E5F  B80400            mov ax,0x4
+00028E62  50                push ax
+00028E63  9AF5085E41        call word 0x415e:word 0x8f5
+00028E68  BF276C            mov di,0x6c27
+00028E6B  0E                push cs
+00028E6C  57                push di
+00028E6D  9A0A0C9442        call word 0x4294:word 0xc0a
+00028E72  8DBE40FA          lea di,[bp-0x5c0]
+00028E76  16                push ss
+00028E77  57                push di
+00028E78  8B46FE            mov ax,[bp-0x2]
+00028E7B  99                cwd
+00028E7C  BF176C            mov di,0x6c17
+00028E7F  9AB7049442        call word 0x4294:word 0x4b7
+00028E84  D1E0              shl ax,0x0
+00028E86  D1E0              shl ax,0x0
+00028E88  C4BE40FD          les di,word [bp-0x2c0]
+00028E8C  03F8              add di,ax
+00028E8E  268B4534          mov ax,[es:di+0x34]
+00028E92  268B5536          mov dx,[es:di+0x36]
+00028E96  BFB56B            mov di,0x6bb5
+00028E99  9AB7049442        call word 0x4294:word 0x4b7
+00028E9E  50                push ax
+00028E9F  8B46FE            mov ax,[bp-0x2]
+00028EA2  99                cwd
+00028EA3  BF596B            mov di,0x6b59
+00028EA6  9AB7049442        call word 0x4294:word 0x4b7
+00028EAB  BA2A00            mov dx,0x2a
+00028EAE  F7E2              mul dx
+00028EB0  8BF8              mov di,ax
+00028EB2  81C7CA31          add di,0x31ca
+00028EB6  1E                push ds
+00028EB7  57                push di
+00028EB8  9AF1055E41        call word 0x415e:word 0x5f1
+00028EBD  9A0A0C9442        call word 0x4294:word 0xc0a
+00028EC2  8A8677FD          mov al,[bp-0x289]
+00028EC6  30E4              xor ah,ah
+00028EC8  31D2              xor dx,dx
+00028ECA  BF1F6C            mov di,0x6c1f
+00028ECD  9AB7049442        call word 0x4294:word 0x4b7
+00028ED2  BA1F00            mov dx,0x1f
+00028ED5  F7E2              mul dx
+00028ED7  8BF8              mov di,ax
+00028ED9  8DBBF3FE          lea di,[bp+di-0x10d]
+00028EDD  16                push ss
+00028EDE  57                push di
+00028EDF  B81E00            mov ax,0x1e
+00028EE2  50                push ax
+00028EE3  9A970B9442        call word 0x4294:word 0xb97
+00028EE8  837EFE06          cmp word [bp-0x2],0x6
+00028EEC  756D              jnz 0x8f5b
+00028EEE  8B46FE            mov ax,[bp-0x2]
+00028EF1  99                cwd
+00028EF2  BF176C            mov di,0x6c17
+00028EF5  9AB7049442        call word 0x4294:word 0x4b7
+00028EFA  D1E0              shl ax,0x0
+00028EFC  D1E0              shl ax,0x0
+00028EFE  C4BE40FD          les di,word [bp-0x2c0]
+00028F02  03F8              add di,ax
+00028F04  26837D3600        cmp word [es:di+0x36],0x0
+00028F09  7F09              jg 0x8f14
+00028F0B  7C4E              jl 0x8f5b
+00028F0D  26837D3401        cmp word [es:di+0x34],0x1
+00028F12  7647              jna 0x8f5b
+00028F14  8A8677FD          mov al,[bp-0x289]
+00028F18  30E4              xor ah,ah
+00028F1A  31D2              xor dx,dx
+00028F1C  BF1F6C            mov di,0x6c1f
+00028F1F  9AB7049442        call word 0x4294:word 0x4b7
+00028F24  BA1F00            mov dx,0x1f
+00028F27  F7E2              mul dx
+00028F29  8BF8              mov di,ax
+00028F2B  8A83F3FE          mov al,[bp+di-0x10d]
+00028F2F  30E4              xor ah,ah
+00028F31  31D2              xor dx,dx
+00028F33  BF296C            mov di,0x6c29
+00028F36  9AB7049442        call word 0x4294:word 0x4b7
+00028F3B  8BC8              mov cx,ax
+00028F3D  8A8677FD          mov al,[bp-0x289]
+00028F41  30E4              xor ah,ah
+00028F43  31D2              xor dx,dx
+00028F45  BF1F6C            mov di,0x6c1f
+00028F48  9AB7049442        call word 0x4294:word 0x4b7
+00028F4D  BA1F00            mov dx,0x1f
+00028F50  F7E2              mul dx
+00028F52  8BF8              mov di,ax
+00028F54  03F9              add di,cx
+00028F56  C683F3FE73        mov byte [bp+di-0x10d],0x73
+00028F5B  837EFE08          cmp word [bp-0x2],0x8
+00028F5F  7403              jz 0x8f64
+00028F61  E999FE            jmp 0x8dfd
+00028F64  C746FE0100        mov word [bp-0x2],0x1
+00028F69  EB03              jmp 0x8f6e
+00028F6B  FF46FE            inc word [bp-0x2]
+00028F6E  8B46FE            mov ax,[bp-0x2]
+00028F71  99                cwd
+00028F72  BF596B            mov di,0x6b59
+00028F75  9AB7049442        call word 0x4294:word 0x4b7
+00028F7A  D1E0              shl ax,0x0
+00028F7C  C4BE40FD          les di,word [bp-0x2c0]
+00028F80  03F8              add di,ax
+00028F82  26837D2200        cmp word [es:di+0x22],0x0
+00028F87  7703              ja 0x8f8c
+00028F89  E91E01            jmp 0x90aa
+00028F8C  FE8676FD          inc byte [bp-0x28a]
+00028F90  8DBE40FB          lea di,[bp-0x4c0]
+00028F94  16                push ss
+00028F95  57                push di
+00028F96  8DBE40FC          lea di,[bp-0x3c0]
+00028F9A  16                push ss
+00028F9B  57                push di
+00028F9C  8B46FE            mov ax,[bp-0x2]
+00028F9F  99                cwd
+00028FA0  BF596B            mov di,0x6b59
+00028FA3  9AB7049442        call word 0x4294:word 0x4b7
+00028FA8  D1E0              shl ax,0x0
+00028FAA  C4BE40FD          les di,word [bp-0x2c0]
+00028FAE  03F8              add di,ax
+00028FB0  268B4522          mov ax,[es:di+0x22]
+00028FB4  31D2              xor dx,dx
+00028FB6  52                push dx
+00028FB7  50                push ax
+00028FB8  9A88095E41        call word 0x415e:word 0x988
+00028FBD  B80400            mov ax,0x4
+00028FC0  50                push ax
+00028FC1  9AF5085E41        call word 0x415e:word 0x8f5
+00028FC6  BF276C            mov di,0x6c27
+00028FC9  0E                push cs
+00028FCA  57                push di
+00028FCB  9A0A0C9442        call word 0x4294:word 0xc0a
+00028FD0  8DBE40FA          lea di,[bp-0x5c0]
+00028FD4  16                push ss
+00028FD5  57                push di
+00028FD6  8B46FE            mov ax,[bp-0x2]
+00028FD9  99                cwd
+00028FDA  BF596B            mov di,0x6b59
+00028FDD  9AB7049442        call word 0x4294:word 0x4b7
+00028FE2  D1E0              shl ax,0x0
+00028FE4  C4BE40FD          les di,word [bp-0x2c0]
+00028FE8  03F8              add di,ax
+00028FEA  268B4522          mov ax,[es:di+0x22]
+00028FEE  31D2              xor dx,dx
+00028FF0  BFB56B            mov di,0x6bb5
+00028FF3  9AB7049442        call word 0x4294:word 0x4b7
+00028FF8  50                push ax
+00028FF9  8B46FE            mov ax,[bp-0x2]
+00028FFC  99                cwd
+00028FFD  BF596B            mov di,0x6b59
+00029000  9AB7049442        call word 0x4294:word 0x4b7
+00029005  BA2A00            mov dx,0x2a
+00029008  F7E2              mul dx
+0002900A  8BF8              mov di,ax
+0002900C  81C7CA31          add di,0x31ca
+00029010  1E                push ds
+00029011  57                push di
+00029012  9AF1055E41        call word 0x415e:word 0x5f1
+00029017  9A0A0C9442        call word 0x4294:word 0xc0a
+0002901C  8A8676FD          mov al,[bp-0x28a]
+00029020  30E4              xor ah,ah
+00029022  31D2              xor dx,dx
+00029024  BF596B            mov di,0x6b59
+00029027  9AB7049442        call word 0x4294:word 0x4b7
+0002902C  BA2900            mov dx,0x29
+0002902F  F7E2              mul dx
+00029031  8BF8              mov di,ax
+00029033  8DBB4FFD          lea di,[bp+di-0x2b1]
+00029037  16                push ss
+00029038  57                push di
+00029039  B82800            mov ax,0x28
+0002903C  50                push ax
+0002903D  9A970B9442        call word 0x4294:word 0xb97
+00029042  837EFE06          cmp word [bp-0x2],0x6
+00029046  7562              jnz 0x90aa
+00029048  8B46FE            mov ax,[bp-0x2]
+0002904B  99                cwd
+0002904C  BF596B            mov di,0x6b59
+0002904F  9AB7049442        call word 0x4294:word 0x4b7
+00029054  D1E0              shl ax,0x0
+00029056  C4BE40FD          les di,word [bp-0x2c0]
+0002905A  03F8              add di,ax
+0002905C  26837D2201        cmp word [es:di+0x22],0x1
+00029061  7647              jna 0x90aa
+00029063  8A8676FD          mov al,[bp-0x28a]
+00029067  30E4              xor ah,ah
+00029069  31D2              xor dx,dx
+0002906B  BF596B            mov di,0x6b59
+0002906E  9AB7049442        call word 0x4294:word 0x4b7
+00029073  BA2900            mov dx,0x29
+00029076  F7E2              mul dx
+00029078  8BF8              mov di,ax
+0002907A  8A834FFD          mov al,[bp+di-0x2b1]
+0002907E  30E4              xor ah,ah
+00029080  31D2              xor dx,dx
+00029082  BF316C            mov di,0x6c31
+00029085  9AB7049442        call word 0x4294:word 0x4b7
+0002908A  8BC8              mov cx,ax
+0002908C  8A8676FD          mov al,[bp-0x28a]
+00029090  30E4              xor ah,ah
+00029092  31D2              xor dx,dx
+00029094  BF596B            mov di,0x6b59
+00029097  9AB7049442        call word 0x4294:word 0x4b7
+0002909C  BA2900            mov dx,0x29
+0002909F  F7E2              mul dx
+000290A1  8BF8              mov di,ax
+000290A3  03F9              add di,cx
+000290A5  C6834FFD73        mov byte [bp+di-0x2b1],0x73
+000290AA  837EFE0A          cmp word [bp-0x2],0xa
+000290AE  7403              jz 0x90b3
+000290B0  E9B8FE            jmp 0x8f6b
+000290B3  80BE76FD00        cmp byte [bp-0x28a],0x0
+000290B8  7514              jnz 0x90ce
+000290BA  BF396C            mov di,0x6c39
+000290BD  0E                push cs
+000290BE  57                push di
+000290BF  8DBE78FD          lea di,[bp-0x288]
+000290C3  16                push ss
+000290C4  57                push di
+000290C5  B82800            mov ax,0x28
+000290C8  50                push ax
+000290C9  9A970B9442        call word 0x4294:word 0xb97
+000290CE  80BE77FD00        cmp byte [bp-0x289],0x0
+000290D3  7514              jnz 0x90e9
+000290D5  BF446C            mov di,0x6c44
+000290D8  0E                push cs
+000290D9  57                push di
+000290DA  8DBE12FF          lea di,[bp-0xee]
+000290DE  16                push ss
+000290DF  57                push di
+000290E0  B81E00            mov ax,0x1e
+000290E3  50                push ax
+000290E4  9A970B9442        call word 0x4294:word 0xb97
+000290E9  8DBE40FB          lea di,[bp-0x4c0]
+000290ED  16                push ss
+000290EE  57                push di
+000290EF  BF506C            mov di,0x6c50
+000290F2  0E                push cs
+000290F3  57                push di
+000290F4  9A7D0B9442        call word 0x4294:word 0xb7d
+000290F9  8DBE40FC          lea di,[bp-0x3c0]
+000290FD  16                push ss
+000290FE  57                push di
+000290FF  8DBE78FD          lea di,[bp-0x288]
+00029103  16                push ss
+00029104  57                push di
+00029105  B81900            mov ax,0x19
+00029108  50                push ax
+00029109  9A60085E41        call word 0x415e:word 0x860
+0002910E  9A0A0C9442        call word 0x4294:word 0xc0a
+00029113  BF616C            mov di,0x6c61
+00029116  0E                push cs
+00029117  57                push di
+00029118  9A0A0C9442        call word 0x4294:word 0xc0a
+0002911D  8DBE12FF          lea di,[bp-0xee]
+00029121  16                push ss
+00029122  57                push di
+00029123  9A0A0C9442        call word 0x4294:word 0xc0a
+00029128  9AED10733E        call word 0x3e73:word 0x10ed
+0002912D  8A8676FD          mov al,[bp-0x28a]
+00029131  3A8677FD          cmp al,[bp-0x289]
+00029135  760B              jna 0x9142
+00029137  8A8676FD          mov al,[bp-0x28a]
+0002913B  30E4              xor ah,ah
+0002913D  8946FA            mov [bp-0x6],ax
+00029140  EB09              jmp 0x914b
+00029142  8A8677FD          mov al,[bp-0x289]
+00029146  30E4              xor ah,ah
+00029148  8946FA            mov [bp-0x6],ax
+0002914B  8B46FA            mov ax,[bp-0x6]
+0002914E  89863EFD          mov [bp-0x2c2],ax
+00029152  B80200            mov ax,0x2
+00029155  3B863EFD          cmp ax,[bp-0x2c2]
+00029159  7E03              jng 0x915e
+0002915B  E9AC00            jmp 0x920a
+0002915E  8946FC            mov [bp-0x4],ax
+00029161  EB03              jmp 0x9166
+00029163  FF46FC            inc word [bp-0x4]
+00029166  BF066C            mov di,0x6c06
+00029169  0E                push cs
+0002916A  57                push di
+0002916B  9AE20F733E        call word 0x3e73:word 0xfe2
+00029170  8A8676FD          mov al,[bp-0x28a]
+00029174  30E4              xor ah,ah
+00029176  3B46FC            cmp ax,[bp-0x4]
+00029179  7C2F              jl 0x91aa
+0002917B  8DBE3EFC          lea di,[bp-0x3c2]
+0002917F  16                push ss
+00029180  57                push di
+00029181  8B46FC            mov ax,[bp-0x4]
+00029184  99                cwd
+00029185  BF596B            mov di,0x6b59
+00029188  9AB7049442        call word 0x4294:word 0x4b7
+0002918D  BA2900            mov dx,0x29
+00029190  F7E2              mul dx
+00029192  8BF8              mov di,ax
+00029194  8DBB4FFD          lea di,[bp+di-0x2b1]
+00029198  16                push ss
+00029199  57                push di
+0002919A  B82900            mov ax,0x29
+0002919D  50                push ax
+0002919E  9A                db 0x9a
+0002919F  60                pusha
