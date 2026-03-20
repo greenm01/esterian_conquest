@@ -9765,3 +9765,44 @@ Practical next step:
     the crash depends on the mixed scout+destroyer slot family
   - if only the original `busy` payload crashes, the extra destroyer count
     (`slot 1 count = 2`) is the remaining differentiator
+
+Manual oracle outcome from the second split:
+
+- `/tmp/ec-classic-probe-single-scout`: `P -> D` does **not** crash
+- `/tmp/ec-classic-probe-two-dd-slots`: `P -> D` **does** crash
+- `/tmp/ec-classic-probe-mixed-light`: `P -> D` **does** crash
+
+Interpretation:
+
+- scout kind `4` alone is not the trigger
+- both remaining crashing probes share a nonzero second stardock slot
+- the strongest current candidates are therefore:
+  - slot `1` occupancy itself
+  - any multi-slot occupied dock payload
+- the original busy payload's destroyer count `2` is no longer required for
+  the crash
+
+Follow-up probe split for slot-index vs multi-slot occupancy:
+
+- `scripts/setup_classic_probe_game.py` now also accepts:
+  - `single-dd-count2`
+  - `single-dd-slot1`
+- verified outputs:
+  - `/tmp/ec-classic-probe-single-dd-count2`
+    - `Aurora Prime raw[0x38..0x4d] = 02 00 00 00 ... 01 00`
+  - `/tmp/ec-classic-probe-single-dd-slot1`
+    - `Aurora Prime raw[0x38..0x4d] = 00 00 01 00 ... 00 01`
+- both still pass `inspect-classic-login`, and both still keep
+  `raw[0x03] = 0x87` plus `word [0x22..0x23] = 0`
+
+Practical next step:
+
+- manual oracle check should now compare:
+  - `tools/run_ecgame.sh /tmp/ec-classic-probe-single-dd-count2 1 SYSOP`
+  - `tools/run_ecgame.sh /tmp/ec-classic-probe-single-dd-slot1 1 SYSOP`
+- interpretation:
+  - if `single-dd-slot1` crashes, slot `1` occupancy alone is enough
+  - if `single-dd-slot1` is safe but `single-dd-count2` crashes, the trigger is
+    not slot index but a single-slot count/formatting bug
+  - if both are safe, the remaining trigger is specifically multi-slot
+    occupancy rather than a single second-slot item
