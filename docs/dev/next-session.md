@@ -250,19 +250,27 @@ Recent validation baseline:
     while classic login state still stays correct
   - the same harness now exposes an explicit Aurora Prime stardock bisect:
     `--aurora-stardock {busy,empty,single-dd}`
+  - the same harness now also supports
+    `--probe-dock-host {aurora,foundation}` so the exact same owned-world dock
+    payload can be moved onto `Foundation` without changing the rest of the
+    probe baseline
   - verified variants:
     - `/tmp/ec-classic-probe-word22` = busy reference (scout + two destroyers)
     - `/tmp/ec-classic-probe-aurora-empty` = empty Aurora dock
     - `/tmp/ec-classic-probe-aurora-single` = one destroyer in slot `0`
-  - all three variants keep slot 1 as a valid `returning-player`, so the next
-    manual `P -> D` check can isolate Aurora's docked-ship payload without
-    reintroducing the earlier login/ownership regressions
+    - `/tmp/ec-classic-probe-foundation-busy` = same busy payload moved to
+      `Foundation` while `Aurora Prime` stays empty
+  - all four variants keep slot 1 as a valid `returning-player`, so the next
+    manual `P -> D` check can isolate whether the crash follows Aurora itself
+    or simply follows the busy owned-world dock payload
   - the separate planet-command-menu detail path still hits the known
     `Runtime error 201 at 1958:76DE` crash, but the next manual recheck should
     compare `/tmp/ec-classic-probe-aurora-empty`,
-    `/tmp/ec-classic-probe-aurora-single`, and
-    `/tmp/ec-classic-probe-word22` because the old `0x051c` gate-word bug is
-    fixed and the remaining suspect is Aurora's docked-ship encoding itself
+    `/tmp/ec-classic-probe-aurora-single`,
+    `/tmp/ec-classic-probe-word22`, and
+    `/tmp/ec-classic-probe-foundation-busy` because the old `0x051c`
+    gate-word bug is fixed and the remaining question is whether the crash
+    follows the owned-world dock payload or remains Aurora-specific
 
 ## Canonical Docs
 

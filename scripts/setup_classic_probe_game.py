@@ -39,6 +39,7 @@ PLAYER_ONE_EXTRA_WORLD_RECORDS = {16, 17, 19}
 PLANET_RECORD_SIZE = 97
 STABLE_OWNED_WORLD_FACTORIES = bytes([0x00, 0x00, 0x00, 0x00, 0x48, 0x87])
 AURORA_STARDOCK_MODES = ("busy", "empty", "single-dd")
+PROBE_STARDOCK_HOSTS = ("aurora", "foundation")
 
 REPORT_FAMILY_LABELS = [
     ("Bombardment mission report", "bombard"),
@@ -119,18 +120,32 @@ def clear_planet_stardock(cli_binary: Path, target: Path, record: int) -> None:
         run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), str(slot), "0", "0")
 
 
-def configure_probe_stardocks(cli_binary: Path, target: Path, aurora_stardock: str) -> None:
+def apply_probe_stardock_payload(
+    cli_binary: Path, target: Path, record: int, aurora_stardock: str
+) -> None:
+    clear_planet_stardock(cli_binary, target, record)
+
+    if aurora_stardock == "busy":
+        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "4", "1")
+        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "1", "1", "2")
+    elif aurora_stardock == "single-dd":
+        run_ec_cli(cli_binary, "planet-stardock", str(target), str(record), "0", "1", "1")
+    elif aurora_stardock != "empty":
+        raise ValueError(f"unknown Aurora stardock mode: {aurora_stardock}")
+
+
+def configure_probe_stardocks(
+    cli_binary: Path, target: Path, aurora_stardock: str, probe_dock_host: str
+) -> None:
+    clear_planet_stardock(cli_binary, target, 1)
     clear_planet_stardock(cli_binary, target, 16)
     clear_planet_stardock(cli_binary, target, 17)
     clear_planet_stardock(cli_binary, target, 5)
 
-    if aurora_stardock == "busy":
-        run_ec_cli(cli_binary, "planet-stardock", str(target), "16", "0", "4", "1")
-        run_ec_cli(cli_binary, "planet-stardock", str(target), "16", "1", "1", "2")
-    elif aurora_stardock == "single-dd":
-        run_ec_cli(cli_binary, "planet-stardock", str(target), "16", "0", "1", "1")
-    elif aurora_stardock != "empty":
-        raise ValueError(f"unknown Aurora stardock mode: {aurora_stardock}")
+    probe_record = {"aurora": 16, "foundation": 1}.get(probe_dock_host)
+    if probe_record is None:
+        raise ValueError(f"unknown probe dock host: {probe_dock_host}")
+    apply_probe_stardock_payload(cli_binary, target, probe_record, aurora_stardock)
 
     run_ec_cli(cli_binary, "planet-stardock", str(target), "17", "0", "2", "3")
 
@@ -145,7 +160,9 @@ def configure_probe_stardocks(cli_binary: Path, target: Path, aurora_stardock: s
     run_ec_cli(cli_binary, "planet-stardock", str(target), "5", "5", "6", "1")   # 1 ETAC
 
 
-def set_planet_specs(cli_binary: Path, target: Path, aurora_stardock: str) -> None:
+def set_planet_specs(
+    cli_binary: Path, target: Path, aurora_stardock: str, probe_dock_host: str
+) -> None:
     for record, owner, name, potential, stored, armies, batteries in PLANET_SPECS:
         run_ec_cli(cli_binary, "planet-owner", str(target), str(record), str(owner))
         run_ec_cli(cli_binary, "planet-name", str(target), str(record), name)
@@ -159,7 +176,7 @@ def set_planet_specs(cli_binary: Path, target: Path, aurora_stardock: str) -> No
     rewrite_player_one_owned_probe_worlds(target)
     run_ec_cli(cli_binary, "db-import", str(target))
 
-    configure_probe_stardocks(cli_binary, target, aurora_stardock)
+    configure_probe_stardocks(cli_binary, target, aurora_stardock, probe_dock_host)
 
 
 def rewrite_player_one_owned_probe_worlds(target: Path) -> None:
@@ -573,6 +590,7 @@ def print_summary(
     empire: str,
     fleet_records: dict[str, int],
     aurora_stardock: str,
+    probe_dock_host: str,
 ) -> None:
     report_labels = summarize_reports(target)
     print()
@@ -581,7 +599,7 @@ def print_summary(
     print(f"Turns simulated with rust maint: {turns}")
     print(f"Classic caller alias for player 1: {alias}")
     print(f"Player 1 empire: {empire}")
-    print(f"Aurora Prime stardock mode: {aurora_stardock}")
+    print(f"Probe owned-world stardock: host={probe_dock_host} mode={aurora_stardock}")
     print("Configured player 1 fleets:")
     for label, record in fleet_records.items():
         print(f"  - {label}: fleet record {record}")
@@ -645,6 +663,12 @@ def main() -> None:
         default="busy",
         help="Aurora Prime docked-ship variant for Planet Command crash triage.",
     )
+    parser.add_argument(
+        "--probe-dock-host",
+        choices=PROBE_STARDOCK_HOSTS,
+        default="aurora",
+        help="Place the variable owned-world dock payload on Aurora Prime or Foundation.",
+    )
     args = parser.parse_args()
 
     target = Path(args.target_dir).resolve()
@@ -666,7 +690,7 @@ def main() -> None:
         str(args.seed),
     )
     set_player_specs(cli_binary, target, args.alias, args.empire)
-    set_planet_specs(cli_binary, target, args.aurora_stardock)
+    set_planet_specs(cli_binary, target, args.aurora_stardock, args.probe_dock_host)
     configure_enemy_fleets(cli_binary, target)
     fleet_records = configure_player_one_fleets(cli_binary, target)
     write_diplomacy_sidecar(target)
@@ -686,6 +710,7 @@ def main() -> None:
         args.empire,
         fleet_records,
         args.aurora_stardock,
+        args.probe_dock_host,
     )
 
     if args.no_launch:

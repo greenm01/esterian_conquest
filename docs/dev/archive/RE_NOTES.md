@@ -9692,3 +9692,28 @@ Practical next step:
 - if only the busy or single-slot variants crash, the remaining bug is in the
   owned-world stardock encoding itself rather than general ownership/report
   shape
+
+Follow-up host-transfer probe for the same dock payload:
+
+- `scripts/setup_classic_probe_game.py` now also accepts
+  `--probe-dock-host {aurora,foundation}`
+- purpose:
+  - keep the same player/login/orbit baseline
+  - place the same variable owned-world dock payload on `Foundation` instead
+    of `Aurora Prime`
+- verified new output:
+  - `/tmp/ec-classic-probe-foundation-busy`
+    - `Foundation` now carries the old busy payload
+      (`raw[0x38..0x4d] = 01 00 02 00 ... 04 01`)
+    - `Aurora Prime` dock bytes are all zeroes
+    - records `1`, `16`, and `17` still all have `raw[0x03] = 0x87`
+    - records `1`, `16`, and `17` still all have `word [0x22..0x23] = 0`
+    - `inspect-classic-login` still shows slot 1 as `returning-player`
+
+Practical interpretation:
+
+- if `Foundation` also crashes on `P -> D` with the transferred busy payload,
+  the remaining issue is likely the docked-ship encoding itself, not
+  Aurora-specific coordinates/economy/name bytes
+- if `Foundation` is stable while `Aurora Prime` still crashes even when empty,
+  then the remaining bug is no longer explained by the dock payload alone
