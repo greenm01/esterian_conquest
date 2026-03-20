@@ -9210,3 +9210,144 @@ Important conclusion:
   trustworthy next probe for the unresolved `0x1e..0x1f` rule
 - future regular-world scout probes should start from fully valid
   Rust-generated/exported directories, not from raw planet-record substitution
+
+### Regular-world scout-abort gate is not driven by preloaded visibility, simple owner slot, or stardock population
+
+Fresh regular-world controls were rebuilt directly from the untouched zero-turn
+probe directory `/tmp/ecgame-regular-preprobe` so the next eliminations would
+not reuse any post-maint state.
+
+Common fleet setup for all fresh probes:
+
+- fleet `2` rewritten to the known failing pure single-scout shape:
+  - current location `(10,2)`
+  - `max_speed=6`, `current_speed=3`
+  - tuples `80 00 00 00 00`, `80 00 00 00 00`, `81 00 00 00 00`
+  - order `Scout Solar System (11)` targeting `(9,2)` with aux `(1,0)`
+- player-1 fleets `1`, `3`, and `4` moved away and set to hold at:
+  - `(5,1)`, `(5,3)`, `(4,2)`
+- all non-player1 fleets frozen in place with hold orders
+
+Fresh baseline:
+
+- `/tmp/ecgame-fail-regular-speed3-fresh`
+- original `ECMAINT` again emitted:
+  - `Scouting mission report: Since we have lost all of our scouts, we must abort our mission of scouting System(9,2).`
+
+Visibility-state probe:
+
+- `/tmp/ecgame-fail-regular-visible-helios-fresh`
+- patched only player-1 / planet-5 `DATABASE.DAT` row to the accepted visible
+  `Helios Prime` foreign-scout family before running original `ECMAINT`:
+  - name `Helios Prime`
+  - owner `#4`
+  - seen words `3003`
+  - current production `136`
+  - stored/display word `35`
+  - armies `10`
+  - batteries `6`
+  - scout year `3003`
+- outcome:
+  - `RESULTS.DAT` was byte-identical to the fresh failing baseline
+  - the scout-abort report text was byte-identical
+  - the preloaded visible player-1 row survived unchanged through maintenance
+
+Important conclusion:
+
+- pre-existing player visibility / cached foreign-intel row shape is **not**
+  the scout-abort gate for this regular-world path
+- original `ECMAINT` can see an already-visible `Helios Prime` row and still
+  abort the scout in exactly the same way
+
+Owner-slot probe:
+
+- `/tmp/ecgame-regular-owner2-speed3-fresh`
+- patched only `PLANETS.DAT[planet 5].owner_empire_slot` from `#4` to `#2`
+  while keeping the same fleet setup
+- outcome:
+  - original `ECMAINT` still emitted the exact same scout-abort report
+  - `RESULTS.DAT` was byte-identical to the fresh failing baseline
+  - `DATABASE.DAT` now refreshed a visible owner-2 row at record `25`, but
+    player 1 still did not gain a foreign visible row
+
+Important conclusion:
+
+- the scout-abort gate is **not** explained by simple owner-slot identity
+  (`#4` vs `#2`) on the target world
+
+Target-stardock probe:
+
+- `/tmp/ecgame-regular-nostardock-speed3-fresh`
+- patched only the target world's stardock counts/kinds in `PLANETS.DAT`:
+  - `0x38..0x4b = 00`
+  - `0x4c..0x55 = 00`
+- outcome:
+  - original `ECMAINT` still emitted the exact same scout-abort report
+  - `RESULTS.DAT` was byte-identical to the fresh failing baseline
+
+Important conclusion:
+
+- the scout-abort gate is **not** explained by Helios Prime's populated
+  stardock bytes alone
+- this weakens the simple "foreign scout dies because the target has docked
+  ships" theory
+
+### Packed on-disk ECMAINT is not a usable scout-abort string anchor
+
+With packaged Ghidra now working locally, the packed on-disk binary was
+imported into a new local headless project:
+
+- project: `.ghidra/projects/ec-v15-local`
+- program: `original/v1.5/ECMAINT.EXE`
+- processor: `x86:LE:16:Real Mode`
+
+The helper script `FindAsciiStringRefs.java` was then run against the imported
+program for these scout-abort fragments:
+
+- `Scouting mission report`
+- `Since we have lost all of our scouts`
+- `Since we have lost`
+- `abort our mission`
+
+Artifacts:
+
+- `artifacts/ghidra/ecmaint-scout/string-probe-scouting-mission-report.txt`
+- `artifacts/ghidra/ecmaint-scout/string-probe-since-we-have-lost-all-of-our-scouts.txt`
+- `artifacts/ghidra/ecmaint-scout/string-probe-since-we-have-lost.txt`
+- `artifacts/ghidra/ecmaint-scout/string-probe-abort-our-mission.txt`
+
+All four searches returned:
+
+- `<no matches>`
+
+Important conclusion:
+
+- the scout-abort text is not present in the packed on-disk `ECMAINT.EXE`
+  image in a way Ghidra can anchor directly
+- this path still needs a real runtime `MEMDUMP.BIN` if we want to anchor on
+  the abort string and work backwards through code/xrefs
+
+### Installed debug DOSBox-X still does not surface a usable debugger prompt here
+
+After rebuilding DOSBox-X with debug support and `make install`-ing it into
+`PATH`, the installed binary is now:
+
+- `/usr/local/bin/dosbox-x`
+
+and exposes:
+
+- `-helpdebug`
+- `-break-start`
+
+However, the pexpect-driven debugger check still timed out waiting for `CS=`:
+
+- command path: `python3 tools/prepare_ecmaint_token_debug_case.py && python3 tools/test_ecmaint_token_wait_caller_manual.py`
+- result:
+  - DOSBox-X started
+  - no debugger register prompt surfaced
+  - no new `MEMDUMP.BIN` was produced
+
+Practical consequence:
+
+- the local runtime-dump regeneration path is still blocked by debugger I/O /
+  terminal interaction, not by a missing debug build anymore

@@ -152,6 +152,21 @@ Recent validation baseline:
       other player-1 fleets out of the sector, freezing hostile fleets in
       place, starting the scout one sector away, and matching the accepted
       `max_speed=6/current_speed=3` speed shape
+    - fresh paired controls at
+      `/tmp/ecgame-fail-regular-speed3-fresh` and
+      `/tmp/ecgame-fail-regular-visible-helios-fresh` proved that preloading
+      player 1's `DATABASE.DAT` row for `Helios Prime` with the accepted full
+      foreign-scout row family does **not** change the abort at all:
+      `RESULTS.DAT` is byte-identical in both runs, and the visible row
+      survives unchanged through maintenance
+    - a follow-up owner-slot probe at
+      `/tmp/ecgame-regular-owner2-speed3-fresh` changed only
+      `PLANETS.DAT[planet 5].owner_empire_slot` from `#4` to `#2`; original
+      `ECMAINT` still emitted the same scout-abort report byte-for-byte
+    - a follow-up stardock probe at
+      `/tmp/ecgame-regular-nostardock-speed3-fresh` zeroed only the target
+      world's stardock counts/kinds; original `ECMAINT` still emitted the same
+      scout-abort report byte-for-byte
     - the same runs still advance year/economy and rewrite owned-world
       `DATABASE.DAT` rows, so the directory is valid; the unresolved issue is
       specifically the regular foreign scout path, not general file integrity
@@ -159,6 +174,13 @@ Recent validation baseline:
     baseline to a regular-world-shaped target caused original `ECMAINT` to
     perform zero writes at all, so raw planet-record substitution is too
     integrity-sensitive to use as the next `0x1e..0x1f` oracle path
+  - a fresh headless Ghidra import of the on-disk packed binary into local
+    project `ec-v15-local` confirmed that the scout-abort text fragments are
+    not present in `original/v1.5/ECMAINT.EXE`; string-anchored RE for this
+    path still requires a real runtime `MEMDUMP.BIN`
+  - even after rebuilding and `make install`-ing the debug DOSBox-X binary,
+    the pexpect-driven debugger prompt still does not surface `CS=`/register
+    output in this environment, so local live-dump regeneration remains blocked
   - the separate planet-command-menu detail path still hits the known
     `Runtime error 201 at 1958:76DE` crash
 
@@ -262,18 +284,27 @@ remaining risks are:
    - current compat policy should therefore refresh stale scout `0x1d`, and
      keep treating `0x1e..0x1f` as a row-family-specific compat word until a
      tighter oracle rule exists
-9. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
+9. Treat the remaining regular-world scout-abort gate as **not** explained by:
+   pre-existing `DATABASE.DAT` visibility state, simple target owner-slot
+   identity (`#4` vs `#2`), or Helios Prime's populated stardock bytes. Those
+   probes all preserved the exact same abort report in original `ECMAINT`.
+10. The on-disk packed `ECMAINT.EXE` is not a useful string anchor for the
+    scout-abort path. Headless Ghidra on local project `ec-v15-local` found no
+    matches for `Scouting mission report`, `Since we have lost`, or
+    `abort our mission`; future string/xref work on this path must use a live
+    runtime dump rather than the packed EXE stub.
+11. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
    direct `.DAT` ownership back into the client/runtime.
-10. Keep the distinction explicit in docs/tests:
+12. Keep the distinction explicit in docs/tests:
    - `ECGAME`-accepted row shapes are not automatically original-`ECMAINT`
      emitted row shapes
    - the regular-world foreign scout family is still missing a clean oracle
      maint proof
-11. When classic tooling changes a directory, fold those edits back through
+13. When classic tooling changes a directory, fold those edits back through
    `db-import` before the next Rust maint/client step.
-12. After meaningful Rust changes, rerun:
+14. After meaningful Rust changes, rerun:
    - `python3 tools/oracle_sweep.py --mode seeded`
    - `python3 tools/rust_maint_sweep.py --turns 3`
    - `cargo test -q`
-13. Keep `next-session.md` short and current; archive bulky probe history
+15. Keep `next-session.md` short and current; archive bulky probe history
    instead of rebuilding a running notebook here.
