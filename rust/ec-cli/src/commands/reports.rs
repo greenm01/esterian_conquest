@@ -1,11 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use ec_data::maint::{timing::format_report_first_line, FleetBattlePerspective};
+use ec_data::maint::{FleetBattlePerspective, timing::format_report_first_line};
 use ec_data::{
     ContactReportSource, CoreGameData, DatabaseDat, DatabaseRecord, EmpireProductionRankingSort,
     FleetOrderValidationError, FleetPlayerInputValidationError, MaintenanceEvents, Mission,
     MissionOutcome, Order, PlanetDat, PlanetIntelSnapshot, PlanetIntelSource,
-    PlanetPlayerInputValidationError, PlayerDiplomacyValidationError, QueuedPlayerMail, ShipLosses,
+    PlanetPlayerInputValidationError, PlayerDiplomacyValidationError, ShipLosses,
 };
 
 const RESULTS_RECORD_SIZE: usize = 84;
@@ -678,11 +678,7 @@ fn push_classic_results_chunked(
 
 fn classic_results_record_count(text: &str, _kind: u8) -> usize {
     let line_count = classic_results_lines(text).len();
-    if line_count == 0 {
-        0
-    } else {
-        line_count + 1
-    }
+    if line_count == 0 { 0 } else { line_count + 1 }
 }
 
 fn classic_results_lines(text: &str) -> Vec<String> {
@@ -1180,20 +1176,15 @@ fn diplomacy_input_validation_reason_text(reason: PlayerDiplomacyValidationError
 }
 
 // ---------------------------------------------------------------------------
-// Report entry generation — shared between RESULTS.DAT and MESSAGES.DAT
+// Report entry generation — classic RESULTS.DAT
 // ---------------------------------------------------------------------------
 
-/// Controls where a report entry is delivered.
+/// Controls which players should see a classic RESULTS.DAT review prompt.
 #[derive(Debug, Clone, Copy)]
 enum ReportTarget {
-    /// Only goes into RESULTS.DAT (global log, no per-player routing).
+    /// Goes into RESULTS.DAT and is visible to all occupied empires.
     ResultsOnly,
-    /// Only goes into MESSAGES.DAT (routed to one empire).
-    MessagesOnly {
-        #[allow(dead_code)]
-        recipient: u8,
-    },
-    /// Goes into both; RESULTS.DAT gets unrouted text, MESSAGES.DAT routes to `recipient`.
+    /// Goes into RESULTS.DAT and marks `recipient` as the intended reviewer.
     Both { recipient: u8 },
 }
 
@@ -1216,11 +1207,10 @@ fn report_header(source_clause: &str, week: Option<u8>, year: u16) -> String {
 
 /// Generate all player-visible report entries from a completed maintenance turn.
 ///
-/// Both `build_results_dat` and `build_messages_dat` call this function to
-/// obtain report text, eliminating duplication.  Each entry carries:
+/// Each entry carries:
 /// - the formatted text (with `Stardate: week/year` right-justified on first line)
 /// - the binary record kind/tail
-/// - a routing target (results-only, messages-only, or both)
+/// - the intended RESULTS.DAT review audience
 fn generate_report_entries(
     game_data: &CoreGameData,
     events: &MaintenanceEvents,
@@ -1838,8 +1828,7 @@ fn generate_report_entries(
             let header = report_header(&source, week, year);
             let body = format!(
                 " Hostile action forced {} to abort their missions in System({x},{y}). They are {}.",
-                fleet_list,
-                disposition_text,
+                fleet_list, disposition_text,
             );
             entries.push(ReportEntry {
                 text: format!("{header}{body}"),
@@ -2691,38 +2680,6 @@ fn generate_report_entries(
         });
     }
 
-    // ----- Diplomatic escalation events (MESSAGES only — bilateral routing) -----
-    for event in &events.diplomatic_escalation_events {
-        let left_source = "From your Fleet Command Center:";
-        let left_header = report_header(left_source, event.stardate_week, year);
-        let left_body = format!(
-            " Hostile action has escalated our relations with {} to enemy status.",
-            empire_label(game_data, event.right_empire_raw),
-        );
-        entries.push(ReportEntry {
-            text: format!("{left_header}{left_body}"),
-            kind: 0x06,
-            tail: RESULTS_TAIL_FLEET,
-            target: ReportTarget::MessagesOnly {
-                recipient: event.left_empire_raw,
-            },
-            repeat_next_pointer: false,
-        });
-        let right_body = format!(
-            " Hostile action has escalated our relations with {} to enemy status.",
-            empire_label(game_data, event.left_empire_raw),
-        );
-        entries.push(ReportEntry {
-            text: format!("{left_header}{right_body}"),
-            kind: 0x06,
-            tail: RESULTS_TAIL_FLEET,
-            target: ReportTarget::MessagesOnly {
-                recipient: event.right_empire_raw,
-            },
-            repeat_next_pointer: false,
-        });
-    }
-
     entries
 }
 
@@ -2735,10 +2692,7 @@ pub(crate) fn build_results_dat(
     game_data: &mut CoreGameData,
     events: &MaintenanceEvents,
 ) -> Vec<u8> {
-    let result_entries = generate_report_entries(game_data, events)
-        .into_iter()
-        .filter(|entry| !matches!(entry.target, ReportTarget::MessagesOnly { .. }))
-        .collect::<Vec<_>>();
+    let result_entries = generate_report_entries(game_data, events);
     let mut results = Vec::new();
     let year = game_data.conquest.game_year();
     let mut recipient_slots = BTreeSet::new();
@@ -2813,25 +2767,20 @@ pub(crate) fn build_results_dat(
     results
 }
 
-/// Build the MESSAGES.DAT binary, routing each entry to its intended recipient empire.
-pub(crate) fn build_messages_dat(
+/// Preserve classic MESSAGES.DAT bytes until the real compact mail format is recovered.
+pub(crate) fn preserve_messages_dat(
     game_data: &mut CoreGameData,
-    events: &MaintenanceEvents,
-    queued_mail: &[QueuedPlayerMail],
     existing_messages: &[u8],
-) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let _ = events;
-    let _ = queued_mail;
-
+) -> Vec<u8> {
     if !existing_messages.is_empty() {
-        return Ok(existing_messages.to_vec());
+        return existing_messages.to_vec();
     }
 
     for player in &mut game_data.player.records {
         player.set_classic_messages_review_state_present(false);
     }
 
-    Ok(Vec::new())
+    Vec::new()
 }
 
 // ---------------------------------------------------------------------------

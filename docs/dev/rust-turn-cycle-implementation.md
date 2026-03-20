@@ -276,7 +276,7 @@ The Rust engine should model four distinct state layers.
 | Durable game state | The real campaign state that survives the turn | players, planets, fleets, bases, IPBMs, conquest/setup state | persisted |
 | Transient staging/workspaces | Scratch collections used while validating or simulating | staged tables, temporary counters, intermediate working sets | one maintenance run |
 | Durable summary/event pool | Intermediate event records that survive long enough to be canonicalized and turned into reports | summary/event entries later matched, sorted, and emitted | one maintenance run |
-| Derived output projections | Files rebuilt from durable state and event results | rankings, database, routed messages, results | regenerated each run |
+| Derived output projections | Files rebuilt or preserved at the compatibility boundary | rankings, database, preserved classic mail bytes, results | regenerated each run |
 
 Practical rule:
 
@@ -295,7 +295,7 @@ Practical rule:
 | 3. Load/validate | Build coherent in-memory state and reject impossible directories | all core `.DAT` files | validated in-memory model, error outputs on failure | High |
 | 4. Simulation core | Apply the yearly game rules | validated state, staged work data, existing orders | durable game state, durable summary/event pool | Medium |
 | 5. Canonicalize events | Match, coalesce, sort, and normalize event records | durable summary/event pool | canonicalized event pool | High |
-| 6. Emit outputs | Convert canonical events into reports/messages and rebuild derived files | canonical event pool, durable state | `RESULTS.DAT`, `MESSAGES.DAT`, rankings, database | High |
+| 6. Emit outputs | Convert canonical events into classic results and rebuild/preserve derived files | canonical event pool, durable state | `RESULTS.DAT`, preserved `MESSAGES.DAT`, rankings, database | High |
 | 7. Flush/cleanup | Finish the tick cleanly | work markers, generated outputs | final files, token cleanup | High |
 
 ## Recommended Rust Subsystems

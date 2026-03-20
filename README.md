@@ -428,7 +428,7 @@ python3 scripts/setup_classic_probe_game.py /tmp/ec-classic-probe --force
 
 That path creates a fresh four-player Rust-backed campaign, seeds player 1 with
 multiple fleets and worlds, runs several Rust maint turns to populate
-`RESULTS.DAT`, suppresses the Rust-only routed `MESSAGES.DAT` payload for
+`RESULTS.DAT`, preserves classic-compatible `MESSAGES.DAT` state for
 classic compatibility, prepares the classic login alias, and then
 launches original `ECGAME` in DOSBox-X.
 

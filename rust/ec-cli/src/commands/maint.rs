@@ -11,7 +11,7 @@ use ec_data::{
 };
 
 use crate::commands::reports::{
-    build_database_dat, build_messages_dat, build_rankings_text, build_results_dat,
+    build_database_dat, build_rankings_text, build_results_dat, preserve_messages_dat,
 };
 use crate::commands::runtime::{
     load_runtime_intel_by_viewer, load_runtime_state_preferring_live_directory,
@@ -213,12 +213,7 @@ pub fn run_rust_maintenance_with_options(
     );
 
     let results_bytes = build_results_dat(&mut game_data, &all_events);
-    let messages_bytes = build_messages_dat(
-        &mut game_data,
-        &all_events,
-        &queued_mail,
-        &existing_messages,
-    )?;
+    let messages_bytes = preserve_messages_dat(&mut game_data, &existing_messages);
     campaign_store.save_runtime_state(
         &game_data,
         &database,
