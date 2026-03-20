@@ -787,3 +787,60 @@ fn canonical_blitz_failure_leaves_defender_in_control() {
         .iter()
         .all(|event| event.source == PlanetIntelSource::AssaultFailure));
 }
+
+#[test]
+fn guard_blockade_does_not_intercept_transit_fleet() {
+    // Guard fleet does NOT intercept transit fleet (MoveOnly) - clean coexistence
+    // Guards only defend against fleets in assault posture (Invade/Bombard/Blitz)
+    let mut game_data = load_fixture("ecmaint-post");
+    let coords = [8, 8]; // Deep space, not at a planet
+
+    // Guard fleet - empire 1 on Guard/Blockade mission
+    let guard = &mut game_data.fleets.records[0];
+    guard.set_current_location_coords_raw(coords);
+    guard.set_standing_order_kind(Order::GuardBlockadeWorld);
+    guard.set_standing_order_target_coords_raw(coords);
+    guard.set_destroyer_count(2); // 2 AS
+    guard.set_cruiser_count(0);
+    guard.set_battleship_count(0);
+    guard.set_rules_of_engagement(10); // Always fight
+
+    // Transit fleet - empire 2 just moving through
+    // Even with low ROE, guard won't engage because transit fleets
+    // are not considered hostile unless in assault posture
+    let transit = &mut game_data.fleets.records[4];
+    transit.set_current_location_coords_raw(coords);
+    transit.set_standing_order_kind(Order::MoveOnly);
+    transit.set_standing_order_target_coords_raw([9, 8]);
+    transit.set_destroyer_count(0);
+    transit.set_cruiser_count(1); // 3 AS
+    transit.set_battleship_count(0);
+    transit.set_rules_of_engagement(2); // ROE=2 requires 3:1
+
+    let diplomacy = mutual_enemy_overrides(1, 2);
+    let events = run_maintenance_turn_with_context(&mut game_data, &[], &diplomacy)
+        .expect("maintenance should succeed");
+
+    // Guard should NOT engage transit fleet - clean coexistence
+    assert!(
+        events.fleet_battle_events.is_empty(),
+        "guard should not attack transit fleet with MoveOnly order"
+    );
+
+    // No pursuit fire or engagement events
+    let pursuit_events: Vec<_> = events
+        .encounter_disposition_events
+        .iter()
+        .filter(|e| matches!(e, EncounterDispositionEvent::PursuitFire { .. }))
+        .collect();
+    assert!(
+        pursuit_events.is_empty(),
+        "no pursuit fire for transit fleet"
+    );
+}
+
+// NOTE: Pursuit fire requires a guard in SystemEntry + attacker in DeepSpaceTransit with assault posture.
+// But assault orders (Invade/Bombard/Blitz) put fleets in SystemEntry context, forcing engagement.
+// This creates a design tension: we want guards to intercept assault fleets but NOT leave station
+// for innocent transit. The current implementation prioritizes guards staying at station.
+// See docs/dev/ec-combat-spec.md for the full pursuit fire rules.

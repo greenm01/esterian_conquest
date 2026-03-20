@@ -176,11 +176,44 @@ Recent validation baseline:
     integrity-sensitive to use as the next `0x1e..0x1f` oracle path
   - a fresh headless Ghidra import of the on-disk packed binary into local
     project `ec-v15-local` confirmed that the scout-abort text fragments are
-    not present in `original/v1.5/ECMAINT.EXE`; string-anchored RE for this
-    path still requires a real runtime `MEMDUMP.BIN`
+    not present in `original/v1.5/ECMAINT.EXE`, so the packed stub is not a
+    useful string anchor for this path
+  - a prompt-less DOSBox-X guest-RAM capture now works for the failing scout
+    case: running the same directory with
+    `-set 'memory file=/tmp/ecmaint-scout-abort.mem'` and carving
+    `guest_ram[0x8140 : 0x8140 + 0x97eb0]` produced the usable live dump
+    `/tmp/ecmaint-scout-abort-psp.MEMDUMP.BIN`
+  - that carved live dump contains the scout-abort string anchors at raw
+    offsets `0x5adc` / `0x6c06` (`Since we have lost all of our scouts`) and
+    `0x248ff` (`Scouting mission report`); artifacts for this pass live under
+    `artifacts/ghidra/ecmaint-scout-live/`
+  - raw near-call scan plus ndisasm on the live dump recovered a shared
+    mission-kind dispatcher at `0000:8a11`:
+    `[0x3521] = 0x0b -> 5c18 -> 6817`,
+    `[0x3521] = 0x0a -> 6c9d -> 6dda`,
+    `[0x3521] = 0x0e -> 841a -> 8584`
+  - raw write-site scan tightened more of the shared setup state:
+    `0x350d/0x350e` are written at `0000:0c7a/0ca4` inside the same block that
+    materializes `0x351b..0x351f`, while `0x3534` is zeroed at `0000:f941`
+    and incremented at `0000:f99b` inside `0000:f914`, which also zeroes the
+    sibling counters `0x3528/0x352a/0x352c/0x352e/0x3530/0x3532` and resets
+    `0x3521` to `0` at `0000:f9cf`
+  - live helper recovery also shows that both scout helpers gate on
+    `word [0x3534]` and share the `0x350d/0x350e` vs `0x3522/0x3523`
+    predicate, but only `0000:5c18` does the extra target-owner lookup through
+    `ES:[DI + 0x5d]`
   - even after rebuilding and `make install`-ing the debug DOSBox-X binary,
     the pexpect-driven debugger prompt still does not surface `CS=`/register
-    output in this environment, so local live-dump regeneration remains blocked
+    output in this environment; use the `memory file` fallback instead of the
+    interactive prompt when you need a new local runtime dump
+  - do not use the `foot` terminal emulator for DOSBox-X debugger work here:
+    it can hide or fail to flush the live debugger stop/register prompt output
+    even when DOSBox-X is waiting for input, which makes both manual and
+    scripted dump capture paths appear hung
+  - the current scout-abort RE blocker is no longer dump capture itself; it is
+    tracing who primes `0x3521`, `0x3534`, `0x350c`, and the
+    `0x350d..0x3524` target tuple before `0000:8a11` dispatches into the
+    mission-specific helper
   - the separate planet-command-menu detail path still hits the known
     `Runtime error 201 at 1958:76DE` crash
 
@@ -291,20 +324,67 @@ remaining risks are:
 10. The on-disk packed `ECMAINT.EXE` is not a useful string anchor for the
     scout-abort path. Headless Ghidra on local project `ec-v15-local` found no
     matches for `Scouting mission report`, `Since we have lost`, or
-    `abort our mission`; future string/xref work on this path must use a live
-    runtime dump rather than the packed EXE stub.
-11. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
+    `abort our mission`; use the live dump path instead of the packed EXE stub.
+11. Use DOSBox-X `memory file` rather than the interactive debugger prompt for
+    local scout-abort dump capture here. The reliable carve is:
+    `guest_ram[0x8140 : 0x8140 + 0x97eb0] ->
+    /tmp/ecmaint-scout-abort-psp.MEMDUMP.BIN`.
+12. Treat `0000:8a11` as the current upstream live anchor for this RE thread:
+    `[0x3521] = 0x0b -> 5c18 -> 6817`,
+    `[0x3521] = 0x0a -> 6c9d -> 6dda`,
+    `[0x3521] = 0x0e -> 841a -> 8584`.
+13. Next RE should trace the call path into:
+    `0000:0c7a/0x0ca4` for the `0x350d..0x351f` target-state tuple,
+    `0000:f914..0xf9cf` for the `0x3534` counter family and `0x3521` reset,
+    and then the later write sites that raise `0x3521` from `0` to the
+    mission-kind values consumed by `8a11`.
+14. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
    direct `.DAT` ownership back into the client/runtime.
-12. Keep the distinction explicit in docs/tests:
+15. Keep the distinction explicit in docs/tests:
    - `ECGAME`-accepted row shapes are not automatically original-`ECMAINT`
      emitted row shapes
    - the regular-world foreign scout family is still missing a clean oracle
      maint proof
-13. When classic tooling changes a directory, fold those edits back through
-   `db-import` before the next Rust maint/client step.
-14. After meaningful Rust changes, rerun:
+16. When classic tooling changes a directory, fold those edits back through
+    `db-import` before the next Rust maint/client step.
+
+## Combat System Status
+
+Recent combat implementation work (phases 1-3):
+
+- **Screen-then-kill hit allocation** (lines 256-279 of `combat.rs`): Fresh steps
+  removed from all classes before any hull destruction. Prevents the degenerate
+  waterfall where DDs die first.
+
+- **Pursuit fire** (lines 1305-1377 of `combat.rs`): Guard/blockade fleets can
+  intercept fleeing fleets that declined ROE. Pursuer fires at flat CER 0.50,
+  withdrawer fires at normal CER. Losses are now properly tracked using
+  pre/post-combat state capture.
+
+- **Guard free-hold** (lines 1207-1261 of `combat.rs`): Defending guard/blockade
+  task forces get one free hold when ROE threshold fails in post-round check.
+  They stay and fight one more round before considering retreat on subsequent
+  failures.
+
+- **ROE retreat scope** (narrowed): `apply_roe_retreat_to_task_force` now takes
+  `fleet_indices: &[usize]` instead of empire+coords, ensuring only the actual
+  retreating task force members retreat.
+
+Validation:
+
+- All 12 oracle sweeps pass
+- All 8 maint sweeps pass
+- All Rust tests pass
+
+Note on pursuit fire design tension: Guards stay at station for innocent transit
+fleets (MoveOnly, Patrol, etc.). The pursuit fire mechanic only triggers when an
+attacker in assault posture (Invade/Bombard/Blitz) at a defended world declines
+ROE. Deep space encounters with transit fleets result in clean coexistence, not
+combat or pursuit fire.
+
+17. After meaningful Rust changes, rerun:
    - `python3 tools/oracle_sweep.py --mode seeded`
    - `python3 tools/rust_maint_sweep.py --turns 3`
    - `cargo test -q`
-15. Keep `next-session.md` short and current; archive bulky probe history
+18. Keep `next-session.md` short and current; archive bulky probe history
    instead of rebuilding a running notebook here.

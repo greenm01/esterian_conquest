@@ -80,6 +80,9 @@ struct TaskForce {
     role: BattleRole,
     withdrew_under_roe: bool,
     engaged_in_battle: bool,
+    /// Guards/blockades get one free hold when ROE threshold fails (per spec).
+    /// Set to true once this free hold has been used.
+    free_hold_used: bool,
 }
 
 /// Tracks ROE decline scenarios that may trigger pursuit fire.
@@ -414,10 +417,31 @@ fn hostility_reason_between(
             }
             (EncounterContext::SystemEntry, EncounterContext::DeepSpaceTransit)
             | (EncounterContext::DeepSpaceTransit, EncounterContext::SystemEntry) => {
+                // If one side has a guard order and the other is in transit,
+                // they are not hostile unless the transit fleet is in assault posture
+                // (Invade/Bombard/Blitz) which forces engagement
+                let transit_side = if left_context == EncounterContext::DeepSpaceTransit {
+                    left
+                } else {
+                    right
+                };
+                let has_assault_posture = transit_side.fleet_indices.iter().any(|&idx| {
+                    matches!(
+                        game_data.fleets.records[idx].standing_order_kind(),
+                        Order::InvadeWorld | Order::BombardWorld | Order::BlitzWorld
+                    )
+                });
+
                 if has_anchored_guard_order(game_data, &left.fleet_indices)
                     || has_anchored_guard_order(game_data, &right.fleet_indices)
                 {
-                    None
+                    if has_assault_posture {
+                        // Transit fleet is attacking - guard defends normally
+                        Some(HostilityReason::DefendedSystemEntry)
+                    } else {
+                        // Transit fleet is just passing through - guard stays at station
+                        None
+                    }
                 } else {
                     Some(HostilityReason::DeclaredEnemy)
                 }
@@ -626,6 +650,7 @@ fn build_task_forces_at_location(game_data: &CoreGameData, coords: [u8; 2]) -> V
                 role,
                 withdrew_under_roe: false,
                 engaged_in_battle: false,
+                free_hold_used: false,
             }
         })
         .collect()
@@ -1200,6 +1225,7 @@ pub(crate) fn process_fleet_battles(
                 .map(|tf| (tf.empire, tf.state.total_combat_as()))
                 .collect();
             let mut post_round_retreats = Vec::new();
+            let mut free_holds_to_consume = Vec::new();
             for tf in &task_forces {
                 if !tf.engaged_in_battle || tf.withdrew_under_roe || !tf.state.has_units() {
                     continue;
@@ -1227,6 +1253,16 @@ pub(crate) fn process_fleet_battles(
                     .max()
                     .unwrap_or(0);
                 if !rule_threshold_satisfied(roe, our_as, enemy_as) {
+                    // Guards/blockades get one free hold before breaking (per spec)
+                    let is_guard = matches!(
+                        tf.role,
+                        BattleRole::GuardingDefender | BattleRole::IncumbentDefender
+                    );
+                    if is_guard && !tf.free_hold_used {
+                        // Use the free hold - stay and fight one more round
+                        free_holds_to_consume.push(tf.empire);
+                        continue;
+                    }
                     let target_empire = task_forces
                         .iter()
                         .filter(|other| other.empire != tf.empire)
@@ -1236,6 +1272,12 @@ pub(crate) fn process_fleet_battles(
                     let retreat_target =
                         nearest_owned_planet(game_data, tf.empire, coords).unwrap_or(coords);
                     post_round_retreats.push((tf.empire, target_empire, retreat_target));
+                }
+            }
+            // Apply free hold consumption
+            for empire in free_holds_to_consume {
+                if let Some(task_force) = task_forces.iter_mut().find(|t| t.empire == empire) {
+                    task_force.free_hold_used = true;
                 }
             }
             for (empire, _target_empire, retreat_target) in post_round_retreats {
@@ -1308,6 +1350,18 @@ pub(crate) fn process_fleet_battles(
                         withdrawer_hits,
                         pursuer_hits,
                     } => {
+                        // Capture pre-pursuit-fire states for loss calculation
+                        let withdrawer_before = task_forces
+                            .iter()
+                            .find(|tf| tf.empire == withdrawer_empire)
+                            .map(|tf| tf.state.clone())
+                            .unwrap_or_default();
+                        let pursuer_before = task_forces
+                            .iter()
+                            .find(|tf| tf.empire == pursuer_empire)
+                            .map(|tf| tf.state.clone())
+                            .unwrap_or_default();
+
                         // Apply pursuit fire hits simultaneously
                         if let Some(withdrawer_tf) = task_forces
                             .iter_mut()
@@ -1324,6 +1378,24 @@ pub(crate) fn process_fleet_battles(
                             pursuer_tf.engaged_in_battle = true;
                         }
                         combat_occurred = true;
+
+                        // Calculate losses from pursuit fire
+                        let withdrawer_after = task_forces
+                            .iter()
+                            .find(|tf| tf.empire == withdrawer_empire)
+                            .map(|tf| tf.state.clone())
+                            .unwrap_or_default();
+                        let pursuer_after = task_forces
+                            .iter()
+                            .find(|tf| tf.empire == pursuer_empire)
+                            .map(|tf| tf.state.clone())
+                            .unwrap_or_default();
+
+                        let losses_sustained =
+                            ship_losses_from_states(&withdrawer_before, &withdrawer_after);
+                        let enemy_losses_inflicted =
+                            ship_losses_from_states(&pursuer_before, &pursuer_after);
+                        let enemy_initial = ship_counts_from_state(&pursuer_before);
 
                         // Find retreat target for withdrawer
                         let retreat_target =
@@ -1356,10 +1428,10 @@ pub(crate) fn process_fleet_battles(
                                                     &other.fleet_indices,
                                                 )
                                             }),
-                                        enemy_initial: ShipLosses::default(), // TODO: populate
+                                        enemy_initial,
                                         retreat_target_coords: retreat_target,
-                                        losses_sustained: ShipLosses::default(), // TODO: calculate
-                                        enemy_losses_inflicted: ShipLosses::default(), // TODO: calculate
+                                        losses_sustained,
+                                        enemy_losses_inflicted,
                                         reason: EncounterDispositionReason::RoeDeclined,
                                         stardate_week: None,
                                     },
