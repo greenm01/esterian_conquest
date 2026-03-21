@@ -136,6 +136,9 @@ Prefer rule-shaped generators and validators over preserved-byte blob emission.
 - mention new commands in `README.md` and the relevant docs when they become part of the normal workflow
 - in repository markdown/docs, use relative Markdown links for repo files; do
   not commit machine-local absolute paths, so links render correctly on GitHub
+- do not parallelize ordering-dependent git operations; run steps like
+  `git commit` and `git push` serially so later commands cannot race earlier
+  state changes
 - preserve unrelated local `.ghidra` project DB churn; do not revert it unless explicitly asked
 - `docs/next-session.md` shall stay short and current; archive older detail
   instead of appending indefinitely
