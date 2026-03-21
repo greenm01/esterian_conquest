@@ -248,6 +248,22 @@ cargo run -q -p ec-cli -- submit-turn --dir /tmp/ec-game --player 1 --file /tmp/
 
 The turn file format is documented in [docs/player/turn-kdl.md](docs/player/turn-kdl.md).
 
+Build a runtime playtest scenario from KDL:
+
+```bash
+cd rust
+cargo run -q -p ec-cli -- harness run-scenario --file /tmp/scenario.kdl --dir /tmp/ec-scenario
+```
+
+Run a combat sweep from KDL:
+
+```bash
+cd rust
+cargo run -q -p ec-cli -- harness run-sweep --file /tmp/combat-sweep.kdl
+```
+
+The scenario/combat harness format is documented in [docs/dev/harness/README.md](docs/dev/harness/README.md).
+
 Supported local hybrid loop:
 
 ```bash

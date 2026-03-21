@@ -8,6 +8,7 @@ pub(crate) mod fleet_battle;
 pub(crate) mod fleet_order;
 pub(crate) mod fleet_setup;
 pub(crate) mod guard_starbase;
+pub(crate) mod harness;
 pub(crate) mod inspect;
 pub(crate) mod invade;
 pub(crate) mod ipbm;

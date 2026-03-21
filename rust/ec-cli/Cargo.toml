@@ -9,3 +9,4 @@ path = "src/main.rs"
 
 [dependencies]
 ec-data = { path = "../ec-data" }
+ec-harness = { path = "../ec-harness" }

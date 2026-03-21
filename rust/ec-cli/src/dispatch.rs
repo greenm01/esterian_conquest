@@ -24,6 +24,7 @@ use crate::commands::guard_starbase::{
     init_guard_starbase_batch, init_guard_starbase_onebase, print_guard_starbase_report,
     set_guard_starbase_onebase,
 };
+use crate::commands::harness::run_harness_args;
 use crate::commands::inspect::{
     dump_headers, inspect_classic_login, inspect_dir, inspect_messages,
 };
@@ -224,6 +225,9 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
         }
         "submit-turn" => {
             run_submit_turn_args(args.collect::<Vec<_>>())?;
+        }
+        "harness" => {
+            run_harness_args(args)?;
         }
         "maintenance-days" => {
             let dir = next_dir(&mut args);

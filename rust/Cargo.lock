@@ -72,6 +72,7 @@ name = "ec-cli"
 version = "0.1.0"
 dependencies = [
  "ec-data",
+ "ec-harness",
 ]
 
 [[package]]
@@ -89,6 +90,14 @@ version = "0.1.0"
 dependencies = [
  "kdl",
  "rusqlite",
+]
+
+[[package]]
+name = "ec-harness"
+version = "0.1.0"
+dependencies = [
+ "ec-data",
+ "kdl",
 ]
 
 [[package]]

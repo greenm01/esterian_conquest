@@ -44,6 +44,8 @@ These docs explain how to work in the repo and how to structure the Rust side.
   - DOSBox-based oracle/dynamic investigation workflow
 - [fixtures.md](fixtures.md)
   - fixture layout and intended usage
+- [harness/README.md](harness/README.md)
+  - typed KDL and CLI workflow for runtime scenarios, combat scenarios, and combat sweeps
 
 ## Reference And Background Docs
 

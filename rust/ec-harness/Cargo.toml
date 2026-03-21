@@ -1,0 +1,11 @@
+[package]
+name = "ec-harness"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+ec-data = { path = "../ec-data" }
+kdl = "6"

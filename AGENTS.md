@@ -150,7 +150,9 @@ Prefer rule-shaped generators and validators over preserved-byte blob emission.
    - this remains a top priority until that oracle behavior is understood well
      enough to call it fully recovered, not merely approximated
 4. replace scenario-specific constants with explicit validators/builders
-5. defer any KDL scenario DSL until the internal Rust state/order model stabilizes
+5. use typed KDL for setup, turn submission, and harness/scenario authoring now
+   that the runtime/state model exists, but keep Rust types authoritative and
+   avoid freeform arbitrary-mutation DSLs
 
 ## Avoid
 
