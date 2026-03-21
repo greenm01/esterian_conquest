@@ -10069,3 +10069,50 @@ Important conclusion:
 - future comparisons must judge success by the target `DATABASE.DAT` row
   refresh and/or raw fleet-state changes, not just by the presence or absence
   of the abort text
+
+The next narrow question was whether the remaining gate was really about
+foreign ownership state rather than player-1 report plumbing.
+
+Owner-slot / rogue follow-ups on the corrected regular baseline:
+
+- `/tmp/ecgame-regular-owner2-rogue-baseplanet`
+  - changed only `Helios Prime owner_slot -> 2`
+  - changed only player slot `2 raw[0x00] -> 0xff`
+  - result:
+    - normal abort report still emitted
+    - player-1 row 5 stayed `UNKNOWN`
+- `/tmp/ecgame-regular-owner3-rogue-baseplanet`
+  - changed only `Helios Prime owner_slot -> 3`
+  - changed only player slot `3 raw[0x00] -> 0xff`
+  - result:
+    - still a failure case
+    - row 5 stayed `UNKNOWN`
+    - this path happened to run much slower than the fast-abort baseline, but
+      it still did not become a valid scout refresh
+
+Slot-1 controls clarified the special-case behavior:
+
+- `/tmp/ecgame-regular-owner1-active-baseplanet`
+  - changed only `Helios Prime owner_slot -> 1`
+  - left player slot `1` active
+  - result:
+    - player-1 row 5 refreshed to `Helios Prime`
+- `/tmp/ecgame-regular-owner1-civdis-baseplanet`
+  - changed only `Helios Prime owner_slot -> 1`
+  - changed only player slot `1 raw[0x00] -> 0x00`
+  - result:
+    - player-1 row 5 still refreshed to `Helios Prime`
+- `/tmp/ecgame-regular-rogue-owner1-baseplanet`
+  - changed only `Helios Prime owner_slot -> 1`
+  - changed only player slot `1 raw[0x00] -> 0xff`
+  - result:
+    - player-1 row 5 also refreshed to `Helios Prime`
+
+Important conclusion:
+
+- `owner_slot = 1` is special for player-1 row generation regardless of the
+  slot-1 campaign state
+- foreign rogue owners are **not** enough in general; slots `2` and `3`
+  rogue-owned regular worlds still do not refresh the scout row
+- so the remaining regular-world scout gate is still specific to truly foreign
+  regular worlds, not to a generic “rogue owner” rule

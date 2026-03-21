@@ -482,31 +482,44 @@ remaining risks are:
     `DATABASE.DAT` row refresh and/or raw fleet-state changes, not by whether
     `RESULTS.DAT` is empty. The player-table thread is currently a
     report-routing / campaign-state side effect, not the resolved scout gate.
-15. The on-disk packed `ECMAINT.EXE` is not a useful string anchor for the
+15. Recent owner-slot probes narrowed the remaining black-box space:
+    - foreign rogue owners are **not** enough in general:
+      `/tmp/ecgame-regular-owner2-rogue-baseplanet` and
+      `/tmp/ecgame-regular-owner3-rogue-baseplanet` still leave row 5 as
+      `UNKNOWN`
+    - `owner_slot = 1` is special for player-1 row generation regardless of
+      slot-1 campaign state:
+      `/tmp/ecgame-regular-owner1-active-baseplanet`,
+      `/tmp/ecgame-regular-owner1-civdis-baseplanet`, and the earlier
+      `/tmp/ecgame-regular-rogue-owner1-baseplanet` all refresh row 5 to
+      `Helios Prime`
+    - so the remaining regular-world scout gate is not “rogue owner in any
+      slot”; it is still specific to truly foreign regular worlds
+16. The on-disk packed `ECMAINT.EXE` is not a useful string anchor for the
     scout-abort path. Headless Ghidra on local project `ec-v15-local` found no
     matches for `Scouting mission report`, `Since we have lost`, or
     `abort our mission`; use the live dump path instead of the packed EXE stub.
-16. Use DOSBox-X `memory file` rather than the interactive debugger prompt for
+17. Use DOSBox-X `memory file` rather than the interactive debugger prompt for
     local scout-abort dump capture here. The reliable carve is:
     `guest_ram[0x8140 : 0x8140 + 0x97eb0] ->
     /tmp/ecmaint-scout-abort-psp.MEMDUMP.BIN`.
-17. Treat `0000:8a11` as the current upstream live anchor for this RE thread:
+18. Treat `0000:8a11` as the current upstream live anchor for this RE thread:
     `[0x3521] = 0x0b -> 5c18 -> 6817`,
     `[0x3521] = 0x0a -> 6c9d -> 6dda`,
     `[0x3521] = 0x0e -> 841a -> 8584`.
-18. Next RE should trace the call path into:
+19. Next RE should trace the call path into:
     `0000:0c7a/0x0ca4` for the `0x350d..0x351f` target-state tuple,
     `0000:f914..0xf9cf` for the `0x3534` counter family and `0x3521` reset,
     and then the later write sites that raise `0x3521` from `0` to the
     mission-kind values consumed by `8a11`.
-19. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
+20. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
    direct `.DAT` ownership back into the client/runtime.
-20. Keep the distinction explicit in docs/tests:
+21. Keep the distinction explicit in docs/tests:
    - `ECGAME`-accepted row shapes are not automatically original-`ECMAINT`
      emitted row shapes
    - the regular-world foreign scout family is still missing a clean oracle
      maint proof
-21. When classic tooling changes a directory, fold those edits back through
+22. When classic tooling changes a directory, fold those edits back through
     `db-import` before the next Rust maint/client step.
 
 ## Combat System Status
