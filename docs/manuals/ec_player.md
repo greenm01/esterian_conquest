@@ -14,23 +14,15 @@ presents a workflow differently, prefer the underlying rule described here
 unless a Rust-specific doc says otherwise. For the untouched source, read
 [ECPLAYER.DOC](../../original/v1.5/ECPLAYER.DOC).
 
-Version 1.5.
-
-Fourth Edition, July 1992.
-
-Copyright (c) 1990-1992 by Bentley C. Griffith. Player's Guide written by Joel B. Cohen, Ph.D.
-
-Published by Griffith International, P.O. Box 530703, Birmingham, AL 35253.
-
 ## Program Features
 
 Esterian Conquest is an asynchronous turn-based empire game. Players submit
 orders during the turn year, and maintenance resolves the turn. You manage
 planets, direct fleets, gather intelligence, negotiate with rivals, and try to
 become Emperor before another claimant does. The game supports up to `25`
-players, offers menu-driven order entry with expert shortcuts, and gives you
-messaging, intelligence, and autopilot tools on top of the core military and
-economic systems.
+players, offers menu-driven order entry with fast command shortcuts, and gives
+you messaging, intelligence, and autopilot tools on top of the core military
+and economic systems.
 
 ## Table of Contents
 
@@ -255,13 +247,17 @@ BUILD SCOUT SHIPS TO SPY ON PLANETS.  The scout ship observes enemy forces while
 
 ## Reference
 
+This section preserves the classic command structure and menu vocabulary so the
+original client remains understandable. Rust-native interfaces may present the
+same actions differently.
+
 ### The Program Menus
 
 You issue commands by selecting options from menus.  To pick an option, type the option letter and press [ENTER]. A list of all menus and options appears in Appendix C.
 
 **Options Common To All Menus:** Five options available to all menus are: QUIT; HELP; XPERT MODE ON/OFF; VIEW PARTIAL STARMAP; and INFORMATION DATABASE.
 
-QUIT ("Q"): usually returns you to a previous menu.  From the main menu, the quit option leaves the game and returns you to the calling session.
+QUIT ("Q"): usually returns you to a previous menu.  From the main menu, the quit option leaves the game and returns you to the current session.
 
 HELP ("H"): gives a brief description of what each of the options do for the current menu.
 
@@ -273,7 +269,7 @@ INFORMATION DATABASE ("I"): will display whatever your fleets have discovered ab
 
 **Menu Structure:** Esterian Conquest has four central menus. These are: MAIN MENU, GENERAL COMMAND, PLANET COMMAND, and FLEET COMMAND.
 
-**Main Menu:** The main menu transfers you to one of the other three central menus ("G" for GENERAL COMMAND; "P" for PLANET COMMAND; or "F" for FLEET COMMAND).  You can toggle the ANSI graphics mode using the "A" command.  ANSI graphics look better and can make information easier to read.
+**Main Menu:** The main menu transfers you to one of the other three central menus ("G" for GENERAL COMMAND; "P" for PLANET COMMAND; or "F" for FLEET COMMAND).  You can toggle graphics display mode using the "A" command.  Graphics mode can make information easier to read.
 
 Two summaries are available of your empire's production, fleets, planets, and starbases: "D" gives a Detailed Summary and "B" gives Brief Listings.
 
