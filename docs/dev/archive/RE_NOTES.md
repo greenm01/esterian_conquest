@@ -10161,19 +10161,21 @@ Follow-up whole-image scans on the same live dump tightened `0x3562` much more:
   - it iterates the `25 * world + viewer` table and writes `0`
   - so `0x3562` is not a one-off scratch byte; it is a persistent
     per-world/per-viewer runtime table
-- the foreign-owned first-contact path at `0000:73d8..75eb` now clearly does:
-  - `entry == 0`
-  - emit the foreign-world report
-  - `entry := 1`
-  - `CALLF 0x2895:2ddc` with literal `1`
-  - `0x3521 := 1`, `0x3522/0x3523 := 0x350d/0x350e`, `0x3524 := 0`
+- the previously noted `entry := 1` writer at `0000:73d8..75eb` is **not**
+  scout-specific:
+  - it sets the small dispatcher state `0x3521 := 1`, not `0x0b`
+  - its embedded strings are the warship `guarding/blockading world` family,
+    including `Since we have lost all of our warships in combat...`
+  - so it should be treated as another world-targeted mission family using the
+    same `0x3562` table, not as the scout-side first-contact writer
 - another helper at `0000:6830..6c02` is the only observed `entry := 2`
   writer in the current abort dump:
   - if `entry != 2`, it first calls `CALLF 0x2895:2ddc` with literal `2`
   - then `entry in {0,1}` takes the actionable report branch
   - the helper ends by clearing `0x350c` and writing `entry := 2`
-  - this is the clearest current proof that the foreign-world state machine
-    really has a `1 -> 2` promotion stage, not just a single “seen” bit
+  - this is still the clearest scout-side use of `0x3562`, but it no longer
+    proves a scout-specific `1 -> 2` progression because the observed `1`
+    writer belongs to a different mission family
 - helper `0000:562d..5abf` accepts `entry in {0,1,2}` together, branches to
   separate report variants for later states (`3`, `4`, `5`, `8`), and
   generally ends with `0x3521 := 1` and `0x3524 := 0`; it looks like a generic
@@ -10186,12 +10188,14 @@ Follow-up whole-image scans on the same live dump tightened `0x3562` much more:
 
 Current practical interpretation:
 
-- `0x3562` is now best treated as a per-world/per-viewer contact / mission
-  state table, not just a visibility gate
-- the remaining regular-world scout-abort blocker is more likely in the
-  foreign-world `state 1 -> state 2` progression, or in the prerequisite that
-  decides whether that promotion helper runs at all, than in stale
-  `DATABASE.DAT` visibility or simple owner-slot identity
+- `0x3562` is now best treated as a shared per-world/per-viewer contact /
+  mission state table, not just a visibility gate and not scout-only
+- the remaining regular-world scout-abort blocker is more likely in how the
+  scout-specific `0x0b -> 5c18 -> 6817` path consumes that shared table than in
+  stale `DATABASE.DAT` visibility or simple owner-slot identity
+- do **not** assume any more that the scout problem is specifically a missing
+  `state 1 -> state 2` promotion; the observed `state 1` writer in this dump is
+  in the small-state-`1` warship guard/blockade family, not the scout branch
 
 One more bounded pass around the `0000:8a11` dispatcher tightened which mission
 kind actually owns this thread.
@@ -10199,11 +10203,16 @@ kind actually owns this thread.
 - the small mission-kind dispatcher at `0000:8ada..8c20` does:
   - `[0x3521] = 0x0b -> 5c18 -> 6817`
   - `[0x3521] = 0x0a -> 6c9d -> 6dda`
-- `0000:6dda` is clearly **not** the foreign scout-abort family:
-  - its strings are the ETAC / colonization abort text
-  - examples in the same dump include:
-    - `Since we have lost all of our ETAC ships, we must abort our mission...`
-    - `colonizing the world in System ...`
+- `0000:6c9d -> 6dda` is **not** ETAC / colonization:
+  - the adjacent string pool at `0x6c06` is the literal scout-sector abort
+    text:
+    - `Since we have lost all of our scouts, we must abort our mission of`
+    - `scouting Sector(?,?)`
+  - the same family also contains the positive sector-scout arrival text at
+    `0x6d8f`:
+    - `We have arrived at our destination and are beginning to scout this sector.`
+  - structurally, `6c9d` is also just the plain tuple-match gate with no
+    target-owner lookup, which fits `Scout Sector`
 - `0000:6817` **is** the foreign scout family:
   - it contains the `0x3562` per-world/per-viewer state machine
   - it is the only currently observed `entry := 2` writer
@@ -10217,6 +10226,12 @@ kind actually owns this thread.
 - helper `0000:5c18` is therefore the most relevant setup predicate for the
   regular-world scout-abort thread, not `0000:6c9d`
 - `0000:5c18` already matches that reading:
+  - its early `word [0x3534] == 0` path is the exact solar-system scout abort
+    family:
+    - string at `0x5adb`: `Since we have lost all of our scouts, we must abort our mission of`
+    - continuation at `0x5b20`: `scouting System(?,?)`
+  - that same block also carries the corresponding hold text
+    `We are holding our current position and are awaiting new orders.`
   - after the shared tuple checks, it resolves the target world from
     `0x3522/0x3523`
   - if the current world owner differs from `[0x3504]`, it returns success
@@ -10226,9 +10241,58 @@ kind actually owns this thread.
 
 So the working mission-kind interpretation is now:
 
-- `0x0a` = colonization / ETAC family
+- `0x0a` = `Scout Sector`
 - `0x0b` = foreign-world scout / contact-analysis family
+- `0x0e` = rendezvous / fleet-merge family
+  - the adjacent strings around `0x8464..0x8583` are rendezvous-point /
+    merging / absorbing-fleets text, not ETAC
 
 That does not finish the scout-abort gate, but it narrows the remaining RE
 surface to the `0x0b` setup/finalizer pair (`5c18 -> 6817`) and the `0x3562`
 substates inside `6817`.
+
+One more important correction from the string pool:
+
+- the observed regular-world failure text
+  `Since we have lost all of our scouts ... scouting System(9,2)` is the
+  `5c18` **early** `word [0x3534] == 0` abort path
+- so the current failing regular-world run is dying **before** the foreign
+  owner lookup at `5d1e..5d28` and before the `6817` follow-up can run at all
+- that means the immediate abort-side question is upstream of `0x3562`:
+  why the regular-world run reaches `5c18` with `0x3534 == 0`, or why the
+  earlier counter/setup loop leaves the solar-system scout with no surviving
+  scout count by that point
+
+Bounded reread of the shared counter loop at `0000:f914..f9bd` makes `0x3534`
+less mysterious:
+
+- it zeroes seven sibling counters `0x352c/0x352a/0x3528/0x3534/0x352e/0x3530/0x3532`
+- then iterates `0x5d4` entries of a `0x0a`-byte table rooted at `[0x5c8]`
+- for each entry it reads the code byte at offset `-0x0a`
+- observed code-byte routing is:
+  - `1 -> inc 0x352c`
+  - `2 -> inc 0x352a`
+  - `3 -> inc 0x3528`
+  - `4 -> inc 0x3534`
+  - `5 -> inc 0x352e`
+  - `6 -> inc 0x3530`
+  - `7 -> inc 0x3532`
+
+So `0x3534` is specifically “count of code-byte-4 entries in that shared
+10-byte table,” not a free-standing scratch word. The next useful upstream RE
+question is now:
+
+- what routine populates `[0x5c8]` / the `0x0a`-byte entry table
+- what semantic class the code byte value `4` represents there
+
+Tried to recover the missing success-side runtime image from
+`/tmp/ecgame-classic-atrest-purescout-new/.oracle/before-ecmaint` with the
+DOSBox-X `memory file` fallback, but that path currently is not clean enough to
+use as a comparison dump here:
+
+- replaying the success directory under both packed `original/v1.5/ECMAINT.EXE`
+  and unlocked `EC_UNLOCKED/ECMAINT.EXE` with `memory file` produced sustained
+  `Illegal Unhandled Interrupt Called 6` spam in DOSBox-X
+- `RESULTS.DAT` stayed empty and the resulting guest RAM image did not expose
+  the expected scout strings, so it is not yet a trustworthy success-side PSP
+  dump

@@ -510,20 +510,30 @@ remaining risks are:
     Whole-image live-dump scans show:
     - the table is reset to `0` in bulk at `0002:a039`, so it is a real
       per-world/per-viewer runtime state table
-    - the foreign-owned first-contact path at `0000:73d8..75eb` sets
-      `entry := 1`, calls `0x2895:2ddc` with literal `1`, and then sets
-      `0x3521 := 1`
+    - the observed `entry := 1` writer at `0000:73d8..75eb` is **not** the
+      scout branch:
+      it sets `0x3521 := 1`, and its embedded strings are the warship
+      `guarding/blockading world` family
     - helper `0000:6830..6c02` is the only observed `entry := 2` writer in the
       current abort dump; it calls `0x2895:2ddc` with literal `2`, handles
       `entry in {0,1}`, clears `0x350c`, and ends with `entry := 2`
     - later paths also promote existing nonzero entries to `3`, `4`, `6`, and
       `7`, so `0x3562` is a small state machine, not a visibility bit
 18. Practical implication: the remaining regular-world scout-abort gate is now
-    best treated as a foreign-world `state 1 -> state 2` / pre-promotion
-    problem, not a plain owner-slot or stale-visibility problem. The next
-    useful RE step is to identify which scout helper calls `0000:6830..6c02`
-    in the regular-world success case and why that promotion is missing or
-    blocked in the failing regular-world abort case.
+    best treated as a scout-side use of a broader shared target-state table,
+    not a plain owner-slot or stale-visibility problem and not a proven
+    scout-specific `state 1 -> state 2` issue. The next useful RE step is to
+    stay on the real scout branch, `0x0b -> 5c18 -> 6817`, and identify how
+    that path consumes `0x3562` in the regular-world success case versus the
+    failing abort case.
+    More precise current read:
+    - the exact failing text `Since we have lost all of our scouts ...
+      scouting System(...)` belongs to `5c18`'s early `word [0x3534] == 0`
+      abort path
+    - so the known failing regular-world run dies before the foreign-owner
+      lookup inside `5c18` and before `6817` / the `0x3562` follow-up can run
+    - the immediate abort-side question is therefore upstream of `0x3562`:
+      why the regular-world scout reaches `5c18` with `0x3534 == 0`
 19. The on-disk packed `ECMAINT.EXE` is not a useful string anchor for the
     scout-abort path. Headless Ghidra on local project `ec-v15-local` found no
     matches for `Scouting mission report`, `Since we have lost`, or
@@ -536,15 +546,32 @@ remaining risks are:
     `[0x3521] = 0x0b -> 5c18 -> 6817`,
     `[0x3521] = 0x0a -> 6c9d -> 6dda`,
     `[0x3521] = 0x0e -> 841a -> 8584`.
+    Current mission-kind read is now:
+    - `0x0a` = `Scout Sector`
+    - `0x0b` = solar-system / foreign-world scout-contact path
+    - `0x0e` = rendezvous / fleet-merge family
+    The earlier ETAC/colonization interpretation was wrong.
 20. Next RE should trace the call path into:
     `0000:0c7a/0x0ca4` for the `0x350d..0x351f` target-state tuple,
     `0000:f914..0xf9cf` for the `0x3534` counter family and `0x3521` reset,
-    and the foreign-owned `0000:7290` branch that reads the
-    `0x3562 + 25 * target_index + viewer_slot` table before the later tuple
-    tests and `0x3521` mission dispatch.
-21. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
+    and the upstream path that leaves the solar-system scout helper with
+    `0x3534 == 0` on the failing regular-world run. Keep `0x3562` in scope for
+    the success-side foreign-world follow-up, but it is no longer the leading
+    candidate for the exact abort text already observed.
+    New concrete detail from `f914..f9bd`:
+    - `0x3534` is the count of entries whose small code byte is `4` in the
+      shared `0x0a`-byte table scanned from `[0x5c8]`
+    - the next upstream question is therefore which routine builds that table
+      and what code `4` represents there
+21. A fresh success-side dump is still missing. Replaying
+    `/tmp/ecgame-classic-atrest-purescout-new/.oracle/before-ecmaint` with the
+    DOSBox-X `memory file` fallback currently degenerates into repeated
+    `Illegal Unhandled Interrupt Called 6` spam under both the packed original
+    and unlocked `ECMAINT.EXE`, so do not treat `/tmp/ecmaint-scout-success.mem`
+    as a valid success PSP image yet.
+22. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
    direct `.DAT` ownership back into the client/runtime.
-22. Keep the distinction explicit in docs/tests:
+23. Keep the distinction explicit in docs/tests:
    - `ECGAME`-accepted row shapes are not automatically original-`ECMAINT`
      emitted row shapes
    - the regular-world foreign scout family is still missing a clean oracle
