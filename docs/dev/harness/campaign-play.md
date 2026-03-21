@@ -13,6 +13,28 @@ The conductor is the only authority that advances the year. Bots act like
 normal players: they read their own bundle, write `turn.kdl`, and wait for the
 conductor to validate and apply it.
 
+## Two Coordinator Layers
+
+There are two distinct coordinator roles in this workflow.
+
+1. `ec-cli harness` conductor
+   - opens turns
+   - writes bundles and status files
+   - validates `turn.kdl`
+   - applies the full player batch
+   - runs maintenance
+
+2. outer operator or LLM coordinator
+   - notices that a turn is open
+   - claims the player slots
+   - spawns one player worker per empire
+   - gives each worker only its own bundle and output path
+   - waits for the `turn-<nnnn>.kdl` files
+   - runs `scan-turn` and `apply-turn-batch`
+
+The first coordinator is in-repo and authoritative over campaign state. The
+second is the orchestration layer that actually sends out sub-agents.
+
 ## Happy Path
 
 Build the campaign and advance it until turn 5 is open:
@@ -79,6 +101,17 @@ Normal sequence:
 7. when all active players are `validated`, conductor runs `harness apply-turn-batch`
 8. maintenance advances once and turn `N+1` opens
 
+If you are using LLM sub-agents, expand steps 3 through 6 like this:
+
+1. outer coordinator claims player `1..N`
+2. outer coordinator spawns one worker per player
+3. each worker reads only its own `bundle-turn-<nnnn>/`
+4. each worker writes only its own `turn-<nnnn>.kdl` and optional notes file
+5. outer coordinator waits for all workers to finish
+6. outer coordinator runs `scan-turn`
+7. if any player is `rejected`, repair or rerun only that player
+8. once all players are `validated`, outer coordinator runs `apply-turn-batch`
+
 ## Step-By-Step Commands
 
 Initialize the campaign explicitly:
@@ -125,6 +158,32 @@ cargo run -q -p ec-cli -- harness play-until --file /tmp/scenario.kdl --dir /tmp
 
 If the campaign manifest already exists, `play-until` resumes from the current
 open turn instead of starting over.
+
+## LLM Coordinator Pattern
+
+This is the intended multi-agent pattern when you want the coordinator to send
+out player workers directly.
+
+1. run `harness init-campaign` once
+2. when turn `N` opens, run `harness claim-turn --player <record>` for each active player
+3. spawn one sub-agent per player
+4. constrain each sub-agent to:
+   - the manuals
+   - that player's `bundle-turn-<nnnn>/`
+   - that player's prior notes and turn files only
+   - that player's output `turn-<nnnn>.kdl`
+5. wait for all workers
+6. run `harness scan-turn`
+7. repair or rerun only rejected players
+8. run `harness apply-turn-batch`
+9. repeat until the requested open turn
+
+Do not let player workers:
+
+- read other players' bundles
+- inspect `ecgame.db`
+- apply maintenance
+- edit another player's turn file
 
 ## What Bots Receive
 

@@ -42,6 +42,12 @@ cargo run -q -p ec-cli -- harness run-sweep --file /tmp/combat-sweep.kdl
 Use the campaign-play workflow when you want a real in-process game that bots
 or humans can keep playing turn by turn.
 
+In practice this usually means:
+
+- `ec-cli harness` acts as the authoritative in-repo conductor
+- an outer operator or LLM coordinator claims player turns and spawns one player worker per bundle
+- each worker writes only its own `turn-<nnnn>.kdl`
+
 The conductor owns turn advancement:
 
 - it opens the current turn
@@ -84,7 +90,8 @@ Fog-of-war boundary:
 - bots should treat the bundle as the safe source of truth and not inspect `ecgame.db`
 
 For the full reproducible operator flow, including "play to turn 5 then open the
-TUI", see [campaign-play.md](campaign-play.md).
+TUI", and for the sub-agent coordination pattern layered on top of it, see
+[campaign-play.md](campaign-play.md).
 
 ## `scenario.kdl`
 

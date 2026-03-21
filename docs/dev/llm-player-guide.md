@@ -89,6 +89,28 @@ cargo run -q -p ec-cli -- harness claim-turn --dir /tmp/ec-bot-campaign --player
 The bot should not advance maintenance itself. The conductor does that only
 after every active player's file is validated.
 
+## If You Are Using A Coordinator With Sub-Agents
+
+When an outer LLM coordinator is running the campaign, it should spawn one
+player worker per empire for the current turn.
+
+That coordinator should give each worker only:
+
+- the manuals
+- that player's own `bundle-turn-<nnnn>/`
+- that player's prior notes and turn files
+- that player's target `turn-<nnnn>.kdl` path
+
+It should not give a player worker:
+
+- another player's bundle
+- another player's `turn.kdl`
+- the campaign database
+- maintenance output or hidden summaries
+
+The outer coordinator then waits for all player workers, runs `scan-turn`,
+fixes any rejected player files, and only then runs `apply-turn-batch`.
+
 ## What The Operator Should Provide
 
 For each decision turn, the operator should give the bot:
@@ -110,6 +132,7 @@ Important boundary:
 - current bundles include player-visible starmap/intel, owned assets, diplomacy, and incoming player mail
 - current bundles do not expose raw global review text from `RESULTS.DAT` or `MESSAGES.DAT`
 - do not pass the bot `ecgame.db`, hidden empire summaries, or developer-only metrics
+- if using sub-agents, do not pass one bot another bot's bundle or turn file
 
 ## The Bot's Turn Loop
 
