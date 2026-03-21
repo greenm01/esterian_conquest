@@ -382,9 +382,9 @@ remaining risks are:
 - keeping runtime/client code free of accidental classic-file side effects
 - implementation drift between canonical SQLite intel facts and classic export
   is now partly fenced by regression coverage: `db-import -> db-export`
-  round-trips preserve both the accepted foreign full-intel row and the
-  accepted view-only row even though SQLite intel snapshots do not store
-  visible `DATABASE.DAT[0x1d]` / `0x1e..0x1f` directly
+  round-trips preserve the accepted foreign full-intel, view-only, assault-
+  failure, and assault-success row families even though SQLite intel snapshots
+  do not store visible `DATABASE.DAT[0x1d]` / `0x1e..0x1f` directly
 - **Unwrapped EXEs**: Two sets available:
   - `tools/unlzexe/*U.EXE` (memdump-extracted): Ghidra static analysis
     only. Carry baked-in TP7 runtime state; cannot run under DOS.
