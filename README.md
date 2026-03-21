@@ -3,7 +3,7 @@
 ![Esterian Conquest banner](docs/assets/ec_v1.5_banner.png)
 
 _Inspired by Esterian Conquest (c) 1992 Bentley C. Griffith.
-This is an independent reimplementation and is not affiliated with the original._
+A fan-built resurrection -- not affiliated with the original._
 
 EC is a Rust reimplementation of the original game, with classic `.DAT`
 interoperability, a growing native client, and a maintenance engine that can
