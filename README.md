@@ -224,6 +224,20 @@ persisted player handle:
 tools/run_ecgame.sh /tmp/ec-game 2 SYSOP
 ```
 
+Build the reproducible demo-ready release zips for emulator testing:
+
+```bash
+python3 scripts/build_release_packages.py --verify
+```
+
+This writes:
+
+- `releases/ec-v1.5-classic-demo.zip`
+- `releases/ec-v1.5-unlocked-demo.zip`
+
+Each archive includes a minimal real game directory, a known-good local
+`CHAIN.TXT`, and the original `.DOC` manuals.
+
 Inspect the classic login branch Rust expects for a given caller alias:
 
 ```bash

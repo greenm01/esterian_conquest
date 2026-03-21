@@ -151,6 +151,38 @@ Pass-through example:
 This wrapper always adds `--force`, so rerunning it refreshes the probe
 directory before launch.
 
+### `build_release_packages.py`
+
+Builds the reproducible demo-ready release zips under `releases/`.
+
+It currently:
+
+- builds one archive with the original packed binaries
+- builds one archive with the unlocked binaries
+- copies the original `.DOC` manuals into each package
+- seeds both packages with the preserved `fixtures/ecutil-init/v1.5` game
+  directory
+- generates the known-good local-console `CHAIN.TXT`
+- validates the generated archives when `--verify` is passed
+
+Example:
+
+```bash
+python3 scripts/build_release_packages.py --verify
+```
+
+Classic-only example:
+
+```bash
+python3 scripts/build_release_packages.py --variant classic --verify
+```
+
+Use this when you want:
+
+- a reproducible bundle to hand to emulator developers
+- a small local package that opens with the repo's known-good `CHAIN.TXT`
+- a clean split between original packed and unlocked executable variants
+
 ### `run_client.py`
 
 Launches the Rust client against a chosen campaign directory and player seat.
