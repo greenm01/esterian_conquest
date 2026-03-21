@@ -398,12 +398,14 @@ remaining risks are:
   do not store visible `DATABASE.DAT[0x1d]` / `0x1e..0x1f` directly
 - **Unwrapped EXEs**: Two sets available:
   - `tools/unlzexe/*U.EXE` (memdump-extracted): Ghidra static analysis
-    only. Carry baked-in TP7 runtime state; cannot run under DOS.
-  - `EC_UNLOCKED/` (stream-cipher decrypted): **Runnable** under
-    DOSBox-X with **100% oracle match**. Named with original filenames
-    (`ECMAINT.EXE` etc.) because DOS includes the filename in the
-    environment block, which shifts the load segment and affects TP7
-    fixups. See `EC_UNLOCKED/README.md` for details.
+    artifacts. Raw `ECGAMEU.EXE` also carries the old small-file MZ size
+    fields, so DOS only loads its truncated prefix unless those header fields
+    are repaired.
+  - `EC_UNLOCKED/`: curated runnable plain-MZ copies. `ECMAINT` / `ECUTIL`
+    currently come from the known-good `*_CLEAN.EXE` images; `ECGAME.EXE`
+    is rebuilt from `tools/unlzexe/ECGAMEU.EXE` with corrected MZ size
+    fields so DOSBox-X loads the full recovered image. Rebuild with
+    `python3 tools/unlzexe/rebuild_unlocked.py --verify`.
 
 ## Immediate Next Steps
 

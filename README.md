@@ -142,8 +142,9 @@ For normal Rust development in this repo, the practical baseline is:
 - `python-pexpect` if you want to use the DOSBox-X debugger helpers under
   `tools/`
 - DOSBox-X or dosemu2 if you want to launch the original DOS binaries locally
-  or do dynamic oracle/RE work (the unlocked binaries in `EC_UNLOCKED/` work
-  in both; the original packed binaries require DOSBox-X)
+  or do dynamic oracle/RE work (the curated unlocked binaries in
+  `EC_UNLOCKED/` are the stub-free local-launch set; the original packed
+  binaries require DOSBox-X)
 - Ghidra plus JDK 21 only if you want to use the headless static-RE workflow
 
 Recommended local build-speed tooling:
@@ -237,6 +238,10 @@ This writes:
 
 Each archive includes a minimal real game directory, a known-good local
 `CHAIN.TXT`, and the original `.DOC` manuals.
+
+The unlocked bundle rebuilds `EC_UNLOCKED/` first, including the current
+`ECGAME.EXE` recovery that corrects the memdump image's MZ size fields so DOS
+loads the full unlocked client body.
 
 Inspect the classic login branch Rust expects for a given caller alias:
 
@@ -447,7 +452,7 @@ Useful supporting docs:
 
 - `original/`: original EC 1.5 materials used as primary sources and oracle
   artifacts
-- `EC_UNLOCKED/`: decrypted, runnable copies of the original DOS executables
+- `EC_UNLOCKED/`: curated runnable plain-MZ copies of the original DOS executables
 - `docs/`: stable engineering, RE, and design docs
 - `docs/reverse_engineering/`: oracle, provenance, and binary-recovery docs
 - `docs/dev/archive/RE_NOTES.md`: chronological reverse-engineering notebook (archival)

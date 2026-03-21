@@ -24,6 +24,17 @@ The top level holds the artifacts that proved most useful in day-to-day RE:
 The runnable unlocked binaries that the rest of the project treats as the
 primary plain-MZ copies live in [`EC_UNLOCKED/`](../../EC_UNLOCKED/).
 
+Important distinction:
+
+- `*U.EXE` files here are preserved extraction artifacts
+- `EC_UNLOCKED/` is the curated runnable output set
+
+Rebuild the curated set with:
+
+```bash
+python3 tools/unlzexe/rebuild_unlocked.py --verify
+```
+
 ## Sandbox Layout
 
 ### `sandbox-gemini/`
