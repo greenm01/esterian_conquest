@@ -10483,3 +10483,37 @@ Rust policy after closing this thread:
   `maint_rust_lone_scout_system_does_not_reproduce_classic_abort_bug`, to keep
   the Rust engine on the successful lone-scout path instead of copying the
   original abort
+
+### The old `TargetPrime` refresh baseline is rogue-viewer-specific
+
+The final open question was whether the accepted foreign-world scout refresh at
+`/tmp/ecgame-classic-atrest-purescout-new/.oracle/before-ecmaint` represented a
+general active-player oracle for foreign `ScoutSolarSystem`, or whether it was
+another legacy campaign-state quirk.
+
+That is now closed too.
+
+Starting from the accepted baseline:
+
+- changing only `PLAYER.DAT` slot-1 byte `0x00` from rogue `0xff` to active
+  `0x01` at `/tmp/ecgame-targetprime-ownerbyte1` was enough to collapse the
+  run to a total no-op
+- transplanting the full active slot-1 block from
+  `/tmp/ecgame-regular-purescout-clean/.oracle/before-ecmaint` into the same
+  accepted baseline at `/tmp/ecgame-targetprime-active-slot1` also collapsed
+  to the same total no-op
+
+This means the accepted `TargetPrime` scout refresh is not a general
+active-player foreign-world scout family. It is tied to the legacy
+rogue-slot1 viewer state present in that baseline.
+
+That re-frames the earlier regular-world no-op probes:
+
+- active-player regular-world no-op behavior is no longer a missing oracle rule
+  that Rust must chase in order to support normal gameplay
+- the only clearly accepted foreign-world refresh family recovered from
+  original `ECMAINT` in this thread is the rogue-viewer case
+- Rust should not emulate that viewer-state dependency; it should keep the
+  explicit active-player foreign-intel refresh path already covered by the
+  existing `maint_rust_updates_large_game_database_from_scout_intel_event`
+  regression

@@ -576,25 +576,26 @@ remaining risks are:
     - Rust should not reproduce that bug. The deliberate divergence is now
       locked in by `maint_rust_lone_scout_system_does_not_reproduce_classic_abort_bug`
       in `rust/ec-cli/tests/maint.rs`
-    - success-side probes are now narrowing the other side of the boundary too.
-      Starting from the accepted foreign-world `TargetPrime` scout baseline at
+    - the old `TargetPrime` success baseline is now explained enough to stop
+      treating it as a general foreign-scout oracle. Starting from
       `/tmp/ecgame-classic-atrest-purescout-new/.oracle/before-ecmaint`:
-      changing only the target world owner byte from slot `2 -> 3` or
-      `2 -> 4` produced a total no-op (`RESULTS.DAT` stayed empty and all core
-      `.DAT` files were unchanged)
-    - that no-op result is not explained only by "inactive owner slot":
-      `/tmp/ecgame-targetprime-owner4-active` also transplanted the active
-      slot-4 `PLAYER.DAT` block from the failing regular-world baseline, and
-      original `ECMAINT` still performed zero writes
-    - geometry/system identity is coupled too: `/tmp/ecgame-targetprime-at-helios`
-      moved the accepted `TargetPrime` foreign-world record and scout target to
-      `(9,2)` while keeping the rest of the accepted baseline intact, and that
-      also collapsed to a total no-op
-    - practical read: the accepted foreign-world scout path is a tightly
-      coupled target-world/system context, not just a generic scout fleet plus
-      a visible foreign owner. The remaining regular-world issue is no longer
-      the abort itself; it is the no-op versus true refresh split in that
-      target-world/system classification path
+      changing only player-slot-1 byte `PLAYER.DAT[0x00]` from rogue `0xff`
+      to active `0x01` at `/tmp/ecgame-targetprime-ownerbyte1` was already
+      enough to collapse the run to a total no-op
+    - the broader active-slot-1 transplant at
+      `/tmp/ecgame-targetprime-active-slot1` did the same, so the accepted
+      `TargetPrime` refresh is a rogue-slot1 campaign-state family, not a
+      general active-player foreign-world scout rule
+    - changing only the target world owner byte from slot `2 -> 3` or
+      `2 -> 4`, transplanting an active slot-4 player block, or moving the
+      accepted `TargetPrime` world family to `(9,2)` all also collapsed to
+      the same total no-op
+    - practical closure: the remaining "regular-world no-op versus refresh"
+      question is not an unresolved compatibility gap for Rust maint. The
+      original accepted refresh family is bound to a legacy rogue-viewer state
+      that Rust should not emulate. Rust should keep the explicit active-player
+      foreign-intel refresh path already covered by
+      `maint_rust_updates_large_game_database_from_scout_intel_event`
 19. The on-disk packed `ECMAINT.EXE` is not a useful string anchor for the
     scout-abort path. Headless Ghidra on local project `ec-v15-local` found no
     matches for `Scouting mission report`, `Since we have lost`, or

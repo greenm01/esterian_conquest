@@ -454,6 +454,10 @@ Known deliberate divergence:
 
 - original `ECMAINT` has a regular-world `ScoutSolarSystem` lone-active-mission
   abort bug; `maint-rust` documents that oracle behavior but does not copy it
+- the recovered successful foreign-world scout refresh family is tied to a
+  legacy rogue-viewer campaign state in original `ECMAINT`; `maint-rust` keeps
+  explicit active-player foreign-intel refresh semantics instead of emulating
+  that state quirk
 
 The classic login classifier now covers all three local compatibility branches:
 
