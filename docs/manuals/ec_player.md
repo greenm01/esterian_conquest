@@ -36,7 +36,6 @@ and economic systems.
 - Conclusions
 - Appendix A. Quick Reference Sheet
 - Appendix B. ROE (Rules of Engagement) Settings
-- Appendix C. Esterian Conquest(tm) Menus
 
 ## Introduction
 
@@ -253,7 +252,7 @@ same actions differently.
 
 ### The Program Menus
 
-You issue commands by selecting options from menus.  To pick an option, type the option letter and press [ENTER]. A list of all menus and options appears in Appendix C.
+You issue commands by selecting options from menus.  To pick an option, type the option letter and press [ENTER].
 
 **Options Common To All Menus:** Five options available to all menus are: QUIT; HELP; XPERT MODE ON/OFF; VIEW PARTIAL STARMAP; and INFORMATION DATABASE.
 
@@ -378,183 +377,57 @@ NOW STOP READING AND PLAY!  THERE'S A GALAXY TO CONQUER.
 
 ### Machinery You Can Build
 
-```text
-                            BUILD        MAX.
-```
-
-### Item               Cost   Size  Speed   Purpose
-
-```text
-         DESTROYER            5      S     6     Combat / Defense
-         CRUISER             15      M     5     Combat / Defense
-         BATTLESHIP          45      L     4     Combat / Defense
-```
-
-```text
-         SCOUT               15      S     6     Spy on Planet/Sector
-         TROOP TRANSPORT      5      M     5     Land armies on Planet
-         ETAC                20      L     3     Colonize a Raw Planet
-```
-
-```text
-         GROUND BATTERY      20      L    n/a    Defend Planet
-         ARMY                 2      S    n/a    Defend Planet Surface
-```
-
-### Starbase            50      L     1     Enhance / Defend
+| Item | Build Cost | Size | Max Speed | Purpose |
+| --- | ---: | :---: | :---: | --- |
+| Destroyer | 5 | S | 6 | Combat / Defense |
+| Cruiser | 15 | M | 5 | Combat / Defense |
+| Battleship | 45 | L | 4 | Combat / Defense |
+| Scout | 15 | S | 6 | Spy on Planet / Sector |
+| Troop Transport | 5 | M | 5 | Land armies on a planet |
+| ETAC | 20 | L | 3 | Colonize a raw planet |
+| Ground Battery | 20 | L | n/a | Defend planet |
+| Army | 2 | S | n/a | Defend planet surface |
+| Starbase | 50 | L | 1 | Enhance / Defend |
 
 ### Possible Missions For Fleets Listed By Their Mission Numbers
 
-### No.  Mission                    Requirements (If Any)
-
-```text
-           0   None (hold position)       None. All ships can do this.
-           1   Move Fleet (only)          None. All ships can do this.
-           2   Seek Home                  None. All ships can do this.
-           3   Patrol a Sector            None. All ships can do this.
-           4   Guard a Starbase           Combat ship(s).
-           5   Guard/Blockade a World     Combat ship(s).
-           6   Bombard a World            Combat ship(s).
-           7   Invade a World             Combat ship(s) & Loaded
-                                            Troop Transports.
-           8   Blitz a World              Loaded Troop Transports.
-           9   View a World               None. All ships can do this.
-          10   Scout a Sector             At least one scout ship.
-          11   Scout a Solar System       At least one scout ship.
-          12   Colonize a World           At least one ETAC.
-          13   Join another fleet         None. All ships can do this.
-          14   Rendezvous at Sector       None. All ships can do this.
-```
-
-### 15   Salvage                    None. All Ships Can Do This.
+| No. | Mission | Requirements |
+| ---: | --- | --- |
+| 0 | None (hold position) | None. All ships can do this. |
+| 1 | Move Fleet | None. All ships can do this. |
+| 2 | Seek Home | None. All ships can do this. |
+| 3 | Patrol a Sector | None. All ships can do this. |
+| 4 | Guard a Starbase | Combat ship(s). |
+| 5 | Guard/Blockade a World | Combat ship(s). |
+| 6 | Bombard a World | Combat ship(s). |
+| 7 | Invade a World | Combat ships and loaded troop transports. |
+| 8 | Blitz a World | Loaded troop transports. |
+| 9 | View a World | None. All ships can do this. |
+| 10 | Scout a Sector | At least one scout ship. |
+| 11 | Scout a Solar System | At least one scout ship. |
+| 12 | Colonize a World | At least one ETAC. |
+| 13 | Join another fleet | None. All ships can do this. |
+| 14 | Rendezvous at Sector | None. All ships can do this. |
+| 15 | Salvage | None. All ships can do this. |
 
 ## Appendix B.  ROE (Rules Of Engagement) Settings
 
-```text
-            You only assign ROE for Fleets that contain Combat ships.
-         Any fleet with only non-combat ships automatically gets an
-         ROE of zero to avoid being destroyed by armed enemy fleets.
-```
+You only assign ROE for fleets that contain combat ships. Any fleet with only
+non-combat ships automatically gets an ROE of `0` to avoid being destroyed by
+armed enemy fleets.
 
 ### Possible ROE (Rules Of Engagement)
 
-### ROE   Conditions To Engage Hostile Fleets In Battle
-
-```text
-           0    Avoid all hostile fleets.  (Non-combat Fleets)
-           1    Engage fleets only if they are defenseless.
-           2    Engage fleets only if your advantage is 4:1 or better.
-           3    Engage fleets only if your advantage is 3:1 or better.
-           4    Engage fleets only if your advantage is 2:1 or better.
-           5    Engage fleets only if your advantage is 3:2 or better.
-           6    Engage hostile fleets of equal or inferior strength.
-           7    Engage hostile fleets even if outgunned 3:2.
-           8    Engage hostile fleets even if outgunned 2:1.
-           9    Engage hostile fleets even if outgunned 3:1.
-```
-
-### 10    Engage Hostile Fleets Regardless Of Their Size.
-
-## Appendix C. Esterian Conquest(tm) Menus
-
-### Options Available To All Menus
-
-```text
-           H>elp with commands         V>iew Partial Starmap
-           Q>uit to previous Menu      I>nfo about a Planet
-```
-
-### X>Pert Mode On/Off
-
-### Main Menu Commands
-
-```text
-           A>nsi color ON/OFF          T>otal Planet Database
-           G>ENERAL COMMAND MENU...    I>nfo about a Planet
-           P>LANET COMMAND MENU...     B>rief Empire Report
-```
-
-### F>Leet Command Menu...      D>Etailed Empire Report
-
-### General Command Center
-
-```text
-           A>utopilot ON/OFF            R>eview messages/results
-           S>tatus, your                D>elete ALL messages/results
-           P>rofile of your empire      O>ther empires (rankings)
-           M>ap of the galaxy           E>nemies, declare or list
-```
-
-### C>Ommunicate (Send Message)
-
-### Message Command Center
-
-```text
-           L>ist message                    I>nsert a line
-           C>ontinue message                D>elete a line
-           S>end (transmit) message         M>ove a line
-           N>ew addressee for message       E>dit a line
-```
-
-### R>Emove Message From Memory
-
-### Planet Command Center
-
-```text
-           C>OMMISSION MENU            T>ax rate: Empire
-           A>UTO-COMMISSION            S>corch planets
-           B>UILD MENU...              L>oad TTs w/Armies
-           D>etail Planet List         U>nload TT Armies
-```
-
-### P>Lanet: Brief List
-
-```text
-         (Continued)
-```
-
-```text
-              APPENDIX C. ESTERIAN CONQUEST(tm) MENUS  (Continued)
-```
-
-### Build On Current Planet: "Planet Name" In System (15,32)
-
-```text
-           P>lanets, List your         S>pecify Build Orders
-           R>eview current planet      A>bort planet's builds
-           C>hange current planet      L>ist builds
-```
-
-### N>Ext Planet
-
-### Commission From Planet: "Planet Name" In System (15,32)
-
-```text
-           P>lanets, List your         B>ases, commission
-           R>eview current planet      F>leet, commission
-           C>hange current planet      L>ist stardock contents
-```
-
-### N>Ext Planet                I>Nfo About A Planet
-
-### Planet Command Center
-
-```text
-           S>TARBASE MENU...           D>etach Ships
-           B>rief Fleet List           T>ransfer Ships
-           F>ull Fleet List            O>rder a Fleet
-           R>eview a Fleet             G>ROUP FLEET ORDER
-           E>TA Calculation            M>erge a Fleet
-           C>hange ROE,ID,Speed        L>oad TTs w/Armies
-```
-
-### U>Nload Tt Armies
-
-### Starbase Command
-
-```text
-           S>tarbases-List
-           R>eview a Starbase
-```
-
-### M>Ove/Halt Starbase
+| ROE | Conditions To Engage Hostile Fleets In Battle |
+| ---: | --- |
+| 0 | Avoid all hostile fleets. `(Non-combat fleets)` |
+| 1 | Engage fleets only if they are defenseless. |
+| 2 | Engage fleets only if your advantage is `4:1` or better. |
+| 3 | Engage fleets only if your advantage is `3:1` or better. |
+| 4 | Engage fleets only if your advantage is `2:1` or better. |
+| 5 | Engage fleets only if your advantage is `3:2` or better. |
+| 6 | Engage hostile fleets of equal or inferior strength. |
+| 7 | Engage hostile fleets even if outgunned `3:2`. |
+| 8 | Engage hostile fleets even if outgunned `2:1`. |
+| 9 | Engage hostile fleets even if outgunned `3:1`. |
+| 10 | Engage hostile fleets regardless of their size. |
