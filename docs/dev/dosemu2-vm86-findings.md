@@ -11,7 +11,18 @@ game. Three generic VM86 fixes were developed and committed to
 dosemu2 (`cf2755fcc`), but the game still does not run due to additional
 incompatibilities in the stub's decryption loop.
 
-DOSBox-X remains the only working runner for ECGAME.
+Later testing with the rebuilt unlocked `ECGAME.EXE` also showed a separate
+dosemu/FreeDOS-side failure mode before game startup:
+`unable to execute C:\EC\ECGAME.EXE` / `Allocation of DOS memory failed`.
+So dosemu2 is still blocked even after removing the original packed stub from
+the test binary.
+
+DOSBox-X remains the only verified working runner for original EC v1.5.
+
+Given that DOSBox-X already covers the oracle path and the native Rust client
+is expected to replace the original binaries for normal use, further deep
+dosemu2 compatibility work on these binaries is currently poor ROI unless a
+low-cost breakthrough appears.
 
 ## LZEXE Stub Architecture
 

@@ -20,6 +20,10 @@ The SQLite-first runtime split is now in place:
   classic directory
 - current oracle-facing `DATABASE.DAT` / planet-intel work belongs in the
   classic compatibility layer, not in `ec-client`
+- for the original DOS binaries, DOSBox-X is currently the only verified local
+  runner; deeper dosemu2 compatibility work on those binaries is currently poor
+  ROI because DOSBox-X already covers the oracle path and the Rust client is
+  expected to replace `ECGAME` for normal play
 
 Recent validation baseline:
 

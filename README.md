@@ -141,10 +141,9 @@ For normal Rust development in this repo, the practical baseline is:
 - Python 3 for oracle/support scripts under `tools/`
 - `python-pexpect` if you want to use the DOSBox-X debugger helpers under
   `tools/`
-- DOSBox-X or dosemu2 if you want to launch the original DOS binaries locally
-  or do dynamic oracle/RE work (the curated unlocked binaries in
-  `EC_UNLOCKED/` are the stub-free local-launch set; the original packed
-  binaries require DOSBox-X)
+- DOSBox-X if you want to launch the original DOS binaries locally or do
+  dynamic oracle/RE work (`EC_UNLOCKED/` holds the stub-free local-launch set,
+  but DOSBox-X is currently the only verified runner for EC v1.5)
 - Ghidra plus JDK 21 only if you want to use the headless static-RE workflow
 
 Recommended local build-speed tooling:
@@ -247,13 +246,14 @@ Published copies live as GitHub release assets under the repo's Releases page.
 
 | Bundle | DOSBox-X | dosemu2 | Notes |
 |---|---|---|---|
-| `releases/ec-v1.5-classic-demo.zip` | Verified | Not verified here | Original packed/oracle bundle; 8s smoke pass from `/tmp` with the known-good local-console `CHAIN.TXT`. |
-| `releases/ec-v1.5-unlocked-demo.zip` | Verified | Not verified here | Curated runnable plain-MZ bundle; 8s smoke pass from `/tmp` after the `ECGAME.EXE` MZ size-field fix. |
+| `releases/ec-v1.5-classic-demo.zip` | Verified | Not currently working | Original packed/oracle bundle; 8s smoke pass from `/tmp` with the known-good local-console `CHAIN.TXT`. |
+| `releases/ec-v1.5-unlocked-demo.zip` | Verified | Not currently working | Curated runnable plain-MZ bundle; 8s smoke pass from `/tmp` after the `ECGAME.EXE` MZ size-field fix. |
 
 Each archive includes a minimal real game directory, a known-good local
 `CHAIN.TXT`, and the original `.DOC` manuals. Here, `Verified` means the
 package survived the repo's DOSBox-X smoke launch without the old INT 6 / GPF
-failures.
+failures. DOSBox-X is currently the only verified local runner for the
+original EC v1.5 binaries.
 
 The unlocked bundle rebuilds `EC_UNLOCKED/` first, including the current
 `ECGAME.EXE` recovery that corrects the memdump image's MZ size fields so DOS
