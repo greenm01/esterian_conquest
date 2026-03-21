@@ -1,6 +1,7 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StartupAction {
     Advance,
+    ScrollReview(isize),
     OpenIntro,
     AcceptDefault,
     RejectChoice,

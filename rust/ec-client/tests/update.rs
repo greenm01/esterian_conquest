@@ -187,6 +187,23 @@ fn classic_chunked_report_blocks(texts: &[&str]) -> Vec<u8> {
         .collect()
 }
 
+fn length_prefixed_report_block(lines: &[&str]) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    for line in lines {
+        let line_bytes = line.as_bytes();
+        assert!(
+            line_bytes.len() <= 72,
+            "line too long for length-prefixed fixture"
+        );
+        let mut chunk = vec![0u8; 84];
+        chunk[0] = 6;
+        chunk[1] = line_bytes.len() as u8;
+        chunk[2..2 + line_bytes.len()].copy_from_slice(line_bytes);
+        bytes.extend_from_slice(&chunk);
+    }
+    bytes
+}
+
 fn advance_to_main_menu(app: &mut App) {
     for _ in 0..16 {
         if app.current_screen() == ScreenId::MainMenu {
@@ -2801,7 +2818,7 @@ fn startup_reviews_results_then_messages_then_enters_main_menu() {
 fn startup_results_paginate_before_advancing_to_messages() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    state.results_bytes = (1..=13)
+    state.results_bytes = (1..=18)
         .map(|idx| format!("Report line {idx:02} is long enough"))
         .collect::<Vec<_>>()
         .join("\n")
@@ -2846,7 +2863,7 @@ fn startup_results_paginate_before_advancing_to_messages() {
         !first_page
             .lines
             .iter()
-            .any(|line| line.contains("Report line 13"))
+            .any(|line| line.contains("Report line 18"))
     );
     assert!(
         first_page
@@ -2855,26 +2872,22 @@ fn startup_results_paginate_before_advancing_to_messages() {
             .any(|line| line.contains("(Slap a key for more)"))
     );
 
-    app.advance_startup();
+    for _ in 0..18 {
+        let mut screen = CaptureTerminal::new();
+        app.render(&mut screen)
+            .expect("scrolled startup results should render");
+        if screen
+            .lines
+            .iter()
+            .any(|line| line.contains("Delete this report Y/[N] ->"))
+        {
+            break;
+        }
+        app.advance_startup();
+    }
     assert_eq!(
         app.current_screen(),
         ScreenId::Startup(StartupPhase::Results)
-    );
-
-    let mut second_page = CaptureTerminal::new();
-    app.render(&mut second_page)
-        .expect("second startup results page should render");
-    assert!(
-        second_page
-            .lines
-            .iter()
-            .any(|line| line.contains("< Report line 13"))
-    );
-    assert!(
-        second_page
-            .lines
-            .iter()
-            .any(|line| line.contains("(Slap a key)"))
     );
 
     // Advance through DeletePrompt (keep) → EndStatus → phase exit → Messages.
@@ -2932,10 +2945,7 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
             .any(|line| line.contains(" -> From Alpha"))
     );
 
-    // ItemBody last page → DeletePrompt.
-    app.advance_startup();
-
-    // Accept default at DeletePrompt → delete Alpha → ContinuePrompt (Beta still exists).
+    // Accept default at the end-of-block prompt → delete Alpha → ContinuePrompt (Beta still exists).
     assert_eq!(
         apply_action(&mut app, Action::Startup(StartupAction::AcceptDefault)),
         AppOutcome::Continue
@@ -3006,9 +3016,7 @@ fn startup_message_review_shows_end_status_after_deleting_last_message() {
 
     // ViewPrompt → ItemBody.
     app.advance_startup();
-    // ItemBody last page → DeletePrompt.
-    app.advance_startup();
-    // Accept delete → EndStatus (only 1 block).
+    // Accept delete at the end-of-block prompt → EndStatus (only 1 block).
     assert_eq!(
         apply_action(&mut app, Action::Startup(StartupAction::AcceptDefault)),
         AppOutcome::Continue
@@ -3077,19 +3085,29 @@ fn startup_results_wrap_long_lines_within_the_playfield() {
         .expect("startup results should render");
     assert!(
         terminal
-            .line(2)
-            .contains(" -> This is a deliberately long startup results line")
+            .lines
+            .iter()
+            .any(|line| line.contains(" -> This is a deliberately long startup results line"))
     );
-    assert!(terminal.line(3).starts_with("< "));
+    assert!(terminal.lines.iter().any(|line| line.starts_with("< ")));
     assert!(
-        terminal.line(2).contains("should wrap cleanly")
-            || terminal.line(3).contains("should wrap cleanly")
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("should wrap cleanly"))
     );
     assert!(
-        terminal.line(3).contains("eighty column playfield")
-            || terminal.line(4).contains("eighty column playfield")
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("eighty column playfield"))
     );
-    assert!(terminal.line(3).contains("single row.") || terminal.line(4).contains("single row."));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("single row."))
+    );
 }
 
 #[test]
@@ -3127,9 +3145,240 @@ fn startup_results_preserve_blank_lines_as_classic_spacers() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("startup results should render");
-    assert!(terminal.line(2).contains(" -> Line one"));
-    assert_eq!(terminal.line(3).trim_end(), "<");
-    assert!(terminal.line(4).contains("< Line two"));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains(" -> Line one"))
+    );
+    assert!(terminal.lines.iter().any(|line| line.trim_end() == "<"));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("< Line two"))
+    );
+}
+
+#[test]
+fn startup_results_preserve_leading_spaces_from_oracle_style_reports() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.results_bytes = classic_chunked_report_bytes("  Stardate 11 / 3003\n    Fleet 7 arrived");
+    state.messages_bytes.clear();
+    state.game_data.player.records[0].raw[0x30] = 0;
+    state.game_data.player.records[0].raw[0x34] = 1;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::Startup(StartupPhase::Results) {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Results)
+    );
+
+    app.advance_startup();
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("startup results should render");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.starts_with(" ->   Stardate 11 / 3003"))
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.starts_with("<     Fleet 7 arrived"))
+    );
+}
+
+#[test]
+fn startup_results_use_the_full_intro_review_page_height() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.results_bytes = (1..=15)
+        .map(|idx| format!("Report {idx:02}"))
+        .collect::<Vec<_>>()
+        .join("\n")
+        .into_bytes();
+    state.messages_bytes.clear();
+    state.game_data.player.records[0].raw[0x30] = 0;
+    state.game_data.player.records[0].raw[0x34] = 1;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::Startup(StartupPhase::Results) {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Results)
+    );
+
+    app.advance_startup();
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("startup results should render");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("< Report 15"))
+    );
+    assert!(!terminal.line(19).contains("for more"));
+}
+
+#[test]
+fn startup_results_decode_length_prefixed_lines_as_separate_classic_rows() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.results_bytes = length_prefixed_report_block(&[
+        "From your 12th Fleet, located in System(9,14):          Stardate: 2/3003",
+        "We were attacked by \"Nadir Compact\", (Empire #4) in System(9,14). Our",
+        "force contained 1 destroyer and 1 ETAC ship. Alien force contained 1",
+        "<end of transmission>",
+    ]);
+    state.messages_bytes.clear();
+    state.game_data.player.records[0].raw[0x30] = 0;
+    state.game_data.player.records[0].raw[0x34] = 1;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::Startup(StartupPhase::Results) {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Results)
+    );
+
+    app.advance_startup();
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("startup results should render");
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| { line.contains("System(9,14):          Stardate: 2/3003") })
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| { line.contains("We were attacked by \"Nadir Compact\", (Empire #4)") })
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("<end of transmission>"))
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Delete this report Y/[N] ->"))
+    );
+    assert!(terminal.line(18).trim().is_empty());
+    assert!(!terminal.lines.iter().any(|line| line.contains("----")));
+}
+
+#[test]
+fn startup_results_continue_prompt_preserves_blank_spacing_without_rule() {
+    let fixture_dir = temp_game_copy();
+    let mut state = latest_runtime_state(&fixture_dir);
+    state.results_bytes =
+        classic_chunked_report_blocks(&["From Alpha\nBody one", "From Beta\nBody two"]);
+    state.messages_bytes.clear();
+    state.game_data.player.records[0].raw[0x30] = 0;
+    state.game_data.player.records[0].raw[0x34] = 1;
+    save_runtime_state(&fixture_dir, &state);
+
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::Startup(StartupPhase::Results) {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::Startup(StartupPhase::Results)
+    );
+
+    app.advance_startup();
+    app.advance_startup();
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("startup continue prompt should render");
+    assert!(
+        terminal
+            .line(19)
+            .contains("There are more reports. Continue?")
+    );
+    assert!(terminal.line(18).trim().is_empty());
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Delete this report Y/[N] ->"))
+    );
+    assert_eq!(
+        terminal
+            .lines
+            .iter()
+            .filter(|line| line.contains("There are more reports. Continue?"))
+            .count(),
+        1
+    );
+    assert!(!terminal.lines.iter().any(|line| line.contains("----")));
 }
 
 #[test]

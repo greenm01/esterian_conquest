@@ -25,6 +25,31 @@ impl ReportsPreview {
     }
 }
 
+pub fn wrap_review_text_preserving_spacing(text: &str, width: usize) -> Vec<String> {
+    if text.is_empty() || width == 0 {
+        return vec![String::new()];
+    }
+
+    let mut rows = Vec::new();
+    let mut remaining = text;
+    while remaining.len() > width {
+        let prefix = &remaining[..width];
+        let break_at = prefix.rfind(' ').filter(|idx| *idx > 0);
+        match break_at {
+            Some(idx) => {
+                rows.push(remaining[..idx].to_string());
+                remaining = &remaining[idx + 1..];
+            }
+            None => {
+                rows.push(prefix.to_string());
+                remaining = &remaining[width..];
+            }
+        }
+    }
+    rows.push(remaining.to_string());
+    rows
+}
+
 pub fn clear_report_bytes(results_bytes: &mut Vec<u8>, message_bytes: &mut Vec<u8>) {
     results_bytes.clear();
     message_bytes.clear();
@@ -87,7 +112,7 @@ fn decode_length_prefixed_chunked_records(bytes: &[u8]) -> Option<Vec<ReviewBloc
     const RESULTS_TEXT_END: usize = RESULTS_TEXT_START + RESULTS_TEXT_SIZE;
 
     let mut blocks = Vec::new();
-    let mut current_text = String::new();
+    let mut current_lines = Vec::new();
     let mut current_raw = Vec::new();
 
     for chunk in bytes.chunks_exact(84) {
@@ -107,21 +132,22 @@ fn decode_length_prefixed_chunked_records(bytes: &[u8]) -> Option<Vec<ReviewBloc
         {
             return None;
         }
-        current_text.extend(text_bytes.iter().map(|byte| char::from(*byte)));
+        let line = String::from_utf8(text_bytes.to_vec()).ok()?;
+        let line = line.trim_end_matches('\0').trim_end().to_string();
+        current_lines.push(line.clone());
         current_raw.extend_from_slice(chunk);
 
-        if used < RESULTS_TEXT_SIZE {
+        if line == "<end of transmission>" {
             blocks.push(ReviewBlock {
-                lines: decode_text_lines(&current_text),
+                lines: std::mem::take(&mut current_lines),
                 raw_chunked_bytes: Some(std::mem::take(&mut current_raw)),
             });
-            current_text.clear();
         }
     }
 
-    if !current_text.is_empty() || !current_raw.is_empty() {
+    if !current_lines.is_empty() || !current_raw.is_empty() {
         blocks.push(ReviewBlock {
-            lines: decode_text_lines(&current_text),
+            lines: current_lines,
             raw_chunked_bytes: Some(current_raw),
         });
     }
@@ -163,15 +189,10 @@ fn decode_legacy_chunked_records(bytes: &[u8]) -> Option<Vec<ReviewBlock>> {
 }
 
 fn decode_text_lines(text: &str) -> Vec<String> {
-    let normalized = text
-        .split("<end of transmission>")
-        .next()
-        .unwrap_or(text)
-        .replace("\r\n", "\n")
-        .replace('\r', "\n");
+    let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
     let mut lines = normalized
         .split('\n')
-        .map(str::trim)
+        .map(str::trim_end)
         .map(ToOwned::to_owned)
         .collect::<Vec<_>>();
     while lines.last().is_some_and(|line| line.is_empty()) {
@@ -189,7 +210,7 @@ fn printable_runs(bytes: &[u8], min_len: usize) -> Vec<String> {
         if ch.is_ascii_graphic() || ch == ' ' {
             current.push(ch);
         } else if current.len() >= min_len {
-            runs.push(current.trim().to_string());
+            runs.push(current.trim_end().to_string());
             current.clear();
         } else {
             current.clear();
@@ -197,7 +218,7 @@ fn printable_runs(bytes: &[u8], min_len: usize) -> Vec<String> {
     }
 
     if current.len() >= min_len {
-        runs.push(current.trim().to_string());
+        runs.push(current.trim_end().to_string());
     }
 
     runs

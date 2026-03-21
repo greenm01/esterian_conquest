@@ -1,7 +1,8 @@
 use crate::model::ClassicLoginState;
-use crate::reports::{ReportsPreview, ReviewBlock};
+use crate::reports::{ReportsPreview, ReviewBlock, wrap_review_text_preserving_spacing};
 use crate::screen::layout::{
-    PLAYFIELD_WIDTH, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
+    PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_plain_prompt, draw_status_line, draw_title_bar,
+    new_playfield,
 };
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::startup::{StartupPhase, StartupSummary};
@@ -22,7 +23,7 @@ pub struct StartupScreen {
     message_blocks: Vec<ReviewBlock>,
 }
 
-const STARTUP_REVIEW_VISIBLE_LINES: usize = 12;
+pub(crate) const STARTUP_REVIEW_VISIBLE_LINES: usize = PLAYFIELD_HEIGHT - 4;
 const ITEM_HEADER_PREFIX: &str = " -> ";
 const ITEM_BODY_PREFIX: &str = "< ";
 
@@ -57,20 +58,20 @@ impl StartupScreen {
         &self.message_blocks
     }
 
-    pub fn results_block_page_count(&self, block: usize) -> usize {
-        let rows = block_review_rows(
+    pub fn results_block_row_count(&self, block: usize) -> usize {
+        block_review_rows(
             block_lines(&self.result_blocks, block),
             "Reports are marked pending, but no review text is available yet.",
-        );
-        page_count(&rows)
+        )
+        .len()
     }
 
-    pub fn messages_block_page_count(&self, block: usize) -> usize {
-        let rows = block_review_rows(
+    pub fn messages_block_row_count(&self, block: usize) -> usize {
+        block_review_rows(
             block_lines(&self.message_blocks, block),
             "Messages are marked pending, but no review text is available yet.",
-        );
-        page_count(&rows)
+        )
+        .len()
     }
 
     pub fn render_phase(
@@ -80,11 +81,13 @@ impl StartupScreen {
         splash_page: usize,
         intro_page: usize,
         results_block: usize,
-        results_page: usize,
+        results_scroll_offset: usize,
         results_mode: StartupReviewMode,
+        results_nonstop: bool,
         messages_block: usize,
-        messages_page: usize,
+        messages_scroll_offset: usize,
         messages_mode: StartupReviewMode,
+        messages_nonstop: bool,
         results_deleted_any: bool,
         messages_deleted_any: bool,
         game_year: u16,
@@ -103,8 +106,9 @@ impl StartupScreen {
                 self.summary.pending_results,
                 "Reports are marked pending, but no review text is available yet.",
                 results_block,
-                results_page,
+                results_scroll_offset,
                 results_mode,
+                results_nonstop,
                 results_deleted_any,
                 game_year,
             ),
@@ -118,8 +122,9 @@ impl StartupScreen {
                 self.summary.pending_messages,
                 "Messages are marked pending, but no review text is available yet.",
                 messages_block,
-                messages_page,
+                messages_scroll_offset,
                 messages_mode,
+                messages_nonstop,
                 messages_deleted_any,
                 game_year,
             ),
@@ -139,12 +144,16 @@ impl StartupScreen {
         pending: bool,
         empty_notice: &str,
         block: usize,
-        page: usize,
+        scroll_offset: usize,
         mode: StartupReviewMode,
+        nonstop: bool,
         deleted_any: bool,
         game_year: u16,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
+        let delete_prompt = format!("Delete this {singular} Y/[N] ->");
+        let continue_prompt =
+            format!("There are more {plural}. Continue? [Y]es, <N>o, <NS> (non-stop) ->");
 
         match mode {
             StartupReviewMode::ViewPrompt => {
@@ -176,29 +185,53 @@ impl StartupScreen {
                 let header = format!("{section_label}: Current game year is {game_year} A.D.");
                 buffer.write_text(0, 0, &header, classic::body_style());
 
-                let rows = block_review_rows(block_lines(blocks, block), empty_notice);
-                let start = page * STARTUP_REVIEW_VISIBLE_LINES;
-                let end = usize::min(start + STARTUP_REVIEW_VISIBLE_LINES, rows.len());
-
-                for (i, line) in rows[start..end].iter().enumerate() {
-                    buffer.write_text(2 + i, 0, line, classic::body_style());
+                let mut transcript_rows = Vec::new();
+                for previous_block in 0..block {
+                    let previous_rows =
+                        block_review_rows(block_lines(blocks, previous_block), empty_notice);
+                    push_completed_block_transcript(
+                        &mut transcript_rows,
+                        previous_rows,
+                        &delete_prompt,
+                        &continue_prompt,
+                        true,
+                    );
                 }
 
-                if end < rows.len() {
-                    draw_plain_prompt(&mut buffer, 19, "(Slap a key for more)");
-                } else if mode == StartupReviewMode::DeletePrompt {
-                    draw_plain_prompt(&mut buffer, 19, &format!("Delete this {singular} Y/[N] ->"));
+                let rows = block_review_rows(block_lines(blocks, block), empty_notice);
+                let revealed_end =
+                    usize::min(scroll_offset + STARTUP_REVIEW_VISIBLE_LINES, rows.len());
+                transcript_rows.extend(rows[..revealed_end].iter().cloned());
+
+                render_review_transcript(&mut buffer, &transcript_rows);
+
+                let prompt_row = PLAYFIELD_HEIGHT - 1;
+                if revealed_end < rows.len() {
+                    draw_plain_prompt(&mut buffer, prompt_row, "(Slap a key for more)");
+                } else if !nonstop {
+                    draw_plain_prompt(&mut buffer, prompt_row, &delete_prompt);
                 } else {
-                    draw_plain_prompt(&mut buffer, 19, "(Slap a key)");
+                    draw_plain_prompt(&mut buffer, prompt_row, "(Slap a key)");
                 }
             }
             StartupReviewMode::ContinuePrompt => {
-                draw_title_bar(&mut buffer, 0, &format!("{title}: "));
-                draw_plain_prompt(
-                    &mut buffer,
-                    4,
-                    &format!("There are more {plural}. Continue? [Y]es, <N>o, <NS> (non-stop) ->"),
-                );
+                let header = format!("{section_label}: Current game year is {game_year} A.D.");
+                buffer.write_text(0, 0, &header, classic::body_style());
+                let mut transcript_rows = Vec::new();
+                for previous_block in 0..block {
+                    let previous_rows =
+                        block_review_rows(block_lines(blocks, previous_block), empty_notice);
+                    let include_continue_prompt = previous_block + 1 < block;
+                    push_completed_block_transcript(
+                        &mut transcript_rows,
+                        previous_rows,
+                        &delete_prompt,
+                        &continue_prompt,
+                        include_continue_prompt,
+                    );
+                }
+                render_review_transcript(&mut buffer, &transcript_rows);
+                draw_plain_prompt(&mut buffer, PLAYFIELD_HEIGHT - 1, &continue_prompt);
             }
             StartupReviewMode::EndStatus => {
                 draw_title_bar(&mut buffer, 0, &format!("{title}: "));
@@ -339,7 +372,7 @@ fn block_review_rows(lines: &[String], empty_notice: &str) -> Vec<String> {
         if empty_notice.is_empty() {
             return Vec::new();
         }
-        return wrap_review_text(
+        return wrap_review_text_preserving_spacing(
             empty_notice,
             PLAYFIELD_WIDTH.saturating_sub(ITEM_BODY_PREFIX.len()),
         )
@@ -360,7 +393,7 @@ fn block_review_rows(lines: &[String], empty_notice: &str) -> Vec<String> {
             ITEM_BODY_PREFIX
         };
         let max_width = PLAYFIELD_WIDTH.saturating_sub(prefix.len());
-        let wrapped = wrap_review_text(line, max_width);
+        let wrapped = wrap_review_text_preserving_spacing(line, max_width);
         for (wrap_idx, segment) in wrapped.iter().enumerate() {
             let seg_prefix = if line_idx == 0 && wrap_idx == 0 {
                 ITEM_HEADER_PREFIX
@@ -373,43 +406,31 @@ fn block_review_rows(lines: &[String], empty_notice: &str) -> Vec<String> {
     rows
 }
 
-fn page_count(rows: &[String]) -> usize {
-    usize::max(1, rows.len().div_ceil(STARTUP_REVIEW_VISIBLE_LINES))
+fn push_completed_block_transcript(
+    transcript_rows: &mut Vec<String>,
+    block_rows: Vec<String>,
+    delete_prompt: &str,
+    continue_prompt: &str,
+    include_continue_prompt: bool,
+) {
+    transcript_rows.extend(block_rows);
+    transcript_rows.push(String::new());
+    transcript_rows.push(delete_prompt.to_string());
+    transcript_rows.push(String::new());
+    if include_continue_prompt {
+        transcript_rows.push(continue_prompt.to_string());
+    }
 }
 
-fn wrap_review_text(text: &str, width: usize) -> Vec<String> {
-    let normalized = text.split_whitespace().collect::<Vec<_>>();
-    if normalized.is_empty() {
-        return vec![String::new()];
+fn render_review_transcript(buffer: &mut PlayfieldBuffer, transcript_rows: &[String]) {
+    let visible_start = transcript_rows
+        .len()
+        .saturating_sub(STARTUP_REVIEW_VISIBLE_LINES);
+    let visible_rows = &transcript_rows[visible_start..];
+    let first_row = 18usize.saturating_sub(visible_rows.len());
+    for (i, line) in visible_rows.iter().enumerate() {
+        buffer.write_text(first_row + i, 0, line, classic::body_style());
     }
-
-    let mut rows = Vec::new();
-    let mut current = String::new();
-    for word in normalized {
-        let separator = if current.is_empty() { 0 } else { 1 };
-        if current.len() + separator + word.len() > width && !current.is_empty() {
-            rows.push(current);
-            current = String::new();
-        }
-        if !current.is_empty() {
-            current.push(' ');
-        }
-
-        if word.len() > width && current.is_empty() {
-            let mut remaining = word;
-            while remaining.len() > width {
-                rows.push(remaining[..width].to_string());
-                remaining = &remaining[width..];
-            }
-            current.push_str(remaining);
-        } else {
-            current.push_str(word);
-        }
-    }
-    if !current.is_empty() {
-        rows.push(current);
-    }
-    rows
 }
 
 fn capitalize(s: &str) -> String {

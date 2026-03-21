@@ -2,7 +2,7 @@ use crossterm::event::KeyEvent;
 
 use crate::app::Action;
 use crate::model::ReviewSummary;
-use crate::reports::ReportsPreview;
+use crate::reports::{ReportsPreview, wrap_review_text_preserving_spacing};
 use crate::screen::layout::{
     PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_command_prompt, draw_status_line, draw_title_bar,
     new_playfield,
@@ -141,7 +141,7 @@ fn section_rows(section_name: &str, reviewable: bool, lines: &[String]) -> Vec<S
             continue;
         }
         rows.extend(
-            wrap_review_text(line, PLAYFIELD_WIDTH.saturating_sub(2))
+            wrap_review_text_preserving_spacing(line, PLAYFIELD_WIDTH.saturating_sub(2))
                 .into_iter()
                 .map(|wrapped| format!("  {wrapped}")),
         );
@@ -170,39 +170,4 @@ fn split_section_budget(total: usize, first_len: usize, second_len: usize) -> (u
     }
 
     (first.min(first_len), second.min(second_len))
-}
-
-fn wrap_review_text(text: &str, width: usize) -> Vec<String> {
-    let normalized = text.split_whitespace().collect::<Vec<_>>();
-    if normalized.is_empty() {
-        return vec![String::new()];
-    }
-
-    let mut rows = Vec::new();
-    let mut current = String::new();
-    for word in normalized {
-        let separator = if current.is_empty() { 0 } else { 1 };
-        if current.len() + separator + word.len() > width && !current.is_empty() {
-            rows.push(current);
-            current = String::new();
-        }
-        if !current.is_empty() {
-            current.push(' ');
-        }
-
-        if word.len() > width && current.is_empty() {
-            let mut remaining = word;
-            while remaining.len() > width {
-                rows.push(remaining[..width].to_string());
-                remaining = &remaining[width..];
-            }
-            current.push_str(remaining);
-        } else {
-            current.push_str(word);
-        }
-    }
-    if !current.is_empty() {
-        rows.push(current);
-    }
-    rows
 }
