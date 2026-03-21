@@ -495,31 +495,61 @@ remaining risks are:
       `Helios Prime`
     - so the remaining regular-world scout gate is not “rogue owner in any
       slot”; it is still specific to truly foreign regular worlds
-16. The on-disk packed `ECMAINT.EXE` is not a useful string anchor for the
+16. Static RE on the live scout snippet at `0000:7290` now shows the target
+    world classes really do fork early:
+    - `planet[+0x5d] == 0` takes the unowned path, which directly checks the
+      `0x350d/0x350e` vs `0x3522/0x3523` target bytes plus the `0x351b..0x351f`
+      tuple and can set the local success flag
+    - `planet[+0x5d] == [0x3504]` takes the owned-world path, which copies
+      `0x350d/0x350e -> 0x3522/0x3523` and recomputes `0x3524`
+    - the remaining foreign-owned path hits an extra table lookup at
+      `0x3562 + 25 * target_index + viewer_slot` before the later tuple tests
+    - that extra `0x3562` gate is currently the strongest static lead for the
+      regular-world scout-abort difference
+17. The `0x3562` lead is now tighter than just “some extra gate byte”.
+    Whole-image live-dump scans show:
+    - the table is reset to `0` in bulk at `0002:a039`, so it is a real
+      per-world/per-viewer runtime state table
+    - the foreign-owned first-contact path at `0000:73d8..75eb` sets
+      `entry := 1`, calls `0x2895:2ddc` with literal `1`, and then sets
+      `0x3521 := 1`
+    - helper `0000:6830..6c02` is the only observed `entry := 2` writer in the
+      current abort dump; it calls `0x2895:2ddc` with literal `2`, handles
+      `entry in {0,1}`, clears `0x350c`, and ends with `entry := 2`
+    - later paths also promote existing nonzero entries to `3`, `4`, `6`, and
+      `7`, so `0x3562` is a small state machine, not a visibility bit
+18. Practical implication: the remaining regular-world scout-abort gate is now
+    best treated as a foreign-world `state 1 -> state 2` / pre-promotion
+    problem, not a plain owner-slot or stale-visibility problem. The next
+    useful RE step is to identify which scout helper calls `0000:6830..6c02`
+    in the regular-world success case and why that promotion is missing or
+    blocked in the failing regular-world abort case.
+19. The on-disk packed `ECMAINT.EXE` is not a useful string anchor for the
     scout-abort path. Headless Ghidra on local project `ec-v15-local` found no
     matches for `Scouting mission report`, `Since we have lost`, or
     `abort our mission`; use the live dump path instead of the packed EXE stub.
-17. Use DOSBox-X `memory file` rather than the interactive debugger prompt for
+20. Use DOSBox-X `memory file` rather than the interactive debugger prompt for
     local scout-abort dump capture here. The reliable carve is:
     `guest_ram[0x8140 : 0x8140 + 0x97eb0] ->
     /tmp/ecmaint-scout-abort-psp.MEMDUMP.BIN`.
-18. Treat `0000:8a11` as the current upstream live anchor for this RE thread:
+21. Treat `0000:8a11` as the current upstream live anchor for this RE thread:
     `[0x3521] = 0x0b -> 5c18 -> 6817`,
     `[0x3521] = 0x0a -> 6c9d -> 6dda`,
     `[0x3521] = 0x0e -> 841a -> 8584`.
-19. Next RE should trace the call path into:
+20. Next RE should trace the call path into:
     `0000:0c7a/0x0ca4` for the `0x350d..0x351f` target-state tuple,
     `0000:f914..0xf9cf` for the `0x3534` counter family and `0x3521` reset,
-    and then the later write sites that raise `0x3521` from `0` to the
-    mission-kind values consumed by `8a11`.
-20. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
+    and the foreign-owned `0000:7290` branch that reads the
+    `0x3562 + 25 * target_index + viewer_slot` table before the later tuple
+    tests and `0x3521` mission dispatch.
+21. Keep `ec-client` and normal Rust mutation paths SQLite-native; do not add
    direct `.DAT` ownership back into the client/runtime.
-21. Keep the distinction explicit in docs/tests:
+22. Keep the distinction explicit in docs/tests:
    - `ECGAME`-accepted row shapes are not automatically original-`ECMAINT`
      emitted row shapes
    - the regular-world foreign scout family is still missing a clean oracle
      maint proof
-22. When classic tooling changes a directory, fold those edits back through
+23. When classic tooling changes a directory, fold those edits back through
     `db-import` before the next Rust maint/client step.
 
 ## Combat System Status

@@ -10116,3 +10116,79 @@ Important conclusion:
   rogue-owned regular worlds still do not refresh the scout row
 - so the remaining regular-world scout gate is still specific to truly foreign
   regular worlds, not to a generic “rogue owner” rule
+
+Bounded static RE on the live scout-abort image then pushed the thread one step
+past black-box probing.
+
+Using the existing live carve `/tmp/ecmaint-scout-abort-psp.MEMDUMP.BIN`,
+the snippet at `0000:7290` now gives a readable foreign-world split:
+
+- after loading the target planet record, it first checks `planet[+0x5d]`
+  (owner slot)
+- if `planet[+0x5d] == 0`, it takes the unowned path:
+  - compares `0x350d/0x350e` against `0x3522/0x3523`
+  - calls the same `0x1151 / 0x114d / 0x115d` helper family already seen in
+    the shared scout tuple code
+  - if the tuple and a couple of small globals match
+    (`word [0x3500] == 0`, `word [0x34fe] == 0x34`), it sets the local success
+    flag at `[bp-1] = 1`
+- if `planet[+0x5d] == [0x3504]`, it takes the owned-world path:
+  - emits owned-world strings
+  - then copies `0x350d -> 0x3522`, `0x350e -> 0x3523`
+  - recomputes `0x3524` from the current `0x351b..0x351f` tuple via `0x115d`
+- otherwise it takes the still-unresolved foreign-owned path:
+  - computes an index of the form `25 * target_index + viewer_slot`
+  - reads an extra byte gate at `0x3562 + index`
+  - only after that extra gate does it compare the familiar
+    `0x350d/0x350e/0x3524` tuple against the cached `0x3522/0x3523/0x3524`
+
+Important conclusion:
+
+- the regular-world scout-abort difference is no longer just “owned vs
+  unowned”; foreign-owned targets have an additional gate that the unowned path
+  never touches
+- the `0x3562 + 25 * target_index + viewer_slot` table is now the strongest
+  static lead for why regular foreign worlds abort while the earlier success
+  case does not
+- the next high-value RE step is to identify what that `0x3562` table encodes
+  and who primes it before the later `0x3521` mission-kind dispatch
+
+Follow-up whole-image scans on the same live dump tightened `0x3562` much more:
+
+- direct writers now show observed state values `0`, `1`, `2`, `3`, `4`, `6`,
+  and `7`
+- `0002:a039` is a real reset site:
+  - it iterates the `25 * world + viewer` table and writes `0`
+  - so `0x3562` is not a one-off scratch byte; it is a persistent
+    per-world/per-viewer runtime table
+- the foreign-owned first-contact path at `0000:73d8..75eb` now clearly does:
+  - `entry == 0`
+  - emit the foreign-world report
+  - `entry := 1`
+  - `CALLF 0x2895:2ddc` with literal `1`
+  - `0x3521 := 1`, `0x3522/0x3523 := 0x350d/0x350e`, `0x3524 := 0`
+- another helper at `0000:6830..6c02` is the only observed `entry := 2`
+  writer in the current abort dump:
+  - if `entry != 2`, it first calls `CALLF 0x2895:2ddc` with literal `2`
+  - then `entry in {0,1}` takes the actionable report branch
+  - the helper ends by clearing `0x350c` and writing `entry := 2`
+  - this is the clearest current proof that the foreign-world state machine
+    really has a `1 -> 2` promotion stage, not just a single “seen” bit
+- helper `0000:562d..5abf` accepts `entry in {0,1,2}` together, branches to
+  separate report variants for later states (`3`, `4`, `5`, `8`), and
+  generally ends with `0x3521 := 1` and `0x3524 := 0`; it looks like a generic
+  per-target status-report/hold-position emitter over the same table
+- later bulk-state upgraders exist too:
+  - `0000:78f1..7912` promotes existing nonzero entries to `3` after the
+    colony-establishment helper path
+  - `0001:006d..00a4`, `0001:01d2..0209`, and `0001:035e..0395` promote
+    non-`{0,1}` entries to `6`, `7`, and `4` for other mission/event families
+
+Current practical interpretation:
+
+- `0x3562` is now best treated as a per-world/per-viewer contact / mission
+  state table, not just a visibility gate
+- the remaining regular-world scout-abort blocker is more likely in the
+  foreign-world `state 1 -> state 2` progression, or in the prerequisite that
+  decides whether that promotion helper runs at all, than in stale
+  `DATABASE.DAT` visibility or simple owner-slot identity
