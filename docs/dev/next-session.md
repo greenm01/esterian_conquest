@@ -25,7 +25,7 @@ Recent validation baseline:
   - workspace green at the last recorded sweep
 - focused post-compat reruns:
   - `cargo test -q -p ec-cli --test storage`
-    - `14 passed, 2 ignored`
+    - `14 passed, 4 ignored`
   - `cargo test -q -p ec-cli --test maint`
     - `65 passed, 1 ignored`
   - `python3 -u tools/oracle_sweep.py --mode seeded`
@@ -414,8 +414,8 @@ remaining risks are:
    loaded homeworld-seed/orbit family, not just the named player-1 row.
    There is now also an ignored classic `ECGAME` smoke regression for that
    loaded homeworld-seed/orbit directory shape, plus ignored classic-client
-   smoke regressions for the exported foreign full-intel and view-only
-   directory shapes.
+   smoke regressions for the exported foreign full-intel, foreign view-only,
+   assault-failure enemy-view, and assault-success owned directory shapes.
 3. Treat the seen-year words (`raw[0x16..0x19]`) as the visible year source
    for current Total Planet Database list/detail displays. The scout-year word
    (`raw[0x27..0x28]`) remains unresolved but is not driving those screens.
@@ -438,7 +438,11 @@ remaining risks are:
    is still a debugger/tooling blocker rather than a known row-family
    incompatibility. The helper now waits for explicit debugger-stop tokens
    before issuing `MEMDUMPBIN`, so the remaining failure is lower-level dump
-   creation rather than the older promptless command-spray hang.
+   creation rather than the older promptless command-spray hang. The local
+   Enigma/telnet BBS harness remains useful for manual door sessions, but it
+   is still a secondary path for this proof work: it adds transport/dropfile
+   noise and does not directly solve the missing DOSBox-X debugger screen
+   dump.
 6. Treat successful `ScoutSolarSystem` refreshes as rewriting stale
    visible scout-row payload, but not yet as a fully decoded semantic rebuild.
    The clean oracle proof is `/tmp/ecgame-scout-refresh-row34.QYjsVJ`, where a

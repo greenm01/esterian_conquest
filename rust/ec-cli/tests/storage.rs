@@ -750,6 +750,59 @@ fn db_import_export_preserves_assault_failure_enemy_view_row_shape() {
 }
 
 #[test]
+#[ignore = "launches classic ECGAME through dosbox-x"]
+fn db_import_export_assault_failure_enemy_view_directory_reopens_in_classic_ecgame_smoke() {
+    let source = unique_temp_dir("ec-cli-db-import-assault-failure-ecgame-source");
+    let exported = unique_temp_dir("ec-cli-db-import-assault-failure-ecgame-exported");
+    common::copy_fixture_dir("fixtures/ecmaint-post/v1.5", &source);
+
+    let mut game_data = CoreGameData::load(&source).expect("fixture should load");
+    let target_world = &mut game_data.planets.records[13];
+    target_world.set_as_owned_target_world(
+        [15, 13],
+        [0x64, 0x87],
+        [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],
+        0x04,
+        0x0b,
+        *b"TargetPrimeet",
+        [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05],
+        40,
+        0,
+        0,
+        2,
+    );
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_current_location_coords_raw([15, 13]);
+    attacker.set_standing_order_kind(Order::InvadeWorld);
+    attacker.set_standing_order_target_coords_raw([15, 13]);
+    attacker.set_current_speed(3);
+    attacker.raw[0x19] = 0x80;
+    attacker.set_rules_of_engagement(10);
+    attacker.set_scout_count(0);
+    attacker.set_battleship_count(0);
+    attacker.set_cruiser_count(0);
+    attacker.set_destroyer_count(1);
+    attacker.set_troop_transport_count(2);
+    attacker.set_army_count(2);
+    attacker.set_etac_count(0);
+    game_data.save(&source).expect("mutated fixture should save");
+
+    let maint_stdout = run_ec_cli(&["maint-rust", source.to_str().unwrap(), "1"]);
+    assert!(maint_stdout.contains("Rust maintenance complete."));
+    let export_stdout = run_ec_cli(&[
+        "db-export",
+        source.to_str().unwrap(),
+        exported.to_str().unwrap(),
+    ]);
+    assert!(export_stdout.contains("Exported year"));
+
+    run_classic_ecgame_smoke_with_alias(&exported, 1, "HANNIBAL");
+
+    cleanup_dir(&source);
+    cleanup_dir(&exported);
+}
+
+#[test]
 fn db_import_export_preserves_assault_success_owned_row_shape() {
     let source = unique_temp_dir("ec-cli-db-import-assault-success-source");
     let exported = unique_temp_dir("ec-cli-db-import-assault-success-exported");
@@ -796,6 +849,59 @@ fn db_import_export_preserves_assault_success_owned_row_shape() {
     assert!(export_stdout.contains("Exported year"));
 
     assert_database_row_survives_db_import_export(&source, &exported, 13, 0);
+
+    cleanup_dir(&source);
+    cleanup_dir(&exported);
+}
+
+#[test]
+#[ignore = "launches classic ECGAME through dosbox-x"]
+fn db_import_export_assault_success_owned_directory_reopens_in_classic_ecgame_smoke() {
+    let source = unique_temp_dir("ec-cli-db-import-assault-success-ecgame-source");
+    let exported = unique_temp_dir("ec-cli-db-import-assault-success-ecgame-exported");
+    common::copy_fixture_dir("fixtures/ecmaint-post/v1.5", &source);
+
+    let mut game_data = CoreGameData::load(&source).expect("fixture should load");
+    let target_world = &mut game_data.planets.records[13];
+    target_world.set_as_owned_target_world(
+        [15, 13],
+        [0x64, 0x87],
+        [0x00, 0x00, 0x00, 0x00, 0x48, 0x87],
+        0x04,
+        0x0b,
+        *b"TargetPrimeet",
+        [0x05, 0x1d, 0x0b, 0x11, 0x25, 0x1c, 0x05],
+        142,
+        15,
+        0,
+        2,
+    );
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_current_location_coords_raw([15, 13]);
+    attacker.set_standing_order_kind(Order::InvadeWorld);
+    attacker.set_standing_order_target_coords_raw([15, 13]);
+    attacker.set_current_speed(3);
+    attacker.raw[0x19] = 0x80;
+    attacker.set_rules_of_engagement(10);
+    attacker.set_scout_count(0);
+    attacker.set_battleship_count(20);
+    attacker.set_cruiser_count(20);
+    attacker.set_destroyer_count(20);
+    attacker.set_troop_transport_count(2);
+    attacker.set_army_count(2);
+    attacker.set_etac_count(0);
+    game_data.save(&source).expect("mutated fixture should save");
+
+    let maint_stdout = run_ec_cli(&["maint-rust", source.to_str().unwrap(), "1"]);
+    assert!(maint_stdout.contains("Rust maintenance complete."));
+    let export_stdout = run_ec_cli(&[
+        "db-export",
+        source.to_str().unwrap(),
+        exported.to_str().unwrap(),
+    ]);
+    assert!(export_stdout.contains("Exported year"));
+
+    run_classic_ecgame_smoke_with_alias(&exported, 1, "HANNIBAL");
 
     cleanup_dir(&source);
     cleanup_dir(&exported);
