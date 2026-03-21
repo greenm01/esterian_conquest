@@ -1,4 +1,17 @@
-use ec_data::{build_seeded_initialized_game, build_seeded_new_game, generate_map};
+use ec_data::{GeneratedMap, build_seeded_initialized_game, build_seeded_new_game, generate_map};
+
+fn edge_ring_world_count(generated: &GeneratedMap) -> usize {
+    generated
+        .neutral_worlds
+        .iter()
+        .filter(|world| {
+            let x = world.coords[0];
+            let y = world.coords[1];
+            let max = generated.map_size - 2;
+            x == 1 || y == 1 || x == max || y == max
+        })
+        .count()
+}
 
 #[test]
 fn generated_map_is_seed_reproducible() {
@@ -97,6 +110,38 @@ fn generated_map_keeps_rich_worlds_out_of_one_players_backyard() {
 
     let max = per_owner.into_iter().max().unwrap_or(0);
     assert!(max <= 1);
+}
+
+#[test]
+fn four_player_maps_keep_edge_ring_neutral_worlds_uncommon() {
+    let seeds = [1515_u64, 2025, 4242, 9999, 424242, 987654321, 1, 77];
+    let generated = seeds
+        .into_iter()
+        .map(|seed| generate_map(4, seed))
+        .collect::<Vec<_>>();
+    let total_edge_ring = generated.iter().map(edge_ring_world_count).sum::<usize>();
+    let total_neutrals = generated
+        .iter()
+        .map(|map| map.neutral_worlds.len())
+        .sum::<usize>();
+
+    assert!(total_edge_ring * 5 <= total_neutrals);
+}
+
+#[test]
+fn nine_player_maps_keep_edge_ring_neutral_worlds_uncommon() {
+    let seeds = [1515_u64, 2025, 4242, 9999, 424242, 987654321, 1, 77];
+    let generated = seeds
+        .into_iter()
+        .map(|seed| generate_map(9, seed))
+        .collect::<Vec<_>>();
+    let total_edge_ring = generated.iter().map(edge_ring_world_count).sum::<usize>();
+    let total_neutrals = generated
+        .iter()
+        .map(|map| map.neutral_worlds.len())
+        .sum::<usize>();
+
+    assert!(total_edge_ring * 5 <= total_neutrals);
 }
 
 #[test]

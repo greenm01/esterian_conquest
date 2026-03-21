@@ -7,6 +7,11 @@ const LOCAL_WORLD_COUNT_PER_PLAYER: usize = 2;
 const EARLY_RADIUS: f32 = 5.5;
 const CONTESTED_GAP_LIMIT: f32 = 2.75;
 const NEUTRAL_MIN_SPACING: f32 = 1.6;
+const NEUTRAL_EDGE_RING_THRESHOLD: f32 = 2.0;
+const LOCAL_WORLD_EDGE_CLEARANCE_WEIGHT: f32 = 1.0;
+const FRONTIER_WORLD_EDGE_CLEARANCE_WEIGHT: f32 = 1.9;
+const FRONTIER_WORLD_EDGE_RING_PENALTY: f32 = 6.0;
+const MAP_EDGE_RING_PENALTY: f32 = 4.5;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GeneratedWorld {
@@ -239,7 +244,10 @@ fn choose_local_world(
         let nearest = distance(candidate, home);
         let spacing = nearest_used_distance(candidate, used);
         let noise = density_noise(candidate, map_size, seed, reroll);
-        let score = 18.0 - (nearest - 3.8).abs() * 4.0 + spacing * 1.8 + noise * 3.0;
+        let score = 18.0 - (nearest - 3.8).abs() * 4.0
+            + spacing * 1.8
+            + noise * 3.0
+            + local_world_edge_bias(candidate, map_size);
         if score > best_score {
             best_score = score;
             best = Some(candidate);
@@ -285,10 +293,15 @@ fn choose_frontier_world(
         let frontier_ring = if frontier_idx % 3 == 0 { 1.5 } else { 0.0 };
         let balance_bonus =
             frontier_balance_bonus(candidate, potential, homeworlds, existing_worlds);
-        let score =
-            spacing * 1.7 + contest + center_bias + noise * 6.0 + frontier_ring + balance_bonus
-                - gap * 1.4
-                - void_penalty;
+        let score = spacing * 1.7
+            + contest
+            + center_bias
+            + noise * 6.0
+            + frontier_ring
+            + balance_bonus
+            + frontier_world_edge_bias(candidate, map_size)
+            - gap * 1.4
+            - void_penalty;
         if score > best_score {
             best_score = score;
             best = Some(candidate);
@@ -416,6 +429,7 @@ fn score_map(
         - isolated_home_penalty(homeworlds, neutral_worlds) * 28.0
         - dominant_cluster_penalty(homeworlds, neutral_worlds) * 0.32
         + density_balance_bonus(map_size, neutral_worlds)
+        - edge_hugging_world_penalty(map_size, neutral_worlds) * MAP_EDGE_RING_PENALTY
         - system_overlap_penalty(homeworlds, neutral_worlds) * 200.0;
 
     MapMetrics {
@@ -553,6 +567,41 @@ fn nearest_used_distance(candidate: [u8; 2], used: &[[u8; 2]]) -> f32 {
         .fold(f32::MAX, f32::min)
 }
 
+fn local_world_edge_bias(candidate: [u8; 2], map_size: u8) -> f32 {
+    neutral_world_edge_bias(candidate, map_size, LOCAL_WORLD_EDGE_CLEARANCE_WEIGHT, 0.0)
+}
+
+fn frontier_world_edge_bias(candidate: [u8; 2], map_size: u8) -> f32 {
+    neutral_world_edge_bias(
+        candidate,
+        map_size,
+        FRONTIER_WORLD_EDGE_CLEARANCE_WEIGHT,
+        FRONTIER_WORLD_EDGE_RING_PENALTY,
+    )
+}
+
+fn neutral_world_edge_bias(
+    candidate: [u8; 2],
+    map_size: u8,
+    clearance_weight: f32,
+    edge_ring_penalty_weight: f32,
+) -> f32 {
+    let clearance = edge_clearance(candidate, map_size);
+    clearance.min(3.0) * clearance_weight
+        - edge_ring_shortfall(candidate, map_size) * edge_ring_penalty_weight
+}
+
+fn edge_hugging_world_penalty(map_size: u8, neutral_worlds: &[GeneratedWorld]) -> f32 {
+    neutral_worlds
+        .iter()
+        .map(|world| edge_ring_shortfall(world.coords, map_size))
+        .sum()
+}
+
+fn edge_ring_shortfall(candidate: [u8; 2], map_size: u8) -> f32 {
+    (NEUTRAL_EDGE_RING_THRESHOLD - edge_clearance(candidate, map_size)).max(0.0)
+}
+
 fn edge_clearance(candidate: [u8; 2], map_size: u8) -> f32 {
     f32::min(
         f32::min(candidate[0] as f32, candidate[1] as f32),
@@ -656,6 +705,38 @@ struct HomeworldRegion {
     min: [u8; 2],
     max: [u8; 2],
     anchor: [u8; 2],
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        NEUTRAL_EDGE_RING_THRESHOLD, frontier_world_edge_bias, local_world_edge_bias,
+        map_size_for_player_count,
+    };
+
+    #[test]
+    fn local_world_edge_bias_prefers_farther_clearance() {
+        let map_size = map_size_for_player_count(4);
+        let edge_adjacent = [1, 8];
+        let interior = [3, 8];
+        assert!(
+            local_world_edge_bias(interior, map_size)
+                > local_world_edge_bias(edge_adjacent, map_size)
+        );
+        assert_eq!(NEUTRAL_EDGE_RING_THRESHOLD, 2.0);
+    }
+
+    #[test]
+    fn frontier_world_edge_bias_penalizes_edges_more_than_local_worlds() {
+        let map_size = map_size_for_player_count(4);
+        let edge_adjacent = [1, 8];
+        let interior = [3, 8];
+        let local_gap = local_world_edge_bias(interior, map_size)
+            - local_world_edge_bias(edge_adjacent, map_size);
+        let frontier_gap = frontier_world_edge_bias(interior, map_size)
+            - frontier_world_edge_bias(edge_adjacent, map_size);
+        assert!(frontier_gap > local_gap);
+    }
 }
 
 fn homeworld_regions(player_count: u8, map_size: u8) -> Vec<HomeworldRegion> {
