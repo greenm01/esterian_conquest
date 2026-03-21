@@ -595,6 +595,107 @@ fn db_export_refreshed_stale_foreign_scout_directory_reopens_in_classic_ecgame_s
 }
 
 #[test]
+fn db_import_export_preserves_foreign_partial_intel_row_shape() {
+    let source = unique_temp_dir("ec-cli-db-import-foreign-partial-intel-source");
+    let exported = unique_temp_dir("ec-cli-db-import-foreign-partial-intel-exported");
+
+    let stdout = run_ec_cli(&[
+        "sysop",
+        "new-game",
+        source.to_str().unwrap(),
+        "--players",
+        "4",
+        "--seed",
+        "1515",
+    ]);
+    assert!(stdout.contains("Initialized new game"));
+
+    setup_classic_probe_players(&source);
+    setup_classic_probe_planets(&source);
+    setup_classic_probe_scout_order(&source);
+
+    let maint_stdout = run_ec_cli(&["maint-rust", source.to_str().unwrap(), "4"]);
+    assert!(maint_stdout.contains("Rust maintenance complete."));
+    let export_stdout = run_ec_cli(&[
+        "db-export",
+        source.to_str().unwrap(),
+        source.to_str().unwrap(),
+    ]);
+    assert!(export_stdout.contains("Exported year 3004"));
+
+    let database_bytes = fs::read(source.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let mut database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+    let row = database.record_mut(4, 0, 20);
+    row.raw[0x23] = 0xff;
+    row.raw[0x24] = 0xff;
+    row.raw[0x25] = 0xff;
+    row.raw[0x26] = 0xff;
+    row.set_word_at(0x27, 0);
+    fs::write(source.join("DATABASE.DAT"), database.to_bytes()).expect("DATABASE.DAT should save");
+
+    assert_database_row_survives_db_import_export(&source, &exported, 4, 0);
+
+    cleanup_dir(&source);
+    cleanup_dir(&exported);
+}
+
+#[test]
+#[ignore = "launches classic ECGAME through dosbox-x"]
+fn db_import_export_foreign_partial_intel_directory_reopens_in_classic_ecgame_smoke() {
+    let source = unique_temp_dir("ec-cli-db-import-foreign-partial-intel-ecgame-source");
+    let exported = unique_temp_dir("ec-cli-db-import-foreign-partial-intel-ecgame-exported");
+
+    let stdout = run_ec_cli(&[
+        "sysop",
+        "new-game",
+        source.to_str().unwrap(),
+        "--players",
+        "4",
+        "--seed",
+        "1515",
+    ]);
+    assert!(stdout.contains("Initialized new game"));
+
+    setup_classic_probe_players(&source);
+    setup_classic_probe_planets(&source);
+    setup_classic_probe_scout_order(&source);
+
+    let maint_stdout = run_ec_cli(&["maint-rust", source.to_str().unwrap(), "4"]);
+    assert!(maint_stdout.contains("Rust maintenance complete."));
+    let export_stdout = run_ec_cli(&[
+        "db-export",
+        source.to_str().unwrap(),
+        source.to_str().unwrap(),
+    ]);
+    assert!(export_stdout.contains("Exported year 3004"));
+
+    let database_bytes = fs::read(source.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let mut database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+    let row = database.record_mut(4, 0, 20);
+    row.raw[0x23] = 0xff;
+    row.raw[0x24] = 0xff;
+    row.raw[0x25] = 0xff;
+    row.raw[0x26] = 0xff;
+    row.set_word_at(0x27, 0);
+    fs::write(source.join("DATABASE.DAT"), database.to_bytes()).expect("DATABASE.DAT should save");
+
+    fs::remove_file(source.join("ecgame.db")).expect("source ecgame.db should remove cleanly");
+    let import_stdout = run_ec_cli(&["db-import", source.to_str().unwrap()]);
+    assert!(import_stdout.contains("Imported"));
+    let export_stdout = run_ec_cli(&[
+        "db-export",
+        source.to_str().unwrap(),
+        exported.to_str().unwrap(),
+    ]);
+    assert!(export_stdout.contains("Exported year 3004"));
+
+    run_classic_ecgame_smoke_with_alias(&exported, 1, "SYSOP");
+
+    cleanup_dir(&source);
+    cleanup_dir(&exported);
+}
+
+#[test]
 fn db_export_emits_ecgame_accepted_foreign_view_only_row_shape() {
     let source = unique_temp_dir("ec-cli-db-export-foreign-view-intel-source");
     let exported = unique_temp_dir("ec-cli-db-export-foreign-view-intel-exported");
