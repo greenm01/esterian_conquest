@@ -24,12 +24,13 @@ Published by Griffith International, P.O. Box 530703, Birmingham, AL 35253.
 
 ## Program Features
 
-Esterian Conquest is a simultaneous-turn empire game. You manage planets,
-direct fleets, gather intelligence, negotiate with rivals, and try to become
-Emperor before another claimant does. The game supports up to `25` players,
-offers menu-driven order entry with expert shortcuts, and gives you messaging,
-intelligence, and autopilot tools on top of the core military and economic
-systems.
+Esterian Conquest is an asynchronous turn-based empire game. Players submit
+orders during the turn year, and maintenance resolves the turn. You manage
+planets, direct fleets, gather intelligence, negotiate with rivals, and try to
+become Emperor before another claimant does. The game supports up to `25`
+players, offers menu-driven order entry with expert shortcuts, and gives you
+messaging, intelligence, and autopilot tools on top of the core military and
+economic systems.
 
 ## Table of Contents
 

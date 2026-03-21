@@ -6,6 +6,9 @@ Rust resurrection of Esterian Conquest v1.5, with classic `.DAT`
 interoperability, a growing native client, and a maintenance engine nearing
 full compliance.
 
+Esterian Conquest is an asynchronous turn-based strategy game: players submit
+orders during the year, and maintenance resolves the turn.
+
 **[Read the Grand Vision: From BBS to the Decentralized Web](docs/grand-vision.md)**
 
 This is now best understood as the Rust `v1.6` continuation of Esterian
