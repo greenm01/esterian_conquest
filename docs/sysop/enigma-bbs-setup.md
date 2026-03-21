@@ -1,6 +1,18 @@
-# Enigma BBS Door Setup for Esterian Conquest
+# Enigma BBS Legacy DOS Door Setup
 
-This guide covers how to set up the original Esterian Conquest (EC) v1.5 DOS executable as a door under [Enigma BBS](https://github.com/NuSkooler/enigma-bbs), using `dosbox-x` to handle the Telnet handoff and headless environment.
+This guide covers the legacy compatibility path: running the original DOS
+`ECGAME.EXE` as a door under [Enigma BBS](https://github.com/NuSkooler/enigma-bbs)
+through `dosbox-x`.
+
+This is not the primary `v1.6` deployment story. The main direction of the
+project is the Rust-native stack:
+
+- `ec-cli` for campaign setup and admin work
+- `maint-rust` for turn processing
+- `ec-client` as the player-facing client
+
+Use this guide when you explicitly want to host the original DOS client for
+compatibility or migration reasons.
 
 ## The Dropfile Blocker & Lessons Learned
 
@@ -133,7 +145,7 @@ Add this menu action to a submit array somewhere in your system:
                 }
 ```
 
-## 3. Performance Expectations: DOS vs. The Future Rust Clone
+## 3. Performance Expectations: DOS vs. Rust v1.6
 
 When testing the game through DOSBox-X via Enigma BBS, you will likely notice that the text "paints" or scrolls down the screen line-by-line, very reminiscent of a classic 90s dial-up modem connection. 
 
@@ -141,10 +153,17 @@ This happens because:
 - **Legacy Serial Rendering:** `ECGAME.EXE` is hardcoded to render text character-by-character to a specific hardware address (the 16550 UART COM port).
 - **Emulation Bottlenecks:** DOSBox-X is faithfully emulating this hardware stack, including its limitations. It forces the text through legacy DOS interrupts and bounds it by the virtual baud rate we set in `CHAIN.TXT` (115200). Even when using `cycles=max` to un-throttle the CPU, the serial I/O emulation remains a bottleneck.
 
-**The Rust Reimplementation will be radically faster.**
+**The Rust-native path is radically faster.**
 
-The ongoing native Rust clone of Esterian Conquest is completely bypassing this legacy architecture. Instead of simulating virtual hardware and pacing I/O via DOS interrupts, the Rust server will dump entire strings and screen buffers directly into modern TCP sockets. When players connect to the native Rust version, complete menus, game maps, and interfaces will snap onto the screen virtually instantaneously, limited only by the player's network and terminal software rendering speed. 
+The ongoing Rust `v1.6` stack bypasses this legacy architecture entirely.
+Instead of simulating virtual hardware and pacing I/O via DOS interrupts, the
+native client/server path can write full strings and buffers directly to modern
+terminals and sockets. The DOS door path is therefore a compatibility option,
+not the performance target.
 
-## 4. Future Enhancements
+## 4. Compatibility Notes
 
-Currently, the `convert_to_chain.py` script hardcodes the user info (e.g. "Sysop"). To fully integrate the BBS experience, you can parse the `{dropFile}` (which Enigma generates as a `DORINFO1.DEF` by default per our config) in Python, extract the real player's alias/name, and pass those values to `write_chain_txt(..., alias=real_alias, real_name=real_name)`.
+Currently, the `convert_to_chain.py` script hardcodes the user info (for
+example `Sysop`). To fully integrate the legacy DOS door, you can parse the
+`{dropFile}` that Enigma generates, extract the real caller alias/name, and
+pass those values to `write_chain_txt(..., alias=real_alias, real_name=real_name)`.
