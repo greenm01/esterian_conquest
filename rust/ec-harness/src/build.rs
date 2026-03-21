@@ -389,6 +389,7 @@ fn apply_queued_mail(spec: &ScenarioSpec, queued_mail: &mut Vec<QueuedPlayerMail
         year: mail.year.unwrap_or(spec.metadata.year),
         subject: mail.subject.clone(),
         body: mail.body.clone(),
+        recipient_deleted: false,
     }));
 }
 

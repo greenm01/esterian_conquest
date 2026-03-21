@@ -415,9 +415,11 @@ impl CampaignStore {
                  year INTEGER NOT NULL,
                  subject TEXT NOT NULL,
                  body TEXT NOT NULL,
+                 recipient_deleted INTEGER NOT NULL DEFAULT 0,
                  PRIMARY KEY(snapshot_id, queue_index)
              );",
         )?;
+        ensure_queued_mail_recipient_deleted_column(&conn)?;
         Ok(())
     }
 
@@ -681,8 +683,9 @@ fn write_queued_mail_rows(
 ) -> Result<(), CampaignStoreError> {
     let mut stmt = tx.prepare(
         "INSERT INTO queued_mail(
-             snapshot_id, queue_index, sender_empire_id, recipient_empire_id, year, subject, body
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+             snapshot_id, queue_index, sender_empire_id, recipient_empire_id, year, subject, body,
+             recipient_deleted
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
     )?;
     for (idx, mail) in queued_mail.iter().enumerate() {
         stmt.execute(params![
@@ -693,6 +696,7 @@ fn write_queued_mail_rows(
             i64::from(mail.year),
             &mail.subject,
             &mail.body,
+            i64::from(u8::from(mail.recipient_deleted)),
         ])?;
     }
     Ok(())
@@ -703,7 +707,7 @@ fn load_queued_mail_rows(
     snapshot_id: i64,
 ) -> Result<Vec<QueuedPlayerMail>, CampaignStoreError> {
     let mut stmt = conn.prepare(
-        "SELECT sender_empire_id, recipient_empire_id, year, subject, body
+        "SELECT sender_empire_id, recipient_empire_id, year, subject, body, recipient_deleted
          FROM queued_mail
          WHERE snapshot_id = ?1
          ORDER BY queue_index",
@@ -715,7 +719,27 @@ fn load_queued_mail_rows(
             year: row.get::<_, i64>(2)? as u16,
             subject: row.get(3)?,
             body: row.get(4)?,
+            recipient_deleted: row.get::<_, i64>(5)? != 0,
         })
     })?;
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
+fn ensure_queued_mail_recipient_deleted_column(
+    conn: &Connection,
+) -> Result<(), CampaignStoreError> {
+    let mut stmt = conn.prepare("PRAGMA table_info(queued_mail)")?;
+    let has_column = stmt
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .any(|name| name == "recipient_deleted");
+    if !has_column {
+        conn.execute(
+            "ALTER TABLE queued_mail
+             ADD COLUMN recipient_deleted INTEGER NOT NULL DEFAULT 0",
+            [],
+        )?;
+    }
+    Ok(())
 }

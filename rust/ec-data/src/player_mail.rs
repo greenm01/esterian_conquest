@@ -10,6 +10,17 @@ pub struct QueuedPlayerMail {
     pub year: u16,
     pub subject: String,
     pub body: String,
+    pub recipient_deleted: bool,
+}
+
+impl QueuedPlayerMail {
+    pub fn is_visible_to_recipient(&self, recipient_empire_id: u8) -> bool {
+        self.recipient_empire_id == recipient_empire_id && !self.recipient_deleted
+    }
+
+    pub fn mark_deleted_by_recipient(&mut self) {
+        self.recipient_deleted = true;
+    }
 }
 
 pub fn queue_path(dir: &Path) -> PathBuf {
@@ -25,11 +36,19 @@ pub fn load_mail_queue(dir: &Path) -> Result<Vec<QueuedPlayerMail>, Box<dyn std:
     let mut out = Vec::new();
     for line in text.lines().filter(|line| !line.trim().is_empty()) {
         let parts = line.split('\t').collect::<Vec<_>>();
-        let (sender, recipient, year, subject, body) = match parts.as_slice() {
-            [sender, recipient, year, body] => (*sender, *recipient, *year, "", *body),
+        let (sender, recipient, year, subject, body, recipient_deleted) = match parts.as_slice() {
+            [sender, recipient, year, body] => (*sender, *recipient, *year, "", *body, false),
             [sender, recipient, year, subject, body] => {
-                (*sender, *recipient, *year, *subject, *body)
+                (*sender, *recipient, *year, *subject, *body, false)
             }
+            [sender, recipient, year, subject, body, recipient_deleted] => (
+                *sender,
+                *recipient,
+                *year,
+                *subject,
+                *body,
+                parse_deleted_flag(recipient_deleted),
+            ),
             _ => continue,
         };
         out.push(QueuedPlayerMail {
@@ -38,6 +57,7 @@ pub fn load_mail_queue(dir: &Path) -> Result<Vec<QueuedPlayerMail>, Box<dyn std:
             year: year.parse()?,
             subject: unescape_field(subject),
             body: unescape_field(body),
+            recipient_deleted,
         });
     }
     Ok(out)
@@ -67,12 +87,13 @@ pub fn save_mail_queue(
     let mut text = String::new();
     for mail in queue {
         text.push_str(&format!(
-            "{}\t{}\t{}\t{}\t{}\n",
+            "{}\t{}\t{}\t{}\t{}\t{}\n",
             mail.sender_empire_id,
             mail.recipient_empire_id,
             mail.year,
             escape_field(&mail.subject),
-            escape_field(&mail.body)
+            escape_field(&mail.body),
+            u8::from(mail.recipient_deleted)
         ));
     }
     fs::write(path, text)?;
@@ -114,4 +135,11 @@ fn unescape_field(value: &str) -> String {
         }
     }
     out
+}
+
+fn parse_deleted_flag(value: &str) -> bool {
+    matches!(
+        value.trim().to_ascii_lowercase().as_str(),
+        "1" | "true" | "yes" | "y"
+    )
 }

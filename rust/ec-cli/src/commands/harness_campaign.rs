@@ -648,7 +648,7 @@ fn render_player_bundle_readme(
         .queued_mail
         .iter()
         .filter(|mail| {
-            mail.recipient_empire_id as usize == assignment.record_index_1_based
+            mail.is_visible_to_recipient(assignment.record_index_1_based as u8)
                 && mail.year.saturating_add(1) == year
         })
         .collect::<Vec<_>>();

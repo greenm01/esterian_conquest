@@ -2,7 +2,7 @@ use crate::app::action::Action;
 use crate::app::state::App;
 use crate::domains::startup::StartupAction;
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
-use crate::reports::{ReportsPreview, rebuild_chunked_bytes};
+use crate::reports::{ReportsPreview, has_visible_runtime_messages, rebuild_chunked_bytes};
 use crate::screen::{
     FIRST_TIME_INTRO_PAGE_COUNT, STARTUP_SPLASH_PAGE_COUNT, ScreenId, StartupReviewMode,
 };
@@ -68,11 +68,14 @@ impl App {
             }
         } else {
             let block_idx = self.startup_state.messages_block;
-            let mut blocks = self.startup.message_blocks().to_vec();
-            if block_idx < blocks.len() {
-                blocks.remove(block_idx);
+            let mail_index = self
+                .startup
+                .message_blocks()
+                .get(block_idx)
+                .and_then(|block| block.runtime_mail_index);
+            if let Some(mail) = mail_index.and_then(|idx| self.queued_mail.get_mut(idx)) {
+                mail.mark_deleted_by_recipient();
             }
-            self.messages_bytes = rebuild_chunked_bytes(&blocks).unwrap_or_default();
             self.sync_player_review_flags();
             self.save_game_data()?;
             self.refresh_review_context()?;
@@ -911,12 +914,17 @@ impl App {
     }
 
     fn refresh_review_context(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let refreshed = ReportsPreview::from_bytes(&self.results_bytes, &self.messages_bytes);
+        let refreshed = ReportsPreview::from_runtime(
+            &self.game_data,
+            self.player.record_index_1_based as u8,
+            &self.results_bytes,
+            &self.queued_mail,
+        );
         let summary = MainMenuSummary::from_game_data(
             &self.game_data,
             self.player.record_index_1_based,
             !self.results_bytes.is_empty(),
-            !self.messages_bytes.is_empty(),
+            has_visible_runtime_messages(self.player.record_index_1_based as u8, &self.queued_mail),
         );
         let startup_summary = StartupSummary::from_reports(
             summary.game_year,
@@ -956,7 +964,11 @@ impl App {
             .get_mut(self.player.record_index_1_based - 1)
         {
             player.set_classic_login_reviewables_present(
-                !self.results_bytes.is_empty() || !self.messages_bytes.is_empty(),
+                !self.results_bytes.is_empty()
+                    || has_visible_runtime_messages(
+                        self.player.record_index_1_based as u8,
+                        &self.queued_mail,
+                    ),
             );
             player.set_classic_results_chain_state(
                 !self.results_bytes.is_empty(),

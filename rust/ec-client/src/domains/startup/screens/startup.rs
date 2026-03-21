@@ -1,9 +1,5 @@
-use crate::model::ClassicLoginState;
 use crate::reports::{ReportsPreview, ReviewBlock, wrap_review_text_preserving_spacing};
-use crate::screen::layout::{
-    PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_plain_prompt, draw_status_line, draw_title_bar,
-    new_playfield,
-};
+use crate::screen::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_plain_prompt, new_playfield};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::startup::{StartupPhase, StartupSummary};
 use crate::theme::classic;
@@ -98,13 +94,13 @@ impl StartupScreen {
             StartupPhase::LoginSummary => self.render_login_summary(frame),
             StartupPhase::Results => self.render_review(
                 frame,
-                "RESULTS REVIEW",
                 "report",
                 "reports",
                 "Reports",
                 &self.result_blocks,
                 self.summary.pending_results,
                 "Reports are marked pending, but no review text is available yet.",
+                &[],
                 results_block,
                 results_scroll_offset,
                 results_mode,
@@ -112,22 +108,37 @@ impl StartupScreen {
                 results_deleted_any,
                 game_year,
             ),
-            StartupPhase::Messages => self.render_review(
-                frame,
-                "MESSAGES REVIEW",
-                "message",
-                "messages",
-                "Messages",
-                &self.message_blocks,
-                self.summary.pending_messages,
-                "Messages are marked pending, but no review text is available yet.",
-                messages_block,
-                messages_scroll_offset,
-                messages_mode,
-                messages_nonstop,
-                messages_deleted_any,
-                game_year,
-            ),
+            StartupPhase::Messages => {
+                let prior_results_rows = if self.summary.pending_results {
+                    completed_review_history_rows(
+                        &self.result_blocks,
+                        "Reports are marked pending, but no review text is available yet.",
+                        "report",
+                        "reports",
+                        results_deleted_any,
+                        game_year,
+                        "Reports",
+                    )
+                } else {
+                    Vec::new()
+                };
+                self.render_review(
+                    frame,
+                    "message",
+                    "messages",
+                    "Messages",
+                    &self.message_blocks,
+                    self.summary.pending_messages,
+                    "Messages are marked pending, but no review text is available yet.",
+                    &prior_results_rows,
+                    messages_block,
+                    messages_scroll_offset,
+                    messages_mode,
+                    messages_nonstop,
+                    messages_deleted_any,
+                    game_year,
+                )
+            }
             StartupPhase::Complete => Ok(new_playfield()),
         }
     }
@@ -136,13 +147,13 @@ impl StartupScreen {
     fn render_review(
         &self,
         frame: &ScreenFrame<'_>,
-        title: &str,
         singular: &str,
         plural: &str,
         section_label: &str,
         blocks: &[ReviewBlock],
         pending: bool,
         empty_notice: &str,
+        prior_transcript_rows: &[String],
         block: usize,
         scroll_offset: usize,
         mode: StartupReviewMode,
@@ -152,40 +163,44 @@ impl StartupScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         let delete_prompt = format!("Delete this {singular} Y/[N] ->");
+        let view_prompt =
+            format!("You have undeleted {plural}. View them? [Y]es, <N>o, <NS> (non-stop) ->");
         let continue_prompt =
             format!("There are more {plural}. Continue? [Y]es, <N>o, <NS> (non-stop) ->");
 
         match mode {
             StartupReviewMode::ViewPrompt => {
-                draw_title_bar(&mut buffer, 0, &format!("{title}: "));
-                draw_status_line(
-                    &mut buffer,
-                    2,
-                    "Empire: ",
-                    &format!(
-                        "{}  Player {}",
-                        display_or_unknown(&frame.player.empire_name),
-                        frame.player.record_index_1_based
-                    ),
-                );
+                let mut transcript_rows = startup_login_summary_rows(frame, game_year);
+                if !prior_transcript_rows.is_empty() {
+                    transcript_rows.push(String::new());
+                    transcript_rows.extend_from_slice(prior_transcript_rows);
+                }
                 if pending && blocks.is_empty() {
-                    buffer.write_text(4, 0, empty_notice, classic::body_style());
-                    draw_plain_prompt(&mut buffer, 6, "(Slap a key)");
-                } else {
-                    draw_plain_prompt(
-                        &mut buffer,
-                        4,
-                        &format!(
-                            "You have undeleted {plural}. View them? [Y]es, <N>o, <NS> (non-stop) ->"
-                        ),
+                    transcript_rows.push(String::new());
+                    transcript_rows.extend(
+                        wrap_review_text_preserving_spacing(empty_notice, PLAYFIELD_WIDTH)
+                            .into_iter(),
                     );
+                    render_review_transcript(&mut buffer, &transcript_rows);
+                    draw_plain_prompt(&mut buffer, PLAYFIELD_HEIGHT - 1, "(Slap a key)");
+                } else {
+                    render_review_transcript(&mut buffer, &transcript_rows);
+                    draw_plain_prompt(&mut buffer, PLAYFIELD_HEIGHT - 1, &view_prompt);
                 }
             }
             StartupReviewMode::ItemBody | StartupReviewMode::DeletePrompt => {
-                let header = format!("{section_label}: Current game year is {game_year} A.D.");
-                buffer.write_text(0, 0, &header, classic::body_style());
-
-                let mut transcript_rows = Vec::new();
+                let mut transcript_rows = startup_login_summary_rows(frame, game_year);
+                if !prior_transcript_rows.is_empty() {
+                    transcript_rows.push(String::new());
+                    transcript_rows.extend_from_slice(prior_transcript_rows);
+                }
+                transcript_rows.push(String::new());
+                transcript_rows.push(view_prompt.clone());
+                transcript_rows.push(String::new());
+                transcript_rows.push(format!(
+                    "{section_label}: Current game year is {game_year} A.D."
+                ));
+                transcript_rows.push(String::new());
                 for previous_block in 0..block {
                     let previous_rows =
                         block_review_rows(block_lines(blocks, previous_block), empty_notice);
@@ -215,9 +230,18 @@ impl StartupScreen {
                 }
             }
             StartupReviewMode::ContinuePrompt => {
-                let header = format!("{section_label}: Current game year is {game_year} A.D.");
-                buffer.write_text(0, 0, &header, classic::body_style());
-                let mut transcript_rows = Vec::new();
+                let mut transcript_rows = startup_login_summary_rows(frame, game_year);
+                if !prior_transcript_rows.is_empty() {
+                    transcript_rows.push(String::new());
+                    transcript_rows.extend_from_slice(prior_transcript_rows);
+                }
+                transcript_rows.push(String::new());
+                transcript_rows.push(view_prompt.clone());
+                transcript_rows.push(String::new());
+                transcript_rows.push(format!(
+                    "{section_label}: Current game year is {game_year} A.D."
+                ));
+                transcript_rows.push(String::new());
                 for previous_block in 0..block {
                     let previous_rows =
                         block_review_rows(block_lines(blocks, previous_block), empty_notice);
@@ -234,14 +258,29 @@ impl StartupScreen {
                 draw_plain_prompt(&mut buffer, PLAYFIELD_HEIGHT - 1, &continue_prompt);
             }
             StartupReviewMode::EndStatus => {
-                draw_title_bar(&mut buffer, 0, &format!("{title}: "));
-                let status = if deleted_any {
-                    format!("{} deleted.", capitalize(plural))
-                } else {
-                    format!("All {plural} seen.")
-                };
-                buffer.write_text(4, 0, &status, classic::body_style());
-                draw_plain_prompt(&mut buffer, 6, "(Slap a key)");
+                let mut transcript_rows = startup_login_summary_rows(frame, game_year);
+                if !prior_transcript_rows.is_empty() {
+                    transcript_rows.push(String::new());
+                    transcript_rows.extend_from_slice(prior_transcript_rows);
+                }
+                transcript_rows.push(String::new());
+                transcript_rows.push(view_prompt);
+                transcript_rows.push(String::new());
+                transcript_rows.extend(completed_review_history_rows(
+                    blocks,
+                    empty_notice,
+                    singular,
+                    plural,
+                    deleted_any,
+                    game_year,
+                    section_label,
+                ));
+                render_review_transcript(&mut buffer, &transcript_rows);
+                draw_plain_prompt(
+                    &mut buffer,
+                    PLAYFIELD_HEIGHT - 1,
+                    &format!("All {plural} seen. (Slap a key)"),
+                );
             }
         }
 
@@ -253,56 +292,9 @@ impl StartupScreen {
         frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, "REVIEW STATUS: ");
-        draw_status_line(
-            &mut buffer,
-            2,
-            "Empire: ",
-            &format!(
-                "{}  Player {}",
-                display_or_unknown(&frame.player.empire_name),
-                frame.player.record_index_1_based
-            ),
-        );
-        let login_status = match self.summary.login_state {
-            ClassicLoginState::MatchedPreloadedFirstLogin => {
-                "Matched pre-loaded commander. First-login review is required."
-            }
-            ClassicLoginState::ReturningPlayer => {
-                "Returning commander recognized. Resuming login-time review."
-            }
-            ClassicLoginState::FirstTimeMenu => "First-time commander path.",
-        };
-        buffer.write_text(3, 0, login_status, classic::body_style());
-
-        if self.summary.pending_results {
-            let report_status = if self.result_blocks.is_empty() {
-                "Reports are marked pending, but no review text is available yet.".to_string()
-            } else {
-                "Reports are waiting for your review.".to_string()
-            };
-            buffer.write_text(4, 0, &report_status, classic::body_style());
-        } else {
-            buffer.write_text(4, 0, "You have no reports pending.", classic::body_style());
-        }
-
-        if self.summary.pending_messages {
-            let message_status = if self.message_blocks.is_empty() {
-                "Messages are marked pending, but no review text is available yet.".to_string()
-            } else {
-                "Messages are waiting for your review.".to_string()
-            };
-            buffer.write_text(5, 0, &message_status, classic::body_style());
-        } else {
-            buffer.write_text(
-                5,
-                0,
-                "You have no undeleted messages.",
-                classic::body_style(),
-            );
-        }
-
-        draw_plain_prompt(&mut buffer, 7, "(Slap a key to continue)");
+        let rows = startup_login_summary_rows(frame, self.summary.game_year);
+        render_review_transcript(&mut buffer, &rows);
+        draw_plain_prompt(&mut buffer, PLAYFIELD_HEIGHT - 1, "(Press Return)");
         Ok(buffer)
     }
 }
@@ -431,6 +423,60 @@ fn render_review_transcript(buffer: &mut PlayfieldBuffer, transcript_rows: &[Str
     for (i, line) in visible_rows.iter().enumerate() {
         buffer.write_text(first_row + i, 0, line, classic::body_style());
     }
+}
+
+fn startup_login_summary_rows(frame: &ScreenFrame<'_>, game_year: u16) -> Vec<String> {
+    let identity = if !frame.player.handle.is_empty() {
+        frame.player.handle.as_str()
+    } else {
+        display_or_unknown(&frame.player.empire_name)
+    };
+    vec![
+        format!(
+            "You are \"{identity}\", (Empire #{})",
+            frame.player.record_index_1_based
+        ),
+        String::new(),
+        format!("The year is: {game_year} A.D."),
+        String::new(),
+        format!("Last year on: {} A.D.", game_year.saturating_sub(1)),
+    ]
+}
+
+fn completed_review_history_rows(
+    blocks: &[ReviewBlock],
+    empty_notice: &str,
+    singular: &str,
+    plural: &str,
+    deleted_any: bool,
+    game_year: u16,
+    section_label: &str,
+) -> Vec<String> {
+    let delete_prompt = format!("Delete this {singular} Y/[N] ->");
+    let continue_prompt =
+        format!("There are more {plural}. Continue? [Y]es, <N>o, <NS> (non-stop) ->");
+    let mut transcript_rows = vec![format!(
+        "{section_label}: Current game year is {game_year} A.D."
+    )];
+    transcript_rows.push(String::new());
+    for previous_block in 0..blocks.len() {
+        let previous_rows = block_review_rows(block_lines(blocks, previous_block), empty_notice);
+        let include_continue_prompt = previous_block + 1 < blocks.len();
+        push_completed_block_transcript(
+            &mut transcript_rows,
+            previous_rows,
+            &delete_prompt,
+            &continue_prompt,
+            include_continue_prompt,
+        );
+    }
+    if deleted_any {
+        transcript_rows.push(String::new());
+        transcript_rows.push(format!("{} deleted.", capitalize(plural)));
+    }
+    transcript_rows.push(String::new());
+    transcript_rows.push(format!("All {plural} seen."));
+    transcript_rows
 }
 
 fn capitalize(s: &str) -> String {

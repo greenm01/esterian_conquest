@@ -312,6 +312,7 @@ fn queue_message(
         year: game_data.conquest.game_year(),
         subject: subject.to_string(),
         body: body.to_string(),
+        recipient_deleted: false,
     });
     Ok(())
 }

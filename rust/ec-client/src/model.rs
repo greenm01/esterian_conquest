@@ -110,7 +110,7 @@ impl MainMenuSummary {
         game_data: &CoreGameData,
         player_record_index_1_based: usize,
         results_bytes_present: bool,
-        messages_bytes_present: bool,
+        runtime_messages_present: bool,
     ) -> Self {
         let owned_planets = game_data
             .planets
@@ -142,7 +142,7 @@ impl MainMenuSummary {
                 record.has_classic_messages_review_state() || record.has_any_classic_review_state()
             })
             .unwrap_or(false)
-            || messages_bytes_present;
+            || runtime_messages_present;
 
         Self {
             game_year: game_data.conquest.game_year(),

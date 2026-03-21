@@ -25,6 +25,7 @@ fn player_mail_queue_round_trips_multiline_body() {
         year: 3000,
         subject: "hello".to_string(),
         body: "hello there\nsecond line".to_string(),
+        recipient_deleted: true,
     };
 
     append_mail_queue(&dir, &mail).expect("append queue");

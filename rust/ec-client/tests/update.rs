@@ -172,6 +172,23 @@ fn save_runtime_state(root: &Path, state: &CampaignRuntimeState) {
         .expect("save runtime state");
 }
 
+fn incoming_mail(
+    sender_empire_id: u8,
+    recipient_empire_id: u8,
+    year: u16,
+    subject: &str,
+    body: &str,
+) -> QueuedPlayerMail {
+    QueuedPlayerMail {
+        sender_empire_id,
+        recipient_empire_id,
+        year,
+        subject: subject.to_string(),
+        body: body.to_string(),
+        recipient_deleted: false,
+    }
+}
+
 fn classic_chunked_report_bytes(text: &str) -> Vec<u8> {
     let mut bytes = vec![0u8; 84];
     for (idx, byte) in text.bytes().take(75).enumerate() {
@@ -721,18 +738,17 @@ fn preloaded_first_login_routes_through_login_summary_before_rename_prompt() {
     .expect("app should load");
 
     let mut saw_login_summary = false;
-    let mut saw_preloaded_summary_text = false;
+    let mut saw_summary_year_text = false;
     for _ in 0..16 {
         if app.current_screen() == ScreenId::Startup(StartupPhase::LoginSummary) {
             saw_login_summary = true;
             let mut terminal = CaptureTerminal::new();
             app.render(&mut terminal)
                 .expect("login summary should render");
-            if terminal.lines.iter().any(|line| {
-                line.contains("Matched pre-loaded commander. First-login review is required.")
-            }) {
-                saw_preloaded_summary_text = true;
-            }
+            saw_summary_year_text = terminal
+                .lines
+                .iter()
+                .any(|line| line.contains("The year is:"));
         }
         if app.current_screen() == ScreenId::FirstTimePreloadedRenamePrompt {
             break;
@@ -741,7 +757,7 @@ fn preloaded_first_login_routes_through_login_summary_before_rename_prompt() {
     }
 
     assert!(saw_login_summary);
-    assert!(saw_preloaded_summary_text);
+    assert!(saw_summary_year_text);
     assert_eq!(
         app.current_screen(),
         ScreenId::FirstTimePreloadedRenamePrompt
@@ -1362,18 +1378,17 @@ fn returning_player_routes_through_login_summary_before_main_menu() {
     );
 
     let mut saw_login_summary = false;
-    let mut saw_returning_summary_text = false;
+    let mut saw_summary_year_text = false;
     for _ in 0..16 {
         if app.current_screen() == ScreenId::Startup(StartupPhase::LoginSummary) {
             saw_login_summary = true;
             let mut terminal = CaptureTerminal::new();
             app.render(&mut terminal)
                 .expect("login summary should render");
-            if terminal.lines.iter().any(|line| {
-                line.contains("Returning commander recognized. Resuming login-time review.")
-            }) {
-                saw_returning_summary_text = true;
-            }
+            saw_summary_year_text = terminal
+                .lines
+                .iter()
+                .any(|line| line.contains("The year is:"));
         }
         if app.current_screen() == ScreenId::MainMenu {
             break;
@@ -1382,7 +1397,7 @@ fn returning_player_routes_through_login_summary_before_main_menu() {
     }
 
     assert!(saw_login_summary);
-    assert!(saw_returning_summary_text);
+    assert!(saw_summary_year_text);
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
 }
 
@@ -2704,13 +2719,7 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
                 terminal
                     .lines
                     .iter()
-                    .any(|line| line.contains("Reports are marked pending"))
-            );
-            assert!(
-                terminal
-                    .lines
-                    .iter()
-                    .any(|line| line.contains("Messages are marked pending"))
+                    .any(|line| line.contains("The year is:"))
             );
             break;
         }
@@ -2774,7 +2783,13 @@ fn startup_reviews_results_then_messages_then_enters_main_menu() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
     state.results_bytes = b"Fleet battle report".to_vec();
-    state.messages_bytes = b"Diplomatic telegram".to_vec();
+    state.queued_mail.push(incoming_mail(
+        2,
+        1,
+        state.game_data.conquest.game_year().saturating_sub(1),
+        "Diplomatic",
+        "Diplomatic telegram",
+    ));
     state.game_data.player.records[0].raw[0x30] = 1;
     state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
@@ -2823,7 +2838,13 @@ fn startup_results_paginate_before_advancing_to_messages() {
         .collect::<Vec<_>>()
         .join("\n")
         .into_bytes();
-    state.messages_bytes = b"Message line 01 is long enough".to_vec();
+    state.queued_mail.push(incoming_mail(
+        2,
+        1,
+        state.game_data.conquest.game_year().saturating_sub(1),
+        "Message",
+        "Message line 01 is long enough",
+    ));
     state.game_data.player.records[0].raw[0x30] = 1;
     state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
@@ -2890,9 +2911,32 @@ fn startup_results_paginate_before_advancing_to_messages() {
         ScreenId::Startup(StartupPhase::Results)
     );
 
-    // Advance through DeletePrompt (keep) → EndStatus → phase exit → Messages.
+    // Advance through DeletePrompt (keep) → EndStatus.
     app.advance_startup();
-    app.advance_startup();
+
+    let mut end_status = CaptureTerminal::new();
+    app.render(&mut end_status)
+        .expect("inline startup results completion should render");
+    assert!(
+        end_status
+            .lines
+            .iter()
+            .any(|line| line.contains("All reports seen. (Slap a key)"))
+    );
+    assert!(
+        end_status
+            .lines
+            .iter()
+            .any(|line| line.contains("Delete this report Y/[N] ->"))
+    );
+    assert!(
+        !end_status
+            .lines
+            .iter()
+            .any(|line| line.contains("RESULTS REVIEW:"))
+    );
+
+    // EndStatus → phase exit → Messages.
     app.advance_startup();
     assert_eq!(
         app.current_screen(),
@@ -2905,10 +2949,12 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
     state.results_bytes.clear();
-    state.messages_bytes = classic_chunked_report_blocks(&[
-        "From Alpha\nSubject: One\nBody one",
-        "From Beta\nSubject: Two\nBody two",
-    ]);
+    state
+        .queued_mail
+        .push(incoming_mail(2, 1, 2999, "One", "Body one"));
+    state
+        .queued_mail
+        .push(incoming_mail(3, 1, 2999, "Two", "Body two"));
     state.game_data.player.records[0].raw[0x30] = 1;
     state.game_data.player.records[0].raw[0x34] = 0;
     save_runtime_state(&fixture_dir, &state);
@@ -2942,7 +2988,13 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
         terminal
             .lines
             .iter()
-            .any(|line| line.contains(" -> From Alpha"))
+            .any(|line| line.contains(" -> From") && line.contains("Empire #2"))
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("<end of message>"))
     );
 
     // Accept default at the end-of-block prompt → delete Alpha → ContinuePrompt (Beta still exists).
@@ -2968,21 +3020,31 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
         after_delete
             .lines
             .iter()
-            .any(|line| line.contains(" -> From Beta"))
+            .any(|line| line.contains(" -> From") && line.contains("Empire #3"))
     );
 
     let runtime = latest_runtime_state(&fixture_dir);
-    let preview = ec_client::reports::ReportsPreview::from_bytes(
+    let preview = ec_client::reports::ReportsPreview::from_runtime(
+        &runtime.game_data,
+        1,
         &runtime.results_bytes,
-        &runtime.messages_bytes,
+        &runtime.queued_mail,
     );
     assert_eq!(preview.message_blocks.len(), 1);
     assert!(
         preview
             .message_lines
             .iter()
-            .any(|line| line.contains("From Beta"))
+            .any(|line| line.contains("From") && line.contains("Empire #3"))
     );
+    assert!(
+        preview
+            .message_lines
+            .iter()
+            .any(|line| line.contains("<end of message>"))
+    );
+    assert!(runtime.queued_mail[0].recipient_deleted);
+    assert!(!runtime.queued_mail[1].recipient_deleted);
 }
 
 #[test]
@@ -2990,7 +3052,9 @@ fn startup_message_review_shows_end_status_after_deleting_last_message() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
     state.results_bytes.clear();
-    state.messages_bytes = classic_chunked_report_bytes("From Alpha\nSubject: One\nBody one");
+    state
+        .queued_mail
+        .push(incoming_mail(2, 1, 2999, "One", "Body one"));
     state.game_data.player.records[0].raw[0x30] = 1;
     state.game_data.player.records[0].raw[0x34] = 0;
     save_runtime_state(&fixture_dir, &state);
@@ -3035,13 +3099,26 @@ fn startup_message_review_shows_end_status_after_deleting_last_message() {
             .iter()
             .any(|line| line.contains("Messages deleted."))
     );
+    assert!(
+        end_status
+            .lines
+            .iter()
+            .any(|line| line.contains("All messages seen. (Slap a key)"))
+    );
+    assert!(
+        !end_status
+            .lines
+            .iter()
+            .any(|line| line.contains("MESSAGES REVIEW:"))
+    );
 
     // Advance from EndStatus → phase exit → MainMenu.
     app.advance_startup();
     assert_eq!(app.current_screen(), ScreenId::MainMenu);
 
     let runtime = latest_runtime_state(&fixture_dir);
-    assert!(runtime.messages_bytes.is_empty());
+    assert_eq!(runtime.queued_mail.len(), 1);
+    assert!(runtime.queued_mail[0].recipient_deleted);
     assert_eq!(
         runtime.game_data.player.records[0].classic_messages_pending_flag_raw(),
         0
@@ -3470,11 +3547,13 @@ fn reports_screen_keeps_both_sections_visible_when_results_are_long() {
         .collect::<Vec<_>>()
         .join("\n")
         .into_bytes();
-    state.messages_bytes = (1..=4)
-        .map(|idx| format!("Message line {idx:02} should still remain visible"))
-        .collect::<Vec<_>>()
-        .join("\n")
-        .into_bytes();
+    state.queued_mail.push(incoming_mail(
+        2,
+        1,
+        state.game_data.conquest.game_year().saturating_sub(1),
+        "Visible",
+        "Message line 01 should still remain visible",
+    ));
     state.game_data.player.records[0].raw[0x30] = 1;
     state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
@@ -3553,7 +3632,13 @@ fn preloaded_first_login_reviews_reports_before_homeworld_naming() {
     let fixture_dir = temp_joined_needs_homeworld_copy();
     let mut state = latest_runtime_state(&fixture_dir);
     state.results_bytes = b"Fleet battle report".to_vec();
-    state.messages_bytes = b"Diplomatic telegram".to_vec();
+    state.queued_mail.push(incoming_mail(
+        2,
+        1,
+        state.game_data.conquest.game_year().saturating_sub(1),
+        "Diplomatic",
+        "Diplomatic telegram",
+    ));
     state.game_data.player.records[0].raw[0x30] = 1;
     state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
@@ -3606,7 +3691,13 @@ fn returning_player_reviews_reports_before_colony_naming() {
     colony.1.set_owner_empire_slot_raw(1);
     colony.1.set_planet_name("Not Named Yet");
     state.results_bytes = b"Scout report".to_vec();
-    state.messages_bytes = b"Command mail".to_vec();
+    state.queued_mail.push(incoming_mail(
+        2,
+        1,
+        state.game_data.conquest.game_year().saturating_sub(1),
+        "Command",
+        "Command mail",
+    ));
     state.game_data.player.records[0].raw[0x30] = 1;
     state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
@@ -6705,7 +6796,14 @@ fn apply_action_deletes_reviewables() {
     let fixture_dir = temp_game_copy();
     let mut runtime = latest_runtime_state(&fixture_dir);
     runtime.results_bytes = b"test results".to_vec();
-    runtime.messages_bytes = b"test messages".to_vec();
+    runtime.messages_bytes = b"compat messages".to_vec();
+    runtime.queued_mail.push(incoming_mail(
+        2,
+        1,
+        runtime.game_data.conquest.game_year().saturating_sub(1),
+        "Orders",
+        "test messages",
+    ));
     runtime.game_data.player.records[0].raw[0x30] = 1;
     runtime.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &runtime);
@@ -6737,7 +6835,9 @@ fn apply_action_deletes_reviewables() {
 
     let runtime = latest_runtime_state(&fixture_dir);
     assert!(runtime.results_bytes.is_empty());
-    assert!(runtime.messages_bytes.is_empty());
+    assert_eq!(runtime.messages_bytes, b"compat messages".to_vec());
+    assert_eq!(runtime.queued_mail.len(), 1);
+    assert!(runtime.queued_mail[0].recipient_deleted);
     assert_eq!(runtime.game_data.player.records[0].raw[0x30], 0);
     assert_eq!(runtime.game_data.player.records[0].raw[0x34], 0);
 }
@@ -6845,6 +6945,7 @@ fn apply_action_deletes_queued_message_from_outbox() {
         year: 3000,
         subject: "Test".to_string(),
         body: "Queued".to_string(),
+        recipient_deleted: false,
     });
     save_runtime_state(&fixture_dir, &runtime);
 

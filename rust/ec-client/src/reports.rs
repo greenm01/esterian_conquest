@@ -1,7 +1,10 @@
+use ec_data::{CoreGameData, QueuedPlayerMail};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReviewBlock {
     pub lines: Vec<String>,
     pub raw_chunked_bytes: Option<Vec<u8>>,
+    pub runtime_mail_index: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,6 +26,31 @@ impl ReportsPreview {
             message_blocks,
         }
     }
+
+    pub fn from_runtime(
+        game_data: &CoreGameData,
+        viewer_empire_id: u8,
+        results_bytes: &[u8],
+        queued_mail: &[QueuedPlayerMail],
+    ) -> Self {
+        let result_blocks = decode_report_blocks(results_bytes);
+        let message_blocks = runtime_message_blocks(game_data, viewer_empire_id, queued_mail);
+        Self {
+            results_lines: flatten_block_lines(&result_blocks),
+            message_lines: flatten_block_lines(&message_blocks),
+            result_blocks,
+            message_blocks,
+        }
+    }
+}
+
+pub fn has_visible_runtime_messages(
+    viewer_empire_id: u8,
+    queued_mail: &[QueuedPlayerMail],
+) -> bool {
+    queued_mail
+        .iter()
+        .any(|mail| mail.is_visible_to_recipient(viewer_empire_id))
 }
 
 pub fn wrap_review_text_preserving_spacing(text: &str, width: usize) -> Vec<String> {
@@ -78,11 +106,13 @@ fn decode_report_blocks(bytes: &[u8]) -> Vec<ReviewBlock> {
         vec![ReviewBlock {
             lines: vec!["<binary data present>".to_string()],
             raw_chunked_bytes: None,
+            runtime_mail_index: None,
         }]
     } else {
         vec![ReviewBlock {
             lines: fallback,
             raw_chunked_bytes: None,
+            runtime_mail_index: None,
         }]
     }
 }
@@ -141,6 +171,7 @@ fn decode_length_prefixed_chunked_records(bytes: &[u8]) -> Option<Vec<ReviewBloc
             blocks.push(ReviewBlock {
                 lines: std::mem::take(&mut current_lines),
                 raw_chunked_bytes: Some(std::mem::take(&mut current_raw)),
+                runtime_mail_index: None,
             });
         }
     }
@@ -149,6 +180,7 @@ fn decode_length_prefixed_chunked_records(bytes: &[u8]) -> Option<Vec<ReviewBloc
         blocks.push(ReviewBlock {
             lines: current_lines,
             raw_chunked_bytes: Some(current_raw),
+            runtime_mail_index: None,
         });
     }
 
@@ -173,6 +205,7 @@ fn decode_legacy_chunked_records(bytes: &[u8]) -> Option<Vec<ReviewBlock>> {
             blocks.push(ReviewBlock {
                 lines: decode_text_lines(&current_text),
                 raw_chunked_bytes: Some(std::mem::take(&mut current_raw)),
+                runtime_mail_index: None,
             });
             current_text.clear();
         }
@@ -182,6 +215,7 @@ fn decode_legacy_chunked_records(bytes: &[u8]) -> Option<Vec<ReviewBlock>> {
         blocks.push(ReviewBlock {
             lines: decode_text_lines(&current_text),
             raw_chunked_bytes: Some(current_raw),
+            runtime_mail_index: None,
         });
     }
 
@@ -222,4 +256,59 @@ fn printable_runs(bytes: &[u8], min_len: usize) -> Vec<String> {
     }
 
     runs
+}
+
+fn runtime_message_blocks(
+    game_data: &CoreGameData,
+    viewer_empire_id: u8,
+    queued_mail: &[QueuedPlayerMail],
+) -> Vec<ReviewBlock> {
+    queued_mail
+        .iter()
+        .enumerate()
+        .filter(|(_, mail)| mail.is_visible_to_recipient(viewer_empire_id))
+        .map(|(idx, mail)| ReviewBlock {
+            lines: runtime_message_lines(game_data, mail),
+            raw_chunked_bytes: None,
+            runtime_mail_index: Some(idx),
+        })
+        .collect()
+}
+
+fn runtime_message_lines(game_data: &CoreGameData, mail: &QueuedPlayerMail) -> Vec<String> {
+    let mut lines = vec![format!(
+        "From {} (Empire #{})",
+        sender_label(game_data, mail.sender_empire_id),
+        mail.sender_empire_id
+    )];
+    if !mail.subject.trim().is_empty() {
+        lines.push(format!("Subject: {}", mail.subject.trim()));
+    }
+    let body_lines = decode_text_lines(&mail.body);
+    if body_lines.is_empty() {
+        lines.push(String::new());
+    } else {
+        lines.extend(body_lines);
+    }
+    lines.push("<end of message>".to_string());
+    lines
+}
+
+fn sender_label(game_data: &CoreGameData, sender_empire_id: u8) -> String {
+    let Some(player) = game_data
+        .player
+        .records
+        .get(sender_empire_id.saturating_sub(1) as usize)
+    else {
+        return format!("Empire #{sender_empire_id}");
+    };
+    let controlled = player.controlled_empire_name_summary();
+    if !controlled.is_empty() {
+        return controlled;
+    }
+    let legacy = player.legacy_status_name_summary();
+    if !legacy.is_empty() {
+        return legacy;
+    }
+    format!("Empire #{sender_empire_id}")
 }

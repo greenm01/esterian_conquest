@@ -12,7 +12,7 @@ use crate::domains::starbase::{StarbaseAction, StarbaseState};
 use crate::domains::starmap::StarmapState;
 use crate::domains::startup::{StartupAction, StartupState};
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
-use crate::reports::ReportsPreview;
+use crate::reports::{ReportsPreview, has_visible_runtime_messages};
 use crate::screen::{
     BuildHelpScreen, CommandMenu, DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen,
     EnemiesScreen, FIRST_TIME_INTRO_PAGE_COUNT, FirstTimeEmpiresScreen, FirstTimeHelpScreen,
@@ -121,12 +121,16 @@ impl App {
         let runtime_state = campaign_store
             .load_latest_runtime_state()?
             .ok_or("campaign store has no snapshots; import with ec-cli db-import first")?;
-        let reports =
-            ReportsPreview::from_bytes(&runtime_state.results_bytes, &runtime_state.messages_bytes);
-        let game_data = runtime_state.game_data;
-        let queued_mail = runtime_state.queued_mail;
         let results_bytes = runtime_state.results_bytes;
         let messages_bytes = runtime_state.messages_bytes;
+        let queued_mail = runtime_state.queued_mail;
+        let reports = ReportsPreview::from_runtime(
+            &runtime_state.game_data,
+            config.player_record_index_1_based as u8,
+            &results_bytes,
+            &queued_mail,
+        );
+        let game_data = runtime_state.game_data;
         let player = PlayerContext::from_game_data(&game_data, config.player_record_index_1_based)?;
         let planet_intel_snapshots = campaign_store
             .latest_planet_intel_for_viewer(config.player_record_index_1_based as u8)?
@@ -137,7 +141,7 @@ impl App {
             &game_data,
             config.player_record_index_1_based,
             !results_bytes.is_empty(),
-            !messages_bytes.is_empty(),
+            has_visible_runtime_messages(config.player_record_index_1_based as u8, &queued_mail),
         );
         let review_summary = ReviewSummary::from_main_menu(&main_menu_summary);
         let startup_summary = StartupSummary::from_reports(

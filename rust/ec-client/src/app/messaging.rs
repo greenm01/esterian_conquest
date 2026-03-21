@@ -1,7 +1,7 @@
 use super::helpers::sync_scroll_to_cursor;
 use crate::app::state::App;
 use crate::model::{MainMenuSummary, ReviewSummary};
-use crate::reports::{ReportsPreview, clear_report_bytes};
+use crate::reports::{ReportsPreview, has_visible_runtime_messages};
 use crate::screen::{CommandMenu, ScreenId};
 use ec_data::{CoreGameData, QueuedPlayerMail};
 
@@ -11,7 +11,7 @@ impl App {
             &self.game_data,
             self.player.record_index_1_based,
             !self.results_bytes.is_empty(),
-            !self.messages_bytes.is_empty(),
+            has_visible_runtime_messages(self.player.record_index_1_based as u8, &self.queued_mail),
         );
         let review_summary = ReviewSummary::from_main_menu(&summary);
         if !review_summary.reviewable_results && !review_summary.reviewable_messages {
@@ -344,6 +344,7 @@ impl App {
             year: self.game_data.conquest.game_year(),
             subject: self.messaging.compose_subject.trim().to_string(),
             body: body.to_string(),
+            recipient_deleted: false,
         });
         self.save_game_data()?;
         self.messaging.compose_sent_status = Some(format!(
@@ -454,7 +455,12 @@ impl App {
     }
 
     pub fn delete_reviewables(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        clear_report_bytes(&mut self.results_bytes, &mut self.messages_bytes);
+        self.results_bytes.clear();
+        for mail in &mut self.queued_mail {
+            if mail.is_visible_to_recipient(self.player.record_index_1_based as u8) {
+                mail.mark_deleted_by_recipient();
+            }
+        }
         if let Some(player) = self
             .game_data
             .player
@@ -465,12 +471,17 @@ impl App {
             player.set_classic_results_chain_state(false, 0);
         }
         self.save_game_data()?;
-        let refreshed = ReportsPreview::from_bytes(&self.results_bytes, &self.messages_bytes);
+        let refreshed = ReportsPreview::from_runtime(
+            &self.game_data,
+            self.player.record_index_1_based as u8,
+            &self.results_bytes,
+            &self.queued_mail,
+        );
         let summary = MainMenuSummary::from_game_data(
             &self.game_data,
             self.player.record_index_1_based,
             !self.results_bytes.is_empty(),
-            !self.messages_bytes.is_empty(),
+            has_visible_runtime_messages(self.player.record_index_1_based as u8, &self.queued_mail),
         );
         self.reports
             .replace(refreshed, ReviewSummary::from_main_menu(&summary));
