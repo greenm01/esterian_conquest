@@ -269,7 +269,7 @@ INFORMATION DATABASE ("I"): will display whatever your fleets have discovered ab
 
 **Menu Structure:** Esterian Conquest has four central menus. These are: MAIN MENU, GENERAL COMMAND, PLANET COMMAND, and FLEET COMMAND.
 
-**Main Menu:** The main menu transfers you to one of the other three central menus ("G" for GENERAL COMMAND; "P" for PLANET COMMAND; or "F" for FLEET COMMAND).  You can toggle graphics display mode using the "A" command.  Graphics mode can make information easier to read.
+**Main Menu:** The main menu transfers you to one of the other three central menus ("G" for GENERAL COMMAND; "P" for PLANET COMMAND; or "F" for FLEET COMMAND).  The "A" command is retained in the menu for classic familiarity, but in the Rust TUI graphics mode is not switchable.
 
 Two summaries are available of your empire's production, fleets, planets, and starbases: "D" gives a Detailed Summary and "B" gives Brief Listings.
 
