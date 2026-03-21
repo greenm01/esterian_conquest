@@ -886,7 +886,9 @@ fn db_import_export_preserves_assault_failure_enemy_view_row_shape() {
     attacker.set_troop_transport_count(2);
     attacker.set_army_count(2);
     attacker.set_etac_count(0);
-    game_data.save(&source).expect("mutated fixture should save");
+    game_data
+        .save(&source)
+        .expect("mutated fixture should save");
 
     let maint_stdout = run_ec_cli(&["maint-rust", source.to_str().unwrap(), "1"]);
     assert!(maint_stdout.contains("Rust maintenance complete."));
@@ -939,7 +941,9 @@ fn db_import_export_assault_failure_enemy_view_directory_reopens_in_classic_ecga
     attacker.set_troop_transport_count(2);
     attacker.set_army_count(2);
     attacker.set_etac_count(0);
-    game_data.save(&source).expect("mutated fixture should save");
+    game_data
+        .save(&source)
+        .expect("mutated fixture should save");
 
     let maint_stdout = run_ec_cli(&["maint-rust", source.to_str().unwrap(), "1"]);
     assert!(maint_stdout.contains("Rust maintenance complete."));
@@ -991,7 +995,9 @@ fn db_import_export_preserves_assault_success_owned_row_shape() {
     attacker.set_troop_transport_count(2);
     attacker.set_army_count(2);
     attacker.set_etac_count(0);
-    game_data.save(&source).expect("mutated fixture should save");
+    game_data
+        .save(&source)
+        .expect("mutated fixture should save");
 
     let maint_stdout = run_ec_cli(&["maint-rust", source.to_str().unwrap(), "1"]);
     assert!(maint_stdout.contains("Rust maintenance complete."));
@@ -1044,7 +1050,9 @@ fn db_import_export_assault_success_owned_directory_reopens_in_classic_ecgame_sm
     attacker.set_troop_transport_count(2);
     attacker.set_army_count(2);
     attacker.set_etac_count(0);
-    game_data.save(&source).expect("mutated fixture should save");
+    game_data
+        .save(&source)
+        .expect("mutated fixture should save");
 
     let maint_stdout = run_ec_cli(&["maint-rust", source.to_str().unwrap(), "1"]);
     assert!(maint_stdout.contains("Rust maintenance complete."));

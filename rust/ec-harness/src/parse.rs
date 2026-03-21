@@ -6,10 +6,10 @@ use ec_data::{DiplomaticRelation, Order, ProductionItemKind};
 
 use crate::error::HarnessError;
 use crate::spec::{
-    CombatScenarioSpec, CombatSweepSpec, CommissionSpec, DiplomacySpec, FleetOrderSpec, FleetSpec,
-    FleetShipsSpec, HouseSpec, PlanetSpec, PlanetStatField, QueuedMailSpec, ReviewBlockSpec,
-    ScenarioBaseline, ScenarioMetadata, ScenarioSpec, ShipDimensionKind, StardockSlotSpec,
-    SweepDimension, TurnFileSpec,
+    CombatScenarioSpec, CombatSweepSpec, CommissionSpec, DiplomacySpec, FleetOrderSpec,
+    FleetShipsSpec, FleetSpec, HouseSpec, PlanetSpec, PlanetStatField, QueuedMailSpec,
+    ReviewBlockSpec, ScenarioBaseline, ScenarioMetadata, ScenarioSpec, ShipDimensionKind,
+    StardockSlotSpec, SweepDimension, TurnFileSpec,
 };
 
 impl ScenarioSpec {
@@ -162,12 +162,18 @@ fn parse_scenario_document(
         }
     }
 
-    validate_unique_indices("house", houses.iter().map(|house| house.record_index_1_based))?;
+    validate_unique_indices(
+        "house",
+        houses.iter().map(|house| house.record_index_1_based),
+    )?;
     validate_unique_indices(
         "planet",
         planets.iter().map(|planet| planet.record_index_1_based),
     )?;
-    validate_unique_indices("fleet", fleets.iter().map(|fleet| fleet.record_index_1_based))?;
+    validate_unique_indices(
+        "fleet",
+        fleets.iter().map(|fleet| fleet.record_index_1_based),
+    )?;
     validate_relations(&diplomacy, metadata.player_count)?;
 
     Ok(ScenarioSpec {
@@ -198,10 +204,7 @@ fn validate_unique_indices(
     Ok(())
 }
 
-fn validate_relations(
-    relations: &[DiplomacySpec],
-    player_count: u8,
-) -> Result<(), HarnessError> {
+fn validate_relations(relations: &[DiplomacySpec], player_count: u8) -> Result<(), HarnessError> {
     let mut seen = BTreeSet::new();
     for relation in relations {
         if relation.from_empire_raw == 0 || relation.from_empire_raw > player_count {
@@ -606,7 +609,9 @@ fn prop_u8(node: &kdl::KdlNode, name: &str) -> Result<u8, HarnessError> {
     let value = node
         .get(name)
         .and_then(|value| value.as_integer())
-        .ok_or_else(|| HarnessError::Parse(format!("missing or invalid integer property: {name}")))?;
+        .ok_or_else(|| {
+            HarnessError::Parse(format!("missing or invalid integer property: {name}"))
+        })?;
     u8::try_from(value)
         .map_err(|_| HarnessError::Parse(format!("property {name} out of u8 range: {value}")))
 }
@@ -624,7 +629,9 @@ fn prop_u16(node: &kdl::KdlNode, name: &str) -> Result<u16, HarnessError> {
     let value = node
         .get(name)
         .and_then(|value| value.as_integer())
-        .ok_or_else(|| HarnessError::Parse(format!("missing or invalid integer property: {name}")))?;
+        .ok_or_else(|| {
+            HarnessError::Parse(format!("missing or invalid integer property: {name}"))
+        })?;
     u16::try_from(value)
         .map_err(|_| HarnessError::Parse(format!("property {name} out of u16 range: {value}")))
 }
@@ -660,7 +667,9 @@ fn prop_usize_1_based(node: &kdl::KdlNode, name: &str) -> Result<usize, HarnessE
     let value = node
         .get(name)
         .and_then(|value| value.as_integer())
-        .ok_or_else(|| HarnessError::Parse(format!("missing or invalid integer property: {name}")))?;
+        .ok_or_else(|| {
+            HarnessError::Parse(format!("missing or invalid integer property: {name}"))
+        })?;
     let converted = usize::try_from(value)
         .map_err(|_| HarnessError::Parse(format!("property {name} out of usize range: {value}")))?;
     if converted == 0 {
@@ -678,10 +687,7 @@ fn opt_prop_usize(node: &kdl::KdlNode, name: &str) -> Result<Option<usize>, Harn
     })?))
 }
 
-fn opt_prop_usize_1_based(
-    node: &kdl::KdlNode,
-    name: &str,
-) -> Result<Option<usize>, HarnessError> {
+fn opt_prop_usize_1_based(node: &kdl::KdlNode, name: &str) -> Result<Option<usize>, HarnessError> {
     let Some(value) = opt_prop_usize(node, name)? else {
         return Ok(None);
     };

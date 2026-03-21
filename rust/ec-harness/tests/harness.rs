@@ -68,7 +68,10 @@ messages-block player=1 "Incoming traffic\nStand by."
     let built = build_scenario(&spec).unwrap();
 
     assert_eq!(built.game_data.player.records[0].tax_rate(), 35);
-    assert_eq!(built.game_data.player.records[0].assigned_player_handle_summary(), "SYSOP");
+    assert_eq!(
+        built.game_data.player.records[0].assigned_player_handle_summary(),
+        "SYSOP"
+    );
     assert_eq!(
         built.game_data.player.records[0].controlled_empire_name_summary(),
         "Aurora"

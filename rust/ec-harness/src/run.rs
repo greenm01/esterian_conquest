@@ -74,8 +74,8 @@ pub fn run_combat_scenario(spec: &CombatScenarioSpec) -> Result<CombatRun, Harne
     let mut ownership_changes = 0usize;
 
     for _ in 0..spec.maintenance_turns {
-        let events =
-            run_maintenance_turn(&mut built.game_data).map_err(|err| HarnessError::Validation(err.to_string()))?;
+        let events = run_maintenance_turn(&mut built.game_data)
+            .map_err(|err| HarnessError::Validation(err.to_string()))?;
         fleet_battle_events += events.fleet_battle_events.len();
         bombard_events += events.bombard_events.len();
         assault_report_events += events.assault_report_events.len();
@@ -128,7 +128,8 @@ pub fn run_combat_scenario(spec: &CombatScenarioSpec) -> Result<CombatRun, Harne
 pub fn run_combat_sweep(spec: &CombatSweepSpec) -> Result<CombatSweepReport, HarnessError> {
     let base = CombatScenarioSpec::load_kdl(&spec.scenario_path)?;
     let total_possible_cases = case_count(&spec.dimensions);
-    let case_specs = expand_case_specs(&base.scenario, &spec.dimensions, spec.seed, spec.max_cases)?;
+    let case_specs =
+        expand_case_specs(&base.scenario, &spec.dimensions, spec.seed, spec.max_cases)?;
     let mut cases = Vec::with_capacity(case_specs.len());
 
     for (case_index, (label, scenario)) in case_specs.into_iter().enumerate() {
@@ -243,7 +244,14 @@ fn expand_case_specs(
     let mut out = Vec::new();
     let mut current = base.clone();
     let mut labels = Vec::new();
-    expand_dimension_recursive(&dimensions, 0, &mut current, &mut labels, &mut out, max_cases)?;
+    expand_dimension_recursive(
+        &dimensions,
+        0,
+        &mut current,
+        &mut labels,
+        &mut out,
+        max_cases,
+    )?;
     Ok(out)
 }
 
@@ -359,7 +367,8 @@ fn expand_dimension_recursive(
             fleet_record_index_1_based,
             values,
         } => {
-            let original = fleet_spec_mut(current, *fleet_record_index_1_based)?.rules_of_engagement;
+            let original =
+                fleet_spec_mut(current, *fleet_record_index_1_based)?.rules_of_engagement;
             for value in values {
                 fleet_spec_mut(current, *fleet_record_index_1_based)?.rules_of_engagement =
                     Some(*value);
@@ -385,18 +394,18 @@ fn expand_dimension_recursive(
                     crate::spec::PlanetStatField::Armies => {
                         planet_spec_mut(current, *planet_record_index_1_based)?.armies =
                             Some(u8::try_from(*value).map_err(|_| {
-                            HarnessError::Validation(format!(
-                                "planet-stat armies value out of range: {value}"
-                            ))
-                        })?);
+                                HarnessError::Validation(format!(
+                                    "planet-stat armies value out of range: {value}"
+                                ))
+                            })?);
                     }
                     crate::spec::PlanetStatField::GroundBatteries => {
-                        planet_spec_mut(current, *planet_record_index_1_based)?
-                            .ground_batteries = Some(u8::try_from(*value).map_err(|_| {
-                            HarnessError::Validation(format!(
-                                "planet-stat batteries value out of range: {value}"
-                            ))
-                        })?);
+                        planet_spec_mut(current, *planet_record_index_1_based)?.ground_batteries =
+                            Some(u8::try_from(*value).map_err(|_| {
+                                HarnessError::Validation(format!(
+                                    "planet-stat batteries value out of range: {value}"
+                                ))
+                            })?);
                     }
                 }
                 labels.push(format!(
@@ -423,7 +432,8 @@ fn expand_dimension_recursive(
             let relation = relation_spec_mut(current, *from_empire_raw, *to_empire_raw);
             let original = relation.map(|existing| existing.relation);
             for value in values {
-                if let Some(existing) = relation_spec_mut(current, *from_empire_raw, *to_empire_raw) {
+                if let Some(existing) = relation_spec_mut(current, *from_empire_raw, *to_empire_raw)
+                {
                     existing.relation = *value;
                 } else {
                     current.diplomacy.push(DiplomacySpec {
@@ -448,9 +458,10 @@ fn expand_dimension_recursive(
                 if let Some(original) = original {
                     existing.relation = original;
                 } else {
-                    current
-                        .diplomacy
-                        .retain(|entry| !(entry.from_empire_raw == *from_empire_raw && entry.to_empire_raw == *to_empire_raw));
+                    current.diplomacy.retain(|entry| {
+                        !(entry.from_empire_raw == *from_empire_raw
+                            && entry.to_empire_raw == *to_empire_raw)
+                    });
                 }
             }
         }
@@ -507,12 +518,9 @@ fn relation_spec_mut(
     from_empire_raw: u8,
     to_empire_raw: u8,
 ) -> Option<&mut DiplomacySpec> {
-    scenario
-        .diplomacy
-        .iter_mut()
-        .find(|relation| {
-            relation.from_empire_raw == from_empire_raw && relation.to_empire_raw == to_empire_raw
-        })
+    scenario.diplomacy.iter_mut().find(|relation| {
+        relation.from_empire_raw == from_empire_raw && relation.to_empire_raw == to_empire_raw
+    })
 }
 
 fn apply_fleet_ship_value(

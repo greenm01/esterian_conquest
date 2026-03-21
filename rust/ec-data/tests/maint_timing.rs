@@ -1,8 +1,8 @@
-use ec_data::maint::timing::{
-    apply_timing_offset, event_base_week, format_rankings_stardate, format_report_first_line,
-    format_stardate, timing_code_offset, TimingCode,
-};
 use ec_data::Mission;
+use ec_data::maint::timing::{
+    TimingCode, apply_timing_offset, event_base_week, format_rankings_stardate,
+    format_report_first_line, format_stardate, timing_code_offset,
+};
 
 #[test]
 fn timing_code_offsets_match_recovered_table() {

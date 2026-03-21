@@ -48,9 +48,11 @@ pub fn build_scenario(spec: &ScenarioSpec) -> Result<BuiltScenario, HarnessError
             spec.metadata.year,
             spec.metadata.seed,
         )?,
-        ScenarioBaseline::JoinableNewGame => {
-            build_seeded_new_game(spec.metadata.player_count, spec.metadata.year, spec.metadata.seed)?
-        }
+        ScenarioBaseline::JoinableNewGame => build_seeded_new_game(
+            spec.metadata.player_count,
+            spec.metadata.year,
+            spec.metadata.seed,
+        )?,
     };
 
     apply_house_specs(spec, &mut game_data)?;
@@ -121,7 +123,10 @@ pub fn save_built_scenario(
     })
 }
 
-fn apply_house_specs(spec: &ScenarioSpec, game_data: &mut CoreGameData) -> Result<(), HarnessError> {
+fn apply_house_specs(
+    spec: &ScenarioSpec,
+    game_data: &mut CoreGameData,
+) -> Result<(), HarnessError> {
     for house in &spec.houses {
         if house.record_index_1_based == 0
             || house.record_index_1_based > game_data.player.records.len()
@@ -186,7 +191,10 @@ fn apply_diplomacy(spec: &ScenarioSpec, game_data: &mut CoreGameData) -> Result<
     Ok(())
 }
 
-fn apply_planet_specs(spec: &ScenarioSpec, game_data: &mut CoreGameData) -> Result<(), HarnessError> {
+fn apply_planet_specs(
+    spec: &ScenarioSpec,
+    game_data: &mut CoreGameData,
+) -> Result<(), HarnessError> {
     for planet_spec in &spec.planets {
         let planet = game_data
             .planets
@@ -252,7 +260,10 @@ fn apply_planet_specs(spec: &ScenarioSpec, game_data: &mut CoreGameData) -> Resu
     Ok(())
 }
 
-fn apply_commissions(spec: &ScenarioSpec, game_data: &mut CoreGameData) -> Result<(), HarnessError> {
+fn apply_commissions(
+    spec: &ScenarioSpec,
+    game_data: &mut CoreGameData,
+) -> Result<(), HarnessError> {
     for planet_spec in &spec.planets {
         if planet_spec.commissions.is_empty() {
             continue;
@@ -285,7 +296,10 @@ fn apply_commissions(spec: &ScenarioSpec, game_data: &mut CoreGameData) -> Resul
     Ok(())
 }
 
-fn apply_fleet_specs(spec: &ScenarioSpec, game_data: &mut CoreGameData) -> Result<(), HarnessError> {
+fn apply_fleet_specs(
+    spec: &ScenarioSpec,
+    game_data: &mut CoreGameData,
+) -> Result<(), HarnessError> {
     for fleet_spec in &spec.fleets {
         let fleet = game_data
             .fleets

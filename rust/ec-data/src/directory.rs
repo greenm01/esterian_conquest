@@ -2568,7 +2568,6 @@ impl CoreGameData {
                     build_kind,
                 ));
             }
-
         }
         for slot in 0..crate::STARDOCK_SLOT_COUNT {
             let stardock_count = planet.stardock_count_raw(slot);

@@ -2,9 +2,9 @@ mod common;
 
 use common::{
     cleanup_dir, copy_fixture_dir, repo_root, run_classic_ecgame_smoke,
-    run_classic_ecgame_smoke_with_alias, run_ec_cli_in_dir,
-    run_maint_rust_failure_after_import, run_maint_rust_with_export,
-    set_mutual_enemy_in_player_dat, unique_temp_dir, write_mutual_enemy_diplomacy,
+    run_classic_ecgame_smoke_with_alias, run_ec_cli_in_dir, run_maint_rust_failure_after_import,
+    run_maint_rust_with_export, set_mutual_enemy_in_player_dat, unique_temp_dir,
+    write_mutual_enemy_diplomacy,
 };
 use ec_data::{CoreGameData, DatabaseDat, GameStateBuilder, Order};
 use std::fs;
@@ -2090,10 +2090,7 @@ fn maint_rust_preserves_loaded_homeworld_seed_orbit_family_for_all_players() {
         );
         assert_eq!(row.raw[0x1c], 100);
         assert_eq!(row.raw[0x1d], 100);
-        assert_eq!(
-            u16::from_le_bytes([row.raw[0x1e], row.raw[0x1f]]),
-            0x23
-        );
+        assert_eq!(u16::from_le_bytes([row.raw[0x1e], row.raw[0x1f]]), 0x23);
         assert_eq!(row.raw[0x23], 10);
         assert_eq!(row.raw[0x24], 0x00);
         assert_eq!(row.raw[0x25], 4);
