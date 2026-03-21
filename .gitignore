@@ -19,11 +19,14 @@ original/v1.5/DROP/*
 !original/v1.5/DROP/CHAIN.TXT
 search.py
 
-# Local Ghidra project/runtime caches.
-.ghidra/projects/*.gpr
-.ghidra/projects/*.rep/
-.ghidra/xdg-cache/
-.ghidra/xdg-config/
+# Local Ghidra project/runtime state.
+/.ghidra/
+
+# Root-level DOS door/dropfile scratch output.
+/DOOR.SYS
+/DORINFO*.DEF
+/out.txt
+/OUT.TXT
 
 # Python bytecode caches.
 scripts/__pycache__/
