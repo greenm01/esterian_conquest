@@ -31,18 +31,6 @@ The original readme treated these files as the main shipped operator bundle:
 
 That bundle matters today mainly as a compatibility and preservation reference.
 
-## Historical Install Outline
-
-The original setup flow was simple. A sysop copied the DOS binaries into a
-program directory, created one or more game directories, arranged for the BBS
-to launch `ECGAME.EXE` from the active game directory, and scheduled
-`ECMAINT.EXE` to run from a daily event. The player guides were then distributed
-as downloadable documentation.
-
-That is still the basic shape of the old DOS deployment model, but the modern
-project no longer expects you to build a live campaign that way unless you are
-deliberately running a compatibility door.
-
 ## What Still Matters From The Original Readme
 
 Three points still carry forward:
