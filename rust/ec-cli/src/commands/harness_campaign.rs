@@ -72,6 +72,14 @@ struct PlayerTurnStatus {
     error: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct VisiblePlanetHint {
+    record_index_1_based: usize,
+    coords: [u8; 2],
+    name: String,
+    owner_empire_id: Option<u8>,
+}
+
 impl TurnState {
     fn as_str(self) -> &'static str {
         match self {
@@ -290,7 +298,6 @@ fn open_turn_internal(
 
     fs::create_dir_all(manifest.workspace_root.join("campaign"))?;
     for assignment in &manifest.players {
-        ensure_player_bundle(manifest, &state, assignment, turn, year)?;
         let mut status = load_status_if_present(manifest, assignment.record_index_1_based, turn)?
             .unwrap_or_else(|| default_status(assignment, turn, year));
         status.year = year;
@@ -301,6 +308,7 @@ fn open_turn_internal(
             status.error = None;
         }
         save_status(manifest, &status)?;
+        ensure_player_bundle(manifest, &state, assignment, Some(&status), turn, year)?;
     }
 
     Ok(OpenTurnReport {
@@ -329,7 +337,6 @@ fn claim_turn_internal(
             format!("player {player_record_index_1_based} is not active in this campaign")
         })?;
 
-    ensure_player_bundle(manifest, &state, assignment, turn, year)?;
     let mut status = load_status_if_present(manifest, player_record_index_1_based, turn)?
         .unwrap_or_else(|| default_status(assignment, turn, year));
     status.year = year;
@@ -361,6 +368,7 @@ fn claim_turn_internal(
     status.state = TurnState::Claimed;
     status.error = None;
     save_status(manifest, &status)?;
+    ensure_player_bundle(manifest, &state, assignment, Some(&status), turn, year)?;
 
     Ok(ClaimTurnReport {
         turn_index_1_based: turn,
@@ -419,6 +427,7 @@ fn scan_turn_internal(
 
         classify_status(&status, &mut report);
         save_status(manifest, &status)?;
+        ensure_player_bundle(manifest, &state, assignment, Some(&status), turn, year)?;
     }
 
     Ok(report)
@@ -552,6 +561,7 @@ fn ensure_player_bundle(
     manifest: &CampaignManifest,
     state: &CampaignRuntimeState,
     assignment: &PlayerAssignment,
+    current_status: Option<&PlayerTurnStatus>,
     turn_index_1_based: u16,
     year: u16,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -585,7 +595,15 @@ fn ensure_player_bundle(
         projection.render_csv_details_export(),
     )?;
 
-    let readme = render_player_bundle_readme(manifest, state, assignment, turn_index_1_based, year);
+    let readme = render_player_bundle_readme(
+        manifest,
+        state,
+        assignment,
+        &snapshots,
+        current_status,
+        turn_index_1_based,
+        year,
+    );
     fs::write(bundle_dir.join("README.md"), readme)?;
     Ok(())
 }
@@ -594,6 +612,8 @@ fn render_player_bundle_readme(
     manifest: &CampaignManifest,
     state: &CampaignRuntimeState,
     assignment: &PlayerAssignment,
+    snapshots: &BTreeMap<usize, PlanetIntelSnapshot>,
+    current_status: Option<&PlayerTurnStatus>,
     turn_index_1_based: u16,
     year: u16,
 ) -> String {
@@ -609,6 +629,20 @@ fn render_player_bundle_readme(
     let stardock = state
         .game_data
         .empire_stardock_summary(assignment.record_index_1_based);
+    let visible_planets = visible_planet_hints(state, assignment, snapshots);
+    let visible_unowned_targets = visible_planets
+        .iter()
+        .filter(|planet| planet.owner_empire_id.is_none())
+        .cloned()
+        .collect::<Vec<_>>();
+    let visible_foreign_targets = visible_planets
+        .iter()
+        .filter(|planet| {
+            planet.owner_empire_id.is_some()
+                && planet.owner_empire_id != Some(assignment.record_index_1_based as u8)
+        })
+        .cloned()
+        .collect::<Vec<_>>();
 
     let incoming_messages = state
         .queued_mail
@@ -654,6 +688,20 @@ fn render_player_bundle_readme(
     out.push_str(&format!("- workspace_dir: `{}`\n\n", player_dir.display()));
 
     out.push_str("Use only this bundle, the player manuals, and your own prior notes. Do not inspect hidden state.\n\n");
+
+    out.push_str("## Current Turn Status\n\n");
+    if let Some(status) = current_status {
+        out.push_str(&format!("- state: `{}`\n", status.state.as_str()));
+        if let Some(error) = &status.error {
+            out.push_str(&format!("- validation_error: `{}`\n", error));
+            out.push_str(
+                "- fix only the cited issue, keep the rest of the turn stable if possible\n",
+            );
+        }
+    } else {
+        out.push_str("- state: `ready`\n");
+    }
+    out.push('\n');
 
     out.push_str("## Economy Summary\n\n");
     out.push_str(&format!(
@@ -794,6 +842,120 @@ fn render_player_bundle_readme(
     }
     out.push('\n');
 
+    out.push_str("## Legal Action Hints\n\n");
+    out.push_str("Use these as hard guardrails. If an order family is listed as unavailable, do not submit it this turn.\n\n");
+    for (idx, fleet) in state.game_data.fleets.records.iter().enumerate() {
+        if fleet.owner_empire_raw() as usize != assignment.record_index_1_based {
+            continue;
+        }
+        let [x, y] = fleet.current_location_coords_raw();
+        let has_combat = fleet.destroyer_count() > 0
+            || fleet.cruiser_count() > 0
+            || fleet.battleship_count() > 0;
+        let has_scout = fleet.scout_count() > 0;
+        let has_etac = fleet.etac_count() > 0;
+        let has_loaded_troops = fleet.troop_transport_count() > 0 && fleet.army_count() > 0;
+        out.push_str(&format!(
+            "- fleet `{}` / fleet_id `{}` at `({x},{y})`\n",
+            idx + 1,
+            fleet.fleet_id()
+        ));
+        out.push_str("  - always safe families: `hold`, `move`, `seek_home`\n");
+        if visible_planets.is_empty() {
+            out.push_str("  - `view`: unavailable, no visible planet targets in this bundle\n");
+        } else {
+            out.push_str(&format!(
+                "  - `view`: visible planet targets {}\n",
+                format_target_list(&visible_planets)
+            ));
+        }
+        if has_scout {
+            out.push_str(
+                "  - `scout_sector`: legal, but still use only player-visible reasoning\n",
+            );
+            if visible_planets.is_empty() {
+                out.push_str(
+                    "  - `scout_system`: unavailable, no visible planet targets in this bundle\n",
+                );
+            } else {
+                out.push_str(&format!(
+                    "  - `scout_system`: visible planet targets {}\n",
+                    format_target_list(&visible_planets)
+                ));
+            }
+        } else {
+            out.push_str(
+                "  - `scout_sector` / `scout_system`: unavailable, no scout ships in this fleet\n",
+            );
+        }
+        if has_etac {
+            if visible_unowned_targets.is_empty() {
+                out.push_str(
+                    "  - `colonize`: unavailable, no visible unowned planet targets this turn\n",
+                );
+            } else {
+                out.push_str(&format!(
+                    "  - `colonize`: visible unowned planet targets {}\n",
+                    format_target_list(&visible_unowned_targets)
+                ));
+            }
+        } else {
+            out.push_str("  - `colonize`: unavailable, no ETAC ships in this fleet\n");
+        }
+        if has_combat {
+            if visible_planets.is_empty() {
+                out.push_str(
+                    "  - `guard_blockade`: unavailable, no visible planet targets in this bundle\n",
+                );
+            } else {
+                out.push_str(&format!(
+                    "  - `guard_blockade`: visible planet targets {}\n",
+                    format_target_list(&visible_planets)
+                ));
+            }
+            if visible_foreign_targets.is_empty() {
+                out.push_str(
+                    "  - `bombard`: unavailable, no visible foreign planet targets this turn\n",
+                );
+            } else {
+                out.push_str(&format!(
+                    "  - `bombard`: visible foreign planet targets {}\n",
+                    format_target_list(&visible_foreign_targets)
+                ));
+            }
+        } else {
+            out.push_str(
+                "  - `guard_blockade` / `bombard`: unavailable, no combat ships in this fleet\n",
+            );
+        }
+        if has_combat && has_loaded_troops {
+            if visible_foreign_targets.is_empty() {
+                out.push_str("  - `invade` / `blitz`: unavailable, no visible foreign planet targets this turn\n");
+            } else {
+                out.push_str(&format!(
+                    "  - `invade` / `blitz`: visible foreign planet targets {}\n",
+                    format_target_list(&visible_foreign_targets)
+                ));
+            }
+        } else if !has_loaded_troops {
+            out.push_str(
+                "  - `invade` / `blitz`: unavailable, no loaded troop transports in this fleet\n",
+            );
+        } else {
+            out.push_str("  - `invade` / `blitz`: unavailable, no combat ships in this fleet\n");
+        }
+    }
+    out.push('\n');
+
+    out.push_str("## Mandatory Pre-Submit Checks\n\n");
+    out.push_str("- Every `colonize`, `view`, `guard_blockade`, `bombard`, `invade`, or `blitz` target must appear in the legal action hints above.\n");
+    out.push_str("- Do not use `scout_sector` or `scout_system` unless the fleet actually has scout ships.\n");
+    out.push_str("- Do not use `colonize` unless the fleet actually has ETAC ships.\n");
+    out.push_str(
+        "- Do not use `invade` or `blitz` unless the fleet has loaded troop transports.\n",
+    );
+    out.push_str("- If a target is not clearly legal from this bundle, prefer `hold`, `move`, `seek_home`, or a message/diplomacy action instead.\n\n");
+
     out.push_str("## Incoming Player Mail\n\n");
     if incoming_messages.is_empty() {
         out.push_str("- none from the immediately completed turn\n");
@@ -858,6 +1020,54 @@ fn validate_turn_file(
     let mut preview_queue = queued_mail.to_vec();
     submission.apply_to(&mut preview_game_data, &mut preview_queue)?;
     Ok(())
+}
+
+fn visible_planet_hints(
+    state: &CampaignRuntimeState,
+    assignment: &PlayerAssignment,
+    snapshots: &BTreeMap<usize, PlanetIntelSnapshot>,
+) -> Vec<VisiblePlanetHint> {
+    let viewer = assignment.record_index_1_based as u8;
+    let mut planets = Vec::new();
+    for (idx, planet) in state.game_data.planets.records.iter().enumerate() {
+        let record_index_1_based = idx + 1;
+        if planet.owner_empire_slot_raw() == viewer {
+            planets.push(VisiblePlanetHint {
+                record_index_1_based,
+                coords: planet.coords_raw(),
+                name: planet.planet_name().to_string(),
+                owner_empire_id: Some(viewer),
+            });
+            continue;
+        }
+        let Some(snapshot) = snapshots.get(&record_index_1_based) else {
+            continue;
+        };
+        let owner_empire_id = snapshot.known_owner_empire_id.filter(|id| *id != 0);
+        planets.push(VisiblePlanetHint {
+            record_index_1_based,
+            coords: planet.coords_raw(),
+            name: snapshot
+                .known_name
+                .clone()
+                .unwrap_or_else(|| format!("planet {}", record_index_1_based)),
+            owner_empire_id,
+        });
+    }
+    planets
+}
+
+fn format_target_list(planets: &[VisiblePlanetHint]) -> String {
+    planets
+        .iter()
+        .map(|planet| {
+            format!(
+                "`{} ({},{})`",
+                planet.name, planet.coords[0], planet.coords[1]
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn load_campaign_runtime_state(

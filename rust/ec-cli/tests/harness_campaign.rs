@@ -66,6 +66,8 @@ fn harness_init_campaign_creates_ready_bundles_and_status_files() {
         fs::read_to_string(workspace_root.join("player-1/bundle-turn-0001/README.md")).unwrap();
     assert!(bundle.contains("doctrine"));
     assert!(bundle.contains("turn_file"));
+    assert!(bundle.contains("## Legal Action Hints"));
+    assert!(bundle.contains("## Mandatory Pre-Submit Checks"));
 
     cleanup_dir(&scenario_root);
     cleanup_dir(&campaign_dir);
@@ -257,6 +259,62 @@ fn harness_claim_turn_marks_player_as_claimed_until_submission() {
     ]);
     assert!(scan_stdout.contains("claimed=2"));
     assert!(scan_stdout.contains("blocking=1,2,3,4"));
+
+    cleanup_dir(&scenario_root);
+    cleanup_dir(&campaign_dir);
+    cleanup_dir(&workspace_root);
+}
+
+#[test]
+fn harness_rejected_turn_refreshes_bundle_with_validation_error() {
+    let scenario_root = unique_temp_dir("ec-cli-harness-campaign-reject");
+    let campaign_dir = unique_temp_dir("ec-cli-harness-campaign-reject-out");
+    let game_id = format!(
+        "ec-cli-campaign-reject-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    );
+    let workspace_root = repo_root().join(".tmp/llm-turns").join(&game_id);
+    let scenario_path = scenario_root.join("scenario.kdl");
+    write_file(&scenario_path, scenario_text());
+
+    run_ec_cli(&[
+        "harness",
+        "init-campaign",
+        "--file",
+        scenario_path.to_str().unwrap(),
+        "--dir",
+        campaign_dir.to_str().unwrap(),
+        "--game-id",
+        &game_id,
+    ]);
+
+    write_file(
+        &workspace_root.join("player-4/turn-0001.kdl"),
+        r#"turn player=4 year=3000
+
+fleet record=15 {
+  order speed=6 kind="scout_system" x=13 y=13
+}
+"#,
+    );
+
+    let scan_stdout = run_ec_cli(&[
+        "harness",
+        "scan-turn",
+        "--dir",
+        campaign_dir.to_str().unwrap(),
+    ]);
+    assert!(scan_stdout.contains("rejected=4"));
+
+    let bundle =
+        fs::read_to_string(workspace_root.join("player-4/bundle-turn-0001/README.md")).unwrap();
+    assert!(bundle.contains("## Current Turn Status"));
+    assert!(bundle.contains("state: `rejected`"));
+    assert!(bundle.contains("validation_error: `"));
+    assert!(bundle.contains("fleet 15"));
 
     cleanup_dir(&scenario_root);
     cleanup_dir(&campaign_dir);

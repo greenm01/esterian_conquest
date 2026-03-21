@@ -87,6 +87,8 @@ States:
   - conductor accepted the file for the current year
 - `rejected`
   - conductor rejected the file and wrote the error into the status file
+  - the per-player bundle `README.md` is also refreshed with that rejection and
+    the validation error, so a rerun worker sees it immediately
 - `applied`
   - the full turn batch was applied and maintenance ran
 
@@ -194,12 +196,17 @@ Each player bundle contains only player-safe information:
 - economy and stardock summaries
 - diplomacy state as known to that player
 - player-visible starmap exports
+- coordinator-generated legal action hints per fleet
 - incoming player mail from the immediately completed turn
 - review pending flags
 
 This is the current fog-of-war boundary. The conductor does not currently dump
 raw global report bytes into bot bundles, because that would make it too easy
 for smart bots to infer hidden state.
+
+The legal action hints are there to reduce invalid bot turns. A player worker
+should treat them as authoritative for what order families and visible targets
+are safe to submit from the current bundle.
 
 ## Messaging And Doctrine
 

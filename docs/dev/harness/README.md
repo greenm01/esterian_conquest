@@ -86,6 +86,9 @@ Fog-of-war boundary:
 
 - player bundles include only player-visible starmap/intel projections
 - they include owned assets, diplomacy, economy summaries, and incoming player mail
+- they include coordinator-generated legal action hints per fleet to reduce invalid bot turns
+- bundle `README.md` files are refreshed with current turn status and any
+  rejection error, so rerun workers see the latest validation feedback in-place
 - they currently expose review flags only, not raw global `RESULTS.DAT` or `MESSAGES.DAT` text
 - bots should treat the bundle as the safe source of truth and not inspect `ecgame.db`
 

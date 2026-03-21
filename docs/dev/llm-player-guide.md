@@ -79,6 +79,10 @@ bot signal progress to each other. The normal flow is:
 3. the bot writes `turn-<nnnn>.kdl`
 4. the conductor scans and marks the file `validated` or `rejected`
 
+The bundle `README.md` is refreshed alongside that status. If the conductor
+rejects a turn, the current bundle will show both the rejection state and the
+validation error, next to the legal action hints for the rerun.
+
 Use the helper command when a bot starts work:
 
 ```bash
@@ -130,6 +134,7 @@ Important boundary:
 
 - treat the bundle as authoritative for what the bot is allowed to know
 - current bundles include player-visible starmap/intel, owned assets, diplomacy, and incoming player mail
+- current bundles now also include coordinator-generated legal action hints per fleet
 - current bundles do not expose raw global review text from `RESULTS.DAT` or `MESSAGES.DAT`
 - do not pass the bot `ecgame.db`, hidden empire summaries, or developer-only metrics
 - if using sub-agents, do not pass one bot another bot's bundle or turn file
@@ -147,6 +152,16 @@ Every turn, the bot should work in this order:
 7. Write a short notes file with assumptions and next-turn follow-ups.
 
 The notes file is optional, but recommended for multi-turn agent play.
+
+Before finalizing the turn, the bot must run this self-check:
+
+- every planet-targeted order uses a target that appears in the bundle's legal action hints
+- `scout_sector` and `scout_system` are used only by fleets that actually have scout ships
+- `colonize` is used only by fleets that actually have ETAC ships
+- `invade` and `blitz` are used only by fleets with loaded troop transports
+- if a legal target is unclear, replace the risky order with `hold`, `move`, `seek_home`, or a message/diplomacy action
+
+Submitting a syntactically valid but obviously illegal or nonsense order is a bot failure.
 
 ## How To Think About EC
 
