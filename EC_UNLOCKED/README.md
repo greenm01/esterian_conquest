@@ -30,6 +30,17 @@ state for RE work. `EC_UNLOCKED/` is the curated runnable output set.
 Supporting extraction scripts, live-memory captures, and preserved sandbox
 artifacts live under [`tools/unlzexe/`](../tools/unlzexe/).
 
+## Verified Runtime Status
+
+| Executable | DOSBox-X | dosemu2 | Notes |
+|---|---|---|---|
+| `ECGAME.EXE` | Verified | Not verified here | Curated unlocked client rebuilt from `ECGAMEU.EXE` with corrected MZ size fields so DOS loads the full recovered image. |
+| `ECMAINT.EXE` | Verified | Not verified here | Curated runnable plain-MZ copy from the known-good clean capture. |
+| `ECUTIL.EXE` | Verified | Not verified here | Curated runnable plain-MZ copy from the known-good clean capture. |
+
+Here, `Verified` means the current executable survived the repo's DOSBox-X
+smoke launch from a real game dir without the old INT 6 / GPF failures.
+
 ## How they differ from the originals
 
 | Property | Original (shipped) | Unlocked |
@@ -39,8 +50,8 @@ artifacts live under [`tools/unlzexe/`](../tools/unlzexe/).
 | Header | 512-byte oversized | Standard 32-byte |
 | Body | Stream-cipher encrypted | Plaintext code + data |
 | MZ relocations | 0 (TP7 handles fixups internally) | 0 (same) |
-| Runs in DOSBox-X | Yes (stub decrypts at load) | Yes (curated `EC_UNLOCKED/` copies) |
-| Runs in dosemu2 | No (VM86 incompatible stub) | Untested |
+| Runs in DOSBox-X | Yes (stub decrypts at load) | Yes (verified curated `EC_UNLOCKED/` copies) |
+| Runs in dosemu2 | No (VM86 incompatible stub) | Not verified here yet |
 | Ghidra import | Requires memory dump extraction | Direct import works |
 
 When run under the **original filename** (e.g., `ECMAINT.EXE`, not

@@ -236,8 +236,15 @@ This writes:
 - `releases/ec-v1.5-classic-demo.zip`
 - `releases/ec-v1.5-unlocked-demo.zip`
 
+| Bundle | DOSBox-X | dosemu2 | Notes |
+|---|---|---|---|
+| `releases/ec-v1.5-classic-demo.zip` | Verified | Not verified here | Original packed/oracle bundle; 8s smoke pass from `/tmp` with the known-good local-console `CHAIN.TXT`. |
+| `releases/ec-v1.5-unlocked-demo.zip` | Verified | Not verified here | Curated runnable plain-MZ bundle; 8s smoke pass from `/tmp` after the `ECGAME.EXE` MZ size-field fix. |
+
 Each archive includes a minimal real game directory, a known-good local
-`CHAIN.TXT`, and the original `.DOC` manuals.
+`CHAIN.TXT`, and the original `.DOC` manuals. Here, `Verified` means the
+package survived the repo's DOSBox-X smoke launch without the old INT 6 / GPF
+failures.
 
 The unlocked bundle rebuilds `EC_UNLOCKED/` first, including the current
 `ECGAME.EXE` recovery that corrects the memdump image's MZ size fields so DOS
