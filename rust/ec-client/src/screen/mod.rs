@@ -158,7 +158,6 @@ pub use crate::domains::startup::screens::general_menu::GeneralMenuScreen;
 pub use crate::domains::startup::screens::main_help::MainHelpScreen;
 pub use crate::domains::startup::screens::main_menu::MainMenuScreen;
 pub use crate::domains::startup::screens::reports::ReportsScreen;
-pub use crate::domains::startup::screens::startup::GAME_VERSION;
 pub(crate) use crate::domains::startup::screens::startup::STARTUP_INTRO_PAGE_COUNT;
 pub(crate) use crate::domains::startup::screens::startup::STARTUP_SPLASH_PAGE_COUNT;
 pub use crate::domains::startup::screens::startup::{StartupReviewMode, StartupScreen};

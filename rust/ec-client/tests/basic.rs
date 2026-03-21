@@ -3,7 +3,6 @@ use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, path::Path};
 
-use ec_client::screen::GAME_VERSION;
 use ec_data::CampaignStore;
 
 fn repo_root() -> PathBuf {
@@ -63,6 +62,6 @@ fn client_renders_startup_splash_from_fixture() {
 
     let stdout = String::from_utf8(output.stdout).expect("stdout should be utf-8");
     assert!(stdout.contains("#######"));
-    assert!(stdout.contains(&format!("Esterian Conquest Ver {GAME_VERSION}")));
+    assert!(stdout.contains(&format!("EC v{}", env!("CARGO_PKG_VERSION"))));
     assert!(stdout.contains("View the game introduction? Y/[N] ->"));
 }

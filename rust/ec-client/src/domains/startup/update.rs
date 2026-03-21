@@ -5,7 +5,7 @@ pub fn update(app: &mut App, action: StartupAction) {
     match action {
         StartupAction::Advance => app.advance_startup(),
         StartupAction::ScrollReview(delta) => app.scroll_startup_review(delta),
-        StartupAction::OpenIntro => app.open_startup_intro(),
+        StartupAction::SkipIntro => app.skip_startup_intro(),
         StartupAction::AcceptDefault => {
             if let Err(err) = app.startup_accept_default() {
                 eprintln!("startup accept failed: {err}");

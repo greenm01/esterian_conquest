@@ -68,7 +68,13 @@ impl StartupSequence {
 
     pub fn advance(&mut self) -> StartupPhase {
         self.current = match self.current {
-            StartupPhase::Splash => StartupPhase::Intro,
+            StartupPhase::Splash => {
+                if self.show_login_review {
+                    StartupPhase::LoginSummary
+                } else {
+                    StartupPhase::Complete
+                }
+            }
             StartupPhase::Intro => {
                 if self.show_login_review {
                     StartupPhase::LoginSummary
@@ -94,11 +100,6 @@ impl StartupSequence {
             }
             StartupPhase::Messages | StartupPhase::Complete => StartupPhase::Complete,
         };
-        self.current
-    }
-
-    pub fn open_intro(&mut self) -> StartupPhase {
-        self.current = StartupPhase::Intro;
         self.current
     }
 

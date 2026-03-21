@@ -3,10 +3,10 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
-    MenuEntry, draw_command_line_default_input, draw_command_line_prompt_text, draw_command_prompt,
-    draw_help_panel, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
+    draw_command_line_default_input, draw_command_line_prompt_text, draw_command_prompt,
+    draw_help_panel, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield, MenuEntry,
 };
-use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords};
+use crate::screen::{format_sector_coords, PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
 
 pub struct FirstTimeMenuScreen;
@@ -283,7 +283,7 @@ pub fn render_first_time_join_summary(
         classic::body_style(),
     );
     buffer.write_text(10, 0, "Autopilot is off.", classic::body_style());
-    draw_plain_prompt(&mut buffer, 12, "(Press Return)");
+    draw_plain_prompt(&mut buffer, 12, "(Slap a key)");
     Ok(buffer)
 }
 
@@ -292,7 +292,7 @@ pub fn render_first_time_join_no_pending() -> Result<PlayfieldBuffer, Box<dyn st
     draw_title_bar(&mut buffer, 0, "JOIN COMPLETE:");
     buffer.write_text(2, 0, "You have no reports pending.", classic::body_style());
     buffer.write_text(4, 0, "You have no messages pending.", classic::body_style());
-    draw_plain_prompt(&mut buffer, 6, "(Press Return)");
+    draw_plain_prompt(&mut buffer, 6, "(Slap a key)");
     Ok(buffer)
 }
 

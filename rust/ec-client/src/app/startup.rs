@@ -2,9 +2,9 @@ use crate::app::action::Action;
 use crate::app::state::App;
 use crate::domains::startup::StartupAction;
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
-use crate::reports::{ReportsPreview, has_visible_runtime_messages, rebuild_chunked_bytes};
+use crate::reports::{has_visible_runtime_messages, rebuild_chunked_bytes, ReportsPreview};
 use crate::screen::{
-    FIRST_TIME_INTRO_PAGE_COUNT, STARTUP_SPLASH_PAGE_COUNT, ScreenId, StartupReviewMode,
+    ScreenId, StartupReviewMode, FIRST_TIME_INTRO_PAGE_COUNT, STARTUP_SPLASH_PAGE_COUNT,
 };
 use crate::startup::{StartupPhase, StartupSummary};
 
@@ -152,7 +152,7 @@ impl App {
             return;
         }
         if self.current_screen == ScreenId::Startup(StartupPhase::Splash) {
-            let next = self.startup_sequence.skip_intro();
+            let next = self.startup_sequence.advance();
             self.current_screen = self.startup_target_screen(next);
             return;
         }
@@ -287,13 +287,8 @@ impl App {
         }
     }
 
-    pub fn open_startup_intro(&mut self) {
-        self.startup_state.intro_page = 0;
-        self.startup_state.results_block = 0;
-        self.startup_state.results_page = 0;
-        self.startup_state.messages_block = 0;
-        self.startup_state.messages_page = 0;
-        let next = self.startup_sequence.open_intro();
+    pub fn skip_startup_intro(&mut self) {
+        let next = self.startup_sequence.skip_intro();
         self.current_screen = self.startup_target_screen(next);
     }
 
@@ -607,13 +602,22 @@ impl App {
         use crossterm::event::KeyCode;
 
         match phase {
-            StartupPhase::Splash => match key.code {
-                KeyCode::Char('y') | KeyCode::Char('Y') => {
-                    Action::Startup(StartupAction::OpenIntro)
+            StartupPhase::Splash => {
+                if self.startup_state.splash_page == 0 {
+                    match key.code {
+                        KeyCode::Char('y') | KeyCode::Char('Y') => {
+                            Action::Startup(StartupAction::Advance)
+                        }
+                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                        _ => Action::Startup(StartupAction::SkipIntro),
+                    }
+                } else {
+                    match key.code {
+                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
+                        _ => Action::Startup(StartupAction::Advance),
+                    }
                 }
-                KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
-                _ => Action::Startup(StartupAction::Advance),
-            },
+            }
             StartupPhase::Intro | StartupPhase::LoginSummary => match key.code {
                 KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
                 _ => Action::Startup(StartupAction::Advance),

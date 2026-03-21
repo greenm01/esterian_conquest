@@ -2,7 +2,7 @@
 pub enum StartupAction {
     Advance,
     ScrollReview(isize),
-    OpenIntro,
+    SkipIntro,
     AcceptDefault,
     RejectChoice,
     EnableNonstop,

@@ -1,5 +1,5 @@
-use crate::reports::{ReportsPreview, ReviewBlock, wrap_review_text_preserving_spacing};
-use crate::screen::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_plain_prompt, new_playfield};
+use crate::reports::{wrap_review_text_preserving_spacing, ReportsPreview, ReviewBlock};
+use crate::screen::layout::{draw_plain_prompt, new_playfield, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::startup::{StartupPhase, StartupSummary};
 use crate::theme::classic;
@@ -294,18 +294,18 @@ impl StartupScreen {
         let mut buffer = new_playfield();
         let rows = startup_login_summary_rows(frame, self.summary.game_year);
         render_review_transcript(&mut buffer, &rows);
-        draw_plain_prompt(&mut buffer, PLAYFIELD_HEIGHT - 1, "(Press Return)");
+        draw_plain_prompt(&mut buffer, PLAYFIELD_HEIGHT - 1, "(Slap a key)");
         Ok(buffer)
     }
 }
 
 pub const STARTUP_INTRO_PAGE_COUNT: usize = INTRO_PAGES.len();
-pub const STARTUP_SPLASH_PAGE_COUNT: usize = 1;
-pub const GAME_VERSION: &str = "1.60";
-
+pub const STARTUP_SPLASH_PAGE_COUNT: usize = 1 + INTRO_PAGES.len();
 pub fn version_title() -> String {
-    format!("Esterian Conquest Ver {GAME_VERSION}")
+    format!("EC v{}", env!("CARGO_PKG_VERSION"))
 }
+
+const ATTRIBUTION: &str = "Original game (c) 1992 Bentley C. Griffith";
 
 pub fn render_game_intro_page(
     intro_page: usize,
@@ -320,14 +320,8 @@ pub fn render_game_intro_page(
     for (row, line) in lines.iter().enumerate() {
         buffer.write_text(row + text_start_row, 1, line, classic::body_style());
     }
-    if intro_page + 1 == INTRO_PAGES.len() {
-        let version_row = text_start_row + lines.len() + 3;
-        if version_row < 19 {
-            buffer.write_text(version_row, 1, &version_title(), classic::bright_style());
-        }
-    }
     let prompt = if intro_page + 1 < INTRO_PAGES.len() {
-        "Slap a key for the next section."
+        "Slap a key."
     } else {
         final_prompt
     };
@@ -335,23 +329,63 @@ pub fn render_game_intro_page(
     Ok(buffer)
 }
 
-fn render_splash(_splash_page: usize) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+fn render_splash(splash_page: usize) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
-    let version = version_title();
-    let logo_width = INTRO_LOGO.iter().map(|line| line.len()).max().unwrap_or(0);
-    let logo_left = 80usize.saturating_sub(logo_width) / 2;
-    let block_height = INTRO_LOGO.len() + 3 + 1;
-    let start_row = (19usize.saturating_sub(block_height)) / 2;
-    for (row, line) in INTRO_LOGO.iter().enumerate() {
-        buffer.write_text(row + start_row, logo_left, line, classic::logo_style());
+
+    if splash_page == 0 {
+        // First page: centered logo with attribution and version.
+        let logo_width = INTRO_LOGO.iter().map(|line| line.len()).max().unwrap_or(0);
+        let logo_left = 80usize.saturating_sub(logo_width) / 2;
+        let block_height = INTRO_LOGO.len() + 4 + 1;
+        let start_row = (19usize.saturating_sub(block_height)) / 2;
+        for (row, line) in INTRO_LOGO.iter().enumerate() {
+            buffer.write_text(row + start_row, logo_left, line, classic::logo_style());
+        }
+        buffer.write_text(
+            start_row + INTRO_LOGO.len() + 2,
+            logo_left,
+            ATTRIBUTION,
+            classic::bright_style(),
+        );
+        buffer.write_text(
+            start_row + INTRO_LOGO.len() + 4,
+            logo_left,
+            &version_title(),
+            classic::bright_style(),
+        );
+        draw_plain_prompt(&mut buffer, 19, "View the game introduction? Y/[N] -> ");
+    } else {
+        // Subsequent pages: transcript-style scrolling intro text.
+        let mut transcript: Vec<String> = Vec::new();
+        // Seed with the logo block as plain text lines.
+        let logo_width = INTRO_LOGO.iter().map(|line| line.len()).max().unwrap_or(0);
+        let logo_left = 80usize.saturating_sub(logo_width) / 2;
+        let logo_pad: String = " ".repeat(logo_left);
+        for line in &INTRO_LOGO {
+            transcript.push(format!("{logo_pad}{line}"));
+        }
+        transcript.push(String::new());
+        transcript.push(format!("{}{ATTRIBUTION}", " ".repeat(logo_left)));
+        transcript.push(String::new());
+        transcript.push(format!("{}{}", " ".repeat(logo_left), version_title()));
+        transcript.push(String::new());
+        // Append intro pages up to the current splash page.
+        let intro_index = splash_page - 1;
+        for page_idx in 0..=intro_index.min(INTRO_PAGES.len().saturating_sub(1)) {
+            transcript.push(String::new());
+            for line in INTRO_PAGES[page_idx] {
+                transcript.push(format!(" {line}"));
+            }
+        }
+        render_review_transcript(&mut buffer, &transcript);
+        let prompt = if intro_index + 1 < INTRO_PAGES.len() {
+            "Slap a key."
+        } else {
+            "Slap a key."
+        };
+        draw_plain_prompt(&mut buffer, 19, prompt);
     }
-    buffer.write_text(
-        start_row + INTRO_LOGO.len() + 3,
-        logo_left,
-        &version,
-        classic::bright_style(),
-    );
-    draw_plain_prompt(&mut buffer, 19, "View the game introduction? Y/[N] -> ");
+
     Ok(buffer)
 }
 
@@ -411,6 +445,7 @@ fn push_completed_block_transcript(
     transcript_rows.push(String::new());
     if include_continue_prompt {
         transcript_rows.push(continue_prompt.to_string());
+        transcript_rows.push(String::new());
     }
 }
 
@@ -488,7 +523,11 @@ fn capitalize(s: &str) -> String {
 }
 
 fn display_or_unknown(value: &str) -> &str {
-    if value.is_empty() { "<unknown>" } else { value }
+    if value.is_empty() {
+        "<unknown>"
+    } else {
+        value
+    }
 }
 
 const INTRO_LOGO: [&str; 11] = [
