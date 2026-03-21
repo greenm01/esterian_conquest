@@ -2034,6 +2034,79 @@ fn maint_rust_named_homeworld_seed_preserves_oracle_compat_word_family() {
 }
 
 #[test]
+fn maint_rust_preserves_loaded_homeworld_seed_orbit_family_for_all_players() {
+    let target = unique_temp_dir("ec-cli-maint-rust-homeworld-seed-all-players");
+    copy_fixture_dir("fixtures/ecutil-init/v1.5", &target);
+
+    let prepare_stdout = run_ec_cli_in_dir(
+        &[
+            "classic-login-prepare",
+            target.to_str().unwrap(),
+            "1",
+            "SYSOP",
+            "Auroran_Combine",
+        ],
+        common::rust_workspace(),
+    );
+    assert!(prepare_stdout.contains("Prepared classic login for player 1"));
+
+    let mut game_data = CoreGameData::load(&target).expect("prepared fixture should load");
+    game_data.planets.records[14].set_planet_name("ssddsf");
+    game_data.save(&target).expect("named fixture should save");
+
+    let database_bytes = fs::read(target.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let mut database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+    database
+        .record_mut(14, 0, game_data.planets.records.len())
+        .set_planet_name("ssddsf");
+    fs::write(target.join("DATABASE.DAT"), database.to_bytes()).expect("DATABASE.DAT should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let reloaded = CoreGameData::load(&target).expect("maint-rust output should load");
+    let expected_year = reloaded.conquest.game_year() - 1;
+    let planet_count = reloaded.planets.records.len();
+    let database_bytes = fs::read(target.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+
+    for (planet_idx, player_idx, expected_name, expected_owner) in [
+        (14usize, 0usize, "ssddsf", 1u8),
+        (12, 1, "Not Named Yet", 2),
+        (4, 2, "Not Named Yet", 3),
+        (5, 3, "Not Named Yet", 4),
+    ] {
+        let row = database.record(planet_idx, player_idx, planet_count);
+        assert_eq!(row.planet_name_bytes(), expected_name.as_bytes());
+        assert_eq!(row.raw[0x15], expected_owner);
+        assert_eq!(
+            u16::from_le_bytes([row.raw[0x16], row.raw[0x17]]),
+            expected_year
+        );
+        assert_eq!(
+            u16::from_le_bytes([row.raw[0x18], row.raw[0x19]]),
+            expected_year
+        );
+        assert_eq!(row.raw[0x1c], 100);
+        assert_eq!(row.raw[0x1d], 100);
+        assert_eq!(
+            u16::from_le_bytes([row.raw[0x1e], row.raw[0x1f]]),
+            0x23
+        );
+        assert_eq!(row.raw[0x23], 10);
+        assert_eq!(row.raw[0x24], 0x00);
+        assert_eq!(row.raw[0x25], 4);
+        assert_eq!(row.raw[0x26], 0x00);
+        assert_eq!(
+            u16::from_le_bytes([row.raw[0x27], row.raw[0x28]]),
+            expected_year
+        );
+    }
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_blitz_failure_exports_ecgame_accepted_enemy_view_row_shape() {
     let target = unique_temp_dir("ec-cli-maint-rust-blitz-failure-database");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);

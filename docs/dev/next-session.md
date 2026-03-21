@@ -26,6 +26,8 @@ Recent validation baseline:
 - focused post-compat reruns:
   - `cargo test -q -p ec-cli --test storage`
     - `14 passed`
+  - `cargo test -q -p ec-cli --test maint`
+    - `65 passed, 1 ignored`
   - `python3 -u tools/oracle_sweep.py --mode seeded`
     - `12/12 passed`
   - `python3 tools/rust_maint_sweep.py --turns 3`
@@ -408,7 +410,8 @@ remaining risks are:
    screens.
 2. Keep the accepted `Helios Prime` scout row, `ViewWorld` row, assault
    success/failure row families, and maintained homeworld-seed row family as
-   locked compat cases.
+   locked compat cases. Regression coverage now also locks the full four-row
+   loaded homeworld-seed/orbit family, not just the named player-1 row.
 3. Treat the seen-year words (`raw[0x16..0x19]`) as the visible year source
    for current Total Planet Database list/detail displays. The scout-year word
    (`raw[0x27..0x28]`) remains unresolved but is not driving those screens.
