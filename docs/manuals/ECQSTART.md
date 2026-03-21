@@ -1,15 +1,25 @@
 # Esterian Conquest Quick Start Player's Guide
 
-_Readable Markdown transcription of [`original/v1.5/ECQSTART.DOC`](/home/mag/dev/esterian_conquest/original/v1.5/ECQSTART.DOC)._
+_v1.6 quick-start reference based on
+[`original/v1.5/ECQSTART.DOC`](/home/niltempus/dev/esterian_conquest/original/v1.5/ECQSTART.DOC)._
 
 The original `.DOC` file remains the preserved source artifact. This
 transcription is provided for easier reading, quoting, and linking.
+
+## How To Use This In v1.6
+
+- start here if you want the shortest path to understanding the campaign loop
+- then continue to
+  [ECPLAYER.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ECPLAYER.md)
+  for the full command and mechanics reference
+- for the original source document, see
+  [ECQSTART.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECQSTART.DOC)
 
 ## Note
 
 This quick start sketches the information you need to begin playing.
 The original quick-start guide strongly recommends also reading the full
-[ECPLAYER manual](/home/mag/dev/esterian_conquest/docs/manuals/ECPLAYER.md).
+[ECPLAYER manual](/home/niltempus/dev/esterian_conquest/docs/manuals/ECPLAYER.md).
 
 ## Object of the Game
 

@@ -33,8 +33,6 @@ transcriptions first:
   - the main player manual
 - [ECREADME.md](docs/manuals/ECREADME.md)
   - setup notes, release notes, and bundled guidance
-- [WHATSNEW.md](docs/manuals/WHATSNEW.md)
-  - version-history changes for late-classic EC
 
 Full manual index:
 - [docs/manuals/README.md](docs/manuals/README.md)

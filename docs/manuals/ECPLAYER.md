@@ -1,8 +1,18 @@
 # Esterian Conquest Player's Guide
 
-_Readable Markdown transcription of [`original/v1.5/ECPLAYER.DOC`](/home/mag/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC)._
+_v1.6 player reference based on
+[`original/v1.5/ECPLAYER.DOC`](/home/niltempus/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC)._
 
-The original `.DOC` file remains the preserved source artifact. This transcription is provided for easier reading, quoting, and linking.
+The original `.DOC` file remains the preserved source artifact. This
+transcription is provided for easier reading, quoting, and linking.
+
+## How To Use This In v1.6
+
+- treat this as the main gameplay and command reference
+- if the Rust client presents a workflow differently, prefer the underlying
+  game rule described here unless a Rust-specific doc says otherwise
+- for the original source document, see
+  [ECPLAYER.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC)
 
 Version 1.5.
 

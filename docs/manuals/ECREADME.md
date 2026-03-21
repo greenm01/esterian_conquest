@@ -1,9 +1,17 @@
 # Esterian Conquest README
 
-_Readable Markdown transcription of [`original/v1.5/ECREADME.DOC`](/home/mag/dev/esterian_conquest/original/v1.5/ECREADME.DOC)._
+_v1.6 reference edition of
+[`original/v1.5/ECREADME.DOC`](/home/niltempus/dev/esterian_conquest/original/v1.5/ECREADME.DOC)._
 
 The original `.DOC` file remains the preserved source artifact. This
 transcription is provided for easier reading, quoting, and linking.
+
+## How To Use This In v1.6
+
+- treat this as preserved sysop and release context from the original game
+- prefer the current `docs/sysop/` pages for Rust-native deployment guidance
+- use the original-source link when you need the untouched document:
+  [ECREADME.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECREADME.DOC)
 
 This document is the original quick installation readme for sysops.
 

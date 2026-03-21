@@ -10,8 +10,6 @@ Current recommended reading order:
   - the main player manual and mechanics reference
 - [ECREADME.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ECREADME.md)
   - setup notes, release notes, and bundled guidance
-- [WHATSNEW.md](/home/niltempus/dev/esterian_conquest/docs/manuals/WHATSNEW.md)
-  - late-classic version-history context
 
 The current Rust client is still converging on full `ECGAME` coverage, so the
 classic manuals remain the authoritative gameplay guide for now.
