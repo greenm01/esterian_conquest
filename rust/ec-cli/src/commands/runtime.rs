@@ -16,10 +16,20 @@ pub(crate) fn with_runtime_game_mut<T, F>(
 where
     F: FnOnce(&mut CoreGameData) -> Result<T, Box<dyn std::error::Error>>,
 {
+    with_runtime_state_mut(dir, |state| mutate(&mut state.game_data))
+}
+
+pub(crate) fn with_runtime_state_mut<T, F>(
+    dir: &Path,
+    mutate: F,
+) -> Result<T, Box<dyn std::error::Error>>
+where
+    F: FnOnce(&mut CampaignRuntimeState) -> Result<T, Box<dyn std::error::Error>>,
+{
     let store = CampaignStore::open_default_in_dir(dir)?;
     let mut state = load_runtime_state_preferring_live_directory(dir, &store)?;
     let planet_intel_by_viewer = load_runtime_intel_by_viewer(&store, &state.game_data)?;
-    let result = mutate(&mut state.game_data)?;
+    let result = mutate(&mut state)?;
     let database = build_database_dat(
         &state.game_data,
         &state.game_data.planets,

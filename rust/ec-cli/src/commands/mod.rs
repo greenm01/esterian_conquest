@@ -20,4 +20,5 @@ pub(crate) mod runtime;
 pub(crate) mod scenario;
 pub(crate) mod setup;
 pub(crate) mod storage;
+pub(crate) mod submit_turn;
 pub(crate) mod sysop;

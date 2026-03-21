@@ -25,6 +25,7 @@ mod records;
 mod starmap;
 mod storage;
 mod support;
+mod turns;
 
 pub use builder::{
     CanonicalFourPlayerSetup, FleetOrderSpec, GameStateBuilder, GuardStarbaseSpec, PlanetBuildSpec,
@@ -85,3 +86,8 @@ pub use storage::{
     PlanetIntelSnapshot,
 };
 pub use support::{ParseError, decode_real48, encode_real48};
+pub use turns::{
+    FleetTurnAction, FleetTurnBlock, MAX_MESSAGE_BODY_CHARS, MAX_MESSAGE_SUBJECT_CHARS,
+    PlanetTurnAction, PlanetTurnBlock, TurnDiplomacyDirective, TurnMessage, TurnSubmission,
+    TurnSubmissionError, TurnSubmissionReport,
+};

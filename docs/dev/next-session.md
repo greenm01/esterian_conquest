@@ -12,6 +12,8 @@ The SQLite-first runtime split is now in place:
   `.DAT` ownership
 - `maint-rust` advances the SQLite-backed runtime snapshot instead of silently
   rewriting classic files in place
+- `ec-cli submit-turn` now accepts one-player KDL turn files with `--check`
+  and apply modes; schema doc lives at [../player/turn-kdl.md](../player/turn-kdl.md)
 - classic `.DAT` files are now an explicit compatibility/export layer driven by
   `db-import`, `db-export`, and classic materialization/oracle workflows
 - read-only CLI/report paths should not create `ecgame.db` just by inspecting a

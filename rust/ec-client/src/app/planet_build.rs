@@ -7,6 +7,7 @@ use crate::screen::{
 };
 use ec_data::{
     AutoCommissionSummary, CommissionResult, GameStateMutationError, ProductionItemKind,
+    STARDOCK_SLOT_COUNT,
 };
 use std::collections::BTreeMap;
 
@@ -566,7 +567,9 @@ impl App {
                     .planets
                     .records
                     .get(row.planet_record_index_1_based - 1)
-                    .map(|record| (0..10).any(|slot| record.stardock_kind_raw(slot) != 0))
+                    .map(|record| {
+                        (0..STARDOCK_SLOT_COUNT).any(|slot| record.stardock_kind_raw(slot) != 0)
+                    })
                     .unwrap_or(false)
             })
             .collect()
@@ -604,7 +607,7 @@ impl App {
         else {
             return vec![];
         };
-        (0..10)
+        (0..STARDOCK_SLOT_COUNT)
             .filter_map(|slot| {
                 let kind_raw = record.stardock_kind_raw(slot);
                 let qty = u32::from(record.stardock_count_raw(slot));
@@ -841,7 +844,7 @@ impl App {
             *queue_qty_by_kind.entry(kind_raw).or_default() += qty.max(1);
         }
 
-        for slot in 0..10 {
+        for slot in 0..STARDOCK_SLOT_COUNT {
             let qty = u32::from(record.stardock_count_raw(slot));
             let kind_raw = record.stardock_kind_raw(slot);
             if qty == 0 || kind_raw == 0 {

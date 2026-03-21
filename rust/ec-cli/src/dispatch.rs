@@ -60,6 +60,7 @@ use crate::commands::setup::{
     set_max_key_gap, set_minimum_time, set_purge_after, set_remote_timeout, set_snoop,
 };
 use crate::commands::storage::{export_latest_db_snapshot, import_directory_to_db};
+use crate::commands::submit_turn::run_submit_turn_args;
 use crate::commands::sysop::run_sysop_args;
 use crate::support::parse::{
     parse_optional_source_and_target, parse_optional_source_target_and_bombard_spec,
@@ -220,6 +221,9 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
                 return Ok(());
             };
             export_latest_db_snapshot(&source_dir, &target_dir)?;
+        }
+        "submit-turn" => {
+            run_submit_turn_args(args.collect::<Vec<_>>())?;
         }
         "maintenance-days" => {
             let dir = next_dir(&mut args);
