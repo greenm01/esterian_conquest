@@ -2687,6 +2687,9 @@ Versioned screenshot/archive policy:
 - `original/v1.5/EC-Screenshots-v1.11/` is a bundled historical reference set from `v1.11`
 - `captures/v1.5-dosboxx/` is the preserved local runtime evidence set for this project's
   `v1.5` reverse engineering work
+- repo policy now treats `capture/` and `captures/` as local-only developer
+  working sets; filenames below remain useful archival identifiers even when
+  the images themselves are no longer stored in git
 - when `v1.11` and `v1.5` screenshots differ, prefer the `v1.5` capture set for preservation
   notes and Rust compatibility work
 

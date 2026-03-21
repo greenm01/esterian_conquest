@@ -9,10 +9,8 @@ MEMDUMP.BIN
 # Local temp binaries and reverse-engineering scratch output.
 $tmpfil$.exe
 bombard/
-capture/commission_menu.png
-capture/*.png
-capture/bbs-menu-map/
-capture/bbs-join-map-current/
+capture/
+captures/
 artifacts/ghidra/
 original/v1.5/IPBM.DAT
 original/v1.5/ERRORS.TXT

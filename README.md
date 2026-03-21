@@ -1,6 +1,6 @@
 # esterian_conquest
 
-![Esterian Conquest banner](capture/ec_v1.5_banner.png)
+![Esterian Conquest banner](docs/assets/ec_v1.5_banner.png)
 
 Rust resurrection of Esterian Conquest v1.5, with classic `.DAT`
 interoperability, a growing native client, and a maintenance engine nearing
