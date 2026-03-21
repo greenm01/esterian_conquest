@@ -25,6 +25,18 @@ The engine is already strong enough for serious campaign testing and hybrid
 play. Remaining work is now mostly Rust maint polish, native-client/TUI
 completeness, and campaign-scale playtesting.
 
+## Premise
+
+Beyond the mapped frontiers of the old Esterian dominion lies a small galaxy
+of contested solar systems. The old masters are gone. Their stations are
+silent, their patrols vanished, and their subjects left with fleets,
+factories, and enough knowledge to build empires.
+
+`v1.6` treats that classic premise seriously. The goal is not to reboot the
+game into something unrecognizable, but to carry Esterian Conquest forward:
+preserve its campaign feel, menus, reports, and BBS-era drama while replacing
+the original DOS constraints with a modern Rust implementation.
+
 ## Learn How To Play
 
 If you are new to Esterian Conquest, start with the readable manual
@@ -67,18 +79,6 @@ Today you can:
   manuals and binaries
 
 If you want to jump in immediately, start with [Quick Start](#quick-start).
-
-## Premise
-
-Beyond the mapped frontiers of the old Esterian dominion lies a small galaxy
-of contested solar systems. The old masters are gone. Their stations are
-silent, their patrols vanished, and their subjects left with fleets,
-factories, and enough knowledge to build empires.
-
-`v1.6` treats that classic premise seriously. The goal is not to reboot the
-game into something unrecognizable, but to carry Esterian Conquest forward:
-preserve its campaign feel, menus, reports, and BBS-era drama while replacing
-the original DOS constraints with a modern Rust implementation.
 
 ## Compatibility And Provenance
 
