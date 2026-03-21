@@ -19,6 +19,9 @@ sled, and an "EAT SHIT AND DIE" anti-tamper hash check.
 These unlocked files have the encryption stripped. They are plain MZ DOS
 executables that load and run directly without any stub processing.
 
+Supporting extraction scripts, live-memory captures, and preserved sandbox
+artifacts live under [`tools/unlzexe/`](../tools/unlzexe/).
+
 ## How they differ from the originals
 
 | Property | Original (shipped) | Unlocked |

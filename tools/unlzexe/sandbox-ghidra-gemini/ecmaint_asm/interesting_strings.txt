@@ -1,0 +1,20 @@
+  2479a Bombardment mission report: 
+  247b7 Invasion mission report: 
+  247d1 Blitz mission report: 
+  247e8 Colonization mission report: 
+  24806 Viewing mission report: 
+  2481f Scouting mission report: 
+  24839 Patrol mission report: 
+  24851 Move mission report: 
+  24867 Seek-Home mission report: 
+  24882 Guard Starbase mission report: %Guard/Blockade World mission report: 
+  248c8 Join mission report: 
+  248de Rendezvous mission report: 
+  248fa Salvage mission report: U
+  24c91 Bombardment mission report: 
+  24cae Invasion mission report: 
+  24cc8 Blitz mission report: 
+  24cdf Colonization mission report: 
+  24cfd Viewing mission report: 
+  24d16 Scouting mission report: 
+  24d30 Patrol mission report: 

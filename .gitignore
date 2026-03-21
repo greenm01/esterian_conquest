@@ -20,13 +20,21 @@ original/v1.5/DROP/*
 search.py
 
 # Local Ghidra project/runtime caches.
-.ghidra/projects/*.rep/idata/
+.ghidra/projects/*.gpr
+.ghidra/projects/*.rep/
+.ghidra/xdg-cache/
 .ghidra/xdg-config/
 
 # Python bytecode caches.
+scripts/__pycache__/
 tools/__pycache__/
 tools/bbs/__pycache__/
 tools/bbs/dummy.txt
+
+# Local generated notes and compiled helpers.
+rust/planets.txt
+tools/fpc_results_reader
+tools/fpc_results_reader.o
 
 # Local one-off tooling and scratch scripts not part of the repo baseline.
 tools/dump_ecgame_memory.py
@@ -44,13 +52,42 @@ tools/test_commission_screen.py
 tools/test_fossil_commission.py
 tools/test_serial_capture.py
 tools/test_stardock_commission.py
-tools/unlzexe
-tools/unlzexe_ecm
+tools/bruteforce_*.py
+tools/check_fleet3.py
+tools/decode_real.py
+tools/dump_planets.py
+tools/find_big_fleet.py
+tools/setup_fleet_battle*.py
+tools/test_battle_hostility.py
+tools/test_econ*.py
+tools/test_interception.py
+tools/test_invasion_full.py
+tools/test_tax_rates.py
 
 # Local Ghidra script scratch area.
 tools/ghidra_scripts_tmp/
 tools/ghidra_scripts/Dump9D48.java
 tools/ghidra_scripts/FindMoveTokRefs.java
+tools/ghidra_scripts/DecompileMaint.java
+tools/ghidra_scripts/ECMaintDecompile.java
+tools/ghidra_scripts/FindMain.java
+tools/ghidra_scripts/FindMyStringRefs.java
+tools/ghidra_scripts/FindScoutRefs.java
+tools/ghidra_scripts/FindScoutRefs.py
+tools/ghidra_scripts/FindStringRefs.java
+tools/ghidra_scripts/TestScript.java
+tools/ghidra_scripts/find_main.py
+
+# Preserved unlzexe artifacts and curated sandboxes.
+!tools/unlzexe/**/*.bin
+tools/unlzexe/__pycache__/
+tools/unlzexe/unlzexe_ecm
+tools/unlzexe/sandbox-gemini/__pycache__/
+tools/unlzexe/sandbox-gemini/brute_out_[0-9A-Fa-f]*.bin
+tools/unlzexe/sandbox-ghidra-gemini/analysis_log.txt
+tools/unlzexe/sandbox-ghidra-gemini/hello_log.txt
+tools/unlzexe/sandbox-ghidra-gemini/ghidra_project/
+tools/unlzexe/sandbox-ghidra-gemini/single_script_dir/
 
 # Generated fixture/oracle byproducts.
 fixtures/**/.oracle/
