@@ -11,6 +11,8 @@ orders during the year, and maintenance resolves the turn.
 
 **[Read the Grand Vision: From BBS to the Decentralized Web](docs/grand-vision.md)**
 
+**[How EC Was Recovered](docs/reverse_engineering/README.md)**
+
 `v1.6` aims to carry Esterian Conquest forward without discarding what made the
 original game distinct: the yearly turn rhythm, the empire reports, the starmap
 drama, the asymmetrical scouting and warfare, and the old BBS command feel.
@@ -109,9 +111,6 @@ Short version:
 - classic `.DAT` files remain the interchange boundary
 - Rust is allowed to be explicit and deterministic where the original
   implementation was hidden, stochastic, or plainly buggy
-
-For the detailed oracle/RE story, see
-[docs/reverse_engineering/README.md](docs/reverse_engineering/README.md).
 
 ## Where Rust Intentionally Differs
 

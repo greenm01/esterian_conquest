@@ -134,6 +134,8 @@ Prefer rule-shaped generators and validators over preserved-byte blob emission.
 - keep commits scoped to a real milestone or coherent gain
 - update user-facing docs when commands, workflows, or project milestones change
 - mention new commands in `README.md` and the relevant docs when they become part of the normal workflow
+- in repository markdown/docs, use relative Markdown links for repo files; do
+  not commit machine-local absolute paths, so links render correctly on GitHub
 - preserve unrelated local `.ghidra` project DB churn; do not revert it unless explicitly asked
 - `docs/next-session.md` shall stay short and current; archive older detail
   instead of appending indefinitely
