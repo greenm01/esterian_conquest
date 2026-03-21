@@ -887,6 +887,84 @@ fn maint_rust_updates_large_game_database_from_scout_intel_event() {
 }
 
 #[test]
+fn maint_rust_lone_scout_system_does_not_reproduce_classic_abort_bug() {
+    let target = unique_temp_dir("ec-cli-maint-rust-lone-scout-system");
+    let stdout = run_ec_cli_in_dir(
+        &[
+            "sysop",
+            "new-game",
+            target.to_str().unwrap(),
+            "--config",
+            "ec-data/config/setup.example.kdl",
+            "--players",
+            "9",
+            "--seed",
+            "1515",
+        ],
+        common::rust_workspace(),
+    );
+    assert!(stdout.contains("seed=1515"));
+
+    let mut game_data = CoreGameData::load(&target).expect("generated game should load");
+    let (planet_idx, coords, owner_empire_raw) = game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| planet.owner_empire_slot_raw() == 2)
+        .map(|(idx, planet)| (idx, planet.coords_raw(), planet.owner_empire_slot_raw()))
+        .expect("generated game should contain an empire 2 world");
+
+    for fleet in &mut game_data.fleets.records {
+        let current = fleet.current_location_coords_raw();
+        fleet.set_current_speed(0);
+        fleet.set_standing_order_kind(Order::HoldPosition);
+        fleet.set_standing_order_target_coords_raw(current);
+    }
+
+    let scout = &mut game_data.fleets.records[0];
+    scout.set_current_location_coords_raw([coords[0].saturating_add(1), coords[1]]);
+    scout.set_standing_order_kind(Order::ScoutSolarSystem);
+    scout.set_standing_order_target_coords_raw(coords);
+    scout.set_current_speed(3);
+    scout.raw[0x19] = 0x00;
+    scout.set_destroyer_count(0);
+    scout.set_cruiser_count(0);
+    scout.set_battleship_count(0);
+    scout.set_troop_transport_count(0);
+    scout.set_army_count(0);
+    scout.set_etac_count(0);
+    scout.set_scout_count(1);
+    game_data.save(&target).expect("mutated game should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
+    assert!(
+        !results.is_empty(),
+        "lone scout mission should still generate a Rust report"
+    );
+    let text = String::from_utf8_lossy(&results);
+    assert!(text.contains("Scouting mission report"));
+    assert!(
+        !text.contains("Since we have lost all of our scouts"),
+        "Rust maint should not reproduce the original ECMAINT lone-scout abort bug"
+    );
+
+    let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
+    let database_bytes = fs::read(target.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+    let planet_count = game_data.planets.records.len();
+    let viewer_record = database.record(planet_idx, 0, planet_count);
+    assert_ne!(viewer_record.planet_name_bytes(), b"UNKNOWN");
+    assert!(!viewer_record.planet_name_bytes().is_empty());
+    assert_eq!(viewer_record.raw[0x15], owner_empire_raw);
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn maint_rust_blockade_arrival_persists_enemy_relation_in_player_dat() {
     let target = unique_temp_dir("ec-cli-maint-rust-blockade-escalation");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);

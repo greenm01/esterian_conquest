@@ -176,6 +176,9 @@ The project rule that fell out of that work is simple:
 - the original binaries are the compatibility oracle
 - the Rust side is allowed to be explicit, deterministic, and testable where
   the original implementation was hidden or stochastic
+- documented original logic bugs that do not protect classic file safety are
+  not compatibility targets; Rust records them, but does not intentionally
+  reproduce them
 
 ## Current Status
 
@@ -446,6 +449,11 @@ This is a supported local compatibility loop for classic `ECGAME` on top of
 Rust maintenance. It does not claim byte-faithful classic `MESSAGES.DAT`
 reproduction; current Rust behavior preserves existing classic player mail and
 maintains classic-readable results/report files.
+
+Known deliberate divergence:
+
+- original `ECMAINT` has a regular-world `ScoutSolarSystem` lone-active-mission
+  abort bug; `maint-rust` documents that oracle behavior but does not copy it
 
 The classic login classifier now covers all three local compatibility branches:
 

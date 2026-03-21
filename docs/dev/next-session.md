@@ -573,6 +573,9 @@ remaining risks are:
       probing `ScoutSolarSystem(11)` fleet is the lone active non-hold fleet
       order in the campaign. This matches the static gate on `0x3534 == 0`
       inside `5c18`
+    - Rust should not reproduce that bug. The deliberate divergence is now
+      locked in by `maint_rust_lone_scout_system_does_not_reproduce_classic_abort_bug`
+      in `rust/ec-cli/tests/maint.rs`
     - success-side probes are now narrowing the other side of the boundary too.
       Starting from the accepted foreign-world `TargetPrime` scout baseline at
       `/tmp/ecgame-classic-atrest-purescout-new/.oracle/before-ecmaint`:

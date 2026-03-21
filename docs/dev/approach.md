@@ -38,6 +38,9 @@ For the `ECMAINT` turn-cycle RE specifically, the target is explicit:
     and proven cross-file invariants
 - do not chase byte-perfect parity if it would force Rust away from the
   original documented rules without adding compatibility value
+- document original logic bugs when they matter for oracle work, but do not
+  intentionally reproduce them in Rust unless they are required for classic
+  file safety or parser acceptance
 
 2. Prefer confirmed behavior over guessed structure
 

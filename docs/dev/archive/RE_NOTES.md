@@ -10474,3 +10474,12 @@ It is a separate question:
 - why do regular-world probes collapse to a total no-op even after the abort is
   suppressed, while the accepted `TargetPrime` foreign-world family refreshes
   `DATABASE.DAT` successfully?
+
+Rust policy after closing this thread:
+
+- treat the lone-active-mission scout abort as an original `ECMAINT` bug, not
+  as a compatibility rule to emulate
+- `maint-rust` now carries an explicit regression test,
+  `maint_rust_lone_scout_system_does_not_reproduce_classic_abort_bug`, to keep
+  the Rust engine on the successful lone-scout path instead of copying the
+  original abort
