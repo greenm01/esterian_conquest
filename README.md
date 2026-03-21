@@ -231,6 +231,12 @@ Build the reproducible demo-ready release zips for emulator testing:
 python3 scripts/build_release_packages.py --verify
 ```
 
+Publish the current release assets in one step:
+
+```bash
+./scripts/publish_release_packages.sh
+```
+
 This writes:
 
 - `releases/ec-v1.5-classic-demo.zip`

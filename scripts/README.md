@@ -184,6 +184,35 @@ Use this when you want:
 - a small local package that opens with the repo's known-good `CHAIN.TXT`
 - a clean split between original packed and curated runnable unlocked variants
 
+### `publish_release_packages.sh`
+
+Builds the selected release bundles, verifies them, then uploads the generated
+zip files to an existing GitHub Release with `gh release upload --clobber`.
+
+Default example:
+
+```bash
+./scripts/publish_release_packages.sh
+```
+
+Custom tag example:
+
+```bash
+./scripts/publish_release_packages.sh --tag v1.5-demo-bundles
+```
+
+Unlocked-only example:
+
+```bash
+./scripts/publish_release_packages.sh --variant unlocked
+```
+
+Use this when you want:
+
+- the easiest "build, verify, publish" release workflow
+- the generated zip files to stay untracked locally under `releases/`
+- the public downloadable copies to live on GitHub Releases instead of `main`
+
 ### `run_client.py`
 
 Launches the Rust client against a chosen campaign directory and player seat.
