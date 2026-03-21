@@ -73,6 +73,7 @@ version = "0.1.0"
 dependencies = [
  "ec-data",
  "ec-harness",
+ "kdl",
 ]
 
 [[package]]

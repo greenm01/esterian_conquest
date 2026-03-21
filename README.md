@@ -255,6 +255,19 @@ cd rust
 cargo run -q -p ec-cli -- harness run-scenario --file /tmp/scenario.kdl --dir /tmp/ec-scenario
 ```
 
+Bootstrap a multi-bot campaign and stop with turn 5 open for TUI inspection:
+
+```bash
+cd rust
+cargo run -q -p ec-cli -- harness play-until --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --turn 5
+```
+
+If the conductor blocks on missing or invalid player turns, fill the required
+`.tmp/llm-turns/<game_id>/player-<n>/turn-<nnnn>.kdl` files and rerun the same
+command. The coordinator workflow and bot-safe workspace layout are documented
+in [docs/dev/harness/campaign-play.md](docs/dev/harness/campaign-play.md) and
+[docs/dev/llm-player-guide.md](docs/dev/llm-player-guide.md).
+
 Run a combat sweep from KDL:
 
 ```bash

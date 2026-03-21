@@ -1,5 +1,10 @@
 # LLM Automated Test Harness for Esterian Conquest
 
+For live Rust-campaign bot play using `turn.kdl`, see
+[llm-player-guide.md](llm-player-guide.md) and
+[harness/campaign-play.md](harness/campaign-play.md). This document is
+specifically about black-box automation against the original DOS/BBS game.
+
 This document outlines the architecture for creating an automated, LLM-driven testing harness for the original Esterian Conquest (EC) v1.5 DOS executable.
 
 ## The Goal

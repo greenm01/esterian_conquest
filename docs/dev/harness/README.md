@@ -1,8 +1,9 @@
-# Harness KDL
+# Harness
 
-`ec-cli harness` now supports two related but separate workflows:
+`ec-cli harness` now supports three related workflows:
 
-- real-game/runtime scenario setup for TUI playtesting and repros
+- campaign play orchestration for multi-bot or mixed human/LLM games
+- runtime scenario setup for TUI playtesting and repros
 - combat scenario and sweep execution for combat stress testing and metrics
 
 The harness is Rust-first:
@@ -12,10 +13,23 @@ The harness is Rust-first:
 - SQLite/runtime state is the primary output
 - classic `.DAT` export is optional via `--export-classic`
 
+Start here:
+
+- [campaign-play.md](campaign-play.md)
+  - reproducible conductor workflow for "play to turn 5, then inspect in the TUI"
+- [../llm-player-guide.md](../llm-player-guide.md)
+  - strict visible-state operating guide for bots acting as real players
+
 ## Commands
 
 ```bash
 cd rust
+cargo run -q -p ec-cli -- harness init-campaign --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish
+cargo run -q -p ec-cli -- harness open-turn --dir /tmp/ec-bot-campaign
+cargo run -q -p ec-cli -- harness claim-turn --dir /tmp/ec-bot-campaign --player 2
+cargo run -q -p ec-cli -- harness scan-turn --dir /tmp/ec-bot-campaign
+cargo run -q -p ec-cli -- harness apply-turn-batch --dir /tmp/ec-bot-campaign
+cargo run -q -p ec-cli -- harness play-until --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --turn 5
 cargo run -q -p ec-cli -- harness check-scenario --file /tmp/scenario.kdl
 cargo run -q -p ec-cli -- harness run-scenario --file /tmp/scenario.kdl --dir /tmp/ec-scenario
 cargo run -q -p ec-cli -- harness check-combat --file /tmp/combat-scenario.kdl
@@ -23,9 +37,68 @@ cargo run -q -p ec-cli -- harness run-combat --file /tmp/combat-scenario.kdl
 cargo run -q -p ec-cli -- harness run-sweep --file /tmp/combat-sweep.kdl
 ```
 
+## Campaign Play
+
+Use the campaign-play workflow when you want a real in-process game that bots
+or humans can keep playing turn by turn.
+
+The conductor owns turn advancement:
+
+- it opens the current turn
+- publishes per-player bundles under `.tmp/llm-turns/<game_id>/player-<n>/`
+- waits for one legal `turn-<nnnn>.kdl` from every active player
+- applies the whole batch
+- runs Rust maintenance exactly once
+- opens the next turn
+
+Per-player coordination files:
+
+```text
+.tmp/llm-turns/<game_id>/campaign/manifest.kdl
+.tmp/llm-turns/<game_id>/player-<n>/bundle-turn-0005/
+.tmp/llm-turns/<game_id>/player-<n>/status-turn-0005.kdl
+.tmp/llm-turns/<game_id>/player-<n>/turn-0005.kdl
+.tmp/llm-turns/<game_id>/player-<n>/notes-0005.md
+```
+
+Status states:
+
+- `ready`
+  - conductor opened the turn and the bot may start
+- `claimed`
+  - bot/operator marked the turn in progress with `harness claim-turn`
+- `submitted`
+  - the turn file exists and is waiting for validation
+- `validated`
+  - the conductor accepted the file for this year
+- `rejected`
+  - the file failed validation; fix it and rescan
+- `applied`
+  - the whole year batch was applied and maintenance completed
+
+Fog-of-war boundary:
+
+- player bundles include only player-visible starmap/intel projections
+- they include owned assets, diplomacy, economy summaries, and incoming player mail
+- they currently expose review flags only, not raw global `RESULTS.DAT` or `MESSAGES.DAT` text
+- bots should treat the bundle as the safe source of truth and not inspect `ecgame.db`
+
+For the full reproducible operator flow, including "play to turn 5 then open the
+TUI", see [campaign-play.md](campaign-play.md).
+
 ## `scenario.kdl`
 
 Use this when you want a coherent runtime campaign snapshot for playtesting.
+
+When using the scenario harness with bots or LLMs, keep generated turn files in
+the ignored local workspace described in
+[../llm-player-guide.md](../llm-player-guide.md):
+
+```text
+.tmp/llm-turns/<game_id>/player-<n>/turn-0005.kdl
+```
+
+That keeps per-game/per-player agent turns organized without bloating the repo.
 
 ```kdl
 scenario player_count=4 year=3000 baseline="builder-compatible" seed=1515 label="Turn 3 Playtest"

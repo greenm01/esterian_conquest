@@ -8,10 +8,24 @@ pub fn print_usage() {
     println!("  ec-cli db-export [dir] <target_dir>");
     println!("  ec-cli submit-turn [--check] --dir <game_dir> --player <record> --file <turn.kdl>");
     println!("  ec-cli harness check-scenario --file <scenario.kdl>");
-    println!("  ec-cli harness run-scenario --file <scenario.kdl> --dir <target_dir> [--export-classic]");
+    println!(
+        "  ec-cli harness run-scenario --file <scenario.kdl> --dir <target_dir> [--export-classic]"
+    );
     println!("  ec-cli harness check-combat --file <combat-scenario.kdl>");
-    println!("  ec-cli harness run-combat --file <combat-scenario.kdl> [--dir <target_dir>] [--export-classic]");
+    println!(
+        "  ec-cli harness run-combat --file <combat-scenario.kdl> [--dir <target_dir>] [--export-classic]"
+    );
     println!("  ec-cli harness run-sweep --file <combat-sweep.kdl>");
+    println!(
+        "  ec-cli harness init-campaign --file <scenario.kdl> --dir <campaign_dir> --game-id <id> [--export-classic]"
+    );
+    println!("  ec-cli harness open-turn --dir <campaign_dir>");
+    println!("  ec-cli harness claim-turn --dir <campaign_dir> --player <record>");
+    println!("  ec-cli harness scan-turn --dir <campaign_dir>");
+    println!("  ec-cli harness apply-turn-batch --dir <campaign_dir>");
+    println!(
+        "  ec-cli harness play-until --file <scenario.kdl> --dir <campaign_dir> --game-id <id> --turn <n> [--export-classic]"
+    );
     println!("  ec-cli sysop <subcommand> ...");
     println!(
         "  ec-cli sysop new-game <target_dir> [--players <1-25>] [--config <setup.kdl>] [--seed <u64>]"

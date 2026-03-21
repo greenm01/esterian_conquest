@@ -45,7 +45,11 @@ These docs explain how to work in the repo and how to structure the Rust side.
 - [fixtures.md](fixtures.md)
   - fixture layout and intended usage
 - [harness/README.md](harness/README.md)
-  - typed KDL and CLI workflow for runtime scenarios, combat scenarios, and combat sweeps
+  - typed KDL and CLI workflow for campaign play, runtime scenarios, combat scenarios, and combat sweeps
+- [harness/campaign-play.md](harness/campaign-play.md)
+  - reproducible conductor workflow for "play to turn N, then inspect in the TUI"
+- [llm-player-guide.md](llm-player-guide.md)
+  - strict visible-state operating guide for bots/LLMs playing real campaigns
 
 ## Reference And Background Docs
 
@@ -60,6 +64,8 @@ behavior by themselves.
   - client/delivery direction for the SQLite-native Rust player-side stack
 - [config-architecture.md](config-architecture.md)
   - KDL/config extraction boundaries and sequencing
+- [llm-test-harness.md](llm-test-harness.md)
+  - original DOS/BBS black-box automation notes for RE-oriented LLM play
 
 ## Reading Order
 

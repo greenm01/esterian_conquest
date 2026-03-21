@@ -5,6 +5,10 @@ use ec_harness::{
     build_scenario, run_combat_scenario, run_combat_sweep, save_built_scenario,
 };
 
+use crate::commands::harness_campaign::{
+    run_apply_turn_batch_args, run_claim_turn_args, run_init_campaign_args, run_open_turn_args,
+    run_play_until_args, run_scan_turn_args,
+};
 use crate::support::paths::resolve_repo_path;
 
 pub(crate) fn run_harness_args(
@@ -38,7 +42,8 @@ pub(crate) fn run_harness_args(
             println!("  maintenance_turns={}", spec.maintenance_turns);
         }
         "run-combat" => {
-            let (file, dir, export_classic) = parse_file_optional_dir_args(args.collect::<Vec<_>>())?;
+            let (file, dir, export_classic) =
+                parse_file_optional_dir_args(args.collect::<Vec<_>>())?;
             let spec = CombatScenarioSpec::load_kdl(&file)?;
             let run = run_combat_scenario(&spec)?;
             print_combat_report(&run.report);
@@ -53,6 +58,24 @@ pub(crate) fn run_harness_args(
             let spec = CombatSweepSpec::load_kdl(&file)?;
             let report = run_combat_sweep(&spec)?;
             print_sweep_report(&report);
+        }
+        "init-campaign" => {
+            run_init_campaign_args(args.collect::<Vec<_>>())?;
+        }
+        "open-turn" => {
+            run_open_turn_args(args.collect::<Vec<_>>())?;
+        }
+        "claim-turn" => {
+            run_claim_turn_args(args.collect::<Vec<_>>())?;
+        }
+        "scan-turn" => {
+            run_scan_turn_args(args.collect::<Vec<_>>())?;
+        }
+        "apply-turn-batch" => {
+            run_apply_turn_batch_args(args.collect::<Vec<_>>())?;
+        }
+        "play-until" => {
+            run_play_until_args(args.collect::<Vec<_>>())?;
         }
         other => return Err(format!("unknown harness subcommand: {other}").into()),
     }

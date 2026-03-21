@@ -92,3 +92,6 @@ tools/unlzexe/sandbox-ghidra-gemini/single_script_dir/
 # Generated fixture/oracle byproducts.
 fixtures/**/.oracle/
 fixtures/**/*.SAV
+
+# Local bot/LLM turn submissions and notes.
+.tmp/llm-turns/
