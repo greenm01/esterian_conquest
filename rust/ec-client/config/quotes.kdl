@@ -1,0 +1,273 @@
+// Motivational quotes for the EC main menu.
+// Format: quote "text" { author "name" }
+
+quote "The supreme art of war is to subdue the enemy without fighting." {
+    author "Sun Tzu"
+}
+quote "In the midst of chaos, there is also opportunity." {
+    author "Sun Tzu"
+}
+quote "Appear weak when you are strong, and strong when you are weak." {
+    author "Sun Tzu"
+}
+quote "Let your plans be dark and impenetrable as night, and when you move, fall like a thunderbolt." {
+    author "Sun Tzu"
+}
+quote "Victorious warriors win first and then go to war, while defeated warriors go to war first and then seek to win." {
+    author "Sun Tzu"
+}
+quote "If you know the enemy and know yourself, you need not fear the result of a hundred battles." {
+    author "Sun Tzu"
+}
+quote "All warfare is based on deception." {
+    author "Sun Tzu"
+}
+quote "The greatest victory is that which requires no battle." {
+    author "Sun Tzu"
+}
+quote "Opportunities multiply as they are seized." {
+    author "Sun Tzu"
+}
+quote "He who wishes to fight must first count the cost." {
+    author "Sun Tzu"
+}
+quote "Strategy without tactics is the slowest route to victory. Tactics without strategy is the noise before defeat." {
+    author "Sun Tzu"
+}
+quote "There is no instance of a nation benefiting from prolonged warfare." {
+    author "Sun Tzu"
+}
+quote "The wise warrior avoids the battle." {
+    author "Sun Tzu"
+}
+quote "Move swift as the Wind and closely-formed as the Wood. Attack like the Fire and be still as the Mountain." {
+    author "Sun Tzu"
+}
+quote "Lead me, follow me, or get out of my way." {
+    author "George S. Patton"
+}
+quote "A good plan, violently executed now, is better than a perfect plan next week." {
+    author "George S. Patton"
+}
+quote "The object of war is not to die for your country but to make the other bastard die for his." {
+    author "George S. Patton"
+}
+quote "Wars may be fought with weapons, but they are won by men." {
+    author "George S. Patton"
+}
+quote "Accept the challenges so that you can feel the exhilaration of victory." {
+    author "George S. Patton"
+}
+quote "Never tell people how to do things. Tell them what to do, and they will surprise you with their ingenuity." {
+    author "George S. Patton"
+}
+quote "Courage is fear holding on a minute longer." {
+    author "George S. Patton"
+}
+quote "In war there is no substitute for victory." {
+    author "Douglas MacArthur"
+}
+quote "A true leader has the confidence to stand alone, the courage to make tough decisions, and the compassion to listen to the needs of others." {
+    author "Douglas MacArthur"
+}
+quote "The soldier above all others prays for peace, for it is the soldier who must suffer and bear the deepest wounds and scars of war." {
+    author "Douglas MacArthur"
+}
+quote "Only the dead have seen the end of war." {
+    author "Plato"
+}
+quote "War is the continuation of politics by other means." {
+    author "Carl von Clausewitz"
+}
+quote "The best defense is a good offense." {
+    author "Carl von Clausewitz"
+}
+quote "Everything in war is simple, but the simplest thing is difficult." {
+    author "Carl von Clausewitz"
+}
+quote "War is the realm of uncertainty; three quarters of the factors on which action in war is based are wrapped in a fog of greater or lesser uncertainty." {
+    author "Carl von Clausewitz"
+}
+quote "Courage is the first of human qualities because it is the quality which guarantees the others." {
+    author "Aristotle"
+}
+quote "In war, whichever side may call itself the victor, there are no winners, but all are losers." {
+    author "Neville Chamberlain"
+}
+quote "It is well that war is so terrible, otherwise we should grow too fond of it." {
+    author "Robert E. Lee"
+}
+quote "The art of war is of vital importance to the State. It is a matter of life and death." {
+    author "Sun Tzu"
+}
+quote "An army marches on its stomach." {
+    author "Napoleon Bonaparte"
+}
+quote "In politics, stupidity is not a handicap." {
+    author "Napoleon Bonaparte"
+}
+quote "The battlefield is a scene of constant chaos. The winner will be the one who controls that chaos, both his own and the enemy's." {
+    author "Napoleon Bonaparte"
+}
+quote "You must not fight too often with one enemy, or you will teach him all your art of war." {
+    author "Napoleon Bonaparte"
+}
+quote "Never interrupt your enemy when he is making a mistake." {
+    author "Napoleon Bonaparte"
+}
+quote "Four hostile newspapers are more to be feared than a thousand bayonets." {
+    author "Napoleon Bonaparte"
+}
+quote "The whole art of war consists in a well-reasoned and extremely circumspect defensive, followed by rapid and audacious attack." {
+    author "Napoleon Bonaparte"
+}
+quote "There are only two forces in the world, the sword and the spirit. In the long run the sword will always be conquered by the spirit." {
+    author "Napoleon Bonaparte"
+}
+quote "Victory belongs to the most persevering." {
+    author "Napoleon Bonaparte"
+}
+quote "There is nothing impossible to him who will try." {
+    author "Alexander the Great"
+}
+quote "I am not afraid of an army of lions led by a sheep; I am afraid of an army of sheep led by a lion." {
+    author "Alexander the Great"
+}
+quote "In war, events of importance are the result of trivial causes." {
+    author "Julius Caesar"
+}
+quote "I came, I saw, I conquered." {
+    author "Julius Caesar"
+}
+quote "Experience is the teacher of all things." {
+    author "Julius Caesar"
+}
+quote "If you want peace, prepare for war." {
+    author "Vegetius"
+}
+quote "Fortune favors the bold." {
+    author "Virgil"
+}
+quote "The more you sweat in training, the less you bleed in combat." {
+    author "Richard Marcinko"
+}
+quote "No battle plan survives contact with the enemy." {
+    author "Helmuth von Moltke"
+}
+quote "Sweat saves blood, blood saves lives, and brains save both." {
+    author "Erwin Rommel"
+}
+quote "One does not simply walk into Mordor." {
+    author "Boromir"
+}
+quote "A ship in harbor is safe, but that is not what ships are built for." {
+    author "John A. Shedd"
+}
+quote "Who dares, wins." {
+    author "SAS Motto"
+}
+quote "We shall fight on the beaches. We shall fight on the landing grounds. We shall never surrender." {
+    author "Winston Churchill"
+}
+quote "Success is not final, failure is not fatal: it is the courage to continue that counts." {
+    author "Winston Churchill"
+}
+quote "In war, truth is the first casualty." {
+    author "Aeschylus"
+}
+quote "War does not determine who is right, only who is left." {
+    author "Bertrand Russell"
+}
+quote "The best weapon against an enemy is another enemy." {
+    author "Friedrich Nietzsche"
+}
+quote "In preparing for battle I have always found that plans are useless, but planning is indispensable." {
+    author "Dwight D. Eisenhower"
+}
+quote "I fear not the man who has practiced 10,000 kicks once, but I fear the man who has practiced one kick 10,000 times." {
+    author "Bruce Lee"
+}
+quote "Concentrated power has always been the enemy of liberty." {
+    author "Ronald Reagan"
+}
+quote "The Nation that makes a great distinction between its scholars and its warriors will have its thinking done by cowards and its fighting done by fools." {
+    author "Thucydides"
+}
+quote "Out of every one hundred men, ten shouldn't even be there, eighty are just targets, nine are the real fighters, and we are lucky to have them. Ah, but the one -- one is a warrior." {
+    author "Heraclitus"
+}
+quote "The only easy day was yesterday." {
+    author "US Navy SEALs"
+}
+quote "To secure peace is to prepare for war." {
+    author "Thucydides"
+}
+quote "The true soldier fights not because he hates what is in front of him, but because he loves what is behind him." {
+    author "G.K. Chesterton"
+}
+quote "Every battle is won or lost before it is ever fought." {
+    author "Sun Tzu"
+}
+quote "Great things are not done by impulse, but by a series of small things brought together." {
+    author "Vincent van Gogh"
+}
+quote "Those who fail to learn from history are condemned to repeat it." {
+    author "George Santayana"
+}
+quote "The first and greatest victory is to conquer yourself." {
+    author "Plato"
+}
+quote "Know thy self, know thy enemy. A thousand battles, a thousand victories." {
+    author "Sun Tzu"
+}
+quote "Invincibility lies in the defence; the possibility of victory in the attack." {
+    author "Sun Tzu"
+}
+quote "He who is prudent and lies in wait for an enemy who is not, will be victorious." {
+    author "Sun Tzu"
+}
+quote "We sleep safely at night because rough men stand ready to visit violence on those who would harm us." {
+    author "Richard Grenier"
+}
+quote "War is a series of catastrophes that results in a victory." {
+    author "Georges Clemenceau"
+}
+quote "There is no avoiding war; it can only be postponed to the advantage of others." {
+    author "Niccolo Machiavelli"
+}
+quote "Regard your soldiers as your children, and they will follow you into the deepest valleys." {
+    author "Sun Tzu"
+}
+quote "The quickest way to end a war is to lose it." {
+    author "George Orwell"
+}
+quote "A leader is a dealer in hope." {
+    author "Napoleon Bonaparte"
+}
+quote "The power of an air force is terrific when there is nothing to oppose it." {
+    author "Winston Churchill"
+}
+quote "What counts is not necessarily the size of the dog in the fight; it's the size of the fight in the dog." {
+    author "Dwight D. Eisenhower"
+}
+quote "Nearly all men can stand adversity, but if you want to test a man's character, give him power." {
+    author "Abraham Lincoln"
+}
+quote "Whoever said the pen is mightier than the sword obviously never encountered automatic weapons." {
+    author "Douglas MacArthur"
+}
+quote "We are not combating machines. We are combating men." {
+    author "Erwin Rommel"
+}
+quote "Older men declare war. But it is the youth that must fight and die." {
+    author "Herbert Hoover"
+}
+quote "War is cruelty. There is no use trying to reform it. The crueler it is, the sooner it will be over." {
+    author "William Tecumseh Sherman"
+}
+quote "The strength of the fleet lies in its discipline." {
+    author "Fleet Admiral Nimitz"
+}
+quote "Space is big. Really big. You just won't believe how vastly, hugely, mind-bogglingly big it is." {
+    author "Douglas Adams"
+}

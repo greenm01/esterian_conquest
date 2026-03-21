@@ -90,6 +90,11 @@ impl Screen for ReportsScreen {
     }
 }
 
+/// Report header lines in the summary view start with 2-space indent + "From your".
+fn is_report_header(line: &str) -> bool {
+    line.starts_with("  From your")
+}
+
 fn write_section(
     buffer: &mut PlayfieldBuffer,
     start_row: usize,
@@ -98,7 +103,12 @@ fn write_section(
 ) -> Result<usize, Box<dyn std::error::Error>> {
     let mut written = 0;
     for line in rows.iter().take(max_rows) {
-        buffer.write_text(start_row + written, 0, line, classic::body_style());
+        let style = if is_report_header(line) {
+            classic::report_header_style()
+        } else {
+            classic::body_style()
+        };
+        buffer.write_text(start_row + written, 0, line, style);
         written += 1;
     }
     if rows.len() > max_rows {

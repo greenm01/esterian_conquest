@@ -5,17 +5,36 @@ use crate::domains::empire::EmpireAction;
 use crate::domains::fleet::FleetAction;
 use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
+use crate::quotes::{self, Quote};
 use crate::screen::layout::{
-    MenuEntry, draw_command_prompt, draw_menu_row, draw_title_bar, draw_wrapped_status,
-    new_playfield,
+    MenuEntry, PLAYFIELD_WIDTH, draw_command_prompt, draw_menu_row, draw_title_bar,
+    draw_wrapped_status, new_playfield, wrap_text,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
+use crate::theme::classic;
+use crate::util::Lcg;
 
-pub struct MainMenuScreen;
+/// Rows available for the quote display (between menu row 4 and prompt row 19).
+const QUOTE_FIRST_ROW: usize = 5;
+const QUOTE_LAST_ROW: usize = 18;
+
+/// Compute how many rows a quote block occupies: wrapped text + blank + author.
+fn quote_block_height(text_lines: usize) -> usize {
+    text_lines + 1 + 1 // text + blank separator + author attribution
+}
+
+/// Left margin for quote text (one space from the edge).
+const QUOTE_LEFT_COL: usize = 1;
+
+pub struct MainMenuScreen {
+    quotes: Vec<Quote>,
+}
 
 impl MainMenuScreen {
     pub fn new() -> Self {
-        Self
+        Self {
+            quotes: quotes::load_quotes(),
+        }
     }
 
     pub fn render_with_notice(
@@ -62,9 +81,47 @@ impl MainMenuScreen {
         );
         if let Some(notice) = notice {
             draw_wrapped_status(&mut buffer, 7, 11, "Notice: ", notice);
+        } else {
+            self.draw_quote(&mut buffer);
         }
         draw_command_prompt(&mut buffer, 5, "MAIN COMMAND", "H,Q,X,V,A,G,P,F,T,I,B,D");
         Ok(buffer)
+    }
+
+    fn draw_quote(&self, buffer: &mut PlayfieldBuffer) {
+        if self.quotes.is_empty() {
+            return;
+        }
+
+        let mut rng = Lcg::from_time();
+        let index = rng.next_usize() % self.quotes.len();
+        let quote = &self.quotes[index];
+
+        let max_text_width = PLAYFIELD_WIDTH - QUOTE_LEFT_COL - 1;
+        let wrapped = wrap_text(&quote.text, max_text_width, max_text_width);
+        let author_line = format!("-- {}", quote.author);
+
+        let available_rows = QUOTE_LAST_ROW - QUOTE_FIRST_ROW + 1; // 14 rows
+        let text_lines = if quote_block_height(wrapped.len()) > available_rows {
+            available_rows.saturating_sub(2) // leave room for blank + author
+        } else {
+            wrapped.len()
+        };
+        let block_height = quote_block_height(text_lines);
+        let start_row = QUOTE_FIRST_ROW + (available_rows.saturating_sub(block_height)) / 2;
+
+        for (i, line) in wrapped.iter().take(text_lines).enumerate() {
+            buffer.write_text(start_row + i, QUOTE_LEFT_COL, line, classic::quote_style());
+        }
+        let author_row = start_row + text_lines + 1;
+        if author_row <= QUOTE_LAST_ROW {
+            buffer.write_text(
+                author_row,
+                QUOTE_LEFT_COL,
+                &author_line,
+                classic::quote_author_style(),
+            );
+        }
     }
 }
 

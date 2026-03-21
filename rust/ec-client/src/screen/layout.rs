@@ -253,7 +253,7 @@ pub fn draw_help_panel(
     draw_command_prompt(buffer, 19, prompt_label, "SLAP A KEY");
 }
 
-fn wrap_text(value: &str, first_width: usize, continuation_width: usize) -> Vec<String> {
+pub fn wrap_text(value: &str, first_width: usize, continuation_width: usize) -> Vec<String> {
     let normalized = value.split_whitespace().collect::<Vec<_>>();
     if normalized.is_empty() {
         return vec![String::new()];

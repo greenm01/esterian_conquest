@@ -135,4 +135,23 @@ pub mod classic {
     pub const fn map_center_style() -> CellStyle {
         CellStyle::new(BRIGHT_WHITE, BLACK, true)
     }
+
+    // Quote display styles — understated so they don't compete with the menu.
+    const QUOTE_GREY: RgbColor = RgbColor::new(158, 162, 174);
+    const QUOTE_AUTHOR_GREY: RgbColor = RgbColor::new(178, 182, 194);
+
+    /// Dim body grey for quote text — slightly muted relative to BODY_GREY.
+    pub const fn quote_style() -> CellStyle {
+        CellStyle::new(QUOTE_GREY, BLACK, false)
+    }
+
+    /// Slightly brighter grey for the quote author attribution line.
+    pub const fn quote_author_style() -> CellStyle {
+        CellStyle::new(QUOTE_AUTHOR_GREY, BLACK, false)
+    }
+
+    /// Report header lines ("From your Xth Fleet...") — teal accent.
+    pub const fn report_header_style() -> CellStyle {
+        CellStyle::new(TOKYONIGHT_TEAL, BLACK, false)
+    }
 }

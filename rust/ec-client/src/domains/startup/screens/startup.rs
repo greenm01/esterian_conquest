@@ -1,35 +1,9 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
-use crate::reports::{wrap_review_text_preserving_spacing, ReportsPreview, ReviewBlock};
-use crate::screen::layout::{draw_plain_prompt, new_playfield, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
+use crate::reports::{ReportsPreview, ReviewBlock, wrap_review_text_preserving_spacing};
+use crate::screen::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_plain_prompt, new_playfield};
 use crate::screen::{CellStyle, PlayfieldBuffer, ScreenFrame, StyledSpan};
 use crate::startup::{StartupPhase, StartupSummary};
 use crate::theme::classic;
-
-/// Minimal LCG for decoration color randomization (same constants as mapgen).
-struct Lcg {
-    state: u64,
-}
-
-impl Lcg {
-    fn from_time() -> Self {
-        let seed = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_nanos() as u64)
-            .unwrap_or(0xEC15);
-        Self {
-            state: seed.wrapping_mul(6364136223846793005).wrapping_add(1),
-        }
-    }
-
-    fn next_usize(&mut self) -> usize {
-        self.state = self
-            .state
-            .wrapping_mul(6364136223846793005)
-            .wrapping_add(1442695040888963407);
-        (self.state >> 32) as usize
-    }
-}
+use crate::util::Lcg;
 
 fn is_star_decoration(ch: char) -> bool {
     matches!(ch, '.' | '*' | 'o')
@@ -85,8 +59,7 @@ pub struct StartupScreen {
 }
 
 pub(crate) const STARTUP_REVIEW_VISIBLE_LINES: usize = PLAYFIELD_HEIGHT - 4;
-const ITEM_HEADER_PREFIX: &str = " -> ";
-const ITEM_BODY_PREFIX: &str = "< ";
+const ITEM_PREFIX: &str = " -> ";
 
 impl StartupScreen {
     pub fn new(summary: StartupSummary, reports: ReportsPreview) -> Self {
@@ -506,33 +479,23 @@ fn block_review_rows(lines: &[String], empty_notice: &str) -> Vec<String> {
         }
         return wrap_review_text_preserving_spacing(
             empty_notice,
-            PLAYFIELD_WIDTH.saturating_sub(ITEM_BODY_PREFIX.len()),
+            PLAYFIELD_WIDTH.saturating_sub(ITEM_PREFIX.len()),
         )
         .into_iter()
-        .map(|line| format!("{ITEM_BODY_PREFIX}{line}"))
+        .map(|line| format!("{ITEM_PREFIX}{line}"))
         .collect();
     }
 
     let mut rows = Vec::new();
-    for (line_idx, line) in lines.iter().enumerate() {
+    let max_width = PLAYFIELD_WIDTH.saturating_sub(ITEM_PREFIX.len());
+    for line in lines.iter() {
         if line.trim().is_empty() {
-            rows.push("<".to_string());
+            rows.push(ITEM_PREFIX.trim_end().to_string());
             continue;
         }
-        let prefix = if line_idx == 0 {
-            ITEM_HEADER_PREFIX
-        } else {
-            ITEM_BODY_PREFIX
-        };
-        let max_width = PLAYFIELD_WIDTH.saturating_sub(prefix.len());
         let wrapped = wrap_review_text_preserving_spacing(line, max_width);
-        for (wrap_idx, segment) in wrapped.iter().enumerate() {
-            let seg_prefix = if line_idx == 0 && wrap_idx == 0 {
-                ITEM_HEADER_PREFIX
-            } else {
-                ITEM_BODY_PREFIX
-            };
-            rows.push(format!("{seg_prefix}{segment}"));
+        for segment in wrapped.iter() {
+            rows.push(format!("{ITEM_PREFIX}{segment}"));
         }
     }
     rows
@@ -555,6 +518,13 @@ fn push_completed_block_transcript(
     }
 }
 
+/// Report header lines start with this prefix after block_review_rows formatting.
+const REPORT_HEADER_MARKER: &str = " -> From your";
+
+fn is_report_header(line: &str) -> bool {
+    line.starts_with(REPORT_HEADER_MARKER)
+}
+
 fn render_review_transcript(buffer: &mut PlayfieldBuffer, transcript_rows: &[String]) {
     let visible_start = transcript_rows
         .len()
@@ -563,6 +533,11 @@ fn render_review_transcript(buffer: &mut PlayfieldBuffer, transcript_rows: &[Str
     let first_row = 18usize.saturating_sub(visible_rows.len());
     for (i, line) in visible_rows.iter().enumerate() {
         let y = first_row + i;
+        let line_style = if is_report_header(line) {
+            classic::report_header_style()
+        } else {
+            classic::body_style()
+        };
         if let Some(stardate_pos) = line.find("Stardate: ") {
             let label_end = stardate_pos + "Stardate: ".len();
             // Parse: week digits, slash, year digits.
@@ -591,7 +566,7 @@ fn render_review_transcript(buffer: &mut PlayfieldBuffer, transcript_rows: &[Str
 
             let mut col = 0;
             if stardate_pos > 0 {
-                col += buffer.write_text(y, col, &line[..stardate_pos], classic::body_style());
+                col += buffer.write_text(y, col, &line[..stardate_pos], line_style);
             }
             col += buffer.write_text(
                 y,
@@ -614,10 +589,10 @@ fn render_review_transcript(buffer: &mut PlayfieldBuffer, transcript_rows: &[Str
                 );
             }
             if value_end < line.len() {
-                buffer.write_text(y, col, &line[value_end..], classic::body_style());
+                buffer.write_text(y, col, &line[value_end..], line_style);
             }
         } else {
-            buffer.write_text(y, 0, line, classic::body_style());
+            buffer.write_text(y, 0, line, line_style);
         }
     }
 }
@@ -685,11 +660,7 @@ fn capitalize(s: &str) -> String {
 }
 
 fn display_or_unknown(value: &str) -> &str {
-    if value.is_empty() {
-        "<unknown>"
-    } else {
-        value
-    }
+    if value.is_empty() { "<unknown>" } else { value }
 }
 
 const INTRO_LOGO: [&str; 11] = [

@@ -2,9 +2,9 @@ use crate::app::action::Action;
 use crate::app::state::App;
 use crate::domains::startup::StartupAction;
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
-use crate::reports::{has_visible_runtime_messages, rebuild_chunked_bytes, ReportsPreview};
+use crate::reports::{ReportsPreview, has_visible_runtime_messages, rebuild_chunked_bytes};
 use crate::screen::{
-    ScreenId, StartupReviewMode, FIRST_TIME_INTRO_PAGE_COUNT, STARTUP_SPLASH_PAGE_COUNT,
+    FIRST_TIME_INTRO_PAGE_COUNT, STARTUP_SPLASH_PAGE_COUNT, ScreenId, StartupReviewMode,
 };
 use crate::startup::{StartupPhase, StartupSummary};
 

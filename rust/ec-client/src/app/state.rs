@@ -12,20 +12,20 @@ use crate::domains::starbase::{StarbaseAction, StarbaseState};
 use crate::domains::starmap::StarmapState;
 use crate::domains::startup::{StartupAction, StartupState};
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
-use crate::reports::{has_visible_runtime_messages, ReportsPreview};
+use crate::reports::{ReportsPreview, has_visible_runtime_messages};
 use crate::screen::{
     BuildHelpScreen, CommandMenu, DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen,
-    EnemiesScreen, FirstTimeEmpiresScreen, FirstTimeHelpScreen, FirstTimeIntroScreen,
-    FirstTimeMenuScreen, FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen,
-    FleetGroupScreen, FleetHelpScreen, FleetListMode, FleetListScreen, FleetMenuScreen,
-    FleetMergeMode, FleetMergeScreen, FleetMissionPickerScreen, FleetReviewScreen, FleetRoeScreen,
-    FleetSingleOrderScreen, FleetTransferMode, FleetTransferScreen, GeneralHelpScreen,
-    GeneralMenuScreen, MainHelpScreen, MainMenuScreen, MessageComposeScreen, PartialStarmapScreen,
-    PlanetAutoCommissionScreen, PlanetBuildScreen, PlanetCommissionScreen, PlanetDatabaseScreen,
-    PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen, PlanetMenuScreen,
-    PlanetTaxScreen, PlanetTransportScreen, RankingsScreen, ReportsScreen, Screen, ScreenId,
-    StarbaseHelpScreen, StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen,
-    StarmapScreen, StartupScreen, FIRST_TIME_INTRO_PAGE_COUNT, STARTUP_SPLASH_PAGE_COUNT,
+    EnemiesScreen, FIRST_TIME_INTRO_PAGE_COUNT, FirstTimeEmpiresScreen, FirstTimeHelpScreen,
+    FirstTimeIntroScreen, FirstTimeMenuScreen, FleetDetachMode, FleetDetachScreen, FleetEtaMode,
+    FleetEtaScreen, FleetGroupScreen, FleetHelpScreen, FleetListMode, FleetListScreen,
+    FleetMenuScreen, FleetMergeMode, FleetMergeScreen, FleetMissionPickerScreen, FleetReviewScreen,
+    FleetRoeScreen, FleetSingleOrderScreen, FleetTransferMode, FleetTransferScreen,
+    GeneralHelpScreen, GeneralMenuScreen, MainHelpScreen, MainMenuScreen, MessageComposeScreen,
+    PartialStarmapScreen, PlanetAutoCommissionScreen, PlanetBuildScreen, PlanetCommissionScreen,
+    PlanetDatabaseScreen, PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen,
+    PlanetMenuScreen, PlanetTaxScreen, PlanetTransportScreen, RankingsScreen, ReportsScreen,
+    STARTUP_SPLASH_PAGE_COUNT, Screen, ScreenId, StarbaseHelpScreen, StarbaseListScreen,
+    StarbaseMenuScreen, StarbaseReviewScreen, StarmapScreen, StartupScreen,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;

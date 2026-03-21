@@ -3,10 +3,10 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
-    draw_command_line_default_input, draw_command_line_prompt_text, draw_command_prompt,
-    draw_help_panel, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield, MenuEntry,
+    MenuEntry, draw_command_line_default_input, draw_command_line_prompt_text, draw_command_prompt,
+    draw_help_panel, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
 };
-use crate::screen::{format_sector_coords, PlayfieldBuffer, Screen, ScreenFrame};
+use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords};
 use crate::theme::classic;
 
 pub struct FirstTimeMenuScreen;
