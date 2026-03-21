@@ -93,5 +93,8 @@ tools/unlzexe/sandbox-ghidra-gemini/single_script_dir/
 fixtures/**/.oracle/
 fixtures/**/*.SAV
 
+# Local release-package build output. Published copies live on GitHub Releases.
+releases/*.zip
+
 # Local bot/LLM turn submissions and notes.
 .tmp/llm-turns/

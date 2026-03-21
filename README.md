@@ -236,6 +236,9 @@ This writes:
 - `releases/ec-v1.5-classic-demo.zip`
 - `releases/ec-v1.5-unlocked-demo.zip`
 
+These zip files are local build output and are kept untracked in `main`.
+Published copies live as GitHub release assets under the repo's Releases page.
+
 | Bundle | DOSBox-X | dosemu2 | Notes |
 |---|---|---|---|
 | `releases/ec-v1.5-classic-demo.zip` | Verified | Not verified here | Original packed/oracle bundle; 8s smoke pass from `/tmp` with the known-good local-console `CHAIN.TXT`. |

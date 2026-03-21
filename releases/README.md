@@ -1,6 +1,10 @@
 # Release Bundles
 
-This directory holds demo-ready Esterian Conquest zip packages for emulator testing and operator reproduction.
+This directory describes the demo-ready Esterian Conquest zip packages used for
+emulator testing and operator reproduction.
+
+The generated `*.zip` files in this directory are local build output and stay
+untracked in `main`. Published copies live as GitHub release assets.
 
 | Bundle | Executables | DOSBox-X | dosemu2 | Notes |
 |---|---|---|---|---|
