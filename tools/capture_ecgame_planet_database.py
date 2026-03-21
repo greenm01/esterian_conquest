@@ -52,7 +52,7 @@ def dump_screen(child, game_dir: Path, output_dir: Path, step: int) -> str:
     if dump_path.exists():
         dump_path.unlink()
     child.sendline("MEMDUMPBIN B800:0000 4000")
-    wait_for_prompt(child)
+    time.sleep(1)
     for _ in range(20):
         if dump_path.exists():
             break
@@ -81,15 +81,6 @@ def normalize_key(token: str) -> str:
     if upper == "TAB":
         return "\t"
     return token
-
-
-def wait_for_prompt(child) -> bool:
-    try:
-        child.expect([r"I-> _", r"I->", r"> _", r"DBG>", r"CS="], timeout=5)
-        time.sleep(0.1)
-        return True
-    except Exception:
-        return False
 
 
 def snapshot_database(game_dir: Path, output_dir: Path, label: str) -> None:
@@ -165,13 +156,12 @@ def main() -> None:
     child.logfile = log_file
     transcript: list[str] = []
     try:
-        wait_for_prompt(child)
+        time.sleep(3)
         child.sendline("BPINT 16 00")
-        wait_for_prompt(child)
+        time.sleep(1)
 
         child.sendline("RUN")
-        time.sleep(3)
-        wait_for_prompt(child)
+        time.sleep(6)
         transcript.append("=== screen_00 ===\n")
         transcript.append(dump_screen(child, game_dir, output_dir, 0))
 
@@ -181,7 +171,6 @@ def main() -> None:
             time.sleep(0.2)
             child.send(key)
             time.sleep(3)
-            wait_for_prompt(child)
             transcript.append(
                 f"\n=== screen_{step:02} key={key.encode('unicode_escape').decode()} ===\n"
             )

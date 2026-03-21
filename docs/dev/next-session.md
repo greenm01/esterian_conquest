@@ -427,10 +427,14 @@ remaining risks are:
    `DATABASE.DAT`. The remaining orbit-row work is now mainly about whether
    any non-owned/foreign-intel display path reuses the same `0x23` family.
    The current blocker for automating that proof is tooling, not acceptance:
-   `tools/capture_ecgame_planet_database.py` still loses debugger prompt sync
-   under headless DOSBox-X and can spray `RUN` / `MEMDUMPBIN` into DEBUGBOX
-   without producing `screen_00`, even though the same maintained directory
-   survives the plain classic-client smoke timeout.
+   `tools/capture_ecgame_planet_database.py` now exits cleanly instead of
+   hanging, but headless DOSBox-X still does not emit any `MEMDUMP.BIN`
+   screen dump for the `ECGAME` DEBUGBOX path here. That remains true with
+   plain `DEBUGBOX ECGAME.EXE`, `DEBUGBOX ECGAME.EXE /L`, and explicit
+   four-argument `MEMDUMPBIN ... SCRTEST.BIN` attempts. The same maintained
+   directory still survives the plain classic-client smoke timeout, so this
+   is still a debugger/tooling blocker rather than a known row-family
+   incompatibility.
 6. Treat successful `ScoutSolarSystem` refreshes as rewriting stale
    visible scout-row payload, but not yet as a fully decoded semantic rebuild.
    The clean oracle proof is `/tmp/ecgame-scout-refresh-row34.QYjsVJ`, where a
