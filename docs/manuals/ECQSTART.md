@@ -3,115 +3,75 @@
 _v1.6 quick-start reference based on
 [`original/v1.5/ECQSTART.DOC`](/home/niltempus/dev/esterian_conquest/original/v1.5/ECQSTART.DOC)._
 
-The original `.DOC` file remains the preserved source artifact. This
-transcription is provided for easier reading, quoting, and linking.
+The original `.DOC` file remains the preserved source artifact. This edition
+keeps the substance of the quick-start guide, but presents it as a cleaner
+v1.6 reference.
 
 ## How To Use This In v1.6
 
-- start here if you want the shortest path to understanding the campaign loop
-- then continue to
-  [ECPLAYER.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ECPLAYER.md)
-  for the full command and mechanics reference
-- for the original source document, see
-  [ECQSTART.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECQSTART.DOC)
+Start here if you want the shortest path to understanding the game loop. When
+you are ready for the full command and mechanics reference, move on to
+[ECPLAYER.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ECPLAYER.md).
+If you want the untouched source, read
+[ECQSTART.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECQSTART.DOC).
 
-## Note
+## Start Here
 
-This quick start sketches the information you need to begin playing.
-The original quick-start guide strongly recommends also reading the full
+Read this first, then read the full
 [ECPLAYER manual](/home/niltempus/dev/esterian_conquest/docs/manuals/ECPLAYER.md).
 
 ## Object of the Game
 
-Become ruler of the galaxy by having all the other players surrender and
-acknowledge you as Emperor.
-
-Hold enough planets through conquest or colonization to be recognized as
-emperor. Defeat the space fleets and conquer the planets of any players who
-oppose you.
+Your objective is simple: become Emperor. In practice that means building
+enough strength that the other empires surrender, or crushing every serious
+rival until surrender is the only outcome left.
 
 ## The Play
 
-You start owning one planet and four fleets:
+You begin with one productive planet and four fleets. Two of those fleets carry
+an `ETAC` and a cruiser, which gives you immediate colonization capability. The
+other two are single-destroyer fleets, which are useful for early scouting and
+light defense.
 
-- two fleets containing a colonizing ship (`ETAC`) and a cruiser
-- two fleets containing only a destroyer
-
-Set your tax rate, with the original guide suggesting around `65%`, so your
-planet will generate production points. Spend those points to build ships,
-armies, ground batteries, and starbases.
-
-When you colonize new planets, lower your tax rate to help those planets
-develop resources faster.
+Set a tax rate, usually somewhere around `65%` on your starting world, and use
+that revenue to build ships, armies, ground batteries, and starbases. As you
+expand, ease the tax burden on young colonies when you want them to grow their
+current production faster.
 
 ## Game Time: The Round
 
-Each round is equivalent to one year of game time.
-
-You enter your orders for the year using the menus. During BBS maintenance,
-the program calculates the results of the moves of all players.
+Each round represents one year. During that year, you enter and revise orders.
+At maintenance time, the game resolves every empire's moves together.
 
 ## What You Can Do in a Round
 
-1. Manage planets: build units, commission fleets from built ships, or set tax
-   and production levels for the year.
-2. Order fleets: colonize uninhabited planets, merge or detach ships, fight
-   enemy fleets, spy on opponents, or conquer inhabited planets.
-3. Handle communications: set up alliances, non-aggression pacts, diplomatic
-   negotiations, or betrayals with other players.
-4. Use the Information Database to review what you have learned about planets,
-   and view a starmap showing your current database information.
-5. Turn `AUTOPILOT` on or off from the General Menu and let the computer make
-   moves for you.
+In a normal round you will manage planets, assign fleet missions, review
+intelligence, send messages, and decide whether diplomacy or force is the right
+tool for the current year. If you expect to miss turns, you can also enable
+`AUTOPILOT` and let the game fall back to defensive behavior.
 
 ## The Forces at Your Command
 
-You control five major types of objects:
-
-- planets
-- ships
-- starbases
-- armies
-- ground batteries
-
-There are six ship types:
-
-- combat ships:
-  - battleships
-  - cruisers
-  - destroyers
-- specialized ships:
-  - scouts for spying
-  - troop transports for carrying armies
-  - `ETAC`s for colonizing raw planets
-
-Starbases enhance planetary defense and growth.
-
-Armies protect or conquer planets.
-
-Ground batteries are planet-based cannons.
+You command planets, ships, starbases, armies, and ground batteries. The ships
+break down into six classes: destroyers, cruisers, and battleships for combat;
+scouts for reconnaissance; troop transports for delivering armies; and `ETAC`s
+for colonizing unowned worlds. Starbases improve both defense and development.
+Armies decide who owns a planet. Ground batteries punish fleets that come too
+close.
 
 ## Strategy Hints for Beginning the Game
 
-- Print out a starmap. Capturing and printing the galaxy map makes it much
-  easier to plan your own actions and track other players.
-- Order `ETAC` ships to colonize nearby planets. More planets means more
-  production and more fleets.
-- Set the empire tax rate carefully. The quick-start guide warns against
-  raising taxes much above `65%`, because production may suffer.
-- Build planetary defenses. Ground batteries, combat ships, and armies all
-  matter.
-- Build combat fleets. You will need them to conquer opponents or defeat their
-  fleets.
-- Build starbases. They enhance production, defense, and planetary growth.
-- Obtain empire summaries from the General Command Menu, capture them, and plan
-  your turns off-line.
-- Attack enemy planets when ready. The guide highlights three ways to assault a
-  world:
-  1. `BLITZ`: troop transports drop armies directly onto the planet.
-  2. `INVADE`: combat ships soften the planet first, then troop transports land
-     armies.
-  3. `BOMBARD`: combat ships hammer the planet to make it less useful.
+Open by securing information and territory. Capture or export a starmap early,
+send `ETAC` fleets toward nearby unowned worlds, and do not chase short-term
+tax revenue so hard that you stunt growth. Once neighbors start locating your
+worlds, invest in defenses, then in combat fleets, then in starbases on the
+planets that must survive.
+
+When you begin attacking, choose the assault mode deliberately. `BLITZ` lands
+armies fast and does less planetary damage, but it exposes those armies to more
+risk. `INVADE` is slower and rougher on the target, but it gives you a better
+chance to break through a defended world. `BOMBARD` is the denial option: use
+it when damaging the planet matters more than taking it intact.
 
 ## Reference Charts
 

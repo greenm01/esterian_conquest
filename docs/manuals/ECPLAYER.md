@@ -4,15 +4,15 @@ _v1.6 player reference based on
 [`original/v1.5/ECPLAYER.DOC`](/home/niltempus/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC)._
 
 The original `.DOC` file remains the preserved source artifact. This
-transcription is provided for easier reading, quoting, and linking.
+edition is being rewritten into a cleaner v1.6 reference while preserving the
+same underlying rules.
 
 ## How To Use This In v1.6
 
-- treat this as the main gameplay and command reference
-- if the Rust client presents a workflow differently, prefer the underlying
-  game rule described here unless a Rust-specific doc says otherwise
-- for the original source document, see
-  [ECPLAYER.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC)
+Treat this as the main gameplay and command reference. If the Rust client
+presents a workflow differently, prefer the underlying rule described here
+unless a Rust-specific doc says otherwise. For the untouched source, read
+[ECPLAYER.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC).
 
 Version 1.5.
 
@@ -24,15 +24,12 @@ Published by Griffith International, P.O. Box 530703, Birmingham, AL 35253.
 
 ## Program Features
 
-Welcome to Galactic Battle in the fast lane.  Command the forces of a planetary empire, plan your campaign, colonize new worlds and defeat your enemies.  Your goal is simple: Conquer and rule the universe.  We think you'll agree that the combination of sophistication and ease of use makes ESTERIAN CONQUEST unique among on-line games:
-
-**Multi-Player Capabilities:** Up to 25 players can enter their moves simultaneously.  Call as often as you like and alter your moves if you change your mind.
-
-**Realistic Action:** Sophisticated simulations of battle, planetary growth, and espionage make you feel like you are really there.  Command 7 types of ships.  Order your fleets on 15 possible missions.  Take total control of your planets: direct their production, set tax levels, and build defenses.
-
-ADVANCED, YET EASY TO USE: Enter commands through well-structured menus.  Optional ANSI graphics are available for all menus and charts.  Issue multiple commands on one line -- the program will remember and process them.  Use expert mode for speed.  Get on-line help for any menu.
-
-**Extras That Go The Full Nine Yards:** Send messages to other players with the built-in text editor.  Access the information database about any planet you've encountered. Use autopilot mode to care for your empire while you are away.  See the results of your missions in word-wrapped, realistic messages.
+Esterian Conquest is a simultaneous-turn empire game. You manage planets,
+direct fleets, gather intelligence, negotiate with rivals, and try to become
+Emperor before another claimant does. The game supports up to `25` players,
+offers menu-driven order entry with expert shortcuts, and gives you messaging,
+intelligence, and autopilot tools on top of the core military and economic
+systems.
 
 ## Table of Contents
 
@@ -52,102 +49,102 @@ ADVANCED, YET EASY TO USE: Enter commands through well-structured menus.  Option
 
 ## Introduction
 
-Esterian Conquest has become the most popular door game on almost every BBS on which it is available.  To our knowledge, it is the most sophisticated on-line game for multiple players and yet remains easy to play.  This manual covers the basics of playing Esterian Conquest and has reference sections for those who wish more in-depth material.  The rules for play are learned quickly, but you must discover the best strategies for winning on your own.
+Read this manual as both an overview and a reference. The rules are not hard to
+learn, but winning consistently requires planning, patience, and a feel for
+timing.
 
 **Note:** For those wishing only quick-start information, read the
-[ECQSTART guide](/home/mag/dev/esterian_conquest/docs/manuals/ECQSTART.md).
+[ECQSTART guide](/home/niltempus/dev/esterian_conquest/docs/manuals/ECQSTART.md).
 
 ## Background
 
-The year is 3000.  The powerful Esterians ruled the galaxy for five centuries but then disappeared suddenly and mysteriously.  Their unexpected absence led to the collapse of interplanetary government.  Over the last hundred years, the great Esterian empire decayed into a collection of one-planet "mudpie" kingdoms.
-
-Recently, the mood in the galaxy has shifted: The people desire the greatness they once had.  They seek a leader who can bring them from civil disorder to power.  But no one can agree on whom this leader should be.
-
-The planetary kingdoms held a galactic conference where each brought their own candidate for emperor.  The conference failed completely and ended with declarations of war.  Only the one who can tame the galaxy could become emperor.
-
-In this game, you are the leader of a planetary kingdom. Your people are ready to follow you to victory (through your great charisma or your iron fist).  The odds are against you (there are up to 25 competitors for galactic rule), but if you survive, and plan your strategies well, you may indeed attain the emperor's crown and achieve the Esterian Conquest.
+The year is `3000`. The Esterians vanished after centuries of rule, and their
+old empire splintered into rival one-planet kingdoms. Each kingdom wants the
+imperial crown. You command one of them.
 
 ## The Game
 
 ### Number Of Players
 
-The game can be played with 4, 9, 16, or 25 players.
+The game supports `4`, `9`, `16`, or `25` players.
 
 ### Object Of The Game
 
-Become ruler of the new Empire by one of two methods:
-
-1. Have all the other players surrender & acknowledge you as Emperor.
-
-2. Fight to the "bitter end" by wiping out all other serious contenders and forcing the remaining empires to surrender.
+Become Emperor by forcing surrender or by eliminating every serious rival.
 
 ### How To Achieve Your Goal
 
-Own enough planets through conquest or colonization to be recognized as emperor.  Defeat opposing space fleets and conquer their planets.
+Expand through colonization and conquest. Break enemy fleets. Take or protect
+the planets that support your war effort.
 
 ### The Playing Field (Galaxy)
 
-The galaxy is a square grid whose size depends on the number of players (4-player game grids are 18 x 18, 9-player grids are 27 x 27, 16-player grids are 36 x 36 and 25-player grids are 45 x 45).  Each box (or SECTOR) is 1 square light year and is either empty or contains a solar system.  The computer randomly generates the positions of the solar systems at the start of each game.  Every solar system has one planet which can be colonized.  The total number of solar systems is 5 times the number of players.
+The galaxy is a square sector grid. Grid size depends on player count:
+`18 x 18` for `4` players, `27 x 27` for `9`, `36 x 36` for `16`, and
+`45 x 45` for `25`. Each sector is either empty or contains one solar system
+with one colonizable planet. Total solar systems = `5 x player count`.
 
-The planets provide the raw materials used to build your fleets and armies.  Each planet has a different amount of available resources for production (measured in PRODUCTION POINTS that can be generated in a year).  The planets range in potential production from 10 to 150 points.
+Planets are your economic base. Their potential production ranges from `10` to
+`150`.
 
 ## The Play
 
 ### Starting The Game
 
-You begin with 1 planet having a current production level of 100 points per year.  You start with four fleets: two having a colonizing ship (ETAC) and a cruiser and two containing one destroyer.
+You begin with one planet at current production `100` and four fleets. Two
+fleets carry an `ETAC` and a cruiser. Two are single-destroyer fleets.
 
-Set a tax rate (up to 65% is recommended) to generate production points.  Spend these points to build ships, armies, ground forces, and starbases.  As you colonize new planets, you will want to lower your tax rate to help the new planets develop their current production up towards their maximum production levels.
+Set taxes, build units, and expand. On younger colonies, reduce tax pressure if
+you want faster growth.
 
 ### Game Time - The Round
 
-Each round equals one year of game time.  The players enter their orders for the year.  The game stores these orders and processes them simultaneously during its maintenance period at the end of the round.  Rounds may occur as often as once a day.  The Sysop determines the time of day and schedule of maintenance.
-
-You can enter and change your moves up until the end of the round.  There is no advantage to entering moves earlier or later so long as they get entered before the round maintenance occurs.
-
-During maintenance, the game carefully plots all fleets' movements and battles.  In battles, it plays the movement of each army or ship in a fleet individually.  It tallies the results and displays them as messages for the players on the following round.
+Each round equals one year. Enter or revise orders during that year. At
+maintenance time, the game resolves every empire's orders together. There is no
+advantage to entering moves early as long as they are in before maintenance.
 
 ### What You Can Do In A Round
 
-1. Manage your planets: order what the planet will build, commission fleets, set production levels for the year.
-
-2. Order your fleets: colonize raw (uninhabited) planets, merge or detach ships from your fleets, fight enemy fleets, spy on opponents, or conquer inhabited planets.
-
-3. Communicate with other players: Negotiate alliances or non-aggression pacts with other players to get help or gang up on other contenders.  Diplomacy (some call it lying) can win you enough time to recall a fleet to protect a vulnerable world or put opponents off-guard when you attack.
-
-4. Access the Information Database (the "I" command from most menus) to recall what you have learned about any planet your fleets have encountered.  You can also view a starmap (the "V" command from most menus) that shows planet ownership and maximum production of any planets you have seen.
-
-5. Turn on AUTOPILOT from the GENERAL MENU and the computer makes moves for you.  All fleets or planets with orders will continue until they are fulfilled. Those without standing orders take defensive positions.
+In a normal round you manage planets, assign fleet missions, check the database,
+handle diplomacy, and decide whether autopilot should cover any neglected
+assets.
 
 ### Winning
 
-You win by getting the other players to recognize you as Emperor through your masterful diplomacy (or your foot on their throats).
+You win when the other empires accept your rule, whether that comes through
+alliances, intimidation, or overwhelming force.
 
 ### Losing
 
-You lose if all your armies, fleets, and planets are conquered.  If you lose all your planets your fleets will start to defect unless you can recapture another planet.
+You lose when your planets, fleets, and armies are all gone. If you lose every
+planet but still have fleets, you are not dead yet, but time is against you:
+those fleets can begin to defect if you fail to recover a world.
 
 ### Marginal Existence
 
-Owning planets is the key to building your empire.  If you lose all your planets but you own fleets capable of capturing new planets, you can rebuild your empire.
-
-Similarly, if your armies and fleets are destroyed, but you own planets, you can build more armies and fleets. However, you are very vulnerable to attack.  This is why building planetary defenses is important.
+Planets are the foundation of everything. Lose them and recovery becomes a race.
+Keep them and you can rebuild almost any military setback. That is why
+planetary defense matters so much.
 
 ## Basic Features
 
 ### The Forces At Your Command
 
-You control five major types of objects: Planets, Ships, Starbases, Armies, and Ground Batteries.
+You control five major force types: planets, ships, starbases, armies, and
+ground batteries.
 
-PLANETS provide the resources for building ships, starbases ground batteries and armies.  MAXIMUM PRODUCTION is the maximum number of production points that your planet could generate per turn if your factories were at full efficiency and they were taxed at 100%.
+Planets generate the production that pays for fleets, defenses, and expansion.
+Two values matter constantly. `Maximum Production` is the ceiling a planet can
+reach at full efficiency. `Current Production` is what the planet can deliver
+right now before taxes are applied.
 
-CURRENT PRODUCTION is the number of production points that your factories can generate at their present efficiency level if taxed at 100%.
+Taxes convert that current production into spendable build points. If a planet
+has current production `50` and your empire tax rate is `60%`, it contributes
+`30` build points next round.
 
-You impose taxes on your empire to generate production points for military building (ships, bases, troops, etc.).
-
-For example, setting your planet-wide tax rate to 60% would generate 30 points for building next round on a planet with a current production level of 50 points (60% of 50 points).
-
-SHIPS are organized into fleets and serve a variety of functions.  A fleet can be as small as one ship and as large as 3,000 ships of mixed types.  A fleet moves as fast as its SLOWEST member.  For example, A Fleet of 10 destroyers (speed of 6) and 1 ETAC (speed of 3) has a maximum speed of 3.
+Ships operate in fleets. A fleet can be tiny or enormous, but it always moves
+at the speed of its slowest member. Mix a fast destroyer group with one slow
+`ETAC` and the whole fleet slows down to the `ETAC`'s speed.
 
 There are 6 types of starships -- 3 combat types and 3 specialized types.  Smaller ships are faster as a rule. Below is a list of the different ship types, their size (S,M,L), maximum speed (sectors/round), cost to build (in production points), and suggested uses.
 
