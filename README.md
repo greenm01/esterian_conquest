@@ -115,6 +115,46 @@ In plain terms: this project is aiming at a complete Rust engine/client
 replacement for Esterian Conquest, while preserving the original campaign
 feel, data layout, and BBS-era workflow where those still matter.
 
+## Unlocked Binaries
+
+The original EC executables (`ECGAME.EXE`, `ECMAINT.EXE`, `ECUTIL.EXE`) are
+wrapped in an encrypted LZEXE 0.91 stub. Despite the label, the wrapper is
+actually a PRNG-based stream cipher — the body is encrypted, not compressed.
+The stub also includes anti-disassembly tricks, nested XOR decryption layers,
+an IVT-dependent anti-emulation sled, and an `"EAT SHIT AND DIE"` anti-tamper
+hash check.
+
+[`EC_UNLOCKED/`](EC_UNLOCKED/) contains decrypted copies of all three
+executables with the encryption stripped. These are plain MZ DOS executables
+that load and run directly without any stub processing. When run under their
+original filenames, they produce **byte-identical output** to the original
+packed binaries.
+
+The unlocked binaries:
+
+- run in DOSBox-X (tested, 100% oracle match)
+- run in dosemu2 (tested, correct game output)
+- import cleanly into Ghidra for static analysis
+- eliminate the need to deal with the encrypted LZEXE stub for any workflow
+
+See [`EC_UNLOCKED/README.md`](EC_UNLOCKED/README.md) for technical details on
+how the encryption was recovered and reversed.
+
+### dosemu2 Compatibility
+
+The original packed binaries crash in dosemu2 because the encrypted
+self-modifying stub is incompatible with VM86 mode on modern CPUs. We
+contributed three general-purpose VM86 fixes to dosemu2
+([PR #2804](https://github.com/dosemu2/dosemu2/pull/2804)) that improve
+real-mode compatibility for LZEXE, PKLITE, and other DOS executable packers:
+
+1. 16-bit IP wraparound (EIP masking on #GP)
+2. 16-bit SP wraparound (PUSH emulation when SP < 2)
+3. Undocumented `8F /1-7` POP emulation
+
+The unlocked binaries sidestep the stub entirely and run correctly in dosemu2
+without these fixes.
+
 ## How EC Was Recovered
 
 The Rust version was not built from guesswork. The current engine and docs came
@@ -290,8 +330,9 @@ For normal Rust development in this repo, the practical baseline is:
 - Python 3 for oracle/support scripts under `tools/`
 - `python-pexpect` if you want to use the DOSBox-X debugger helpers under
   `tools/`
-- DOSBox-X only if you want to launch the original DOS binaries locally or do
-  dynamic oracle/RE work
+- DOSBox-X or dosemu2 if you want to launch the original DOS binaries locally
+  or do dynamic oracle/RE work (the unlocked binaries in `EC_UNLOCKED/` work
+  in both; the original packed binaries require DOSBox-X)
 - Ghidra plus JDK 21 only if you want to use the headless static-RE workflow
 
 Recommended local build-speed tooling:
@@ -526,6 +567,7 @@ Useful supporting docs:
 
 - `original/`: original EC 1.5 materials used as primary sources and oracle
   artifacts
+- `EC_UNLOCKED/`: decrypted, runnable copies of the original DOS executables
 - `docs/`: stable engineering, RE, and design docs
 - `docs/dev/archive/RE_NOTES.md`: chronological reverse-engineering notebook (archival)
 - `rust/ec-data`: canonical Rust state/model/engine crate
