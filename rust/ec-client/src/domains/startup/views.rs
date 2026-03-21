@@ -11,6 +11,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         game_dir: &app.game_dir,
         game_data: &app.game_data,
         player: &app.player,
+        campaign_seed: app.campaign_seed,
         planet_intel_snapshots: &app.planet_intel_snapshots,
     };
     match app.current_screen {
@@ -99,7 +100,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         }
         ScreenId::MainMenu => app
             .main_menu
-            .render_with_notice(app.command_menu_notice.as_deref()),
+            .render_with_notice(app.command_menu_notice.as_deref(), Some(app.campaign_seed)),
         ScreenId::MainHelp => app.main_help.render(&frame),
         ScreenId::GeneralMenu => app
             .general_menu

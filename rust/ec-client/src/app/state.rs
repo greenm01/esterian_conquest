@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use ec_data::{
-    rebuild_results_bytes, CampaignStore, CoreGameData, PlanetIntelSnapshot, QueuedPlayerMail,
-    ReportBlockRow,
+    CampaignStore, CoreGameData, PlanetIntelSnapshot, QueuedPlayerMail, ReportBlockRow,
+    rebuild_results_bytes,
 };
 
 use crate::app::action::Action;
@@ -15,20 +15,20 @@ use crate::domains::starbase::{StarbaseAction, StarbaseState};
 use crate::domains::starmap::StarmapState;
 use crate::domains::startup::{StartupAction, StartupState};
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
-use crate::reports::{has_visible_runtime_messages, ReportsPreview};
+use crate::reports::{ReportsPreview, has_visible_runtime_messages};
 use crate::screen::{
     BuildHelpScreen, CommandMenu, DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen,
-    EnemiesScreen, FirstTimeEmpiresScreen, FirstTimeHelpScreen, FirstTimeIntroScreen,
-    FirstTimeMenuScreen, FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen,
-    FleetGroupScreen, FleetHelpScreen, FleetListMode, FleetListScreen, FleetMenuScreen,
-    FleetMergeMode, FleetMergeScreen, FleetMissionPickerScreen, FleetReviewScreen, FleetRoeScreen,
-    FleetSingleOrderScreen, FleetTransferMode, FleetTransferScreen, GeneralHelpScreen,
-    GeneralMenuScreen, MainHelpScreen, MainMenuScreen, MessageComposeScreen, PartialStarmapScreen,
-    PlanetAutoCommissionScreen, PlanetBuildScreen, PlanetCommissionScreen, PlanetDatabaseScreen,
-    PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen, PlanetMenuScreen,
-    PlanetTaxScreen, PlanetTransportScreen, RankingsScreen, ReportsScreen, Screen, ScreenId,
-    StarbaseHelpScreen, StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen,
-    StarmapScreen, StartupScreen, FIRST_TIME_INTRO_PAGE_COUNT, STARTUP_SPLASH_PAGE_COUNT,
+    EnemiesScreen, FIRST_TIME_INTRO_PAGE_COUNT, FirstTimeEmpiresScreen, FirstTimeHelpScreen,
+    FirstTimeIntroScreen, FirstTimeMenuScreen, FleetDetachMode, FleetDetachScreen, FleetEtaMode,
+    FleetEtaScreen, FleetGroupScreen, FleetHelpScreen, FleetListMode, FleetListScreen,
+    FleetMenuScreen, FleetMergeMode, FleetMergeScreen, FleetMissionPickerScreen, FleetReviewScreen,
+    FleetRoeScreen, FleetSingleOrderScreen, FleetTransferMode, FleetTransferScreen,
+    GeneralHelpScreen, GeneralMenuScreen, MainHelpScreen, MainMenuScreen, MessageComposeScreen,
+    PartialStarmapScreen, PlanetAutoCommissionScreen, PlanetBuildScreen, PlanetCommissionScreen,
+    PlanetDatabaseScreen, PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen,
+    PlanetMenuScreen, PlanetTaxScreen, PlanetTransportScreen, RankingsScreen, ReportsScreen,
+    STARTUP_SPLASH_PAGE_COUNT, Screen, ScreenId, StarbaseHelpScreen, StarbaseListScreen,
+    StarbaseMenuScreen, StarbaseReviewScreen, StarmapScreen, StartupScreen,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -107,6 +107,7 @@ pub struct App {
     pub queue_dir: Option<PathBuf>,
     pub autopilot: bool,
     pub snapshot_id: i64,
+    pub campaign_seed: u64,
     pub report_block_rows: Vec<ReportBlockRow>,
     pub results_bytes: Vec<u8>,
     pub messages_bytes: Vec<u8>,
@@ -127,6 +128,7 @@ impl App {
             .load_latest_runtime_state()?
             .ok_or("campaign store has no snapshots; import with ec-cli db-import first")?;
         let snapshot_id = runtime_state.snapshot_id;
+        let campaign_seed = runtime_state.campaign_seed;
         let report_block_rows = runtime_state.report_block_rows;
         let results_bytes = runtime_state.results_bytes;
         let messages_bytes = runtime_state.messages_bytes;
@@ -231,6 +233,7 @@ impl App {
             queue_dir: config.queue_dir,
             autopilot: false,
             snapshot_id,
+            campaign_seed,
             report_block_rows,
             results_bytes,
             messages_bytes,

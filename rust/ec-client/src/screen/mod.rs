@@ -290,6 +290,7 @@ pub struct ScreenFrame<'a> {
     pub game_dir: &'a Path,
     pub game_data: &'a CoreGameData,
     pub player: &'a PlayerContext,
+    pub campaign_seed: u64,
     pub planet_intel_snapshots: &'a BTreeMap<usize, PlanetIntelSnapshot>,
 }
 

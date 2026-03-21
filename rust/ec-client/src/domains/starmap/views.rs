@@ -6,6 +6,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         game_dir: &app.game_dir,
         game_data: &app.game_data,
         player: &app.player,
+        campaign_seed: app.campaign_seed,
         planet_intel_snapshots: &app.planet_intel_snapshots,
     };
     match app.current_screen {

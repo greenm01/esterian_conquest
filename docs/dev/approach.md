@@ -168,10 +168,10 @@ For the Rust `ECGAME` clone, preserve the original pre-menu player flow too:
 - smart pathfinding should be documented as a Rust policy layer, not implied to
   be a recovered original mechanic
 
-11. Keep deterministic Rust combat inside the oracle's timing framework
+11. Keep seeded Rust combat inside the oracle's timing framework
 
 - the project does not need to reproduce the original opaque combat RNG
-- deterministic Rust combat remains the canonical replacement
+- seeded, reproducible Rust combat remains the canonical replacement
 - however, combat outcomes still need to be folded into the oracle-backed
   maintenance structure:
   - canonical middle turn order
@@ -185,7 +185,7 @@ For the Rust `ECGAME` clone, preserve the original pre-menu player flow too:
     consequences land on the weekly timeline, and how those consequences are
     routed into reports and derived files
 - Rust should therefore converge on:
-  1. deterministic combat resolution
+  1. seeded, reproducible combat resolution
   2. oracle-faithful phase placement
   3. oracle-faithful weekly event/report scheduling
 
@@ -397,8 +397,8 @@ Current recommended execution order:
 This set will improve Rust fidelity more than continuing to collect isolated
 mission edge cases in random order.
 - preserve compatibility with original save directories and reports
-- deterministic combat is now implemented as a canonical Rust replacement for
-  the original RNG-driven combat paths
+- seeded CRT combat is now implemented as a canonical Rust replacement for the
+  original RNG-driven combat paths
 - combat acceptance is therefore structural and rule-based, not byte-exact to
   any one oracle run
 
@@ -434,14 +434,15 @@ mission edge cases in random order.
   goal and should be folded into the Rust clone once the local `ECGAME`
   harness is reliable enough
 
-13. Own the mechanics; do not reproduce the original RNG
+13. Own the mechanics; do not reproduce the original RNG stream
 
 - `ECMAINT` uses an internal RNG for combat resolution (fleet battles,
   bombardment ship losses) and rogue/autopilot AI decisions
 - the original RNG output is not reproducible without full emulation of its
   internal state; attempting to match it byte-for-byte is intractable and
   would produce a brittle clone, not a faithful reimplementation
-- instead, implement **our own deterministic versions** of every mechanic:
+- instead, implement **our own seeded and reproducible versions** of every
+  mechanic:
   - use the original binary and preserved fixtures to understand the
     *structure* of changes (what fields change, in what range, under what
     conditions)
@@ -451,6 +452,10 @@ mission edge cases in random order.
     and tunable independently of the original binary
 - the acceptance criterion for these mechanics is internal consistency and
   gameplay plausibility, not byte-exact fixture match
+- the shared campaign seed belongs to the engine/runtime
+- the Rust client may derive cosmetic-only presentation choices from that
+  persisted campaign seed, but those choices must not feed back into gameplay
+  state or engine RNG ordering
 - byte-exact fixture match remains the acceptance criterion only for fully
   deterministic mechanics (movement, year advancement, build queues, economy
   totals, cross-file linking)

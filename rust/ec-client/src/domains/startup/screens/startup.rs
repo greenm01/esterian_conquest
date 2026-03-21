@@ -9,6 +9,8 @@ fn is_star_decoration(ch: char) -> bool {
     matches!(ch, '.' | '*' | 'o')
 }
 
+const SPLASH_RNG_TAG: u64 = 0xEC15_5350_4C41_5348;
+
 /// Split a text line into styled spans, highlighting specific phrases.
 fn highlighted_spans<'a>(
     line: &'a str,
@@ -127,7 +129,7 @@ impl StartupScreen {
         game_year: u16,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         match phase {
-            StartupPhase::Splash => render_splash(splash_page),
+            StartupPhase::Splash => render_splash(splash_page, Some(frame.campaign_seed)),
             StartupPhase::Intro => render_game_intro_page(intro_page, "(Slap a key)"),
             StartupPhase::LoginSummary => self.render_login_summary(frame),
             StartupPhase::Results => self.render_review(
@@ -393,7 +395,10 @@ pub fn render_game_intro_page(
     Ok(buffer)
 }
 
-fn render_splash(splash_page: usize) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
+fn render_splash(
+    splash_page: usize,
+    campaign_seed: Option<u64>,
+) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
     let mut buffer = new_playfield();
 
     if splash_page == 0 {
@@ -404,7 +409,9 @@ fn render_splash(splash_page: usize) -> Result<PlayfieldBuffer, Box<dyn std::err
         let start_row = (19usize.saturating_sub(block_height)) / 2;
 
         // Render logo with randomized star-decoration colors.
-        let mut rng = Lcg::from_time();
+        let mut rng = campaign_seed
+            .map(|seed| Lcg::from_campaign_seed(seed, SPLASH_RNG_TAG))
+            .unwrap_or_else(Lcg::from_time);
         for (row, line) in INTRO_LOGO.iter().enumerate() {
             let y = row + start_row;
             for (col, ch) in line.chars().enumerate() {

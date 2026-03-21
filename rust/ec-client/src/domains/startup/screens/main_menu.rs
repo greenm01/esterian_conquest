@@ -17,6 +17,7 @@ use crate::util::Lcg;
 /// Rows available for the quote display (between menu row 4 and prompt row 19).
 const QUOTE_FIRST_ROW: usize = 5;
 const QUOTE_LAST_ROW: usize = 18;
+const QUOTE_RNG_TAG: u64 = 0xEC15_434C_4951_5445;
 
 /// Compute how many rows a quote block occupies: wrapped text + blank + author.
 fn quote_block_height(text_lines: usize) -> usize {
@@ -40,6 +41,7 @@ impl MainMenuScreen {
     pub fn render_with_notice(
         &mut self,
         notice: Option<&str>,
+        campaign_seed: Option<u64>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "MAIN MENU: ");
@@ -82,18 +84,20 @@ impl MainMenuScreen {
         if let Some(notice) = notice {
             draw_wrapped_status(&mut buffer, 7, 11, "Notice: ", notice);
         } else {
-            self.draw_quote(&mut buffer);
+            self.draw_quote(&mut buffer, campaign_seed);
         }
         draw_command_prompt(&mut buffer, 5, "MAIN COMMAND", "H,Q,X,V,A,G,P,F,T,I,B,D");
         Ok(buffer)
     }
 
-    fn draw_quote(&self, buffer: &mut PlayfieldBuffer) {
+    fn draw_quote(&self, buffer: &mut PlayfieldBuffer, campaign_seed: Option<u64>) {
         if self.quotes.is_empty() {
             return;
         }
 
-        let mut rng = Lcg::from_time();
+        let mut rng = campaign_seed
+            .map(|seed| Lcg::from_campaign_seed(seed, QUOTE_RNG_TAG))
+            .unwrap_or_else(Lcg::from_time);
         let index = rng.next_usize() % self.quotes.len();
         let quote = &self.quotes[index];
 
@@ -128,9 +132,9 @@ impl MainMenuScreen {
 impl Screen for MainMenuScreen {
     fn render(
         &mut self,
-        _frame: &ScreenFrame<'_>,
+        frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_with_notice(None)
+        self.render_with_notice(None, Some(frame.campaign_seed))
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {

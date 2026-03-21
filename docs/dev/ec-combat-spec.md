@@ -2,8 +2,8 @@
 
 This document defines the **canonical Rust combat model** for Esterian
 Conquest. It is not a claim that the original `ECMAINT.EXE` used these exact
-internal formulas. It is the project’s auditable, deterministic combat design
-for the mechanics that the original game resolved stochastically.
+internal formulas. It is the project’s auditable, seeded, reproducible combat
+design for the mechanics that the original game resolved stochastically.
 
 The intent is to preserve the **spirit** of the original player manuals while
 adopting a cleaner simultaneous-resolution structure inspired by
@@ -35,7 +35,7 @@ This is a design spec for implementation. It is the source of truth for:
 - retreat / ROE interaction
 
 It does **not** replace the original manuals as historical sources. It
-translates them into a deterministic Rust rule set suitable for reproducible
+translates them into a seeded Rust rule set suitable for reproducible
 maintenance runs.
 
 It also does **not** decide yearly phase placement. This document defines what
@@ -79,7 +79,7 @@ The canonical EC combat model shall:
 
 - feel like classic EC, not like a generic 4X skirmish engine
 - preserve manual-facing concepts: ROE, bombard, invade, blitz, starbase defense
-- be deterministic and reproducible from save-state bytes alone
+- be seeded and reproducible from campaign state
 - produce plausible mutual attrition rather than one-sided wipeouts
 - keep combat math explicit and inspectable
 - avoid requiring hidden RNG state or per-ship tactical simulation
@@ -107,18 +107,21 @@ in the fight. It does not inject randomness. It gates:
 ### 3. EC uses aggregate combat, not persistent ship damage states
 
 The original save files store ship **counts**, not per-hull damage state.
-Therefore this spec uses **virtual step damage** inside a battle only:
+Therefore this spec uses **combat-local nominal / crippled / destroyed state**
+inside a battle only:
 
-- each unit contributes one or more fresh steps derived from `DS`
-- hits must first exhaust the fresh step across eligible targets
-- only then do destroyed hulls appear
+- each surviving hull starts the battle nominal
+- normal combat reduces nominal ships to crippled before destroying crippled
+  ships
+- hits are allocated using `DS` costs, not flat one-hit step loss
 - only destroyed hull counts are written back to the save
 
-This preserves the EOTS-style “cripple before destroy” feel without inventing a
-new on-disk crippled-state system.
+This preserves the EOTS-style “reduce before eliminate” feel without inventing
+a new on-disk crippled-state system.
 
-`DS` is therefore not cosmetic. It defines how much temporary in-battle
-durability a unit contributes before actual on-disk losses occur.
+Surviving crippled ships revert to nominal after battle. `DS` is therefore not
+cosmetic. It defines how many hits are required to inflict each in-battle step
+of loss before a real on-disk destruction occurs.
 
 ### 4. Defenders win ties
 
@@ -335,133 +338,116 @@ Interpretation rules:
 - after each round, surviving fleets may disengage if their post-loss ratio no
   longer meets their ROE threshold
 
-## Combat Effectiveness Ratings
+## Seeded CRT Resolution
 
-To keep the EOTS flavor, both sides convert their raw attack strength into hits
-through a deterministic combat effectiveness rating (`CER`).
+Rust combat is stochastic but reproducible. Every exchange derives its die roll
+from the persisted `campaign_seed` plus battle context such as:
 
-### Space / orbital CER
+- game year
+- battle coordinates
+- combat kind
+- round number
+- acting empire
+- target empire
 
-Base `CER` is determined from the side’s current combat posture:
+The Rust engine does **not** attempt to replay the original Pascal RNG stream.
+It owns a canonical seeded stream instead.
 
-| Condition | CER |
-| --------- | --- |
-| badly overmatched (`AS ratio < 1:2`) | 0.50 |
-| under pressure (`1:2` to `< 1:1`) | 0.75 |
-| even fight (`1:1` to `< 3:2`) | 1.00 |
-| local advantage (`3:2` to `< 3:1`) | 1.25 |
-| overwhelming advantage (`>= 3:1`) | 1.50 |
+### Space / orbital CRT
 
-Then apply these deterministic modifiers:
+Each exchange rolls one `d10` and reads a multiplier from this EC CRT:
 
-- `+0.25` if the side fields at least two combat ship classes among `DD`, `CA`,
-  `BB`
-- `+0.25` for an undamaged defending starbase in orbital combat
-- `-0.25` if the side has no combat ships and is firing only with a starbase or
-  batteries
+| d10 | Disadvantaged | Pressed | Even | Advantaged | Overwhelming |
+| ---- | ---- | ---- | ---- | ---- | ---- |
+| 0 | 0.00 | 0.25 | 0.50 | 0.75 | 1.00 |
+| 1 | 0.25 | 0.50 | 0.75 | 1.00 | 1.25 |
+| 2 | 0.25 | 0.50 | 1.00 | 1.25 | 1.50 |
+| 3 | 0.50 | 0.75 | 1.00 | 1.25 | 1.50 |
+| 4 | 0.50 | 0.75 | 1.00 | 1.50 | 1.75 |
+| 5 | 0.50 | 1.00 | 1.25 | 1.50 | 1.75 |
+| 6 | 0.75 | 1.00 | 1.25 | 1.50 | 2.00 |
+| 7 | 0.75 | 1.00 | 1.50 | 1.75 | 2.00 |
+| 8 | 1.00 | 1.25 | 1.50 | 1.75 | 2.00 |
+| 9 | 1.00 | 1.50 | 1.75 | 2.00 | 2.50 |
 
-Clamp final space/orbital `CER` to `0.25 .. 1.50`.
+Base column by force ratio:
 
-For this purpose, an `undamaged` starbase is one that has lost no fresh steps
-in the current battle.
+- `< 0.5` => `Disadvantaged`
+- `0.5 .. < 1.0` => `Pressed`
+- `1.0 .. < 1.5` => `Even`
+- `1.5 .. < 3.0` => `Advantaged`
+- `>= 3.0` => `Overwhelming`
 
-### Ground CER
+Column shifts:
 
-Ground combat is bloodier and simpler:
+- `+1` for a mixed `DD/CA/BB` fleet
+- `+1` for a surviving defending starbase in orbital combat
+- withdrawal exchanges use the fixed `Pressed` column with no modifiers
+- final columns are clamped to the CRT bounds
 
-| Condition | CER |
-| --------- | --- |
-| badly overmatched (`AS ratio < 1:2`) | 0.50 |
-| under pressure (`1:2` to `< 1:1`) | 1.00 |
-| local advantage (`1:1` to `< 2:1`) | 1.50 |
-| overwhelming advantage (`>= 2:1`) | 2.00 |
+### Ground and planetary exchanges
 
-Ground modifiers:
-
-- `+0.50` defender bonus for a blitz defense
-- `+0.25` attacker bonus for invade after all batteries have been destroyed
-- `-0.25` attacker penalty if transports land while any batteries still survive
-  under a blitz
-
-Clamp final ground `CER` to `0.50 .. 2.00`.
-
-These modifiers stack with the ratio-based ground `CER` and are then clamped.
+Ground and assault-side exchanges use the same seeded `d10` CRT but with
+EC-specific attack pools and assault modifiers. The important invariant is the
+same: both sides resolve from the same pre-hit state, then losses are applied
+simultaneously.
 
 ## Hit Generation
 
-In every simultaneous step:
+In every simultaneous exchange:
 
-`hits = ceil(total_AS * CER)`
+`hits = ceil(total_AS * CRT_multiplier)`
 
-Where `total_AS` is the sum of all participating units in that step.
+Where `total_AS` is the sum of the participating attack strength for that
+exchange.
 
-Each side computes hits independently from the same pre-hit board state for that
-step. Losses are then applied simultaneously.
+Each side computes hits independently from the same pre-hit board state for
+that exchange. Losses are then applied simultaneously.
+
+### Critical hits
+
+An **unmodified** `9` on the `d10` is a critical hit.
+
+- the side still gets the normal CRT multiplier result for that `9`
+- the critical then allows one extra bypass loss allocation
+- if the normal result cannot cause any real destruction, the critical still
+  forces one real loss on the weakest eligible target
 
 ## Hit Allocation
 
-### Virtual two-step hull rule
+### Combat-local nominal / crippled rule
 
-Each eligible ship, starbase, battery, or army contributes:
+Fleet and orbital combat use combat-local `nominal -> crippled -> destroyed`
+state.
 
-- a number of fresh steps derived from `DS`
-- one destroyed step
+- all surviving ships enter battle nominal
+- normal hits reduce nominal ships before destroying crippled ships
+- surviving crippled ships revert to nominal when the battle ends
+- only destroyed hulls persist into campaign state
 
-Fresh-step count is:
+### DS-driven fleet allocation
 
-`fresh_steps = max(1, ceil(DS / 6))`
+To reduce or eliminate one ship, the attacker must allocate hits equal to that
+ship class's `DS`.
 
-With the current canonical table, this yields:
+Normal rule:
 
-- `DS 1-6` -> 1 fresh step
-- `DS 7-12` -> 2 fresh steps
+1. all nominal ships must be reduced before any crippled ships may be
+   destroyed
+2. target selection is driven by lowest `DS` first
+3. ties inside the same `DS` bucket break in this order:
+   `DD`, `SC`, `TT`, `ET`, `CA`, `BB`, `SB`
 
-That means destroyers, cruisers, scouts, transports, ETACs, batteries, and
-armies have 1 fresh step, while battleships and starbases have 2 fresh steps.
-This is the intended way the model expresses the manual claim that starbases
-and battleships withstand more punishment than lighter units.
+That tie order keeps destroyers screening same-DS auxiliaries while still
+letting `DS` drive the main allocation logic.
 
-Hits are allocated in two phases:
+Critical-hit bypass rule:
 
-1. **Screening phase**: hits remove fresh steps in priority order across all
-   classes. Destroyers absorb punishment first (their fresh steps are hit),
-   then cruisers, then battleships, starbases, and finally non-combat ships.
-   No hulls are destroyed during screening—this represents escorts absorbing
-   the initial shock of combat to protect heavier assets.
-
-2. **Kill phase**: once all fresh steps on all classes are exhausted,
-   remaining hits destroy hulls in priority order. This is where permanent
-   losses occur and on-disk ship counts are reduced.
-
-This two-phase model makes mixed fleets resilient: lighter ships' fresh steps
-buffer the whole task force, and heavier ships' multiple fresh steps (battleships
-have 2) delay hull destruction until all screening has been exhausted. It
-creates the Empire of the Sun-style dynamic where screening forces absorb
-shock and the battle line endures, making between-round ROE decisions meaningful.
-
-Any partially used fresh-step damage disappears when the battle ends. Only
-destroyed units persist.
-
-This is the deliberate abstraction that gives EC the “large fleets still take
-some damage” feel without introducing persistent crippled hull state.
-
-### Target priority: fleet combat
-
-Eligible targets are allocated in this order:
-
-1. destroyers
-2. cruisers
-3. battleships
-4. starbases
-5. scouts
-6. troop transports
-7. ETACs
-
-Rationale:
-
-- escorts screen heavier and softer assets
-- combat ships protect auxiliaries, matching the player manual
-- starbases stand in the main line once orbital combat begins
+- a critical may destroy one weakest eligible target directly even while full
+  strength ships remain
+- if crippled ships exist, the weakest crippled target is destroyed first
+- otherwise the weakest nominal target is destroyed to ensure the critical
+  leaves a real campaign-level loss
 
 Non-combat ships are still valid targets so long as they have `DS > 0`.
 
@@ -549,7 +535,8 @@ planet the way a full invade does.
 
 ## Fleet-Vs-Fleet Combat
 
-Fleet-vs-fleet combat resolves in up to three rounds.
+Fleet-vs-fleet combat resolves in repeated rounds until one side wins or the
+survivors withdraw under ROE.
 
 ### Step 1: Identify participants
 
@@ -563,13 +550,11 @@ Participants include:
 If multiple empires are present, each empire contributes one task force made
 from all participating fleets at that location.
 
-### Step 2: Pre-round disengagement
+### Step 2: Pre-round ROE check
 
-Fleets that do not meet ROE for voluntary engagement attempt to avoid battle.
-If the opposing side contains an intercepting guard/blockade fleet, the
-withdrawing fleet still suffers one **pursuit fire** exchange before escaping.
-In that exchange, the pursuer's `CER` is forced to `0.50`; the withdrawing side
-uses no special pursuit modifier.
+Fleets that do not meet ROE for voluntary engagement do **not** get a clean
+escape. They first suffer one simultaneous withdrawal exchange, then surviving
+withdrawing fleets retreat and abort their current mission.
 
 ### Step 3: Simultaneous fire
 
@@ -596,18 +581,17 @@ Combat ends when:
 
 - one side has no combat-capable force remaining
 - all remaining fleets on one side disengage
-- three rounds have been resolved as a hard safety cap
+- only one hostile task force remains willing and able to fight
+
+There is no intended gameplay round cap. The engine keeps only a high emergency
+guardrail to catch bugs or no-progress loops.
 
 Winner determination:
 
 - the side with remaining combat AS in the contested location wins
-- if both sides still remain after round three, the defender wins ties
-
-For multi-empire battles:
-
-- if exactly one hostile task force remains willing and able to fight, it wins
-- if multiple hostile task forces remain after round three, the local defender
-  or incumbent blockader wins the tie
+- if all surviving opponents have withdrawn, the side still holding the field
+  wins
+- standard defender/reaction tie rules still apply where a tie must be broken
 - if there is no incumbent defender or blockader, the surviving task force with
   the highest combat AS holds the system
 - if still tied, lowest empire number wins
@@ -930,8 +914,8 @@ Ground combat then resolves simultaneously:
 - defender AS = surviving planetary armies
 - ties favor the defender
 
-This landing battle uses the ground `CER` table, including any applicable
-ground modifiers.
+This landing battle uses the same seeded `d10` CRT framework, including any
+applicable ground modifiers.
 
 Ownership changes only if:
 
@@ -967,10 +951,10 @@ It deliberately sacrifices safety for speed.
 - troops killed in destroyed transports during descent are tracked separately
   from later surface-combat losses and should be reported as such
 - landed armies then fight defender armies in simultaneous ground combat
-- defender gets the blitz defense bonus in `CER`
+- defender gets the blitz defense bonus in the seeded CRT column logic
 - attacker is expected to bring overwhelming army numbers
 
-The landing battle uses the ground `CER` table, including the blitz defense
+The landing battle uses the seeded ground CRT, including the blitz defense
 modifier, after both the cover-fire step and the battery-fire-on-landing step
 have resolved.
 
@@ -1017,7 +1001,7 @@ joins the new owner only on the next maintenance tick if still present.
 
 ## Results and Reports
 
-The combat model shall support later generation of deterministic combat reports.
+The combat model shall support later generation of reproducible combat reports.
 At minimum, combat events should be capable of expressing:
 
 - participating fleets and defending world
@@ -1061,27 +1045,24 @@ Assume:
 - no starbase
 - no mixed-fleet bonus
 
-Round 1 ratio and `CER`:
+Round 1 ratio and column:
 
-- attacker ratio = `36:12 = 3:1` -> `CER 1.50`
-- defender ratio = `12:36 = 1:3` -> `CER 0.50`
+- attacker ratio = `36:12 = 3:1` -> `Overwhelming`
+- defender ratio = `12:36 = 1:3` -> `Disadvantaged`
+- assume attacker rolls `6` and defender rolls `3`
 
 Hits:
 
-- attacker hits = `ceil(36 * 1.50) = 54`
+- attacker hits = `ceil(36 * 2.00) = 72`
 - defender hits = `ceil(12 * 0.50) = 6`
-
-Durability:
-
-- each BB has `DS 10` -> `2 fresh steps`
-- each DD has `DS 1` -> `1 fresh step`
 
 Allocation sketch:
 
-- attacker first strips destroyer fresh steps, then uses remaining hits to
-  destroy destroyers
-- defender strips fresh steps from the battleship line, but does not
-  destroy all four battleships immediately
+- attacker reduces destroyers first because they are the weakest eligible `DS 1`
+  targets, then destroys crippled destroyers once all nominal defenders are
+  reduced
+- defender spends hits against battleship `DS 10`, so it cannot erase the
+  battle line cheaply
 
 The important intended outcome is structural:
 
@@ -1093,9 +1074,9 @@ The important intended outcome is structural:
 
 When implementing this spec in Rust:
 
-- keep class weights and `CER` tables explicit constants
+- keep class weights and CRT tables explicit constants
 - keep hit allocation pure and testable
-- store intermediate “virtual step” damage only inside battle resolution
+- store intermediate combat-local crippled state only inside battle resolution
 - update `docs/dev/archive/RE_NOTES.md` only when fixture/oracle evidence forces a spec revision
 - treat this document as the normative combat rulebook for Rust maintenance
 - do not use this document to infer yearly phase placement when the turn-cycle

@@ -112,7 +112,7 @@ Short version:
 - the manuals in `original/v1.5/*.DOC` are the gameplay guide
 - the original DOS binaries are the compatibility oracle
 - classic `.DAT` files remain the interchange boundary
-- Rust is allowed to be explicit and deterministic where the original
+- Rust is allowed to be explicit and reproducible where the original
   implementation was hidden, stochastic, or plainly buggy
 
 ## Where Rust Intentionally Differs
@@ -122,7 +122,10 @@ goal.
 
 Known intentional differences include:
 
-- deterministic Rust combat instead of the original hidden RNG
+- seeded Rust combat instead of the original hidden RNG
+- seeded engine randomness rooted in a persisted campaign seed
+- cosmetic Rust client decoration may also derive from that campaign seed,
+  but does not affect gameplay or turn outcomes
 - conservative explicit campaign-end handling
 - Rust-native report wording where exact original text is not required for
   compatibility
