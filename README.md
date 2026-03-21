@@ -8,18 +8,19 @@ full compliance.
 
 **[Read the Grand Vision: From BBS to the Decentralized Web](docs/grand-vision.md)**
 
-This project started as a file-format and reverse-engineering effort. It is now
-past that stage: the Rust side is being built as a full replacement stack for
-Phase 1 of the grand vision, the modern drop-in BBS door replacement:
+This is now best understood as the Rust `v1.6` continuation of Esterian
+Conquest. The reverse-engineering phase was the path to get here, but it is no
+longer the front face of the project.
+
+Phase 1 remains the same: a modern drop-in BBS door replacement with:
 
 - a canonical Rust game engine with SQLite-native runtime state
 - a Rust sysop/admin/oracle toolchain
 - a Rust player client intended to replace `ECGAME`
 
 The engine is already strong enough for serious campaign testing and hybrid
-play while remaining accepted by the current oracle/toolchain checks. Full
-Rust maint compliance is still being finished, and the client phase is
-actively underway.
+play. Remaining work is now mostly Rust maint polish, native-client/TUI
+completeness, and campaign-scale playtesting.
 
 ## Learn How To Play
 
@@ -45,9 +46,9 @@ player-facing guide for how the game is supposed to work.
 
 ## What You Can Do Today
 
-This is no longer just a preservation repo or an academic RE exercise.
-It is also not finished enough yet to call the Rust replacement fully playable
-end to end.
+This is no longer just a preservation repo or an academic RE exercise. It is
+also not finished enough yet to call the Rust replacement fully playable end to
+end.
 
 Today you can:
 
@@ -78,107 +79,21 @@ game into something unrecognizable, but to carry Esterian Conquest forward:
 preserve its campaign feel, menus, reports, and BBS-era drama while replacing
 the original DOS constraints with a modern Rust implementation.
 
-## What This Repo Is Doing
+## Compatibility And Provenance
 
-Three things at once:
+The compatibility story is still important, but it no longer belongs at the
+center of the README.
 
-- preserving the original DOS game, manuals, logs, and binaries
-- reverse engineering the rules and on-disk formats
-- building a modern Rust replacement without giving up classic `.DAT`
-  interoperability
+Short version:
 
-The key project rule is simple:
+- the manuals in `original/v1.5/*.DOC` are the gameplay guide
+- the original DOS binaries are the compatibility oracle
+- classic `.DAT` files remain the interchange boundary
+- Rust is allowed to be explicit and deterministic where the original
+  implementation was hidden, stochastic, or plainly buggy
 
-- the manuals are the gameplay spec
-- the original binaries are the compatibility oracle
-- the classic game directory is still the interchange boundary
-
-That does not mean "byte-identical to one historical run." It means the Rust
-side must remain loadable, sane, and acceptable to the original tools while
-allowing documented canonical Rust behavior where the original internals are
-hidden, stochastic, or not worth cloning literally.
-
-## Project Intent
-
-The long-term goal is not just "Rust tools around the old binaries."
-
-The intended end state is:
-
-- `ec-data` as the canonical Rust engine and state model
-- `ec-cli` as the sysop/admin/oracle surface
-- `ec-client` as a full Rust `ECGAME` replacement
-- classic `.DAT` interoperability kept as the compatibility boundary
-- the original manuals treated as the gameplay spec
-- the original binaries treated as the compatibility oracle
-
-In plain terms: this project is aiming at a complete Rust engine/client
-replacement for Esterian Conquest, while preserving the original campaign
-feel, data layout, and BBS-era workflow where those still matter.
-
-## Unlocked Binaries
-
-The original EC executables (`ECGAME.EXE`, `ECMAINT.EXE`, `ECUTIL.EXE`) are
-wrapped in an encrypted LZEXE 0.91 stub. Despite the label, the wrapper is
-actually a PRNG-based stream cipher — the body is encrypted, not compressed.
-The stub also includes anti-disassembly tricks, nested XOR decryption layers,
-an IVT-dependent anti-emulation sled, and an `"EAT SHIT AND DIE"` anti-tamper
-hash check.
-
-[`EC_UNLOCKED/`](EC_UNLOCKED/) contains decrypted copies of all three
-executables with the encryption stripped. These are plain MZ DOS executables
-that load and run directly without any stub processing. When run under their
-original filenames, they produce **byte-identical output** to the original
-packed binaries.
-
-The unlocked binaries:
-
-- run in DOSBox-X (tested, 100% oracle match)
-- run in dosemu2 (tested, correct game output)
-- import cleanly into Ghidra for static analysis
-- eliminate the need to deal with the encrypted LZEXE stub for any workflow
-
-See [`EC_UNLOCKED/README.md`](EC_UNLOCKED/README.md) for technical details on
-how the encryption was recovered and reversed.
-
-### dosemu2 Compatibility
-
-The original packed binaries crash in dosemu2 because the encrypted
-self-modifying stub is incompatible with VM86 mode on modern CPUs. We
-contributed three general-purpose VM86 fixes to dosemu2
-([PR #2804](https://github.com/dosemu2/dosemu2/pull/2804)) that improve
-real-mode compatibility for LZEXE, PKLITE, and other DOS executable packers:
-
-1. 16-bit IP wraparound (EIP masking on #GP)
-2. 16-bit SP wraparound (PUSH emulation when SP < 2)
-3. Undocumented `8F /1-7` POP emulation
-
-The unlocked binaries sidestep the stub entirely and run correctly in dosemu2
-without these fixes.
-
-## How EC Was Recovered
-
-The Rust version was not built from guesswork. The current engine and docs came
-from repeated cross-checking between the original manuals, the original DOS
-binaries, preserved fixtures, and Rust-generated controlled scenarios.
-
-| Tool / source | What it was used for | Why it mattered |
-| --- | --- | --- |
-| Original EC manuals in [`original/v1.5/*.DOC`](original/v1.5) | Treated as the canonical guide for player-facing rules, setup constraints, turn structure, and terminology | Kept the Rust clone grounded in intended game behavior instead of raw binary quirks alone |
-| Ghidra disassembly and headless scripts | Static recovery of file layouts, maintenance flow, scheduler logic, and helper call structure | Let us turn opaque Pascal-era code paths into stable Rust-facing specs |
-| DOSBox-X debugger, INT 21 tracing, and memory dumps | Dynamic tracing of `ECGAME` / `ECMAINT` behavior, file I/O order, token handling, and live state changes | Proved phase ordering, runtime state transitions, and report/output boundaries that static RE alone could not settle |
-| Controlled gamestate file diffs | Compared Rust-generated or hand-shaped directories against classic `.DAT` outputs before and after maintenance | Exposed real cross-file invariants and kept the Rust side honest at the compatibility boundary |
-| Extensive report and log analysis | Studied `RESULTS.DAT`, `MESSAGES.DAT`, shipped `ec*.txt` logs, and preserved output captures | Recovered player-visible timing, report cadence, `Stardate` behavior, and event sequencing |
-| Rust-generated scenarios and oracle sweeps | Created narrow test cases, ran the original binaries as oracle, and promoted repeated outcomes into shared rules | Turned reverse engineering into reusable implementation guidance instead of one-off notes |
-
-The project rule that fell out of that work is simple:
-
-- the manuals are the gameplay guide
-- the original binaries are the compatibility oracle
-- the Rust side is allowed to be explicit, deterministic, and testable where
-  the original implementation was hidden or stochastic
-- documented original logic bugs that do not protect classic file safety are
-  not compatibility targets; Rust records them, but does not intentionally
-  reproduce them
+For the detailed oracle/RE story, see
+[docs/reverse_engineering/README.md](docs/reverse_engineering/README.md).
 
 ## Current Status
 
@@ -571,6 +486,7 @@ Useful supporting docs:
 - [docs/economics.md](docs/dev/economics.md)
 - [docs/ec-combat-spec.md](docs/dev/ec-combat-spec.md)
 - [docs/ec-movement-spec.md](docs/dev/ec-movement-spec.md)
+- [docs/reverse_engineering/README.md](docs/reverse_engineering/README.md)
 - [docs/bbs_door_client_rust.md](docs/dev/bbs_door_client_rust.md)
 - [docs/sysop-map-exports.md](docs/sysop/sysop-map-exports.md)
 - [docs/dosbox-workflow.md](docs/dev/dosbox-workflow.md)
@@ -581,6 +497,7 @@ Useful supporting docs:
   artifacts
 - `EC_UNLOCKED/`: decrypted, runnable copies of the original DOS executables
 - `docs/`: stable engineering, RE, and design docs
+- `docs/reverse_engineering/`: oracle, provenance, and binary-recovery docs
 - `docs/dev/archive/RE_NOTES.md`: chronological reverse-engineering notebook (archival)
 - `rust/ec-data`: canonical Rust state/model/engine crate
 - `rust/ec-cli`: sysop/admin/oracle/inspection CLI
