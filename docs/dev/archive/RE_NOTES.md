@@ -10192,3 +10192,43 @@ Current practical interpretation:
   foreign-world `state 1 -> state 2` progression, or in the prerequisite that
   decides whether that promotion helper runs at all, than in stale
   `DATABASE.DAT` visibility or simple owner-slot identity
+
+One more bounded pass around the `0000:8a11` dispatcher tightened which mission
+kind actually owns this thread.
+
+- the small mission-kind dispatcher at `0000:8ada..8c20` does:
+  - `[0x3521] = 0x0b -> 5c18 -> 6817`
+  - `[0x3521] = 0x0a -> 6c9d -> 6dda`
+- `0000:6dda` is clearly **not** the foreign scout-abort family:
+  - its strings are the ETAC / colonization abort text
+  - examples in the same dump include:
+    - `Since we have lost all of our ETAC ships, we must abort our mission...`
+    - `colonizing the world in System ...`
+- `0000:6817` **is** the foreign scout family:
+  - it contains the `0x3562` per-world/per-viewer state machine
+  - it is the only currently observed `entry := 2` writer
+  - its embedded strings are the alien-world / long-range-analysis / scout
+    abort family, including text fragments like:
+    - `aliens are already living on the world found within`
+    - `performed a long range view analysis`
+    - `is owned by`
+    - `has a potential of`
+    - `We are aborting our mission and are leaving the alien solar system`
+- helper `0000:5c18` is therefore the most relevant setup predicate for the
+  regular-world scout-abort thread, not `0000:6c9d`
+- `0000:5c18` already matches that reading:
+  - after the shared tuple checks, it resolves the target world from
+    `0x3522/0x3523`
+  - if the current world owner differs from `[0x3504]`, it returns success
+    immediately
+  - the non-foreign subpath is the one that emits the simpler
+    `arrived at our destination and are awaiting new orders` text
+
+So the working mission-kind interpretation is now:
+
+- `0x0a` = colonization / ETAC family
+- `0x0b` = foreign-world scout / contact-analysis family
+
+That does not finish the scout-abort gate, but it narrows the remaining RE
+surface to the `0x0b` setup/finalizer pair (`5c18 -> 6817`) and the `0x3562`
+substates inside `6817`.
