@@ -15,24 +15,6 @@ documentation in [docs/sysop](../sysop/).
 If you want the untouched original text, read
 [ECREADME.DOC](../../original/v1.5/ECREADME.DOC).
 
-## Historical DOS Package Expectations
-
-The original package assumed a DOS host, a small hard drive, and a BBS setup
-capable of launching door programs and supplying one of the supported dropfile
-formats. It also assumed the bundled DOS binaries were the live game engine and
-maintenance path.
-
-Those assumptions are now legacy-only. In `v1.6`, the primary stack is:
-
-- `ec-cli` for campaign setup and admin work
-- `maint-rust` for turn processing
-- `ec-client` as the long-term replacement for `ECGAME`
-
-If you still want to host the original DOS client for compatibility reasons,
-use the modern guidance in
-[docs/sysop/enigma-bbs-setup.md](../sysop/enigma-bbs-setup.md)
-instead of following the original readme literally.
-
 ## Historical Package Contents
 
 The original readme treated these files as the main shipped operator bundle:
