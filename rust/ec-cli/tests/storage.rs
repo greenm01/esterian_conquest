@@ -513,3 +513,123 @@ fn db_export_emits_ecgame_accepted_foreign_view_only_row_shape() {
     cleanup_dir(&source);
     cleanup_dir(&exported);
 }
+
+#[test]
+fn db_import_export_preserves_foreign_full_intel_row_shape() {
+    let source = unique_temp_dir("ec-cli-db-import-foreign-full-intel-source");
+    let exported = unique_temp_dir("ec-cli-db-import-foreign-full-intel-exported");
+
+    let stdout = run_ec_cli(&[
+        "sysop",
+        "new-game",
+        source.to_str().unwrap(),
+        "--players",
+        "4",
+        "--seed",
+        "1515",
+    ]);
+    assert!(stdout.contains("Initialized new game"));
+
+    setup_classic_probe_players(&source);
+    setup_classic_probe_planets(&source);
+    setup_classic_probe_scout_order(&source);
+
+    let maint_stdout = run_ec_cli(&["maint-rust", source.to_str().unwrap(), "4"]);
+    assert!(maint_stdout.contains("Rust maintenance complete."));
+    let export_stdout = run_ec_cli(&[
+        "db-export",
+        source.to_str().unwrap(),
+        source.to_str().unwrap(),
+    ]);
+    assert!(export_stdout.contains("Exported year 3004"));
+
+    let source_data = ec_data::CoreGameData::load(&source).expect("source game should load");
+    let source_database_bytes =
+        fs::read(source.join("DATABASE.DAT")).expect("source DATABASE.DAT should exist");
+    let source_database =
+        DatabaseDat::parse(&source_database_bytes).expect("source DATABASE.DAT should parse");
+    let expected = source_database.record(4, 0, source_data.planets.records.len()).raw;
+
+    fs::remove_file(source.join("ecgame.db")).expect("source ecgame.db should remove cleanly");
+    let import_stdout = run_ec_cli(&["db-import", source.to_str().unwrap()]);
+    assert!(import_stdout.contains("Imported"));
+
+    let export_stdout = run_ec_cli(&[
+        "db-export",
+        source.to_str().unwrap(),
+        exported.to_str().unwrap(),
+    ]);
+    assert!(export_stdout.contains("Exported year 3004"));
+
+    let exported_data = ec_data::CoreGameData::load(&exported).expect("exported game should load");
+    let exported_database_bytes =
+        fs::read(exported.join("DATABASE.DAT")).expect("exported DATABASE.DAT should exist");
+    let exported_database =
+        DatabaseDat::parse(&exported_database_bytes).expect("exported DATABASE.DAT should parse");
+    let actual = exported_database.record(4, 0, exported_data.planets.records.len()).raw;
+
+    assert_eq!(actual, expected);
+
+    cleanup_dir(&source);
+    cleanup_dir(&exported);
+}
+
+#[test]
+fn db_import_export_preserves_foreign_view_only_row_shape() {
+    let source = unique_temp_dir("ec-cli-db-import-foreign-view-intel-source");
+    let exported = unique_temp_dir("ec-cli-db-import-foreign-view-intel-exported");
+
+    let stdout = run_ec_cli(&[
+        "sysop",
+        "new-game",
+        source.to_str().unwrap(),
+        "--players",
+        "4",
+        "--seed",
+        "1515",
+    ]);
+    assert!(stdout.contains("Initialized new game"));
+
+    setup_classic_probe_players(&source);
+    setup_classic_probe_planets(&source);
+    setup_classic_probe_view_order(&source);
+
+    let maint_stdout = run_ec_cli(&["maint-rust", source.to_str().unwrap(), "4"]);
+    assert!(maint_stdout.contains("Rust maintenance complete."));
+    let export_stdout = run_ec_cli(&[
+        "db-export",
+        source.to_str().unwrap(),
+        source.to_str().unwrap(),
+    ]);
+    assert!(export_stdout.contains("Exported year 3004"));
+
+    let source_data = ec_data::CoreGameData::load(&source).expect("source game should load");
+    let source_database_bytes =
+        fs::read(source.join("DATABASE.DAT")).expect("source DATABASE.DAT should exist");
+    let source_database =
+        DatabaseDat::parse(&source_database_bytes).expect("source DATABASE.DAT should parse");
+    let expected = source_database.record(4, 0, source_data.planets.records.len()).raw;
+
+    fs::remove_file(source.join("ecgame.db")).expect("source ecgame.db should remove cleanly");
+    let import_stdout = run_ec_cli(&["db-import", source.to_str().unwrap()]);
+    assert!(import_stdout.contains("Imported"));
+
+    let export_stdout = run_ec_cli(&[
+        "db-export",
+        source.to_str().unwrap(),
+        exported.to_str().unwrap(),
+    ]);
+    assert!(export_stdout.contains("Exported year 3004"));
+
+    let exported_data = ec_data::CoreGameData::load(&exported).expect("exported game should load");
+    let exported_database_bytes =
+        fs::read(exported.join("DATABASE.DAT")).expect("exported DATABASE.DAT should exist");
+    let exported_database =
+        DatabaseDat::parse(&exported_database_bytes).expect("exported DATABASE.DAT should parse");
+    let actual = exported_database.record(4, 0, exported_data.planets.records.len()).raw;
+
+    assert_eq!(actual, expected);
+
+    cleanup_dir(&source);
+    cleanup_dir(&exported);
+}
