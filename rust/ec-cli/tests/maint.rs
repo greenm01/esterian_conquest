@@ -1,7 +1,8 @@
 mod common;
 
 use common::{
-    cleanup_dir, copy_fixture_dir, repo_root, run_classic_ecgame_smoke, run_ec_cli_in_dir,
+    cleanup_dir, copy_fixture_dir, repo_root, run_classic_ecgame_smoke,
+    run_classic_ecgame_smoke_with_alias, run_ec_cli_in_dir,
     run_maint_rust_failure_after_import, run_maint_rust_with_export,
     set_mutual_enemy_in_player_dat, unique_temp_dir, write_mutual_enemy_diplomacy,
 };
@@ -2102,6 +2103,43 @@ fn maint_rust_preserves_loaded_homeworld_seed_orbit_family_for_all_players() {
             expected_year
         );
     }
+
+    cleanup_dir(&target);
+}
+
+#[test]
+#[ignore = "launches classic ECGAME through dosbox-x"]
+fn maint_rust_loaded_homeworld_seed_orbit_family_reopens_in_classic_ecgame_smoke() {
+    let target = unique_temp_dir("ec-cli-maint-rust-homeworld-seed-ecgame");
+    copy_fixture_dir("fixtures/ecutil-init/v1.5", &target);
+
+    let prepare_stdout = run_ec_cli_in_dir(
+        &[
+            "classic-login-prepare",
+            target.to_str().unwrap(),
+            "1",
+            "SYSOP",
+            "Auroran_Combine",
+        ],
+        common::rust_workspace(),
+    );
+    assert!(prepare_stdout.contains("Prepared classic login for player 1"));
+
+    let mut game_data = CoreGameData::load(&target).expect("prepared fixture should load");
+    game_data.planets.records[14].set_planet_name("ssddsf");
+    game_data.save(&target).expect("named fixture should save");
+
+    let database_bytes = fs::read(target.join("DATABASE.DAT")).expect("DATABASE.DAT should exist");
+    let mut database = DatabaseDat::parse(&database_bytes).expect("DATABASE.DAT should parse");
+    database
+        .record_mut(14, 0, game_data.planets.records.len())
+        .set_planet_name("ssddsf");
+    fs::write(target.join("DATABASE.DAT"), database.to_bytes()).expect("DATABASE.DAT should save");
+
+    let stdout = run_maint_rust_with_export(&target, 1);
+    assert!(stdout.contains("Rust maintenance complete."));
+
+    run_classic_ecgame_smoke_with_alias(&target, 1, "SYSOP");
 
     cleanup_dir(&target);
 }

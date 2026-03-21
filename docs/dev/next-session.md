@@ -412,6 +412,8 @@ remaining risks are:
    success/failure row families, and maintained homeworld-seed row family as
    locked compat cases. Regression coverage now also locks the full four-row
    loaded homeworld-seed/orbit family, not just the named player-1 row.
+   There is now also an ignored classic `ECGAME` smoke regression for that
+   loaded homeworld-seed/orbit directory shape.
 3. Treat the seen-year words (`raw[0x16..0x19]`) as the visible year source
    for current Total Planet Database list/detail displays. The scout-year word
    (`raw[0x27..0x28]`) remains unresolved but is not driving those screens.
@@ -424,6 +426,11 @@ remaining risks are:
 5. Treat owned-world `Docked:` as closed: it comes from planet state, not
    `DATABASE.DAT`. The remaining orbit-row work is now mainly about whether
    any non-owned/foreign-intel display path reuses the same `0x23` family.
+   The current blocker for automating that proof is tooling, not acceptance:
+   `tools/capture_ecgame_planet_database.py` still loses debugger prompt sync
+   under headless DOSBox-X and can spray `RUN` / `MEMDUMPBIN` into DEBUGBOX
+   without producing `screen_00`, even though the same maintained directory
+   survives the plain classic-client smoke timeout.
 6. Treat successful `ScoutSolarSystem` refreshes as rewriting stale
    visible scout-row payload, but not yet as a fully decoded semantic rebuild.
    The clean oracle proof is `/tmp/ecgame-scout-refresh-row34.QYjsVJ`, where a
