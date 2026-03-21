@@ -1,6 +1,6 @@
 # Sysop Documentation
 
-This section is for `v1.6` operators running the Rust game stack, staging
+This section is for EC operators running the Rust game stack, staging
 player-facing assets, and preparing campaign setups.
 
 Use these docs in roughly this order:
@@ -11,7 +11,7 @@ Use these docs in roughly this order:
   - player map export and queue/download staging for the Rust client
 - [enigma-bbs-setup.md](enigma-bbs-setup.md)
   - legacy DOS door setup under Enigma BBS; useful for compatibility hosting,
-    but not the main `v1.6` direction
+    but not the main EC direction
 
 Practical posture:
 

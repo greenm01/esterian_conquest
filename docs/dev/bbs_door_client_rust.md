@@ -47,8 +47,8 @@ adding door-file and telnet complexity too early.
 Current versioning direction:
 
 - preserve late-classic `v1.5` behavior and flow as the source baseline
-- present the Rust continuation line as `Esterian Conquest v1.6`
-- avoid framing the Rust client as `EC 2.0`
+- present the Rust continuation as Esterian Conquest (EC)
+- avoid framing the Rust client as `EC 2.0` or `v1.6`
 
 ## Architecture Boundary
 
@@ -147,7 +147,7 @@ ANSI policy:
 - local `ec-client` should assume ANSI/CP437 output and render in color by default
 - do not keep a plain-text local mode as a first-class UI target
 - if future door compatibility needs the historical `ANSI color ON/OFF` prompt,
-  keep that as an optional door-mode shim rather than the default `v1.6` flow
+  keep that as an optional door-mode shim rather than the default EC flow
 
 The client should treat the original UI as a fixed DOS playfield, not as a
 modern fluid terminal layout:

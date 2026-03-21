@@ -1,6 +1,9 @@
 # Esterian Conquest Manuals
 
-These are the `v1.6` reference manuals for players and operators.
+_Inspired by Esterian Conquest (c) 1992 Bentley C. Griffith.
+This is an independent reimplementation and is not affiliated with the original._
+
+These are the reference manuals for players and operators.
 
 They are based on readable Markdown transcriptions of the preserved Esterian
 Conquest `v1.5` manuals, with light framing so they work as the current
@@ -28,7 +31,7 @@ quoting.
 | [ec_player.md](ec_player.md) | [ECPLAYER.DOC](../../original/v1.5/ECPLAYER.DOC) | Full player manual |
 | [ec_readme.md](ec_readme.md) | [ECREADME.DOC](../../original/v1.5/ECREADME.DOC) | Legacy DOS deployment and release context |
 
-## v1.6 Use
+## Using EC Rust
 
 - treat these manuals as the current gameplay reference unless a Rust-specific
   doc explicitly overrides a workflow

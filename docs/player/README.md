@@ -1,6 +1,6 @@
 # Player Documentation
 
-This section is the player-facing entry point for `v1.6`.
+This section is the player-facing entry point for EC.
 
 Current recommended reading order:
 
@@ -10,6 +10,8 @@ Current recommended reading order:
   - the main player manual and mechanics reference
 - [ec_readme.md](../manuals/ec_readme.md)
   - setup notes, release notes, and bundled guidance
+- [turn-kdl.md](turn-kdl.md)
+  - Rust-native player turn submission format for bots, scripts, and playtests
 
 The current Rust client is still converging on full `ECGAME` coverage, so the
 classic manuals remain the authoritative gameplay guide for now.

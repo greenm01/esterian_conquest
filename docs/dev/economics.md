@@ -274,7 +274,7 @@ commission.
 ### When stardock is full
 
 If a ship or starbase build reaches completion and the planet's stardock has no
-open slot, `v1.6` does **not** consume or refund the order.
+open slot, EC does **not** consume or refund the order.
 
 Instead:
 
@@ -293,7 +293,7 @@ maintenance:
 - emitted no `ERRORS.TXT`
 - corrupted the target planet's stardock bytes
 
-So `v1.6` treats "completion into a full stardock" as an invalid classic state
+So EC treats "completion into a full stardock" as an invalid classic state
 and holds the build in queue rather than reproducing that corruption bug.
 
 ### Armies and ground batteries → direct to planet
@@ -330,7 +330,7 @@ Focused oracle probes showed:
 - if a planet already has `255` ground batteries, a completing battery build is
   still consumed, but the planet remains at `255`
 
-So for `v1.6`:
+So for EC:
 
 - planet armies should currently be treated as capped at `255`
 - planet batteries should currently be treated as capped at `255`

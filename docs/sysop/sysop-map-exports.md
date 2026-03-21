@@ -1,6 +1,6 @@
 # Sysop Map Export Setup
 
-This document covers the `v1.6` player map-delivery workflow.
+This document covers the EC player map-delivery workflow.
 
 The goal is to keep the classic printable starmap while making it practical for
 modern local play and BBS-hosted Rust deployments:

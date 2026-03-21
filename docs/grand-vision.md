@@ -2,7 +2,7 @@
 
 This document outlines the macro trajectory for the Esterian Conquest reimplementation. The project is split into two distinct evolutionary phases, bound together by a universal, faithful game engine.
 
-## Phase 1: v1.6 - The Ultimate BBS Door
+## Phase 1: The Ultimate BBS Door
 
 Our immediate goal is to build the definitive, modern-host-friendly drop-in replacement for the original DOS game.
 

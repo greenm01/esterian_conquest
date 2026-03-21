@@ -1,13 +1,16 @@
 # Esterian Conquest Legacy Readme
 
-_v1.6 reference edition based on
+_Inspired by Esterian Conquest (c) 1992 Bentley C. Griffith.
+This is an independent reimplementation and is not affiliated with the original._
+
+_Reference edition based on
 [`original/v1.5/ECREADME.DOC`](../../original/v1.5/ECREADME.DOC)._
 
 This file exists to preserve the release and deployment context of the original
 DOS package without presenting that old operational material as the current
-`v1.6` setup path.
+the EC Rust setup path.
 
-## How To Use This In v1.6
+## How To Use This In EC Rust
 
 Read this when you want historical context on how Esterian Conquest was shipped
 and hosted in the DOS door era. For current deployment guidance, use the Rust
@@ -40,4 +43,4 @@ Three points still carry forward:
   operation.
 - Good player documentation was considered part of deployment from the start.
 
-Those ideas remain valid in `v1.6`, even though the runtime stack has changed.
+Those ideas remain valid in EC Rust, even though the runtime stack has changed.

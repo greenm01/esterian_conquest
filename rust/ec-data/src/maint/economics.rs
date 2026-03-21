@@ -1,6 +1,6 @@
 use crate::{
-    CoreGameData, ProductionItemKind, build_capacity, yearly_growth_delta, yearly_high_tax_penalty,
-    yearly_tax_revenue,
+    build_capacity, yearly_growth_delta, yearly_high_tax_penalty, yearly_tax_revenue, CoreGameData,
+    ProductionItemKind,
 };
 
 /// Process build queue completion for all planets.
@@ -60,9 +60,11 @@ pub(super) fn process_build_completion(
                 let points_spent = u32::from(decrement);
 
                 if build_item_kind.requires_stardock() {
-                    let has_open_stardock_slot = (0..crate::STARDOCK_SLOT_COUNT).any(|stardock_slot| {
-                        game_data.planets.records[planet_idx].stardock_kind_raw(stardock_slot) == 0
-                    });
+                    let has_open_stardock_slot =
+                        (0..crate::STARDOCK_SLOT_COUNT).any(|stardock_slot| {
+                            game_data.planets.records[planet_idx].stardock_kind_raw(stardock_slot)
+                                == 0
+                        });
                     if !has_open_stardock_slot {
                         // Rust policy: hold completed ship/starbase builds in queue until
                         // stardock space exists rather than reproducing the classic
@@ -77,7 +79,7 @@ pub(super) fn process_build_completion(
                         let current = game_data.planets.records[planet_idx].army_count_raw();
                         let free_capacity = u8::MAX.saturating_sub(current);
                         if qty > free_capacity {
-                            // v1.6 policy: hold the build in queue instead of reproducing the
+                            // EC policy: hold the build in queue instead of reproducing the
                             // classic silent-loss bug at the byte cap.
                             continue;
                         }
@@ -87,7 +89,7 @@ pub(super) fn process_build_completion(
                         let current = game_data.planets.records[planet_idx].ground_batteries_raw();
                         let free_capacity = u8::MAX.saturating_sub(current);
                         if qty > free_capacity {
-                            // v1.6 policy: hold the build in queue instead of reproducing the
+                            // EC policy: hold the build in queue instead of reproducing the
                             // classic silent-loss bug at the byte cap.
                             continue;
                         }

@@ -1,13 +1,16 @@
 # Esterian Conquest Quick Start Player's Guide
 
-_v1.6 quick-start reference based on
+_Inspired by Esterian Conquest (c) 1992 Bentley C. Griffith.
+This is an independent reimplementation and is not affiliated with the original._
+
+_Quick-start reference based on
 [`original/v1.5/ECQSTART.DOC`](../../original/v1.5/ECQSTART.DOC)._
 
 The original `.DOC` file remains the preserved source artifact. This edition
 keeps the substance of the quick-start guide, but presents it as a cleaner
-v1.6 reference.
+reference.
 
-## How To Use This In v1.6
+## How To Use This In EC Rust
 
 Start here if you want the shortest path to understanding the game loop. When
 you are ready for the full command and mechanics reference, move on to

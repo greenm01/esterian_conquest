@@ -1,13 +1,16 @@
 # Esterian Conquest Player's Guide
 
-_v1.6 player reference based on
+_Inspired by Esterian Conquest (c) 1992 Bentley C. Griffith.
+This is an independent reimplementation and is not affiliated with the original._
+
+_Player reference based on
 [`original/v1.5/ECPLAYER.DOC`](../../original/v1.5/ECPLAYER.DOC)._
 
 The original `.DOC` file remains the preserved source artifact. This
-edition is being rewritten into a cleaner v1.6 reference while preserving the
+edition is being rewritten into a cleaner reference while preserving the
 same underlying rules.
 
-## How To Use This In v1.6
+## How To Use This In EC Rust
 
 Treat this as the main gameplay and command reference. If the Rust client
 presents a workflow differently, prefer the underlying rule described here

@@ -4,7 +4,7 @@ This guide covers the legacy compatibility path: running the original DOS
 `ECGAME.EXE` as a door under [Enigma BBS](https://github.com/NuSkooler/enigma-bbs)
 through `dosbox-x`.
 
-This is not the primary `v1.6` deployment story. The main direction of the
+This is not the primary EC deployment story. The main direction of the
 project is the Rust-native stack:
 
 - `ec-cli` for campaign setup and admin work
@@ -145,7 +145,7 @@ Add this menu action to a submit array somewhere in your system:
                 }
 ```
 
-## 3. Performance Expectations: DOS vs. Rust v1.6
+## 3. Performance Expectations: DOS vs. Rust EC
 
 When testing the game through DOSBox-X via Enigma BBS, you will likely notice that the text "paints" or scrolls down the screen line-by-line, very reminiscent of a classic 90s dial-up modem connection. 
 
@@ -155,7 +155,7 @@ This happens because:
 
 **The Rust-native path is radically faster.**
 
-The ongoing Rust `v1.6` stack bypasses this legacy architecture entirely.
+The ongoing Rust EC stack bypasses this legacy architecture entirely.
 Instead of simulating virtual hardware and pacing I/O via DOS interrupts, the
 native client/server path can write full strings and buffers directly to modern
 terminals and sockets. The DOS door path is therefore a compatibility option,

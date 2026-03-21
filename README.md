@@ -2,9 +2,12 @@
 
 ![Esterian Conquest banner](docs/assets/ec_v1.5_banner.png)
 
-Esterian Conquest `v1.6` is a Rust continuation of the original game, with
-classic `.DAT` interoperability, a growing native client, and a maintenance
-engine that can already support serious campaign testing.
+_Inspired by Esterian Conquest (c) 1992 Bentley C. Griffith.
+This is an independent reimplementation and is not affiliated with the original._
+
+EC is a Rust reimplementation of the original game, with classic `.DAT`
+interoperability, a growing native client, and a maintenance engine that can
+already support serious campaign testing.
 
 Esterian Conquest is an asynchronous turn-based strategy game: players submit
 orders during the year, and maintenance resolves the turn.
@@ -13,7 +16,7 @@ orders during the year, and maintenance resolves the turn.
 
 **[How EC Was Recovered](docs/reverse_engineering/README.md)**
 
-`v1.6` aims to carry Esterian Conquest forward without discarding what made the
+EC aims to carry Esterian Conquest forward without discarding what made the
 original game distinct: the yearly turn rhythm, the empire reports, the starmap
 drama, the asymmetrical scouting and warfare, and the old BBS command feel.
 
@@ -36,7 +39,7 @@ of contested solar systems. The old masters are gone. Their stations are
 silent, their patrols vanished, and their subjects left with fleets,
 factories, and enough knowledge to build empires.
 
-`v1.6` treats that classic premise seriously. The goal is not to sand away the
+EC treats that classic premise seriously. The goal is not to sand away the
 identity of the original game, but to keep its campaign feel, menus, reports,
 and old-school tension while replacing the DOS runtime with a modern Rust
 implementation.
@@ -63,8 +66,8 @@ player-facing guide for how the game is supposed to work.
 
 ## Current State
 
-`v1.6` is already usable for real development play, hybrid classic play, and
-campaign validation. It is not finished enough yet to call the Rust replacement
+EC is already usable for real development play, hybrid classic play, and
+campaign validation. It is not finished enough yet to call the Rust reimplementation
 complete end to end, but it is well past the stage of being a repo of notes and
 recovery experiments.
 
@@ -85,7 +88,7 @@ Today you can:
 
 If you want to jump in immediately, start with [Quick Start](#quick-start).
 
-## Where v1.6 Is Going
+## Where EC Is Going
 
 The project is moving toward a full Rust-first Esterian Conquest stack:
 
@@ -102,7 +105,7 @@ historical feel.
 ## Compatibility And Provenance
 
 Compatibility remains a first-class engineering goal, but it is in service of
-`v1.6`, not a substitute for it.
+the Rust reimplementation, not a substitute for it.
 
 Short version:
 
@@ -234,6 +237,16 @@ Prepare a player slot for a local matched-alias classic probe:
 cd rust
 cargo run -q -p ec-cli -- classic-login-prepare /tmp/ec-game 2 SYSOP foo
 ```
+
+Submit a player turn from KDL:
+
+```bash
+cd rust
+cargo run -q -p ec-cli -- submit-turn --check --dir /tmp/ec-game --player 1 --file /tmp/player1-turn.kdl
+cargo run -q -p ec-cli -- submit-turn --dir /tmp/ec-game --player 1 --file /tmp/player1-turn.kdl
+```
+
+The turn file format is documented in [docs/player/turn-kdl.md](docs/player/turn-kdl.md).
 
 Supported local hybrid loop:
 
