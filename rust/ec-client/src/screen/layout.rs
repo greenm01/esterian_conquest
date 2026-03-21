@@ -162,6 +162,19 @@ pub fn draw_command_line_text(buffer: &mut PlayfieldBuffer, label: &str, text: &
     );
 }
 
+pub fn draw_command_line_prompt_text(buffer: &mut PlayfieldBuffer, label: &str, prompt: &str) {
+    buffer.fill_row(COMMAND_LINE_ROW, classic::prompt_style());
+    let prefix = buffer.write_spans(
+        COMMAND_LINE_ROW,
+        0,
+        &[
+            StyledSpan::new(label, classic::title_style()),
+            StyledSpan::new(" <- ", classic::prompt_style()),
+        ],
+    );
+    write_prompt_markup(buffer, COMMAND_LINE_ROW, prefix, prompt);
+}
+
 pub fn draw_command_line_notice(buffer: &mut PlayfieldBuffer, text: &str) {
     buffer.fill_row(COMMAND_LINE_ROW, classic::prompt_style());
     let prefix = buffer.write_spans(
@@ -213,7 +226,7 @@ pub fn draw_command_line_default_input(
 
 pub fn draw_plain_prompt(buffer: &mut PlayfieldBuffer, row: usize, prompt: &str) -> usize {
     buffer.fill_row(row, classic::prompt_style());
-    let cursor_col = buffer.write_text(row, 0, prompt, classic::prompt_style());
+    let cursor_col = write_prompt_markup(buffer, row, 0, prompt);
     buffer.set_cursor(cursor_col as u16, row as u16);
     cursor_col
 }
@@ -302,4 +315,92 @@ fn write_slap_a_key(buffer: &mut PlayfieldBuffer, row: usize, col: usize) -> usi
             classic::prompt_notice_action_style(),
         );
     after_text + buffer.write_text(row, after_text, ")", classic::prompt_hotkey_style())
+}
+
+fn write_prompt_markup(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    start_col: usize,
+    text: &str,
+) -> usize {
+    let chars: Vec<char> = text.chars().collect();
+    let mut col = start_col;
+    let mut plain = String::new();
+    let mut idx = 0usize;
+
+    while idx < chars.len() {
+        if chars[idx] == '<'
+            && let Some(close_idx) = chars[idx + 1..].iter().position(|&ch| ch == '>')
+        {
+            let close_idx = idx + 1 + close_idx;
+            if is_prompt_bracket_hotkey(&chars[idx + 1..close_idx]) {
+                if !plain.is_empty() {
+                    col += buffer.write_text(row, col, &plain, classic::prompt_style());
+                    plain.clear();
+                }
+                let segment = chars[idx..=close_idx].iter().collect::<String>();
+                col += buffer.write_text(row, col, &segment, classic::prompt_hotkey_style());
+                idx = close_idx + 1;
+                continue;
+            }
+        }
+
+        if chars[idx] == '['
+            && let Some(close_idx) = chars[idx + 1..].iter().position(|&ch| ch == ']')
+        {
+            let close_idx = idx + 1 + close_idx;
+            if is_prompt_bracket_hotkey(&chars[idx + 1..close_idx]) {
+                if !plain.is_empty() {
+                    col += buffer.write_text(row, col, &plain, classic::prompt_style());
+                    plain.clear();
+                }
+                col += buffer.write_text(row, col, "[", classic::prompt_style());
+                if close_idx > idx + 1 {
+                    let segment = chars[idx + 1..close_idx].iter().collect::<String>();
+                    col += buffer.write_text(row, col, &segment, classic::prompt_hotkey_style());
+                }
+                col += buffer.write_text(row, col, "]", classic::prompt_style());
+                idx = close_idx + 1;
+                continue;
+            }
+        }
+
+        if chars[idx].is_ascii_alphanumeric() {
+            let start = idx;
+            while idx < chars.len() && chars[idx].is_ascii_alphanumeric() {
+                idx += 1;
+            }
+            let token = chars[start..idx].iter().collect::<String>();
+            if is_prompt_slash_hotkey_token(&chars, start, idx) {
+                if !plain.is_empty() {
+                    col += buffer.write_text(row, col, &plain, classic::prompt_style());
+                    plain.clear();
+                }
+                col += buffer.write_text(row, col, &token, classic::prompt_hotkey_style());
+            } else {
+                plain.push_str(&token);
+            }
+            continue;
+        }
+
+        plain.push(chars[idx]);
+        idx += 1;
+    }
+
+    if !plain.is_empty() {
+        col += buffer.write_text(row, col, &plain, classic::prompt_style());
+    }
+
+    col
+}
+
+fn is_prompt_slash_hotkey_token(chars: &[char], start: usize, end: usize) -> bool {
+    let token_len = end.saturating_sub(start);
+    token_len > 0
+        && token_len <= 3
+        && (matches!(chars.get(end), Some('/')) || (start > 0 && chars[start - 1] == '/'))
+}
+
+fn is_prompt_bracket_hotkey(chars: &[char]) -> bool {
+    !chars.is_empty() && chars.len() <= 5 && chars.iter().all(|ch| ch.is_ascii_alphanumeric())
 }

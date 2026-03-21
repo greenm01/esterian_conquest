@@ -3,8 +3,9 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
-    MenuEntry, draw_command_line_default_input, draw_command_line_text, draw_command_prompt,
-    draw_help_panel, draw_plain_prompt, draw_status_line, draw_title_bar, new_playfield,
+    MenuEntry, draw_command_line_default_input, draw_command_line_prompt_text,
+    draw_command_prompt, draw_help_panel, draw_plain_prompt, draw_status_line, draw_title_bar,
+    new_playfield,
 };
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords};
 use crate::theme::classic;
@@ -220,7 +221,7 @@ pub fn render_first_time_join_name_confirm(
             classic::body_style(),
         );
     }
-    draw_command_line_text(
+    draw_command_line_prompt_text(
         &mut buffer,
         "EMPIRE NAME",
         &format!(
@@ -248,7 +249,7 @@ pub fn render_preloaded_first_login_rename_prompt(
         &format!("Your empire has been pre-named as \"{empire_name}\"."),
         classic::body_style(),
     );
-    draw_command_line_text(
+    draw_command_line_prompt_text(
         &mut buffer,
         "EMPIRE NAME",
         "Would you like to rename your empire? (This is your only chance.) Y/[N] ->",
@@ -391,7 +392,7 @@ pub fn render_first_time_homeworld_confirm(
         "Press N or Esc to go back and edit the homeworld name.",
         classic::body_style(),
     );
-    draw_command_line_text(
+    draw_command_line_prompt_text(
         &mut buffer,
         "HOMEWORLD",
         &format!("\"{homeworld_name}\" <- Is this correct? Y/[N] ->"),
@@ -460,7 +461,7 @@ pub fn render_colony_world_confirm(
         "Press N or Esc to go back and edit the world name.",
         classic::body_style(),
     );
-    draw_command_line_text(
+    draw_command_line_prompt_text(
         &mut buffer,
         "WORLD NAME",
         &format!("\"{planet_name}\" <- Is this correct? [Y]/N ->"),
