@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::{
-    CoreGameData, DiplomaticRelation, build_seeded_initialized_game, build_seeded_new_game,
+    build_seeded_initialized_game, build_seeded_new_game, CoreGameData, DiplomaticRelation,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

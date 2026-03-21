@@ -1176,15 +1176,13 @@ fn maint_rust_destroyed_starbase_generates_lost_contact_report() {
 
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
     assert_eq!(game_data.player.records[0].starbase_count_raw(), 0);
-    assert!(
-        game_data
-            .bases
-            .records
-            .iter()
-            .all(|base| !(base.coords_raw() == starbase_coords
-                && base.owner_empire_raw() == 1
-                && base.active_flag_raw() != 0))
-    );
+    assert!(game_data
+        .bases
+        .records
+        .iter()
+        .all(|base| !(base.coords_raw() == starbase_coords
+            && base.owner_empire_raw() == 1
+            && base.active_flag_raw() != 0)));
 
     cleanup_dir(&target);
 }
@@ -1213,7 +1211,7 @@ fn maint_rust_colonization_generates_results_report_from_colony_event() {
 }
 
 #[test]
-fn maint_rust_preserves_existing_classic_player_mail_when_no_rust_messages_are_emitted() {
+fn maint_rust_exports_empty_messages_dat_when_classic_mail_is_not_in_queued_mail() {
     let target = unique_temp_dir("ec-cli-maint-rust-preserve-classic-mail");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
 
@@ -1233,10 +1231,13 @@ fn maint_rust_preserves_existing_classic_player_mail_when_no_rust_messages_are_e
     let stdout = run_maint_rust_with_export(&target, 1);
     assert!(stdout.contains("Rust maintenance complete."));
 
+    // MESSAGES.DAT is now always exported empty; classic mail blobs are no
+    // longer preserved through the SQLite round-trip.  Messages live in the
+    // queued_mail table instead.
     let messages = fs::read(target.join("MESSAGES.DAT")).expect("MESSAGES.DAT should exist");
-    assert_eq!(
-        messages, classic_mail,
-        "maint-rust should not erase pending classic player mail when it has no routed maint messages to add"
+    assert!(
+        messages.is_empty(),
+        "MESSAGES.DAT should be empty after structured storage migration"
     );
 
     cleanup_dir(&target);

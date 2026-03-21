@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use ec_data::{CampaignStore, CoreGameData, PlanetIntelSnapshot, QueuedPlayerMail};
+use ec_data::{
+    rebuild_results_bytes, CampaignStore, CoreGameData, PlanetIntelSnapshot, QueuedPlayerMail,
+    ReportBlockRow,
+};
 
 use crate::app::action::Action;
 use crate::domains::empire::EmpireState;
@@ -12,20 +15,20 @@ use crate::domains::starbase::{StarbaseAction, StarbaseState};
 use crate::domains::starmap::StarmapState;
 use crate::domains::startup::{StartupAction, StartupState};
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
-use crate::reports::{ReportsPreview, has_visible_runtime_messages};
+use crate::reports::{has_visible_runtime_messages, ReportsPreview};
 use crate::screen::{
     BuildHelpScreen, CommandMenu, DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen,
-    EnemiesScreen, FIRST_TIME_INTRO_PAGE_COUNT, FirstTimeEmpiresScreen, FirstTimeHelpScreen,
-    FirstTimeIntroScreen, FirstTimeMenuScreen, FleetDetachMode, FleetDetachScreen, FleetEtaMode,
-    FleetEtaScreen, FleetGroupScreen, FleetHelpScreen, FleetListMode, FleetListScreen,
-    FleetMenuScreen, FleetMergeMode, FleetMergeScreen, FleetMissionPickerScreen, FleetReviewScreen,
-    FleetRoeScreen, FleetSingleOrderScreen, FleetTransferMode, FleetTransferScreen,
-    GeneralHelpScreen, GeneralMenuScreen, MainHelpScreen, MainMenuScreen, MessageComposeScreen,
-    PartialStarmapScreen, PlanetAutoCommissionScreen, PlanetBuildScreen, PlanetCommissionScreen,
-    PlanetDatabaseScreen, PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen,
-    PlanetMenuScreen, PlanetTaxScreen, PlanetTransportScreen, RankingsScreen, ReportsScreen,
-    STARTUP_SPLASH_PAGE_COUNT, Screen, ScreenId, StarbaseHelpScreen, StarbaseListScreen,
-    StarbaseMenuScreen, StarbaseReviewScreen, StarmapScreen, StartupScreen,
+    EnemiesScreen, FirstTimeEmpiresScreen, FirstTimeHelpScreen, FirstTimeIntroScreen,
+    FirstTimeMenuScreen, FleetDetachMode, FleetDetachScreen, FleetEtaMode, FleetEtaScreen,
+    FleetGroupScreen, FleetHelpScreen, FleetListMode, FleetListScreen, FleetMenuScreen,
+    FleetMergeMode, FleetMergeScreen, FleetMissionPickerScreen, FleetReviewScreen, FleetRoeScreen,
+    FleetSingleOrderScreen, FleetTransferMode, FleetTransferScreen, GeneralHelpScreen,
+    GeneralMenuScreen, MainHelpScreen, MainMenuScreen, MessageComposeScreen, PartialStarmapScreen,
+    PlanetAutoCommissionScreen, PlanetBuildScreen, PlanetCommissionScreen, PlanetDatabaseScreen,
+    PlanetHelpScreen, PlanetInfoScreen, PlanetListMode, PlanetListScreen, PlanetMenuScreen,
+    PlanetTaxScreen, PlanetTransportScreen, RankingsScreen, ReportsScreen, Screen, ScreenId,
+    StarbaseHelpScreen, StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen,
+    StarmapScreen, StartupScreen, FIRST_TIME_INTRO_PAGE_COUNT, STARTUP_SPLASH_PAGE_COUNT,
 };
 use crate::startup::{StartupPhase, StartupSequence, StartupSummary};
 use crate::terminal::Terminal;
@@ -103,6 +106,8 @@ pub struct App {
     pub export_root: PathBuf,
     pub queue_dir: Option<PathBuf>,
     pub autopilot: bool,
+    pub snapshot_id: i64,
+    pub report_block_rows: Vec<ReportBlockRow>,
     pub results_bytes: Vec<u8>,
     pub messages_bytes: Vec<u8>,
     pub queued_mail: Vec<QueuedPlayerMail>,
@@ -121,13 +126,15 @@ impl App {
         let runtime_state = campaign_store
             .load_latest_runtime_state()?
             .ok_or("campaign store has no snapshots; import with ec-cli db-import first")?;
+        let snapshot_id = runtime_state.snapshot_id;
+        let report_block_rows = runtime_state.report_block_rows;
         let results_bytes = runtime_state.results_bytes;
         let messages_bytes = runtime_state.messages_bytes;
         let queued_mail = runtime_state.queued_mail;
-        let reports = ReportsPreview::from_runtime(
+        let reports = ReportsPreview::from_block_rows(
             &runtime_state.game_data,
             config.player_record_index_1_based as u8,
-            &results_bytes,
+            &report_block_rows,
             &queued_mail,
         );
         let game_data = runtime_state.game_data;
@@ -140,7 +147,7 @@ impl App {
         let main_menu_summary = MainMenuSummary::from_game_data(
             &game_data,
             config.player_record_index_1_based,
-            !results_bytes.is_empty(),
+            !report_block_rows.is_empty(),
             has_visible_runtime_messages(config.player_record_index_1_based as u8, &queued_mail),
         );
         let review_summary = ReviewSummary::from_main_menu(&main_menu_summary);
@@ -223,6 +230,8 @@ impl App {
             export_root,
             queue_dir: config.queue_dir,
             autopilot: false,
+            snapshot_id,
+            report_block_rows,
             results_bytes,
             messages_bytes,
             queued_mail,
@@ -830,13 +839,14 @@ impl App {
             .load_latest_runtime_state()?
             .ok_or("campaign store has no snapshots")?
             .database;
-        self.planet.campaign_store.save_runtime_state(
+        let new_snapshot_id = self.planet.campaign_store.save_runtime_state(
             &self.game_data,
             &database,
             &self.results_bytes,
             &self.messages_bytes,
             &self.queued_mail,
         )?;
+        self.snapshot_id = new_snapshot_id;
         self.planet_intel_snapshots = self
             .planet
             .campaign_store
@@ -846,5 +856,23 @@ impl App {
             .collect::<BTreeMap<_, _>>();
         self.planet.intel_snapshots = self.planet_intel_snapshots.clone();
         Ok(())
+    }
+
+    /// Rebuild the cached `results_bytes` from the current `report_block_rows`.
+    /// Call this after mutating report_block_rows to keep the derived bytes in
+    /// sync for `save_game_data()`.
+    pub(super) fn sync_results_bytes_from_blocks(&mut self) {
+        let active: Vec<_> = self
+            .report_block_rows
+            .iter()
+            .filter(|r| !r.recipient_deleted)
+            .cloned()
+            .collect();
+        self.results_bytes = rebuild_results_bytes(&active).unwrap_or_default();
+    }
+
+    /// Whether there are any active (non-deleted) report blocks.
+    pub(super) fn has_active_report_blocks(&self) -> bool {
+        self.report_block_rows.iter().any(|r| !r.recipient_deleted)
     }
 }

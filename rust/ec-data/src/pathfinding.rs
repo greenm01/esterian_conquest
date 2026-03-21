@@ -2,8 +2,8 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, BinaryHeap, HashMap, HashSet};
 
 use crate::{
-    CoreGameData, DatabaseDat, FleetRecord, Order, PlanetIntelSnapshot,
-    build_player_starmap_projection_from_snapshots, map_size_for_player_count,
+    build_player_starmap_projection_from_snapshots, map_size_for_player_count, CoreGameData,
+    DatabaseDat, FleetRecord, Order, PlanetIntelSnapshot,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

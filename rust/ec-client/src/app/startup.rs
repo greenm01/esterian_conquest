@@ -2,9 +2,9 @@ use crate::app::action::Action;
 use crate::app::state::App;
 use crate::domains::startup::StartupAction;
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
-use crate::reports::{ReportsPreview, has_visible_runtime_messages, rebuild_chunked_bytes};
+use crate::reports::{has_visible_runtime_messages, ReportsPreview};
 use crate::screen::{
-    FIRST_TIME_INTRO_PAGE_COUNT, STARTUP_SPLASH_PAGE_COUNT, ScreenId, StartupReviewMode,
+    ScreenId, StartupReviewMode, FIRST_TIME_INTRO_PAGE_COUNT, STARTUP_SPLASH_PAGE_COUNT,
 };
 use crate::startup::{StartupPhase, StartupSummary};
 
@@ -51,11 +51,23 @@ impl App {
     ) -> Result<(), Box<dyn std::error::Error>> {
         if is_results {
             let block_idx = self.startup_state.results_block;
-            let mut blocks = self.startup.result_blocks().to_vec();
-            if block_idx < blocks.len() {
-                blocks.remove(block_idx);
+            // Find the actual ReportBlockRow for this display index (among
+            // the non-deleted blocks) and soft-delete it.
+            let active_indices: Vec<usize> = self
+                .report_block_rows
+                .iter()
+                .enumerate()
+                .filter(|(_, r)| !r.recipient_deleted)
+                .map(|(i, _)| i)
+                .collect();
+            if let Some(&row_idx) = active_indices.get(block_idx) {
+                let bi = self.report_block_rows[row_idx].block_index;
+                self.planet
+                    .campaign_store
+                    .mark_report_block_deleted(self.snapshot_id, bi)?;
+                self.report_block_rows[row_idx].recipient_deleted = true;
+                self.sync_results_bytes_from_blocks();
             }
-            self.results_bytes = rebuild_chunked_bytes(&blocks).unwrap_or_default();
             self.sync_player_review_flags();
             self.save_game_data()?;
             self.refresh_review_context()?;
@@ -913,16 +925,17 @@ impl App {
     }
 
     fn refresh_review_context(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let refreshed = ReportsPreview::from_runtime(
+        let refreshed = ReportsPreview::from_block_rows(
             &self.game_data,
             self.player.record_index_1_based as u8,
-            &self.results_bytes,
+            &self.report_block_rows,
             &self.queued_mail,
         );
+        let has_results = self.has_active_report_blocks();
         let summary = MainMenuSummary::from_game_data(
             &self.game_data,
             self.player.record_index_1_based,
-            !self.results_bytes.is_empty(),
+            has_results,
             has_visible_runtime_messages(self.player.record_index_1_based as u8, &self.queued_mail),
         );
         let startup_summary = StartupSummary::from_reports(
@@ -956,6 +969,7 @@ impl App {
     }
 
     fn sync_player_review_flags(&mut self) {
+        let has_results = self.has_active_report_blocks();
         if let Some(player) = self
             .game_data
             .player
@@ -963,16 +977,13 @@ impl App {
             .get_mut(self.player.record_index_1_based - 1)
         {
             player.set_classic_login_reviewables_present(
-                !self.results_bytes.is_empty()
+                has_results
                     || has_visible_runtime_messages(
                         self.player.record_index_1_based as u8,
                         &self.queued_mail,
                     ),
             );
-            player.set_classic_results_chain_state(
-                !self.results_bytes.is_empty(),
-                if self.results_bytes.is_empty() { 0 } else { 1 },
-            );
+            player.set_classic_results_chain_state(has_results, if has_results { 1 } else { 0 });
         }
     }
 

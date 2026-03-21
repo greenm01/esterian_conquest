@@ -1,6 +1,6 @@
 use super::{
-    FleetTurnAction, MAX_MESSAGE_BODY_CHARS, MAX_MESSAGE_SUBJECT_CHARS, PlanetTurnAction,
-    TurnMessage, TurnSubmission, TurnSubmissionError, TurnSubmissionReport,
+    FleetTurnAction, PlanetTurnAction, TurnMessage, TurnSubmission, TurnSubmissionError,
+    TurnSubmissionReport, MAX_MESSAGE_BODY_CHARS, MAX_MESSAGE_SUBJECT_CHARS,
 };
 use crate::{CoreGameData, QueuedPlayerMail};
 

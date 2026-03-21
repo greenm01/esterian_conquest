@@ -558,7 +558,11 @@ fn minimum_pair_distance(coords: &[[u8; 2]]) -> f32 {
             min = min.min(distance(coords[left], coords[right]));
         }
     }
-    if min.is_finite() { min } else { 0.0 }
+    if min.is_finite() {
+        min
+    } else {
+        0.0
+    }
 }
 
 fn nearest_used_distance(candidate: [u8; 2], used: &[[u8; 2]]) -> f32 {
@@ -710,8 +714,8 @@ struct HomeworldRegion {
 #[cfg(test)]
 mod tests {
     use super::{
-        NEUTRAL_EDGE_RING_THRESHOLD, frontier_world_edge_bias, local_world_edge_bias,
-        map_size_for_player_count,
+        frontier_world_edge_bias, local_world_edge_bias, map_size_for_player_count,
+        NEUTRAL_EDGE_RING_THRESHOLD,
     };
 
     #[test]

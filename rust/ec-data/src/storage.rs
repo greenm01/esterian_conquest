@@ -2,16 +2,19 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::{
-    BASE_RECORD_SIZE, BaseDat, CoreGameData, DatabaseDat, FLEET_RECORD_SIZE, FleetDat,
-    IPBM_RECORD_SIZE, IpbmDat, PLANET_RECORD_SIZE, PLAYER_RECORD_SIZE, PlanetDat, PlayerDat,
-    QueuedPlayerMail, SetupDat,
+    decode_report_block_rows, rebuild_results_bytes, BaseDat, CoreGameData, DatabaseDat, FleetDat,
+    IpbmDat, PlanetDat, PlayerDat, QueuedPlayerMail, ReportBlockRow, SetupDat, BASE_RECORD_SIZE,
+    FLEET_RECORD_SIZE, IPBM_RECORD_SIZE, PLANET_RECORD_SIZE, PLAYER_RECORD_SIZE,
 };
 
 pub const DEFAULT_CAMPAIGN_DB_NAME: &str = "ecgame.db";
-const COMPAT_FILE_NAMES: &[&str] = &["DATABASE.DAT", "MESSAGES.DAT", "RESULTS.DAT"];
+/// Only DATABASE.DAT remains as a compat blob; RESULTS.DAT is now stored
+/// structurally in `report_blocks`, and MESSAGES.DAT is covered by
+/// `queued_mail`.
+const COMPAT_FILE_NAMES: &[&str] = &["DATABASE.DAT"];
 
 #[derive(Debug)]
 pub enum CampaignStoreError {
@@ -55,7 +58,16 @@ pub struct CampaignRuntimeState {
     pub game_year: u16,
     pub game_data: CoreGameData,
     pub database: DatabaseDat,
+    /// Structured report blocks (decoded from classic RESULTS.DAT bytes).
+    /// This is now the authoritative source; `results_bytes` is derived on
+    /// demand for backward compatibility with callers that still pass raw bytes.
+    pub report_block_rows: Vec<ReportBlockRow>,
+    /// Classic RESULTS.DAT bytes, reconstructed from `report_block_rows` for
+    /// backward compatibility.  Callers migrating to structured blocks should
+    /// use `report_block_rows` directly instead.
     pub results_bytes: Vec<u8>,
+    /// Legacy MESSAGES.DAT bytes.  Always empty for newly saved snapshots;
+    /// messages live in `queued_mail`.  Kept for signature compatibility.
     pub messages_bytes: Vec<u8>,
     pub queued_mail: Vec<QueuedPlayerMail>,
 }
@@ -173,6 +185,7 @@ impl CampaignStore {
         let mut conn = self.connection()?;
         let game_data = load_snapshot_game_data(&mut conn, snapshot_id)?;
         game_data.save(dir)?;
+        // DATABASE.DAT from compat_files
         for name in COMPAT_FILE_NAMES {
             let bytes: Vec<u8> = conn.query_row(
                 "SELECT bytes FROM compat_files WHERE snapshot_id = ?1 AND name = ?2",
@@ -181,6 +194,17 @@ impl CampaignStore {
             )?;
             write_path(dir.join(name), &bytes)?;
         }
+        // RESULTS.DAT: rebuild from report_blocks
+        let report_rows = load_all_report_block_rows(&mut conn, snapshot_id)?;
+        let active: Vec<_> = report_rows
+            .iter()
+            .filter(|r| !r.recipient_deleted)
+            .cloned()
+            .collect();
+        let results_bytes = rebuild_results_bytes(&active).unwrap_or_default();
+        write_path(dir.join("RESULTS.DAT"), &results_bytes)?;
+        // MESSAGES.DAT: empty (messages live in queued_mail / runtime state)
+        write_path(dir.join("MESSAGES.DAT"), &[])?;
         Ok(())
     }
 
@@ -234,16 +258,17 @@ impl CampaignStore {
         let game_data = load_snapshot_game_data(&mut conn, snapshot_id)?;
         let database =
             DatabaseDat::parse(&compat_file_bytes(&mut conn, snapshot_id, "DATABASE.DAT")?)?;
-        let results_bytes = compat_file_bytes(&mut conn, snapshot_id, "RESULTS.DAT")?;
-        let messages_bytes = compat_file_bytes(&mut conn, snapshot_id, "MESSAGES.DAT")?;
+        let report_block_rows = load_report_block_rows(&mut conn, snapshot_id)?;
+        let results_bytes = rebuild_results_bytes(&report_block_rows).unwrap_or_default();
         let queued_mail = load_queued_mail_rows(&mut conn, snapshot_id)?;
         Ok(Some(CampaignRuntimeState {
             snapshot_id,
             game_year,
             game_data,
             database,
+            report_block_rows,
             results_bytes,
-            messages_bytes,
+            messages_bytes: Vec::new(),
             queued_mail,
         }))
     }
@@ -253,7 +278,7 @@ impl CampaignStore {
         game_data: &CoreGameData,
         database: &DatabaseDat,
         results_bytes: &[u8],
-        messages_bytes: &[u8],
+        _messages_bytes: &[u8],
         queued_mail: &[QueuedPlayerMail],
     ) -> Result<i64, CampaignStoreError> {
         let year = game_data.conquest.game_year();
@@ -315,14 +340,7 @@ impl CampaignStore {
             "INSERT INTO compat_files(snapshot_id, name, bytes) VALUES (?1, 'DATABASE.DAT', ?2)",
             params![snapshot_id, database.to_bytes()],
         )?;
-        tx.execute(
-            "INSERT INTO compat_files(snapshot_id, name, bytes) VALUES (?1, 'RESULTS.DAT', ?2)",
-            params![snapshot_id, results_bytes],
-        )?;
-        tx.execute(
-            "INSERT INTO compat_files(snapshot_id, name, bytes) VALUES (?1, 'MESSAGES.DAT', ?2)",
-            params![snapshot_id, messages_bytes],
-        )?;
+        write_report_block_rows(&tx, snapshot_id, results_bytes)?;
         write_queued_mail_rows(&tx, snapshot_id, queued_mail)?;
 
         let previous_snapshot_id = tx
@@ -417,6 +435,14 @@ impl CampaignStore {
                  body TEXT NOT NULL,
                  recipient_deleted INTEGER NOT NULL DEFAULT 0,
                  PRIMARY KEY(snapshot_id, queue_index)
+             );
+             CREATE TABLE IF NOT EXISTS report_blocks (
+                 snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+                 block_index INTEGER NOT NULL,
+                 decoded_text TEXT NOT NULL,
+                 raw_bytes BLOB,
+                 recipient_deleted INTEGER NOT NULL DEFAULT 0,
+                 PRIMARY KEY(snapshot_id, block_index)
              );",
         )?;
         ensure_queued_mail_recipient_deleted_column(&conn)?;
@@ -742,4 +768,152 @@ fn ensure_queued_mail_recipient_deleted_column(
         )?;
     }
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// report_blocks storage
+// ---------------------------------------------------------------------------
+
+fn write_report_block_rows(
+    tx: &rusqlite::Transaction<'_>,
+    snapshot_id: i64,
+    results_bytes: &[u8],
+) -> Result<(), CampaignStoreError> {
+    let rows = decode_report_block_rows(results_bytes);
+    let mut stmt = tx.prepare(
+        "INSERT INTO report_blocks(snapshot_id, block_index, decoded_text, raw_bytes, recipient_deleted)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+    )?;
+    for row in &rows {
+        stmt.execute(params![
+            snapshot_id,
+            row.block_index as i64,
+            &row.decoded_text,
+            row.raw_bytes.as_deref(),
+            i64::from(u8::from(row.recipient_deleted)),
+        ])?;
+    }
+    Ok(())
+}
+
+/// Load active (non-deleted) report block rows for a snapshot.
+fn load_report_block_rows(
+    conn: &mut Connection,
+    snapshot_id: i64,
+) -> Result<Vec<ReportBlockRow>, CampaignStoreError> {
+    load_report_block_rows_filtered(conn, snapshot_id, false)
+}
+
+/// Load all report block rows for a snapshot, including soft-deleted ones.
+fn load_all_report_block_rows(
+    conn: &mut Connection,
+    snapshot_id: i64,
+) -> Result<Vec<ReportBlockRow>, CampaignStoreError> {
+    load_report_block_rows_filtered(conn, snapshot_id, true)
+}
+
+fn load_report_block_rows_filtered(
+    conn: &mut Connection,
+    snapshot_id: i64,
+    include_deleted: bool,
+) -> Result<Vec<ReportBlockRow>, CampaignStoreError> {
+    // Check whether report_blocks has rows; if not, fall back to legacy
+    // compat_files RESULTS.DAT blob for databases that predate the migration.
+    let has_rows: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM report_blocks WHERE snapshot_id = ?1)",
+            params![snapshot_id],
+            |row| row.get(0),
+        )
+        .unwrap_or(false);
+
+    if !has_rows {
+        // Legacy fallback: decompose from compat_files blob.
+        let blob = conn
+            .query_row(
+                "SELECT bytes FROM compat_files WHERE snapshot_id = ?1 AND name = 'RESULTS.DAT'",
+                params![snapshot_id],
+                |row| row.get::<_, Vec<u8>>(0),
+            )
+            .optional()?
+            .unwrap_or_default();
+        return Ok(decode_report_block_rows(&blob));
+    }
+
+    let sql = if include_deleted {
+        "SELECT block_index, decoded_text, raw_bytes, recipient_deleted
+         FROM report_blocks WHERE snapshot_id = ?1
+         ORDER BY block_index"
+    } else {
+        "SELECT block_index, decoded_text, raw_bytes, recipient_deleted
+         FROM report_blocks WHERE snapshot_id = ?1 AND recipient_deleted = 0
+         ORDER BY block_index"
+    };
+    let mut stmt = conn.prepare(sql)?;
+    let rows = stmt.query_map(params![snapshot_id], |row| {
+        Ok(ReportBlockRow {
+            block_index: row.get::<_, i64>(0)? as usize,
+            decoded_text: row.get(1)?,
+            raw_bytes: row.get(2)?,
+            recipient_deleted: row.get::<_, i64>(3)? != 0,
+        })
+    })?;
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
+// ---------------------------------------------------------------------------
+// Public report-block mutation API (for ec-client soft-delete)
+// ---------------------------------------------------------------------------
+
+impl CampaignStore {
+    /// Soft-delete a single report block by index.
+    pub fn mark_report_block_deleted(
+        &self,
+        snapshot_id: i64,
+        block_index: usize,
+    ) -> Result<(), CampaignStoreError> {
+        let conn = self.connection()?;
+        conn.execute(
+            "UPDATE report_blocks SET recipient_deleted = 1
+             WHERE snapshot_id = ?1 AND block_index = ?2",
+            params![snapshot_id, block_index as i64],
+        )?;
+        Ok(())
+    }
+
+    /// Soft-delete all report blocks for a snapshot.
+    pub fn mark_all_report_blocks_deleted(
+        &self,
+        snapshot_id: i64,
+    ) -> Result<(), CampaignStoreError> {
+        let conn = self.connection()?;
+        conn.execute(
+            "UPDATE report_blocks SET recipient_deleted = 1 WHERE snapshot_id = ?1",
+            params![snapshot_id],
+        )?;
+        Ok(())
+    }
+
+    /// Check whether any active (non-deleted) report blocks exist.
+    pub fn has_active_report_blocks(&self, snapshot_id: i64) -> Result<bool, CampaignStoreError> {
+        let conn = self.connection()?;
+        let exists: bool = conn.query_row(
+            "SELECT EXISTS(
+                 SELECT 1 FROM report_blocks
+                 WHERE snapshot_id = ?1 AND recipient_deleted = 0
+             )",
+            params![snapshot_id],
+            |row| row.get(0),
+        )?;
+        Ok(exists)
+    }
+
+    /// Load the active (non-deleted) report block rows for the latest snapshot.
+    pub fn load_latest_report_block_rows(&self) -> Result<Vec<ReportBlockRow>, CampaignStoreError> {
+        let mut conn = self.connection()?;
+        let Some((snapshot_id, _)) = latest_snapshot_id_and_year(&mut conn)? else {
+            return Ok(Vec::new());
+        };
+        load_report_block_rows(&mut conn, snapshot_id)
+    }
 }

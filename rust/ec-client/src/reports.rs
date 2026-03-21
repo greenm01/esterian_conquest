@@ -1,4 +1,4 @@
-use ec_data::{CoreGameData, QueuedPlayerMail};
+use ec_data::{decode_report_block_rows, CoreGameData, QueuedPlayerMail, ReportBlockRow};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReviewBlock {
@@ -17,8 +17,8 @@ pub struct ReportsPreview {
 
 impl ReportsPreview {
     pub fn from_bytes(results_bytes: &[u8], message_bytes: &[u8]) -> Self {
-        let result_blocks = decode_report_blocks(results_bytes);
-        let message_blocks = decode_report_blocks(message_bytes);
+        let result_blocks = review_blocks_from_bytes(results_bytes);
+        let message_blocks = review_blocks_from_bytes(message_bytes);
         Self {
             results_lines: flatten_block_lines(&result_blocks),
             message_lines: flatten_block_lines(&message_blocks),
@@ -33,7 +33,23 @@ impl ReportsPreview {
         results_bytes: &[u8],
         queued_mail: &[QueuedPlayerMail],
     ) -> Self {
-        let result_blocks = decode_report_blocks(results_bytes);
+        let result_blocks = review_blocks_from_bytes(results_bytes);
+        let message_blocks = runtime_message_blocks(game_data, viewer_empire_id, queued_mail);
+        Self {
+            results_lines: flatten_block_lines(&result_blocks),
+            message_lines: flatten_block_lines(&message_blocks),
+            result_blocks,
+            message_blocks,
+        }
+    }
+
+    pub fn from_block_rows(
+        game_data: &CoreGameData,
+        viewer_empire_id: u8,
+        report_blocks: &[ReportBlockRow],
+        queued_mail: &[QueuedPlayerMail],
+    ) -> Self {
+        let result_blocks = review_blocks_from_rows(report_blocks);
         let message_blocks = runtime_message_blocks(game_data, viewer_empire_id, queued_mail);
         Self {
             results_lines: flatten_block_lines(&result_blocks),
@@ -78,43 +94,27 @@ pub fn wrap_review_text_preserving_spacing(text: &str, width: usize) -> Vec<Stri
     rows
 }
 
-pub fn clear_report_bytes(results_bytes: &mut Vec<u8>, message_bytes: &mut Vec<u8>) {
-    results_bytes.clear();
-    message_bytes.clear();
+// ---------------------------------------------------------------------------
+// Conversion: ec-data ReportBlockRow -> ec-client ReviewBlock
+// ---------------------------------------------------------------------------
+
+fn review_blocks_from_bytes(bytes: &[u8]) -> Vec<ReviewBlock> {
+    review_blocks_from_rows(&decode_report_block_rows(bytes))
 }
 
-pub fn rebuild_chunked_bytes(blocks: &[ReviewBlock]) -> Option<Vec<u8>> {
-    let mut rebuilt = Vec::new();
-    for block in blocks {
-        let raw = block.raw_chunked_bytes.as_ref()?;
-        rebuilt.extend_from_slice(raw);
-    }
-    Some(rebuilt)
-}
-
-fn decode_report_blocks(bytes: &[u8]) -> Vec<ReviewBlock> {
-    if bytes.is_empty() {
-        return Vec::new();
-    }
-
-    if let Some(blocks) = decode_chunked_records(bytes) {
-        return blocks;
-    }
-
-    let fallback = printable_runs(bytes, 8);
-    if fallback.is_empty() {
-        vec![ReviewBlock {
-            lines: vec!["<binary data present>".to_string()],
-            raw_chunked_bytes: None,
+fn review_blocks_from_rows(rows: &[ReportBlockRow]) -> Vec<ReviewBlock> {
+    rows.iter()
+        .filter(|row| !row.recipient_deleted)
+        .map(|row| ReviewBlock {
+            lines: row
+                .decoded_text
+                .split('\n')
+                .map(ToOwned::to_owned)
+                .collect(),
+            raw_chunked_bytes: row.raw_bytes.clone(),
             runtime_mail_index: None,
-        }]
-    } else {
-        vec![ReviewBlock {
-            lines: fallback,
-            raw_chunked_bytes: None,
-            runtime_mail_index: None,
-        }]
-    }
+        })
+        .collect()
 }
 
 fn flatten_block_lines(blocks: &[ReviewBlock]) -> Vec<String> {
@@ -122,140 +122,6 @@ fn flatten_block_lines(blocks: &[ReviewBlock]) -> Vec<String> {
         .iter()
         .flat_map(|block| block.lines.iter().cloned())
         .collect()
-}
-
-fn decode_chunked_records(bytes: &[u8]) -> Option<Vec<ReviewBlock>> {
-    if bytes.len() % 84 != 0 {
-        return None;
-    }
-
-    if let Some(blocks) = decode_length_prefixed_chunked_records(bytes) {
-        return Some(blocks);
-    }
-
-    decode_legacy_chunked_records(bytes)
-}
-
-fn decode_length_prefixed_chunked_records(bytes: &[u8]) -> Option<Vec<ReviewBlock>> {
-    const RESULTS_TEXT_SIZE: usize = 72;
-    const RESULTS_TEXT_START: usize = 2;
-    const RESULTS_TEXT_END: usize = RESULTS_TEXT_START + RESULTS_TEXT_SIZE;
-
-    let mut blocks = Vec::new();
-    let mut current_lines = Vec::new();
-    let mut current_raw = Vec::new();
-
-    for chunk in bytes.chunks_exact(84) {
-        let used = chunk.get(1).copied()? as usize;
-        if used > RESULTS_TEXT_SIZE {
-            return None;
-        }
-        let text_bytes = chunk.get(RESULTS_TEXT_START..RESULTS_TEXT_START + used)?;
-        if !text_bytes.iter().all(|byte| {
-            byte.is_ascii_graphic() || *byte == b' ' || *byte == b'\r' || *byte == b'\n'
-        }) {
-            return None;
-        }
-        if chunk[RESULTS_TEXT_START + used..RESULTS_TEXT_END]
-            .iter()
-            .any(|byte| *byte != 0)
-        {
-            return None;
-        }
-        let line = String::from_utf8(text_bytes.to_vec()).ok()?;
-        let line = line.trim_end_matches('\0').trim_end().to_string();
-        current_lines.push(line.clone());
-        current_raw.extend_from_slice(chunk);
-
-        if line == "<end of transmission>" {
-            blocks.push(ReviewBlock {
-                lines: std::mem::take(&mut current_lines),
-                raw_chunked_bytes: Some(std::mem::take(&mut current_raw)),
-                runtime_mail_index: None,
-            });
-        }
-    }
-
-    if !current_lines.is_empty() || !current_raw.is_empty() {
-        blocks.push(ReviewBlock {
-            lines: current_lines,
-            raw_chunked_bytes: Some(current_raw),
-            runtime_mail_index: None,
-        });
-    }
-
-    Some(blocks)
-}
-
-fn decode_legacy_chunked_records(bytes: &[u8]) -> Option<Vec<ReviewBlock>> {
-    let mut blocks = Vec::new();
-    let mut current_text = String::new();
-    let mut current_raw = Vec::new();
-
-    for chunk in bytes.chunks_exact(84) {
-        let text_bytes = chunk.get(1..76).unwrap_or(&[]);
-        let used = text_bytes
-            .iter()
-            .position(|byte| *byte == 0)
-            .unwrap_or(text_bytes.len());
-        current_text.extend(text_bytes[..used].iter().map(|byte| char::from(*byte)));
-        current_raw.extend_from_slice(chunk);
-
-        if used < text_bytes.len() {
-            blocks.push(ReviewBlock {
-                lines: decode_text_lines(&current_text),
-                raw_chunked_bytes: Some(std::mem::take(&mut current_raw)),
-                runtime_mail_index: None,
-            });
-            current_text.clear();
-        }
-    }
-
-    if !current_text.is_empty() || !current_raw.is_empty() {
-        blocks.push(ReviewBlock {
-            lines: decode_text_lines(&current_text),
-            raw_chunked_bytes: Some(current_raw),
-            runtime_mail_index: None,
-        });
-    }
-
-    Some(blocks)
-}
-
-fn decode_text_lines(text: &str) -> Vec<String> {
-    let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
-    let mut lines = normalized
-        .split('\n')
-        .map(str::trim_end)
-        .map(ToOwned::to_owned)
-        .collect::<Vec<_>>();
-    while lines.last().is_some_and(|line| line.is_empty()) {
-        lines.pop();
-    }
-    lines
-}
-
-fn printable_runs(bytes: &[u8], min_len: usize) -> Vec<String> {
-    let mut runs = Vec::new();
-    let mut current = String::new();
-
-    for &byte in bytes {
-        let ch = char::from(byte);
-        if ch.is_ascii_graphic() || ch == ' ' {
-            current.push(ch);
-        } else if current.len() >= min_len {
-            runs.push(current.trim_end().to_string());
-            current.clear();
-        } else {
-            current.clear();
-        }
-    }
-
-    if current.len() >= min_len {
-        runs.push(current.trim_end().to_string());
-    }
-
-    runs
 }
 
 fn runtime_message_blocks(
@@ -291,6 +157,19 @@ fn runtime_message_lines(game_data: &CoreGameData, mail: &QueuedPlayerMail) -> V
         lines.extend(body_lines);
     }
     lines.push("<end of message>".to_string());
+    lines
+}
+
+fn decode_text_lines(text: &str) -> Vec<String> {
+    let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
+    let mut lines = normalized
+        .split('\n')
+        .map(str::trim_end)
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
+    while lines.last().is_some_and(|line| line.is_empty()) {
+        lines.pop();
+    }
     lines
 }
 

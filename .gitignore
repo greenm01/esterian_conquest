@@ -100,4 +100,4 @@ fixtures/**/*.SAV
 releases/*.zip
 
 # Local bot/LLM turn submissions and notes.
-.tmp/llm-turns/
+.tmp/

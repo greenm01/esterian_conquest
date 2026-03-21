@@ -1,7 +1,7 @@
 use super::helpers::sync_scroll_to_cursor;
 use crate::app::state::App;
 use crate::model::{MainMenuSummary, ReviewSummary};
-use crate::reports::{ReportsPreview, has_visible_runtime_messages};
+use crate::reports::{has_visible_runtime_messages, ReportsPreview};
 use crate::screen::{CommandMenu, ScreenId};
 use ec_data::{CoreGameData, QueuedPlayerMail};
 
@@ -10,7 +10,7 @@ impl App {
         let summary = MainMenuSummary::from_game_data(
             &self.game_data,
             self.player.record_index_1_based,
-            !self.results_bytes.is_empty(),
+            self.has_active_report_blocks(),
             has_visible_runtime_messages(self.player.record_index_1_based as u8, &self.queued_mail),
         );
         let review_summary = ReviewSummary::from_main_menu(&summary);
@@ -455,7 +455,14 @@ impl App {
     }
 
     pub fn delete_reviewables(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        self.results_bytes.clear();
+        // Soft-delete all report blocks in SQLite.
+        self.planet
+            .campaign_store
+            .mark_all_report_blocks_deleted(self.snapshot_id)?;
+        for row in &mut self.report_block_rows {
+            row.recipient_deleted = true;
+        }
+        self.sync_results_bytes_from_blocks();
         for mail in &mut self.queued_mail {
             if mail.is_visible_to_recipient(self.player.record_index_1_based as u8) {
                 mail.mark_deleted_by_recipient();
@@ -471,16 +478,16 @@ impl App {
             player.set_classic_results_chain_state(false, 0);
         }
         self.save_game_data()?;
-        let refreshed = ReportsPreview::from_runtime(
+        let refreshed = ReportsPreview::from_block_rows(
             &self.game_data,
             self.player.record_index_1_based as u8,
-            &self.results_bytes,
+            &self.report_block_rows,
             &self.queued_mail,
         );
         let summary = MainMenuSummary::from_game_data(
             &self.game_data,
             self.player.record_index_1_based,
-            !self.results_bytes.is_empty(),
+            self.has_active_report_blocks(),
             has_visible_runtime_messages(self.player.record_index_1_based as u8, &self.queued_mail),
         );
         self.reports

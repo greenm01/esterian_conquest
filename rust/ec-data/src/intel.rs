@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::storage::{IntelTier, PlanetIntelSnapshot};
-use crate::{CoreGameData, DatabaseDat, PlayerStarmapWorld, build_player_starmap_projection};
+use crate::{build_player_starmap_projection, CoreGameData, DatabaseDat, PlayerStarmapWorld};
 
 pub fn merge_player_intel_from_compat(
     game_data: &CoreGameData,
