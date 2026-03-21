@@ -23,6 +23,13 @@ Recent validation baseline:
 
 - `cargo test -q`
   - workspace green at the last recorded sweep
+- focused post-compat reruns:
+  - `cargo test -q -p ec-cli --test storage`
+    - `14 passed`
+  - `python3 -u tools/oracle_sweep.py --mode seeded`
+    - `12/12 passed`
+  - `python3 tools/rust_maint_sweep.py --turns 3`
+    - `8/8 passed`
 - latest live oracle probe on `/tmp/ecgame-planet-probe`:
   - successful manual run through main menu -> `Total Planet Database` filter
     -> list -> `Foundation` detail -> exit
