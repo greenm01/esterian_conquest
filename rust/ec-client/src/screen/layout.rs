@@ -311,10 +311,12 @@ fn write_slap_a_key(buffer: &mut PlayfieldBuffer, row: usize, col: usize) -> usi
         + buffer.write_text(
             row,
             after_open,
-            "slap a key",
+            "slap a ",
             classic::prompt_notice_action_style(),
         );
-    after_text + buffer.write_text(row, after_text, ")", classic::prompt_hotkey_style())
+    let after_key =
+        after_text + buffer.write_text(row, after_text, "key", classic::prompt_hotkey_style());
+    after_key + buffer.write_text(row, after_key, ")", classic::prompt_hotkey_style())
 }
 
 fn write_prompt_markup(
@@ -329,6 +331,21 @@ fn write_prompt_markup(
     let mut idx = 0usize;
 
     while idx < chars.len() {
+        if let Some((phrase_end, key_start, key_end)) = slap_a_key_phrase(&chars, idx) {
+            if !plain.is_empty() {
+                col += buffer.write_text(row, col, &plain, classic::prompt_style());
+                plain.clear();
+            }
+            if key_start > idx {
+                let prefix = chars[idx..key_start].iter().collect::<String>();
+                col += buffer.write_text(row, col, &prefix, classic::prompt_notice_action_style());
+            }
+            let key = chars[key_start..key_end].iter().collect::<String>();
+            col += buffer.write_text(row, col, &key, classic::prompt_hotkey_style());
+            idx = phrase_end;
+            continue;
+        }
+
         if chars[idx] == '<'
             && let Some(close_idx) = chars[idx + 1..].iter().position(|&ch| ch == '>')
         {
@@ -403,4 +420,18 @@ fn is_prompt_slash_hotkey_token(chars: &[char], start: usize, end: usize) -> boo
 
 fn is_prompt_bracket_hotkey(chars: &[char]) -> bool {
     !chars.is_empty() && chars.len() <= 5 && chars.iter().all(|ch| ch.is_ascii_alphanumeric())
+}
+
+fn slap_a_key_phrase(chars: &[char], start: usize) -> Option<(usize, usize, usize)> {
+    const KEYWORD: [&str; 2] = ["slap a key", "Slap a key"];
+    for keyword in KEYWORD {
+        let kw_chars: Vec<char> = keyword.chars().collect();
+        let end = start + kw_chars.len();
+        if end > chars.len() || chars[start..end] != kw_chars[..] {
+            continue;
+        }
+        let key_start = start + kw_chars.len() - 3;
+        return Some((end, key_start, end));
+    }
+    None
 }

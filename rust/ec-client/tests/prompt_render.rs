@@ -1,6 +1,7 @@
 use ec_client::screen::PlayfieldBuffer;
 use ec_client::screen::layout::{
-    PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_command_line_prompt_text, draw_plain_prompt,
+    PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_command_line_prompt_text, draw_command_prompt,
+    draw_plain_prompt,
 };
 use ec_client::theme::classic;
 
@@ -96,4 +97,42 @@ fn draw_plain_prompt_highlights_general_letter_commands() {
         classic::prompt_hotkey_style()
     );
     assert_eq!(row[default_choice + 2].style, classic::prompt_style());
+}
+
+#[test]
+fn draw_plain_prompt_highlights_key_in_slap_a_key_phrase() {
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    draw_plain_prompt(&mut buffer, 19, "(Slap a key for more)");
+
+    let row = buffer.row(19);
+    let phrase = find_in_row(&buffer, 19, "Slap a key");
+    assert_eq!(row[phrase].style, classic::prompt_notice_action_style());
+    assert_eq!(row[phrase + 1].style, classic::prompt_notice_action_style());
+    assert_eq!(row[phrase + 2].style, classic::prompt_notice_action_style());
+    assert_eq!(row[phrase + 3].style, classic::prompt_notice_action_style());
+    assert_eq!(row[phrase + 4].style, classic::prompt_notice_action_style());
+    assert_eq!(row[phrase + 5].style, classic::prompt_notice_action_style());
+    assert_eq!(row[phrase + 6].style, classic::prompt_notice_action_style());
+    assert_eq!(row[phrase + 7].style, classic::prompt_hotkey_style());
+    assert_eq!(row[phrase + 8].style, classic::prompt_hotkey_style());
+    assert_eq!(row[phrase + 9].style, classic::prompt_hotkey_style());
+}
+
+#[test]
+fn draw_command_prompt_highlights_key_in_slap_a_key_phrase() {
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    draw_command_prompt(&mut buffer, 19, "GENERAL COMMAND", "SLAP A KEY");
+
+    let row = buffer.row(19);
+    let phrase = find_in_row(&buffer, 19, "slap a key");
+    assert_eq!(row[phrase].style, classic::prompt_notice_action_style());
+    assert_eq!(row[phrase + 1].style, classic::prompt_notice_action_style());
+    assert_eq!(row[phrase + 2].style, classic::prompt_notice_action_style());
+    assert_eq!(row[phrase + 3].style, classic::prompt_notice_action_style());
+    assert_eq!(row[phrase + 4].style, classic::prompt_notice_action_style());
+    assert_eq!(row[phrase + 5].style, classic::prompt_notice_action_style());
+    assert_eq!(row[phrase + 6].style, classic::prompt_notice_action_style());
+    assert_eq!(row[phrase + 7].style, classic::prompt_hotkey_style());
+    assert_eq!(row[phrase + 8].style, classic::prompt_hotkey_style());
+    assert_eq!(row[phrase + 9].style, classic::prompt_hotkey_style());
 }
