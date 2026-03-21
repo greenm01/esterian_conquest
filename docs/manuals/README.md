@@ -18,7 +18,7 @@ quoting.
 - [ec_player.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_player.md)
   - main mechanics and command reference
 - [ec_readme.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_readme.md)
-  - original sysop/readme material and deployment context
+  - legacy DOS deployment and release context
 
 ## Source Mapping
 
@@ -26,7 +26,7 @@ quoting.
 | --- | --- | --- |
 | [ec_qstart.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_qstart.md) | [ECQSTART.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECQSTART.DOC) | Quick-start guide for new players |
 | [ec_player.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_player.md) | [ECPLAYER.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC) | Full player manual |
-| [ec_readme.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_readme.md) | [ECREADME.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECREADME.DOC) | Original sysop-facing install/readme |
+| [ec_readme.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_readme.md) | [ECREADME.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECREADME.DOC) | Legacy DOS deployment and release context |
 
 ## v1.6 Use
 

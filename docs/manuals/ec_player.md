@@ -225,7 +225,7 @@ The fleet missions are summarized and arranged by mission number in Appendix A o
 
 ### Some Strategy Hints For The Beginning Of The Game
 
-- **Print Out A Starmap.** From the GENERAL MENU, the game will display the entire galaxy map on the screen.  You can capture that display in your terminal or BBS client and print or save it.  Your Information Database remembers all you learn about each planet and you have the option to print your map with planets' Maximum Production and Owners on them.  This greatly aids your ability to plan your actions and plot the actions of the other players.  Since your information database keeps learning more as the game progresses, you might want to print a new starmap somewhat regularly.
+- **Print Out A Starmap.** From the GENERAL MENU, the game will display the entire galaxy map on the screen.  You can capture that display in your terminal client and print or save it.  Your Information Database remembers all you learn about each planet and you have the option to print your map with planets' Maximum Production and Owners on them.  This greatly aids your ability to plan your actions and plot the actions of the other players.  Since your information database keeps learning more as the game progresses, you might want to print a new starmap somewhat regularly.
 
 - **Build ETACs.** Everyone starts with only one planet.  Since there are 5 times as many planets in the galaxy as there are players, there are many uncolonized planets.  Early moves should focus on building the Colonizing ships (ETACs) which terraform uninhabited planets and build factories on the new planets for later production.  Your ETACs will also tell you if they discover that a planet has already been colonized by another empire.  The information database records that information on your map for later attacks.
 
@@ -261,7 +261,7 @@ You issue commands by selecting options from menus.  To pick an option, type the
 
 **Options Common To All Menus:** Five options available to all menus are: QUIT; HELP; XPERT MODE ON/OFF; VIEW PARTIAL STARMAP; and INFORMATION DATABASE.
 
-QUIT ("Q"): usually returns you to a previous menu.  From the main menu, the quit option leaves the game and returns you back to the BBS.
+QUIT ("Q"): usually returns you to a previous menu.  From the main menu, the quit option leaves the game and returns you to the calling session.
 
 HELP ("H"): gives a brief description of what each of the options do for the current menu.
 
@@ -309,9 +309,9 @@ The editor lets you to change, insert, delete, or move lines.  It also allows yo
 
 ### Planning Your Moves Off-Line.
 
-Planning your moves away from the live game session keeps turn entry organized and deliberate.  The best tool available for your strategy is a printout or saved copy of the galaxy map (available from the GENERAL COMMAND MENU).  It enables you to locate nearby stars and mark the planets which belong to your opponents.  To get the galaxy map, capture it from the screen in your terminal or BBS client and then print or save that copy.
+Planning your moves away from the live game session keeps turn entry organized and deliberate.  The best tool available for your strategy is a printout or saved copy of the galaxy map (available from the GENERAL COMMAND MENU).  It enables you to locate nearby stars and mark the planets which belong to your opponents.  To get the galaxy map, capture it from the screen in your terminal client and then print or save that copy.
 
-Obtain an empire summary from the GENERAL COMMAND MENU. Save the summary that appears on the screen using your terminal or BBS client's capture feature.  It provides a thorough report of the status of your planets and fleets.  That way, you can review the state of your empire and plan your moves without needing to stay connected to the live session.
+Obtain an empire summary from the GENERAL COMMAND MENU. Save the summary that appears on the screen using your terminal client's capture feature.  It provides a thorough report of the status of your planets and fleets.  That way, you can review the state of your empire and plan your moves without needing to stay connected to the live session.
 
 ### How To Colonize A Raw (Unoccupied) Planet.
 

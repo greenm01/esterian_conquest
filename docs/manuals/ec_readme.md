@@ -1,135 +1,83 @@
-# Esterian Conquest README
+# Esterian Conquest Legacy Readme
 
-_v1.6 reference edition of
+_v1.6 reference edition based on
 [`original/v1.5/ECREADME.DOC`](/home/niltempus/dev/esterian_conquest/original/v1.5/ECREADME.DOC)._
 
-The original `.DOC` file remains the preserved source artifact. This
-transcription is provided for easier reading, quoting, and linking.
+This file exists to preserve the release and deployment context of the original
+DOS package without presenting that old operational material as the current
+`v1.6` setup path.
 
 ## How To Use This In v1.6
 
-- treat this as preserved sysop and release context from the original game
-- prefer the current `docs/sysop/` pages for Rust-native deployment guidance
-- use the original-source link when you need the untouched document:
-  [ECREADME.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECREADME.DOC)
+Read this when you want historical context on how Esterian Conquest was shipped
+and hosted in the DOS door era. For current deployment guidance, use the Rust
+documentation in [docs/sysop](/home/niltempus/dev/esterian_conquest/docs/sysop/).
+If you want the untouched original text, read
+[ECREADME.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECREADME.DOC).
 
-This document is the original quick installation readme for sysops.
+## What This Document Originally Covered
 
-## Features That Sysops Like About Esterian Conquest
+The original readme was a short operator note for setting up Esterian Conquest
+as a DOS BBS door. It emphasized that the game was easy to install, could back
+up and restore itself when maintenance failed integrity checks, and supported
+multi-node play.
 
-- Low-maintenance. The original readme describes EC as easy to install and
-  largely self-reliant after initialization.
-- Self-correcting. The game automatically backs up the previous state before
-  processing moves and can restore that backup if integrity checks fail.
-- Bulletproof. The original readme emphasizes resilience against line noise,
-  disconnects, and missed keystrokes.
-- Multi-node. The game supports simultaneous multi-node play.
-- Customized operation. Sysops can control player count, reserve empires,
-  specify maintenance days, and configure other options through `ECUTIL`.
+That material is still useful as project history. It is not the recommended
+deployment model for `v1.6`.
 
-## Features That Users Will Love
+## Historical DOS Package Expectations
 
-- Realistic action. The original readme calls out battle, planetary growth,
-  espionage, seven ship types, fifteen fleet missions, and detailed planetary
-  control.
-- Advanced, yet easy to use. Menus, optional ANSI graphics, multi-command
-  entry, expert mode, and in-game help are all highlighted.
-- Extras that go the full nine yards. Built-in messaging, autopilot, and
-  word-wrapped mission reports are part of the original pitch.
+The original package assumed a DOS host, a small hard drive, and a BBS setup
+capable of launching door programs and supplying one of the supported dropfile
+formats. It also assumed the bundled DOS binaries were the live game engine and
+maintenance path.
 
-## System Requirements
+Those assumptions are now legacy-only. In `v1.6`, the primary stack is:
 
-The original readme lists these requirements:
+- `ec-cli` for campaign setup and admin work
+- `maint-rust` for turn processing
+- `ec-client` as the long-term replacement for `ECGAME`
 
-- MS-DOS `2.11` or later
-- `512K` of memory, with `640K` recommended for larger `25`-player games
-- a hard disk with at least `1MB` free
-- BBS software that can generate one of these door-file formats:
+If you still want to host the original DOS client for compatibility reasons,
+use the modern guidance in
+[docs/sysop/enigma-bbs-setup.md](/home/niltempus/dev/esterian_conquest/docs/sysop/enigma-bbs-setup.md)
+instead of following the original readme literally.
 
-```text
-PCBOARD.SYS   (PCBoard v14+)
-DOOR.SYS      (GAP standard)
-DORINFOx.DEF  (QBBS, RBBS, RA, FoReM, etc.)
-CALLINFO.BBS  (Wildcat!)
-SFDOORS.DAT   (Spitfire)
-CHAIN.TXT     (WWIV)
-INFO.BBS      (Phoenix)
-```
+## Historical Package Contents
 
-## Files on the Program Diskette
+The original readme treated these files as the main shipped operator bundle:
 
-- `ECUTIL.EXE` — Esterian Conquest Sysop Utility
-- `ECGAME.EXE` — the user interface
-- `ECMAINT.EXE` — the maintenance program
-- `WHATSNEW.DOC` — revision and update notes
-- `ECREADME.DOC` — this installation readme
-- `ECSYSOP.DOC` — sysop guide
-- `ECQSTART.DOC` — quick-start guide for players
-- `ECPLAYER.DOC` — full player guide
+| File | Original role |
+| --- | --- |
+| `ECUTIL.EXE` | Sysop utility |
+| `ECGAME.EXE` | Player interface |
+| `ECMAINT.EXE` | Maintenance program |
+| `ECREADME.DOC` | Installation readme |
+| `ECSYSOP.DOC` | Sysop guide |
+| `ECQSTART.DOC` | Quick-start player guide |
+| `ECPLAYER.DOC` | Full player guide |
 
-## Installing Esterian Conquest
+That bundle matters today mainly as a compatibility and preservation reference.
 
-The original readme describes four high-level steps:
+## Historical Install Outline
 
-1. Copy the program files into a directory.
-2. Create a door-game batch file to run `ECGAME`.
-3. Add commands to run `ECMAINT` to the BBS daily event batch file.
-4. Make `ECPLAYER.DOC` and `ECQSTART.DOC` available for players to download.
+The original setup flow was simple. A sysop copied the DOS binaries into a
+program directory, created one or more game directories, arranged for the BBS
+to launch `ECGAME.EXE` from the active game directory, and scheduled
+`ECMAINT.EXE` to run from a daily event. The player guides were then distributed
+as downloadable documentation.
 
-### Copy the Program Files
+That is still the basic shape of the old DOS deployment model, but the modern
+project no longer expects you to build a live campaign that way unless you are
+deliberately running a compatibility door.
 
-The original recommendation is:
+## What Still Matters From The Original Readme
 
-- create a directory such as `\EC` for the program files
-- copy `ECUTIL.EXE`, `ECGAME.EXE`, and `ECMAINT.EXE` there
-- create a separate game directory such as `\GAME01`
-- use additional game directories like `\GAME02` if you want multiple games
+Three points still carry forward:
 
-### Door-Game Batch File
+- Esterian Conquest was designed to be low-touch once initialized.
+- Maintenance integrity and backup behavior are central to safe campaign
+  operation.
+- Good player documentation was considered part of deployment from the start.
 
-The readme says to switch into the game directory before running `ECGAME`, and
-to pass the path that contains the door file.
-
-Example batch commands from the original readme:
-
-```text
-C:
-CD\GAME01
-C:\EC\ECGAME C:\DOOR
-```
-
-The last line means:
-
-- run `ECGAME` from `C:\EC`
-- point it at the directory containing the active door file such as
-  `PCBOARD.SYS` or `DOOR.SYS`
-
-### Add the Maintenance Program to the Daily Event Batch File
-
-The readme says to switch into the game directory before running `ECMAINT`.
-
-It also includes an important warning:
-
-- adding `ECMAINT` to the event batch file effectively starts the game
-- sysops should advertise the game first and give players time to sign up
-  before enabling maintenance
-
-Example daily-event commands from the original readme:
-
-```text
-C:
-CD\GAME01
-C:\EC\ECMAINT /R
-COPY RANKINGS.TXT \BULLETINS
-```
-
-The `/R` example generates a rankings file, which the readme then copies into
-the BBS bulletins directory.
-
-### Player Documentation Files
-
-The original readme tells sysops to make `ECPLAYER.DOC` and `ECQSTART.DOC`
-available to users, and suggests compressing them with tools such as `PKZIP`.
-
-After that, the readme says the game is ready to be initialized through
-`ECUTIL.EXE`.
+Those ideas remain valid in `v1.6`, even though the runtime stack has changed.
