@@ -2,28 +2,30 @@
 
 ![Esterian Conquest banner](docs/assets/ec_v1.5_banner.png)
 
-Rust resurrection of Esterian Conquest v1.5, with classic `.DAT`
-interoperability, a growing native client, and a maintenance engine nearing
-full compliance.
+Esterian Conquest `v1.6` is a Rust continuation of the original game, with
+classic `.DAT` interoperability, a growing native client, and a maintenance
+engine that can already support serious campaign testing.
 
 Esterian Conquest is an asynchronous turn-based strategy game: players submit
 orders during the year, and maintenance resolves the turn.
 
 **[Read the Grand Vision: From BBS to the Decentralized Web](docs/grand-vision.md)**
 
-This is now best understood as the Rust `v1.6` continuation of Esterian
-Conquest. The reverse-engineering phase was the path to get here, but it is no
-longer the front face of the project.
+`v1.6` aims to carry Esterian Conquest forward without discarding what made the
+original game distinct: the yearly turn rhythm, the empire reports, the starmap
+drama, the asymmetrical scouting and warfare, and the old BBS command feel.
 
-Phase 1 remains the same: a modern drop-in BBS door replacement with:
+The immediate goal is a modern drop-in replacement for the classic door stack,
+with:
 
 - a canonical Rust game engine with SQLite-native runtime state
 - a Rust sysop/admin/oracle toolchain
 - a Rust player client intended to replace `ECGAME`
 
-The engine is already strong enough for serious campaign testing and hybrid
-play. Remaining work is now mostly Rust maint polish, native-client/TUI
-completeness, and campaign-scale playtesting.
+The current project state is practical rather than speculative. The Rust engine
+can already create campaigns, process maintenance, interoperate with classic
+directories, and support hybrid play with the original DOS client where that is
+still useful.
 
 ## Premise
 
@@ -32,10 +34,10 @@ of contested solar systems. The old masters are gone. Their stations are
 silent, their patrols vanished, and their subjects left with fleets,
 factories, and enough knowledge to build empires.
 
-`v1.6` treats that classic premise seriously. The goal is not to reboot the
-game into something unrecognizable, but to carry Esterian Conquest forward:
-preserve its campaign feel, menus, reports, and BBS-era drama while replacing
-the original DOS constraints with a modern Rust implementation.
+`v1.6` treats that classic premise seriously. The goal is not to sand away the
+identity of the original game, but to keep its campaign feel, menus, reports,
+and old-school tension while replacing the DOS runtime with a modern Rust
+implementation.
 
 ## Learn How To Play
 
@@ -57,11 +59,12 @@ The original `.DOC` files are still preserved in [original/v1.5](original/v1.5).
 Those manuals are not just historical reference. They are the canonical
 player-facing guide for how the game is supposed to work.
 
-## What You Can Do Today
+## Current State
 
-This is no longer just a preservation repo or an academic RE exercise. It is
-also not finished enough yet to call the Rust replacement fully playable end to
-end.
+`v1.6` is already usable for real development play, hybrid classic play, and
+campaign validation. It is not finished enough yet to call the Rust replacement
+complete end to end, but it is well past the stage of being a repo of notes and
+recovery experiments.
 
 Today you can:
 
@@ -80,10 +83,24 @@ Today you can:
 
 If you want to jump in immediately, start with [Quick Start](#quick-start).
 
+## Where v1.6 Is Going
+
+The project is moving toward a full Rust-first Esterian Conquest stack:
+
+- `ec-data` as the canonical game engine and state model
+- `maint-rust` as the normal turn processor
+- `ec-client` as the normal player interface
+- classic `.DAT` import/export as a compatibility boundary instead of the core
+  runtime
+
+That future state still respects the original game. The DOS binaries, manuals,
+and data formats remain the primary reference for rules, compatibility, and
+historical feel.
+
 ## Compatibility And Provenance
 
-The compatibility story is still important, but it no longer belongs at the
-center of the README.
+Compatibility remains a first-class engineering goal, but it is in service of
+`v1.6`, not a substitute for it.
 
 Short version:
 
