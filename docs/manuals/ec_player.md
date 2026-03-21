@@ -261,7 +261,7 @@ QUIT ("Q"): usually returns you to a previous menu.  From the main menu, the qui
 
 HELP ("H"): gives a brief description of what each of the options do for the current menu.
 
-XPERT ON/OFF ("X"): Toggles expert mode on and off. Normally, menus present a list of options and then prompt you to pick the letter of an option.  Expert mode saves you time by skipping the option list and displaying only the prompt for a letter.  If you forget the options while in expert mode, typing "X" and [ENTER] will turn expert mode off and show you the full menus again.
+XPERT ON/OFF ("X"): In the classic client, this toggles expert mode on and off. Normally, menus present a list of options and then prompt you to pick the letter of an option. Expert mode saves time by skipping the option list and displaying only the prompt for a letter. In the Rust TUI, the long-term direction is closer to a command mode like Helix `:`, while preserving the classic `XPERT` idea.
 
 VIEW PARTIAL STARMAP ("V"): Displays a 17 x 17 portion of the Galaxy map centered around your specified coordinates.  Information Database knowledge of planetary Ownership and Maximum Production are also shown on the map.  You can slide the map by pressing a number key plus [ENTER] as displayed on the screen. Pressing the "5" plus [ENTER] will toggle the display of maximum production.
 
