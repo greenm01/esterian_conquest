@@ -534,6 +534,34 @@ remaining risks are:
       lookup inside `5c18` and before `6817` / the `0x3562` follow-up can run
     - the immediate abort-side question is therefore upstream of `0x3562`:
       why the regular-world scout reaches `5c18` with `0x3534 == 0`
+    - use `.oracle/before-ecmaint` as the real input snapshot for this thread;
+      the top-level rebuilt probe directories can drift after oracle runs and
+      SQLite-side work, so their root `FLEETS.DAT` files are not always the
+      same bytes original `ECMAINT` actually saw
+    - the real failing input at
+      `/tmp/ecgame-regular-purescout-clean/.oracle/before-ecmaint/FLEETS.DAT`
+      still contains the intended live scout:
+      record `2` is a lone pure `ScoutSolarSystem(11)` fleet with speed `3/6`,
+      source `(10,2)`, target `(9,2)`, aux `[1,0]`, scout count `1`, and the
+      same tuple payloads as the known-good success-side pure-scout case
+    - there are no other owner-1 fleets in that scout source sector `(10,2)`
+      or target sector `(9,2)`, and no owner-4 fleets already parked in
+      `(9,2)`, so the remaining gate is not explained by obvious local fleet
+      pileups in the oracle input
+    - direct raw comparison against
+      `/tmp/ecgame-classic-atrest-purescout-new/.oracle/before-ecmaint`
+      rules out most per-fleet encoding suspicions: the fail/success scout
+      records match on order `11`, speed `3/6`, aux `[1,0]`, pure-scout
+      composition, and all three tuple payloads; the remaining byte
+      differences are just linked-list ids, source/target coordinates, and
+      byte `0x08`
+    - negative control: patching only the failing scout's byte `0x08` from
+      `0x00 -> 0x64` in
+      `/tmp/ecgame-regular-purescout-clean/.oracle/before-ecmaint/FLEETS.DAT`
+      changes nothing important. A fresh oracle run at
+      `/tmp/ecgame-regular-byte08-64` left player-1 row 5 in `DATABASE.DAT`
+      as `UNKNOWN` before and after `ECMAINT`, so byte `0x08` is not the
+      remaining regular-world scout gate by itself
 19. The on-disk packed `ECMAINT.EXE` is not a useful string anchor for the
     scout-abort path. Headless Ghidra on local project `ec-v15-local` found no
     matches for `Scouting mission report`, `Since we have lost`, or

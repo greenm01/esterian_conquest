@@ -10296,3 +10296,86 @@ use as a comparison dump here:
 - `RESULTS.DAT` stayed empty and the resulting guest RAM image did not expose
   the expected scout strings, so it is not yet a trustworthy success-side PSP
   dump
+
+One more correction matters for this thread: compare against the captured
+classic oracle snapshot, not the mutable top-level probe directory.
+
+- `/tmp/ecgame-regular-purescout-clean/FLEETS.DAT` at the root later drifted
+  back to mostly `hold(0)` orders
+- but the actual oracle input in
+  `/tmp/ecgame-regular-purescout-clean/.oracle/before-ecmaint/FLEETS.DAT`
+  still contains the intended live scout probe
+
+Raw `FLEETS.DAT` compare of the real failing regular-world input versus the
+known-good success-side pure-scout input tightens the remaining space
+significantly.
+
+Failing input:
+- `/tmp/ecgame-regular-purescout-clean/.oracle/before-ecmaint/FLEETS.DAT`
+- scout record is record `2`
+- decoded fields:
+  - owner `1`
+  - order `11` (`ScoutSolarSystem`)
+  - speed `3/6`
+  - source `(10,2)`
+  - target `(9,2)`
+  - aux `[1,0]`
+  - pure scout composition (`SC=1`, all other ship / army / ETAC counts `0`)
+  - tuple payloads:
+    - `tuple_a = 80 00 00 00 00`
+    - `tuple_b = 80 00 00 00 00`
+    - `tuple_c = 81 00 00 00 00`
+- there are no other owner-1 fleets in the scout source sector `(10,2)` or
+  the target sector `(9,2)` in that same oracle snapshot
+- there are also no owner-4 fleets already parked in `(9,2)` in that same
+  oracle snapshot
+
+Known-good success-side input:
+- `/tmp/ecgame-classic-atrest-purescout-new/.oracle/before-ecmaint/FLEETS.DAT`
+- scout record is record `3`
+- matching fields:
+  - order `11`
+  - speed `3/6`
+  - aux `[1,0]`
+  - pure scout composition
+  - identical tuple payloads
+
+Observed raw byte differences between the fail/success scout records:
+- linked-list / identity bytes only:
+  - `0x00`: local slot `2` vs `3`
+  - `0x03`: next id `3` vs `4`
+  - `0x05`: fleet id `2` vs `3`
+  - `0x07`: prev id `1` vs `2`
+- `0x08`: `0x00` vs `0x64`
+- coordinates:
+  - `0x0b..0x0c`: `(10,2)` vs `(16,13)`
+  - `0x20..0x21`: `(9,2)` vs `(15,13)`
+
+So the remaining regular-world scout-abort gate is very unlikely to be a
+generic scout fleet record encoding problem. The fail/success scout records
+already match on the fields that the prefilter at `0000:f71d` visibly checks:
+
+- order `11`
+- speed `3/6`
+- aux `[1,0]`
+- pure scout composition
+- same tuple payloads
+
+That leaves the remaining gate much more strongly in world / sector /
+owner-specific setup logic than in the scout fleet record itself.
+
+One last per-fleet negative control also collapsed cleanly: patch only the
+failing scout record's byte `0x08` from `0x00` to `0x64`, leaving the source
+and target coordinates unchanged.
+
+- built `/tmp/ecgame-regular-byte08-64` from
+  `/tmp/ecgame-regular-purescout-clean/.oracle/before-ecmaint`
+- patched only record `2` byte `0x08 = 0x64`
+- reran `python3 tools/ecmaint_oracle.py run /tmp/ecgame-regular-byte08-64`
+- oracle finished with no file diffs at all
+- player-1 row 5 in `DATABASE.DAT` stayed `UNKNOWN` before and after
+  `ECMAINT`
+
+So the lone remaining raw fail/success scout-record byte difference outside
+linked-list ids and coordinates is not enough to explain the regular-world
+scout-abort gate either.
