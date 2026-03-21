@@ -519,21 +519,15 @@ remaining risks are:
       `entry in {0,1}`, clears `0x350c`, and ends with `entry := 2`
     - later paths also promote existing nonzero entries to `3`, `4`, `6`, and
       `7`, so `0x3562` is a small state machine, not a visibility bit
-18. Practical implication: the remaining regular-world scout-abort gate is now
-    best treated as a scout-side use of a broader shared target-state table,
-    not a plain owner-slot or stale-visibility problem and not a proven
-    scout-specific `state 1 -> state 2` issue. The next useful RE step is to
-    stay on the real scout branch, `0x0b -> 5c18 -> 6817`, and identify how
-    that path consumes `0x3562` in the regular-world success case versus the
-    failing abort case.
+18. The regular-world scout-**abort** gate is now closed. The abort report is
+    not a direct property of "foreign regular world" or of the scout-record
+    bytes; it is a lone-active-mission quirk in original `ECMAINT`.
     More precise current read:
     - the exact failing text `Since we have lost all of our scouts ...
       scouting System(...)` belongs to `5c18`'s early `word [0x3534] == 0`
       abort path
     - so the known failing regular-world run dies before the foreign-owner
       lookup inside `5c18` and before `6817` / the `0x3562` follow-up can run
-    - the immediate abort-side question is therefore upstream of `0x3562`:
-      why the regular-world scout reaches `5c18` with `0x3534 == 0`
     - use `.oracle/before-ecmaint` as the real input snapshot for this thread;
       the top-level rebuilt probe directories can drift after oracle runs and
       SQLite-side work, so their root `FLEETS.DAT` files are not always the
@@ -562,6 +556,23 @@ remaining risks are:
       `/tmp/ecgame-regular-byte08-64` left player-1 row 5 in `DATABASE.DAT`
       as `UNKNOWN` before and after `ECMAINT`, so byte `0x08` is not the
       remaining regular-world scout gate by itself
+    - the failing baseline has exactly one active non-hold fleet mission in
+      the whole campaign: the probing `ScoutSolarSystem(11)` fleet itself
+    - adding any second active fleet mission anywhere in the campaign kills the
+      abort and collapses the run to a total no-op instead. Confirmed probes:
+      `/tmp/ecgame-regular-owner4-single-guard`
+      (`GuardBlockadeWorld(5)`),
+      `/tmp/ecgame-regular-owner3-single-guard`
+      (`GuardBlockadeWorld(5)` on a non-target owner),
+      `/tmp/ecgame-regular-owner3-scout-sector`
+      (`ScoutSector(10)`), and
+      `/tmp/ecgame-regular-owner3-moveonly`
+      (`MoveOnly(1)`). All four produced zero core-file diffs and empty
+      `RESULTS.DAT`
+    - practical rule: the classic scout-abort report appears only when the
+      probing `ScoutSolarSystem(11)` fleet is the lone active non-hold fleet
+      order in the campaign. This matches the static gate on `0x3534 == 0`
+      inside `5c18`
     - success-side probes are now narrowing the other side of the boundary too.
       Starting from the accepted foreign-world `TargetPrime` scout baseline at
       `/tmp/ecgame-classic-atrest-purescout-new/.oracle/before-ecmaint`:
@@ -578,9 +589,9 @@ remaining risks are:
       also collapsed to a total no-op
     - practical read: the accepted foreign-world scout path is a tightly
       coupled target-world/system context, not just a generic scout fleet plus
-      a visible foreign owner. The remaining regular-world gate is therefore
-      very likely in that target-world/system classification path, not in scout
-      fleet bytes
+      a visible foreign owner. The remaining regular-world issue is no longer
+      the abort itself; it is the no-op versus true refresh split in that
+      target-world/system classification path
 19. The on-disk packed `ECMAINT.EXE` is not a useful string anchor for the
     scout-abort path. Headless Ghidra on local project `ec-v15-local` found no
     matches for `Scouting mission report`, `Since we have lost`, or

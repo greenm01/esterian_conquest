@@ -10416,3 +10416,61 @@ coupled to target-world/system identity. It is not "any valid scout fleet plus
 any foreign owned world"; changing only the target owner or moving the accepted
 target family into the failing regular-world system is enough to kill the whole
 path before any abort report or `DATABASE.DAT` refresh.
+
+### The regular-world scout-abort gate is a lone-active-mission quirk
+
+The next useful split was not "target owner" but "does the campaign contain
+any second active fleet mission besides the probing scout?"
+
+Baseline fail:
+
+- `/tmp/ecgame-regular-purescout-clean/.oracle/before-ecmaint`
+- exactly one non-hold fleet mission in the entire campaign:
+  - player-1 fleet `2` = `ScoutSolarSystem(11)` to `(9,2)`
+- original `ECMAINT` emits:
+  - `Scouting mission report: Since we have lost all of our scouts, we must abort our mission of scouting System(9,2).`
+
+Adding one extra active fleet mission anywhere in the campaign kills that abort
+completely and collapses the run to a total no-op instead:
+
+- `/tmp/ecgame-regular-owner4-single-guard`
+  - changed only owner-4 fleet `13` from `Hold(0)` to
+    `GuardBlockadeWorld(5)` at `(13,13)`
+  - oracle result: zero diffs in all core `.DAT` files, empty `RESULTS.DAT`
+- `/tmp/ecgame-regular-owner3-single-guard`
+  - changed only non-target owner-3 fleet `9` from `Hold(0)` to
+    `GuardBlockadeWorld(5)` at `(5,13)`
+  - oracle result: zero diffs in all core `.DAT` files, empty `RESULTS.DAT`
+- `/tmp/ecgame-regular-owner3-scout-sector`
+  - changed only non-target owner-3 fleet `9` from `Hold(0)` to
+    `ScoutSector(10)`
+  - oracle result: zero diffs in all core `.DAT` files, empty `RESULTS.DAT`
+- `/tmp/ecgame-regular-owner3-moveonly`
+  - changed only non-target owner-3 fleet `9` from `Hold(0)` to
+    `MoveOnly(1)` toward `(6,13)`
+  - oracle result: zero diffs in all core `.DAT` files, empty `RESULTS.DAT`
+
+This is enough to close the original abort question:
+
+- the regular-world scout-abort report is **not** a direct property of the
+  target world being foreign and regular
+- it is **not** caused by the scout record bytes, owner slot alone, target
+  defenses, target stardock, or obvious local fleet pileups
+- the abort happens only when the probing `ScoutSolarSystem(11)` fleet is the
+  lone active non-hold fleet order in the campaign
+- as soon as any second active fleet mission exists anywhere, the abort path at
+  `5c18` is suppressed
+
+That lines up with the static RE anchor:
+
+- `5c18` emits the abort only on its early `word [0x3534] == 0` branch
+- the black-box probes above show `0x3534` is effectively tracking some
+  campaign-global "other active mission(s) exist" condition rather than any
+  target-world-specific byte family
+
+So the remaining scout problem is no longer "why does the regular world abort?"
+It is a separate question:
+
+- why do regular-world probes collapse to a total no-op even after the abort is
+  suppressed, while the accepted `TargetPrime` foreign-world family refreshes
+  `DATABASE.DAT` successfully?
