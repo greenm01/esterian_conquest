@@ -160,15 +160,15 @@ There are 6 types of starships -- 3 combat types and 3 specialized types.  Small
 
 **Troop Transport:** This ship is required for capturing planets.  A medium size, intermediate speed ship (speed=5).  It is inexpensive (5 points) and used to move an army from one planet to another.  It holds one army and is not armed.  This ship will drop an army on a planet during an INVADE or BLITZ.
 
-ETAC (Environmental Transformation And Colonization): A large, slow (speed=3), expensive (20 points) ship used to terraform and colonize uninhabited planets.
+**ETAC (Environmental Transformation And Colonization):** A large, slow (speed=3), expensive (20 points) ship used to terraform and colonize uninhabited planets.
 
-STARBASES are large space fortresses that play special roles. Within a solar system, starbases protect and enhance the planet.  A planet with a starbase orbiting can withstand tax burdens better.  The starbase also enables a planet to spend up to 5 times its current production level building units (if you have that many production points stored on the planet).  A starbase helps a planet increase its current production level faster if the planet is not yet producing at its maximum.
+**Starbases:** Large space fortresses that play special roles. Within a solar system, starbases protect and enhance the planet.  A planet with a starbase orbiting can withstand tax burdens better.  The starbase also enables a planet to spend up to 5 times its current production level building units (if you have that many production points stored on the planet).  A starbase helps a planet increase its current production level faster if the planet is not yet producing at its maximum.
 
 Outside the solar system, a starbase gives surveillance reports on any alien fleets it finds.  It cannot attack since it moves very slowly (1 sector per round), but it can defend itself.  A starbase has slightly more fire power than a battleship and can withstand more hits. Starbases cost 50 production points to build.
 
-ARMIES have two duties: (1) defend your planets from enemy invasions and blitzes and (2) invade or blitz enemy planets.  The only way to capture a planet owned by another player is to land armies on its surface and defeat his armies with yours.  Armies cost 2 production points to build.
+**Armies:** Have two duties: (1) defend your planets from enemy invasions and blitzes and (2) invade or blitz enemy planets.  The only way to capture a planet owned by another player is to land armies on its surface and defeat his armies with yours.  Armies cost 2 production points to build.
 
-GROUND BATTERIES are land-based cannons that defend planets against hostile starships.  Even though they cost 20 production points, they offer more "firepower per dollar" than any starship.  Their firepower is roughly equal to that of a battleship at less than half the cost.  Their major disadvantage is that they cannot move and therefore are easier to hit.
+**Ground Batteries:** Land-based cannons that defend planets against hostile starships.  Even though they cost 20 production points, they offer more "firepower per dollar" than any starship.  Their firepower is roughly equal to that of a battleship at less than half the cost.  Their major disadvantage is that they cannot move and therefore are easier to hit.
 
 ### Combat
 
