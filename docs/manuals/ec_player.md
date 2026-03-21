@@ -191,37 +191,37 @@ Your fleets may attack if they encounter the fleet of a player you've declared t
 
 You can order a fleet on one of 15 missions.  Some missions require certain types of vessels.  After each mission name, the required vessels follow in parentheses.
 
-NONE (All ship types):  Hold position and do nothing.
+**NONE (All ship types):** Hold position and do nothing.
 
-MOVE FLEET (All ship types):  Move to the specified sector.
+**MOVE FLEET (All ship types):** Move to the specified sector.
 
-SEEK HOME (All ship types):  Move to the nearest planet you own.  Should that planet be taken over by an enemy, the fleet will move to the next closest planet you own.
+**SEEK HOME (All ship types):** Move to the nearest planet you own.  Should that planet be taken over by an enemy, the fleet will move to the next closest planet you own.
 
-PATROL A SECTOR (All ship types):  Move around a sector (but not within a solar system even if the sector has a one) and try to intercept any ENEMIES traveling through.  If your fleet sees anything, it sends a report to you.
+**PATROL A SECTOR (All ship types):** Move around a sector (but not within a solar system even if the sector has a one) and try to intercept any ENEMIES traveling through.  If your fleet sees anything, it sends a report to you.
 
-GUARD A STARBASE (combat ships):  Move to and escort a specified starbase.  Help the starbase in a fight.  This is useful if the starbase is guarding a planet so that the combat ships work in coordination with the base.  A fleet guarding a starbase may leave it if they have a high ROE and an enemy fleet comes close to their solar system.
+**GUARD A STARBASE (combat ships):** Move to and escort a specified starbase.  Help the starbase in a fight.  This is useful if the starbase is guarding a planet so that the combat ships work in coordination with the base.  A fleet guarding a starbase may leave it if they have a high ROE and an enemy fleet comes close to their solar system.
 
-GUARD/BLOCKADE A WORLD (combat ships):  Prevent alien contact with the planet you guard, including its owners if the planet does not belong to you.  This mission is primarily used to guard your planets from attack by other fleets. However, blockading a planet that belongs to another player is a way to intercept that player's ships which are launching from or approaching his/her planet.
+**GUARD/BLOCKADE A WORLD (combat ships):** Prevent alien contact with the planet you guard, including its owners if the planet does not belong to you.  This mission is primarily used to guard your planets from attack by other fleets. However, blockading a planet that belongs to another player is a way to intercept that player's ships which are launching from or approaching his/her planet.
 
-BOMBARD A WORLD (combat ships):  Pound the world, destroy its production and anything orbiting the world, including recently built ships stored in stardock.
+**BOMBARD A WORLD (combat ships):** Pound the world, destroy its production and anything orbiting the world, including recently built ships stored in stardock.
 
-INVADE A WORLD (combat ships and troop transports with armies):  This is a three stage battle: (1) destroy all the world's ground batteries (cannons), (2) pound the population centers a little to soften resistance and take out enemy armies, then (3) send in troop transports to drop off your armies, but ONLY AFTER all ground batteries have been destroyed.  This damages the planet and gives them time to sabotage their industry before you take over, but gives your armies a better chance of taking the planet.  You succeed if you destroy all ground batteries and then your armies defeat their armies.
+**INVADE A WORLD (combat ships and troop transports with armies):** This is a three stage battle: (1) destroy all the world's ground batteries (cannons), (2) pound the population centers a little to soften resistance and take out enemy armies, then (3) send in troop transports to drop off your armies, but ONLY AFTER all ground batteries have been destroyed.  This damages the planet and gives them time to sabotage their industry before you take over, but gives your armies a better chance of taking the planet.  You succeed if you destroy all ground batteries and then your armies defeat their armies.
 
-BLITZ A WORLD (troop transports with armies -- combat ships recommended).  Try to infiltrate your armies onto the planet by dodging their ground batteries or distracting them.  You succeed if your armies defeat their armies. Since this form of attack is so quick, there is less damage to the planet since the enemy does not have time to sabotage their factories and since your combat ships do not pound the surface very much.  However, you put your armies at greater risk so you need many (twice as many as the enemy or better) to insure success.
+**BLITZ A WORLD (troop transports with armies -- combat ships recommended):** Try to infiltrate your armies onto the planet by dodging their ground batteries or distracting them.  You succeed if your armies defeat their armies. Since this form of attack is so quick, there is less damage to the planet since the enemy does not have time to sabotage their factories and since your combat ships do not pound the surface very much.  However, you put your armies at greater risk so you need many (twice as many as the enemy or better) to insure success.
 
-VIEW A WORLD (all ship types):  Go to the edge of a solar system and do a long-range scan of the planet to find out its potential production and who owns it.  Then back off into the deep space area of the sector.
+**VIEW A WORLD (all ship types):** Go to the edge of a solar system and do a long-range scan of the planet to find out its potential production and who owns it.  Then back off into the deep space area of the sector.
 
-SCOUT A SECTOR (requires at least one scout ship):  Go into deep space of a sector (and not inside any solar systems) and look for alien fleets.  It will not engage enemy fleets.  This is less effective than the PATROL SECTOR order, but the scout ship is less likely to be noticed due to its stealth, especially if you use a fleet made of only one scout ship.
+**SCOUT A SECTOR (requires at least one scout ship):** Go into deep space of a sector (and not inside any solar systems) and look for alien fleets.  It will not engage enemy fleets.  This is less effective than the PATROL SECTOR order, but the scout ship is less likely to be noticed due to its stealth, especially if you use a fleet made of only one scout ship.
 
-SCOUT A SOLAR SYSTEM (requires at least one scout ship):  Use the scout's stealth equipment to get close to a world and: (1) count ground batteries and armies, (2) Estimate planet's current production and stardocks for currently built ships, and (3) Scan the solar system for fleets.  A fleet made of only one scout ship is least likely to be detected because of the scout's stealth capability.
+**SCOUT A SOLAR SYSTEM (requires at least one scout ship):** Use the scout's stealth equipment to get close to a world and: (1) count ground batteries and armies, (2) Estimate planet's current production and stardocks for currently built ships, and (3) Scan the solar system for fleets.  A fleet made of only one scout ship is least likely to be detected because of the scout's stealth capability.
 
-COLONIZE A WORLD (requires at least one ETAC):  Terraform and colonize a raw (unowned) planet.  If the world is already owned when you get there, report its owner and potential production and then leave the solar system to await new orders.
+**COLONIZE A WORLD (requires at least one ETAC):** Terraform and colonize a raw (unowned) planet.  If the world is already owned when you get there, report its owner and potential production and then leave the solar system to await new orders.
 
-JOIN ANOTHER FLEET (all ship types):  Seek out the specified host fleet and merge with it when they meet.  If the host fleet is destroyed, all joining fleets will abandon their mission.
+**JOIN ANOTHER FLEET (all ship types):** Seek out the specified host fleet and merge with it when they meet.  If the host fleet is destroyed, all joining fleets will abandon their mission.
 
-RENDEZVOUS (all ship types):  Move to the specified sector and merge with any other fleets ordered to rendezvous there.  The fleet with the lowest ID Number becomes the host fleet.  This order is useful for assembling large fleets near enemy planets for later attack.
+**RENDEZVOUS (all ship types):** Move to the specified sector and merge with any other fleets ordered to rendezvous there.  The fleet with the lowest ID Number becomes the host fleet.  This order is useful for assembling large fleets near enemy planets for later attack.
 
-SALVAGE (all ship types):  Go to the specified planet and scrap the ships there for approximately half the purchase price in production points.
+**SALVAGE (all ship types):** Go to the specified planet and scrap the ships there for approximately half the purchase price in production points.
 
 The fleet missions are summarized and arranged by mission number in Appendix A of this Player's Guide.
 
