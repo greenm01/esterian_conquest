@@ -16,12 +16,12 @@ survivors.
 
 Read it together with:
 
-- [rust-turn-cycle-implementation.md](/home/mag/dev/esterian_conquest/docs/dev/rust-turn-cycle-implementation.md)
+- [rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md)
   for where fleet combat, post-loop build/economy work, and later hostile
   world-resolution phases sit in the yearly turn
-- [ec-turn-cycle-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-turn-cycle-spec.md)
+- [ec-turn-cycle-spec.md](ec-turn-cycle-spec.md)
   for the oracle-backed classic phase ordering that the Rust target follows
-- [ec-timing-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-timing-spec.md)
+- [ec-timing-spec.md](ec-timing-spec.md)
   for weekly report timing and `Stardate` header formatting
 
 ## Status
@@ -1031,11 +1031,11 @@ At minimum, combat events should be capable of expressing:
 - whether a world changed ownership
 
 For where those combat events are produced in the yearly loop, use
-[rust-turn-cycle-implementation.md](/home/mag/dev/esterian_conquest/docs/dev/rust-turn-cycle-implementation.md)
+[rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md)
 and
-[ec-turn-cycle-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-turn-cycle-spec.md).
+[ec-turn-cycle-spec.md](ec-turn-cycle-spec.md).
 For player-visible `Stardate` placement and formatting, use
-[ec-timing-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-timing-spec.md).
+[ec-timing-spec.md](ec-timing-spec.md).
 
 ## Explicit Non-Goals
 

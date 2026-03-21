@@ -7,9 +7,9 @@ Status:
 
 - this is a reference-only report-side catalog, not a canonical Rust behavior
   spec
-- use [ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md),
-  [economics.md](/home/mag/dev/esterian_conquest/docs/dev/economics.md), and
-  [ec-turn-cycle-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-turn-cycle-spec.md)
+- use [ec-combat-spec.md](ec-combat-spec.md),
+  [economics.md](economics.md), and
+  [ec-turn-cycle-spec.md](ec-turn-cycle-spec.md)
   for authoritative implementation behavior
 
 Purpose:

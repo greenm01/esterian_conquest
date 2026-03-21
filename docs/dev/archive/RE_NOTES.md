@@ -196,7 +196,7 @@ The most reliable environment found so far is:
 
 Built binary used during testing:
 
-- [`/tmp/dosbox-x/src/dosbox-x`](/tmp/dosbox-x/src/dosbox-x)
+- `/tmp/dosbox-x/src/dosbox-x`
 
 ## Working Launch Recipe
 
@@ -719,7 +719,7 @@ Useful test files created during analysis:
 
 Observed effects after initializing a new game:
 
-- [`BASES.DAT`](/home/niltempus/Documents/esterian-conquest/v1.5/BASES.DAT) was zeroed
+- `BASES.DAT` was zeroed
 - `IPBM.DAT` was created
 - `MESSAGES.DAT` was created
 - `RESULTS.DAT` was created
@@ -777,12 +777,12 @@ Reason this is not confirmed:
 
 Highest-value targets for a port:
 
-- [`SETUP.DAT`](/home/niltempus/Documents/esterian-conquest/v1.5/SETUP.DAT)
-- [`PLAYER.DAT`](/home/niltempus/Documents/esterian-conquest/v1.5/PLAYER.DAT)
-- [`PLANETS.DAT`](/home/niltempus/Documents/esterian-conquest/v1.5/PLANETS.DAT)
-- [`FLEETS.DAT`](/home/niltempus/Documents/esterian-conquest/v1.5/FLEETS.DAT)
-- [`CONQUEST.DAT`](/home/niltempus/Documents/esterian-conquest/v1.5/CONQUEST.DAT)
-- [`DATABASE.DAT`](/home/niltempus/Documents/esterian-conquest/v1.5/DATABASE.DAT)
+- `SETUP.DAT`
+- `PLAYER.DAT`
+- `PLANETS.DAT`
+- `FLEETS.DAT`
+- `CONQUEST.DAT`
+- `DATABASE.DAT`
 
 Current observations:
 
@@ -3773,7 +3773,7 @@ Current scaffold status:
 
 Captured gameplay screenshots were copied to:
 
-- [ecv1.5](/home/niltempus/Pictures/ecv1.5)
+- `~/Pictures/ecv1.5`
 
 ## 2026-03-10: Fleet Ship Capacities and Planetary Invasions
 

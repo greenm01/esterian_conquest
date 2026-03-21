@@ -5,15 +5,15 @@ It is the code-ownership and module-boundary companion to the behavior specs.
 
 Read it together with:
 
-- [rust-turn-cycle-implementation.md](/home/mag/dev/esterian_conquest/docs/dev/rust-turn-cycle-implementation.md)
+- [rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md)
   for yearly maintenance phase ordering
-- [ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md)
+- [ec-combat-spec.md](ec-combat-spec.md)
   for combat and hostile world-resolution mechanics
-- [ec-timing-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-timing-spec.md)
+- [ec-timing-spec.md](ec-timing-spec.md)
   for weekly timing and report `Stardate` behavior
-- [economics.md](/home/mag/dev/esterian_conquest/docs/dev/economics.md)
+- [economics.md](economics.md)
   for post-loop build/economy policy
-- [bbs_door_client_rust.md](/home/mag/dev/esterian_conquest/docs/dev/bbs_door_client_rust.md)
+- [bbs_door_client_rust.md](bbs_door_client_rust.md)
   for player-client direction
 
 Authority boundary:
@@ -129,7 +129,7 @@ but the ownership boundaries above should remain stable.
 
 The Rust yearly maintenance engine lives in `ec-data/src/maint/`.
 
-Use [rust-turn-cycle-implementation.md](/home/mag/dev/esterian_conquest/docs/dev/rust-turn-cycle-implementation.md)
+Use [rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md)
 as the ordering spec, then reflect that ordering in code by phase-oriented
 submodules rather than one giant driver file.
 
@@ -234,13 +234,13 @@ promote it into `ec-data`.
 Subsystem behavior should follow the companion specs:
 
 - setup/map-generation constraints:
-  [ec-setup-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-setup-spec.md)
+  [ec-setup-spec.md](ec-setup-spec.md)
 - movement/pathfinding behavior:
-  [ec-movement-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-movement-spec.md)
+  [ec-movement-spec.md](ec-movement-spec.md)
 - build/economy behavior:
-  [economics.md](/home/mag/dev/esterian_conquest/docs/dev/economics.md)
+  [economics.md](economics.md)
 - combat/hostile world resolution:
-  [ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md)
+  [ec-combat-spec.md](ec-combat-spec.md)
 
 The architecture consequence is straightforward:
 
@@ -258,7 +258,7 @@ Testing rules:
 - split tests by concern rather than growing one giant integration test file
 - after meaningful Rust changes, run `cargo test -q` from `rust/`
 - for maint-sensitive behavior, keep using the oracle sweep and Rust maint sweep
-  documented in [next-session.md](/home/mag/dev/esterian_conquest/docs/dev/next-session.md)
+  documented in [next-session.md](next-session.md)
 
 The test split should mirror the code split. If a feature area deserves its own
 module, it usually deserves its own test surface too.

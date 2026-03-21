@@ -8,11 +8,11 @@ Use placeholders like `<fleet_ordinal>` and `<empire>` for dynamic fields.
 
 Read this together with:
 
-- [ec-timing-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-timing-spec.md)
+- [ec-timing-spec.md](ec-timing-spec.md)
   for `Stardate` placement and weekly assignment
-- [ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md)
+- [ec-combat-spec.md](ec-combat-spec.md)
   for combat and hostile-world mechanics
-- [rust-turn-cycle-implementation.md](/home/mag/dev/esterian_conquest/docs/dev/rust-turn-cycle-implementation.md)
+- [rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md)
   for where reports are emitted in the yearly loop
 
 ## Source Priority
@@ -218,17 +218,17 @@ artifacts and should be treated as canonical wording anchors.
 Recovered string probes:
 
 - `Sensor contact shows an alien fleet in `
-  - [string-probe-sensor-contact-shows-an-alien-fleet.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/string-probe-sensor-contact-shows-an-alien-fleet.txt)
+  - `artifacts/ghidra/ecmaint-live/string-probe-sensor-contact-shows-an-alien-fleet.txt`
 - `We have located and identified the alien fleet in `
-  - [string-probe-we-have-located-and-identified-the-alien-fleet.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/string-probe-we-have-located-and-identified-the-alien-fleet.txt)
+  - `artifacts/ghidra/ecmaint-live/string-probe-we-have-located-and-identified-the-alien-fleet.txt`
 - `We are in extended orbit around `
-  - [string-probe-we-are-in-extended-orbit-around.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/string-probe-we-are-in-extended-orbit-around.txt)
+  - `artifacts/ghidra/ecmaint-live/string-probe-we-are-in-extended-orbit-around.txt`
 - `We have just concluded a bombing run against planet "`
-  - [string-probe-we-have-just-concluded-a-bombing-run.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/string-probe-we-have-just-concluded-a-bombing-run.txt)
+  - `artifacts/ghidra/ecmaint-live/string-probe-we-have-just-concluded-a-bombing-run.txt`
 - `We were attacked by the `
-  - [string-probe-we-were-attacked-by.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/string-probe-we-were-attacked-by.txt)
+  - `artifacts/ghidra/ecmaint-live/string-probe-we-were-attacked-by.txt`
 - `We have entered System(`
-  - [string-probe-we-have-entered-system.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/string-probe-we-have-entered-system.txt)
+  - `artifacts/ghidra/ecmaint-live/string-probe-we-have-entered-system.txt`
 
 Recovered late-report string anchors:
 
@@ -244,10 +244,10 @@ Recovered late-report string anchors:
 
 Sources:
 
-- [turn-cycle-function-strings.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/turn-cycle-function-strings.txt)
-- [string-xrefs.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/string-xrefs.txt)
-- [interesting-strings.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/interesting-strings.txt)
-- [unknown-starbase-strings.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/unknown-starbase-strings.txt)
+- `artifacts/ghidra/ecmaint-live/turn-cycle-function-strings.txt`
+- `artifacts/ghidra/ecmaint-live/string-xrefs.txt`
+- `artifacts/ghidra/ecmaint-live/interesting-strings.txt`
+- `artifacts/ghidra/ecmaint-live/unknown-starbase-strings.txt`
 
 ## Template Reference
 
@@ -522,7 +522,7 @@ Starbase mutiny loss summary:
 ```
 
 This wording is anchored by the late-report string region at
-[turn-cycle-function-strings.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/turn-cycle-function-strings.txt).
+`artifacts/ghidra/ecmaint-live/turn-cycle-function-strings.txt`.
 
 ### Rust-Only Administrative Notices
 
@@ -576,30 +576,30 @@ the longest observed in the oracle corpus at 12 records).
 
 Primary binary-backed evidence:
 
-- [string-probe-sensor-contact-shows-an-alien-fleet.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/string-probe-sensor-contact-shows-an-alien-fleet.txt)
-- [string-probe-we-have-located-and-identified-the-alien-fleet.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/string-probe-we-have-located-and-identified-the-alien-fleet.txt)
-- [string-probe-we-are-in-extended-orbit-around.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/string-probe-we-are-in-extended-orbit-around.txt)
-- [string-probe-we-have-just-concluded-a-bombing-run.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/string-probe-we-have-just-concluded-a-bombing-run.txt)
-- [string-probe-we-were-attacked-by.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/string-probe-we-were-attacked-by.txt)
-- [string-probe-we-have-entered-system.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/string-probe-we-have-entered-system.txt)
-- [turn-cycle-function-strings.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/turn-cycle-function-strings.txt)
-- [string-xrefs.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/string-xrefs.txt)
-- [interesting-strings.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/interesting-strings.txt)
-- [unknown-starbase-strings.txt](/home/mag/dev/esterian_conquest/artifacts/ghidra/ecmaint-live/unknown-starbase-strings.txt)
+- `artifacts/ghidra/ecmaint-live/string-probe-sensor-contact-shows-an-alien-fleet.txt`
+- `artifacts/ghidra/ecmaint-live/string-probe-we-have-located-and-identified-the-alien-fleet.txt`
+- `artifacts/ghidra/ecmaint-live/string-probe-we-are-in-extended-orbit-around.txt`
+- `artifacts/ghidra/ecmaint-live/string-probe-we-have-just-concluded-a-bombing-run.txt`
+- `artifacts/ghidra/ecmaint-live/string-probe-we-were-attacked-by.txt`
+- `artifacts/ghidra/ecmaint-live/string-probe-we-have-entered-system.txt`
+- `artifacts/ghidra/ecmaint-live/turn-cycle-function-strings.txt`
+- `artifacts/ghidra/ecmaint-live/string-xrefs.txt`
+- `artifacts/ghidra/ecmaint-live/interesting-strings.txt`
+- `artifacts/ghidra/ecmaint-live/unknown-starbase-strings.txt`
 
 FPC verification tool:
 
-- [tools/fpc_results_reader.pas](/home/mag/dev/esterian_conquest/tools/fpc_results_reader.pas) —
+- [tools/fpc_results_reader.pas](../../tools/fpc_results_reader.pas) —
   Free Pascal program that reads RESULTS.DAT using native BP `file of TResultsRecord`
   with `String[72]`. Compile with `fpc tools/fpc_results_reader.pas`. Dumps kind,
   chain pointers, text, hex, and boundary analysis for each record.
 
 Secondary corpus used to fill binary gaps:
 
-- [ec5.txt](/home/mag/dev/esterian_conquest/original/v1.5/ec-logs-2012/ec5.txt)
-- [ec8.txt](/home/mag/dev/esterian_conquest/original/v1.5/ec-logs-2012/ec8.txt)
-- [ec10.txt](/home/mag/dev/esterian_conquest/original/v1.5/ec-logs-2012/ec10.txt)
-- [ec12.txt](/home/mag/dev/esterian_conquest/original/v1.5/ec-logs-2012/ec12.txt)
-- [ec16.txt](/home/mag/dev/esterian_conquest/original/v1.5/ec-logs-2012/ec16.txt)
-- [ec20.txt](/home/mag/dev/esterian_conquest/original/v1.5/ec-logs-2012/ec20.txt)
-- [ec42.txt](/home/mag/dev/esterian_conquest/original/v1.5/ec-logs-2012/ec42.txt)
+- [ec5.txt](../../original/v1.5/ec-logs-2012/ec5.txt)
+- [ec8.txt](../../original/v1.5/ec-logs-2012/ec8.txt)
+- [ec10.txt](../../original/v1.5/ec-logs-2012/ec10.txt)
+- [ec12.txt](../../original/v1.5/ec-logs-2012/ec12.txt)
+- [ec16.txt](../../original/v1.5/ec-logs-2012/ec16.txt)
+- [ec20.txt](../../original/v1.5/ec-logs-2012/ec20.txt)
+- [ec42.txt](../../original/v1.5/ec-logs-2012/ec42.txt)

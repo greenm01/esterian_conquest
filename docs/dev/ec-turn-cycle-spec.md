@@ -10,7 +10,7 @@ with guessed semantics.
 
 For the implementation-facing companion that describes the same process as a
 Rust engine/state-machine problem, use
-[rust-turn-cycle-implementation.md](/home/mag/dev/esterian_conquest/docs/dev/rust-turn-cycle-implementation.md).
+[rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md).
 
 ## Confidence Levels
 
@@ -64,12 +64,12 @@ The yearly simulation core (step `4`) is now substantially recovered:
 No material turn-order gaps remain in the yearly simulation core. The
 turn-cycle ordering is now closed to implementation depth; mission/combat
 behavior is specified separately in
-[ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md).
+[ec-combat-spec.md](ec-combat-spec.md).
 
 ## Practical Rust Consequences
 
 For implementation guidance, use the companion
-[rust-turn-cycle-implementation.md](/home/mag/dev/esterian_conquest/docs/dev/rust-turn-cycle-implementation.md).
+[rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md).
 
 Key points:
 
@@ -88,10 +88,10 @@ Key points:
 This spec is built from four independent evidence sources:
 
 - token and restore-path RE in
-  [token-investigation.md](/home/mag/dev/esterian_conquest/docs/dev/archive/token-investigation.md)
-- startup integrity/load RE in [RE_NOTES.md](/home/mag/dev/esterian_conquest/docs/dev/archive/RE_NOTES.md)
+  [token-investigation.md](archive/token-investigation.md)
+- startup integrity/load RE in [RE_NOTES.md](archive/RE_NOTES.md)
 - timing/log analysis in
-  [ec-timing-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-timing-spec.md)
+  [ec-timing-spec.md](ec-timing-spec.md)
 - late summary/report pipeline RE in
   `artifacts/ghidra/ecmaint-live/summary-post-canonical.txt` and
   `artifacts/ghidra/ecmaint-live/late-report-pipeline.txt`
@@ -1205,7 +1205,7 @@ The canonical turn order is now recovered to implementation depth.
 
 This document no longer carries open turn-order items. Mission/combat rules for
 the Rust target belong in
-[ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md),
+[ec-combat-spec.md](ec-combat-spec.md),
 not here.
 
 ## Current Working Canonical Spec

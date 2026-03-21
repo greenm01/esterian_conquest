@@ -344,17 +344,17 @@ Recent validation baseline:
 
 Use these first when changing engine behavior:
 
-- [ec-turn-cycle-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-turn-cycle-spec.md)
-- [rust-turn-cycle-implementation.md](/home/mag/dev/esterian_conquest/docs/dev/rust-turn-cycle-implementation.md)
-- [ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md)
-- [ec-timing-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-timing-spec.md)
-- [economics.md](/home/mag/dev/esterian_conquest/docs/dev/economics.md)
-- [ec-movement-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-movement-spec.md)
-- [ec-setup-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-setup-spec.md)
+- [ec-turn-cycle-spec.md](ec-turn-cycle-spec.md)
+- [rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md)
+- [ec-combat-spec.md](ec-combat-spec.md)
+- [ec-timing-spec.md](ec-timing-spec.md)
+- [economics.md](economics.md)
+- [ec-movement-spec.md](ec-movement-spec.md)
+- [ec-setup-spec.md](ec-setup-spec.md)
 
 For repo structure and workflow, also keep
-[approach.md](/home/mag/dev/esterian_conquest/docs/dev/approach.md) and
-[rust-architecture.md](/home/mag/dev/esterian_conquest/docs/dev/rust-architecture.md)
+[approach.md](approach.md) and
+[rust-architecture.md](rust-architecture.md)
 close at hand.
 
 ## Current Goal

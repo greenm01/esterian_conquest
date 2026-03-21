@@ -13,9 +13,9 @@ This includes both:
 - the player-visible `Stardate` header contract that classic reports render
 
 For the broader recovered phase ordering, see
-[ec-turn-cycle-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-turn-cycle-spec.md).
+[ec-turn-cycle-spec.md](ec-turn-cycle-spec.md).
 For phase placement in the Rust target engine, also see
-[rust-turn-cycle-implementation.md](/home/mag/dev/esterian_conquest/docs/dev/rust-turn-cycle-implementation.md).
+[rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md).
 
 ## Settled So Far
 

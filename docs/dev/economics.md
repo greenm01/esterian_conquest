@@ -10,9 +10,9 @@ probe directly.
 
 For recovered phase placement and mission interaction, read this together with:
 
-- [ec-turn-cycle-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-turn-cycle-spec.md)
-- [rust-turn-cycle-implementation.md](/home/mag/dev/esterian_conquest/docs/dev/rust-turn-cycle-implementation.md)
-- [ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md)
+- [ec-turn-cycle-spec.md](ec-turn-cycle-spec.md)
+- [rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md)
+- [ec-combat-spec.md](ec-combat-spec.md)
 
 ## Status
 

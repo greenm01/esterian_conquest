@@ -1,29 +1,29 @@
 # Rust Turn-Cycle Implementation Spec
 
 This document is the implementation-facing companion to
-[ec-turn-cycle-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-turn-cycle-spec.md).
+[ec-turn-cycle-spec.md](ec-turn-cycle-spec.md).
 
 Read it together with:
 
-- [ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md)
+- [ec-combat-spec.md](ec-combat-spec.md)
   for mission/combat behavior
-- [economics.md](/home/mag/dev/esterian_conquest/docs/dev/economics.md)
+- [economics.md](economics.md)
   for the Rust economy/build policy that lives inside the post-loop
   world/player update region
-- [ec-timing-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-timing-spec.md)
+- [ec-timing-spec.md](ec-timing-spec.md)
   for weekly scheduler and report `Stardate` behavior
-- [rust-architecture.md](/home/mag/dev/esterian_conquest/docs/dev/rust-architecture.md)
+- [rust-architecture.md](rust-architecture.md)
   for the repository-wide data-oriented/module-boundary rules this engine
   implementation should follow
 
 Ownership boundary:
 
 - this document owns yearly phase placement and turn-order boundaries
-- [ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md)
+- [ec-combat-spec.md](ec-combat-spec.md)
   owns combat and hostile world-resolution mechanics
-- [ec-timing-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-timing-spec.md)
+- [ec-timing-spec.md](ec-timing-spec.md)
   owns weekly timing, report-week assignment, and `Stardate` header formatting
-- [economics.md](/home/mag/dev/esterian_conquest/docs/dev/economics.md) owns
+- [economics.md](economics.md) owns
   the Rust economy/build policy inside the post-loop world/player update region
 
 Use it when designing or refactoring the Rust maintenance engine.
@@ -448,7 +448,7 @@ Updated Durable State + Durable Event Pool
 Turn-order placement is now recovered strongly enough for implementation.
 
 Mission/combat behavior is specified separately in
-[ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md).
+[ec-combat-spec.md](ec-combat-spec.md).
 This document is only the turn-order/phase-boundary companion.
 
 ## Current Practical Step-4 Shape
@@ -631,7 +631,7 @@ Implementation consequence:
 
 This is the Rust-facing summary of the concrete report-family placement rules
 already strong enough to encode. For corpus evidence and edge cases, use
-[ec-timing-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-timing-spec.md).
+[ec-timing-spec.md](ec-timing-spec.md).
 
 | Report family / transition | Observed weekly placement | Rust implication |
 | --- | --- | --- |
@@ -733,7 +733,7 @@ run_turn(directory):
 Use that as the current implementation skeleton for the recovered turn order.
 Keep caution around current-code drift, not around the recovered phase
 placement itself. For combat mechanics, defer to
-[ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md).
+[ec-combat-spec.md](ec-combat-spec.md).
 
 ## Current Rust Driver Snapshot
 
@@ -864,7 +864,7 @@ Flushed
 This document does not claim:
 
 - the full mission/combat rulebook; use
-  [ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md)
+  [ec-combat-spec.md](ec-combat-spec.md)
   for that
 - the semantic meaning of every still-raw planet/player field
 - the original combat RNG or full Pascal-era implementation structure
@@ -900,16 +900,16 @@ It does claim:
 
 ## Relationship To Other Docs
 
-- use [ec-turn-cycle-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-turn-cycle-spec.md)
+- use [ec-turn-cycle-spec.md](ec-turn-cycle-spec.md)
   for oracle-backed phase evidence
-- use [ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md)
+- use [ec-combat-spec.md](ec-combat-spec.md)
   for mission/combat behavior and hostile world-resolution mechanics
-- use [economics.md](/home/mag/dev/esterian_conquest/docs/dev/economics.md)
+- use [economics.md](economics.md)
   for the canonical Rust economy/build policy applied in the post-loop
   world/player update region
-- use [ec-timing-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-timing-spec.md)
+- use [ec-timing-spec.md](ec-timing-spec.md)
   for weekly report/timing evidence and `Stardate` report-header shape
-- use [approach.md](/home/mag/dev/esterian_conquest/docs/dev/approach.md)
+- use [approach.md](approach.md)
   for project-level preservation and RE policy
-- use [rust-architecture.md](/home/mag/dev/esterian_conquest/docs/dev/rust-architecture.md)
+- use [rust-architecture.md](rust-architecture.md)
   for codebase structure and DOD rules

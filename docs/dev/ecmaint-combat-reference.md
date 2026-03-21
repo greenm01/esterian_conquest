@@ -7,11 +7,11 @@ fixtures in real historical behavior rather than invented scenarios.
 Status:
 
 - this is a historical/reference document, not the canonical Rust combat spec
-- use [ec-combat-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-combat-spec.md)
+- use [ec-combat-spec.md](ec-combat-spec.md)
   for Rust combat mechanics
-- use [ec-turn-cycle-spec.md](/home/mag/dev/esterian_conquest/docs/dev/ec-turn-cycle-spec.md)
+- use [ec-turn-cycle-spec.md](ec-turn-cycle-spec.md)
   and
-  [rust-turn-cycle-implementation.md](/home/mag/dev/esterian_conquest/docs/dev/rust-turn-cycle-implementation.md)
+  [rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md)
   for yearly phase placement
 
 ## Source Set
