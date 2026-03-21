@@ -45,8 +45,6 @@ economic systems.
 - Appendix A. Quick Reference Sheet
 - Appendix B. ROE (Rules of Engagement) Settings
 - Appendix C. Esterian Conquest(tm) Menus
-- Appendix D. Feedback / Suggestion Sheet
-- Appendix E. Registration of Esterian Conquest(tm)
 
 ## Introduction
 
@@ -163,7 +161,7 @@ There are 6 types of starships -- 3 combat types and 3 specialized types.  Small
 
 **Destroyer:** A small, fast (speed=6), inexpensive (5 points) combat ship.  It is best for attacks on unarmed ships where it can overtake them.  Its speed also gives it a chance to escape from more heavily armed fleets.
 
-**Cruiser:** A medium size combat ship.  About 3 times more powerful than a destroyer, they costs more (15 points) and are a bit slower (speed=5).  The cruiser is a good compromise between speed and power.  It's powerful enough to hit what it can't outrun (destroyers) and fast enough to outrun what it cannot outgun (battleships).
+**Cruiser:** A medium size combat ship.  About 3 times more powerful than a destroyer, it costs more (15 points) and is a bit slower (speed=5).  The cruiser is a good compromise between speed and power.  It's powerful enough to hit what it can't outrun (destroyers) and fast enough to outrun what it cannot outgun (battleships).
 
 **Battleship:** This large combat ship is the anchor of any serious star fleet.  Three times more powerful than a cruiser, it is expensive (45 points) and slow (speed=4).
 
@@ -183,7 +181,7 @@ GROUND BATTERIES are land-based cannons that defend planets against hostile star
 
 ### Combat
 
-A fleet with one or more combat ships (destroyer, cruiser, or battleship) can engage in battle.  You specify the aggressiveness of your fleet by assigning its ROE (Rules of Engagement).  An ROE of zero means the fleet will avoid everything at all cost.  An ROE of ten means the fleet will attack anything, even if it is greatly outnumbered. Appendix B lists all of the ROE levels.  Usually, the stronger fleet wins, but sometimes a weaker fleet may do more damage to the stronger fleet than it takes.
+A fleet with one or more combat ships (destroyer, cruiser, or battleship) can engage in battle.  You specify the aggressiveness of your fleet by assigning its ROE (Rules of Engagement).  An ROE of zero means the fleet will avoid everything at all costs.  An ROE of ten means the fleet will attack anything, even if it is greatly outnumbered. Appendix B lists all of the ROE levels.  Usually, the stronger fleet wins, but sometimes a weaker fleet may do more damage to the stronger fleet than it takes.
 
 Your fleets may attack if they encounter the fleet of a player you've declared to be an enemy.  However, your fleets will always fight back if attacked.  Your fleets will also attack if another player's fleets enter one of your solar systems, or if they try to enter or leave a planet that your fleet is blockading.
 
@@ -207,7 +205,7 @@ You can order a fleet on one of 15 missions.  Some missions require certain type
 
 **INVADE A WORLD (combat ships and troop transports with armies):** This is a three stage battle: (1) destroy all the world's ground batteries (cannons), (2) pound the population centers a little to soften resistance and take out enemy armies, then (3) send in troop transports to drop off your armies, but ONLY AFTER all ground batteries have been destroyed.  This damages the planet and gives them time to sabotage their industry before you take over, but gives your armies a better chance of taking the planet.  You succeed if you destroy all ground batteries and then your armies defeat their armies.
 
-**BLITZ A WORLD (troop transports with armies -- combat ships recommended):** Try to infiltrate your armies onto the planet by dodging their ground batteries or distracting them.  You succeed if your armies defeat their armies. Since this form of attack is so quick, there is less damage to the planet since the enemy does not have time to sabotage their factories and since your combat ships do not pound the surface very much.  However, you put your armies at greater risk so you need many (twice as many as the enemy or better) to insure success.
+**BLITZ A WORLD (troop transports with armies -- combat ships recommended):** Try to infiltrate your armies onto the planet by dodging their ground batteries or distracting them.  You succeed if your armies defeat their armies. Since this form of attack is so quick, there is less damage to the planet since the enemy does not have time to sabotage their factories and since your combat ships do not pound the surface very much.  However, you put your armies at greater risk so you need many (twice as many as the enemy or better) to ensure success.
 
 **VIEW A WORLD (all ship types):** Go to the edge of a solar system and do a long-range scan of the planet to find out its potential production and who owns it.  Then back off into the deep space area of the sector.
 
@@ -297,11 +295,11 @@ Specific Empire, Unowned, or Unexplored Worlds).  Then it offers options on how 
 
 The editor lets you to change, insert, delete, or move lines.  It also allows you to send copies of your message to multiple players.
 
-**Planet Command:** list planets you own ("P" for brief, "F" for Full); set the planetary tax rate for your empire ("T"); order planets to scorch their surface ("S") to prevent an opponent from taking your factories; and loads ("L") or unloads ("U") armies to or from troop transports.  Planet Command also has two important sub-menus: ("B") BUILD ON PLANET and ("C") COMMISSION SHIPS.  With the "A" (AUTO- COMMISSION) command, you commission all newly built ships as fleets for all planets.
+**Planet Command:** list planets you own ("P" for brief, "F" for Full); set the planetary tax rate for your empire ("T"); order planets to scorch their surface ("S") to prevent an opponent from taking your factories; and load ("L") or unload ("U") armies to or from troop transports.  Planet Command also has two important sub-menus: ("B") BUILD ON PLANET and ("C") COMMISSION SHIPS.  With the "A" (AUTO- COMMISSION) command, you commission all newly built ships as fleets for all planets.
 
-**Build On Planet:** specify what to build with your revenue production points to be ready next round.  You work on one planet at a time.  Type "R" to review information about the current planet.  The "S" (Specify builds) option gives you summary of how many tax revenue points you can spend; a list of objects you can build (see appendix A) and their cost.  When you are done, choose the "N" (Next Planet) option to go to the next of your planet with points to spend, or choose "C" (Change planet) if you want to work with a specific planet.
+**Build On Planet:** specify what to build with your revenue production points to be ready next round.  You work on one planet at a time.  Type "R" to review information about the current planet.  The "S" (Specify builds) option gives you a summary of how many tax revenue points you can spend; a list of objects you can build (see Appendix A) and their cost.  When you are done, choose the "N" (Next Planet) option to go to the next planet with points to spend, or choose "C" (Change planet) if you want to work with a specific planet.
 
-**Commission A Fleet:** assigns a fleet number to any newly built ships and lifts them out of stardock.  Starbases are also commissioned.  You commission from one planet at a time and can select the NEXT PLANET option to work with the another planet that has vessels in stardock.
+**Commission A Fleet:** assigns a fleet number to any newly built ships and lifts them out of stardock.  Starbases are also commissioned.  You commission from one planet at a time and can select the NEXT PLANET option to work with another planet that has vessels in stardock.
 
 **Fleet Command:** gives you lists of fleets ("B" for brief, "F" for full list); review ("R") an individual fleet; calculate Estimated Time of Arrival (ETA) for a fleet to any sector ("E"); change their aggressiveness, ID, or speed ("C"); detach ("D") or transfer ("T") ships from a fleet; order a fleet on a mission ("O"); give a group of fleets a common mission ("G"); merge two fleets ("M"); or load ("L") / unload ("U") armies onto troop transports. Fleet command has a submenu called STARBASE COMMAND, which allows you to review or move a starbase.
 
@@ -364,7 +362,7 @@ Once all the uninhabited planets have been colonized, you must capture inhabited
 
 Scout ships give more detailed reports, including the planetary defenses (ground batteries and armies), contents of the planet's stardock, and information on any fleets or starbases which might be orbiting the planet.
 
-### Conquering And Attacking An Enemy'S Planet.
+### Conquering And Attacking An Enemy's Planet.
 
 There are three methods of assaulting a planet: the BLITZ mission, the INVADE mission, and the BOMBARD mission.  The blitz and invade missions attempt to capture the planet, while the bombard mission pummels planets in order to make them useless to the owners.  Once you conquer a planet, remember to guard it from recapture.  Planets need two turns before factories are fully converted and start producing tax revenue points for you.
 
@@ -377,8 +375,6 @@ THE BOMBARD attack: (requires sufficient combat ships to damage a planet's resou
 ## Conclusions
 
 This manual is a basic guide to get you started with some basic strategies to consider at the beginning of the game. As in chess, you can learn how to move the pieces in a short time, but learning to master the game may take a lifetime. After reading this guide, you are now familiar with the capabilities and possible actions of your forces.  The task of coordinating your forces remains up to you.  Very elaborate campaigns, bluffs, and betrayals are possible.
-
-**A Final Note:** We want your feedback and suggestions.  This game is the result of consultations with many experienced gamers and sysops.  We are always looking for new ways to enrich the play or add a wrinkle to Esterian Conquest. Appendix D is a feedback sheet set up for this purpose.
 
 NOW STOP READING AND PLAY!  THERE'S A GALAXY TO CONQUER.
 
@@ -566,270 +562,3 @@ NOW STOP READING AND PLAY!  THERE'S A GALAXY TO CONQUER.
 ```
 
 ### M>Ove/Halt Starbase
-
-## Appendix D.  Feedback/Suggestion Sheet
-
-```text
-         Please Mail Suggestions or Comments to:
-```
-
-```text
-         ATTN: ESTERIAN CONQUEST(tm)
-         Griffith International
-         P.O. Box 530703
-         Birmingham, AL 35253
-```
-
-```text
-         YOUR NAME: _________________________________________________
-```
-
-```text
-         STREET...: _________________________________________________
-```
-
-```text
-         CITY, STATE  ZIP: __________________________________________
-```
-
-```text
-         FEEDBACK/SUGGESTIONS ON ESTERIAN CONQUEST
-```
-
-```text
-         VERSION NUMBER (Appears when you log in): __________________
-```
-
-```text
-         BBS YOU PLAY ON: ___________________________________________
-```
-
-```text
-         BBS PHONE NUMBER: (______) ______ - ____________
-```
-
-```text
-         COMMENTS:
-```
-
-```text
-         ____________________________________________________________
-```
-
-```text
-         ____________________________________________________________
-```
-
-```text
-         ____________________________________________________________
-```
-
-```text
-         ____________________________________________________________
-```
-
-```text
-         ____________________________________________________________
-```
-
-```text
-         ____________________________________________________________
-```
-
-```text
-         ____________________________________________________________
-```
-
-```text
-         ____________________________________________________________
-```
-
-```text
-         ____________________________________________________________
-```
-
-```text
-         ____________________________________________________________
-```
-
-```text
-         ____________________________________________________________
-```
-
-## Appendix E. Registration Of Esterian Conquest(tm)
-
-```text
-         You can register your version of ESTERIAN CONQUEST(tm) for
-         your BBS.  Currently ESTERIAN CONQUEST(tm) runs on any IBM
-         PC,XT,AT,PS/2 or compatible having the following:
-```
-
-```text
-            MS-DOS version 2.11 or later.
-```
-
-```text
-            512K of internal memory (640K recommended).
-```
-
-```text
-            A hard disk with at least 1 MB free disk space.
-```
-
-```text
-            BBS software that can generate any of the following door
-            file formats:
-```
-
-```text
-               PCBOARD.SYS  . . . . (PCBoard v14+)
-               DOOR.SYS . . . . . . (as suggested by GAP software)
-               DORINFOx.DEF . . . . (QBBS, RBBS, RA, FoReM, etc.)
-               CALLINFO.BBS . . . . (Wildcat!)
-               SFDOORS.DAT. . . . . (Spitfire)
-               CHAIN.TXT  . . . . . (WWIV)
-               INFO.BBS . . . . . . (Phoenix software)
-```
-
-### Advantages Of Registering Your Esterian Conquest(tm) Program
-
-```text
-            A campaign will run for unlimited time (the Shareware
-            version stops each game after 30 rounds).
-```
-
-```text
-            Discounts for minor revisions and upgrades:
-```
-
-```text
-               All minor revisions are free.
-```
-
-```text
-               Upgrades (major revisions) are available for a
-               substantial discount.
-```
-
-```text
-            Your name and BBS name will be encrypted into the program
-            and will appear to all who use the game.  Registration
-            messages appearing at the beginning of the game are
-            removed.
-```
-
-```text
-            A professionally printed manual containing both the
-            SYSOP's guide and the PLAYER's guide.
-```
-
-```text
-            BBS support for questions.
-```
-
-```text
-            VOICE support for bug information.  We correct program
-            bugs and send you the corrected version absolutely free.
-```
-
-```text
-    Make checks or money                 Send your order to:
-    orders payable in                      ATTN: ESTERIAN CONQUEST(tm)
-    U.S. Currency to:                      Griffith International
-      GRIFFITH INTERNATIONAL               P.O. Box 530703
-                                           Birmingham, AL 35253
-```
-
-```text
-    PAYMENT INFORMATION:
-       Description                                    Each      Total
-       --------------------------------------------   ------    -----------
-```
-
-```text
-       ESTERIAN CONQUEST(tm) DOOR GAME             US $35.00    US $35.00
-       Check One:  [] 5.25" Disk    [] 3.5" Disk
-```
-
-```text
-       SHIPPING AND HANDLING:        Inside U.S.   US  $4.00    ___________
-       (Required on all orders)
-                                     Canada        US  $5.00    ___________
-```
-
-```text
-                         Outside U.S. and Canada   US $10.00    ___________
-```
-
-```text
-                                           TOTAL ENCLOSED:   US $__________
-```
-
-```text
-    ENTER NAMES AS YOU WANT THEM TO APPEAR ON THE GAME SCREEN:
-```
-
-```text
-       Sysop Name(s): ____________________________________________________
-```
-
-```text
-       BBS Name: _________________________________________________________
-```
-
-```text
-    SHIP TO:
-       Name: _____________________________________________________________
-```
-
-```text
-       Address: __________________________________________________________
-```
-
-```text
-                __________________________________________________________
-```
-
-```text
-    PHONE:
-       Voice: (______)_________________    BBS: (______)__________________
-```
-
-```text
-    TYPE OF BBS SOFTWARE: ________________________   VERSION: ____________
-```
-
-```text
-    HOW DID YOU HEAR OF THE GAME? (Check Main Sources):
-       [] Download from Support BBS (Salt Air, WildCat, etc.): ___________
-       [] Download from a local BBS
-       [] User(s) Requested/Uploaded Game to BBS
-       [] Played on another BBS
-       [] ECHO Conference(s): ____________________________________________
-       [] Sysop or friend told you about Esterian Conquest
-       [] Other: _________________________________________________________
-```
-
-```text
-    DID YOUR USERS PAY FOR THIS REGISTRATION?:   [] All   [] Part   [] None
-```
-
-```text
-    __________________________________                            +-------+
-                                                                  | Place |
-    __________________________________                            | Stamp |
-                                                                  | Here  |
-    __________________________________                            +-------+
-```
-
-```text
-                             ATTN: ESTERIAN CONQUEST(tm)
-                             Griffith International
-                             P.O. Box 530703
-                             Birmingham, AL 35253
-```
-
-```text
-    Place Feedback Form or Order Form inside this page.  Fold into thirds.
-    Insert any checks or money orders.  Tape on bottom and sides.
-```
