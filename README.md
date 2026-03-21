@@ -338,6 +338,12 @@ For the original DOS client specifically, the fastest “busy campaign” probe 
 python3 scripts/setup_classic_probe_game.py /tmp/ec-classic-probe --force
 ```
 
+Or use the thin wrapper for the common report-format probe:
+
+```bash
+./scripts/run_classic_report_probe.sh
+```
+
 That path creates a fresh four-player Rust-backed campaign, seeds player 1 with
 multiple fleets and worlds, runs several Rust maint turns to populate
 `RESULTS.DAT`, preserves classic-compatible `MESSAGES.DAT` state for

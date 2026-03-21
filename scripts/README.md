@@ -119,6 +119,38 @@ Use this when you want:
 - multiple fleets and planets to inspect in classic menus
 - a practical hybrid-loop smoke test after Rust maint changes
 
+### `run_classic_report_probe.sh`
+
+Thin wrapper around `setup_classic_probe_game.py` for the most common
+"open classic ECGAME with pending reports" workflow.
+
+If you do not pass a target directory, it uses:
+
+```bash
+/tmp/ec-classic-report-probe
+```
+
+Example:
+
+```bash
+./scripts/run_classic_report_probe.sh
+```
+
+Custom target example:
+
+```bash
+./scripts/run_classic_report_probe.sh /tmp/ec-report-format-probe
+```
+
+Pass-through example:
+
+```bash
+./scripts/run_classic_report_probe.sh --turns 6 --alias SYSOP
+```
+
+This wrapper always adds `--force`, so rerunning it refreshes the probe
+directory before launch.
+
 ### `run_client.py`
 
 Launches the Rust client against a chosen campaign directory and player seat.
