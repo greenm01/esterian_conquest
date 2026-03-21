@@ -7,6 +7,8 @@ import os
 import time
 from pathlib import Path
 
+import pexpect
+
 from ecgame_dropfiles import write_chain_txt
 from pexpect_argv import spawn_argv
 
@@ -83,6 +85,15 @@ def normalize_key(token: str) -> str:
     return token
 
 
+def wait_for_debugger_stop(child: pexpect.spawn, timeout: int = 15) -> bool:
+    try:
+        child.expect([r"I->", r"> _", r"DBG>", r"CS=", r"LOG:"], timeout=timeout)
+        time.sleep(0.1)
+        return True
+    except Exception:
+        return False
+
+
 def snapshot_database(game_dir: Path, output_dir: Path, label: str) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     database_path = game_dir / "DATABASE.DAT"
@@ -156,12 +167,18 @@ def main() -> None:
     child.logfile = log_file
     transcript: list[str] = []
     try:
-        time.sleep(3)
+        if not wait_for_debugger_stop(child, timeout=20):
+            raise RuntimeError("DEBUGBOX prompt never surfaced")
         child.sendline("BPINT 16 00")
-        time.sleep(1)
+        if not wait_for_debugger_stop(child):
+            raise RuntimeError("DEBUGBOX did not acknowledge BPINT 16 00")
 
         child.sendline("RUN")
-        time.sleep(6)
+        if not wait_for_debugger_stop(child, timeout=20):
+            transcript.append("=== screen_00 ===\n<debugger stop not reached>\n")
+            snapshot_database(game_dir, output_dir, "after")
+            (output_dir / "transcript.txt").write_text("".join(transcript), encoding="utf-8")
+            raise RuntimeError("first ECGAME keyboard breakpoint never surfaced")
         transcript.append("=== screen_00 ===\n")
         transcript.append(dump_screen(child, game_dir, output_dir, 0))
 
@@ -170,7 +187,12 @@ def main() -> None:
             child.sendline("RUN")
             time.sleep(0.2)
             child.send(key)
-            time.sleep(3)
+            if not wait_for_debugger_stop(child, timeout=20):
+                transcript.append(
+                    f"\n=== screen_{step:02} key={key.encode('unicode_escape').decode()} ===\n"
+                )
+                transcript.append("<debugger stop not reached>\n")
+                break
             transcript.append(
                 f"\n=== screen_{step:02} key={key.encode('unicode_escape').decode()} ===\n"
             )

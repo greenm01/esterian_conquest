@@ -3,7 +3,10 @@ mod common;
 use std::fs;
 use std::path::Path;
 
-use common::{cleanup_dir, run_ec_cli, run_ecmaint_oracle, unique_temp_dir};
+use common::{
+    cleanup_dir, run_classic_ecgame_smoke_with_alias, run_ec_cli, run_ecmaint_oracle,
+    unique_temp_dir,
+};
 use ec_data::{CoreGameData, DatabaseDat, Order};
 
 fn setup_classic_probe_players(target: &Path) {
@@ -434,6 +437,43 @@ fn db_export_emits_ecgame_accepted_foreign_full_intel_row_shape() {
 }
 
 #[test]
+#[ignore = "launches classic ECGAME through dosbox-x"]
+fn db_export_foreign_full_intel_directory_reopens_in_classic_ecgame_smoke() {
+    let source = unique_temp_dir("ec-cli-db-export-foreign-full-intel-ecgame-source");
+    let exported = unique_temp_dir("ec-cli-db-export-foreign-full-intel-ecgame-exported");
+
+    let stdout = run_ec_cli(&[
+        "sysop",
+        "new-game",
+        source.to_str().unwrap(),
+        "--players",
+        "4",
+        "--seed",
+        "1515",
+    ]);
+    assert!(stdout.contains("Initialized new game"));
+
+    setup_classic_probe_players(&source);
+    setup_classic_probe_planets(&source);
+    setup_classic_probe_scout_order(&source);
+
+    let maint_stdout = run_ec_cli(&["maint-rust", source.to_str().unwrap(), "4"]);
+    assert!(maint_stdout.contains("Rust maintenance complete."));
+
+    let export_stdout = run_ec_cli(&[
+        "db-export",
+        source.to_str().unwrap(),
+        exported.to_str().unwrap(),
+    ]);
+    assert!(export_stdout.contains("Exported year 3004"));
+
+    run_classic_ecgame_smoke_with_alias(&exported, 1, "SYSOP");
+
+    cleanup_dir(&source);
+    cleanup_dir(&exported);
+}
+
+#[test]
 fn db_export_refreshes_stale_foreign_scout_row_visible_stats() {
     let source = unique_temp_dir("ec-cli-db-export-refresh-stale-scout-source");
     let exported = unique_temp_dir("ec-cli-db-export-refresh-stale-scout-exported");
@@ -547,6 +587,43 @@ fn db_export_emits_ecgame_accepted_foreign_view_only_row_shape() {
     assert_eq!(row.raw[0x26], 0xff);
     assert_eq!(u16::from_le_bytes([row.raw[0x16], row.raw[0x17]]), 3003);
     assert_eq!(u16::from_le_bytes([row.raw[0x27], row.raw[0x28]]), 3003);
+
+    cleanup_dir(&source);
+    cleanup_dir(&exported);
+}
+
+#[test]
+#[ignore = "launches classic ECGAME through dosbox-x"]
+fn db_export_foreign_view_only_directory_reopens_in_classic_ecgame_smoke() {
+    let source = unique_temp_dir("ec-cli-db-export-foreign-view-intel-ecgame-source");
+    let exported = unique_temp_dir("ec-cli-db-export-foreign-view-intel-ecgame-exported");
+
+    let stdout = run_ec_cli(&[
+        "sysop",
+        "new-game",
+        source.to_str().unwrap(),
+        "--players",
+        "4",
+        "--seed",
+        "1515",
+    ]);
+    assert!(stdout.contains("Initialized new game"));
+
+    setup_classic_probe_players(&source);
+    setup_classic_probe_planets(&source);
+    setup_classic_probe_view_order(&source);
+
+    let maint_stdout = run_ec_cli(&["maint-rust", source.to_str().unwrap(), "4"]);
+    assert!(maint_stdout.contains("Rust maintenance complete."));
+
+    let export_stdout = run_ec_cli(&[
+        "db-export",
+        source.to_str().unwrap(),
+        exported.to_str().unwrap(),
+    ]);
+    assert!(export_stdout.contains("Exported year 3004"));
+
+    run_classic_ecgame_smoke_with_alias(&exported, 1, "SYSOP");
 
     cleanup_dir(&source);
     cleanup_dir(&exported);
