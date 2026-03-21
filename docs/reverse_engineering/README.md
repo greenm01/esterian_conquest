@@ -28,18 +28,18 @@ Recent proof baseline:
 
 ## Where To Read
 
-- [docs/dev/approach.md](/home/niltempus/dev/esterian_conquest/docs/dev/approach.md)
+- [docs/dev/approach.md](../dev/approach.md)
   - project compatibility policy, milestone ladder, and deliberate divergence
     rules
-- [docs/dev/next-session.md](/home/niltempus/dev/esterian_conquest/docs/dev/next-session.md)
+- [docs/dev/next-session.md](../dev/next-session.md)
   - current restart brief and remaining compatibility work
-- [docs/dev/archive/RE_NOTES.md](/home/niltempus/dev/esterian_conquest/docs/dev/archive/RE_NOTES.md)
+- [docs/dev/archive/RE_NOTES.md](../dev/archive/RE_NOTES.md)
   - chronological archival notebook
-- [EC_UNLOCKED/README.md](/home/niltempus/dev/esterian_conquest/EC_UNLOCKED/README.md)
+- [EC_UNLOCKED/README.md](../../EC_UNLOCKED/README.md)
   - decrypted runnable binaries used for static and dynamic analysis
-- [docs/dev/dosbox-workflow.md](/home/niltempus/dev/esterian_conquest/docs/dev/dosbox-workflow.md)
+- [docs/dev/dosbox-workflow.md](../dev/dosbox-workflow.md)
   - oracle-running and dump-capture workflow
-- [docs/dev/ghidra-workflow.md](/home/niltempus/dev/esterian_conquest/docs/dev/ghidra-workflow.md)
+- [docs/dev/ghidra-workflow.md](../dev/ghidra-workflow.md)
   - headless/static RE workflow
 
 ## Core Rules

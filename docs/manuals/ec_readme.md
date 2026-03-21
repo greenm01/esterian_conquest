@@ -1,7 +1,7 @@
 # Esterian Conquest Legacy Readme
 
 _v1.6 reference edition based on
-[`original/v1.5/ECREADME.DOC`](/home/niltempus/dev/esterian_conquest/original/v1.5/ECREADME.DOC)._
+[`original/v1.5/ECREADME.DOC`](../../original/v1.5/ECREADME.DOC)._
 
 This file exists to preserve the release and deployment context of the original
 DOS package without presenting that old operational material as the current
@@ -11,9 +11,9 @@ DOS package without presenting that old operational material as the current
 
 Read this when you want historical context on how Esterian Conquest was shipped
 and hosted in the DOS door era. For current deployment guidance, use the Rust
-documentation in [docs/sysop](/home/niltempus/dev/esterian_conquest/docs/sysop/).
+documentation in [docs/sysop](../sysop/).
 If you want the untouched original text, read
-[ECREADME.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECREADME.DOC).
+[ECREADME.DOC](../../original/v1.5/ECREADME.DOC).
 
 ## Historical DOS Package Expectations
 
@@ -30,7 +30,7 @@ Those assumptions are now legacy-only. In `v1.6`, the primary stack is:
 
 If you still want to host the original DOS client for compatibility reasons,
 use the modern guidance in
-[docs/sysop/enigma-bbs-setup.md](/home/niltempus/dev/esterian_conquest/docs/sysop/enigma-bbs-setup.md)
+[docs/sysop/enigma-bbs-setup.md](../sysop/enigma-bbs-setup.md)
 instead of following the original readme literally.
 
 ## Historical Package Contents

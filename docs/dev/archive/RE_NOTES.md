@@ -3744,13 +3744,13 @@ Practical note:
 
 Current scaffold status:
 
-- a Rust workspace now exists under [`rust`](/home/niltempus/dev/esterian_conquest/rust)
-- first crate: [`ec-data`](/home/niltempus/dev/esterian_conquest/rust/ec-data)
-- first executable tool: [`ec-cli`](/home/niltempus/dev/esterian_conquest/rust/ec-cli)
+- a Rust workspace now exists under [`rust`](../../../rust)
+- first crate: [`ec-data`](../../../rust/ec-data)
+- first executable tool: [`ec-cli`](../../../rust/ec-cli)
 - preserved fixture sets now include:
-  - [`original/v1.5`](/home/niltempus/dev/esterian_conquest/original/v1.5)
-  - [`fixtures/ecutil-init/v1.5`](/home/niltempus/dev/esterian_conquest/fixtures/ecutil-init/v1.5)
-  - [`fixtures/ecmaint-post/v1.5`](/home/niltempus/dev/esterian_conquest/fixtures/ecmaint-post/v1.5)
+  - [`original/v1.5`](../../../original/v1.5)
+  - [`fixtures/ecutil-init/v1.5`](../../../fixtures/ecutil-init/v1.5)
+  - [`fixtures/ecmaint-post/v1.5`](../../../fixtures/ecmaint-post/v1.5)
 - current code covers only confirmed fixed-size boundaries:
   - `PLAYER.DAT`: `5 x 88`
   - `PLANETS.DAT`: `20 x 97`

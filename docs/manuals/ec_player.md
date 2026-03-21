@@ -1,7 +1,7 @@
 # Esterian Conquest Player's Guide
 
 _v1.6 player reference based on
-[`original/v1.5/ECPLAYER.DOC`](/home/niltempus/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC)._
+[`original/v1.5/ECPLAYER.DOC`](../../original/v1.5/ECPLAYER.DOC)._
 
 The original `.DOC` file remains the preserved source artifact. This
 edition is being rewritten into a cleaner v1.6 reference while preserving the
@@ -12,7 +12,7 @@ same underlying rules.
 Treat this as the main gameplay and command reference. If the Rust client
 presents a workflow differently, prefer the underlying rule described here
 unless a Rust-specific doc says otherwise. For the untouched source, read
-[ECPLAYER.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC).
+[ECPLAYER.DOC](../../original/v1.5/ECPLAYER.DOC).
 
 Version 1.5.
 
@@ -53,7 +53,7 @@ learn, but winning consistently requires planning, patience, and a feel for
 timing.
 
 **Note:** For those wishing only quick-start information, read the
-[ec_qstart guide](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_qstart.md).
+[ec_qstart guide](ec_qstart.md).
 
 ## Background
 

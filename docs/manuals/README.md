@@ -7,26 +7,26 @@ Conquest `v1.5` manuals, with light framing so they work as the current
 documentation surface for the Rust continuation of the game.
 
 The original `.DOC` files remain preserved in
-[`original/v1.5`](/home/niltempus/dev/esterian_conquest/original/v1.5) as the
+[`original/v1.5`](../../original/v1.5) as the
 source artifacts. These Markdown copies exist for easier reading, linking, and
 quoting.
 
 ## Recommended Reading Order
 
-- [ec_qstart.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_qstart.md)
+- [ec_qstart.md](ec_qstart.md)
   - fastest way for a new player to understand the game loop
-- [ec_player.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_player.md)
+- [ec_player.md](ec_player.md)
   - main mechanics and command reference
-- [ec_readme.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_readme.md)
+- [ec_readme.md](ec_readme.md)
   - legacy DOS deployment and release context
 
 ## Source Mapping
 
 | Markdown transcription | Original artifact | Purpose |
 | --- | --- | --- |
-| [ec_qstart.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_qstart.md) | [ECQSTART.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECQSTART.DOC) | Quick-start guide for new players |
-| [ec_player.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_player.md) | [ECPLAYER.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC) | Full player manual |
-| [ec_readme.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_readme.md) | [ECREADME.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECREADME.DOC) | Legacy DOS deployment and release context |
+| [ec_qstart.md](ec_qstart.md) | [ECQSTART.DOC](../../original/v1.5/ECQSTART.DOC) | Quick-start guide for new players |
+| [ec_player.md](ec_player.md) | [ECPLAYER.DOC](../../original/v1.5/ECPLAYER.DOC) | Full player manual |
+| [ec_readme.md](ec_readme.md) | [ECREADME.DOC](../../original/v1.5/ECREADME.DOC) | Legacy DOS deployment and release context |
 
 ## v1.6 Use
 

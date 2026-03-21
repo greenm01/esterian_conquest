@@ -5,11 +5,11 @@ player-facing assets, and preparing campaign setups.
 
 Use these docs in roughly this order:
 
-- [setup-kdl-schema.md](/home/niltempus/dev/esterian_conquest/docs/sysop/setup-kdl-schema.md)
+- [setup-kdl-schema.md](setup-kdl-schema.md)
   - declarative campaign setup for `ec-cli sysop new-game --config ...`
-- [sysop-map-exports.md](/home/niltempus/dev/esterian_conquest/docs/sysop/sysop-map-exports.md)
+- [sysop-map-exports.md](sysop-map-exports.md)
   - player map export and queue/download staging for the Rust client
-- [enigma-bbs-setup.md](/home/niltempus/dev/esterian_conquest/docs/sysop/enigma-bbs-setup.md)
+- [enigma-bbs-setup.md](enigma-bbs-setup.md)
   - legacy DOS door setup under Enigma BBS; useful for compatibility hosting,
     but not the main `v1.6` direction
 
