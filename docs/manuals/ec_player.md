@@ -54,7 +54,7 @@ learn, but winning consistently requires planning, patience, and a feel for
 timing.
 
 **Note:** For those wishing only quick-start information, read the
-[ECQSTART guide](/home/niltempus/dev/esterian_conquest/docs/manuals/ECQSTART.md).
+[ec_qstart guide](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_qstart.md).
 
 ## Background
 
@@ -70,7 +70,8 @@ The game supports `4`, `9`, `16`, or `25` players.
 
 ### Object Of The Game
 
-Become Emperor by forcing surrender or by eliminating every serious rival.
+Become Emperor by dominating the remaining empires or by eliminating every
+serious rival.
 
 ### How To Achieve Your Goal
 
@@ -103,6 +104,16 @@ Each round equals one year. Enter or revise orders during that year. At
 maintenance time, the game resolves every empire's orders together. There is no
 advantage to entering moves early as long as they are in before maintenance.
 
+Read report dates as `Stardate WK/YYYY`. The first number is the week of the
+year rather than the month. A report dated `12/3002` happened in week 12 of
+the 3002 turn year.
+
+This works because the engine does not treat a turn as a single instantaneous
+year-end rollup. Instead, it resolves the year on an internal 52-week
+timeline. You still submit yearly orders, but the maintenance pass uses those
+hidden weeks to schedule scouting results, contacts, combat, and other dated
+events within the turn.
+
 ### What You Can Do In A Round
 
 In a normal round you manage planets, assign fleet missions, check the database,
@@ -111,8 +122,9 @@ assets.
 
 ### Winning
 
-You win when the other empires accept your rule, whether that comes through
-alliances, intimidation, or overwhelming force.
+You win by becoming the only power that still matters. Sometimes that means
+destroying rival empires outright. Sometimes it means reducing them to
+irrelevance while your empire controls the balance of power.
 
 ### Losing
 

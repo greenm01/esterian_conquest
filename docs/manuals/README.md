@@ -13,20 +13,20 @@ quoting.
 
 ## Recommended Reading Order
 
-- [ECQSTART.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ECQSTART.md)
+- [ec_qstart.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_qstart.md)
   - fastest way for a new player to understand the game loop
-- [ECPLAYER.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ECPLAYER.md)
+- [ec_player.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_player.md)
   - main mechanics and command reference
-- [ECREADME.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ECREADME.md)
+- [ec_readme.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_readme.md)
   - original sysop/readme material and deployment context
 
 ## Source Mapping
 
 | Markdown transcription | Original artifact | Purpose |
 | --- | --- | --- |
-| [ECQSTART.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ECQSTART.md) | [ECQSTART.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECQSTART.DOC) | Quick-start guide for new players |
-| [ECPLAYER.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ECPLAYER.md) | [ECPLAYER.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC) | Full player manual |
-| [ECREADME.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ECREADME.md) | [ECREADME.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECREADME.DOC) | Original sysop-facing install/readme |
+| [ec_qstart.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_qstart.md) | [ECQSTART.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECQSTART.DOC) | Quick-start guide for new players |
+| [ec_player.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_player.md) | [ECPLAYER.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECPLAYER.DOC) | Full player manual |
+| [ec_readme.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_readme.md) | [ECREADME.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECREADME.DOC) | Original sysop-facing install/readme |
 
 ## v1.6 Use
 

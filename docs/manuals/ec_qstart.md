@@ -11,20 +11,20 @@ v1.6 reference.
 
 Start here if you want the shortest path to understanding the game loop. When
 you are ready for the full command and mechanics reference, move on to
-[ECPLAYER.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ECPLAYER.md).
+[ec_player.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_player.md).
 If you want the untouched source, read
 [ECQSTART.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECQSTART.DOC).
 
 ## Start Here
 
 Read this first, then read the full
-[ECPLAYER manual](/home/niltempus/dev/esterian_conquest/docs/manuals/ECPLAYER.md).
+[ec_player manual](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_player.md).
 
 ## Object of the Game
 
 Your objective is simple: become Emperor. In practice that means building
-enough strength that the other empires surrender, or crushing every serious
-rival until surrender is the only outcome left.
+enough strength to dominate the remaining empires or destroying every serious
+rival that can still contest the throne.
 
 ## The Play
 
@@ -42,6 +42,15 @@ current production faster.
 
 Each round represents one year. During that year, you enter and revise orders.
 At maintenance time, the game resolves every empire's moves together.
+
+Read report dates as `Stardate WK/YYYY`. The first number is the week of the
+year, not the month. In other words, `05/3012` means week 5 of the 3012 turn
+year, and `52/3012` means a late-year event in that same turn.
+
+That is because the engine resolves one annual turn on an internal 52-week
+timeline. You still give orders once per year, but the game uses those hidden
+weeks to decide when scouting reports, encounters, battles, and other dated
+events happen inside the turn.
 
 ## What You Can Do in a Round
 

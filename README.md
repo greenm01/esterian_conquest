@@ -27,11 +27,11 @@ completeness, and campaign-scale playtesting.
 If you are new to Esterian Conquest, start with the readable manual
 transcriptions first:
 
-- [ECQSTART.md](docs/manuals/ECQSTART.md)
+- [ec_qstart.md](docs/manuals/ec_qstart.md)
   - quick-start overview
-- [ECPLAYER.md](docs/manuals/ECPLAYER.md)
+- [ec_player.md](docs/manuals/ec_player.md)
   - the main player manual
-- [ECREADME.md](docs/manuals/ECREADME.md)
+- [ec_readme.md](docs/manuals/ec_readme.md)
   - setup notes, release notes, and bundled guidance
 
 Full manual index:

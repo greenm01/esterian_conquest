@@ -4,11 +4,11 @@ This section is the player-facing entry point for `v1.6`.
 
 Current recommended reading order:
 
-- [ECQSTART.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ECQSTART.md)
+- [ec_qstart.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_qstart.md)
   - quick-start overview of the game itself
-- [ECPLAYER.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ECPLAYER.md)
+- [ec_player.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_player.md)
   - the main player manual and mechanics reference
-- [ECREADME.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ECREADME.md)
+- [ec_readme.md](/home/niltempus/dev/esterian_conquest/docs/manuals/ec_readme.md)
   - setup notes, release notes, and bundled guidance
 
 The current Rust client is still converging on full `ECGAME` coverage, so the
