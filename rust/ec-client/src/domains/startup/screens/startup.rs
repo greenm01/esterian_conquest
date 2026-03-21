@@ -1,8 +1,73 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use crate::reports::{wrap_review_text_preserving_spacing, ReportsPreview, ReviewBlock};
 use crate::screen::layout::{draw_plain_prompt, new_playfield, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
-use crate::screen::{PlayfieldBuffer, ScreenFrame};
+use crate::screen::{CellStyle, PlayfieldBuffer, ScreenFrame, StyledSpan};
 use crate::startup::{StartupPhase, StartupSummary};
 use crate::theme::classic;
+
+/// Minimal LCG for decoration color randomization (same constants as mapgen).
+struct Lcg {
+    state: u64,
+}
+
+impl Lcg {
+    fn from_time() -> Self {
+        let seed = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or(0xEC15);
+        Self {
+            state: seed.wrapping_mul(6364136223846793005).wrapping_add(1),
+        }
+    }
+
+    fn next_usize(&mut self) -> usize {
+        self.state = self
+            .state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        (self.state >> 32) as usize
+    }
+}
+
+fn is_star_decoration(ch: char) -> bool {
+    matches!(ch, '.' | '*' | 'o')
+}
+
+/// Split a text line into styled spans, highlighting specific phrases.
+fn highlighted_spans<'a>(
+    line: &'a str,
+    phrases: &[&'a str],
+    base: CellStyle,
+    accent: CellStyle,
+) -> Vec<StyledSpan<'a>> {
+    let mut spans = Vec::new();
+    let mut pos = 0;
+    while pos < line.len() {
+        let mut found = None;
+        for phrase in phrases {
+            if line[pos..].starts_with(phrase) {
+                found = Some(*phrase);
+                break;
+            }
+        }
+        if let Some(phrase) = found {
+            spans.push(StyledSpan::new(phrase, accent));
+            pos += phrase.len();
+        } else {
+            // Scan ahead to the next phrase match or end of string.
+            let next = phrases
+                .iter()
+                .filter_map(|p| line[pos..].find(p).map(|i| pos + i))
+                .min()
+                .unwrap_or(line.len());
+            spans.push(StyledSpan::new(&line[pos..next], base));
+            pos = next;
+        }
+    }
+    spans
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StartupReviewMode {
@@ -90,7 +155,7 @@ impl StartupScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         match phase {
             StartupPhase::Splash => render_splash(splash_page),
-            StartupPhase::Intro => render_game_intro_page(intro_page, "Slap a key."),
+            StartupPhase::Intro => render_game_intro_page(intro_page, "(Slap a key)"),
             StartupPhase::LoginSummary => self.render_login_summary(frame),
             StartupPhase::Results => self.render_review(
                 frame,
@@ -307,6 +372,16 @@ pub fn version_title() -> String {
 
 const ATTRIBUTION: &str = "Original game (c) 1992 Bentley C. Griffith";
 
+const INTRO_ACCENT_PHRASES: &[&str] = &[
+    "Esterian dominion",
+    "stations",
+    "empires",
+    "Star Masters",
+    "persuasion from orbit",
+    "maintenance",
+    "mathematics, and will",
+];
+
 pub fn render_game_intro_page(
     intro_page: usize,
     final_prompt: &str,
@@ -317,11 +392,27 @@ pub fn render_game_intro_page(
         .get(intro_page)
         .copied()
         .unwrap_or(INTRO_PAGES.last().copied().unwrap_or(&[]));
+
+    let is_tribute = intro_page == 1;
+
     for (row, line) in lines.iter().enumerate() {
-        buffer.write_text(row + text_start_row, 1, line, classic::body_style());
+        let y = row + text_start_row;
+        if is_tribute {
+            buffer.write_text(y, 1, line, classic::intro_tribute_style());
+        } else if INTRO_ACCENT_PHRASES.iter().any(|p| line.contains(p)) {
+            let spans = highlighted_spans(
+                line,
+                INTRO_ACCENT_PHRASES,
+                classic::body_style(),
+                classic::intro_accent_style(),
+            );
+            buffer.write_spans(y, 1, &spans);
+        } else {
+            buffer.write_text(y, 1, line, classic::body_style());
+        }
     }
     let prompt = if intro_page + 1 < INTRO_PAGES.len() {
-        "Slap a key."
+        "(Slap a key)"
     } else {
         final_prompt
     };
@@ -338,9 +429,24 @@ fn render_splash(splash_page: usize) -> Result<PlayfieldBuffer, Box<dyn std::err
         let logo_left = 80usize.saturating_sub(logo_width) / 2;
         let block_height = INTRO_LOGO.len() + 4 + 1;
         let start_row = (19usize.saturating_sub(block_height)) / 2;
+
+        // Render logo with randomized star-decoration colors.
+        let mut rng = Lcg::from_time();
         for (row, line) in INTRO_LOGO.iter().enumerate() {
-            buffer.write_text(row + start_row, logo_left, line, classic::logo_style());
+            let y = row + start_row;
+            for (col, ch) in line.chars().enumerate() {
+                if ch == ' ' {
+                    continue;
+                }
+                let style = if is_star_decoration(ch) {
+                    classic::star_decoration_style(rng.next_usize())
+                } else {
+                    classic::logo_style()
+                };
+                buffer.write_text(y, logo_left + col, &ch.to_string(), style);
+            }
         }
+
         buffer.write_text(
             start_row + INTRO_LOGO.len() + 2,
             logo_left,
@@ -379,9 +485,9 @@ fn render_splash(splash_page: usize) -> Result<PlayfieldBuffer, Box<dyn std::err
         }
         render_review_transcript(&mut buffer, &transcript);
         let prompt = if intro_index + 1 < INTRO_PAGES.len() {
-            "Slap a key."
+            "(Slap a key)"
         } else {
-            "Slap a key."
+            "(Slap a key)"
         };
         draw_plain_prompt(&mut buffer, 19, prompt);
     }
@@ -456,7 +562,63 @@ fn render_review_transcript(buffer: &mut PlayfieldBuffer, transcript_rows: &[Str
     let visible_rows = &transcript_rows[visible_start..];
     let first_row = 18usize.saturating_sub(visible_rows.len());
     for (i, line) in visible_rows.iter().enumerate() {
-        buffer.write_text(first_row + i, 0, line, classic::body_style());
+        let y = first_row + i;
+        if let Some(stardate_pos) = line.find("Stardate: ") {
+            let label_end = stardate_pos + "Stardate: ".len();
+            // Parse: week digits, slash, year digits.
+            let rest = &line[label_end..];
+            let week_len = rest.chars().take_while(|c| c.is_ascii_digit()).count();
+            let after_week = label_end + week_len;
+            let has_slash = line.as_bytes().get(after_week) == Some(&b'/');
+            let year_start = if has_slash {
+                after_week + 1
+            } else {
+                after_week
+            };
+            let year_len = line[year_start..]
+                .chars()
+                .take_while(|c| c.is_ascii_digit())
+                .count();
+            let value_end = year_start + year_len;
+
+            // Zero-pad week to 2 digits at display time.
+            let week_raw = &line[label_end..after_week];
+            let week_padded = if week_len == 1 {
+                format!("0{week_raw}")
+            } else {
+                week_raw.to_string()
+            };
+
+            let mut col = 0;
+            if stardate_pos > 0 {
+                col += buffer.write_text(y, col, &line[..stardate_pos], classic::body_style());
+            }
+            col += buffer.write_text(
+                y,
+                col,
+                &line[stardate_pos..label_end],
+                classic::stardate_label_style(),
+            );
+            if week_len > 0 {
+                col += buffer.write_text(y, col, &week_padded, classic::stardate_week_style());
+            }
+            if has_slash {
+                col += buffer.write_text(y, col, "/", classic::stardate_label_style());
+            }
+            if year_len > 0 {
+                col += buffer.write_text(
+                    y,
+                    col,
+                    &line[year_start..value_end],
+                    classic::stardate_year_style(),
+                );
+            }
+            if value_end < line.len() {
+                buffer.write_text(y, col, &line[value_end..], classic::body_style());
+            }
+        } else {
+            buffer.write_text(y, 0, line, classic::body_style());
+        }
     }
 }
 

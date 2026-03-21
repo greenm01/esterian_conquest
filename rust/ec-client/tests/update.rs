@@ -3314,7 +3314,7 @@ fn startup_results_decode_length_prefixed_lines_as_separate_classic_rows() {
     assert!(terminal
         .lines
         .iter()
-        .any(|line| { line.contains("System(9,14):          Stardate: 2/3003") }));
+        .any(|line| { line.contains("System(9,14):          Stardate: 02/3003") }));
     assert!(terminal
         .lines
         .iter()

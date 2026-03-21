@@ -511,7 +511,7 @@ impl FirstTimeIntroScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         crate::screen::startup::render_game_intro_page(
             page,
-            "Slap a key to return to the First Time Menu.",
+            "(Slap a key to return to the First Time Menu)",
         )
     }
 }

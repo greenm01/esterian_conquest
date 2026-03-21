@@ -1,8 +1,8 @@
-use ec_data::Mission;
 use ec_data::maint::timing::{
-    TimingCode, apply_timing_offset, event_base_week, format_rankings_stardate,
-    format_report_first_line, format_stardate, timing_code_offset,
+    apply_timing_offset, event_base_week, format_rankings_stardate, format_report_first_line,
+    format_stardate, timing_code_offset, TimingCode,
 };
+use ec_data::Mission;
 
 #[test]
 fn timing_code_offsets_match_recovered_table() {
@@ -46,9 +46,9 @@ fn base_week_one_year_speed3_is_around_30() {
 }
 
 #[test]
-fn format_stardate_no_padding() {
+fn format_stardate_zero_pads_week() {
     assert_eq!(format_stardate(32, 3001), "Stardate: 32/3001");
-    assert_eq!(format_stardate(1, 3010), "Stardate: 1/3010");
+    assert_eq!(format_stardate(1, 3010), "Stardate: 01/3010");
 }
 
 #[test]

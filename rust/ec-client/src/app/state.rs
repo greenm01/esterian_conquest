@@ -383,17 +383,19 @@ impl App {
         if self.current_modal_notice().is_some() {
             return Action::DismissModalNotice;
         }
+        if key.code == crossterm::event::KeyCode::Char('c')
+            && key
+                .modifiers
+                .contains(crossterm::event::KeyModifiers::CONTROL)
+        {
+            return Action::Quit;
+        }
         match self.current_screen {
             ScreenId::Startup(StartupPhase::Splash)
                 if self.startup_state.splash_page > 0
                     && self.startup_state.splash_page + 1 < STARTUP_SPLASH_PAGE_COUNT =>
             {
-                match key.code {
-                    crossterm::event::KeyCode::Char('q') | crossterm::event::KeyCode::Char('Q') => {
-                        Action::Quit
-                    }
-                    _ => Action::Startup(StartupAction::Advance),
-                }
+                Action::Startup(StartupAction::Advance)
             }
             ScreenId::Startup(phase) => self.handle_startup_key(phase, key),
             ScreenId::FirstTimeMenu => self.first_time_menu.handle_key(key),

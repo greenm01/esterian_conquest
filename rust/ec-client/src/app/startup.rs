@@ -608,20 +608,15 @@ impl App {
                         KeyCode::Char('y') | KeyCode::Char('Y') => {
                             Action::Startup(StartupAction::Advance)
                         }
-                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
                         _ => Action::Startup(StartupAction::SkipIntro),
                     }
                 } else {
-                    match key.code {
-                        KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
-                        _ => Action::Startup(StartupAction::Advance),
-                    }
+                    Action::Startup(StartupAction::Advance)
                 }
             }
-            StartupPhase::Intro | StartupPhase::LoginSummary => match key.code {
-                KeyCode::Char('q') | KeyCode::Char('Q') => Action::Quit,
-                _ => Action::Startup(StartupAction::Advance),
-            },
+            StartupPhase::Intro | StartupPhase::LoginSummary => {
+                Action::Startup(StartupAction::Advance)
+            }
             StartupPhase::Results => {
                 if self.startup_state.results_mode == StartupReviewMode::ItemBody {
                     if !self.startup_review_is_at_end(true) {
