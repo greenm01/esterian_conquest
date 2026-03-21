@@ -562,6 +562,25 @@ remaining risks are:
       `/tmp/ecgame-regular-byte08-64` left player-1 row 5 in `DATABASE.DAT`
       as `UNKNOWN` before and after `ECMAINT`, so byte `0x08` is not the
       remaining regular-world scout gate by itself
+    - success-side probes are now narrowing the other side of the boundary too.
+      Starting from the accepted foreign-world `TargetPrime` scout baseline at
+      `/tmp/ecgame-classic-atrest-purescout-new/.oracle/before-ecmaint`:
+      changing only the target world owner byte from slot `2 -> 3` or
+      `2 -> 4` produced a total no-op (`RESULTS.DAT` stayed empty and all core
+      `.DAT` files were unchanged)
+    - that no-op result is not explained only by "inactive owner slot":
+      `/tmp/ecgame-targetprime-owner4-active` also transplanted the active
+      slot-4 `PLAYER.DAT` block from the failing regular-world baseline, and
+      original `ECMAINT` still performed zero writes
+    - geometry/system identity is coupled too: `/tmp/ecgame-targetprime-at-helios`
+      moved the accepted `TargetPrime` foreign-world record and scout target to
+      `(9,2)` while keeping the rest of the accepted baseline intact, and that
+      also collapsed to a total no-op
+    - practical read: the accepted foreign-world scout path is a tightly
+      coupled target-world/system context, not just a generic scout fleet plus
+      a visible foreign owner. The remaining regular-world gate is therefore
+      very likely in that target-world/system classification path, not in scout
+      fleet bytes
 19. The on-disk packed `ECMAINT.EXE` is not a useful string anchor for the
     scout-abort path. Headless Ghidra on local project `ec-v15-local` found no
     matches for `Scouting mission report`, `Since we have lost`, or

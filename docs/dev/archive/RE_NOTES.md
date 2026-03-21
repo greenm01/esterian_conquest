@@ -10379,3 +10379,40 @@ and target coordinates unchanged.
 So the lone remaining raw fail/success scout-record byte difference outside
 linked-list ids and coordinates is not enough to explain the regular-world
 scout-abort gate either.
+
+The cleanest follow-up was to mutate the accepted foreign-world scout baseline
+instead of continuing to mutate the failing regular-world probe.
+
+Accepted baseline:
+
+- `/tmp/ecgame-classic-atrest-purescout-new/.oracle/before-ecmaint`
+- fleet `3` is the accepted pure `ScoutSolarSystem(11)` probe targeting
+  `(15,13)`
+- the target foreign world is the old `TargetPrime` family at planet record
+  `14`
+
+Three bounded mutations all collapsed to a total no-op in original `ECMAINT`:
+
+1. Change only the target owner byte:
+   - `/tmp/ecgame-targetprime-owner3`: record `14` owner `2 -> 3`
+   - `/tmp/ecgame-targetprime-owner4`: record `14` owner `2 -> 4`
+   - both runs produced zero diffs in every core file and left `RESULTS.DAT`
+     empty
+2. Change target owner plus give that owner an active player block:
+   - `/tmp/ecgame-targetprime-owner4-active`
+   - same owner `2 -> 4` patch, plus transplanted active slot-4 `PLAYER.DAT`
+     block from `/tmp/ecgame-regular-purescout-clean/.oracle/before-ecmaint`
+   - original `ECMAINT` still performed zero writes
+3. Keep the accepted target family but move it to the failing regular-world
+   coordinates:
+   - `/tmp/ecgame-targetprime-at-helios`
+   - moved planet record `14` from `(15,13) -> (9,2)`
+   - retargeted fleet `3` from `(15,13) -> (9,2)`
+   - original `ECMAINT` again performed zero writes
+
+These are stronger than the old fail-side probes because they start from a
+known accepted foreign-world scout and show that the success path is tightly
+coupled to target-world/system identity. It is not "any valid scout fleet plus
+any foreign owned world"; changing only the target owner or moving the accepted
+target family into the failing regular-world system is enough to kill the whole
+path before any abort report or `DATABASE.DAT` refresh.
