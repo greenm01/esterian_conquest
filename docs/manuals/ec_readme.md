@@ -15,16 +15,6 @@ documentation in [docs/sysop](/home/niltempus/dev/esterian_conquest/docs/sysop/)
 If you want the untouched original text, read
 [ECREADME.DOC](/home/niltempus/dev/esterian_conquest/original/v1.5/ECREADME.DOC).
 
-## What This Document Originally Covered
-
-The original readme was a short operator note for setting up Esterian Conquest
-as a DOS BBS door. It emphasized that the game was easy to install, could back
-up and restore itself when maintenance failed integrity checks, and supported
-multi-node play.
-
-That material is still useful as project history. It is not the recommended
-deployment model for `v1.6`.
-
 ## Historical DOS Package Expectations
 
 The original package assumed a DOS host, a small hard drive, and a BBS setup
