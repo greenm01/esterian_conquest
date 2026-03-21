@@ -25,7 +25,7 @@ Recent validation baseline:
   - workspace green at the last recorded sweep
 - focused post-compat reruns:
   - `cargo test -q -p ec-cli --test storage`
-    - `14 passed, 4 ignored`
+    - `14 passed, 5 ignored`
   - `cargo test -q -p ec-cli --test maint`
     - `65 passed, 1 ignored`
   - `python3 -u tools/oracle_sweep.py --mode seeded`
@@ -414,8 +414,9 @@ remaining risks are:
    loaded homeworld-seed/orbit family, not just the named player-1 row.
    There is now also an ignored classic `ECGAME` smoke regression for that
    loaded homeworld-seed/orbit directory shape, plus ignored classic-client
-   smoke regressions for the exported foreign full-intel, foreign view-only,
-   assault-failure enemy-view, and assault-success owned directory shapes.
+   smoke regressions for the exported foreign full-intel, refreshed stale
+   foreign scout, foreign view-only, assault-failure enemy-view, and
+   assault-success owned directory shapes.
 3. Treat the seen-year words (`raw[0x16..0x19]`) as the visible year source
    for current Total Planet Database list/detail displays. The scout-year word
    (`raw[0x27..0x28]`) remains unresolved but is not driving those screens.
