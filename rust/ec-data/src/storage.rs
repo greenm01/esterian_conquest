@@ -8,14 +8,11 @@ use crate::{
     decode_report_block_rows, extract_player_intel_from_compat_database, generate_campaign_seed,
     merge_player_intel_from_runtime, rebuild_results_bytes, BaseDat, CoreGameData, DatabaseDat,
     FleetDat, IpbmDat, PlanetDat, PlayerDat, QueuedPlayerMail, ReportBlockRow, SetupDat,
-    BASE_RECORD_SIZE, FLEET_RECORD_SIZE, IPBM_RECORD_SIZE, PLANET_RECORD_SIZE, PLAYER_RECORD_SIZE,
+    BASE_RECORD_SIZE, DATABASE_RECORD_SIZE, FLEET_RECORD_SIZE, IPBM_RECORD_SIZE,
+    PLANET_RECORD_SIZE, PLAYER_RECORD_SIZE,
 };
 
 pub const DEFAULT_CAMPAIGN_DB_NAME: &str = "ecgame.db";
-/// Only DATABASE.DAT remains as a compat blob; RESULTS.DAT is now stored
-/// structurally in `report_blocks`, and MESSAGES.DAT is covered by
-/// `queued_mail`.
-const COMPAT_FILE_NAMES: &[&str] = &["DATABASE.DAT"];
 const PLAYER_RECORD_FIELDS_TABLE: &str = "player_record_fields";
 const PLANET_RECORD_FIELDS_TABLE: &str = "planet_record_fields";
 const FLEET_RECORD_FIELDS_TABLE: &str = "fleet_record_fields";
@@ -23,6 +20,7 @@ const BASE_RECORD_FIELDS_TABLE: &str = "base_record_fields";
 const IPBM_RECORD_FIELDS_TABLE: &str = "ipbm_record_fields";
 const SETUP_RECORD_FIELDS_TABLE: &str = "setup_record_fields";
 const CONQUEST_RECORD_FIELDS_TABLE: &str = "conquest_record_fields";
+const COMPAT_DATABASE_RECORD_FIELDS_TABLE: &str = "compat_database_record_fields";
 
 #[derive(Debug)]
 pub enum CampaignStoreError {
@@ -201,14 +199,8 @@ impl CampaignStore {
         let mut conn = self.connection()?;
         let game_data = load_snapshot_game_data(&mut conn, snapshot_id)?;
         game_data.save(dir)?;
-        // DATABASE.DAT from compat_files
-        for name in COMPAT_FILE_NAMES {
-            let bytes: Vec<u8> = conn.query_row(
-                "SELECT bytes FROM compat_files WHERE snapshot_id = ?1 AND name = ?2",
-                params![snapshot_id, *name],
-                |row| row.get(0),
-            )?;
-            write_path(dir.join(name), &bytes)?;
+        if let Some(database) = load_compat_database_rows(&mut conn, snapshot_id)? {
+            write_path(dir.join("DATABASE.DAT"), &database.to_bytes())?;
         }
         // RESULTS.DAT: rebuild from report_blocks
         let report_rows = load_all_report_block_rows(&mut conn, snapshot_id)?;
@@ -299,11 +291,7 @@ impl CampaignStore {
         let Some((snapshot_id, _)) = latest_snapshot_id_and_year(&mut conn)? else {
             return Ok(None);
         };
-        let bytes = compat_file_bytes_optional(&mut conn, snapshot_id, "DATABASE.DAT")?;
-        bytes
-            .map(|bytes| DatabaseDat::parse(&bytes))
-            .transpose()
-            .map_err(Into::into)
+        load_compat_database_rows(&mut conn, snapshot_id)
     }
 
     pub fn save_runtime_state(
@@ -428,11 +416,9 @@ impl CampaignStore {
         };
         let previous_compat_database = if compat_database_override.is_none() {
             previous_snapshot_id
-                .map(|snapshot_id| compat_file_bytes_optional_tx(&tx, snapshot_id, "DATABASE.DAT"))
+                .map(|snapshot_id| load_compat_database_rows_tx(&tx, snapshot_id))
                 .transpose()?
                 .flatten()
-                .map(|bytes| DatabaseDat::parse(&bytes))
-                .transpose()?
         } else {
             None
         };
@@ -495,9 +481,12 @@ impl CampaignStore {
             crate::CONQUEST_DAT_SIZE,
         )?;
         if let Some(database) = compat_database_override.or(previous_compat_database.as_ref()) {
-            tx.execute(
-                "INSERT INTO compat_files(snapshot_id, name, bytes) VALUES (?1, 'DATABASE.DAT', ?2)",
-                params![snapshot_id, database.to_bytes()],
+            write_typed_record_rows(
+                &tx,
+                COMPAT_DATABASE_RECORD_FIELDS_TABLE,
+                snapshot_id,
+                &database.to_bytes(),
+                DATABASE_RECORD_SIZE,
             )?;
         }
         write_report_block_rows(&tx, snapshot_id, report_block_rows)?;
@@ -526,12 +515,6 @@ impl CampaignStore {
              CREATE TABLE IF NOT EXISTS campaign_metadata (
                  key TEXT PRIMARY KEY,
                  int_value INTEGER NOT NULL
-             );
-             CREATE TABLE IF NOT EXISTS compat_files (
-                 snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
-                 name TEXT NOT NULL,
-                 bytes BLOB NOT NULL,
-                 PRIMARY KEY(snapshot_id, name)
              );
              CREATE TABLE IF NOT EXISTS planet_intel (
                  snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
@@ -563,7 +546,7 @@ impl CampaignStore {
                  snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
                  block_index INTEGER NOT NULL,
                  decoded_text TEXT NOT NULL,
-                 raw_bytes BLOB,
+                 raw_hex TEXT,
                  recipient_deleted INTEGER NOT NULL DEFAULT 0,
                  PRIMARY KEY(snapshot_id, block_index)
              );",
@@ -575,9 +558,12 @@ impl CampaignStore {
         create_typed_record_table(&conn, IPBM_RECORD_FIELDS_TABLE)?;
         create_typed_record_table(&conn, SETUP_RECORD_FIELDS_TABLE)?;
         create_typed_record_table(&conn, CONQUEST_RECORD_FIELDS_TABLE)?;
+        create_typed_record_table(&conn, COMPAT_DATABASE_RECORD_FIELDS_TABLE)?;
+        migrate_legacy_report_blocks_table(&mut conn)?;
         ensure_queued_mail_recipient_deleted_column(&conn)?;
         ensure_planet_intel_production_columns(&conn)?;
         migrate_legacy_blob_record_tables(&mut conn)?;
+        migrate_legacy_compat_files(&mut conn)?;
         Ok(())
     }
 
@@ -760,6 +746,107 @@ fn table_exists(conn: &Connection, table: &str) -> Result<bool, CampaignStoreErr
     .optional()
     .map(|row| row.is_some())
     .map_err(CampaignStoreError::Sql)
+}
+
+fn table_columns(conn: &Connection, table: &str) -> Result<Vec<String>, CampaignStoreError> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    stmt.query_map([], |row| row.get::<_, String>(1))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(CampaignStoreError::Sql)
+}
+
+fn migrate_legacy_report_blocks_table(conn: &mut Connection) -> Result<(), CampaignStoreError> {
+    if !table_exists(conn, "report_blocks")? {
+        return Ok(());
+    }
+    let columns = table_columns(conn, "report_blocks")?;
+    if !columns.iter().any(|column| column == "raw_bytes") {
+        return Ok(());
+    }
+    conn.execute_batch(
+        "BEGIN;
+         CREATE TABLE report_blocks_v2 (
+             snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+             block_index INTEGER NOT NULL,
+             decoded_text TEXT NOT NULL,
+             raw_hex TEXT,
+             recipient_deleted INTEGER NOT NULL DEFAULT 0,
+             PRIMARY KEY(snapshot_id, block_index)
+         );
+         INSERT INTO report_blocks_v2(snapshot_id, block_index, decoded_text, raw_hex, recipient_deleted)
+         SELECT
+             snapshot_id,
+             block_index,
+             decoded_text,
+             CASE WHEN raw_bytes IS NULL THEN NULL ELSE hex(raw_bytes) END,
+             COALESCE(recipient_deleted, 0)
+         FROM report_blocks;
+         DROP TABLE report_blocks;
+         ALTER TABLE report_blocks_v2 RENAME TO report_blocks;
+         COMMIT;",
+    )?;
+    Ok(())
+}
+
+fn migrate_legacy_compat_files(conn: &mut Connection) -> Result<(), CampaignStoreError> {
+    if !table_exists(conn, "compat_files")? {
+        return Ok(());
+    }
+
+    let tx = conn.transaction()?;
+    {
+        let mut stmt = tx.prepare(
+            "SELECT snapshot_id, name, bytes
+             FROM compat_files
+             ORDER BY snapshot_id, name",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Vec<u8>>(2)?,
+            ))
+        })?;
+        for row in rows {
+            let (snapshot_id, name, bytes) = row?;
+            match name.as_str() {
+                "DATABASE.DAT" => {
+                    let existing_count: i64 = tx.query_row(
+                        &format!(
+                            "SELECT COUNT(*) FROM {COMPAT_DATABASE_RECORD_FIELDS_TABLE}
+                             WHERE snapshot_id = ?1"
+                        ),
+                        params![snapshot_id],
+                        |row| row.get(0),
+                    )?;
+                    if existing_count == 0 {
+                        write_typed_record_rows(
+                            &tx,
+                            COMPAT_DATABASE_RECORD_FIELDS_TABLE,
+                            snapshot_id,
+                            &bytes,
+                            DATABASE_RECORD_SIZE,
+                        )?;
+                    }
+                }
+                "RESULTS.DAT" => {
+                    let existing_count: i64 = tx.query_row(
+                        "SELECT COUNT(*) FROM report_blocks WHERE snapshot_id = ?1",
+                        params![snapshot_id],
+                        |row| row.get(0),
+                    )?;
+                    if existing_count == 0 {
+                        let rows = decode_report_block_rows(&bytes);
+                        write_report_block_rows(&tx, snapshot_id, &rows)?;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    tx.execute_batch("DROP TABLE compat_files;")?;
+    tx.commit()?;
+    Ok(())
 }
 
 fn latest_snapshot_id_and_year(
@@ -960,32 +1047,99 @@ fn load_snapshot_game_data(
     })
 }
 
-fn compat_file_bytes_optional(
+fn load_compat_database_rows(
     conn: &mut Connection,
     snapshot_id: i64,
-    name: &str,
-) -> Result<Option<Vec<u8>>, CampaignStoreError> {
-    conn.query_row(
-        "SELECT bytes FROM compat_files WHERE snapshot_id = ?1 AND name = ?2",
-        params![snapshot_id, name],
-        |row| row.get::<_, Vec<u8>>(0),
-    )
-    .optional()
-    .map_err(CampaignStoreError::Sql)
+) -> Result<Option<DatabaseDat>, CampaignStoreError> {
+    let row_count: i64 = conn.query_row(
+        &format!(
+            "SELECT COUNT(*) FROM {COMPAT_DATABASE_RECORD_FIELDS_TABLE}
+             WHERE snapshot_id = ?1"
+        ),
+        params![snapshot_id],
+        |row| row.get(0),
+    )?;
+    if row_count == 0 {
+        return Ok(None);
+    }
+    let bytes = read_typed_record_rows(
+        conn,
+        COMPAT_DATABASE_RECORD_FIELDS_TABLE,
+        snapshot_id,
+        DATABASE_RECORD_SIZE,
+    )?;
+    DatabaseDat::parse(&bytes).map(Some).map_err(Into::into)
 }
 
-fn compat_file_bytes_optional_tx(
+fn load_compat_database_rows_tx(
     tx: &rusqlite::Transaction<'_>,
     snapshot_id: i64,
-    name: &str,
-) -> Result<Option<Vec<u8>>, CampaignStoreError> {
-    tx.query_row(
-        "SELECT bytes FROM compat_files WHERE snapshot_id = ?1 AND name = ?2",
-        params![snapshot_id, name],
-        |row| row.get::<_, Vec<u8>>(0),
-    )
-    .optional()
-    .map_err(CampaignStoreError::Sql)
+) -> Result<Option<DatabaseDat>, CampaignStoreError> {
+    let row_count: i64 = tx.query_row(
+        &format!(
+            "SELECT COUNT(*) FROM {COMPAT_DATABASE_RECORD_FIELDS_TABLE}
+             WHERE snapshot_id = ?1"
+        ),
+        params![snapshot_id],
+        |row| row.get(0),
+    )?;
+    if row_count == 0 {
+        return Ok(None);
+    }
+    let mut stmt = tx.prepare(&format!(
+        "SELECT record_index, byte_offset, byte_value
+         FROM {COMPAT_DATABASE_RECORD_FIELDS_TABLE}
+         WHERE snapshot_id = ?1
+         ORDER BY record_index, byte_offset"
+    ))?;
+    let rows = stmt.query_map(params![snapshot_id], |row| {
+        Ok((
+            row.get::<_, i64>(0)?,
+            row.get::<_, i64>(1)?,
+            row.get::<_, i64>(2)?,
+        ))
+    })?;
+    let mut bytes = Vec::new();
+    let mut current_record_index: Option<i64> = None;
+    let mut expected_offset = 0usize;
+    for row in rows {
+        let (record_index, byte_offset, byte_value) = row?;
+        let byte_offset = byte_offset as usize;
+        if current_record_index != Some(record_index) {
+            if current_record_index.is_some() && expected_offset != DATABASE_RECORD_SIZE {
+                return Err(CampaignStoreError::Parse(
+                    crate::ParseError::WrongRecordMultiple {
+                        file_type: "DATABASE.DAT",
+                        record_size: DATABASE_RECORD_SIZE,
+                        actual: expected_offset,
+                    },
+                ));
+            }
+            current_record_index = Some(record_index);
+            expected_offset = 0;
+        }
+        if byte_offset != expected_offset {
+            return Err(CampaignStoreError::Parse(
+                crate::ParseError::WrongRecordMultiple {
+                    file_type: "DATABASE.DAT",
+                    record_size: DATABASE_RECORD_SIZE,
+                    actual: byte_offset,
+                },
+            ));
+        }
+        bytes.push(byte_value as u8);
+        expected_offset += 1;
+    }
+    if current_record_index.is_some() && expected_offset != DATABASE_RECORD_SIZE {
+        return Err(CampaignStoreError::Parse(
+            crate::ParseError::WrongRecordMultiple {
+                file_type: "DATABASE.DAT",
+                record_size: DATABASE_RECORD_SIZE,
+                actual: expected_offset,
+            },
+        ));
+    }
+    DatabaseDat::parse(&bytes).map(Some).map_err(Into::into)
 }
 
 fn load_intel_rows(
@@ -1086,6 +1240,41 @@ fn read_optional_path(path: PathBuf) -> Result<Vec<u8>, CampaignStoreError> {
 
 fn write_path(path: PathBuf, bytes: &[u8]) -> Result<(), CampaignStoreError> {
     fs::write(&path, bytes).map_err(|source| CampaignStoreError::Io { path, source })
+}
+
+fn encode_hex(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789ABCDEF";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        out.push(HEX[(byte >> 4) as usize] as char);
+        out.push(HEX[(byte & 0x0F) as usize] as char);
+    }
+    out
+}
+
+fn decode_hex(text: &str) -> Result<Vec<u8>, String> {
+    if text.len() % 2 != 0 {
+        return Err("hex text length must be even".to_string());
+    }
+    let mut out = Vec::with_capacity(text.len() / 2);
+    let bytes = text.as_bytes();
+    for idx in (0..bytes.len()).step_by(2) {
+        let hi = decode_hex_nibble(bytes[idx])
+            .ok_or_else(|| format!("invalid hex character at offset {idx}"))?;
+        let lo = decode_hex_nibble(bytes[idx + 1])
+            .ok_or_else(|| format!("invalid hex character at offset {}", idx + 1))?;
+        out.push((hi << 4) | lo);
+    }
+    Ok(out)
+}
+
+fn decode_hex_nibble(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
 }
 
 fn load_mail_queue_file(dir: &Path) -> Result<Vec<QueuedPlayerMail>, CampaignStoreError> {
@@ -1234,7 +1423,7 @@ fn write_report_block_rows(
     rows: &[ReportBlockRow],
 ) -> Result<(), CampaignStoreError> {
     let mut stmt = tx.prepare(
-        "INSERT INTO report_blocks(snapshot_id, block_index, decoded_text, raw_bytes, recipient_deleted)
+        "INSERT INTO report_blocks(snapshot_id, block_index, decoded_text, raw_hex, recipient_deleted)
          VALUES (?1, ?2, ?3, ?4, ?5)",
     )?;
     for row in rows {
@@ -1242,7 +1431,7 @@ fn write_report_block_rows(
             snapshot_id,
             row.block_index as i64,
             &row.decoded_text,
-            row.raw_bytes.as_deref(),
+            row.raw_bytes.as_ref().map(|bytes| encode_hex(bytes)),
             i64::from(u8::from(row.recipient_deleted)),
         ])?;
     }
@@ -1270,35 +1459,12 @@ fn load_report_block_rows_filtered(
     snapshot_id: i64,
     include_deleted: bool,
 ) -> Result<Vec<ReportBlockRow>, CampaignStoreError> {
-    // Check whether report_blocks has rows; if not, fall back to legacy
-    // compat_files RESULTS.DAT blob for databases that predate the migration.
-    let has_rows: bool = conn
-        .query_row(
-            "SELECT EXISTS(SELECT 1 FROM report_blocks WHERE snapshot_id = ?1)",
-            params![snapshot_id],
-            |row| row.get(0),
-        )
-        .unwrap_or(false);
-
-    if !has_rows {
-        // Legacy fallback: decompose from compat_files blob.
-        let blob = conn
-            .query_row(
-                "SELECT bytes FROM compat_files WHERE snapshot_id = ?1 AND name = 'RESULTS.DAT'",
-                params![snapshot_id],
-                |row| row.get::<_, Vec<u8>>(0),
-            )
-            .optional()?
-            .unwrap_or_default();
-        return Ok(decode_report_block_rows(&blob));
-    }
-
     let sql = if include_deleted {
-        "SELECT block_index, decoded_text, raw_bytes, recipient_deleted
+        "SELECT block_index, decoded_text, raw_hex, recipient_deleted
          FROM report_blocks WHERE snapshot_id = ?1
          ORDER BY block_index"
     } else {
-        "SELECT block_index, decoded_text, raw_bytes, recipient_deleted
+        "SELECT block_index, decoded_text, raw_hex, recipient_deleted
          FROM report_blocks WHERE snapshot_id = ?1 AND recipient_deleted = 0
          ORDER BY block_index"
     };
@@ -1307,7 +1473,17 @@ fn load_report_block_rows_filtered(
         Ok(ReportBlockRow {
             block_index: row.get::<_, i64>(0)? as usize,
             decoded_text: row.get(1)?,
-            raw_bytes: row.get(2)?,
+            raw_bytes: row
+                .get::<_, Option<String>>(2)?
+                .map(|hex| decode_hex(&hex))
+                .transpose()
+                .map_err(|err| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        2,
+                        rusqlite::types::Type::Text,
+                        Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, err)),
+                    )
+                })?,
             recipient_deleted: row.get::<_, i64>(3)? != 0,
         })
     })?;

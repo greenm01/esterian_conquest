@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use ec_data::{CampaignStore, DEFAULT_CAMPAIGN_DB_NAME};
+use rusqlite::Connection;
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -134,4 +135,53 @@ fn sqlite_store_generates_and_reuses_campaign_seed() {
         .expect("reload runtime state")
         .expect("runtime snapshot");
     assert_eq!(reloaded.campaign_seed, initial.campaign_seed);
+}
+
+#[test]
+fn sqlite_store_schema_has_no_blob_columns_or_compat_files_table() {
+    let source = repo_root().join("fixtures/ecutil-init/v1.5");
+    let imported = temp_dir("ec-data-storage-schema");
+    copy_dir_all(&source, &imported);
+
+    let store_path = imported.join(DEFAULT_CAMPAIGN_DB_NAME);
+    let store = CampaignStore::open(&store_path).expect("open store");
+    store
+        .import_directory_snapshot(&imported)
+        .expect("import directory");
+
+    let conn = Connection::open(store_path).expect("open sqlite db");
+    let table_names = conn
+        .prepare(
+            "SELECT name
+             FROM sqlite_master
+             WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+             ORDER BY name",
+        )
+        .expect("prepare table list")
+        .query_map([], |row| row.get::<_, String>(0))
+        .expect("query table list")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect table list");
+    assert!(
+        !table_names.iter().any(|name| name == "compat_files"),
+        "compat_files table should be gone: {table_names:?}"
+    );
+
+    let schema_rows = conn
+        .prepare(
+            "SELECT sql
+             FROM sqlite_master
+             WHERE type = 'table' AND sql IS NOT NULL",
+        )
+        .expect("prepare schema query")
+        .query_map([], |row| row.get::<_, String>(0))
+        .expect("query schema")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect schema");
+    for sql in schema_rows {
+        assert!(
+            !sql.to_ascii_uppercase().contains("BLOB"),
+            "sqlite schema should not use BLOB columns: {sql}"
+        );
+    }
 }
