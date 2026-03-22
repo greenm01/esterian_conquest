@@ -1,6 +1,7 @@
 use ec_data::{
     BaseDat, BaseRecord, ConquestDat, CoreGameData, EmpireProductionRankingSort, FleetDat, IpbmDat,
     PlanetDat, PlanetRecord, PlayerDat, PlayerRecord, SetupDat, decode_real48, encode_real48,
+    starbase_growth_bonus_percent,
 };
 use ec_engine::{build_seeded_new_game, run_maintenance_turn};
 
@@ -326,17 +327,27 @@ fn maintenance_high_tax_above_65_can_reduce_present_production() {
 }
 
 #[test]
-fn maintenance_starbase_worlds_tolerate_tax_up_to_70_without_penalty() {
+fn starbase_growth_bonus_tapers_out_by_tax_65() {
+    assert_eq!(starbase_growth_bonus_percent(25), 50);
+    assert_eq!(starbase_growth_bonus_percent(50), 50);
+    assert_eq!(starbase_growth_bonus_percent(60), 16);
+    assert_eq!(starbase_growth_bonus_percent(64), 3);
+    assert_eq!(starbase_growth_bonus_percent(65), 0);
+    assert_eq!(starbase_growth_bonus_percent(70), 0);
+}
+
+#[test]
+fn maintenance_starbases_do_not_shift_the_high_tax_penalty_threshold() {
     let mut player = player_with_empire_name("Alpha", 70, 0);
     player.set_owner_empire_raw(1);
 
     let colony = owned_planet(1, 100, encode_real48(50.0).unwrap(), 0, 3, 1);
-    let mut game = CoreGameData {
+    let mut with_base = CoreGameData {
         player: PlayerDat {
-            records: vec![player],
+            records: vec![player.clone()],
         },
         planets: PlanetDat {
-            records: vec![colony],
+            records: vec![colony.clone()],
         },
         fleets: FleetDat { records: vec![] },
         bases: BaseDat {
@@ -352,13 +363,103 @@ fn maintenance_starbase_worlds_tolerate_tax_up_to_70_without_penalty() {
         setup: zeroed_setup(),
         conquest: configured_conquest(1),
     };
-    game.planets.records[0].set_coords_raw([0, 0]);
+    with_base.planets.records[0].set_coords_raw([0, 0]);
 
-    run_maintenance_turn(&mut game).expect("maintenance should succeed");
+    let mut without_base = CoreGameData {
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![colony],
+        },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: zeroed_setup(),
+        conquest: configured_conquest(1),
+    };
 
-    let planet = &game.planets.records[0];
-    assert_eq!(planet.stored_goods_raw(), 35);
-    assert_eq!(planet.present_production_points().unwrap(), 56);
+    run_maintenance_turn(&mut with_base).expect("maintenance should succeed");
+    run_maintenance_turn(&mut without_base).expect("maintenance should succeed");
+
+    assert_eq!(with_base.planets.records[0].stored_goods_raw(), 35);
+    assert_eq!(without_base.planets.records[0].stored_goods_raw(), 35);
+    assert_eq!(
+        with_base.planets.records[0]
+            .present_production_points()
+            .unwrap(),
+        53
+    );
+    assert_eq!(
+        with_base.planets.records[0]
+            .present_production_points()
+            .unwrap(),
+        without_base.planets.records[0]
+            .present_production_points()
+            .unwrap()
+    );
+}
+
+#[test]
+fn maintenance_starbases_still_help_at_moderate_tax_rates() {
+    let mut player = player_with_empire_name("Alpha", 50, 0);
+    player.set_owner_empire_raw(1);
+
+    let colony = owned_planet(1, 100, encode_real48(50.0).unwrap(), 0, 3, 1);
+    let mut with_base = CoreGameData {
+        player: PlayerDat {
+            records: vec![player.clone()],
+        },
+        planets: PlanetDat {
+            records: vec![colony.clone()],
+        },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat {
+            records: vec![{
+                let mut base = BaseRecord::new_zeroed();
+                base.set_active_flag_raw(1);
+                base.set_owner_empire_raw(1);
+                base.set_coords_raw([0, 0]);
+                base
+            }],
+        },
+        ipbm: IpbmDat { records: vec![] },
+        setup: zeroed_setup(),
+        conquest: configured_conquest(1),
+    };
+    with_base.planets.records[0].set_coords_raw([0, 0]);
+
+    let mut without_base = CoreGameData {
+        player: PlayerDat {
+            records: vec![player],
+        },
+        planets: PlanetDat {
+            records: vec![colony],
+        },
+        fleets: FleetDat { records: vec![] },
+        bases: BaseDat { records: vec![] },
+        ipbm: IpbmDat { records: vec![] },
+        setup: zeroed_setup(),
+        conquest: configured_conquest(1),
+    };
+
+    run_maintenance_turn(&mut with_base).expect("maintenance should succeed");
+    run_maintenance_turn(&mut without_base).expect("maintenance should succeed");
+
+    assert_eq!(with_base.planets.records[0].stored_goods_raw(), 25);
+    assert_eq!(without_base.planets.records[0].stored_goods_raw(), 25);
+    assert_eq!(
+        without_base.planets.records[0]
+            .present_production_points()
+            .unwrap(),
+        57
+    );
+    assert_eq!(
+        with_base.planets.records[0]
+            .present_production_points()
+            .unwrap(),
+        61
+    );
 }
 
 #[test]

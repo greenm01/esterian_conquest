@@ -14,28 +14,37 @@ pub fn yearly_growth_delta(
 
     let gap = potential_production - present_production;
     let tax_headroom = 100u16.saturating_sub(u16::from(empire_tax_rate.min(95)));
-    let mut growth = ((u32::from(gap) * u32::from(tax_headroom)) + 399) / 400;
+    let base_growth = ((u32::from(gap) * u32::from(tax_headroom)) + 399) / 400;
+    let mut growth = base_growth;
     if has_friendly_starbase {
-        growth += growth.div_ceil(2);
+        let bonus_percent = starbase_growth_bonus_percent(empire_tax_rate);
+        if bonus_percent > 0 {
+            growth += (base_growth * u32::from(bonus_percent)).div_ceil(100);
+        }
     }
     growth.max(1).min(u32::from(gap)) as u16
 }
 
-pub fn yearly_high_tax_penalty(
-    present_production: u16,
-    empire_tax_rate: u8,
-    has_friendly_starbase: bool,
-) -> u16 {
+pub fn starbase_growth_bonus_percent(empire_tax_rate: u8) -> u16 {
+    if empire_tax_rate <= 50 {
+        50
+    } else if empire_tax_rate >= 65 {
+        0
+    } else {
+        (u16::from(65 - empire_tax_rate) * 50) / 15
+    }
+}
+
+pub fn yearly_high_tax_penalty(present_production: u16, empire_tax_rate: u8) -> u16 {
     if present_production == 0 {
         return 0;
     }
 
-    let safe_tax = if has_friendly_starbase { 70 } else { 65 };
-    if empire_tax_rate <= safe_tax {
+    if empire_tax_rate <= 65 {
         return 0;
     }
 
-    let overtax = u16::from(empire_tax_rate - safe_tax);
+    let overtax = u16::from(empire_tax_rate - 65);
     let penalty = ((u32::from(present_production) * u32::from(overtax)) + 499) / 500;
     penalty.max(1).min(u32::from(present_production)) as u16
 }

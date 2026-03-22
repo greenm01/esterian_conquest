@@ -81,7 +81,7 @@
 // ─── Table of Contents ───────────────────────────────────────────────────
 
 #outline(
-  title: "Contents",
+  title: "Contents and Appendices",
   indent: 1.5em,
 )
 
@@ -205,7 +205,7 @@ Ships operate in fleets. A fleet always moves at the speed of its slowest member
 
 === Starbases
 
-Starbases are large space fortresses (Cost: 50, AS: 10, DS: 12) that serve dual roles. In orbit around a planet, they provide a defensive combat bonus and significant economic benefits --- a planet with a starbase tolerates higher taxes without stalling growth and can spend up to *5x* its current production on a single build when points have been accumulated (see @economy for details). In deep space, they function as surveillance platforms with slightly more firepower than a battleship, though they move very slowly at just 1 sector per year.
+Starbases are large space fortresses (Cost: 50, AS: 10, DS: 12) that serve dual roles. In orbit around a planet, they provide a defensive combat bonus and significant economic benefits --- they help underdeveloped colonies grow faster at low and moderate tax rates, and they let a planet spend up to *5x* its current production on a single build when points have been accumulated (see @economy for details). They are not a free pass to run punitive tax rates forever. In deep space, they function as surveillance platforms with slightly more firepower than a battleship, though they move very slowly at just 1 sector per year.
 
 Unlike ships, starbases are not assigned to fleets. They are commissioned individually from stardock and moved independently through the *Starbase Command* submenu. You can order combat fleets to escort a starbase using Mission 4 (Guard Starbase), but the starbase itself remains a separate unit.
 
@@ -231,29 +231,41 @@ Every planet has a *Potential Production* --- the maximum productive capacity it
 
 === Tax Revenue
 
-The tax rate is empire-wide: you set one rate for all your planets. Revenue per planet per year is calculated as:
-
-#align(center)[
-  `revenue = floor(present_production * tax_rate / 100)`
-]
-
-Your empire's Total Available Points is the sum of this across all owned planets.
+The tax rate is empire-wide: you set one rate for all your planets. Revenue per
+planet per year is a fixed percentage of Present Production, and your empire's
+Total Available Points is the sum of that revenue across all owned planets. See
+@appendix-economy for the exact formula.
 
 === Growth Toward Potential
 
 Each maintenance turn, every owned planet grows its Present Production toward its Potential. Lower taxes produce faster growth --- a planet at 30% tax develops far faster than one at 60%. Growth also slows naturally as a planet approaches its ceiling. Even at punishingly high tax rates, a planet below its Potential always grows by at least 1 point per year.
 
+The engine computes this from the remaining gap to Potential and the tax
+headroom, then clamps the result so a planet below Potential always grows by at
+least `1` and never grows by more than the remaining gap. See
+@appendix-economy for the exact formula.
+
 === The 65% Tax Threshold
 
 #admonition("WARNING")[Setting taxes above *65%* can directly _reduce_ Present Production on your planets, not just slow growth.]
 
-Below 65%, growth is always positive --- lower is faster. Above 65%, a penalty kicks in that actively damages Present Production. A planet with a commissioned starbase in orbit can tolerate rates up to approximately *70%*, but there is no hard guarantee. Pushing past that threshold still risks damage.
+Below 65%, growth is always positive --- lower is faster. Above 65%, a penalty kicks in that actively damages Present Production. A commissioned starbase does *not* remove this danger. Its value is that it helps young colonies grow faster before you reach punitive tax rates, and it still preserves the powerful build-capacity bonus described below.
 
 The recommended early-game rate is around 50--65%. Drop taxes on new colonies to accelerate their development.
+See @appendix-economy for the exact penalty and yearly update formulas.
 
 === Starbase Economic Effects
 
-A commissioned starbase in orbit provides two major benefits. First, the planet's yearly production growth is boosted by *+50%* over the base rate, which means underdeveloped planets with starbases catch up significantly faster. Second, the planet gains a *build capacity multiplier* --- it can spend up to *5x* its Present Production on builds in a single turn, drawing from Stored Production Points. Without a starbase, a planet can only spend up to 1x its Present Production per turn.
+A commissioned starbase in orbit provides two major benefits. First, the
+planet's yearly production growth gets a strong boost when taxes are modest ---
+the full bonus applies at *50% tax or lower*, then tapers away as taxes climb
+toward *65%*. This means underdeveloped planets with starbases catch up
+significantly faster when you are managing them sensibly, but the bonus is not
+meant to offset punitive taxes. Second, the planet gains a *build capacity
+multiplier* --- it can spend up to *5x* its Present Production on builds in a
+single turn, drawing from Stored Production Points. Without a starbase, a
+planet can only spend up to 1x its Present Production per turn. See
+@appendix-economy for the exact bonus taper and build-capacity formulas.
 
 #admonition("NOTE")[These bonuses require an active, commissioned starbase in orbit --- not an uncommissioned starbase sitting in stardock.]
 
@@ -283,7 +295,7 @@ There is no "first strike" advantage. Each round, the total *Attack Strength (AS
 
 Damage reduces ships from "Nominal" to "Crippled" status before destroying them. All nominal ships must be crippled before any crippled ship is destroyed, and surviving crippled ships are repaired automatically after battle. Hits always target the combat line first --- destroyers, cruisers, battleships, and starbases. Scouts, transports, and ETACs are protected as long as any combat-line ships remain, which means your non-combat vessels survive as long as your warships hold the line.
 
-Mixed fleets containing destroyers, cruisers, _and_ battleships receive a *combined arms bonus* that improves their tactical effectiveness compared to single-type fleets. Always mix your composition when possible. A defending starbase at its own world provides an additional combat bonus to the defender. In a draw, the defender wins.
+Mixed fleets containing destroyers, cruisers, _and_ battleships receive a *combined arms bonus* that improves their tactical effectiveness compared to single-type fleets. Always mix your composition when possible. A defending starbase at its own world provides an additional combat bonus to the defender. In a draw, the defender wins. See @appendix-combat for the exact ROE thresholds, combat values, force-ratio columns, CRT table, and assault formulas used by the current engine.
 
 === Fleet Limits
 
@@ -293,27 +305,7 @@ A fleet can contain as few as one ship and as many as *3,000 ships* of mixed typ
 
 You assign an ROE level (0--10) to control when your fleet voluntarily engages hostile forces. ROE is a deterministic commitment rule based on force ratios, not random chance.
 
-#figure(
-  table(
-    columns: (auto, auto, 1fr),
-    align: (right, left, left),
-    inset: 6pt,
-    table.header(
-      [ROE], [Force Requirement], [Behavior],
-    ),
-    [00], [Never engage],            [*Pacifist*: Flee from all hostile fleets.],
-    [01], [Enemy defenseless],       [*Opportunist*: Engage only if the enemy has no combat capability.],
-    [02], [4:1 or better],           [*Very Cautious*: Engage only with overwhelming advantage.],
-    [03], [3:1 or better],           [*Cautious*: Engage only with strong advantage.],
-    [04], [2:1 or better],           [*Favorable*: Engage with clear superiority.],
-    [05], [3:2 or better],           [*Confident*: Engage with moderate advantage.],
-    [06], [1:1 or better],           [*Balanced*: Engage equal or inferior forces.],
-    [07], [Even if outgunned 3:2],   [*Bold*: Accept moderate disadvantage.],
-    [08], [Even if outgunned 2:1],   [*Aggressive*: Accept significant disadvantage.],
-    [09], [Even if outgunned 3:1],   [*Reckless*: Accept severe disadvantage.],
-    [10], [Always],                  [*Suicidal*: Attack regardless of the odds.],
-  ),
-)
+The full ROE threshold table is collected in @appendix-combat.
 
 Non-combat fleets (scouts, transports, ETACs only) are treated as ROE 0 automatically.
 
@@ -327,7 +319,7 @@ A fleet that refuses engagement or breaks off mid-battle does not escape cleanly
 
 When fleets attack planets through bombardment, invasion, or blitz, different rules apply. Ground batteries are the primary anti-orbital weapon, and armies also contribute partially to return fire. Bombardment follows a strict targeting priority: stardock contents first, then ground batteries, then armies, then stored goods, and finally factories and development. Only combat ships --- destroyers, cruisers, and battleships --- contribute bombardment firepower. Scouts, transports, and ETACs do not.
 
-See @missions for the detailed mechanics of bombardment, invasion, and blitz missions.
+See @missions for the detailed mechanics of bombardment, invasion, and blitz missions. The exact bombardment weights, return-fire rule, and combat tables are in @appendix-combat.
 
 #pagebreak()
 
@@ -472,15 +464,310 @@ Looking further ahead, the project aims to free the game from centralized hosts 
 
 #pagebreak()
 
-// ─── 10. Original Sources ───────────────────────────────────────────────
+// ─── Appendix A. Economy Formula Reference ─────────────────────────────
 
-= Original Sources
+#set text(size: 10pt)
 
-The preserved originals in `original/v1.5/` remain the definitive reference:
+= Appendix A: Economy Formula Reference <appendix-economy>
+
+This appendix collects the current engine's exact economy formulas in one
+place.
+
+=== Yearly Tax Revenue
+
+#align(left)[
+  #stack(
+    dir: ttb,
+    spacing: 0.45em,
+    [#text(font: "0xProto Nerd Font Mono")[revenue = floor(present_production \* tax_rate / 100)]],
+  )
+]
+
+Your empire's Total Available Points is the sum of this value across all owned
+planets.
+
+=== Base Growth Toward Potential
+
+#align(left)[
+  #stack(
+    dir: ttb,
+    spacing: 0.45em,
+    [#text(font: "0xProto Nerd Font Mono")[gap = potential_production - present_production]],
+    [#text(font: "0xProto Nerd Font Mono")[tax_headroom = 100 - min(tax_rate, 95)]],
+    [#text(font: "0xProto Nerd Font Mono")[base_growth = ceil(gap \* tax_headroom / 400)]],
+  )
+]
+
+Then clamp the result so a planet below Potential always grows by at least `1`
+and never grows by more than the remaining `gap`.
+
+=== High-Tax Penalty Above 65%
+
+#align(left)[
+  #stack(
+    dir: ttb,
+    spacing: 0.45em,
+    [#text(font: "0xProto Nerd Font Mono")[if tax_rate > 65:]],
+    [#text(font: "0xProto Nerd Font Mono")[  penalty = ceil(present_production \* (tax_rate - 65) / 500)]],
+  )
+]
+
+Final yearly Present Production is:
+
+#align(left)[
+  #stack(
+    dir: ttb,
+    spacing: 0.45em,
+    [#text(font: "0xProto Nerd Font Mono")[present_production = min(potential_production, present_production + growth) - penalty]],
+  )
+]
+
+=== Starbase Growth Bonus
+
+A commissioned starbase boosts growth at low and moderate tax rates, but the
+bonus tapers away completely by `65%`.
+
+#align(left)[
+  #stack(
+    dir: ttb,
+    spacing: 0.45em,
+    [#text(font: "0xProto Nerd Font Mono")[bonus_percent = 50 if tax_rate <= 50]],
+    [#text(font: "0xProto Nerd Font Mono")[bonus_percent = floor((65 - tax_rate) \* 50 / 15) if 50 < tax_rate < 65]],
+    [#text(font: "0xProto Nerd Font Mono")[bonus_percent = 0 if tax_rate >= 65]],
+    [#text(font: "0xProto Nerd Font Mono")[growth = base_growth + ceil(base_growth \* bonus_percent / 100)]],
+  )
+]
+
+=== Build Capacity and Stored Production
+
+Per-turn build capacity is:
+
+#align(left)[
+  #stack(
+    dir: ttb,
+    spacing: 0.45em,
+    [#text(font: "0xProto Nerd Font Mono")[build_capacity = present_production without starbase]],
+    [#text(font: "0xProto Nerd Font Mono")[build_capacity = present_production \* 5 with starbase]],
+  )
+]
+
+Stored Production Points let a planet spend up to that per-turn cap while
+drawing on previously saved production.
+
+#pagebreak()
+
+// ─── Appendix B. Combat Tables and Formula Reference ───────────────────
+
+= Appendix B: Combat Tables and Formula Reference <appendix-combat>
+
+This appendix collects the current engine's combat reference tables in one
+place.
+
+=== Rules of Engagement Thresholds
+
+#figure(
+  table(
+    columns: (auto, auto, 1fr),
+    align: (right, left, left),
+    inset: 6pt,
+    table.header(
+      [ROE], [Force Requirement], [Behavior],
+    ),
+    [00], [Never engage],            [*Pacifist*: Flee from all hostile fleets.],
+    [01], [Enemy defenseless],       [*Opportunist*: Engage only if the enemy has no combat capability.],
+    [02], [4:1 or better],           [*Very Cautious*: Engage only with overwhelming advantage.],
+    [03], [3:1 or better],           [*Cautious*: Engage only with strong advantage.],
+    [04], [2:1 or better],           [*Favorable*: Engage with clear superiority.],
+    [05], [3:2 or better],           [*Confident*: Engage with moderate advantage.],
+    [06], [1:1 or better],           [*Balanced*: Engage equal or inferior forces.],
+    [07], [Even if outgunned 3:2],   [*Bold*: Accept moderate disadvantage.],
+    [08], [Even if outgunned 2:1],   [*Aggressive*: Accept significant disadvantage.],
+    [09], [Even if outgunned 3:1],   [*Reckless*: Accept severe disadvantage.],
+    [10], [Always],                  [*Suicidal*: Attack regardless of the odds.],
+  ),
+)
+
+=== Unit Combat Values
+
+#figure(
+  table(
+    columns: (auto, auto, auto, 1fr),
+    align: (left, right, right, left),
+    inset: 6pt,
+    table.header(
+      [Unit], [AS], [DS], [Notes],
+    ),
+    [Destroyer], [1],  [1],  [Fast escort / screen],
+    [Cruiser],   [3],  [3],  [Mid-line combatant],
+    [Battleship],[9],  [10], [Primary battle line],
+    [Scout],     [0],  [1],  [Non-combat hull],
+    [Transport], [0],  [1],  [Non-combat hull],
+    [ETAC],      [0],  [2],  [Colonization hull],
+    [Starbase],  [10], [12], [Heavy orbital defender],
+    [Battery],   [9],  [2],  [Surface defense],
+    [Army],      [1],  [1],  [Ground combatant],
+  ),
+)
+
+=== Force Ratio to CRT Column
+
+#figure(
+  table(
+    columns: (auto, auto),
+    align: (left, left),
+    inset: 6pt,
+    table.header(
+      [Force Ratio], [CRT Column],
+    ),
+    [`< 0.5`],        [Disadvantaged],
+    [`0.5 .. < 1.0`], [Pressed],
+    [`1.0 .. < 1.5`], [Even],
+    [`1.5 .. < 3.0`], [Advantaged],
+    [`>= 3.0`],       [Overwhelming],
+  ),
+)
+
+=== Space / Orbital CRT
+
+#figure(
+  table(
+    columns: 6,
+    align: center,
+    inset: 6pt,
+    table.header(
+      [d10], [Disadvantaged], [Pressed], [Even], [Advantaged], [Overwhelming],
+    ),
+    [0], [0.00], [0.25], [0.50], [0.75], [1.00],
+    [1], [0.25], [0.50], [0.75], [1.00], [1.25],
+    [2], [0.25], [0.50], [1.00], [1.25], [1.50],
+    [3], [0.50], [0.75], [1.00], [1.25], [1.50],
+    [4], [0.50], [0.75], [1.00], [1.50], [1.75],
+    [5], [0.50], [1.00], [1.25], [1.50], [1.75],
+    [6], [0.75], [1.00], [1.25], [1.50], [2.00],
+    [7], [0.75], [1.00], [1.50], [1.75], [2.00],
+    [8], [1.00], [1.25], [1.50], [1.75], [2.00],
+    [9], [1.00], [1.50], [1.75], [2.00], [2.50],
+  ),
+)
+
+=== Column Shifts and Hit Formula
+
+- Mixed `DD/CA/BB` fleet: `+1` CRT column
+- Defending starbase in orbital combat: `+1` CRT column
+- Withdrawal exchange: fixed `Pressed` column
+- Final columns are clamped to the table bounds
+
+#align(left)[
+  #stack(
+    dir: ttb,
+    spacing: 0.45em,
+    [#text(font: "0xProto Nerd Font Mono")[hits = ceil(total_AS \* CRT_multiplier)]],
+  )
+]
+
+An unmodified `9` on the `d10` is a critical hit and forces one extra bypass
+loss allocation.
+
+=== Bombardment and Planetary Fire
+
+Only destroyers, cruisers, and battleships contribute bombardment attack
+strength:
+
+- Destroyer bombardment AS: `0.5x`
+- Cruiser bombardment AS: `1.0x`
+- Battleship bombardment AS: `1.5x`
+
+Planetary return fire is:
+
+#align(left)[
+  #stack(
+    dir: ttb,
+    spacing: 0.45em,
+    [#text(font: "0xProto Nerd Font Mono")[return_fire_AS = battery_AS + ceil(army_AS / 2)]],
+  )
+]
+
+Ground combat in invasion and blitz uses the same CRT framework, with defender
+ties winning by default.
+
+#pagebreak()
+
+// ─── Appendix C. Mission / Order Quick Reference ───────────────────────
+
+= Appendix C: Mission / Order Quick Reference <appendix-orders>
+
+This appendix is the compact lookup version of the mission system. For full
+behavior explanations, examples, and tactical notes, see @missions.
+
+#figure(
+  table(
+    columns: (auto, auto, auto, auto, 1fr),
+    align: (right, left, left, left, left),
+    inset: 6pt,
+    table.header(
+      [No], [Mission], [Class], [Trigger], [Summary],
+    ),
+    [00], [Hold Position], [Persistent], [Immediate], [Idle standing order; remains at current location.],
+    [01], [Move Fleet], [One-shot], [Arrive], [Travel to target sector, then stop and revert to Hold.],
+    [02], [Seek Home], [One-shot], [Arrive], [Travel to nearest owned world; retarget if it is lost en route.],
+    [03], [Patrol], [Persistent], [Arrive], [Occupy deep-space patrol sector and intercept by ROE.],
+    [04], [Guard Starbase], [Persistent], [Arrive], [Escort a starbase and remain assigned to its defense.],
+    [05], [Blockade], [Persistent], [Arrive], [Guard a world, interfere with launches and hostile access.],
+    [06], [Bombard], [Hostile], [Next maintenance tick], [Ready bombardment destroys stardock contents, defenses, armies, goods, and production.],
+    [07], [Invade], [Hostile], [Next maintenance tick], [Suppress batteries, soften the world, then land armies.],
+    [08], [Blitz], [Hostile], [Next maintenance tick], [Fast direct landing with higher transport and army risk.],
+    [09], [View], [One-shot], [Arrive], [Long-range scan from system edge; reports and reverts to Hold.],
+    [10], [Scout Sector], [One-shot], [Arrive], [Stealth deep-space observation; requires a Scout.],
+    [11], [Scout System], [One-shot], [Arrive], [Spy run into a world; requires a Scout.],
+    [12], [Colonize], [One-shot], [Arrive], [Claim an unowned world with an ETAC; ETAC survives.],
+    [13], [Join Fleet], [Persistent], [Merge], [Chase and merge with a host fleet; abort if host is destroyed.],
+    [14], [Rendezvous], [Persistent], [Merge], [Gather fleets in one sector; lowest Fleet ID becomes host.],
+    [15], [Salvage], [One-shot], [Arrive], [Scrap ships at a world for roughly 50% of build cost.],
+  ),
+)
+
+Category key:
+
+- *One-shot*: travel, perform an action, then revert to Hold Position.
+- *Persistent*: remain armed until you replace the order or game rules invalidate it.
+- *Hostile*: travel to the target world, then execute on the next maintenance tick after arrival.
+
+#pagebreak()
+
+// ─── Appendix D. Preservation and Original Sources ─────────────────────
+
+= Appendix D: Preservation and Original Sources <appendix-preservation>
+
+This edition is a preservation project first. The goal is to keep the original
+gameplay legible and playable on modern systems while documenting the exact
+engine rules that matter to players, operators, bot authors, and future
+maintainers.
+
+=== Original References
+
+The preserved originals in `original/v1.5/` remain the primary reference:
 
 - `ECQSTART.DOC` --- Quick-start guide
 - `ECPLAYER.DOC` --- Detailed player manual
 - `ECREADME.DOC` --- Release and package information
 - `ECGAME.EXE` --- The original 1992 player client
+- `ECMAINT.EXE` --- The original yearly maintenance oracle
 
-This manual combines and polishes those foundations into a single cohesive guide.
+=== Preservation Policy
+
+- Original manuals are the primary source for intended player-facing behavior.
+- The original DOS binaries are the acceptance oracle for compatibility work.
+- The Rust engine preserves player-visible classic behavior where it matters,
+  but it does not chase hidden byte-for-byte quirks when they do not materially
+  affect gameplay.
+- When an exact classic formula remains unrecovered, this manual documents the
+  current engine rule explicitly rather than pretending the original value is
+  known.
+
+=== This Manual
+
+This manual combines and polishes the original documentation with the current
+engine reference tables in @appendix-economy, @appendix-combat, and
+@appendix-orders. The body text stays strategy-first; the appendices collect
+the exact formulas and lookup tables for readers who want the
+implementation-level reference.

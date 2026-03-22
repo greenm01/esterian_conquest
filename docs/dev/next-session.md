@@ -101,10 +101,19 @@ established:
   - the current Ghidra pass did not support a starbase `5x` growth claim
   - the new black-box follow-up in
     [starbase-economy-oracle-audit.md](starbase-economy-oracle-audit.md)
-    reconfirmed the commissioned-starbase / `5x` build-capacity side
-  - the exact classic starbase growth bonus and tax-burden formula are still
-    unrecovered because the current generated colony probe remains too noisy to
-    trust semantically
+    now does three useful things:
+    - reconfirms the commissioned-starbase / `5x` build-capacity side
+    - shows on accepted ordinary-colony probes that active starbases
+      consistently preserve a higher imported yearly `grow` allowance
+    - does **not** show a separate immediate `65 -> 70` threshold shift in
+      imported current production / revenue on those colony probes
+  - the exact classic starbase growth bonus formula is still unrecovered
+  - the manuals' "withstand tax burden better" wording is currently best read
+    as "retains stronger colony growth under taxation", not as a recovered hard
+    threshold shift
+  - Rust now implements that reading directly:
+    - tax-sensitive starbase growth bonus
+    - no separate starbase high-tax threshold exemption
 - The exact weekly `1..52` assignment and dated-report process inside
   maintenance still deserve continued recovery when that work is directly
   useful.
@@ -144,13 +153,12 @@ exceptions:
 1. Keep the starbase `5x growth` question closed unless stronger new oracle or
    Ghidra evidence appears. Current evidence supports `5x` build capacity, not
    `5x` growth.
-2. If the starbase economy thread is revisited, do **not** reuse the current
-   generated colony sweep as proof of an exact classic formula:
-   - first recover a cleaner accepted planet-state oracle baseline
-   - or do a deeper static RE pass on the planet-side economy functions in the
-     unwrapped `ECMAINTU.EXE` project
-3. Verify in Ghidra whether any explicit classic starbase/tax branch supports
-   the manuals' "`67%` to `70%`" tolerance language.
+2. If the starbase economy thread is revisited, use the accepted fixture-backed
+   colony sweep, not the old generated-colony probe, as the live oracle
+   baseline.
+3. If deeper RE is still wanted, target the exact colony-growth math in Ghidra;
+   do **not** assume there is a separate hard `65 -> 70` tax-threshold branch
+   unless the code explicitly proves it.
 4. Keep movement closed unless a concrete player-facing or compatibility issue
    appears.
 5. Continue the weekly maintenance/report recovery work where it materially

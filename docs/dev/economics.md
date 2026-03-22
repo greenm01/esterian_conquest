@@ -33,11 +33,17 @@ The starbase `5x` question is now closed at the semantic level:
   growth multiplier
 - the follow-up black-box sweep in
   [starbase-economy-oracle-audit.md](starbase-economy-oracle-audit.md)
-  reconfirmed the starbase/build-capacity side but still did **not** produce a
-  trustworthy exact classic growth/tax formula from generated probe worlds
+  now does two things:
+  - reconfirms the commissioned-starbase / `5x` build-capacity side
+  - shows on accepted ordinary-colony probes that starbases consistently
+    improve the imported yearly `grow` allowance under tax pressure
 - the exact classic growth bonus remains unrecovered, so the Rust
-  `+50%` growth bonus below remains the documented canonical Rust policy,
+  tapered starbase growth bonus below remains the documented canonical Rust
+  policy,
   not a claim of byte-exact classic recovery
+- the same fixture-backed colony sweep does **not** currently support a
+  distinct classic immediate-production / immediate-revenue threshold shift
+  from `65%` to `70%`
 
 It does not replace the original manuals as historical sources. It translates
 them into an explicit Rust rule set suitable for reproducible maintenance.
@@ -100,11 +106,14 @@ Current black-box follow-up:
 
 - the controlled starbase/tax sweep in
   [starbase-economy-oracle-audit.md](starbase-economy-oracle-audit.md)
-  does preserve the commissioned starbase and the larger build-capacity effect
-- but the resulting colony production values are still too pathological to
-  promote into an exact classic growth/tax formula
-- so the manuals still carry more semantic weight here than the current
-  generated-oracle colony sweep
+  preserves the commissioned starbase and the larger build-capacity effect
+- the newer accepted-fixture colony sweep in that same note also shows a
+  consistent starbase growth benefit on underdeveloped colonies
+- but that sweep still does **not** recover an exact internal formula, and it
+  does **not** show a separate immediate `65 -> 70` threshold shift in
+  current production or revenue
+- so the manuals still carry more semantic weight than the current oracle
+  evidence on the exact numeric tax-burden rule
 
 ## Canonical Terms
 
@@ -170,11 +179,25 @@ The canonical Rust rule is:
 
 3. Base yearly growth:
 
-`growth = ceil(gap * tax_headroom / 400)`
+`base_growth = ceil(gap * tax_headroom / 400)`
 
 4. If the planet has a friendly starbase, apply a growth bonus:
 
-`growth = growth + ceil(growth / 2)`
+- full bonus at tax `<= 50%`
+
+`bonus_percent = 50`
+
+- linearly taper the bonus down between tax `51%` and `64%`
+
+`bonus_percent = floor((65 - empire_tax_rate) * 50 / 15)`
+
+- no starbase growth bonus at tax `>= 65%`
+
+`bonus_percent = 0`
+
+Then:
+
+`growth = base_growth + ceil(base_growth * bonus_percent / 100)`
 
 5. Clamp growth:
 
@@ -185,12 +208,9 @@ The canonical Rust rule is:
 
 `present_production = min(present_production + growth, potential_production)`
 
-7. Apply a high-tax penalty when empire tax exceeds the safe threshold:
+7. Apply a high-tax penalty when empire tax exceeds `65%`:
 
-- safe threshold without starbase: `65%`
-- safe threshold with friendly starbase: `70%`
-
-`overtax = empire_tax_rate - safe_threshold`
+`overtax = empire_tax_rate - 65`
 
 `penalty = ceil(present_production * overtax / 500)`
 
@@ -208,13 +228,23 @@ Final yearly result:
 - lower tax produces faster long-term development
 - higher tax produces more immediate revenue but slower growth
 - taxes above `65%` can directly reduce present production
-- starbase worlds tolerate up to `70%` before the direct penalty begins
+- starbases accelerate development best at low and moderate tax
+- the starbase growth bonus tapers away as tax approaches `65%`
+- starbases do **not** get a separate hard high-tax penalty exemption
 - growth slows naturally as a planet approaches potential
 - starbase worlds recover/develop faster than non-starbase worlds
 
 This brings the canonical Rust rule into closer compliance with the manuals’
 explicit warning that production may suffer above `65%`, while still keeping
 the curve simple and auditable.
+
+Important note:
+
+- the current classic colony sweep supports a real starbase growth benefit
+- the current classic colony sweep does **not** support a separate hard
+  `65 -> 70` penalty-threshold shift
+- this Rust policy therefore treats "withstand tax burden better" as better
+  retained growth, not as a separate immediate-production exemption
 
 ## Starbase Effects
 
@@ -223,14 +253,27 @@ Starbases affect economy in two separate ways.
 ### 1. Growth bonus
 
 If a planet has a friendly active starbase in orbit at its coordinates, yearly
-current-production growth is boosted by `+50%` over the base growth amount.
+current-production growth gets a tax-sensitive bonus:
+
+- `+50%` of base growth at tax `<= 50%`
+- linearly tapering down to `0%` by tax `65%`
+- no additional growth bonus at tax `>= 65%`
 
 This refers to an active commissioned starbase, not an uncommissioned starbase
 item still sitting in stardock.
 
-This `+50%` rule remains the canonical Rust policy for now. The current manual
-plus Ghidra evidence does **not** support rewriting this into a starbase
-`5x` growth multiplier.
+This remains the canonical Rust policy for now. The current manual plus Ghidra
+evidence does **not** support rewriting this into a starbase `5x` growth
+multiplier.
+
+The current fixture-backed oracle sweep now also supports the *direction* of
+this rule:
+
+- starbase colonies consistently retain a higher imported yearly `grow` value
+  than matching plain colonies
+- that effect remains visible through the manual warning band (`65%..80%`)
+- but the sweep still does **not** recover the exact classic numeric growth
+  formula
 
 ### 2. Build capacity multiplier
 
@@ -245,6 +288,16 @@ Canonical Rust implementation:
   - per-turn build capacity = `present_production * 5`
 
 This affects build-queue completion, not tax revenue directly.
+
+### 3. Tax-burden interpretation
+
+Current best reading of the manuals' "withstand tax burden better" wording:
+
+- starbases clearly help a colony keep more growth under tax pressure
+- the current classic colony sweep does **not** show a separate immediate
+  production/revenue threshold shift in the `65%..80%` band
+- so Rust should treat the benefit as a growth-side effect, not a separate hard
+  safe-tax exemption, unless deeper classic recovery proves otherwise
 
 ## Stored Production Points
 

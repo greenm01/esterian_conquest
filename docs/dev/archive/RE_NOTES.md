@@ -5660,6 +5660,55 @@ Goal: verify the remaining manual-adjacent fleet assumptions against the
 original `ECMAINT.EXE`, and record reproducible classic defects as known
 `v1.51` bugs instead of silently treating them as intended rules.
 
+## Session 2026-03-22 - fixture-backed starbase colony sweep
+
+Goal: replace the noisy generated starbase/tax probe with a cleaner
+fixture-backed ordinary-colony oracle baseline.
+
+Controlled follow-up:
+
+- source baseline: `fixtures/ecmaint-econ-pre/v1.5`
+- join player `1`
+- pick an originally unowned non-homeworld world
+- turn it into a small owned colony below potential
+- compare plain vs active-starbase at the same coords and same tax rate
+- export and run classic `ECMAINT /R`
+- import and compare the resulting economy rows
+
+Reproducible tooling:
+
+- `python3 tools/ecmaint_starbase_colony_sweep.py /tmp/ec-starbase-colony-sweep`
+
+Current practical result from the first two probe colonies:
+
+- starbases definitely survive as real active bases
+- starbases definitely preserve the `5x` build-capacity effect
+- starbases definitely preserve a higher imported yearly `grow` value on
+  underdeveloped colonies
+- at lower taxes (`25%`, `50%`), the starbase colony also ends with higher
+  imported `present` / `rev`
+- across the manual warning band (`65%..80%`), the tested colonies keep the
+  same imported `present` / `rev` with and without a starbase, but the
+  starbase colony still keeps a higher imported `grow` value
+
+Representative result:
+
+- colony `Probe` at `tax=67`
+  - plain: `present=16 rev=10 grow=5`
+  - starbase: `present=16 rev=10 grow=8`
+- colony `ProbeB` at `tax=67`
+  - plain: `present=16 rev=10 grow=2`
+  - starbase: `present=16 rev=10 grow=3`
+
+Important conclusion:
+
+- current oracle evidence supports a real starbase colony-growth benefit
+- current oracle evidence does **not** support a separate immediate
+  current-production / revenue threshold shift through `65..80%`
+- so the manuals' "withstand tax burden better" wording is currently best read
+  as stronger retained growth under tax pressure, not as a recovered hard
+  `65 -> 70` immediate-production cutoff
+
 ### Confirmed: `Seek Home` dynamically retargets
 
 Controlled probe:

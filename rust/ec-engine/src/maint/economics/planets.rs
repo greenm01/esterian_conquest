@@ -39,7 +39,7 @@ pub(super) fn process_planet_economics(
             tax_rate,
             has_starbase,
         );
-        let penalty = yearly_high_tax_penalty(current_production, tax_rate, has_starbase);
+        let penalty = yearly_high_tax_penalty(current_production, tax_rate);
 
         let planet = &mut game_data.planets.records[planet_idx];
         planet.set_economy_marker_raw(tax_rate);
