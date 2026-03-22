@@ -5,9 +5,10 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use ec_compat::{
-    export_latest_snapshot_to_dir, import_directory_snapshot, import_directory_snapshot_with_seed,
+    DatabaseDat, export_latest_snapshot_to_dir, import_directory_snapshot,
+    import_directory_snapshot_with_seed,
 };
-use ec_data::{CampaignStore, DEFAULT_CAMPAIGN_DB_NAME, DatabaseDat};
+use ec_data::{CampaignStore, DEFAULT_CAMPAIGN_DB_NAME};
 use rusqlite::Connection;
 
 fn repo_root() -> PathBuf {

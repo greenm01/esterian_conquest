@@ -1,10 +1,8 @@
 use std::collections::BTreeMap;
 
+use crate::compat::{DatabaseDat, DatabaseRecord};
 use crate::maint::MaintenanceEvents;
-use crate::{
-    CoreGameData, DatabaseDat, DatabaseRecord, IntelTier, PlanetDat, PlanetIntelSnapshot,
-    PlanetIntelSource,
-};
+use crate::{CoreGameData, IntelTier, PlanetDat, PlanetIntelSnapshot, PlanetIntelSource};
 
 /// Regenerate classic `DATABASE.DAT` from structured runtime state plus
 /// per-player intel snapshots.

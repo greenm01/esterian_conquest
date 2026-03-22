@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::Path;
 
+use ec_compat::ensure_classic_auxiliary_files;
 use ec_data::{CoreGameData, FLEET_RECORD_SIZE, PLANET_RECORD_SIZE, PLAYER_RECORD_SIZE};
 
 use crate::commands::runtime::{
@@ -8,8 +9,7 @@ use crate::commands::runtime::{
 };
 use crate::support::paths::post_maint_fixture_dir;
 use crate::workspace::{
-    copy_current_known_core_files, copy_top_level_files, ensure_auxiliary_files,
-    generate_database_dat,
+    copy_current_known_core_files, copy_top_level_files, generate_database_dat,
 };
 
 pub(crate) fn print_core_report(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -800,7 +800,7 @@ pub(crate) fn init_canonical_current_known_baseline(
     generate_database_dat(target)?;
 
     // Ensure auxiliary files exist
-    ensure_auxiliary_files(target)?;
+    ensure_classic_auxiliary_files(target)?;
 
     let baseline = CoreGameData::load(&post_maint_fixture_dir())?;
     let data = CoreGameData::load(target)?;

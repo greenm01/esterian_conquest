@@ -1,6 +1,7 @@
 use std::time::Instant;
 
-use ec_data::{CoreGameData, run_maintenance_turn};
+use ec_data::CoreGameData;
+use ec_engine::run_maintenance_turn;
 
 use crate::build::{BuiltScenario, ScenarioBuildReport, build_scenario};
 use crate::error::HarnessError;

@@ -10,8 +10,12 @@ use crate::commands::setup::{
 };
 use crate::support::paths::resolve_repo_path;
 use crate::usage::print_usage;
-use ec_compat::import_directory_snapshot;
-use ec_data::{CampaignStore, CoreGameData, GameStateBuilder};
+use ec_compat::{
+    ensure_classic_auxiliary_files, import_directory_snapshot,
+    write_default_database_dat_for_game_data,
+};
+use ec_data::{CampaignStore, CoreGameData};
+use ec_engine::GameStateBuilder;
 
 fn next_sysop_dir(args: &mut impl Iterator<Item = String>) -> PathBuf {
     args.next()
@@ -80,12 +84,14 @@ fn generate_gamestate_from_args(
 
     match builder.build_and_save(&target_dir) {
         Ok(()) => {
+            let built = CoreGameData::load(&target_dir)?;
+            write_default_database_dat_for_game_data(&target_dir, &built)?;
+            ensure_classic_auxiliary_files(&target_dir)?;
             let store = CampaignStore::open_default_in_dir(&target_dir)?;
             import_directory_snapshot(&store, &target_dir)?;
             println!("Generated gamestate at: {}", target_dir.display());
 
-            let data = CoreGameData::load(&target_dir)?;
-            let errors = data.ecmaint_preflight_errors();
+            let errors = built.ecmaint_preflight_errors();
             if errors.is_empty() {
                 println!("Preflight validation: OK");
             } else {

@@ -1,6 +1,6 @@
 use crate::{
-    BaseDat, ConquestDat, CoreGameData, DatabaseDat, FleetDat, FleetRecord, GameStateMutationError,
-    IpbmDat, IpbmRecord, PlanetDat, PlanetRecord, PlayerDat, PlayerRecord, SetupDat,
+    BaseDat, ConquestDat, CoreGameData, FleetDat, FleetRecord, GameStateMutationError, IpbmDat,
+    IpbmRecord, PlanetDat, PlanetRecord, PlayerDat, PlayerRecord, SetupDat,
 };
 use std::path::Path;
 
@@ -461,7 +461,8 @@ impl GameStateBuilder {
 
     /// Build and save a complete gamestate directory.
     ///
-    /// This creates all necessary files including generated DATABASE.DAT.
+    /// This writes the core runtime files only. Classic compat artifacts are
+    /// materialized by CLI/compat workflows explicitly.
     pub fn build_and_save(&self, target: &Path) -> Result<(), Box<dyn std::error::Error>> {
         use std::fs;
 
@@ -472,31 +473,6 @@ impl GameStateBuilder {
 
         // Save core files
         data.save(target)?;
-
-        // Generate and save DATABASE.DAT
-        let planet_names: Vec<String> = data
-            .planets
-            .records
-            .iter()
-            .map(|p| p.planet_name())
-            .collect();
-
-        // Load template from init fixture (we'll create a default one if needed)
-        let database = DatabaseDat::generate_from_planets_and_year(
-            &planet_names,
-            self.game_year,
-            self.player_count as usize,
-            None, // Use default template
-        );
-        fs::write(target.join("DATABASE.DAT"), database.to_bytes())?;
-
-        // Ensure auxiliary files exist
-        for name in ["MESSAGES.DAT", "RESULTS.DAT"] {
-            let path = target.join(name);
-            if !path.exists() {
-                fs::write(path, [])?;
-            }
-        }
 
         Ok(())
     }

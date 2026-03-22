@@ -13,3 +13,4 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 
 [dev-dependencies]
 ec-compat = { path = "../ec-compat" }
+ec-engine = { path = "../ec-engine" }

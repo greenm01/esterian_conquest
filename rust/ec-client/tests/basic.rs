@@ -1,10 +1,13 @@
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, path::Path};
 
 use ec_compat::import_directory_snapshot;
 use ec_data::CampaignStore;
+
+static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -12,8 +15,9 @@ fn repo_root() -> PathBuf {
 
 fn temp_fixture_copy() -> PathBuf {
     let root = std::env::temp_dir().join(format!(
-        "ec-client-basic-{}-{}",
+        "ec-client-basic-{}-{}-{}",
         std::process::id(),
+        TEMP_DIR_SEQ.fetch_add(1, Ordering::Relaxed),
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("time ok")

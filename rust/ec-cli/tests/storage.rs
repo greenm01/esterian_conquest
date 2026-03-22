@@ -7,8 +7,8 @@ use common::{
     cleanup_dir, run_classic_ecgame_smoke_with_alias, run_ec_cli, run_ecmaint_oracle,
     unique_temp_dir,
 };
-use ec_compat::export_latest_snapshot_to_dir;
-use ec_data::{CampaignStore, CoreGameData, DatabaseDat, Order};
+use ec_compat::{DatabaseDat, export_latest_snapshot_to_dir};
+use ec_data::{CampaignStore, CoreGameData, Order};
 
 fn setup_classic_probe_players(target: &Path) {
     let player_specs = [

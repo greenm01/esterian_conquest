@@ -4,7 +4,8 @@ use crate::domains::fleet::FleetAction;
 use crate::screen::{
     CommandMenu, FleetDetachMode, FleetMergeMode, FleetRow, FleetTransferMode, ScreenId,
 };
-use ec_data::{CoreGameData, FleetDetachSelection, plan_route};
+use ec_data::{CoreGameData, FleetDetachSelection};
+use ec_engine::plan_route;
 
 impl App {
     pub fn open_fleet_merge(&mut self) {

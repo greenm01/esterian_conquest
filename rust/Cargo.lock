@@ -73,6 +73,7 @@ version = "0.1.0"
 dependencies = [
  "ec-compat",
  "ec-data",
+ "ec-engine",
  "ec-harness",
  "kdl",
 ]
@@ -84,6 +85,7 @@ dependencies = [
  "crossterm",
  "ec-compat",
  "ec-data",
+ "ec-engine",
  "kdl",
 ]
 
@@ -99,9 +101,17 @@ name = "ec-data"
 version = "0.1.0"
 dependencies = [
  "ec-compat",
+ "ec-engine",
  "kdl",
  "rand",
  "rusqlite",
+]
+
+[[package]]
+name = "ec-engine"
+version = "0.1.0"
+dependencies = [
+ "ec-data",
 ]
 
 [[package]]
@@ -110,6 +120,7 @@ version = "0.1.0"
 dependencies = [
  "ec-compat",
  "ec-data",
+ "ec-engine",
  "kdl",
 ]
 

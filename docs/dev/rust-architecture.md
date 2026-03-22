@@ -44,21 +44,33 @@ The Rust workspace should follow pragmatic data-oriented design:
 
 ### `ec-data`
 
-`ec-data` owns the game model and the engine rules.
+`ec-data` is the shared runtime/store/model crate.
 
 It is responsible for:
 
 - explicit classic record/file layouts under `records/`
 - `CoreGameData` and shared multi-file directory semantics
-- yearly maintenance behavior under `maint/`
-- economy, movement/pathfinding, setup/map generation, starmap projection, and
-  player-mail helpers
 - SQLite runtime persistence and snapshot/history loading
-- shared validators, normalizers, and typed rule helpers used by more than one
-  frontend
+- shared validators, normalizers, report/mail/intel state, and typed helpers
+  used by more than one frontend
 
-`ec-data` should stay focused on runtime/state semantics rather than owning the
-normal classic import/export workflow.
+It should stay focused on runtime/state semantics rather than owning the normal
+classic import/export workflow or the external engine API surface.
+
+### `ec-engine`
+
+`ec-engine` is the public Rust engine/rules boundary.
+
+It is responsible for:
+
+- yearly maintenance behavior
+- economy, movement/pathfinding, setup/map generation, and combat-facing rule
+  surfaces
+- the stable public API that CLI/client/harness code should use for gameplay
+  logic
+
+Engine callers should depend on `ec-engine` rather than reaching directly into
+`ec-data` for rules.
 
 ### `ec-compat`
 
@@ -93,7 +105,8 @@ It should stay thin:
 - `workspace.rs` owns shared directory/bootstrap helpers
 
 Game rules should not be reimplemented in command modules. If a command needs a
-shared rule, that rule belongs in `ec-data`.
+shared rule, that rule belongs in `ec-engine` (backed by shared runtime/store
+types from `ec-data`).
 
 ### `ec-client`
 
@@ -106,9 +119,9 @@ It is responsible for:
 - terminal/layout/theme concerns
 - player-report presentation
 
-It should not duplicate game rules. The client consumes `ec-data` types and
-storage/runtime helpers instead of re-deriving combat, movement, build, or
-maintenance semantics locally.
+It should not duplicate game rules. The client consumes `ec-data` runtime/store
+types and `ec-engine` rule surfaces instead of re-deriving combat, movement,
+build, or maintenance semantics locally.
 It also should not own classic `.DAT` projection; if a workflow needs classic
 files, that belongs in `ec-cli` export/materialization code.
 
@@ -119,10 +132,11 @@ The current workspace shape is:
 ```text
 rust/
 ├── ec-data
-│   ├── src/records/   # explicit binary layouts
-│   ├── src/maint/     # yearly maintenance subphases
+│   ├── src/records/   # explicit binary/runtime record layouts
 │   ├── src/storage.rs # SQLite campaign store + snapshot bridge
-│   └── other focused engine/support modules
+│   └── shared runtime/support modules
+├── ec-engine
+│   └── src/          # public engine/rules surface
 ├── ec-compat
 │   └── src/          # classic import/export and compat projections
 ├── ec-cli
@@ -141,7 +155,8 @@ but the ownership boundaries above should remain stable.
 
 ## Maintenance Engine Structure
 
-The Rust yearly maintenance engine lives in `ec-data/src/maint/`.
+The Rust yearly maintenance engine is exposed through `ec-engine` and currently
+implemented in `ec-data/src/maint/`.
 
 Use [rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md)
 as the ordering spec, then reflect that ordering in code by phase-oriented
@@ -186,9 +201,9 @@ Use it when the code needs:
 - classic directory load/save
 - reusable scenario/setup/report helpers
 
-If a transform expresses shared game-directory semantics rather than one
-frontend's interaction policy, it should live on `CoreGameData` or in a closely
-related `ec-data` helper module.
+If a transform expresses shared game-directory/runtime-store semantics rather
+than one frontend's interaction policy, it should live on `CoreGameData` or in
+a closely related `ec-data` helper module.
 
 Examples:
 
@@ -242,14 +257,16 @@ drive the Rust engine or player client.
 
 Keep ownership clear:
 
-- rule calculation belongs in `ec-data`
+- rule calculation belongs in `ec-engine`
 - command selection / argument parsing belongs in `ec-cli`
 - screen flow / interaction belongs in `ec-client`
 - player-visible report timing and header rules belong to the dedicated specs,
-  then to shared `ec-data` helpers, not to CLI or client-only string logic
+  then to shared `ec-engine` / `ec-data` helpers, not to CLI or client-only
+  string logic
 
 If the same report/intel/business rule is needed in more than one frontend,
-promote it into `ec-data`.
+promote it into `ec-engine` or a shared `ec-data` helper, depending on whether
+the code is rule logic or runtime/store structure.
 
 ## Setup, Movement, Economy, And Combat Boundaries
 

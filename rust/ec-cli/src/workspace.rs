@@ -4,8 +4,11 @@ use std::path::Path;
 use crate::support::paths::{
     init_fixture_dir, post_maint_fixture_dir, pre_maint_replay_context_fixture_dir,
 };
-use ec_compat::import_directory_snapshot;
-use ec_data::{CampaignStore, ConquestDat, DatabaseDat, PlanetDat};
+use ec_compat::{
+    ensure_classic_auxiliary_files, import_directory_snapshot,
+    regenerate_database_dat_from_directory,
+};
+use ec_data::CampaignStore;
 
 pub(crate) const INIT_FILES: &[&str] = &[
     "BASES.DAT",
@@ -63,7 +66,7 @@ pub fn initialize_dir(source: &Path, target: &Path) -> Result<(), Box<dyn std::e
     generate_database_dat(target)?;
 
     // Ensure auxiliary files exist
-    ensure_auxiliary_files(target)?;
+    ensure_classic_auxiliary_files(target)?;
     refresh_runtime_store(target)?;
 
     println!("Initialized game directory: {}", target.display());
@@ -82,7 +85,7 @@ pub fn initialize_dir(source: &Path, target: &Path) -> Result<(), Box<dyn std::e
 pub fn copy_init_files(source: &Path, target: &Path) -> Result<(), Box<dyn std::error::Error>> {
     copy_named_files(source, target, INIT_FILES)?;
     generate_database_dat(target)?;
-    ensure_auxiliary_files(target)?;
+    ensure_classic_auxiliary_files(target)?;
     refresh_runtime_store(target)
 }
 
@@ -102,18 +105,6 @@ pub fn copy_pre_maint_replay_context_files(
         PRE_MAINT_REPLAY_CONTEXT_FILES,
     )?;
     refresh_runtime_store(target)
-}
-
-/// Ensure auxiliary files (MESSAGES.DAT, RESULTS.DAT) exist.
-/// These files are not critical for gameplay but are expected by some tools.
-pub fn ensure_auxiliary_files(target: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    for name in ["MESSAGES.DAT", "RESULTS.DAT"] {
-        let path = target.join(name);
-        if !path.exists() {
-            fs::write(path, [])?;
-        }
-    }
-    Ok(())
 }
 
 pub fn refresh_runtime_store(target: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -232,34 +223,7 @@ fn copy_named_files(
 /// Reads the template from the init fixture, copies planet names from PLANETS.DAT,
 /// and embeds the CONQUEST.DAT year in homeworld records.
 pub fn generate_database_dat(target: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    // Read the template DATABASE.DAT from init fixture
     let init_dir = init_fixture_dir();
-    let template_bytes = fs::read(init_dir.join("DATABASE.DAT"))?;
-    let template = DatabaseDat::parse(&template_bytes)?;
-
-    // Read PLANETS.DAT and CONQUEST.DAT from target
-    let planets_bytes = fs::read(target.join("PLANETS.DAT"))?;
-    let planets = PlanetDat::parse(&planets_bytes)?;
-
-    let conquest_bytes = fs::read(target.join("CONQUEST.DAT"))?;
-    let conquest = ConquestDat::parse(&conquest_bytes)?;
-
-    // Extract planet names
-    let planet_names: Vec<String> = planets.records.iter().map(|p| p.planet_name()).collect();
-
-    // Extract year from CONQUEST.DAT
-    let game_year = conquest.game_year();
-
-    // Generate DATABASE.DAT
-    let database = DatabaseDat::generate_from_planets_and_year(
-        &planet_names,
-        game_year,
-        conquest.player_count() as usize,
-        Some(&template),
-    );
-
-    // Write to target
-    fs::write(target.join("DATABASE.DAT"), database.to_bytes())?;
-
+    regenerate_database_dat_from_directory(target, Some(&init_dir.join("DATABASE.DAT")))?;
     Ok(())
 }

@@ -12,6 +12,18 @@ pub const SETUP_DAT_SIZE: usize = 522;
 pub const CONQUEST_DAT_SIZE: usize = 2085;
 pub const DATABASE_RECORD_SIZE: usize = 100;
 pub const MAINTENANCE_DAY_ENABLED_CODES: [u8; 7] = [0x01, 0x01, 0xCA, 0x01, 0x0A, 0x01, 0x26];
+
+pub mod compat {
+    pub use crate::database_projection::build_database_dat;
+    pub use crate::intel::{
+        extract_player_intel_from_compat_database, merge_player_intel_from_compat,
+    };
+    pub use crate::records::database::{DatabaseDat, DatabaseRecord};
+    pub use crate::report_blocks::{
+        decode_report_block_rows, encode_report_block_rows, rebuild_results_bytes,
+    };
+}
+
 mod builder;
 mod config;
 mod database_projection;
@@ -37,7 +49,6 @@ pub use config::{
     DiplomacyConfig, DiplomacyDirective, SetupConfig, SetupConfigError, SetupMode,
     SetupOptionsConfig,
 };
-pub use database_projection::build_database_dat;
 pub use directory::{
     AutoCommissionSummary, CampaignOutcome, CampaignOutlook, CampaignState, CommissionResult,
     CoreGameData, CurrentKnownComplianceStatus, CurrentKnownGuardStarbaseLinkageSummary,
@@ -50,10 +61,7 @@ pub use directory::{
 pub use economy::{
     build_capacity, yearly_growth_delta, yearly_high_tax_penalty, yearly_tax_revenue,
 };
-pub use intel::{
-    extract_player_intel_from_compat_database, merge_player_intel_from_compat,
-    merge_player_intel_from_runtime,
-};
+pub use intel::merge_player_intel_from_runtime;
 pub use maint::{
     AssaultReportEvent, BombardEvent, CampaignOutcomeEvent, CampaignOutlookEvent,
     CivilDisorderEvent, ColonizationResolvedEvent, ContactReportSource, DiplomacyOverride,
@@ -80,15 +88,12 @@ pub use player_mail::{
 };
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;
-pub use records::database::{DatabaseDat, DatabaseRecord};
 pub use records::fleet::{FleetDat, FleetRecord, Order};
 pub use records::ipbm::{IpbmDat, IpbmRecord};
 pub use records::planet::{PlanetDat, PlanetRecord, ProductionItemKind, STARDOCK_SLOT_COUNT};
 pub use records::player::{DiplomaticRelation, PlayerDat, PlayerRecord};
 pub use records::setup::SetupDat;
-pub use report_blocks::{
-    ReportBlockRow, decode_report_block_rows, encode_report_block_rows, rebuild_results_bytes,
-};
+pub use report_blocks::ReportBlockRow;
 pub use rng::{
     GameRng, RNG_TAG_COMBAT, RNG_TAG_MAPGEN, derive_campaign_seed_from_runtime,
     generate_campaign_seed, mix_seed,

@@ -6,7 +6,9 @@ use common::{
     run_maint_rust_with_export, set_mutual_enemy_in_player_dat, unique_temp_dir,
     write_mutual_enemy_diplomacy,
 };
-use ec_data::{CoreGameData, DatabaseDat, GameStateBuilder, Order};
+use ec_compat::DatabaseDat;
+use ec_data::{CoreGameData, Order};
+use ec_engine::GameStateBuilder;
 use std::fs;
 
 fn decode_chunked_report(bytes: &[u8]) -> String {

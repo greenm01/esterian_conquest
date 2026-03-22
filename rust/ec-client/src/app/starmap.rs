@@ -2,6 +2,7 @@ use super::helpers::resolve_default_coords_input;
 use crate::app::state::App;
 use crate::screen::{CommandMenu, ScreenId};
 use ec_data::build_player_starmap_projection_from_snapshots;
+use ec_engine::map_size_for_player_count;
 
 impl App {
     pub fn open_partial_starmap_prompt(&mut self, menu: CommandMenu) {
@@ -48,7 +49,7 @@ impl App {
             self.starmap_state.partial_error = Some("Enter coordinates like 5,2".to_string());
             return;
         };
-        let map_size = ec_data::map_size_for_player_count(self.game_data.conquest.player_count());
+        let map_size = map_size_for_player_count(self.game_data.conquest.player_count());
         if coords[0] == 0 || coords[1] == 0 || coords[0] > map_size || coords[1] > map_size {
             self.starmap_state.partial_error =
                 Some(format!("Enter coordinates within 1..{map_size}"));
@@ -60,7 +61,7 @@ impl App {
     }
 
     pub fn move_partial_starmap(&mut self, dx: i8, dy: i8) {
-        let map_size = ec_data::map_size_for_player_count(self.game_data.conquest.player_count());
+        let map_size = map_size_for_player_count(self.game_data.conquest.player_count());
         self.starmap_state.partial_center[0] = self.starmap_state.partial_center[0]
             .saturating_add_signed(dx)
             .clamp(1, map_size);

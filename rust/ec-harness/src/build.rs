@@ -2,10 +2,8 @@ use std::fs;
 use std::path::Path;
 
 use ec_compat::export_latest_snapshot_to_dir;
-use ec_data::{
-    CampaignStore, CoreGameData, QueuedPlayerMail, ReportBlockRow, build_seeded_initialized_game,
-    build_seeded_new_game,
-};
+use ec_data::{CampaignStore, CoreGameData, QueuedPlayerMail, ReportBlockRow};
+use ec_engine::{build_seeded_initialized_game, build_seeded_new_game};
 
 use crate::error::HarnessError;
 use crate::spec::{ReviewBlockSpec, ScenarioBaseline, ScenarioSpec};

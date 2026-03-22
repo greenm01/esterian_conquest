@@ -8,6 +8,10 @@ not here.
 
 The SQLite-first runtime split is now in place:
 
+- public crate boundaries are now clearer:
+  - `ec-data` = shared runtime/store/model
+  - `ec-engine` = gameplay/maintenance/rules API
+  - `ec-compat` = classic `.DAT` import/export/oracle bridge
 - `ec-client` reads runtime state from `ecgame.db` and no longer needs live
   `.DAT` ownership
 - `maint-rust` advances the SQLite-backed runtime snapshot instead of silently

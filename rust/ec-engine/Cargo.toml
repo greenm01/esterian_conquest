@@ -1,5 +1,5 @@
 [package]
-name = "ec-harness"
+name = "ec-engine"
 version = "0.1.0"
 edition = "2024"
 
@@ -7,7 +7,4 @@ edition = "2024"
 path = "src/lib.rs"
 
 [dependencies]
-ec-compat = { path = "../ec-compat" }
 ec-data = { path = "../ec-data" }
-ec-engine = { path = "../ec-engine" }
-kdl = "6"

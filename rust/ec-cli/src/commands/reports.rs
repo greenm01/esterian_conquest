@@ -1,11 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use ec_data::maint::{FleetBattlePerspective, timing::format_report_first_line};
 use ec_data::{
     ContactReportSource, CoreGameData, EmpireProductionRankingSort, FleetOrderValidationError,
     FleetPlayerInputValidationError, MaintenanceEvents, Mission, MissionOutcome, Order,
     PlanetPlayerInputValidationError, PlayerDiplomacyValidationError, ReportBlockRow, ShipLosses,
 };
+use ec_engine::maint::{FleetBattlePerspective, timing::format_report_first_line};
 
 const RESULTS_RECORD_SIZE: usize = 84;
 const RESULTS_TEXT_SIZE: usize = 72;
@@ -2446,7 +2446,7 @@ fn results_review_plan(
 /// ```
 pub(crate) fn build_rankings_text(game_data: &CoreGameData) -> String {
     let year = game_data.conquest.game_year();
-    let stardate = ec_data::maint::timing::format_rankings_stardate(year);
+    let stardate = ec_engine::maint::timing::format_rankings_stardate(year);
     let rows = game_data.empire_production_ranking_rows(EmpireProductionRankingSort::Production);
 
     let mut out = String::new();

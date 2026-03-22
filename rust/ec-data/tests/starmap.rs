@@ -1,7 +1,6 @@
-use ec_data::{
-    DatabaseDat, GameStateBuilder, build_player_starmap_projection_from_snapshots,
-    merge_player_intel_from_compat,
-};
+use ec_compat::{DatabaseDat, merge_player_intel_from_compat};
+use ec_data::build_player_starmap_projection_from_snapshots;
+use ec_engine::GameStateBuilder;
 
 #[test]
 fn player_starmap_projection_shows_full_geometry_but_only_known_details() {

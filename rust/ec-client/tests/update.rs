@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -23,22 +24,30 @@ use ec_compat::{decode_report_block_rows, import_directory_snapshot};
 use ec_data::{
     CampaignRuntimeState, CampaignStore, CoreGameData, DiplomaticRelation, EmpirePlanetEconomyRow,
     EmpireProductionRankingSort, IntelTier, PlanetIntelSnapshot, ProductionItemKind,
-    QueuedPlayerMail, yearly_tax_revenue,
+    QueuedPlayerMail,
 };
+use ec_engine::yearly_tax_revenue;
+
+static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn temp_game_copy() -> PathBuf {
-    let root = std::env::temp_dir().join(format!(
-        "ec-client-update-{}-{}",
+fn temp_dir(label: &str) -> PathBuf {
+    std::env::temp_dir().join(format!(
+        "{label}-{}-{}-{}",
         std::process::id(),
+        TEMP_DIR_SEQ.fetch_add(1, Ordering::Relaxed),
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("time ok")
             .as_nanos()
-    ));
+    ))
+}
+
+fn temp_game_copy() -> PathBuf {
+    let root = temp_dir("ec-client-update");
     copy_dir_all(&repo_root().join("fixtures/ecutil-init/v1.5"), &root);
     let mut data = CoreGameData::load(&root).expect("load joinable fixture");
     data.join_player(1, "Codex Dominion")
@@ -52,14 +61,7 @@ fn temp_game_copy() -> PathBuf {
 }
 
 fn temp_first_time_game_copy() -> PathBuf {
-    let root = std::env::temp_dir().join(format!(
-        "ec-client-first-time-{}-{}",
-        std::process::id(),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("time ok")
-            .as_nanos()
-    ));
+    let root = temp_dir("ec-client-first-time");
     copy_dir_all(&repo_root().join("fixtures/ecutil-init/v1.5"), &root);
     let store = CampaignStore::open_default_in_dir(&root).expect("open campaign store");
     import_directory_snapshot(&store, &root).expect("seed sqlite snapshot");

@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use ec_client::app::{App, AppConfig};
@@ -7,14 +8,17 @@ use ec_client::screen::{MainMenuScreen, PLAYFIELD_HEIGHT, ScreenId};
 use ec_compat::import_directory_snapshot_with_seed;
 use ec_data::{CampaignStore, DEFAULT_CAMPAIGN_DB_NAME};
 
+static TEMP_DIR_SEQ: AtomicU64 = AtomicU64::new(0);
+
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
 fn temp_dir(label: &str) -> PathBuf {
     std::env::temp_dir().join(format!(
-        "{label}-{}-{}",
+        "{label}-{}-{}-{}",
         std::process::id(),
+        TEMP_DIR_SEQ.fetch_add(1, Ordering::Relaxed),
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("time ok")

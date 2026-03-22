@@ -5,11 +5,13 @@ use std::process::Command;
 
 use ec_compat::import_directory_snapshot;
 use ec_data::{
-    CampaignStore, CoreGameData, DiplomacyConfig, DiplomacyOverride, DiplomaticRelation,
-    MaintenanceEvents, PlanetIntelSnapshot, PlanetIntelSource, VisibleHazardIntel,
-    merge_player_intel_from_runtime, run_maintenance_turn_with_context_and_seed,
-    run_maintenance_turn_with_seed, run_maintenance_turn_with_visible_hazards_and_seed,
-    visible_hazard_intel_from_snapshots,
+    CampaignStore, CoreGameData, DiplomacyOverride, DiplomaticRelation, MaintenanceEvents,
+    PlanetIntelSnapshot, PlanetIntelSource, merge_player_intel_from_runtime,
+};
+use ec_engine::{
+    DiplomacyConfig, DiplomacyDirective, VisibleHazardIntel,
+    run_maintenance_turn_with_context_and_seed, run_maintenance_turn_with_seed,
+    run_maintenance_turn_with_visible_hazards_and_seed, visible_hazard_intel_from_snapshots,
 };
 
 use crate::commands::reports::{build_rankings_text, build_results_report_blocks};
@@ -43,35 +45,35 @@ pub fn run_rust_maintenance_with_options(
         let gate_conquest_path = dir.join("CONQUEST.DAT");
         if gate_conquest_path.exists() {
             let raw = fs::read(&gate_conquest_path)?;
-            if let Ok(conquest) = ec_data::maint::gate::check_gate_conquest(&raw) {
-                match ec_data::maint::gate::check_maintenance_schedule(&conquest) {
-                    ec_data::maint::gate::GateResult::Allowed => {}
-                    ec_data::maint::gate::GateResult::NotScheduled { day_name } => {
+            if let Ok(conquest) = ec_engine::maint::gate::check_gate_conquest(&raw) {
+                match ec_engine::maint::gate::check_maintenance_schedule(&conquest) {
+                    ec_engine::maint::gate::GateResult::Allowed => {}
+                    ec_engine::maint::gate::GateResult::NotScheduled { day_name } => {
                         println!(
                             "Today is {} - maintenance is not scheduled to run.",
                             day_name
                         );
                         return Ok(());
                     }
-                    ec_data::maint::gate::GateResult::TokenBusy => {
+                    ec_engine::maint::gate::GateResult::TokenBusy => {
                         println!("Maintenance token already held; skipping.");
                         return Ok(());
                     }
                 }
             }
         }
-        if ec_data::maint::gate::check_token_files(dir) {
+        if ec_engine::maint::gate::check_token_files(dir) {
             println!("Maintenance token already held; skipping.");
             return Ok(());
         }
-        ec_data::maint::gate::create_maintenance_token(dir)?;
+        ec_engine::maint::gate::create_maintenance_token(dir)?;
     }
 
     // Phase 5: Crash recovery — restore from .SAV if Move.Tok exists.
-    if ec_data::maint::recovery::check_crash_marker(dir) {
+    if ec_engine::maint::recovery::check_crash_marker(dir) {
         println!("Detected interrupted run (Move.Tok found); restoring from .SAV backups.");
-        ec_data::maint::recovery::restore_from_sav(dir)?;
-        ec_data::maint::recovery::remove_crash_marker(dir);
+        ec_engine::maint::recovery::restore_from_sav(dir)?;
+        ec_engine::maint::recovery::remove_crash_marker(dir);
     }
 
     let campaign_store = CampaignStore::open_default_in_dir(dir)?;
@@ -98,7 +100,7 @@ pub fn run_rust_maintenance_with_options(
     }
 
     // Create .SAV backups before movement phase.
-    if let Err(e) = ec_data::maint::recovery::create_movement_backups(dir) {
+    if let Err(e) = ec_engine::maint::recovery::create_movement_backups(dir) {
         eprintln!("Warning: could not create movement backups: {e}");
     }
 
@@ -224,11 +226,11 @@ pub fn run_rust_maintenance_with_options(
     )?;
 
     // Remove Move.Tok crash marker after successful run.
-    ec_data::maint::recovery::remove_crash_marker(dir);
+    ec_engine::maint::recovery::remove_crash_marker(dir);
 
     // Release Main.Tok gate token.
     if !no_gate {
-        ec_data::maint::gate::remove_maintenance_token(dir);
+        ec_engine::maint::gate::remove_maintenance_token(dir);
     }
 
     println!("Rust maintenance complete.");
@@ -488,7 +490,7 @@ fn save_diplomacy_overrides_if_needed(
     let directives = diplomacy_overrides
         .iter()
         .copied()
-        .map(|directive| ec_data::DiplomacyDirective {
+        .map(|directive| DiplomacyDirective {
             from_empire_raw: directive.from_empire_raw,
             to_empire_raw: directive.to_empire_raw,
             relation: directive.relation,

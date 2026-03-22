@@ -2,15 +2,33 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use ec_data::{
-    CampaignStore, CampaignStoreError, CoreGameData, DatabaseDat, MaintenanceEvents,
+    CampaignStore, CampaignStoreError, ConquestDat, CoreGameData, MaintenanceEvents, PlanetDat,
     QueuedPlayerMail, derive_campaign_seed_from_runtime, load_mail_queue,
 };
 
-pub use ec_data::{
-    build_database_dat, decode_report_block_rows, encode_report_block_rows,
-    extract_player_intel_from_compat_database, merge_player_intel_from_compat,
-    rebuild_results_bytes,
+pub use ec_data::compat::{
+    DatabaseDat, DatabaseRecord, build_database_dat, decode_report_block_rows,
+    encode_report_block_rows, extract_player_intel_from_compat_database,
+    merge_player_intel_from_compat, rebuild_results_bytes,
 };
+
+const CLASSIC_AUXILIARY_FILES: &[&str] = &["MESSAGES.DAT", "RESULTS.DAT"];
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClassicMailRecordPreview {
+    pub index: usize,
+    pub header_bytes: Vec<u8>,
+    pub ascii_preview: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClassicMessagesInspection {
+    pub byte_len: usize,
+    pub subject: Option<String>,
+    pub printable_runs: Vec<String>,
+    pub record_previews: Vec<ClassicMailRecordPreview>,
+    pub raw_preview: Option<String>,
+}
 
 pub fn import_directory_snapshot(
     store: &CampaignStore,
@@ -96,12 +114,149 @@ pub fn export_snapshot_to_dir(
     Ok(())
 }
 
+pub fn ensure_classic_auxiliary_files(dir: &Path) -> Result<(), CampaignStoreError> {
+    for name in CLASSIC_AUXILIARY_FILES {
+        let path = dir.join(name);
+        if !path.exists() {
+            write_path(path, &[])?;
+        }
+    }
+    Ok(())
+}
+
+pub fn inspect_classic_messages_dat(bytes: &[u8]) -> ClassicMessagesInspection {
+    let printable_runs = printable_runs(bytes, 6);
+    let record_previews = if bytes.len() % 40 == 0 {
+        bytes
+            .chunks_exact(40)
+            .enumerate()
+            .map(|(index, record)| ClassicMailRecordPreview {
+                index,
+                header_bytes: record[..record.len().min(8)].to_vec(),
+                ascii_preview: ascii_preview(record),
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let raw_preview = if bytes.is_empty() || !record_previews.is_empty() {
+        None
+    } else {
+        Some(ascii_preview(&bytes[..bytes.len().min(80)]))
+    };
+
+    ClassicMessagesInspection {
+        byte_len: bytes.len(),
+        subject: decode_pascal_ascii(bytes),
+        printable_runs,
+        record_previews,
+        raw_preview,
+    }
+}
+
+pub fn write_default_database_dat_for_game_data(
+    dir: &Path,
+    game_data: &CoreGameData,
+) -> Result<(), CampaignStoreError> {
+    let planet_names = game_data
+        .planets
+        .records
+        .iter()
+        .map(|planet| planet.planet_name())
+        .collect::<Vec<_>>();
+    let database = DatabaseDat::generate_from_planets_and_year(
+        &planet_names,
+        game_data.conquest.game_year(),
+        game_data.conquest.player_count() as usize,
+        None,
+    );
+    write_path(dir.join("DATABASE.DAT"), &database.to_bytes())
+}
+
+pub fn regenerate_database_dat_from_directory(
+    dir: &Path,
+    template_path: Option<&Path>,
+) -> Result<(), CampaignStoreError> {
+    let planets = PlanetDat::parse(&read_required_path(dir.join("PLANETS.DAT"))?)?;
+    let conquest = ConquestDat::parse(&read_required_path(dir.join("CONQUEST.DAT"))?)?;
+    let template = match template_path {
+        Some(path) => Some(DatabaseDat::parse(&read_required_path(
+            path.to_path_buf(),
+        )?)?),
+        None => None,
+    };
+    let planet_names: Vec<String> = planets
+        .records
+        .iter()
+        .map(|planet| planet.planet_name())
+        .collect();
+    let database = DatabaseDat::generate_from_planets_and_year(
+        &planet_names,
+        conquest.game_year(),
+        conquest.player_count() as usize,
+        template.as_ref(),
+    );
+    write_path(dir.join("DATABASE.DAT"), &database.to_bytes())
+}
+
 fn read_optional_path(path: PathBuf) -> Result<Vec<u8>, CampaignStoreError> {
     match fs::read(&path) {
         Ok(bytes) => Ok(bytes),
         Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
         Err(source) => Err(CampaignStoreError::Io { path, source }),
     }
+}
+
+fn decode_pascal_ascii(bytes: &[u8]) -> Option<String> {
+    let len = *bytes.first()? as usize;
+    if len == 0 || len + 1 > bytes.len() {
+        return None;
+    }
+    let candidate = &bytes[1..1 + len];
+    if candidate.iter().all(|b| b.is_ascii_graphic() || *b == b' ') {
+        Some(String::from_utf8_lossy(candidate).to_string())
+    } else {
+        None
+    }
+}
+
+fn printable_runs(bytes: &[u8], min_len: usize) -> Vec<String> {
+    let mut runs = Vec::new();
+    let mut current = Vec::new();
+
+    for &byte in bytes {
+        if byte.is_ascii_graphic() || byte == b' ' {
+            current.push(byte);
+        } else {
+            if current.len() >= min_len {
+                runs.push(String::from_utf8_lossy(&current).to_string());
+            }
+            current.clear();
+        }
+    }
+
+    if current.len() >= min_len {
+        runs.push(String::from_utf8_lossy(&current).to_string());
+    }
+
+    runs
+}
+
+fn ascii_preview(bytes: &[u8]) -> String {
+    bytes
+        .iter()
+        .map(|byte| {
+            if byte.is_ascii_graphic() || *byte == b' ' {
+                char::from(*byte)
+            } else {
+                '.'
+            }
+        })
+        .collect()
+}
+
+fn read_required_path(path: PathBuf) -> Result<Vec<u8>, CampaignStoreError> {
+    fs::read(&path).map_err(|source| CampaignStoreError::Io { path, source })
 }
 
 fn write_path(path: PathBuf, bytes: &[u8]) -> Result<(), CampaignStoreError> {

@@ -1,8 +1,9 @@
-use ec_compat::import_directory_snapshot_with_seed;
-use ec_data::{
-    CampaignStore, ConquestDat, DatabaseDat, SetupConfig, SetupDat, build_seeded_new_game,
-    generate_campaign_seed,
+use ec_compat::{
+    ensure_classic_auxiliary_files, import_directory_snapshot_with_seed,
+    write_default_database_dat_for_game_data,
 };
+use ec_data::{CampaignStore, ConquestDat, SetupDat, generate_campaign_seed};
+use ec_engine::{SetupConfig, build_seeded_new_game};
 use std::fs;
 use std::path::Path;
 
@@ -51,27 +52,8 @@ pub(crate) fn init_new_game_with_seed(
 
     fs::create_dir_all(target)?;
     data.save(target)?;
-
-    let planet_names: Vec<String> = data
-        .planets
-        .records
-        .iter()
-        .map(|planet| planet.planet_name())
-        .collect();
-    let database = DatabaseDat::generate_from_planets_and_year(
-        &planet_names,
-        data.conquest.game_year(),
-        data.conquest.player_count() as usize,
-        None,
-    );
-    fs::write(target.join("DATABASE.DAT"), database.to_bytes())?;
-
-    for name in ["MESSAGES.DAT", "RESULTS.DAT"] {
-        let path = target.join(name);
-        if !path.exists() {
-            fs::write(path, [])?;
-        }
-    }
+    write_default_database_dat_for_game_data(target, &data)?;
+    ensure_classic_auxiliary_files(target)?;
 
     seed_classic_runtime_files(target)?;
     let store = CampaignStore::open_default_in_dir(target)?;
@@ -97,27 +79,8 @@ pub(crate) fn init_new_game_from_config(
 
     fs::create_dir_all(target)?;
     data.save(target)?;
-
-    let planet_names: Vec<String> = data
-        .planets
-        .records
-        .iter()
-        .map(|planet| planet.planet_name())
-        .collect();
-    let database = DatabaseDat::generate_from_planets_and_year(
-        &planet_names,
-        data.conquest.game_year(),
-        data.conquest.player_count() as usize,
-        None,
-    );
-    fs::write(target.join("DATABASE.DAT"), database.to_bytes())?;
-
-    for name in ["MESSAGES.DAT", "RESULTS.DAT"] {
-        let path = target.join(name);
-        if !path.exists() {
-            fs::write(path, [])?;
-        }
-    }
+    write_default_database_dat_for_game_data(target, &data)?;
+    ensure_classic_auxiliary_files(target)?;
 
     seed_classic_runtime_files(target)?;
     let store = CampaignStore::open_default_in_dir(target)?;

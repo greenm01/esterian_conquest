@@ -10,5 +10,6 @@ path = "src/main.rs"
 [dependencies]
 ec-compat = { path = "../ec-compat" }
 ec-data = { path = "../ec-data" }
+ec-engine = { path = "../ec-engine" }
 ec-harness = { path = "../ec-harness" }
 kdl = "6"

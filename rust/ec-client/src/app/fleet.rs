@@ -513,7 +513,7 @@ impl App {
                     return;
                 };
                 let map_size =
-                    ec_data::map_size_for_player_count(self.game_data.conquest.player_count());
+                    ec_engine::map_size_for_player_count(self.game_data.conquest.player_count());
                 if destination[0] == 0
                     || destination[1] == 0
                     || destination[0] > map_size

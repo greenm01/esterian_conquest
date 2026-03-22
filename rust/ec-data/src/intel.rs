@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
 
+use crate::compat::{DatabaseDat, DatabaseRecord};
 use crate::maint::PlanetIntelSource;
 use crate::storage::{IntelTier, PlanetIntelSnapshot};
-use crate::{CoreGameData, DatabaseDat, DatabaseRecord, PlayerStarmapWorld};
+use crate::{CoreGameData, PlayerStarmapWorld};
 
 pub fn merge_player_intel_from_compat(
     game_data: &CoreGameData,

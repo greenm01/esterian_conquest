@@ -139,13 +139,19 @@ fn inspect_messages_decodes_classic_mail_sample() {
 }
 
 #[test]
-fn map_export_writes_printable_text_and_csv() {
+fn map_export_uses_runtime_sqlite_and_ignores_stale_database_dat() {
     let target = unique_temp_dir("ec-cli-map-export");
+    common::copy_fixture_dir("fixtures/ecutil-init/v1.5", &target);
+    let import_stdout = run_ec_cli(&["db-import", target.to_str().unwrap()]);
+    assert!(import_stdout.contains("Imported"));
+
+    fs::write(target.join("DATABASE.DAT"), b"not a valid database").unwrap();
+
     let out_txt = target.join("map.txt");
 
     let stdout = run_ec_cli(&[
         "map-export",
-        "fixtures/ecutil-init/v1.5",
+        target.to_str().unwrap(),
         "1",
         out_txt.to_str().unwrap(),
     ]);

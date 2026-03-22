@@ -95,7 +95,8 @@ If you want to jump in immediately, start with [Quick Start](#quick-start).
 
 The project is moving toward a full Rust-first Esterian Conquest stack:
 
-- `ec-data` as the canonical game engine and state model
+- `ec-data` as the shared runtime/store/state-model crate
+- `ec-engine` as the public gameplay/maintenance/rules surface
 - `ec-compat` as the explicit classic `.DAT` import/export boundary
 - `maint-rust` as the normal turn processor
 - `ec-client` as the normal player interface
@@ -480,7 +481,9 @@ Useful supporting docs:
 - `docs/`: stable engineering, RE, and design docs
 - `docs/reverse_engineering/`: oracle, provenance, and binary-recovery docs
 - `docs/dev/archive/RE_NOTES.md`: chronological reverse-engineering notebook (archival)
-- `rust/ec-data`: canonical Rust state/model/engine crate
+- `rust/ec-data`: shared runtime/store/state-model crate
+- `rust/ec-engine`: public gameplay/maintenance/rules crate
+- `rust/ec-compat`: classic `.DAT` import/export bridge
 - `rust/ec-cli`: sysop/admin/oracle/inspection CLI
 - `rust/ec-client`: Rust `ECGAME` replacement in active development
 - `tools/`: oracle runners, DOSBox helpers, and analysis scripts

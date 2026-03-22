@@ -1,6 +1,7 @@
-use ec_data::{
-    DatabaseDat, GameStateBuilder, Order, VisibleHazardIntel, merge_player_intel_from_compat,
-    plan_route, plan_route_with_intel, run_maintenance_turn,
+use ec_compat::{DatabaseDat, merge_player_intel_from_compat};
+use ec_data::Order;
+use ec_engine::{
+    GameStateBuilder, VisibleHazardIntel, plan_route, plan_route_with_intel, run_maintenance_turn,
     run_maintenance_turn_with_visible_hazards, visible_hazard_intel_from_snapshots,
 };
 

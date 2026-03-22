@@ -3,11 +3,13 @@ use std::path::{Path, PathBuf};
 
 use rusqlite::{Connection, OptionalExtension, params};
 
+use crate::compat::{
+    DatabaseDat, decode_report_block_rows, extract_player_intel_from_compat_database,
+};
 use crate::{
-    BASE_RECORD_SIZE, BaseDat, CoreGameData, DatabaseDat, FLEET_RECORD_SIZE, FleetDat,
-    IPBM_RECORD_SIZE, IpbmDat, PLANET_RECORD_SIZE, PLAYER_RECORD_SIZE, PlanetDat, PlayerDat,
-    QueuedPlayerMail, ReportBlockRow, SetupDat, derive_campaign_seed_from_runtime,
-    extract_player_intel_from_compat_database, generate_campaign_seed,
+    BASE_RECORD_SIZE, BaseDat, CoreGameData, FLEET_RECORD_SIZE, FleetDat, IPBM_RECORD_SIZE,
+    IpbmDat, PLANET_RECORD_SIZE, PLAYER_RECORD_SIZE, PlanetDat, PlayerDat, QueuedPlayerMail,
+    ReportBlockRow, SetupDat, derive_campaign_seed_from_runtime, generate_campaign_seed,
     merge_player_intel_from_runtime,
 };
 
@@ -773,7 +775,7 @@ fn migrate_legacy_compat_files(conn: &mut Connection) -> Result<(), CampaignStor
                 )?;
                 if existing_count == 0 {
                     let tx = conn.transaction()?;
-                    let rows = crate::decode_report_block_rows(&bytes);
+                    let rows = decode_report_block_rows(&bytes);
                     write_report_block_rows(&tx, snapshot_id, &rows)?;
                     tx.commit()?;
                 }
