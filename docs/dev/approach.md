@@ -8,15 +8,6 @@ original game and `ECMAINT`. That compliance target is the first concrete
 milestone toward a faithful modern reimplementation in Rust. The original DOS
 binaries and data remain the reference implementation throughout.
 
-For the `ECMAINT` turn-cycle RE specifically, the target is explicit: fully
-recover the complete week-assignment process inside the yearly `1..52`
-scheduler, and fully recover the cross-turn fleet-behavior process well enough
-to explain how fleets move, arrive, defer missions, retarget, retreat, and
-generate dated reports across multiple maint ticks. That thread is not
-considered complete until the oracle behavior is understood well enough to call
-both the weekly scheduler and the cross-turn fleet/report process fully
-recovered.
-
 ## Principles
 
 ### Manuals as spec, binaries as oracle
@@ -117,12 +108,9 @@ when all three conditions hold: a path is blocking broader compliant gamestate
 generation, black-box testing has plateaued, and the expected rule is reusable
 rather than one-off trivia. When deep RE is required, stop once the rule is
 explicit enough to promote into Rust -- do not keep digging only to satisfy
-curiosity. The recent Guard Starbase / `unknown starbase` investigation is the
+curiosity. The Guard Starbase / `unknown starbase` investigation is the
 template for a justified deep-dive blocker, not the default workflow for every
-mechanic. For the active `ECMAINT` turn-order / step-4 recovery thread, prefer
-a top-down driver search once targeted mechanic probes plateau: aim for earlier
-startup and producer seams first, and treat the already-bounded late `861d`
-output tail only as an upper fence, not as the main search corridor.
+mechanic.
 
 ### Controlled oracle loops for new mechanics
 
@@ -240,14 +228,8 @@ escalate into battle. A contact can become hostile because one side has
 declared the other an enemy, one side attacks first, one side enters another
 empire's defended solar system, or one side enters or leaves a blockaded world.
 Rust should model the distinction in docs and code rather than collapsing both
-concepts into one permanent shortcut.
-
-Where classic `PLAYER.DAT` diplomacy bytes are known, they are authoritative.
-A modern sidecar such as `diplomacy.kdl` is acceptable only as a fallback for
-player-count tiers or edge cases that the recovered classic layout does not yet
-cover. The first recovered mapping is now live:
-`PLAYER.DAT[player].raw[0x54 + (target_empire_raw - 1)]`, where `0x00` is
-neutral and `0x01` is enemy.
+concepts into one permanent shortcut. Where classic `PLAYER.DAT` diplomacy
+bytes are known, they are authoritative.
 
 ### Surrender as campaign state
 
@@ -259,16 +241,6 @@ unless stronger evidence appears. Instead, the Rust model should separate
 mechanical defeat (destruction of armies, fleets, and planets; fleet defection
 after loss of all planets) from political victory (recognition of one empire as
 emperor; effective surrender or submission of the remaining empires).
-
-The contiguous layout from `0x54..=0x6C` now lets Rust treat that table as a
-25-slot diplomacy surface, matching the documented maximum player count. The
-current conservative Rust implementation does two things: an empire with no
-planets and no recovery path falls into civil disorder, and once already in
-civil disorder and still planetless, it loses one fleet to defection per
-maintenance turn. The current conservative emperor-recognition rule is: if
-exactly one serious contender remains and that empire is still `Stable` (owns
-planets), Rust recognizes it as emperor. A sole remaining `MarginalExistence`
-empire is not yet emperor.
 
 ### Compatible gamestate even when behavior is canonicalized
 
@@ -328,10 +300,7 @@ For stochastic mechanics, "done" means correct field structure, plausible
 magnitudes, and a documented canonical rule -- not byte-exact match to any
 single oracle run. For manual-driven mechanics whose original binary behavior
 is ambiguous, opaque, or stochastic, strict adherence to the manuals is a
-better target than reproducing one hidden implementation artifact. The combat
-spec in [docs/ec-combat-spec.md](ec-combat-spec.md) is no longer only
-aspirational; it now drives the live Rust maintenance path and has dedicated
-regression coverage.
+better target than reproducing one hidden implementation artifact.
 
 ## What Counts As Success
 
@@ -395,52 +364,6 @@ and rendered-screen capture as a fallback. This is not the immediate RE
 priority, but it is an explicit preservation goal and should be folded into the
 Rust clone once the local `ECGAME` harness is reliable enough.
 
-## Highest-Value Remaining Oracle RE
-
-To make the Rust clone as faithful as possible, prioritize reusable engine
-structure over isolated one-off edge cases. The current highest-value oracle
-targets are listed below in recommended execution order.
-
-**1. Canonical middle turn order.** Recover the relative ordering of command
-normalization, economy/tax growth, production completion, movement,
-contact/interception, combat, bombardment/invasion/blitz resolution,
-retreats/seek-home retargets, and administrative loss summaries. This is the
-largest remaining gap between a behaviorally close maint clone and a
-structurally faithful one.
-
-**2. Weekly event scheduler semantics.** Recover how `ECMAINT` assigns weeks
-inside the `1..52` yearly timeline. Determine whether week values are
-persisted, derived from summary/event records, or recomputed during late report
-emission. Determine how travel, interception, combat, and delayed mission
-resolution are placed on that timeline.
-
-**3. Summary/event record pipeline.** Recover how the engine accumulates
-canonicalized summary/event entries, sorts/canonicalizes them, and emits
-reports from them in the late weekly loop. Rust should ultimately mirror that
-staged architecture instead of relying on ad hoc per-feature report emission.
-
-**4. Report routing and output-family policy.** Recover who receives which
-report families, how Fleet Command Center summaries are injected, when
-`RESULTS.DAT`, `MESSAGES.DAT`, and `RANKINGS.TXT` diverge or overlap, and
-whether some reports suppress, merge, or follow others by rule.
-
-**5. Economy/production application timing.** Recover exact production
-completion timing, growth timing relative to tax and ownership changes,
-blocked-build timing and spillover behavior, and salvage accounting destination
-and timing.
-
-**6. Combat-adjacent ordering.** Tighten interception precedence, multi-fleet
-same-location ordering, retreat timing, mission abort timing after combat,
-starbase defense ordering relative to fleets, and whether bombard/invade can
-resolve in the same yearly pass as arrival.
-
-**7. Derived-file regeneration lifecycle.** Keep recovering exactly when and
-from which inputs the oracle rebuilds `DATABASE.DAT`, `RESULTS.DAT`,
-`MESSAGES.DAT`, and `RANKINGS.TXT`.
-
-This set will improve Rust fidelity more than continuing to collect isolated
-mission edge cases in random order.
-
 ## RE Workflow
 
 The default loop is: generate or mutate a controlled scenario in Rust, run the
@@ -497,109 +420,13 @@ contact.
 
 ### Classic report file compatibility
 
-`RESULTS.DAT` is the active canonical maint report target. Routed maintenance
-projection into classic `MESSAGES.DAT` is currently disabled again for
-compatibility: live probing showed classic mail uses a different on-disk format
-from the `RESULTS.DAT`-style 84-byte chunks. Existing classic `MESSAGES.DAT`
-payloads are preserved unchanged, and Rust queued mail stays in
-SQLite/runtime state until the classic mail format is recovered.
+`RESULTS.DAT` is the canonical maint report target. Classic `MESSAGES.DAT`
+uses a different on-disk format from `RESULTS.DAT`-style 84-byte chunks and
+also carries player-to-player mail with maintenance-gated recipient visibility.
+Until the classic mail format is fully recovered, Rust should preserve existing
+`MESSAGES.DAT` payloads unchanged and keep Rust-originated queued mail in
+SQLite/runtime state rather than writing it into classic mail files.
 
-Live `ECGAME` probing now confirms that classic player-to-player mail also
-lives in `MESSAGES.DAT`, and that recipient visibility is maintenance-gated
-rather than immediate. Because of that overlap, `rust-maint` must preserve
-unknown existing classic `MESSAGES.DAT` payloads when it has no routed
-maintenance messages to write. `RESULTS.DAT` remains the aggregate canonical
-maint report target while exact classic per-player `MESSAGES.DAT` semantics
-remain unsettled.
-
-### Default ECMAINT black-box loop
-
-For new mechanics, the concrete workflow is:
-
-1. `python3 tools/ecmaint_oracle.py prepare <target_dir> [source_dir]`
-2. Submit one controlled set of orders or mutate one narrow field family.
-3. `python3 tools/ecmaint_oracle.py run <target_dir>`
-4. Inspect the `.oracle/` snapshots plus the printed diff clusters across
-   state files (`PLAYER.DAT`, `PLANETS.DAT`, `FLEETS.DAT`, `BASES.DAT`,
-   `IPBM.DAT`, `CONQUEST.DAT`) and report/output files (`RESULTS.DAT`,
-   `MESSAGES.DAT`, `ERRORS.TXT`, `DATABASE.DAT`, `RANKINGS.TXT`).
-5. Treat "no report output" as evidence too: a mechanic that mutates
-   persistent state while leaving `RESULTS.DAT` / `MESSAGES.DAT` empty is
-   still useful for placing the mechanic inside the yearly simulation core
-   rather than the report side.
-6. Promote only strong repeated rules into shared Rust logic.
-
-### Known-scenario replay loop
-
-1. `python3 tools/ecmaint_oracle.py replay-known fleet-order /tmp/ecmaint-fleet-oracle`
-2. Inspect the `.oracle/` snapshots and the comparison against the preserved
-   post-maint fixture.
-3. Use the same pattern for `planet-build` and `guard-starbase` before opening
-   a new mechanic.
-
-### Preserved-fixture replay validation
-
-1. `python3 tools/ecmaint_oracle.py replay-preserved fleet-order /tmp/ecmaint-fleet-pre-direct`
-2. Confirm the preserved pre-maint fixture replays to the preserved post-maint
-   fixture exactly.
-3. Use `replay-known` to measure the remaining gap in the Rust-generated
-   pre-maint state, not to question the oracle harness itself.
-
-### Deep RE escalation
-
-Use static/dynamic RE when a blocker survives repeated black-box tests. Prefer
-narrow, reproducible captures over broad exploratory tracing. Stop the deep
-dive once the missing rule can be stated precisely enough for Rust
-validation/generation.
-
-The anti-rabbit-hole rule: do not apply full deep-dive treatment to every
-mechanic. If a path is not currently blocking broader compliant generation,
-keep it in the black-box queue until it becomes a real blocker.
-
-## Current Concrete Rust Milestone
-
-The general approach is: start from a known-good preserved snapshot such as
-`fixtures/ecmaint-post/v1.5`, rewrite only decoded fields in Rust, and verify
-the rewritten `.DAT` file matches a preserved accepted pre-maint scenario
-exactly. Scenario validation has two levels: rule-shaped validators that check
-structural invariants, and preserved exact-match validators that confirm
-byte-level fidelity against known-good fixtures.
-
-For the current CLI command surface and workspace layout, see
-[rust-architecture.md](rust-architecture.md) and `ec-cli --help`. Scenario
-and validation commands are documented in
-[README.md](../../README.md#quick-start).
-
-This is intentionally narrower than a full arbitrary save generator, but it is
-the first real proof that the Rust layer can emit accepted gamestate files from
-decoded state rather than only copy fixture trees.
-
-## Current Strategy
-
-Near-term effort should prioritize `ECMAINT`. `ECUTIL` is mostly
-configuration/state setup, and `ECGAME` is mainly command entry and
-presentation. `ECMAINT` is the core simulation engine: it handles movement,
-battles, build completion, AI/rogue empire behavior, and database and report
-generation. That makes it the highest-value target for recovering the actual
-rules of the game, and the main acceptance oracle for the first milestone:
-Rust-generated gamestate files that are 100% compliant with the original
-engine.
-
-## ECMAINT Investigation Model
-
-The current `ECMAINT` workflow is: create one controlled pre-maint scenario,
-run original `ECMAINT`, diff the resulting `.DAT` files, preserve pre/post
-fixtures, encode the confirmed transform in Rust tests, and optionally read
-the generated reports through `ECGAME` as a validation step. This keeps the
-preservation work grounded in deterministic engine behavior rather than in UI
-rendering.
-
-For the current submodule split and data-oriented design guidance, see
-[docs/rust-architecture.md](rust-architecture.md).
-
-## Session Handoff
-
-When pausing work, keep the immediate restart point in
-[docs/next-session.md](next-session.md). That file should be updated with the
-latest high-confidence combat model, the most recent commits worth resuming
-from, and the exact next controlled experiment.
+For the concrete oracle runbooks (black-box loop, replay validation, deep RE
+escalation), see
+[reverse_engineering/README.md](../reverse_engineering/README.md#oracle-runbooks).
