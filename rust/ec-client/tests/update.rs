@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -19,8 +20,9 @@ use ec_client::screen::{
 use ec_client::startup::StartupPhase;
 use ec_client::terminal::Terminal;
 use ec_data::{
-    yearly_tax_revenue, CampaignRuntimeState, CampaignStore, CoreGameData, DiplomaticRelation,
-    EmpirePlanetEconomyRow, EmpireProductionRankingSort, ProductionItemKind, QueuedPlayerMail,
+    decode_report_block_rows, yearly_tax_revenue, CampaignRuntimeState, CampaignStore,
+    CoreGameData, DiplomaticRelation, EmpirePlanetEconomyRow, EmpireProductionRankingSort,
+    IntelTier, PlanetIntelSnapshot, ProductionItemKind, QueuedPlayerMail,
 };
 
 fn repo_root() -> PathBuf {
@@ -160,16 +162,55 @@ fn latest_runtime_state(root: &Path) -> CampaignRuntimeState {
 }
 
 fn save_runtime_state(root: &Path, state: &CampaignRuntimeState) {
+    let player_count = state.game_data.conquest.player_count();
+    let planet_intel_by_viewer = (1..=player_count)
+        .map(|viewer_empire_id| {
+            CampaignStore::open_default_in_dir(root)
+                .expect("open campaign store")
+                .latest_planet_intel_for_viewer(viewer_empire_id)
+                .expect("load runtime intel")
+                .into_iter()
+                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                .collect::<BTreeMap<_, _>>()
+        })
+        .collect::<Vec<_>>();
+    save_runtime_state_with_intel(root, state, &planet_intel_by_viewer);
+}
+
+fn save_runtime_state_with_intel(
+    root: &Path,
+    state: &CampaignRuntimeState,
+    planet_intel_by_viewer: &[BTreeMap<usize, PlanetIntelSnapshot>],
+) {
     CampaignStore::open_default_in_dir(root)
         .expect("open campaign store")
-        .save_runtime_state(
+        .save_runtime_state_structured_with_intel(
             &state.game_data,
-            &state.database,
-            &state.results_bytes,
-            &state.messages_bytes,
+            &state.report_block_rows,
             &state.queued_mail,
+            planet_intel_by_viewer,
         )
         .expect("save runtime state");
+}
+
+fn partial_known_world_snapshot(
+    planet_record_index_1_based: usize,
+    planet: &ec_data::PlanetRecord,
+    owner_empire_id: u8,
+    year: u16,
+) -> PlanetIntelSnapshot {
+    PlanetIntelSnapshot {
+        planet_record_index_1_based,
+        intel_tier: IntelTier::Partial,
+        last_intel_year: Some(year),
+        known_name: Some(planet.status_or_name_summary()),
+        known_owner_empire_id: Some(owner_empire_id),
+        known_potential_production: Some(planet.potential_production_points()),
+        known_armies: None,
+        known_ground_batteries: None,
+        known_current_production: None,
+        known_stored_points: None,
+    }
 }
 
 fn incoming_mail(
@@ -219,6 +260,14 @@ fn length_prefixed_report_block(lines: &[&str]) -> Vec<u8> {
         bytes.extend_from_slice(&chunk);
     }
     bytes
+}
+
+fn set_runtime_report_blocks(state: &mut CampaignRuntimeState, bytes: impl AsRef<[u8]>) {
+    state.report_block_rows = decode_report_block_rows(bytes.as_ref());
+}
+
+fn clear_runtime_report_blocks(state: &mut CampaignRuntimeState) {
+    state.report_block_rows.clear();
 }
 
 fn advance_to_main_menu(app: &mut App) {
@@ -2593,8 +2642,7 @@ fn planet_list_commands_stay_on_planet_menu_with_notice_when_no_owned_planets_ex
 fn delete_reviewables_stays_on_general_menu_with_notice_when_nothing_is_reviewable() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    state.results_bytes.clear();
-    state.messages_bytes.clear();
+    clear_runtime_report_blocks(&mut state);
     save_runtime_state(&fixture_dir, &state);
 
     let mut app = App::load(AppConfig {
@@ -2632,8 +2680,7 @@ fn delete_reviewables_stays_on_general_menu_with_notice_when_nothing_is_reviewab
 fn delete_reviewables_opens_when_classic_pending_flags_are_set() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    state.results_bytes.clear();
-    state.messages_bytes.clear();
+    clear_runtime_report_blocks(&mut state);
     state.game_data.player.records[0].raw[0x30] = 1;
     state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
@@ -2669,8 +2716,7 @@ fn delete_reviewables_opens_when_classic_pending_flags_are_set() {
     );
 
     let runtime = latest_runtime_state(&fixture_dir);
-    assert!(runtime.results_bytes.is_empty());
-    assert!(runtime.messages_bytes.is_empty());
+    assert!(runtime.report_block_rows.is_empty());
     assert_eq!(runtime.game_data.player.records[0].raw[0x30], 0);
     assert_eq!(runtime.game_data.player.records[0].raw[0x34], 0);
 }
@@ -2679,8 +2725,7 @@ fn delete_reviewables_opens_when_classic_pending_flags_are_set() {
 fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    state.results_bytes.clear();
-    state.messages_bytes.clear();
+    clear_runtime_report_blocks(&mut state);
     state.game_data.player.records[0].raw[0x30] = 1;
     state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
@@ -2768,7 +2813,7 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
 fn startup_reviews_results_then_messages_then_enters_main_menu() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    state.results_bytes = b"Fleet battle report".to_vec();
+    set_runtime_report_blocks(&mut state, b"Fleet battle report");
     state.queued_mail.push(incoming_mail(
         2,
         1,
@@ -2819,11 +2864,13 @@ fn startup_reviews_results_then_messages_then_enters_main_menu() {
 fn startup_results_paginate_before_advancing_to_messages() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    state.results_bytes = (1..=18)
-        .map(|idx| format!("Report line {idx:02} is long enough"))
-        .collect::<Vec<_>>()
-        .join("\n")
-        .into_bytes();
+    set_runtime_report_blocks(
+        &mut state,
+        (1..=18)
+            .map(|idx| format!("Report line {idx:02} is long enough"))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
     state.queued_mail.push(incoming_mail(
         2,
         1,
@@ -2922,7 +2969,7 @@ fn startup_results_paginate_before_advancing_to_messages() {
 fn startup_messages_allow_deleting_current_message_then_advancing() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    state.results_bytes.clear();
+    clear_runtime_report_blocks(&mut state);
     state
         .queued_mail
         .push(incoming_mail(2, 1, 2999, "One", "Body one"));
@@ -2992,10 +3039,10 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
         .any(|line| line.contains(" -> From") && line.contains("Empire #3")));
 
     let runtime = latest_runtime_state(&fixture_dir);
-    let preview = ec_client::reports::ReportsPreview::from_runtime(
+    let preview = ec_client::reports::ReportsPreview::from_block_rows(
         &runtime.game_data,
         1,
-        &runtime.results_bytes,
+        &runtime.report_block_rows,
         &runtime.queued_mail,
     );
     assert_eq!(preview.message_blocks.len(), 1);
@@ -3015,7 +3062,7 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
 fn startup_message_review_shows_end_status_after_deleting_last_message() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    state.results_bytes.clear();
+    clear_runtime_report_blocks(&mut state);
     state
         .queued_mail
         .push(incoming_mail(2, 1, 2999, "One", "Body one"));
@@ -3087,8 +3134,10 @@ fn startup_message_review_shows_end_status_after_deleting_last_message() {
 fn startup_results_wrap_long_lines_within_the_playfield() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    state.results_bytes = b"This is a deliberately long startup results line that should wrap cleanly within the eighty column playfield instead of overrunning a single row.".to_vec();
-    state.messages_bytes.clear();
+    set_runtime_report_blocks(
+        &mut state,
+        b"This is a deliberately long startup results line that should wrap cleanly within the eighty column playfield instead of overrunning a single row.",
+    );
     state.game_data.player.records[0].raw[0x30] = 0;
     state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
@@ -3141,8 +3190,10 @@ fn startup_results_wrap_long_lines_within_the_playfield() {
 fn startup_results_preserve_blank_lines_as_classic_spacers() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    state.results_bytes = classic_chunked_report_bytes("Line one\n\nLine two");
-    state.messages_bytes.clear();
+    set_runtime_report_blocks(
+        &mut state,
+        classic_chunked_report_bytes("Line one\n\nLine two"),
+    );
     state.game_data.player.records[0].raw[0x30] = 0;
     state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
@@ -3187,8 +3238,10 @@ fn startup_results_preserve_blank_lines_as_classic_spacers() {
 fn startup_results_preserve_leading_spaces_from_oracle_style_reports() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    state.results_bytes = classic_chunked_report_bytes("  Stardate 11 / 3003\n    Fleet 7 arrived");
-    state.messages_bytes.clear();
+    set_runtime_report_blocks(
+        &mut state,
+        classic_chunked_report_bytes("  Stardate 11 / 3003\n    Fleet 7 arrived"),
+    );
     state.game_data.player.records[0].raw[0x30] = 0;
     state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
@@ -3231,12 +3284,13 @@ fn startup_results_preserve_leading_spaces_from_oracle_style_reports() {
 fn startup_results_use_the_full_intro_review_page_height() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    state.results_bytes = (1..=15)
-        .map(|idx| format!("Report {idx:02}"))
-        .collect::<Vec<_>>()
-        .join("\n")
-        .into_bytes();
-    state.messages_bytes.clear();
+    set_runtime_report_blocks(
+        &mut state,
+        (1..=15)
+            .map(|idx| format!("Report {idx:02}"))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
     state.game_data.player.records[0].raw[0x30] = 0;
     state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
@@ -3276,13 +3330,15 @@ fn startup_results_use_the_full_intro_review_page_height() {
 fn startup_results_decode_length_prefixed_lines_as_separate_classic_rows() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    state.results_bytes = length_prefixed_report_block(&[
-        "From your 12th Fleet, located in System(9,14):          Stardate: 2/3003",
-        "We were attacked by \"Nadir Compact\", (Empire #4) in System(9,14). Our",
-        "force contained 1 destroyer and 1 ETAC ship. Alien force contained 1",
-        "<end of transmission>",
-    ]);
-    state.messages_bytes.clear();
+    set_runtime_report_blocks(
+        &mut state,
+        length_prefixed_report_block(&[
+            "From your 12th Fleet, located in System(9,14):          Stardate: 2/3003",
+            "We were attacked by \"Nadir Compact\", (Empire #4) in System(9,14). Our",
+            "force contained 1 destroyer and 1 ETAC ship. Alien force contained 1",
+            "<end of transmission>",
+        ]),
+    );
     state.game_data.player.records[0].raw[0x30] = 0;
     state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
@@ -3335,9 +3391,10 @@ fn startup_results_decode_length_prefixed_lines_as_separate_classic_rows() {
 fn startup_results_continue_prompt_preserves_blank_spacing_without_rule() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    state.results_bytes =
-        classic_chunked_report_blocks(&["From Alpha\nBody one", "From Beta\nBody two"]);
-    state.messages_bytes.clear();
+    set_runtime_report_blocks(
+        &mut state,
+        classic_chunked_report_blocks(&["From Alpha\nBody one", "From Beta\nBody two"]),
+    );
     state.game_data.player.records[0].raw[0x30] = 0;
     state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
@@ -3390,8 +3447,10 @@ fn startup_results_continue_prompt_preserves_blank_spacing_without_rule() {
 fn reports_screen_preserves_blank_separator_lines() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    state.results_bytes = classic_chunked_report_bytes("Line one\n\nLine two");
-    state.messages_bytes.clear();
+    set_runtime_report_blocks(
+        &mut state,
+        classic_chunked_report_bytes("Line one\n\nLine two"),
+    );
     state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
 
@@ -3426,8 +3485,10 @@ fn reports_screen_preserves_blank_separator_lines() {
 fn reports_screen_wraps_long_lines_within_the_playfield() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    state.results_bytes = b"This is a deliberately long reports review line that should wrap cleanly within the eighty column playfield instead of overrunning a single row.".to_vec();
-    state.messages_bytes.clear();
+    set_runtime_report_blocks(
+        &mut state,
+        b"This is a deliberately long reports review line that should wrap cleanly within the eighty column playfield instead of overrunning a single row.",
+    );
     state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
 
@@ -3470,11 +3531,13 @@ fn reports_screen_wraps_long_lines_within_the_playfield() {
 fn reports_screen_keeps_both_sections_visible_when_results_are_long() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    state.results_bytes = (1..=8)
-        .map(|idx| format!("This is long report line {idx:02} and it should wrap across rows"))
-        .collect::<Vec<_>>()
-        .join("\n")
-        .into_bytes();
+    set_runtime_report_blocks(
+        &mut state,
+        (1..=8)
+            .map(|idx| format!("This is long report line {idx:02} and it should wrap across rows"))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
     state.queued_mail.push(incoming_mail(
         2,
         1,
@@ -3518,12 +3581,13 @@ fn reports_screen_keeps_both_sections_visible_when_results_are_long() {
 fn reports_screen_shows_explicit_truncation_cue_when_wrapped_rows_overflow() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    state.results_bytes = (1..=11)
-        .map(|idx| format!("This is long report line {idx:02} and it should wrap across rows"))
-        .collect::<Vec<_>>()
-        .join("\n")
-        .into_bytes();
-    state.messages_bytes.clear();
+    set_runtime_report_blocks(
+        &mut state,
+        (1..=11)
+            .map(|idx| format!("This is long report line {idx:02} and it should wrap across rows"))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    );
     state.game_data.player.records[0].raw[0x34] = 1;
     save_runtime_state(&fixture_dir, &state);
 
@@ -3555,7 +3619,7 @@ fn reports_screen_shows_explicit_truncation_cue_when_wrapped_rows_overflow() {
 fn preloaded_first_login_reviews_reports_before_homeworld_naming() {
     let fixture_dir = temp_joined_needs_homeworld_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    state.results_bytes = b"Fleet battle report".to_vec();
+    set_runtime_report_blocks(&mut state, b"Fleet battle report");
     state.queued_mail.push(incoming_mail(
         2,
         1,
@@ -3614,7 +3678,7 @@ fn returning_player_reviews_reports_before_colony_naming() {
         .expect("need a non-homeworld planet for colony naming test");
     colony.1.set_owner_empire_slot_raw(1);
     colony.1.set_planet_name("Not Named Yet");
-    state.results_bytes = b"Scout report".to_vec();
+    set_runtime_report_blocks(&mut state, b"Scout report");
     state.queued_mail.push(incoming_mail(
         2,
         1,
@@ -4690,7 +4754,6 @@ fn fleet_group_bombard_mission_defaults_to_closest_known_enemy_world() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
     let viewer_index = 0usize;
-    let planet_count = state.game_data.planets.records.len();
     let home_coords = state.game_data.planets.records
         [state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1]
         .coords_raw();
@@ -4712,15 +4775,37 @@ fn fleet_group_bombard_mission_defaults_to_closest_known_enemy_world() {
     let (other_idx, _) = foreign_candidates[1];
     state.game_data.planets.records[closest_idx].set_owner_empire_slot_raw(2);
     state.game_data.planets.records[other_idx].set_owner_empire_slot_raw(2);
-    state
-        .database
-        .record_mut(closest_idx, viewer_index, planet_count)
-        .raw[0x15] = 2;
-    state
-        .database
-        .record_mut(other_idx, viewer_index, planet_count)
-        .raw[0x15] = 2;
-    save_runtime_state(&fixture_dir, &state);
+    let mut planet_intel_by_viewer = (1..=state.game_data.conquest.player_count())
+        .map(|viewer_empire_id| {
+            CampaignStore::open_default_in_dir(&fixture_dir)
+                .expect("open campaign store")
+                .latest_planet_intel_for_viewer(viewer_empire_id)
+                .expect("load runtime intel")
+                .into_iter()
+                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                .collect::<BTreeMap<_, _>>()
+        })
+        .collect::<Vec<_>>();
+    let year = state.game_data.conquest.game_year();
+    planet_intel_by_viewer[viewer_index].insert(
+        closest_idx + 1,
+        partial_known_world_snapshot(
+            closest_idx + 1,
+            &state.game_data.planets.records[closest_idx],
+            2,
+            year,
+        ),
+    );
+    planet_intel_by_viewer[viewer_index].insert(
+        other_idx + 1,
+        partial_known_world_snapshot(
+            other_idx + 1,
+            &state.game_data.planets.records[other_idx],
+            2,
+            year,
+        ),
+    );
+    save_runtime_state_with_intel(&fixture_dir, &state, &planet_intel_by_viewer);
 
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -4890,7 +4975,6 @@ fn fleet_group_colonize_mission_allows_hidden_colonized_worlds_as_targets() {
     let home_coords = state.game_data.planets.records
         [state.game_data.player.records[0].homeworld_planet_index_1_based_raw() as usize - 1]
         .coords_raw();
-    let planet_count = state.game_data.planets.records.len();
     let mut candidates = state
         .game_data
         .planets
@@ -4908,10 +4992,18 @@ fn fleet_group_colonize_mission_allows_hidden_colonized_worlds_as_targets() {
     let hidden_colonized_idx = candidates[0].0;
     let hidden_colonized_coords = candidates[0].1;
     state.game_data.planets.records[hidden_colonized_idx].set_owner_empire_slot_raw(2);
-    state
-        .database
-        .record_mut(hidden_colonized_idx, 0, planet_count)
-        .raw[0x15] = 0;
+    let mut planet_intel_by_viewer = (1..=state.game_data.conquest.player_count())
+        .map(|viewer_empire_id| {
+            CampaignStore::open_default_in_dir(&fixture_dir)
+                .expect("open campaign store")
+                .latest_planet_intel_for_viewer(viewer_empire_id)
+                .expect("load runtime intel")
+                .into_iter()
+                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                .collect::<BTreeMap<_, _>>()
+        })
+        .collect::<Vec<_>>();
+    planet_intel_by_viewer[0].remove(&(hidden_colonized_idx + 1));
     for fleet in state.game_data.fleets.records.iter_mut() {
         if fleet.owner_empire_raw() == 1 {
             fleet.set_standing_order_code_raw(9);
@@ -4925,7 +5017,7 @@ fn fleet_group_colonize_mission_allows_hidden_colonized_worlds_as_targets() {
         .find(|fleet| fleet.owner_empire_raw() == 1 && fleet.etac_count() > 0)
         .expect("fixture should have a selectable ETAC fleet");
     selected_etac.set_standing_order_code_raw(0);
-    save_runtime_state(&fixture_dir, &state);
+    save_runtime_state_with_intel(&fixture_dir, &state, &planet_intel_by_viewer);
 
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -5130,7 +5222,6 @@ fn fleet_group_order_rejects_empty_sector_for_world_targeting_mission() {
 fn fleet_group_order_allows_owned_planet_for_blockade_mission() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    let planet_count = state.game_data.planets.records.len();
     let target_idx = state
         .game_data
         .planets
@@ -5141,7 +5232,6 @@ fn fleet_group_order_allows_owned_planet_for_blockade_mission() {
         .map(|(idx, _)| idx)
         .expect("fixture should have a foreign world");
     state.game_data.planets.records[target_idx].set_owner_empire_slot_raw(1);
-    state.database.record_mut(target_idx, 0, planet_count).raw[0x15] = 1;
     let owned_target = state.game_data.planets.records[target_idx].coords_raw();
     save_runtime_state(&fixture_dir, &state);
     let mut app = App::load(AppConfig {
@@ -5236,7 +5326,6 @@ fn fleet_group_order_allows_owned_planet_for_scout_mission() {
         .expect("fleet 1 should exist");
     scout_fleet.set_scout_count(1);
     scout_fleet.set_standing_order_code_raw(0);
-    let planet_count = state.game_data.planets.records.len();
     let enemy_idx = state
         .game_data
         .planets
@@ -5247,7 +5336,6 @@ fn fleet_group_order_allows_owned_planet_for_scout_mission() {
         .map(|(idx, _)| idx)
         .expect("fixture should have a foreign world");
     state.game_data.planets.records[enemy_idx].set_owner_empire_slot_raw(1);
-    state.database.record_mut(enemy_idx, 0, planet_count).raw[0x15] = 1;
     let owned_target = state.game_data.planets.records[enemy_idx].coords_raw();
     save_runtime_state(&fixture_dir, &state);
     let mut app = App::load(AppConfig {
@@ -5332,7 +5420,6 @@ fn fleet_group_order_allows_owned_planet_for_scout_mission() {
 fn fleet_order_salvage_defaults_to_closest_owned_planet() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    let planet_count = state.game_data.planets.records.len();
     let extra_owned_idx = state
         .game_data
         .planets
@@ -5343,10 +5430,6 @@ fn fleet_order_salvage_defaults_to_closest_owned_planet() {
         .map(|(idx, _)| idx)
         .expect("fixture should have a non-owned planet");
     state.game_data.planets.records[extra_owned_idx].set_owner_empire_slot_raw(1);
-    state
-        .database
-        .record_mut(extra_owned_idx, 0, planet_count)
-        .raw[0x15] = 1;
     let nearest_owned = state.game_data.planets.records[extra_owned_idx].coords_raw();
     let selected_fleet = state
         .game_data
@@ -5479,7 +5562,6 @@ fn fleet_order_salvage_rejects_empty_sector_target() {
 fn fleet_order_salvage_rejects_foreign_planet_target() {
     let fixture_dir = temp_game_copy();
     let mut state = latest_runtime_state(&fixture_dir);
-    let planet_count = state.game_data.planets.records.len();
     let foreign_idx = state
         .game_data
         .planets
@@ -5490,9 +5572,28 @@ fn fleet_order_salvage_rejects_foreign_planet_target() {
         .map(|(idx, _)| idx)
         .expect("fixture should have an unowned planet");
     state.game_data.planets.records[foreign_idx].set_owner_empire_slot_raw(2);
-    state.database.record_mut(foreign_idx, 0, planet_count).raw[0x15] = 2;
+    let mut planet_intel_by_viewer = (1..=state.game_data.conquest.player_count())
+        .map(|viewer_empire_id| {
+            CampaignStore::open_default_in_dir(&fixture_dir)
+                .expect("open campaign store")
+                .latest_planet_intel_for_viewer(viewer_empire_id)
+                .expect("load runtime intel")
+                .into_iter()
+                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                .collect::<BTreeMap<_, _>>()
+        })
+        .collect::<Vec<_>>();
+    planet_intel_by_viewer[0].insert(
+        foreign_idx + 1,
+        partial_known_world_snapshot(
+            foreign_idx + 1,
+            &state.game_data.planets.records[foreign_idx],
+            2,
+            state.game_data.conquest.game_year(),
+        ),
+    );
     let foreign_target = state.game_data.planets.records[foreign_idx].coords_raw();
-    save_runtime_state(&fixture_dir, &state);
+    save_runtime_state_with_intel(&fixture_dir, &state, &planet_intel_by_viewer);
 
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -6102,7 +6203,12 @@ fn planet_database_render_uses_year_and_tier_labels_on_bottom_row() {
     );
 
     app.render(&mut terminal).expect("render succeeds");
-    assert!(terminal.line(4).contains("Year"));
+    // Two-line stacked header: row 1 has "Year", row 2 has column labels.
+    assert!(terminal.line(1).contains("Year"));
+    assert!(terminal.line(2).contains("Coord"));
+    assert!(terminal.line(2).contains("Planet"));
+    assert!(terminal.line(2).contains("Seen"));
+    assert!(terminal.line(2).contains("Scout"));
     assert!(terminal.lines.iter().any(|line| line.contains("3000")));
     assert!(terminal.lines.iter().any(|line| line.contains("owned")));
     assert!(terminal.line(19).starts_with("MAIN COMMAND <- ["));
@@ -6698,8 +6804,7 @@ fn apply_action_clamps_enemies_scroll_to_visible_window() {
 fn apply_action_deletes_reviewables() {
     let fixture_dir = temp_game_copy();
     let mut runtime = latest_runtime_state(&fixture_dir);
-    runtime.results_bytes = b"test results".to_vec();
-    // messages_bytes is ignored by save_runtime_state (always empty on reload)
+    set_runtime_report_blocks(&mut runtime, b"test results");
     runtime.queued_mail.push(incoming_mail(
         2,
         1,
@@ -6737,8 +6842,10 @@ fn apply_action_deletes_reviewables() {
     );
 
     let runtime = latest_runtime_state(&fixture_dir);
-    assert!(runtime.results_bytes.is_empty());
-    assert!(runtime.messages_bytes.is_empty());
+    assert!(runtime
+        .report_block_rows
+        .iter()
+        .all(|row| row.recipient_deleted));
     assert_eq!(runtime.queued_mail.len(), 1);
     assert!(runtime.queued_mail[0].recipient_deleted);
     assert_eq!(runtime.game_data.player.records[0].raw[0x30], 0);

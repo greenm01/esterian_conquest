@@ -2767,22 +2767,6 @@ pub(crate) fn build_results_dat(
     results
 }
 
-/// Preserve classic MESSAGES.DAT bytes until the real compact mail format is recovered.
-pub(crate) fn preserve_messages_dat(
-    game_data: &mut CoreGameData,
-    existing_messages: &[u8],
-) -> Vec<u8> {
-    if !existing_messages.is_empty() {
-        return existing_messages.to_vec();
-    }
-
-    for player in &mut game_data.player.records {
-        player.set_classic_messages_review_state_present(false);
-    }
-
-    Vec::new()
-}
-
 // ---------------------------------------------------------------------------
 // Rankings output (Phase 3)
 // ---------------------------------------------------------------------------

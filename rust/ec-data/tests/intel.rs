@@ -1,8 +1,10 @@
 use std::collections::BTreeMap;
 
+use ec_data::maint::PlanetIntelSource;
 use ec_data::{
     DatabaseDat, GameStateBuilder, build_player_starmap_projection_from_snapshots,
-    merge_player_intel_from_compat, visible_hazard_intel_from_snapshots,
+    merge_player_intel_from_compat, merge_player_intel_from_runtime,
+    visible_hazard_intel_from_snapshots,
 };
 
 #[test]
@@ -118,4 +120,36 @@ fn generated_database_defaults_to_classic_unknown_sentinels() {
             "offset {offset:#x} should use unknown sentinel"
         );
     }
+}
+
+#[test]
+fn runtime_intel_merges_scouted_worlds_without_compat_database() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3003)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    game_data.planets.records[4].set_coords_raw([9, 2]);
+    game_data.planets.records[4].set_owner_empire_slot_raw(4);
+    game_data.planets.records[4].set_ownership_status_raw(2);
+    game_data.planets.records[4].set_planet_name("Helios Prime");
+    game_data.planets.records[4].set_potential_production_raw(136u16.to_le_bytes());
+    game_data.planets.records[4].set_present_production_points(136);
+    game_data.planets.records[4].set_stored_goods_raw(35);
+    game_data.planets.records[4].set_army_count_raw(10);
+    game_data.planets.records[4].set_ground_batteries_raw(6);
+
+    let grants = BTreeMap::from([(5usize, PlanetIntelSource::ScoutSolarSystem)]);
+    let known =
+        merge_player_intel_from_runtime(&game_data, 1, 3004, Some(&BTreeMap::new()), Some(&grants));
+    let known_world = known.get(&5).expect("scouted world should be stored");
+
+    assert_eq!(known_world.known_name.as_deref(), Some("Helios Prime"));
+    assert_eq!(known_world.known_owner_empire_id, Some(4));
+    assert_eq!(known_world.known_potential_production, Some(136));
+    assert_eq!(known_world.known_current_production, Some(136));
+    assert_eq!(known_world.known_stored_points, Some(35));
+    assert_eq!(known_world.known_armies, Some(10));
+    assert_eq!(known_world.known_ground_batteries, Some(6));
+    assert_eq!(known_world.last_intel_year, Some(3004));
 }

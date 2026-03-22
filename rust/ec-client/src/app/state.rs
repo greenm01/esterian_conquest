@@ -1,10 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use ec_data::{
-    CampaignStore, CoreGameData, PlanetIntelSnapshot, QueuedPlayerMail, ReportBlockRow,
-    rebuild_results_bytes,
-};
+use ec_data::{CampaignStore, CoreGameData, PlanetIntelSnapshot, QueuedPlayerMail, ReportBlockRow};
 
 use crate::app::action::Action;
 use crate::domains::empire::EmpireState;
@@ -109,8 +106,6 @@ pub struct App {
     pub snapshot_id: i64,
     pub campaign_seed: u64,
     pub report_block_rows: Vec<ReportBlockRow>,
-    pub results_bytes: Vec<u8>,
-    pub messages_bytes: Vec<u8>,
     pub queued_mail: Vec<QueuedPlayerMail>,
     pub command_menu_notice: Option<String>,
     pub planet_intel_snapshots: BTreeMap<usize, PlanetIntelSnapshot>,
@@ -130,8 +125,6 @@ impl App {
         let snapshot_id = runtime_state.snapshot_id;
         let campaign_seed = runtime_state.campaign_seed;
         let report_block_rows = runtime_state.report_block_rows;
-        let results_bytes = runtime_state.results_bytes;
-        let messages_bytes = runtime_state.messages_bytes;
         let queued_mail = runtime_state.queued_mail;
         let reports = ReportsPreview::from_block_rows(
             &runtime_state.game_data,
@@ -235,8 +228,6 @@ impl App {
             snapshot_id,
             campaign_seed,
             report_block_rows,
-            results_bytes,
-            messages_bytes,
             queued_mail,
             command_menu_notice: None,
             planet_intel_snapshots,
@@ -836,17 +827,9 @@ impl App {
     }
 
     pub(super) fn save_game_data(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let database = self
-            .planet
-            .campaign_store
-            .load_latest_runtime_state()?
-            .ok_or("campaign store has no snapshots")?
-            .database;
-        let new_snapshot_id = self.planet.campaign_store.save_runtime_state(
+        let new_snapshot_id = self.planet.campaign_store.save_runtime_state_structured(
             &self.game_data,
-            &database,
-            &self.results_bytes,
-            &self.messages_bytes,
+            &self.report_block_rows,
             &self.queued_mail,
         )?;
         self.snapshot_id = new_snapshot_id;
@@ -859,19 +842,6 @@ impl App {
             .collect::<BTreeMap<_, _>>();
         self.planet.intel_snapshots = self.planet_intel_snapshots.clone();
         Ok(())
-    }
-
-    /// Rebuild the cached `results_bytes` from the current `report_block_rows`.
-    /// Call this after mutating report_block_rows to keep the derived bytes in
-    /// sync for `save_game_data()`.
-    pub(super) fn sync_results_bytes_from_blocks(&mut self) {
-        let active: Vec<_> = self
-            .report_block_rows
-            .iter()
-            .filter(|r| !r.recipient_deleted)
-            .cloned()
-            .collect();
-        self.results_bytes = rebuild_results_bytes(&active).unwrap_or_default();
     }
 
     /// Whether there are any active (non-deleted) report blocks.

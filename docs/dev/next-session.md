@@ -12,6 +12,22 @@ The SQLite-first runtime split is now in place:
   `.DAT` ownership
 - `maint-rust` advances the SQLite-backed runtime snapshot instead of silently
   rewriting classic files in place
+- `CampaignRuntimeState` now stays on structured runtime data for normal
+  engine/client use:
+  - `CoreGameData`
+  - structured report blocks
+  - queued mail
+  - per-player intel
+  - campaign seed
+- `CampaignRuntimeState` no longer exposes derived `results_bytes` /
+  `messages_bytes`; normal client/runtime callers use structured report blocks
+  and queued mail directly
+- harness scenario save/load now stays on structured report blocks and queued
+  mail for normal runtime snapshots; classic review bytes are only materialized
+  on explicit compat/export paths
+- compat-aware `DATABASE.DAT` save/export is still CLI-owned for oracle and
+  classic materialization flows; `ec-client` no longer loads `DatabaseDat`
+  through the runtime state surface
 - `ec-cli submit-turn` now accepts one-player KDL turn files with `--check`
   and apply modes; schema doc lives at [../player/turn-kdl.md](../player/turn-kdl.md)
 - classic `.DAT` files are now an explicit compatibility/export layer driven by
@@ -27,17 +43,16 @@ The SQLite-first runtime split is now in place:
 
 Recent validation baseline:
 
-- `cargo test -q`
-  - workspace green at the last recorded sweep
-- focused post-compat reruns:
-  - `cargo test -q -p ec-cli --test storage`
-    - `15 passed, 6 ignored`
-  - `cargo test -q -p ec-cli --test maint`
-    - `65 passed, 1 ignored`
-  - `python3 -u tools/oracle_sweep.py --mode seeded`
-    - `12/12 passed`
-  - `python3 tools/rust_maint_sweep.py --turns 3`
-    - `8/8 passed`
+- focused SQLite/runtime boundary reruns:
+  - `cargo test -q -p ec-data --test storage`
+    - passed
+  - `cargo test -q -p ec-data --test intel`
+    - passed
+  - `cargo test -q -p ec-client --test update`
+    - `109 passed`
+- current unrelated blocker outside the storage/runtime slice:
+  - combat/harness tests are currently tripping the new infinite-loop guardrail
+    with `combat at (10,10) stalled in round 2 with no state change`
 - latest live oracle probe on `/tmp/ecgame-planet-probe`:
   - successful manual run through main menu -> `Total Planet Database` filter
     -> list -> `Foundation` detail -> exit

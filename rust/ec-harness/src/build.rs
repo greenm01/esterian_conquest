@@ -2,16 +2,12 @@ use std::fs;
 use std::path::Path;
 
 use ec_data::{
-    CampaignStore, CoreGameData, DatabaseDat, QueuedPlayerMail, build_seeded_initialized_game,
-    build_seeded_new_game,
+    build_seeded_initialized_game, build_seeded_new_game, CampaignStore, CoreGameData, DatabaseDat,
+    QueuedPlayerMail, ReportBlockRow,
 };
 
 use crate::error::HarnessError;
 use crate::spec::{ReviewBlockSpec, ScenarioBaseline, ScenarioSpec};
-
-const REVIEW_RECORD_SIZE: usize = 84;
-const REVIEW_TEXT_SIZE: usize = 72;
-const REVIEW_TEXT_START: usize = 2;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScenarioBuildReport {
@@ -28,9 +24,7 @@ pub struct ScenarioBuildReport {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BuiltScenario {
     pub game_data: CoreGameData,
-    pub database: DatabaseDat,
-    pub results_bytes: Vec<u8>,
-    pub messages_bytes: Vec<u8>,
+    pub report_block_rows: Vec<ReportBlockRow>,
     pub queued_mail: Vec<QueuedPlayerMail>,
     pub report: ScenarioBuildReport,
 }
@@ -64,22 +58,10 @@ pub fn build_scenario(spec: &ScenarioSpec) -> Result<BuiltScenario, HarnessError
     let mut queued_mail = Vec::new();
     apply_turn_files(spec, &mut game_data, &mut queued_mail)?;
     apply_queued_mail(spec, &mut queued_mail);
+    apply_message_blocks(spec, &mut queued_mail, game_data.conquest.player_count());
 
-    let results_bytes = encode_review_blocks(&spec.results_blocks);
-    let messages_bytes = encode_review_blocks(&spec.message_blocks);
+    let report_block_rows = build_report_block_rows(&spec.results_blocks);
     sync_review_flags(&mut game_data, &spec.results_blocks, &spec.message_blocks);
-
-    let database = DatabaseDat::generate_from_planets_and_year(
-        &game_data
-            .planets
-            .records
-            .iter()
-            .map(|planet| planet.planet_name())
-            .collect::<Vec<_>>(),
-        game_data.conquest.game_year(),
-        game_data.conquest.player_count() as usize,
-        None,
-    );
 
     Ok(BuiltScenario {
         report: ScenarioBuildReport {
@@ -93,9 +75,7 @@ pub fn build_scenario(spec: &ScenarioSpec) -> Result<BuiltScenario, HarnessError
             message_blocks: spec.message_blocks.len(),
         },
         game_data,
-        database,
-        results_bytes,
-        messages_bytes,
+        report_block_rows,
         queued_mail,
     })
 }
@@ -107,13 +87,32 @@ pub fn save_built_scenario(
 ) -> Result<SavedScenarioReport, HarnessError> {
     fs::create_dir_all(target_dir)?;
     let store = CampaignStore::open_default_in_dir(target_dir)?;
-    store.save_runtime_state(
-        &built.game_data,
-        &built.database,
-        &built.results_bytes,
-        &built.messages_bytes,
-        &built.queued_mail,
-    )?;
+    if export_classic {
+        let database = DatabaseDat::generate_from_planets_and_year(
+            &built
+                .game_data
+                .planets
+                .records
+                .iter()
+                .map(|planet| planet.planet_name())
+                .collect::<Vec<_>>(),
+            built.game_data.conquest.game_year(),
+            built.game_data.conquest.player_count() as usize,
+            None,
+        );
+        store.save_runtime_state_structured_with_compat(
+            &built.game_data,
+            &built.report_block_rows,
+            &built.queued_mail,
+            &database,
+        )?;
+    } else {
+        store.save_runtime_state_structured(
+            &built.game_data,
+            &built.report_block_rows,
+            &built.queued_mail,
+        )?;
+    }
     if export_classic {
         store.export_latest_snapshot_to_dir(target_dir)?;
     }
@@ -393,6 +392,30 @@ fn apply_queued_mail(spec: &ScenarioSpec, queued_mail: &mut Vec<QueuedPlayerMail
     }));
 }
 
+fn apply_message_blocks(
+    spec: &ScenarioSpec,
+    queued_mail: &mut Vec<QueuedPlayerMail>,
+    player_count: u8,
+) {
+    queued_mail.extend(spec.message_blocks.iter().filter_map(|block| {
+        let recipient_empire_id = block.player_record_index_1_based? as u8;
+        Some(QueuedPlayerMail {
+            sender_empire_id: synthetic_message_sender(recipient_empire_id, player_count),
+            recipient_empire_id,
+            year: spec.metadata.year,
+            subject: String::new(),
+            body: block.text.clone(),
+            recipient_deleted: false,
+        })
+    }));
+}
+
+fn synthetic_message_sender(recipient_empire_id: u8, player_count: u8) -> u8 {
+    (1..=player_count)
+        .find(|empire_id| *empire_id != recipient_empire_id)
+        .unwrap_or(recipient_empire_id)
+}
+
 fn sync_review_flags(
     game_data: &mut CoreGameData,
     results_blocks: &[ReviewBlockSpec],
@@ -435,20 +458,30 @@ fn sync_review_flags(
     }
 }
 
-fn encode_review_blocks(blocks: &[ReviewBlockSpec]) -> Vec<u8> {
-    let mut bytes = Vec::new();
-    for block in blocks {
-        let mut text = block.text.replace("\r\n", "\n").replace('\n', "\r\n");
-        if !text.ends_with("\r\n") {
-            text.push_str("\r\n");
-        }
-        text.push_str("<end of transmission>");
-        for chunk in text.as_bytes().chunks(REVIEW_TEXT_SIZE) {
-            let mut record = [0u8; REVIEW_RECORD_SIZE];
-            record[1] = chunk.len() as u8;
-            record[REVIEW_TEXT_START..REVIEW_TEXT_START + chunk.len()].copy_from_slice(chunk);
-            bytes.extend_from_slice(&record);
-        }
+fn build_report_block_rows(blocks: &[ReviewBlockSpec]) -> Vec<ReportBlockRow> {
+    blocks
+        .iter()
+        .enumerate()
+        .map(|(idx, block)| ReportBlockRow {
+            block_index: idx,
+            decoded_text: normalize_report_block_text(&block.text),
+            raw_bytes: None,
+            recipient_deleted: false,
+        })
+        .collect()
+}
+
+fn normalize_report_block_text(text: &str) -> String {
+    let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
+    let mut lines = normalized
+        .split('\n')
+        .map(str::trim_end)
+        .collect::<Vec<_>>();
+    while lines.last().is_some_and(|line| line.is_empty()) {
+        lines.pop();
     }
-    bytes
+    if lines.last().copied() != Some("<end of transmission>") {
+        lines.push("<end of transmission>");
+    }
+    lines.join("\n")
 }

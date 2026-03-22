@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use ec_harness::{
-    BuiltScenario, CombatScenarioSpec, CombatSweepSpec, ScenarioBuildReport, ScenarioSpec,
-    build_scenario, run_combat_scenario, run_combat_sweep, save_built_scenario,
+    build_scenario, run_combat_scenario, run_combat_sweep, save_built_scenario, BuiltScenario,
+    CombatScenarioSpec, CombatSweepSpec, ScenarioBuildReport, ScenarioSpec,
 };
 
 use crate::commands::harness_campaign::{
@@ -144,8 +144,7 @@ fn parse_file_optional_dir_args(
 fn print_scenario_report(verb: &str, built: &BuiltScenario) {
     print_scenario_build_report(verb, &built.report);
     println!("  queued_mail={}", built.queued_mail.len());
-    println!("  results_bytes={}", built.results_bytes.len());
-    println!("  messages_bytes={}", built.messages_bytes.len());
+    println!("  report_blocks={}", built.report_block_rows.len());
 }
 
 fn print_scenario_build_report(verb: &str, report: &ScenarioBuildReport) {

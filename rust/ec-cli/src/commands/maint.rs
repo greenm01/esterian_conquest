@@ -5,14 +5,13 @@ use std::process::Command;
 
 use ec_data::{
     CampaignStore, CoreGameData, DiplomacyConfig, DiplomacyOverride, DiplomaticRelation,
-    MaintenanceEvents, PlanetIntelSnapshot, VisibleHazardIntel, merge_player_intel_from_compat,
-    run_maintenance_turn, run_maintenance_turn_with_context,
-    run_maintenance_turn_with_visible_hazards, visible_hazard_intel_from_snapshots,
+    MaintenanceEvents, PlanetIntelSnapshot, PlanetIntelSource, VisibleHazardIntel,
+    decode_report_block_rows, merge_player_intel_from_runtime,
+    run_maintenance_turn_with_context_and_seed, run_maintenance_turn_with_seed,
+    run_maintenance_turn_with_visible_hazards_and_seed, visible_hazard_intel_from_snapshots,
 };
 
-use crate::commands::reports::{
-    build_database_dat, build_rankings_text, build_results_dat, preserve_messages_dat,
-};
+use crate::commands::reports::{build_database_dat, build_rankings_text, build_results_dat};
 use crate::commands::runtime::{
     load_runtime_intel_by_viewer, load_runtime_state_preferring_live_directory,
 };
@@ -78,12 +77,12 @@ pub fn run_rust_maintenance_with_options(
     let runtime_state = load_runtime_state_preferring_live_directory(dir, &campaign_store)?;
 
     let mut game_data = runtime_state.game_data;
+    let campaign_seed = runtime_state.campaign_seed;
     let start_year = game_data.conquest.game_year();
-    let mut database = runtime_state.database;
-    let existing_messages = runtime_state.messages_bytes;
     let queued_mail = runtime_state.queued_mail;
     let mut diplomacy_overrides = load_diplomacy_overrides_if_present(dir, &game_data)?;
     let mut planet_intel_by_viewer = load_runtime_intel_by_viewer(&campaign_store, &game_data)?;
+    let mut compat_database = campaign_store.load_latest_compat_database()?;
     absorb_persistable_diplomacy_overrides(&mut game_data, &mut diplomacy_overrides)?;
 
     // Save a snapshot of the pre-maint planets so we can inspect build queues later.
@@ -113,16 +112,24 @@ pub fn run_rust_maintenance_with_options(
     for turn in 1..=turns {
         let visible_hazards = visible_hazards_from_snapshots(&game_data, &planet_intel_by_viewer);
         let events = if visible_hazards.is_empty() && diplomacy_overrides.is_empty() {
-            run_maintenance_turn(&mut game_data)?
+            run_maintenance_turn_with_seed(&mut game_data, campaign_seed)?
         } else if diplomacy_overrides.is_empty() {
-            run_maintenance_turn_with_visible_hazards(&mut game_data, &visible_hazards)?
-        } else {
-            run_maintenance_turn_with_context(
+            run_maintenance_turn_with_visible_hazards_and_seed(
                 &mut game_data,
+                campaign_seed,
+                &visible_hazards,
+            )?
+        } else {
+            run_maintenance_turn_with_context_and_seed(
+                &mut game_data,
+                campaign_seed,
                 &visible_hazards,
                 &diplomacy_overrides,
             )?
         };
+        let planet_intel_grants_by_viewer = (1..=game_data.conquest.player_count())
+            .map(|viewer_empire_id| collect_planet_intel_grants(&events, viewer_empire_id))
+            .collect::<Vec<_>>();
         all_events.bombard_events.extend(events.bombard_events);
         all_events
             .planet_intel_events
@@ -181,27 +188,28 @@ pub fn run_rust_maintenance_with_options(
 
         apply_diplomatic_escalations(&mut game_data, &mut diplomacy_overrides, &all_events)?;
 
-        database = build_database_dat(
-            &game_data,
-            &pre_maint_planets,
-            &planet_intel_by_viewer,
-            &all_events,
-            Some(&database),
-        );
         for viewer_empire_id in 1..=game_data.conquest.player_count() {
             let viewer_idx = viewer_empire_id.saturating_sub(1) as usize;
             let previous = planet_intel_by_viewer
                 .get(viewer_idx)
                 .cloned()
                 .unwrap_or_default();
-            planet_intel_by_viewer[viewer_idx] = merge_player_intel_from_compat(
+            planet_intel_by_viewer[viewer_idx] = merge_player_intel_from_runtime(
                 &game_data,
-                &database,
                 viewer_empire_id,
                 game_data.conquest.game_year(),
                 Some(&previous),
+                planet_intel_grants_by_viewer.get(viewer_idx),
             );
         }
+
+        compat_database = Some(build_database_dat(
+            &game_data,
+            &pre_maint_planets,
+            &planet_intel_by_viewer,
+            &all_events,
+            compat_database.as_ref(),
+        ));
 
         println!("  Turn {}: year {}", turn, game_data.conquest.game_year());
     }
@@ -213,14 +221,23 @@ pub fn run_rust_maintenance_with_options(
     );
 
     let results_bytes = build_results_dat(&mut game_data, &all_events);
-    let messages_bytes = preserve_messages_dat(&mut game_data, &existing_messages);
-    campaign_store.save_runtime_state(
-        &game_data,
-        &database,
-        &results_bytes,
-        &messages_bytes,
-        &queued_mail,
-    )?;
+    let report_block_rows = decode_report_block_rows(&results_bytes);
+    if let Some(database) = compat_database.as_ref() {
+        campaign_store.save_runtime_state_structured_with_intel_and_compat(
+            &game_data,
+            &report_block_rows,
+            &queued_mail,
+            &planet_intel_by_viewer,
+            database,
+        )?;
+    } else {
+        campaign_store.save_runtime_state_structured_with_intel(
+            &game_data,
+            &report_block_rows,
+            &queued_mail,
+            &planet_intel_by_viewer,
+        )?;
+    }
 
     let rankings_text = build_rankings_text(&game_data);
     fs::write(dir.join("RANKINGS.TXT"), rankings_text.as_bytes())?;
@@ -545,6 +562,18 @@ fn visible_hazards_from_snapshots(
                 viewer_idx as u8,
             )
         })
+        .collect()
+}
+
+fn collect_planet_intel_grants(
+    events: &MaintenanceEvents,
+    viewer_empire_id: u8,
+) -> BTreeMap<usize, PlanetIntelSource> {
+    events
+        .planet_intel_events
+        .iter()
+        .filter(|event| event.viewer_empire_raw == viewer_empire_id)
+        .map(|event| (event.planet_idx + 1, event.source))
         .collect()
 }
 

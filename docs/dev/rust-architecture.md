@@ -195,8 +195,14 @@ The runtime storage direction is now active, not deferred:
 - `CoreGameData` is the canonical snapshot shape carried through storage and
   shared engine helpers
 - classic `.DAT` files remain the compatibility boundary and oracle artifact set
-- compatibility-oriented shadow data may still be stored when classic export
-  needs raw markers or undecoded bytes
+- runtime-facing state should stay structured:
+  - `CoreGameData`
+  - report blocks
+  - queued mail
+  - per-player intel
+  - campaign seed
+- classic compatibility projections such as `DATABASE.DAT` belong to explicit
+  import/export helpers, not to the normal runtime/client API surface
 
 Practical rule:
 
@@ -214,7 +220,9 @@ Practical rule:
 
 Do not bypass classic compatibility just because Rust-native storage exists, and
 do not couple client/runtime logic directly to `DATABASE.DAT` or other classic
-report artifacts.
+report artifacts. `CampaignRuntimeState` should not require compat-shaped
+fields like `DatabaseDat`, `RESULTS.DAT` bytes, or `MESSAGES.DAT` bytes just to
+drive the Rust engine or player client.
 
 ## Command And Report Ownership
 

@@ -478,11 +478,9 @@ fn apply_turn_batch_internal(
         submission.apply_to(&mut runtime.game_data, &mut runtime.queued_mail)?;
     }
 
-    store.save_runtime_state(
+    store.save_runtime_state_structured(
         &runtime.game_data,
-        &runtime.database,
-        &runtime.results_bytes,
-        &runtime.messages_bytes,
+        &runtime.report_block_rows,
         &runtime.queued_mail,
     )?;
     run_rust_maintenance(&manifest.campaign_dir, 1)?;

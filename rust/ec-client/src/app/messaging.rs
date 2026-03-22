@@ -1,7 +1,7 @@
 use super::helpers::sync_scroll_to_cursor;
 use crate::app::state::App;
 use crate::model::{MainMenuSummary, ReviewSummary};
-use crate::reports::{has_visible_runtime_messages, ReportsPreview};
+use crate::reports::{ReportsPreview, has_visible_runtime_messages};
 use crate::screen::{CommandMenu, ScreenId};
 use ec_data::{CoreGameData, QueuedPlayerMail};
 
@@ -462,7 +462,6 @@ impl App {
         for row in &mut self.report_block_rows {
             row.recipient_deleted = true;
         }
-        self.sync_results_bytes_from_blocks();
         for mail in &mut self.queued_mail {
             if mail.is_visible_to_recipient(self.player.record_index_1_based as u8) {
                 mail.mark_deleted_by_recipient();

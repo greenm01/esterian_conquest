@@ -109,7 +109,7 @@ impl MainMenuSummary {
     pub fn from_game_data(
         game_data: &CoreGameData,
         player_record_index_1_based: usize,
-        results_bytes_present: bool,
+        results_present: bool,
         runtime_messages_present: bool,
     ) -> Self {
         let owned_planets = game_data
@@ -136,7 +136,7 @@ impl MainMenuSummary {
                     || record.has_any_classic_review_state()
             })
             .unwrap_or(false)
-            || results_bytes_present;
+            || results_present;
         let pending_messages = player_record
             .map(|record| {
                 record.has_classic_messages_review_state() || record.has_any_classic_review_state()

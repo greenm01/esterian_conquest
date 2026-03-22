@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use ec_harness::{
-    CombatScenarioSpec, CombatSweepSpec, ScenarioSpec, build_scenario, run_combat_scenario,
-    run_combat_sweep,
+    build_scenario, run_combat_scenario, run_combat_sweep, CombatScenarioSpec, CombatSweepSpec,
+    ScenarioSpec,
 };
 
 fn unique_temp_dir(prefix: &str) -> PathBuf {
@@ -77,9 +77,8 @@ messages-block player=1 "Incoming traffic\nStand by."
         "Aurora"
     );
     assert_eq!(built.game_data.fleets.records.len(), 17);
-    assert_eq!(built.queued_mail.len(), 1);
-    assert!(!built.results_bytes.is_empty());
-    assert!(!built.messages_bytes.is_empty());
+    assert_eq!(built.queued_mail.len(), 2);
+    assert_eq!(built.report_block_rows.len(), 1);
     assert!(
         built.game_data.player.records[0].has_classic_results_review_state()
             || built.game_data.player.records[0].classic_reports_pending_flag_raw() != 0

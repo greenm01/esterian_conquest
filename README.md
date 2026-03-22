@@ -30,7 +30,9 @@ with:
 The current project state is practical rather than speculative. The Rust engine
 can already create campaigns, process maintenance, interoperate with classic
 directories, and support hybrid play with the original DOS client where that is
-still useful.
+still useful. Normal Rust runtime/client flows now use `ecgame.db` as the
+authoritative state; classic `.DAT` files are handled explicitly through CLI
+import/export/oracle workflows rather than as live engine dependencies.
 
 ## Premise
 

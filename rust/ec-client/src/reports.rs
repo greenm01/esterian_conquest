@@ -1,4 +1,4 @@
-use ec_data::{decode_report_block_rows, CoreGameData, QueuedPlayerMail, ReportBlockRow};
+use ec_data::{CoreGameData, QueuedPlayerMail, ReportBlockRow};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReviewBlock {
@@ -16,33 +16,6 @@ pub struct ReportsPreview {
 }
 
 impl ReportsPreview {
-    pub fn from_bytes(results_bytes: &[u8], message_bytes: &[u8]) -> Self {
-        let result_blocks = review_blocks_from_bytes(results_bytes);
-        let message_blocks = review_blocks_from_bytes(message_bytes);
-        Self {
-            results_lines: flatten_block_lines(&result_blocks),
-            message_lines: flatten_block_lines(&message_blocks),
-            result_blocks,
-            message_blocks,
-        }
-    }
-
-    pub fn from_runtime(
-        game_data: &CoreGameData,
-        viewer_empire_id: u8,
-        results_bytes: &[u8],
-        queued_mail: &[QueuedPlayerMail],
-    ) -> Self {
-        let result_blocks = review_blocks_from_bytes(results_bytes);
-        let message_blocks = runtime_message_blocks(game_data, viewer_empire_id, queued_mail);
-        Self {
-            results_lines: flatten_block_lines(&result_blocks),
-            message_lines: flatten_block_lines(&message_blocks),
-            result_blocks,
-            message_blocks,
-        }
-    }
-
     pub fn from_block_rows(
         game_data: &CoreGameData,
         viewer_empire_id: u8,
@@ -97,10 +70,6 @@ pub fn wrap_review_text_preserving_spacing(text: &str, width: usize) -> Vec<Stri
 // ---------------------------------------------------------------------------
 // Conversion: ec-data ReportBlockRow -> ec-client ReviewBlock
 // ---------------------------------------------------------------------------
-
-fn review_blocks_from_bytes(bytes: &[u8]) -> Vec<ReviewBlock> {
-    review_blocks_from_rows(&decode_report_block_rows(bytes))
-}
 
 fn review_blocks_from_rows(rows: &[ReportBlockRow]) -> Vec<ReviewBlock> {
     rows.iter()

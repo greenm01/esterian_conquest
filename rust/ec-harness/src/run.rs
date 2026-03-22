@@ -1,8 +1,8 @@
 use std::time::Instant;
 
-use ec_data::{CoreGameData, run_maintenance_turn};
+use ec_data::{run_maintenance_turn, CoreGameData};
 
-use crate::build::{BuiltScenario, ScenarioBuildReport, build_scenario};
+use crate::build::{build_scenario, BuiltScenario, ScenarioBuildReport};
 use crate::error::HarnessError;
 use crate::spec::{
     CombatScenarioSpec, CombatSweepSpec, DiplomacySpec, FleetShipsSpec, PlanetSpec, ScenarioSpec,
@@ -85,19 +85,6 @@ pub fn run_combat_scenario(spec: &CombatScenarioSpec) -> Result<CombatRun, Harne
     let elapsed_millis = started.elapsed().as_millis();
     let final_year = built.game_data.conquest.game_year();
     let after = snapshot_empire_summaries(&built.game_data);
-    built.database = ec_data::DatabaseDat::generate_from_planets_and_year(
-        &built
-            .game_data
-            .planets
-            .records
-            .iter()
-            .map(|planet| planet.planet_name())
-            .collect::<Vec<_>>(),
-        final_year,
-        built.game_data.conquest.player_count() as usize,
-        None,
-    );
-
     let empires = (1..=built.game_data.conquest.player_count())
         .map(|empire_raw| EmpireCombatSummary {
             empire_raw,

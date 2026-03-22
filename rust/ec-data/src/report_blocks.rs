@@ -57,15 +57,26 @@ pub fn decode_report_block_rows(bytes: &[u8]) -> Vec<ReportBlockRow> {
 
 /// Rebuild classic RESULTS.DAT bytes from active (non-deleted) block rows.
 ///
-/// Concatenates `raw_bytes` from each block in order. Returns `None` if any
-/// block is missing raw bytes (e.g. fallback-decoded blocks).
+/// Uses preserved `raw_bytes` when available and falls back to canonical
+/// length-prefixed 84-byte chunk encoding from `decoded_text` otherwise.
 pub fn rebuild_results_bytes(rows: &[ReportBlockRow]) -> Option<Vec<u8>> {
     let mut rebuilt = Vec::new();
     for row in rows {
-        let raw = row.raw_bytes.as_ref()?;
-        rebuilt.extend_from_slice(raw);
+        if let Some(raw) = row.raw_bytes.as_ref() {
+            rebuilt.extend_from_slice(raw);
+        } else {
+            rebuilt.extend_from_slice(&encode_report_block_text(&row.decoded_text));
+        }
     }
     Some(rebuilt)
+}
+
+pub fn encode_report_block_rows(rows: &[ReportBlockRow]) -> Vec<u8> {
+    let mut rebuilt = Vec::new();
+    for row in rows {
+        rebuilt.extend_from_slice(&encode_report_block_text(&row.decoded_text));
+    }
+    rebuilt
 }
 
 // ---------------------------------------------------------------------------
@@ -83,6 +94,41 @@ fn decode_chunked_records(bytes: &[u8]) -> Option<Vec<(Vec<String>, Vec<u8>)>> {
     }
 
     decode_legacy_chunked_records(bytes)
+}
+
+fn encode_report_block_text(text: &str) -> Vec<u8> {
+    const REVIEW_RECORD_SIZE: usize = 84;
+    const REVIEW_TEXT_SIZE: usize = 72;
+    const REVIEW_TEXT_START: usize = 2;
+
+    let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
+    let mut lines = normalized
+        .split('\n')
+        .map(str::trim_end)
+        .collect::<Vec<_>>();
+    while lines.last().is_some_and(|line| line.is_empty()) {
+        lines.pop();
+    }
+    if lines.last().copied() != Some("<end of transmission>") {
+        lines.push("<end of transmission>");
+    }
+
+    let mut payload = String::new();
+    for (idx, line) in lines.iter().enumerate() {
+        if idx > 0 {
+            payload.push_str("\r\n");
+        }
+        payload.push_str(line);
+    }
+
+    let mut bytes = Vec::new();
+    for chunk in payload.as_bytes().chunks(REVIEW_TEXT_SIZE) {
+        let mut record = [0u8; REVIEW_RECORD_SIZE];
+        record[1] = chunk.len() as u8;
+        record[REVIEW_TEXT_START..REVIEW_TEXT_START + chunk.len()].copy_from_slice(chunk);
+        bytes.extend_from_slice(&record);
+    }
+    bytes
 }
 
 fn decode_length_prefixed_chunked_records(bytes: &[u8]) -> Option<Vec<(Vec<String>, Vec<u8>)>> {

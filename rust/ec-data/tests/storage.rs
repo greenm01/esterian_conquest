@@ -70,3 +70,68 @@ fn sqlite_store_round_trips_directory_export() {
         );
     }
 }
+
+#[test]
+fn sqlite_store_persists_explicit_campaign_seed() {
+    let source = repo_root().join("fixtures/ecutil-init/v1.5");
+    let imported = temp_dir("ec-data-storage-seed-explicit");
+    copy_dir_all(&source, &imported);
+
+    let store = CampaignStore::open(imported.join(DEFAULT_CAMPAIGN_DB_NAME)).expect("open store");
+    let expected_seed = 0xEC15_2026_0000_0042u64;
+    store
+        .import_directory_snapshot_with_seed(&imported, Some(expected_seed))
+        .expect("import directory");
+
+    let initial = store
+        .load_latest_runtime_state()
+        .expect("load runtime state")
+        .expect("runtime snapshot");
+    assert_eq!(initial.campaign_seed, expected_seed);
+
+    store
+        .save_runtime_state_structured(
+            &initial.game_data,
+            &initial.report_block_rows,
+            &initial.queued_mail,
+        )
+        .expect("resave runtime state");
+
+    let reloaded = store
+        .load_latest_runtime_state()
+        .expect("reload runtime state")
+        .expect("runtime snapshot");
+    assert_eq!(reloaded.campaign_seed, expected_seed);
+}
+
+#[test]
+fn sqlite_store_generates_and_reuses_campaign_seed() {
+    let source = repo_root().join("fixtures/ecutil-init/v1.5");
+    let imported = temp_dir("ec-data-storage-seed-generated");
+    copy_dir_all(&source, &imported);
+
+    let store = CampaignStore::open(imported.join(DEFAULT_CAMPAIGN_DB_NAME)).expect("open store");
+    store
+        .import_directory_snapshot(&imported)
+        .expect("import directory");
+
+    let initial = store
+        .load_latest_runtime_state()
+        .expect("load runtime state")
+        .expect("runtime snapshot");
+    assert_ne!(initial.campaign_seed, 0);
+
+    store
+        .save_runtime_state_structured(
+            &initial.game_data,
+            &initial.report_block_rows,
+            &initial.queued_mail,
+        )
+        .expect("resave runtime state");
+
+    let reloaded = store
+        .load_latest_runtime_state()
+        .expect("reload runtime state")
+        .expect("runtime snapshot");
+    assert_eq!(reloaded.campaign_seed, initial.campaign_seed);
+}

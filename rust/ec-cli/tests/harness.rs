@@ -50,7 +50,7 @@ results-block player=1 "Ready to launch"
     let store = CampaignStore::open_default_in_dir(&target_dir).unwrap();
     let state = store.load_latest_runtime_state().unwrap().unwrap();
     assert_eq!(state.game_data.player.records[0].tax_rate(), 40);
-    assert!(!state.results_bytes.is_empty());
+    assert_eq!(state.report_block_rows.len(), 1);
 
     cleanup_dir(&scenario_root);
     cleanup_dir(&target_dir);

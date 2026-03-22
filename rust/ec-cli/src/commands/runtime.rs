@@ -28,21 +28,36 @@ where
 {
     let store = CampaignStore::open_default_in_dir(dir)?;
     let mut state = load_runtime_state_preferring_live_directory(dir, &store)?;
-    let planet_intel_by_viewer = load_runtime_intel_by_viewer(&store, &state.game_data)?;
+    let mut planet_intel_by_viewer = load_runtime_intel_by_viewer(&store, &state.game_data)?;
     let result = mutate(&mut state)?;
+    for viewer_empire_id in 1..=state.game_data.conquest.player_count() {
+        let viewer_idx = viewer_empire_id.saturating_sub(1) as usize;
+        let previous = planet_intel_by_viewer
+            .get(viewer_idx)
+            .cloned()
+            .unwrap_or_default();
+        planet_intel_by_viewer[viewer_idx] = ec_data::merge_player_intel_from_runtime(
+            &state.game_data,
+            viewer_empire_id,
+            state.game_data.conquest.game_year(),
+            Some(&previous),
+            None,
+        );
+    }
+    let previous_database = store.load_latest_compat_database()?;
     let database = build_database_dat(
         &state.game_data,
         &state.game_data.planets,
         &planet_intel_by_viewer,
         &MaintenanceEvents::default(),
-        Some(&state.database),
+        previous_database.as_ref(),
     );
-    store.save_runtime_state(
+    store.save_runtime_state_structured_with_intel_and_compat(
         &state.game_data,
-        &database,
-        &state.results_bytes,
-        &state.messages_bytes,
+        &state.report_block_rows,
         &state.queued_mail,
+        &planet_intel_by_viewer,
+        &database,
     )?;
     Ok(result)
 }
