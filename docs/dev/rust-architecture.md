@@ -153,6 +153,67 @@ This doc intentionally describes the module families rather than a frozen file
 inventory. The structure should keep evolving when a cleaner split buys clarity,
 but the ownership boundaries above should remain stable.
 
+## Boundary Sketch
+
+```text
+                       esterian_conquest
+                            |
+    ---------------------------------------------------------
+    |                       |                      |         |
+    |                       |                      |         |
+ec-client                ec-cli                ec-harness   tools/oracles
+(Rust TUI)      (sysop/admin/oracle CLI)      (scenarios)   (DOSBox-X,
+    |                       |                      |          ECMAINT, ECGAME)
+    |                       |                      |
+    |               -------------------            |
+    |               |                 |            |
+    |               |                 |            |
+    |            ec-engine        ec-compat        |
+    |         (rules / maint /   (classic DAT      |
+    |          mapgen / econ /    import/export,   |
+    |          pathfinding)        projections,     |
+    |                              oracle bridge)   |
+    |               \                 /            /
+    |                \               /            /
+    |                 \             /            /
+    |                  \           /            /
+    |                   \         /            /
+    |                    \       /            /
+    |                     \     /            /
+    |                      ec-data
+    |             (shared runtime/store/model)
+    |                      |
+    |                      |
+    |                 SQLite / ecgame.db
+    |             current state + snapshots
+    |             reports + queued mail
+    |             per-player fog of war
+    |                      |
+    |                      |
+    |                 source of truth
+    |
+    +--> client reads/writes SQLite only
+    +--> no live DAT dependency in runtime/client paths
+
+
+Classic boundary only:
+
+ec-compat <----> classic game directory
+                 *.DAT + support files
+                 DATABASE.DAT
+                 RESULTS.DAT
+                 MESSAGES.DAT
+                 oracle materialization/export
+```
+
+Read this sketch with the ownership rules above:
+
+- `ec-client` does not parse classic `.DAT` files
+- `ec-engine` owns gameplay rules, not classic file workflows
+- `ec-data` owns shared runtime/store/model state
+- `ec-cli` orchestrates explicit compat flows through `ec-compat`
+- SQLite is authoritative; `.DAT` is the compatibility/oracle edge
+
 ## Maintenance Engine Structure
 
 The Rust yearly maintenance engine is exposed through `ec-engine` and currently
