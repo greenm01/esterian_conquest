@@ -16,6 +16,13 @@ pub const DEFAULT_CAMPAIGN_DB_NAME: &str = "ecgame.db";
 /// structurally in `report_blocks`, and MESSAGES.DAT is covered by
 /// `queued_mail`.
 const COMPAT_FILE_NAMES: &[&str] = &["DATABASE.DAT"];
+const PLAYER_RECORD_FIELDS_TABLE: &str = "player_record_fields";
+const PLANET_RECORD_FIELDS_TABLE: &str = "planet_record_fields";
+const FLEET_RECORD_FIELDS_TABLE: &str = "fleet_record_fields";
+const BASE_RECORD_FIELDS_TABLE: &str = "base_record_fields";
+const IPBM_RECORD_FIELDS_TABLE: &str = "ipbm_record_fields";
+const SETUP_RECORD_FIELDS_TABLE: &str = "setup_record_fields";
+const CONQUEST_RECORD_FIELDS_TABLE: &str = "conquest_record_fields";
 
 #[derive(Debug)]
 pub enum CampaignStoreError {
@@ -438,48 +445,54 @@ impl CampaignStore {
             params![i64::from(year)],
         )?;
         let snapshot_id = tx.last_insert_rowid();
-        write_record_rows(
+        write_typed_record_rows(
             &tx,
-            "player_records",
+            PLAYER_RECORD_FIELDS_TABLE,
             snapshot_id,
             &game_data.player.to_bytes(),
             PLAYER_RECORD_SIZE,
         )?;
-        write_record_rows(
+        write_typed_record_rows(
             &tx,
-            "planet_records",
+            PLANET_RECORD_FIELDS_TABLE,
             snapshot_id,
             &game_data.planets.to_bytes(),
             PLANET_RECORD_SIZE,
         )?;
-        write_record_rows(
+        write_typed_record_rows(
             &tx,
-            "fleet_records",
+            FLEET_RECORD_FIELDS_TABLE,
             snapshot_id,
             &game_data.fleets.to_bytes(),
             FLEET_RECORD_SIZE,
         )?;
-        write_record_rows(
+        write_typed_record_rows(
             &tx,
-            "base_records",
+            BASE_RECORD_FIELDS_TABLE,
             snapshot_id,
             &game_data.bases.to_bytes(),
             BASE_RECORD_SIZE,
         )?;
-        write_record_rows(
+        write_typed_record_rows(
             &tx,
-            "ipbm_records",
+            IPBM_RECORD_FIELDS_TABLE,
             snapshot_id,
             &game_data.ipbm.to_bytes(),
             IPBM_RECORD_SIZE,
         )?;
-        tx.execute(
-            "INSERT INTO setup_records(snapshot_id, raw) VALUES (?1, ?2)",
-            params![snapshot_id, game_data.setup.to_bytes()],
+        write_typed_record_rows(
+            &tx,
+            SETUP_RECORD_FIELDS_TABLE,
+            snapshot_id,
+            &game_data.setup.to_bytes(),
+            crate::SETUP_DAT_SIZE,
         )?;
-        tx.execute(
-            "INSERT INTO conquest_records(snapshot_id, raw) VALUES (?1, ?2)",
-            params![snapshot_id, game_data.conquest.to_bytes()],
+        write_typed_record_rows(
+            &tx,
+            CONQUEST_RECORD_FIELDS_TABLE,
+            snapshot_id,
+            &game_data.conquest.to_bytes(),
+            crate::CONQUEST_DAT_SIZE,
         )?;
         if let Some(database) = compat_database_override.or(previous_compat_database.as_ref()) {
             tx.execute(
@@ -503,7 +516,7 @@ impl CampaignStore {
     }
 
     fn initialize(&self) -> Result<(), CampaignStoreError> {
-        let conn = self.connection()?;
+        let mut conn = self.connection()?;
         conn.execute_batch(
             "PRAGMA foreign_keys = ON;
              CREATE TABLE IF NOT EXISTS snapshots (
@@ -513,44 +526,6 @@ impl CampaignStore {
              CREATE TABLE IF NOT EXISTS campaign_metadata (
                  key TEXT PRIMARY KEY,
                  int_value INTEGER NOT NULL
-             );
-             CREATE TABLE IF NOT EXISTS player_records (
-                 snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
-                 record_index INTEGER NOT NULL,
-                 raw BLOB NOT NULL,
-                 PRIMARY KEY(snapshot_id, record_index)
-             );
-             CREATE TABLE IF NOT EXISTS planet_records (
-                 snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
-                 record_index INTEGER NOT NULL,
-                 raw BLOB NOT NULL,
-                 PRIMARY KEY(snapshot_id, record_index)
-             );
-             CREATE TABLE IF NOT EXISTS fleet_records (
-                 snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
-                 record_index INTEGER NOT NULL,
-                 raw BLOB NOT NULL,
-                 PRIMARY KEY(snapshot_id, record_index)
-             );
-             CREATE TABLE IF NOT EXISTS base_records (
-                 snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
-                 record_index INTEGER NOT NULL,
-                 raw BLOB NOT NULL,
-                 PRIMARY KEY(snapshot_id, record_index)
-             );
-             CREATE TABLE IF NOT EXISTS ipbm_records (
-                 snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
-                 record_index INTEGER NOT NULL,
-                 raw BLOB NOT NULL,
-                 PRIMARY KEY(snapshot_id, record_index)
-             );
-             CREATE TABLE IF NOT EXISTS setup_records (
-                 snapshot_id INTEGER PRIMARY KEY REFERENCES snapshots(id) ON DELETE CASCADE,
-                 raw BLOB NOT NULL
-             );
-             CREATE TABLE IF NOT EXISTS conquest_records (
-                 snapshot_id INTEGER PRIMARY KEY REFERENCES snapshots(id) ON DELETE CASCADE,
-                 raw BLOB NOT NULL
              );
              CREATE TABLE IF NOT EXISTS compat_files (
                  snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
@@ -593,14 +568,198 @@ impl CampaignStore {
                  PRIMARY KEY(snapshot_id, block_index)
              );",
         )?;
+        create_typed_record_table(&conn, PLAYER_RECORD_FIELDS_TABLE)?;
+        create_typed_record_table(&conn, PLANET_RECORD_FIELDS_TABLE)?;
+        create_typed_record_table(&conn, FLEET_RECORD_FIELDS_TABLE)?;
+        create_typed_record_table(&conn, BASE_RECORD_FIELDS_TABLE)?;
+        create_typed_record_table(&conn, IPBM_RECORD_FIELDS_TABLE)?;
+        create_typed_record_table(&conn, SETUP_RECORD_FIELDS_TABLE)?;
+        create_typed_record_table(&conn, CONQUEST_RECORD_FIELDS_TABLE)?;
         ensure_queued_mail_recipient_deleted_column(&conn)?;
         ensure_planet_intel_production_columns(&conn)?;
+        migrate_legacy_blob_record_tables(&mut conn)?;
         Ok(())
     }
 
     fn connection(&self) -> Result<Connection, CampaignStoreError> {
         Connection::open(&self.path).map_err(CampaignStoreError::Sql)
     }
+}
+
+fn create_typed_record_table(conn: &Connection, table: &str) -> Result<(), CampaignStoreError> {
+    let sql = format!(
+        "CREATE TABLE IF NOT EXISTS {table} (
+             snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+             record_index INTEGER NOT NULL,
+             byte_offset INTEGER NOT NULL,
+             byte_value INTEGER NOT NULL,
+             PRIMARY KEY(snapshot_id, record_index, byte_offset)
+         )"
+    );
+    conn.execute_batch(&sql)?;
+    Ok(())
+}
+
+fn migrate_legacy_blob_record_tables(conn: &mut Connection) -> Result<(), CampaignStoreError> {
+    migrate_legacy_record_table(
+        conn,
+        "player_records",
+        PLAYER_RECORD_FIELDS_TABLE,
+        PLAYER_RECORD_SIZE,
+        true,
+        "player_records",
+    )?;
+    migrate_legacy_record_table(
+        conn,
+        "planet_records",
+        PLANET_RECORD_FIELDS_TABLE,
+        PLANET_RECORD_SIZE,
+        true,
+        "planet_records",
+    )?;
+    migrate_legacy_record_table(
+        conn,
+        "fleet_records",
+        FLEET_RECORD_FIELDS_TABLE,
+        FLEET_RECORD_SIZE,
+        true,
+        "fleet_records",
+    )?;
+    migrate_legacy_record_table(
+        conn,
+        "base_records",
+        BASE_RECORD_FIELDS_TABLE,
+        BASE_RECORD_SIZE,
+        true,
+        "base_records",
+    )?;
+    migrate_legacy_record_table(
+        conn,
+        "ipbm_records",
+        IPBM_RECORD_FIELDS_TABLE,
+        IPBM_RECORD_SIZE,
+        true,
+        "ipbm_records",
+    )?;
+    migrate_legacy_record_table(
+        conn,
+        "setup_records",
+        SETUP_RECORD_FIELDS_TABLE,
+        crate::SETUP_DAT_SIZE,
+        false,
+        "SETUP.DAT",
+    )?;
+    migrate_legacy_record_table(
+        conn,
+        "conquest_records",
+        CONQUEST_RECORD_FIELDS_TABLE,
+        crate::CONQUEST_DAT_SIZE,
+        false,
+        "CONQUEST.DAT",
+    )?;
+    Ok(())
+}
+
+fn migrate_legacy_record_table(
+    conn: &mut Connection,
+    old_table: &str,
+    new_table: &str,
+    record_size: usize,
+    has_record_index: bool,
+    file_type: &'static str,
+) -> Result<(), CampaignStoreError> {
+    if !table_exists(conn, old_table)? {
+        return Ok(());
+    }
+
+    let new_count: i64 =
+        conn.query_row(&format!("SELECT COUNT(*) FROM {new_table}"), [], |row| {
+            row.get(0)
+        })?;
+    if new_count == 0 {
+        let tx = conn.transaction()?;
+        let insert_sql = format!(
+            "INSERT INTO {new_table}(snapshot_id, record_index, byte_offset, byte_value)
+             VALUES (?1, ?2, ?3, ?4)"
+        );
+        let select_sql = if has_record_index {
+            format!("SELECT snapshot_id, record_index, raw FROM {old_table} ORDER BY snapshot_id, record_index")
+        } else {
+            format!("SELECT snapshot_id, raw FROM {old_table} ORDER BY snapshot_id")
+        };
+        {
+            let mut select = tx.prepare(&select_sql)?;
+            let mut insert = tx.prepare(&insert_sql)?;
+            if has_record_index {
+                let rows = select.query_map([], |row| {
+                    Ok((
+                        row.get::<_, i64>(0)?,
+                        row.get::<_, i64>(1)?,
+                        row.get::<_, Vec<u8>>(2)?,
+                    ))
+                })?;
+                for row in rows {
+                    let (snapshot_id, record_index, raw) = row?;
+                    if raw.len() != record_size {
+                        return Err(CampaignStoreError::Parse(
+                            crate::ParseError::WrongRecordMultiple {
+                                file_type,
+                                record_size,
+                                actual: raw.len(),
+                            },
+                        ));
+                    }
+                    for (byte_offset, byte_value) in raw.iter().copied().enumerate() {
+                        insert.execute(params![
+                            snapshot_id,
+                            record_index,
+                            byte_offset as i64,
+                            i64::from(byte_value),
+                        ])?;
+                    }
+                }
+            } else {
+                let rows = select.query_map([], |row| {
+                    Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))
+                })?;
+                for row in rows {
+                    let (snapshot_id, raw) = row?;
+                    if raw.len() != record_size {
+                        return Err(CampaignStoreError::Parse(
+                            crate::ParseError::WrongRecordMultiple {
+                                file_type,
+                                record_size,
+                                actual: raw.len(),
+                            },
+                        ));
+                    }
+                    for (byte_offset, byte_value) in raw.iter().copied().enumerate() {
+                        insert.execute(params![
+                            snapshot_id,
+                            1_i64,
+                            byte_offset as i64,
+                            i64::from(byte_value),
+                        ])?;
+                    }
+                }
+            }
+        }
+        tx.commit()?;
+    }
+
+    conn.execute_batch(&format!("DROP TABLE IF EXISTS {old_table};"))?;
+    Ok(())
+}
+
+fn table_exists(conn: &Connection, table: &str) -> Result<bool, CampaignStoreError> {
+    conn.query_row(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1",
+        params![table],
+        |_| Ok(()),
+    )
+    .optional()
+    .map(|row| row.is_some())
+    .map_err(CampaignStoreError::Sql)
 }
 
 fn latest_snapshot_id_and_year(
@@ -662,43 +821,91 @@ fn persist_campaign_seed_tx(
     Ok(())
 }
 
-fn write_record_rows(
+fn write_typed_record_rows(
     tx: &rusqlite::Transaction<'_>,
     table: &str,
     snapshot_id: i64,
     bytes: &[u8],
     record_size: usize,
 ) -> Result<(), CampaignStoreError> {
-    let sql = format!("INSERT INTO {table}(snapshot_id, record_index, raw) VALUES (?1, ?2, ?3)");
+    let sql = format!(
+        "INSERT INTO {table}(snapshot_id, record_index, byte_offset, byte_value)
+         VALUES (?1, ?2, ?3, ?4)"
+    );
     let mut stmt = tx.prepare(&sql)?;
     for (idx, chunk) in bytes.chunks_exact(record_size).enumerate() {
-        stmt.execute(params![snapshot_id, (idx + 1) as i64, chunk])?;
+        let record_index = (idx + 1) as i64;
+        for (byte_offset, byte_value) in chunk.iter().copied().enumerate() {
+            stmt.execute(params![
+                snapshot_id,
+                record_index,
+                byte_offset as i64,
+                i64::from(byte_value),
+            ])?;
+        }
     }
     Ok(())
 }
 
-fn read_record_rows(
+fn read_typed_record_rows(
     conn: &mut Connection,
     table: &str,
     snapshot_id: i64,
     expected_size: usize,
 ) -> Result<Vec<u8>, CampaignStoreError> {
-    let sql = format!("SELECT raw FROM {table} WHERE snapshot_id = ?1 ORDER BY record_index");
+    let sql = format!(
+        "SELECT record_index, byte_offset, byte_value
+         FROM {table}
+         WHERE snapshot_id = ?1
+         ORDER BY record_index, byte_offset"
+    );
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map(params![snapshot_id], |row| row.get::<_, Vec<u8>>(0))?;
+    let rows = stmt.query_map(params![snapshot_id], |row| {
+        Ok((
+            row.get::<_, i64>(0)?,
+            row.get::<_, i64>(1)?,
+            row.get::<_, i64>(2)?,
+        ))
+    })?;
     let mut bytes = Vec::new();
+    let mut current_record_index: Option<i64> = None;
+    let mut expected_offset = 0usize;
     for row in rows {
-        let row = row?;
-        if row.len() != expected_size {
+        let (record_index, byte_offset, byte_value) = row?;
+        let byte_offset = byte_offset as usize;
+        if current_record_index != Some(record_index) {
+            if current_record_index.is_some() && expected_offset != expected_size {
+                return Err(CampaignStoreError::Parse(
+                    crate::ParseError::WrongRecordMultiple {
+                        file_type: "sqlite-record",
+                        record_size: expected_size,
+                        actual: expected_offset,
+                    },
+                ));
+            }
+            current_record_index = Some(record_index);
+            expected_offset = 0;
+        }
+        if byte_offset != expected_offset {
             return Err(CampaignStoreError::Parse(
                 crate::ParseError::WrongRecordMultiple {
                     file_type: "sqlite-record",
                     record_size: expected_size,
-                    actual: row.len(),
+                    actual: byte_offset,
                 },
             ));
         }
-        bytes.extend_from_slice(&row);
+        bytes.push(byte_value as u8);
+        expected_offset += 1;
+    }
+    if current_record_index.is_some() && expected_offset != expected_size {
+        return Err(CampaignStoreError::Parse(
+            crate::ParseError::WrongRecordMultiple {
+                file_type: "sqlite-record",
+                record_size: expected_size,
+                actual: expected_offset,
+            },
+        ));
     }
     Ok(bytes)
 }
@@ -708,45 +915,47 @@ fn load_snapshot_game_data(
     snapshot_id: i64,
 ) -> Result<CoreGameData, CampaignStoreError> {
     Ok(CoreGameData {
-        player: PlayerDat::parse(&read_record_rows(
+        player: PlayerDat::parse(&read_typed_record_rows(
             conn,
-            "player_records",
+            PLAYER_RECORD_FIELDS_TABLE,
             snapshot_id,
             PLAYER_RECORD_SIZE,
         )?)?,
-        planets: PlanetDat::parse(&read_record_rows(
+        planets: PlanetDat::parse(&read_typed_record_rows(
             conn,
-            "planet_records",
+            PLANET_RECORD_FIELDS_TABLE,
             snapshot_id,
             PLANET_RECORD_SIZE,
         )?)?,
-        fleets: FleetDat::parse(&read_record_rows(
+        fleets: FleetDat::parse(&read_typed_record_rows(
             conn,
-            "fleet_records",
+            FLEET_RECORD_FIELDS_TABLE,
             snapshot_id,
             FLEET_RECORD_SIZE,
         )?)?,
-        bases: BaseDat::parse(&read_record_rows(
+        bases: BaseDat::parse(&read_typed_record_rows(
             conn,
-            "base_records",
+            BASE_RECORD_FIELDS_TABLE,
             snapshot_id,
             BASE_RECORD_SIZE,
         )?)?,
-        ipbm: IpbmDat::parse(&read_record_rows(
+        ipbm: IpbmDat::parse(&read_typed_record_rows(
             conn,
-            "ipbm_records",
+            IPBM_RECORD_FIELDS_TABLE,
             snapshot_id,
             IPBM_RECORD_SIZE,
         )?)?,
-        setup: SetupDat::parse(&conn.query_row(
-            "SELECT raw FROM setup_records WHERE snapshot_id = ?1",
-            params![snapshot_id],
-            |row| row.get::<_, Vec<u8>>(0),
+        setup: SetupDat::parse(&read_typed_record_rows(
+            conn,
+            SETUP_RECORD_FIELDS_TABLE,
+            snapshot_id,
+            crate::SETUP_DAT_SIZE,
         )?)?,
-        conquest: crate::ConquestDat::parse(&conn.query_row(
-            "SELECT raw FROM conquest_records WHERE snapshot_id = ?1",
-            params![snapshot_id],
-            |row| row.get::<_, Vec<u8>>(0),
+        conquest: crate::ConquestDat::parse(&read_typed_record_rows(
+            conn,
+            CONQUEST_RECORD_FIELDS_TABLE,
+            snapshot_id,
+            crate::CONQUEST_DAT_SIZE,
         )?)?,
     })
 }
