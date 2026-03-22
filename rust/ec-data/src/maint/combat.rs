@@ -3,12 +3,14 @@
 //! The structure here owes an explicit debt to *Empire of the Sun*: both sides
 //! compute their blows from the same moment in time, and only then does the
 //! board reckon with the cost. That simultaneous exchange fits EC's manuals
-//! better than file-order skirmishes, while staying deterministic enough for
-//! Rust maintenance and classic save compatibility.
+//! better than file-order skirmishes, while staying seeded and reproducible
+//! for Rust maintenance and classic save compatibility.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use crate::{CoreGameData, DiplomaticRelation, FleetOrderValidationError, Order};
+use crate::{
+    CoreGameData, DiplomaticRelation, FleetOrderValidationError, GameRng, Order, RNG_TAG_COMBAT,
+};
 
 use super::{
     AssaultReportEvent, BombardEvent, ContactReportSource, DiplomacyOverride,
@@ -30,6 +32,9 @@ const AS_DD: u32 = 1;
 const AS_CA: u32 = 3;
 const AS_BB: u32 = 9;
 const AS_SB: u32 = 10;
+const AS_SC: u32 = 0;
+const AS_TT: u32 = 0;
+const AS_ET: u32 = 0;
 
 const DS_DD: u32 = 1;
 const DS_CA: u32 = 3;
@@ -41,6 +46,35 @@ const DS_ET: u32 = 2;
 
 const GROUND_AS_BATTERY: u32 = 9;
 const GROUND_AS_ARMY: u32 = 1;
+const COMBAT_GUARDRAIL_MAX_ROUNDS: u32 = 64;
+
+const COLUMN_DISADVANTAGED: usize = 0;
+const COLUMN_PRESSED: usize = 1;
+const COLUMN_EVEN: usize = 2;
+const COLUMN_ADVANTAGED: usize = 3;
+const COLUMN_OVERWHELMING: usize = 4;
+
+const COMBAT_KIND_FLEET: u64 = 1;
+const COMBAT_KIND_WITHDRAWAL: u64 = 2;
+const COMBAT_KIND_BOMBARD: u64 = 3;
+const COMBAT_KIND_INVASION_SUPPRESSION: u64 = 4;
+const COMBAT_KIND_INVASION_SOFTEN: u64 = 5;
+const COMBAT_KIND_GROUND: u64 = 6;
+const COMBAT_KIND_BLITZ_COVER: u64 = 7;
+const COMBAT_KIND_BLITZ_GROUND: u64 = 8;
+
+const CRT_MULTIPLIER_X4: [[u8; 5]; 10] = [
+    [0, 1, 2, 3, 4],
+    [1, 2, 3, 4, 5],
+    [1, 2, 4, 5, 6],
+    [2, 3, 4, 5, 6],
+    [2, 3, 4, 6, 7],
+    [2, 4, 5, 6, 7],
+    [3, 4, 5, 6, 8],
+    [3, 4, 6, 7, 8],
+    [4, 5, 6, 7, 8],
+    [4, 6, 7, 8, 10],
+];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum MissionClass {
@@ -68,7 +102,7 @@ enum EncounterContext {
 #[derive(Clone, Debug, Default)]
 struct FleetCombatState {
     counts: [u32; 7],
-    fresh: [u32; 7],
+    crippled: [u32; 7],
 }
 
 #[derive(Clone, Debug)]
@@ -85,20 +119,24 @@ struct TaskForce {
     free_hold_used: bool,
 }
 
-/// Tracks ROE decline scenarios that may trigger pursuit fire.
-/// When a fleet declines ROE before combat, and the target is a
-/// guard/blockade fleet, the withdrawing fleet suffers one pursuit
-/// fire exchange before escaping (per spec).
-enum RoeDeclineOutcome {
-    /// Clean escape - no guard/blockade to intercept.
-    NoEngagement { empire: u8, target_empire: u8 },
-    /// Pursuit fire - guard/blockade intercepts and fires one exchange.
-    PursuitFire {
-        withdrawer_empire: u8,
-        pursuer_empire: u8,
-        withdrawer_hits: u32,
-        pursuer_hits: u32,
-    },
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RoundActionKind {
+    Fight,
+    Withdraw,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct RoundAction {
+    empire: u8,
+    target_empire: u8,
+    kind: RoundActionKind,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ExchangeResolution {
+    roll: u8,
+    critical: bool,
+    hits: u32,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -114,10 +152,13 @@ fn hostility_requires_forced_engagement(reason: HostilityReason) -> bool {
 
 impl FleetCombatState {
     fn total_combat_as(&self) -> u32 {
-        self.counts[IDX_DD] * AS_DD
-            + self.counts[IDX_CA] * AS_CA
-            + self.counts[IDX_BB] * AS_BB
-            + self.counts[IDX_SB] * AS_SB
+        fleet_class_order()
+            .into_iter()
+            .map(|idx| {
+                let as_value = fleet_class_as(idx);
+                self.nominal_count(idx) * as_value + self.crippled[idx] * crippled_as(as_value)
+            })
+            .sum()
     }
 
     fn is_mixed(&self) -> bool {
@@ -137,10 +178,14 @@ impl FleetCombatState {
     fn has_units(&self) -> bool {
         self.counts.iter().any(|&c| c > 0)
     }
+
+    fn nominal_count(&self, idx: usize) -> u32 {
+        self.counts[idx].saturating_sub(self.crippled[idx])
+    }
 }
 
-fn fresh_steps_for_ds(ds: u32) -> u32 {
-    std::cmp::max(1, ds.div_ceil(6))
+fn crippled_as(as_value: u32) -> u32 {
+    as_value / 2
 }
 
 fn fleet_state_from_records(
@@ -159,20 +204,100 @@ fn fleet_state_from_records(
         state.counts[IDX_ET] += fleet.etac_count() as u32;
     }
     state.counts[IDX_SB] = starbases;
-    state.fresh = [
-        state.counts[IDX_DD] * fresh_steps_for_ds(DS_DD),
-        state.counts[IDX_CA] * fresh_steps_for_ds(DS_CA),
-        state.counts[IDX_BB] * fresh_steps_for_ds(DS_BB),
-        state.counts[IDX_SB] * fresh_steps_for_ds(DS_SB),
-        state.counts[IDX_SC] * fresh_steps_for_ds(DS_SC),
-        state.counts[IDX_TT] * fresh_steps_for_ds(DS_TT),
-        state.counts[IDX_ET] * fresh_steps_for_ds(DS_ET),
-    ];
     state
 }
 
-fn fleet_combat_priority() -> [usize; 7] {
+fn fleet_class_order() -> [usize; 7] {
     [IDX_DD, IDX_CA, IDX_BB, IDX_SB, IDX_SC, IDX_TT, IDX_ET]
+}
+
+fn fleet_class_as(idx: usize) -> u32 {
+    match idx {
+        IDX_DD => AS_DD,
+        IDX_CA => AS_CA,
+        IDX_BB => AS_BB,
+        IDX_SB => AS_SB,
+        IDX_SC => AS_SC,
+        IDX_TT => AS_TT,
+        IDX_ET => AS_ET,
+        _ => 0,
+    }
+}
+
+fn fleet_class_ds(idx: usize) -> u32 {
+    match idx {
+        IDX_DD => DS_DD,
+        IDX_CA => DS_CA,
+        IDX_BB => DS_BB,
+        IDX_SB => DS_SB,
+        IDX_SC => DS_SC,
+        IDX_TT => DS_TT,
+        IDX_ET => DS_ET,
+        _ => 0,
+    }
+}
+
+fn fleet_target_order() -> [usize; 7] {
+    [IDX_DD, IDX_SC, IDX_TT, IDX_ET, IDX_CA, IDX_BB, IDX_SB]
+}
+
+fn fleet_combat_line_order() -> [usize; 4] {
+    [IDX_DD, IDX_CA, IDX_BB, IDX_SB]
+}
+
+fn fleet_auxiliary_order() -> [usize; 3] {
+    [IDX_SC, IDX_TT, IDX_ET]
+}
+
+fn fleet_combat_line_present(state: &FleetCombatState) -> bool {
+    fleet_combat_line_order()
+        .into_iter()
+        .any(|idx| state.counts[idx] > 0)
+}
+
+fn apply_nominal_hits_to_fleet_classes(
+    state: &mut FleetCombatState,
+    hits: &mut u32,
+    target_order: &[usize],
+) -> bool {
+    let mut progress = false;
+    for &idx in target_order {
+        let ds = fleet_class_ds(idx);
+        if ds == 0 || *hits < ds {
+            break;
+        }
+        let reducible = state.nominal_count(idx).min(*hits / ds);
+        if reducible == 0 {
+            continue;
+        }
+        state.crippled[idx] += reducible;
+        *hits -= reducible * ds;
+        progress = true;
+    }
+    progress
+}
+
+fn apply_destroyed_hits_to_fleet_classes(
+    state: &mut FleetCombatState,
+    hits: &mut u32,
+    target_order: &[usize],
+) -> bool {
+    let mut progress = false;
+    for &idx in target_order {
+        let ds = fleet_class_ds(idx);
+        if ds == 0 || *hits < ds {
+            break;
+        }
+        let destroyed = state.crippled[idx].min(*hits / ds);
+        if destroyed == 0 {
+            continue;
+        }
+        state.crippled[idx] -= destroyed;
+        state.counts[idx] -= destroyed;
+        *hits -= destroyed * ds;
+        progress = true;
+    }
+    progress
 }
 
 fn nearest_owned_planet(game_data: &CoreGameData, empire: u8, from: [u8; 2]) -> Option<[u8; 2]> {
@@ -206,79 +331,202 @@ fn rule_threshold_satisfied(roe: u8, friendly_as: u32, enemy_as: u32) -> bool {
     }
 }
 
-fn space_cer_percent(our_as: u32, enemy_as: u32, mixed: bool, starbase_bonus: bool) -> u32 {
-    let mut cer = if enemy_as == 0 {
-        150
+fn base_combat_column(our_as: u32, enemy_as: u32) -> usize {
+    if enemy_as == 0 || our_as >= enemy_as.saturating_mul(3) {
+        COLUMN_OVERWHELMING
     } else if our_as.saturating_mul(2) < enemy_as {
-        50
+        COLUMN_DISADVANTAGED
     } else if our_as < enemy_as {
-        75
+        COLUMN_PRESSED
     } else if our_as.saturating_mul(2) < enemy_as.saturating_mul(3) {
-        100
-    } else if our_as < enemy_as.saturating_mul(3) {
-        125
+        COLUMN_EVEN
     } else {
-        150
-    };
+        COLUMN_ADVANTAGED
+    }
+}
 
+fn shifted_combat_column(base_column: usize, shift: i32) -> usize {
+    (base_column as i32 + shift).clamp(0, COLUMN_OVERWHELMING as i32) as usize
+}
+
+fn hits_from_multiplier(as_total: u32, multiplier_x4: u8) -> u32 {
+    (as_total.saturating_mul(multiplier_x4 as u32)).div_ceil(4)
+}
+
+fn seeded_exchange_resolution(
+    campaign_seed: u64,
+    game_year: u16,
+    coords: [u8; 2],
+    combat_kind: u64,
+    round: u32,
+    acting_empire: u8,
+    target_empire: u8,
+    as_total: u32,
+    column: usize,
+) -> ExchangeResolution {
+    let mut rng = GameRng::from_context(
+        campaign_seed,
+        RNG_TAG_COMBAT,
+        &[
+            game_year as u64,
+            coords[0] as u64,
+            coords[1] as u64,
+            combat_kind,
+            round as u64,
+            acting_empire as u64,
+            target_empire as u64,
+        ],
+    );
+    let roll = rng.roll_d10();
+    let multiplier_x4 = CRT_MULTIPLIER_X4[roll as usize][column];
+    ExchangeResolution {
+        roll,
+        critical: roll == 9 && as_total > 0,
+        hits: hits_from_multiplier(as_total, multiplier_x4),
+    }
+}
+
+fn resolve_space_exchange(
+    campaign_seed: u64,
+    game_year: u16,
+    coords: [u8; 2],
+    combat_kind: u64,
+    round: u32,
+    acting_empire: u8,
+    target_empire: u8,
+    our_as: u32,
+    enemy_as: u32,
+    mixed: bool,
+    starbase_bonus: bool,
+) -> ExchangeResolution {
+    let mut shift = 0i32;
     if mixed {
-        cer += 25;
+        shift += 1;
     }
     if starbase_bonus {
-        cer += 25;
+        shift += 1;
     }
-    cer.clamp(25, 150)
+    let column = shifted_combat_column(base_combat_column(our_as, enemy_as), shift);
+    seeded_exchange_resolution(
+        campaign_seed,
+        game_year,
+        coords,
+        combat_kind,
+        round,
+        acting_empire,
+        target_empire,
+        our_as,
+        column,
+    )
 }
 
-fn ground_cer_percent(our_as: u32, enemy_as: u32, bonus: i32) -> u32 {
-    let base = if enemy_as == 0 {
-        200
-    } else if our_as.saturating_mul(2) < enemy_as {
-        50
-    } else if our_as < enemy_as {
-        100
-    } else if our_as < enemy_as.saturating_mul(2) {
-        150
-    } else {
-        200
-    } as i32;
-
-    (base + bonus * 100).clamp(50, 200) as u32
+fn resolve_withdrawal_exchange(
+    campaign_seed: u64,
+    game_year: u16,
+    coords: [u8; 2],
+    round: u32,
+    acting_empire: u8,
+    target_empire: u8,
+    our_as: u32,
+) -> ExchangeResolution {
+    seeded_exchange_resolution(
+        campaign_seed,
+        game_year,
+        coords,
+        COMBAT_KIND_WITHDRAWAL,
+        round,
+        acting_empire,
+        target_empire,
+        our_as,
+        COLUMN_PRESSED,
+    )
 }
 
-/// Pursuit fire CER: per spec, the pursuer fires at CER 0.50 flat.
-/// No modifiers apply—this is a hasty shot while giving chase.
-fn pursuit_cer_percent() -> u32 {
-    50
+fn resolve_ground_exchange(
+    campaign_seed: u64,
+    game_year: u16,
+    coords: [u8; 2],
+    combat_kind: u64,
+    round: u32,
+    acting_empire: u8,
+    target_empire: u8,
+    our_as: u32,
+    enemy_as: u32,
+    bonus_shift: i32,
+) -> ExchangeResolution {
+    let column = shifted_combat_column(base_combat_column(our_as, enemy_as), bonus_shift);
+    seeded_exchange_resolution(
+        campaign_seed,
+        game_year,
+        coords,
+        combat_kind,
+        round,
+        acting_empire,
+        target_empire,
+        our_as,
+        column,
+    )
 }
 
-fn hits_from(as_total: u32, cer_percent: u32) -> u32 {
-    (as_total.saturating_mul(cer_percent)).div_ceil(100)
+fn apply_critical_hit_to_fleet(state: &mut FleetCombatState) -> bool {
+    for idx in fleet_target_order() {
+        if state.crippled[idx] > 0 {
+            state.crippled[idx] -= 1;
+            state.counts[idx] -= 1;
+            return true;
+        }
+    }
+    for idx in fleet_target_order() {
+        if state.nominal_count(idx) > 0 {
+            state.counts[idx] -= 1;
+            return true;
+        }
+    }
+    false
 }
 
-fn apply_hits_to_fleet(state: &mut FleetCombatState, mut hits: u32) {
-    // Phase 1: Screening - remove fresh steps from all classes in priority order
-    // No hulls are destroyed during screening. This represents escorts
-    // absorbing initial combat shock before heavier assets take damage.
-    for idx in fleet_combat_priority() {
-        if hits == 0 {
+fn apply_hits_to_fleet(state: &mut FleetCombatState, mut hits: u32, critical_hits: u32) {
+    while hits > 0 {
+        let (combat_line_order, auxiliary_order);
+        let target_order: &[usize] = if fleet_combat_line_present(state) {
+            combat_line_order = fleet_combat_line_order();
+            &combat_line_order
+        } else {
+            auxiliary_order = fleet_auxiliary_order();
+            &auxiliary_order
+        };
+
+        let mut progress = apply_nominal_hits_to_fleet_classes(state, &mut hits, target_order);
+
+        if target_order
+            .iter()
+            .all(|&idx| state.nominal_count(idx) == 0)
+        {
+            progress |= apply_destroyed_hits_to_fleet_classes(state, &mut hits, target_order);
+        }
+
+        if !progress {
             break;
         }
-        let fresh_loss = hits.min(state.fresh[idx]);
-        state.fresh[idx] -= fresh_loss;
-        hits -= fresh_loss;
     }
 
-    // Phase 2: Kill - once all fresh steps are gone, destroy hulls in priority order
-    // Remaining hits destroy units and reduce on-disk counts.
-    for idx in fleet_combat_priority() {
-        if hits == 0 {
+    for _ in 0..critical_hits {
+        if !apply_critical_hit_to_fleet(state) {
             break;
         }
-        let destroyed = hits.min(state.counts[idx]);
-        state.counts[idx] -= destroyed;
-        hits -= destroyed;
     }
+}
+
+fn fleet_state_changed(before: &FleetCombatState, after: &FleetCombatState) -> bool {
+    before.counts != after.counts || before.crippled != after.crippled
+}
+
+fn has_starbase_column_bonus(state: &FleetCombatState) -> bool {
+    state.counts[IDX_SB] > 0
+}
+
+fn scalar_hits_with_critical(resolution: ExchangeResolution) -> u32 {
+    resolution.hits + u32::from(resolution.critical)
 }
 
 fn task_force_role(
@@ -993,6 +1241,7 @@ fn abort_invalid_dominant_missions_after_battle(
 
 pub(crate) fn process_fleet_battles(
     game_data: &mut CoreGameData,
+    campaign_seed: u64,
     diplomacy_overrides: &[DiplomacyOverride],
 ) -> Result<FleetBattlePhaseEvents, Box<dyn std::error::Error>> {
     let mut coord_set = HashSet::new();
@@ -1045,24 +1294,26 @@ pub(crate) fn process_fleet_battles(
             continue;
         }
 
+        let battle_year = game_data.conquest.game_year();
         let planet_owner = game_data
             .planets
             .records
             .iter()
             .find(|p| p.coords_raw() == coords)
             .map(|p| p.owner_empire_slot_raw());
-
         let mut combat_occurred = false;
-        let mut roe_declined_outcomes: Vec<RoeDeclineOutcome> = Vec::new();
-        for _round in 0..3 {
-            let active: Vec<u8> = task_forces
+        let mut resolved_within_guardrail = false;
+
+        for round in 1..=COMBAT_GUARDRAIL_MAX_ROUNDS {
+            let active_empires: Vec<u8> = task_forces
                 .iter()
                 .filter(|tf| {
                     tf.state.has_units() && tf.state.total_combat_as() > 0 && !tf.withdrew_under_roe
                 })
                 .map(|tf| tf.empire)
                 .collect();
-            if active.len() < 2 {
+            if active_empires.len() < 2 {
+                resolved_within_guardrail = true;
                 break;
             }
 
@@ -1070,16 +1321,12 @@ pub(crate) fn process_fleet_battles(
                 .iter()
                 .map(|tf| (tf.empire, tf.state.total_combat_as()))
                 .collect();
-
-            let mut pending_hits: HashMap<u8, u32> = HashMap::new();
-            let mut immediate_roe_retreats = Vec::new();
-            let mut engaged_empires = Vec::new();
+            let mut actions = Vec::new();
             for tf in &task_forces {
                 let our_as = *combat_as_map.get(&tf.empire).unwrap_or(&0);
-                if our_as == 0 {
+                if our_as == 0 || tf.withdrew_under_roe || !tf.state.has_units() {
                     continue;
                 }
-
                 let hostile_opponents = task_forces
                     .iter()
                     .filter_map(|other| {
@@ -1102,16 +1349,11 @@ pub(crate) fn process_fleet_battles(
                     .map(|(other, _)| other.state.total_combat_as())
                     .max()
                     .unwrap_or(0);
-                if enemy_as == 0 {
-                    continue;
-                }
-
                 let Some((target_empire, hostility_reason)) =
                     hostile_target_priority(tf.empire, tf.role, &hostile_opponents, planet_owner)
                 else {
                     continue;
                 };
-
                 let roe = tf
                     .fleet_indices
                     .iter()
@@ -1125,99 +1367,159 @@ pub(crate) fn process_fleet_battles(
                     .max()
                     .unwrap_or(0);
                 let forced_engagement = hostility_requires_forced_engagement(hostility_reason);
-                if !forced_engagement && !rule_threshold_satisfied(roe, our_as, enemy_as) {
-                    if !combat_occurred {
-                        if target_empire != 0 {
-                            // Check if target is a guard/blockade fleet for pursuit fire
-                            if let Some(target_tf) = task_forces
-                                .iter()
-                                .find(|other| other.empire == target_empire)
-                            {
-                                if matches!(
-                                    target_tf.role,
-                                    BattleRole::GuardingDefender | BattleRole::IncumbentDefender
-                                ) {
-                                    // Pursuit fire: guard/blockade intercepts fleeing fleet
-                                    // Pursuer fires at CER 0.50, withdrawer fires at normal CER
-                                    let withdrawer_starbase_bonus =
-                                        tf.state.counts[IDX_SB] > 0 && tf.state.fresh[IDX_SB] > 0;
-                                    let withdrawer_cer = space_cer_percent(
-                                        our_as,
-                                        enemy_as,
-                                        tf.state.is_mixed(),
-                                        withdrawer_starbase_bonus,
-                                    );
-                                    let withdrawer_hits = hits_from(our_as, withdrawer_cer);
+                let kind = if !forced_engagement && !rule_threshold_satisfied(roe, our_as, enemy_as)
+                {
+                    RoundActionKind::Withdraw
+                } else {
+                    RoundActionKind::Fight
+                };
+                actions.push(RoundAction {
+                    empire: tf.empire,
+                    target_empire,
+                    kind,
+                });
+            }
 
-                                    let pursuer_as = target_tf.state.total_combat_as();
-                                    // Pursuer fires at flat CER 0.50, no modifiers
-                                    let pursuer_cer = pursuit_cer_percent();
-                                    let pursuer_hits = hits_from(pursuer_as, pursuer_cer);
+            if actions.is_empty() {
+                resolved_within_guardrail = true;
+                break;
+            }
 
-                                    roe_declined_outcomes.push(RoeDeclineOutcome::PursuitFire {
-                                        withdrawer_empire: tf.empire,
-                                        pursuer_empire: target_empire,
-                                        withdrawer_hits,
-                                        pursuer_hits,
-                                    });
-                                } else {
-                                    // No guard/blockade - clean escape
-                                    roe_declined_outcomes.push(RoeDeclineOutcome::NoEngagement {
-                                        empire: tf.empire,
-                                        target_empire,
-                                    });
-                                }
-                            } else {
-                                // Target task force not found - treat as no engagement
-                                roe_declined_outcomes.push(RoeDeclineOutcome::NoEngagement {
-                                    empire: tf.empire,
-                                    target_empire,
-                                });
-                            }
-                        }
-                    } else if let Some(retreat_target) =
-                        nearest_owned_planet(game_data, tf.empire, coords)
-                    {
-                        immediate_roe_retreats.push((tf.empire, retreat_target));
-                    }
+            let before_round_states: HashMap<u8, FleetCombatState> = task_forces
+                .iter()
+                .map(|tf| (tf.empire, tf.state.clone()))
+                .collect();
+            let mut pending_hits: HashMap<u8, u32> = HashMap::new();
+            let mut pending_criticals: HashMap<u8, u32> = HashMap::new();
+            let mut engaged_empires = HashSet::new();
+            let mut pre_round_withdrawals = HashSet::new();
+            let mut reciprocal_withdrawal_replies = HashSet::new();
+
+            let mut ordered_actions = actions;
+            ordered_actions.sort_by_key(|action| action.empire);
+            for action in ordered_actions {
+                if reciprocal_withdrawal_replies.remove(&(action.empire, action.target_empire)) {
                     continue;
                 }
-                let starbase_bonus = tf.state.counts[IDX_SB] > 0 && tf.state.fresh[IDX_SB] > 0;
-                let cer = space_cer_percent(our_as, enemy_as, tf.state.is_mixed(), starbase_bonus);
-                let hits = hits_from(our_as, cer);
-                *pending_hits.entry(target_empire).or_default() += hits;
-                engaged_empires.push(tf.empire);
+
+                let Some(actor_tf) = task_forces.iter().find(|tf| tf.empire == action.empire)
+                else {
+                    continue;
+                };
+                let Some(target_tf) = task_forces
+                    .iter()
+                    .find(|tf| tf.empire == action.target_empire)
+                else {
+                    continue;
+                };
+                let our_as = actor_tf.state.total_combat_as();
+                if our_as == 0 {
+                    continue;
+                }
+                let enemy_as = target_tf.state.total_combat_as();
+                engaged_empires.insert(action.empire);
+                engaged_empires.insert(action.target_empire);
+
+                match action.kind {
+                    RoundActionKind::Fight => {
+                        let result = resolve_space_exchange(
+                            campaign_seed,
+                            battle_year,
+                            coords,
+                            COMBAT_KIND_FLEET,
+                            round,
+                            action.empire,
+                            action.target_empire,
+                            our_as,
+                            enemy_as,
+                            actor_tf.state.is_mixed(),
+                            has_starbase_column_bonus(&actor_tf.state),
+                        );
+                        *pending_hits.entry(action.target_empire).or_default() += result.hits;
+                        *pending_criticals.entry(action.target_empire).or_default() +=
+                            u32::from(result.critical);
+                    }
+                    RoundActionKind::Withdraw => {
+                        pre_round_withdrawals.insert(action.empire);
+                        let outbound = resolve_withdrawal_exchange(
+                            campaign_seed,
+                            battle_year,
+                            coords,
+                            round,
+                            action.empire,
+                            action.target_empire,
+                            our_as,
+                        );
+                        *pending_hits.entry(action.target_empire).or_default() += outbound.hits;
+                        *pending_criticals.entry(action.target_empire).or_default() +=
+                            u32::from(outbound.critical);
+
+                        let target_as = target_tf.state.total_combat_as();
+                        if target_as > 0 {
+                            let reply = resolve_withdrawal_exchange(
+                                campaign_seed,
+                                battle_year,
+                                coords,
+                                round,
+                                action.target_empire,
+                                action.empire,
+                                target_as,
+                            );
+                            *pending_hits.entry(action.empire).or_default() += reply.hits;
+                            *pending_criticals.entry(action.empire).or_default() +=
+                                u32::from(reply.critical);
+                            reciprocal_withdrawal_replies
+                                .insert((action.target_empire, action.empire));
+                        }
+                    }
+                }
             }
 
             for empire in engaged_empires {
-                if let Some(task_force) =
-                    task_forces.iter_mut().find(|other| other.empire == empire)
-                {
+                if let Some(task_force) = task_forces.iter_mut().find(|tf| tf.empire == empire) {
                     task_force.engaged_in_battle = true;
                 }
             }
-            for (empire, retreat_target) in immediate_roe_retreats {
-                if let Some(task_force) =
-                    task_forces.iter_mut().find(|other| other.empire == empire)
-                {
+
+            for tf in &mut task_forces {
+                let hits = pending_hits.get(&tf.empire).copied().unwrap_or(0);
+                let critical_hits = pending_criticals.get(&tf.empire).copied().unwrap_or(0);
+                if hits > 0 || critical_hits > 0 {
+                    apply_hits_to_fleet(&mut tf.state, hits, critical_hits);
+                }
+            }
+
+            let mut any_withdrawal = false;
+            for empire in pre_round_withdrawals {
+                if let Some(task_force) = task_forces.iter_mut().find(|tf| tf.empire == empire) {
                     task_force.withdrew_under_roe = true;
+                    let retreat_target =
+                        nearest_owned_planet(game_data, empire, coords).unwrap_or(coords);
                     apply_roe_retreat_to_task_force(
                         game_data,
                         &task_force.fleet_indices,
                         retreat_target,
                     );
+                    any_withdrawal = true;
                 }
             }
 
-            if pending_hits.is_empty() {
+            let any_round_state_change = task_forces.iter().any(|tf| {
+                before_round_states
+                    .get(&tf.empire)
+                    .is_some_and(|before| fleet_state_changed(before, &tf.state))
+            });
+            combat_occurred |= any_round_state_change || any_withdrawal;
+
+            let remaining_active_after_exchange = task_forces
+                .iter()
+                .filter(|tf| {
+                    tf.state.has_units() && tf.state.total_combat_as() > 0 && !tf.withdrew_under_roe
+                })
+                .count();
+            if remaining_active_after_exchange < 2 {
+                resolved_within_guardrail = true;
                 break;
-            }
-            combat_occurred = true;
-
-            for tf in &mut task_forces {
-                if let Some(&hits) = pending_hits.get(&tf.empire) {
-                    apply_hits_to_fleet(&mut tf.state, hits);
-                }
             }
 
             let current_as_map: HashMap<u8, u32> = task_forces
@@ -1231,9 +1533,19 @@ pub(crate) fn process_fleet_battles(
                     continue;
                 }
                 let our_as = *current_as_map.get(&tf.empire).unwrap_or(&0);
-                let enemy_as = task_forces
+                if our_as == 0 {
+                    continue;
+                }
+                let hostile_opponents = task_forces
                     .iter()
-                    .filter(|other| other.empire != tf.empire && !other.withdrew_under_roe)
+                    .filter(|other| !other.withdrew_under_roe && other.empire != tf.empire)
+                    .filter_map(|other| {
+                        hostility_reason_between(game_data, diplomacy_overrides, coords, tf, other)
+                            .map(|_| other)
+                    })
+                    .collect::<Vec<_>>();
+                let enemy_as = hostile_opponents
+                    .iter()
                     .map(|other| other.state.total_combat_as())
                     .max()
                     .unwrap_or(0);
@@ -1253,34 +1565,28 @@ pub(crate) fn process_fleet_battles(
                     .max()
                     .unwrap_or(0);
                 if !rule_threshold_satisfied(roe, our_as, enemy_as) {
-                    // Guards/blockades get one free hold before breaking (per spec)
                     let is_guard = matches!(
                         tf.role,
                         BattleRole::GuardingDefender | BattleRole::IncumbentDefender
                     );
                     if is_guard && !tf.free_hold_used {
-                        // Use the free hold - stay and fight one more round
                         free_holds_to_consume.push(tf.empire);
                         continue;
                     }
-                    let target_empire = task_forces
-                        .iter()
-                        .filter(|other| other.empire != tf.empire)
-                        .max_by_key(|other| other.state.total_combat_as())
-                        .map(|other| other.empire)
-                        .unwrap_or(0);
                     let retreat_target =
                         nearest_owned_planet(game_data, tf.empire, coords).unwrap_or(coords);
-                    post_round_retreats.push((tf.empire, target_empire, retreat_target));
+                    post_round_retreats.push((tf.empire, retreat_target));
                 }
             }
-            // Apply free hold consumption
+
             for empire in free_holds_to_consume {
-                if let Some(task_force) = task_forces.iter_mut().find(|t| t.empire == empire) {
+                if let Some(task_force) = task_forces.iter_mut().find(|tf| tf.empire == empire) {
                     task_force.free_hold_used = true;
                 }
             }
-            for (empire, _target_empire, retreat_target) in post_round_retreats {
+
+            let mut any_post_round_withdrawal = false;
+            for (empire, retreat_target) in post_round_retreats {
                 if let Some(task_force) = task_forces.iter_mut().find(|tf| tf.empire == empire) {
                     task_force.withdrew_under_roe = true;
                     apply_roe_retreat_to_task_force(
@@ -1288,159 +1594,37 @@ pub(crate) fn process_fleet_battles(
                         &task_force.fleet_indices,
                         retreat_target,
                     );
+                    any_post_round_withdrawal = true;
                 }
+            }
+            combat_occurred |= any_post_round_withdrawal;
+
+            let remaining_active_after_retreats = task_forces
+                .iter()
+                .filter(|tf| {
+                    tf.state.has_units() && tf.state.total_combat_as() > 0 && !tf.withdrew_under_roe
+                })
+                .count();
+            if remaining_active_after_retreats < 2 {
+                resolved_within_guardrail = true;
+                break;
+            }
+
+            if !any_round_state_change && !any_withdrawal && !any_post_round_withdrawal {
+                return Err(format!(
+                    "combat at ({},{}) stalled in round {} with no state change",
+                    coords[0], coords[1], round
+                )
+                .into());
             }
         }
 
-        if !combat_occurred {
-            for outcome in roe_declined_outcomes {
-                match outcome {
-                    RoeDeclineOutcome::NoEngagement {
-                        empire,
-                        target_empire,
-                    } => {
-                        if let Some(tf) = task_forces.iter().find(|tf| tf.empire == empire) {
-                            for &idx in &tf.fleet_indices {
-                                events.encounter_disposition_events.push(
-                                    EncounterDispositionEvent::NoEngagement {
-                                        fleet_idx: idx,
-                                        owner_empire_raw: empire,
-                                        mission: mission_kind_for_order(
-                                            pre_encounter_orders.get(&idx).copied(),
-                                        ),
-                                        coords,
-                                        target_empire_raw: target_empire,
-                                        target_fleet_id: task_forces
-                                            .iter()
-                                            .find(|other| other.empire == target_empire)
-                                            .and_then(|other| {
-                                                single_named_fleet_id(
-                                                    game_data,
-                                                    &other.fleet_indices,
-                                                )
-                                            }),
-                                        small_vessels: vessel_size_summary(
-                                            original_states
-                                                .get(&target_empire)
-                                                .unwrap_or(&FleetCombatState::default()),
-                                        )
-                                        .0,
-                                        medium_vessels: vessel_size_summary(
-                                            original_states
-                                                .get(&target_empire)
-                                                .unwrap_or(&FleetCombatState::default()),
-                                        )
-                                        .1,
-                                        large_vessels: vessel_size_summary(
-                                            original_states
-                                                .get(&target_empire)
-                                                .unwrap_or(&FleetCombatState::default()),
-                                        )
-                                        .2,
-                                        reason: EncounterDispositionReason::RoeDeclined,
-                                        stardate_week: None,
-                                    },
-                                );
-                            }
-                        }
-                    }
-                    RoeDeclineOutcome::PursuitFire {
-                        withdrawer_empire,
-                        pursuer_empire,
-                        withdrawer_hits,
-                        pursuer_hits,
-                    } => {
-                        // Capture pre-pursuit-fire states for loss calculation
-                        let withdrawer_before = task_forces
-                            .iter()
-                            .find(|tf| tf.empire == withdrawer_empire)
-                            .map(|tf| tf.state.clone())
-                            .unwrap_or_default();
-                        let pursuer_before = task_forces
-                            .iter()
-                            .find(|tf| tf.empire == pursuer_empire)
-                            .map(|tf| tf.state.clone())
-                            .unwrap_or_default();
-
-                        // Apply pursuit fire hits simultaneously
-                        if let Some(withdrawer_tf) = task_forces
-                            .iter_mut()
-                            .find(|tf| tf.empire == withdrawer_empire)
-                        {
-                            apply_hits_to_fleet(&mut withdrawer_tf.state, pursuer_hits);
-                            withdrawer_tf.engaged_in_battle = true;
-                        }
-                        if let Some(pursuer_tf) = task_forces
-                            .iter_mut()
-                            .find(|tf| tf.empire == pursuer_empire)
-                        {
-                            apply_hits_to_fleet(&mut pursuer_tf.state, withdrawer_hits);
-                            pursuer_tf.engaged_in_battle = true;
-                        }
-                        combat_occurred = true;
-
-                        // Calculate losses from pursuit fire
-                        let withdrawer_after = task_forces
-                            .iter()
-                            .find(|tf| tf.empire == withdrawer_empire)
-                            .map(|tf| tf.state.clone())
-                            .unwrap_or_default();
-                        let pursuer_after = task_forces
-                            .iter()
-                            .find(|tf| tf.empire == pursuer_empire)
-                            .map(|tf| tf.state.clone())
-                            .unwrap_or_default();
-
-                        let losses_sustained =
-                            ship_losses_from_states(&withdrawer_before, &withdrawer_after);
-                        let enemy_losses_inflicted =
-                            ship_losses_from_states(&pursuer_before, &pursuer_after);
-                        let enemy_initial = ship_counts_from_state(&pursuer_before);
-
-                        // Find retreat target for withdrawer
-                        let retreat_target =
-                            nearest_owned_planet(game_data, withdrawer_empire, coords)
-                                .unwrap_or(coords);
-
-                        // The withdrawer will be retreated by the normal post-battle logic
-                        // since it is now a combatant that didn't dominate (combat_occurred is set)
-
-                        // Emit PursuitFire events for each fleet in the withdrawing task force
-                        if let Some(withdrawer_tf) =
-                            task_forces.iter().find(|tf| tf.empire == withdrawer_empire)
-                        {
-                            for &idx in &withdrawer_tf.fleet_indices {
-                                events.encounter_disposition_events.push(
-                                    EncounterDispositionEvent::PursuitFire {
-                                        fleet_idx: idx,
-                                        owner_empire_raw: withdrawer_empire,
-                                        mission: mission_kind_for_order(
-                                            pre_encounter_orders.get(&idx).copied(),
-                                        ),
-                                        coords,
-                                        target_empire_raw: pursuer_empire,
-                                        target_fleet_id: task_forces
-                                            .iter()
-                                            .find(|other| other.empire == pursuer_empire)
-                                            .and_then(|other| {
-                                                single_named_fleet_id(
-                                                    game_data,
-                                                    &other.fleet_indices,
-                                                )
-                                            }),
-                                        enemy_initial,
-                                        retreat_target_coords: retreat_target,
-                                        losses_sustained,
-                                        enemy_losses_inflicted,
-                                        reason: EncounterDispositionReason::RoeDeclined,
-                                        stardate_week: None,
-                                    },
-                                );
-                            }
-                        }
-                    }
-                }
-            }
+        if !resolved_within_guardrail {
+            return Err(format!(
+                "combat at ({},{}) exceeded {} rounds",
+                coords[0], coords[1], COMBAT_GUARDRAIL_MAX_ROUNDS
+            )
+            .into());
         }
 
         let winner_empire = {
@@ -1880,13 +2064,36 @@ fn bombard_attack_as(state: &FleetCombatState) -> u32 {
     state.counts[IDX_DD] / 2 + state.counts[IDX_CA] * 3 + state.counts[IDX_BB] * 9 * 3 / 2
 }
 
-fn blitz_cover_hits(state: &FleetCombatState) -> u32 {
+fn blitz_cover_exchange(
+    campaign_seed: u64,
+    game_year: u16,
+    coords: [u8; 2],
+    acting_empire: u8,
+    target_empire: u8,
+    state: &FleetCombatState,
+    battery_as: u32,
+) -> ExchangeResolution {
     let combat_ships = state.counts[IDX_DD] + state.counts[IDX_CA] + state.counts[IDX_BB];
     if combat_ships == 0 {
-        return 0;
+        return ExchangeResolution {
+            roll: 0,
+            critical: false,
+            hits: 0,
+        };
     }
 
-    hits_from(bombard_attack_as(state).max(1), 50)
+    resolve_ground_exchange(
+        campaign_seed,
+        game_year,
+        coords,
+        COMBAT_KIND_BLITZ_COVER,
+        1,
+        acting_empire,
+        target_empire,
+        bombard_attack_as(state).max(1),
+        battery_as.max(1),
+        0,
+    )
 }
 
 fn apply_blitz_landing_fire(
@@ -2015,10 +2222,12 @@ fn mission_priority(class: MissionClass) -> u8 {
 
 pub(crate) fn process_planetary_assaults(
     game_data: &mut CoreGameData,
+    campaign_seed: u64,
     bombard_ready: &[usize],
     invade_ready: &[usize],
     blitz_ready: &[usize],
 ) -> Result<AssaultEvents, Box<dyn std::error::Error>> {
+    let battle_year = game_data.conquest.game_year();
     let mut by_planet: BTreeMap<usize, BTreeMap<u8, Vec<usize>>> = BTreeMap::new();
     for &idx in bombard_ready {
         if !fleet_still_ready_for_assault(game_data, idx, Order::BombardWorld) {
@@ -2119,24 +2328,50 @@ pub(crate) fn process_planetary_assaults(
                 let state = fleet_state_from_records(game_data, &winner_fleets, 0);
                 let attack_as = bombard_attack_as(&state);
                 let planet = &game_data.planets.records[planet_idx];
+                let coords = planet.coords_raw();
                 let defense_as = planet.ground_batteries_raw() as u32 * GROUND_AS_BATTERY
                     + (planet.army_count_raw() as u32).div_ceil(2) * GROUND_AS_ARMY;
-                let attacker_cer =
-                    space_cer_percent(attack_as, defense_as, state.is_mixed(), false);
-                let defender_cer = space_cer_percent(defense_as, attack_as.max(1), false, false);
-                let attacker_hits = hits_from(attack_as, attacker_cer);
-                let defender_hits = hits_from(defense_as, defender_cer);
+                let attacker_exchange = resolve_space_exchange(
+                    campaign_seed,
+                    battle_year,
+                    coords,
+                    COMBAT_KIND_BOMBARD,
+                    1,
+                    winner_empire,
+                    planet.owner_empire_slot_raw(),
+                    attack_as,
+                    defense_as.max(1),
+                    state.is_mixed(),
+                    false,
+                );
+                let defender_exchange = resolve_space_exchange(
+                    campaign_seed,
+                    battle_year,
+                    coords,
+                    COMBAT_KIND_BOMBARD,
+                    1,
+                    planet.owner_empire_slot_raw(),
+                    winner_empire,
+                    defense_as,
+                    attack_as.max(1),
+                    false,
+                    false,
+                );
                 let pre_armies = game_data.planets.records[planet_idx].army_count_raw();
                 let pre_batteries = game_data.planets.records[planet_idx].ground_batteries_raw();
 
                 let before = state.clone();
                 let mut after = state.clone();
-                apply_hits_to_fleet(&mut after, defender_hits);
+                apply_hits_to_fleet(
+                    &mut after,
+                    defender_exchange.hits,
+                    u32::from(defender_exchange.critical),
+                );
                 distribute_fleet_losses(game_data, &winner_fleets, &before, &after);
 
                 apply_planet_bombardment_damage(
                     &mut game_data.planets.records[planet_idx],
-                    attacker_hits,
+                    scalar_hits_with_critical(attacker_exchange),
                 );
                 clear_arrival_and_hold(game_data, &winner_fleets);
                 events.bombard_events.push(BombardEvent {
@@ -2182,24 +2417,51 @@ pub(crate) fn process_planetary_assaults(
                     .sum();
                 let previous_owner = game_data.planets.records[planet_idx].owner_empire_slot_raw();
                 let planet = &game_data.planets.records[planet_idx];
+                let coords = planet.coords_raw();
                 let pre_batteries = planet.ground_batteries_raw();
                 let pre_armies = planet.army_count_raw();
                 let battery_as = planet.ground_batteries_raw() as u32 * GROUND_AS_BATTERY;
-                let attacker_cer =
-                    space_cer_percent(bombard_as, battery_as.max(1), state.is_mixed(), false);
-                let defender_cer = space_cer_percent(battery_as, bombard_as.max(1), false, false);
-                let suppression_hits = hits_from(bombard_as, attacker_cer);
-                let return_hits = hits_from(battery_as, defender_cer);
+                let suppression_exchange = resolve_space_exchange(
+                    campaign_seed,
+                    battle_year,
+                    coords,
+                    COMBAT_KIND_INVASION_SUPPRESSION,
+                    1,
+                    winner_empire,
+                    previous_owner,
+                    bombard_as,
+                    battery_as.max(1),
+                    state.is_mixed(),
+                    false,
+                );
+                let return_exchange = resolve_space_exchange(
+                    campaign_seed,
+                    battle_year,
+                    coords,
+                    COMBAT_KIND_INVASION_SUPPRESSION,
+                    1,
+                    previous_owner,
+                    winner_empire,
+                    battery_as,
+                    bombard_as.max(1),
+                    false,
+                    false,
+                );
 
                 let before = state.clone();
                 let mut after = state.clone();
-                apply_hits_to_fleet(&mut after, return_hits);
+                apply_hits_to_fleet(
+                    &mut after,
+                    return_exchange.hits,
+                    u32::from(return_exchange.critical),
+                );
                 distribute_fleet_losses(game_data, &winner_fleets, &before, &after);
 
                 {
                     let planet = &mut game_data.planets.records[planet_idx];
-                    let battery_loss =
-                        suppression_hits.min(planet.ground_batteries_raw() as u32) as u8;
+                    let battery_loss = scalar_hits_with_critical(suppression_exchange)
+                        .min(planet.ground_batteries_raw() as u32)
+                        as u8;
                     planet.set_ground_batteries_raw(
                         planet.ground_batteries_raw().saturating_sub(battery_loss),
                     );
@@ -2208,17 +2470,21 @@ pub(crate) fn process_planetary_assaults(
                 let batteries_cleared =
                     game_data.planets.records[planet_idx].ground_batteries_raw() == 0;
                 if batteries_cleared {
-                    let soft_hits = hits_from(
+                    let soft_exchange = resolve_ground_exchange(
+                        campaign_seed,
+                        battle_year,
+                        coords,
+                        COMBAT_KIND_INVASION_SOFTEN,
+                        1,
+                        winner_empire,
+                        previous_owner,
                         bombard_attack_as(&after),
-                        ground_cer_percent(
-                            bombard_attack_as(&after),
-                            game_data.planets.records[planet_idx].army_count_raw() as u32,
-                            0,
-                        ),
+                        game_data.planets.records[planet_idx].army_count_raw() as u32,
+                        0,
                     );
                     apply_planet_bombardment_damage(
                         &mut game_data.planets.records[planet_idx],
-                        soft_hits,
+                        scalar_hits_with_critical(soft_exchange),
                     );
 
                     let attacking_armies: u32 = winner_fleets
@@ -2227,16 +2493,34 @@ pub(crate) fn process_planetary_assaults(
                         .sum();
                     let defender_armies =
                         game_data.planets.records[planet_idx].army_count_raw() as u32;
-                    let atk_hits = hits_from(
+                    let attacker_ground = resolve_ground_exchange(
+                        campaign_seed,
+                        battle_year,
+                        coords,
+                        COMBAT_KIND_GROUND,
+                        1,
+                        winner_empire,
+                        previous_owner,
                         attacking_armies,
-                        ground_cer_percent(attacking_armies, defender_armies.max(1), 0),
+                        defender_armies.max(1),
+                        0,
                     );
-                    let def_hits = hits_from(
+                    let defender_ground = resolve_ground_exchange(
+                        campaign_seed,
+                        battle_year,
+                        coords,
+                        COMBAT_KIND_GROUND,
+                        1,
+                        previous_owner,
+                        winner_empire,
                         defender_armies,
-                        ground_cer_percent(defender_armies, attacking_armies.max(1), 0),
+                        attacking_armies.max(1),
+                        0,
                     );
-                    let attacker_survivors = attacking_armies.saturating_sub(def_hits);
-                    let defender_survivors = defender_armies.saturating_sub(atk_hits);
+                    let attacker_survivors =
+                        attacking_armies.saturating_sub(scalar_hits_with_critical(defender_ground));
+                    let defender_survivors =
+                        defender_armies.saturating_sub(scalar_hits_with_critical(attacker_ground));
                     let defender_battery_losses = pre_batteries.saturating_sub(
                         game_data.planets.records[planet_idx].ground_batteries_raw(),
                     );
@@ -2402,6 +2686,7 @@ pub(crate) fn process_planetary_assaults(
             MissionClass::Blitz => {
                 let previous_owner = game_data.planets.records[planet_idx].owner_empire_slot_raw();
                 let cover_state = fleet_state_from_records(game_data, &winner_fleets, 0);
+                let coords = game_data.planets.records[planet_idx].coords_raw();
                 let pre_batteries = game_data.planets.records[planet_idx].ground_batteries_raw();
                 let pre_armies = game_data.planets.records[planet_idx].army_count_raw();
                 let attacking_armies: u32 = winner_fleets
@@ -2410,10 +2695,20 @@ pub(crate) fn process_planetary_assaults(
                     .sum();
                 // A blitz uses only a brief cover-fire exchange before the drop.
                 // This is intentionally lighter than a full invade bombardment.
-                let cover_hits = blitz_cover_hits(&cover_state);
+                let cover_exchange = blitz_cover_exchange(
+                    campaign_seed,
+                    battle_year,
+                    coords,
+                    winner_empire,
+                    previous_owner,
+                    &cover_state,
+                    pre_batteries as u32 * GROUND_AS_BATTERY,
+                );
                 {
                     let planet = &mut game_data.planets.records[planet_idx];
-                    let battery_loss = cover_hits.min(planet.ground_batteries_raw() as u32) as u8;
+                    let battery_loss = scalar_hits_with_critical(cover_exchange)
+                        .min(planet.ground_batteries_raw() as u32)
+                        as u8;
                     planet.set_ground_batteries_raw(
                         planet.ground_batteries_raw().saturating_sub(battery_loss),
                     );
@@ -2424,16 +2719,34 @@ pub(crate) fn process_planetary_assaults(
                     apply_blitz_landing_fire(game_data, &winner_fleets, surviving_batteries);
                 let armies_after_landing = attacking_armies.saturating_sub(landing_army_losses);
                 let defender_armies = game_data.planets.records[planet_idx].army_count_raw() as u32;
-                let atk_hits = hits_from(
+                let attacker_ground = resolve_ground_exchange(
+                    campaign_seed,
+                    battle_year,
+                    coords,
+                    COMBAT_KIND_BLITZ_GROUND,
+                    1,
+                    winner_empire,
+                    previous_owner,
                     armies_after_landing,
-                    ground_cer_percent(armies_after_landing, defender_armies.max(1), 0),
+                    defender_armies.max(1),
+                    0,
                 );
-                let def_hits = hits_from(
+                let defender_ground = resolve_ground_exchange(
+                    campaign_seed,
+                    battle_year,
+                    coords,
+                    COMBAT_KIND_BLITZ_GROUND,
+                    1,
+                    previous_owner,
+                    winner_empire,
                     defender_armies,
-                    ground_cer_percent(defender_armies, armies_after_landing.max(1), 1),
+                    armies_after_landing.max(1),
+                    1,
                 );
-                let attacker_survivors = armies_after_landing.saturating_sub(def_hits);
-                let defender_survivors = defender_armies.saturating_sub(atk_hits);
+                let attacker_survivors =
+                    armies_after_landing.saturating_sub(scalar_hits_with_critical(defender_ground));
+                let defender_survivors =
+                    defender_armies.saturating_sub(scalar_hits_with_critical(attacker_ground));
                 let defender_battery_losses = pre_batteries
                     .saturating_sub(game_data.planets.records[planet_idx].ground_batteries_raw());
                 let defender_army_losses =

@@ -425,7 +425,7 @@ state.
 - surviving crippled ships revert to nominal when the battle ends
 - only destroyed hulls persist into campaign state
 
-### DS-driven fleet allocation
+### Screened fleet allocation
 
 To reduce or eliminate one ship, the attacker must allocate hits equal to that
 ship class's `DS`.
@@ -434,17 +434,23 @@ Normal rule:
 
 1. all nominal ships must be reduced before any crippled ships may be
    destroyed
-2. target selection is driven by lowest `DS` first
-3. ties inside the same `DS` bucket break in this order:
+2. ordinary fleet fire first targets the surviving combat line:
+   `DD`, `CA`, `BB`, `SB`
+3. `SC`, `TT`, and `ET` are screened from normal fire while any combat-line
+   hull remains
+4. within the currently eligible group, target selection is driven by lowest
+   `DS` first
+5. ties inside the same `DS` bucket break in this order:
    `DD`, `SC`, `TT`, `ET`, `CA`, `BB`, `SB`
 
-That tie order keeps destroyers screening same-DS auxiliaries while still
-letting `DS` drive the main allocation logic.
+This keeps escorts and battle-line ships absorbing ordinary punishment before
+specialized auxiliaries are exposed, while still letting `DS` drive the
+deterministic allocation inside the currently eligible screen.
 
 Critical-hit bypass rule:
 
 - a critical may destroy one weakest eligible target directly even while full
-  strength ships remain
+  strength screen ships remain
 - if crippled ships exist, the weakest crippled target is destroyed first
 - otherwise the weakest nominal target is destroyed to ensure the critical
   leaves a real campaign-level loss
@@ -1058,9 +1064,8 @@ Hits:
 
 Allocation sketch:
 
-- attacker reduces destroyers first because they are the weakest eligible `DS 1`
-  targets, then destroys crippled destroyers once all nominal defenders are
-  reduced
+- attacker reduces and destroys the defender's combat line before auxiliaries
+  are exposed to ordinary hits
 - defender spends hits against battleship `DS 10`, so it cannot erase the
   battle line cheaply
 

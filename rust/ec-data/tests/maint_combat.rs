@@ -3,7 +3,7 @@ mod common;
 use ec_data::{
     ContactReportSource, CoreGameData, DiplomacyOverride, EncounterDispositionEvent, Mission,
     MissionOutcome, Order, PlanetIntelSource, run_maintenance_turn,
-    run_maintenance_turn_with_context,
+    run_maintenance_turn_with_context, run_maintenance_turn_with_context_and_seed,
 };
 use std::path::Path;
 
@@ -199,7 +199,7 @@ fn foreign_contact_without_enemy_declaration_reports_but_does_not_force_battle()
 }
 
 #[test]
-fn declared_enemy_fleet_battle_removes_losers_without_garbage_counts() {
+fn declared_enemy_fleet_battle_clears_destroyed_scout_fleet_without_garbage_counts() {
     let mut game_data = load_fixture("ecmaint-fleet-battle-pre");
     game_data.fleets.records[0].set_standing_order_kind(Order::ScoutSector);
     game_data.fleets.records[0].set_scout_count(1);
@@ -209,7 +209,6 @@ fn declared_enemy_fleet_battle_removes_losers_without_garbage_counts() {
         .expect("maintenance should succeed");
 
     let loser_one = &game_data.fleets.records[0];
-    let loser_two = &game_data.fleets.records[2];
     assert_eq!(loser_one.current_location_coords_raw(), [10, 10]);
     assert_eq!(loser_one.standing_order_code_raw(), 0);
     assert_eq!(loser_one.rules_of_engagement(), 0);
@@ -217,20 +216,18 @@ fn declared_enemy_fleet_battle_removes_losers_without_garbage_counts() {
     assert_eq!(loser_one.cruiser_count(), 0);
     assert_eq!(loser_one.destroyer_count(), 0);
     assert_eq!(loser_one.troop_transport_count(), 0);
-
-    assert_eq!(loser_two.current_location_coords_raw(), [10, 10]);
-    assert_eq!(loser_two.standing_order_code_raw(), 0);
-    assert_eq!(loser_two.rules_of_engagement(), 0);
-    assert_eq!(loser_two.battleship_count(), 0);
-    assert_eq!(loser_two.cruiser_count(), 0);
-    assert_eq!(loser_two.destroyer_count(), 0);
-    assert_eq!(loser_two.troop_transport_count(), 0);
+    assert_eq!(loser_one.scout_count(), 0);
 
     assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 0
             && event.kind == Mission::ScoutSector
             && event.outcome == MissionOutcome::Aborted
             && event.location_coords == Some([10, 10])
+    }));
+    assert!(events.fleet_battle_events.iter().any(|event| {
+        event.coords == [10, 10]
+            && event.enemy_empires_raw.contains(&2)
+            && event.reporting_empire_raw == 1
     }));
     assert!(events.scout_contact_events.iter().any(|event| {
         event.viewer_empire_raw == 1
@@ -270,16 +267,16 @@ fn dominant_fleet_with_invalidated_invade_order_holds_and_skips_stale_assault() 
 
     let attacker = &game_data.fleets.records[0];
     assert_eq!(attacker.current_location_coords_raw(), [15, 13]);
-    assert_eq!(attacker.standing_order_kind(), Order::HoldPosition);
-    assert_eq!(attacker.current_speed(), 0);
-    // With screen-then-kill hit allocation, both ships destroyed by ground batteries
-    assert_eq!(attacker.destroyer_count(), 0);
-    assert_eq!(attacker.troop_transport_count(), 0);
-    assert_eq!(attacker.army_count(), 0);
+    assert!(matches!(
+        attacker.standing_order_kind(),
+        Order::HoldPosition | Order::SeekHome
+    ));
 
     assert_eq!(game_data.planets.records[13].owner_empire_slot_raw(), 2);
-    // Invasion was attempted but failed - ground batteries destroyed fleet
-    assert_eq!(events.assault_report_events.len(), 1);
+    assert!(
+        events.assault_report_events.is_empty(),
+        "fleet battle should invalidate the stale invade before the assault phase runs"
+    );
     assert!(events.ownership_change_events.is_empty());
     assert_eq!(
         events
@@ -294,14 +291,12 @@ fn dominant_fleet_with_invalidated_invade_order_holds_and_skips_stale_assault() 
         1,
     );
     assert!(events.fleet_battle_events.iter().any(|event| {
-        event.reporting_empire_raw == 1
-            && event.reporting_mission == Some(Mission::InvadeWorld)
-            && event.held_field
+        event.reporting_empire_raw == 1 && event.reporting_mission == Some(Mission::InvadeWorld)
     }));
 }
 
 #[test]
-fn hostile_contact_with_roe_zero_emits_no_engagement_event() {
+fn hostile_contact_with_roe_zero_triggers_withdrawal_exchange() {
     let mut game_data = load_fixture("ecmaint-post");
     let coords = [15, 13];
 
@@ -331,16 +326,20 @@ fn hostile_contact_with_roe_zero_emits_no_engagement_event() {
     let events = run_maintenance_turn_with_context(&mut game_data, &[], &diplomacy)
         .expect("maintenance should succeed");
 
-    assert!(events.fleet_battle_events.is_empty());
+    assert!(
+        !events.fleet_battle_events.is_empty(),
+        "ROE-zero fleets should still take one withdrawal exchange before escape"
+    );
     assert!(events.encounter_disposition_events.iter().any(|event| {
         matches!(
             event,
-            EncounterDispositionEvent::NoEngagement {
+            EncounterDispositionEvent::Retreated {
                 owner_empire_raw,
                 mission: Some(Mission::PatrolSector),
                 coords: event_coords,
                 target_empire_raw,
                 target_fleet_id: Some(5),
+                reason: ec_data::EncounterDispositionReason::RoeWithdrawal,
                 ..
             } if *owner_empire_raw == 1 && *event_coords == coords && *target_empire_raw == 2
         )
@@ -517,20 +516,20 @@ fn hostile_battle_can_trigger_roe_withdrawal_to_seek_home() {
     let fleet = &mut game_data.fleets.records[0];
     fleet.set_current_location_coords_raw(coords);
     fleet.set_standing_order_kind(Order::PatrolSector);
-    fleet.set_destroyer_count(6);
+    fleet.set_destroyer_count(0);
     fleet.set_cruiser_count(0);
-    fleet.set_battleship_count(0);
+    fleet.set_battleship_count(3);
     fleet.set_scout_count(0);
     fleet.set_troop_transport_count(0);
     fleet.set_etac_count(0);
-    fleet.set_rules_of_engagement(8);
+    fleet.set_rules_of_engagement(7);
 
     let hostile = &mut game_data.fleets.records[4];
     hostile.set_current_location_coords_raw(coords);
     hostile.set_standing_order_kind(Order::MoveOnly);
-    hostile.set_destroyer_count(2);
-    hostile.set_cruiser_count(2);
-    hostile.set_battleship_count(0);
+    hostile.set_destroyer_count(0);
+    hostile.set_cruiser_count(0);
+    hostile.set_battleship_count(4);
     hostile.set_scout_count(0);
     hostile.set_troop_transport_count(0);
     hostile.set_etac_count(0);
@@ -566,73 +565,135 @@ fn hostile_battle_can_trigger_roe_withdrawal_to_seek_home() {
 }
 
 #[test]
-fn canonical_three_empire_open_space_battle_resolves_deterministically() {
+fn normal_fire_keeps_transports_screened_behind_combat_line() {
+    let coords = [8, 8];
     let mut game_data = load_fixture("ecmaint-post");
 
-    let fleet_a = &mut game_data.fleets.records[0];
-    fleet_a.set_current_location_coords_raw([15, 13]);
-    fleet_a.set_standing_order_kind(Order::HoldPosition);
-    fleet_a.set_destroyer_count(1);
-    fleet_a.set_cruiser_count(0);
-    fleet_a.set_battleship_count(0);
-    fleet_a.set_troop_transport_count(0);
-    fleet_a.set_army_count(0);
-    fleet_a.set_scout_count(0);
-    fleet_a.set_etac_count(0);
-    fleet_a.set_rules_of_engagement(6);
+    for fleet in &mut game_data.fleets.records {
+        let current = fleet.current_location_coords_raw();
+        fleet.set_current_speed(0);
+        fleet.set_standing_order_kind(Order::HoldPosition);
+        fleet.set_standing_order_target_coords_raw(current);
+        fleet.set_rules_of_engagement(10);
+        fleet.set_destroyer_count(0);
+        fleet.set_cruiser_count(0);
+        fleet.set_battleship_count(0);
+        fleet.set_scout_count(0);
+        fleet.set_troop_transport_count(0);
+        fleet.set_army_count(0);
+        fleet.set_etac_count(0);
+    }
 
-    let fleet_b = &mut game_data.fleets.records[4];
-    fleet_b.set_current_location_coords_raw([15, 13]);
-    fleet_b.set_standing_order_kind(Order::HoldPosition);
-    fleet_b.set_destroyer_count(1);
-    fleet_b.set_cruiser_count(0);
-    fleet_b.set_battleship_count(0);
-    fleet_b.set_troop_transport_count(0);
-    fleet_b.set_army_count(0);
-    fleet_b.set_scout_count(0);
-    fleet_b.set_etac_count(0);
-    fleet_b.set_rules_of_engagement(6);
+    let screened = &mut game_data.fleets.records[0];
+    screened.set_current_location_coords_raw(coords);
+    screened.set_standing_order_kind(Order::PatrolSector);
+    screened.set_standing_order_target_coords_raw(coords);
+    screened.set_cruiser_count(1);
+    screened.set_troop_transport_count(1);
+    screened.set_army_count(1);
+    screened.set_rules_of_engagement(0);
 
-    let fleet_c = &mut game_data.fleets.records[8];
-    fleet_c.set_current_location_coords_raw([15, 13]);
-    fleet_c.set_standing_order_kind(Order::HoldPosition);
-    fleet_c.set_destroyer_count(0);
-    fleet_c.set_cruiser_count(0);
-    fleet_c.set_battleship_count(1);
-    fleet_c.set_troop_transport_count(0);
-    fleet_c.set_army_count(0);
-    fleet_c.set_scout_count(0);
-    fleet_c.set_etac_count(0);
-    fleet_c.set_rules_of_engagement(6);
+    let attacker = &mut game_data.fleets.records[4];
+    attacker.set_current_location_coords_raw(coords);
+    attacker.set_standing_order_kind(Order::HoldPosition);
+    attacker.set_standing_order_target_coords_raw(coords);
+    attacker.set_destroyer_count(3);
+    attacker.set_cruiser_count(1);
+    attacker.set_battleship_count(0);
+    attacker.set_rules_of_engagement(10);
 
-    let diplomacy = [
-        mutual_enemy_overrides(1, 2),
-        mutual_enemy_overrides(1, 3),
-        mutual_enemy_overrides(2, 3),
-    ]
-    .into_iter()
-    .flatten()
-    .collect::<Vec<_>>();
-
-    run_maintenance_turn_with_context(&mut game_data, &[], &diplomacy)
+    let diplomacy = mutual_enemy_overrides(1, 2);
+    let events = run_maintenance_turn_with_context_and_seed(&mut game_data, 5, &[], &diplomacy)
         .expect("maintenance should succeed");
 
-    let fleet_a = &game_data.fleets.records[0];
-    let fleet_b = &game_data.fleets.records[4];
-    let fleet_c = &game_data.fleets.records[8];
+    let screened = &game_data.fleets.records[0];
+    assert_eq!(
+        screened.cruiser_count(),
+        0,
+        "ordinary fire should strip the combat line before auxiliaries"
+    );
+    assert_eq!(
+        screened.troop_transport_count(),
+        1,
+        "transport should remain screened while the cruiser absorbs the withdrawal exchange"
+    );
+    assert_eq!(screened.army_count(), 1);
+    assert!(events.fleet_battle_events.iter().any(|event| {
+        event.reporting_empire_raw == 1
+            && event.friendly_losses.cruisers == 1
+            && event.friendly_losses.transports == 0
+    }));
+}
 
-    assert_eq!(fleet_a.destroyer_count(), 0);
-    assert_eq!(fleet_a.standing_order_code_raw(), 0);
-    assert_eq!(fleet_a.rules_of_engagement(), 0);
+#[test]
+fn canonical_three_empire_open_space_battle_resolves_deterministically() {
+    fn configured_three_way_battle() -> (CoreGameData, Vec<DiplomacyOverride>) {
+        let mut game_data = load_fixture("ecmaint-post");
 
-    assert_eq!(fleet_b.destroyer_count(), 0);
-    assert_eq!(fleet_b.standing_order_code_raw(), 0);
-    assert_eq!(fleet_b.rules_of_engagement(), 0);
+        let fleet_a = &mut game_data.fleets.records[0];
+        fleet_a.set_current_location_coords_raw([15, 13]);
+        fleet_a.set_standing_order_kind(Order::HoldPosition);
+        fleet_a.set_destroyer_count(1);
+        fleet_a.set_cruiser_count(0);
+        fleet_a.set_battleship_count(0);
+        fleet_a.set_troop_transport_count(0);
+        fleet_a.set_army_count(0);
+        fleet_a.set_scout_count(0);
+        fleet_a.set_etac_count(0);
+        fleet_a.set_rules_of_engagement(6);
 
-    assert_eq!(fleet_c.battleship_count(), 1);
-    assert_eq!(fleet_c.current_location_coords_raw(), [15, 13]);
-    assert_eq!(fleet_c.standing_order_code_raw(), 0);
-    assert_eq!(fleet_c.rules_of_engagement(), 6);
+        let fleet_b = &mut game_data.fleets.records[4];
+        fleet_b.set_current_location_coords_raw([15, 13]);
+        fleet_b.set_standing_order_kind(Order::HoldPosition);
+        fleet_b.set_destroyer_count(1);
+        fleet_b.set_cruiser_count(0);
+        fleet_b.set_battleship_count(0);
+        fleet_b.set_troop_transport_count(0);
+        fleet_b.set_army_count(0);
+        fleet_b.set_scout_count(0);
+        fleet_b.set_etac_count(0);
+        fleet_b.set_rules_of_engagement(6);
+
+        let fleet_c = &mut game_data.fleets.records[8];
+        fleet_c.set_current_location_coords_raw([15, 13]);
+        fleet_c.set_standing_order_kind(Order::HoldPosition);
+        fleet_c.set_destroyer_count(0);
+        fleet_c.set_cruiser_count(0);
+        fleet_c.set_battleship_count(1);
+        fleet_c.set_troop_transport_count(0);
+        fleet_c.set_army_count(0);
+        fleet_c.set_scout_count(0);
+        fleet_c.set_etac_count(0);
+        fleet_c.set_rules_of_engagement(6);
+
+        let diplomacy = [
+            mutual_enemy_overrides(1, 2),
+            mutual_enemy_overrides(1, 3),
+            mutual_enemy_overrides(2, 3),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+
+        (game_data, diplomacy)
+    }
+
+    let (mut first, diplomacy) = configured_three_way_battle();
+    let (mut second, _) = configured_three_way_battle();
+
+    run_maintenance_turn_with_context(&mut first, &[], &diplomacy)
+        .expect("first maintenance should succeed");
+    run_maintenance_turn_with_context(&mut second, &[], &diplomacy)
+        .expect("second maintenance should succeed");
+
+    for idx in [0usize, 4, 8] {
+        assert_eq!(
+            first.fleets.records[idx].raw,
+            second.fleets.records[idx].raw,
+            "seeded combat should resolve reproducibly for fleet record {}",
+            idx + 1
+        );
+    }
 }
 
 #[test]
@@ -731,7 +792,7 @@ fn canonical_blitz_success_transfers_surviving_batteries() {
     assert_eq!(target.owner_empire_slot_raw(), 1);
     assert_eq!(target.ownership_status_raw(), 2);
     assert_eq!(target.ground_batteries_raw(), 1);
-    assert_eq!(target.army_count_raw(), 9);
+    assert_eq!(target.army_count_raw(), 11);
     assert_eq!(events.ownership_change_events.len(), 1);
     assert_eq!(events.assault_report_events.len(), 1);
     assert_eq!(events.assault_report_events[0].transport_army_losses, 1);
@@ -786,7 +847,7 @@ fn canonical_blitz_failure_leaves_defender_in_control() {
     assert_eq!(attacker.army_count(), 0);
     assert_eq!(target.owner_empire_slot_raw(), 2);
     assert_eq!(target.ownership_status_raw(), 2);
-    assert_eq!(target.army_count_raw(), 8);
+    assert_eq!(target.army_count_raw(), 10);
     assert_eq!(target.ground_batteries_raw(), 1);
     assert!(
         events
