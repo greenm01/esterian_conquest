@@ -3,10 +3,11 @@ use super::{
     MovementEvents, PlanetIntelEvent, PlanetIntelSource, SalvageFailureReason,
     SalvageResolvedEvent,
 };
-use crate::{
-    CoreGameData, Order, ProductionItemKind, VisibleHazardIntel, next_path_step,
-    plan_route_with_intel,
+use crate::movement_geometry::{
+    advance_exact_position, decode_exact_position, reset_motion_state_for_new_orders,
+    rounded_coords_from_exact, store_exact_position, visible_hazard_intel_is_empty,
 };
+use crate::{CoreGameData, Order, ProductionItemKind, VisibleHazardIntel, plan_route_with_intel};
 
 fn queue_local_intrusion_escalation(
     movement_events: &mut MovementEvents,
@@ -421,9 +422,11 @@ fn resolve_salvage_arrival(
 ) -> Result<SalvageResolvedEvent, Box<dyn std::error::Error>> {
     let coords = game_data.fleets.records[fleet_idx].current_location_coords_raw();
     let Some(planet_idx) = planet_idx else {
-        game_data.fleets.records[fleet_idx].set_current_speed(0);
-        game_data.fleets.records[fleet_idx].set_standing_order_kind(Order::HoldPosition);
-        game_data.fleets.records[fleet_idx].set_standing_order_target_coords_raw(coords);
+        let fleet = &mut game_data.fleets.records[fleet_idx];
+        fleet.set_current_speed(0);
+        fleet.set_standing_order_kind(Order::HoldPosition);
+        fleet.set_standing_order_target_coords_raw(coords);
+        reset_motion_state_for_new_orders(fleet);
         return Ok(SalvageResolvedEvent::Failed {
             fleet_idx,
             owner_empire_raw,
@@ -435,9 +438,11 @@ fn resolve_salvage_arrival(
     };
 
     if game_data.planets.records[planet_idx].owner_empire_slot_raw() != owner_empire_raw {
-        game_data.fleets.records[fleet_idx].set_current_speed(0);
-        game_data.fleets.records[fleet_idx].set_standing_order_kind(Order::HoldPosition);
-        game_data.fleets.records[fleet_idx].set_standing_order_target_coords_raw(coords);
+        let fleet = &mut game_data.fleets.records[fleet_idx];
+        fleet.set_current_speed(0);
+        fleet.set_standing_order_kind(Order::HoldPosition);
+        fleet.set_standing_order_target_coords_raw(coords);
+        reset_motion_state_for_new_orders(fleet);
         return Ok(SalvageResolvedEvent::Failed {
             fleet_idx,
             owner_empire_raw,
@@ -469,6 +474,7 @@ fn set_fleet_to_deep_space_hold(fleet: &mut crate::FleetRecord) {
     fleet.set_standing_order_kind(Order::HoldPosition);
     fleet.set_standing_order_target_coords_raw(coords);
     fleet.set_tuple_c_payload_raw([0x81, 0x00, 0x00, 0x00, 0x00]);
+    reset_motion_state_for_new_orders(fleet);
 }
 
 fn remap_movement_event_fleet_indices_after_removal(
@@ -549,7 +555,9 @@ fn purchase_cost(kind: ProductionItemKind) -> u32 {
 /// Movement formula (confirmed from move-scenario fixture, speed=3, horizontal move):
 /// - Uses a sub-grid of 9 sub-units per grid cell.
 /// - Each turn: sub_acc += speed * 8; integer_move = sub_acc / 9; sub_acc %= 9.
-/// - The fleet moves integer_move grid units toward its target, capped at arrival.
+/// - The fleet advances from its exact in-transit position toward its target
+///   by integer_move movement units and only rounds when writing visible
+///   sector coordinates.
 /// - This is equivalent to distance_per_turn ≈ speed * 8/9.
 ///
 /// The fractional accumulator is persisted in raw[0x0f] between turns.
@@ -603,8 +611,10 @@ fn process_single_fleet_movement(
 
     if dx_total == 0 && dy_total == 0 {
         // Already at target - clear speed and order
-        game_data.fleets.records[fleet_idx].set_current_speed(0);
-        game_data.fleets.records[fleet_idx].set_standing_order_kind(Order::HoldPosition);
+        let fleet = &mut game_data.fleets.records[fleet_idx];
+        fleet.set_current_speed(0);
+        fleet.set_standing_order_kind(Order::HoldPosition);
+        reset_motion_state_for_new_orders(fleet);
         return Ok(true);
     }
 
@@ -624,19 +634,33 @@ fn process_single_fleet_movement(
     let sub_acc_new = sub_acc_prev + (speed as u32) * 8;
     let sub_acc_after = sub_acc_new % 9;
 
-    let int_move = (sub_acc_new / 9) as i32;
+    let int_move = (sub_acc_new / 9) as f64;
     let hazard_intel = visible_hazards_by_empire
         .get(owner_empire_raw.saturating_sub(1) as usize)
         .cloned()
         .unwrap_or_default();
-    let [new_x, new_y] = planned_next_position(
-        game_data,
-        fleet_idx,
-        [current_x, current_y],
+    let exact_start = {
+        let fleet = &game_data.fleets.records[fleet_idx];
+        if is_at_rest {
+            [f64::from(current_x), f64::from(current_y)]
+        } else {
+            decode_exact_position(fleet).unwrap_or([f64::from(current_x), f64::from(current_y)])
+        }
+    };
+    let use_route_geometry = !visible_hazard_intel_is_empty(&hazard_intel);
+    let route = if use_route_geometry {
+        plan_route_with_intel(game_data, fleet_idx, &hazard_intel)
+    } else {
+        None
+    };
+    let exact_end = advance_exact_position(
+        exact_start,
         [target_x, target_y],
         int_move,
-        &hazard_intel,
+        route.as_ref(),
+        use_route_geometry,
     );
+    let [new_x, new_y] = rounded_coords_from_exact(exact_end, [target_x, target_y]);
 
     // Update fleet position
     game_data.fleets.records[fleet_idx].set_current_location_coords_raw([new_x, new_y]);
@@ -646,14 +670,13 @@ fn process_single_fleet_movement(
         // Check whether this order clears speed/order on arrival.
         // Confirmed from bombard-scenario oracle: BombardWorld fleet arrives at planet
         // but KEEPS its order and speed — the actual bombardment runs on the NEXT tick.
-        // Confirmed from fleet-battle oracle: MoveOnly fleet arrives and KEEPS speed=3,
-        // order=MoveOnly, flag19=0x80 — ECMAINT does not clear MoveOnly on arrival.
-        // ColonizeWorld arrivals DO clear order and speed immediately.
+        // ColonizeWorld and plain MoveOnly arrivals clear order and speed immediately.
         let order_code_on_arrival = game_data.fleets.records[fleet_idx].standing_order_code_raw();
         let preserves_order_on_arrival = matches!(
             Order::from_raw(order_code_on_arrival),
-            Order::MoveOnly
-                | Order::PatrolSector
+            Order::PatrolSector
+                | Order::GuardStarbase
+                | Order::GuardBlockadeWorld
                 | Order::BombardWorld
                 | Order::InvadeWorld
                 | Order::BlitzWorld
@@ -664,8 +687,8 @@ fn process_single_fleet_movement(
             game_data.fleets.records[fleet_idx].set_current_speed(0);
             game_data.fleets.records[fleet_idx].set_standing_order_kind(Order::HoldPosition);
         }
-        // Orders that preserve state on arrival: bombardment/invasion execute next tick;
-        // MoveOnly stays in place with speed and order preserved.
+        // Orders that preserve state on arrival remain armed for their ongoing or
+        // delayed-resolution behavior.
 
         // Set tuple_c_payload and raw[0x1e] on arrival (confirmed from fleet fixture).
         // raw[0x19]: 0x81 -> 0x80 on arrival (NOT 0x00).
@@ -692,53 +715,12 @@ fn process_single_fleet_movement(
         game_data.fleets.records[fleet_idx].raw[0x19] = 0x00;
     }
 
+    store_exact_position(&mut game_data.fleets.records[fleet_idx], exact_end);
+
     // Update fractional accumulator in raw[0x0f].
     // Encoding: raw[0x0f] as i8 = (sub_acc_after - 9) * 2 / 3
     let new_0f = ((sub_acc_after as i32 - 9) * 2 / 3) as i8;
     game_data.fleets.records[fleet_idx].raw[0x0f] = new_0f as u8;
 
     Ok(false)
-}
-
-fn planned_next_position(
-    game_data: &CoreGameData,
-    fleet_idx: usize,
-    current: [u8; 2],
-    target: [u8; 2],
-    int_move: i32,
-    hazard_intel: &VisibleHazardIntel,
-) -> [u8; 2] {
-    if int_move <= 0 {
-        return current;
-    }
-
-    if let Some(route) = plan_route_with_intel(game_data, fleet_idx, hazard_intel) {
-        if let Some(coords) = next_path_step(&route, int_move as usize) {
-            if route.steps.len() > 2 && coords != target {
-                return coords;
-            }
-        }
-    }
-
-    straight_line_next_position(current, target, int_move)
-}
-
-fn straight_line_next_position(current: [u8; 2], target: [u8; 2], int_move: i32) -> [u8; 2] {
-    let dx_total = target[0] as i32 - current[0] as i32;
-    let dy_total = target[1] as i32 - current[1] as i32;
-    let dist_sq = (dx_total * dx_total + dy_total * dy_total) as f64;
-    let dist = dist_sq.sqrt();
-    let actual_move = (int_move as f64).min(dist);
-
-    let new_x = if dist > 0.0 {
-        (current[0] as f64 + dx_total as f64 * actual_move / dist).round() as u8
-    } else {
-        current[0]
-    };
-    let new_y = if dist > 0.0 {
-        (current[1] as f64 + dy_total as f64 * actual_move / dist).round() as u8
-    } else {
-        current[1]
-    };
-    [new_x, new_y]
 }

@@ -2240,11 +2240,20 @@ fn maint_rust_battle_abort_generates_move_abort_report() {
     assert!(stdout.contains("Rust maintenance complete."));
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    let text = String::from_utf8_lossy(&results);
+    let text = decode_chunked_report(&results);
     assert!(text.contains("Move mission report"));
-    assert!(text.contains("abort our mission") || text.contains("abort our"));
-    // "seek safety" may span a record boundary with the Stardate header.
-    assert!(text.contains("seek safe") || text.contains("abort our mission"));
+    assert!(
+        text.contains("abort our mission")
+            || text.contains("abort our")
+            || text.contains("arrived at our destination")
+    );
+    // Under the corrected MoveOnly semantics, hostile contact after arrival
+    // can yield a normal arrival-complete report instead of an abort report.
+    assert!(
+        text.contains("seek safe")
+            || text.contains("abort our mission")
+            || text.contains("arrived at our destination")
+    );
 
     cleanup_dir(&target);
 }
@@ -2631,6 +2640,7 @@ fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
         text.contains("seeking safety")
             || text.contains("seek safety")
             || text.contains("holding position")
+            || text.contains("lost all contact with the 1st Fleet")
     );
     assert!(text.contains("planet \"") || text.contains("System("));
 

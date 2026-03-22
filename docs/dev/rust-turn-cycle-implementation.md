@@ -421,7 +421,7 @@ Updated Durable State + Durable Event Pool
 
 | Point | Practical meaning for Rust |
 | --- | --- |
-| **Movement is annual, not per-week** | fleet positions are updated once per year (storing fractional travel state in tuple_c for multi-year journeys). Keep movement as a distinct pre-loop subphase. See [movement-oracle-audit.md](movement-oracle-audit.md) for the current probe result: annual placement is confirmed, but Rust still diverges from classic on diagonal/sloped path geometry and `MoveOnly` arrival cleanup |
+| **Movement is annual, not per-week** | fleet positions are updated once per year. Keep movement as a distinct pre-loop subphase. See [movement-oracle-audit.md](movement-oracle-audit.md): the controlled classic `MoveOnly` traces now match, and the active remaining uncertainty is the exact raw-byte encoding of classic in-transit scratch state rather than the visible movement geometry |
 | **Mission resolution requires start-of-year position** | bombard, colonize, invade resolve only when the fleet is at its target at the start of the year. Co-located fleets resolve within the same tick |
 | **The 52-week loop is event scheduling, not physics** | the loop schedules encounter detection, combat resolution, and report emission from post-movement positions. Stardates come from timing codes, not physical arrival time |
 | **Timing-window constants are recovered** | the scheduler constants are recovered; kind-1 producer assignment is recovered for codes `3..6`; code `7` is the decoder-local `IPBM` timing class; code `8` is an unfed consumer-side case in the preserved image. Only starbase fleets get a delayed producer-side timing offset |
@@ -488,13 +488,11 @@ The current best implementation shape for step `4` is:
 Key structural evidence:
 
 - **movement is annual**: fleet positions update once per year, not
-  per-week. Tuple_c (+0x19..+0x1E) stores Real48 fractional travel state
-  for multi-year journeys (set during movement, cleared on arrival)
+  per-week. Rust now preserves exact in-transit position between turns and
+  rounds only when writing the visible sector coordinates
 - the current movement audit in [movement-oracle-audit.md](movement-oracle-audit.md)
-  confirms that annual placement is correct but also shows a remaining
-  implementation gap: current Rust straight-line interpolation is still more
-  aggressive than classic on diagonal/sloped routes, and classic clears
-  `MoveOnly` to `hold`/`speed=0` on arrival
+  now matches the controlled horizontal / diagonal / shallow / steep
+  `MoveOnly` traces and clears `MoveOnly` to `hold` / `speed=0` on arrival
 - **the 52-week loop is event scheduling**: stardates come from timing
   codes (+2/+7/+21/+30 week offsets), not from physical arrival time.
   A speed-3 fleet traveling 1 sector shows contact at week 50 (timing-code

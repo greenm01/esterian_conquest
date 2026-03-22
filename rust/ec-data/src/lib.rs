@@ -20,6 +20,7 @@ mod economy;
 mod intel;
 pub mod maint;
 mod mapgen;
+mod movement_geometry;
 mod pathfinding;
 mod player_mail;
 mod records;

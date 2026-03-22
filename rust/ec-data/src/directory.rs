@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::movement_geometry::reset_motion_state_for_new_orders;
 use crate::{
     BaseDat, BaseRecord, ConquestDat, DiplomaticRelation, FleetDat, FleetRecord, IPBM_RECORD_SIZE,
     IpbmDat, IpbmRecord, Order, ParseError, PlanetDat, PlayerDat, PlayerRecord, ProductionItemKind,
@@ -2349,6 +2350,7 @@ impl CoreGameData {
             .ok_or(GameStateMutationError::MissingFleetRecord {
                 index_1_based: record_index_1_based,
             })?;
+        reset_motion_state_for_new_orders(record);
         record.set_current_speed(speed);
         record.set_standing_order_code_raw(order_code);
         record.set_standing_order_target_coords_raw(target);
@@ -2667,6 +2669,7 @@ impl CoreGameData {
                 index_1_based: fleet_index_1_based,
             },
         )?;
+        reset_motion_state_for_new_orders(fleet);
         fleet.set_standing_order_kind(crate::Order::JoinAnotherFleet);
         fleet.set_standing_order_target_coords_raw(host_coords);
         fleet.set_join_host_fleet_id_raw(host_fleet_id);
@@ -3734,6 +3737,7 @@ impl CoreGameData {
                 index_1_based: fleet_index_1_based,
             },
         )?;
+        reset_motion_state_for_new_orders(fleet);
         fleet.set_standing_order_kind(crate::Order::GuardStarbase);
         fleet.set_standing_order_target_coords_raw(target);
         fleet.set_mission_aux_bytes([0x01, 0x01]);

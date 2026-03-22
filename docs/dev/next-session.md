@@ -18,48 +18,59 @@ Use this as the restart brief. Historical detail belongs in
 
 ## Current Goal
 
-Mirror classic fleet movement and ETA more closely.
+Validate and extend the classic-style fleet movement stepper beyond the current
+controlled trace matrix.
 
 The movement audit in [movement-oracle-audit.md](movement-oracle-audit.md)
 established:
 
 - movement is annual and happens before the weekly `1..52` report timeline
-- axial travel is directionally right
-- diagonal and sloped travel still diverges from classic
-- classic likely preserves fractional progress along a fixed launch-to-target
-  line, consistent with Turbo Pascal-style integer/fixed-point stepping
-- `MoveOnly` arrival cleanup still needs to be settled and mirrored
+- the controlled horizontal / diagonal / shallow / steep `MoveOnly` probes now
+  match the classic trace matrix
+- Rust now keeps ETA on the same direct movement geometry
+- `MoveOnly` is treated as complete on arrival:
+  - fleet stops
+  - speed becomes `0`
+  - standing order becomes `Hold`
 
 ## Biggest Blockers
 
 - The exact classic line-stepping / rounding rule is still inferred from oracle
   traces rather than decoded from source.
-- `MoveOnly` arrival behavior is not fully settled:
-  - several probes clear to `Hold` with `speed=0`
-  - one diagonal `speed=3` case still showed `MoveOnly` surviving at arrival
-- ETA must follow the same classic stepping rule as movement.
+- The exact raw-byte meaning of the classic in-transit scratch fields is still
+  not fully decoded.
+- Hazard-driven detours still need broader oracle coverage so the classic direct
+  stepper and the Rust pathfinding extension remain cleanly separated.
 
 ## Working Assumption
 
-Until contradicted by better oracle evidence, treat a completed mission,
-including plain movement, as complete on arrival:
+Treat a completed one-shot transit mission, including plain movement, as
+complete on arrival:
 
 - fleet stops
 - speed becomes `0`
 - standing order becomes `Hold`
 - player must issue a new order to move again
 
-This matches user intent and most current oracle arrival probes. Re-test the
-one conflicting `MoveOnly` diagonal case before locking the rule in.
+Persistent posture missions and delayed hostile-world missions remain the
+exceptions:
+
+- `PatrolSector`, `GuardStarbase`, and `GuardBlockadeWorld` stay armed after
+  arrival
+- `BombardWorld`, `InvadeWorld`, and `BlitzWorld` preserve their order through
+  arrival so the ready mission resolves on the following tick
 
 ## Immediate Next Steps
 
-1. Replace the current movement position update with a classic-style persistent
-   line-progress stepper.
-2. Re-run the movement audit matrix and compare turn-by-turn traces.
-3. Re-probe `MoveOnly` arrival, especially the diagonal `speed=3` case, and
-   settle whether arrival always clears to `Hold`.
-4. Once movement matches, keep the shared ETA helper on the same stepping rule.
+1. Re-run the classic oracle harness for the controlled movement matrix and
+   confirm the raw movement scratch bytes are still acceptable.
+2. Extend the same movement tracing approach to persistent missions such as
+   `PatrolSector`, `GuardStarbase`, and `GuardBlockadeWorld`.
+3. Re-probe hostile-world arrivals to keep the delayed `BombardWorld` /
+   `InvadeWorld` / `BlitzWorld` behavior aligned with the turn-cycle specs.
+4. Decide whether the current Rust in-transit scratch encoding should be kept as
+   a pragmatic compatibility layer or replaced with a more directly recovered
+   classic byte model.
 
 ## Structural Note
 

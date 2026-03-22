@@ -152,6 +152,15 @@ Prefer rule-shaped generators and validators over preserved-byte blob emission.
 - `docs/next-session.md` shall stay short and current; archive older detail
   instead of appending indefinitely
 
+## Temp Files
+
+- agents shall use `/tmp` for scratch probe directories, debug gamestates,
+  temporary captures, and other disposable work products
+- agents shall not create repo-local temp directories such as `tmp_*` or
+  similar scratch folders in the working tree unless explicitly asked
+- if a repo-local scratch directory is created accidentally during a session,
+  agents shall move or delete it before finishing the task
+
 ## Current Priorities
 
 1. expand Rust from known accepted scenarios toward general compliant gamestate generation

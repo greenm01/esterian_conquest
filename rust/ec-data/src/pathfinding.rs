@@ -1,6 +1,9 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BinaryHeap, HashMap, HashSet};
 
+use crate::movement_geometry::{
+    advance_exact_position, decode_exact_position, rounded_coords_from_exact,
+};
 use crate::{
     CoreGameData, FleetRecord, Order, PlanetIntelSnapshot,
     build_player_starmap_projection_from_snapshots, map_size_for_player_count,
@@ -197,6 +200,7 @@ pub fn estimate_fleet_eta(game_data: &CoreGameData, fleet_idx: usize) -> FleetEt
         fleet.standing_order_target_coords_raw(),
         fleet.current_speed(),
         decode_movement_sub_acc(fleet),
+        decode_exact_position(fleet),
         false,
     )
 }
@@ -228,6 +232,7 @@ pub fn estimate_fleet_eta_to_destination(
         destination,
         speed,
         sub_acc,
+        decode_exact_position(fleet),
         include_system,
     )
 }
@@ -246,6 +251,7 @@ fn estimate_eta_for_route(
     target: [u8; 2],
     speed: u8,
     sub_acc_prev: u32,
+    exact_position: Option<[f64; 2]>,
     include_system: bool,
 ) -> FleetEtaEstimate {
     if current == target {
@@ -257,27 +263,48 @@ fn estimate_eta_for_route(
     let Some(route) = route else {
         return FleetEtaEstimate::Unreachable;
     };
-    let mut steps_remaining = route.steps.len().saturating_sub(1);
-    if include_system && target != current {
-        steps_remaining += 1;
-    }
-    if steps_remaining == 0 {
+    if route.steps.len() <= 1 {
         return FleetEtaEstimate::Arrived;
     }
-    FleetEtaEstimate::Years(simulate_eta_years(steps_remaining, speed, sub_acc_prev))
+    let exact_current = exact_position.unwrap_or([f64::from(current[0]), f64::from(current[1])]);
+    FleetEtaEstimate::Years(simulate_eta_years(
+        exact_current,
+        target,
+        speed,
+        sub_acc_prev,
+        include_system,
+    ))
 }
 
-fn simulate_eta_years(steps_remaining: usize, speed: u8, sub_acc_prev: u32) -> u16 {
+fn simulate_eta_years(
+    mut exact_position: [f64; 2],
+    target: [u8; 2],
+    speed: u8,
+    sub_acc_prev: u32,
+    include_system: bool,
+) -> u16 {
     let mut years = 0u16;
-    let mut steps_remaining = steps_remaining;
     let mut sub_acc = sub_acc_prev;
-    while steps_remaining > 0 {
+
+    while rounded_coords_from_exact(exact_position, target) != target {
         years = years.saturating_add(1);
         let sub_acc_new = sub_acc + u32::from(speed) * 8;
-        let int_move = (sub_acc_new / 9) as usize;
+        let int_move = (sub_acc_new / 9) as f64;
         sub_acc = sub_acc_new % 9;
-        steps_remaining = steps_remaining.saturating_sub(int_move);
+        exact_position = advance_exact_position(exact_position, target, int_move, None, false);
     }
+
+    if include_system {
+        let mut remaining_system_distance = 1.0;
+        while remaining_system_distance > 0.0 {
+            years = years.saturating_add(1);
+            let sub_acc_new = sub_acc + u32::from(speed) * 8;
+            let int_move = (sub_acc_new / 9) as f64;
+            sub_acc = sub_acc_new % 9;
+            remaining_system_distance -= int_move;
+        }
+    }
+
     years
 }
 

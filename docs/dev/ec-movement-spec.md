@@ -20,7 +20,7 @@ Primary sources:
 Current-known movement rules in Rust already model:
 
 - simultaneous yearly movement
-- sector-grid travel toward a target location
+- persistent in-transit progress toward a target location
 - order-driven arrival and mission resolution
 - contact and combat based on post-movement position
 
@@ -28,9 +28,10 @@ The live movement implementation is in:
 
 - [mod.rs](../../rust/ec-data/src/maint/mod.rs)
 
-The current implementation matches the known `ECMAINT` movement formula for the
-preserved movement scenarios. That deterministic movement path should remain the
-compatibility baseline.
+The current implementation keeps the recovered annual `speed * 8 / 9` movement
+budget, persists exact in-transit position between yearly maintenance passes,
+and rounds only when writing the visible sector coordinates. `MoveOnly` is
+treated as complete on arrival and falls back to `Hold`.
 
 ## Contact And Hostility
 
