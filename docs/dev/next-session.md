@@ -96,9 +96,15 @@ established:
 
 ## Biggest Blockers
 
-- Economy semantics still need one important confirmation:
-  - verify via Ghidra whether a starbase actually increases economic growth by
-    `5x`
+- Economy semantics are no longer blocked on the starbase `5x` question:
+  - the manuals explicitly tie `5x` to build capacity
+  - the current Ghidra pass did not support a starbase `5x` growth claim
+  - the new black-box follow-up in
+    [starbase-economy-oracle-audit.md](starbase-economy-oracle-audit.md)
+    reconfirmed the commissioned-starbase / `5x` build-capacity side
+  - the exact classic starbase growth bonus and tax-burden formula are still
+    unrecovered because the current generated colony probe remains too noisy to
+    trust semantically
 - The exact weekly `1..52` assignment and dated-report process inside
   maintenance still deserve continued recovery when that work is directly
   useful.
@@ -135,11 +141,19 @@ exceptions:
 
 ## Immediate Next Steps
 
-1. Verify via Ghidra whether a starbase actually increases economic growth by
-   `5x`.
-2. Keep movement closed unless a concrete player-facing or compatibility issue
+1. Keep the starbase `5x growth` question closed unless stronger new oracle or
+   Ghidra evidence appears. Current evidence supports `5x` build capacity, not
+   `5x` growth.
+2. If the starbase economy thread is revisited, do **not** reuse the current
+   generated colony sweep as proof of an exact classic formula:
+   - first recover a cleaner accepted planet-state oracle baseline
+   - or do a deeper static RE pass on the planet-side economy functions in the
+     unwrapped `ECMAINTU.EXE` project
+3. Verify in Ghidra whether any explicit classic starbase/tax branch supports
+   the manuals' "`67%` to `70%`" tolerance language.
+4. Keep movement closed unless a concrete player-facing or compatibility issue
    appears.
-3. Continue the weekly maintenance/report recovery work where it materially
+5. Continue the weekly maintenance/report recovery work where it materially
    improves the Rust engine or report timing.
 
 ## Structural Note

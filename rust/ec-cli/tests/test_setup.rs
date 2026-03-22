@@ -121,6 +121,51 @@ fn player_join_seeds_last_run_year_for_returning_player_state() {
 }
 
 #[test]
+fn economy_starbase_probe_init_creates_matched_plain_and_starbase_colonies() {
+    let target = unique_temp_dir("ec-cli-economy-starbase-probe");
+    run_ec_cli(&[
+        "sysop",
+        "new-game",
+        target.to_str().unwrap(),
+        "--players",
+        "4",
+        "--seed",
+        "1515",
+    ]);
+
+    let stdout = run_ec_cli(&[
+        "economy-starbase-probe-init",
+        target.to_str().unwrap(),
+        "1",
+        "67",
+    ]);
+    assert!(stdout.contains("Initialized economy starbase tax-burden probe"));
+
+    export_campaign_db(&target, &target);
+    let data = ec_data::CoreGameData::load(&target).unwrap();
+    assert_eq!(data.player.records[0].starbase_count_raw(), 1);
+
+    let rows = data.empire_planet_economy_rows(1);
+    let plain = rows
+        .iter()
+        .find(|row| row.planet_name == "Plain Colony")
+        .expect("plain colony should exist");
+    let starbase = rows
+        .iter()
+        .find(|row| row.planet_name == "Base Colony")
+        .expect("starbase colony should exist");
+
+    assert_eq!(plain.present_production, 50);
+    assert_eq!(starbase.present_production, 50);
+    assert!(!plain.has_friendly_starbase);
+    assert!(starbase.has_friendly_starbase);
+    assert_eq!(plain.build_capacity, 50);
+    assert_eq!(starbase.build_capacity, 250);
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn fleet_ships_and_detach_create_varied_extra_fleet() {
     let target = unique_temp_dir("ec-cli-fleet-setup");
     run_ec_cli(&[

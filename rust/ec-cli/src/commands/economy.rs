@@ -4,6 +4,12 @@ use crate::commands::runtime::{load_runtime_game_data, with_runtime_game_mut};
 
 const PROBE_COLONY_SPECS: [(&str, u16, u16, u8, u8); 2] =
     [("Mid Colony", 50, 100, 3, 1), ("New Colony", 25, 100, 1, 0)];
+const STARBASE_PROBE_COLONY_SPECS: [(&str, bool); 2] =
+    [("Plain Colony", false), ("Base Colony", true)];
+const STARBASE_PROBE_PRESENT_PRODUCTION: u16 = 50;
+const STARBASE_PROBE_POTENTIAL_PRODUCTION: u16 = 100;
+const STARBASE_PROBE_ARMIES: u8 = 3;
+const STARBASE_PROBE_BATTERIES: u8 = 1;
 
 pub(crate) fn init_tax_growth_probe(
     dir: &Path,
@@ -86,6 +92,128 @@ pub(crate) fn init_tax_growth_probe(
 
     println!(
         "Initialized economy tax-growth probe at {} for player {} tax={}%",
+        dir.display(),
+        player_record_index_1_based,
+        tax_rate
+    );
+    print_economy_report(dir, player_record_index_1_based)?;
+    Ok(())
+}
+
+pub(crate) fn init_starbase_tax_probe(
+    dir: &Path,
+    player_record_index_1_based: usize,
+    tax_rate: u8,
+) -> Result<(), Box<dyn std::error::Error>> {
+    with_runtime_game_mut(dir, |data| {
+        let empire_raw = player_record_index_1_based as u8;
+        let empire_name = data
+            .player
+            .records
+            .get(player_record_index_1_based - 1)
+            .map(|player| player.controlled_empire_name_summary())
+            .filter(|name| !name.trim().is_empty() && name != "In Civil Disorder")
+            .unwrap_or_else(|| format!("Probe Empire {player_record_index_1_based}"));
+
+        data.join_player(player_record_index_1_based, &empire_name)?;
+        data.set_player_tax_rate(player_record_index_1_based, tax_rate)?;
+
+        if let Some(player) = data.player.records.get_mut(player_record_index_1_based - 1) {
+            player.set_starbase_count_raw(0);
+        }
+        data.bases
+            .records
+            .retain(|base| base.owner_empire_raw() != empire_raw);
+
+        let Some(homeworld_idx) = data.planets.records.iter().position(|planet| {
+            planet.owner_empire_slot_raw() == empire_raw && planet.is_homeworld_seed_ignoring_name()
+        }) else {
+            return Err(format!(
+                "player {} homeworld seed not found",
+                player_record_index_1_based
+            )
+            .into());
+        };
+
+        {
+            let homeworld = &mut data.planets.records[homeworld_idx];
+            homeworld.set_economy_marker_raw(tax_rate);
+            homeworld.set_stored_goods_raw(0);
+            homeworld.set_army_count_raw(10);
+            homeworld.set_ground_batteries_raw(4);
+            homeworld.set_ownership_status_raw(2);
+        }
+
+        let unowned_indices = data
+            .planets
+            .records
+            .iter()
+            .enumerate()
+            .filter(|(_, planet)| planet.owner_empire_slot_raw() == 0)
+            .map(|(idx, _)| idx)
+            .rev()
+            .take(STARBASE_PROBE_COLONY_SPECS.len())
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect::<Vec<_>>();
+
+        if unowned_indices.len() != STARBASE_PROBE_COLONY_SPECS.len() {
+            return Err("not enough unowned planets available for starbase economy probe".into());
+        }
+
+        let mut starbase_planet_index_1_based = None;
+        for (planet_idx, (name, has_starbase)) in
+            unowned_indices.into_iter().zip(STARBASE_PROBE_COLONY_SPECS)
+        {
+            let planet = &mut data.planets.records[planet_idx];
+            let mut potential = planet.potential_production_raw();
+            potential[0] = STARBASE_PROBE_POTENTIAL_PRODUCTION.min(u16::from(u8::MAX)) as u8;
+            planet.set_owner_empire_slot_raw(empire_raw);
+            planet.set_ownership_status_raw(2);
+            planet.set_planet_name(name);
+            planet.set_potential_production_raw(potential);
+            if !planet.set_present_production_points(STARBASE_PROBE_PRESENT_PRODUCTION) {
+                return Err(format!(
+                    "unsupported probe production value {} for planet {}",
+                    STARBASE_PROBE_PRESENT_PRODUCTION,
+                    planet_idx + 1
+                )
+                .into());
+            }
+            planet.set_economy_marker_raw(tax_rate);
+            planet.set_army_count_raw(STARBASE_PROBE_ARMIES);
+            planet.set_ground_batteries_raw(STARBASE_PROBE_BATTERIES);
+            for slot in 0..10 {
+                planet.set_build_count_raw(slot, 0);
+                planet.set_build_kind_raw(slot, 0);
+            }
+            for slot in 0..ec_data::STARDOCK_SLOT_COUNT {
+                planet.set_stardock_count_raw(slot, 0);
+                planet.set_stardock_kind_raw(slot, 0);
+            }
+            planet.set_stored_goods_raw(0);
+
+            if has_starbase {
+                planet.set_stardock_kind_raw(0, 9);
+                planet.set_stardock_count_raw(0, 1);
+                starbase_planet_index_1_based = Some(planet_idx + 1);
+            }
+        }
+
+        if let Some(planet_index_1_based) = starbase_planet_index_1_based {
+            data.commission_planet_stardock_slot(
+                player_record_index_1_based,
+                planet_index_1_based,
+                0,
+            )?;
+        }
+
+        Ok(())
+    })?;
+
+    println!(
+        "Initialized economy starbase tax-burden probe at {} for player {} tax={}%",
         dir.display(),
         player_record_index_1_based,
         tax_rate

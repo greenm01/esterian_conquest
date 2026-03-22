@@ -25,6 +25,20 @@ This is the current source of truth for:
 - yearly current-production growth toward potential
 - starbase effects on build capacity and growth
 
+The starbase `5x` question is now closed at the semantic level:
+
+- the manuals explicitly tie `5x` to build capacity
+- a focused Ghidra follow-up against the recovered unwrapped
+  `ECMAINTU.EXE` project did **not** surface evidence for a starbase `5x`
+  growth multiplier
+- the follow-up black-box sweep in
+  [starbase-economy-oracle-audit.md](starbase-economy-oracle-audit.md)
+  reconfirmed the starbase/build-capacity side but still did **not** produce a
+  trustworthy exact classic growth/tax formula from generated probe worlds
+- the exact classic growth bonus remains unrecovered, so the Rust
+  `+50%` growth bonus below remains the documented canonical Rust policy,
+  not a claim of byte-exact classic recovery
+
 It does not replace the original manuals as historical sources. It translates
 them into an explicit Rust rule set suitable for reproducible maintenance.
 
@@ -72,6 +86,25 @@ Important manual-facing claims:
   - help planets endure tax burden better
   - let planets spend up to `5x` current production on builds
   - help underdeveloped planets grow current production faster
+
+Current Ghidra-backed reading:
+
+- the recovered unwrapped `ECMAINTU.EXE` project exposes real planet-side
+  functions, but this pass did not recover a clean starbase `* 5` growth path
+- taken together with the manuals, current evidence supports:
+  - `5x` build capacity
+  - some separate starbase growth acceleration
+  - no verified claim that growth itself is multiplied by `5`
+
+Current black-box follow-up:
+
+- the controlled starbase/tax sweep in
+  [starbase-economy-oracle-audit.md](starbase-economy-oracle-audit.md)
+  does preserve the commissioned starbase and the larger build-capacity effect
+- but the resulting colony production values are still too pathological to
+  promote into an exact classic growth/tax formula
+- so the manuals still carry more semantic weight here than the current
+  generated-oracle colony sweep
 
 ## Canonical Terms
 
@@ -194,6 +227,10 @@ current-production growth is boosted by `+50%` over the base growth amount.
 
 This refers to an active commissioned starbase, not an uncommissioned starbase
 item still sitting in stardock.
+
+This `+50%` rule remains the canonical Rust policy for now. The current manual
+plus Ghidra evidence does **not** support rewriting this into a starbase
+`5x` growth multiplier.
 
 ### 2. Build capacity multiplier
 

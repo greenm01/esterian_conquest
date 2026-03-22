@@ -64,6 +64,52 @@
   - lower tax produces faster colony growth than high tax
   - starbases accelerate colony growth
 
+## Session 2026-03-22 - Starbase `5x` growth claim rejected
+
+- Rechecked the shipped docs:
+  - `ECPLAYER.DOC` explicitly ties `5x` to build capacity
+  - the same docs only say starbases help underdeveloped planets grow faster;
+    they do **not** say growth itself is multiplied by `5`
+- Ran a focused headless Ghidra pass against the recovered unwrapped
+  `ECMAINTU.EXE` project instead of the weaker raw MZ import:
+  - `artifacts/ghidra/ecmaint-unwrapped-probe/functions.txt`
+  - `artifacts/ghidra/ecmaint-unwrapped-probe/economy-scalar-hits.txt`
+  - `artifacts/ghidra/ecmaint-unwrapped-probe/probe-1000_0ba4.txt`
+  - `artifacts/ghidra/ecmaint-unwrapped-probe/probe-1000_301f.txt`
+  - `artifacts/ghidra/ecmaint-unwrapped-probe/probe-1000_3ba2.txt`
+- Current practical result:
+  - the Ghidra pass did not recover a clean starbase `* 5` growth path
+  - the only explicit `5x` rule still supported is build capacity
+  - the exact classic starbase growth bonus remains unrecovered
+- Practical consequence for Rust/docs:
+  - do not describe starbases as `5x` growth
+  - keep the current Rust starbase growth bonus as canonical policy unless
+    stronger oracle or Ghidra evidence appears
+
+## Session 2026-03-22 - Starbase tax-burden follow-up remains unresolved
+
+- Added a dedicated starbase/tax oracle probe path:
+  - `ec-cli economy-starbase-probe-init`
+  - `tools/ecmaint_starbase_economy_audit.py`
+  - `docs/dev/starbase-economy-oracle-audit.md`
+- The new sweep does confirm one useful thing cleanly:
+  - a commissioned friendly starbase survives the oracle run as a real base
+  - the post-oracle imported colony still shows the larger starbase
+    build-capacity effect
+- But the same sweep still does **not** recover a trustworthy exact growth or
+  tax-burden formula:
+  - generated probe colonies produce pathological post-oracle production values
+    across taxes `25..80`
+  - those outputs conflict with the manuals strongly enough that they should
+    not be promoted into a canonical classic rule
+- Practical consequence:
+  - keep `5x` build capacity as supported
+  - keep the current Rust `+50%` / `65 -> 70` starbase economy rule as
+    canonical Rust policy only
+  - if this thread is revisited, recover a cleaner accepted planet-state
+    baseline first or do a deeper static RE pass on the unwrapped economy
+    functions
+
 ## RE Policy: Stochastic Mechanics
 
 `ECMAINT` uses an internal RNG for combat (fleet battles, bombardment losses)
