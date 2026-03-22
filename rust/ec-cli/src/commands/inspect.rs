@@ -270,8 +270,19 @@ pub(crate) fn inspect_fleet_movement(
     println!("current_speed={}", fleet.current_speed());
     println!("max_speed={}", fleet.max_speed());
     println!("roe={}", fleet.rules_of_engagement());
+    println!("mission_aux={:02x?}", fleet.mission_aux_bytes());
     println!("raw_0d={:02x}", fleet.raw[0x0d]);
+    println!("raw_0e={:02x}", fleet.raw[0x0e]);
     println!("raw_0f={:02x}", fleet.raw[0x0f]);
+    println!("raw_10={:02x}", fleet.raw[0x10]);
+    println!("raw_11={:02x}", fleet.raw[0x11]);
+    println!("raw_12={:02x}", fleet.raw[0x12]);
+    println!("raw_19={:02x}", fleet.raw[0x19]);
+    println!("raw_1a={:02x}", fleet.raw[0x1a]);
+    println!("raw_1b={:02x}", fleet.raw[0x1b]);
+    println!("raw_1c={:02x}", fleet.raw[0x1c]);
+    println!("raw_1d={:02x}", fleet.raw[0x1d]);
+    println!("raw_1e={:02x}", fleet.raw[0x1e]);
     println!(
         "route_steps={}",
         route.as_ref().map(|route| route.steps.len()).unwrap_or(0)

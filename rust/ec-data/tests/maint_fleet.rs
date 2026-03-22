@@ -718,6 +718,7 @@ fn test_guard_starbase_persists_after_arrival() {
         game_data.fleets.records[1].standing_order_kind(),
         Order::GuardStarbase
     );
+    assert_eq!(game_data.fleets.records[1].current_speed(), 0);
     assert_eq!(
         game_data.fleets.records[1].standing_order_target_coords_raw(),
         [11, 8]
@@ -764,6 +765,7 @@ fn test_guard_blockade_world_persists_after_isolated_arrival() {
         game_data.fleets.records[0].standing_order_kind(),
         Order::GuardBlockadeWorld
     );
+    assert_eq!(game_data.fleets.records[0].current_speed(), 0);
     assert_eq!(
         game_data.fleets.records[0].standing_order_target_coords_raw(),
         target_coords
@@ -798,6 +800,7 @@ fn test_patrol_sector_persists_after_arrival() {
         game_data.fleets.records[1].standing_order_kind(),
         Order::PatrolSector
     );
+    assert_eq!(game_data.fleets.records[1].current_speed(), 0);
     assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 1
             && event.kind == Mission::PatrolSector

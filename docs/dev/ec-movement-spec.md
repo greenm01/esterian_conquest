@@ -69,6 +69,9 @@ The main nuance is that fleet orders fall into three categories:
   explicitly invalidate them
 - some are static watch/guard orders, while others wait, chase, or assemble
   fleets over multiple maintenance turns
+- current classic coverage shows that "persists" does not mean "keeps moving":
+  `PatrolSector`, `GuardStarbase`, and `GuardBlockadeWorld` keep their standing
+  order on arrival, but the fleet's `current_speed` still drops to `0`
 - they remain armed if the player does not replace them
 - examples: `HoldPosition`, `PatrolSector`, `GuardStarbase`,
   `GuardBlockadeWorld`, `JoinAnotherFleet`, `RendezvousSector`
@@ -105,9 +108,9 @@ finishes.
 | `HoldPosition` | Persistent standing | `NONE` / Hold position | no travel | stays idle at current position | yes |
 | `MoveOnly` | One-shot completion | `MOVE FLEET` | direct transit to sector | completes on arrival, then `Hold` | no |
 | `SeekHome` | One-shot completion | `SEEK HOME` | transit to nearest owned world, with retargeting if that world is lost | completes on arrival, then `Hold` | no |
-| `PatrolSector` | Persistent standing | `PATROL A SECTOR` | transit to patrol sector if needed, then intercept/watch posture | remains on patrol | yes |
-| `GuardStarbase` | Persistent standing | `GUARD A STARBASE` | transit to base if needed, then escort/guard posture | remains guarding the base | yes |
-| `GuardBlockadeWorld` | Persistent standing | `GUARD/BLOCKADE A WORLD` | transit to target world if needed, then guard/blockade posture | remains guarding or blockading | yes |
+| `PatrolSector` | Persistent standing | `PATROL A SECTOR` | transit to patrol sector if needed, then intercept/watch posture | order persists on arrival, but fleet stops at the patrol sector | yes |
+| `GuardStarbase` | Persistent standing | `GUARD A STARBASE` | transit to base if needed, then escort/guard posture | order persists on arrival, but fleet stops at the guarded base | yes |
+| `GuardBlockadeWorld` | Persistent standing | `GUARD/BLOCKADE A WORLD` | transit to target world if needed, then guard/blockade posture | order persists on arrival, but fleet stops at the guarded world | yes |
 | `BombardWorld` | Delayed-resolution hostile | `BOMBARD A WORLD` | transit to target world if needed | persists through arrival until the ready bombardment step resolves or is invalidated | yes |
 | `InvadeWorld` | Delayed-resolution hostile | `INVADE A WORLD` | transit to target world if needed | persists through arrival until the ready invasion step resolves or is invalidated | yes |
 | `BlitzWorld` | Delayed-resolution hostile | `BLITZ A WORLD` | transit to target world if needed | persists through arrival until the ready assault step resolves or is invalidated | yes |

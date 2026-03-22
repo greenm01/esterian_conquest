@@ -59,7 +59,8 @@ pub(super) fn process_fleet_movement(
         // order_code 0x00 = HoldPosition — fleet stays put even if speed > 0
         // and target != current.
         // Note: BombardWorld/InvadeWorld fleets also move to their target before executing;
-        // they are allowed here — arrival handling preserves their order/speed.
+        // they are allowed here — arrival handling decides whether the order persists and
+        // whether movement state stops or stays armed for the next phase.
         let order_code = game_data.fleets.records[i].standing_order_code_raw();
         let should_move =
             speed > 0 && order_code != 0x00 && (target_x != current_x || target_y != current_y);

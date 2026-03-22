@@ -4,7 +4,8 @@ use crate::navigation::{
 };
 use crate::{CoreGameData, Order, VisibleHazardIntel};
 use ec_data::fleet_motion_state::{
-    decode_exact_position, reset_motion_state_for_new_orders, store_exact_position,
+    clear_exact_position, decode_exact_position, reset_motion_state_for_new_orders,
+    reset_motion_state_for_stationary_arrival, store_exact_position,
 };
 
 pub(super) fn set_fleet_to_deep_space_hold(fleet: &mut ec_data::FleetRecord) {
@@ -24,7 +25,7 @@ pub(super) fn set_fleet_to_local_hold(fleet: &mut ec_data::FleetRecord) {
     reset_motion_state_for_new_orders(fleet);
 }
 
-fn order_preserves_state_on_arrival(order: Order) -> bool {
+fn order_persists_on_arrival(order: Order) -> bool {
     matches!(
         order,
         Order::PatrolSector
@@ -36,6 +37,32 @@ fn order_preserves_state_on_arrival(order: Order) -> bool {
             | Order::InvadeWorld
             | Order::BlitzWorld
     )
+}
+
+fn order_stops_on_arrival(order: Order) -> bool {
+    matches!(
+        order,
+        Order::PatrolSector | Order::GuardStarbase | Order::GuardBlockadeWorld
+    )
+}
+
+fn apply_standing_arrival_state(fleet: &mut ec_data::FleetRecord, order: Order) {
+    fleet.set_current_speed(0);
+
+    match order {
+        Order::PatrolSector | Order::GuardBlockadeWorld => {
+            reset_motion_state_for_stationary_arrival(fleet);
+            fleet.set_tuple_c_payload_raw([0x81, 0x00, 0x00, 0x00, 0x00]);
+        }
+        Order::GuardStarbase => {
+            // Classic keeps GuardStarbase armed but stops the fleet on arrival.
+            // The exact arrival tuple bytes still differ from the simpler patrol/blockade
+            // cases, so only the confirmed parts are mirrored here for now.
+            clear_exact_position(fleet);
+            fleet.raw[0x19] = 0x00;
+        }
+        _ => {}
+    }
 }
 
 /// Process movement for a single fleet using the ECMAINT movement formula.
@@ -60,14 +87,17 @@ fn order_preserves_state_on_arrival(order: Order) -> bool {
 ///
 /// On arrival (position reaches target):
 /// - completion orders clear current_speed and fall back to HoldPosition
-/// - persistent standing and delayed hostile orders remain armed
-/// - tuple_c_payload set to [0x80, 0xb9, 0xff, 0xff, 0xff]
-/// - raw[0x1e] set to 0x7f
+/// - standing guard/patrol orders keep their order but stop moving
+/// - delayed hostile orders remain armed for the next ready-resolution tick
+/// - hostile/one-shot arrivals still use the current tuple-c ready/completion stamp
 ///
 /// Confirmed from fleet-scenario fixture: fleet 0 ColonizeWorld, speed=3,
 /// pos=(16,13) → (15,13) (arrived), all above changes observed.
 /// Confirmed from move-scenario fixture: fleet 0 MoveOnly, speed=3,
 /// pos=(16,13) → (24,13) after 3 turns, position and 0x0f encoding verified.
+/// Confirmed from persistent mission probes: PatrolSector and GuardBlockadeWorld
+/// keep their order but drop to speed=0 with a stationary tuple-c shape; GuardStarbase
+/// also drops to speed=0 but still has partially unresolved arrival bytes.
 ///
 /// Returns `true` if the fleet arrived at its target this turn.
 pub(super) fn process_single_fleet_movement(
@@ -143,21 +173,29 @@ pub(super) fn process_single_fleet_movement(
     game_data.fleets.records[fleet_idx].set_current_location_coords_raw([new_x, new_y]);
 
     if new_x == target_x && new_y == target_y {
-        let order_code_on_arrival = game_data.fleets.records[fleet_idx].standing_order_code_raw();
-        let preserves_order_on_arrival =
-            order_preserves_state_on_arrival(Order::from_raw(order_code_on_arrival));
+        let arrival_order =
+            Order::from_raw(game_data.fleets.records[fleet_idx].standing_order_code_raw());
+        let preserves_order_on_arrival = order_persists_on_arrival(arrival_order);
 
         if !preserves_order_on_arrival {
             game_data.fleets.records[fleet_idx].set_current_speed(0);
             game_data.fleets.records[fleet_idx].set_standing_order_kind(Order::HoldPosition);
+            game_data.fleets.records[fleet_idx].raw[0x19] = 0x80;
+            game_data.fleets.records[fleet_idx].raw[0x1a] = 0xb9;
+            game_data.fleets.records[fleet_idx].raw[0x1b] = 0xff;
+            game_data.fleets.records[fleet_idx].raw[0x1c] = 0xff;
+            game_data.fleets.records[fleet_idx].raw[0x1d] = 0xff;
+            game_data.fleets.records[fleet_idx].raw[0x1e] = 0x7f;
+        } else if order_stops_on_arrival(arrival_order) {
+            apply_standing_arrival_state(&mut game_data.fleets.records[fleet_idx], arrival_order);
+        } else {
+            game_data.fleets.records[fleet_idx].raw[0x19] = 0x80;
+            game_data.fleets.records[fleet_idx].raw[0x1a] = 0xb9;
+            game_data.fleets.records[fleet_idx].raw[0x1b] = 0xff;
+            game_data.fleets.records[fleet_idx].raw[0x1c] = 0xff;
+            game_data.fleets.records[fleet_idx].raw[0x1d] = 0xff;
+            game_data.fleets.records[fleet_idx].raw[0x1e] = 0x7f;
         }
-
-        game_data.fleets.records[fleet_idx].raw[0x19] = 0x80;
-        game_data.fleets.records[fleet_idx].raw[0x1a] = 0xb9;
-        game_data.fleets.records[fleet_idx].raw[0x1b] = 0xff;
-        game_data.fleets.records[fleet_idx].raw[0x1c] = 0xff;
-        game_data.fleets.records[fleet_idx].raw[0x1d] = 0xff;
-        game_data.fleets.records[fleet_idx].raw[0x1e] = 0x7f;
 
         return Ok(true);
     }

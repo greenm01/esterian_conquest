@@ -19,6 +19,14 @@ movement stepper.
 Rust now mirrors these controlled trace cases with focused regression tests in
 `rust/ec-data/tests/movement_trace.rs`.
 
+Persistent standing-order follow-up now lives in
+[persistent-mission-oracle-audit.md](persistent-mission-oracle-audit.md). That
+companion probe set establishes that `PatrolSector`, `GuardStarbase`, and
+`GuardBlockadeWorld` keep their order on arrival, but they do **not** keep
+their travel speed; classic stops them at the target and leaves a smaller,
+more order-specific scratch-byte footprint than the generic old Rust arrival
+stamp.
+
 ## Current Classic-Compatible Model
 
 The best current model for classic movement is:
@@ -48,6 +56,8 @@ behavior that recomputed from the rounded visible sector each year.
 
 - This audit is about movement geometry and arrival semantics, not the exact
   raw-byte encoding of classic in-transit scratch fields.
+- The persistent mission follow-up confirms the same warning: visible movement
+  semantics can be settled before every motion scratch byte is fully decoded.
 - Threat-aware pathfinding remains a Rust policy layer. When visible hazards do
   not force a detour, the classic-compatible direct movement geometry above is
   the fidelity target.

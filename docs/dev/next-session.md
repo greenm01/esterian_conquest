@@ -50,6 +50,17 @@ established:
   - join fleets keep chasing until they merge or the host is lost
   - rendezvous fleets wait at the assigned sector for later arrivals
   - rendezvous host selection is lowest fleet ID, not first arrival
+- the persistent mission follow-up in
+  [persistent-mission-oracle-audit.md](persistent-mission-oracle-audit.md)
+  established:
+  - `PatrolSector`, `GuardStarbase`, and `GuardBlockadeWorld` keep their order
+    on arrival
+  - those orders do **not** keep their travel speed; classic drops
+    `current_speed` to `0` once the fleet reaches the target
+  - `PatrolSector` and `GuardBlockadeWorld` settle into a rest-like tuple-c
+    shape after arrival
+  - `GuardStarbase` still has unresolved arrival scratch bytes and aux-state
+    behavior
 
 ## Biggest Blockers
 
@@ -57,8 +68,8 @@ established:
   traces rather than decoded from source.
 - The exact raw-byte meaning of the classic in-transit scratch fields is still
   not fully decoded.
-- Persistent mission geometry and scratch-byte behavior still have much less
-  direct oracle coverage than the `MoveOnly` matrix.
+- `GuardStarbase` still has partially unresolved scratch-byte / aux-state
+  behavior during transit and after arrival.
 - Hazard-driven detours still need broader oracle coverage so the classic direct
   stepper and the Rust pathfinding extension remain cleanly separated.
 
@@ -78,21 +89,26 @@ exceptions:
 - `PatrolSector`, `GuardStarbase`, `GuardBlockadeWorld`,
   `JoinAnotherFleet`, and `RendezvousSector` stay armed after arrival or while
   waiting for their merge condition
+- current classic coverage for patrol/guard orders shows that "stay armed"
+  means the order persists, not the movement state: the fleet still stops and
+  its `current_speed` becomes `0`
 - `BombardWorld`, `InvadeWorld`, and `BlitzWorld` preserve their order through
   arrival so the ready mission resolves on the following tick
 
 ## Immediate Next Steps
 
-1. Extend the same movement tracing approach to persistent missions such as
-   `PatrolSector`, `GuardStarbase`, and `GuardBlockadeWorld`, especially their
-   arrival-state bytes and post-arrival persistence.
-2. Re-run the classic oracle harness for the controlled movement matrix and
-   confirm the raw movement scratch bytes are still acceptable.
-3. Re-probe hostile-world arrivals to keep the delayed `BombardWorld` /
-   `InvadeWorld` / `BlitzWorld` behavior aligned with the turn-cycle specs.
-4. Decide whether the current Rust in-transit scratch encoding should be kept as
-   a pragmatic compatibility layer or replaced with a more directly recovered
+1. Re-probe hostile-world arrivals to keep the delayed `BombardWorld` /
+   `InvadeWorld` / `BlitzWorld` behavior aligned with the turn-cycle specs,
+   especially whether those orders preserve speed or only preserve the order.
+2. Decide whether the current Rust in-transit scratch encoding should be kept
+   as a pragmatic compatibility layer or replaced with a more directly recovered
    classic byte model.
+3. Deepen the `GuardStarbase` scratch-byte / aux-state audit now that the
+   visible arrival semantics are settled:
+   - why `mission_aux[0]` flips from `01` to `00`
+   - why classic leaves a distinct nonzero `0x0d..0x12` payload on arrival
+4. Re-run the classic oracle harness for the controlled movement matrix and
+   confirm the raw movement scratch bytes are still acceptable.
 
 ## Structural Note
 

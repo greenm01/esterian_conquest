@@ -38,6 +38,16 @@ pub fn reset_motion_state_for_new_orders(fleet: &mut FleetRecord) {
     clear_exact_position(fleet);
 }
 
+pub fn reset_motion_state_for_stationary_arrival(fleet: &mut FleetRecord) {
+    fleet.raw[0x0d] = 0x80;
+    fleet.raw[0x0e] = 0x00;
+    fleet.raw[0x0f] = 0x00;
+    fleet.raw[0x10] = 0x00;
+    fleet.raw[0x11] = 0x00;
+    fleet.raw[0x12] = 0x00;
+    clear_exact_position(fleet);
+}
+
 fn encode_exact_coord(value: f64) -> u16 {
     (value * EXACT_POSITION_SCALE)
         .round()
