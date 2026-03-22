@@ -1,16 +1,18 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+mod database_projection;
+mod intel;
+
+use database_projection::build_database_dat;
+use ec_classic::decode_report_blocks;
 use ec_data::{
     CampaignStore, CampaignStoreError, ConquestDat, CoreGameData, MaintenanceEvents, PlanetDat,
-    QueuedPlayerMail, derive_campaign_seed_from_runtime, load_mail_queue,
+    QueuedPlayerMail, ReportBlockRow, derive_campaign_seed_from_runtime, load_mail_queue,
 };
 
-pub use ec_data::compat::{
-    DatabaseDat, DatabaseRecord, build_database_dat, decode_report_block_rows,
-    encode_report_block_rows, extract_player_intel_from_compat_database,
-    merge_player_intel_from_compat, rebuild_results_bytes,
-};
+pub use ec_classic::{DATABASE_RECORD_SIZE, DatabaseDat, DatabaseRecord};
+pub use intel::{extract_player_intel_from_compat_database, merge_player_intel_from_compat};
 
 const CLASSIC_AUXILIARY_FILES: &[&str] = &["MESSAGES.DAT", "RESULTS.DAT"];
 
@@ -152,6 +154,30 @@ pub fn inspect_classic_messages_dat(bytes: &[u8]) -> ClassicMessagesInspection {
         record_previews,
         raw_preview,
     }
+}
+
+pub fn decode_report_block_rows(bytes: &[u8]) -> Vec<ReportBlockRow> {
+    decode_report_blocks(bytes)
+        .into_iter()
+        .enumerate()
+        .map(|(idx, block)| ReportBlockRow::from_classic_block(idx, block))
+        .collect()
+}
+
+pub fn rebuild_results_bytes(rows: &[ReportBlockRow]) -> Option<Vec<u8>> {
+    let blocks = rows
+        .iter()
+        .map(ReportBlockRow::to_classic_block)
+        .collect::<Vec<_>>();
+    Some(ec_classic::rebuild_results_bytes(&blocks))
+}
+
+pub fn encode_report_block_rows(rows: &[ReportBlockRow]) -> Vec<u8> {
+    let blocks = rows
+        .iter()
+        .map(ReportBlockRow::to_classic_block)
+        .collect::<Vec<_>>();
+    ec_classic::encode_report_blocks(&blocks)
 }
 
 pub fn write_default_database_dat_for_game_data(

@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
 
-use crate::compat::{DatabaseDat, DatabaseRecord};
-use crate::maint::MaintenanceEvents;
-use crate::{CoreGameData, IntelTier, PlanetDat, PlanetIntelSnapshot, PlanetIntelSource};
+use ec_classic::{DatabaseDat, DatabaseRecord};
+use ec_data::{
+    CoreGameData, IntelTier, MaintenanceEvents, PlanetDat, PlanetIntelSnapshot, PlanetIntelSource,
+};
 
 /// Regenerate classic `DATABASE.DAT` from structured runtime state plus
 /// per-player intel snapshots.
@@ -278,7 +279,7 @@ fn apply_owned_world_row(
     record: &mut DatabaseRecord,
     template_record: Option<&DatabaseRecord>,
     snapshot: Option<&PlanetIntelSnapshot>,
-    planet: &crate::PlanetRecord,
+    planet: &ec_data::PlanetRecord,
     intel_year: u16,
 ) {
     let potential = planet.potential_production_points_current_known();
@@ -302,7 +303,7 @@ fn apply_owned_world_row(
 fn apply_intel_grant_row(
     record: &mut DatabaseRecord,
     template_record: Option<&DatabaseRecord>,
-    planet: &crate::PlanetRecord,
+    planet: &ec_data::PlanetRecord,
     intel_year: u16,
     current_game_year: u16,
     source: PlanetIntelSource,
@@ -407,14 +408,14 @@ fn template_word_1e(template_record: Option<&DatabaseRecord>) -> Option<u16> {
         .filter(|value| *value != u16::MAX)
 }
 
-fn scout_visible_current_production(planet: &crate::PlanetRecord) -> u16 {
+fn scout_visible_current_production(planet: &ec_data::PlanetRecord) -> u16 {
     planet
         .present_production_points_current_known()
         .unwrap_or_else(|| planet.potential_production_points_current_known())
 }
 
 fn owned_row_word_1e(
-    planet: &crate::PlanetRecord,
+    planet: &ec_data::PlanetRecord,
     template_record: Option<&DatabaseRecord>,
 ) -> u16 {
     if planet.is_homeworld_seed_ignoring_name()

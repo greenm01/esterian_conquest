@@ -1,11 +1,10 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use ec_classic::{DatabaseDat, decode_report_blocks};
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::compat::{
-    DatabaseDat, decode_report_block_rows, extract_player_intel_from_compat_database,
-};
+use crate::intel::extract_player_intel_from_compat_database;
 use crate::{
     BASE_RECORD_SIZE, BaseDat, CoreGameData, FLEET_RECORD_SIZE, FleetDat, IPBM_RECORD_SIZE,
     IpbmDat, PLANET_RECORD_SIZE, PLAYER_RECORD_SIZE, PlanetDat, PlayerDat, QueuedPlayerMail,
@@ -107,6 +106,12 @@ impl From<rusqlite::Error> for CampaignStoreError {
 impl From<crate::ParseError> for CampaignStoreError {
     fn from(value: crate::ParseError) -> Self {
         Self::Parse(value)
+    }
+}
+
+impl From<ec_classic::ParseError> for CampaignStoreError {
+    fn from(value: ec_classic::ParseError) -> Self {
+        Self::Parse(value.into())
     }
 }
 
@@ -775,7 +780,11 @@ fn migrate_legacy_compat_files(conn: &mut Connection) -> Result<(), CampaignStor
                 )?;
                 if existing_count == 0 {
                     let tx = conn.transaction()?;
-                    let rows = decode_report_block_rows(&bytes);
+                    let rows = decode_report_blocks(&bytes)
+                        .into_iter()
+                        .enumerate()
+                        .map(|(idx, block)| ReportBlockRow::from_classic_block(idx, block))
+                        .collect::<Vec<_>>();
                     write_report_block_rows(&tx, snapshot_id, &rows)?;
                     tx.commit()?;
                 }

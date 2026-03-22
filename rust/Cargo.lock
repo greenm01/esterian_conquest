@@ -68,6 +68,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "ec-classic"
+version = "0.1.0"
+
+[[package]]
 name = "ec-cli"
 version = "0.1.0"
 dependencies = [
@@ -93,6 +97,7 @@ dependencies = [
 name = "ec-compat"
 version = "0.1.0"
 dependencies = [
+ "ec-classic",
  "ec-data",
 ]
 
@@ -100,6 +105,7 @@ dependencies = [
 name = "ec-data"
 version = "0.1.0"
 dependencies = [
+ "ec-classic",
  "ec-compat",
  "ec-engine",
  "kdl",

@@ -48,7 +48,7 @@ The Rust workspace should follow pragmatic data-oriented design:
 
 It is responsible for:
 
-- explicit classic record/file layouts under `records/`
+- explicit runtime record/file layouts under `records/`
 - `CoreGameData` and shared multi-file directory semantics
 - SQLite runtime persistence and snapshot/history loading
 - shared validators, normalizers, report/mail/intel state, and typed helpers
@@ -71,6 +71,23 @@ It is responsible for:
 
 Engine callers should depend on `ec-engine` rather than reaching directly into
 `ec-data` for rules.
+
+### `ec-classic`
+
+`ec-classic` is the low-level classic-file support crate.
+
+It is responsible for:
+
+- raw classic record types that are still shared across the compat boundary
+- classic byte-level parse/encode helpers
+- keeping classic byte mechanics out of the runtime/store API surface
+
+It should stay small and dumb:
+
+- explicit layouts
+- minimal parsing/encoding helpers
+- no runtime-store policy
+- no gameplay rules
 
 ### `ec-compat`
 
@@ -131,6 +148,8 @@ The current workspace shape is:
 
 ```text
 rust/
+├── ec-classic
+│   └── src/          # low-level classic record/codecs
 ├── ec-data
 │   ├── src/records/   # explicit binary/runtime record layouts
 │   ├── src/storage.rs # SQLite campaign store + snapshot bridge
@@ -174,22 +193,22 @@ ec-client                ec-cli                ec-harness   tools/oracles
     |          pathfinding)        projections,     |
     |                              oracle bridge)   |
     |               \                 /            /
-    |                \               /            /
-    |                 \             /            /
-    |                  \           /            /
-    |                   \         /            /
-    |                    \       /            /
-    |                     \     /            /
-    |                      ec-data
-    |             (shared runtime/store/model)
-    |                      |
-    |                      |
-    |                 SQLite / ecgame.db
-    |             current state + snapshots
-    |             reports + queued mail
-    |             per-player fog of war
-    |                      |
-    |                      |
+    |                \               /             |
+    |                 \             /              |
+    |                  \           /               |
+    |                   \         /                |
+    |                    \       /                 |
+    |                     \     /                  |
+    |                      ec-data                |
+    |             (shared runtime/store/model)    |
+    |                      |                      |
+    |                      |                      |
+    |                 SQLite / ecgame.db     ec-classic
+    |             current state + snapshots  (raw classic
+    |             reports + queued mail       records/codecs)
+    |             per-player fog of war            ^
+    |                      |                       |
+    |                      |_______________________|
     |                 source of truth
     |
     +--> client reads/writes SQLite only
@@ -211,6 +230,7 @@ Read this sketch with the ownership rules above:
 - `ec-client` does not parse classic `.DAT` files
 - `ec-engine` owns gameplay rules, not classic file workflows
 - `ec-data` owns shared runtime/store/model state
+- `ec-classic` owns low-level classic byte/record helpers only
 - `ec-cli` orchestrates explicit compat flows through `ec-compat`
 - SQLite is authoritative; `.DAT` is the compatibility/oracle edge
 

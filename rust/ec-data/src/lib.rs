@@ -13,20 +13,8 @@ pub const CONQUEST_DAT_SIZE: usize = 2085;
 pub const DATABASE_RECORD_SIZE: usize = 100;
 pub const MAINTENANCE_DAY_ENABLED_CODES: [u8; 7] = [0x01, 0x01, 0xCA, 0x01, 0x0A, 0x01, 0x26];
 
-pub mod compat {
-    pub use crate::database_projection::build_database_dat;
-    pub use crate::intel::{
-        extract_player_intel_from_compat_database, merge_player_intel_from_compat,
-    };
-    pub use crate::records::database::{DatabaseDat, DatabaseRecord};
-    pub use crate::report_blocks::{
-        decode_report_block_rows, encode_report_block_rows, rebuild_results_bytes,
-    };
-}
-
 mod builder;
 mod config;
-mod database_projection;
 mod directory;
 mod economy;
 mod intel;

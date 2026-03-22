@@ -7,6 +7,7 @@ edition = "2024"
 path = "src/lib.rs"
 
 [dependencies]
+ec-classic = { path = "../ec-classic" }
 kdl = "6"
 rand = "0.8"
 rusqlite = { version = "0.31", features = ["bundled"] }

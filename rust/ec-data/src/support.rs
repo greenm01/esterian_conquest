@@ -39,6 +39,31 @@ impl fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
+impl From<ec_classic::ParseError> for ParseError {
+    fn from(value: ec_classic::ParseError) -> Self {
+        match value {
+            ec_classic::ParseError::WrongSize {
+                file_type,
+                expected,
+                actual,
+            } => Self::WrongSize {
+                file_type,
+                expected,
+                actual,
+            },
+            ec_classic::ParseError::WrongRecordMultiple {
+                file_type,
+                record_size,
+                actual,
+            } => Self::WrongRecordMultiple {
+                file_type,
+                record_size,
+                actual,
+            },
+        }
+    }
+}
+
 pub fn expect_size(
     data: &[u8],
     expected: usize,

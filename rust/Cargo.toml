@@ -1,3 +1,3 @@
 [workspace]
-members = ["ec-data", "ec-engine", "ec-compat", "ec-cli", "ec-client", "ec-harness"]
+members = ["ec-classic", "ec-data", "ec-engine", "ec-compat", "ec-cli", "ec-client", "ec-harness"]
 resolver = "2"

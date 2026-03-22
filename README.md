@@ -482,6 +482,7 @@ Useful supporting docs:
 - `docs/reverse_engineering/`: oracle, provenance, and binary-recovery docs
 - `docs/dev/archive/RE_NOTES.md`: chronological reverse-engineering notebook (archival)
 - `rust/ec-data`: shared runtime/store/state-model crate
+- `rust/ec-classic`: low-level classic record/codec support crate
 - `rust/ec-engine`: public gameplay/maintenance/rules crate
 - `rust/ec-compat`: classic `.DAT` import/export bridge
 - `rust/ec-cli`: sysop/admin/oracle/inspection CLI
