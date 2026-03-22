@@ -61,6 +61,15 @@ established:
     shape after arrival
   - `GuardStarbase` still has unresolved arrival scratch bytes and aux-state
     behavior
+- the delayed hostile follow-up in
+  [hostile-arrival-oracle-audit.md](hostile-arrival-oracle-audit.md)
+  established:
+  - `BombardWorld`, `InvadeWorld`, and `BlitzWorld` all preserve both order
+    and `current_speed` on the arrival tick
+  - all three stamp the same ready hostile tuple-c payload on arrival:
+    `19=80 1a=b9 1b=ff 1c=ff 1d=ff 1e=7f`
+  - the hostile-world step still resolves on the following maintenance tick,
+    not on the travel tick
 
 ## Biggest Blockers
 
@@ -92,23 +101,23 @@ exceptions:
 - current classic coverage for patrol/guard orders shows that "stay armed"
   means the order persists, not the movement state: the fleet still stops and
   its `current_speed` becomes `0`
-- `BombardWorld`, `InvadeWorld`, and `BlitzWorld` preserve their order through
-  arrival so the ready mission resolves on the following tick
+- `BombardWorld`, `InvadeWorld`, and `BlitzWorld` preserve both their order
+  and their current travel speed through arrival so the ready mission resolves
+  on the following tick
 
 ## Immediate Next Steps
 
-1. Re-probe hostile-world arrivals to keep the delayed `BombardWorld` /
-   `InvadeWorld` / `BlitzWorld` behavior aligned with the turn-cycle specs,
-   especially whether those orders preserve speed or only preserve the order.
-2. Decide whether the current Rust in-transit scratch encoding should be kept
+1. Decide whether the current Rust in-transit scratch encoding should be kept
    as a pragmatic compatibility layer or replaced with a more directly recovered
    classic byte model.
-3. Deepen the `GuardStarbase` scratch-byte / aux-state audit now that the
+2. Deepen the `GuardStarbase` scratch-byte / aux-state audit now that the
    visible arrival semantics are settled:
    - why `mission_aux[0]` flips from `01` to `00`
    - why classic leaves a distinct nonzero `0x0d..0x12` payload on arrival
-4. Re-run the classic oracle harness for the controlled movement matrix and
+3. Re-run the classic oracle harness for the controlled movement matrix and
    confirm the raw movement scratch bytes are still acceptable.
+4. Broaden hazard-detour oracle coverage so the classic direct stepper and the
+   Rust visible-hazard routing extension stay cleanly separated.
 
 ## Structural Note
 

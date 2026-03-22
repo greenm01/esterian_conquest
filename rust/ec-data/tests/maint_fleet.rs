@@ -20,6 +20,46 @@ fn load_fixture(name: &str) -> CoreGameData {
     CoreGameData::load(&dir).unwrap_or_else(|e| panic!("Failed to load fixture {}: {}", name, e))
 }
 
+fn configured_delayed_hostile_arrival_state(
+    order: Order,
+    ships: (u16, u16, u16, u16, u16, u16, u16),
+) -> (CoreGameData, usize, [u8; 2]) {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3000)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+    let target_coords = [25, 25];
+    let target_idx = 4;
+
+    let target_world = &mut game_data.planets.records[target_idx];
+    target_world.set_coords_raw(target_coords);
+    target_world.set_owner_empire_slot_raw(2);
+    target_world.set_ownership_status_raw(2);
+    target_world.set_planet_name("Target");
+    target_world.set_army_count_raw(10);
+    target_world.set_ground_batteries_raw(4);
+
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_battleship_count(ships.0);
+    fleet.set_cruiser_count(ships.1);
+    fleet.set_destroyer_count(ships.2);
+    fleet.set_troop_transport_count(ships.3);
+    fleet.set_army_count(ships.4);
+    fleet.set_etac_count(ships.5);
+    fleet.set_scout_count(ships.6 as u8);
+    fleet.recompute_max_speed_from_composition();
+    fleet.set_current_location_coords_raw([24, 25]);
+    fleet.set_current_speed(3);
+    fleet.set_standing_order_kind(order);
+    fleet.set_standing_order_target_coords_raw(target_coords);
+    fleet.raw[0x0d] = 0x80;
+    fleet.raw[0x0f] = 0x00;
+    fleet.raw[0x19] = 0x81;
+
+    (game_data, target_idx, target_coords)
+}
+
 #[test]
 fn test_fleet_movement_and_colonization_fleets_dat() {
     // After one maintenance turn on the fleet pre-fixture, FLEETS.DAT should match
@@ -806,6 +846,64 @@ fn test_patrol_sector_persists_after_arrival() {
             && event.kind == Mission::PatrolSector
             && event.outcome == MissionOutcome::Arrived
     }));
+}
+
+#[test]
+fn test_delayed_hostile_orders_preserve_order_speed_and_ready_bytes_on_arrival() {
+    let cases = [
+        (
+            "bombard",
+            Order::BombardWorld,
+            Mission::BombardWorld,
+            (0, 3, 5, 0, 0, 0, 0),
+        ),
+        (
+            "invade",
+            Order::InvadeWorld,
+            Mission::InvadeWorld,
+            (0, 1, 0, 10, 10, 0, 0),
+        ),
+        (
+            "blitz",
+            Order::BlitzWorld,
+            Mission::BlitzWorld,
+            (100, 50, 50, 50, 50, 0, 0),
+        ),
+    ];
+
+    for (name, order, mission, ships) in cases {
+        let (mut game_data, target_idx, target_coords) =
+            configured_delayed_hostile_arrival_state(order, ships);
+
+        let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+        let fleet = &game_data.fleets.records[0];
+
+        assert_eq!(
+            fleet.current_location_coords_raw(),
+            target_coords,
+            "{name} coords"
+        );
+        assert_eq!(fleet.standing_order_kind(), order, "{name} order");
+        assert_eq!(fleet.current_speed(), 3, "{name} arrival speed");
+        assert_eq!(
+            fleet.standing_order_target_coords_raw(),
+            target_coords,
+            "{name} target"
+        );
+        assert_eq!(fleet.raw[0x19], 0x80, "{name} raw[0x19]");
+        assert_eq!(fleet.raw[0x1a], 0xb9, "{name} raw[0x1a]");
+        assert_eq!(fleet.raw[0x1b], 0xff, "{name} raw[0x1b]");
+        assert_eq!(fleet.raw[0x1c], 0xff, "{name} raw[0x1c]");
+        assert_eq!(fleet.raw[0x1d], 0xff, "{name} raw[0x1d]");
+        assert_eq!(fleet.raw[0x1e], 0x7f, "{name} raw[0x1e]");
+        assert!(events.mission_events.iter().any(|event| {
+            event.fleet_idx == 0
+                && event.kind == mission
+                && event.outcome == MissionOutcome::Arrived
+                && event.planet_idx == Some(target_idx)
+                && event.location_coords == Some(target_coords)
+        }));
+    }
 }
 
 #[test]

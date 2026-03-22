@@ -27,6 +27,13 @@ their travel speed; classic stops them at the target and leaves a smaller,
 more order-specific scratch-byte footprint than the generic old Rust arrival
 stamp.
 
+Delayed hostile-world follow-up now lives in
+[hostile-arrival-oracle-audit.md](hostile-arrival-oracle-audit.md). That
+companion probe set establishes the opposite arrival-state rule for
+`BombardWorld`, `InvadeWorld`, and `BlitzWorld`: classic preserves both the
+standing order and the current travel speed on the arrival tick, then resolves
+the ready hostile mission on the following maintenance pass.
+
 ## Current Classic-Compatible Model
 
 The best current model for classic movement is:

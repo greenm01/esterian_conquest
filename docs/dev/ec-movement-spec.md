@@ -27,7 +27,7 @@ Current-known movement rules in Rust already model:
 The live movement implementation is in:
 
 - [mod.rs](../../rust/ec-engine/src/maint/mod.rs)
-- [movement.rs](../../rust/ec-engine/src/maint/movement.rs)
+- [movement/mod.rs](../../rust/ec-engine/src/maint/movement/mod.rs)
 - [navigation/mod.rs](../../rust/ec-engine/src/navigation/mod.rs)
 - [geometry.rs](../../rust/ec-engine/src/navigation/geometry.rs)
 - [fleet_motion_state.rs](../../rust/ec-data/src/fleet_motion_state.rs)
@@ -82,6 +82,10 @@ The main nuance is that fleet orders fall into three categories:
   mission
 - after the fleet reaches the target, the order remains armed until the ready
   hostile-world step resolves it or invalidates it
+- current classic coverage shows that the arrival tick preserves both the
+  standing order and the fleet's current travel speed; the fleet does **not**
+  drop to `speed=0` until the later hostile-world step consumes or invalidates
+  the order
 - examples: `BombardWorld`, `InvadeWorld`, `BlitzWorld`
 
 Player-level rule: "new order overrides whatever the fleet was doing" is the
@@ -111,9 +115,9 @@ finishes.
 | `PatrolSector` | Persistent standing | `PATROL A SECTOR` | transit to patrol sector if needed, then intercept/watch posture | order persists on arrival, but fleet stops at the patrol sector | yes |
 | `GuardStarbase` | Persistent standing | `GUARD A STARBASE` | transit to base if needed, then escort/guard posture | order persists on arrival, but fleet stops at the guarded base | yes |
 | `GuardBlockadeWorld` | Persistent standing | `GUARD/BLOCKADE A WORLD` | transit to target world if needed, then guard/blockade posture | order persists on arrival, but fleet stops at the guarded world | yes |
-| `BombardWorld` | Delayed-resolution hostile | `BOMBARD A WORLD` | transit to target world if needed | persists through arrival until the ready bombardment step resolves or is invalidated | yes |
-| `InvadeWorld` | Delayed-resolution hostile | `INVADE A WORLD` | transit to target world if needed | persists through arrival until the ready invasion step resolves or is invalidated | yes |
-| `BlitzWorld` | Delayed-resolution hostile | `BLITZ A WORLD` | transit to target world if needed | persists through arrival until the ready assault step resolves or is invalidated | yes |
+| `BombardWorld` | Delayed-resolution hostile | `BOMBARD A WORLD` | transit to target world if needed | persists through arrival, keeping the arrival-tick travel speed, until the ready bombardment step resolves or is invalidated | yes |
+| `InvadeWorld` | Delayed-resolution hostile | `INVADE A WORLD` | transit to target world if needed | persists through arrival, keeping the arrival-tick travel speed, until the ready invasion step resolves or is invalidated | yes |
+| `BlitzWorld` | Delayed-resolution hostile | `BLITZ A WORLD` | transit to target world if needed | persists through arrival, keeping the arrival-tick travel speed, until the ready assault step resolves or is invalidated | yes |
 | `ViewWorld` | One-shot completion | `VIEW A WORLD` | transit to target world edge, perform long-range scan, then back off | completes and returns to deep-space `Hold` | no |
 | `ScoutSector` | One-shot completion | `SCOUT A SECTOR` | transit to target sector, perform sector reconnaissance | completes on arrival/report, then `Hold` | no |
 | `ScoutSolarSystem` | One-shot completion | `SCOUT A SOLAR SYSTEM` | transit to target world, perform close reconnaissance | completes on arrival/report, then `Hold` | no |
