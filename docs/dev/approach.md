@@ -53,6 +53,23 @@ current Rust combat system is already the model for this: preserve the turn
 placement and visible consequences that matter, but do not freeze the engine
 waiting for perfect historical internals.
 
+### Reverse engineering is now a closed phase
+
+The heavy discovery phase is complete enough for normal development. The
+original manuals, binaries, fixtures, and archived RE notes remain essential
+provenance and compatibility resources, but they are no longer the repo's
+day-to-day center of gravity.
+
+From here forward:
+
+- oracle and Ghidra work are targeted tools, not a standing project stream
+- the default path is to build and refine the Rust engine/client against the
+  already documented rule set
+- deep RE should reopen only for a concrete compatibility regression, crash,
+  unresolved file-safety issue, or player-visible gameplay mismatch
+- unresolved low-level quirks that do not materially affect gameplay may stay
+  documented without blocking the Rust engine
+
 ### Stable docs vs. lab notes
 
 `docs/dev/archive/RE_NOTES.md` is the chronological investigation notebook and

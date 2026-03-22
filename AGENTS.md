@@ -163,17 +163,17 @@ Prefer rule-shaped generators and validators over preserved-byte blob emission.
 
 ## Current Priorities
 
-1. expand Rust from known accepted scenarios toward general compliant gamestate generation
-2. keep recovering `ECMAINT` cross-file linkage and integrity rules
-3. keep the `ECMAINT` turn-cycle RE focused on full recovery of:
-   - the complete `1..52` week-assignment process
-   - the complete cross-turn fleet-behavior and dated-report process
-   - this remains a top priority until that oracle behavior is understood well
-     enough to call it fully recovered, not merely approximated
-4. replace scenario-specific constants with explicit validators/builders
-5. use typed KDL for setup, turn submission, and harness/scenario authoring now
+1. advance the Rust-first engine and player/TUI experience on top of the stable
+   runtime/model architecture
+2. preserve classic compatibility at the explicit import/export/oracle boundary
+   through focused regression tests and sweeps
+3. replace scenario-specific constants with explicit validators/builders
+4. use typed KDL for setup, turn submission, and harness/scenario authoring now
    that the runtime/state model exists, but keep Rust types authoritative and
    avoid freeform arbitrary-mutation DSLs
+5. reopen deep oracle / Ghidra reverse engineering only for a concrete
+   compatibility regression, crash, file-safety problem, or player-visible rule
+   mismatch that materially blocks Rust development
 
 ## Avoid
 

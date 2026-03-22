@@ -93,14 +93,14 @@ keep it in the black-box queue until it becomes a real blocker.
 
 ## Current Posture
 
-- the heavy RE phase is mostly complete; day-to-day work should bias toward
-  `maint-rust`, classic export correctness, and the Rust client
+- the heavy RE phase is closed for normal development; day-to-day work should
+  bias toward the Rust engine, classic export correctness, and the Rust client
 - original DOS binaries remain the compatibility oracle, not the product front
   end
 - deep RE should reopen only for a concrete oracle diff, crash, or gameplay
   mismatch that blocks broader compliant generation
-- [docs/dev/next-session.md](../dev/next-session.md) carries the live proof
-  baseline, current sweep status, and remaining blockers
+- [docs/dev/next-session.md](../dev/next-session.md) carries the current
+  project handoff, not an ongoing oracle lab notebook
 
 ## Where To Read
 
