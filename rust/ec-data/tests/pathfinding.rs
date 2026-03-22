@@ -1,7 +1,7 @@
 use ec_data::{
-    DatabaseDat, GameStateBuilder, Order, VisibleHazardIntel, plan_route, plan_route_with_intel,
-    run_maintenance_turn, run_maintenance_turn_with_visible_hazards,
-    visible_hazard_intel_from_database,
+    merge_player_intel_from_compat, plan_route, plan_route_with_intel, run_maintenance_turn,
+    run_maintenance_turn_with_visible_hazards, visible_hazard_intel_from_snapshots, DatabaseDat,
+    GameStateBuilder, Order, VisibleHazardIntel,
 };
 
 #[test]
@@ -91,7 +91,14 @@ fn visible_hazard_intel_derives_known_foreign_worlds_from_database_view() {
     record.raw[0x15] = 2;
     record.raw[0x1c] = 100;
 
-    let intel = visible_hazard_intel_from_database(&game_data, &database, 1);
+    let snapshots = merge_player_intel_from_compat(
+        &game_data,
+        &database,
+        1,
+        game_data.conquest.game_year(),
+        None,
+    );
+    let intel = visible_hazard_intel_from_snapshots(&game_data, &snapshots, 1);
     assert!(intel.foreign_worlds.contains(&[4, 2]));
     assert!(intel.hostile_homeworlds.contains(&[4, 2]));
 }
@@ -120,7 +127,14 @@ fn visible_hazard_intel_marks_foreign_blockades_over_owned_worlds() {
     record.set_planet_name("Home Rim");
     record.raw[0x15] = 1;
 
-    let intel = visible_hazard_intel_from_database(&game_data, &database, 1);
+    let snapshots = merge_player_intel_from_compat(
+        &game_data,
+        &database,
+        1,
+        game_data.conquest.game_year(),
+        None,
+    );
+    let intel = visible_hazard_intel_from_snapshots(&game_data, &snapshots, 1);
     assert!(intel.hostile_blockades.contains(&[4, 2]));
 }
 

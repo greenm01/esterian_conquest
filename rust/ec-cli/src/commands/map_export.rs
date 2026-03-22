@@ -2,8 +2,8 @@ use std::fs;
 use std::path::Path;
 
 use ec_data::{
-    CampaignStore, CoreGameData, DEFAULT_CAMPAIGN_DB_NAME, DatabaseDat,
-    build_player_starmap_projection, build_player_starmap_projection_from_snapshots,
+    build_player_starmap_projection_from_snapshots, extract_player_intel_from_compat_database,
+    CampaignStore, CoreGameData, DatabaseDat, DEFAULT_CAMPAIGN_DB_NAME,
 };
 
 pub fn export_player_starmap(
@@ -28,16 +28,30 @@ pub fn export_player_starmap(
         } else {
             let game_data = CoreGameData::load(dir)?;
             let database = DatabaseDat::parse(&fs::read(dir.join("DATABASE.DAT"))?)?;
-            build_player_starmap_projection(
+            let snapshots = extract_player_intel_from_compat_database(
                 &game_data,
                 &database,
+                game_data.conquest.game_year(),
+            );
+            build_player_starmap_projection_from_snapshots(
+                &game_data,
+                &snapshots[player_record_index_1_based - 1],
                 player_record_index_1_based as u8,
             )
         }
     } else {
         let game_data = CoreGameData::load(dir)?;
         let database = DatabaseDat::parse(&fs::read(dir.join("DATABASE.DAT"))?)?;
-        build_player_starmap_projection(&game_data, &database, player_record_index_1_based as u8)
+        let snapshots = extract_player_intel_from_compat_database(
+            &game_data,
+            &database,
+            game_data.conquest.game_year(),
+        );
+        build_player_starmap_projection_from_snapshots(
+            &game_data,
+            &snapshots[player_record_index_1_based - 1],
+            player_record_index_1_based as u8,
+        )
     };
     let csv_path = output_path.with_extension("csv");
     let details_csv_path = output_path.with_file_name(

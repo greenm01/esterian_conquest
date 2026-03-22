@@ -1,4 +1,7 @@
-use ec_data::{DatabaseDat, GameStateBuilder, build_player_starmap_projection};
+use ec_data::{
+    build_player_starmap_projection_from_snapshots, merge_player_intel_from_compat, DatabaseDat,
+    GameStateBuilder,
+};
 
 #[test]
 fn player_starmap_projection_shows_full_geometry_but_only_known_details() {
@@ -20,15 +23,20 @@ fn player_starmap_projection_shows_full_geometry_but_only_known_details() {
     record.raw[0x23] = 10;
     record.raw[0x25] = 4;
 
-    let projection = build_player_starmap_projection(&game_data, &database, 1);
+    let snapshots = merge_player_intel_from_compat(
+        &game_data,
+        &database,
+        1,
+        game_data.conquest.game_year(),
+        None,
+    );
+    let projection = build_player_starmap_projection_from_snapshots(&game_data, &snapshots, 1);
     assert_eq!(projection.worlds.len(), planet_count);
     assert!(projection.worlds.iter().any(|world| world.coords == [5, 2]));
-    assert!(
-        projection
-            .worlds
-            .iter()
-            .any(|world| world.coords == [10, 15])
-    );
+    assert!(projection
+        .worlds
+        .iter()
+        .any(|world| world.coords == [10, 15]));
 
     let known = projection
         .worlds
@@ -68,7 +76,14 @@ fn player_starmap_projection_always_marks_owned_worlds_as_owned() {
     let database =
         DatabaseDat::new_zeroed((game_data.conquest.player_count() as usize) * planet_count);
 
-    let projection = build_player_starmap_projection(&game_data, &database, 1);
+    let snapshots = merge_player_intel_from_compat(
+        &game_data,
+        &database,
+        1,
+        game_data.conquest.game_year(),
+        None,
+    );
+    let projection = build_player_starmap_projection_from_snapshots(&game_data, &snapshots, 1);
     let home = projection
         .worlds
         .iter()
@@ -107,7 +122,14 @@ fn player_starmap_projection_uses_database_intel_for_known_foreign_owner() {
     let record = database.record_mut(1, 0, planet_count);
     record.raw[0x15] = 2;
 
-    let projection = build_player_starmap_projection(&game_data, &database, 1);
+    let snapshots = merge_player_intel_from_compat(
+        &game_data,
+        &database,
+        1,
+        game_data.conquest.game_year(),
+        None,
+    );
+    let projection = build_player_starmap_projection_from_snapshots(&game_data, &snapshots, 1);
     let foreign = projection
         .worlds
         .iter()
@@ -140,6 +162,8 @@ fn ascii_map_export_uses_printable_paged_grid() {
                     known_potential_production: None,
                     known_armies: None,
                     known_ground_batteries: None,
+                    known_current_production: None,
+                    known_stored_points: None,
                 },
                 ec_data::PlayerStarmapWorld {
                     planet_record_index_1_based: 2,
@@ -150,6 +174,8 @@ fn ascii_map_export_uses_printable_paged_grid() {
                     known_potential_production: None,
                     known_armies: None,
                     known_ground_batteries: None,
+                    known_current_production: None,
+                    known_stored_points: None,
                 },
             ],
         };

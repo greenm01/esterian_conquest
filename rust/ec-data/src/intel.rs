@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::maint::PlanetIntelSource;
 use crate::storage::{IntelTier, PlanetIntelSnapshot};
-use crate::{CoreGameData, DatabaseDat, PlayerStarmapWorld, build_player_starmap_projection};
+use crate::{CoreGameData, DatabaseDat, DatabaseRecord, PlayerStarmapWorld};
 
 pub fn merge_player_intel_from_compat(
     game_data: &CoreGameData,
@@ -11,9 +11,7 @@ pub fn merge_player_intel_from_compat(
     year: u16,
     previous: Option<&BTreeMap<usize, PlanetIntelSnapshot>>,
 ) -> BTreeMap<usize, PlanetIntelSnapshot> {
-    let projection = build_player_starmap_projection(game_data, database, viewer_empire_id);
-    projection
-        .worlds
+    compat_worlds(game_data, database, viewer_empire_id)
         .into_iter()
         .map(|world| {
             let planet_record_index_1_based = world.planet_record_index_1_based;
@@ -23,6 +21,77 @@ pub fn merge_player_intel_from_compat(
             let merged_snapshot =
                 merge_snapshot(previous_snapshot, &current_snapshot, viewer_empire_id, year);
             (planet_record_index_1_based, merged_snapshot)
+        })
+        .collect()
+}
+
+fn compat_worlds(
+    game_data: &CoreGameData,
+    database: &DatabaseDat,
+    viewer_empire_id: u8,
+) -> Vec<PlayerStarmapWorld> {
+    let planet_count = game_data.planets.records.len();
+    let viewer_index = viewer_empire_id.saturating_sub(1) as usize;
+    game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .map(|(planet_index, planet)| {
+            let record_index = DatabaseDat::record_index(planet_index, viewer_index, planet_count);
+            let fallback_record = DatabaseRecord::new_zeroed();
+            let db_record = database
+                .records
+                .get(record_index)
+                .unwrap_or(&fallback_record);
+            let actual_owner_empire_id = planet.owner_empire_slot_raw();
+            let is_owned_world = actual_owner_empire_id == viewer_empire_id;
+            let known_name = if is_owned_world {
+                Some(planet.status_or_name_summary())
+            } else {
+                decode_known_name(db_record)
+            };
+            let known_owner_empire_id = if is_owned_world {
+                Some(viewer_empire_id)
+            } else {
+                decode_known_owner_empire_id(db_record, game_data)
+            };
+            let known_owner_empire_name = known_owner_empire_id.map(|empire_id| {
+                game_data.player.records[empire_id as usize - 1].controlled_empire_name_summary()
+            });
+
+            PlayerStarmapWorld {
+                planet_record_index_1_based: planet_index + 1,
+                coords: planet.coords_raw(),
+                known_name,
+                known_owner_empire_id,
+                known_owner_empire_name,
+                known_potential_production: if is_owned_world {
+                    Some(planet.potential_production_points())
+                } else {
+                    decode_known_u16(db_record.raw[0x1c])
+                },
+                known_armies: if is_owned_world {
+                    Some(planet.army_count_raw())
+                } else {
+                    decode_known_u8(db_record.raw[0x23])
+                },
+                known_ground_batteries: if is_owned_world {
+                    Some(planet.ground_batteries_raw())
+                } else {
+                    decode_known_u8(db_record.raw[0x25])
+                },
+                known_current_production: if is_owned_world {
+                    planet.present_production_points().map(|v| v as u8)
+                } else {
+                    decode_known_u8(db_record.raw[0x1d])
+                },
+                known_stored_points: if is_owned_world {
+                    Some(planet.stored_goods_raw() as u16)
+                } else {
+                    decode_known_u16_word(db_record.word_at(0x1e))
+                },
+            }
         })
         .collect()
 }
@@ -254,4 +323,48 @@ fn snapshot_fingerprint(
         snapshot.known_current_production,
         snapshot.known_stored_points,
     )
+}
+
+fn decode_known_name(record: &DatabaseRecord) -> Option<String> {
+    let name = String::from_utf8_lossy(record.planet_name_bytes())
+        .trim()
+        .to_string();
+    if name.is_empty() || name.eq_ignore_ascii_case("unknown") {
+        None
+    } else {
+        Some(name)
+    }
+}
+
+fn decode_known_owner_empire_id(record: &DatabaseRecord, game_data: &CoreGameData) -> Option<u8> {
+    let raw = record.raw[0x15];
+    if raw >= 1 && raw <= game_data.conquest.player_count() {
+        Some(raw)
+    } else {
+        None
+    }
+}
+
+fn decode_known_u16(raw: u8) -> Option<u16> {
+    if raw == 0 || raw == 0xff {
+        None
+    } else {
+        Some(raw as u16)
+    }
+}
+
+fn decode_known_u8(raw: u8) -> Option<u8> {
+    if raw == 0 || raw == 0xff {
+        None
+    } else {
+        Some(raw)
+    }
+}
+
+fn decode_known_u16_word(raw: u16) -> Option<u16> {
+    if raw == 0 || raw == 0xffff {
+        None
+    } else {
+        Some(raw)
+    }
 }
