@@ -35,6 +35,15 @@ In practice:
 - larger features shall be split across focused modules instead of accumulating in oversized files
 - when a file starts to feel crowded, agents shall pause and split or reorganize it instead of continuing to extend it by default
 
+Pre-`v1.0` storage policy:
+
+- agents shall not preserve SQLite schema-migration baggage for obsolete
+  intermediate dev databases unless there is an active supported save base that
+  actually requires it
+- before `v1.0`, favor a clean forward schema over dead upgrade paths
+- after `v1.0`, add migration support only for released, user-facing save
+  formats with an explicit upgrade policy
+
 See [docs/rust-architecture.md](docs/dev/rust-architecture.md) for the fuller rationale.
 
 ## Startup Reading Order
