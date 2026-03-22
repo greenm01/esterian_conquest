@@ -1,0 +1,183 @@
+//! Event canonicalization pass for the maintenance engine.
+//!
+//! This module runs after event assembly and before returning `MaintenanceEvents`
+//! to the caller. It:
+//!
+//! 1. Walks each event vector and assigns `stardate_week` based on the
+//!    recovered timing rules (see [`super::timing`]).
+//! 2. Enforces corpus-backed same-week pairing rules.
+//! 3. Sorts each event vector by `stardate_week` ascending.
+//!
+//! **No game-state mutation happens here.** The pass is purely additive:
+//! it only fills in `stardate_week` fields that are currently `None`.
+
+mod sorting;
+mod weeks;
+
+use crate::CoreGameData;
+
+use super::MaintenanceEvents;
+
+/// Run the canonicalization pass over `events`.
+///
+/// After this call every report-visible event has a non-`None` `stardate_week`
+/// and each event vector is sorted in ascending week order.
+pub fn canonicalize_events(events: &mut MaintenanceEvents, game_data: &CoreGameData) {
+    weeks::assign_event_weeks(events, game_data);
+    sorting::sort_events(events);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::{
+        CampaignOutlookEvent, CivilDisorderEvent, ColonizationResolvedEvent, FleetBattleEvent,
+        Mission, MissionEvent, MissionOutcome, ShipLosses,
+    };
+    use super::*;
+    use crate::GameStateBuilder;
+
+    fn minimal_game_data() -> crate::CoreGameData {
+        GameStateBuilder::default()
+            .build_initialized_baseline()
+            .expect("minimal game data")
+    }
+
+    fn make_mission_event(kind: Mission, outcome: MissionOutcome) -> MissionEvent {
+        MissionEvent {
+            fleet_idx: 0,
+            owner_empire_raw: 1,
+            kind,
+            outcome,
+            planet_idx: None,
+            location_coords: None,
+            target_coords: None,
+            stardate_week: None,
+        }
+    }
+
+    #[test]
+    fn canonicalize_populates_mission_event_weeks() {
+        let game_data = minimal_game_data();
+        let mut events = MaintenanceEvents::default();
+        events.mission_events.push(make_mission_event(
+            Mission::MoveOnly,
+            MissionOutcome::Succeeded,
+        ));
+        events.mission_events.push(make_mission_event(
+            Mission::PatrolSector,
+            MissionOutcome::Arrived,
+        ));
+        canonicalize_events(&mut events, &game_data);
+        assert!(
+            events
+                .mission_events
+                .iter()
+                .all(|e| e.stardate_week.is_some())
+        );
+    }
+
+    #[test]
+    fn canonicalize_sorts_mission_events_by_week() {
+        let game_data = minimal_game_data();
+        let mut events = MaintenanceEvents::default();
+        events.mission_events.push(make_mission_event(
+            Mission::ScoutSector,
+            MissionOutcome::Succeeded,
+        ));
+        events.mission_events.push(make_mission_event(
+            Mission::PatrolSector,
+            MissionOutcome::Arrived,
+        ));
+        canonicalize_events(&mut events, &game_data);
+        let weeks: Vec<u8> = events
+            .mission_events
+            .iter()
+            .map(|e| e.stardate_week.unwrap())
+            .collect();
+        for pair in weeks.windows(2) {
+            assert!(
+                pair[0] <= pair[1],
+                "events should be sorted ascending: {:?}",
+                weeks
+            );
+        }
+    }
+
+    #[test]
+    fn fleet_battle_event_gets_week_2() {
+        let game_data = minimal_game_data();
+        let mut events = MaintenanceEvents::default();
+        events.fleet_battle_events.push(FleetBattleEvent {
+            reporting_empire_raw: 1,
+            reporting_fleet_id: Some(1),
+            reporting_mission: Some(Mission::GuardBlockadeWorld),
+            perspective: crate::maint::FleetBattlePerspective::Intercepted,
+            coords: [5, 5],
+            enemy_empires_raw: vec![2],
+            primary_enemy_fleet_id: Some(5),
+            held_field: true,
+            friendly_initial: ShipLosses::default(),
+            friendly_losses: ShipLosses::default(),
+            enemy_initial: ShipLosses::default(),
+            enemy_losses: ShipLosses::default(),
+            stardate_week: None,
+        });
+        canonicalize_events(&mut events, &game_data);
+        assert_eq!(events.fleet_battle_events[0].stardate_week, Some(2));
+    }
+
+    #[test]
+    fn civil_disorder_events_get_week_52() {
+        let game_data = minimal_game_data();
+        let mut events = MaintenanceEvents::default();
+        events.civil_disorder_events.push(CivilDisorderEvent {
+            reporting_empire_raw: 1,
+            prior_label: "Empire Alpha".to_string(),
+            stardate_week: None,
+        });
+        canonicalize_events(&mut events, &game_data);
+        assert_eq!(events.civil_disorder_events[0].stardate_week, Some(52));
+    }
+
+    #[test]
+    fn campaign_outlook_gets_week_52() {
+        let game_data = minimal_game_data();
+        let mut events = MaintenanceEvents::default();
+        events.campaign_outlook_events.push(CampaignOutlookEvent {
+            empire_raw: 1,
+            stardate_week: None,
+        });
+        canonicalize_events(&mut events, &game_data);
+        assert_eq!(events.campaign_outlook_events[0].stardate_week, Some(52));
+    }
+
+    #[test]
+    fn colonization_event_gets_week_from_mission_event() {
+        let game_data = minimal_game_data();
+        let mut events = MaintenanceEvents::default();
+        events.mission_events.push(MissionEvent {
+            fleet_idx: 3,
+            owner_empire_raw: 1,
+            kind: Mission::ColonizeWorld,
+            outcome: MissionOutcome::Succeeded,
+            planet_idx: Some(5),
+            location_coords: Some([10, 10]),
+            target_coords: Some([10, 10]),
+            stardate_week: Some(30),
+        });
+        events
+            .colonization_events
+            .push(ColonizationResolvedEvent::Succeeded {
+                fleet_idx: 3,
+                planet_idx: 5,
+                colonizer_empire_raw: 1,
+                stardate_week: None,
+            });
+        canonicalize_events(&mut events, &game_data);
+        let col_week = match events.colonization_events[0] {
+            ColonizationResolvedEvent::Succeeded { stardate_week, .. } => stardate_week,
+            _ => None,
+        };
+        assert_eq!(col_week, Some(30));
+    }
+}
