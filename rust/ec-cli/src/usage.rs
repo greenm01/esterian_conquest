@@ -18,14 +18,14 @@ pub fn print_usage() {
     );
     println!("  ec-cli harness run-sweep --file <combat-sweep.kdl>");
     println!(
-        "  ec-cli harness init-campaign --file <scenario.kdl> --dir <campaign_dir> --game-id <id> [--export-classic]"
+        "  ec-cli harness init-campaign --file <scenario.kdl> --dir <campaign_dir> --game-id <id> [--bundle-profile <human|llm>] [--export-classic]"
     );
     println!("  ec-cli harness open-turn --dir <campaign_dir>");
     println!("  ec-cli harness claim-turn --dir <campaign_dir> --player <record>");
     println!("  ec-cli harness scan-turn --dir <campaign_dir>");
     println!("  ec-cli harness apply-turn-batch --dir <campaign_dir>");
     println!(
-        "  ec-cli harness play-until --file <scenario.kdl> --dir <campaign_dir> --game-id <id> --turn <n> [--export-classic]"
+        "  ec-cli harness play-until --file <scenario.kdl> --dir <campaign_dir> --game-id <id> --turn <n> [--bundle-profile <human|llm>] [--export-classic]"
     );
     println!("  ec-cli sysop <subcommand> ...");
     println!(

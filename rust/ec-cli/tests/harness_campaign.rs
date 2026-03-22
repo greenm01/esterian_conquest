@@ -58,16 +58,74 @@ fn harness_init_campaign_creates_ready_bundles_and_status_files() {
             .join("player-1/bundle-turn-0001/README.md")
             .exists()
     );
+    assert!(
+        !workspace_root
+            .join("player-1/bundle-turn-0001/.llm/spatial.kdl")
+            .exists()
+    );
 
     let status = fs::read_to_string(workspace_root.join("player-1/status-turn-0001.kdl")).unwrap();
     assert!(status.contains("state=\"ready\""));
     assert!(status.contains("doctrine=\""));
+    let manifest = fs::read_to_string(workspace_root.join("campaign/manifest.kdl")).unwrap();
+    assert!(manifest.contains("bundle_profile=\"human\""));
     let bundle =
         fs::read_to_string(workspace_root.join("player-1/bundle-turn-0001/README.md")).unwrap();
     assert!(bundle.contains("doctrine"));
     assert!(bundle.contains("turn_file"));
     assert!(bundle.contains("## Legal Action Hints"));
     assert!(bundle.contains("## Mandatory Pre-Submit Checks"));
+
+    cleanup_dir(&scenario_root);
+    cleanup_dir(&campaign_dir);
+    cleanup_dir(&workspace_root);
+}
+
+#[test]
+fn harness_llm_bundle_profile_emits_hidden_spatial_map() {
+    let scenario_root = unique_temp_dir("ec-cli-harness-campaign-llm-scenario");
+    let campaign_dir = unique_temp_dir("ec-cli-harness-campaign-llm-out");
+    let game_id = format!(
+        "ec-cli-campaign-llm-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    );
+    let workspace_root = repo_root().join(".tmp/llm-turns").join(&game_id);
+    let scenario_path = scenario_root.join("scenario.kdl");
+    write_file(&scenario_path, scenario_text());
+
+    let stdout = run_ec_cli(&[
+        "harness",
+        "init-campaign",
+        "--file",
+        scenario_path.to_str().unwrap(),
+        "--dir",
+        campaign_dir.to_str().unwrap(),
+        "--game-id",
+        &game_id,
+        "--bundle-profile",
+        "llm",
+    ]);
+
+    assert!(stdout.contains("bundle_profile=llm"));
+
+    let manifest = fs::read_to_string(workspace_root.join("campaign/manifest.kdl")).unwrap();
+    assert!(manifest.contains("bundle_profile=\"llm\""));
+
+    let spatial =
+        fs::read_to_string(workspace_root.join("player-1/bundle-turn-0001/.llm/spatial.kdl"))
+            .unwrap();
+    assert!(spatial.contains("bundle-spatial player=1 turn=1 year=3000"));
+    assert!(spatial.contains("visibility=\"coords_only\""));
+    assert!(spatial.contains("non_target_family \"hold\""));
+    assert!(spatial.contains("legal_family \"view\""));
+    assert!(spatial.contains("eta_status=\"arrived\""));
+
+    let bundle =
+        fs::read_to_string(workspace_root.join("player-1/bundle-turn-0001/README.md")).unwrap();
+    assert!(!bundle.contains("spatial.kdl"));
 
     cleanup_dir(&scenario_root);
     cleanup_dir(&campaign_dir);

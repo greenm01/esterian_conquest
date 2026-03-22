@@ -24,12 +24,12 @@ Start here:
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- harness init-campaign --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish
+cargo run -q -p ec-cli -- harness init-campaign --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --bundle-profile llm
 cargo run -q -p ec-cli -- harness open-turn --dir /tmp/ec-bot-campaign
 cargo run -q -p ec-cli -- harness claim-turn --dir /tmp/ec-bot-campaign --player 2
 cargo run -q -p ec-cli -- harness scan-turn --dir /tmp/ec-bot-campaign
 cargo run -q -p ec-cli -- harness apply-turn-batch --dir /tmp/ec-bot-campaign
-cargo run -q -p ec-cli -- harness play-until --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --turn 5
+cargo run -q -p ec-cli -- harness play-until --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --turn 5 --bundle-profile llm
 cargo run -q -p ec-cli -- harness check-scenario --file /tmp/scenario.kdl
 cargo run -q -p ec-cli -- harness run-scenario --file /tmp/scenario.kdl --dir /tmp/ec-scenario
 cargo run -q -p ec-cli -- harness check-combat --file /tmp/combat-scenario.kdl
@@ -62,6 +62,7 @@ Per-player coordination files:
 ```text
 .tmp/llm-turns/<game_id>/campaign/manifest.kdl
 .tmp/llm-turns/<game_id>/player-<n>/bundle-turn-0005/
+.tmp/llm-turns/<game_id>/player-<n>/bundle-turn-0005/.llm/spatial.kdl   # llm profile only
 .tmp/llm-turns/<game_id>/player-<n>/status-turn-0005.kdl
 .tmp/llm-turns/<game_id>/player-<n>/turn-0005.kdl
 .tmp/llm-turns/<game_id>/player-<n>/notes-0005.md
@@ -87,6 +88,7 @@ Fog-of-war boundary:
 - player bundles include only player-visible starmap/intel projections
 - they include owned assets, diplomacy, economy summaries, and incoming player mail
 - they include coordinator-generated legal action hints per fleet to reduce invalid bot turns
+- `--bundle-profile llm` campaigns also emit hidden `.llm/spatial.kdl` files derived only from that same player-visible state
 - bundle `README.md` files are refreshed with current turn status and any
   rejection error, so rerun workers see the latest validation feedback in-place
 - they currently expose review flags only, not raw global `RESULTS.DAT` or `MESSAGES.DAT` text

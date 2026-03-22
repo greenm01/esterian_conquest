@@ -1,10 +1,12 @@
+mod bundle;
+
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use ec_data::{
     CampaignRuntimeState, CampaignStore, CoreGameData, PlanetIntelSnapshot, QueuedPlayerMail,
-    TurnSubmission, build_player_starmap_projection_from_snapshots,
+    TurnSubmission,
 };
 use ec_harness::{ScenarioSpec, build_scenario, save_built_scenario};
 
@@ -36,6 +38,7 @@ struct CampaignManifest {
     scenario_path: PathBuf,
     campaign_dir: PathBuf,
     workspace_root: PathBuf,
+    bundle_profile: BundleProfile,
     initial_year: u16,
     last_completed_turn: u16,
     players: Vec<PlayerAssignment>,
@@ -72,12 +75,27 @@ struct PlayerTurnStatus {
     error: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct VisiblePlanetHint {
-    record_index_1_based: usize,
-    coords: [u8; 2],
-    name: String,
-    owner_empire_id: Option<u8>,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BundleProfile {
+    Human,
+    Llm,
+}
+
+impl BundleProfile {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Human => "human",
+            Self::Llm => "llm",
+        }
+    }
+
+    fn parse(value: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        match value {
+            "human" => Ok(Self::Human),
+            "llm" => Ok(Self::Llm),
+            _ => Err(format!("unknown bundle profile: {value}").into()),
+        }
+    }
 }
 
 impl TurnState {
@@ -115,6 +133,9 @@ pub(crate) fn run_init_campaign_args(args: Vec<String>) -> Result<(), Box<dyn st
         &parsed.file,
         &parsed.dir,
         &parsed.game_id,
+        parsed
+            .requested_bundle_profile
+            .unwrap_or(BundleProfile::Human),
         parsed.export_classic,
     )?;
     let year = current_campaign_year(&manifest.campaign_dir)?;
@@ -123,6 +144,7 @@ pub(crate) fn run_init_campaign_args(args: Vec<String>) -> Result<(), Box<dyn st
     println!("  game_id={}", manifest.game_id);
     println!("  campaign_dir={}", manifest.campaign_dir.display());
     println!("  workspace_root={}", manifest.workspace_root.display());
+    println!("  bundle_profile={}", manifest.bundle_profile.as_str());
     println!("  open_turn={turn}");
     println!("  year={year}");
     Ok(())
@@ -179,12 +201,25 @@ pub(crate) fn run_play_until_args(args: Vec<String>) -> Result<(), Box<dyn std::
             )
             .into());
         }
+        if let Some(requested_bundle_profile) = parsed.requested_bundle_profile {
+            if manifest.bundle_profile != requested_bundle_profile {
+                return Err(format!(
+                    "campaign bundle profile mismatch: manifest has {}, CLI requested {}",
+                    manifest.bundle_profile.as_str(),
+                    requested_bundle_profile.as_str()
+                )
+                .into());
+            }
+        }
         manifest
     } else {
         initialize_campaign(
             &parsed.file,
             &parsed.dir,
             &parsed.game_id,
+            parsed
+                .requested_bundle_profile
+                .unwrap_or(BundleProfile::Human),
             parsed.export_classic,
         )?
     };
@@ -227,6 +262,7 @@ struct ParsedHarnessCampaignArgs {
     game_id: String,
     export_classic: bool,
     target_turn: Option<u16>,
+    requested_bundle_profile: Option<BundleProfile>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -268,6 +304,7 @@ fn initialize_campaign(
     scenario_path: &Path,
     campaign_dir: &Path,
     game_id: &str,
+    bundle_profile: BundleProfile,
     export_classic: bool,
 ) -> Result<CampaignManifest, Box<dyn std::error::Error>> {
     let spec = ScenarioSpec::load_kdl(scenario_path)?;
@@ -280,6 +317,7 @@ fn initialize_campaign(
         scenario_path: scenario_path.to_path_buf(),
         campaign_dir: campaign_dir.to_path_buf(),
         workspace_root: default_workspace_root(game_id),
+        bundle_profile,
         initial_year: built.game_data.conquest.game_year(),
         last_completed_turn: 0,
         players,
@@ -308,7 +346,7 @@ fn open_turn_internal(
             status.error = None;
         }
         save_status(manifest, &status)?;
-        ensure_player_bundle(manifest, &state, assignment, Some(&status), turn, year)?;
+        bundle::ensure_player_bundle(manifest, &state, assignment, Some(&status), turn, year)?;
     }
 
     Ok(OpenTurnReport {
@@ -368,7 +406,7 @@ fn claim_turn_internal(
     status.state = TurnState::Claimed;
     status.error = None;
     save_status(manifest, &status)?;
-    ensure_player_bundle(manifest, &state, assignment, Some(&status), turn, year)?;
+    bundle::ensure_player_bundle(manifest, &state, assignment, Some(&status), turn, year)?;
 
     Ok(ClaimTurnReport {
         turn_index_1_based: turn,
@@ -427,7 +465,7 @@ fn scan_turn_internal(
 
         classify_status(&status, &mut report);
         save_status(manifest, &status)?;
-        ensure_player_bundle(manifest, &state, assignment, Some(&status), turn, year)?;
+        bundle::ensure_player_bundle(manifest, &state, assignment, Some(&status), turn, year)?;
     }
 
     Ok(report)
@@ -555,439 +593,6 @@ fn classify_status(status: &PlayerTurnStatus, report: &mut ScanTurnReport) {
     }
 }
 
-fn ensure_player_bundle(
-    manifest: &CampaignManifest,
-    state: &CampaignRuntimeState,
-    assignment: &PlayerAssignment,
-    current_status: Option<&PlayerTurnStatus>,
-    turn_index_1_based: u16,
-    year: u16,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let player_dir = player_workspace_dir(manifest, assignment.record_index_1_based);
-    let bundle_dir = player_bundle_dir(
-        manifest,
-        assignment.record_index_1_based,
-        turn_index_1_based,
-    );
-    fs::create_dir_all(&player_dir)?;
-    fs::create_dir_all(&bundle_dir)?;
-
-    let snapshots =
-        load_snapshots_for_viewer(&manifest.campaign_dir, assignment.record_index_1_based)?;
-    let projection = build_player_starmap_projection_from_snapshots(
-        &state.game_data,
-        &snapshots,
-        assignment.record_index_1_based as u8,
-    );
-
-    fs::write(
-        bundle_dir.join("starmap.txt"),
-        projection.render_ascii_export(),
-    )?;
-    fs::write(
-        bundle_dir.join("starmap.csv"),
-        projection.render_csv_export(),
-    )?;
-    fs::write(
-        bundle_dir.join("starmap-DETAILS.csv"),
-        projection.render_csv_details_export(),
-    )?;
-
-    let readme = render_player_bundle_readme(
-        manifest,
-        state,
-        assignment,
-        &snapshots,
-        current_status,
-        turn_index_1_based,
-        year,
-    );
-    fs::write(bundle_dir.join("README.md"), readme)?;
-    Ok(())
-}
-
-fn render_player_bundle_readme(
-    manifest: &CampaignManifest,
-    state: &CampaignRuntimeState,
-    assignment: &PlayerAssignment,
-    snapshots: &BTreeMap<usize, PlanetIntelSnapshot>,
-    current_status: Option<&PlayerTurnStatus>,
-    turn_index_1_based: u16,
-    year: u16,
-) -> String {
-    let player = &state.game_data.player.records[assignment.record_index_1_based - 1];
-    let empire_name = player.controlled_empire_name_summary();
-    let handle = player.assigned_player_handle_summary();
-    let economy = state
-        .game_data
-        .empire_economy_summary(assignment.record_index_1_based);
-    let active_duty = state
-        .game_data
-        .empire_active_duty_summary(assignment.record_index_1_based);
-    let stardock = state
-        .game_data
-        .empire_stardock_summary(assignment.record_index_1_based);
-    let visible_planets = visible_planet_hints(state, assignment, snapshots);
-    let visible_unowned_targets = visible_planets
-        .iter()
-        .filter(|planet| planet.owner_empire_id.is_none())
-        .cloned()
-        .collect::<Vec<_>>();
-    let visible_foreign_targets = visible_planets
-        .iter()
-        .filter(|planet| {
-            planet.owner_empire_id.is_some()
-                && planet.owner_empire_id != Some(assignment.record_index_1_based as u8)
-        })
-        .cloned()
-        .collect::<Vec<_>>();
-
-    let incoming_messages = state
-        .queued_mail
-        .iter()
-        .filter(|mail| {
-            mail.is_visible_to_recipient(assignment.record_index_1_based as u8)
-                && mail.year.saturating_add(1) == year
-        })
-        .collect::<Vec<_>>();
-
-    let player_dir = player_workspace_dir(manifest, assignment.record_index_1_based);
-    let status_path = player_status_path(
-        manifest,
-        assignment.record_index_1_based,
-        turn_index_1_based,
-    );
-    let turn_path = player_turn_path(
-        manifest,
-        assignment.record_index_1_based,
-        turn_index_1_based,
-    );
-    let notes_path = player_notes_path(
-        manifest,
-        assignment.record_index_1_based,
-        turn_index_1_based,
-    );
-
-    let mut out = String::new();
-    out.push_str("# EC Bot Turn Bundle\n\n");
-    out.push_str(&format!("- game_id: `{}`\n", manifest.game_id));
-    out.push_str(&format!(
-        "- player: `{}`\n",
-        assignment.record_index_1_based
-    ));
-    out.push_str(&format!("- handle: `{}`\n", handle));
-    out.push_str(&format!("- empire: `{}`\n", empire_name));
-    out.push_str(&format!("- turn: `{}`\n", turn_index_1_based));
-    out.push_str(&format!("- year: `{}`\n", year));
-    out.push_str(&format!("- doctrine: `{}`\n", assignment.doctrine));
-    out.push_str(&format!("- status_file: `{}`\n", status_path.display()));
-    out.push_str(&format!("- turn_file: `{}`\n", turn_path.display()));
-    out.push_str(&format!("- notes_file: `{}`\n", notes_path.display()));
-    out.push_str(&format!("- workspace_dir: `{}`\n\n", player_dir.display()));
-
-    out.push_str("Use only this bundle, the player manuals, and your own prior notes. Do not inspect hidden state.\n\n");
-
-    out.push_str("## Current Turn Status\n\n");
-    if let Some(status) = current_status {
-        out.push_str(&format!("- state: `{}`\n", status.state.as_str()));
-        if let Some(error) = &status.error {
-            out.push_str(&format!("- validation_error: `{}`\n", error));
-            out.push_str(
-                "- fix only the cited issue, keep the rest of the turn stable if possible\n",
-            );
-        }
-    } else {
-        out.push_str("- state: `ready`\n");
-    }
-    out.push('\n');
-
-    out.push_str("## Economy Summary\n\n");
-    out.push_str(&format!(
-        "- planets_owned: `{}`\n- present_production: `{}`\n- potential_production: `{}`\n- available_points: `{}`\n- efficiency_percent: `{}`\n- tax_rate: `{}`\n- rank_by_planets: `{}`\n- rank_by_present_production: `{}`\n\n",
-        economy.owned_planets,
-        economy.present_production,
-        economy.potential_production,
-        economy.total_available_points,
-        economy.efficiency_percent,
-        economy.tax_rate,
-        economy.rank_by_planets,
-        economy.rank_by_present_production
-    ));
-
-    out.push_str("## Active Duty Summary\n\n");
-    out.push_str(&format!(
-        "- battleships: `{}`\n- cruisers: `{}`\n- destroyers: `{}`\n- scouts: `{}`\n- transports: `{}`\n- etacs: `{}`\n- starbases: `{}`\n- armies: `{}`\n- ground_batteries: `{}`\n\n",
-        active_duty.battleships,
-        active_duty.cruisers,
-        active_duty.destroyers,
-        active_duty.scouts,
-        active_duty.transports,
-        active_duty.etacs,
-        active_duty.starbases,
-        active_duty.armies,
-        active_duty.ground_batteries
-    ));
-
-    out.push_str("## Stardock Summary\n\n");
-    out.push_str(&format!(
-        "- battleships: `{}`\n- cruisers: `{}`\n- destroyers: `{}`\n- scouts: `{}`\n- transports: `{}`\n- etacs: `{}`\n- starbases: `{}`\n- armies: `{}`\n- ground_batteries: `{}`\n\n",
-        stardock.battleships,
-        stardock.cruisers,
-        stardock.destroyers,
-        stardock.scouts,
-        stardock.transports,
-        stardock.etacs,
-        stardock.starbases,
-        stardock.armies,
-        stardock.ground_batteries
-    ));
-
-    out.push_str("## Diplomacy\n\n");
-    for other in 1..=state.game_data.conquest.player_count() as usize {
-        if other == assignment.record_index_1_based {
-            continue;
-        }
-        let relation = state
-            .game_data
-            .stored_diplomatic_relation(assignment.record_index_1_based as u8, other as u8)
-            .map(|value| match value {
-                ec_data::DiplomaticRelation::Neutral => "neutral",
-                ec_data::DiplomaticRelation::Enemy => "enemy",
-            })
-            .unwrap_or("unknown");
-        let other_empire =
-            state.game_data.player.records[other - 1].controlled_empire_name_summary();
-        out.push_str(&format!(
-            "- empire `{other}` (`{other_empire}`): `{relation}`\n"
-        ));
-    }
-    out.push('\n');
-
-    out.push_str("## Owned Planets\n\n");
-    for planet in
-        state.game_data.planets.records.iter().filter(|planet| {
-            planet.owner_empire_slot_raw() as usize == assignment.record_index_1_based
-        })
-    {
-        let [x, y] = planet.coords_raw();
-        let present = planet
-            .present_production_points_current_known()
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| "UNKNOWN".to_string());
-        out.push_str(&format!(
-            "- `{}` at `({x},{y})`: potential `{}`, present `{}`, stored `{}`, armies `{}`, batteries `{}`\n",
-            planet.planet_name(),
-            planet.potential_production_points_current_known(),
-            present,
-            planet.stored_production_points(),
-            planet.army_count_raw(),
-            planet.ground_batteries_raw()
-        ));
-        let build_slots = (0..10)
-            .filter_map(|slot| {
-                let count = planet.build_count_raw(slot);
-                let kind = planet.build_kind_raw(slot);
-                (count > 0 || kind > 0).then_some(format!(
-                    "slot {}: points={} kind_raw={}",
-                    slot + 1,
-                    count,
-                    kind
-                ))
-            })
-            .collect::<Vec<_>>();
-        if !build_slots.is_empty() {
-            out.push_str("  - build_queue:\n");
-            for slot in build_slots {
-                out.push_str(&format!("    - {slot}\n"));
-            }
-        }
-        let docked = (0..ec_data::STARDOCK_SLOT_COUNT)
-            .filter_map(|slot| {
-                let count = planet.stardock_count_raw(slot);
-                (count > 0).then_some(format!(
-                    "slot {}: {} x {}",
-                    slot + 1,
-                    count,
-                    production_kind_label(planet.stardock_item_kind_current_known(slot))
-                ))
-            })
-            .collect::<Vec<_>>();
-        if !docked.is_empty() {
-            out.push_str("  - stardock:\n");
-            for line in docked {
-                out.push_str(&format!("    - {line}\n"));
-            }
-        }
-    }
-    out.push('\n');
-
-    out.push_str("## Owned Fleets\n\n");
-    for (idx, fleet) in state.game_data.fleets.records.iter().enumerate() {
-        if fleet.owner_empire_raw() as usize != assignment.record_index_1_based {
-            continue;
-        }
-        let [x, y] = fleet.current_location_coords_raw();
-        out.push_str(&format!(
-            "- record `{}` / fleet_id `{}` at `({x},{y})`: ships `{}` speed `{}` / max `{}` roe `{}` order `{}`\n",
-            idx + 1,
-            fleet.fleet_id(),
-            fleet.ship_composition_summary(),
-            fleet.current_speed(),
-            fleet.max_speed(),
-            fleet.rules_of_engagement(),
-            fleet.standing_order_summary()
-        ));
-    }
-    out.push('\n');
-
-    out.push_str("## Legal Action Hints\n\n");
-    out.push_str("Use these as hard guardrails. If an order family is listed as unavailable, do not submit it this turn.\n\n");
-    for (idx, fleet) in state.game_data.fleets.records.iter().enumerate() {
-        if fleet.owner_empire_raw() as usize != assignment.record_index_1_based {
-            continue;
-        }
-        let [x, y] = fleet.current_location_coords_raw();
-        let has_combat = fleet.destroyer_count() > 0
-            || fleet.cruiser_count() > 0
-            || fleet.battleship_count() > 0;
-        let has_scout = fleet.scout_count() > 0;
-        let has_etac = fleet.etac_count() > 0;
-        let has_loaded_troops = fleet.troop_transport_count() > 0 && fleet.army_count() > 0;
-        out.push_str(&format!(
-            "- fleet `{}` / fleet_id `{}` at `({x},{y})`\n",
-            idx + 1,
-            fleet.fleet_id()
-        ));
-        out.push_str("  - always safe families: `hold`, `move`, `seek_home`\n");
-        if visible_planets.is_empty() {
-            out.push_str("  - `view`: unavailable, no visible planet targets in this bundle\n");
-        } else {
-            out.push_str(&format!(
-                "  - `view`: visible planet targets {}\n",
-                format_target_list(&visible_planets)
-            ));
-        }
-        if has_scout {
-            out.push_str(
-                "  - `scout_sector`: legal, but still use only player-visible reasoning\n",
-            );
-            if visible_planets.is_empty() {
-                out.push_str(
-                    "  - `scout_system`: unavailable, no visible planet targets in this bundle\n",
-                );
-            } else {
-                out.push_str(&format!(
-                    "  - `scout_system`: visible planet targets {}\n",
-                    format_target_list(&visible_planets)
-                ));
-            }
-        } else {
-            out.push_str(
-                "  - `scout_sector` / `scout_system`: unavailable, no scout ships in this fleet\n",
-            );
-        }
-        if has_etac {
-            if visible_unowned_targets.is_empty() {
-                out.push_str(
-                    "  - `colonize`: unavailable, no visible unowned planet targets this turn\n",
-                );
-            } else {
-                out.push_str(&format!(
-                    "  - `colonize`: visible unowned planet targets {}\n",
-                    format_target_list(&visible_unowned_targets)
-                ));
-            }
-        } else {
-            out.push_str("  - `colonize`: unavailable, no ETAC ships in this fleet\n");
-        }
-        if has_combat {
-            if visible_planets.is_empty() {
-                out.push_str(
-                    "  - `guard_blockade`: unavailable, no visible planet targets in this bundle\n",
-                );
-            } else {
-                out.push_str(&format!(
-                    "  - `guard_blockade`: visible planet targets {}\n",
-                    format_target_list(&visible_planets)
-                ));
-            }
-            if visible_foreign_targets.is_empty() {
-                out.push_str(
-                    "  - `bombard`: unavailable, no visible foreign planet targets this turn\n",
-                );
-            } else {
-                out.push_str(&format!(
-                    "  - `bombard`: visible foreign planet targets {}\n",
-                    format_target_list(&visible_foreign_targets)
-                ));
-            }
-        } else {
-            out.push_str(
-                "  - `guard_blockade` / `bombard`: unavailable, no combat ships in this fleet\n",
-            );
-        }
-        if has_combat && has_loaded_troops {
-            if visible_foreign_targets.is_empty() {
-                out.push_str("  - `invade` / `blitz`: unavailable, no visible foreign planet targets this turn\n");
-            } else {
-                out.push_str(&format!(
-                    "  - `invade` / `blitz`: visible foreign planet targets {}\n",
-                    format_target_list(&visible_foreign_targets)
-                ));
-            }
-        } else if !has_loaded_troops {
-            out.push_str(
-                "  - `invade` / `blitz`: unavailable, no loaded troop transports in this fleet\n",
-            );
-        } else {
-            out.push_str("  - `invade` / `blitz`: unavailable, no combat ships in this fleet\n");
-        }
-    }
-    out.push('\n');
-
-    out.push_str("## Mandatory Pre-Submit Checks\n\n");
-    out.push_str("- Every `colonize`, `view`, `guard_blockade`, `bombard`, `invade`, or `blitz` target must appear in the legal action hints above.\n");
-    out.push_str("- Do not use `scout_sector` or `scout_system` unless the fleet actually has scout ships.\n");
-    out.push_str("- Do not use `colonize` unless the fleet actually has ETAC ships.\n");
-    out.push_str(
-        "- Do not use `invade` or `blitz` unless the fleet has loaded troop transports.\n",
-    );
-    out.push_str("- If a target is not clearly legal from this bundle, prefer `hold`, `move`, `seek_home`, or a message/diplomacy action instead.\n\n");
-
-    out.push_str("## Incoming Player Mail\n\n");
-    if incoming_messages.is_empty() {
-        out.push_str("- none from the immediately completed turn\n");
-    } else {
-        for mail in incoming_messages {
-            let sender_name = state.game_data.player.records[mail.sender_empire_id as usize - 1]
-                .controlled_empire_name_summary();
-            out.push_str(&format!(
-                "- from empire `{}` (`{}`), year `{}`\n",
-                mail.sender_empire_id, sender_name, mail.year
-            ));
-            if !mail.subject.trim().is_empty() {
-                out.push_str(&format!("  - subject: `{}`\n", mail.subject.trim()));
-            }
-            out.push_str(&format!("  - body: `{}`\n", mail.body.trim()));
-        }
-    }
-    out.push('\n');
-
-    out.push_str("## Review Flags\n\n");
-    out.push_str(&format!(
-        "- reports_pending_flag: `{}`\n- messages_pending_flag: `{}`\n\n",
-        player.classic_reports_pending_flag_raw(),
-        player.classic_messages_pending_flag_raw()
-    ));
-
-    out.push_str("## Files In This Bundle\n\n");
-    out.push_str("- `README.md`: this summary\n");
-    out.push_str("- `starmap.txt`: player-visible map projection\n");
-    out.push_str("- `starmap.csv`: map grid export\n");
-    out.push_str("- `starmap-DETAILS.csv`: known world details export\n");
-    out
-}
-
 fn load_snapshots_for_viewer(
     campaign_dir: &Path,
     viewer: usize,
@@ -1018,54 +623,6 @@ fn validate_turn_file(
     let mut preview_queue = queued_mail.to_vec();
     submission.apply_to(&mut preview_game_data, &mut preview_queue)?;
     Ok(())
-}
-
-fn visible_planet_hints(
-    state: &CampaignRuntimeState,
-    assignment: &PlayerAssignment,
-    snapshots: &BTreeMap<usize, PlanetIntelSnapshot>,
-) -> Vec<VisiblePlanetHint> {
-    let viewer = assignment.record_index_1_based as u8;
-    let mut planets = Vec::new();
-    for (idx, planet) in state.game_data.planets.records.iter().enumerate() {
-        let record_index_1_based = idx + 1;
-        if planet.owner_empire_slot_raw() == viewer {
-            planets.push(VisiblePlanetHint {
-                record_index_1_based,
-                coords: planet.coords_raw(),
-                name: planet.planet_name().to_string(),
-                owner_empire_id: Some(viewer),
-            });
-            continue;
-        }
-        let Some(snapshot) = snapshots.get(&record_index_1_based) else {
-            continue;
-        };
-        let owner_empire_id = snapshot.known_owner_empire_id.filter(|id| *id != 0);
-        planets.push(VisiblePlanetHint {
-            record_index_1_based,
-            coords: planet.coords_raw(),
-            name: snapshot
-                .known_name
-                .clone()
-                .unwrap_or_else(|| format!("planet {}", record_index_1_based)),
-            owner_empire_id,
-        });
-    }
-    planets
-}
-
-fn format_target_list(planets: &[VisiblePlanetHint]) -> String {
-    planets
-        .iter()
-        .map(|planet| {
-            format!(
-                "`{} ({},{})`",
-                planet.name, planet.coords[0], planet.coords[1]
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(", ")
 }
 
 fn load_campaign_runtime_state(
@@ -1237,11 +794,12 @@ fn save_status(
 
 fn render_manifest(manifest: &CampaignManifest) -> String {
     let mut out = format!(
-        "campaign-play game_id=\"{}\" scenario=\"{}\" campaign_dir=\"{}\" workspace_root=\"{}\" initial_year={} last_completed_turn={}\n",
+        "campaign-play game_id=\"{}\" scenario=\"{}\" campaign_dir=\"{}\" workspace_root=\"{}\" bundle_profile=\"{}\" initial_year={} last_completed_turn={}\n",
         kdl_escape(&manifest.game_id),
         kdl_escape(&manifest.scenario_path.display().to_string()),
         kdl_escape(&manifest.campaign_dir.display().to_string()),
         kdl_escape(&manifest.workspace_root.display().to_string()),
+        manifest.bundle_profile.as_str(),
         manifest.initial_year,
         manifest.last_completed_turn
     );
@@ -1291,6 +849,10 @@ fn parse_manifest_file(path: &Path) -> Result<CampaignManifest, Box<dyn std::err
         scenario_path: PathBuf::from(prop_string(root, "scenario")?),
         campaign_dir: PathBuf::from(prop_string(root, "campaign_dir")?),
         workspace_root: PathBuf::from(prop_string(root, "workspace_root")?),
+        bundle_profile: opt_prop_string(root, "bundle_profile")?
+            .map(|value| BundleProfile::parse(&value))
+            .transpose()?
+            .unwrap_or(BundleProfile::Human),
         initial_year: prop_u16(root, "initial_year")?,
         last_completed_turn: prop_u16(root, "last_completed_turn")?,
         players,
@@ -1326,6 +888,7 @@ fn parse_init_or_play_args(
     let mut game_id = None;
     let mut export_classic = false;
     let mut target_turn = None;
+    let mut requested_bundle_profile = None;
     let mut remaining = args.into_iter();
     while let Some(arg) = remaining.next() {
         match arg.as_str() {
@@ -1354,6 +917,12 @@ fn parse_init_or_play_args(
                 target_turn = Some(value.parse::<u16>()?);
             }
             "--export-classic" => export_classic = true,
+            "--bundle-profile" => {
+                let Some(value) = remaining.next() else {
+                    return Err("missing value after --bundle-profile".into());
+                };
+                requested_bundle_profile = Some(BundleProfile::parse(&value)?);
+            }
             other => return Err(format!("unknown harness campaign argument: {other}").into()),
         }
     }
@@ -1374,6 +943,7 @@ fn parse_init_or_play_args(
         game_id,
         export_classic,
         target_turn,
+        requested_bundle_profile,
     })
 }
 
@@ -1495,21 +1065,6 @@ fn join_usize_list(values: &[usize]) -> String {
             .map(|value| value.to_string())
             .collect::<Vec<_>>()
             .join(",")
-    }
-}
-
-fn production_kind_label(kind: ec_data::ProductionItemKind) -> &'static str {
-    match kind {
-        ec_data::ProductionItemKind::Destroyer => "destroyer",
-        ec_data::ProductionItemKind::Cruiser => "cruiser",
-        ec_data::ProductionItemKind::Battleship => "battleship",
-        ec_data::ProductionItemKind::Scout => "scout",
-        ec_data::ProductionItemKind::Transport => "transport",
-        ec_data::ProductionItemKind::Etac => "etac",
-        ec_data::ProductionItemKind::GroundBattery => "ground_battery",
-        ec_data::ProductionItemKind::Army => "army",
-        ec_data::ProductionItemKind::Starbase => "starbase",
-        ec_data::ProductionItemKind::Unknown(_) => "unknown",
     }
 }
 

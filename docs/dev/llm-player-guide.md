@@ -83,6 +83,17 @@ The bundle `README.md` is refreshed alongside that status. If the conductor
 rejects a turn, the current bundle will show both the rejection state and the
 validation error, next to the legal action hints for the rerun.
 
+If the campaign was initialized with `--bundle-profile llm`, each bundle also
+gets a hidden machine-readable file at:
+
+```text
+.tmp/llm-turns/<game_id>/player-<n>/bundle-turn-<nnnn>/.llm/spatial.kdl
+```
+
+That file is still limited to player-safe information. It is intended for bot
+consumption and should be preferred over trying to reason directly from the
+large ASCII starmap.
+
 Use the helper command when a bot starts work:
 
 ```bash
@@ -135,6 +146,7 @@ Important boundary:
 - treat the bundle as authoritative for what the bot is allowed to know
 - current bundles include player-visible starmap/intel, owned assets, diplomacy, and incoming player mail
 - current bundles now also include coordinator-generated legal action hints per fleet
+- `--bundle-profile llm` campaigns also include hidden `.llm/spatial.kdl` route/target summaries derived only from player-visible state
 - current bundles do not expose raw global review text from `RESULTS.DAT` or `MESSAGES.DAT`
 - do not pass the bot `ecgame.db`, hidden empire summaries, or developer-only metrics
 - if using sub-agents, do not pass one bot another bot's bundle or turn file

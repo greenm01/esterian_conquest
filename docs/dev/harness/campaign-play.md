@@ -41,7 +41,7 @@ Build the campaign and advance it until turn 5 is open:
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- harness play-until --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --turn 5
+cargo run -q -p ec-cli -- harness play-until --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --turn 5 --bundle-profile llm
 ```
 
 If every active player already has a valid turn file for turns 1 through 4, the
@@ -63,6 +63,7 @@ The conductor writes all bot coordination files under the ignored local root:
 ```text
 .tmp/llm-turns/<game_id>/campaign/manifest.kdl
 .tmp/llm-turns/<game_id>/player-1/bundle-turn-0005/
+.tmp/llm-turns/<game_id>/player-1/bundle-turn-0005/.llm/spatial.kdl   # llm profile only
 .tmp/llm-turns/<game_id>/player-1/status-turn-0005.kdl
 .tmp/llm-turns/<game_id>/player-1/turn-0005.kdl
 .tmp/llm-turns/<game_id>/player-1/notes-0005.md
@@ -120,7 +121,7 @@ Initialize the campaign explicitly:
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- harness init-campaign --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish
+cargo run -q -p ec-cli -- harness init-campaign --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --bundle-profile llm
 ```
 
 Re-open or refresh bundles for the current open turn:
@@ -155,7 +156,7 @@ Resume the conductor loop after more turns arrive:
 
 ```bash
 cd rust
-cargo run -q -p ec-cli -- harness play-until --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --turn 5
+cargo run -q -p ec-cli -- harness play-until --file /tmp/scenario.kdl --dir /tmp/ec-bot-campaign --game-id tui-polish --turn 5 --bundle-profile llm
 ```
 
 If the campaign manifest already exists, `play-until` resumes from the current
@@ -197,6 +198,7 @@ Each player bundle contains only player-safe information:
 - diplomacy state as known to that player
 - player-visible starmap exports
 - coordinator-generated legal action hints per fleet
+- hidden `.llm/spatial.kdl` route/target summaries when the campaign uses `--bundle-profile llm`
 - incoming player mail from the immediately completed turn
 - review pending flags
 
@@ -206,7 +208,9 @@ for smart bots to infer hidden state.
 
 The legal action hints are there to reduce invalid bot turns. A player worker
 should treat them as authoritative for what order families and visible targets
-are safe to submit from the current bundle.
+are safe to submit from the current bundle. In `llm` profile campaigns, bots
+should prefer `.llm/spatial.kdl` as their machine-readable spatial surface and
+use `README.md` as the human-readable companion.
 
 ## Messaging And Doctrine
 
