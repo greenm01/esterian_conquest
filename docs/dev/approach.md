@@ -1,794 +1,562 @@
 # Preservation Approach
 
-This repository is not trying to recover the original Pascal source code verbatim.
+This repository is not trying to recover the original Pascal source code
+verbatim. The goal is to preserve Esterian Conquest v1.5 as a working
+historical artifact, reverse engineer its file formats and rules, and build
+Rust tooling that can generate 100% compliant gamestate files accepted by the
+original game and `ECMAINT`. That compliance target is the first concrete
+milestone toward a faithful modern reimplementation in Rust. The original DOS
+binaries and data remain the reference implementation throughout.
 
-The goal is:
-
-- preserve Esterian Conquest v1.5 as a working historical artifact
-- reverse engineer its file formats and rules
-- build Rust tooling that can generate 100% compliant gamestate files accepted
-  by the original game and `ECMAINT`
-- use that compliance target as the first concrete milestone toward a faithful
-  modern reimplementation in Rust
-- keep the original DOS binaries and data as the reference implementation
-
-For the `ECMAINT` turn-cycle RE specifically, the target is explicit:
-
-- fully recover the complete week-assignment process inside the yearly
-  `1..52` scheduler
-- fully recover the cross-turn fleet-behavior process well enough to explain
-  how fleets move, arrive, defer missions, retarget, retreat, and generate
-  dated reports across multiple maint ticks
-- consider that thread complete only when the oracle behavior is understood
-  well enough to call the weekly scheduler and cross-turn fleet/report process
-  fully recovered
+For the `ECMAINT` turn-cycle RE specifically, the target is explicit: fully
+recover the complete week-assignment process inside the yearly `1..52`
+scheduler, and fully recover the cross-turn fleet-behavior process well enough
+to explain how fleets move, arrive, defer missions, retarget, retreat, and
+generate dated reports across multiple maint ticks. That thread is not
+considered complete until the oracle behavior is understood well enough to call
+both the weekly scheduler and the cross-turn fleet/report process fully
+recovered.
 
 ## Principles
 
-1. Treat the original manuals as the semantic spec, and the DOS binaries as the
-   compatibility oracle
+### Manuals as spec, binaries as oracle
 
-- the shipped manuals define intended player-facing rules and mechanics
-- `ECGAME.EXE` is the player-facing command UI
-- `ECUTIL.EXE` is the sysop/configuration utility
-- `ECMAINT.EXE` is the yearly maintenance and simulation engine
-- when semantics and implementation quirks diverge:
-  - prefer the manuals for gameplay meaning
-  - prefer the binaries for file compatibility, accepted directory structure,
-    and proven cross-file invariants
-- do not chase byte-perfect parity if it would force Rust away from the
-  original documented rules without adding compatibility value
-- document original logic bugs when they matter for oracle work, but do not
-  intentionally reproduce them in Rust unless they are required for classic
-  file safety or parser acceptance
+The shipped manuals define intended player-facing rules and mechanics. The
+three original executables each serve a distinct role: `ECGAME.EXE` is the
+player-facing command UI, `ECUTIL.EXE` is the sysop/configuration utility, and
+`ECMAINT.EXE` is the yearly maintenance and simulation engine.
 
-2. Prefer confirmed behavior over guessed structure
+When semantics and implementation quirks diverge, prefer the manuals for
+gameplay meaning and the binaries for file compatibility, accepted directory
+structure, and proven cross-file invariants. Do not chase byte-perfect parity
+if it would force Rust away from the original documented rules without adding
+compatibility value. Document original logic bugs when they matter for oracle
+work, but do not intentionally reproduce them in Rust unless they are required
+for classic file safety or parser acceptance.
 
-- only name fields after they are supported by diffs, screenshots, docs, or repeated observation
-- keep unknown bytes raw until they are mapped with confidence
-- when the original UI exposes a higher-level semantic label, prefer that
-  player-facing term over a lower-level storage nickname:
-  - for example, Rust may still carry internal economic field names like
-    `factories` while RE is in progress
-  - but player/client surfaces should ultimately align to classic terms like
-    `Present Production`, `Potential Production`, and `Total Available Points`
-    once those semantics are confirmed
+### Confirmed behavior over guessed structure
 
-3. Separate stable docs from lab notes
+Only name fields after they are supported by diffs, screenshots, docs, or
+repeated observation. Keep unknown bytes raw until they are mapped with
+confidence. When the original UI exposes a higher-level semantic label, prefer
+that player-facing term over a lower-level storage nickname. For example, Rust
+may still carry internal economic field names like `factories` while RE is in
+progress, but player/client surfaces should ultimately align to classic terms
+like `Present Production`, `Potential Production`, and `Total Available Points`
+once those semantics are confirmed.
 
-- `docs/dev/archive/RE_NOTES.md` is the chronological investigation notebook (archival)
-- `docs/` holds stable, reusable engineering docs
+### Stable docs vs. lab notes
 
-4. Keep the architecture layered
+`docs/dev/archive/RE_NOTES.md` is the chronological investigation notebook and
+is treated as archival material. `docs/` holds stable, reusable engineering
+docs.
 
-- `ec-data`: binary formats and typed accessors
-- `ec-cli`: std-only scripting and verification interface
-- keep the Rust implementation data-oriented:
-  - explicit record/file data
-  - focused free functions or small impl blocks
-  - feature-oriented submodules instead of monolithic source files
+### Layered architecture
 
-5. Use fixtures to lock in behavior
+The Rust implementation is split into focused crates: `ec-data` for binary
+formats and typed accessors, and `ec-cli` for a std-only scripting and
+verification interface. The implementation stays data-oriented throughout, with
+explicit record/file data, focused free functions or small impl blocks, and
+feature-oriented submodules instead of monolithic source files.
 
-- original shipped state
-- initialized state
-- post-maintenance state
-- targeted scenario snapshots for specific features
+### Fixtures to lock in behavior
 
-6. Prefer engine outputs over UI playback
+Preserved fixtures cover the key states that matter for regression testing:
+original shipped state, initialized state, post-maintenance state, and
+targeted scenario snapshots for specific features.
 
-- `ECMAINT` writes the underlying state and generated report data
-- `ECGAME` is still useful, but mainly as a viewer/validation layer for those outputs
-- when possible, decode changes in `.DAT` files first and use live report viewing second
-- historical text captures are reference evidence when live playback is unavailable or flaky
+### Engine outputs over UI playback
 
-For the Rust `ECGAME` clone, preserve the original pre-menu player flow too:
+`ECMAINT` writes the underlying state and generated report data. `ECGAME` is
+still useful, but mainly as a viewer/validation layer for those outputs. When
+possible, decode changes in `.DAT` files first and use live report viewing
+second. Historical text captures remain reference evidence when live playback
+is unavailable or flaky.
 
-- do not treat startup as only a splash or logo
-- model the full pre-command-center path explicitly:
-  - EC ASCII splash
-  - EC intro text
-  - first-time onboarding or joined-player review flow
-  - then the first command center menu
-- keep ownership boundaries clear:
-  - startup presentation is game-owned and should live in the Rust client
-  - keep the splash and intro stable inside the `80x20` client model instead
-    of delegating startup art to a sysop config path
-  - when the original game asks for homeworld naming or new-colony naming before
-    returning to the menus, treat that as part of the same login/entry pipeline
-- preserve the classic sequence while modernizing friction where useful:
-  - ANSI/CP437 by default
-  - cleaner prompt handling
-  - safer input validation
-  - no fake monochrome-first experience in the default Rust client
+For the Rust `ECGAME` clone, the original pre-menu player flow should be
+preserved too. Startup is not just a splash or logo -- the full
+pre-command-center path should be modeled explicitly: the EC ASCII splash, EC
+intro text, first-time onboarding or joined-player review flow, and then the
+first command center menu. Startup presentation is game-owned and should live
+in the Rust client, with the splash and intro kept stable inside the `80x20`
+client model instead of delegated to a sysop config path. When the original
+game asks for homeworld naming or new-colony naming before returning to the
+menus, that is part of the same login/entry pipeline. The classic sequence
+should be preserved while modernizing friction where useful: ANSI/CP437 by
+default, cleaner prompt handling, safer input validation, and no fake
+monochrome-first experience in the default Rust client.
 
-7. Use escalating RE depth, not maximum depth by default
+### Escalating RE depth
 
-- start with Rust-generated scenarios, preserved fixtures, and black-box
-  `ECMAINT` acceptance testing
-- promote repeated deterministic pass/fail patterns into shared Rust rules first
-- escalate to deep static/dynamic RE only when all three are true:
-  - a path is blocking broader compliant gamestate generation
-  - black-box testing has plateaued
-  - the expected rule is reusable, not one-off trivia
-- when deep RE is required, stop once the rule is explicit enough to promote
-  into Rust; do not keep digging only to satisfy curiosity
-- treat the recent Guard Starbase / `unknown starbase` investigation as the
-  template for a justified deep-dive blocker, not as the default workflow for
-  every mechanic
-- for the active `ECMAINT` turn-order / step-4 recovery thread, prefer a
-  top-down driver search once targeted mechanic probes plateau:
-  - aim earlier startup and producer seams first
-  - treat the already-bounded late `861d` output tail only as an upper fence,
-    not as the main search corridor
+Start with Rust-generated scenarios, preserved fixtures, and black-box
+`ECMAINT` acceptance testing. Promote repeated deterministic pass/fail
+patterns into shared Rust rules first. Escalate to deep static/dynamic RE only
+when all three conditions hold: a path is blocking broader compliant gamestate
+generation, black-box testing has plateaued, and the expected rule is reusable
+rather than one-off trivia. When deep RE is required, stop once the rule is
+explicit enough to promote into Rust -- do not keep digging only to satisfy
+curiosity. The recent Guard Starbase / `unknown starbase` investigation is the
+template for a justified deep-dive blocker, not the default workflow for every
+mechanic. For the active `ECMAINT` turn-order / step-4 recovery thread, prefer
+a top-down driver search once targeted mechanic probes plateau: aim for earlier
+startup and producer seams first, and treat the already-bounded late `861d`
+output tail only as an upper fence, not as the main search corridor.
 
-8. Prefer controlled order -> `ECMAINT` -> diff loops for new mechanics
+### Controlled oracle loops for new mechanics
 
-- initialize a controlled directory in Rust or from a preserved baseline
-- submit one tightly scoped order family
-- run `ECMAINT` as the oracle
-- diff `.DAT`, `MESSAGES.DAT`, `RESULTS.DAT`, and `ERRORS.TXT`
-- promote only repeated deterministic effects into `CoreGameData`
-- use deep RE only after this loop stops yielding reusable rules
-- treat DOSBox file-I/O traces as coarse phase-boundary evidence only:
-  - they can prove broad clustering such as "heavy fleet-state mutation first,
-    derived-file rebuild later"
-  - they are not proof of exact movement, economy, or combat ordering inside a
-    yearly simulation pass
+The default workflow for investigating a new mechanic is to initialize a
+controlled directory in Rust or from a preserved baseline, submit one tightly
+scoped order family, run `ECMAINT` as the oracle, and diff the resulting
+`.DAT`, `MESSAGES.DAT`, `RESULTS.DAT`, and `ERRORS.TXT` files. Only repeated
+deterministic effects get promoted into `CoreGameData`. Deep RE is reserved
+for after this loop stops yielding reusable rules. DOSBox file-I/O traces
+should be treated as coarse phase-boundary evidence only -- they can prove
+broad clustering like "heavy fleet-state mutation first, derived-file rebuild
+later," but they are not proof of exact movement, economy, or combat ordering
+inside a yearly simulation pass.
 
-9. Treat setup and map generation as gameplay semantics, not scaffolding
+### Setup and map generation as gameplay semantics
 
-- the manuals explicitly define galaxy size by player count and total solar
-  system count
-- the Rust builder is useful infrastructure, but it is not automatically the
-  same thing as a faithful EC game initializer
-- setup should therefore be refined as a manual-driven subsystem:
-  - map dimensions
-  - star count
-  - homeworld/start rules
-  - initial fleets and empire payloads
-- default sysop/admin setup should preserve the original pre-join distinction:
-  - joinable new games are not the same thing as post-join campaign baselines
-  - `ECGAME` onboarding must see inactive player slots and `Not Named Yet`
-    homeworld seeds
-  - once a player actually joins a fresh slot, the opening homeworld should
-    immediately expose the documented starting spendable production implied by
-    the manuals rather than forcing an extra first-turn maintenance wait
-  - automated maint/oracle sweeps may still use a separate explicit
-    post-join-compatible baseline when that is the thing being tested
-- exact reproduction of the original hidden map RNG is not required to be
-  faithful; adherence to the documented setup rules is
+The manuals explicitly define galaxy size by player count and total solar
+system count. The Rust builder is useful infrastructure, but it is not
+automatically the same thing as a faithful EC game initializer. Setup should be
+refined as a manual-driven subsystem covering map dimensions, star count,
+homeworld/start rules, and initial fleets and empire payloads.
 
-10. Separate recovered mechanics from canonical routing policy
+Default sysop/admin setup should preserve the original pre-join distinction:
+joinable new games are not the same thing as post-join campaign baselines.
+`ECGAME` onboarding must see inactive player slots and `Not Named Yet`
+homeworld seeds. Once a player actually joins a fresh slot, the opening
+homeworld should immediately expose the documented starting spendable
+production implied by the manuals rather than forcing an extra first-turn
+maintenance wait. Automated maint/oracle sweeps may still use a separate
+explicit post-join-compatible baseline when that is the thing being tested.
+Exact reproduction of the original hidden map RNG is not required to be
+faithful; adherence to the documented setup rules is.
 
-- movement execution rules should follow recovered deterministic behavior where
-  known
-- route selection and threat-aware navigation may be improved canonically in
-  Rust when the manuals do not define a detailed routing algorithm
-- smart pathfinding should be documented as a Rust policy layer, not implied to
-  be a recovered original mechanic
+### Recovered mechanics vs. canonical routing policy
 
-11. Keep seeded Rust combat inside the oracle's timing framework
+Movement execution rules should follow recovered deterministic behavior where
+known. Route selection and threat-aware navigation may be improved canonically
+in Rust when the manuals do not define a detailed routing algorithm. Smart
+pathfinding should be documented as a Rust policy layer, not implied to be a
+recovered original mechanic.
 
-- the project does not need to reproduce the original opaque combat RNG
-- seeded, reproducible Rust combat remains the canonical replacement
-- however, combat outcomes still need to be folded into the oracle-backed
-  maintenance structure:
-  - canonical middle turn order
-  - intra-year `1..52` weekly timing
-  - follow-on consequences such as retreats, aborts, retargets, bombardment,
-    invasion resolution, and Fleet Command Center summaries
-  - late report/output emission sequencing
-- practical rule:
-  - do not spend RE effort trying to clone Pascal-era randomness
-  - do spend RE effort recovering where combat happens in the turn, when its
-    consequences land on the weekly timeline, and how those consequences are
-    routed into reports and derived files
-- Rust should therefore converge on:
-  1. seeded, reproducible combat resolution
-  2. oracle-faithful phase placement
-  3. oracle-faithful weekly event/report scheduling
+### Seeded Rust combat inside the oracle's timing framework
 
-12. Prefer declarative sysop config over endless setup flags
+The project does not need to reproduce the original opaque combat RNG. Seeded,
+reproducible Rust combat remains the canonical replacement. However, combat
+outcomes still need to be folded into the oracle-backed maintenance structure:
+canonical middle turn order, intra-year `1..52` weekly timing, follow-on
+consequences such as retreats, aborts, retargets, bombardment, invasion
+resolution, and Fleet Command Center summaries, and late report/output emission
+sequencing.
 
-- `ECUTIL`-style setup/admin data is mostly declarative and should eventually
-  live in KDL rather than only in one-off command flags
-- the long-term source of truth for new-game/setup presets should therefore be
-  machine-readable config:
-  - player count
-  - year
-  - maintenance schedule
-  - sysop options
-  - optional map-generation seed
-  - setup mode / starting-state presets
-- CLI and future TUI surfaces should act as frontends over that config and the
-  shared Rust model, not as the only place where setup can be expressed
+The practical rule is: do not spend RE effort trying to clone Pascal-era
+randomness, but do spend RE effort recovering where combat happens in the turn,
+when its consequences land on the weekly timeline, and how those consequences
+are routed into reports and derived files. Rust should therefore converge on
+seeded reproducible combat resolution, oracle-faithful phase placement, and
+oracle-faithful weekly event/report scheduling.
 
-13. Keep storage additive to the compatibility boundary
+### Declarative sysop config over endless setup flags
 
-- the immediate engineering target remains a full-game-capable Rust maintenance
-  engine with classic `.DAT` fidelity
-- modern storage is now an active adjacent milestone because the client is
-  starting to need history and richer intel semantics that the classic files do
-  not encode well
-- KDL should remain focused on authored setup/config/scenario input
-- turn limits and other Rust-only campaign policy should stay secondary to the
-  current runtime/export boundary until that split settles
-- SQLite now sits at the runtime center of the Rust stack without replacing the
-  classic compliance boundary
-- the intended shape is:
-  - `CoreGameData` remains the canonical in-memory snapshot model
-  - `ecgame.db` is the first-class persisted source of truth for active
-    campaigns
-  - classic `.DAT` files remain explicit import/export projections and oracle
-    artifacts
-  - `ec-client` and normal Rust maintenance/mutator paths should operate on
-    SQLite runtime state, not on live `.DAT` mutation paths
-  - `ec-cli db-import` / `db-export` plus explicit classic materialization
-    helpers are the compatibility bridge for classic directories
-  - read-only inspection/report commands should not create `ecgame.db` as a
-    side effect
-  - runtime/client views and classic export may use different projections over
-    the same canonical facts; do not maintain two unrelated intel systems
-- unresolved or partially decoded classic outputs may still be preserved in
-  compatibility-oriented SQLite tables while the Rust-native model matures
-- SQLite must be bundled/self-hosted in the compiled Rust application; sysops
-  and players should not need a separate SQLite installation
+`ECUTIL`-style setup/admin data is mostly declarative and should eventually
+live in KDL rather than only in one-off command flags. The long-term source of
+truth for new-game/setup presets should be machine-readable config covering
+player count, year, maintenance schedule, sysop options, optional
+map-generation seed, and setup mode / starting-state presets. CLI and future
+TUI surfaces should act as frontends over that config and the shared Rust
+model, not as the only place where setup can be expressed.
 
-14. Own manual-defined economy semantics when replay probing stalls
+### Storage additive to the compatibility boundary
 
-- the manuals clearly define the important economy tradeoff:
-  - empire-wide tax generates yearly production points
-  - newly colonized planets start below maximum production
-  - lower taxes improve development speed
-  - starbases accelerate planetary growth
-- if the original `ECMAINT` replay path is awkward to mutate for a narrow
-  economy experiment, prefer a documented canonical Rust growth rule over
-  indefinite harness fighting
-- that rule should remain:
-  - simple
-  - explicit
-  - monotonic with respect to tax pressure and growth
-  - auditable in tests
-- original-binary evidence should still refine the rule when available, but
-  the project does not need to freeze on economy progress waiting for perfect
-  replay coverage
-- the current canonical Rust economy rule is documented in
-  [docs/economics.md](economics.md)
+The immediate engineering target remains a full-game-capable Rust maintenance
+engine with classic `.DAT` fidelity. Modern storage is now an active adjacent
+milestone because the client is starting to need history and richer intel
+semantics that the classic files do not encode well. KDL should remain focused
+on authored setup/config/scenario input, and turn limits and other Rust-only
+campaign policy should stay secondary to the current runtime/export boundary
+until that split settles.
+
+SQLite now sits at the runtime center of the Rust stack without replacing the
+classic compliance boundary. The intended shape is: `CoreGameData` remains the
+canonical in-memory snapshot model, `ecgame.db` is the first-class persisted
+source of truth for active campaigns, and classic `.DAT` files remain explicit
+import/export projections and oracle artifacts. `ec-client` and normal Rust
+maintenance/mutator paths should operate on SQLite runtime state, not on live
+`.DAT` mutation paths. `ec-cli db-import` / `db-export` plus explicit classic
+materialization helpers are the compatibility bridge for classic directories.
+Read-only inspection/report commands should not create `ecgame.db` as a side
+effect. Runtime/client views and classic export may use different projections
+over the same canonical facts; do not maintain two unrelated intel systems.
+
+Unresolved or partially decoded classic outputs may still be preserved in
+compatibility-oriented SQLite tables while the Rust-native model matures.
+SQLite must be bundled/self-hosted in the compiled Rust application; sysops and
+players should not need a separate SQLite installation.
+
+### Manual-defined economy semantics when replay probing stalls
+
+The manuals clearly define the important economy tradeoff: empire-wide tax
+generates yearly production points, newly colonized planets start below
+maximum production, lower taxes improve development speed, and starbases
+accelerate planetary growth. If the original `ECMAINT` replay path is awkward
+to mutate for a narrow economy experiment, prefer a documented canonical Rust
+growth rule over indefinite harness fighting. That rule should remain simple,
+explicit, monotonic with respect to tax pressure and growth, and auditable in
+tests. Original-binary evidence should still refine the rule when available,
+but the project does not need to freeze on economy progress waiting for perfect
+replay coverage. The current canonical Rust economy rule is documented in
+[docs/economics.md](economics.md).
+
+### Diplomacy and hostility as separate concepts
+
+`enemy` is a stored diplomatic relation set by players in `ECGAME`. `hostile`
+is the broader maintenance/combat state that determines whether a contact may
+escalate into battle. A contact can become hostile because one side has
+declared the other an enemy, one side attacks first, one side enters another
+empire's defended solar system, or one side enters or leaves a blockaded world.
+Rust should model the distinction in docs and code rather than collapsing both
+concepts into one permanent shortcut.
+
+Where classic `PLAYER.DAT` diplomacy bytes are known, they are authoritative.
+A modern sidecar such as `diplomacy.kdl` is acceptable only as a fallback for
+player-count tiers or edge cases that the recovered classic layout does not yet
+cover. The first recovered mapping is now live:
+`PLAYER.DAT[player].raw[0x54 + (target_empire_raw - 1)]`, where `0x00` is
+neutral and `0x01` is enemy.
+
+### Surrender as campaign state
+
+The manuals describe surrender and acknowledgement of an emperor as the
+political victory condition. The documented `ECGAME` General Command menu does
+not include a surrender or resign action, and a live `ECGAME` menu check
+confirms that absence. Rust should therefore not invent a surrender UI command
+unless stronger evidence appears. Instead, the Rust model should separate
+mechanical defeat (destruction of armies, fleets, and planets; fleet defection
+after loss of all planets) from political victory (recognition of one empire as
+emperor; effective surrender or submission of the remaining empires).
+
+The contiguous layout from `0x54..=0x6C` now lets Rust treat that table as a
+25-slot diplomacy surface, matching the documented maximum player count. The
+current conservative Rust implementation does two things: an empire with no
+planets and no recovery path falls into civil disorder, and once already in
+civil disorder and still planetless, it loses one fleet to defection per
+maintenance turn. The current conservative emperor-recognition rule is: if
+exactly one serious contender remains and that empire is still `Stable` (owns
+planets), Rust recognizes it as emperor. A sole remaining `MarginalExistence`
+empire is not yet emperor.
+
+### Compatible gamestate even when behavior is canonicalized
+
+The Rust engine is now far enough along that it should prefer
+**classic-compatible save directories** over brittle attempts to mimic every
+hidden stochastic or processing-order quirk of the original binaries. For
+unresolved or stochastic mechanics, a documented canonical Rust rule is
+acceptable if the resulting `.DAT` files remain loadable and sane in original
+`ECGAME`, the resulting directories remain structurally acceptable to the
+original maintenance/tooling workflow, the rule is faithful to the player
+manuals and observed gameplay spirit, and the rule is deterministic, auditable,
+and regression-testable.
+
+In practice this means file compatibility remains strict, deterministic
+mechanics should still match exactly where practical, and non-deterministic or
+under-recovered mechanics may reasonably diverge when the divergence is
+explicit, compatible, and more reproducible than the original hidden behavior.
+
+### Own the mechanics; do not reproduce the original RNG stream
+
+`ECMAINT` uses an internal RNG for combat resolution (fleet battles,
+bombardment ship losses) and rogue/autopilot AI decisions. The original RNG
+output is not reproducible without full emulation of its internal state;
+attempting to match it byte-for-byte is intractable and would produce a brittle
+clone, not a faithful reimplementation. Instead, the project implements **its
+own seeded and reproducible versions** of every mechanic: the original binary
+and preserved fixtures are used to understand the *structure* of changes (what
+fields change, in what range, under what conditions), and the project defines
+its own canonical rules for the *magnitude* of random effects (bombardment ship
+losses, battle attrition rates, AI economy choices). Those rules are documented
+here and in `docs/dev/archive/RE_NOTES.md` so they are auditable and tunable
+independently of the original binary.
+
+The acceptance criterion for these mechanics is internal consistency and
+gameplay plausibility, not byte-exact fixture match. The shared campaign seed
+belongs to the engine/runtime. The Rust client may derive cosmetic-only
+presentation choices from that persisted campaign seed, but those choices must
+not feed back into gameplay state or engine RNG ordering. Byte-exact fixture
+match remains the acceptance criterion only for fully deterministic mechanics
+(movement, year advancement, build queues, economy totals, cross-file linking).
+The original post-maint fixtures are still used to understand field ranges and
+change patterns; they are not used as a bit-level target for stochastic
+mechanics. Once these canonical mechanics stabilize, prefer moving their stable
+constants into machine-readable KDL config rather than burying them inline
+forever in Rust code.
+
+### Near-term acceptance rule
+
+A format or mechanic is not "done" until Rust can emit the relevant state and
+the original binaries accept it without integrity failures or unexpected
+normalization. The original `ECMAINT` oracle is therefore a compatibility and
+structure oracle first, not a universal semantics oracle. Bit-perfect
+post-maint parity is worth pursuing only when it supports the manuals and the
+mechanic is deterministic enough for that target to be meaningful.
+
+For stochastic mechanics, "done" means correct field structure, plausible
+magnitudes, and a documented canonical rule -- not byte-exact match to any
+single oracle run. For manual-driven mechanics whose original binary behavior
+is ambiguous, opaque, or stochastic, strict adherence to the manuals is a
+better target than reproducing one hidden implementation artifact. The combat
+spec in [docs/ec-combat-spec.md](ec-combat-spec.md) is no longer only
+aspirational; it now drives the live Rust maintenance path and has dedicated
+regression coverage.
 
 ## What Counts As Success
 
-Short term:
+In the short term, success means decoding the important on-disk formats,
+reproducing `ECUTIL` behavior faithfully, understanding `ECMAINT` as a
+deterministic state transformer, defining the cross-file invariants required
+for original-engine acceptance, and generating fully compliant gamestate files
+from Rust.
 
-- decode the important on-disk formats
-- reproduce `ECUTIL` behavior faithfully
-- understand `ECMAINT` as a deterministic state transformer
-- define the cross-file invariants required for original-engine acceptance
-- generate fully compliant gamestate files from Rust
-
-Long term:
-
-- reimplement the real turn engine in Rust
-- build a usable player client and admin client
-- support classic-compatible saves and reproducible results
-- preserve the original player-facing ANSI presentation well enough to reuse
-  or faithfully recreate important opening/menu/report screens in the Rust
-  client
-- eventually support both:
-  - classic `.DAT` directory interchange with the DOS binaries through explicit
-    import/export workflows
-  - the richer SQLite-backed runtime/history layer already used by the Rust
-    client and maintenance paths
-  - per-campaign `ecgame.db` persistence with history, analytics, and richer
-    player-facing intel views
+In the long term, the goal is to reimplement the real turn engine in Rust,
+build a usable player client and admin client, and support classic-compatible
+saves with reproducible results. The original player-facing ANSI presentation
+should be preserved well enough to reuse or faithfully recreate the important
+opening, menu, and report screens in the Rust client. Eventually the project
+should support both classic `.DAT` directory interchange with the DOS binaries
+through explicit import/export workflows and the richer SQLite-backed
+runtime/history layer already used by the Rust client and maintenance paths,
+including per-campaign `ecgame.db` persistence with history, analytics, and
+richer player-facing intel views.
 
 ## Milestone Ladder
 
-1. Known accepted scenarios
+**1. Known accepted scenarios.** Rust can emit preserved accepted pre-maint
+scenarios from decoded fields. The original binaries and preserved fixtures are
+the acceptance oracle. Current examples include `fleet-order`, `planet-build`,
+and `guard-starbase`.
 
-- Rust can emit preserved accepted pre-maint scenarios from decoded fields
-- the original binaries and preserved fixtures are the acceptance oracle
-- current examples:
-  - `fleet-order`
-  - `planet-build`
-  - `guard-starbase`
+**2. Parameterized scenario generation.** Replace scenario-specific constants
+with explicit field builders and validators. Move from "recreate this one
+accepted shape" toward "generate families of accepted shapes within known-safe
+constraints."
 
-2. Parameterized scenario generation
+**3. General compliant gamestate generation.** Rust can write a full arbitrary
+gamestate directory that `ECMAINT` accepts without integrity failures. This
+requires the remaining cross-file linkage rules, especially the starbase/fleet
+summary-pairing semantics in `ECMAINT`.
 
-- replace scenario-specific constants with explicit field builders and
-  validators
-- move from "recreate this one accepted shape" toward "generate families of
-  accepted shapes within known-safe constraints"
+**4. Full Rust maintenance replacement.** Reimplement `ECMAINT` behavior in
+Rust with reproducible outputs. Preserve compatibility with original save
+directories and reports. Seeded CRT combat is now implemented as a canonical
+Rust replacement for the original RNG-driven combat paths, so combat acceptance
+is structural and rule-based, not byte-exact to any one oracle run.
 
-3. General compliant gamestate generation
+**5. Scenario DSL / KDL layer.** Add a human-editable scenario/order format
+only after the internal Rust gamestate and order model stabilizes. KDL is
+treated as a serialization layer over the compliant generator, not as the next
+reverse-engineering target. KDL is still a good long-term fit for stable
+machine-readable data: combat/entity constants, setup and baseline presets, and
+oracle scenario definitions. Rust remains the authority for maintenance
+sequencing and classic save-file compatibility; config should feed stable data
+tables, not replace the engine. Future storage layers should follow the same
+rule: they may sit beside the classic `.DAT` flow but not replace the
+compatibility boundary. The long-term goal is to describe scenarios, describe
+per-turn player orders, emit gamestate files, run original `ECMAINT`, and
+iterate over a whole game from scripted inputs.
 
-- Rust can write a full arbitrary gamestate directory that `ECMAINT` accepts
-  without integrity failures
-- this requires the remaining cross-file linkage rules, especially the
-  starbase/fleet summary-pairing semantics in `ECMAINT`
-
-4. Full Rust maintenance replacement
-
-- reimplement `ECMAINT` behavior in Rust with reproducible outputs
+**6. ANSI / UI preservation layer.** Capture and preserve the original
+`ECGAME` ANSI output and screens where practical, treating those captures as
+reference assets for the Rust client. Prefer exact stream capture when possible
+and rendered-screen capture as a fallback. This is not the immediate RE
+priority, but it is an explicit preservation goal and should be folded into the
+Rust clone once the local `ECGAME` harness is reliable enough.
 
 ## Highest-Value Remaining Oracle RE
 
 To make the Rust clone as faithful as possible, prioritize reusable engine
-structure over isolated one-off edge cases.
+structure over isolated one-off edge cases. The current highest-value oracle
+targets are listed below in recommended execution order.
 
-Current highest-value oracle targets:
+**1. Canonical middle turn order.** Recover the relative ordering of command
+normalization, economy/tax growth, production completion, movement,
+contact/interception, combat, bombardment/invasion/blitz resolution,
+retreats/seek-home retargets, and administrative loss summaries. This is the
+largest remaining gap between a behaviorally close maint clone and a
+structurally faithful one.
 
-1. canonical middle turn order
+**2. Weekly event scheduler semantics.** Recover how `ECMAINT` assigns weeks
+inside the `1..52` yearly timeline. Determine whether week values are
+persisted, derived from summary/event records, or recomputed during late report
+emission. Determine how travel, interception, combat, and delayed mission
+resolution are placed on that timeline.
 
-- recover the relative ordering of:
-  - command normalization
-  - economy / tax growth
-  - production completion
-  - movement
-  - contact / interception
-  - combat
-  - bombardment / invasion / blitz resolution
-  - retreats / seek-home retargets
-  - administrative loss summaries
-- this is the largest remaining gap between a behaviorally close maint clone
-  and a structurally faithful one
+**3. Summary/event record pipeline.** Recover how the engine accumulates
+canonicalized summary/event entries, sorts/canonicalizes them, and emits
+reports from them in the late weekly loop. Rust should ultimately mirror that
+staged architecture instead of relying on ad hoc per-feature report emission.
 
-2. weekly event scheduler semantics
+**4. Report routing and output-family policy.** Recover who receives which
+report families, how Fleet Command Center summaries are injected, when
+`RESULTS.DAT`, `MESSAGES.DAT`, and `RANKINGS.TXT` diverge or overlap, and
+whether some reports suppress, merge, or follow others by rule.
 
-- recover how `ECMAINT` assigns weeks inside the `1..52` yearly timeline
-- determine whether week values are:
-  - persisted
-  - derived from summary/event records
-  - or recomputed during late report emission
-- determine how travel, interception, combat, and delayed mission resolution
-  are placed on that timeline
+**5. Economy/production application timing.** Recover exact production
+completion timing, growth timing relative to tax and ownership changes,
+blocked-build timing and spillover behavior, and salvage accounting destination
+and timing.
 
-3. summary/event record pipeline
+**6. Combat-adjacent ordering.** Tighten interception precedence, multi-fleet
+same-location ordering, retreat timing, mission abort timing after combat,
+starbase defense ordering relative to fleets, and whether bombard/invade can
+resolve in the same yearly pass as arrival.
 
-- recover how the engine:
-  - accumulates canonicalized summary/event entries
-  - sorts/canonicalizes them
-  - emits reports from them in the late weekly loop
-- Rust should ultimately mirror that staged architecture instead of relying on
-  ad hoc per-feature report emission
-
-4. report routing and output-family policy
-
-- recover:
-  - who receives which report families
-  - how Fleet Command Center summaries are injected
-  - when `RESULTS.DAT`, `MESSAGES.DAT`, and `RANKINGS.TXT` diverge or overlap
-  - whether some reports suppress, merge, or follow others by rule
-
-5. economy / production application timing
-
-- recover:
-  - exact production completion timing
-  - growth timing relative to tax and ownership changes
-  - blocked-build timing and spillover behavior
-  - salvage accounting destination and timing
-
-6. combat-adjacent ordering
-
-- tighten:
-  - interception precedence
-  - multi-fleet same-location ordering
-  - retreat timing
-  - mission abort timing after combat
-  - starbase defense ordering relative to fleets
-  - whether bombard/invade can resolve in the same yearly pass as arrival
-
-7. derived-file regeneration lifecycle
-
-- keep recovering exactly when and from which inputs the oracle rebuilds:
-  - `DATABASE.DAT`
-  - `RESULTS.DAT`
-  - `MESSAGES.DAT`
-  - `RANKINGS.TXT`
-
-Current recommended execution order:
-
-1. canonical middle turn order
-2. weekly event assignment rules
-3. summary/event record format and late emission pipeline
-4. report routing and recipient rules
-5. economy/production application timing
+**7. Derived-file regeneration lifecycle.** Keep recovering exactly when and
+from which inputs the oracle rebuilds `DATABASE.DAT`, `RESULTS.DAT`,
+`MESSAGES.DAT`, and `RANKINGS.TXT`.
 
 This set will improve Rust fidelity more than continuing to collect isolated
 mission edge cases in random order.
-- preserve compatibility with original save directories and reports
-- seeded CRT combat is now implemented as a canonical Rust replacement for the
-  original RNG-driven combat paths
-- combat acceptance is therefore structural and rule-based, not byte-exact to
-  any one oracle run
-
-5. Scenario DSL / KDL layer
-
-- add a human-editable scenario/order format only after the internal Rust
-  gamestate and order model stabilizes
-- treat KDL as a serialization layer over the compliant generator, not as the
-  next reverse-engineering target
-- KDL is still a good long-term fit for stable machine-readable data:
-  - combat/entity constants
-  - setup and baseline presets
-  - oracle scenario definitions
-- Rust remains the authority for maintenance sequencing and classic save-file
-  compatibility; config should feed stable data tables, not replace the engine
-- future storage layers should follow the same rule: they may sit beside the
-  classic `.DAT` flow, but not replace the compatibility boundary
-- long-term goal:
-  - describe scenarios
-  - describe per-turn player orders
-  - emit gamestate files
-  - run original `ECMAINT`
-  - iterate over a whole game from scripted inputs
-
-6. ANSI / UI preservation layer
-
-- capture and preserve the original `ECGAME` ANSI output/screens where
-  practical
-- treat those captures as reference assets for the Rust client
-- prefer exact stream capture when possible and rendered-screen capture as a
-  fallback
-- this is not the immediate RE priority, but it is an explicit preservation
-  goal and should be folded into the Rust clone once the local `ECGAME`
-  harness is reliable enough
-
-13. Own the mechanics; do not reproduce the original RNG stream
-
-- `ECMAINT` uses an internal RNG for combat resolution (fleet battles,
-  bombardment ship losses) and rogue/autopilot AI decisions
-- the original RNG output is not reproducible without full emulation of its
-  internal state; attempting to match it byte-for-byte is intractable and
-  would produce a brittle clone, not a faithful reimplementation
-- instead, implement **our own seeded and reproducible versions** of every
-  mechanic:
-  - use the original binary and preserved fixtures to understand the
-    *structure* of changes (what fields change, in what range, under what
-    conditions)
-  - define our own canonical rules for the *magnitude* of random effects
-    (e.g. bombardment ship losses, battle attrition rates, AI economy choices)
-  - document those rules here and in `docs/dev/archive/RE_NOTES.md` so they are auditable
-    and tunable independently of the original binary
-- the acceptance criterion for these mechanics is internal consistency and
-  gameplay plausibility, not byte-exact fixture match
-- the shared campaign seed belongs to the engine/runtime
-- the Rust client may derive cosmetic-only presentation choices from that
-  persisted campaign seed, but those choices must not feed back into gameplay
-  state or engine RNG ordering
-- byte-exact fixture match remains the acceptance criterion only for fully
-  deterministic mechanics (movement, year advancement, build queues, economy
-  totals, cross-file linking)
-- the original post-maint fixtures are still used to understand field
-  ranges and change patterns; they are not used as a bit-level target for
-  stochastic mechanics
-- once these canonical mechanics stabilize, prefer moving their stable
-  constants into machine-readable KDL config rather than burying them inline
-  forever in Rust code
-
-14. Preserve compatible gamestate even when behavior is canonicalized
-
-- the Rust engine is now far enough along that it should prefer
-  **classic-compatible save directories** over brittle attempts to mimic every
-  hidden stochastic or processing-order quirk of the original binaries
-- for unresolved or stochastic mechanics, a documented canonical Rust rule is
-  acceptable if:
-  - the resulting `.DAT` files remain loadable and sane in original `ECGAME`
-  - the resulting directories remain structurally acceptable to the original
-    maintenance/tooling workflow
-  - the rule is faithful to the player manuals and observed gameplay spirit
-  - the rule is deterministic, auditable, and regression-testable
-- this means:
-  - file compatibility remains strict
-  - deterministic mechanics should still match exactly where practical
-  - non-deterministic or under-recovered mechanics may reasonably diverge when
-    the divergence is explicit, compatible, and more reproducible than the
-    original hidden behavior
-
-14. Keep diplomacy and hostility separate
-
-- `enemy` is a stored diplomatic relation set by players in `ECGAME`
-- `hostile` is the broader maintenance/combat state that determines whether a
-  contact may escalate into battle
-- a contact can become hostile because:
-  - one side has declared the other an enemy
-  - one side attacks first
-  - one side enters another empire's defended solar system
-  - one side enters or leaves a blockaded world
-- Rust should model the distinction in docs and code rather than collapsing
-  both concepts into one permanent shortcut
-- where classic `PLAYER.DAT` diplomacy bytes are known, they are authoritative
-- a modern sidecar such as `diplomacy.kdl` is acceptable only as a fallback for
-  player-count tiers or edge cases that the recovered classic layout does not
-  yet cover
-- the first recovered mapping is now live:
-  - `PLAYER.DAT[player].raw[0x54 + (target_empire_raw - 1)]`
-  - `0x00 = neutral`
-  - `0x01 = enemy`
-
-15. Treat surrender as campaign state, not an assumed `ECGAME` command
-
-- the manuals describe surrender and acknowledgement of an emperor as the
-  political victory condition
-- the documented `ECGAME` General Command menu does not include a surrender or
-  resign action
-- a live `ECGAME` menu check now confirms that absence
-- therefore Rust should not invent a surrender UI command unless stronger
-  evidence appears
-- the Rust model should instead separate:
-  - mechanical defeat:
-    - destruction of armies, fleets, and planets
-    - fleet defection after loss of all planets
-  - political victory:
-    - recognition of one empire as emperor
-    - effective surrender or submission of the remaining empires
-- the contiguous layout from `0x54..=0x6C` now lets Rust treat that table as a
-  25-slot diplomacy surface, matching the documented maximum player count
-- the current conservative Rust implementation now does two things:
-  - an empire with no planets and no recovery path falls into civil disorder
-  - once already in civil disorder and still planetless, it loses one fleet to
-    defection per maintenance turn
-- the current conservative emperor-recognition rule is:
-  - if exactly one serious contender remains and that empire is still `Stable`
-    (owns planets), Rust recognizes it as emperor
-  - a sole remaining `MarginalExistence` empire is not yet emperor
-
-Near-term acceptance rule:
-
-- a format/mechanic is not "done" until Rust can emit the relevant state and
-  the original binaries accept it without integrity failures or unexpected
-  normalization
-- the original `ECMAINT` oracle is therefore a compatibility and structure
-  oracle first, not a universal semantics oracle
-- bit-perfect post-maint parity is worth pursuing only when it supports the
-  manuals and the mechanic is deterministic enough for that target to be
-  meaningful
-- for stochastic mechanics, "done" means: correct field structure, plausible
-  magnitudes, and a documented canonical rule — not byte-exact match to any
-  single oracle run
-- for manual-driven mechanics whose original binary behavior is ambiguous,
-  opaque, or stochastic, strict adherence to the manuals is a better target
-  than reproducing one hidden implementation artifact
-- the combat spec in
-  [docs/ec-combat-spec.md](ec-combat-spec.md)
-  is no longer only aspirational; it now drives the live Rust maintenance path
-  and has dedicated regression coverage
 
 ## RE Workflow
 
-Default loop:
-
-1. Generate or mutate a controlled scenario in Rust.
-2. Run the original binary (`ECMAINT`, `ECGAME`, or `ECUTIL`) as the oracle.
-3. Diff the resulting `.DAT` files and reports.
-4. Promote only strong repeated patterns into `CoreGameData`.
-5. Escalate to deep RE only if the rule still blocks generalization.
+The default loop is: generate or mutate a controlled scenario in Rust, run the
+original binary (`ECMAINT`, `ECGAME`, or `ECUTIL`) as the oracle, diff the
+resulting `.DAT` files and reports, promote only strong repeated patterns into
+`CoreGameData`, and escalate to deep RE only if the rule still blocks
+generalization.
 
 ## Event And Report Direction
 
 Maintenance-side player-visible consequences should be modeled as typed events
-first, and rendered into classic report files second.
+first, and rendered into classic report files second. The crate boundary
+reflects this: `ec-data` owns the event surface emitted by maintenance
+mechanics, `ec-cli` owns report-file regeneration (`DATABASE.DAT`,
+`RESULTS.DAT`, and later any justified `MESSAGES.DAT` writer), and report
+formatting should not be embedded ad hoc inside mechanic code paths. The same
+event/report pipeline should eventually cover fleet encounters and retreats,
+bombardment/invasion/blitz and starbase defense, colonization
+success/failure, scout reconnaissance and contact discovery, and mission
+completion/denial outcomes.
 
-Current direction:
+### Event modeling policy
 
-- `ec-data` owns the event surface emitted by maintenance mechanics
-- `ec-cli` owns report-file regeneration (`DATABASE.DAT`, `RESULTS.DAT`, and
-  later any justified `MESSAGES.DAT` writer)
-- report formatting should not be embedded ad hoc inside mechanic code paths
+The typed maintenance event surface should continue broadening, with all events
+pushed through a single report-generation pass. Scout arrival reports should
+use the generic mission-outcome backbone first, with richer planet-intel
+reconnaissance reports added later. `ScoutSolarSystem` should reuse the
+existing `PlanetIntelEvent` / `DATABASE.DAT` refresh path where the current
+maintenance model already supports it, and `ViewWorld` should use that same
+intel-refresh path rather than creating a separate report-only branch.
 
-This applies beyond combat. The same event/report pipeline should eventually
-cover:
+When combat forces a fleet off its standing orders, the system should emit a
+typed mission `Aborted` outcome from the battle phase instead of hiding that
+consequence inside fleet-byte mutations alone. Scout-style hostile contact
+detection should be emitted from the battle/contact grouping phase, because
+that is where maint has the cleanest simultaneous view of who met whom before
+attrition rewrites the board. That contact event family should be
+mission-aware so scout, join, rendezvous, and guard/blockade reports can share
+one detection path without copy-pasted reporting logic.
 
-- fleet encounters and retreats
-- bombardment, invasion, blitz, and starbase defense
-- colonization success/failure
-- scout reconnaissance and contact discovery
-- mission completion / mission denial outcomes
+### Recipient scoping and loss reporting
 
-Near-term policy:
+Prefer recipient-scoped maintenance events over omniscient report summaries.
+Bombardment, fleet battle, scouting/contact, merge, colonization, and mission
+outcome reporting should be modeled from the acting or affected empire's point
+of view rather than as a global debug narration. Destructive combat
+consequences should become first-class events too: fleets and starbases that
+are wiped out should emit explicit command-center loss reports rather than
+being inferred indirectly from missing units. Where richer specialized report
+events exist, prefer them over duplicate generic mission-resolution text;
+invade/blitz should not generate two parallel attacker-side reports for the
+same assault. Every fleet encounter should eventually emit an intel/contact
+event even if no battle occurs; combat is only one possible consequence of
+contact.
 
-- continue broadening the typed maintenance event surface
-- keep pushing those events through a single report-generation pass
-- use the generic mission-outcome backbone for first-pass scout arrival reports
-  before implementing richer planet-intel reconnaissance reports
-- let `ScoutSolarSystem` reuse the existing `PlanetIntelEvent` /
-  `DATABASE.DAT` refresh path where the current maintenance model can already
-  support it
-- let `ViewWorld` use that same intel-refresh path rather than creating a
-  separate report-only branch
-- when combat forces a fleet off its standing orders, emit a typed mission
-  `Aborted` outcome from the battle phase instead of hiding that consequence
-  inside fleet-byte mutations alone
-- let scout-style hostile contact detection be emitted from the battle/contact
-  grouping phase, because that is where maint has the cleanest simultaneous
-  view of who met whom before attrition rewrites the board
-- keep that contact event family mission-aware so scout, join, rendezvous, and
-  guard/blockade reports can share one detection path without copy-pasted
-  reporting logic
-- prefer recipient-scoped maintenance events over omniscient report summaries;
-  bombardment, fleet battle, scouting/contact, merge, colonization, and mission
-  outcome reporting should be modeled from the acting or affected empire's
-  point of view rather than as a global debug narration
-- let destructive combat consequences become first-class events too; fleets and
-  starbases that are wiped out should emit explicit command-center loss reports
-  rather than being inferred indirectly from missing units
-- where richer specialized report events exist, prefer them over duplicate
-  generic mission-resolution text; invade/blitz should not generate two
-  parallel attacker-side reports for the same assault
-- every fleet encounter should eventually emit an intel/contact event even if
-  no battle occurs; combat is only one possible consequence of contact
-- treat `RESULTS.DAT` as the active canonical maint report target
-- routed maintenance projection into classic `MESSAGES.DAT` is currently
-  disabled again for compatibility: live probing showed classic mail uses a
-  different on-disk format from the `RESULTS.DAT`-style 84-byte chunks
-- preserve existing classic `MESSAGES.DAT` payloads unchanged, and keep Rust
-  queued mail in SQLite/runtime state until the classic mail format is
-  recovered
-- live `ECGAME` probing now confirms that classic player-to-player mail also
-  lives in `MESSAGES.DAT`, and that recipient visibility is maintenance-gated
-  rather than immediate
-- because of that overlap, `rust-maint` must preserve unknown existing classic
-  `MESSAGES.DAT` payloads when it has no routed maintenance messages to write
-- current limitation: `RESULTS.DAT` remains the aggregate canonical maint
-  report target while exact classic per-player `MESSAGES.DAT` semantics remain
-  unsettled
+### Classic report file compatibility
 
-Default `ECMAINT` black-box loop for new mechanics:
+`RESULTS.DAT` is the active canonical maint report target. Routed maintenance
+projection into classic `MESSAGES.DAT` is currently disabled again for
+compatibility: live probing showed classic mail uses a different on-disk format
+from the `RESULTS.DAT`-style 84-byte chunks. Existing classic `MESSAGES.DAT`
+payloads are preserved unchanged, and Rust queued mail stays in
+SQLite/runtime state until the classic mail format is recovered.
+
+Live `ECGAME` probing now confirms that classic player-to-player mail also
+lives in `MESSAGES.DAT`, and that recipient visibility is maintenance-gated
+rather than immediate. Because of that overlap, `rust-maint` must preserve
+unknown existing classic `MESSAGES.DAT` payloads when it has no routed
+maintenance messages to write. `RESULTS.DAT` remains the aggregate canonical
+maint report target while exact classic per-player `MESSAGES.DAT` semantics
+remain unsettled.
+
+### Default ECMAINT black-box loop
+
+For new mechanics, the concrete workflow is:
 
 1. `python3 tools/ecmaint_oracle.py prepare <target_dir> [source_dir]`
-2. submit one controlled set of orders or mutate one narrow field family
+2. Submit one controlled set of orders or mutate one narrow field family.
 3. `python3 tools/ecmaint_oracle.py run <target_dir>`
-4. inspect the `.oracle/` snapshots plus the printed diff clusters across:
-   - state files such as `PLAYER.DAT`, `PLANETS.DAT`, `FLEETS.DAT`,
-     `BASES.DAT`, `IPBM.DAT`, and `CONQUEST.DAT`
-   - report/output files:
-     `RESULTS.DAT`, `MESSAGES.DAT`, `ERRORS.TXT`, `DATABASE.DAT`,
-     `RANKINGS.TXT`
-5. treat "no report output" as evidence too:
-   - a mechanic that mutates persistent state while leaving
-     `RESULTS.DAT` / `MESSAGES.DAT` empty is still useful for placing the
-     mechanic inside the yearly simulation core rather than the report side
-5. promote only strong repeated rules into shared Rust logic
+4. Inspect the `.oracle/` snapshots plus the printed diff clusters across
+   state files (`PLAYER.DAT`, `PLANETS.DAT`, `FLEETS.DAT`, `BASES.DAT`,
+   `IPBM.DAT`, `CONQUEST.DAT`) and report/output files (`RESULTS.DAT`,
+   `MESSAGES.DAT`, `ERRORS.TXT`, `DATABASE.DAT`, `RANKINGS.TXT`).
+5. Treat "no report output" as evidence too: a mechanic that mutates
+   persistent state while leaving `RESULTS.DAT` / `MESSAGES.DAT` empty is
+   still useful for placing the mechanic inside the yearly simulation core
+   rather than the report side.
+6. Promote only strong repeated rules into shared Rust logic.
 
-Known-scenario replay loop:
+### Known-scenario replay loop
 
 1. `python3 tools/ecmaint_oracle.py replay-known fleet-order /tmp/ecmaint-fleet-oracle`
-2. inspect the `.oracle/` snapshots and the comparison against the preserved
-   post-maint fixture
-3. use the same pattern for `planet-build` and `guard-starbase` before opening
-   a new mechanic
+2. Inspect the `.oracle/` snapshots and the comparison against the preserved
+   post-maint fixture.
+3. Use the same pattern for `planet-build` and `guard-starbase` before opening
+   a new mechanic.
 
-Preserved-fixture replay validation:
+### Preserved-fixture replay validation
 
 1. `python3 tools/ecmaint_oracle.py replay-preserved fleet-order /tmp/ecmaint-fleet-pre-direct`
-2. confirm the preserved pre-maint fixture replays to the preserved post-maint
-   fixture exactly
-3. use `replay-known` to measure the remaining gap in the Rust-generated
-   pre-maint state, not to question the oracle harness itself
+2. Confirm the preserved pre-maint fixture replays to the preserved post-maint
+   fixture exactly.
+3. Use `replay-known` to measure the remaining gap in the Rust-generated
+   pre-maint state, not to question the oracle harness itself.
 
-Deep RE escalation criteria:
+### Deep RE escalation
 
-- use static/dynamic RE when a blocker survives repeated black-box tests
-- prefer narrow, reproducible captures over broad exploratory tracing
-- stop the deep dive once the missing rule can be stated precisely enough for
-  Rust validation/generation
+Use static/dynamic RE when a blocker survives repeated black-box tests. Prefer
+narrow, reproducible captures over broad exploratory tracing. Stop the deep
+dive once the missing rule can be stated precisely enough for Rust
+validation/generation.
 
-Anti-rabbit-hole rule:
+The anti-rabbit-hole rule: do not apply full deep-dive treatment to every
+mechanic. If a path is not currently blocking broader compliant generation,
+keep it in the black-box queue until it becomes a real blocker.
 
-- do not apply full deep-dive treatment to every mechanic
-- if a path is not currently blocking broader compliant generation, keep it in
-  the black-box queue until it becomes a real blocker
+## Current Concrete Rust Milestone
 
-Current concrete Rust milestone:
+The `ec-cli` crate is now split by command family (`fleet_order.rs`,
+`planet_build.rs`, `guard_starbase.rs`, `ipbm.rs`) instead of continuing to
+grow in one file. The general approach is: start from a known-good preserved
+snapshot such as `fixtures/ecmaint-post/v1.5`, rewrite only decoded fields in
+Rust, and verify the rewritten `.DAT` file matches a preserved accepted
+pre-maint scenario exactly.
 
-- `ec-cli` is now split by command family instead of continuing to grow in
-  one file:
-  - `src/commands/fleet_order.rs`
-  - `src/commands/planet_build.rs`
-  - `src/commands/guard_starbase.rs`
-  - `src/commands/ipbm.rs`
-- start from a known-good preserved snapshot such as
-  `fixtures/ecmaint-post/v1.5`
-- rewrite only decoded fields in Rust
-- verify the rewritten `.DAT` file matches a preserved accepted pre-maint
-  scenario exactly
-- current confirmed examples:
-  - fleet-order rewrite reproducing `fixtures/ecmaint-fleet-pre/v1.5/FLEETS.DAT`
-  - planet build-queue rewrite reproducing
-    `fixtures/ecmaint-build-pre/v1.5/PLANETS.DAT`
-  - named fleet/build scenario commands and validators over those same
-    preserved accepted rewrites:
-    - `ec-cli scenario <dir> fleet-order`
-    - `ec-cli scenario <dir> planet-build`
-    - `ec-cli validate <dir> fleet-order`
-    - `ec-cli validate <dir> planet-build`
-    - `ec-cli scenario-init [source_dir] <target_dir> fleet-order`
-    - `ec-cli scenario-init [source_dir] <target_dir> planet-build`
-  - accepted Guard Starbase scenario rewrite reproducing the core gamestate
-    files from `fixtures/ecmaint-starbase-pre/v1.5`
-  - the Guard Starbase base record is now emitted from named Rust field
-    setters over `BaseRecord`, not from a preserved raw byte blob
-  - Rust can also validate the currently-known accepted one-base Guard
-    Starbase shape with `ec-cli validate <dir> guard-starbase`
-  - that Guard Starbase validator is now explicitly linkage-shaped based on the kind-1 / kind-2 semantic keys:
-    - player starbase-count word
-    - fleet local-slot word matching base summary word
-    - fleet ID word matching base chain word
-    - guard target/base coords
-    - guard starbase index/enable bytes
-  - Rust also now has a first explicit parameterized starbase writer:
-    - `ec-cli guard-starbase-onebase <dir> <target_x> <target_y>`
-    - this explicit encoder derives the accepted base linkage keys directly from the `PLAYER.DAT` and `FLEETS.DAT` records instead of relying on a hard-coded accepted-shape blob
-  - Rust also now has a direct linkage inspection command:
-    - `ec-cli guard-starbase-report <dir>`
-    - use this to print the currently relevant player/fleet/base key words
-      before and after running `ECMAINT`
-  - Rust also now has a one-command parameterized directory initializer:
-    - `ec-cli guard-starbase-init [source_dir] <target_dir> <target_x> <target_y>`
-    - this is the quickest current path from a known-good baseline to a new
-      ECMAINT-ready one-base Guard Starbase experiment
-  - Rust also now has a batch coordinate-variant starbase initializer:
-    - `ec-cli guard-starbase-batch-init [source_dir] <target_root> <x:y> <x:y>...`
-    - use this when you want multiple ECMAINT-ready one-base Guard Starbase
-      experiments from one baseline in a single run
-  - Rust also now has the first practical `IPBM.DAT` control surface:
-    - `ec-cli ipbm-report <dir>`
-    - `ec-cli ipbm-zero <dir> <count>`
-    - `ec-cli ipbm-record-set <dir> <record_index> <primary> <owner> <gate> <follow_on>`
-    - `ec-cli ipbm-validate <dir>`
-    - `ec-cli ipbm-init [source_dir] <target_dir> <count>`
-    - `ec-cli ipbm-batch-init [source_dir] <target_root> <count> <count>...`
-    - this is enough to keep generated scenarios on the correct side of the
-    known `PLAYER[0x48]` / `IPBM.DAT` count gate and to start emitting
-    structured non-zero prefix fields without hand-editing bytes
-    - `ec-data::IpbmRecord` now also exposes:
-      - tuple A/B tag bytes
-      - tuple A/B/C payload groups
-      - trailing control bytes
-    - `ec-cli ipbm-report` now prints those structural groups directly
-  - Rust also now has a combined integrity-focused inspection command:
-    - `ec-cli compliance-report <dir>`
-    - `ec-cli compliance-batch-report <root>`
-    - this prints the current Guard Starbase linkage verdict, current `IPBM`
-      count/length verdict, and the most relevant key words in one pass
-    - the batch form is meant for generated scenario roots and keeps the
-      output compact enough to compare multiple experiment directories quickly
-    - the batch form now covers:
-      - `fleet-order`
-      - `planet-build`
-      - `guard-starbase`
-      - `ipbm`
-  - `ec-cli validate <dir> all` now gives a quick classification pass across
-    the current known accepted scenarios
-  - Rust now also has parameterized fleet/build inspection and init commands:
-    - `ec-cli fleet-order-report [dir] [fleet_record]`
-    - `ec-cli fleet-order-init <target_dir> <fleet_record> <speed> <order_code> <target_x> <target_y> [aux0] [aux1]`
-    - `ec-cli fleet-order-batch-init <target_root> <fleet_record:speed:order:target_x:target_y[:aux0[:aux1]]>...`
-    - `ec-cli planet-build-report [dir] [planet_record]`
-    - `ec-cli planet-build-init <target_dir> <planet_record> <build_slot_raw> <build_kind_raw>`
-    - `ec-cli planet-build-batch-init <target_root> <planet_record:build_slot_raw:build_kind_raw>...`
-    - these now make the fleet/build paths consistent with the existing
-      starbase/IPBM report/init workflow and remove more experiment setup from
-      hand-edited fixture directories
-    - the new batch forms now materialize multiple parameterized experiment
-      roots plus manifests in one run
-  - the known accepted scenarios are now centralized behind one Rust-side
-    catalog:
-    - `ec-cli scenario <dir> list`
-    - `ec-cli scenario <dir> show <scenario>`
-    - `ec-cli scenario-init-all [source_dir] <target_root>`
-  - scenario validation now has two useful levels:
-    - rule-shaped validators: `ec-cli validate <dir> ...`
-    - preserved exact-match validators: `ec-cli validate-preserved <dir> ...`
-  - preserved scenario drift can now be inspected directly with
-    `ec-cli compare-preserved <dir> ...`
-  - Rust can now materialize a runnable Guard Starbase directory from a
-    compliant baseline with
-    `ec-cli scenario-init [source_dir] <target_dir> guard-starbase`
-  - the documented optional-source forms now work as intended:
-    - `ec-cli init <target_dir>` defaults to `original/v1.5`
-    - `ec-cli scenario-init <target_dir> <scenario>` defaults to
-      `fixtures/ecmaint-post/v1.5`
+Current confirmed scenario coverage includes fleet-order and planet-build
+rewrites reproducing their respective preserved fixtures, accepted Guard
+Starbase scenario rewrites with linkage-shaped validation, parameterized
+starbase/fleet/build/IPBM writers and batch initializers, and a combined
+compliance-report command that prints starbase linkage verdict, IPBM
+count/length verdict, and key words in one pass. Scenario validation has two
+levels: rule-shaped validators (`ec-cli validate <dir> ...`) and preserved
+exact-match validators (`ec-cli validate-preserved <dir> ...`). The known
+accepted scenarios are centralized behind `ec-cli scenario <dir> list`.
+
+For the full CLI command reference, run `ec-cli --help` or see the scenario
+and validation commands documented in
+[README.md](../../README.md#quick-start).
 
 This is intentionally narrower than a full arbitrary save generator, but it is
 the first real proof that the Rust layer can emit accepted gamestate files from
@@ -796,50 +564,30 @@ decoded state rather than only copy fixture trees.
 
 ## Current Strategy
 
-Near-term effort should prioritize `ECMAINT`.
-
-Why:
-
-- `ECUTIL` is mostly configuration/state setup
-- `ECGAME` is mainly command entry and presentation
-- `ECMAINT` appears to be the core simulation engine:
-  - movement
-  - battles
-  - build completion
-  - AI / rogue empire behavior
-  - database and report generation
-
-That makes `ECMAINT` the highest-value target for recovering the actual rules of the game.
-It is also the main acceptance oracle for the first milestone: Rust-generated
-gamestate files that are 100% compliant with the original engine.
+Near-term effort should prioritize `ECMAINT`. `ECUTIL` is mostly
+configuration/state setup, and `ECGAME` is mainly command entry and
+presentation. `ECMAINT` is the core simulation engine: it handles movement,
+battles, build completion, AI/rogue empire behavior, and database and report
+generation. That makes it the highest-value target for recovering the actual
+rules of the game, and the main acceptance oracle for the first milestone:
+Rust-generated gamestate files that are 100% compliant with the original
+engine.
 
 ## ECMAINT Investigation Model
 
-The current `ECMAINT` workflow is:
+The current `ECMAINT` workflow is: create one controlled pre-maint scenario,
+run original `ECMAINT`, diff the resulting `.DAT` files, preserve pre/post
+fixtures, encode the confirmed transform in Rust tests, and optionally read
+the generated reports through `ECGAME` as a validation step. This keeps the
+preservation work grounded in deterministic engine behavior rather than in UI
+rendering.
 
-1. create one controlled pre-maint scenario
-2. run original `ECMAINT`
-3. diff the resulting `.DAT` files
-4. preserve pre/post fixtures
-5. encode the confirmed transform in Rust tests
-6. optionally read the generated reports through `ECGAME` as a validation step
-
-This keeps the preservation work grounded in deterministic engine behavior rather
-than in UI rendering.
-
-Rust layout note:
-
-- see `docs/rust-architecture.md` for the current submodule split and the
-  data-oriented design guidance for future refactors
+For the current submodule split and data-oriented design guidance, see
+[docs/rust-architecture.md](rust-architecture.md).
 
 ## Session Handoff
 
-When pausing work, keep the immediate restart point in:
-
-- `docs/next-session.md`
-
-That file should be updated with:
-
-- the latest high-confidence combat model
-- the most recent commits worth resuming from
-- the exact next controlled experiment
+When pausing work, keep the immediate restart point in
+[docs/next-session.md](next-session.md). That file should be updated with the
+latest high-confidence combat model, the most recent commits worth resuming
+from, and the exact next controlled experiment.
