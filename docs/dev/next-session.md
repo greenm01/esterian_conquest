@@ -52,11 +52,12 @@ complete on arrival:
 - standing order becomes `Hold`
 - player must issue a new order to move again
 
-Persistent posture missions and delayed hostile-world missions remain the
+Persistent standing orders and delayed hostile-world missions remain the
 exceptions:
 
-- `PatrolSector`, `GuardStarbase`, and `GuardBlockadeWorld` stay armed after
-  arrival
+- `PatrolSector`, `GuardStarbase`, `GuardBlockadeWorld`,
+  `JoinAnotherFleet`, and `RendezvousSector` stay armed after arrival or while
+  waiting for their merge condition
 - `BombardWorld`, `InvadeWorld`, and `BlitzWorld` preserve their order through
   arrival so the ready mission resolves on the following tick
 

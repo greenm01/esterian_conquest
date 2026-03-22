@@ -316,11 +316,12 @@ pub(super) fn process_mission_fleet_merging(
         if to_remove[idx] || fleet.standing_order_kind() != Order::RendezvousSector {
             continue;
         }
+        let coords = fleet.current_location_coords_raw();
+        if fleet.standing_order_target_coords_raw() != coords {
+            continue;
+        }
         rendezvous_groups
-            .entry((
-                fleet.owner_empire_raw(),
-                fleet.current_location_coords_raw(),
-            ))
+            .entry((fleet.owner_empire_raw(), coords))
             .or_default()
             .push(idx);
     }

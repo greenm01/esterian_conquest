@@ -377,6 +377,15 @@ fn test_rendezvous_arrival_emits_waiting_event() {
 
     let events = run_maintenance_turn(&mut game_data).expect("Maintenance failed");
 
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_kind(),
+        Order::RendezvousSector
+    );
+    assert_eq!(
+        game_data.fleets.records[0].standing_order_target_coords_raw(),
+        [15, 13]
+    );
+
     assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 0
             && event.kind == Mission::RendezvousSector
@@ -453,6 +462,56 @@ fn test_join_order_refreshes_target_to_moving_host_each_turn() {
     assert_eq!(
         game_data.fleets.records[1].standing_order_kind(),
         Order::JoinAnotherFleet
+    );
+}
+
+#[test]
+fn test_join_order_survives_arrival_at_previous_host_position() {
+    let mut game_data = load_fixture("ecmaint-post");
+    game_data.player.records[0].raw[0x00] = 0x00;
+
+    let host = &mut game_data.fleets.records[0];
+    host.set_current_location_coords_raw([10, 10]);
+    host.set_standing_order_kind(Order::MoveOnly);
+    host.set_standing_order_target_coords_raw([14, 10]);
+    host.set_current_speed(3);
+    host.raw[0x0d] = 0x80;
+    host.raw[0x0f] = 0;
+    host.raw[0x19] = 0x80;
+
+    let host_id = game_data.fleets.records[0].fleet_id();
+    let joiner = &mut game_data.fleets.records[1];
+    joiner.set_current_location_coords_raw([9, 10]);
+    joiner.set_standing_order_kind(Order::JoinAnotherFleet);
+    joiner.set_join_host_fleet_id_raw(host_id);
+    joiner.set_standing_order_target_coords_raw([10, 10]);
+    joiner.set_current_speed(3);
+    joiner.raw[0x0d] = 0x80;
+    joiner.raw[0x0f] = 0;
+    joiner.raw[0x19] = 0x80;
+
+    run_maintenance_turn(&mut game_data).expect("first maintenance turn should succeed");
+
+    let host_after_first = game_data.fleets.records[0].current_location_coords_raw();
+    assert_eq!(host_after_first, [12, 10]);
+    assert_eq!(
+        game_data.fleets.records[1].current_location_coords_raw(),
+        [10, 10]
+    );
+    assert_eq!(
+        game_data.fleets.records[1].standing_order_kind(),
+        Order::JoinAnotherFleet
+    );
+
+    run_maintenance_turn(&mut game_data).expect("second maintenance turn should succeed");
+
+    assert_eq!(
+        game_data.fleets.records[1].standing_order_kind(),
+        Order::JoinAnotherFleet
+    );
+    assert_eq!(
+        game_data.fleets.records[1].standing_order_target_coords_raw(),
+        host_after_first
     );
 }
 
@@ -686,8 +745,10 @@ fn test_rendezvous_merge_occurs_without_combat_merge_flag() {
     game_data.player.records[0].raw[0x00] = 0x00;
     let coords = game_data.fleets.records[0].current_location_coords_raw();
     game_data.fleets.records[0].set_standing_order_kind(Order::RendezvousSector);
+    game_data.fleets.records[0].set_standing_order_target_coords_raw(coords);
     game_data.fleets.records[1].set_current_location_coords_raw(coords);
     game_data.fleets.records[1].set_standing_order_kind(Order::RendezvousSector);
+    game_data.fleets.records[1].set_standing_order_target_coords_raw(coords);
 
     let fleet_count_before = game_data.fleets.records.len();
     let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
@@ -698,6 +759,31 @@ fn test_rendezvous_merge_occurs_without_combat_merge_flag() {
             .fleet_merge_events
             .iter()
             .any(|event| { event.kind == Mission::RendezvousSector && !event.survivor_side })
+    );
+}
+
+#[test]
+fn test_rendezvous_does_not_merge_before_reaching_its_assigned_sector() {
+    let mut game_data = load_fixture("ecmaint-post");
+    game_data.player.records[0].raw[0x00] = 0x00;
+    let coords = game_data.fleets.records[0].current_location_coords_raw();
+
+    game_data.fleets.records[0].set_standing_order_kind(Order::RendezvousSector);
+    game_data.fleets.records[0].set_standing_order_target_coords_raw(coords);
+    game_data.fleets.records[1].set_current_location_coords_raw(coords);
+    game_data.fleets.records[1].set_standing_order_kind(Order::RendezvousSector);
+    game_data.fleets.records[1].set_standing_order_target_coords_raw([coords[0] + 1, coords[1]]);
+    game_data.fleets.records[1].set_current_speed(0);
+
+    let fleet_count_before = game_data.fleets.records.len();
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+
+    assert_eq!(game_data.fleets.records.len(), fleet_count_before);
+    assert!(
+        events
+            .fleet_merge_events
+            .iter()
+            .all(|event| { event.kind != Mission::RendezvousSector })
     );
 }
 
@@ -831,6 +917,31 @@ fn test_rendezvous_merge_emits_survivor_absorption_event() {
             && event.host_fleet_id == survivor_id
             && event.absorbed_fleet_id == absorbed_id
     }));
+}
+
+#[test]
+fn test_rendezvous_survivor_remains_on_rendezvous_after_merge() {
+    let mut game_data = load_fixture("ecmaint-post");
+    game_data.player.records[0].raw[0x00] = 0x00;
+    let coords = game_data.fleets.records[0].current_location_coords_raw();
+    game_data.fleets.records[0].set_standing_order_kind(Order::RendezvousSector);
+    game_data.fleets.records[0].set_standing_order_target_coords_raw(coords);
+    game_data.fleets.records[1].set_current_location_coords_raw(coords);
+    game_data.fleets.records[1].set_standing_order_kind(Order::RendezvousSector);
+    game_data.fleets.records[1].set_standing_order_target_coords_raw(coords);
+
+    let survivor_id = game_data.fleets.records[0].fleet_id();
+
+    run_maintenance_turn(&mut game_data).expect("Maintenance failed");
+
+    let survivor = game_data
+        .fleets
+        .records
+        .iter()
+        .find(|fleet| fleet.fleet_id() == survivor_id)
+        .expect("survivor fleet should remain present");
+    assert_eq!(survivor.standing_order_kind(), Order::RendezvousSector);
+    assert_eq!(survivor.standing_order_target_coords_raw(), coords);
 }
 
 #[test]

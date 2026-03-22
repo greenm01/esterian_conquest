@@ -33,6 +33,88 @@ budget, persists exact in-transit position between yearly maintenance passes,
 and rounds only when writing the visible sector coordinates. `MoveOnly` is
 treated as complete on arrival and falls back to `Hold`.
 
+## Standing Order Model
+
+A practical way to think about fleet orders is:
+
+- a fleet always has exactly one current standing order
+- there is no separate zero-order state distinct from `HoldPosition`; order
+  code `0` is still a real standing order
+- maintenance advances that order until it completes, persists, aborts, or is
+  retargeted by game rules
+- if the player issues a new order before maintenance, that new order replaces
+  the old one
+
+`Hold` is therefore not special in terms of editability. It is just the
+idle/default standing order. A fleet on `Move`, `Patrol`, `Guard`, `Bombard`,
+or `Hold` can all be given a new order; the newly entered order is the one
+maintenance will process next.
+
+The main nuance is that fleet orders fall into three categories:
+
+1. **One-shot completion orders**
+
+- these orders mean "go there, do the thing, then stop"
+- after they resolve, the fleet normally falls back to `Hold`
+- examples: `MoveOnly`, `SeekHome`, `ViewWorld`, `Scout*`, `ColonizeWorld`,
+  `Salvage`
+
+2. **Persistent standing orders**
+
+- these orders remain armed until the player replaces them or game rules
+  explicitly invalidate them
+- some are static watch/guard orders, while others wait, chase, or assemble
+  fleets over multiple maintenance turns
+- they remain armed if the player does not replace them
+- examples: `HoldPosition`, `PatrolSector`, `GuardStarbase`,
+  `GuardBlockadeWorld`, `JoinAnotherFleet`, `RendezvousSector`
+
+3. **Delayed-resolution hostile orders**
+
+- these orders may require travel first, but arrival is not the end of the
+  mission
+- after the fleet reaches the target, the order remains armed until the ready
+  hostile-world step resolves it or invalidates it
+- examples: `BombardWorld`, `InvadeWorld`, `BlitzWorld`
+
+Player-level rule: "new order overrides whatever the fleet was doing" is the
+correct model.
+
+Manual-backed merge specifics:
+
+- `JOIN ANOTHER FLEET` persists until the join resolves or the host fleet is
+  lost
+- `RENDEZVOUS` persists at the specified sector so additional rendezvous fleets
+  can keep merging there
+- when multiple rendezvous fleets merge, the fleet with the lowest fleet ID is
+  the host/survivor
+
+## Order Reference
+
+The table below is the player-facing order model that Rust should preserve.
+"Persists" means the mission is intended to remain armed if the player does not
+replace it. "Completes" means the fleet falls back to `Hold` when the mission
+finishes.
+
+| Order | Category | Classic label | Travel shape | Normal post-arrival behavior | Persists if not replaced? |
+| --- | --- | --- | --- | --- | --- |
+| `HoldPosition` | Persistent standing | `NONE` / Hold position | no travel | stays idle at current position | yes |
+| `MoveOnly` | One-shot completion | `MOVE FLEET` | direct transit to sector | completes on arrival, then `Hold` | no |
+| `SeekHome` | One-shot completion | `SEEK HOME` | transit to nearest owned world, with retargeting if that world is lost | completes on arrival, then `Hold` | no |
+| `PatrolSector` | Persistent standing | `PATROL A SECTOR` | transit to patrol sector if needed, then intercept/watch posture | remains on patrol | yes |
+| `GuardStarbase` | Persistent standing | `GUARD A STARBASE` | transit to base if needed, then escort/guard posture | remains guarding the base | yes |
+| `GuardBlockadeWorld` | Persistent standing | `GUARD/BLOCKADE A WORLD` | transit to target world if needed, then guard/blockade posture | remains guarding or blockading | yes |
+| `BombardWorld` | Delayed-resolution hostile | `BOMBARD A WORLD` | transit to target world if needed | persists through arrival until the ready bombardment step resolves or is invalidated | yes |
+| `InvadeWorld` | Delayed-resolution hostile | `INVADE A WORLD` | transit to target world if needed | persists through arrival until the ready invasion step resolves or is invalidated | yes |
+| `BlitzWorld` | Delayed-resolution hostile | `BLITZ A WORLD` | transit to target world if needed | persists through arrival until the ready assault step resolves or is invalidated | yes |
+| `ViewWorld` | One-shot completion | `VIEW A WORLD` | transit to target world edge, perform long-range scan, then back off | completes and returns to deep-space `Hold` | no |
+| `ScoutSector` | One-shot completion | `SCOUT A SECTOR` | transit to target sector, perform sector reconnaissance | completes on arrival/report, then `Hold` | no |
+| `ScoutSolarSystem` | One-shot completion | `SCOUT A SOLAR SYSTEM` | transit to target world, perform close reconnaissance | completes on arrival/report, then `Hold` | no |
+| `ColonizeWorld` | One-shot completion | `COLONIZE A WORLD` | transit to raw world | completes on arrival if colonization succeeds; otherwise fails/aborts and awaits new orders | no |
+| `JoinAnotherFleet` | Persistent standing | `JOIN ANOTHER FLEET` | transit toward the designated host fleet, with retargeting as the host moves | remains a join mission until fleets meet and merge; abandons if the host is lost | yes |
+| `RendezvousSector` | Persistent standing | `RENDEZVOUS` | transit to the rendezvous sector, then wait there for more rendezvous fleets | lowest fleet ID host absorbs later arrivals and remains on rendezvous until replaced | yes |
+| `Salvage` | One-shot completion | `SALVAGE` | transit to target world | completes when salvage resolves or fails | no |
+
 ## Contact And Hostility
 
 The manuals support this distinction:

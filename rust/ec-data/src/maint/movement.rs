@@ -477,6 +477,20 @@ fn set_fleet_to_deep_space_hold(fleet: &mut crate::FleetRecord) {
     reset_motion_state_for_new_orders(fleet);
 }
 
+fn order_preserves_state_on_arrival(order: Order) -> bool {
+    matches!(
+        order,
+        Order::PatrolSector
+            | Order::GuardStarbase
+            | Order::GuardBlockadeWorld
+            | Order::JoinAnotherFleet
+            | Order::RendezvousSector
+            | Order::BombardWorld
+            | Order::InvadeWorld
+            | Order::BlitzWorld
+    )
+}
+
 fn remap_movement_event_fleet_indices_after_removal(
     movement_events: &mut MovementEvents,
     to_remove: &[bool],
@@ -571,8 +585,8 @@ fn purchase_cost(kind: ProductionItemKind) -> u32 {
 /// - raw[0x19] → 0x00 (clear departure flag)
 ///
 /// On arrival (position reaches target):
-/// - current_speed clears to 0
-/// - order_code clears to 0 (HoldPosition)
+/// - completion orders clear current_speed and fall back to HoldPosition
+/// - persistent standing and delayed hostile orders remain armed
 /// - tuple_c_payload set to [0x80, 0xb9, 0xff, 0xff, 0xff]
 /// - raw[0x1e] set to 0x7f
 ///
@@ -667,20 +681,12 @@ fn process_single_fleet_movement(
 
     // Check if arrived at target
     if new_x == target_x && new_y == target_y {
-        // Check whether this order clears speed/order on arrival.
-        // Confirmed from bombard-scenario oracle: BombardWorld fleet arrives at planet
-        // but KEEPS its order and speed — the actual bombardment runs on the NEXT tick.
-        // ColonizeWorld and plain MoveOnly arrivals clear order and speed immediately.
+        // Completion orders fall back to Hold on arrival. Persistent standing
+        // orders and delayed hostile-world orders remain armed after reaching
+        // their target so later merge/assault phases can still see them.
         let order_code_on_arrival = game_data.fleets.records[fleet_idx].standing_order_code_raw();
-        let preserves_order_on_arrival = matches!(
-            Order::from_raw(order_code_on_arrival),
-            Order::PatrolSector
-                | Order::GuardStarbase
-                | Order::GuardBlockadeWorld
-                | Order::BombardWorld
-                | Order::InvadeWorld
-                | Order::BlitzWorld
-        );
+        let preserves_order_on_arrival =
+            order_preserves_state_on_arrival(Order::from_raw(order_code_on_arrival));
 
         if !preserves_order_on_arrival {
             // Arrivals that execute and complete: clear speed and order immediately.
