@@ -175,55 +175,52 @@ but the ownership boundaries above should remain stable.
 ## Boundary Sketch
 
 ```text
-                       esterian_conquest
-                            |
-    ---------------------------------------------------------
-    |                       |                      |         |
-    |                       |                      |         |
-ec-client                ec-cli                ec-harness   tools/oracles
-(Rust TUI)      (sysop/admin/oracle CLI)      (scenarios)   (DOSBox-X,
-    |                       |                      |          ECMAINT, ECGAME)
-    |                       |                      |
-    |               -------------------            |
-    |               |                 |            |
-    |               |                 |            |
-    |            ec-engine        ec-compat        |
-    |         (rules / maint /   (classic DAT      |
-    |          mapgen / econ /    import/export,   |
-    |          pathfinding)        projections,     |
-    |                              oracle bridge)   |
-    |               \                 /            /
-    |                \               /             |
-    |                 \             /              |
-    |                  \           /               |
-    |                   \         /                |
-    |                    \       /                 |
-    |                     \     /                  |
-    |                      ec-data                |
-    |             (shared runtime/store/model)    |
-    |                      |                      |
-    |                      |                      |
-    |                 SQLite / ecgame.db     ec-classic
-    |             current state + snapshots  (raw classic
-    |             reports + queued mail       records/codecs)
-    |             per-player fog of war            ^
-    |                      |                       |
-    |                      |_______________________|
-    |                 source of truth
-    |
-    +--> client reads/writes SQLite only
-    +--> no live DAT dependency in runtime/client paths
-
-
-Classic boundary only:
-
-ec-compat <----> classic game directory
-                 *.DAT + support files
-                 DATABASE.DAT
-                 RESULTS.DAT
-                 MESSAGES.DAT
-                 oracle materialization/export
++--------------------------------------------------------------+
+|                         Frontends                            |
+|--------------------------------------------------------------|
+|  ec-client              ec-cli                 ec-harness    |
+|  player TUI        sysop/admin/oracle        scenarios/tests |
++--------------------------------------------------------------+
+                 |                    |
+                 | normal runtime     | explicit classic/oracle
+                 v                    v
++--------------------------------+   +-------------------------+
+|           ec-engine            |   |        ec-compat        |
+|--------------------------------|   |-------------------------|
+| gameplay rules                 |   | classic DAT workflows   |
+| maintenance                    |   | import/export bridge    |
+| mapgen / movement / economy    |   | oracle materialization  |
++--------------------------------+   +-------------------------+
+                 |                              |
+                 v                              v
++--------------------------------+   +-------------------------+
+|            ec-data             |   |       ec-classic        |
+|--------------------------------|   |-------------------------|
+| runtime store                  |   | raw classic records     |
+| shared model                   |   | byte codecs             |
+| snapshots / reports / mail     |   | DAT parsing/encoding    |
+| fog of war                     |   +-------------------------+
++--------------------------------+               |
+                 |                               v
+                 v                    classic directories / DOS oracles
+         SQLite / ecgame.db          DATABASE.DAT / RESULTS.DAT / MESSAGES.DAT
+         authoritative state         ECGAME / ECMAINT / DOSBox-X
 ```
+
+The key visual idea is:
+
+- left side = normal runtime stack
+- right side = compat/oracle stack
+
+Even simpler:
+
+`NORMAL PLAY / RUNTIME`
+
+`frontend -> ec-engine -> ec-data -> SQLite`
+
+`CLASSIC / ORACLE`
+
+`frontend -> ec-compat -> ec-classic -> .DAT files / DOS binaries`
 
 Read this sketch with the ownership rules above:
 
