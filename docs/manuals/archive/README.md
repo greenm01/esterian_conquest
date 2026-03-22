@@ -16,12 +16,10 @@ quoting.
 
 ## Recommended Reading Order
 
-- [ec_qstart.md](ec_qstart.md)
-  - fastest way for a new player to understand the game loop
-- [ec_player.md](ec_player.md)
-  - main mechanics and command reference
-- [ec_readme.md](ec_readme.md)
-  - legacy DOS deployment and release context
+- **ec_player_manual.adoc** (primary — polished, combined PDF manual with TOC)
+- [ec_qstart.md](ec_qstart.md) — quick reference
+- [ec_player.md](ec_player.md) — detailed Markdown source
+- [ec_readme.md](ec_readme.md) — historical context
 
 ## Source Mapping
 

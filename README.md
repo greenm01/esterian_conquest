@@ -54,23 +54,12 @@ implementation.
 
 ## Learn How To Play
 
-If you are new to Esterian Conquest, start with the readable manual
-transcriptions first:
+The player manual covers everything from quick-start basics through economy,
+combat, fleet missions, and strategy:
 
-- [ec_qstart.md](docs/manuals/ec_qstart.md)
-  - quick-start overview
-- [ec_player.md](docs/manuals/ec_player.md)
-  - the main player manual
-- [ec_readme.md](docs/manuals/ec_readme.md)
-  - setup notes, release notes, and bundled guidance
-
-Full manual index:
-- [docs/manuals/README.md](docs/manuals/README.md)
+- **[EC Player Manual (PDF)](docs/manuals/ec_player_manual.pdf)**
 
 The original `.DOC` files are still preserved in [original/v1.5](original/v1.5).
-
-Those manuals are not just historical reference. They are the canonical
-player-facing guide for how the game is supposed to work.
 
 ## Current State
 
@@ -119,7 +108,7 @@ the Rust reimplementation, not a substitute for it.
 
 Short version:
 
-- the manuals in `original/v1.5/*.DOC` are the gameplay guide
+- the [player manual](docs/manuals/ec_player_manual.pdf) is the gameplay guide
 - the original DOS binaries are the compatibility oracle
 - classic `.DAT` files remain the interchange boundary
 - Rust is allowed to be explicit and reproducible where the original

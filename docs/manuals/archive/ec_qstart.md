@@ -87,19 +87,19 @@ it when damaging the planet matters more than taking it intact.
 
 ## Reference Charts
 
-### Machinery You Can Build
+### Assets You Can Build
 
-| Item | Build Cost | Size | Max Speed | Purpose |
-| --- | ---: | :---: | :---: | --- |
-| Destroyer | 5 | S | 6 | Combat / Defense |
-| Cruiser | 15 | M | 5 | Combat / Defense |
-| Battleship | 45 | L | 4 | Combat / Defense |
-| Scout | 15 | S | 6 | Spy on Planet/Sector |
-| Troop Transport | 5 | M | 5 | Land armies on a planet |
-| ETAC | 15 | L | 3 | Colonize a raw planet |
-| Ground Battery | 20 | L | n/a | Defend planet |
-| Army | 2 | S | n/a | Defend planet surface |
-| Starbase | 50 | L | 1 | Enhance / Defend |
+| Item | Build Cost | Size | Max Speed | AS | DS | Purpose |
+| --- | ---: | :---: | :---: | ---: | ---: | --- |
+| Destroyer | 5 | S | 6 | 1 | 1 | Combat / Defense |
+| Cruiser | 15 | M | 5 | 3 | 3 | Combat / Defense |
+| Battleship | 45 | L | 4 | 9 | 10 | Combat / Defense |
+| Scout | 15 | S | 6 | 0 | 1 | Spy on Planet / Sector |
+| Troop Transport | 5 | M | 5 | 0 | 1 | Land armies on a planet |
+| ETAC | 20 | L | 3 | 0 | 2 | Colonize a raw planet |
+| Ground Battery | 20 | L | n/a | 9 | 2 | Defend planet |
+| Army | 2 | S | n/a | 1 | 1 | Defend planet surface |
+| Starbase | 50 | L | 1 | 10 | 12 | Enhance / Defend |
 
 ### Fleet Missions by Mission Number
 
@@ -112,12 +112,12 @@ it when damaging the planet matters more than taking it intact.
 | 4 | Guard a Starbase | Combat ship(s). |
 | 5 | Guard/Blockade a World | Combat ship(s). |
 | 6 | Bombard a World | Combat ship(s). |
-| 7 | Invade a World | Combat ship(s) and loaded troop transports. |
+| 7 | Invade a World | Combat ships and loaded troop transports. |
 | 8 | Blitz a World | Loaded troop transports. |
 | 9 | View a World | None. All ships can do this. |
 | 10 | Scout a Sector | At least one scout ship. |
 | 11 | Scout a Solar System | At least one scout ship. |
-| 12 | Colonize a World | At least one `ETAC`. |
+| 12 | Colonize a World | At least one ETAC. |
 | 13 | Join another fleet | None. All ships can do this. |
-| 14 | Rendezvous at a Sector | None. All ships can do this. |
+| 14 | Rendezvous at Sector | None. All ships can do this. |
 | 15 | Salvage | None. All ships can do this. |

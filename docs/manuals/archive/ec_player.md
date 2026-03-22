@@ -37,8 +37,6 @@ and economic systems.
 - Basic Features
 - Reference
 - Conclusions
-- Appendix A. Quick Reference Sheet
-- Appendix B. ROE (Rules of Engagement) Settings
 
 ## Introduction
 
@@ -153,6 +151,18 @@ at the speed of its slowest member. Mix a fast destroyer group with one slow
 
 There are 6 types of starships -- 3 combat types and 3 specialized types.  Smaller ships are faster as a rule. Below is a list of the different ship types, their size (S,M,L), maximum speed (sectors/round), cost to build (in production points), and suggested uses.
 
+| Item | Build Cost | Size | Max Speed | AS | DS | Purpose |
+| --- | ---: | :---: | :---: | ---: | ---: | --- |
+| Destroyer | 5 | S | 6 | 1 | 1 | Combat / Defense |
+| Cruiser | 15 | M | 5 | 3 | 3 | Combat / Defense |
+| Battleship | 45 | L | 4 | 9 | 10 | Combat / Defense |
+| Scout | 15 | S | 6 | 0 | 1 | Spy on Planet / Sector |
+| Troop Transport | 5 | M | 5 | 0 | 1 | Land armies on a planet |
+| ETAC | 20 | L | 3 | 0 | 2 | Colonize a raw planet |
+| Ground Battery | 20 | L | n/a | 9 | 2 | Defend planet |
+| Army | 2 | S | n/a | 1 | 1 | Defend planet surface |
+| Starbase | 50 | L | 1 | 10 | 12 | Enhance / Defend |
+
 **Destroyer:** A small, fast (speed=6), inexpensive (5 points) combat ship.  It is best for attacks on unarmed ships where it can overtake them.  Its speed also gives it a chance to escape from more heavily armed fleets.
 
 **Cruiser:** A medium size combat ship.  About 3 times more powerful than a destroyer, it costs more (15 points) and is a bit slower (speed=5).  The cruiser is a good compromise between speed and power.  It's powerful enough to hit what it can't outrun (destroyers) and fast enough to outrun what it cannot outgun (battleships).
@@ -175,13 +185,42 @@ Outside the solar system, a starbase gives surveillance reports on any alien fle
 
 ### Combat
 
-A fleet with one or more combat ships (destroyer, cruiser, or battleship) can engage in battle.  You specify the aggressiveness of your fleet by assigning its ROE (Rules of Engagement).  An ROE of zero means the fleet will avoid everything at all costs.  An ROE of ten means the fleet will attack anything, even if it is greatly outnumbered. Appendix B lists all of the ROE levels.  Usually, the stronger fleet wins, but sometimes a weaker fleet may do more damage to the stronger fleet than it takes.
+#### Combat Mechanics (Behind the Curtain)
+While battle reports are presented to players as simple summaries of losses, the engine powering these engagements operates systematically behind the curtain. Inspired by tabletop wargames like *Empire of the Sun*, the combat system relies on a simultaneous-resolution model rather than opaque random number generation or arbitrary ship-vs-ship duels.
+
+*   **Simultaneous Resolution:** When fleets meet, there is no "attacker's advantage." Both sides evaluate the board state, generate their hits simultaneously based on their Attack Strength (AS), and inflict damage simultaneously. 
+*   **Targeting Priority (Reduce Before Eliminate):** Damage follows strict tactical logic rather than flat attrition. Every hull begins combat "Nominal." The engine allocates incoming Defense Strength (DS) hits to reduce Nominal ships to "Crippled" first, ensuring a battle line absorbs widespread damage before any single crippled ship is finally destroyed. Surviving crippled ships automatically revert to Nominal status once the battle concludes.
+*   **Combined Arms:** Fleets are rewarded for tactical diversity. A mixed fleet (e.g., containing Destroyers, Cruisers, and Battleships) receives a slight combat effectiveness edge over a massive mono-type swarm.
+*   **Tie-Breakers:** In engagements where neither side achieves a clear victory, the defender (or the fleet holding the incumbent position) breaks the tie.
+
+Though you will never see these exact dice rolls or intermediate "crippled" states in your end-of-year reports, understanding these hidden mechanics will help you construct better fleets and set more effective Rules of Engagement.
+
+A fleet with one or more combat ships (destroyer, cruiser, or battleship) can engage in battle.  You specify the aggressiveness of your fleet by assigning its ROE (Rules of Engagement).  An ROE of zero means the fleet will avoid everything at all costs.  An ROE of ten means the fleet will attack anything, even if it is greatly outnumbered. The *Rules of Engagement* table in the commissioning section lists all of the ROE levels.  Usually, the stronger fleet wins, but sometimes a weaker fleet may do more damage to the stronger fleet than it takes.
 
 Your fleets may attack if they encounter the fleet of a player you've declared to be an enemy.  However, your fleets will always fight back if attacked.  Your fleets will also attack if another player's fleets enter one of your solar systems, or if they try to enter or leave a planet that your fleet is blockading.
 
 ### The Possible Fleet Missions
 
 You can order a fleet on one of 15 missions.  Some missions require certain types of vessels.  After each mission name, the required vessels follow in parentheses.
+
+| No. | Mission | Requirements |
+| ---: | --- | --- |
+| 0 | None (hold position) | None. All ships can do this. |
+| 1 | Move Fleet | None. All ships can do this. |
+| 2 | Seek Home | None. All ships can do this. |
+| 3 | Patrol a Sector | None. All ships can do this. |
+| 4 | Guard a Starbase | Combat ship(s). |
+| 5 | Guard/Blockade a World | Combat ship(s). |
+| 6 | Bombard a World | Combat ship(s). |
+| 7 | Invade a World | Combat ships and loaded troop transports. |
+| 8 | Blitz a World | Loaded troop transports. |
+| 9 | View a World | None. All ships can do this. |
+| 10 | Scout a Sector | At least one scout ship. |
+| 11 | Scout a Solar System | At least one scout ship. |
+| 12 | Colonize a World | At least one ETAC. |
+| 13 | Join another fleet | None. All ships can do this. |
+| 14 | Rendezvous at Sector | None. All ships can do this. |
+| 15 | Salvage | None. All ships can do this. |
 
 **NONE (All ship types):** Hold position and do nothing.
 
@@ -194,6 +233,8 @@ You can order a fleet on one of 15 missions.  Some missions require certain type
 **GUARD A STARBASE (combat ships):** Move to and escort a specified starbase.  Help the starbase in a fight.  This is useful if the starbase is guarding a planet so that the combat ships work in coordination with the base.  A fleet guarding a starbase may leave it if they have a high ROE and an enemy fleet comes close to their solar system.
 
 **GUARD/BLOCKADE A WORLD (combat ships):** Prevent alien contact with the planet you guard, including its owners if the planet does not belong to you.  This mission is primarily used to guard your planets from attack by other fleets. However, blockading a planet that belongs to another player is a way to intercept that player's ships which are launching from or approaching his/her planet.
+
+*Strategy of Denial:* Blockading an enemy planet is a highly viable strategy of denial. While it does not cut the colony off from generating tax revenue (with the exception of destroying starbases and their related economic benefits), a sustained blockade commands the orbital space, preventing other fleets from contesting the area. Additionally, the blockading fleet can easily destroy any newly commissioned ships emerging from stardocks, or simply cause the planet's stardock and build queue to fill up to capacity, completely paralyzing the colony's ability to deploy new fleets.
 
 **BOMBARD A WORLD (combat ships):** Pound the world, destroy its production and anything orbiting the world, including recently built ships stored in stardock.
 
@@ -215,7 +256,7 @@ You can order a fleet on one of 15 missions.  Some missions require certain type
 
 **SALVAGE (all ship types):** Go to the specified planet and scrap the ships there for approximately half the purchase price in production points.
 
-The fleet missions are summarized and arranged by mission number in Appendix A of this Player's Guide.
+The fleet missions are summarized and arranged by mission number in the table above.
 
 ### Some Strategy Hints For The Beginning Of The Game
 
@@ -295,7 +336,7 @@ The editor lets you to change, insert, delete, or move lines.  It also allows yo
 
 **Planet Command:** list planets you own ("P" for brief, "F" for Full); set the planetary tax rate for your empire ("T"); order planets to scorch their surface ("S") to prevent an opponent from taking your factories; and load ("L") or unload ("U") armies to or from troop transports.  Planet Command also has two important sub-menus: ("B") BUILD ON PLANET and ("C") COMMISSION SHIPS.  With the "A" (AUTO- COMMISSION) command, you commission all newly built ships as fleets for all planets.
 
-**Build On Planet:** specify what to build with your revenue production points to be ready next round.  You work on one planet at a time.  Type "R" to review information about the current planet.  The "S" (Specify builds) option gives you a summary of how many tax revenue points you can spend; a list of objects you can build (see Appendix A) and their cost.  When you are done, choose the "N" (Next Planet) option to go to the next planet with points to spend, or choose "C" (Change planet) if you want to work with a specific planet.
+**Build On Planet:** specify what to build with your revenue production points to be ready next round.  You work on one planet at a time.  Type "R" to review information about the current planet.  The "S" (Specify builds) option gives you a summary of how many tax revenue points you can spend; a list of objects you can build (see the *Assets You Can Build* table) and their cost.  When you are done, choose the "N" (Next Planet) option to go to the next planet with points to spend, or choose "C" (Change planet) if you want to work with a specific planet.
 
 **Commission A Fleet:** assigns a fleet number to any newly built ships and lifts them out of stardock.  Starbases are also commissioned.  You commission from one planet at a time and can select the NEXT PLANET option to work with another planet that has vessels in stardock.
 
@@ -331,7 +372,11 @@ When you know an enemy is approaching your planet with an unstoppable fleet, you
 
 ### Building And Commissioning Fleets.
 
-Use taxed revenue production points from your planets to build ships.  From the PLANET COMMAND menu, select the BUILD COMMAND menu, specify build orders, and spend the production points necessary (see Appendix A) for the type of ship.  All equipment takes one turn to build.
+Use taxed revenue production points from your planets to build ships.  From the PLANET COMMAND menu, select the BUILD COMMAND menu, specify build orders, and spend the production points necessary (see the *Assets You Can Build* table) for the type of ship.  All equipment takes one turn to build.
+
+**Build Queues and Stardocks:** When allocating revenue points to construct new game assets, items are placed into a planet's 10-slot build queue. However, upon completion during the maintenance cycle, game assets behave differently:
+*   **Ships and Starbases** are moved directly into the planet's Stardock. They must be explicitly commissioned into an active fleet before they can move or fight. Note that while sitting uncommissioned in the Stardock, they are highly vulnerable to destruction from orbital bombardments. If the 10-slot Stardock fills up completely, further ship construction will halt and remain suspended in the build queue until space is freed.
+*   **Armies and Ground Batteries** skip the Stardock entirely. Upon completion, they are instantly deployed directly to the planet's surface to join its active defenses. A full Stardock will never block the construction of ground forces.
 
 Newly built ships are stored in your planet's stardock, and are ready for use.  Activate them by COMMISSIONING them, which means you assign them to fleets.  From the PLANET COMMAND menu, you can commission all ships from all planets at once with the AUTO-COMMISSION option, or tailor your fleet commissions by selecting the COMMISSION COMMAND option.
 
@@ -339,7 +384,7 @@ Newly built ships are stored in your planet's stardock, and are ready for use.  
 
 Commissioned fleets are assigned a number.  Occasionally, you will want to add newly constructed ships to existing fleets.  If the merging fleets are in the same sector, issue the MERGE command from the FLEET COMMAND menu. Otherwise, order the newly formed fleet to join the other fleet.
 
-When you commission fleets containing combat ships, you control how aggressive they are by assigning them a Rules Of Engagement value (ROE -- see Appendix B for the list of possible ROE values).  As the ROE gets higher, your fleet will be more aggressive and fight with enemy fleets of greater strength relative to your own.  With low
+When you commission fleets containing combat ships, you control how aggressive they are by assigning them a Rules Of Engagement value (ROE -- see the table below).  As the ROE gets higher, your fleet will be more aggressive and fight with enemy fleets of greater strength relative to your own.  With low
 
 ```text
             ROE scores, your fleets will attempt to flee more easily.
@@ -347,6 +392,20 @@ When you commission fleets containing combat ships, you control how aggressive t
             fleet, since the enemy has an opportunity to fire on them
             while they flee.
 ```
+
+| ROE | Conditions To Engage Hostile Fleets In Battle |
+| ---: | --- |
+| 0 | Avoid all hostile fleets. `(Non-combat fleets)` |
+| 1 | Engage fleets only if they are defenseless. |
+| 2 | Engage fleets only if your advantage is `4:1` or better. |
+| 3 | Engage fleets only if your advantage is `3:1` or better. |
+| 4 | Engage fleets only if your advantage is `2:1` or better. |
+| 5 | Engage fleets only if your advantage is `3:2` or better. |
+| 6 | Engage hostile fleets of equal or inferior strength. |
+| 7 | Engage hostile fleets even if outgunned `3:2`. |
+| 8 | Engage hostile fleets even if outgunned `2:1`. |
+| 9 | Engage hostile fleets even if outgunned `3:1`. |
+| 10 | Engage hostile fleets regardless of their size. |
 
 Match the types of ships built with the mission you want your fleets to accomplish.  Simple missions might require one type of ship such as colonizing a planet (requires at least one ETAC), scouting a planet (requires at least one scout ship), or blockading a planet (requires combat ships with firepower).  Some missions require combinations of ships.  For example, invading a planet requires combat ships and troop transports loaded with armies.
 
@@ -375,62 +434,3 @@ THE BOMBARD attack: (requires sufficient combat ships to damage a planet's resou
 This manual is a basic guide to get you started with some basic strategies to consider at the beginning of the game. As in chess, you can learn how to move the pieces in a short time, but learning to master the game may take a lifetime. After reading this guide, you are now familiar with the capabilities and possible actions of your forces.  The task of coordinating your forces remains up to you.  Very elaborate campaigns, bluffs, and betrayals are possible.
 
 NOW STOP READING AND PLAY!  THERE'S A GALAXY TO CONQUER.
-
-## Appendix A.  Quick Reference Sheet
-
-### Machinery You Can Build
-
-| Item | Build Cost | Size | Max Speed | Purpose |
-| --- | ---: | :---: | :---: | --- |
-| Destroyer | 5 | S | 6 | Combat / Defense |
-| Cruiser | 15 | M | 5 | Combat / Defense |
-| Battleship | 45 | L | 4 | Combat / Defense |
-| Scout | 15 | S | 6 | Spy on Planet / Sector |
-| Troop Transport | 5 | M | 5 | Land armies on a planet |
-| ETAC | 20 | L | 3 | Colonize a raw planet |
-| Ground Battery | 20 | L | n/a | Defend planet |
-| Army | 2 | S | n/a | Defend planet surface |
-| Starbase | 50 | L | 1 | Enhance / Defend |
-
-### Possible Missions For Fleets Listed By Their Mission Numbers
-
-| No. | Mission | Requirements |
-| ---: | --- | --- |
-| 0 | None (hold position) | None. All ships can do this. |
-| 1 | Move Fleet | None. All ships can do this. |
-| 2 | Seek Home | None. All ships can do this. |
-| 3 | Patrol a Sector | None. All ships can do this. |
-| 4 | Guard a Starbase | Combat ship(s). |
-| 5 | Guard/Blockade a World | Combat ship(s). |
-| 6 | Bombard a World | Combat ship(s). |
-| 7 | Invade a World | Combat ships and loaded troop transports. |
-| 8 | Blitz a World | Loaded troop transports. |
-| 9 | View a World | None. All ships can do this. |
-| 10 | Scout a Sector | At least one scout ship. |
-| 11 | Scout a Solar System | At least one scout ship. |
-| 12 | Colonize a World | At least one ETAC. |
-| 13 | Join another fleet | None. All ships can do this. |
-| 14 | Rendezvous at Sector | None. All ships can do this. |
-| 15 | Salvage | None. All ships can do this. |
-
-## Appendix B.  ROE (Rules Of Engagement) Settings
-
-You only assign ROE for fleets that contain combat ships. Any fleet with only
-non-combat ships automatically gets an ROE of `0` to avoid being destroyed by
-armed enemy fleets.
-
-### Possible ROE (Rules Of Engagement)
-
-| ROE | Conditions To Engage Hostile Fleets In Battle |
-| ---: | --- |
-| 0 | Avoid all hostile fleets. `(Non-combat fleets)` |
-| 1 | Engage fleets only if they are defenseless. |
-| 2 | Engage fleets only if your advantage is `4:1` or better. |
-| 3 | Engage fleets only if your advantage is `3:1` or better. |
-| 4 | Engage fleets only if your advantage is `2:1` or better. |
-| 5 | Engage fleets only if your advantage is `3:2` or better. |
-| 6 | Engage hostile fleets of equal or inferior strength. |
-| 7 | Engage hostile fleets even if outgunned `3:2`. |
-| 8 | Engage hostile fleets even if outgunned `2:1`. |
-| 9 | Engage hostile fleets even if outgunned `3:1`. |
-| 10 | Engage hostile fleets regardless of their size. |

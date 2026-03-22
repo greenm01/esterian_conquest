@@ -10,13 +10,13 @@ Our immediate goal is to build the definitive, modern-host-friendly drop-in repl
 - **Classic Feel, Better UX:** The UI is driven by pure `crossterm` to enforce the rigid 80x25 CP437 display limits necessary for Telnet BBS integration. We preserve the original menus and ANSI artwork, but modernize the interaction loop by replacing annoying scrolling terminal inputs with clean, fixed-viewport data tables.
 - **The Deployment:** Sysops can drop this Rust binary into their Enigma BBS or Synchronet setup natively on Linux/macOS/Windows, without the overhead and instability of DOSBox.
 
-## Phase 2: v2.0 - The Nostr Era
+## Phase 2: Nostrian Conquest
 
-Once the core engine is fully reverse-engineered and the mechanics are crystallized in Rust, we will decouple the client and server to bring Esterian Conquest into the decentralized web.
+Once the core engine is fully reverse-engineered and the mechanics are crystallized in Rust, we will decouple the client and server to bring Esterian Conquest into the decentralized web under the working title **Nostrian Conquest**.
 
 - **Nostr as the Transport Layer:** The asynchronous, daily-turn nature of EC maps perfectly to the Nostr protocol. Instead of logging into a centralized BBS, players use their `secp256k1` keys to submit encrypted turn orders to relays.
 - **Headless Server & Encrypted State:** The `ec-maint` engine runs headlessly on a server, collecting daily orders. When maintenance runs, it generates the new game state for each player and broadcasts NIP-04/NIP-44 encrypted events back to the relay, preserving the "fog of war."
-- **Modern TUI Client:** Freed from the constraints of 80x25 Telnet screens, the v2.0 client will use `Ratatui` to provide a highly responsive, modern, and beautiful terminal interface that can run natively on the player's local machine. 
+- **Modern TUI Client:** Freed from the shackles of the 80x25 Telnet screen, the Nostrian Conquest client will use `Ratatui` to deliver a full-screen, modern ANSI/UTF-8 terminal interface -- highly responsive and beautiful, running natively on the player's local machine. 
 
 ## Beyond Classic: EC4X
 
