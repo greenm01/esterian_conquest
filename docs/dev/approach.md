@@ -53,11 +53,15 @@ docs.
 
 ### Layered architecture
 
-The Rust implementation is split into focused crates: `ec-data` for binary
-formats and typed accessors, and `ec-cli` for a std-only scripting and
-verification interface. The implementation stays data-oriented throughout, with
-explicit record/file data, focused free functions or small impl blocks, and
-feature-oriented submodules instead of monolithic source files.
+The Rust workspace is organized as a set of focused crates, each owning a
+clear slice of the problem: low-level classic codecs, runtime state and shared
+model, the engine/rules boundary, classic import/export compatibility, the
+sysop/oracle CLI, the player-facing TUI client, and the scenario test harness.
+The implementation stays data-oriented throughout, with explicit record/file
+layouts, focused free functions or small impl blocks, and feature-oriented
+submodules instead of monolithic source files. For the current crate inventory,
+ownership boundaries, and module structure, see
+[rust-architecture.md](rust-architecture.md).
 
 ### Fixtures to lock in behavior
 
@@ -85,6 +89,24 @@ menus, that is part of the same login/entry pipeline. The classic sequence
 should be preserved while modernizing friction where useful: ANSI/CP437 by
 default, cleaner prompt handling, safer input validation, and no fake
 monochrome-first experience in the default Rust client.
+
+### How EC was recovered
+
+The Rust engine was not built from guesswork. The current model and docs came
+from repeated cross-checking between the original manuals, the original DOS
+binaries, preserved fixtures, and controlled Rust-generated scenarios.
+
+| Tool / source | What it was used for | Why it mattered |
+| --- | --- | --- |
+| Original EC manuals in [`original/v1.5/*.DOC`](../../original/v1.5) | Canonical guide for player-facing rules, setup constraints, turn structure, and terminology | Kept the Rust clone grounded in intended game behavior instead of raw binary quirks alone |
+| Ghidra disassembly and headless scripts | Static recovery of file layouts, maint flow, scheduler logic, and helper call structure | Turned opaque Pascal-era code paths into stable Rust-facing specs |
+| DOSBox-X debugger, INT 21 tracing, and memory dumps | Dynamic tracing of `ECGAME` / `ECMAINT` behavior, file I/O order, token handling, and live state changes | Proved phase ordering, runtime transitions, and report/output boundaries that static RE alone could not settle |
+| Controlled gamestate file diffs | Compared Rust-generated or hand-shaped directories against classic `.DAT` outputs before and after maintenance | Exposed real cross-file invariants and kept the Rust side honest at the compatibility boundary |
+| Report and log analysis | Studied `RESULTS.DAT`, `MESSAGES.DAT`, shipped `ec*.txt` logs, and preserved output captures | Recovered player-visible timing, report cadence, `Stardate` behavior, and event sequencing |
+| Rust-generated scenarios and oracle sweeps | Created narrow test cases, ran the original binaries as oracle, and promoted repeated outcomes into shared rules | Turned reverse engineering into reusable implementation guidance instead of one-off notes |
+
+For the full RE directory, provenance, and evidence entrypoint, see
+[reverse_engineering/README.md](../reverse_engineering/README.md).
 
 ### Escalating RE depth
 
@@ -430,11 +452,10 @@ generalization.
 ## Event And Report Direction
 
 Maintenance-side player-visible consequences should be modeled as typed events
-first, and rendered into classic report files second. The crate boundary
-reflects this: `ec-data` owns the event surface emitted by maintenance
-mechanics, `ec-cli` owns report-file regeneration (`DATABASE.DAT`,
-`RESULTS.DAT`, and later any justified `MESSAGES.DAT` writer), and report
-formatting should not be embedded ad hoc inside mechanic code paths. The same
+first, and rendered into classic report files second. Report formatting should
+not be embedded ad hoc inside mechanic code paths; which crate owns which
+report artifact is an architecture concern documented in
+[rust-architecture.md](rust-architecture.md). The same
 event/report pipeline should eventually cover fleet encounters and retreats,
 bombardment/invasion/blitz and starbase defense, colonization
 success/failure, scout reconnaissance and contact discovery, and mission
@@ -537,25 +558,16 @@ keep it in the black-box queue until it becomes a real blocker.
 
 ## Current Concrete Rust Milestone
 
-The `ec-cli` crate is now split by command family (`fleet_order.rs`,
-`planet_build.rs`, `guard_starbase.rs`, `ipbm.rs`) instead of continuing to
-grow in one file. The general approach is: start from a known-good preserved
-snapshot such as `fixtures/ecmaint-post/v1.5`, rewrite only decoded fields in
-Rust, and verify the rewritten `.DAT` file matches a preserved accepted
-pre-maint scenario exactly.
+The general approach is: start from a known-good preserved snapshot such as
+`fixtures/ecmaint-post/v1.5`, rewrite only decoded fields in Rust, and verify
+the rewritten `.DAT` file matches a preserved accepted pre-maint scenario
+exactly. Scenario validation has two levels: rule-shaped validators that check
+structural invariants, and preserved exact-match validators that confirm
+byte-level fidelity against known-good fixtures.
 
-Current confirmed scenario coverage includes fleet-order and planet-build
-rewrites reproducing their respective preserved fixtures, accepted Guard
-Starbase scenario rewrites with linkage-shaped validation, parameterized
-starbase/fleet/build/IPBM writers and batch initializers, and a combined
-compliance-report command that prints starbase linkage verdict, IPBM
-count/length verdict, and key words in one pass. Scenario validation has two
-levels: rule-shaped validators (`ec-cli validate <dir> ...`) and preserved
-exact-match validators (`ec-cli validate-preserved <dir> ...`). The known
-accepted scenarios are centralized behind `ec-cli scenario <dir> list`.
-
-For the full CLI command reference, run `ec-cli --help` or see the scenario
-and validation commands documented in
+For the current CLI command surface and workspace layout, see
+[rust-architecture.md](rust-architecture.md) and `ec-cli --help`. Scenario
+and validation commands are documented in
 [README.md](../../README.md#quick-start).
 
 This is intentionally narrower than a full arbitrary save generator, but it is
