@@ -24,8 +24,9 @@ The immediate goal is a modern drop-in replacement for the classic door stack,
 with:
 
 - a canonical Rust game engine with SQLite-native runtime state
-- an explicit `ec-compat` classic file bridge for oracle import/export
-- a Rust sysop/admin/oracle toolchain
+- an explicit `ec-compat` classic file bridge for classic import/export and
+  compatibility validation
+- a Rust sysop/admin/compatibility toolchain
 - a Rust player client intended to replace `ECGAME`
 
 The current project state is practical rather than speculative. The Rust engine
@@ -66,12 +67,12 @@ The original `.DOC` files are still preserved in [original/v1.5](original/v1.5).
 EC is well past the stage of being a repo of notes and recovery experiments.
 Fresh Rust-backed campaigns can be created across all four documented player
 tiers (4, 9, 16, and 25 empires), and yearly turns run through a real Rust
-maintenance engine while compliance work continues. The growing native Rust
-client already handles substantial parts of a campaign, and a supported hybrid
-loop lets you keep using the original DOS `ECGAME` for classic order entry and
-viewing whenever you want. Classic `.DAT` interoperability is preserved
-throughout, and Rust-generated directories can be validated against the original
-manuals and binaries at any point.
+maintenance engine. The growing native Rust client already handles substantial
+parts of a campaign, and a supported hybrid loop lets you keep using the
+original DOS `ECGAME` for classic order entry and viewing whenever you want.
+Classic `.DAT` interoperability is preserved throughout, and the original
+manuals and binaries remain available as compatibility and historical
+references rather than as the center of day-to-day development.
 
 It is not finished enough to call the reimplementation complete end to end, but
 it is usable for real development play, hybrid classic play, and campaign
@@ -100,7 +101,9 @@ reimplementation rather than replacing it. The
 original DOS binaries are the compatibility oracle, and classic `.DAT` files
 remain the interchange boundary between the two worlds. Where the original
 implementation was hidden, stochastic, or plainly buggy, Rust is allowed to be
-explicit and reproducible instead.
+explicit and reproducible instead. The heavy reverse-engineering phase is now
+closed for normal development; the oracle stack remains in place as a
+compatibility and regression backstop.
 
 ## Where Rust Intentionally Differs
 
@@ -126,9 +129,10 @@ For normal Rust development in this repo, the practical baseline is:
 - `python-pexpect` if you want to use the DOSBox-X debugger helpers under
   `tools/`
 - DOSBox-X if you want to launch the original DOS binaries locally or do
-  dynamic oracle/RE work (`EC_UNLOCKED/` holds the stub-free local-launch set,
-  but DOSBox-X is currently the only verified runner for EC v1.5)
-- Ghidra plus JDK 21 only if you want to use the headless static-RE workflow
+  targeted compatibility/provenance work (`EC_UNLOCKED/` holds the stub-free
+  local-launch set, but DOSBox-X is currently the only verified runner for EC
+  v1.5)
+- Ghidra plus JDK 21 only if you want the headless static-analysis workflow
 
 Recommended local build-speed tooling:
 
