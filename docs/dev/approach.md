@@ -36,6 +36,23 @@ progress, but player/client surfaces should ultimately align to classic terms
 like `Present Production`, `Potential Production`, and `Total Available Points`
 once those semantics are confirmed.
 
+### Meaningful fidelity over ghost fidelity
+
+The project is not trying to preserve every hidden numeric quirk, scratch byte,
+or ambiguous maintenance artifact from the original binaries. The fidelity
+target is the combination of:
+
+- player-facing rules and timing that materially affect decisions
+- compatibility behavior required for classic file safety and oracle workflows
+- stable, reusable semantics that improve the Rust engine
+
+When an oracle thread bottoms out in hidden state, inconsistent low-level
+numeric behavior, or probable implementation bugs that do not materially affect
+the game, prefer a documented Rust rule over indefinite ghost-chasing. The
+current Rust combat system is already the model for this: preserve the turn
+placement and visible consequences that matter, but do not freeze the engine
+waiting for perfect historical internals.
+
 ### Stable docs vs. lab notes
 
 `docs/dev/archive/RE_NOTES.md` is the chronological investigation notebook and
@@ -151,6 +168,12 @@ known. Route selection and threat-aware navigation may be improved canonically
 in Rust when the manuals do not define a detailed routing algorithm. Smart
 pathfinding should be documented as a Rust policy layer, not implied to be a
 recovered original mechanic.
+
+The same policy applies to hidden movement state. If classic shows that some
+diagonal trips complete more conservatively than naive rounded movement, Rust
+should preserve that player-facing outcome where it matters. But unresolved
+scratch-byte layouts or obscure completion artifacts are not automatically a
+fidelity target by themselves.
 
 ### Seeded Rust combat inside the oracle's timing framework
 

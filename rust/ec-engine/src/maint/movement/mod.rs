@@ -5,6 +5,7 @@ mod stepper;
 use super::MovementEvents;
 use crate::{CoreGameData, Order, VisibleHazardIntel};
 use arrivals::handle_fleet_arrival;
+use ec_data::fleet_motion_state::decode_exact_position;
 use salvage::{queue_salvage_resolution, remap_movement_event_fleet_indices_after_removal};
 use stepper::process_single_fleet_movement;
 
@@ -55,15 +56,20 @@ pub(super) fn process_fleet_movement(
             continue;
         }
         // A fleet moves when it has a non-HoldPosition order, speed > 0,
-        // and hasn't reached its target yet.
+        // and either has not yet reached its visible target sector or is still
+        // carrying unresolved exact in-transit state after rounding into it.
         // order_code 0x00 = HoldPosition — fleet stays put even if speed > 0
         // and target != current.
         // Note: BombardWorld/InvadeWorld fleets also move to their target before executing;
         // they are allowed here — arrival handling decides whether the order persists and
         // whether movement state stops or stays armed for the next phase.
         let order_code = game_data.fleets.records[i].standing_order_code_raw();
-        let should_move =
-            speed > 0 && order_code != 0x00 && (target_x != current_x || target_y != current_y);
+        let has_unresolved_exact_transit = target_x == current_x
+            && target_y == current_y
+            && decode_exact_position(&game_data.fleets.records[i]).is_some();
+        let should_move = speed > 0
+            && order_code != 0x00
+            && ((target_x != current_x || target_y != current_y) || has_unresolved_exact_transit);
 
         if should_move {
             let arrived = process_single_fleet_movement(game_data, i, visible_hazards_by_empire)?;

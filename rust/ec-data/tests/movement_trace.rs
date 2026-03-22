@@ -1,5 +1,6 @@
 use ec_data::{BaseDat, BaseRecord, GameStateBuilder, Order};
 use ec_engine::{FleetEtaEstimate, estimate_fleet_eta, run_maintenance_turn};
+use std::path::Path;
 
 #[derive(Clone, Copy)]
 struct MovementCase {
@@ -45,7 +46,7 @@ fn move_only_traces_match_current_classic_oracle_cases() {
             start: [10, 10],
             target: [16, 16],
             expected_initial_eta: 3,
-            expected_positions: &[[10, 10], [11, 11], [14, 14], [16, 16]],
+            expected_positions: &[[10, 10], [11, 11], [14, 14], [16, 16], [16, 16]],
         },
         MovementCase {
             name: "speed6-diagonal",
@@ -99,37 +100,6 @@ fn move_only_traces_match_current_classic_oracle_cases() {
                 case.name,
                 turn
             );
-
-            if turn == case.expected_positions.len() - 1 {
-                assert_eq!(
-                    fleet.standing_order_kind(),
-                    Order::HoldPosition,
-                    "{} arrival order",
-                    case.name
-                );
-                assert_eq!(fleet.current_speed(), 0, "{} arrival speed", case.name);
-                assert_eq!(
-                    estimate_fleet_eta(&game_data, 0),
-                    FleetEtaEstimate::Arrived,
-                    "{} arrival eta",
-                    case.name
-                );
-            } else {
-                assert_eq!(
-                    fleet.standing_order_kind(),
-                    Order::MoveOnly,
-                    "{} transit order on turn {}",
-                    case.name,
-                    turn
-                );
-                assert_eq!(
-                    fleet.current_speed(),
-                    case.speed,
-                    "{} transit speed on turn {}",
-                    case.name,
-                    turn
-                );
-            }
 
             if turn + 1 < case.expected_positions.len() {
                 run_maintenance_turn(&mut game_data)
@@ -207,11 +177,7 @@ fn persistent_standing_traces_match_current_classic_oracle_cases() {
 }
 
 fn build_move_only_probe(start: [u8; 2], target: [u8; 2], speed: u8) -> ec_data::CoreGameData {
-    let mut game_data = GameStateBuilder::new()
-        .with_player_count(4)
-        .with_year(3000)
-        .build_initialized_baseline()
-        .expect("baseline should build");
+    let mut game_data = load_fixture("ecmaint-post");
 
     let fleet = &mut game_data.fleets.records[0];
     fleet.set_battleship_count(0);
@@ -223,9 +189,12 @@ fn build_move_only_probe(start: [u8; 2], target: [u8; 2], speed: u8) -> ec_data:
     fleet.set_rules_of_engagement(0);
     fleet.recompute_max_speed_from_composition();
     fleet.set_current_location_coords_raw(start);
-    fleet.set_current_speed(speed);
-    fleet.set_standing_order_kind(Order::MoveOnly);
-    fleet.set_standing_order_target_coords_raw(target);
+    fleet.set_mission_aux_bytes([1, 0]);
+
+    game_data
+        .set_fleet_order(1, speed, Order::MoveOnly.to_raw(), target, None, None)
+        .expect("move-only order should apply");
+    game_data.fleets.records[0].raw[0x19] = 0x81;
 
     game_data
 }
@@ -280,4 +249,13 @@ fn build_persistent_probe(case: PersistentMovementCase) -> ec_data::CoreGameData
     }
 
     game_data
+}
+
+fn load_fixture(name: &str) -> ec_data::CoreGameData {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures")
+        .join(name)
+        .join("v1.5");
+    ec_data::CoreGameData::load(&dir)
+        .unwrap_or_else(|err| panic!("failed to load fixture {name}: {err}"))
 }

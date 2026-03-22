@@ -71,6 +71,11 @@ fn apply_standing_arrival_state(fleet: &mut ec_data::FleetRecord, order: Order) 
     }
 }
 
+fn exact_position_reached_target(exact: [f64; 2], target: [u8; 2]) -> bool {
+    (exact[0] - f64::from(target[0])).abs() <= f64::EPSILON
+        && (exact[1] - f64::from(target[1])).abs() <= f64::EPSILON
+}
+
 /// Process movement for a single fleet using the ECMAINT movement formula.
 ///
 /// Movement formula (confirmed from move-scenario fixture, speed=3, horizontal move):
@@ -91,11 +96,15 @@ fn apply_standing_arrival_state(fleet: &mut ec_data::FleetRecord, order: Order) 
 /// - raw[0x10..0x12] → [0xff, 0xff, 0x7f] (fixed constants during transit)
 /// - raw[0x19] → 0x00 (clear departure flag)
 ///
-/// On arrival (position reaches target):
+/// On arrival (exact path reaches target):
 /// - completion orders clear current_speed and fall back to HoldPosition
 /// - standing guard/patrol orders keep their order but stop moving
 /// - delayed hostile orders remain armed for the next ready-resolution tick
 /// - hostile/one-shot arrivals still use the current tuple-c ready/completion stamp
+///
+/// Classic can round a fleet into the visible target sector before the hidden
+/// in-transit path is actually exhausted. Completion is therefore keyed from the
+/// exact path endpoint, not from the first rounded target-sector hit.
 ///
 /// Confirmed from fleet-scenario fixture: fleet 0 ColonizeWorld, speed=3,
 /// pos=(16,13) → (15,13) (arrived), all above changes observed.
@@ -195,7 +204,7 @@ pub(super) fn process_single_fleet_movement(
 
     game_data.fleets.records[fleet_idx].set_current_location_coords_raw([new_x, new_y]);
 
-    if new_x == target_x && new_y == target_y {
+    if exact_position_reached_target(exact_end, [target_x, target_y]) {
         let arrival_order =
             Order::from_raw(game_data.fleets.records[fleet_idx].standing_order_code_raw());
         let preserves_order_on_arrival = order_persists_on_arrival(arrival_order);

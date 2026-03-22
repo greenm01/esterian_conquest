@@ -34,8 +34,20 @@ The live movement implementation is in:
 
 The current implementation keeps the recovered annual `speed * 8 / 9` movement
 budget, persists exact in-transit position between yearly maintenance passes,
-and rounds only when writing the visible sector coordinates. `MoveOnly` is
-treated as complete on arrival and falls back to `Hold`.
+and rounds only when writing the visible sector coordinates.
+
+For unresolved classic movement internals, Rust follows a pragmatic boundary:
+
+- preserve player-facing travel geometry, arrival timing, and mission behavior
+  where the oracle evidence is clear enough to matter
+- keep internal continuity state explicit inside Rust when it improves ETA and
+  movement behavior
+- do not treat hidden scratch-byte layouts or every low-level numeric quirk as
+  a required fidelity target by themselves
+
+So `MoveOnly` is still a one-shot order that eventually falls back to `Hold`,
+but Rust is not obligated to mirror every hidden classic transit byte on the
+way there.
 
 ## Standing Order Model
 

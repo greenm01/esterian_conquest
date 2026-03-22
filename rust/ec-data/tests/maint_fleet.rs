@@ -931,6 +931,100 @@ fn test_patrol_sector_persists_after_arrival() {
 }
 
 #[test]
+fn test_move_only_diagonal_can_round_into_target_before_completion() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3000)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_battleship_count(0);
+    fleet.set_cruiser_count(0);
+    fleet.set_destroyer_count(0);
+    fleet.set_troop_transport_count(0);
+    fleet.set_etac_count(0);
+    fleet.set_scout_count(1);
+    fleet.recompute_max_speed_from_composition();
+    fleet.set_current_location_coords_raw([10, 10]);
+    fleet.set_current_speed(3);
+    fleet.set_standing_order_kind(Order::MoveOnly);
+    fleet.set_standing_order_target_coords_raw([16, 16]);
+    fleet.raw[0x0d] = 0x80;
+    fleet.raw[0x0f] = 0;
+    fleet.raw[0x19] = 0x81;
+
+    run_maintenance_turn(&mut game_data).expect("turn 1 should succeed");
+    run_maintenance_turn(&mut game_data).expect("turn 2 should succeed");
+    let turn3_events = run_maintenance_turn(&mut game_data).expect("turn 3 should succeed");
+
+    let fleet = &game_data.fleets.records[0];
+    assert_eq!(fleet.current_location_coords_raw(), [16, 16]);
+    assert_eq!(fleet.standing_order_kind(), Order::MoveOnly);
+    assert_eq!(fleet.current_speed(), 3);
+    assert!(
+        !turn3_events.mission_events.iter().any(|event| {
+            event.fleet_idx == 0
+                && event.kind == Mission::MoveOnly
+                && event.outcome == MissionOutcome::Succeeded
+        }),
+        "diagonal rounded-target tick should not complete MoveOnly early"
+    );
+
+    let turn4_events = run_maintenance_turn(&mut game_data).expect("turn 4 should succeed");
+
+    let fleet = &game_data.fleets.records[0];
+    assert_eq!(fleet.current_location_coords_raw(), [16, 16]);
+    assert_eq!(fleet.standing_order_kind(), Order::HoldPosition);
+    assert_eq!(fleet.current_speed(), 0);
+    assert!(turn4_events.mission_events.iter().any(|event| {
+        event.fleet_idx == 0
+            && event.kind == Mission::MoveOnly
+            && event.outcome == MissionOutcome::Succeeded
+            && event.location_coords == Some([16, 16])
+    }));
+}
+
+#[test]
+fn test_move_only_horizontal_clears_to_hold_on_exact_arrival() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3000)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_battleship_count(0);
+    fleet.set_cruiser_count(0);
+    fleet.set_destroyer_count(0);
+    fleet.set_troop_transport_count(0);
+    fleet.set_etac_count(0);
+    fleet.set_scout_count(1);
+    fleet.recompute_max_speed_from_composition();
+    fleet.set_current_location_coords_raw([10, 10]);
+    fleet.set_mission_aux_bytes([1, 0]);
+    game_data
+        .set_fleet_order(1, 3, Order::MoveOnly.to_raw(), [16, 10], None, None)
+        .expect("move-only order should apply");
+    game_data.fleets.records[0].raw[0x19] = 0x81;
+
+    run_maintenance_turn(&mut game_data).expect("turn 1 should succeed");
+    run_maintenance_turn(&mut game_data).expect("turn 2 should succeed");
+    let turn3_events = run_maintenance_turn(&mut game_data).expect("turn 3 should succeed");
+
+    let fleet = &game_data.fleets.records[0];
+    assert_eq!(fleet.current_location_coords_raw(), [16, 10]);
+    assert_eq!(fleet.standing_order_kind(), Order::HoldPosition);
+    assert_eq!(fleet.current_speed(), 0);
+    assert!(turn3_events.mission_events.iter().any(|event| {
+        event.fleet_idx == 0
+            && event.kind == Mission::MoveOnly
+            && event.outcome == MissionOutcome::Succeeded
+            && event.location_coords == Some([16, 10])
+    }));
+}
+
+#[test]
 fn test_delayed_hostile_orders_preserve_order_speed_and_ready_bytes_on_arrival() {
     let cases = [
         (

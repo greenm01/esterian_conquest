@@ -31,20 +31,34 @@ Use this as the restart brief. Historical detail belongs in
 
 ## Current Goal
 
-Validate and extend the classic-style fleet movement stepper beyond the current
-controlled trace matrix.
+Keep the Rust engine moving forward on player-facing and compatibility-relevant
+work without freezing on hidden classic implementation quirks.
 
-The movement audit in [movement-oracle-audit.md](movement-oracle-audit.md)
+Movement is now considered solved enough for the current Rust engine.
+
+The movement audit in [movement-oracle-audit.md](movement-oracle-audit.md),
+plus the transit follow-up in
+[transit-scratch-oracle-audit.md](transit-scratch-oracle-audit.md),
 established:
 
 - movement is annual and happens before the weekly `1..52` report timeline
 - the controlled horizontal / diagonal / shallow / steep `MoveOnly` probes now
-  match the classic trace matrix
-- Rust now keeps ETA on the same direct movement geometry
-- `MoveOnly` is treated as complete on arrival:
-  - fleet stops
-  - speed becomes `0`
-  - standing order becomes `Hold`
+  match the classic coordinate trace matrix closely enough for the current
+  direct-stepper geometry
+- Rust now keeps ETA on the same direct movement geometry for the currently
+  covered cases
+- classic leaves `0x19..0x1e` zero in the controlled transit turns checked so
+  far, so Rust's current exact-position encoding there is still a pragmatic
+  internal seam rather than a recovered classic byte model
+- one-shot movement completion is not keyed from the first rounded
+  target-sector hit alone
+- the confirmed `MoveOnly speed=3 diagonal` case can show the fleet in the
+  target sector for one maintenance tick before the move actually clears to
+  `Hold`
+- Rust now avoids completing one-shot movement on the first rounded
+  target-sector hit, which fixes that confirmed diagonal case
+- unresolved hidden movement bytes and low-signal completion quirks are no
+  longer treated as active blockers by themselves
 - `JoinAnotherFleet` and `RendezvousSector` now follow the manual-backed
   persistent-standing model:
   - join fleets keep chasing until they merge or the host is lost
@@ -82,20 +96,24 @@ established:
 
 ## Biggest Blockers
 
-- The exact classic line-stepping / rounding rule is still inferred from oracle
-  traces rather than decoded from source.
-- The exact raw-byte meaning of the classic in-transit scratch fields is still
-  not fully decoded.
-- `GuardStarbase` still has partially unresolved raw movement scratch bytes:
-  - why classic leaves `0x1a..0x1e = 00` during the transit year where Rust
-    currently stores exact in-transit position
-- Hazard-driven detours still need broader oracle coverage so the classic direct
-  stepper and the Rust pathfinding extension remain cleanly separated.
+- Economy semantics still need one important confirmation:
+  - verify via Ghidra whether a starbase actually increases economic growth by
+    `5x`
+- The exact weekly `1..52` assignment and dated-report process inside
+  maintenance still deserve continued recovery when that work is directly
+  useful.
+- Hazard-driven detours still need broader coverage so the classic direct
+  stepper and the Rust pathfinding extension stay conceptually separate, but
+  this is no longer a movement blocker.
 
 ## Working Assumption
 
-Treat a completed one-shot transit mission, including plain movement, as
-complete on arrival:
+Treat the current Rust movement model as good enough when it preserves the
+player-facing travel pattern and mission behavior that matter. Hidden classic
+scratch bytes and ambiguous low-level completion artifacts are documented, but
+they are not a required fidelity target by themselves.
+
+For one-shot transit missions, including plain movement:
 
 - fleet stops
 - speed becomes `0`
@@ -117,16 +135,12 @@ exceptions:
 
 ## Immediate Next Steps
 
-1. Decide whether the current Rust in-transit scratch encoding should be kept
-   as a pragmatic compatibility layer or replaced with a more directly recovered
-   classic byte model.
-2. Deepen the remaining `GuardStarbase` scratch-byte audit now that the aux
-   normalization rule is settled:
-   - why classic leaves `0x1a..0x1e = 00` during the transit year
-3. Re-run the classic oracle harness for the controlled movement matrix and
-   confirm the raw movement scratch bytes are still acceptable.
-4. Broaden hazard-detour oracle coverage so the classic direct stepper and the
-   Rust visible-hazard routing extension stay cleanly separated.
+1. Verify via Ghidra whether a starbase actually increases economic growth by
+   `5x`.
+2. Keep movement closed unless a concrete player-facing or compatibility issue
+   appears.
+3. Continue the weekly maintenance/report recovery work where it materially
+   improves the Rust engine or report timing.
 
 ## Structural Note
 

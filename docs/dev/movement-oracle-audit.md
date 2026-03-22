@@ -1,78 +1,72 @@
 # ECMAINT Movement Audit
 
-Controlled `MoveOnly` probes comparing classic `ECMAINT` against the Rust
-movement stepper.
+Compact movement-fidelity summary for the current controlled oracle work.
 
-## What This Audit Establishes
+Status: solved enough for the current Rust engine. This doc records the
+player-facing conclusions and the accepted compatibility seam; it is not a
+standing requirement to keep chasing every hidden classic movement byte.
+
+## What Is Settled
 
 - movement is annual and happens before the weekly `1..52` scheduling loop
-- the yearly distance budget still follows the recovered `speed * 8 / 9`
+- the annual distance budget still follows the recovered `speed * 8 / 9`
   pattern
-- classic does not resample from the rounded visible sector each year
-- classic preserves in-transit fractional progress along the trip and only
-  rounds when writing the visible position
-- plain `MoveOnly` transit is complete on arrival:
-  - fleet stops
-  - speed becomes `0`
-  - standing order becomes `Hold`
+- classic does not simply resample from the rounded visible sector each year
+- the controlled horizontal / diagonal / shallow / steep coordinate traces are
+  now good enough to support the current Rust direct-stepper geometry
+- persistent standing missions now have their own settled follow-up in
+  [persistent-mission-oracle-audit.md](persistent-mission-oracle-audit.md)
+- delayed hostile arrival behavior now has its own settled follow-up in
+  [hostile-arrival-oracle-audit.md](hostile-arrival-oracle-audit.md)
+- for Rust policy, unresolved hidden movement bytes are now treated as
+  implementation detail unless they prove to change player-facing behavior or
+  classic file safety
 
-Rust now mirrors these controlled trace cases with focused regression tests in
-`rust/ec-data/tests/movement_trace.rs`.
+## What Changed In The Follow-Up
 
-Persistent standing-order follow-up now lives in
-[persistent-mission-oracle-audit.md](persistent-mission-oracle-audit.md). That
-companion probe set establishes that `PatrolSector`, `GuardStarbase`, and
-`GuardBlockadeWorld` keep their order on arrival, but they do **not** keep
-their travel speed; classic stops them at the target and leaves a smaller,
-more order-specific scratch-byte footprint than the generic old Rust arrival
-stamp.
+The remaining movement question is no longer just "which sector does the fleet
+show up in next year?" The transit follow-up in
+[transit-scratch-oracle-audit.md](transit-scratch-oracle-audit.md) established
+two deeper constraints:
 
-`GuardStarbase` now also has a focused runtime follow-up in
-[guard-starbase-runtime-audit.md](guard-starbase-runtime-audit.md). That probe
-set establishes that classic clears the guard index byte on the first
-maintenance pass, keeps the mission armed by target/base presence rather than
-that aux byte, mirrors a distinct guarded-arrival scratch shape in the
-controlled cases, and still leaves a transit-year `0x1a..0x1e` scratch
-difference that Rust has not fully mirrored yet.
+- classic leaves `0x19..0x1e` zero in the controlled transit turns checked so
+  far, so Rust's current exact-position encoding there is an internal seam, not
+  a recovered classic byte model
+- one-shot movement completion is not keyed from the first rounded
+  target-sector hit alone
 
-Delayed hostile-world follow-up now lives in
-[hostile-arrival-oracle-audit.md](hostile-arrival-oracle-audit.md). That
-companion probe set establishes the opposite arrival-state rule for
-`BombardWorld`, `InvadeWorld`, and `BlitzWorld`: classic preserves both the
-standing order and the current travel speed on the arrival tick, then resolves
-the ready hostile mission on the following maintenance pass.
+Confirmed example:
 
-## Current Classic-Compatible Model
+- `MoveOnly`, `speed=3`, `10,10 -> 16,16`
+- classic visible trace: `10,10 -> 11,11 -> 14,14 -> 16,16 -> 16,16`
+- classic keeps `order=move`, `speed=3` on the first visible `16,16` tick
+- classic clears to `hold`, `speed=0` on the following maintenance pass
 
-The best current model for classic movement is:
+That means the right current model is:
 
-- keep the annual `speed * 8 / 9` travel budget
-- persist the fleet's exact in-transit position between maintenance turns
-- advance from that exact position toward the target
-- round only when emitting the visible sector coordinates
-- treat `MoveOnly` as complete when the visible rounded position reaches the
-  target sector
+- the fleet has some hidden between-turn continuity state
+- visible coordinates are rounded from that hidden state
+- one-shot completion waits for the hidden path to be exhausted, not merely for
+  the rounded visible sector to equal the target
 
-This explains the diagonal and sloped traces much better than the older Rust
-behavior that recomputed from the rounded visible sector each year.
+## What Rust Now Does
 
-## Trace Matrix
+Rust now avoids completing one-shot movement on the first rounded target-sector
+hit. The movement stepper waits for the exact path endpoint before treating the
+mission as complete, which fixes the confirmed `speed=3` diagonal `MoveOnly`
+case.
 
-| case | speed | start | target | classic trace | classic arrival | Rust status |
-| --- | ---: | --- | --- | --- | ---: | --- |
-| `speed3-horizontal` | 3 | `10,10` | `16,10` | `10,10 -> 12,10 -> 15,10 -> 16,10` | 3 | matches |
-| `speed3-diagonal` | 3 | `10,10` | `16,16` | `10,10 -> 11,11 -> 14,14 -> 16,16` | 3 | matches |
-| `speed6-diagonal` | 6 | `10,10` | `16,16` | `10,10 -> 14,14 -> 16,16` | 2 | matches |
-| `speed1-diagonal` | 1 | `10,10` | `13,13` | `10,10 -> 10,10 -> 11,11 -> 11,11 -> 12,12 -> 13,13` | 5 | matches |
-| `speed3-shallow` | 3 | `10,10` | `16,12` | `10,10 -> 12,11 -> 15,12 -> 16,12` | 3 | matches |
-| `speed3-steep` | 3 | `10,10` | `12,16` | `10,10 -> 11,12 -> 12,15 -> 12,16` | 3 | matches |
+This is not claimed as a full decode of classic hidden movement state. The
+slower diagonal follow-up in
+[transit-scratch-oracle-audit.md](transit-scratch-oracle-audit.md) is kept as
+background evidence, but it is no longer treated as an active blocker for the
+Rust engine by itself.
 
-## Notes
+## Accepted Boundary
 
-- This audit is about movement geometry and arrival semantics, not the exact
-  raw-byte encoding of classic in-transit scratch fields.
-- The persistent mission follow-up confirms the same warning: visible movement
-  semantics can be settled before every motion scratch byte is fully decoded.
-- Threat-aware pathfinding remains a Rust policy layer. When visible hazards do
-  not force a detour, the classic-compatible direct movement geometry above is
-  the fidelity target.
+- preserve the recovered annual movement geometry and the confirmed diagonal
+  completion delay that affect player-facing outcomes
+- keep hazard-detour policy clearly separated from the classic direct-stepper
+  geometry
+- do not treat hidden movement scratch bytes as a fidelity target unless they
+  are later shown to matter for gameplay or compatibility
