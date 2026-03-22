@@ -105,7 +105,6 @@ dependencies = [
 name = "ec-data"
 version = "0.1.0"
 dependencies = [
- "ec-classic",
  "ec-compat",
  "ec-engine",
  "kdl",

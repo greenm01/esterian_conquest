@@ -160,14 +160,22 @@ pub fn decode_report_block_rows(bytes: &[u8]) -> Vec<ReportBlockRow> {
     decode_report_blocks(bytes)
         .into_iter()
         .enumerate()
-        .map(|(idx, block)| ReportBlockRow::from_classic_block(idx, block))
+        .map(|(idx, block)| ReportBlockRow {
+            block_index: idx,
+            decoded_text: block.decoded_text,
+            raw_bytes: block.raw_bytes,
+            recipient_deleted: false,
+        })
         .collect()
 }
 
 pub fn rebuild_results_bytes(rows: &[ReportBlockRow]) -> Option<Vec<u8>> {
     let blocks = rows
         .iter()
-        .map(ReportBlockRow::to_classic_block)
+        .map(|row| ec_classic::ClassicReportBlock {
+            decoded_text: row.decoded_text.clone(),
+            raw_bytes: row.raw_bytes.clone(),
+        })
         .collect::<Vec<_>>();
     Some(ec_classic::rebuild_results_bytes(&blocks))
 }
@@ -175,7 +183,10 @@ pub fn rebuild_results_bytes(rows: &[ReportBlockRow]) -> Option<Vec<u8>> {
 pub fn encode_report_block_rows(rows: &[ReportBlockRow]) -> Vec<u8> {
     let blocks = rows
         .iter()
-        .map(ReportBlockRow::to_classic_block)
+        .map(|row| ec_classic::ClassicReportBlock {
+            decoded_text: row.decoded_text.clone(),
+            raw_bytes: row.raw_bytes.clone(),
+        })
         .collect::<Vec<_>>();
     ec_classic::encode_report_blocks(&blocks)
 }
@@ -206,9 +217,10 @@ pub fn regenerate_database_dat_from_directory(
     let planets = PlanetDat::parse(&read_required_path(dir.join("PLANETS.DAT"))?)?;
     let conquest = ConquestDat::parse(&read_required_path(dir.join("CONQUEST.DAT"))?)?;
     let template = match template_path {
-        Some(path) => Some(DatabaseDat::parse(&read_required_path(
-            path.to_path_buf(),
-        )?)?),
+        Some(path) => Some(
+            DatabaseDat::parse(&read_required_path(path.to_path_buf())?)
+                .map_err(classic_parse_error)?,
+        ),
         None => None,
     };
     let planet_names: Vec<String> = planets
@@ -231,6 +243,30 @@ fn read_optional_path(path: PathBuf) -> Result<Vec<u8>, CampaignStoreError> {
         Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
         Err(source) => Err(CampaignStoreError::Io { path, source }),
     }
+}
+
+fn classic_parse_error(err: ec_classic::ParseError) -> CampaignStoreError {
+    let parse = match err {
+        ec_classic::ParseError::WrongSize {
+            file_type,
+            expected,
+            actual,
+        } => ec_data::ParseError::WrongSize {
+            file_type,
+            expected,
+            actual,
+        },
+        ec_classic::ParseError::WrongRecordMultiple {
+            file_type,
+            record_size,
+            actual,
+        } => ec_data::ParseError::WrongRecordMultiple {
+            file_type,
+            record_size,
+            actual,
+        },
+    };
+    CampaignStoreError::Parse(parse)
 }
 
 fn decode_pascal_ascii(bytes: &[u8]) -> Option<String> {
@@ -306,7 +342,7 @@ fn load_database_snapshot_or_default(
 ) -> Result<DatabaseDat, CampaignStoreError> {
     let path = dir.join("DATABASE.DAT");
     match fs::read(&path) {
-        Ok(bytes) => Ok(DatabaseDat::parse(&bytes)?),
+        Ok(bytes) => DatabaseDat::parse(&bytes).map_err(classic_parse_error),
         Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
             Ok(default_unknown_database_template(game_data))
         }
@@ -320,7 +356,9 @@ fn load_optional_database_template(
 ) -> Result<Option<DatabaseDat>, CampaignStoreError> {
     let path = dir.join("DATABASE.DAT");
     match fs::read(&path) {
-        Ok(bytes) => DatabaseDat::parse(&bytes).map(Some).map_err(Into::into),
+        Ok(bytes) => DatabaseDat::parse(&bytes)
+            .map(Some)
+            .map_err(classic_parse_error),
         Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
             Ok(Some(default_unknown_database_template(game_data)))
         }

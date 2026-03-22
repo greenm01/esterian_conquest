@@ -31,6 +31,8 @@ The SQLite-first runtime split is now in place:
   on explicit compat/export paths
 - `ec-compat` now owns the explicit classic directory import/export bridge; the
   normal `CampaignStore` runtime API is structured-only
+- `ec-data` no longer depends on `ec-classic`; classic byte/record handling is
+  now outside the shared runtime/store crate
 - compat-aware `DATABASE.DAT` save/export is still CLI-owned for oracle and
   classic materialization flows; `ec-client` no longer loads `DatabaseDat`
   through the runtime state surface
@@ -42,6 +44,8 @@ The SQLite-first runtime split is now in place:
   classic directory
 - current oracle-facing `DATABASE.DAT` / planet-intel work belongs in the
   classic compatibility layer, not in `ec-client`
+- old `ecgame.db` upgrade/migration support was removed on purpose; the store
+  now expects only the current normalized SQLite schema
 - for the original DOS binaries, DOSBox-X is currently the only verified local
   runner; deeper dosemu2 compatibility work on those binaries is currently poor
   ROI because DOSBox-X already covers the oracle path and the Rust client is
@@ -49,16 +53,10 @@ The SQLite-first runtime split is now in place:
 
 Recent validation baseline:
 
-- focused SQLite/runtime boundary reruns:
-  - `cargo test -q -p ec-data --test storage`
-    - passed
-  - `cargo test -q -p ec-data --test intel`
-    - passed
-  - `cargo test -q -p ec-client --test update`
-    - `109 passed`
-- current unrelated blocker outside the storage/runtime slice:
-  - combat/harness tests are currently tripping the new infinite-loop guardrail
-    with `combat at (10,10) stalled in round 2 with no state change`
+- `cargo test -q -p ec-data --test storage`
+  - passed
+- `cargo test -q`
+  - passed
 - latest live oracle probe on `/tmp/ecgame-planet-probe`:
   - successful manual run through main menu -> `Total Planet Database` filter
     -> list -> `Foundation` detail -> exit
