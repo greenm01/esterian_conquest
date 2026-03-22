@@ -63,39 +63,30 @@ The original `.DOC` files are still preserved in [original/v1.5](original/v1.5).
 
 ## Current State
 
-EC is already usable for real development play, hybrid classic play, and
-campaign validation. It is not finished enough yet to call the Rust reimplementation
-complete end to end, but it is well past the stage of being a repo of notes and
-recovery experiments.
+EC is well past the stage of being a repo of notes and recovery experiments.
+Fresh Rust-backed campaigns can be created across all four documented player
+tiers (4, 9, 16, and 25 empires), and yearly turns run through a real Rust
+maintenance engine while compliance work continues. The growing native Rust
+client already handles substantial parts of a campaign, and a supported hybrid
+loop lets you keep using the original DOS `ECGAME` for classic order entry and
+viewing whenever you want. Classic `.DAT` interoperability is preserved
+throughout, and Rust-generated directories can be validated against the original
+manuals and binaries at any point.
 
-Today you can:
-
-- create fresh Rust-backed campaigns across the documented `4 / 9 / 16 / 25`
-  player tiers
-- run yearly turns through the current Rust maintenance engine while compliance
-  work continues
-- play substantial parts of those campaigns through the growing native Rust
-  client
-- keep using the original DOS `ECGAME` in a supported hybrid loop when you want
-  classic order entry and viewing
-- preserve classic `.DAT` interoperability while the Rust engine and client
-  continue taking over more of the game
-- validate Rust-generated directories and turn behavior against the original
-  manuals and binaries
-
-If you want to jump in immediately, start with [Quick Start](#quick-start).
+It is not finished enough to call the reimplementation complete end to end, but
+it is usable for real development play, hybrid classic play, and campaign
+validation today. If you want to jump in immediately, start with
+[Quick Start](#quick-start).
 
 ## Where EC Is Going
 
-The project is moving toward a full Rust-first Esterian Conquest stack:
-
-- `ec-data` as the shared runtime/store/state-model crate
-- `ec-engine` as the public gameplay/rules crate
-- `ec-compat` as the explicit classic `.DAT` import/export boundary
-- `maint-rust` as the normal turn processor
-- `ec-client` as the normal player interface
-- classic `.DAT` import/export as a compatibility boundary instead of the core
-  runtime
+The project is converging on a full Rust-first stack. The shared state model
+lives in `ec-data`, gameplay and maintenance rules live in `ec-engine`, and an
+explicit `ec-compat` crate handles classic `.DAT` import/export so the
+compatibility boundary stays clean. On top of that, `maint-rust` processes
+turns, and `ec-client` is the growing player interface meant to replace
+`ECGAME`. Classic file interchange is treated as a compatibility edge rather
+than the core runtime path.
 
 That future state still respects the original game. The DOS binaries, manuals,
 and data formats remain the primary reference for rules, compatibility, and
@@ -103,34 +94,25 @@ historical feel.
 
 ## Compatibility And Provenance
 
-Compatibility remains a first-class engineering goal, but it is in service of
-the Rust reimplementation, not a substitute for it.
-
-Short version:
-
-- the [player manual](docs/manuals/ec_player_manual.pdf) is the gameplay guide
-- the original DOS binaries are the compatibility oracle
-- classic `.DAT` files remain the interchange boundary
-- Rust is allowed to be explicit and reproducible where the original
-  implementation was hidden, stochastic, or plainly buggy
+Compatibility is a first-class engineering goal, but it serves the Rust
+reimplementation rather than replacing it. The
+[player manual](docs/manuals/ec_player_manual.pdf) is the gameplay guide, the
+original DOS binaries are the compatibility oracle, and classic `.DAT` files
+remain the interchange boundary between the two worlds. Where the original
+implementation was hidden, stochastic, or plainly buggy, Rust is allowed to be
+explicit and reproducible instead.
 
 ## Where Rust Intentionally Differs
 
-This project does not treat strict historical byte-for-byte reproduction as the
-goal.
-
-Known intentional differences include:
-
-- seeded Rust combat instead of the original hidden RNG
-- seeded engine randomness rooted in a persisted campaign seed
-- cosmetic Rust client decoration may also derive from that campaign seed,
-  but does not affect gameplay or turn outcomes
-- conservative explicit campaign-end handling
-- Rust-native report wording where exact original text is not required for
-  compatibility
-
-Those differences are allowed by the project approach as long as the result
-remains faithful to the manuals and compatible with the original `.DAT`
+This project does not treat strict byte-for-byte historical reproduction as the
+goal. Rust uses its own seeded combat system instead of the original hidden RNG,
+and all engine randomness is rooted in a persisted campaign seed so that results
+are reproducible. The Rust client may derive cosmetic presentation choices from
+that same seed, but those never affect gameplay or turn outcomes.
+Campaign-end handling is conservative and explicit rather than opaque, and
+report wording is Rust-native where exact original text is not required for
+compatibility. These differences are allowed by the project approach as long as
+the result stays faithful to the manuals and compatible with the original `.DAT`
 boundary.
 
 For the detailed rationale, see [docs/approach.md](docs/dev/approach.md).
@@ -485,19 +467,17 @@ Useful supporting docs:
 
 ## Contributions Welcome
 
-This project is now at the point where outside help is genuinely useful.
+The project is now at the point where outside help is genuinely useful.
+Playtesters willing to run real campaigns or focused turn-by-turn probes and
+report where the Rust client or maintenance still feels wrong would be
+especially valuable. So would ANSI and CP437 artists who can help preserve the
+classic BBS mood while giving the Rust client cleaner splash screens and
+in-client presentation, and anyone interested in terminal UI polish --
+menus, layout, readability, and that classic-feeling presentation that still
+works well on a modern terminal.
 
-High-value contributions right now:
-
-- playtesters who are willing to run real campaigns or focused turn-by-turn
-  probes and report where the Rust client or Rust maint still feels wrong
-- ANSI / CP437 artists who can help preserve the classic BBS mood while giving
-  the Rust client cleaner splash screens, framing, and in-client presentation
-- terminal UI polish work, especially around menus, layout, readability, and
-  classic-feeling presentation that still works well on modern terminals
-
-If you know classic BBS games, ANSI presentation, or just want to help beat on
-the near-finished Rust maintenance/client loop, this is a good time to jump in.
+If you know classic BBS games, ANSI art, or just want to help beat on the
+near-finished maintenance and client loop, this is a good time to jump in.
 
 ## License
 
