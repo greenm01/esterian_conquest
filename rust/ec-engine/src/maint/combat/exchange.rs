@@ -1,0 +1,317 @@
+use crate::{GameRng, RNG_TAG_COMBAT};
+
+use super::state::{
+    FleetCombatState, IDX_SB, fleet_auxiliary_order, fleet_class_ds, fleet_combat_line_order,
+    fleet_combat_line_present, fleet_target_order,
+};
+
+pub(super) const GROUND_AS_BATTERY: u32 = 9;
+pub(super) const GROUND_AS_ARMY: u32 = 1;
+pub(super) const COMBAT_GUARDRAIL_MAX_ROUNDS: u32 = 64;
+
+const COLUMN_DISADVANTAGED: usize = 0;
+const COLUMN_PRESSED: usize = 1;
+const COLUMN_EVEN: usize = 2;
+const COLUMN_ADVANTAGED: usize = 3;
+const COLUMN_OVERWHELMING: usize = 4;
+
+pub(super) const COMBAT_KIND_FLEET: u64 = 1;
+pub(super) const COMBAT_KIND_WITHDRAWAL: u64 = 2;
+pub(super) const COMBAT_KIND_BOMBARD: u64 = 3;
+pub(super) const COMBAT_KIND_INVASION_SUPPRESSION: u64 = 4;
+pub(super) const COMBAT_KIND_INVASION_SOFTEN: u64 = 5;
+pub(super) const COMBAT_KIND_GROUND: u64 = 6;
+pub(super) const COMBAT_KIND_BLITZ_COVER: u64 = 7;
+pub(super) const COMBAT_KIND_BLITZ_GROUND: u64 = 8;
+
+const CRT_MULTIPLIER_X4: [[u8; 5]; 10] = [
+    [0, 1, 2, 3, 4],
+    [1, 2, 3, 4, 5],
+    [1, 2, 4, 5, 6],
+    [2, 3, 4, 5, 6],
+    [2, 3, 4, 6, 7],
+    [2, 4, 5, 6, 7],
+    [3, 4, 5, 6, 8],
+    [3, 4, 6, 7, 8],
+    [4, 5, 6, 7, 8],
+    [4, 6, 7, 8, 10],
+];
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum RoundActionKind {
+    Fight,
+    Withdraw,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct RoundAction {
+    pub(super) empire: u8,
+    pub(super) target_empire: u8,
+    pub(super) kind: RoundActionKind,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct ExchangeResolution {
+    pub(super) roll: u8,
+    pub(super) critical: bool,
+    pub(super) hits: u32,
+}
+
+fn apply_nominal_hits_to_fleet_classes(
+    state: &mut FleetCombatState,
+    hits: &mut u32,
+    target_order: &[usize],
+) -> bool {
+    let mut progress = false;
+    for &idx in target_order {
+        let ds = fleet_class_ds(idx);
+        if ds == 0 || *hits < ds {
+            break;
+        }
+        let reducible = state.nominal_count(idx).min(*hits / ds);
+        if reducible == 0 {
+            continue;
+        }
+        state.crippled[idx] += reducible;
+        *hits -= reducible * ds;
+        progress = true;
+    }
+    progress
+}
+
+fn apply_destroyed_hits_to_fleet_classes(
+    state: &mut FleetCombatState,
+    hits: &mut u32,
+    target_order: &[usize],
+) -> bool {
+    let mut progress = false;
+    for &idx in target_order {
+        let ds = fleet_class_ds(idx);
+        if ds == 0 || *hits < ds {
+            break;
+        }
+        let destroyed = state.crippled[idx].min(*hits / ds);
+        if destroyed == 0 {
+            continue;
+        }
+        state.crippled[idx] -= destroyed;
+        state.counts[idx] -= destroyed;
+        *hits -= destroyed * ds;
+        progress = true;
+    }
+    progress
+}
+
+pub(super) fn rule_threshold_satisfied(roe: u8, friendly_as: u32, enemy_as: u32) -> bool {
+    match roe {
+        0 => false,
+        1 => enemy_as == 0,
+        2 => friendly_as >= enemy_as.saturating_mul(4),
+        3 => friendly_as >= enemy_as.saturating_mul(3),
+        4 => friendly_as >= enemy_as.saturating_mul(2),
+        5 => friendly_as.saturating_mul(2) >= enemy_as.saturating_mul(3),
+        6 => friendly_as >= enemy_as,
+        7 => friendly_as.saturating_mul(3) >= enemy_as.saturating_mul(2),
+        8 => friendly_as.saturating_mul(2) >= enemy_as,
+        9 => friendly_as.saturating_mul(3) >= enemy_as,
+        _ => true,
+    }
+}
+
+fn base_combat_column(our_as: u32, enemy_as: u32) -> usize {
+    if enemy_as == 0 || our_as >= enemy_as.saturating_mul(3) {
+        COLUMN_OVERWHELMING
+    } else if our_as.saturating_mul(2) < enemy_as {
+        COLUMN_DISADVANTAGED
+    } else if our_as < enemy_as {
+        COLUMN_PRESSED
+    } else if our_as.saturating_mul(2) < enemy_as.saturating_mul(3) {
+        COLUMN_EVEN
+    } else {
+        COLUMN_ADVANTAGED
+    }
+}
+
+fn shifted_combat_column(base_column: usize, shift: i32) -> usize {
+    (base_column as i32 + shift).clamp(0, COLUMN_OVERWHELMING as i32) as usize
+}
+
+fn hits_from_multiplier(as_total: u32, multiplier_x4: u8) -> u32 {
+    (as_total.saturating_mul(multiplier_x4 as u32)).div_ceil(4)
+}
+
+fn seeded_exchange_resolution(
+    campaign_seed: u64,
+    game_year: u16,
+    coords: [u8; 2],
+    combat_kind: u64,
+    round: u32,
+    acting_empire: u8,
+    target_empire: u8,
+    as_total: u32,
+    column: usize,
+) -> ExchangeResolution {
+    let mut rng = GameRng::from_context(
+        campaign_seed,
+        RNG_TAG_COMBAT,
+        &[
+            game_year as u64,
+            coords[0] as u64,
+            coords[1] as u64,
+            combat_kind,
+            round as u64,
+            acting_empire as u64,
+            target_empire as u64,
+        ],
+    );
+    let roll = rng.roll_d10();
+    let multiplier_x4 = CRT_MULTIPLIER_X4[roll as usize][column];
+    ExchangeResolution {
+        roll,
+        critical: roll == 9 && as_total > 0,
+        hits: hits_from_multiplier(as_total, multiplier_x4),
+    }
+}
+
+pub(super) fn resolve_space_exchange(
+    campaign_seed: u64,
+    game_year: u16,
+    coords: [u8; 2],
+    combat_kind: u64,
+    round: u32,
+    acting_empire: u8,
+    target_empire: u8,
+    our_as: u32,
+    enemy_as: u32,
+    mixed: bool,
+    starbase_bonus: bool,
+) -> ExchangeResolution {
+    let mut shift = 0i32;
+    if mixed {
+        shift += 1;
+    }
+    if starbase_bonus {
+        shift += 1;
+    }
+    let column = shifted_combat_column(base_combat_column(our_as, enemy_as), shift);
+    seeded_exchange_resolution(
+        campaign_seed,
+        game_year,
+        coords,
+        combat_kind,
+        round,
+        acting_empire,
+        target_empire,
+        our_as,
+        column,
+    )
+}
+
+pub(super) fn resolve_withdrawal_exchange(
+    campaign_seed: u64,
+    game_year: u16,
+    coords: [u8; 2],
+    round: u32,
+    acting_empire: u8,
+    target_empire: u8,
+    our_as: u32,
+) -> ExchangeResolution {
+    seeded_exchange_resolution(
+        campaign_seed,
+        game_year,
+        coords,
+        COMBAT_KIND_WITHDRAWAL,
+        round,
+        acting_empire,
+        target_empire,
+        our_as,
+        COLUMN_PRESSED,
+    )
+}
+
+pub(super) fn resolve_ground_exchange(
+    campaign_seed: u64,
+    game_year: u16,
+    coords: [u8; 2],
+    combat_kind: u64,
+    round: u32,
+    acting_empire: u8,
+    target_empire: u8,
+    our_as: u32,
+    enemy_as: u32,
+    bonus_shift: i32,
+) -> ExchangeResolution {
+    let column = shifted_combat_column(base_combat_column(our_as, enemy_as), bonus_shift);
+    seeded_exchange_resolution(
+        campaign_seed,
+        game_year,
+        coords,
+        combat_kind,
+        round,
+        acting_empire,
+        target_empire,
+        our_as,
+        column,
+    )
+}
+
+fn apply_critical_hit_to_fleet(state: &mut FleetCombatState) -> bool {
+    for idx in fleet_target_order() {
+        if state.crippled[idx] > 0 {
+            state.crippled[idx] -= 1;
+            state.counts[idx] -= 1;
+            return true;
+        }
+    }
+    for idx in fleet_target_order() {
+        if state.nominal_count(idx) > 0 {
+            state.counts[idx] -= 1;
+            return true;
+        }
+    }
+    false
+}
+
+pub(super) fn apply_hits_to_fleet(state: &mut FleetCombatState, mut hits: u32, critical_hits: u32) {
+    while hits > 0 {
+        let (combat_line_order, auxiliary_order);
+        let target_order: &[usize] = if fleet_combat_line_present(state) {
+            combat_line_order = fleet_combat_line_order();
+            &combat_line_order
+        } else {
+            auxiliary_order = fleet_auxiliary_order();
+            &auxiliary_order
+        };
+
+        let mut progress = apply_nominal_hits_to_fleet_classes(state, &mut hits, target_order);
+
+        if target_order
+            .iter()
+            .all(|&idx| state.nominal_count(idx) == 0)
+        {
+            progress |= apply_destroyed_hits_to_fleet_classes(state, &mut hits, target_order);
+        }
+
+        if !progress {
+            break;
+        }
+    }
+
+    for _ in 0..critical_hits {
+        if !apply_critical_hit_to_fleet(state) {
+            break;
+        }
+    }
+}
+
+pub(super) fn fleet_state_changed(before: &FleetCombatState, after: &FleetCombatState) -> bool {
+    before.counts != after.counts || before.crippled != after.crippled
+}
+
+pub(super) fn has_starbase_column_bonus(state: &FleetCombatState) -> bool {
+    state.counts[IDX_SB] > 0
+}
+
+pub(super) fn scalar_hits_with_critical(resolution: ExchangeResolution) -> u32 {
+    resolution.hits + u32::from(resolution.critical)
+}
