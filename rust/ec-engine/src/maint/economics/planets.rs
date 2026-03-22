@@ -1,0 +1,80 @@
+use crate::{CoreGameData, yearly_growth_delta, yearly_high_tax_penalty, yearly_tax_revenue};
+
+pub(super) fn process_planet_economics(
+    game_data: &mut CoreGameData,
+    _planets_with_builds: &[usize],
+) -> Result<(), Box<dyn std::error::Error>> {
+    for planet_idx in 0..game_data.planets.records.len() {
+        let owner_empire = game_data.planets.records[planet_idx].owner_empire_slot_raw();
+        if owner_empire == 0 {
+            continue;
+        }
+        let Some(player) = game_data
+            .player
+            .records
+            .get(owner_empire.saturating_sub(1) as usize)
+        else {
+            continue;
+        };
+        if matches!(player.owner_mode_raw(), 0x00 | 0xff) {
+            continue;
+        }
+
+        let tax_rate = player.tax_rate();
+        let current_production = game_data.planets.records[planet_idx]
+            .present_production_points()
+            .unwrap_or(0);
+        let potential_production =
+            game_data.planets.records[planet_idx].potential_production_points();
+        let has_starbase = super::planet_has_friendly_starbase(
+            game_data,
+            owner_empire,
+            game_data.planets.records[planet_idx].coords_raw(),
+        );
+
+        let revenue = yearly_tax_revenue(current_production, tax_rate);
+        let growth = yearly_growth_delta(
+            current_production,
+            potential_production,
+            tax_rate,
+            has_starbase,
+        );
+        let penalty = yearly_high_tax_penalty(current_production, tax_rate, has_starbase);
+
+        let planet = &mut game_data.planets.records[planet_idx];
+        planet.set_economy_marker_raw(tax_rate);
+        planet.set_stored_goods_raw(planet.stored_goods_raw().saturating_add(revenue));
+        let new_current_production = current_production
+            .saturating_add(growth)
+            .saturating_sub(penalty)
+            .min(potential_production);
+        let _ = planet.set_present_production_points(new_current_production);
+    }
+
+    Ok(())
+}
+
+pub(super) fn recompute_player_planet_stats(game_data: &mut CoreGameData) {
+    let n_players = game_data.player.records.len();
+    let mut planet_counts = vec![0u8; n_players + 1];
+    let mut pot_prod_sums = vec![0u16; n_players + 1];
+
+    for planet in &game_data.planets.records {
+        let owner = planet.owner_empire_slot_raw() as usize;
+        if owner > 0 && owner <= n_players {
+            planet_counts[owner] = planet_counts[owner].saturating_add(1);
+            let current_prod: u16 = if planet.raw[0x03] == 0x81 {
+                1
+            } else {
+                planet.present_production_points().unwrap_or(0)
+            };
+            pot_prod_sums[owner] = pot_prod_sums[owner].saturating_add(current_prod);
+        }
+    }
+
+    for player_idx in 0..n_players {
+        let owner_slot = player_idx + 1;
+        game_data.player.records[player_idx].raw[0x50] = planet_counts[owner_slot];
+        game_data.player.records[player_idx].raw[0x52] = pot_prod_sums[owner_slot] as u8;
+    }
+}

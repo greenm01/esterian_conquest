@@ -1,13 +1,11 @@
+mod eta;
 mod geometry;
+mod intel;
+mod route;
 
-use std::cmp::Ordering;
-use std::collections::{BTreeMap, BinaryHeap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 
-use ec_data::fleet_motion_state::decode_exact_position;
-use ec_data::{
-    CoreGameData, FleetRecord, Order, PlanetIntelSnapshot,
-    build_player_starmap_projection_from_snapshots, map_size_for_player_count,
-};
+use ec_data::{CoreGameData, Order, PlanetIntelSnapshot};
 
 pub(crate) use geometry::{
     advance_exact_position, rounded_coords_from_exact, visible_hazard_intel_is_empty,
@@ -33,48 +31,15 @@ pub enum FleetEtaEstimate {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct VisibleHazardIntel {
-    /// Fixed foreign worlds known to the routing empire.
     pub foreign_worlds: HashSet<[u8; 2]>,
-    /// Fixed foreign starbases known to the routing empire.
     pub foreign_starbases: HashSet<[u8; 2]>,
-    /// Optional short-lived fleet contacts.
-    ///
-    /// Canonical policy does not populate this from routine deep-space
-    /// sightings by default, because those contacts are too transient to be a
-    /// durable route hazard.
     pub foreign_fleets: HashSet<[u8; 2]>,
-    /// Known blockade locations.
     pub hostile_blockades: HashSet<[u8; 2]>,
-    /// Known hostile homeworlds.
     pub hostile_homeworlds: HashSet<[u8; 2]>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct FrontierNode {
-    estimated_total_cost: u32,
-    cost_so_far: u32,
-    coords: [u8; 2],
-}
-
-impl Ord for FrontierNode {
-    fn cmp(&self, other: &Self) -> Ordering {
-        other
-            .estimated_total_cost
-            .cmp(&self.estimated_total_cost)
-            .then_with(|| other.cost_so_far.cmp(&self.cost_so_far))
-            .then_with(|| other.coords.cmp(&self.coords))
-    }
-}
-
-impl PartialOrd for FrontierNode {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
 pub fn plan_route(game_data: &CoreGameData, fleet_idx: usize) -> Option<PlannedRoute> {
-    let intel = VisibleHazardIntel::default();
-    plan_route_with_intel(game_data, fleet_idx, &intel)
+    route::plan_route(game_data, fleet_idx)
 }
 
 pub fn visible_hazard_intel_from_snapshots(
@@ -82,46 +47,7 @@ pub fn visible_hazard_intel_from_snapshots(
     snapshots: &BTreeMap<usize, PlanetIntelSnapshot>,
     viewer_empire_raw: u8,
 ) -> VisibleHazardIntel {
-    let mut intel = VisibleHazardIntel::default();
-    let projection =
-        build_player_starmap_projection_from_snapshots(game_data, snapshots, viewer_empire_raw);
-    let viewer_owned_worlds: HashSet<[u8; 2]> = game_data
-        .planets
-        .records
-        .iter()
-        .filter(|planet| planet.owner_empire_slot_raw() == viewer_empire_raw)
-        .map(|planet| planet.coords_raw())
-        .collect();
-
-    for world in projection.worlds {
-        let Some(owner_raw) = world.known_owner_empire_id else {
-            continue;
-        };
-        if owner_raw == 0 || owner_raw == viewer_empire_raw {
-            continue;
-        }
-
-        intel.foreign_worlds.insert(world.coords);
-
-        if world.known_potential_production == Some(100) {
-            intel.hostile_homeworlds.insert(world.coords);
-        }
-    }
-
-    for fleet in &game_data.fleets.records {
-        if fleet.owner_empire_raw() == 0 || fleet.owner_empire_raw() == viewer_empire_raw {
-            continue;
-        }
-        if fleet.standing_order_kind() != Order::GuardBlockadeWorld {
-            continue;
-        }
-        let coords = fleet.current_location_coords_raw();
-        if viewer_owned_worlds.contains(&coords) {
-            intel.hostile_blockades.insert(coords);
-        }
-    }
-
-    intel
+    intel::visible_hazard_intel_from_snapshots(game_data, snapshots, viewer_empire_raw)
 }
 
 pub fn plan_route_with_intel(
@@ -129,84 +55,15 @@ pub fn plan_route_with_intel(
     fleet_idx: usize,
     intel: &VisibleHazardIntel,
 ) -> Option<PlannedRoute> {
-    let fleet = game_data.fleets.records.get(fleet_idx)?;
-    let order = fleet.standing_order_kind();
-    if !order_uses_pathfinding(order) {
-        return None;
-    }
-
-    let start = fleet.current_location_coords_raw();
-    let goal = fleet.standing_order_target_coords_raw();
-    if start == goal {
-        return Some(PlannedRoute {
-            steps: vec![RouteStep { coords: start }],
-        });
-    }
-
-    let map_size = map_size_for_player_count(game_data.conquest.player_count());
-    let mut frontier = BinaryHeap::new();
-    frontier.push(FrontierNode {
-        estimated_total_cost: heuristic_cost(start, goal),
-        cost_so_far: 0,
-        coords: start,
-    });
-
-    let mut came_from: HashMap<[u8; 2], [u8; 2]> = HashMap::new();
-    let mut best_cost: HashMap<[u8; 2], u32> = HashMap::new();
-    best_cost.insert(start, 0);
-
-    while let Some(current) = frontier.pop() {
-        if current.coords == goal {
-            return Some(reconstruct_route(start, goal, &came_from));
-        }
-
-        for next in neighbors(current.coords, map_size) {
-            let step_cost = sector_cost(fleet, order, goal, next, intel);
-            if step_cost >= HARD_BLOCK_COST {
-                continue;
-            }
-
-            let new_cost = current.cost_so_far.saturating_add(step_cost);
-            let is_better = best_cost
-                .get(&next)
-                .map(|existing| new_cost < *existing)
-                .unwrap_or(true);
-            if is_better {
-                best_cost.insert(next, new_cost);
-                came_from.insert(next, current.coords);
-                frontier.push(FrontierNode {
-                    estimated_total_cost: new_cost.saturating_add(heuristic_cost(next, goal)),
-                    cost_so_far: new_cost,
-                    coords: next,
-                });
-            }
-        }
-    }
-
-    None
+    route::plan_route_with_intel(game_data, fleet_idx, intel)
 }
 
 pub fn next_path_step(route: &PlannedRoute, max_steps: usize) -> Option<[u8; 2]> {
-    if route.steps.len() <= 1 {
-        return route.steps.last().map(|step| step.coords);
-    }
-    let idx = max_steps.min(route.steps.len() - 1);
-    route.steps.get(idx).map(|step| step.coords)
+    route::next_path_step(route, max_steps)
 }
 
 pub fn estimate_fleet_eta(game_data: &CoreGameData, fleet_idx: usize) -> FleetEtaEstimate {
-    let Some(fleet) = game_data.fleets.records.get(fleet_idx) else {
-        return FleetEtaEstimate::Unreachable;
-    };
-    estimate_eta_for_route(
-        plan_route(game_data, fleet_idx),
-        fleet.current_location_coords_raw(),
-        fleet.standing_order_target_coords_raw(),
-        fleet.current_speed(),
-        decode_movement_sub_acc(fleet),
-        decode_exact_position(fleet),
-        false,
-    )
+    eta::estimate_fleet_eta(game_data, fleet_idx)
 }
 
 pub fn estimate_fleet_eta_to_destination(
@@ -216,111 +73,16 @@ pub fn estimate_fleet_eta_to_destination(
     include_system: bool,
     use_max_speed_if_stopped: bool,
 ) -> FleetEtaEstimate {
-    let Some(fleet) = game_data.fleets.records.get(fleet_idx) else {
-        return FleetEtaEstimate::Unreachable;
-    };
-    let current = fleet.current_location_coords_raw();
-    let speed = if fleet.current_speed() == 0 && use_max_speed_if_stopped {
-        fleet.max_speed().max(1)
-    } else {
-        fleet.current_speed()
-    };
-    let sub_acc = if fleet.current_speed() == 0 && use_max_speed_if_stopped {
-        0
-    } else {
-        decode_movement_sub_acc(fleet)
-    };
-    estimate_eta_for_route(
-        plan_route_to_destination(game_data, fleet_idx, destination),
-        current,
+    eta::estimate_fleet_eta_to_destination(
+        game_data,
+        fleet_idx,
         destination,
-        speed,
-        sub_acc,
-        decode_exact_position(fleet),
         include_system,
+        use_max_speed_if_stopped,
     )
 }
 
-const BASE_STEP_COST: u32 = 10;
-const FOREIGN_WORLD_COST: u32 = 70;
-const FOREIGN_FLEET_COST: u32 = 55;
-const STARBASE_COST: u32 = 90;
-const BLOCKADE_COST: u32 = 80;
-const HOMEWORLD_COST: u32 = 45;
-const HARD_BLOCK_COST: u32 = u32::MAX / 4;
-
-fn estimate_eta_for_route(
-    route: Option<PlannedRoute>,
-    current: [u8; 2],
-    target: [u8; 2],
-    speed: u8,
-    sub_acc_prev: u32,
-    exact_position: Option<[f64; 2]>,
-    include_system: bool,
-) -> FleetEtaEstimate {
-    if current == target {
-        return FleetEtaEstimate::Arrived;
-    }
-    if speed == 0 {
-        return FleetEtaEstimate::Stopped;
-    }
-    let Some(route) = route else {
-        return FleetEtaEstimate::Unreachable;
-    };
-    if route.steps.len() <= 1 {
-        return FleetEtaEstimate::Arrived;
-    }
-    let exact_current = exact_position.unwrap_or([f64::from(current[0]), f64::from(current[1])]);
-    FleetEtaEstimate::Years(simulate_eta_years(
-        exact_current,
-        target,
-        speed,
-        sub_acc_prev,
-        include_system,
-    ))
-}
-
-fn simulate_eta_years(
-    mut exact_position: [f64; 2],
-    target: [u8; 2],
-    speed: u8,
-    sub_acc_prev: u32,
-    include_system: bool,
-) -> u16 {
-    let mut years = 0u16;
-    let mut sub_acc = sub_acc_prev;
-
-    while rounded_coords_from_exact(exact_position, target) != target {
-        years = years.saturating_add(1);
-        let sub_acc_new = sub_acc + u32::from(speed) * 8;
-        let int_move = (sub_acc_new / 9) as f64;
-        sub_acc = sub_acc_new % 9;
-        exact_position = advance_exact_position(exact_position, target, int_move, None, false);
-    }
-
-    if include_system {
-        let mut remaining_system_distance = 1.0;
-        while remaining_system_distance > 0.0 {
-            years = years.saturating_add(1);
-            let sub_acc_new = sub_acc + u32::from(speed) * 8;
-            let int_move = (sub_acc_new / 9) as f64;
-            sub_acc = sub_acc_new % 9;
-            remaining_system_distance -= int_move;
-        }
-    }
-
-    years
-}
-
-fn decode_movement_sub_acc(fleet: &FleetRecord) -> u32 {
-    if fleet.current_speed() == 0 || fleet.raw[0x0d] == 0x80 {
-        return 0;
-    }
-    let i8_val = fleet.raw[0x0f] as i8;
-    (9i32 + i8_val as i32 * 3 / 2) as u32
-}
-
-fn plan_route_to_destination(
+pub(crate) fn plan_route_to_destination(
     game_data: &CoreGameData,
     fleet_idx: usize,
     destination: [u8; 2],
@@ -329,119 +91,5 @@ fn plan_route_to_destination(
     let fleet = game_data.fleets.records.get_mut(fleet_idx)?;
     fleet.set_standing_order_kind(Order::MoveOnly);
     fleet.set_standing_order_target_coords_raw(destination);
-    plan_route(&game_data, fleet_idx)
-}
-
-fn order_uses_pathfinding(order: Order) -> bool {
-    matches!(
-        order,
-        Order::MoveOnly
-            | Order::SeekHome
-            | Order::PatrolSector
-            | Order::ViewWorld
-            | Order::ScoutSector
-            | Order::ScoutSolarSystem
-            | Order::ColonizeWorld
-            | Order::JoinAnotherFleet
-            | Order::RendezvousSector
-    )
-}
-
-fn heuristic_cost(from: [u8; 2], to: [u8; 2]) -> u32 {
-    let dx = from[0].abs_diff(to[0]) as u32;
-    let dy = from[1].abs_diff(to[1]) as u32;
-    (dx + dy) * BASE_STEP_COST
-}
-
-fn neighbors(coords: [u8; 2], map_size: u8) -> impl Iterator<Item = [u8; 2]> {
-    let x = coords[0] as i16;
-    let y = coords[1] as i16;
-    let max = map_size as i16 - 1;
-    let mut out = Vec::with_capacity(8);
-    for dx in -1..=1 {
-        for dy in -1..=1 {
-            if dx == 0 && dy == 0 {
-                continue;
-            }
-            let nx = x + dx;
-            let ny = y + dy;
-            if nx >= 0 && nx <= max && ny >= 0 && ny <= max {
-                out.push([nx as u8, ny as u8]);
-            }
-        }
-    }
-    out.into_iter()
-}
-
-fn sector_cost(
-    _fleet: &FleetRecord,
-    order: Order,
-    final_goal: [u8; 2],
-    coords: [u8; 2],
-    intel: &VisibleHazardIntel,
-) -> u32 {
-    if coords == final_goal {
-        return BASE_STEP_COST;
-    }
-
-    let hostile_targeting = matches!(
-        order,
-        Order::BombardWorld
-            | Order::InvadeWorld
-            | Order::BlitzWorld
-            | Order::GuardBlockadeWorld
-            | Order::GuardStarbase
-    );
-
-    let mut cost = BASE_STEP_COST;
-
-    if intel.foreign_worlds.contains(&coords) {
-        if hostile_targeting && coords == final_goal {
-            return BASE_STEP_COST;
-        }
-        cost = cost.saturating_add(FOREIGN_WORLD_COST);
-    }
-    if intel.foreign_starbases.contains(&coords) {
-        if hostile_targeting && coords == final_goal {
-            return BASE_STEP_COST;
-        }
-        cost = cost.saturating_add(STARBASE_COST);
-    }
-    if intel.foreign_fleets.contains(&coords) {
-        if hostile_targeting && coords == final_goal {
-            return BASE_STEP_COST;
-        }
-        cost = cost.saturating_add(FOREIGN_FLEET_COST);
-    }
-    if intel.hostile_blockades.contains(&coords) {
-        cost = cost.saturating_add(BLOCKADE_COST);
-    }
-    if intel.hostile_homeworlds.contains(&coords) {
-        cost = cost.saturating_add(HOMEWORLD_COST);
-    }
-
-    cost
-}
-
-fn reconstruct_route(
-    start: [u8; 2],
-    goal: [u8; 2],
-    came_from: &HashMap<[u8; 2], [u8; 2]>,
-) -> PlannedRoute {
-    let mut coords = vec![goal];
-    let mut cursor = goal;
-    while cursor != start {
-        let Some(prev) = came_from.get(&cursor) else {
-            break;
-        };
-        cursor = *prev;
-        coords.push(cursor);
-    }
-    coords.reverse();
-    PlannedRoute {
-        steps: coords
-            .into_iter()
-            .map(|coords| RouteStep { coords })
-            .collect(),
-    }
+    route::plan_route(&game_data, fleet_idx)
 }

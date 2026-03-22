@@ -1,0 +1,54 @@
+use std::collections::{BTreeMap, HashSet};
+
+use ec_data::{
+    CoreGameData, Order, PlanetIntelSnapshot, build_player_starmap_projection_from_snapshots,
+};
+
+use super::VisibleHazardIntel;
+
+pub(super) fn visible_hazard_intel_from_snapshots(
+    game_data: &CoreGameData,
+    snapshots: &BTreeMap<usize, PlanetIntelSnapshot>,
+    viewer_empire_raw: u8,
+) -> VisibleHazardIntel {
+    let mut intel = VisibleHazardIntel::default();
+    let projection =
+        build_player_starmap_projection_from_snapshots(game_data, snapshots, viewer_empire_raw);
+    let viewer_owned_worlds: HashSet<[u8; 2]> = game_data
+        .planets
+        .records
+        .iter()
+        .filter(|planet| planet.owner_empire_slot_raw() == viewer_empire_raw)
+        .map(|planet| planet.coords_raw())
+        .collect();
+
+    for world in projection.worlds {
+        let Some(owner_raw) = world.known_owner_empire_id else {
+            continue;
+        };
+        if owner_raw == 0 || owner_raw == viewer_empire_raw {
+            continue;
+        }
+
+        intel.foreign_worlds.insert(world.coords);
+
+        if world.known_potential_production == Some(100) {
+            intel.hostile_homeworlds.insert(world.coords);
+        }
+    }
+
+    for fleet in &game_data.fleets.records {
+        if fleet.owner_empire_raw() == 0 || fleet.owner_empire_raw() == viewer_empire_raw {
+            continue;
+        }
+        if fleet.standing_order_kind() != Order::GuardBlockadeWorld {
+            continue;
+        }
+        let coords = fleet.current_location_coords_raw();
+        if viewer_owned_worlds.contains(&coords) {
+            intel.hostile_blockades.insert(coords);
+        }
+    }
+
+    intel
+}
