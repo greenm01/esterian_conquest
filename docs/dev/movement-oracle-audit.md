@@ -27,6 +27,14 @@ their travel speed; classic stops them at the target and leaves a smaller,
 more order-specific scratch-byte footprint than the generic old Rust arrival
 stamp.
 
+`GuardStarbase` now also has a focused runtime follow-up in
+[guard-starbase-runtime-audit.md](guard-starbase-runtime-audit.md). That probe
+set establishes that classic clears the guard index byte on the first
+maintenance pass, keeps the mission armed by target/base presence rather than
+that aux byte, mirrors a distinct guarded-arrival scratch shape in the
+controlled cases, and still leaves a transit-year `0x1a..0x1e` scratch
+difference that Rust has not fully mirrored yet.
+
 Delayed hostile-world follow-up now lives in
 [hostile-arrival-oracle-audit.md](hostile-arrival-oracle-audit.md). That
 companion probe set establishes the opposite arrival-state rule for

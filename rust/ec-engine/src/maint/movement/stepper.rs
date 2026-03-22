@@ -55,9 +55,15 @@ fn apply_standing_arrival_state(fleet: &mut ec_data::FleetRecord, order: Order) 
             fleet.set_tuple_c_payload_raw([0x81, 0x00, 0x00, 0x00, 0x00]);
         }
         Order::GuardStarbase => {
-            // Classic keeps GuardStarbase armed but stops the fleet on arrival.
-            // The exact arrival tuple bytes still differ from the simpler patrol/blockade
-            // cases, so only the confirmed parts are mirrored here for now.
+            // Controlled classic probes converge on a distinct guarded-arrival payload here.
+            // This is still treated as a compatibility shape rather than a decoded semantic
+            // model for the remaining tuple-a bytes.
+            fleet.raw[0x0d] = 0x7b;
+            fleet.raw[0x0e] = 0x00;
+            fleet.raw[0x0f] = 0x84;
+            fleet.raw[0x10] = 0xd8;
+            fleet.raw[0x11] = 0x89;
+            fleet.raw[0x12] = 0x1d;
             clear_exact_position(fleet);
             fleet.raw[0x19] = 0x00;
         }
@@ -105,7 +111,17 @@ pub(super) fn process_single_fleet_movement(
     fleet_idx: usize,
     visible_hazards_by_empire: &[VisibleHazardIntel],
 ) -> Result<bool, Box<dyn std::error::Error>> {
-    let (current_x, current_y, target_x, target_y, speed, is_at_rest, raw_0f, owner_empire_raw) = {
+    let (
+        current_x,
+        current_y,
+        target_x,
+        target_y,
+        speed,
+        is_at_rest,
+        raw_0f,
+        owner_empire_raw,
+        order,
+    ) = {
         let fleet = &game_data.fleets.records[fleet_idx];
         (
             fleet.current_location_coords_raw()[0],
@@ -116,8 +132,15 @@ pub(super) fn process_single_fleet_movement(
             fleet.raw[0x0d] == 0x80,
             fleet.raw[0x0f],
             fleet.owner_empire_raw(),
+            fleet.standing_order_kind(),
         )
     };
+
+    if order == Order::GuardStarbase {
+        // Classic clears the guard-starbase index byte on the first maintenance pass and
+        // keeps later mission continuity keyed from the active base at the guarded target.
+        game_data.fleets.records[fleet_idx].raw[0x22] = 0x00;
+    }
 
     if speed == 0 {
         return Ok(false);

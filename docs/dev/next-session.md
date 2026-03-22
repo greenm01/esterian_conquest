@@ -59,8 +59,17 @@ established:
     `current_speed` to `0` once the fleet reaches the target
   - `PatrolSector` and `GuardBlockadeWorld` settle into a rest-like tuple-c
     shape after arrival
-  - `GuardStarbase` still has unresolved arrival scratch bytes and aux-state
-    behavior
+  - the `GuardStarbase` runtime follow-up in
+    [guard-starbase-runtime-audit.md](guard-starbase-runtime-audit.md)
+    established:
+    - classic clears `mission_aux[0]` from `01` to `00` on the first
+      maintenance pass and keeps it at `00`
+    - classic still keeps the mission armed while the guarded base exists at
+      the target coords
+    - if that guarded base disappears later, classic abandons to `Hold` even
+      with `mission_aux[0] = 00`
+    - Rust now mirrors the controlled guarded-arrival `0x0d..0x12` payload;
+      the remaining mismatch is the transit-year `0x1a..0x1e` encoding
 - the delayed hostile follow-up in
   [hostile-arrival-oracle-audit.md](hostile-arrival-oracle-audit.md)
   established:
@@ -77,8 +86,9 @@ established:
   traces rather than decoded from source.
 - The exact raw-byte meaning of the classic in-transit scratch fields is still
   not fully decoded.
-- `GuardStarbase` still has partially unresolved scratch-byte / aux-state
-  behavior during transit and after arrival.
+- `GuardStarbase` still has partially unresolved raw movement scratch bytes:
+  - why classic leaves `0x1a..0x1e = 00` during the transit year where Rust
+    currently stores exact in-transit position
 - Hazard-driven detours still need broader oracle coverage so the classic direct
   stepper and the Rust pathfinding extension remain cleanly separated.
 
@@ -110,10 +120,9 @@ exceptions:
 1. Decide whether the current Rust in-transit scratch encoding should be kept
    as a pragmatic compatibility layer or replaced with a more directly recovered
    classic byte model.
-2. Deepen the `GuardStarbase` scratch-byte / aux-state audit now that the
-   visible arrival semantics are settled:
-   - why `mission_aux[0]` flips from `01` to `00`
-   - why classic leaves a distinct nonzero `0x0d..0x12` payload on arrival
+2. Deepen the remaining `GuardStarbase` scratch-byte audit now that the aux
+   normalization rule is settled:
+   - why classic leaves `0x1a..0x1e = 00` during the transit year
 3. Re-run the classic oracle harness for the controlled movement matrix and
    confirm the raw movement scratch bytes are still acceptable.
 4. Broaden hazard-detour oracle coverage so the classic direct stepper and the

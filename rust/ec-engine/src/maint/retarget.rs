@@ -106,7 +106,7 @@ pub(super) fn refresh_join_host_targets(game_data: &mut CoreGameData) -> Vec<Mis
 pub(super) fn refresh_guard_starbase_targets(
     game_data: &mut CoreGameData,
 ) -> Vec<MissionRetargetEvent> {
-    let active_bases: std::collections::HashMap<(u8, u8), [u8; 2]> = game_data
+    let active_bases_by_id: std::collections::HashMap<(u8, u8), [u8; 2]> = game_data
         .bases
         .records
         .iter()
@@ -118,6 +118,13 @@ pub(super) fn refresh_guard_starbase_targets(
             )
         })
         .collect();
+    let active_base_coords: std::collections::HashSet<(u8, [u8; 2])> = game_data
+        .bases
+        .records
+        .iter()
+        .filter(|base| base.base_id_raw() != 0 && base.owner_empire_raw() != 0)
+        .map(|base| (base.owner_empire_raw(), base.coords_raw()))
+        .collect();
     let mut events = Vec::new();
     for (fleet_idx, fleet) in game_data.fleets.records.iter_mut().enumerate() {
         if fleet.standing_order_kind() != Order::GuardStarbase {
@@ -127,7 +134,7 @@ pub(super) fn refresh_guard_starbase_targets(
         let current_coords = fleet.current_location_coords_raw();
         let owner_empire_raw = fleet.owner_empire_raw();
         let base_id = fleet.guard_starbase_index_raw();
-        if base_id == 0 || fleet.guard_starbase_enable_raw() == 0 {
+        if fleet.guard_starbase_enable_raw() == 0 {
             fleet.set_standing_order_kind(Order::HoldPosition);
             fleet.set_current_speed(0);
             fleet.set_standing_order_target_coords_raw(current_coords);
@@ -140,8 +147,15 @@ pub(super) fn refresh_guard_starbase_targets(
             });
             continue;
         }
-        let Some(new_target_coords) = active_bases.get(&(owner_empire_raw, base_id)).copied()
-        else {
+        let new_target_coords = active_bases_by_id
+            .get(&(owner_empire_raw, base_id))
+            .copied()
+            .or_else(|| {
+                active_base_coords
+                    .contains(&(owner_empire_raw, previous_target_coords))
+                    .then_some(previous_target_coords)
+            });
+        let Some(new_target_coords) = new_target_coords else {
             fleet.set_standing_order_kind(Order::HoldPosition);
             fleet.set_current_speed(0);
             fleet.set_standing_order_target_coords_raw(current_coords);

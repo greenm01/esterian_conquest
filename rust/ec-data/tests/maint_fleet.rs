@@ -671,6 +671,7 @@ fn test_guard_starbase_retargets_to_live_base_coords() {
         game_data.fleets.records[1].standing_order_target_coords_raw(),
         [12, 8]
     );
+    assert_eq!(game_data.fleets.records[1].mission_aux_bytes(), [0, 1]);
     assert!(events.mission_retarget_events.iter().any(|event| {
         matches!(
             event,
@@ -763,11 +764,92 @@ fn test_guard_starbase_persists_after_arrival() {
         game_data.fleets.records[1].standing_order_target_coords_raw(),
         [11, 8]
     );
+    assert_eq!(game_data.fleets.records[1].mission_aux_bytes(), [0, 1]);
+    assert_eq!(game_data.fleets.records[1].raw[0x0d], 0x7b);
+    assert_eq!(game_data.fleets.records[1].raw[0x0e], 0x00);
+    assert_eq!(game_data.fleets.records[1].raw[0x0f], 0x84);
+    assert_eq!(game_data.fleets.records[1].raw[0x10], 0xd8);
+    assert_eq!(game_data.fleets.records[1].raw[0x11], 0x89);
+    assert_eq!(game_data.fleets.records[1].raw[0x12], 0x1d);
     assert!(events.mission_events.iter().any(|event| {
         event.fleet_idx == 1
             && event.kind == Mission::GuardStarbase
             && event.outcome == MissionOutcome::Arrived
             && event.location_coords == Some([11, 8])
+    }));
+}
+
+#[test]
+fn test_guard_starbase_with_zero_index_stays_armed_when_target_base_exists() {
+    let mut game_data = load_fixture("ecmaint-post");
+    let mut base = BaseRecord::new_zeroed();
+    base.set_active_flag_raw(1);
+    base.set_base_id_raw(3);
+    base.set_owner_empire_raw(1);
+    base.set_coords_raw([11, 8]);
+    game_data.bases = BaseDat {
+        records: vec![base],
+    };
+
+    let fleet = &mut game_data.fleets.records[1];
+    fleet.set_current_location_coords_raw([11, 8]);
+    fleet.set_standing_order_kind(Order::GuardStarbase);
+    fleet.set_standing_order_target_coords_raw([11, 8]);
+    fleet.set_current_speed(0);
+    fleet.set_mission_aux_bytes([0, 1]);
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    assert_eq!(
+        game_data.fleets.records[1].standing_order_kind(),
+        Order::GuardStarbase
+    );
+    assert_eq!(game_data.fleets.records[1].current_speed(), 0);
+    assert_eq!(game_data.fleets.records[1].mission_aux_bytes(), [0, 1]);
+    assert!(!events.mission_retarget_events.iter().any(|event| {
+        matches!(
+            event,
+            MissionRetargetEvent::Abandoned {
+                fleet_idx,
+                mission,
+                ..
+            } if *fleet_idx == 1 && *mission == Mission::GuardStarbase
+        )
+    }));
+}
+
+#[test]
+fn test_guard_starbase_with_zero_index_abandons_when_target_base_is_missing() {
+    let mut game_data = load_fixture("ecmaint-post");
+    game_data.bases = BaseDat { records: vec![] };
+
+    let fleet = &mut game_data.fleets.records[1];
+    fleet.set_current_location_coords_raw([11, 8]);
+    fleet.set_standing_order_kind(Order::GuardStarbase);
+    fleet.set_standing_order_target_coords_raw([11, 8]);
+    fleet.set_current_speed(0);
+    fleet.set_mission_aux_bytes([0, 1]);
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance turn should succeed");
+
+    assert_eq!(
+        game_data.fleets.records[1].standing_order_kind(),
+        Order::HoldPosition
+    );
+    assert_eq!(game_data.fleets.records[1].current_speed(), 0);
+    assert_eq!(game_data.fleets.records[1].mission_aux_bytes(), [0, 1]);
+    assert!(events.mission_retarget_events.iter().any(|event| {
+        matches!(
+            event,
+            MissionRetargetEvent::Abandoned {
+                fleet_idx,
+                mission,
+                previous_target_coords,
+                ..
+            } if *fleet_idx == 1
+                && *mission == Mission::GuardStarbase
+                && *previous_target_coords == [11, 8]
+        )
     }));
 }
 
