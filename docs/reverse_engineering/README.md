@@ -45,6 +45,52 @@ The rule that fell out of that recovery work is simple:
 - escalate to Ghidra or DOSBox-X only when black-box probing plateaus or a real
   compatibility blocker requires deeper recovery
 
+## Oracle Runbooks
+
+### Default ECMAINT black-box loop
+
+For new mechanics, the concrete workflow is:
+
+1. `python3 tools/ecmaint_oracle.py prepare <target_dir> [source_dir]`
+2. Submit one controlled set of orders or mutate one narrow field family.
+3. `python3 tools/ecmaint_oracle.py run <target_dir>`
+4. Inspect the `.oracle/` snapshots plus the printed diff clusters across
+   state files (`PLAYER.DAT`, `PLANETS.DAT`, `FLEETS.DAT`, `BASES.DAT`,
+   `IPBM.DAT`, `CONQUEST.DAT`) and report/output files (`RESULTS.DAT`,
+   `MESSAGES.DAT`, `ERRORS.TXT`, `DATABASE.DAT`, `RANKINGS.TXT`).
+5. Treat "no report output" as evidence too: a mechanic that mutates
+   persistent state while leaving `RESULTS.DAT` / `MESSAGES.DAT` empty is
+   still useful for placing the mechanic inside the yearly simulation core
+   rather than the report side.
+6. Promote only strong repeated rules into shared Rust logic.
+
+### Known-scenario replay loop
+
+1. `python3 tools/ecmaint_oracle.py replay-known fleet-order /tmp/ecmaint-fleet-oracle`
+2. Inspect the `.oracle/` snapshots and the comparison against the preserved
+   post-maint fixture.
+3. Use the same pattern for `planet-build` and `guard-starbase` before opening
+   a new mechanic.
+
+### Preserved-fixture replay validation
+
+1. `python3 tools/ecmaint_oracle.py replay-preserved fleet-order /tmp/ecmaint-fleet-pre-direct`
+2. Confirm the preserved pre-maint fixture replays to the preserved post-maint
+   fixture exactly.
+3. Use `replay-known` to measure the remaining gap in the Rust-generated
+   pre-maint state, not to question the oracle harness itself.
+
+### Deep RE escalation
+
+Use static/dynamic RE when a blocker survives repeated black-box tests. Prefer
+narrow, reproducible captures over broad exploratory tracing. Stop the deep
+dive once the missing rule can be stated precisely enough for Rust
+validation/generation.
+
+The anti-rabbit-hole rule: do not apply full deep-dive treatment to every
+mechanic. If a path is not currently blocking broader compliant generation,
+keep it in the black-box queue until it becomes a real blocker.
+
 ## Current Posture
 
 - the heavy RE phase is mostly complete; day-to-day work should bias toward
