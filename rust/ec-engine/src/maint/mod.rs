@@ -14,7 +14,8 @@ pub mod timing;
 
 pub use ec_data::maintenance_types::*;
 
-use ec_data::{CoreGameData, FleetRecord, Order, VisibleHazardIntel};
+use ec_data::{CoreGameData, FleetRecord, Order};
+use crate::VisibleHazardIntel;
 
 /// Event produced when a fleet completes a ColonizeWorld order.
 #[derive(Debug)]

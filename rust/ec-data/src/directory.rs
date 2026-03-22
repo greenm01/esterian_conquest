@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::movement_geometry::reset_motion_state_for_new_orders;
+use crate::fleet_motion_state::reset_motion_state_for_new_orders;
 use crate::{
     BaseDat, BaseRecord, ConquestDat, DiplomaticRelation, FleetDat, FleetRecord, IPBM_RECORD_SIZE,
     IpbmDat, IpbmRecord, Order, ParseError, PlanetDat, PlayerDat, PlayerRecord, ProductionItemKind,

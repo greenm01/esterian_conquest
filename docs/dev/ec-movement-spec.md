@@ -28,7 +28,9 @@ The live movement implementation is in:
 
 - [mod.rs](../../rust/ec-engine/src/maint/mod.rs)
 - [movement.rs](../../rust/ec-engine/src/maint/movement.rs)
-- [movement_geometry.rs](../../rust/ec-data/src/movement_geometry.rs)
+- [navigation/mod.rs](../../rust/ec-engine/src/navigation/mod.rs)
+- [geometry.rs](../../rust/ec-engine/src/navigation/geometry.rs)
+- [fleet_motion_state.rs](../../rust/ec-data/src/fleet_motion_state.rs)
 
 The current implementation keeps the recovered annual `speed * 8 / 9` movement
 budget, persists exact in-transit position between yearly maintenance passes,

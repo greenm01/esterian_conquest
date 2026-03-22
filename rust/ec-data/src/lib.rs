@@ -17,10 +17,10 @@ mod builder;
 mod config;
 mod directory;
 mod economy;
+#[doc(hidden)]
+pub mod fleet_motion_state;
 mod intel;
 mod mapgen;
-mod movement_geometry;
-mod pathfinding;
 mod player_mail;
 mod records;
 mod report_blocks;
@@ -64,16 +64,6 @@ pub use maintenance_types::{
 pub use mapgen::{
     GeneratedMap, GeneratedWorld, build_seeded_initialized_game, build_seeded_new_game,
     generate_map, map_size_for_player_count,
-};
-#[doc(hidden)]
-pub use movement_geometry::{
-    advance_exact_position, decode_exact_position, reset_motion_state_for_new_orders,
-    rounded_coords_from_exact, store_exact_position, visible_hazard_intel_is_empty,
-};
-pub use pathfinding::{
-    FleetEtaEstimate, PlannedRoute, RouteStep, VisibleHazardIntel, estimate_fleet_eta,
-    estimate_fleet_eta_to_destination, next_path_step, plan_route, plan_route_with_intel,
-    visible_hazard_intel_from_snapshots,
 };
 pub use player_mail::{
     QueuedPlayerMail, append_mail_queue, clear_mail_queue, load_mail_queue, save_mail_queue,

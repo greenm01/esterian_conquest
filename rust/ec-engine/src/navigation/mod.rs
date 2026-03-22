@@ -1,12 +1,16 @@
+mod geometry;
+
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BinaryHeap, HashMap, HashSet};
 
-use crate::movement_geometry::{
-    advance_exact_position, decode_exact_position, rounded_coords_from_exact,
-};
-use crate::{
+use ec_data::fleet_motion_state::decode_exact_position;
+use ec_data::{
     CoreGameData, FleetRecord, Order, PlanetIntelSnapshot,
     build_player_starmap_projection_from_snapshots, map_size_for_player_count,
+};
+
+pub(crate) use geometry::{
+    advance_exact_position, rounded_coords_from_exact, visible_hazard_intel_is_empty,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

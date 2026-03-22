@@ -15,6 +15,10 @@ Use this as the restart brief. Historical detail belongs in
   - shared maintenance event/result payloads live in
     `ec-data::maintenance_types`
   - `ec-data` no longer exports maintenance execution entrypoints
+- Phase 2 boundary correction is now in place:
+  - movement/pathfinding rule code lives in `ec-engine/src/navigation/`
+  - raw fleet motion scratch-byte helpers live in
+    `ec-data::fleet_motion_state`
 - SQLite is the runtime source of truth for engine and TUI.
 - Classic `.DAT` files are now an explicit compatibility edge, not live runtime
   state.
@@ -88,8 +92,9 @@ exceptions:
 
 ## Structural Note
 
-Pathfinding/movement helpers still live in `ec-data` for now. Treat that as the
-next deferred boundary move, not as a reason to put new gameplay execution back
-into `ec-data`. If phase 2 happens, move the whole movement/pathfinding stack
-across the crate boundary together rather than creating an `ec-data ->
-ec-engine` cycle.
+The remaining obvious boundary debt is setup/map generation, not movement.
+Movement/pathfinding now follows the same split as maintenance:
+
+- `ec-engine` owns route planning, ETA, and movement execution rules
+- `ec-data` keeps only runtime/store/model state and raw fleet motion field
+  helpers needed by both engine code and state mutation paths

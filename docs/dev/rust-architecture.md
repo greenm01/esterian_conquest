@@ -294,11 +294,7 @@ Examples:
 - build/fleet/player input validation
 - maintenance events
 - shared report/intel projections
-
-Some preexisting helper surfaces still live in `ec-data` during the boundary
-migration, especially route planning and movement geometry. Treat those as
-temporary structural debt or shared low-level helpers, not as a reason to move
-new gameplay execution back into `ec-data`.
+- raw record-layout helpers such as fleet motion scratch-field access/reset
 
 The CLI and client should orchestrate those helpers, not replace them.
 

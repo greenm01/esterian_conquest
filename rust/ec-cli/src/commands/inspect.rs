@@ -3,8 +3,8 @@ use std::path::Path;
 
 use crate::commands::runtime::load_runtime_game_data;
 use ec_compat::inspect_classic_messages_dat;
-use ec_data::{ConquestDat, CoreGameData, FleetEtaEstimate, PlanetRecord, SetupDat};
-use ec_engine::{estimate_fleet_eta, plan_route};
+use ec_data::{ConquestDat, CoreGameData, PlanetRecord, SetupDat};
+use ec_engine::{FleetEtaEstimate, estimate_fleet_eta, plan_route};
 
 pub(crate) fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let data = load_runtime_game_data(dir)?;

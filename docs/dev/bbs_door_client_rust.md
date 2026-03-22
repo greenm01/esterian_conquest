@@ -6,8 +6,9 @@ after the engine/oracle milestone.
 It replaces older notes that assumed a future client crate and a deferred
 runtime/storage split. The repository today is centered on:
 
-- `ec-data`: canonical game state, classic `.DAT` parsing/writing, maintenance,
-  setup, validation
+- `ec-data`: canonical game state, classic `.DAT` parsing/writing, setup,
+  validation
+- `ec-engine`: gameplay rules, maintenance, and movement/pathfinding execution
 - `ec-cli`: sysop/admin/oracle/inspection workflows on top of `ec-data`
 - `ec-client`: the SQLite-native player application layer
 
@@ -60,7 +61,7 @@ Keep the current crate responsibilities:
 - `ec-data`
   - owns runtime/store/model state and shared plain payload types
   - still carries some shared helpers and transitional rule-adjacent code such
-    as pathfinding/mapgen surfaces during the current migration
+    as setup/mapgen surfaces during the current migration
 - `ec-cli`
   - remains the sysop/admin/oracle/testing tool
   - owns the explicit classic import/export/materialization bridge

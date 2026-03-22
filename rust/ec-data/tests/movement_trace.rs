@@ -1,5 +1,5 @@
-use ec_data::{FleetEtaEstimate, GameStateBuilder, Order, estimate_fleet_eta};
-use ec_engine::run_maintenance_turn;
+use ec_data::{GameStateBuilder, Order};
+use ec_engine::{FleetEtaEstimate, estimate_fleet_eta, run_maintenance_turn};
 
 #[derive(Clone, Copy)]
 struct MovementCase {
