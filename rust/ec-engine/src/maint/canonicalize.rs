@@ -446,7 +446,7 @@ mod tests {
         MissionEvent, MissionOutcome, ShipLosses,
     };
     use super::*;
-    use crate::builder::GameStateBuilder;
+    use crate::GameStateBuilder;
 
     fn minimal_game_data() -> crate::CoreGameData {
         GameStateBuilder::default()
@@ -524,7 +524,7 @@ mod tests {
             reporting_empire_raw: 1,
             reporting_fleet_id: Some(1),
             reporting_mission: Some(Mission::GuardBlockadeWorld),
-            perspective: crate::maint::events::FleetBattlePerspective::Intercepted,
+            perspective: crate::maint::FleetBattlePerspective::Intercepted,
             coords: [5, 5],
             enemy_empires_raw: vec![2],
             primary_enemy_fleet_id: Some(5),

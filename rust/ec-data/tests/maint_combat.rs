@@ -2,8 +2,11 @@ mod common;
 
 use ec_data::{
     ContactReportSource, CoreGameData, DiplomacyOverride, EncounterDispositionEvent, Mission,
-    MissionOutcome, Order, PlanetIntelSource, run_maintenance_turn,
-    run_maintenance_turn_with_context, run_maintenance_turn_with_context_and_seed,
+    MissionOutcome, Order, PlanetIntelSource,
+};
+use ec_engine::{
+    run_maintenance_turn, run_maintenance_turn_with_context,
+    run_maintenance_turn_with_context_and_seed,
 };
 use std::path::Path;
 

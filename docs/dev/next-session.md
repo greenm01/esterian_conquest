@@ -10,6 +10,11 @@ Use this as the restart brief. Historical detail belongs in
   - `ec-engine` = gameplay/maintenance API
   - `ec-compat` = classic `.DAT` import/export/oracle bridge
   - `ec-classic` = low-level classic record/codecs
+- Phase 1 engine-boundary correction is now in place:
+  - maintenance execution lives in `ec-engine/src/maint/`
+  - shared maintenance event/result payloads live in
+    `ec-data::maintenance_types`
+  - `ec-data` no longer exports maintenance execution entrypoints
 - SQLite is the runtime source of truth for engine and TUI.
 - Classic `.DAT` files are now an explicit compatibility edge, not live runtime
   state.
@@ -32,6 +37,11 @@ established:
   - fleet stops
   - speed becomes `0`
   - standing order becomes `Hold`
+- `JoinAnotherFleet` and `RendezvousSector` now follow the manual-backed
+  persistent-standing model:
+  - join fleets keep chasing until they merge or the host is lost
+  - rendezvous fleets wait at the assigned sector for later arrivals
+  - rendezvous host selection is lowest fleet ID, not first arrival
 
 ## Biggest Blockers
 
@@ -39,6 +49,8 @@ established:
   traces rather than decoded from source.
 - The exact raw-byte meaning of the classic in-transit scratch fields is still
   not fully decoded.
+- Persistent mission geometry and scratch-byte behavior still have much less
+  direct oracle coverage than the `MoveOnly` matrix.
 - Hazard-driven detours still need broader oracle coverage so the classic direct
   stepper and the Rust pathfinding extension remain cleanly separated.
 
@@ -63,10 +75,11 @@ exceptions:
 
 ## Immediate Next Steps
 
-1. Re-run the classic oracle harness for the controlled movement matrix and
+1. Extend the same movement tracing approach to persistent missions such as
+   `PatrolSector`, `GuardStarbase`, and `GuardBlockadeWorld`, especially their
+   arrival-state bytes and post-arrival persistence.
+2. Re-run the classic oracle harness for the controlled movement matrix and
    confirm the raw movement scratch bytes are still acceptable.
-2. Extend the same movement tracing approach to persistent missions such as
-   `PatrolSector`, `GuardStarbase`, and `GuardBlockadeWorld`.
 3. Re-probe hostile-world arrivals to keep the delayed `BombardWorld` /
    `InvadeWorld` / `BlitzWorld` behavior aligned with the turn-cycle specs.
 4. Decide whether the current Rust in-transit scratch encoding should be kept as
@@ -75,7 +88,8 @@ exceptions:
 
 ## Structural Note
 
-Pathfinding/movement helpers still live with the active maintenance/runtime
-implementation. If that code moves later, move the whole movement stack across
-the crate boundary together rather than creating an `ec-data -> ec-engine`
-cycle.
+Pathfinding/movement helpers still live in `ec-data` for now. Treat that as the
+next deferred boundary move, not as a reason to put new gameplay execution back
+into `ec-data`. If phase 2 happens, move the whole movement/pathfinding stack
+across the crate boundary together rather than creating an `ec-data ->
+ec-engine` cycle.

@@ -26,7 +26,9 @@ Current-known movement rules in Rust already model:
 
 The live movement implementation is in:
 
-- [mod.rs](../../rust/ec-data/src/maint/mod.rs)
+- [mod.rs](../../rust/ec-engine/src/maint/mod.rs)
+- [movement.rs](../../rust/ec-engine/src/maint/movement.rs)
+- [movement_geometry.rs](../../rust/ec-data/src/movement_geometry.rs)
 
 The current implementation keeps the recovered annual `speed * 8 / 9` movement
 budget, persists exact in-transit position between yearly maintenance passes,

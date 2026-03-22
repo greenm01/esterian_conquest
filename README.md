@@ -35,6 +35,10 @@ still useful. Normal Rust runtime/client flows now use `ecgame.db` as the
 authoritative state; classic `.DAT` files are handled explicitly through CLI
 import/export/oracle workflows rather than as live engine dependencies.
 
+The crate boundary is now explicit as well: `ec-data` owns runtime/store/model
+state and shared plain payload types, while `ec-engine` owns gameplay and
+maintenance execution over that state.
+
 ## Premise
 
 Beyond the mapped frontiers of the old Esterian dominion lies a small galaxy
@@ -96,7 +100,7 @@ If you want to jump in immediately, start with [Quick Start](#quick-start).
 The project is moving toward a full Rust-first Esterian Conquest stack:
 
 - `ec-data` as the shared runtime/store/state-model crate
-- `ec-engine` as the public gameplay/maintenance/rules surface
+- `ec-engine` as the public gameplay/maintenance/rules crate
 - `ec-compat` as the explicit classic `.DAT` import/export boundary
 - `maint-rust` as the normal turn processor
 - `ec-client` as the normal player interface

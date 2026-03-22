@@ -1,4 +1,4 @@
-//! Event and type definitions for the maintenance engine.
+//! Plain event and type definitions shared by the maintenance engine.
 
 use crate::{
     DiplomaticRelation, FleetOrderValidationError, FleetPlayerInputValidationError,

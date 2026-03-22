@@ -1,5 +1,5 @@
 use ec_data::Mission;
-use ec_data::maint::timing::{
+use ec_engine::maint::timing::{
     TimingCode, apply_timing_offset, event_base_week, format_rankings_stardate,
     format_report_first_line, format_stardate, timing_code_offset,
 };

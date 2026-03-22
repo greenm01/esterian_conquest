@@ -3,11 +3,12 @@ use super::{
     MovementEvents, PlanetIntelEvent, PlanetIntelSource, SalvageFailureReason,
     SalvageResolvedEvent,
 };
-use crate::movement_geometry::{
+use ec_data::{
     advance_exact_position, decode_exact_position, reset_motion_state_for_new_orders,
     rounded_coords_from_exact, store_exact_position, visible_hazard_intel_is_empty,
+    plan_route_with_intel,
 };
-use crate::{CoreGameData, Order, ProductionItemKind, VisibleHazardIntel, plan_route_with_intel};
+use crate::{CoreGameData, Order, ProductionItemKind, VisibleHazardIntel};
 
 fn queue_local_intrusion_escalation(
     movement_events: &mut MovementEvents,
@@ -468,7 +469,7 @@ fn resolve_salvage_arrival(
     })
 }
 
-fn set_fleet_to_deep_space_hold(fleet: &mut crate::FleetRecord) {
+fn set_fleet_to_deep_space_hold(fleet: &mut ec_data::FleetRecord) {
     let coords = fleet.current_location_coords_raw();
     fleet.set_current_speed(0);
     fleet.set_standing_order_kind(Order::HoldPosition);
@@ -537,7 +538,7 @@ fn remap_movement_event_fleet_indices_after_removal(
         });
 }
 
-fn fleet_salvage_value(fleet: &crate::FleetRecord) -> u32 {
+fn fleet_salvage_value(fleet: &ec_data::FleetRecord) -> u32 {
     let total_cost = u32::from(fleet.destroyer_count())
         * purchase_cost(ProductionItemKind::Destroyer)
         + u32::from(fleet.cruiser_count()) * purchase_cost(ProductionItemKind::Cruiser)

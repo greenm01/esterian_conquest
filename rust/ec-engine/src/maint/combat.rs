@@ -575,7 +575,7 @@ fn has_patrol_order(game_data: &CoreGameData, fleet_indices: &[usize]) -> bool {
         .any(|&idx| game_data.fleets.records[idx].standing_order_kind() == Order::PatrolSector)
 }
 
-fn fleet_is_at_system_context(fleet: &crate::FleetRecord) -> bool {
+fn fleet_is_at_system_context(fleet: &ec_data::FleetRecord) -> bool {
     let coords = fleet.current_location_coords_raw();
     let target = fleet.standing_order_target_coords_raw();
     if coords != target {
@@ -998,7 +998,7 @@ fn remove_destroyed_starbases(
             && base.active_flag_raw() != 0
         {
             destroyed_ids.push(base.base_id_raw());
-            *base = crate::BaseRecord::new_zeroed();
+            *base = ec_data::BaseRecord::new_zeroed();
             remaining -= 1;
         }
     }
@@ -1044,7 +1044,7 @@ fn tf_has_any_units(tf: &TaskForce) -> bool {
     tf.state.counts.iter().any(|&count| count > 0)
 }
 
-fn set_fleet_to_hold_current_position(fleet: &mut crate::FleetRecord) {
+fn set_fleet_to_hold_current_position(fleet: &mut ec_data::FleetRecord) {
     let coords = fleet.current_location_coords_raw();
     fleet.set_current_speed(0);
     fleet.set_standing_order_kind(Order::HoldPosition);
@@ -2013,7 +2013,7 @@ fn fleet_still_ready_for_assault(game_data: &CoreGameData, fleet_idx: usize, ord
         .is_ok()
 }
 
-fn reduce_stardock(planet: &mut crate::PlanetRecord, mut hits: u32) -> u32 {
+fn reduce_stardock(planet: &mut ec_data::PlanetRecord, mut hits: u32) -> u32 {
     for slot in 0..crate::STARDOCK_SLOT_COUNT {
         if hits == 0 {
             break;
@@ -2035,7 +2035,7 @@ fn reduce_stardock(planet: &mut crate::PlanetRecord, mut hits: u32) -> u32 {
     hits
 }
 
-fn apply_planet_bombardment_damage(planet: &mut crate::PlanetRecord, mut hits: u32) {
+fn apply_planet_bombardment_damage(planet: &mut ec_data::PlanetRecord, mut hits: u32) {
     hits = reduce_stardock(planet, hits);
 
     let battery_loss = hits.min(planet.ground_batteries_raw() as u32) as u8;

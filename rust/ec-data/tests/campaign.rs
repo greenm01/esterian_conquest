@@ -1,6 +1,5 @@
-use ec_data::{
-    CampaignOutcome, CampaignOutlook, CampaignState, GameStateBuilder, run_maintenance_turn,
-};
+use ec_data::{CampaignOutcome, CampaignOutlook, CampaignState, GameStateBuilder};
+use ec_engine::run_maintenance_turn;
 
 fn baseline_game() -> ec_data::CoreGameData {
     GameStateBuilder::new()

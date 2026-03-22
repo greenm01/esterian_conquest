@@ -233,8 +233,12 @@ Read this sketch with the ownership rules above:
 
 ## Maintenance Engine Structure
 
-The Rust yearly maintenance engine is exposed through `ec-engine` and currently
-implemented in `ec-data/src/maint/`.
+The Rust yearly maintenance engine is exposed and implemented through
+`ec-engine/src/maint/`.
+
+Shared maintenance result payloads remain in `ec-data::maintenance_types` so
+multiple crates can consume the same plain event data without duplicating the
+rule code.
 
 Use [rust-turn-cycle-implementation.md](rust-turn-cycle-implementation.md)
 as the ordering spec, then reflect that ordering in code by phase-oriented
@@ -275,9 +279,10 @@ detail into submodules instead of extending the driver further.
 Use it when the code needs:
 
 - shared cross-file validation
-- deterministic maintenance/state mutation
+- the canonical state snapshot that engine code mutates
 - classic directory load/save
 - reusable scenario/setup/report helpers
+- plain shared event/result payloads
 
 If a transform expresses shared game-directory/runtime-store semantics rather
 than one frontend's interaction policy, it should live on `CoreGameData` or in
@@ -287,9 +292,13 @@ Examples:
 
 - cross-file validators
 - build/fleet/player input validation
-- movement/pathfinding helpers
 - maintenance events
 - shared report/intel projections
+
+Some preexisting helper surfaces still live in `ec-data` during the boundary
+migration, especially route planning and movement geometry. Treat those as
+temporary structural debt or shared low-level helpers, not as a reason to move
+new gameplay execution back into `ec-data`.
 
 The CLI and client should orchestrate those helpers, not replace them.
 
@@ -361,7 +370,8 @@ Subsystem behavior should follow the companion specs:
 
 The architecture consequence is straightforward:
 
-- keep the rules in `ec-data`
+- keep gameplay/rule execution in `ec-engine`
+- keep shared models, invariants, and plain event/result payloads in `ec-data`
 - keep the specs authoritative
 - keep CLI/client layers as consumers of those rules
 
@@ -385,7 +395,7 @@ module, it usually deserves its own test surface too.
 Do not:
 
 - grow giant `main.rs`, `mod.rs`, or catch-all utility files
-- duplicate rules between `ec-data`, `ec-cli`, and `ec-client`
+- duplicate rules between `ec-engine`, `ec-data`, `ec-cli`, and `ec-client`
 - bury classic byte semantics in UI or command code
 - treat scenario-specific scripts as the long-term home for shared mechanics
 - collapse maint ordering, combat rules, timing rules, and economy rules into
@@ -397,13 +407,15 @@ Do not:
 
 When adding or refactoring behavior, ask:
 
-1. is this a shared game rule or directory invariant?
+1. is this gameplay/rule execution, a shared data invariant, or a plain shared
+   payload type?
 2. is this a frontend workflow over an existing rule?
 3. is this a presentation concern only?
 
 Then place it accordingly:
 
-- shared rule/invariant -> `ec-data`
+- gameplay/rule execution -> `ec-engine`
+- shared model/invariant/plain payload -> `ec-data`
 - sysop/oracle workflow -> `ec-cli`
 - player interaction/rendering -> `ec-client`
 

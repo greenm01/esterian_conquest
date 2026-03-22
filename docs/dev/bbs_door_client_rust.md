@@ -54,9 +54,13 @@ Current versioning direction:
 
 Keep the current crate responsibilities:
 
+- `ec-engine`
+  - owns gameplay rule execution and yearly maintenance
+  - consumes `ec-data` state/model types rather than duplicating them
 - `ec-data`
-  - owns state, rules, maintenance, pathfinding, setup, report generation
-  - continues to be the only place that knows classic file semantics
+  - owns runtime/store/model state and shared plain payload types
+  - still carries some shared helpers and transitional rule-adjacent code such
+    as pathfinding/mapgen surfaces during the current migration
 - `ec-cli`
   - remains the sysop/admin/oracle/testing tool
   - owns the explicit classic import/export/materialization bridge
@@ -69,7 +73,8 @@ Current workspace shape:
 
 ```text
 rust/
-├── ec-data     # state, rules, maintenance, setup, classic .DAT I/O
+├── ec-data     # runtime/store/model + shared payload/data helpers
+├── ec-engine   # gameplay rule execution + maintenance
 ├── ec-cli      # sysop/admin/oracle/inspection workflows + compat bridge
 └── ec-client   # player-facing client (local first, door later)
 ```
@@ -79,6 +84,7 @@ If BBS door concerns grow large enough, that can later split into:
 ```text
 rust/
 ├── ec-data
+├── ec-engine
 ├── ec-cli
 ├── ec-client   # shared player UI/application layer
 └── ec-door     # optional thin door launcher / dropfile adapter

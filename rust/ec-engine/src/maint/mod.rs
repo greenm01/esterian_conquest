@@ -1,8 +1,6 @@
 //! Maintenance logic for ECMAINT.EXE mechanics.
 
 mod combat;
-mod events;
-pub use events::*;
 mod campaign;
 mod canonicalize;
 mod economics;
@@ -14,7 +12,9 @@ mod retarget;
 mod sanitize;
 pub mod timing;
 
-use crate::{CoreGameData, Order, VisibleHazardIntel};
+pub use ec_data::maintenance_types::*;
+
+use ec_data::{CoreGameData, FleetRecord, Order, VisibleHazardIntel};
 
 /// Event produced when a fleet completes a ColonizeWorld order.
 #[derive(Debug)]
@@ -380,7 +380,7 @@ pub fn run_maintenance_turn_with_context_and_seed(
     Ok(events)
 }
 
-fn fleet_has_presence(fleet: &crate::FleetRecord) -> bool {
+fn fleet_has_presence(fleet: &FleetRecord) -> bool {
     fleet.scout_count() > 0
         || fleet.battleship_count() > 0
         || fleet.cruiser_count() > 0

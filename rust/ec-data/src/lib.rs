@@ -18,7 +18,6 @@ mod config;
 mod directory;
 mod economy;
 mod intel;
-pub mod maint;
 mod mapgen;
 mod movement_geometry;
 mod pathfinding;
@@ -30,6 +29,7 @@ mod starmap;
 mod storage;
 mod support;
 mod turns;
+pub mod maintenance_types;
 
 pub use builder::{
     CanonicalFourPlayerSetup, FleetOrderSpec, GameStateBuilder, GuardStarbaseSpec, PlanetBuildSpec,
@@ -51,7 +51,7 @@ pub use economy::{
     build_capacity, yearly_growth_delta, yearly_high_tax_penalty, yearly_tax_revenue,
 };
 pub use intel::merge_player_intel_from_runtime;
-pub use maint::{
+pub use maintenance_types::{
     AssaultReportEvent, BombardEvent, CampaignOutcomeEvent, CampaignOutlookEvent,
     CivilDisorderEvent, ColonizationResolvedEvent, ContactReportSource, DiplomacyOverride,
     DiplomaticEscalationEvent, EncounterDispositionEvent, EncounterDispositionReason,
@@ -59,14 +59,16 @@ pub use maint::{
     InvalidPlayerStateEvent, JoinMissionHostEvent, MaintenanceEvents, Mission, MissionEvent,
     MissionOutcome, MissionRetargetEvent, PlanetIntelEvent, PlanetIntelSource,
     PlanetOwnershipChangeEvent, SalvageFailureReason, SalvageResolvedEvent, ScoutContactEvent,
-    ShipLosses, StarbaseDestroyedEvent, run_maintenance_turn, run_maintenance_turn_with_context,
-    run_maintenance_turn_with_context_and_seed, run_maintenance_turn_with_seed,
-    run_maintenance_turn_with_visible_hazards, run_maintenance_turn_with_visible_hazards_and_seed,
-    run_maintenance_turns,
+    ShipLosses, StarbaseDestroyedEvent,
 };
 pub use mapgen::{
     GeneratedMap, GeneratedWorld, build_seeded_initialized_game, build_seeded_new_game,
     generate_map, map_size_for_player_count,
+};
+#[doc(hidden)]
+pub use movement_geometry::{
+    advance_exact_position, decode_exact_position, reset_motion_state_for_new_orders,
+    rounded_coords_from_exact, store_exact_position, visible_hazard_intel_is_empty,
 };
 pub use pathfinding::{
     FleetEtaEstimate, PlannedRoute, RouteStep, VisibleHazardIntel, estimate_fleet_eta,

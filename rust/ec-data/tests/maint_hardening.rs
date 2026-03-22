@@ -1,4 +1,5 @@
-use ec_data::{CoreGameData, InvalidPlayerStateEvent, Order, run_maintenance_turn};
+use ec_data::{CoreGameData, InvalidPlayerStateEvent, Order};
+use ec_engine::run_maintenance_turn;
 use std::path::Path;
 
 fn load_fixture(name: &str) -> CoreGameData {

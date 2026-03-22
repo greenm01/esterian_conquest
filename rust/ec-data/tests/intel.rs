@@ -1,8 +1,10 @@
 use std::collections::BTreeMap;
 
 use ec_compat::{DatabaseDat, merge_player_intel_from_compat};
-use ec_data::maint::PlanetIntelSource;
-use ec_data::{build_player_starmap_projection_from_snapshots, merge_player_intel_from_runtime};
+use ec_data::{
+    PlanetIntelSource, build_player_starmap_projection_from_snapshots,
+    merge_player_intel_from_runtime,
+};
 use ec_engine::{GameStateBuilder, visible_hazard_intel_from_snapshots};
 
 #[test]

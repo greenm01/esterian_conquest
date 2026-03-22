@@ -1,6 +1,7 @@
 //! Tests for maintenance logic (Milestone 4 Phase 2)
 
-use ec_data::{CoreGameData, run_maintenance_turn};
+use ec_data::CoreGameData;
+use ec_engine::run_maintenance_turn;
 use std::path::Path;
 
 #[test]
