@@ -1,6 +1,7 @@
 pub fn print_usage() {
     println!("Usage:");
     println!("  ec-cli inspect [dir]");
+    println!("  ec-cli inspect-fleet-movement <dir> <fleet_record> [--live-dir]");
     println!("  ec-cli inspect-messages [dir]");
     println!("  ec-cli inspect-classic-login [dir] <caller_alias>");
     println!("  ec-cli map-export [dir] <player_record> <output_txt_path>");

@@ -5,7 +5,7 @@ use crate::screen::{
     CommandMenu, FleetDetachMode, FleetMergeMode, FleetRow, FleetTransferMode, ScreenId,
 };
 use ec_data::{CoreGameData, FleetDetachSelection};
-use ec_engine::plan_route;
+use ec_engine::{FleetEtaEstimate, estimate_fleet_eta, estimate_fleet_eta_to_destination};
 
 impl App {
     pub fn open_fleet_merge(&mut self) {
@@ -1243,38 +1243,35 @@ impl App {
         destination: [u8; 2],
         include_system: bool,
     ) -> String {
-        if destination == row.coords {
-            return format!(
+        match estimate_fleet_eta_to_destination(
+            &self.game_data,
+            row.fleet_record_index_1_based - 1,
+            destination,
+            include_system,
+            true,
+        ) {
+            FleetEtaEstimate::Arrived => format!(
                 "Fleet {} reaches [{},{}] in 0 year(s), arriving in {}.",
                 row.fleet_number,
                 destination[0],
                 destination[1],
                 self.game_data.conquest.game_year()
-            );
+            ),
+            FleetEtaEstimate::Years(years) => {
+                let arrival_year = self.game_data.conquest.game_year() + years;
+                format!(
+                    "Fleet {} reaches [{},{}] in {} year(s), arriving in {}.",
+                    row.fleet_number, destination[0], destination[1], years, arrival_year
+                )
+            }
+            FleetEtaEstimate::Stopped => format!(
+                "Fleet {} is stopped and cannot reach [{},{}].",
+                row.fleet_number, destination[0], destination[1]
+            ),
+            FleetEtaEstimate::Unreachable => {
+                format!("No route found to [{},{}].", destination[0], destination[1])
+            }
         }
-        let mut game_data = self.game_data.clone();
-        let fleet_index = row.fleet_record_index_1_based - 1;
-        let fleet = &mut game_data.fleets.records[fleet_index];
-        fleet.set_standing_order_kind(ec_data::Order::MoveOnly);
-        fleet.set_standing_order_target_coords_raw(destination);
-        let Some(route) = plan_route(&game_data, fleet_index) else {
-            return format!("No route found to [{},{}].", destination[0], destination[1]);
-        };
-        let mut steps = route.steps.len().saturating_sub(1);
-        if include_system && destination != row.coords {
-            steps += 1;
-        }
-        let speed = usize::from(if row.current_speed == 0 {
-            row.max_speed.max(1)
-        } else {
-            row.current_speed
-        });
-        let years = steps.div_ceil(speed);
-        let arrival_year = self.game_data.conquest.game_year() + years as u16;
-        format!(
-            "Fleet {} reaches [{},{}] in {} year(s), arriving in {}.",
-            row.fleet_number, destination[0], destination[1], years, arrival_year
-        )
     }
 }
 
@@ -1284,26 +1281,10 @@ fn format_fleet_number_for_rows(fleet_number: u16, rows: &[FleetRow]) -> String 
 }
 
 pub(super) fn fleet_eta_label(game_data: &CoreGameData, fleet_idx: usize) -> String {
-    let Some(fleet) = game_data.fleets.records.get(fleet_idx) else {
-        return "?".to_string();
-    };
-
-    if fleet.current_location_coords_raw() == fleet.standing_order_target_coords_raw() {
-        return "0".to_string();
+    match estimate_fleet_eta(game_data, fleet_idx) {
+        FleetEtaEstimate::Arrived => "0".to_string(),
+        FleetEtaEstimate::Stopped => "STOP".to_string(),
+        FleetEtaEstimate::Unreachable => "N/A".to_string(),
+        FleetEtaEstimate::Years(years) => years.to_string(),
     }
-
-    let Some(route) = plan_route(game_data, fleet_idx) else {
-        return "N/A".to_string();
-    };
-    let steps_remaining = route.steps.len().saturating_sub(1);
-    if steps_remaining == 0 {
-        return "0".to_string();
-    }
-
-    let speed = usize::from(fleet.current_speed());
-    if speed == 0 {
-        return "STOP".to_string();
-    }
-
-    steps_remaining.div_ceil(speed).to_string()
 }

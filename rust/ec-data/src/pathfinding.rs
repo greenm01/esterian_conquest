@@ -16,6 +16,14 @@ pub struct PlannedRoute {
     pub steps: Vec<RouteStep>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FleetEtaEstimate {
+    Arrived,
+    Stopped,
+    Unreachable,
+    Years(u16),
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct VisibleHazardIntel {
     /// Fixed foreign worlds known to the routing empire.
@@ -179,6 +187,51 @@ pub fn next_path_step(route: &PlannedRoute, max_steps: usize) -> Option<[u8; 2]>
     route.steps.get(idx).map(|step| step.coords)
 }
 
+pub fn estimate_fleet_eta(game_data: &CoreGameData, fleet_idx: usize) -> FleetEtaEstimate {
+    let Some(fleet) = game_data.fleets.records.get(fleet_idx) else {
+        return FleetEtaEstimate::Unreachable;
+    };
+    estimate_eta_for_route(
+        plan_route(game_data, fleet_idx),
+        fleet.current_location_coords_raw(),
+        fleet.standing_order_target_coords_raw(),
+        fleet.current_speed(),
+        decode_movement_sub_acc(fleet),
+        false,
+    )
+}
+
+pub fn estimate_fleet_eta_to_destination(
+    game_data: &CoreGameData,
+    fleet_idx: usize,
+    destination: [u8; 2],
+    include_system: bool,
+    use_max_speed_if_stopped: bool,
+) -> FleetEtaEstimate {
+    let Some(fleet) = game_data.fleets.records.get(fleet_idx) else {
+        return FleetEtaEstimate::Unreachable;
+    };
+    let current = fleet.current_location_coords_raw();
+    let speed = if fleet.current_speed() == 0 && use_max_speed_if_stopped {
+        fleet.max_speed().max(1)
+    } else {
+        fleet.current_speed()
+    };
+    let sub_acc = if fleet.current_speed() == 0 && use_max_speed_if_stopped {
+        0
+    } else {
+        decode_movement_sub_acc(fleet)
+    };
+    estimate_eta_for_route(
+        plan_route_to_destination(game_data, fleet_idx, destination),
+        current,
+        destination,
+        speed,
+        sub_acc,
+        include_system,
+    )
+}
+
 const BASE_STEP_COST: u32 = 10;
 const FOREIGN_WORLD_COST: u32 = 70;
 const FOREIGN_FLEET_COST: u32 = 55;
@@ -186,6 +239,67 @@ const STARBASE_COST: u32 = 90;
 const BLOCKADE_COST: u32 = 80;
 const HOMEWORLD_COST: u32 = 45;
 const HARD_BLOCK_COST: u32 = u32::MAX / 4;
+
+fn estimate_eta_for_route(
+    route: Option<PlannedRoute>,
+    current: [u8; 2],
+    target: [u8; 2],
+    speed: u8,
+    sub_acc_prev: u32,
+    include_system: bool,
+) -> FleetEtaEstimate {
+    if current == target {
+        return FleetEtaEstimate::Arrived;
+    }
+    if speed == 0 {
+        return FleetEtaEstimate::Stopped;
+    }
+    let Some(route) = route else {
+        return FleetEtaEstimate::Unreachable;
+    };
+    let mut steps_remaining = route.steps.len().saturating_sub(1);
+    if include_system && target != current {
+        steps_remaining += 1;
+    }
+    if steps_remaining == 0 {
+        return FleetEtaEstimate::Arrived;
+    }
+    FleetEtaEstimate::Years(simulate_eta_years(steps_remaining, speed, sub_acc_prev))
+}
+
+fn simulate_eta_years(steps_remaining: usize, speed: u8, sub_acc_prev: u32) -> u16 {
+    let mut years = 0u16;
+    let mut steps_remaining = steps_remaining;
+    let mut sub_acc = sub_acc_prev;
+    while steps_remaining > 0 {
+        years = years.saturating_add(1);
+        let sub_acc_new = sub_acc + u32::from(speed) * 8;
+        let int_move = (sub_acc_new / 9) as usize;
+        sub_acc = sub_acc_new % 9;
+        steps_remaining = steps_remaining.saturating_sub(int_move);
+    }
+    years
+}
+
+fn decode_movement_sub_acc(fleet: &FleetRecord) -> u32 {
+    if fleet.current_speed() == 0 || fleet.raw[0x0d] == 0x80 {
+        return 0;
+    }
+    let i8_val = fleet.raw[0x0f] as i8;
+    (9i32 + i8_val as i32 * 3 / 2) as u32
+}
+
+fn plan_route_to_destination(
+    game_data: &CoreGameData,
+    fleet_idx: usize,
+    destination: [u8; 2],
+) -> Option<PlannedRoute> {
+    let mut game_data = game_data.clone();
+    let fleet = game_data.fleets.records.get_mut(fleet_idx)?;
+    fleet.set_standing_order_kind(Order::MoveOnly);
+    fleet.set_standing_order_target_coords_raw(destination);
+    plan_route(&game_data, fleet_idx)
+}
 
 fn order_uses_pathfinding(order: Order) -> bool {
     matches!(

@@ -3,7 +3,8 @@ use std::path::Path;
 
 use crate::commands::runtime::load_runtime_game_data;
 use ec_compat::inspect_classic_messages_dat;
-use ec_data::{ConquestDat, CoreGameData, PlanetRecord, SetupDat};
+use ec_data::{ConquestDat, CoreGameData, FleetEtaEstimate, PlanetRecord, SetupDat};
+use ec_engine::{estimate_fleet_eta, plan_route};
 
 pub(crate) fn inspect_dir(dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let data = load_runtime_game_data(dir)?;
@@ -211,6 +212,86 @@ pub(crate) fn inspect_messages(dir: &Path) -> Result<(), Box<dyn std::error::Err
         }
     } else if let Some(preview) = inspection.raw_preview {
         println!("Raw preview: {}", preview);
+    }
+
+    Ok(())
+}
+
+pub(crate) fn inspect_fleet_movement(
+    dir: &Path,
+    fleet_record_index_1_based: usize,
+    prefer_live_directory: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let data = if prefer_live_directory {
+        CoreGameData::load(dir)?
+    } else {
+        load_runtime_game_data(dir)?
+    };
+    let Some(fleet) = data.fleets.records.get(fleet_record_index_1_based - 1) else {
+        return Err(format!("fleet record out of range: {fleet_record_index_1_based}").into());
+    };
+    let eta = estimate_fleet_eta(&data, fleet_record_index_1_based - 1);
+    let route = plan_route(&data, fleet_record_index_1_based - 1);
+    let route_coords = route
+        .as_ref()
+        .map(|route| {
+            route
+                .steps
+                .iter()
+                .map(|step| format!("{},{}", step.coords[0], step.coords[1]))
+                .collect::<Vec<_>>()
+                .join(";")
+        })
+        .unwrap_or_default();
+
+    println!("directory={}", dir.display());
+    println!(
+        "source={}",
+        if prefer_live_directory {
+            "live-dir"
+        } else {
+            "runtime"
+        }
+    );
+    println!("fleet_record={fleet_record_index_1_based}");
+    println!("fleet_id={}", fleet.fleet_id());
+    println!(
+        "coords={},{}",
+        fleet.current_location_coords_raw()[0],
+        fleet.current_location_coords_raw()[1]
+    );
+    println!(
+        "target={},{}",
+        fleet.standing_order_target_coords_raw()[0],
+        fleet.standing_order_target_coords_raw()[1]
+    );
+    println!("order={}", fleet.standing_order_kind().as_str());
+    println!("order_code={}", fleet.standing_order_code_raw());
+    println!("current_speed={}", fleet.current_speed());
+    println!("max_speed={}", fleet.max_speed());
+    println!("roe={}", fleet.rules_of_engagement());
+    println!("raw_0d={:02x}", fleet.raw[0x0d]);
+    println!("raw_0f={:02x}", fleet.raw[0x0f]);
+    println!(
+        "route_steps={}",
+        route.as_ref().map(|route| route.steps.len()).unwrap_or(0)
+    );
+    println!("route={route_coords}");
+    match eta {
+        FleetEtaEstimate::Arrived => {
+            println!("eta_status=arrived");
+            println!("eta_years=0");
+        }
+        FleetEtaEstimate::Stopped => println!("eta_status=stopped"),
+        FleetEtaEstimate::Unreachable => println!("eta_status=unreachable"),
+        FleetEtaEstimate::Years(years) => {
+            println!("eta_status=years");
+            println!("eta_years={years}");
+            println!(
+                "arrival_year={}",
+                data.conquest.game_year().saturating_add(years)
+            );
+        }
     }
 
     Ok(())

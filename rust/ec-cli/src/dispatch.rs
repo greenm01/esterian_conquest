@@ -26,7 +26,7 @@ use crate::commands::guard_starbase::{
 };
 use crate::commands::harness::run_harness_args;
 use crate::commands::inspect::{
-    dump_headers, inspect_classic_login, inspect_dir, inspect_messages,
+    dump_headers, inspect_classic_login, inspect_dir, inspect_fleet_movement, inspect_messages,
 };
 use crate::commands::ipbm::{
     init_ipbm_batch, init_ipbm_zero_records, print_ipbm_report, set_ipbm_record_prefix,
@@ -93,6 +93,30 @@ pub fn run_args(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn st
     match cmd.as_str() {
         "sysop" => run_sysop_args(args)?,
         "inspect" => inspect_dir(&next_dir(&mut args))?,
+        "inspect-fleet-movement" => {
+            let Some(dir) = args.next().map(|arg| resolve_repo_path(&arg)) else {
+                print_usage();
+                return Ok(());
+            };
+            let Some(fleet_record_index_1_based) = args.next().and_then(|arg| arg.parse().ok())
+            else {
+                print_usage();
+                return Ok(());
+            };
+            let prefer_live_directory = match args.next().as_deref() {
+                None => false,
+                Some("--live-dir") => true,
+                Some(_) => {
+                    print_usage();
+                    return Ok(());
+                }
+            };
+            if args.next().is_some() {
+                print_usage();
+                return Ok(());
+            }
+            inspect_fleet_movement(&dir, fleet_record_index_1_based, prefer_live_directory)?;
+        }
         "inspect-messages" => inspect_messages(&next_dir(&mut args))?,
         "inspect-classic-login" => {
             let dir = next_dir(&mut args);

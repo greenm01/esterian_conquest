@@ -1,7 +1,8 @@
 use ec_compat::{DatabaseDat, merge_player_intel_from_compat};
 use ec_data::Order;
 use ec_engine::{
-    GameStateBuilder, VisibleHazardIntel, plan_route, plan_route_with_intel, run_maintenance_turn,
+    FleetEtaEstimate, GameStateBuilder, VisibleHazardIntel, estimate_fleet_eta,
+    estimate_fleet_eta_to_destination, plan_route, plan_route_with_intel, run_maintenance_turn,
     run_maintenance_turn_with_visible_hazards, visible_hazard_intel_from_snapshots,
 };
 
@@ -190,5 +191,62 @@ fn maintenance_avoids_owned_world_under_known_blockade() {
     assert_ne!(
         game_data.fleets.records[0].current_location_coords_raw(),
         [4, 2]
+    );
+}
+
+#[test]
+fn fleet_eta_uses_movement_subgrid_budget_instead_of_simple_div_ceil() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3000)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw([2, 2]);
+    fleet.set_standing_order_kind(Order::MoveOnly);
+    fleet.set_standing_order_target_coords_raw([3, 2]);
+    fleet.set_current_speed(1);
+
+    assert_eq!(
+        estimate_fleet_eta(&game_data, 0),
+        FleetEtaEstimate::Years(2)
+    );
+}
+
+#[test]
+fn fleet_eta_reports_stopped_for_zero_speed_orders() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3000)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw([2, 2]);
+    fleet.set_standing_order_kind(Order::MoveOnly);
+    fleet.set_standing_order_target_coords_raw([6, 2]);
+    fleet.set_current_speed(0);
+
+    assert_eq!(estimate_fleet_eta(&game_data, 0), FleetEtaEstimate::Stopped);
+}
+
+#[test]
+fn fleet_eta_to_destination_can_use_max_speed_for_stopped_fleets() {
+    let mut game_data = GameStateBuilder::new()
+        .with_player_count(4)
+        .with_year(3000)
+        .build_initialized_baseline()
+        .expect("baseline should build");
+
+    let fleet = &mut game_data.fleets.records[0];
+    fleet.set_current_location_coords_raw([2, 2]);
+    fleet.set_standing_order_kind(Order::HoldPosition);
+    fleet.set_standing_order_target_coords_raw([2, 2]);
+    fleet.set_current_speed(0);
+
+    assert_eq!(
+        estimate_fleet_eta_to_destination(&game_data, 0, [3, 2], false, true),
+        FleetEtaEstimate::Years(1)
     );
 }

@@ -87,6 +87,32 @@ fn inspect_summarizes_core_directory_state() {
 }
 
 #[test]
+fn inspect_fleet_movement_reports_machine_readable_eta_and_route() {
+    let target = unique_temp_dir("ec-cli-inspect-fleet-movement");
+    common::copy_fixture_dir("fixtures/ecutil-init/v1.5", &target);
+
+    let stdout = run_ec_cli(&[
+        "fleet-order",
+        target.to_str().unwrap(),
+        "1",
+        "3",
+        "1",
+        "15",
+        "13",
+    ]);
+    assert!(stdout.contains("Fleet record 1 updated"));
+
+    let movement = run_ec_cli(&["inspect-fleet-movement", target.to_str().unwrap(), "1"]);
+    assert!(movement.contains("fleet_record=1"));
+    assert!(movement.contains("order=move"));
+    assert!(movement.contains("current_speed=3"));
+    assert!(movement.contains("eta_status=years"));
+    assert!(movement.contains("route="));
+
+    cleanup_dir(&target);
+}
+
+#[test]
 fn inspect_classic_login_reports_first_time_and_matched_preloaded_states() {
     let target = unique_temp_dir("ec-cli-inspect-classic-login");
     common::copy_fixture_dir("fixtures/ecutil-init/v1.5", &target);

@@ -68,7 +68,8 @@ pub use mapgen::{
     generate_map, map_size_for_player_count,
 };
 pub use pathfinding::{
-    PlannedRoute, RouteStep, VisibleHazardIntel, next_path_step, plan_route, plan_route_with_intel,
+    FleetEtaEstimate, PlannedRoute, RouteStep, VisibleHazardIntel, estimate_fleet_eta,
+    estimate_fleet_eta_to_destination, next_path_step, plan_route, plan_route_with_intel,
     visible_hazard_intel_from_snapshots,
 };
 pub use player_mail::{
