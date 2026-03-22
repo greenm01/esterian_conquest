@@ -1,4 +1,6 @@
-use crate::{CoreGameData, GameStateBuilder, GameStateMutationError, PlanetRecord};
+use crate::{
+    CoreGameData, GameRng, GameStateBuilder, GameStateMutationError, PlanetRecord, RNG_TAG_MAPGEN,
+};
 
 const REROLL_CANDIDATES: usize = 64;
 const HOMEWORLD_EDGE_MARGIN: f32 = 2.0;
@@ -89,7 +91,11 @@ pub fn generate_map(player_count: u8, seed: u64) -> GeneratedMap {
     for reroll in 0..REROLL_CANDIDATES {
         let candidate_seed =
             seed ^ ((player_count as u64) << 32) ^ ((reroll as u64) << 48) ^ 0xEC15_1000_0000_0000;
-        let mut rng = Lcg::new(candidate_seed);
+        let mut rng = GameRng::from_context(
+            seed,
+            RNG_TAG_MAPGEN,
+            &[player_count as u64, reroll as u64, candidate_seed],
+        );
         let homeworld_coords = generate_homeworlds(player_count, map_size, &mut rng);
         let neutral_worlds = generate_neutral_worlds(
             player_count,
@@ -129,7 +135,7 @@ pub fn map_size_for_player_count(player_count: u8) -> u8 {
     }
 }
 
-fn generate_homeworlds(player_count: u8, map_size: u8, rng: &mut Lcg) -> Vec<[u8; 2]> {
+fn generate_homeworlds(player_count: u8, map_size: u8, rng: &mut GameRng) -> Vec<[u8; 2]> {
     let min_distance_sq = (map_size as f32 * HOMEWORLD_MIN_DISTANCE_RATIO).powi(2);
     let regions = homeworld_regions(player_count, map_size);
     let mut homeworlds = Vec::with_capacity(player_count as usize);
@@ -175,7 +181,7 @@ fn generate_neutral_worlds(
     seed: u64,
     reroll: u32,
     homeworlds: &[[u8; 2]],
-    rng: &mut Lcg,
+    rng: &mut GameRng,
 ) -> Vec<GeneratedWorld> {
     let total_neutrals = player_count as usize * 4;
     let local_count = player_count as usize * LOCAL_WORLD_COUNT_PER_PLAYER;
@@ -220,7 +226,7 @@ fn choose_local_world(
     reroll: u32,
     homeworlds: &[[u8; 2]],
     used: &[[u8; 2]],
-    rng: &mut Lcg,
+    rng: &mut GameRng,
 ) -> [u8; 2] {
     let mut best = None;
     let mut best_score = f32::MIN;
@@ -266,7 +272,7 @@ fn choose_frontier_world(
     homeworlds: &[[u8; 2]],
     existing_worlds: &[GeneratedWorld],
     used: &[[u8; 2]],
-    rng: &mut Lcg,
+    rng: &mut GameRng,
 ) -> [u8; 2] {
     let mut best = None;
     let mut best_score = f32::MIN;
@@ -355,7 +361,7 @@ fn local_potential(seed: u64, reroll: u32, home_idx: usize, slot: usize) -> u8 {
     (base + wobble).min(99)
 }
 
-fn frontier_potentials(count: usize, rng: &mut Lcg) -> Vec<u8> {
+fn frontier_potentials(count: usize, rng: &mut GameRng) -> Vec<u8> {
     let mut values = Vec::with_capacity(count);
     if count == 0 {
         return values;
@@ -558,11 +564,7 @@ fn minimum_pair_distance(coords: &[[u8; 2]]) -> f32 {
             min = min.min(distance(coords[left], coords[right]));
         }
     }
-    if min.is_finite() {
-        min
-    } else {
-        0.0
-    }
+    if min.is_finite() { min } else { 0.0 }
 }
 
 fn nearest_used_distance(candidate: [u8; 2], used: &[[u8; 2]]) -> f32 {
@@ -699,11 +701,6 @@ fn fallback_frontier_world(map_size: u8, used: &[[u8; 2]]) -> [u8; 2] {
     [center, center]
 }
 
-#[derive(Debug, Clone)]
-struct Lcg {
-    state: u64,
-}
-
 #[derive(Debug, Clone, Copy)]
 struct HomeworldRegion {
     min: [u8; 2],
@@ -714,8 +711,8 @@ struct HomeworldRegion {
 #[cfg(test)]
 mod tests {
     use super::{
-        frontier_world_edge_bias, local_world_edge_bias, map_size_for_player_count,
-        NEUTRAL_EDGE_RING_THRESHOLD,
+        NEUTRAL_EDGE_RING_THRESHOLD, frontier_world_edge_bias, local_world_edge_bias,
+        map_size_for_player_count,
     };
 
     #[test]
@@ -841,36 +838,4 @@ fn grid_homeworld_regions(player_count: usize, low: u8, high: u8) -> Vec<Homewor
     }
 
     regions
-}
-
-impl Lcg {
-    fn new(seed: u64) -> Self {
-        Self {
-            state: seed.wrapping_mul(6364136223846793005).wrapping_add(1),
-        }
-    }
-
-    fn next_u32(&mut self) -> u32 {
-        self.state = self
-            .state
-            .wrapping_mul(6364136223846793005)
-            .wrapping_add(1442695040888963407);
-        (self.state >> 32) as u32
-    }
-
-    fn next_u8(&mut self) -> u8 {
-        (self.next_u32() & 0xFF) as u8
-    }
-
-    fn next_f32(&mut self) -> f32 {
-        self.next_u32() as f32 / u32::MAX as f32
-    }
-
-    fn range_u8(&mut self, min: u8, max: u8) -> u8 {
-        if min >= max {
-            return min;
-        }
-        let span = max - min + 1;
-        min + (self.next_u8() % span)
-    }
 }

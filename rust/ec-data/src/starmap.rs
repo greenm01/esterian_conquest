@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::{map_size_for_player_count, CoreGameData, PlanetIntelSnapshot};
+use crate::{CoreGameData, PlanetIntelSnapshot, map_size_for_player_count};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlayerStarmapWorld {
@@ -238,9 +238,7 @@ pub fn build_player_starmap_projection_from_snapshots(
             let actual_owner_empire_id = planet.owner_empire_slot_raw();
             let is_owned_world = actual_owner_empire_id == viewer_empire_id;
             let known_name = if is_owned_world {
-                snapshot
-                    .and_then(|row| row.known_name.clone())
-                    .or_else(|| Some(planet.status_or_name_summary()))
+                Some(planet.status_or_name_summary())
             } else {
                 snapshot.and_then(|row| row.known_name.clone())
             };
@@ -249,8 +247,11 @@ pub fn build_player_starmap_projection_from_snapshots(
             } else {
                 snapshot.and_then(|row| row.known_owner_empire_id)
             };
-            let known_owner_empire_name = known_owner_empire_id.map(|empire_id| {
-                game_data.player.records[empire_id as usize - 1].controlled_empire_name_summary()
+            let known_owner_empire_name = known_owner_empire_id.and_then(|empire_id| {
+                (empire_id >= 1).then(|| {
+                    game_data.player.records[empire_id as usize - 1]
+                        .controlled_empire_name_summary()
+                })
             });
 
             PlayerStarmapWorld {
@@ -260,37 +261,27 @@ pub fn build_player_starmap_projection_from_snapshots(
                 known_owner_empire_id,
                 known_owner_empire_name,
                 known_potential_production: if is_owned_world {
-                    snapshot
-                        .and_then(|row| row.known_potential_production)
-                        .or_else(|| Some(planet.potential_production_points()))
+                    Some(planet.potential_production_points())
                 } else {
                     snapshot.and_then(|row| row.known_potential_production)
                 },
                 known_armies: if is_owned_world {
-                    snapshot
-                        .and_then(|row| row.known_armies)
-                        .or_else(|| Some(planet.army_count_raw()))
+                    Some(planet.army_count_raw())
                 } else {
                     snapshot.and_then(|row| row.known_armies)
                 },
                 known_ground_batteries: if is_owned_world {
-                    snapshot
-                        .and_then(|row| row.known_ground_batteries)
-                        .or_else(|| Some(planet.ground_batteries_raw()))
+                    Some(planet.ground_batteries_raw())
                 } else {
                     snapshot.and_then(|row| row.known_ground_batteries)
                 },
                 known_current_production: if is_owned_world {
-                    snapshot
-                        .and_then(|row| row.known_current_production)
-                        .or_else(|| planet.present_production_points().map(|v| v as u8))
+                    planet.present_production_points().map(|v| v as u8)
                 } else {
                     snapshot.and_then(|row| row.known_current_production)
                 },
                 known_stored_points: if is_owned_world {
-                    snapshot
-                        .and_then(|row| row.known_stored_points)
-                        .or_else(|| Some(planet.stored_goods_raw() as u16))
+                    Some(planet.stored_goods_raw() as u16)
                 } else {
                     snapshot.and_then(|row| row.known_stored_points)
                 },

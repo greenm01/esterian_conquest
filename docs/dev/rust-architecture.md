@@ -53,12 +53,24 @@ It is responsible for:
 - yearly maintenance behavior under `maint/`
 - economy, movement/pathfinding, setup/map generation, starmap projection, and
   player-mail helpers
-- import/export logic between classic directories and Rust runtime state
+- SQLite runtime persistence and snapshot/history loading
 - shared validators, normalizers, and typed rule helpers used by more than one
   frontend
 
-`ec-data` is the only crate that should know classic byte-level `.DAT`
-semantics in depth.
+`ec-data` should stay focused on runtime/state semantics rather than owning the
+normal classic import/export workflow.
+
+### `ec-compat`
+
+`ec-compat` owns the explicit classic compatibility boundary.
+
+It is responsible for:
+
+- importing classic directories into normalized SQLite runtime state
+- exporting normalized SQLite snapshots back to classic `.DAT` directories
+- classic report/database projection helpers used only for oracle and hybrid
+  workflows
+- keeping classic file handling out of normal engine/client code
 
 ### `ec-cli`
 
@@ -111,6 +123,8 @@ rust/
 │   ├── src/maint/     # yearly maintenance subphases
 │   ├── src/storage.rs # SQLite campaign store + snapshot bridge
 │   └── other focused engine/support modules
+├── ec-compat
+│   └── src/          # classic import/export and compat projections
 ├── ec-cli
 │   ├── src/commands/  # sysop/oracle/runtime/admin workflows
 │   └── src/support/   # shared CLI helpers
@@ -210,9 +224,9 @@ Practical rule:
   runtime state
 - explicit compatibility paths such as `db-export`, scenario materialization,
   and oracle setup are the only places that should intentionally write classic
-  `.DAT` outputs
+  `.DAT` outputs, normally through `ec-compat`
 - explicit import paths such as `db-import` are the only places that should
-  rebuild runtime state from a classic directory
+  rebuild runtime state from a classic directory, normally through `ec-compat`
 - read-only inspection/report commands must not create or update `ecgame.db`
   as a side effect
 - SQLite is the runtime source of truth; classic files remain the compatibility

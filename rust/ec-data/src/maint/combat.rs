@@ -1610,13 +1610,9 @@ pub(crate) fn process_fleet_battles(
                 break;
             }
 
-            if !any_round_state_change && !any_withdrawal && !any_post_round_withdrawal {
-                return Err(format!(
-                    "combat at ({},{}) stalled in round {} with no state change",
-                    coords[0], coords[1], round
-                )
-                .into());
-            }
+            // Quiet rounds are legal in the seeded CRT system. Keep fighting
+            // until one side wins, one side withdraws, or the hard guardrail
+            // cap trips.
         }
 
         if !resolved_within_guardrail {

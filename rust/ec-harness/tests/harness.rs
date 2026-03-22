@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use ec_harness::{
-    build_scenario, run_combat_scenario, run_combat_sweep, CombatScenarioSpec, CombatSweepSpec,
-    ScenarioSpec,
+    CombatScenarioSpec, CombatSweepSpec, ScenarioSpec, build_scenario, run_combat_scenario,
+    run_combat_sweep,
 };
 
 fn unique_temp_dir(prefix: &str) -> PathBuf {

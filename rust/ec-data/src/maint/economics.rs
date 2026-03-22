@@ -1,6 +1,6 @@
 use crate::{
-    build_capacity, yearly_growth_delta, yearly_high_tax_penalty, yearly_tax_revenue, CoreGameData,
-    ProductionItemKind,
+    CoreGameData, ProductionItemKind, build_capacity, yearly_growth_delta, yearly_high_tax_penalty,
+    yearly_tax_revenue,
 };
 
 /// Process build queue completion for all planets.

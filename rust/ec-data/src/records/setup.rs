@@ -1,5 +1,5 @@
-use crate::support::{copy_array, expect_size, ParseError};
 use crate::SETUP_DAT_SIZE;
+use crate::support::{ParseError, copy_array, expect_size};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SetupDat {

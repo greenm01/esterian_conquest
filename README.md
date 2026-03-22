@@ -24,6 +24,7 @@ The immediate goal is a modern drop-in replacement for the classic door stack,
 with:
 
 - a canonical Rust game engine with SQLite-native runtime state
+- an explicit `ec-compat` classic file bridge for oracle import/export
 - a Rust sysop/admin/oracle toolchain
 - a Rust player client intended to replace `ECGAME`
 
@@ -95,6 +96,7 @@ If you want to jump in immediately, start with [Quick Start](#quick-start).
 The project is moving toward a full Rust-first Esterian Conquest stack:
 
 - `ec-data` as the canonical game engine and state model
+- `ec-compat` as the explicit classic `.DAT` import/export boundary
 - `maint-rust` as the normal turn processor
 - `ec-client` as the normal player interface
 - classic `.DAT` import/export as a compatibility boundary instead of the core
@@ -207,8 +209,9 @@ cargo run -q -p ec-cli -- maint-rust /tmp/ec-game 3
 directories are imported/exported through the CLI compatibility bridge.
 `maint-rust` does not project the latest snapshot back into the working
 directory automatically. Use `db-export` when you intentionally want classic
-`.DAT` output for oracle runs or DOS `ECGAME`, and use `db-import` if classic
-tools changed the directory and you want SQLite to pick up those edits.
+`.DAT` output through the explicit compatibility bridge for oracle runs or DOS
+`ECGAME`, and use `db-import` if classic tools changed the directory and you
+want SQLite to pick up those edits.
 
 Run the original oracle against that directory:
 

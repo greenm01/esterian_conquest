@@ -361,25 +361,23 @@ impl App {
                 .get(&world.planet_record_index_1_based);
             let intel_label = planet_database_intel_label(intel_snapshot, &world);
             let owner_label = world
-                .known_owner_empire_name
-                .as_deref()
-                .filter(|name| !name.is_empty())
-                .map(str::to_string)
-                .or_else(|| {
-                    world
-                        .known_owner_empire_id
-                        .map(|empire_id| format!("Empire {:02}", empire_id))
-                })
+                .known_owner_empire_id
+                .map(|id| format!("#{}", id))
+                .unwrap_or_else(|| "?".to_string());
+            let year_label = intel_snapshot
+                .and_then(|snapshot| snapshot.last_intel_year)
+                .map(|year| year.to_string())
                 .unwrap_or_else(|| "?".to_string());
             PlanetDatabaseRow {
                 planet_record_index_1_based: world.planet_record_index_1_based,
                 coords: world.coords,
                 name_label: world.known_name.unwrap_or_else(|| "?".to_string()),
                 owner_label,
-                potential_label: world
+                max_prod_label: world
                     .known_potential_production
                     .map(|value| value.to_string())
                     .unwrap_or_else(|| "?".to_string()),
+                year_seen_label: year_label.clone(),
                 armies_label: world
                     .known_armies
                     .map(|value| value.to_string())
@@ -388,10 +386,15 @@ impl App {
                     .known_ground_batteries
                     .map(|value| value.to_string())
                     .unwrap_or_else(|| "?".to_string()),
-                last_intel_year_label: intel_snapshot
-                    .and_then(|snapshot| snapshot.last_intel_year)
-                    .map(|year| year.to_string())
+                current_prod_label: world
+                    .known_current_production
+                    .map(|value| value.to_string())
                     .unwrap_or_else(|| "?".to_string()),
+                stored_points_label: world
+                    .known_stored_points
+                    .map(|value| value.to_string())
+                    .unwrap_or_else(|| "?".to_string()),
+                year_scout_label: year_label,
                 intel_label,
             }
         })

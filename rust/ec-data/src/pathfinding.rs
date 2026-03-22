@@ -2,8 +2,8 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, BinaryHeap, HashMap, HashSet};
 
 use crate::{
-    build_player_starmap_projection_from_snapshots, map_size_for_player_count, CoreGameData,
-    FleetRecord, Order, PlanetIntelSnapshot,
+    CoreGameData, FleetRecord, Order, PlanetIntelSnapshot,
+    build_player_starmap_projection_from_snapshots, map_size_for_player_count,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -82,7 +82,7 @@ pub fn visible_hazard_intel_from_snapshots(
         let Some(owner_raw) = world.known_owner_empire_id else {
             continue;
         };
-        if owner_raw == viewer_empire_raw {
+        if owner_raw == 0 || owner_raw == viewer_empire_raw {
             continue;
         }
 

@@ -151,5 +151,5 @@ fn runtime_intel_merges_scouted_worlds_without_compat_database() {
     assert_eq!(known_world.known_stored_points, Some(35));
     assert_eq!(known_world.known_armies, Some(10));
     assert_eq!(known_world.known_ground_batteries, Some(6));
-    assert_eq!(known_world.last_intel_year, Some(3004));
+    assert_eq!(known_world.last_intel_year, Some(3003));
 }

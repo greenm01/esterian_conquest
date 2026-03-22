@@ -25,6 +25,8 @@ The SQLite-first runtime split is now in place:
 - harness scenario save/load now stays on structured report blocks and queued
   mail for normal runtime snapshots; classic review bytes are only materialized
   on explicit compat/export paths
+- `ec-compat` now owns the explicit classic directory import/export bridge; the
+  normal `CampaignStore` runtime API is structured-only
 - compat-aware `DATABASE.DAT` save/export is still CLI-owned for oracle and
   classic materialization flows; `ec-client` no longer loads `DatabaseDat`
   through the runtime state surface

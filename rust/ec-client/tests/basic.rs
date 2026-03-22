@@ -3,6 +3,7 @@ use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, path::Path};
 
+use ec_compat::import_directory_snapshot;
 use ec_data::CampaignStore;
 
 fn repo_root() -> PathBuf {
@@ -19,10 +20,8 @@ fn temp_fixture_copy() -> PathBuf {
             .as_nanos()
     ));
     copy_dir_all(&repo_root().join("fixtures/ecutil-init/v1.5"), &root);
-    CampaignStore::open_default_in_dir(&root)
-        .expect("open campaign store")
-        .import_directory_snapshot(&root)
-        .expect("seed sqlite snapshot");
+    let store = CampaignStore::open_default_in_dir(&root).expect("open campaign store");
+    import_directory_snapshot(&store, &root).expect("seed sqlite snapshot");
     root
 }
 

@@ -1,8 +1,8 @@
 use std::time::Instant;
 
-use ec_data::{run_maintenance_turn, CoreGameData};
+use ec_data::{CoreGameData, run_maintenance_turn};
 
-use crate::build::{build_scenario, BuiltScenario, ScenarioBuildReport};
+use crate::build::{BuiltScenario, ScenarioBuildReport, build_scenario};
 use crate::error::HarnessError;
 use crate::spec::{
     CombatScenarioSpec, CombatSweepSpec, DiplomacySpec, FleetShipsSpec, PlanetSpec, ScenarioSpec,

@@ -1,15 +1,14 @@
 use std::collections::BTreeMap;
-use std::fs;
 use std::path::{Path, PathBuf};
 
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::{
-    decode_report_block_rows, extract_player_intel_from_compat_database, generate_campaign_seed,
-    merge_player_intel_from_runtime, rebuild_results_bytes, BaseDat, CoreGameData, DatabaseDat,
-    FleetDat, IpbmDat, PlanetDat, PlayerDat, QueuedPlayerMail, ReportBlockRow, SetupDat,
-    BASE_RECORD_SIZE, DATABASE_RECORD_SIZE, FLEET_RECORD_SIZE, IPBM_RECORD_SIZE,
-    PLANET_RECORD_SIZE, PLAYER_RECORD_SIZE,
+    BASE_RECORD_SIZE, BaseDat, CoreGameData, DatabaseDat, FLEET_RECORD_SIZE, FleetDat,
+    IPBM_RECORD_SIZE, IpbmDat, PLANET_RECORD_SIZE, PLAYER_RECORD_SIZE, PlanetDat, PlayerDat,
+    QueuedPlayerMail, ReportBlockRow, SetupDat, derive_campaign_seed_from_runtime,
+    extract_player_intel_from_compat_database, generate_campaign_seed,
+    merge_player_intel_from_runtime,
 };
 
 pub const DEFAULT_CAMPAIGN_DB_NAME: &str = "ecgame.db";
@@ -20,7 +19,6 @@ const BASE_RECORD_FIELDS_TABLE: &str = "base_record_fields";
 const IPBM_RECORD_FIELDS_TABLE: &str = "ipbm_record_fields";
 const SETUP_RECORD_FIELDS_TABLE: &str = "setup_record_fields";
 const CONQUEST_RECORD_FIELDS_TABLE: &str = "conquest_record_fields";
-const COMPAT_DATABASE_RECORD_FIELDS_TABLE: &str = "compat_database_record_fields";
 
 #[derive(Debug)]
 pub enum CampaignStoreError {
@@ -45,7 +43,10 @@ pub enum IntelTier {
 pub struct PlanetIntelSnapshot {
     pub planet_record_index_1_based: usize,
     pub intel_tier: IntelTier,
+    pub compat_is_orbit_seed: bool,
     pub last_intel_year: Option<u16>,
+    pub seen_year: Option<u16>,
+    pub scout_year: Option<u16>,
     pub known_name: Option<String>,
     pub known_owner_empire_id: Option<u8>,
     pub known_potential_production: Option<u16>,
@@ -53,6 +54,7 @@ pub struct PlanetIntelSnapshot {
     pub known_ground_batteries: Option<u8>,
     pub known_current_production: Option<u8>,
     pub known_stored_points: Option<u16>,
+    pub compat_word_1e: Option<u16>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -149,73 +151,6 @@ impl CampaignStore {
         &self.path
     }
 
-    pub fn import_directory_snapshot(&self, dir: &Path) -> Result<i64, CampaignStoreError> {
-        self.import_directory_snapshot_with_seed(dir, None)
-    }
-
-    pub fn import_directory_snapshot_with_seed(
-        &self,
-        dir: &Path,
-        campaign_seed: Option<u64>,
-    ) -> Result<i64, CampaignStoreError> {
-        let game_data = CoreGameData::load(dir)?;
-        let database = load_database_snapshot_or_default(dir, &game_data)?;
-        let results_bytes = read_optional_path(dir.join("RESULTS.DAT"))?;
-        let queued_mail = load_mail_queue_file(dir)?;
-        let report_block_rows = decode_report_block_rows(&results_bytes);
-        let planet_intel_by_viewer = extract_player_intel_from_compat_database(
-            &game_data,
-            &database,
-            game_data.conquest.game_year(),
-        );
-        self.save_runtime_state_internal(
-            &game_data,
-            &report_block_rows,
-            &queued_mail,
-            Some(&planet_intel_by_viewer),
-            Some(&database),
-            campaign_seed,
-        )
-    }
-
-    pub fn export_latest_snapshot_to_dir(&self, dir: &Path) -> Result<u16, CampaignStoreError> {
-        let mut conn = self.connection()?;
-        let Some((snapshot_id, year)) = latest_snapshot_id_and_year(&mut conn)? else {
-            return Ok(0);
-        };
-        self.export_snapshot_to_dir(snapshot_id, dir)?;
-        Ok(year)
-    }
-
-    pub fn export_snapshot_to_dir(
-        &self,
-        snapshot_id: i64,
-        dir: &Path,
-    ) -> Result<(), CampaignStoreError> {
-        fs::create_dir_all(dir).map_err(|source| CampaignStoreError::Io {
-            path: dir.to_path_buf(),
-            source,
-        })?;
-        let mut conn = self.connection()?;
-        let game_data = load_snapshot_game_data(&mut conn, snapshot_id)?;
-        game_data.save(dir)?;
-        if let Some(database) = load_compat_database_rows(&mut conn, snapshot_id)? {
-            write_path(dir.join("DATABASE.DAT"), &database.to_bytes())?;
-        }
-        // RESULTS.DAT: rebuild from report_blocks
-        let report_rows = load_all_report_block_rows(&mut conn, snapshot_id)?;
-        let active: Vec<_> = report_rows
-            .iter()
-            .filter(|r| !r.recipient_deleted)
-            .cloned()
-            .collect();
-        let results_bytes = rebuild_results_bytes(&active).unwrap_or_default();
-        write_path(dir.join("RESULTS.DAT"), &results_bytes)?;
-        // MESSAGES.DAT: empty (messages live in queued_mail / runtime state)
-        write_path(dir.join("MESSAGES.DAT"), &[])?;
-        Ok(())
-    }
-
     pub fn latest_planet_intel_for_viewer(
         &self,
         viewer_empire_id: u8,
@@ -225,10 +160,11 @@ impl CampaignStore {
             return Ok(Vec::new());
         };
         let mut stmt = conn.prepare(
-            "SELECT planet_record_index, intel_tier, last_intel_year,
+            "SELECT planet_record_index, intel_tier, compat_is_orbit_seed, last_intel_year,
+                    seen_year, scout_year,
                     known_name, known_owner_empire_id, known_potential_production,
                     known_armies, known_ground_batteries,
-                    known_current_production, known_stored_points
+                    known_current_production, known_stored_points, compat_word_1e
              FROM planet_intel
              WHERE snapshot_id = ?1 AND viewer_empire_id = ?2
              ORDER BY planet_record_index",
@@ -238,18 +174,22 @@ impl CampaignStore {
                 Ok(PlanetIntelSnapshot {
                     planet_record_index_1_based: row.get::<_, i64>(0)? as usize,
                     intel_tier: IntelTier::from_str(&row.get::<_, String>(1)?),
-                    last_intel_year: row.get::<_, Option<i64>>(2)?.map(|value| value as u16),
-                    known_name: row.get(3)?,
-                    known_owner_empire_id: row.get::<_, Option<i64>>(4)?.map(|value| value as u8),
+                    compat_is_orbit_seed: row.get::<_, i64>(2)? != 0,
+                    last_intel_year: row.get::<_, Option<i64>>(3)?.map(|value| value as u16),
+                    seen_year: row.get::<_, Option<i64>>(4)?.map(|value| value as u16),
+                    scout_year: row.get::<_, Option<i64>>(5)?.map(|value| value as u16),
+                    known_name: row.get(6)?,
+                    known_owner_empire_id: row.get::<_, Option<i64>>(7)?.map(|value| value as u8),
                     known_potential_production: row
-                        .get::<_, Option<i64>>(5)?
-                        .map(|value| value as u16),
-                    known_armies: row.get::<_, Option<i64>>(6)?.map(|value| value as u8),
-                    known_ground_batteries: row.get::<_, Option<i64>>(7)?.map(|value| value as u8),
-                    known_current_production: row
                         .get::<_, Option<i64>>(8)?
+                        .map(|value| value as u16),
+                    known_armies: row.get::<_, Option<i64>>(9)?.map(|value| value as u8),
+                    known_ground_batteries: row.get::<_, Option<i64>>(10)?.map(|value| value as u8),
+                    known_current_production: row
+                        .get::<_, Option<i64>>(11)?
                         .map(|value| value as u8),
-                    known_stored_points: row.get::<_, Option<i64>>(9)?.map(|value| value as u16),
+                    known_stored_points: row.get::<_, Option<i64>>(12)?.map(|value| value as u16),
+                    compat_word_1e: row.get::<_, Option<i64>>(13)?.map(|value| value as u16),
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?;
@@ -261,6 +201,45 @@ impl CampaignStore {
         Ok(latest_snapshot_id_and_year(&mut conn)?.is_some())
     }
 
+    pub fn latest_snapshot_metadata(&self) -> Result<Option<(i64, u16)>, CampaignStoreError> {
+        let mut conn = self.connection()?;
+        latest_snapshot_id_and_year(&mut conn)
+    }
+
+    pub fn load_snapshot_game_data(
+        &self,
+        snapshot_id: i64,
+    ) -> Result<CoreGameData, CampaignStoreError> {
+        let mut conn = self.connection()?;
+        load_snapshot_game_data(&mut conn, snapshot_id)
+    }
+
+    pub fn load_snapshot_planet_intel_by_viewer(
+        &self,
+        snapshot_id: i64,
+        player_count: u8,
+    ) -> Result<Vec<BTreeMap<usize, PlanetIntelSnapshot>>, CampaignStoreError> {
+        let mut conn = self.connection()?;
+        load_planet_intel_by_viewer(&mut conn, snapshot_id, player_count)
+    }
+
+    pub fn load_snapshot_report_block_rows(
+        &self,
+        snapshot_id: i64,
+        include_deleted: bool,
+    ) -> Result<Vec<ReportBlockRow>, CampaignStoreError> {
+        let mut conn = self.connection()?;
+        load_report_block_rows_filtered(&mut conn, snapshot_id, include_deleted)
+    }
+
+    pub fn load_snapshot_queued_mail(
+        &self,
+        snapshot_id: i64,
+    ) -> Result<Vec<QueuedPlayerMail>, CampaignStoreError> {
+        let mut conn = self.connection()?;
+        load_queued_mail_rows(&mut conn, snapshot_id)
+    }
+
     pub fn load_latest_runtime_state(
         &self,
     ) -> Result<Option<CampaignRuntimeState>, CampaignStoreError> {
@@ -268,14 +247,16 @@ impl CampaignStore {
         let Some((snapshot_id, game_year)) = latest_snapshot_id_and_year(&mut conn)? else {
             return Ok(None);
         };
-        let stored_campaign_seed = load_campaign_seed(&mut conn)?;
-        let campaign_seed = stored_campaign_seed.unwrap_or_else(generate_campaign_seed);
-        if stored_campaign_seed.is_none() {
-            persist_campaign_seed(&mut conn, campaign_seed)?;
-        }
         let game_data = load_snapshot_game_data(&mut conn, snapshot_id)?;
         let report_block_rows = load_report_block_rows(&mut conn, snapshot_id)?;
         let queued_mail = load_queued_mail_rows(&mut conn, snapshot_id)?;
+        let stored_campaign_seed = load_campaign_seed(&mut conn)?;
+        let campaign_seed = stored_campaign_seed.unwrap_or_else(|| {
+            derive_campaign_seed_from_runtime(&game_data, &report_block_rows, &queued_mail)
+        });
+        if stored_campaign_seed.is_none() {
+            persist_campaign_seed(&mut conn, campaign_seed)?;
+        }
         Ok(Some(CampaignRuntimeState {
             snapshot_id,
             game_year,
@@ -286,52 +267,13 @@ impl CampaignStore {
         }))
     }
 
-    pub fn load_latest_compat_database(&self) -> Result<Option<DatabaseDat>, CampaignStoreError> {
-        let mut conn = self.connection()?;
-        let Some((snapshot_id, _)) = latest_snapshot_id_and_year(&mut conn)? else {
-            return Ok(None);
-        };
-        load_compat_database_rows(&mut conn, snapshot_id)
-    }
-
-    pub fn save_runtime_state(
-        &self,
-        game_data: &CoreGameData,
-        database: &DatabaseDat,
-        results_bytes: &[u8],
-        _messages_bytes: &[u8],
-        queued_mail: &[QueuedPlayerMail],
-    ) -> Result<i64, CampaignStoreError> {
-        let report_block_rows = decode_report_block_rows(results_bytes);
-        let planet_intel_by_viewer = extract_player_intel_from_compat_database(
-            game_data,
-            database,
-            game_data.conquest.game_year(),
-        );
-        self.save_runtime_state_internal(
-            game_data,
-            &report_block_rows,
-            queued_mail,
-            Some(&planet_intel_by_viewer),
-            Some(database),
-            None,
-        )
-    }
-
     pub fn save_runtime_state_structured(
         &self,
         game_data: &CoreGameData,
         report_block_rows: &[ReportBlockRow],
         queued_mail: &[QueuedPlayerMail],
     ) -> Result<i64, CampaignStoreError> {
-        self.save_runtime_state_internal(
-            game_data,
-            report_block_rows,
-            queued_mail,
-            None,
-            None,
-            None,
-        )
+        self.save_runtime_state_internal(game_data, report_block_rows, queued_mail, None, None)
     }
 
     pub fn save_runtime_state_structured_with_intel(
@@ -341,48 +283,29 @@ impl CampaignStore {
         queued_mail: &[QueuedPlayerMail],
         planet_intel_by_viewer: &[BTreeMap<usize, PlanetIntelSnapshot>],
     ) -> Result<i64, CampaignStoreError> {
-        self.save_runtime_state_internal(
+        self.save_runtime_state_structured_with_intel_and_seed(
             game_data,
             report_block_rows,
             queued_mail,
-            Some(planet_intel_by_viewer),
-            None,
+            planet_intel_by_viewer,
             None,
         )
     }
 
-    pub fn save_runtime_state_structured_with_intel_and_compat(
+    pub fn save_runtime_state_structured_with_intel_and_seed(
         &self,
         game_data: &CoreGameData,
         report_block_rows: &[ReportBlockRow],
         queued_mail: &[QueuedPlayerMail],
         planet_intel_by_viewer: &[BTreeMap<usize, PlanetIntelSnapshot>],
-        database: &DatabaseDat,
+        campaign_seed: Option<u64>,
     ) -> Result<i64, CampaignStoreError> {
         self.save_runtime_state_internal(
             game_data,
             report_block_rows,
             queued_mail,
             Some(planet_intel_by_viewer),
-            Some(database),
-            None,
-        )
-    }
-
-    pub fn save_runtime_state_structured_with_compat(
-        &self,
-        game_data: &CoreGameData,
-        report_block_rows: &[ReportBlockRow],
-        queued_mail: &[QueuedPlayerMail],
-        database: &DatabaseDat,
-    ) -> Result<i64, CampaignStoreError> {
-        self.save_runtime_state_internal(
-            game_data,
-            report_block_rows,
-            queued_mail,
-            None,
-            Some(database),
-            None,
+            campaign_seed,
         )
     }
 
@@ -392,7 +315,6 @@ impl CampaignStore {
         report_block_rows: &[ReportBlockRow],
         queued_mail: &[QueuedPlayerMail],
         planet_intel_by_viewer_override: Option<&[BTreeMap<usize, PlanetIntelSnapshot>]>,
-        compat_database_override: Option<&DatabaseDat>,
         campaign_seed_override: Option<u64>,
     ) -> Result<i64, CampaignStoreError> {
         let year = game_data.conquest.game_year();
@@ -413,14 +335,6 @@ impl CampaignStore {
             load_intel_rows(&tx, previous_snapshot_id)?
         } else {
             BTreeMap::new()
-        };
-        let previous_compat_database = if compat_database_override.is_none() {
-            previous_snapshot_id
-                .map(|snapshot_id| load_compat_database_rows_tx(&tx, snapshot_id))
-                .transpose()?
-                .flatten()
-        } else {
-            None
         };
         tx.execute(
             "DELETE FROM snapshots WHERE game_year = ?1",
@@ -480,15 +394,6 @@ impl CampaignStore {
             &game_data.conquest.to_bytes(),
             crate::CONQUEST_DAT_SIZE,
         )?;
-        if let Some(database) = compat_database_override.or(previous_compat_database.as_ref()) {
-            write_typed_record_rows(
-                &tx,
-                COMPAT_DATABASE_RECORD_FIELDS_TABLE,
-                snapshot_id,
-                &database.to_bytes(),
-                DATABASE_RECORD_SIZE,
-            )?;
-        }
         write_report_block_rows(&tx, snapshot_id, report_block_rows)?;
         write_queued_mail_rows(&tx, snapshot_id, queued_mail)?;
 
@@ -521,7 +426,10 @@ impl CampaignStore {
                  viewer_empire_id INTEGER NOT NULL,
                  planet_record_index INTEGER NOT NULL,
                  intel_tier TEXT NOT NULL,
+                 compat_is_orbit_seed INTEGER NOT NULL DEFAULT 0,
                  last_intel_year INTEGER,
+                 seen_year INTEGER,
+                 scout_year INTEGER,
                  known_name TEXT,
                  known_owner_empire_id INTEGER,
                  known_potential_production INTEGER,
@@ -529,6 +437,7 @@ impl CampaignStore {
                  known_ground_batteries INTEGER,
                  known_current_production INTEGER,
                  known_stored_points INTEGER,
+                 compat_word_1e INTEGER,
                  PRIMARY KEY(snapshot_id, viewer_empire_id, planet_record_index)
              );
              CREATE TABLE IF NOT EXISTS queued_mail (
@@ -558,12 +467,11 @@ impl CampaignStore {
         create_typed_record_table(&conn, IPBM_RECORD_FIELDS_TABLE)?;
         create_typed_record_table(&conn, SETUP_RECORD_FIELDS_TABLE)?;
         create_typed_record_table(&conn, CONQUEST_RECORD_FIELDS_TABLE)?;
-        create_typed_record_table(&conn, COMPAT_DATABASE_RECORD_FIELDS_TABLE)?;
         migrate_legacy_report_blocks_table(&mut conn)?;
         ensure_queued_mail_recipient_deleted_column(&conn)?;
-        ensure_planet_intel_production_columns(&conn)?;
+        ensure_planet_intel_projection_columns(&conn)?;
         migrate_legacy_blob_record_tables(&mut conn)?;
-        migrate_legacy_compat_files(&mut conn)?;
+        migrate_legacy_compat_tables(&mut conn)?;
         Ok(())
     }
 
@@ -669,7 +577,9 @@ fn migrate_legacy_record_table(
              VALUES (?1, ?2, ?3, ?4)"
         );
         let select_sql = if has_record_index {
-            format!("SELECT snapshot_id, record_index, raw FROM {old_table} ORDER BY snapshot_id, record_index")
+            format!(
+                "SELECT snapshot_id, record_index, raw FROM {old_table} ORDER BY snapshot_id, record_index"
+            )
         } else {
             format!("SELECT snapshot_id, raw FROM {old_table} ORDER BY snapshot_id")
         };
@@ -788,63 +698,131 @@ fn migrate_legacy_report_blocks_table(conn: &mut Connection) -> Result<(), Campa
     Ok(())
 }
 
+fn migrate_legacy_compat_tables(conn: &mut Connection) -> Result<(), CampaignStoreError> {
+    migrate_legacy_compat_database_rows(conn)?;
+    migrate_legacy_compat_files(conn)?;
+    Ok(())
+}
+
+fn migrate_legacy_compat_database_rows(conn: &mut Connection) -> Result<(), CampaignStoreError> {
+    if !table_exists(conn, "compat_database_record_fields")? {
+        return Ok(());
+    }
+
+    let snapshot_ids = conn
+        .prepare(
+            "SELECT DISTINCT snapshot_id
+             FROM compat_database_record_fields
+             ORDER BY snapshot_id",
+        )?
+        .query_map([], |row| row.get::<_, i64>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+
+    for snapshot_id in snapshot_ids {
+        migrate_compat_database_projection_to_planet_intel(
+            conn,
+            snapshot_id,
+            |conn, snapshot_id| {
+                load_compat_database_rows_from_table(
+                    conn,
+                    "compat_database_record_fields",
+                    snapshot_id,
+                )
+            },
+        )?;
+    }
+
+    conn.execute_batch("DROP TABLE compat_database_record_fields;")?;
+    Ok(())
+}
+
 fn migrate_legacy_compat_files(conn: &mut Connection) -> Result<(), CampaignStoreError> {
     if !table_exists(conn, "compat_files")? {
         return Ok(());
     }
 
-    let tx = conn.transaction()?;
-    {
-        let mut stmt = tx.prepare(
+    let rows = conn
+        .prepare(
             "SELECT snapshot_id, name, bytes
              FROM compat_files
              ORDER BY snapshot_id, name",
-        )?;
-        let rows = stmt.query_map([], |row| {
+        )?
+        .query_map([], |row| {
             Ok((
                 row.get::<_, i64>(0)?,
                 row.get::<_, String>(1)?,
                 row.get::<_, Vec<u8>>(2)?,
             ))
-        })?;
-        for row in rows {
-            let (snapshot_id, name, bytes) = row?;
-            match name.as_str() {
-                "DATABASE.DAT" => {
-                    let existing_count: i64 = tx.query_row(
-                        &format!(
-                            "SELECT COUNT(*) FROM {COMPAT_DATABASE_RECORD_FIELDS_TABLE}
-                             WHERE snapshot_id = ?1"
-                        ),
-                        params![snapshot_id],
-                        |row| row.get(0),
-                    )?;
-                    if existing_count == 0 {
-                        write_typed_record_rows(
-                            &tx,
-                            COMPAT_DATABASE_RECORD_FIELDS_TABLE,
-                            snapshot_id,
-                            &bytes,
-                            DATABASE_RECORD_SIZE,
-                        )?;
-                    }
-                }
-                "RESULTS.DAT" => {
-                    let existing_count: i64 = tx.query_row(
-                        "SELECT COUNT(*) FROM report_blocks WHERE snapshot_id = ?1",
-                        params![snapshot_id],
-                        |row| row.get(0),
-                    )?;
-                    if existing_count == 0 {
-                        let rows = decode_report_block_rows(&bytes);
-                        write_report_block_rows(&tx, snapshot_id, &rows)?;
-                    }
-                }
-                _ => {}
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+
+    for (snapshot_id, name, bytes) in rows {
+        match name.as_str() {
+            "DATABASE.DAT" => {
+                migrate_compat_database_projection_to_planet_intel(
+                    conn,
+                    snapshot_id,
+                    |_conn, _snapshot_id| DatabaseDat::parse(&bytes).map(Some).map_err(Into::into),
+                )?;
             }
+            "RESULTS.DAT" => {
+                let existing_count: i64 = conn.query_row(
+                    "SELECT COUNT(*) FROM report_blocks WHERE snapshot_id = ?1",
+                    params![snapshot_id],
+                    |row| row.get(0),
+                )?;
+                if existing_count == 0 {
+                    let tx = conn.transaction()?;
+                    let rows = crate::decode_report_block_rows(&bytes);
+                    write_report_block_rows(&tx, snapshot_id, &rows)?;
+                    tx.commit()?;
+                }
+            }
+            _ => {}
         }
     }
-    tx.execute_batch("DROP TABLE compat_files;")?;
+
+    conn.execute_batch("DROP TABLE compat_files;")?;
+    Ok(())
+}
+
+fn migrate_compat_database_projection_to_planet_intel<F>(
+    conn: &mut Connection,
+    snapshot_id: i64,
+    load_database: F,
+) -> Result<(), CampaignStoreError>
+where
+    F: FnOnce(&mut Connection, i64) -> Result<Option<DatabaseDat>, CampaignStoreError>,
+{
+    let existing_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM planet_intel WHERE snapshot_id = ?1",
+        params![snapshot_id],
+        |row| row.get(0),
+    )?;
+    if existing_count != 0 {
+        return Ok(());
+    }
+
+    let Some(database) = load_database(conn, snapshot_id)? else {
+        return Ok(());
+    };
+    let game_year: u16 = conn.query_row(
+        "SELECT game_year FROM snapshots WHERE id = ?1",
+        params![snapshot_id],
+        |row| row.get::<_, i64>(0).map(|value| value as u16),
+    )?;
+    let game_data = load_snapshot_game_data(conn, snapshot_id)?;
+    let planet_intel_by_viewer =
+        extract_player_intel_from_compat_database(&game_data, &database, game_year);
+    let tx = conn.transaction()?;
+    write_planet_intel_rows(
+        &tx,
+        snapshot_id,
+        &game_data,
+        game_year,
+        Some(&planet_intel_by_viewer),
+        &BTreeMap::new(),
+    )?;
     tx.commit()?;
     Ok(())
 }
@@ -1047,48 +1025,22 @@ fn load_snapshot_game_data(
     })
 }
 
-fn load_compat_database_rows(
+fn load_compat_database_rows_from_table(
     conn: &mut Connection,
+    table: &str,
     snapshot_id: i64,
 ) -> Result<Option<DatabaseDat>, CampaignStoreError> {
     let row_count: i64 = conn.query_row(
-        &format!(
-            "SELECT COUNT(*) FROM {COMPAT_DATABASE_RECORD_FIELDS_TABLE}
-             WHERE snapshot_id = ?1"
-        ),
+        &format!("SELECT COUNT(*) FROM {table} WHERE snapshot_id = ?1"),
         params![snapshot_id],
         |row| row.get(0),
     )?;
     if row_count == 0 {
         return Ok(None);
     }
-    let bytes = read_typed_record_rows(
-        conn,
-        COMPAT_DATABASE_RECORD_FIELDS_TABLE,
-        snapshot_id,
-        DATABASE_RECORD_SIZE,
-    )?;
-    DatabaseDat::parse(&bytes).map(Some).map_err(Into::into)
-}
-
-fn load_compat_database_rows_tx(
-    tx: &rusqlite::Transaction<'_>,
-    snapshot_id: i64,
-) -> Result<Option<DatabaseDat>, CampaignStoreError> {
-    let row_count: i64 = tx.query_row(
-        &format!(
-            "SELECT COUNT(*) FROM {COMPAT_DATABASE_RECORD_FIELDS_TABLE}
-             WHERE snapshot_id = ?1"
-        ),
-        params![snapshot_id],
-        |row| row.get(0),
-    )?;
-    if row_count == 0 {
-        return Ok(None);
-    }
-    let mut stmt = tx.prepare(&format!(
+    let mut stmt = conn.prepare(&format!(
         "SELECT record_index, byte_offset, byte_value
-         FROM {COMPAT_DATABASE_RECORD_FIELDS_TABLE}
+         FROM {table}
          WHERE snapshot_id = ?1
          ORDER BY record_index, byte_offset"
     ))?;
@@ -1106,11 +1058,11 @@ fn load_compat_database_rows_tx(
         let (record_index, byte_offset, byte_value) = row?;
         let byte_offset = byte_offset as usize;
         if current_record_index != Some(record_index) {
-            if current_record_index.is_some() && expected_offset != DATABASE_RECORD_SIZE {
+            if current_record_index.is_some() && expected_offset != crate::DATABASE_RECORD_SIZE {
                 return Err(CampaignStoreError::Parse(
                     crate::ParseError::WrongRecordMultiple {
                         file_type: "DATABASE.DAT",
-                        record_size: DATABASE_RECORD_SIZE,
+                        record_size: crate::DATABASE_RECORD_SIZE,
                         actual: expected_offset,
                     },
                 ));
@@ -1122,7 +1074,7 @@ fn load_compat_database_rows_tx(
             return Err(CampaignStoreError::Parse(
                 crate::ParseError::WrongRecordMultiple {
                     file_type: "DATABASE.DAT",
-                    record_size: DATABASE_RECORD_SIZE,
+                    record_size: crate::DATABASE_RECORD_SIZE,
                     actual: byte_offset,
                 },
             ));
@@ -1130,11 +1082,11 @@ fn load_compat_database_rows_tx(
         bytes.push(byte_value as u8);
         expected_offset += 1;
     }
-    if current_record_index.is_some() && expected_offset != DATABASE_RECORD_SIZE {
+    if current_record_index.is_some() && expected_offset != crate::DATABASE_RECORD_SIZE {
         return Err(CampaignStoreError::Parse(
             crate::ParseError::WrongRecordMultiple {
                 file_type: "DATABASE.DAT",
-                record_size: DATABASE_RECORD_SIZE,
+                record_size: crate::DATABASE_RECORD_SIZE,
                 actual: expected_offset,
             },
         ));
@@ -1142,15 +1094,71 @@ fn load_compat_database_rows_tx(
     DatabaseDat::parse(&bytes).map(Some).map_err(Into::into)
 }
 
+fn load_planet_intel_by_viewer(
+    conn: &mut Connection,
+    snapshot_id: i64,
+    player_count: u8,
+) -> Result<Vec<BTreeMap<usize, PlanetIntelSnapshot>>, CampaignStoreError> {
+    (1..=player_count)
+        .map(|viewer_empire_id| {
+            Ok(
+                load_planet_intel_rows_for_viewer(conn, snapshot_id, viewer_empire_id)?
+                    .into_iter()
+                    .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                    .collect(),
+            )
+        })
+        .collect()
+}
+
+fn load_planet_intel_rows_for_viewer(
+    conn: &mut Connection,
+    snapshot_id: i64,
+    viewer_empire_id: u8,
+) -> Result<Vec<PlanetIntelSnapshot>, CampaignStoreError> {
+    let mut stmt = conn.prepare(
+        "SELECT planet_record_index, intel_tier, compat_is_orbit_seed, last_intel_year,
+                seen_year, scout_year,
+                known_name, known_owner_empire_id, known_potential_production,
+                known_armies, known_ground_batteries,
+                known_current_production, known_stored_points, compat_word_1e
+         FROM planet_intel
+         WHERE snapshot_id = ?1 AND viewer_empire_id = ?2
+         ORDER BY planet_record_index",
+    )?;
+    let rows = stmt
+        .query_map(params![snapshot_id, i64::from(viewer_empire_id)], |row| {
+            Ok(PlanetIntelSnapshot {
+                planet_record_index_1_based: row.get::<_, i64>(0)? as usize,
+                intel_tier: IntelTier::from_str(&row.get::<_, String>(1)?),
+                compat_is_orbit_seed: row.get::<_, i64>(2)? != 0,
+                last_intel_year: row.get::<_, Option<i64>>(3)?.map(|value| value as u16),
+                seen_year: row.get::<_, Option<i64>>(4)?.map(|value| value as u16),
+                scout_year: row.get::<_, Option<i64>>(5)?.map(|value| value as u16),
+                known_name: row.get(6)?,
+                known_owner_empire_id: row.get::<_, Option<i64>>(7)?.map(|value| value as u8),
+                known_potential_production: row.get::<_, Option<i64>>(8)?.map(|value| value as u16),
+                known_armies: row.get::<_, Option<i64>>(9)?.map(|value| value as u8),
+                known_ground_batteries: row.get::<_, Option<i64>>(10)?.map(|value| value as u8),
+                known_current_production: row.get::<_, Option<i64>>(11)?.map(|value| value as u8),
+                known_stored_points: row.get::<_, Option<i64>>(12)?.map(|value| value as u16),
+                compat_word_1e: row.get::<_, Option<i64>>(13)?.map(|value| value as u16),
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
+}
+
 fn load_intel_rows(
     tx: &rusqlite::Transaction<'_>,
     snapshot_id: i64,
 ) -> Result<BTreeMap<(u8, usize), PlanetIntelSnapshot>, CampaignStoreError> {
     let mut stmt = tx.prepare(
-        "SELECT viewer_empire_id, planet_record_index, intel_tier, last_intel_year,
+        "SELECT viewer_empire_id, planet_record_index, intel_tier, compat_is_orbit_seed, last_intel_year,
+                seen_year, scout_year,
                 known_name, known_owner_empire_id, known_potential_production,
                 known_armies, known_ground_batteries,
-                known_current_production, known_stored_points
+                known_current_production, known_stored_points, compat_word_1e
          FROM planet_intel
          WHERE snapshot_id = ?1",
     )?;
@@ -1160,14 +1168,18 @@ fn load_intel_rows(
             PlanetIntelSnapshot {
                 planet_record_index_1_based: row.get::<_, i64>(1)? as usize,
                 intel_tier: IntelTier::from_str(&row.get::<_, String>(2)?),
-                last_intel_year: row.get::<_, Option<i64>>(3)?.map(|value| value as u16),
-                known_name: row.get(4)?,
-                known_owner_empire_id: row.get::<_, Option<i64>>(5)?.map(|value| value as u8),
-                known_potential_production: row.get::<_, Option<i64>>(6)?.map(|value| value as u16),
-                known_armies: row.get::<_, Option<i64>>(7)?.map(|value| value as u8),
-                known_ground_batteries: row.get::<_, Option<i64>>(8)?.map(|value| value as u8),
-                known_current_production: row.get::<_, Option<i64>>(9)?.map(|value| value as u8),
-                known_stored_points: row.get::<_, Option<i64>>(10)?.map(|value| value as u16),
+                compat_is_orbit_seed: row.get::<_, i64>(3)? != 0,
+                last_intel_year: row.get::<_, Option<i64>>(4)?.map(|value| value as u16),
+                seen_year: row.get::<_, Option<i64>>(5)?.map(|value| value as u16),
+                scout_year: row.get::<_, Option<i64>>(6)?.map(|value| value as u16),
+                known_name: row.get(7)?,
+                known_owner_empire_id: row.get::<_, Option<i64>>(8)?.map(|value| value as u8),
+                known_potential_production: row.get::<_, Option<i64>>(9)?.map(|value| value as u16),
+                known_armies: row.get::<_, Option<i64>>(10)?.map(|value| value as u8),
+                known_ground_batteries: row.get::<_, Option<i64>>(11)?.map(|value| value as u8),
+                known_current_production: row.get::<_, Option<i64>>(12)?.map(|value| value as u8),
+                known_stored_points: row.get::<_, Option<i64>>(13)?.map(|value| value as u16),
+                compat_word_1e: row.get::<_, Option<i64>>(14)?.map(|value| value as u16),
             },
         ))
     })?;
@@ -1186,10 +1198,11 @@ fn write_planet_intel_rows(
     let mut stmt = tx.prepare(
         "INSERT INTO planet_intel(
              snapshot_id, viewer_empire_id, planet_record_index, intel_tier, last_intel_year,
+             compat_is_orbit_seed, seen_year, scout_year,
              known_name, known_owner_empire_id, known_potential_production,
              known_armies, known_ground_batteries,
-             known_current_production, known_stored_points
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+             known_current_production, known_stored_points, compat_word_1e
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
     )?;
     for viewer_empire_id in 1..=player_count {
         let previous_rows = previous
@@ -1217,6 +1230,9 @@ fn write_planet_intel_rows(
                 planet_record_index_1_based as i64,
                 snapshot.intel_tier.as_str(),
                 snapshot.last_intel_year.map(i64::from),
+                i64::from(u8::from(snapshot.compat_is_orbit_seed)),
+                snapshot.seen_year.map(i64::from),
+                snapshot.scout_year.map(i64::from),
                 snapshot.known_name,
                 snapshot.known_owner_empire_id.map(i64::from),
                 snapshot.known_potential_production.map(i64::from),
@@ -1224,22 +1240,11 @@ fn write_planet_intel_rows(
                 snapshot.known_ground_batteries.map(i64::from),
                 snapshot.known_current_production.map(i64::from),
                 snapshot.known_stored_points.map(i64::from),
+                snapshot.compat_word_1e.map(i64::from),
             ])?;
         }
     }
     Ok(())
-}
-
-fn read_optional_path(path: PathBuf) -> Result<Vec<u8>, CampaignStoreError> {
-    match fs::read(&path) {
-        Ok(bytes) => Ok(bytes),
-        Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
-        Err(source) => Err(CampaignStoreError::Io { path, source }),
-    }
-}
-
-fn write_path(path: PathBuf, bytes: &[u8]) -> Result<(), CampaignStoreError> {
-    fs::write(&path, bytes).map_err(|source| CampaignStoreError::Io { path, source })
 }
 
 fn encode_hex(bytes: &[u8]) -> String {
@@ -1274,51 +1279,6 @@ fn decode_hex_nibble(byte: u8) -> Option<u8> {
         b'a'..=b'f' => Some(byte - b'a' + 10),
         b'A'..=b'F' => Some(byte - b'A' + 10),
         _ => None,
-    }
-}
-
-fn load_mail_queue_file(dir: &Path) -> Result<Vec<QueuedPlayerMail>, CampaignStoreError> {
-    let path = crate::player_mail::queue_path(dir);
-    if !path.exists() {
-        return Ok(Vec::new());
-    }
-    crate::load_mail_queue(dir).map_err(|err| CampaignStoreError::Io {
-        path,
-        source: std::io::Error::other(err.to_string()),
-    })
-}
-
-fn load_database_snapshot_or_default(
-    dir: &Path,
-    game_data: &CoreGameData,
-) -> Result<DatabaseDat, CampaignStoreError> {
-    let path = dir.join("DATABASE.DAT");
-    match fs::read(&path) {
-        Ok(bytes) => Ok(DatabaseDat::parse(&bytes)?),
-        Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
-            let planet_names = game_data
-                .planets
-                .records
-                .iter()
-                .map(|planet| {
-                    let name = planet.planet_name();
-                    if name.eq_ignore_ascii_case("unowned")
-                        || name.eq_ignore_ascii_case("not named yet")
-                    {
-                        "UNKNOWN".to_string()
-                    } else {
-                        name
-                    }
-                })
-                .collect::<Vec<_>>();
-            Ok(DatabaseDat::generate_from_planets_and_year(
-                &planet_names,
-                game_data.conquest.game_year(),
-                game_data.conquest.player_count() as usize,
-                None,
-            ))
-        }
-        Err(source) => Err(CampaignStoreError::Io { path, source }),
     }
 }
 
@@ -1390,7 +1350,7 @@ fn ensure_queued_mail_recipient_deleted_column(
     Ok(())
 }
 
-fn ensure_planet_intel_production_columns(conn: &Connection) -> Result<(), CampaignStoreError> {
+fn ensure_planet_intel_projection_columns(conn: &Connection) -> Result<(), CampaignStoreError> {
     let mut stmt = conn.prepare("PRAGMA table_info(planet_intel)")?;
     let columns = stmt
         .query_map([], |row| row.get::<_, String>(1))?
@@ -1407,6 +1367,24 @@ fn ensure_planet_intel_production_columns(conn: &Connection) -> Result<(), Campa
     if !columns.iter().any(|name| name == "known_stored_points") {
         conn.execute(
             "ALTER TABLE planet_intel ADD COLUMN known_stored_points INTEGER",
+            [],
+        )?;
+    }
+    if !columns.iter().any(|name| name == "seen_year") {
+        conn.execute("ALTER TABLE planet_intel ADD COLUMN seen_year INTEGER", [])?;
+    }
+    if !columns.iter().any(|name| name == "scout_year") {
+        conn.execute("ALTER TABLE planet_intel ADD COLUMN scout_year INTEGER", [])?;
+    }
+    if !columns.iter().any(|name| name == "compat_word_1e") {
+        conn.execute(
+            "ALTER TABLE planet_intel ADD COLUMN compat_word_1e INTEGER",
+            [],
+        )?;
+    }
+    if !columns.iter().any(|name| name == "compat_is_orbit_seed") {
+        conn.execute(
+            "ALTER TABLE planet_intel ADD COLUMN compat_is_orbit_seed INTEGER NOT NULL DEFAULT 0",
             [],
         )?;
     }
@@ -1444,14 +1422,6 @@ fn load_report_block_rows(
     snapshot_id: i64,
 ) -> Result<Vec<ReportBlockRow>, CampaignStoreError> {
     load_report_block_rows_filtered(conn, snapshot_id, false)
-}
-
-/// Load all report block rows for a snapshot, including soft-deleted ones.
-fn load_all_report_block_rows(
-    conn: &mut Connection,
-    snapshot_id: i64,
-) -> Result<Vec<ReportBlockRow>, CampaignStoreError> {
-    load_report_block_rows_filtered(conn, snapshot_id, true)
 }
 
 fn load_report_block_rows_filtered(

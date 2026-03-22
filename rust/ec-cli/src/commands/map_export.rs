@@ -1,9 +1,10 @@
 use std::fs;
 use std::path::Path;
 
+use ec_compat::extract_player_intel_from_compat_database;
 use ec_data::{
-    build_player_starmap_projection_from_snapshots, extract_player_intel_from_compat_database,
-    CampaignStore, CoreGameData, DatabaseDat, DEFAULT_CAMPAIGN_DB_NAME,
+    CampaignStore, CoreGameData, DEFAULT_CAMPAIGN_DB_NAME, DatabaseDat,
+    build_player_starmap_projection_from_snapshots,
 };
 
 pub fn export_player_starmap(

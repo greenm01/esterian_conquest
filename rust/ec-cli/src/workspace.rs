@@ -4,6 +4,7 @@ use std::path::Path;
 use crate::support::paths::{
     init_fixture_dir, post_maint_fixture_dir, pre_maint_replay_context_fixture_dir,
 };
+use ec_compat::import_directory_snapshot;
 use ec_data::{CampaignStore, ConquestDat, DatabaseDat, PlanetDat};
 
 pub(crate) const INIT_FILES: &[&str] = &[
@@ -116,7 +117,8 @@ pub fn ensure_auxiliary_files(target: &Path) -> Result<(), Box<dyn std::error::E
 }
 
 pub fn refresh_runtime_store(target: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    CampaignStore::open_default_in_dir(target)?.import_directory_snapshot(target)?;
+    let store = CampaignStore::open_default_in_dir(target)?;
+    import_directory_snapshot(&store, target)?;
     Ok(())
 }
 

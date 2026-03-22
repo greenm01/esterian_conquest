@@ -2,12 +2,11 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
+use ec_compat::import_directory_snapshot;
 use ec_data::{
-    CampaignRuntimeState, CampaignStore, CoreGameData, DEFAULT_CAMPAIGN_DB_NAME, MaintenanceEvents,
+    CampaignRuntimeState, CampaignStore, CoreGameData, DEFAULT_CAMPAIGN_DB_NAME,
     PlanetIntelSnapshot,
 };
-
-use crate::commands::reports::build_database_dat;
 
 pub(crate) fn with_runtime_game_mut<T, F>(
     dir: &Path,
@@ -44,20 +43,11 @@ where
             None,
         );
     }
-    let previous_database = store.load_latest_compat_database()?;
-    let database = build_database_dat(
-        &state.game_data,
-        &state.game_data.planets,
-        &planet_intel_by_viewer,
-        &MaintenanceEvents::default(),
-        previous_database.as_ref(),
-    );
-    store.save_runtime_state_structured_with_intel_and_compat(
+    store.save_runtime_state_structured_with_intel(
         &state.game_data,
         &state.report_block_rows,
         &state.queued_mail,
         &planet_intel_by_viewer,
-        &database,
     )?;
     Ok(result)
 }
@@ -70,7 +60,7 @@ pub(crate) fn load_runtime_state_preferring_live_directory(
         return Ok(state);
     }
 
-    store.import_directory_snapshot(dir)?;
+    import_directory_snapshot(store, dir)?;
     Ok(store
         .load_latest_runtime_state()?
         .ok_or("campaign store has no snapshots after importing directory")?)
@@ -93,7 +83,7 @@ pub(crate) fn load_runtime_game_data(
 pub(crate) fn export_runtime_snapshot_in_place(
     dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    CampaignStore::open_default_in_dir(dir)?.export_latest_snapshot_to_dir(dir)?;
+    crate::commands::storage::export_latest_db_snapshot(dir, dir)?;
     Ok(())
 }
 

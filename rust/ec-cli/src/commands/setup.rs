@@ -1,10 +1,10 @@
-use std::fs;
-use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
-
+use ec_compat::import_directory_snapshot_with_seed;
 use ec_data::{
     CampaignStore, ConquestDat, DatabaseDat, SetupConfig, SetupDat, build_seeded_new_game,
+    generate_campaign_seed,
 };
+use std::fs;
+use std::path::Path;
 
 use crate::commands::runtime::{load_runtime_game_data, with_runtime_game_mut};
 use crate::workspace::seed_classic_runtime_files;
@@ -74,7 +74,8 @@ pub(crate) fn init_new_game_with_seed(
     }
 
     seed_classic_runtime_files(target)?;
-    CampaignStore::open_default_in_dir(target)?.import_directory_snapshot(target)?;
+    let store = CampaignStore::open_default_in_dir(target)?;
+    import_directory_snapshot_with_seed(&store, target, Some(seed))?;
 
     Ok(())
 }
@@ -91,7 +92,8 @@ pub(crate) fn init_new_game_from_config(
     } else {
         config
     };
-    let data = config.build_game_data(seed_override.unwrap_or_else(runtime_seed))?;
+    let seed = seed_override.unwrap_or_else(runtime_seed);
+    let data = config.build_game_data(seed)?;
 
     fs::create_dir_all(target)?;
     data.save(target)?;
@@ -118,16 +120,14 @@ pub(crate) fn init_new_game_from_config(
     }
 
     seed_classic_runtime_files(target)?;
-    CampaignStore::open_default_in_dir(target)?.import_directory_snapshot(target)?;
+    let store = CampaignStore::open_default_in_dir(target)?;
+    import_directory_snapshot_with_seed(&store, target, Some(seed))?;
 
     Ok(())
 }
 
 fn runtime_seed() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos() as u64)
-        .unwrap_or(0xEC15_1515_0000_0001)
+    generate_campaign_seed()
 }
 
 pub(crate) fn set_maintenance_days(

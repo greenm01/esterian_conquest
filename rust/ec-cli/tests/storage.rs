@@ -7,7 +7,8 @@ use common::{
     cleanup_dir, run_classic_ecgame_smoke_with_alias, run_ec_cli, run_ecmaint_oracle,
     unique_temp_dir,
 };
-use ec_data::{CoreGameData, DatabaseDat, Order};
+use ec_compat::export_latest_snapshot_to_dir;
+use ec_data::{CampaignStore, CoreGameData, DatabaseDat, Order};
 
 fn setup_classic_probe_players(target: &Path) {
     let player_specs = [
@@ -75,6 +76,35 @@ fn setup_classic_probe_planets(target: &Path) {
             batteries,
         ]);
     }
+
+    let store = CampaignStore::open_default_in_dir(target).expect("probe store should open");
+    let state = store
+        .load_latest_runtime_state()
+        .expect("probe runtime should load")
+        .expect("probe runtime should exist");
+    let mut game_data = state.game_data;
+    // Keep the foreign-intel storage probe independent of mapgen drift: the
+    // scout/view tests below intentionally target planet record 5 at (9,2).
+    game_data.planets.records[4].set_coords_raw([9, 2]);
+    let planet_intel_by_viewer = (1..=game_data.conquest.player_count())
+        .map(|viewer_empire_id| {
+            store
+                .latest_planet_intel_for_viewer(viewer_empire_id)
+                .expect("probe intel should load")
+                .into_iter()
+                .map(|snapshot| (snapshot.planet_record_index_1_based, snapshot))
+                .collect()
+        })
+        .collect::<Vec<_>>();
+    store
+        .save_runtime_state_structured_with_intel(
+            &game_data,
+            &state.report_block_rows,
+            &state.queued_mail,
+            &planet_intel_by_viewer,
+        )
+        .expect("probe runtime should save");
+    export_latest_snapshot_to_dir(&store, target).expect("probe snapshot should export");
 }
 
 fn setup_classic_probe_scout_order(target: &Path) {

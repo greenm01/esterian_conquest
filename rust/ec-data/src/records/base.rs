@@ -1,5 +1,5 @@
-use crate::support::{copy_array, ParseError};
 use crate::BASE_RECORD_SIZE;
+use crate::support::{ParseError, copy_array};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BaseRecord {

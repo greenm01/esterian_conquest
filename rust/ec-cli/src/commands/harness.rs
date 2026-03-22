@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use ec_harness::{
-    build_scenario, run_combat_scenario, run_combat_sweep, save_built_scenario, BuiltScenario,
-    CombatScenarioSpec, CombatSweepSpec, ScenarioBuildReport, ScenarioSpec,
+    BuiltScenario, CombatScenarioSpec, CombatSweepSpec, ScenarioBuildReport, ScenarioSpec,
+    build_scenario, run_combat_scenario, run_combat_sweep, save_built_scenario,
 };
 
 use crate::commands::harness_campaign::{

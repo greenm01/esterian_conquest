@@ -14,6 +14,7 @@ pub const DATABASE_RECORD_SIZE: usize = 100;
 pub const MAINTENANCE_DAY_ENABLED_CODES: [u8; 7] = [0x01, 0x01, 0xCA, 0x01, 0x0A, 0x01, 0x26];
 mod builder;
 mod config;
+mod database_projection;
 mod directory;
 mod economy;
 mod intel;
@@ -36,6 +37,7 @@ pub use config::{
     DiplomacyConfig, DiplomacyDirective, SetupConfig, SetupConfigError, SetupMode,
     SetupOptionsConfig,
 };
+pub use database_projection::build_database_dat;
 pub use directory::{
     AutoCommissionSummary, CampaignOutcome, CampaignOutlook, CampaignState, CommissionResult,
     CoreGameData, CurrentKnownComplianceStatus, CurrentKnownGuardStarbaseLinkageSummary,
@@ -53,28 +55,28 @@ pub use intel::{
     merge_player_intel_from_runtime,
 };
 pub use maint::{
-    run_maintenance_turn, run_maintenance_turn_with_context,
+    AssaultReportEvent, BombardEvent, CampaignOutcomeEvent, CampaignOutlookEvent,
+    CivilDisorderEvent, ColonizationResolvedEvent, ContactReportSource, DiplomacyOverride,
+    DiplomaticEscalationEvent, EncounterDispositionEvent, EncounterDispositionReason,
+    FleetBattleEvent, FleetDefectionEvent, FleetDestroyedEvent, FleetMergeEvent,
+    InvalidPlayerStateEvent, JoinMissionHostEvent, MaintenanceEvents, Mission, MissionEvent,
+    MissionOutcome, MissionRetargetEvent, PlanetIntelEvent, PlanetIntelSource,
+    PlanetOwnershipChangeEvent, SalvageFailureReason, SalvageResolvedEvent, ScoutContactEvent,
+    ShipLosses, StarbaseDestroyedEvent, run_maintenance_turn, run_maintenance_turn_with_context,
     run_maintenance_turn_with_context_and_seed, run_maintenance_turn_with_seed,
     run_maintenance_turn_with_visible_hazards, run_maintenance_turn_with_visible_hazards_and_seed,
-    run_maintenance_turns, AssaultReportEvent, BombardEvent, CampaignOutcomeEvent,
-    CampaignOutlookEvent, CivilDisorderEvent, ColonizationResolvedEvent, ContactReportSource,
-    DiplomacyOverride, DiplomaticEscalationEvent, EncounterDispositionEvent,
-    EncounterDispositionReason, FleetBattleEvent, FleetDefectionEvent, FleetDestroyedEvent,
-    FleetMergeEvent, InvalidPlayerStateEvent, JoinMissionHostEvent, MaintenanceEvents, Mission,
-    MissionEvent, MissionOutcome, MissionRetargetEvent, PlanetIntelEvent, PlanetIntelSource,
-    PlanetOwnershipChangeEvent, SalvageFailureReason, SalvageResolvedEvent, ScoutContactEvent,
-    ShipLosses, StarbaseDestroyedEvent,
+    run_maintenance_turns,
 };
 pub use mapgen::{
-    build_seeded_initialized_game, build_seeded_new_game, generate_map, map_size_for_player_count,
-    GeneratedMap, GeneratedWorld,
+    GeneratedMap, GeneratedWorld, build_seeded_initialized_game, build_seeded_new_game,
+    generate_map, map_size_for_player_count,
 };
 pub use pathfinding::{
-    next_path_step, plan_route, plan_route_with_intel, visible_hazard_intel_from_snapshots,
-    PlannedRoute, RouteStep, VisibleHazardIntel,
+    PlannedRoute, RouteStep, VisibleHazardIntel, next_path_step, plan_route, plan_route_with_intel,
+    visible_hazard_intel_from_snapshots,
 };
 pub use player_mail::{
-    append_mail_queue, clear_mail_queue, load_mail_queue, save_mail_queue, QueuedPlayerMail,
+    QueuedPlayerMail, append_mail_queue, clear_mail_queue, load_mail_queue, save_mail_queue,
 };
 pub use records::base::{BaseDat, BaseRecord};
 pub use records::conquest::ConquestDat;
@@ -85,19 +87,22 @@ pub use records::planet::{PlanetDat, PlanetRecord, ProductionItemKind, STARDOCK_
 pub use records::player::{DiplomaticRelation, PlayerDat, PlayerRecord};
 pub use records::setup::SetupDat;
 pub use report_blocks::{
-    decode_report_block_rows, encode_report_block_rows, rebuild_results_bytes, ReportBlockRow,
+    ReportBlockRow, decode_report_block_rows, encode_report_block_rows, rebuild_results_bytes,
 };
-pub use rng::{generate_campaign_seed, mix_seed, GameRng, RNG_TAG_COMBAT, RNG_TAG_MAPGEN};
+pub use rng::{
+    GameRng, RNG_TAG_COMBAT, RNG_TAG_MAPGEN, derive_campaign_seed_from_runtime,
+    generate_campaign_seed, mix_seed,
+};
 pub use starmap::{
-    build_player_starmap_projection_from_snapshots, PlayerStarmapProjection, PlayerStarmapWorld,
+    PlayerStarmapProjection, PlayerStarmapWorld, build_player_starmap_projection_from_snapshots,
 };
 pub use storage::{
-    CampaignRuntimeState, CampaignStore, CampaignStoreError, IntelTier, PlanetIntelSnapshot,
-    DEFAULT_CAMPAIGN_DB_NAME,
+    CampaignRuntimeState, CampaignStore, CampaignStoreError, DEFAULT_CAMPAIGN_DB_NAME, IntelTier,
+    PlanetIntelSnapshot,
 };
-pub use support::{decode_real48, encode_real48, ParseError};
+pub use support::{ParseError, decode_real48, encode_real48};
 pub use turns::{
-    FleetTurnAction, FleetTurnBlock, PlanetTurnAction, PlanetTurnBlock, TurnDiplomacyDirective,
-    TurnMessage, TurnSubmission, TurnSubmissionError, TurnSubmissionReport, MAX_MESSAGE_BODY_CHARS,
-    MAX_MESSAGE_SUBJECT_CHARS,
+    FleetTurnAction, FleetTurnBlock, MAX_MESSAGE_BODY_CHARS, MAX_MESSAGE_SUBJECT_CHARS,
+    PlanetTurnAction, PlanetTurnBlock, TurnDiplomacyDirective, TurnMessage, TurnSubmission,
+    TurnSubmissionError, TurnSubmissionReport,
 };

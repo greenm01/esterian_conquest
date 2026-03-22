@@ -4,8 +4,8 @@ use super::{
     SalvageResolvedEvent,
 };
 use crate::{
-    next_path_step, plan_route_with_intel, CoreGameData, Order, ProductionItemKind,
-    VisibleHazardIntel,
+    CoreGameData, Order, ProductionItemKind, VisibleHazardIntel, next_path_step,
+    plan_route_with_intel,
 };
 
 fn queue_local_intrusion_escalation(

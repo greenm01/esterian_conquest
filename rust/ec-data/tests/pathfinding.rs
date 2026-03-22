@@ -1,7 +1,7 @@
 use ec_data::{
-    merge_player_intel_from_compat, plan_route, plan_route_with_intel, run_maintenance_turn,
-    run_maintenance_turn_with_visible_hazards, visible_hazard_intel_from_snapshots, DatabaseDat,
-    GameStateBuilder, Order, VisibleHazardIntel,
+    DatabaseDat, GameStateBuilder, Order, VisibleHazardIntel, merge_player_intel_from_compat,
+    plan_route, plan_route_with_intel, run_maintenance_turn,
+    run_maintenance_turn_with_visible_hazards, visible_hazard_intel_from_snapshots,
 };
 
 #[test]

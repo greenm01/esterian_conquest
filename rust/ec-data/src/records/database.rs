@@ -1,4 +1,4 @@
-use crate::support::{copy_array, ParseError};
+use crate::support::{ParseError, copy_array};
 
 pub const DATABASE_RECORD_SIZE: usize = 100;
 
@@ -98,6 +98,44 @@ impl DatabaseRecord {
         self.raw[0x24] = 0xff;
         self.raw[0x25] = 0xff;
         self.raw[0x26] = 0xff;
+    }
+
+    /// Reset the record to the preserved pre-login orbit-seed family:
+    /// blank Pascal name length, literal `UNKNOWN` bytes still present.
+    pub fn set_blank_unknown_planet(&mut self) {
+        self.raw.fill(0);
+        self.raw[0x01..0x08].copy_from_slice(b"UNKNOWN");
+        self.raw[0x15] = 0xff;
+        self.raw[0x1c] = 0xff;
+        self.raw[0x1d] = 0xff;
+        self.raw[0x1e] = 0xff;
+        self.raw[0x1f] = 0xff;
+        self.raw[0x20] = 0xff;
+        self.raw[0x23] = 0xff;
+        self.raw[0x24] = 0xff;
+        self.raw[0x25] = 0xff;
+        self.raw[0x26] = 0xff;
+    }
+
+    pub fn has_blank_unknown_name_area(&self) -> bool {
+        self.raw[0x00] == 0 && &self.raw[0x01..0x08] == b"UNKNOWN"
+    }
+
+    pub fn is_compat_orbit_seed(&self) -> bool {
+        (self.has_blank_unknown_name_area() || !self.planet_name_bytes().is_empty())
+            && (1..=4).contains(&self.raw[0x15])
+            && self.word_at(0x16) == 0
+            && self.word_at(0x18) == 0
+            && self.word_at(0x27) == 0
+            && self.raw[0x1c] == 100
+            && self.raw[0x1d] == 100
+            && self.word_at(0x1e) == 0x23
+            && self.word_at(0x23) == 10
+            && self.word_at(0x25) == 4
+    }
+
+    pub fn is_compat_orbit_seed_for_viewer(&self, viewer_empire_raw: u8) -> bool {
+        self.is_compat_orbit_seed() && self.raw[0x15] == viewer_empire_raw
     }
 }
 

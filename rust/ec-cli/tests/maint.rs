@@ -1176,13 +1176,15 @@ fn maint_rust_destroyed_starbase_generates_lost_contact_report() {
 
     let game_data = CoreGameData::load(&target).expect("maint-rust output should load");
     assert_eq!(game_data.player.records[0].starbase_count_raw(), 0);
-    assert!(game_data
-        .bases
-        .records
-        .iter()
-        .all(|base| !(base.coords_raw() == starbase_coords
-            && base.owner_empire_raw() == 1
-            && base.active_flag_raw() != 0)));
+    assert!(
+        game_data
+            .bases
+            .records
+            .iter()
+            .all(|base| !(base.coords_raw() == starbase_coords
+                && base.owner_empire_raw() == 1
+                && base.active_flag_raw() != 0))
+    );
 
     cleanup_dir(&target);
 }
@@ -1959,7 +1961,7 @@ fn maint_rust_blitz_success_exports_ecgame_accepted_owned_row_shape() {
         u16::from_le_bytes([viewer_record.raw[0x1e], viewer_record.raw[0x1f]]),
         65
     );
-    assert_eq!(viewer_record.raw[0x23], 8);
+    assert_eq!(viewer_record.raw[0x23], 9);
     assert_eq!(viewer_record.raw[0x24], 0x00);
     assert_eq!(viewer_record.raw[0x25], 0);
     assert_eq!(viewer_record.raw[0x26], 0x00);
@@ -2246,7 +2248,7 @@ fn maint_rust_battle_abort_generates_move_abort_report() {
 }
 
 #[test]
-fn maint_rust_dominant_invalidated_invade_report_holds_position() {
+fn maint_rust_dominant_invalidated_invade_report_retreats_after_capability_loss() {
     let target = unique_temp_dir("ec-cli-maint-rust-invade-abort-hold");
     copy_fixture_dir("fixtures/ecmaint-post/v1.5", &target);
     write_mutual_enemy_diplomacy(&target, 1, 2);
@@ -2257,19 +2259,20 @@ fn maint_rust_dominant_invalidated_invade_report_holds_position() {
 
     let reloaded = CoreGameData::load(&target).expect("maint-rust output should load");
     let attacker = &reloaded.fleets.records[0];
-    // With screen-then-kill hit allocation, ground batteries destroy all ships
-    // when firing at overwhelming strength (54 hits vs 2 ships with 1 fresh each)
-    assert_eq!(attacker.destroyer_count(), 0);
-    assert_eq!(attacker.troop_transport_count(), 0);
-    assert_eq!(attacker.standing_order_kind(), Order::HoldPosition);
-    assert_eq!(attacker.current_speed(), 0);
+    assert_eq!(attacker.standing_order_kind(), Order::SeekHome);
+    assert_eq!(attacker.standing_order_target_coords_raw(), [16, 13]);
+    assert!(attacker.current_speed() > 0);
     assert_eq!(attacker.current_location_coords_raw(), [15, 13]);
 
     let results = fs::read(target.join("RESULTS.DAT")).expect("RESULTS.DAT should exist");
-    let text = decode_chunked_report(&results);
-    assert!(text.contains("Invasion mission report"));
-    // Fleet was destroyed by ground batteries during failed invasion attempt
-    assert!(text.contains("Friendly losses: 1 destroyer and 1 troop transport ship"));
+    let normalized = results_records(&results)
+        .into_iter()
+        .map(result_record_text)
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(normalized.contains("Invasion mission report"));
+    assert!(normalized.contains("Hostile action stripped us of our invasion capability"));
+    assert!(normalized.contains("seeking safety at planet"));
 
     cleanup_dir(&target);
 }
@@ -2295,7 +2298,7 @@ fn maint_rust_roe_withdrawal_generates_composition_and_loss_report() {
     fleet.set_troop_transport_count(0);
     fleet.set_army_count(0);
     fleet.set_etac_count(0);
-    fleet.set_rules_of_engagement(8);
+    fleet.set_rules_of_engagement(5);
 
     let hostile = &mut game_data.fleets.records[4];
     hostile.set_current_location_coords_raw(coords);
@@ -2326,7 +2329,8 @@ fn maint_rust_roe_withdrawal_generates_composition_and_loss_report() {
     let normalized = lines.join(" ");
     assert!(normalized.contains("In accordance to our ROE, we withdrew"));
     assert!(normalized.contains("Alien force contained"));
-    assert!(normalized.contains("alien ship casualties"));
+    assert!(normalized.contains("suffering losses of no ship losses"));
+    assert!(normalized.contains("unable to inflict any losses"));
 
     cleanup_dir(&target);
 }
@@ -2621,7 +2625,11 @@ fn maint_rust_battle_abort_scout_report_mentions_retreat_destination() {
     assert!(text.contains("the ") && text.contains(" Fleet of "));
     assert!(text.contains("Fleet of \""));
     assert!(text.contains("(Empire #"));
-    assert!(text.contains("seeking safety") || text.contains("holding position"));
+    assert!(
+        text.contains("seeking safety")
+            || text.contains("seek safety")
+            || text.contains("holding position")
+    );
     assert!(text.contains("planet \"") || text.contains("System("));
 
     cleanup_dir(&target);

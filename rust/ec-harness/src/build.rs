@@ -1,9 +1,10 @@
 use std::fs;
 use std::path::Path;
 
+use ec_compat::export_latest_snapshot_to_dir;
 use ec_data::{
-    build_seeded_initialized_game, build_seeded_new_game, CampaignStore, CoreGameData, DatabaseDat,
-    QueuedPlayerMail, ReportBlockRow,
+    CampaignStore, CoreGameData, QueuedPlayerMail, ReportBlockRow, build_seeded_initialized_game,
+    build_seeded_new_game,
 };
 
 use crate::error::HarnessError;
@@ -87,34 +88,13 @@ pub fn save_built_scenario(
 ) -> Result<SavedScenarioReport, HarnessError> {
     fs::create_dir_all(target_dir)?;
     let store = CampaignStore::open_default_in_dir(target_dir)?;
+    store.save_runtime_state_structured(
+        &built.game_data,
+        &built.report_block_rows,
+        &built.queued_mail,
+    )?;
     if export_classic {
-        let database = DatabaseDat::generate_from_planets_and_year(
-            &built
-                .game_data
-                .planets
-                .records
-                .iter()
-                .map(|planet| planet.planet_name())
-                .collect::<Vec<_>>(),
-            built.game_data.conquest.game_year(),
-            built.game_data.conquest.player_count() as usize,
-            None,
-        );
-        store.save_runtime_state_structured_with_compat(
-            &built.game_data,
-            &built.report_block_rows,
-            &built.queued_mail,
-            &database,
-        )?;
-    } else {
-        store.save_runtime_state_structured(
-            &built.game_data,
-            &built.report_block_rows,
-            &built.queued_mail,
-        )?;
-    }
-    if export_classic {
-        store.export_latest_snapshot_to_dir(target_dir)?;
+        export_latest_snapshot_to_dir(&store, target_dir)?;
     }
     Ok(SavedScenarioReport {
         report: built.report.clone(),

@@ -8,6 +8,7 @@ name = "ec-cli"
 path = "src/main.rs"
 
 [dependencies]
+ec-compat = { path = "../ec-compat" }
 ec-data = { path = "../ec-data" }
 ec-harness = { path = "../ec-harness" }
 kdl = "6"

@@ -4,6 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use ec_client::app::{App, AppConfig};
 use ec_client::screen::{MainMenuScreen, PLAYFIELD_HEIGHT, ScreenId};
+use ec_compat::import_directory_snapshot_with_seed;
 use ec_data::{CampaignStore, DEFAULT_CAMPAIGN_DB_NAME};
 
 fn repo_root() -> PathBuf {
@@ -38,10 +39,9 @@ fn copy_dir_all(src: &Path, dst: &Path) {
 fn seeded_fixture_copy(seed: u64) -> PathBuf {
     let root = temp_dir("ec-client-cosmetic-seed");
     copy_dir_all(&repo_root().join("fixtures/ecutil-init/v1.5"), &root);
-    CampaignStore::open(root.join(DEFAULT_CAMPAIGN_DB_NAME))
-        .expect("open campaign store")
-        .import_directory_snapshot_with_seed(&root, Some(seed))
-        .expect("seed sqlite snapshot");
+    let store =
+        CampaignStore::open(root.join(DEFAULT_CAMPAIGN_DB_NAME)).expect("open campaign store");
+    import_directory_snapshot_with_seed(&store, &root, Some(seed)).expect("seed sqlite snapshot");
     root
 }
 

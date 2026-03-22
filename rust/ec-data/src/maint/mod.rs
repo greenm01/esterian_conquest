@@ -56,18 +56,52 @@ struct MovementEvents {
 pub fn run_maintenance_turn(
     game_data: &mut CoreGameData,
 ) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
-    run_maintenance_turn_with_context(game_data, &[], &[])
+    run_maintenance_turn_with_context_and_seed(game_data, 0, &[], &[])
 }
 
 pub fn run_maintenance_turn_with_visible_hazards(
     game_data: &mut CoreGameData,
     visible_hazards_by_empire: &[VisibleHazardIntel],
 ) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
-    run_maintenance_turn_with_context(game_data, visible_hazards_by_empire, &[])
+    run_maintenance_turn_with_context_and_seed(game_data, 0, visible_hazards_by_empire, &[])
+}
+
+pub fn run_maintenance_turn_with_seed(
+    game_data: &mut CoreGameData,
+    campaign_seed: u64,
+) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
+    run_maintenance_turn_with_context_and_seed(game_data, campaign_seed, &[], &[])
+}
+
+pub fn run_maintenance_turn_with_visible_hazards_and_seed(
+    game_data: &mut CoreGameData,
+    campaign_seed: u64,
+    visible_hazards_by_empire: &[VisibleHazardIntel],
+) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
+    run_maintenance_turn_with_context_and_seed(
+        game_data,
+        campaign_seed,
+        visible_hazards_by_empire,
+        &[],
+    )
 }
 
 pub fn run_maintenance_turn_with_context(
     game_data: &mut CoreGameData,
+    visible_hazards_by_empire: &[VisibleHazardIntel],
+    diplomacy_overrides: &[DiplomacyOverride],
+) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
+    run_maintenance_turn_with_context_and_seed(
+        game_data,
+        0,
+        visible_hazards_by_empire,
+        diplomacy_overrides,
+    )
+}
+
+pub fn run_maintenance_turn_with_context_and_seed(
+    game_data: &mut CoreGameData,
+    campaign_seed: u64,
     visible_hazards_by_empire: &[VisibleHazardIntel],
     diplomacy_overrides: &[DiplomacyOverride],
 ) -> Result<MaintenanceEvents, Box<dyn std::error::Error>> {
@@ -196,7 +230,8 @@ pub fn run_maintenance_turn_with_context(
     // Detect and resolve fleet battles: when hostile fleets co-locate after movement,
     // surviving fleets get SeekHome orders (confirmed from fleet-battle oracle).
     // This runs after movement so all fleet positions are final for this turn.
-    let fleet_battle_phase_events = combat::process_fleet_battles(game_data, diplomacy_overrides)?;
+    let fleet_battle_phase_events =
+        combat::process_fleet_battles(game_data, campaign_seed, diplomacy_overrides)?;
 
     // Apply colonization results to PLANETS.DAT and PLAYER.DAT
     let colonization_events =
@@ -238,8 +273,13 @@ pub fn run_maintenance_turn_with_context(
 
     // Resolve bombardment for fleets that were already-arrived (raw[0x19]==0x80) at turn start.
     // Confirmed: bombardment executes on the tick AFTER transit-arrival, not same tick.
-    let assault_events =
-        combat::process_planetary_assaults(game_data, &bombard_ready, &invade_ready, &blitz_ready)?;
+    let assault_events = combat::process_planetary_assaults(
+        game_data,
+        campaign_seed,
+        &bombard_ready,
+        &invade_ready,
+        &blitz_ready,
+    )?;
 
     let join_host_events = merging::process_join_host_updates(game_data, &merge_events);
 
@@ -453,7 +493,7 @@ pub fn run_maintenance_turns(
     turns: u16,
 ) -> Result<u16, Box<dyn std::error::Error>> {
     for _ in 0..turns {
-        run_maintenance_turn(game_data)?;
+        run_maintenance_turn_with_seed(game_data, 0)?;
     }
     Ok(game_data.conquest.game_year())
 }

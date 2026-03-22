@@ -3,15 +3,16 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+use ec_compat::import_directory_snapshot;
 use ec_data::{
     CampaignStore, CoreGameData, DiplomacyConfig, DiplomacyOverride, DiplomaticRelation,
     MaintenanceEvents, PlanetIntelSnapshot, PlanetIntelSource, VisibleHazardIntel,
-    decode_report_block_rows, merge_player_intel_from_runtime,
-    run_maintenance_turn_with_context_and_seed, run_maintenance_turn_with_seed,
-    run_maintenance_turn_with_visible_hazards_and_seed, visible_hazard_intel_from_snapshots,
+    merge_player_intel_from_runtime, run_maintenance_turn_with_context_and_seed,
+    run_maintenance_turn_with_seed, run_maintenance_turn_with_visible_hazards_and_seed,
+    visible_hazard_intel_from_snapshots,
 };
 
-use crate::commands::reports::{build_database_dat, build_rankings_text, build_results_dat};
+use crate::commands::reports::{build_rankings_text, build_results_report_blocks};
 use crate::commands::runtime::{
     load_runtime_intel_by_viewer, load_runtime_state_preferring_live_directory,
 };
@@ -82,13 +83,7 @@ pub fn run_rust_maintenance_with_options(
     let queued_mail = runtime_state.queued_mail;
     let mut diplomacy_overrides = load_diplomacy_overrides_if_present(dir, &game_data)?;
     let mut planet_intel_by_viewer = load_runtime_intel_by_viewer(&campaign_store, &game_data)?;
-    let mut compat_database = campaign_store.load_latest_compat_database()?;
     absorb_persistable_diplomacy_overrides(&mut game_data, &mut diplomacy_overrides)?;
-
-    // Save a snapshot of the pre-maint planets so we can inspect build queues later.
-    // DATABASE.DAT regeneration needs to know which planets had active builds
-    // in order to clear the 0x1e field in the corresponding orbit records.
-    let pre_maint_planets = game_data.planets.clone();
 
     // Cross-file validation: warn on structural inconsistencies.
     let preflight_errors = game_data.ecmaint_preflight_errors();
@@ -203,14 +198,6 @@ pub fn run_rust_maintenance_with_options(
             );
         }
 
-        compat_database = Some(build_database_dat(
-            &game_data,
-            &pre_maint_planets,
-            &planet_intel_by_viewer,
-            &all_events,
-            compat_database.as_ref(),
-        ));
-
         println!("  Turn {}: year {}", turn, game_data.conquest.game_year());
     }
 
@@ -220,24 +207,13 @@ pub fn run_rust_maintenance_with_options(
         game_data.conquest.game_year()
     );
 
-    let results_bytes = build_results_dat(&mut game_data, &all_events);
-    let report_block_rows = decode_report_block_rows(&results_bytes);
-    if let Some(database) = compat_database.as_ref() {
-        campaign_store.save_runtime_state_structured_with_intel_and_compat(
-            &game_data,
-            &report_block_rows,
-            &queued_mail,
-            &planet_intel_by_viewer,
-            database,
-        )?;
-    } else {
-        campaign_store.save_runtime_state_structured_with_intel(
-            &game_data,
-            &report_block_rows,
-            &queued_mail,
-            &planet_intel_by_viewer,
-        )?;
-    }
+    let report_block_rows = build_results_report_blocks(&mut game_data, &all_events);
+    campaign_store.save_runtime_state_structured_with_intel(
+        &game_data,
+        &report_block_rows,
+        &queued_mail,
+        &planet_intel_by_viewer,
+    )?;
 
     let rankings_text = build_rankings_text(&game_data);
     fs::write(dir.join("RANKINGS.TXT"), rankings_text.as_bytes())?;
@@ -353,9 +329,10 @@ pub fn compare_maintenance(
 
     // Run Rust maintenance for N turns
     println!("=== Running Rust maintenance ({} turns) ===", turns_to_run);
-    CampaignStore::open_default_in_dir(&rust_dir)?.import_directory_snapshot(&rust_dir)?;
+    let store = CampaignStore::open_default_in_dir(&rust_dir)?;
+    import_directory_snapshot(&store, &rust_dir)?;
     run_rust_maintenance(&rust_dir, turns_to_run)?;
-    CampaignStore::open_default_in_dir(&rust_dir)?.export_latest_snapshot_to_dir(&rust_dir)?;
+    crate::commands::storage::export_latest_db_snapshot(&rust_dir, &rust_dir)?;
     println!();
 
     // Run original ECMAINT N times
