@@ -133,7 +133,9 @@ Game setup is a sysop/admin responsibility, not a normal player action.
 
 For the Rust port, that means:
 
-- shared setup logic may live in `ec-data`
+- setup/map-generation rule execution should live in `ec-engine`
+- shared setup config parsing and baseline state-construction helpers may live
+  in `ec-data`
 - admin-facing setup commands may live in `ec-cli` or a future sysop UI
 - the player client should not be the primary place where a new game is
   initialized or rewritten

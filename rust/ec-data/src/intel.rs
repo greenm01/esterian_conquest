@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use crate::{CoreGameData, PlanetIntelSource};
 use crate::storage::{IntelTier, PlanetIntelSnapshot};
+use crate::{CoreGameData, PlanetIntelSource};
 
 pub fn merge_player_intel_from_runtime(
     game_data: &CoreGameData,

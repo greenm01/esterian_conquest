@@ -3,14 +3,14 @@ use super::{
     MovementEvents, PlanetIntelEvent, PlanetIntelSource, SalvageFailureReason,
     SalvageResolvedEvent,
 };
-use ec_data::fleet_motion_state::{
-    decode_exact_position, reset_motion_state_for_new_orders, store_exact_position,
-};
 use crate::navigation::{
     advance_exact_position, plan_route_with_intel, rounded_coords_from_exact,
     visible_hazard_intel_is_empty,
 };
 use crate::{CoreGameData, Order, ProductionItemKind, VisibleHazardIntel};
+use ec_data::fleet_motion_state::{
+    decode_exact_position, reset_motion_state_for_new_orders, store_exact_position,
+};
 
 fn queue_local_intrusion_escalation(
     movement_events: &mut MovementEvents,

@@ -1,4 +1,4 @@
-use ec_data::{GeneratedMap, build_seeded_initialized_game, build_seeded_new_game, generate_map};
+use ec_engine::{GeneratedMap, build_seeded_initialized_game, build_seeded_new_game, generate_map};
 
 fn edge_ring_world_count(generated: &GeneratedMap) -> usize {
     generated

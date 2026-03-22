@@ -1,5 +1,6 @@
-use crate::{
+use ec_data::{
     CoreGameData, GameRng, GameStateBuilder, GameStateMutationError, PlanetRecord, RNG_TAG_MAPGEN,
+    map_size_for_player_count,
 };
 
 const REROLL_CANDIDATES: usize = 64;
@@ -124,15 +125,6 @@ pub fn generate_map(player_count: u8, seed: u64) -> GeneratedMap {
         &generated.neutral_worlds
     ));
     generated
-}
-
-pub fn map_size_for_player_count(player_count: u8) -> u8 {
-    match player_count {
-        1..=4 => 18,
-        5..=9 => 27,
-        10..=16 => 36,
-        _ => 45,
-    }
 }
 
 fn generate_homeworlds(player_count: u8, map_size: u8, rng: &mut GameRng) -> Vec<[u8; 2]> {

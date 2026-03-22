@@ -2,9 +2,7 @@ use std::fmt;
 use std::fs;
 use std::path::Path;
 
-use crate::{
-    CoreGameData, DiplomaticRelation, build_seeded_initialized_game, build_seeded_new_game,
-};
+use crate::DiplomaticRelation;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SetupMode {
@@ -218,47 +216,6 @@ impl SetupConfig {
         }
 
         self.validate()
-    }
-
-    pub fn build_game_data(&self, runtime_seed: u64) -> Result<CoreGameData, SetupConfigError> {
-        let seed = self.seed.unwrap_or(runtime_seed);
-        let mut data = match self.setup_mode {
-            SetupMode::CanonicalFourPlayer => {
-                build_seeded_new_game(self.player_count, self.year, seed)
-                    .map_err(|err| SetupConfigError::Parse(err.to_string()))?
-            }
-            SetupMode::BuilderCompatible => {
-                build_seeded_initialized_game(self.player_count, self.year, seed)
-                    .map_err(|err| SetupConfigError::Parse(err.to_string()))?
-            }
-        };
-
-        data.setup.set_snoop_enabled(self.setup_options.snoop);
-        data.setup
-            .set_local_timeout_enabled(self.setup_options.local_timeout);
-        data.setup
-            .set_remote_timeout_enabled(self.setup_options.remote_timeout);
-        data.setup
-            .set_max_time_between_keys_minutes_raw(self.setup_options.max_key_gap_minutes);
-        data.setup
-            .set_minimum_time_granted_minutes_raw(self.setup_options.minimum_time_minutes);
-        data.setup
-            .set_purge_after_turns_raw(self.setup_options.purge_after_turns);
-        data.setup
-            .set_autopilot_inactive_turns_raw(self.setup_options.autopilot_after_turns);
-        for idx in 0..4 {
-            data.setup
-                .set_com_irq_raw(idx, self.port_setup.com_irq[idx]);
-            data.setup.set_com_hardware_flow_control_enabled(
-                idx,
-                self.port_setup.hardware_flow_control[idx],
-            );
-        }
-        data.conquest
-            .set_maintenance_schedule_enabled(self.maintenance_days);
-        data.conquest.set_game_year(self.year);
-        data.conquest.set_player_count(self.player_count);
-        Ok(data)
     }
 
     pub fn validate(self) -> Result<Self, SetupConfigError> {

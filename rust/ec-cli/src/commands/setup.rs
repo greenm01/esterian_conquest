@@ -3,7 +3,7 @@ use ec_compat::{
     write_default_database_dat_for_game_data,
 };
 use ec_data::{CampaignStore, ConquestDat, SetupDat, generate_campaign_seed};
-use ec_engine::{SetupConfig, build_seeded_new_game};
+use ec_engine::{SetupConfig, build_game_data_from_setup_config, build_seeded_new_game};
 use std::fs;
 use std::path::Path;
 
@@ -75,7 +75,7 @@ pub(crate) fn init_new_game_from_config(
         config
     };
     let seed = seed_override.unwrap_or_else(runtime_seed);
-    let data = config.build_game_data(seed)?;
+    let data = build_game_data_from_setup_config(&config, seed)?;
 
     fs::create_dir_all(target)?;
     data.save(target)?;

@@ -7,7 +7,7 @@ Use this as the restart brief. Historical detail belongs in
 
 - Architecture is stable:
   - `ec-data` = runtime/store/model
-  - `ec-engine` = gameplay/maintenance API
+  - `ec-engine` = gameplay/rules API
   - `ec-compat` = classic `.DAT` import/export/oracle bridge
   - `ec-classic` = low-level classic record/codecs
 - Phase 1 engine-boundary correction is now in place:
@@ -19,6 +19,10 @@ Use this as the restart brief. Historical detail belongs in
   - movement/pathfinding rule code lives in `ec-engine/src/navigation/`
   - raw fleet motion scratch-byte helpers live in
     `ec-data::fleet_motion_state`
+- Phase 3 boundary correction is now in place:
+  - setup/map-generation rule code lives in `ec-engine/src/setup/`
+  - shared setup config parsing and baseline state builders remain in
+    `ec-data`
 - SQLite is the runtime source of truth for engine and TUI.
 - Classic `.DAT` files are now an explicit compatibility edge, not live runtime
   state.
@@ -92,9 +96,9 @@ exceptions:
 
 ## Structural Note
 
-The remaining obvious boundary debt is setup/map generation, not movement.
-Movement/pathfinding now follows the same split as maintenance:
+The three major gameplay subsystems now follow the intended split:
 
-- `ec-engine` owns route planning, ETA, and movement execution rules
-- `ec-data` keeps only runtime/store/model state and raw fleet motion field
-  helpers needed by both engine code and state mutation paths
+- `ec-engine` owns maintenance, movement/pathfinding, and setup/map-generation
+  rule execution
+- `ec-data` keeps runtime/store/model state plus shared config, builder, and
+  raw record-layout helpers needed by those engine systems

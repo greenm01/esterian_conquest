@@ -1,9 +1,8 @@
 use ec_data::{
     BaseDat, BaseRecord, ConquestDat, CoreGameData, EmpireProductionRankingSort, FleetDat, IpbmDat,
-    PlanetDat, PlanetRecord, PlayerDat, PlayerRecord, SetupDat, build_seeded_new_game,
-    decode_real48, encode_real48,
+    PlanetDat, PlanetRecord, PlayerDat, PlayerRecord, SetupDat, decode_real48, encode_real48,
 };
-use ec_engine::run_maintenance_turn;
+use ec_engine::{build_seeded_new_game, run_maintenance_turn};
 
 fn zeroed_setup() -> SetupDat {
     SetupDat::parse(&vec![0; ec_data::SETUP_DAT_SIZE]).expect("zeroed setup should parse")

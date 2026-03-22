@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use ec_data::{DiplomacyConfig, SetupConfig, SetupMode};
+use ec_engine::build_game_data_from_setup_config;
 
 fn example_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("config/setup.example.kdl")
@@ -19,7 +20,7 @@ fn setup_example_kdl_parses() {
 #[test]
 fn setup_example_kdl_builds_preflight_clean_game() {
     let config = SetupConfig::load_kdl(&example_path()).expect("parse setup example");
-    let data = config.build_game_data(1515).expect("build game data");
+    let data = build_game_data_from_setup_config(&config, 1515).expect("build game data");
     assert_eq!(data.conquest.player_count(), 4);
     assert_eq!(data.conquest.game_year(), 3000);
     assert_eq!(data.setup.com_irq_raw(0), Some(4));

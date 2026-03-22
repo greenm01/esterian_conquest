@@ -1,6 +1,5 @@
-use ec_data::{
-    CampaignStore, DiplomaticRelation, Order, TurnSubmission, build_seeded_initialized_game,
-};
+use ec_data::{CampaignStore, DiplomaticRelation, Order, TurnSubmission};
+use ec_engine::build_seeded_initialized_game;
 
 #[test]
 fn turn_submission_applies_mixed_player_actions() {

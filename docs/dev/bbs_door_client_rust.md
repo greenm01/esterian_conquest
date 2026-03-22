@@ -6,9 +6,10 @@ after the engine/oracle milestone.
 It replaces older notes that assumed a future client crate and a deferred
 runtime/storage split. The repository today is centered on:
 
-- `ec-data`: canonical game state, classic `.DAT` parsing/writing, setup,
-  validation
-- `ec-engine`: gameplay rules, maintenance, and movement/pathfinding execution
+- `ec-data`: canonical game state, classic `.DAT` parsing/writing, shared
+  setup config/builder helpers, validation
+- `ec-engine`: gameplay rules, maintenance, movement/pathfinding, and
+  setup/mapgen execution
 - `ec-cli`: sysop/admin/oracle/inspection workflows on top of `ec-data`
 - `ec-client`: the SQLite-native player application layer
 
@@ -56,12 +57,12 @@ Current versioning direction:
 Keep the current crate responsibilities:
 
 - `ec-engine`
-  - owns gameplay rule execution and yearly maintenance
+  - owns gameplay rule execution, yearly maintenance, movement/pathfinding,
+    and setup/map generation
   - consumes `ec-data` state/model types rather than duplicating them
 - `ec-data`
-  - owns runtime/store/model state and shared plain payload types
-  - still carries some shared helpers and transitional rule-adjacent code such
-    as setup/mapgen surfaces during the current migration
+  - owns runtime/store/model state, shared plain payload types, and setup
+    config/builder helpers
 - `ec-cli`
   - remains the sysop/admin/oracle/testing tool
   - owns the explicit classic import/export/materialization bridge
@@ -75,7 +76,7 @@ Current workspace shape:
 ```text
 rust/
 ├── ec-data     # runtime/store/model + shared payload/data helpers
-├── ec-engine   # gameplay rule execution + maintenance
+├── ec-engine   # gameplay rule execution + maintenance/navigation/setup
 ├── ec-cli      # sysop/admin/oracle/inspection workflows + compat bridge
 └── ec-client   # player-facing client (local first, door later)
 ```

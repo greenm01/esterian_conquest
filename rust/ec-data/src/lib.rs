@@ -20,7 +20,8 @@ mod economy;
 #[doc(hidden)]
 pub mod fleet_motion_state;
 mod intel;
-mod mapgen;
+pub mod maintenance_types;
+mod map_dimensions;
 mod player_mail;
 mod records;
 mod report_blocks;
@@ -29,11 +30,8 @@ mod starmap;
 mod storage;
 mod support;
 mod turns;
-pub mod maintenance_types;
 
-pub use builder::{
-    CanonicalFourPlayerSetup, FleetOrderSpec, GameStateBuilder, GuardStarbaseSpec, PlanetBuildSpec,
-};
+pub use builder::{FleetOrderSpec, GameStateBuilder, GuardStarbaseSpec, PlanetBuildSpec};
 pub use config::{
     DiplomacyConfig, DiplomacyDirective, SetupConfig, SetupConfigError, SetupMode,
     SetupOptionsConfig,
@@ -61,10 +59,7 @@ pub use maintenance_types::{
     PlanetOwnershipChangeEvent, SalvageFailureReason, SalvageResolvedEvent, ScoutContactEvent,
     ShipLosses, StarbaseDestroyedEvent,
 };
-pub use mapgen::{
-    GeneratedMap, GeneratedWorld, build_seeded_initialized_game, build_seeded_new_game,
-    generate_map, map_size_for_player_count,
-};
+pub use map_dimensions::map_size_for_player_count;
 pub use player_mail::{
     QueuedPlayerMail, append_mail_queue, clear_mail_queue, load_mail_queue, save_mail_queue,
 };

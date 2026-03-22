@@ -1,25 +1,23 @@
 pub mod maint;
 pub mod navigation;
+pub mod setup;
 
 pub use ec_data::{
-    AssaultReportEvent, BaseRecord, BombardEvent, CampaignOutcome, CampaignOutcomeEvent,
-    CampaignOutlook, CampaignOutlookEvent, CampaignState,
-    CanonicalFourPlayerSetup, CivilDisorderEvent, ColonizationResolvedEvent, CommissionResult,
-    ContactReportSource, CONQUEST_DAT_SIZE, ConquestDat, CoreGameData, DiplomacyConfig,
-    DiplomacyDirective, DiplomacyOverride, DiplomaticEscalationEvent, DiplomaticRelation,
-    EmpireEconomySummary, EmpirePlanetEconomyRow, EmpireProductionRankingRow,
+    AssaultReportEvent, BaseRecord, BombardEvent, CONQUEST_DAT_SIZE, CampaignOutcome,
+    CampaignOutcomeEvent, CampaignOutlook, CampaignOutlookEvent, CampaignState, CivilDisorderEvent,
+    ColonizationResolvedEvent, CommissionResult, ConquestDat, ContactReportSource, CoreGameData,
+    DiplomacyConfig, DiplomacyDirective, DiplomacyOverride, DiplomaticEscalationEvent,
+    DiplomaticRelation, EmpireEconomySummary, EmpirePlanetEconomyRow, EmpireProductionRankingRow,
     EmpireProductionRankingSort, EncounterDispositionEvent, EncounterDispositionReason,
     FleetBattleEvent, FleetDefectionEvent, FleetDestroyedEvent, FleetMergeEvent, FleetOrderSpec,
-    FleetOrderValidationError, FleetPlayerInputValidationError,
-    GameRng, GameStateBuilder, GeneratedMap, GeneratedWorld, GuardStarbaseSpec,
-    InvalidPlayerStateEvent, JoinMissionHostEvent, MaintenanceEvents, Mission, MissionEvent,
-    MissionOutcome, MissionRetargetEvent, Order, PlanetBuildSpec, PlanetIntelEvent,
+    FleetOrderValidationError, FleetPlayerInputValidationError, GameRng, GameStateBuilder,
+    GuardStarbaseSpec, InvalidPlayerStateEvent, JoinMissionHostEvent, MaintenanceEvents, Mission,
+    MissionEvent, MissionOutcome, MissionRetargetEvent, Order, PlanetBuildSpec, PlanetIntelEvent,
     PlanetIntelSource, PlanetOwnershipChangeEvent, PlanetPlayerInputValidationError, PlanetRecord,
     PlayerDiplomacyValidationError, ProductionItemKind, RNG_TAG_COMBAT, STARDOCK_SLOT_COUNT,
     SalvageFailureReason, SalvageResolvedEvent, ScoutContactEvent, SetupConfig, SetupConfigError,
     SetupMode, SetupOptionsConfig, ShipLosses, StarbaseDestroyedEvent, build_capacity,
-    build_seeded_initialized_game, build_seeded_new_game, generate_map, map_size_for_player_count,
-    yearly_growth_delta, yearly_high_tax_penalty, yearly_tax_revenue,
+    map_size_for_player_count, yearly_growth_delta, yearly_high_tax_penalty, yearly_tax_revenue,
 };
 pub use maint::{
     process_autopilot_ai, run_maintenance_turn, run_maintenance_turn_with_context,
@@ -31,4 +29,9 @@ pub use navigation::{
     FleetEtaEstimate, PlannedRoute, RouteStep, VisibleHazardIntel, estimate_fleet_eta,
     estimate_fleet_eta_to_destination, next_path_step, plan_route, plan_route_with_intel,
     visible_hazard_intel_from_snapshots,
+};
+pub use setup::{
+    CanonicalFourPlayerSetup, GeneratedMap, GeneratedWorld, MapMetrics,
+    build_canonical_four_player_start, build_game_data_from_setup_config,
+    build_seeded_initialized_game, build_seeded_new_game, generate_map,
 };

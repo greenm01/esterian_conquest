@@ -1,8 +1,8 @@
 //! Maintenance logic for ECMAINT.EXE mechanics.
 
-mod combat;
 mod campaign;
 mod canonicalize;
+mod combat;
 mod economics;
 pub mod gate;
 mod merging;
@@ -14,8 +14,8 @@ pub mod timing;
 
 pub use ec_data::maintenance_types::*;
 
-use ec_data::{CoreGameData, FleetRecord, Order};
 use crate::VisibleHazardIntel;
+use ec_data::{CoreGameData, FleetRecord, Order};
 
 /// Event produced when a fleet completes a ColonizeWorld order.
 #[derive(Debug)]
