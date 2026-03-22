@@ -1,4 +1,4 @@
-use super::helpers::{
+use crate::app::helpers::{
     center_scroll_to_cursor, resolve_default_coords_input, sync_scroll_to_cursor,
 };
 use crate::app::state::App;
@@ -665,7 +665,7 @@ impl App {
         }
     }
 
-    pub(super) fn handle_fleet_order_key(
+    pub(crate) fn handle_fleet_order_key(
         &self,
         key: crossterm::event::KeyEvent,
     ) -> crate::app::Action {
@@ -707,7 +707,7 @@ impl App {
         }
     }
 
-    pub(super) fn handle_fleet_group_order_key(
+    pub(crate) fn handle_fleet_group_order_key(
         &self,
         key: crossterm::event::KeyEvent,
     ) -> crate::app::Action {
@@ -750,7 +750,7 @@ impl App {
         }
     }
 
-    pub(super) fn handle_fleet_mission_picker_key(
+    pub(crate) fn handle_fleet_mission_picker_key(
         &self,
         key: crossterm::event::KeyEvent,
     ) -> crate::app::Action {

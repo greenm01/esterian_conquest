@@ -1,4 +1,4 @@
-use super::helpers::sync_scroll_to_cursor;
+use crate::app::helpers::sync_scroll_to_cursor;
 use crate::app::state::App;
 use crate::model::{MainMenuSummary, ReviewSummary};
 use crate::reports::{ReportsPreview, has_visible_runtime_messages};

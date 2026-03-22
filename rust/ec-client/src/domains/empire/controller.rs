@@ -1,4 +1,4 @@
-use super::helpers::sync_scroll_to_cursor;
+use crate::app::helpers::sync_scroll_to_cursor;
 use crate::app::state::App;
 use crate::screen::ScreenId;
 

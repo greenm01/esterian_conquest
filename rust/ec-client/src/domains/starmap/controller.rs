@@ -1,4 +1,4 @@
-use super::helpers::resolve_default_coords_input;
+use crate::app::helpers::resolve_default_coords_input;
 use crate::app::state::App;
 use crate::screen::{CommandMenu, ScreenId};
 use ec_data::build_player_starmap_projection_from_snapshots;

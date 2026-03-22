@@ -1,5 +1,5 @@
-use crate::app::messaging::compose_recipient_label;
 use crate::app::state::App;
+use crate::domains::messaging::controller::compose_recipient_label;
 use crate::screen::{PlayfieldBuffer, ScreenFrame, ScreenId};
 
 pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {

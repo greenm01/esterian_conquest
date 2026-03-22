@@ -1,5 +1,5 @@
 /// Keep `scroll_offset` in sync with `cursor` so the highlighted row is always visible.
-pub(super) fn sync_scroll_to_cursor(scroll_offset: &mut usize, cursor: usize, visible: usize) {
+pub(crate) fn sync_scroll_to_cursor(scroll_offset: &mut usize, cursor: usize, visible: usize) {
     if cursor < *scroll_offset {
         *scroll_offset = cursor;
     } else if cursor >= *scroll_offset + visible {
@@ -7,7 +7,7 @@ pub(super) fn sync_scroll_to_cursor(scroll_offset: &mut usize, cursor: usize, vi
     }
 }
 
-pub(super) fn center_scroll_to_cursor(
+pub(crate) fn center_scroll_to_cursor(
     scroll_offset: &mut usize,
     cursor: usize,
     visible: usize,
@@ -22,7 +22,7 @@ pub(super) fn center_scroll_to_cursor(
     *scroll_offset = cursor.saturating_sub(half).min(max_offset);
 }
 
-pub(super) fn resolve_default_coords_input(input: &str, default: [u8; 2]) -> Option<[u8; 2]> {
+pub(crate) fn resolve_default_coords_input(input: &str, default: [u8; 2]) -> Option<[u8; 2]> {
     if input.trim().is_empty() {
         Some(default)
     } else {

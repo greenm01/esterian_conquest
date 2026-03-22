@@ -246,6 +246,21 @@ The important point is separation:
 - `ec-data` decides state semantics
 - rendering stays isolated from rules
 
+Keep the code layout aligned to that model:
+
+- `src/app/` should stay the shell:
+  - `App`
+  - the root `Action`
+  - the single update/reducer path
+- `src/domains/<domain>/` should own that domain's:
+  - state
+  - screens/views
+  - update dispatch
+  - domain-specific `impl App` methods
+
+Do not leave a second copy of domain controller logic under `src/app/` once the
+domain slice exists.
+
 ### Client Loop Style
 
 Use a reducer-style action/update/render loop inspired by SAM, but do not turn

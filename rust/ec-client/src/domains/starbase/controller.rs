@@ -1,4 +1,4 @@
-use super::helpers::{center_scroll_to_cursor, sync_scroll_to_cursor};
+use crate::app::helpers::{center_scroll_to_cursor, sync_scroll_to_cursor};
 use crate::app::state::App;
 use crate::domains::starbase::StarbaseAction;
 use crate::screen::{CommandMenu, ScreenId, StarbaseRow};
@@ -134,7 +134,7 @@ impl App {
             .starbase_rows(&self.game_data, self.player.record_index_1_based)
     }
 
-    pub(super) fn handle_starbase_review_select_key(
+    pub(crate) fn handle_starbase_review_select_key(
         &self,
         key: crossterm::event::KeyEvent,
     ) -> crate::app::Action {

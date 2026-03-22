@@ -1,8 +1,8 @@
-use super::fleet_manip::fleet_eta_label;
-use super::fleet_order::{
+use super::manip::fleet_eta_label;
+use super::orders::{
     FleetTargetInputKind, fleet_target_input_kind, fleet_target_status_line, resolve_yes_no_input,
 };
-use super::helpers::{
+use crate::app::helpers::{
     center_scroll_to_cursor, resolve_default_coords_input, sync_scroll_to_cursor,
 };
 use crate::app::state::App;
@@ -604,7 +604,7 @@ impl App {
         rows
     }
 
-    pub(super) fn handle_fleet_roe_key(
+    pub(crate) fn handle_fleet_roe_key(
         &self,
         key: crossterm::event::KeyEvent,
     ) -> crate::app::Action {
@@ -645,7 +645,7 @@ impl App {
         }
     }
 
-    pub(super) fn handle_fleet_review_select_key(
+    pub(crate) fn handle_fleet_review_select_key(
         &self,
         key: crossterm::event::KeyEvent,
     ) -> crate::app::Action {
@@ -716,7 +716,7 @@ impl App {
         );
     }
 
-    pub(super) fn handle_fleet_eta_key(
+    pub(crate) fn handle_fleet_eta_key(
         &self,
         key: crossterm::event::KeyEvent,
     ) -> crate::app::Action {

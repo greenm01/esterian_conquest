@@ -1,4 +1,4 @@
-use super::helpers::{
+use crate::app::helpers::{
     center_scroll_to_cursor, resolve_default_coords_input, sync_scroll_to_cursor,
 };
 use crate::app::state::App;

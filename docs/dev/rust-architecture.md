@@ -142,6 +142,22 @@ build, or maintenance semantics locally.
 It also should not own classic `.DAT` projection; if a workflow needs classic
 files, that belongs in `ec-cli` export/materialization code.
 
+Keep the client structure similarly explicit:
+
+- `src/app/` is the thin shell:
+  - root app state
+  - top-level action enum
+  - reducer/update loop
+  - shell-wide helpers
+- `src/domains/<domain>/` owns domain-specific:
+  - screen state
+  - render/update logic
+  - any `App` methods specific to that domain
+- `src/screen/` owns shared rendering primitives and screen IDs
+
+Do not leave large domain controllers parked under `src/app/` once a real
+domain module exists for them.
+
 ## Current Structural Direction
 
 The current workspace shape is:
@@ -162,8 +178,8 @@ rust/
 │   ├── src/commands/  # sysop/oracle/runtime/admin workflows
 │   └── src/support/   # shared CLI helpers
 └── ec-client
-    ├── src/domains/   # feature/domain slices
-    ├── src/app/       # app state/update/action seams
+    ├── src/domains/   # feature/domain slices + domain controllers
+    ├── src/app/       # thin app shell/state/update/action seams
     ├── src/screen/    # screen/layout primitives
     └── terminal/startup/theme helpers
 ```

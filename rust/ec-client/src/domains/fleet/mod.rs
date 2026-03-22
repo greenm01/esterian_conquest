@@ -1,4 +1,7 @@
 pub mod action;
+mod controller;
+mod manip;
+mod orders;
 pub mod screens;
 pub mod state;
 pub mod update;

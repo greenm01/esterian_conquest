@@ -1,4 +1,4 @@
-use super::helpers::{center_scroll_to_cursor, sync_scroll_to_cursor};
+use crate::app::helpers::{center_scroll_to_cursor, sync_scroll_to_cursor};
 use crate::app::state::App;
 use crate::domains::fleet::FleetAction;
 use crate::screen::{
@@ -693,7 +693,7 @@ impl App {
         Ok(())
     }
 
-    pub(super) fn handle_fleet_detach_key(
+    pub(crate) fn handle_fleet_detach_key(
         &self,
         key: crossterm::event::KeyEvent,
     ) -> crate::app::Action {
@@ -733,7 +733,7 @@ impl App {
         }
     }
 
-    pub(super) fn handle_fleet_merge_key(
+    pub(crate) fn handle_fleet_merge_key(
         &self,
         key: crossterm::event::KeyEvent,
     ) -> crate::app::Action {
@@ -760,7 +760,7 @@ impl App {
         }
     }
 
-    pub(super) fn handle_fleet_transfer_key(
+    pub(crate) fn handle_fleet_transfer_key(
         &self,
         key: crossterm::event::KeyEvent,
     ) -> crate::app::Action {

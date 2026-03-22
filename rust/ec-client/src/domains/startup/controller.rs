@@ -605,7 +605,7 @@ impl App {
         }
     }
 
-    pub(super) fn handle_startup_key(
+    pub(crate) fn handle_startup_key(
         &self,
         phase: StartupPhase,
         key: crossterm::event::KeyEvent,

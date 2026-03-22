@@ -1,4 +1,4 @@
-use super::helpers::{resolve_default_coords_input, sync_scroll_to_cursor};
+use crate::app::helpers::{resolve_default_coords_input, sync_scroll_to_cursor};
 use crate::app::state::App;
 use crate::domains::planet::PlanetAction;
 use crate::screen::{CommandMenu, PlanetDatabaseRow, PlanetListMode, PlanetListSort, ScreenId};
@@ -403,7 +403,7 @@ impl App {
         rows
     }
 
-    pub(super) fn handle_planet_info_prompt_key(
+    pub(crate) fn handle_planet_info_prompt_key(
         &self,
         key: crossterm::event::KeyEvent,
     ) -> crate::app::Action {
