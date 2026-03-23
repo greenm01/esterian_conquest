@@ -4,8 +4,8 @@ use std::collections::BTreeSet;
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    draw_status_line, draw_table_command_bar_at, draw_title_bar, new_playfield,
-    standard_table_visible_rows, table_prompt_row,
+    draw_general_message_after_command, draw_inline_status_after, draw_table_command_bar_at,
+    draw_title_bar, new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords};
@@ -13,11 +13,11 @@ use crate::theme::classic;
 
 pub struct PlanetCommissionScreen;
 
-pub(crate) const PLANET_COMMISSION_VISIBLE_ROWS: usize = standard_table_visible_rows(5);
+pub(crate) const PLANET_COMMISSION_VISIBLE_ROWS: usize = standard_table_visible_rows(2);
 
 const COMMISSION_COLUMNS: [TableColumn<'static>; 4] = [
     TableColumn::right("#", 2),
-    TableColumn::left("Sel", 3),
+    TableColumn::center("Sel", 3),
     TableColumn::left("Unit", 24),
     TableColumn::right("Qty", 4),
 ];
@@ -59,18 +59,6 @@ impl PlanetCommissionScreen {
                 format_sector_coords(view.coords)
             ),
         );
-        buffer.write_text(
-            2,
-            0,
-            "UP/DOWN or J/K nav rows.  H/L or LEFT/RIGHT change planet.",
-            classic::status_value_style(),
-        );
-        buffer.write_text(
-            3,
-            0,
-            "SPACE selects rows.  ENTER commissions the current selection.",
-            classic::status_value_style(),
-        );
 
         let table_rows: Vec<Vec<String>> = view
             .rows
@@ -96,7 +84,7 @@ impl PlanetCommissionScreen {
         };
         let metrics = write_table_window_with_cursor(
             &mut buffer,
-            5,
+            2,
             &COMMISSION_COLUMNS,
             &table_rows,
             scroll_offset,
@@ -108,23 +96,30 @@ impl PlanetCommissionScreen {
 
         if view.rows.is_empty() {
             buffer.write_text(
-                7,
+                5,
                 0,
                 "This planet has no units waiting in stardock.",
                 classic::status_value_style(),
             );
         }
 
-        if let Some(status) = status {
-            draw_status_line(&mut buffer, 17, "", status);
-        }
+        let command_row = table_prompt_row(metrics.bottom_row);
         draw_table_command_bar_at(
             &mut buffer,
-            table_prompt_row(metrics.bottom_row),
+            command_row,
             "<ARROWS H J K L SPACE Q>",
             None,
             "",
         );
+        let message_end_row = draw_general_message_after_command(
+            &mut buffer,
+            command_row,
+            "",
+            "ENTER commissions the current selection.",
+        );
+        if let Some(status) = status {
+            draw_inline_status_after(&mut buffer, message_end_row, status);
+        }
         Ok(buffer)
     }
 }

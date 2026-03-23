@@ -52,8 +52,6 @@ impl App {
 
             ScreenId::PlanetMenu
             | ScreenId::PlanetHelp
-            | ScreenId::PlanetAutoCommissionConfirm
-            | ScreenId::PlanetAutoCommissionDone
             | ScreenId::PlanetTransportPlanetSelect(_)
             | ScreenId::PlanetTransportFleetSelect(_)
             | ScreenId::PlanetTransportQuantityPrompt(_)
@@ -64,7 +62,6 @@ impl App {
             | ScreenId::PlanetBuildReview
             | ScreenId::PlanetBuildList
             | ScreenId::PlanetBuildChange
-            | ScreenId::PlanetBuildAbortConfirm
             | ScreenId::PlanetBuildSpecify
             | ScreenId::PlanetBuildQuantity
             | ScreenId::PlanetListSortPrompt(_)

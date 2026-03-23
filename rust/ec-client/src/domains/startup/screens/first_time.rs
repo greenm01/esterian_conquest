@@ -3,10 +3,10 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
-    COMMAND_LINE_ROW, MenuEntry, dismiss_prompt_row, draw_command_line_default_input_at,
-    draw_command_line_prompt_text_at, draw_command_prompt_at, draw_dismiss_prompt, draw_help_panel,
-    draw_menu_notice, draw_plain_prompt, draw_status_line, draw_title_bar, menu_prompt_row,
-    new_playfield,
+    COMMAND_LINE_ROW, CommandMessage, MenuEntry, dismiss_prompt_row,
+    draw_command_line_default_input_at, draw_command_line_prompt_text_at,
+    draw_command_message_stack, draw_command_prompt_at, draw_dismiss_prompt, draw_help_panel,
+    draw_menu_notice, draw_plain_prompt, draw_title_bar, menu_prompt_row, new_playfield,
 };
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords};
 use crate::theme::classic;
@@ -170,24 +170,11 @@ pub fn render_first_time_join_name(
             classic::body_style(),
         );
     }
-    if let Some(status) = status {
-        draw_status_line(
-            &mut buffer,
-            if rename_mode { 8 } else { 7 },
-            "Notice: ",
-            status,
-        );
-    }
-    let last_content_row = if status.is_some() {
-        if rename_mode { 8 } else { 7 }
-    } else if rename_mode {
-        6
-    } else {
-        5
-    };
+    let last_content_row = if rename_mode { 6 } else { 5 };
+    let command_row = menu_prompt_row(last_content_row);
     draw_command_line_default_input_at(
         &mut buffer,
-        menu_prompt_row(last_content_row),
+        command_row,
         "EMPIRE NAME",
         if rename_mode {
             "Rename your empire "
@@ -197,6 +184,9 @@ pub fn render_first_time_join_name(
         "",
         input,
     );
+    if let Some(status) = status {
+        draw_command_message_stack(&mut buffer, command_row, &[CommandMessage::Notice(status)]);
+    }
     Ok(buffer)
 }
 
@@ -350,29 +340,19 @@ pub fn render_first_time_homeworld_name(
             classic::body_style(),
         );
     }
-    if let Some(status) = status {
-        draw_status_line(
-            &mut buffer,
-            if is_preloaded_first_login { 6 } else { 5 },
-            "Notice: ",
-            status,
-        );
-    }
-    let last_content_row = if status.is_some() {
-        if is_preloaded_first_login { 6 } else { 5 }
-    } else if is_preloaded_first_login {
-        5
-    } else {
-        3
-    };
+    let last_content_row = if is_preloaded_first_login { 5 } else { 3 };
+    let command_row = menu_prompt_row(last_content_row);
     draw_command_line_default_input_at(
         &mut buffer,
-        menu_prompt_row(last_content_row),
+        command_row,
         "HOMEWORLD",
         "Name this world (20 characters or less) ",
         "",
         input,
     );
+    if let Some(status) = status {
+        draw_command_message_stack(&mut buffer, command_row, &[CommandMessage::Notice(status)]);
+    }
     Ok(buffer)
 }
 
@@ -453,18 +433,18 @@ pub fn render_colony_world_name(
         ),
         classic::body_style(),
     );
-    if let Some(status) = status {
-        draw_status_line(&mut buffer, 5, "Notice: ", status);
-    }
-    let last_content_row = if status.is_some() { 5 } else { 3 };
+    let command_row = menu_prompt_row(3);
     draw_command_line_default_input_at(
         &mut buffer,
-        menu_prompt_row(last_content_row),
+        command_row,
         "WORLD NAME",
         "Name this world (20 characters or less) ",
         "",
         input,
     );
+    if let Some(status) = status {
+        draw_command_message_stack(&mut buffer, command_row, &[CommandMessage::Notice(status)]);
+    }
     Ok(buffer)
 }
 

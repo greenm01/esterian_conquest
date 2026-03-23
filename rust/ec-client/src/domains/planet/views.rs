@@ -25,15 +25,9 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.planet.tax_input,
             app.planet.tax_error.as_deref(),
             app.planet.tax_notice.as_deref(),
+            app.planet.auto_commission_prompt_active,
         ),
         ScreenId::PlanetHelp => app.planet_help.render(&frame),
-        ScreenId::PlanetAutoCommissionConfirm => app.planet_auto_commission.render_confirm(),
-        ScreenId::PlanetAutoCommissionDone => app.planet_auto_commission.render_done(
-            app.planet
-                .auto_commission_status
-                .as_deref()
-                .unwrap_or("Auto-commission complete."),
-        ),
         ScreenId::PlanetTransportPlanetSelect(mode) => app.planet_transport.render_planet_select(
             "COMMAND",
             mode,
@@ -82,6 +76,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::PlanetBuildHelp => app.build_help.render(&frame),
         ScreenId::PlanetBuildMenu => app.planet_build.render_menu(
             &app.current_planet_build_view()?,
+            &app.current_planet_build_orders(),
             app.planet.build_status.as_deref(),
             app.expert_mode,
             app.planet.info_prompt_active
@@ -89,6 +84,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.default_planet_prompt_coords(),
             &app.planet.info_input,
             app.planet.info_error.as_deref(),
+            app.planet.build_abort_prompt_active,
         ),
         ScreenId::PlanetBuildReview => app.planet_build.render_review(
             &app.current_planet_build_view()?,
@@ -105,10 +101,6 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &app.build_change_rows(),
             app.planet.build_change_scroll_offset,
             app.planet.build_change_cursor,
-        ),
-        ScreenId::PlanetBuildAbortConfirm => app.planet_build.render_abort_confirm(
-            &app.current_planet_build_view()?,
-            &app.current_planet_build_orders(),
         ),
         ScreenId::PlanetBuildSpecify => app.planet_build.render_specify(
             &app.current_planet_build_view()?,

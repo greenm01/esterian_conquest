@@ -20,6 +20,12 @@ impl App {
         if self.inline_planet_tax_active_on_current_screen() {
             return self.planet_tax.handle_inline_key(key);
         }
+        if self.inline_planet_auto_commission_active_on_current_screen() {
+            return self.handle_planet_auto_commission_prompt_key(key);
+        }
+        if self.inline_planet_build_abort_active_on_current_screen() {
+            return self.handle_planet_build_abort_prompt_key(key);
+        }
         if self.inline_delete_reviewables_active_on_current_screen() {
             return self.handle_delete_reviewables_prompt_key(key);
         }
@@ -174,8 +180,6 @@ impl App {
             ScreenId::FleetEta => self.handle_fleet_eta_key(key),
             ScreenId::PlanetMenu => self.planet_menu.handle_key(key),
             ScreenId::PlanetHelp => self.planet_help.handle_key(key),
-            ScreenId::PlanetAutoCommissionConfirm => self.planet_auto_commission.handle_key(key),
-            ScreenId::PlanetAutoCommissionDone => Action::Planet(PlanetAction::OpenMenu),
             ScreenId::PlanetCommissionMenu => self.planet_commission.handle_key(key),
             ScreenId::PlanetTransportPlanetSelect(_) => {
                 self.planet_transport.handle_planet_key(key)
@@ -192,7 +196,6 @@ impl App {
                 .planet_build
                 .handle_list_key(key, self.planet.build_list_confirming),
             ScreenId::PlanetBuildChange => self.planet_build.handle_change_key(key),
-            ScreenId::PlanetBuildAbortConfirm => self.planet_build.handle_abort_key(key),
             ScreenId::PlanetBuildSpecify => self.planet_build.handle_specify_key(key),
             ScreenId::PlanetBuildQuantity => self.planet_build.handle_quantity_key(key),
             ScreenId::PlanetListSortPrompt(PlanetListMode::Stub(_)) => {

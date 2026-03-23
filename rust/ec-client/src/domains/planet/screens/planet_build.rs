@@ -5,11 +5,11 @@ use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    CMD_COL_1, EXPERT_MENU_PROMPT_ROW, MenuEntry, centered_row, dismiss_prompt_row,
-    draw_command_line_default_input_at, draw_command_prompt_at, draw_dismiss_prompt,
-    draw_expert_menu, draw_inline_planet_info_prompt, draw_menu_row, draw_status_line,
-    draw_title_bar, last_body_row, menu_prompt_row, new_playfield, standard_table_visible_rows,
-    table_prompt_row,
+    CMD_COL_1, CommandMessage, EXPERT_MENU_PROMPT_ROW, MenuEntry, centered_row, dismiss_prompt_row,
+    draw_command_line_default_input_at, draw_command_message_stack, draw_command_prompt_at,
+    draw_dismiss_prompt, draw_expert_menu, draw_inline_confirm_block, draw_inline_confirm_prompt,
+    draw_inline_planet_info_prompt, draw_menu_row, draw_status_line, draw_title_bar, last_body_row,
+    menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
     SplitTableRow, TableColumn, write_split_table, write_table_window_with_cursor,
@@ -196,14 +196,17 @@ impl PlanetBuildScreen {
     pub fn render_menu(
         &mut self,
         view: &PlanetBuildMenuView,
+        orders: &[PlanetBuildOrder],
         status: Option<&str>,
         expert_mode: bool,
         inline_planet_info: bool,
         info_default_coords: [u8; 2],
         info_input: &str,
         info_notice: Option<&str>,
+        inline_abort_prompt: bool,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
+        let abort_lines = build_abort_lines(view, orders);
         if expert_mode {
             if inline_planet_info {
                 draw_inline_planet_info_prompt(
@@ -212,6 +215,16 @@ impl PlanetBuildScreen {
                     info_default_coords,
                     info_input,
                     info_notice,
+                    status,
+                );
+            } else if inline_abort_prompt {
+                let abort_refs = abort_lines.iter().map(String::as_str).collect::<Vec<_>>();
+                draw_inline_confirm_prompt(&mut buffer, EXPERT_MENU_PROMPT_ROW, "COMMAND");
+                draw_inline_confirm_block(
+                    &mut buffer,
+                    EXPERT_MENU_PROMPT_ROW,
+                    "ABORT BUILD ORDERS:",
+                    &abort_refs,
                     status,
                 );
             } else {
@@ -249,6 +262,16 @@ impl PlanetBuildScreen {
                 info_default_coords,
                 info_input,
                 info_notice,
+                status,
+            );
+        } else if inline_abort_prompt {
+            let abort_refs = abort_lines.iter().map(String::as_str).collect::<Vec<_>>();
+            draw_inline_confirm_prompt(&mut buffer, command_row, "COMMAND");
+            draw_inline_confirm_block(
+                &mut buffer,
+                command_row,
+                "ABORT BUILD ORDERS:",
+                &abort_refs,
                 status,
             );
         } else {
@@ -467,10 +490,10 @@ impl PlanetBuildScreen {
             buffer.write_text(
                 17,
                 0,
-                "Delete queued build(s) for this unit? Y/[N]",
+                "Delete queued build(s) for this unit?",
                 classic::alert_style(),
             );
-            draw_command_prompt_at(&mut buffer, command_row, "BUILD COMMAND", "Y N");
+            draw_inline_confirm_prompt(&mut buffer, command_row, "BUILD COMMAND");
         } else {
             draw_command_prompt_at(
                 &mut buffer,
@@ -553,17 +576,25 @@ impl PlanetBuildScreen {
             .map(|u| u.number)
             .max()
             .unwrap_or(0);
-        if let Some(status) = status {
-            draw_status_line(&mut buffer, 14, "", status);
-        }
+        let command_row = table_prompt_row(table_metrics.bottom_row);
         draw_command_line_default_input_at(
             &mut buffer,
-            table_prompt_row(table_metrics.bottom_row),
+            command_row,
             "BUILD COMMAND",
             &format!("Unit number or 0 if done (0 - {}) ", max_unit_num),
             "0",
             input,
         );
+        if let Some(status) = status {
+            draw_command_message_stack(
+                &mut buffer,
+                command_row,
+                &[CommandMessage::General {
+                    label: "",
+                    value: status,
+                }],
+            );
+        }
         Ok(buffer)
     }
 
@@ -579,12 +610,10 @@ impl PlanetBuildScreen {
         let mut buffer = new_playfield();
         let table_metrics = draw_specify_table(&mut buffer, view, orders);
 
-        if let Some(status) = status {
-            draw_status_line(&mut buffer, 14, "Error: ", status);
-        }
+        let command_row = table_prompt_row(table_metrics.bottom_row);
         draw_command_line_default_input_at(
             &mut buffer,
-            table_prompt_row(table_metrics.bottom_row),
+            command_row,
             "BUILD COMMAND",
             &format!(
                 "How many new {} to build (0 - {}) ",
@@ -593,6 +622,9 @@ impl PlanetBuildScreen {
             &max_qty.to_string(),
             input,
         );
+        if let Some(status) = status {
+            draw_command_message_stack(&mut buffer, command_row, &[CommandMessage::Error(status)]);
+        }
         Ok(buffer)
     }
 
@@ -693,7 +725,7 @@ impl PlanetBuildScreen {
             }
             KeyCode::Char('l') | KeyCode::Char('L') => Action::Planet(PlanetAction::OpenBuildList),
             KeyCode::Char('a') | KeyCode::Char('A') => {
-                Action::Planet(PlanetAction::OpenBuildAbortConfirm)
+                Action::Planet(PlanetAction::OpenBuildAbortPrompt)
             }
             KeyCode::Char('s') | KeyCode::Char('S') => {
                 Action::Planet(PlanetAction::OpenBuildSpecify)
@@ -746,7 +778,13 @@ impl PlanetBuildScreen {
             KeyCode::Char('y') | KeyCode::Char('Y') => {
                 Action::Planet(PlanetAction::ConfirmBuildAbort)
             }
-            _ => Action::Planet(PlanetAction::OpenBuildMenu),
+            KeyCode::Char('q')
+            | KeyCode::Char('Q')
+            | KeyCode::Char('n')
+            | KeyCode::Char('N')
+            | KeyCode::Enter
+            | KeyCode::Esc => Action::Planet(PlanetAction::CloseBuildAbortPrompt),
+            _ => Action::Noop,
         }
     }
 
@@ -777,6 +815,23 @@ impl PlanetBuildScreen {
             _ => Action::Noop,
         }
     }
+}
+
+fn build_abort_lines(view: &PlanetBuildMenuView, orders: &[PlanetBuildOrder]) -> Vec<String> {
+    let mut lines = vec![format!(
+        "Abort all build orders for \"{}\" at {}.",
+        view.row.planet_name,
+        format_sector_coords(view.row.coords)
+    )];
+    lines.push("Queued orders to be cancelled:".to_string());
+    for order in orders {
+        lines.push(format!("  - {}", build_order_summary(*order)));
+    }
+    lines.push(format!(
+        "All {} committed points will be fully refunded.",
+        view.committed_points
+    ));
+    lines
 }
 
 impl Screen for PlanetBuildScreen {

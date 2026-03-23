@@ -5,7 +5,7 @@ use ec_client::model::{ClassicLoginState, PlayerContext};
 use ec_client::screen::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 use ec_client::screen::table::{
     SplitTableRow, TableColumn, TableRowState, write_split_table,
-    write_stacked_table_window_with_states, write_table_window_with_states,
+    write_stacked_table_window_with_states, write_table_row, write_table_window_with_states,
 };
 use ec_client::screen::{
     PlanetBuildMenuView, PlanetBuildOrder, PlanetBuildScreen, PlanetDatabaseRow,
@@ -77,6 +77,21 @@ fn standard_table_uses_right_edge_scroll_gutter() {
     assert_eq!(buffer.row(5)[79].style, classic::table_chrome_style());
     assert!(row_text(&buffer, 5).contains("Beta"));
     assert!(row_text(&buffer, 6).contains("Gamma"));
+}
+
+#[test]
+fn centered_table_column_centers_single_character_values() {
+    let columns = [TableColumn::center("Sel", 3)];
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    write_table_row(
+        &mut buffer,
+        2,
+        &columns,
+        &["X"],
+        classic::status_value_style(),
+    );
+
+    assert_eq!(row_text(&buffer, 2).trim_end(), "│ X │");
 }
 
 #[test]

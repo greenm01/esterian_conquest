@@ -110,8 +110,6 @@ impl App {
             | ScreenId::Starmap => CommandMenu::General,
             ScreenId::PlanetMenu
             | ScreenId::PlanetHelp
-            | ScreenId::PlanetAutoCommissionConfirm
-            | ScreenId::PlanetAutoCommissionDone
             | ScreenId::PlanetCommissionMenu
             | ScreenId::PlanetListSortPrompt(_)
             | ScreenId::PlanetBriefList(_)
@@ -124,7 +122,6 @@ impl App {
             | ScreenId::PlanetBuildReview
             | ScreenId::PlanetBuildList
             | ScreenId::PlanetBuildChange
-            | ScreenId::PlanetBuildAbortConfirm
             | ScreenId::PlanetBuildSpecify
             | ScreenId::PlanetBuildQuantity => CommandMenu::PlanetBuild,
             ScreenId::Startup(_)

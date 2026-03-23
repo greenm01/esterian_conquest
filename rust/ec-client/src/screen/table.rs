@@ -4,6 +4,7 @@ use crate::theme::classic;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TableAlign {
     Left,
+    Center,
     Right,
 }
 
@@ -28,6 +29,14 @@ impl<'a> TableColumn<'a> {
             header,
             width,
             align: TableAlign::Right,
+        }
+    }
+
+    pub const fn center(header: &'a str, width: usize) -> Self {
+        Self {
+            header,
+            width,
+            align: TableAlign::Center,
         }
     }
 }
@@ -580,6 +589,12 @@ fn format_cell(cell: &str, column: TableColumn<'_>) -> String {
     let text = truncate_to_width(cell, column.width);
     match column.align {
         TableAlign::Left => format!("{text:<width$}", width = column.width),
+        TableAlign::Center => {
+            let pad = column.width.saturating_sub(text.chars().count());
+            let left = pad / 2;
+            let right = pad.saturating_sub(left);
+            format!("{}{}{}", " ".repeat(left), text, " ".repeat(right))
+        }
         TableAlign::Right => format!("{text:>width$}", width = column.width),
     }
 }

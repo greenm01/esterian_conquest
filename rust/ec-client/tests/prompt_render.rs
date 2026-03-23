@@ -1,4 +1,12 @@
+use std::collections::BTreeSet;
+
 use ec_client::screen::MessageComposeScreen;
+use ec_client::screen::PlanetBuildOrder;
+use ec_client::screen::PlanetBuildScreen;
+use ec_client::screen::PlanetCommissionRow;
+use ec_client::screen::PlanetCommissionScreen;
+use ec_client::screen::PlanetCommissionView;
+use ec_client::screen::PlanetMenuScreen;
 use ec_client::screen::PlayfieldBuffer;
 use ec_client::screen::layout::{
     COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, dismiss_prompt_row,
@@ -8,6 +16,7 @@ use ec_client::screen::layout::{
     table_dismiss_prompt_row,
 };
 use ec_client::theme::classic;
+use ec_data::{EmpirePlanetEconomyRow, ProductionItemKind};
 
 fn row_text(buffer: &PlayfieldBuffer, row: usize) -> String {
     buffer.row(row).iter().map(|cell| cell.ch).collect()
@@ -343,6 +352,129 @@ fn inline_delete_reviewables_prompt_uses_notice_style_and_cursor_gap() {
         row_text(&buffer, 13)
             .contains("This will clear all currently reviewable messages and results.")
     );
+}
+
+#[test]
+fn planet_menu_inline_auto_commission_uses_standard_confirm_layout() {
+    let mut screen = PlanetMenuScreen::new();
+    let buffer = screen
+        .render_with_notice(
+            None,
+            false,
+            false,
+            [0, 0],
+            "",
+            None,
+            false,
+            "0",
+            "",
+            None,
+            None,
+            true,
+        )
+        .expect("planet menu inline auto-commission renders");
+
+    assert!(row_text(&buffer, 5).contains("COMMAND <- Y/[N] -> "));
+    assert!(row_text(&buffer, 6).trim().is_empty());
+    assert!(row_text(&buffer, 7).contains("AUTO-COMMISSION SHIPS:"));
+    assert!(
+        row_text(&buffer, 8)
+            .contains("Automatically commission all ships and starbases in stardock?")
+    );
+}
+
+#[test]
+fn build_menu_inline_abort_uses_standard_confirm_layout() {
+    let mut screen = PlanetBuildScreen::new();
+    let view = ec_client::screen::PlanetBuildMenuView {
+        row: EmpirePlanetEconomyRow {
+            planet_record_index_1_based: 1,
+            coords: [6, 5],
+            planet_name: "Not Named Yet".to_string(),
+            present_production: 100,
+            potential_production: 100,
+            stored_production_points: 50,
+            yearly_tax_revenue: 50,
+            yearly_growth_delta: 0,
+            build_capacity: 100,
+            has_friendly_starbase: false,
+            armies: 10,
+            ground_batteries: 4,
+            is_homeworld_seed: true,
+        },
+        committed_points: 10,
+        available_points: 50,
+        points_left: 40,
+        queue_used: 2,
+        queue_capacity: 10,
+        stardock_used: 3,
+        stardock_capacity: 10,
+    };
+    let orders = vec![
+        PlanetBuildOrder {
+            kind: ProductionItemKind::Destroyer,
+            points_remaining: 5,
+        },
+        PlanetBuildOrder {
+            kind: ProductionItemKind::Transport,
+            points_remaining: 10,
+        },
+    ];
+
+    let buffer = screen
+        .render_menu(&view, &orders, None, false, false, [0, 0], "", None, true)
+        .expect("build menu inline abort renders");
+
+    assert!(row_text(&buffer, 7).contains("COMMAND <- Y/[N] -> "));
+    assert!(row_text(&buffer, 8).trim().is_empty());
+    assert!(row_text(&buffer, 9).contains("ABORT BUILD ORDERS:"));
+    assert!(
+        row_text(&buffer, 10).contains("Abort all build orders for \"Not Named Yet\" at [6,5].")
+    );
+    assert!(row_text(&buffer, 11).contains("Queued orders to be cancelled:"));
+    assert!(row_text(&buffer, 12).contains("Destroyers"));
+    assert!(row_text(&buffer, 13).contains("Troop transports"));
+    assert!(row_text(&buffer, 14).contains("All 10 committed points will be fully refunded."));
+}
+
+#[test]
+fn commission_screen_starts_table_under_title_and_centers_selection_marker() {
+    let mut screen = PlanetCommissionScreen::new();
+    let view = PlanetCommissionView {
+        planet_name: "Aurora Prime".to_string(),
+        coords: [8, 9],
+        rows: vec![
+            PlanetCommissionRow {
+                slot_0_based: 0,
+                unit_label: "Destroyers".to_string(),
+                qty: 4,
+            },
+            PlanetCommissionRow {
+                slot_0_based: 1,
+                unit_label: "Cruisers".to_string(),
+                qty: 2,
+            },
+            PlanetCommissionRow {
+                slot_0_based: 2,
+                unit_label: "Troop transports".to_string(),
+                qty: 3,
+            },
+        ],
+    };
+    let selected_slots = BTreeSet::from([2usize]);
+
+    let buffer = screen
+        .render_menu(&view, 0, 2, &selected_slots, None)
+        .expect("commission screen renders");
+
+    assert!(row_text(&buffer, 1).trim().is_empty());
+    assert!(row_text(&buffer, 2).starts_with("┌"));
+    assert!(!row_text(&buffer, 2).contains("UP/DOWN or J/K"));
+    assert!(!row_text(&buffer, 3).contains("SPACE selects rows"));
+    assert!(row_text(&buffer, 7).contains("│ 3│ X │Troop transports"));
+    assert!(row_text(&buffer, 9).contains("COMMANDS <ARROWS H J K L SPACE Q> ->"));
+    assert!(row_text(&buffer, 10).trim().is_empty());
+    assert!(row_text(&buffer, 11).contains("ENTER commissions the current selection."));
 }
 
 #[test]

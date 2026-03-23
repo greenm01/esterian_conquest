@@ -81,6 +81,14 @@ pub const fn stacked_table_visible_rows(start_row: usize) -> usize {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CommandMessage<'a> {
+    General { label: &'a str, value: &'a str },
+    Notice(&'a str),
+    Error(&'a str),
+    Warning(&'a str),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MenuEntry<'a> {
     pub col: usize,
     pub hotkey: &'a str,
@@ -369,9 +377,11 @@ pub fn draw_wrapped_message(
 }
 
 pub fn draw_menu_notice(buffer: &mut PlayfieldBuffer, command_row: usize, notice: &str) -> usize {
-    let row = menu_notice_row(command_row);
-    let max_rows = (last_body_row().saturating_sub(row) + 1).min(3);
-    draw_wrapped_notice(buffer, row, max_rows, notice)
+    draw_command_message_stack_at(
+        buffer,
+        menu_notice_row(command_row),
+        &[CommandMessage::Notice(notice)],
+    )
 }
 
 pub fn draw_menu_notice_after(
@@ -379,9 +389,7 @@ pub fn draw_menu_notice_after(
     previous_end_row: usize,
     notice: &str,
 ) -> usize {
-    let row = (previous_end_row + 2).min(last_body_row());
-    let max_rows = (last_body_row().saturating_sub(row) + 1).min(3);
-    draw_wrapped_notice(buffer, row, max_rows, notice)
+    draw_command_message_stack_after(buffer, previous_end_row, &[CommandMessage::Notice(notice)])
 }
 
 pub fn draw_menu_alert_after(
@@ -390,9 +398,11 @@ pub fn draw_menu_alert_after(
     label: &str,
     value: &str,
 ) -> usize {
-    let row = (previous_end_row + 2).min(last_body_row());
-    let max_rows = (last_body_row().saturating_sub(row) + 1).min(3);
-    draw_wrapped_alert(buffer, row, max_rows, label, value)
+    let message = match label {
+        "Error: " => CommandMessage::Error(value),
+        _ => CommandMessage::Warning(value),
+    };
+    draw_command_message_stack_after(buffer, previous_end_row, &[message])
 }
 
 pub fn draw_inline_status_after(
@@ -400,10 +410,11 @@ pub fn draw_inline_status_after(
     previous_end_row: usize,
     value: &str,
 ) -> usize {
-    let row = (previous_end_row + 2).min(last_body_row());
-    let max_rows = last_body_row().saturating_sub(row) + 1;
-    let drawn = draw_wrapped_status(buffer, row, max_rows, "", value);
-    row + drawn.saturating_sub(1)
+    draw_command_message_stack_after(
+        buffer,
+        previous_end_row,
+        &[CommandMessage::General { label: "", value }],
+    )
 }
 
 pub fn draw_menu_general_message(
@@ -412,10 +423,89 @@ pub fn draw_menu_general_message(
     label: &str,
     value: &str,
 ) -> usize {
-    let row = menu_general_message_row(command_row);
-    let max_rows = last_body_row().saturating_sub(row) + 1;
-    let drawn = draw_wrapped_message(buffer, row, max_rows, label, value);
-    row + drawn.saturating_sub(1)
+    draw_general_message_after_command(buffer, command_row, label, value)
+}
+
+pub fn draw_general_message_after_command(
+    buffer: &mut PlayfieldBuffer,
+    command_row: usize,
+    label: &str,
+    value: &str,
+) -> usize {
+    draw_command_message_stack(
+        buffer,
+        command_row,
+        &[CommandMessage::General { label, value }],
+    )
+}
+
+pub fn draw_command_message_stack(
+    buffer: &mut PlayfieldBuffer,
+    command_row: usize,
+    messages: &[CommandMessage<'_>],
+) -> usize {
+    draw_command_message_stack_at(buffer, menu_general_message_row(command_row), messages)
+}
+
+pub fn draw_command_message_stack_after(
+    buffer: &mut PlayfieldBuffer,
+    previous_end_row: usize,
+    messages: &[CommandMessage<'_>],
+) -> usize {
+    draw_command_message_stack_at(
+        buffer,
+        (previous_end_row + 2).min(last_body_row()),
+        messages,
+    )
+}
+
+fn draw_command_message_stack_at(
+    buffer: &mut PlayfieldBuffer,
+    start_row: usize,
+    messages: &[CommandMessage<'_>],
+) -> usize {
+    if messages.is_empty() {
+        return start_row.saturating_sub(1);
+    }
+    let mut end_row = start_row.saturating_sub(1);
+    for (idx, message) in messages.iter().enumerate() {
+        let row = if idx == 0 {
+            start_row
+        } else {
+            (end_row + 2).min(last_body_row())
+        };
+        end_row = draw_command_message_block(buffer, row, *message);
+    }
+    end_row
+}
+
+fn draw_command_message_block(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    message: CommandMessage<'_>,
+) -> usize {
+    match message {
+        CommandMessage::General { label, value } => {
+            let max_rows = last_body_row().saturating_sub(row) + 1;
+            let drawn = draw_wrapped_message(buffer, row, max_rows, label, value);
+            row + drawn.saturating_sub(1)
+        }
+        CommandMessage::Notice(value) => {
+            let max_rows = (last_body_row().saturating_sub(row) + 1).min(3);
+            let drawn = draw_wrapped_notice(buffer, row, max_rows, value);
+            row + drawn.saturating_sub(1)
+        }
+        CommandMessage::Error(value) => {
+            let max_rows = (last_body_row().saturating_sub(row) + 1).min(3);
+            let drawn = draw_wrapped_alert(buffer, row, max_rows, "Error: ", value);
+            row + drawn.saturating_sub(1)
+        }
+        CommandMessage::Warning(value) => {
+            let max_rows = (last_body_row().saturating_sub(row) + 1).min(3);
+            let drawn = draw_wrapped_alert(buffer, row, max_rows, "Warning: ", value);
+            row + drawn.saturating_sub(1)
+        }
+    }
 }
 
 pub fn draw_inline_planet_info_prompt(
@@ -434,21 +524,17 @@ pub fn draw_inline_planet_info_prompt(
         &format_sector_coords_default(default_coords),
         input,
     );
-    let message_end_row = draw_menu_general_message(
-        buffer,
-        command_row,
-        "PLANET INFO: ",
-        "Enter coordinates of the planet to view.",
-    );
-    let mut end_row = message_end_row;
+    let mut messages = vec![CommandMessage::General {
+        label: "PLANET INFO: ",
+        value: "Enter coordinates of the planet to view.",
+    }];
     if let Some(error) = error {
-        end_row = draw_menu_alert_after(buffer, end_row, "Error: ", error);
+        messages.push(CommandMessage::Error(error));
     }
     if let Some(notice) = notice {
-        draw_menu_notice_after(buffer, end_row, notice)
-    } else {
-        end_row
+        messages.push(CommandMessage::Notice(notice));
     }
+    draw_command_message_stack(buffer, command_row, &messages)
 }
 
 pub fn draw_inline_delete_reviewables_prompt(
@@ -456,25 +542,38 @@ pub fn draw_inline_delete_reviewables_prompt(
     command_row: usize,
     notice: Option<&str>,
 ) -> usize {
-    draw_command_line_prompt_text_at(buffer, command_row, "COMMAND", "Y/[N] -> ");
-    let title_row = menu_general_message_row(command_row);
-    buffer.write_text(
-        title_row,
-        0,
+    draw_inline_confirm_prompt(buffer, command_row, "COMMAND");
+    draw_inline_confirm_block(
+        buffer,
+        command_row,
         "DELETE ALL MESSAGES / RESULTS:",
-        classic::notice_style(),
-    );
-    let message_row = (title_row + 1).min(last_body_row());
-    buffer.write_text(
-        message_row,
-        0,
-        "This will clear all currently reviewable messages and results.",
-        classic::status_value_style(),
-    );
+        &["This will clear all currently reviewable messages and results."],
+        notice,
+    )
+}
+
+pub fn draw_inline_confirm_prompt(buffer: &mut PlayfieldBuffer, command_row: usize, label: &str) {
+    draw_command_line_prompt_text_at(buffer, command_row, label, "Y/[N] -> ");
+}
+
+pub fn draw_inline_confirm_block(
+    buffer: &mut PlayfieldBuffer,
+    command_row: usize,
+    title: &str,
+    lines: &[&str],
+    notice: Option<&str>,
+) -> usize {
+    let title_row = menu_general_message_row(command_row);
+    buffer.write_text(title_row, 0, title, classic::notice_style());
+    let mut end_row = title_row;
+    for line in lines {
+        end_row = (end_row + 1).min(last_body_row());
+        buffer.write_text(end_row, 0, line, classic::status_value_style());
+    }
     if let Some(notice) = notice {
-        draw_menu_notice_after(buffer, message_row, notice)
+        draw_command_message_stack_after(buffer, end_row, &[CommandMessage::Notice(notice)])
     } else {
-        message_row
+        end_row
     }
 }
 
@@ -494,26 +593,22 @@ pub fn draw_inline_tax_prompt(
         current_tax,
         input,
     );
-    let message_end_row =
-        draw_menu_general_message(buffer, command_row, "PLANET TAX: ", "Set empire tax rate.");
-    let warning_row = (message_end_row + 2).min(last_body_row());
-    let warning_max_rows = last_body_row().saturating_sub(warning_row) + 1;
-    let warning_drawn = draw_wrapped_alert(
-        buffer,
-        warning_row,
-        warning_max_rows,
-        "Warning: ",
-        "Taxes in excess of 65% may actually REDUCE your planets' productivity!",
-    );
-    let mut end_row = warning_row + warning_drawn.saturating_sub(1);
+    let mut messages = vec![
+        CommandMessage::General {
+            label: "PLANET TAX: ",
+            value: "Set empire tax rate.",
+        },
+        CommandMessage::Warning(
+            "Taxes in excess of 65% may actually REDUCE your planets' productivity!",
+        ),
+    ];
     if let Some(error) = error {
-        end_row = draw_menu_alert_after(buffer, end_row, "Error: ", error);
+        messages.push(CommandMessage::Error(error));
     }
     if let Some(notice) = notice {
-        draw_menu_notice_after(buffer, end_row, notice)
-    } else {
-        end_row
+        messages.push(CommandMessage::Notice(notice));
     }
+    draw_command_message_stack(buffer, command_row, &messages)
 }
 
 pub fn draw_centered_text(

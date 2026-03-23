@@ -4,9 +4,9 @@ use ec_data::{EmpirePlanetEconomyRow, STARDOCK_SLOT_COUNT};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    dismiss_prompt_row, draw_dismiss_prompt, draw_status_line, draw_table_command_bar_at,
-    draw_table_command_prompt_at, draw_title_bar, new_playfield, standard_table_visible_rows,
-    table_prompt_row,
+    CommandMessage, dismiss_prompt_row, draw_command_message_stack, draw_dismiss_prompt,
+    draw_status_line, draw_table_command_bar_at, draw_table_command_prompt_at, draw_title_bar,
+    new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_states};
 use crate::screen::{
@@ -71,14 +71,11 @@ impl PlanetListScreen {
         }
 
         let mut buffer = self.render_brief_list(frame, rows, sort, scroll_offset, cursor, input)?;
+        let command_row = brief_list_command_row(rows.len(), scroll_offset);
+        draw_table_command_prompt_at(&mut buffer, command_row, BRIEF_SORT_PROMPT);
         if let Some(status) = status {
-            draw_status_line(&mut buffer, 21, "Notice: ", status);
+            draw_command_message_stack(&mut buffer, command_row, &[CommandMessage::Notice(status)]);
         }
-        draw_table_command_prompt_at(
-            &mut buffer,
-            brief_list_command_row(rows.len(), scroll_offset),
-            BRIEF_SORT_PROMPT,
-        );
         Ok(buffer)
     }
 

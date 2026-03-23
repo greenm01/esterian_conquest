@@ -41,9 +41,6 @@ pub mod message_compose {
 pub mod partial_starmap {
     pub use crate::domains::starmap::screens::partial_starmap::*;
 }
-pub mod planet_auto_commission {
-    pub use crate::domains::planet::screens::planet_auto_commission::*;
-}
 pub mod planet_build {
     pub use crate::domains::planet::screens::planet_build::*;
 }
@@ -106,7 +103,6 @@ pub(crate) use crate::domains::messaging::screens::message_compose::{
     COMPOSE_BODY_LIMIT, COMPOSE_SUBJECT_LIMIT, OUTBOX_VISIBLE_ROWS, RECIPIENT_VISIBLE_ROWS,
 };
 pub use crate::domains::planet::screens::build_help::BuildHelpScreen;
-pub use crate::domains::planet::screens::planet_auto_commission::PlanetAutoCommissionScreen;
 pub use crate::domains::planet::screens::planet_build::{
     BuildUnitSpec, PlanetBuildChangeRow, PlanetBuildListRow, PlanetBuildMenuView, PlanetBuildOrder,
     PlanetBuildScreen, build_kind_name, build_order_summary, build_unit_spec,
@@ -210,14 +206,11 @@ pub enum ScreenId {
     FleetEta,
     PlanetMenu,
     PlanetHelp,
-    PlanetAutoCommissionConfirm,
-    PlanetAutoCommissionDone,
     PlanetBuildMenu,
     PlanetBuildHelp,
     PlanetBuildReview,
     PlanetBuildList,
     PlanetBuildChange,
-    PlanetBuildAbortConfirm,
     PlanetBuildSpecify,
     PlanetBuildQuantity,
     PlanetCommissionMenu,

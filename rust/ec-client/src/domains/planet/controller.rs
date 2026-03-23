@@ -12,6 +12,7 @@ use ec_data::{
 impl App {
     pub fn open_planet_menu(&mut self) {
         self.clear_command_menu_notice();
+        self.close_planet_auto_commission_prompt();
         self.close_planet_tax_prompt();
         self.command_return_menu = CommandMenu::Planet;
         self.current_screen = ScreenId::PlanetMenu;
@@ -24,6 +25,7 @@ impl App {
 
     pub fn open_planet_tax_prompt(&mut self) {
         self.clear_command_menu_notice();
+        self.close_planet_auto_commission_prompt();
         self.close_planet_info_prompt();
         self.planet.tax_prompt_active = true;
         self.planet.tax_input = String::new();
@@ -37,6 +39,25 @@ impl App {
         self.planet.tax_input.clear();
         self.planet.tax_error = None;
         self.planet.tax_notice = None;
+    }
+
+    pub fn open_planet_auto_commission_prompt(&mut self) {
+        if self.commission_planet_rows().is_empty() {
+            self.show_command_menu_notice(
+                CommandMenu::Planet,
+                "No ships or starbases are waiting in stardock.",
+            );
+            return;
+        }
+        self.clear_command_menu_notice();
+        self.close_planet_tax_prompt();
+        self.close_planet_info_prompt();
+        self.planet.auto_commission_prompt_active = true;
+        self.current_screen = ScreenId::PlanetMenu;
+    }
+
+    pub fn close_planet_auto_commission_prompt(&mut self) {
+        self.planet.auto_commission_prompt_active = false;
     }
 
     pub fn open_planet_database(&mut self) {
@@ -351,6 +372,8 @@ impl App {
 
     pub fn open_planet_info_prompt(&mut self, menu: CommandMenu) {
         self.close_planet_tax_prompt();
+        self.close_planet_auto_commission_prompt();
+        self.close_planet_build_abort_prompt();
         self.messaging.delete_reviewables_prompt_active = false;
         self.command_return_menu = menu;
         self.return_screen = None;
@@ -466,6 +489,14 @@ impl App {
 
     pub(crate) fn inline_planet_tax_active_on_current_screen(&self) -> bool {
         self.planet.tax_prompt_active && self.current_screen == ScreenId::PlanetMenu
+    }
+
+    pub(crate) fn inline_planet_auto_commission_active_on_current_screen(&self) -> bool {
+        self.planet.auto_commission_prompt_active && self.current_screen == ScreenId::PlanetMenu
+    }
+
+    pub(crate) fn inline_planet_build_abort_active_on_current_screen(&self) -> bool {
+        self.planet.build_abort_prompt_active && self.current_screen == ScreenId::PlanetBuildMenu
     }
 
     pub(crate) fn inline_planet_info_active_on_current_screen(&self) -> bool {
@@ -584,6 +615,46 @@ impl App {
             {
                 crate::app::Action::Planet(PlanetAction::AppendInfoChar(ch))
             }
+            _ => crate::app::Action::Noop,
+        }
+    }
+
+    pub(crate) fn handle_planet_auto_commission_prompt_key(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> crate::app::Action {
+        use crossterm::event::KeyCode;
+
+        match key.code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                crate::app::Action::Planet(PlanetAction::ConfirmAutoCommission)
+            }
+            KeyCode::Char('q')
+            | KeyCode::Char('Q')
+            | KeyCode::Char('n')
+            | KeyCode::Char('N')
+            | KeyCode::Enter
+            | KeyCode::Esc => crate::app::Action::Planet(PlanetAction::CloseAutoCommissionPrompt),
+            _ => crate::app::Action::Noop,
+        }
+    }
+
+    pub(crate) fn handle_planet_build_abort_prompt_key(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> crate::app::Action {
+        use crossterm::event::KeyCode;
+
+        match key.code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                crate::app::Action::Planet(PlanetAction::ConfirmBuildAbort)
+            }
+            KeyCode::Char('q')
+            | KeyCode::Char('Q')
+            | KeyCode::Char('n')
+            | KeyCode::Char('N')
+            | KeyCode::Enter
+            | KeyCode::Esc => crate::app::Action::Planet(PlanetAction::CloseBuildAbortPrompt),
             _ => crate::app::Action::Noop,
         }
     }

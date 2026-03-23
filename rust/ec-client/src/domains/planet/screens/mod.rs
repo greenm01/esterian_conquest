@@ -1,5 +1,4 @@
 pub mod build_help;
-pub mod planet_auto_commission;
 pub mod planet_build;
 pub mod planet_commission;
 pub mod planet_database;

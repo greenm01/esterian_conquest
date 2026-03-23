@@ -19,11 +19,10 @@ use crate::screen::{
     FleetListScreen, FleetMenuScreen, FleetMergeScreen, FleetMissionPickerScreen,
     FleetReviewScreen, FleetRoeScreen, FleetSingleOrderScreen, FleetTransferScreen,
     GeneralHelpScreen, GeneralMenuScreen, MainHelpScreen, MainMenuScreen, MessageComposeScreen,
-    PartialStarmapScreen, PlanetAutoCommissionScreen, PlanetBuildScreen, PlanetCommissionScreen,
-    PlanetDatabaseScreen, PlanetHelpScreen, PlanetInfoScreen, PlanetListScreen, PlanetMenuScreen,
-    PlanetTaxScreen, PlanetTransportScreen, RankingsScreen, ReportsScreen, ScreenId,
-    StarbaseHelpScreen, StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen,
-    StarmapScreen, StartupScreen,
+    PartialStarmapScreen, PlanetBuildScreen, PlanetCommissionScreen, PlanetDatabaseScreen,
+    PlanetHelpScreen, PlanetInfoScreen, PlanetListScreen, PlanetMenuScreen, PlanetTaxScreen,
+    PlanetTransportScreen, RankingsScreen, ReportsScreen, ScreenId, StarbaseHelpScreen,
+    StarbaseListScreen, StarbaseMenuScreen, StarbaseReviewScreen, StarmapScreen, StartupScreen,
 };
 use crate::startup::{StartupSequence, StartupSummary};
 
@@ -68,7 +67,6 @@ pub struct App {
     pub fleet_eta: FleetEtaScreen,
     pub planet_menu: PlanetMenuScreen,
     pub planet_help: PlanetHelpScreen,
-    pub planet_auto_commission: PlanetAutoCommissionScreen,
     pub planet_commission: PlanetCommissionScreen,
     pub planet_transport: PlanetTransportScreen,
     pub build_help: BuildHelpScreen,
@@ -184,7 +182,6 @@ impl App {
             fleet_eta: FleetEtaScreen::new(),
             planet_menu: PlanetMenuScreen::new(),
             planet_help: PlanetHelpScreen::new(),
-            planet_auto_commission: PlanetAutoCommissionScreen::new(),
             planet_commission: PlanetCommissionScreen::new(),
             planet_transport: PlanetTransportScreen::new(),
             build_help: BuildHelpScreen::new(),

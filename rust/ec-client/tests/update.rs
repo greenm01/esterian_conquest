@@ -494,7 +494,7 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(
         apply_action(
             &mut app,
-            Action::Planet(PlanetAction::OpenAutoCommissionConfirm)
+            Action::Planet(PlanetAction::OpenAutoCommissionPrompt)
         ),
         AppOutcome::Continue
     );
@@ -540,13 +540,10 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::PlanetBuildList);
 
     assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Planet(PlanetAction::OpenBuildAbortConfirm)
-        ),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildAbortPrompt)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::PlanetBuildAbortConfirm);
+    assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
 
     assert_eq!(
         apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildSpecify)),
@@ -2745,10 +2742,7 @@ fn planet_build_menu_and_subscreens_render_without_crashing_when_no_owned_planet
         .expect("build list fallback render succeeds");
 
     assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Planet(PlanetAction::OpenBuildAbortConfirm)
-        ),
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildAbortPrompt)),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
@@ -2906,13 +2900,13 @@ fn command_menus_render_without_crashing_for_empty_empire_state() {
         Action::Fleet(FleetAction::OpenTransportLoad),
         Action::Fleet(FleetAction::OpenTransportUnload),
         Action::Planet(PlanetAction::OpenMenu),
-        Action::Planet(PlanetAction::OpenAutoCommissionConfirm),
+        Action::Planet(PlanetAction::OpenAutoCommissionPrompt),
         Action::Planet(PlanetAction::OpenCommissionMenu),
         Action::Planet(PlanetAction::OpenBuildMenu),
         Action::Planet(PlanetAction::OpenBuildReview),
         Action::Planet(PlanetAction::OpenBuildList),
         Action::Planet(PlanetAction::OpenBuildChange),
-        Action::Planet(PlanetAction::OpenBuildAbortConfirm),
+        Action::Planet(PlanetAction::OpenBuildAbortPrompt),
         Action::Planet(PlanetAction::OpenBuildSpecify),
         Action::Planet(PlanetAction::OpenTransportPlanetSelect(
             ec_client::screen::PlanetTransportMode::Load,

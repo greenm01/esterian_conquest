@@ -12,19 +12,6 @@ use ec_data::{
 use std::collections::BTreeMap;
 
 impl App {
-    pub fn open_planet_auto_commission_confirm(&mut self) {
-        self.planet.auto_commission_status = None;
-        if self.commission_planet_rows().is_empty() {
-            self.show_command_menu_notice(
-                CommandMenu::Planet,
-                "No ships or starbases are waiting in stardock.",
-            );
-        } else {
-            self.clear_command_menu_notice();
-            self.current_screen = ScreenId::PlanetAutoCommissionConfirm;
-        }
-    }
-
     pub fn open_planet_commission_menu(&mut self) {
         self.command_return_menu = CommandMenu::Planet;
         self.planet.commission_status = None;
@@ -53,6 +40,7 @@ impl App {
 
     pub fn open_planet_build_menu(&mut self) {
         self.command_return_menu = CommandMenu::PlanetBuild;
+        self.close_planet_build_abort_prompt();
         self.planet.build_status = None;
         self.planet.build_unit_input.clear();
         self.planet.build_unit_status = None;
@@ -133,12 +121,24 @@ impl App {
         self.current_screen = ScreenId::PlanetBuildMenu;
     }
 
-    pub fn open_planet_build_abort_confirm(&mut self) {
+    pub fn open_planet_build_abort_prompt(&mut self) {
         if self.build_planet_rows().is_empty() {
             self.open_planet_build_menu();
             return;
         }
-        self.current_screen = ScreenId::PlanetBuildAbortConfirm;
+        if self.current_planet_build_orders().is_empty() {
+            self.planet.build_status = Some("No build orders are queued.".to_string());
+            self.current_screen = ScreenId::PlanetBuildMenu;
+            return;
+        }
+        self.close_planet_info_prompt();
+        self.planet.build_status = None;
+        self.planet.build_abort_prompt_active = true;
+        self.current_screen = ScreenId::PlanetBuildMenu;
+    }
+
+    pub fn close_planet_build_abort_prompt(&mut self) {
+        self.planet.build_abort_prompt_active = false;
     }
 
     pub fn open_planet_build_specify(&mut self) {
@@ -281,15 +281,15 @@ impl App {
     }
 
     pub fn confirm_planet_auto_commission(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        if self.current_screen != ScreenId::PlanetAutoCommissionConfirm {
+        if !self.inline_planet_auto_commission_active_on_current_screen() {
             return Ok(());
         }
         let summary = self
             .game_data
             .auto_commission_all_stardock_units(self.player.record_index_1_based)?;
         self.save_game_data()?;
-        self.planet.auto_commission_status = Some(format_auto_commission_status(summary));
-        self.current_screen = ScreenId::PlanetAutoCommissionDone;
+        self.close_planet_auto_commission_prompt();
+        self.show_command_menu_notice(CommandMenu::Planet, format_auto_commission_status(summary));
         Ok(())
     }
 
@@ -546,10 +546,14 @@ impl App {
     }
 
     pub fn abort_current_planet_builds(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if !self.inline_planet_build_abort_active_on_current_screen() {
+            return Ok(());
+        }
         let row = self.current_build_planet_row()?;
         self.game_data
             .clear_planet_build_queue(row.planet_record_index_1_based)?;
         self.save_game_data()?;
+        self.close_planet_build_abort_prompt();
         self.planet.build_status = Some("Build orders aborted.".to_string());
         self.current_screen = ScreenId::PlanetBuildMenu;
         Ok(())

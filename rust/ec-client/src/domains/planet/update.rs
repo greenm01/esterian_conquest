@@ -5,7 +5,8 @@ pub fn update(app: &mut App, action: PlanetAction) {
     match action {
         PlanetAction::OpenMenu => app.open_planet_menu(),
         PlanetAction::OpenHelp => app.open_planet_help(),
-        PlanetAction::OpenAutoCommissionConfirm => app.open_planet_auto_commission_confirm(),
+        PlanetAction::OpenAutoCommissionPrompt => app.open_planet_auto_commission_prompt(),
+        PlanetAction::CloseAutoCommissionPrompt => app.close_planet_auto_commission_prompt(),
         PlanetAction::OpenCommissionMenu => app.open_planet_commission_menu(),
         PlanetAction::OpenTransportPlanetSelect(mode) => {
             app.open_planet_transport_planet_select(mode)
@@ -17,7 +18,8 @@ pub fn update(app: &mut App, action: PlanetAction) {
         PlanetAction::OpenBuildChange => app.open_planet_build_change(),
         PlanetAction::MoveBuildChange(delta) => app.move_planet_build_change_cursor(delta),
         PlanetAction::ConfirmBuildChange => app.confirm_planet_build_change(),
-        PlanetAction::OpenBuildAbortConfirm => app.open_planet_build_abort_confirm(),
+        PlanetAction::OpenBuildAbortPrompt => app.open_planet_build_abort_prompt(),
+        PlanetAction::CloseBuildAbortPrompt => app.close_planet_build_abort_prompt(),
         PlanetAction::OpenBuildSpecify => app.open_planet_build_specify(),
         PlanetAction::OpenListSortPrompt(mode) => app.open_planet_list_sort_prompt(mode),
         PlanetAction::SubmitListSort(mode, sort) => app.submit_planet_list_sort(mode, sort),

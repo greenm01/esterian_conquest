@@ -287,7 +287,7 @@ When you capture an enemy planet by invasion or blitz, the factories need approx
 
 = Combat Mechanics
 
-While battle reports are simple summaries, the engine uses a sophisticated system behind the curtain. The combat model is deterministic and simultaneous rather than relying on opaque random number generation or arbitrary ship-vs-ship duels.
+While battle reports are simple summaries, the engine uses a sophisticated system behind the curtain. Inspired by the simultaneous-resolution combat model in Mark Herman's tabletop wargame _Empire of the Sun_, the Rust engine is deterministic and simultaneous rather than relying on opaque random number generation or arbitrary ship-vs-ship duels.
 
 === The Rules of Battle
 
@@ -423,6 +423,8 @@ A planet without a starbase can spend up to its Present Production in a single t
 #admonition("WARNING")[Troop transports are built empty. You must manually load armies onto them before sending them into battle.]
 
 #admonition("WARNING")[Stardock contents are a prime target for enemy bombardment. Commission your ships promptly or risk losing them before they ever see combat.]
+
+#admonition("NOTE")[The starmap can be exported as a TXT file, a CSV grid, and a CSV details sheet for offline planning. Your sysop may be able to provide these on request. If you are running the Rust client locally, use the `ec-cli map-export` command to generate all three formats at once.]
 
 #pagebreak()
 

@@ -7,11 +7,11 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    EXPERT_MENU_PROMPT_ROW, MenuEntry, draw_command_line_default_input_at,
-    draw_command_line_text_at, draw_command_prompt_at, draw_expert_menu,
-    draw_inline_planet_info_prompt, draw_inline_status_after, draw_menu_entry, draw_menu_notice,
-    draw_status_line, draw_table_command_bar_at, draw_title_bar, menu_prompt_row, new_playfield,
-    standard_table_visible_rows, table_prompt_row,
+    CommandMessage, EXPERT_MENU_PROMPT_ROW, MenuEntry, draw_command_line_default_input_at,
+    draw_command_line_text_at, draw_command_message_stack, draw_command_prompt_at,
+    draw_expert_menu, draw_inline_planet_info_prompt, draw_inline_status_after, draw_menu_entry,
+    draw_menu_notice, draw_status_line, draw_table_command_bar_at, draw_title_bar, menu_prompt_row,
+    new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
     TableColumn, TableRowState, fleet_id_column_width, format_fleet_number,
@@ -462,16 +462,15 @@ impl FleetListScreen {
                 Some(cursor)
             },
         );
+        let command_row = table_prompt_row(metrics.bottom_row);
+        draw_table_command_bar_at(&mut buffer, command_row, "<ARROWS J K Q>", None, "");
         if table_rows.is_empty() {
-            draw_status_line(&mut buffer, 17, "Notice: ", "You have no active fleets.");
+            draw_command_message_stack(
+                &mut buffer,
+                command_row,
+                &[CommandMessage::Notice("You have no active fleets.")],
+            );
         }
-        draw_table_command_bar_at(
-            &mut buffer,
-            table_prompt_row(metrics.bottom_row),
-            "<ARROWS J K Q>",
-            None,
-            "",
-        );
         Ok(buffer)
     }
 
@@ -1096,7 +1095,7 @@ impl FleetGroupScreen {
         let max_fleet_number = max_fleet_number(rows);
         let columns = [
             TableColumn::right("ID", fleet_id_column_width(max_fleet_number)),
-            TableColumn::left("Sel", 3),
+            TableColumn::center("Sel", 3),
             TableColumn::left("Location", 10),
             TableColumn::right("Spd", 7),
             TableColumn::right("ROE", 3),
@@ -1216,7 +1215,7 @@ impl FleetTransferScreen {
         let max_fleet_number = max_fleet_number(rows);
         let columns = [
             TableColumn::right("ID", fleet_id_column_width(max_fleet_number)),
-            TableColumn::left("Sel", 3),
+            TableColumn::center("Sel", 3),
             TableColumn::left("Location", 10),
             TableColumn::right("Spd", 7),
             TableColumn::right("ROE", 3),

@@ -5,8 +5,9 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
     EXPERT_MENU_PROMPT_ROW, MenuEntry, draw_command_prompt_at, draw_expert_menu,
-    draw_inline_planet_info_prompt, draw_inline_tax_prompt, draw_menu_entry, draw_menu_notice,
-    draw_title_bar, menu_prompt_row, new_playfield,
+    draw_inline_confirm_block, draw_inline_confirm_prompt, draw_inline_planet_info_prompt,
+    draw_inline_tax_prompt, draw_menu_entry, draw_menu_notice, draw_title_bar, menu_prompt_row,
+    new_playfield,
 };
 use crate::screen::{
     CommandMenu, PlanetListMode, PlanetListSort, PlanetTransportMode, PlayfieldBuffer, Screen,
@@ -62,6 +63,7 @@ impl PlanetMenuScreen {
         tax_input: &str,
         tax_error: Option<&str>,
         tax_notice: Option<&str>,
+        inline_auto_commission: bool,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         if expert_mode {
@@ -82,6 +84,15 @@ impl PlanetMenuScreen {
                     tax_input,
                     tax_error,
                     tax_notice,
+                );
+            } else if inline_auto_commission {
+                draw_inline_confirm_prompt(&mut buffer, EXPERT_MENU_PROMPT_ROW, "COMMAND");
+                draw_inline_confirm_block(
+                    &mut buffer,
+                    EXPERT_MENU_PROMPT_ROW,
+                    "AUTO-COMMISSION SHIPS:",
+                    &["Automatically commission all ships and starbases in stardock?"],
+                    notice,
                 );
             } else {
                 draw_expert_menu(
@@ -134,10 +145,19 @@ impl PlanetMenuScreen {
                 tax_error,
                 tax_notice,
             );
+        } else if inline_auto_commission {
+            draw_inline_confirm_prompt(&mut buffer, command_row, "COMMAND");
+            draw_inline_confirm_block(
+                &mut buffer,
+                command_row,
+                "AUTO-COMMISSION SHIPS:",
+                &["Automatically commission all ships and starbases in stardock?"],
+                notice,
+            );
         } else if let Some(notice) = notice {
             draw_menu_notice(&mut buffer, command_row, notice);
         }
-        if !inline_planet_info && !inline_tax {
+        if !inline_planet_info && !inline_tax && !inline_auto_commission {
             draw_command_prompt_at(
                 &mut buffer,
                 command_row,
@@ -166,6 +186,7 @@ impl Screen for PlanetMenuScreen {
             "",
             None,
             None,
+            false,
         )
     }
 
@@ -190,7 +211,7 @@ impl Screen for PlanetMenuScreen {
                 Action::Planet(PlanetAction::OpenCommissionMenu)
             }
             KeyCode::Char('a') | KeyCode::Char('A') => {
-                Action::Planet(PlanetAction::OpenAutoCommissionConfirm)
+                Action::Planet(PlanetAction::OpenAutoCommissionPrompt)
             }
             KeyCode::Char('s') | KeyCode::Char('S') => {
                 Action::Planet(PlanetAction::OpenListSortPrompt(PlanetListMode::Stub(
