@@ -837,7 +837,7 @@ fn preloaded_first_login_routes_through_login_summary_before_rename_prompt() {
     );
     assert!(
         terminal
-            .line(19)
+            .line(6)
             .contains("Would you like to rename your empire? (This is your only chance.)")
     );
 }
@@ -6956,6 +6956,37 @@ fn planet_database_render_uses_year_and_tier_labels_on_bottom_row() {
 }
 
 #[test]
+fn starmap_dump_page_uses_plain_bottom_left_slap_a_key_prompt() {
+    let mut screen = ec_client::screen::StarmapScreen::new();
+    let lines = (1..=21)
+        .map(|idx| format!("line {idx:02}"))
+        .collect::<Vec<_>>();
+
+    let buffer = screen
+        .render_dump_page(&lines, 0)
+        .expect("starmap dump page renders");
+
+    assert_eq!(buffer.plain_line(22), "line 21");
+    assert_eq!(buffer.plain_line(24), "(slap a key)");
+    assert!(!buffer.plain_line(24).contains("GALAXY MAP"));
+    assert!(!buffer.plain_line(24).contains("->"));
+    assert!(!buffer.plain_line(24).contains("<-"));
+}
+
+#[test]
+fn starmap_prompt_uses_plain_dismiss_prompt_below_last_text_line() {
+    let mut screen = ec_client::screen::StarmapScreen::new();
+
+    let buffer = screen.render_prompt(None).expect("starmap prompt renders");
+
+    assert_eq!(buffer.plain_line(8), "");
+    assert_eq!(buffer.plain_line(9), "(slap a key)");
+    assert!(!buffer.plain_line(9).contains("GALAXY MAP"));
+    assert!(!buffer.plain_line(9).contains("->"));
+    assert!(!buffer.plain_line(9).contains("<-"));
+}
+
+#[test]
 fn planet_info_intel_detail_shows_last_intel_and_tier() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
@@ -7780,6 +7811,36 @@ fn apply_action_clamps_enemies_scroll_to_visible_window() {
 }
 
 #[test]
+fn enemies_typed_empire_number_moves_selector_bar_immediately() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(&mut app, Action::Empire(EmpireAction::OpenEnemies)),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::Enemies);
+    assert_eq!(app.empire.enemies_cursor, 0);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Empire(EmpireAction::AppendEnemiesChar('3'))
+        ),
+        AppOutcome::Continue
+    );
+
+    assert_eq!(app.empire.enemies_cursor, 1);
+    assert_eq!(app.enemies_scroll_offset(), 0);
+}
+
+#[test]
 fn apply_action_deletes_reviewables() {
     let fixture_dir = temp_game_copy();
     let mut runtime = latest_runtime_state(&fixture_dir);
@@ -8049,6 +8110,319 @@ fn apply_action_confirms_before_discarding_composed_message() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::ComposeMessageRecipient);
+}
+
+#[test]
+fn compose_body_navigation_tracks_visual_wrapped_lines() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::OpenComposeRecipient)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::AppendComposeRecipientChar('2'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::SubmitComposeRecipient)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::SubmitComposeSubject)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::ComposeMessageBody);
+
+    app.messaging.compose_body = format!("{} splitword", "a".repeat(78));
+    app.messaging.compose_body_cursor_row = 1;
+    app.messaging.compose_body_cursor_col = 4;
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::MoveComposeBodyCursorHome)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.messaging.compose_body_cursor_row, 1);
+    assert_eq!(app.messaging.compose_body_cursor_col, 0);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::MoveComposeBodyCursorUp)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.messaging.compose_body_cursor_row, 0);
+    assert_eq!(app.messaging.compose_body_cursor_col, 0);
+
+    app.messaging.compose_body_cursor_row = 0;
+    app.messaging.compose_body_cursor_col = 4;
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::MoveComposeBodyCursorDown)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.messaging.compose_body_cursor_row, 1);
+    assert_eq!(app.messaging.compose_body_cursor_col, 4);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::MoveComposeBodyCursorEnd)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.messaging.compose_body_cursor_row, 1);
+    assert_eq!(app.messaging.compose_body_cursor_col, 9);
+}
+
+#[test]
+fn compose_body_cursor_can_move_down_from_empty_editor_without_mutating_body() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    app.current_screen = ScreenId::ComposeMessageBody;
+    app.messaging.compose_body.clear();
+    app.messaging.compose_body_cursor_row = 0;
+    app.messaging.compose_body_cursor_col = 0;
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::MoveComposeBodyCursorDown)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.messaging.compose_body, "");
+    assert_eq!(app.messaging.compose_body_cursor_row, 1);
+    assert_eq!(app.messaging.compose_body_cursor_col, 0);
+}
+
+#[test]
+fn compose_body_cursor_can_move_into_blank_lines_and_type_there() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    app.current_screen = ScreenId::ComposeMessageBody;
+    app.messaging.compose_body = "abc".to_string();
+    app.messaging.compose_body_cursor_row = 0;
+    app.messaging.compose_body_cursor_col = 3;
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::MoveComposeBodyCursorDown)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.messaging.compose_body, "abc");
+    assert_eq!(app.messaging.compose_body_cursor_row, 1);
+    assert_eq!(app.messaging.compose_body_cursor_col, 3);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::AppendComposeBodyChar('Z'))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.messaging.compose_body, "abc\n   Z");
+    assert_eq!(app.messaging.compose_body_cursor_row, 1);
+    assert_eq!(app.messaging.compose_body_cursor_col, 4);
+}
+
+#[test]
+fn compose_body_cursor_can_move_right_past_end_of_text_without_mutating_body() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    app.current_screen = ScreenId::ComposeMessageBody;
+    app.messaging.compose_body = "abc".to_string();
+    app.messaging.compose_body_cursor_row = 0;
+    app.messaging.compose_body_cursor_col = 3;
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::MoveComposeBodyCursorRight)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.messaging.compose_body, "abc");
+    assert_eq!(app.messaging.compose_body_cursor_row, 0);
+    assert_eq!(app.messaging.compose_body_cursor_col, 4);
+}
+
+#[test]
+fn compose_body_tab_inserts_four_spaces() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    app.current_screen = ScreenId::ComposeMessageBody;
+    app.messaging.compose_body = "abc".to_string();
+    app.messaging.compose_body_cursor_row = 0;
+    app.messaging.compose_body_cursor_col = 3;
+
+    let tab = app.handle_key(key(KeyCode::Tab));
+    assert_eq!(apply_action(&mut app, tab), AppOutcome::Continue);
+    assert_eq!(app.messaging.compose_body, "abc    ");
+    assert_eq!(app.messaging.compose_body_cursor_row, 0);
+    assert_eq!(app.messaging.compose_body_cursor_col, 7);
+}
+
+#[test]
+fn compose_body_tab_pushes_existing_text_right() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    app.current_screen = ScreenId::ComposeMessageBody;
+    app.messaging.compose_body = "abcxyz".to_string();
+    app.messaging.compose_body_cursor_row = 0;
+    app.messaging.compose_body_cursor_col = 3;
+
+    let tab = app.handle_key(key(KeyCode::Tab));
+    assert_eq!(apply_action(&mut app, tab), AppOutcome::Continue);
+    assert_eq!(app.messaging.compose_body, "abc    xyz");
+    assert_eq!(app.messaging.compose_body_cursor_row, 0);
+    assert_eq!(app.messaging.compose_body_cursor_col, 7);
+}
+
+#[test]
+fn compose_body_cursor_left_and_right_do_not_page_jump_on_short_first_line() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    app.current_screen = ScreenId::ComposeMessageBody;
+    app.messaging.compose_body = "x".to_string();
+    app.messaging.compose_body_cursor_row = 0;
+    app.messaging.compose_body_cursor_col = 1;
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::MoveComposeBodyCursorLeft)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.messaging.compose_body_cursor_row, 0);
+    assert_eq!(app.messaging.compose_body_cursor_col, 0);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::MoveComposeBodyCursorRight)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.messaging.compose_body_cursor_row, 0);
+    assert_eq!(app.messaging.compose_body_cursor_col, 1);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::MoveComposeBodyCursorRight)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.messaging.compose_body_cursor_row, 0);
+    assert_eq!(app.messaging.compose_body_cursor_col, 2);
+}
+
+#[test]
+fn compose_body_cursor_preserves_visual_column_in_blank_canvas_space() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    app.current_screen = ScreenId::ComposeMessageBody;
+    app.messaging.compose_body = "abc".to_string();
+    app.messaging.compose_body_cursor_row = 2;
+    app.messaging.compose_body_cursor_col = 8;
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::MoveComposeBodyCursorUp)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.messaging.compose_body_cursor_row, 1);
+    assert_eq!(app.messaging.compose_body_cursor_col, 8);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Messaging(MessagingAction::MoveComposeBodyCursorDown)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.messaging.compose_body_cursor_row, 2);
+    assert_eq!(app.messaging.compose_body_cursor_col, 8);
 }
 
 #[test]

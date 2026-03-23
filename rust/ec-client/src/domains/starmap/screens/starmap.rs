@@ -4,11 +4,14 @@ use crate::app::Action;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::PlayfieldBuffer;
 use crate::screen::layout::{
-    dismiss_prompt_row, draw_command_prompt, draw_dismiss_prompt, draw_title_bar, new_playfield,
+    COMMAND_LINE_ROW, dismiss_prompt_row, draw_dismiss_prompt, draw_title_bar, new_playfield,
 };
 use crate::theme::classic;
 
 pub struct StarmapScreen;
+
+pub const STARMAP_DUMP_START_ROW: usize = 2;
+pub const STARMAP_DUMP_PAGE_LINES: usize = COMMAND_LINE_ROW - STARMAP_DUMP_START_ROW - 1;
 
 impl StarmapScreen {
     pub fn new() -> Self {
@@ -46,10 +49,12 @@ impl StarmapScreen {
             classic::body_style(),
         );
         buffer.write_text(7, 0, "to begin the text dump.", classic::body_style());
+        let mut last_content_row = 7;
         if let Some(status) = export_status {
             buffer.write_text(9, 0, status, classic::status_value_style());
+            last_content_row = 9;
         }
-        draw_command_prompt(&mut buffer, 11, "GALAXY MAP", "SLAP A KEY");
+        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(last_content_row));
         Ok(buffer)
     }
 
@@ -72,13 +77,20 @@ impl StarmapScreen {
         lines: &[String],
         offset: usize,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        const PAGE_LINES: usize = 16;
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "MAP OF THE GALAXY:");
-        for (row, line) in lines.iter().skip(offset).take(PAGE_LINES).enumerate() {
-            buffer.write_text(2 + row, 0, line, classic::body_style());
+        let mut last_content_row = 0;
+        for (row, line) in lines
+            .iter()
+            .skip(offset)
+            .take(STARMAP_DUMP_PAGE_LINES)
+            .enumerate()
+        {
+            let screen_row = STARMAP_DUMP_START_ROW + row;
+            buffer.write_text(screen_row, 0, line, classic::body_style());
+            last_content_row = screen_row;
         }
-        draw_command_prompt(&mut buffer, 19, "GALAXY MAP", "SLAP A KEY");
+        draw_dismiss_prompt(&mut buffer, dismiss_prompt_row(last_content_row));
         Ok(buffer)
     }
 

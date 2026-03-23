@@ -19,6 +19,7 @@ pub enum MessagingAction {
     BackspaceComposeSubject,
     SubmitComposeSubject,
     AppendComposeBodyChar(char),
+    InsertComposeTab,
     BackspaceComposeBody,
     DeleteComposeBodyChar,
     InsertComposeNewline,

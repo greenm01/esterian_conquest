@@ -3,9 +3,9 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    dismiss_prompt_row, draw_command_line_default_input, draw_command_line_default_input_at,
-    draw_command_line_text_at, draw_dismiss_prompt, draw_inline_status_after, draw_title_bar,
-    new_playfield, standard_table_visible_rows, table_prompt_row,
+    dismiss_prompt_row, draw_command_line_default_input_at, draw_command_line_text_at,
+    draw_dismiss_prompt, draw_inline_status_after, draw_title_bar, menu_prompt_row, new_playfield,
+    standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
     TableColumn, fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
@@ -248,8 +248,9 @@ impl PlanetTransportScreen {
             ),
             classic::status_value_style(),
         );
-        let command_row = draw_command_line_default_input(
+        let command_row = draw_command_line_default_input_at(
             &mut buffer,
+            menu_prompt_row(2),
             prompt_label,
             &format!("How many armies to {}? ", mode.verb()),
             &fleet.available_qty.to_string(),

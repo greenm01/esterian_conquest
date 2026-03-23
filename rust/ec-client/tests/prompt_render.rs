@@ -1,7 +1,8 @@
+use ec_client::screen::MessageComposeScreen;
 use ec_client::screen::PlayfieldBuffer;
 use ec_client::screen::layout::{
     COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, dismiss_prompt_row,
-    draw_command_line_prompt_text, draw_command_prompt, draw_help_panel,
+    draw_command_line_prompt_text_at, draw_command_prompt_at, draw_help_panel,
     draw_inline_planet_info_prompt, draw_inline_status_after, draw_plain_prompt,
     draw_table_command_prompt, table_dismiss_prompt_row,
 };
@@ -61,8 +62,9 @@ fn draw_plain_prompt_highlights_bare_slash_separated_choices() {
 #[test]
 fn draw_command_line_prompt_text_highlights_confirm_prompt_hotkeys() {
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
-    draw_command_line_prompt_text(
+    draw_command_line_prompt_text_at(
         &mut buffer,
+        COMMAND_LINE_ROW,
         "WORLD NAME",
         "\"Aurora\" <- Is this correct? [Y]/N ->",
     );
@@ -178,7 +180,12 @@ fn draw_plain_prompt_highlights_key_in_slap_a_key_phrase() {
 #[test]
 fn draw_command_prompt_highlights_key_in_slap_a_key_phrase() {
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
-    draw_command_prompt(&mut buffer, 19, "GENERAL COMMAND", "SLAP A KEY");
+    draw_command_prompt_at(
+        &mut buffer,
+        COMMAND_LINE_ROW,
+        "GENERAL COMMAND",
+        "SLAP A KEY",
+    );
 
     let row = buffer.row(COMMAND_LINE_ROW);
     let phrase = find_in_row(&buffer, COMMAND_LINE_ROW, "slap a key");
@@ -197,7 +204,7 @@ fn draw_command_prompt_highlights_key_in_slap_a_key_phrase() {
 #[test]
 fn draw_command_prompt_places_cursor_after_arrow_space() {
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
-    draw_command_prompt(&mut buffer, 19, "GENERAL COMMAND", "H,Q,X");
+    draw_command_prompt_at(&mut buffer, COMMAND_LINE_ROW, "GENERAL COMMAND", "H,Q,X");
 
     let line = row_text(&buffer, COMMAND_LINE_ROW);
     let (cursor_col, cursor_row) = buffer.cursor().expect("cursor set");
@@ -209,13 +216,98 @@ fn draw_command_prompt_places_cursor_after_arrow_space() {
 #[test]
 fn draw_command_prompt_places_cursor_after_slap_a_key_arrow() {
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
-    draw_command_prompt(&mut buffer, 19, "GENERAL COMMAND", "SLAP A KEY");
+    draw_command_prompt_at(
+        &mut buffer,
+        COMMAND_LINE_ROW,
+        "GENERAL COMMAND",
+        "SLAP A KEY",
+    );
 
     let line = row_text(&buffer, COMMAND_LINE_ROW);
     let (cursor_col, cursor_row) = buffer.cursor().expect("cursor set");
     assert_eq!(cursor_row as usize, COMMAND_LINE_ROW);
     assert_eq!(line.as_bytes()[cursor_col as usize - 1], b' ');
     assert!(line.contains("(slap a key)-> "));
+}
+
+#[test]
+fn compose_subject_prompt_renders_below_recipient_with_single_blank_row() {
+    let mut screen = MessageComposeScreen::new();
+    let buffer = screen
+        .render_subject("Empire 9 (Viridian Chain)", "", None)
+        .expect("subject prompt renders");
+
+    assert!(row_text(&buffer, 2).contains("To: Empire 9 (Viridian Chain)"));
+    assert_eq!(row_text(&buffer, 3).trim_end(), "");
+    assert!(row_text(&buffer, 4).contains("COMMAND <- Message subject [] <Q> -> "));
+    assert_eq!(row_text(&buffer, COMMAND_LINE_ROW).trim_end(), "");
+}
+
+#[test]
+fn compose_body_soft_wraps_at_spaces_instead_of_splitting_words() {
+    let mut screen = MessageComposeScreen::new();
+    let body = format!("{} splitword", "a".repeat(70));
+    let buffer = screen
+        .render_body("Empire 2 (Red Horizon Pact)", "test", &body, 0, 0, None)
+        .expect("body prompt renders");
+
+    assert_eq!(row_text(&buffer, 5).trim_end(), "a".repeat(70));
+    assert!(row_text(&buffer, 6).starts_with("splitword"));
+}
+
+#[test]
+fn compose_body_uses_full_80x25_vertical_editor_space() {
+    let mut screen = MessageComposeScreen::new();
+    let body = (1..=20)
+        .map(|idx| format!("line {idx:02}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let buffer = screen
+        .render_body("Empire 2 (Red Horizon Pact)", "test", &body, 0, 0, None)
+        .expect("body prompt renders");
+    assert!(row_text(&buffer, 20).contains("line 16"));
+    assert!(row_text(&buffer, 21).trim().is_empty());
+    assert!(row_text(&buffer, 22).contains("Chars:"));
+    assert!(row_text(&buffer, 23).trim().is_empty());
+    assert!(row_text(&buffer, 24).contains("GENERAL COMMAND <-CTRL-E CTRL-X->"));
+}
+
+#[test]
+fn compose_discard_confirm_uses_default_no_prompt_markup() {
+    let mut screen = MessageComposeScreen::new();
+    let buffer = screen
+        .render_discard_confirm("Empire 2 (Red Horizon Pact)", "test", "hello")
+        .expect("discard confirm renders");
+
+    assert!(!row_text(&buffer, 20).contains("Discard this unsent message draft?"));
+    assert!(row_text(&buffer, 21).trim().is_empty());
+    assert!(row_text(&buffer, 24).contains("GENERAL COMMAND <- Y/[N] ->"));
+    let row = buffer.row(24);
+    let choice = find_in_row(&buffer, 24, "Y/[N]");
+    assert_eq!(row[choice].style, classic::prompt_hotkey_style());
+    assert_eq!(row[choice + 1].style, classic::prompt_style());
+    assert_eq!(row[choice + 2].style, classic::prompt_style());
+    assert_eq!(row[choice + 3].style, classic::prompt_hotkey_style());
+    assert_eq!(row[choice + 4].style, classic::prompt_style());
+}
+
+#[test]
+fn compose_send_confirm_uses_default_no_prompt_markup() {
+    let mut screen = MessageComposeScreen::new();
+    let buffer = screen
+        .render_send_confirm("Empire 2 (Red Horizon Pact)", "test", "hello")
+        .expect("send confirm renders");
+
+    assert!(!row_text(&buffer, 20).contains("Send this message after turn maintenance?"));
+    assert!(row_text(&buffer, 21).trim().is_empty());
+    assert!(row_text(&buffer, 24).contains("SEND MESSAGE <- Y/[N] ->"));
+    let row = buffer.row(24);
+    let choice = find_in_row(&buffer, 24, "Y/[N]");
+    assert_eq!(row[choice].style, classic::prompt_hotkey_style());
+    assert_eq!(row[choice + 1].style, classic::prompt_style());
+    assert_eq!(row[choice + 2].style, classic::prompt_style());
+    assert_eq!(row[choice + 3].style, classic::prompt_hotkey_style());
+    assert_eq!(row[choice + 4].style, classic::prompt_style());
 }
 
 #[test]

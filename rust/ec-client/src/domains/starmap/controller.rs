@@ -1,4 +1,5 @@
 use crate::app::state::App;
+use crate::domains::starmap::screens::starmap::STARMAP_DUMP_PAGE_LINES;
 use crate::screen::{CommandMenu, ScreenId};
 use ec_data::build_player_starmap_projection_from_snapshots;
 use ec_engine::map_size_for_player_count;
@@ -104,11 +105,13 @@ impl App {
     }
 
     pub fn advance_starmap_page(&mut self) {
-        const PAGE_LINES: usize = 16;
         if !self.starmap_state.dump_active {
             return;
         }
-        let next_offset = self.starmap_state.dump_offset.saturating_add(PAGE_LINES);
+        let next_offset = self
+            .starmap_state
+            .dump_offset
+            .saturating_add(STARMAP_DUMP_PAGE_LINES);
         if next_offset >= self.starmap_state.dump_lines.len() {
             self.starmap_state.dump_active = false;
             self.starmap_state.capture_complete = true;

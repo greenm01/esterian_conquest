@@ -499,10 +499,6 @@ pub fn draw_centered_text(
     buffer.write_text(row, col, text, style);
 }
 
-pub fn draw_command_prompt(buffer: &mut PlayfieldBuffer, _row: usize, label: &str, keys: &str) {
-    draw_command_prompt_at(buffer, COMMAND_LINE_ROW, label, keys);
-}
-
 pub fn draw_command_prompt_at(buffer: &mut PlayfieldBuffer, row: usize, label: &str, keys: &str) {
     buffer.fill_row(row, classic::prompt_style());
     let prefix = buffer.write_spans(
@@ -536,10 +532,6 @@ pub fn draw_command_prompt_at(buffer: &mut PlayfieldBuffer, row: usize, label: &
     }
 }
 
-pub fn draw_command_line_text(buffer: &mut PlayfieldBuffer, label: &str, text: &str) {
-    draw_command_line_text_at(buffer, COMMAND_LINE_ROW, label, text);
-}
-
 pub fn draw_command_line_text_at(
     buffer: &mut PlayfieldBuffer,
     row: usize,
@@ -558,10 +550,6 @@ pub fn draw_command_line_text_at(
     );
 }
 
-pub fn draw_command_line_prompt_text(buffer: &mut PlayfieldBuffer, label: &str, prompt: &str) {
-    draw_command_line_prompt_text_at(buffer, COMMAND_LINE_ROW, label, prompt);
-}
-
 pub fn draw_command_line_prompt_text_at(
     buffer: &mut PlayfieldBuffer,
     row: usize,
@@ -578,16 +566,6 @@ pub fn draw_command_line_prompt_text_at(
         ],
     );
     write_prompt_markup(buffer, row, prefix, prompt);
-}
-
-pub fn draw_command_line_default_input(
-    buffer: &mut PlayfieldBuffer,
-    label: &str,
-    prompt: &str,
-    default: &str,
-    input: &str,
-) -> usize {
-    draw_command_line_default_input_at(buffer, COMMAND_LINE_ROW, label, prompt, default, input)
 }
 
 pub fn draw_command_line_default_input_at(

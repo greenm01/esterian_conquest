@@ -3,8 +3,8 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
-    COMMAND_LINE_ROW, MenuEntry, dismiss_prompt_row, draw_command_line_default_input,
-    draw_command_line_prompt_text, draw_command_prompt_at, draw_dismiss_prompt, draw_help_panel,
+    COMMAND_LINE_ROW, MenuEntry, dismiss_prompt_row, draw_command_line_default_input_at,
+    draw_command_line_prompt_text_at, draw_command_prompt_at, draw_dismiss_prompt, draw_help_panel,
     draw_menu_notice, draw_plain_prompt, draw_status_line, draw_title_bar, menu_prompt_row,
     new_playfield,
 };
@@ -178,8 +178,16 @@ pub fn render_first_time_join_name(
             status,
         );
     }
-    draw_command_line_default_input(
+    let last_content_row = if status.is_some() {
+        if rename_mode { 8 } else { 7 }
+    } else if rename_mode {
+        6
+    } else {
+        5
+    };
+    draw_command_line_default_input_at(
         &mut buffer,
+        menu_prompt_row(last_content_row),
         "EMPIRE NAME",
         if rename_mode {
             "Rename your empire "
@@ -228,8 +236,9 @@ pub fn render_first_time_join_name_confirm(
             classic::body_style(),
         );
     }
-    draw_command_line_prompt_text(
+    draw_command_line_prompt_text_at(
         &mut buffer,
+        menu_prompt_row(if rename_mode { 4 } else { 5 }),
         "EMPIRE NAME",
         &format!(
             "\"{empire_name}\" <- Is this correct? {}/N ->",
@@ -256,8 +265,9 @@ pub fn render_preloaded_first_login_rename_prompt(
         &format!("Your empire has been pre-named as \"{empire_name}\"."),
         classic::body_style(),
     );
-    draw_command_line_prompt_text(
+    draw_command_line_prompt_text_at(
         &mut buffer,
+        menu_prompt_row(4),
         "EMPIRE NAME",
         "Would you like to rename your empire? (This is your only chance.) Y/[N] ->",
     );
@@ -348,8 +358,16 @@ pub fn render_first_time_homeworld_name(
             status,
         );
     }
-    draw_command_line_default_input(
+    let last_content_row = if status.is_some() {
+        if is_preloaded_first_login { 6 } else { 5 }
+    } else if is_preloaded_first_login {
+        5
+    } else {
+        3
+    };
+    draw_command_line_default_input_at(
         &mut buffer,
+        menu_prompt_row(last_content_row),
         "HOMEWORLD",
         "Name this world (20 characters or less) ",
         "",
@@ -399,8 +417,9 @@ pub fn render_first_time_homeworld_confirm(
         "Press N or Esc to go back and edit the homeworld name.",
         classic::body_style(),
     );
-    draw_command_line_prompt_text(
+    draw_command_line_prompt_text_at(
         &mut buffer,
+        menu_prompt_row(if is_preloaded_first_login { 6 } else { 5 }),
         "HOMEWORLD",
         &format!("\"{homeworld_name}\" <- Is this correct? Y/[N] ->"),
     );
@@ -437,8 +456,10 @@ pub fn render_colony_world_name(
     if let Some(status) = status {
         draw_status_line(&mut buffer, 5, "Notice: ", status);
     }
-    draw_command_line_default_input(
+    let last_content_row = if status.is_some() { 5 } else { 3 };
+    draw_command_line_default_input_at(
         &mut buffer,
+        menu_prompt_row(last_content_row),
         "WORLD NAME",
         "Name this world (20 characters or less) ",
         "",
@@ -468,8 +489,9 @@ pub fn render_colony_world_confirm(
         "Press N or Esc to go back and edit the world name.",
         classic::body_style(),
     );
-    draw_command_line_prompt_text(
+    draw_command_line_prompt_text_at(
         &mut buffer,
+        menu_prompt_row(4),
         "WORLD NAME",
         &format!("\"{planet_name}\" <- Is this correct? [Y]/N ->"),
     );

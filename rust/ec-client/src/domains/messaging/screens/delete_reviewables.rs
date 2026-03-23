@@ -3,7 +3,9 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::messaging::MessagingAction;
 use crate::screen::PlayfieldBuffer;
-use crate::screen::layout::{draw_command_prompt, draw_title_bar, new_playfield};
+use crate::screen::layout::{
+    draw_command_prompt_at, draw_title_bar, menu_prompt_row, new_playfield,
+};
 use crate::theme::classic;
 
 pub struct DeleteReviewablesScreen;
@@ -34,7 +36,13 @@ impl DeleteReviewablesScreen {
         if let Some(status) = status {
             buffer.write_text(6, 0, status, classic::status_value_style());
         }
-        draw_command_prompt(&mut buffer, 8, "GENERAL COMMAND", "Y Q");
+        let last_content_row = if status.is_some() { 6 } else { 4 };
+        draw_command_prompt_at(
+            &mut buffer,
+            menu_prompt_row(last_content_row),
+            "GENERAL COMMAND",
+            "Y Q",
+        );
         Ok(buffer)
     }
 

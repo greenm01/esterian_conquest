@@ -4,9 +4,10 @@ use ec_data::QueuedPlayerMail;
 use crate::app::Action;
 use crate::domains::messaging::MessagingAction;
 use crate::screen::layout::{
-    dismiss_prompt_row, draw_command_line_default_input, draw_command_prompt, draw_dismiss_prompt,
-    draw_inline_status_after, draw_table_command_bar_at, draw_title_bar, new_playfield,
-    standard_table_visible_rows, table_prompt_row,
+    dismiss_prompt_row, draw_command_line_default_input_at, draw_command_line_prompt_text_at,
+    draw_command_prompt_at, draw_dismiss_prompt, draw_inline_status_after,
+    draw_table_command_bar_at, draw_title_bar, new_playfield, standard_table_visible_rows,
+    table_prompt_row,
 };
 use crate::screen::table::{TableColumn, format_empire_id, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
@@ -17,6 +18,12 @@ pub(crate) const RECIPIENT_VISIBLE_ROWS: usize = standard_table_visible_rows(5);
 pub(crate) const OUTBOX_VISIBLE_ROWS: usize = standard_table_visible_rows(4);
 pub(crate) const COMPOSE_SUBJECT_LIMIT: usize = 60;
 pub(crate) const COMPOSE_BODY_LIMIT: usize = 1000;
+pub(crate) const COMPOSE_BODY_WRAP_WIDTH: usize = 79;
+const COMPOSE_BODY_FIRST_ROW: usize = 5;
+const COMPOSE_BODY_LAST_ROW: usize = 20;
+const COMPOSE_BODY_STATUS_ROW: usize = 20;
+const COMPOSE_BODY_SPACER_ROW: usize = 21;
+const COMPOSE_BODY_CHARS_ROW: usize = 22;
 
 const RECIPIENT_COLUMNS: [TableColumn<'static>; 2] =
     [TableColumn::right("ID", 3), TableColumn::left("Empire", 28)];
@@ -113,16 +120,18 @@ impl MessageComposeScreen {
             &format!("To: {recipient_label}"),
             classic::status_value_style(),
         );
-        if let Some(status) = status {
-            buffer.write_text(6, 0, status, classic::status_value_style());
-        }
-        draw_command_line_default_input(
+        let command_row = 4;
+        draw_command_line_default_input_at(
             &mut buffer,
-            "GENERAL COMMAND",
+            command_row,
+            "COMMAND",
             "Message subject ",
             "",
             subject,
         );
+        if let Some(status) = status {
+            draw_inline_status_after(&mut buffer, command_row, status);
+        }
         Ok(buffer)
     }
 
@@ -131,7 +140,8 @@ impl MessageComposeScreen {
         recipient_label: &str,
         subject: &str,
         body: &str,
-        cursor_index: usize,
+        cursor_row: usize,
+        cursor_col: usize,
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
@@ -156,29 +166,44 @@ impl MessageComposeScreen {
             classic::menu_style(),
         );
 
-        let wrapped = wrap_body_segments(body, 79);
-        let visible = 11usize;
-        let cursor_segment = cursor_segment_index(&wrapped, cursor_index);
-        let start = visible_window_start(wrapped.len(), visible, cursor_segment);
+        let wrapped = wrap_body_segments(body, COMPOSE_BODY_WRAP_WIDTH);
+        let first_body_row = COMPOSE_BODY_FIRST_ROW;
+        let status_row = COMPOSE_BODY_STATUS_ROW;
+        let chars_row = COMPOSE_BODY_CHARS_ROW;
+        let body_last_row = if status.is_some() {
+            status_row.saturating_sub(1)
+        } else {
+            COMPOSE_BODY_LAST_ROW
+        };
+        let visible = body_last_row.saturating_sub(first_body_row) + 1;
+        let total_rows = wrapped.len().max(cursor_row + 1);
+        let start = visible_window_start(total_rows, visible, cursor_row);
         for (idx, segment) in wrapped.iter().skip(start).take(visible).enumerate() {
-            buffer.write_text(5 + idx, 0, &segment.text, classic::body_style());
+            buffer.write_text(
+                first_body_row + idx,
+                0,
+                &segment.text,
+                classic::body_style(),
+            );
         }
         if let Some(status) = status {
-            buffer.write_text(17, 0, status, classic::status_value_style());
+            buffer.write_text(status_row, 0, status, classic::status_value_style());
         }
+        buffer.write_text(COMPOSE_BODY_SPACER_ROW, 0, "", classic::body_style());
         buffer.write_text(
-            18,
+            chars_row,
             0,
             &format!("Chars: {}/{}", body.chars().count(), COMPOSE_BODY_LIMIT),
             classic::body_style(),
         );
-        draw_command_prompt(&mut buffer, 19, "GENERAL COMMAND", "CTRL-E CTRL-X");
-        let cursor_row = 5 + cursor_segment.saturating_sub(start);
-        let cursor_col = wrapped
-            .get(cursor_segment)
-            .map(|segment| cursor_index.saturating_sub(segment.start))
-            .unwrap_or(0);
-        buffer.set_cursor(cursor_col as u16, cursor_row as u16);
+        draw_command_prompt_at(
+            &mut buffer,
+            crate::screen::layout::COMMAND_LINE_ROW,
+            "GENERAL COMMAND",
+            "CTRL-E CTRL-X",
+        );
+        let render_row = first_body_row + cursor_row.saturating_sub(start);
+        buffer.set_cursor(cursor_col as u16, render_row as u16);
         Ok(buffer)
     }
 
@@ -188,36 +213,31 @@ impl MessageComposeScreen {
         subject: &str,
         body: &str,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = self.render_body(
-            recipient_label,
-            subject,
-            body,
-            body.chars().count(),
-            Some("Send this message after turn maintenance?"),
-        )?;
-        draw_command_prompt(&mut buffer, 19, "SEND MESSAGE", "Y N");
+        let mut buffer = self.render_body(recipient_label, subject, body, 0, 0, None)?;
+        draw_command_line_prompt_text_at(
+            &mut buffer,
+            crate::screen::layout::COMMAND_LINE_ROW,
+            "SEND MESSAGE",
+            "Y/[N] ->",
+        );
         buffer.clear_cursor();
         Ok(buffer)
     }
 
     pub fn render_discard_confirm(
         &mut self,
+        recipient_label: &str,
+        subject: &str,
+        body: &str,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
-        draw_title_bar(&mut buffer, 0, "COMMUNICATE (SEND MESSAGE):");
-        buffer.write_text(
-            4,
-            0,
-            "Discard this unsent message draft?",
-            classic::status_value_style(),
+        let mut buffer = self.render_body(recipient_label, subject, body, 0, 0, None)?;
+        draw_command_line_prompt_text_at(
+            &mut buffer,
+            crate::screen::layout::COMMAND_LINE_ROW,
+            "GENERAL COMMAND",
+            "Y/[N] ->",
         );
-        buffer.write_text(
-            6,
-            0,
-            "Press Y to discard it, or any other key to keep editing.",
-            classic::body_style(),
-        );
-        draw_command_prompt(&mut buffer, 19, "GENERAL COMMAND", "Y N");
+        buffer.clear_cursor();
         Ok(buffer)
     }
 
@@ -354,6 +374,7 @@ impl MessageComposeScreen {
             KeyCode::End => Action::Messaging(MessagingAction::MoveComposeBodyCursorEnd),
             KeyCode::Backspace => Action::Messaging(MessagingAction::BackspaceComposeBody),
             KeyCode::Delete => Action::Messaging(MessagingAction::DeleteComposeBodyChar),
+            KeyCode::Tab => Action::Messaging(MessagingAction::InsertComposeTab),
             KeyCode::Enter => Action::Messaging(MessagingAction::InsertComposeNewline),
             KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
                 Action::Messaging(MessagingAction::AppendComposeBodyChar(ch))
@@ -408,13 +429,19 @@ impl MessageComposeScreen {
 }
 
 #[derive(Debug, Clone)]
-struct WrappedSegment {
-    start: usize,
-    end: usize,
-    text: String,
+pub(crate) struct WrappedSegment {
+    pub(crate) start: usize,
+    pub(crate) end: usize,
+    pub(crate) text: String,
 }
 
-fn wrap_body_segments(body: &str, width: usize) -> Vec<WrappedSegment> {
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct ComposeCursor {
+    pub(crate) row: usize,
+    pub(crate) col: usize,
+}
+
+pub(crate) fn wrap_body_segments(body: &str, width: usize) -> Vec<WrappedSegment> {
     if body.is_empty() {
         return vec![WrappedSegment {
             start: 0,
@@ -446,7 +473,17 @@ fn wrap_body_segments(body: &str, width: usize) -> Vec<WrappedSegment> {
         } else {
             let mut seg_start = line_start;
             while seg_start < line_end {
-                let seg_end = usize::min(seg_start + width, line_end);
+                let hard_end = usize::min(seg_start + width, line_end);
+                let seg_end = if hard_end == line_end {
+                    line_end
+                } else {
+                    chars[seg_start..hard_end]
+                        .iter()
+                        .rposition(|ch| ch.is_whitespace())
+                        .map(|idx| seg_start + idx + 1)
+                        .filter(|&end| end > seg_start)
+                        .unwrap_or(hard_end)
+                };
                 out.push(WrappedSegment {
                     start: seg_start,
                     end: seg_end,
@@ -473,21 +510,83 @@ fn wrap_body_segments(body: &str, width: usize) -> Vec<WrappedSegment> {
     out
 }
 
-fn cursor_segment_index(segments: &[WrappedSegment], cursor_index: usize) -> usize {
+pub(crate) fn compose_cursor_for_index(body: &str, cursor_index: usize) -> ComposeCursor {
+    let cursor = cursor_index.min(body.chars().count());
+    let segments = wrap_body_segments(body, COMPOSE_BODY_WRAP_WIDTH);
     for (idx, segment) in segments.iter().enumerate() {
-        if cursor_index >= segment.start && cursor_index <= segment.end {
-            return idx;
+        if cursor >= segment.start && cursor <= segment.end {
+            return ComposeCursor {
+                row: idx,
+                col: cursor.saturating_sub(segment.start),
+            };
         }
     }
-    segments.len().saturating_sub(1)
+    ComposeCursor::default()
 }
 
-fn visible_window_start(total: usize, visible: usize, cursor_segment: usize) -> usize {
+pub(crate) fn compose_row_end_col(body: &str, row: usize) -> usize {
+    wrap_body_segments(body, COMPOSE_BODY_WRAP_WIDTH)
+        .get(row)
+        .map(|segment| segment.end.saturating_sub(segment.start))
+        .unwrap_or(0)
+}
+
+pub(crate) fn compose_existing_index_for_cursor(
+    body: &str,
+    cursor: ComposeCursor,
+) -> Option<usize> {
+    let segments = wrap_body_segments(body, COMPOSE_BODY_WRAP_WIDTH);
+    let segment = segments.get(cursor.row)?;
+    let row_len = segment.end.saturating_sub(segment.start);
+    (cursor.col <= row_len).then_some(segment.start + cursor.col)
+}
+
+pub(crate) fn materialize_compose_cursor(
+    body: &mut String,
+    cursor: ComposeCursor,
+) -> Option<usize> {
+    let required_rows = cursor.row + 1;
+    let current_rows = wrap_body_segments(body, COMPOSE_BODY_WRAP_WIDTH).len();
+    if required_rows > current_rows {
+        let extra_rows = required_rows - current_rows;
+        if body.chars().count() + extra_rows > COMPOSE_BODY_LIMIT {
+            return None;
+        }
+        for _ in 0..extra_rows {
+            body.push('\n');
+        }
+    }
+
+    let segments = wrap_body_segments(body, COMPOSE_BODY_WRAP_WIDTH);
+    let segment = segments.get(cursor.row)?;
+    let row_len = segment.end.saturating_sub(segment.start);
+    if cursor.col > row_len {
+        let extra = cursor.col - row_len;
+        if body.chars().count() + extra > COMPOSE_BODY_LIMIT {
+            return None;
+        }
+        let byte_index = char_to_byte_index(body, segment.end);
+        body.insert_str(byte_index, &" ".repeat(extra));
+    }
+    Some(segment.start + cursor.col)
+}
+
+fn char_to_byte_index(body: &str, char_index: usize) -> usize {
+    if char_index == 0 {
+        return 0;
+    }
+    body.char_indices()
+        .nth(char_index)
+        .map(|(idx, _)| idx)
+        .unwrap_or(body.len())
+}
+
+fn visible_window_start(total: usize, visible: usize, cursor_row: usize) -> usize {
     if total <= visible {
         return 0;
     }
     let max_start = total - visible;
-    cursor_segment
+    cursor_row
         .saturating_sub(visible.saturating_sub(1))
         .min(max_start)
 }

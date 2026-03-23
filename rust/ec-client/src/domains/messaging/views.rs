@@ -30,7 +30,8 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &compose_recipient_label(&app.game_data, app.messaging.compose_recipient_empire),
             &app.messaging.compose_subject,
             &app.messaging.compose_body,
-            app.messaging.compose_body_cursor,
+            app.messaging.compose_body_cursor_row,
+            app.messaging.compose_body_cursor_col,
             app.messaging.compose_body_status.as_deref(),
         ),
         ScreenId::ComposeMessageOutbox => app.message_compose.render_outbox(
@@ -41,7 +42,11 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.messaging.compose_outbox_cursor,
             &app.game_data,
         ),
-        ScreenId::ComposeMessageDiscardConfirm => app.message_compose.render_discard_confirm(),
+        ScreenId::ComposeMessageDiscardConfirm => app.message_compose.render_discard_confirm(
+            &compose_recipient_label(&app.game_data, app.messaging.compose_recipient_empire),
+            &app.messaging.compose_subject,
+            &app.messaging.compose_body,
+        ),
         ScreenId::ComposeMessageSendConfirm => app.message_compose.render_send_confirm(
             &compose_recipient_label(&app.game_data, app.messaging.compose_recipient_empire),
             &app.messaging.compose_subject,

@@ -8,7 +8,7 @@ use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
     EXPERT_MENU_PROMPT_ROW, MenuEntry, draw_command_line_default_input_at,
-    draw_command_line_text_at, draw_command_prompt, draw_command_prompt_at, draw_expert_menu,
+    draw_command_line_text_at, draw_command_prompt_at, draw_expert_menu,
     draw_inline_planet_info_prompt, draw_inline_status_after, draw_menu_entry, draw_menu_notice,
     draw_status_line, draw_table_command_bar_at, draw_title_bar, menu_prompt_row, new_playfield,
     standard_table_visible_rows, table_prompt_row,
@@ -612,7 +612,12 @@ impl FleetReviewScreen {
             "Fleet Record #: ",
             &row.fleet_record_index_1_based.to_string(),
         );
-        draw_command_prompt(&mut buffer, 19, "FLEET COMMAND", "ARROWS H J K L Q");
+        draw_command_prompt_at(
+            &mut buffer,
+            menu_prompt_row(12),
+            "FLEET COMMAND",
+            "ARROWS H J K L Q",
+        );
         Ok(buffer)
     }
 

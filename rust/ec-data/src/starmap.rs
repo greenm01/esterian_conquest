@@ -51,7 +51,11 @@ impl PlayerStarmapProjection {
                 let mut row = format!("{y:02} |");
                 for x in start_x..=end_x {
                     let ch = if occupied[y][x] { '*' } else { ' ' };
-                    row.push_str(&format!(" {ch}  "));
+                    if x == end_x {
+                        row.push_str(&format!(" {ch} "));
+                    } else {
+                        row.push_str(&format!(" {ch}  "));
+                    }
                 }
                 row.push_str(&format!("| {y:02}"));
                 rows.push(row);
@@ -222,6 +226,7 @@ fn render_border_row(start_x: usize, end_x: usize, final_row: bool) -> String {
             row.push_str("- -|");
         }
     }
+    row.push('-');
     row
 }
 

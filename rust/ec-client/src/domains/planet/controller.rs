@@ -148,20 +148,22 @@ impl App {
     }
 
     pub fn append_planet_brief_char(&mut self, ch: char) {
-        let ScreenId::PlanetBriefList(_) = self.current_screen else {
+        let ScreenId::PlanetBriefList(sort) = self.current_screen else {
             return;
         };
         if self.planet.brief_input.len() < 16 && (ch.is_ascii_digit() || ch == ',' || ch == ' ') {
             self.planet.brief_input.push(ch);
+            self.sync_planet_brief_cursor_to_input(sort);
             self.planet.list_sort_status = None;
         }
     }
 
     pub fn backspace_planet_brief_input(&mut self) {
-        let ScreenId::PlanetBriefList(_) = self.current_screen else {
+        let ScreenId::PlanetBriefList(sort) = self.current_screen else {
             return;
         };
         self.planet.brief_input.pop();
+        self.sync_planet_brief_cursor_to_input(sort);
         self.planet.list_sort_status = None;
     }
 
@@ -237,6 +239,7 @@ impl App {
         if self.planet.database_input.len() < 16 && (ch.is_ascii_digit() || ch == ',' || ch == ' ')
         {
             self.planet.database_input.push(ch);
+            self.sync_planet_database_cursor_to_input();
             self.planet.database_status = None;
         }
     }
@@ -246,6 +249,7 @@ impl App {
             return;
         }
         self.planet.database_input.pop();
+        self.sync_planet_database_cursor_to_input();
         self.planet.database_status = None;
     }
 
@@ -374,6 +378,49 @@ impl App {
         if self.planet.info_input.len() < 16 {
             self.planet.info_input.push(ch);
             self.planet.info_error = None;
+        }
+    }
+
+    fn sync_planet_brief_cursor_to_input(&mut self, sort: PlanetListSort) {
+        let raw = self.planet.brief_input.trim();
+        if raw.is_empty() {
+            return;
+        }
+        let rows = self.sorted_planet_rows(sort);
+        let default_coords = rows
+            .get(self.planet.brief_cursor)
+            .map(|row| row.coords)
+            .unwrap_or([0, 0]);
+        let Some(coords) = resolve_default_coords_input(raw, default_coords) else {
+            return;
+        };
+        if let Some(index) = rows.iter().position(|row| row.coords == coords) {
+            self.planet.brief_cursor = index;
+            sync_scroll_to_cursor(
+                &mut self.planet.brief_scroll_offset,
+                self.planet.brief_cursor,
+                crate::screen::PLANET_BRIEF_VISIBLE_ROWS,
+            );
+        }
+    }
+
+    fn sync_planet_database_cursor_to_input(&mut self) {
+        let raw = self.planet.database_input.trim();
+        if raw.is_empty() {
+            return;
+        }
+        let rows = self.planet_database_rows();
+        let default_coords = self.default_planet_prompt_coords();
+        let Some(coords) = resolve_default_coords_input(raw, default_coords) else {
+            return;
+        };
+        if let Some(index) = rows.iter().position(|row| row.coords == coords) {
+            self.planet.database_cursor = index;
+            sync_scroll_to_cursor(
+                &mut self.planet.database_scroll_offset,
+                self.planet.database_cursor,
+                crate::screen::PLANET_DATABASE_VISIBLE_ROWS,
+            );
         }
     }
 

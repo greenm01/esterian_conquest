@@ -3,7 +3,8 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    dismiss_prompt_row, draw_command_prompt, draw_dismiss_prompt, draw_title_bar, new_playfield,
+    dismiss_prompt_row, draw_command_prompt_at, draw_dismiss_prompt, draw_title_bar,
+    menu_prompt_row, new_playfield,
 };
 use crate::screen::{PlayfieldBuffer, Screen};
 use crate::theme::classic;
@@ -30,7 +31,7 @@ impl PlanetAutoCommissionScreen {
             "Press Y to commission them now, or Q to cancel.",
             classic::status_value_style(),
         );
-        draw_command_prompt(&mut buffer, 19, "PLANET COMMAND", "Y Q");
+        draw_command_prompt_at(&mut buffer, menu_prompt_row(5), "PLANET COMMAND", "Y Q");
         Ok(buffer)
     }
 

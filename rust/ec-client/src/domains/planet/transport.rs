@@ -106,6 +106,9 @@ impl App {
         ) && self.planet.transport_planet_input.len() < 16
         {
             self.planet.transport_planet_input.push(ch);
+            if let ScreenId::PlanetTransportPlanetSelect(mode) = self.current_screen {
+                self.sync_planet_transport_planet_cursor_to_input(mode);
+            }
             self.planet.transport_status = None;
         }
     }
@@ -117,6 +120,9 @@ impl App {
                 | ScreenId::PlanetTransportPlanetSelect(PlanetTransportMode::Unload)
         ) {
             self.planet.transport_planet_input.pop();
+            if let ScreenId::PlanetTransportPlanetSelect(mode) = self.current_screen {
+                self.sync_planet_transport_planet_cursor_to_input(mode);
+            }
             self.planet.transport_status = None;
         }
     }
@@ -315,6 +321,26 @@ impl App {
             .get(self.planet.transport_planet_cursor)
             .map(|row| row.coords)
             .unwrap_or_else(|| self.default_planet_prompt_coords())
+    }
+
+    fn sync_planet_transport_planet_cursor_to_input(&mut self, mode: PlanetTransportMode) {
+        let raw = self.planet.transport_planet_input.trim();
+        if raw.is_empty() {
+            return;
+        }
+        let rows = self.planet_transport_planet_rows(mode);
+        let default_coords = self.planet_transport_planet_default_coords(mode);
+        let Some(coords) = resolve_default_coords_input(raw, default_coords) else {
+            return;
+        };
+        if let Some(index) = rows.iter().position(|row| row.coords == coords) {
+            self.planet.transport_planet_cursor = index;
+            sync_scroll_to_cursor(
+                &mut self.planet.transport_planet_scroll_offset,
+                self.planet.transport_planet_cursor,
+                crate::screen::PLANET_TRANSPORT_VISIBLE_ROWS,
+            );
+        }
     }
 
     pub(crate) fn planet_transport_planet_rows(

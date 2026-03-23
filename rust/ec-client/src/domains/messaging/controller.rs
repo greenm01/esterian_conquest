@@ -1,9 +1,15 @@
 use crate::app::helpers::sync_scroll_to_cursor;
 use crate::app::state::App;
+use crate::domains::messaging::screens::message_compose::{
+    COMPOSE_BODY_WRAP_WIDTH, ComposeCursor, compose_cursor_for_index,
+    compose_existing_index_for_cursor, compose_row_end_col, materialize_compose_cursor,
+};
 use crate::model::{MainMenuSummary, ReviewSummary};
 use crate::reports::{ReportsPreview, has_visible_runtime_messages};
 use crate::screen::{CommandMenu, ScreenId};
 use ec_data::{CoreGameData, QueuedPlayerMail};
+
+const COMPOSE_TAB_WIDTH: usize = 4;
 
 impl App {
     pub fn open_delete_reviewables(&mut self) {
@@ -34,7 +40,8 @@ impl App {
         self.messaging.compose_subject.clear();
         self.messaging.compose_subject_status = None;
         self.messaging.compose_body.clear();
-        self.messaging.compose_body_cursor = 0;
+        self.messaging.compose_body_cursor_row = 0;
+        self.messaging.compose_body_cursor_col = 0;
         self.messaging.compose_body_status = None;
         self.messaging.compose_outbox_input.clear();
         self.messaging.compose_outbox_status = None;
@@ -92,6 +99,7 @@ impl App {
             && self.messaging.compose_recipient_input.len() < 2
         {
             self.messaging.compose_recipient_input.push(ch);
+            self.sync_compose_recipient_cursor_to_input();
             self.messaging.compose_recipient_status = None;
         }
     }
@@ -129,6 +137,7 @@ impl App {
     pub fn backspace_compose_recipient(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageRecipient {
             self.messaging.compose_recipient_input.pop();
+            self.sync_compose_recipient_cursor_to_input();
             self.messaging.compose_recipient_status = None;
         }
     }
@@ -178,7 +187,8 @@ impl App {
         self.messaging.compose_subject.clear();
         self.messaging.compose_subject_status = None;
         self.messaging.compose_body.clear();
-        self.messaging.compose_body_cursor = 0;
+        self.messaging.compose_body_cursor_row = 0;
+        self.messaging.compose_body_cursor_col = 0;
         self.messaging.compose_body_status = None;
         self.current_screen = ScreenId::ComposeMessageSubject;
     }
@@ -203,7 +213,7 @@ impl App {
         if self.current_screen != ScreenId::ComposeMessageSubject {
             return;
         }
-        self.messaging.compose_body_cursor = self.messaging.compose_body.chars().count();
+        self.sync_compose_body_cursor_to_end();
         self.messaging.compose_body_status = None;
         self.current_screen = ScreenId::ComposeMessageBody;
     }
@@ -213,116 +223,127 @@ impl App {
     }
 
     pub fn append_compose_body_char(&mut self, ch: char) {
-        if self.current_screen == ScreenId::ComposeMessageBody
-            && self.messaging.compose_body.chars().count() < crate::screen::COMPOSE_BODY_LIMIT
-        {
-            insert_char_at(
-                &mut self.messaging.compose_body,
-                self.messaging.compose_body_cursor,
-                ch,
-            );
-            self.messaging.compose_body_cursor += 1;
-            self.messaging.compose_body_status = None;
-        } else if self.current_screen == ScreenId::ComposeMessageBody {
-            self.messaging.compose_body_status = Some(format!(
-                "Message length limit is {} characters.",
-                crate::screen::COMPOSE_BODY_LIMIT
-            ));
+        if self.current_screen != ScreenId::ComposeMessageBody {
+            return;
         }
+        self.insert_text_at_compose_cursor(&ch.to_string());
+    }
+
+    pub fn insert_compose_tab(&mut self) {
+        if self.current_screen != ScreenId::ComposeMessageBody {
+            return;
+        }
+        self.insert_text_at_compose_cursor(&" ".repeat(COMPOSE_TAB_WIDTH));
     }
 
     pub fn backspace_compose_body(&mut self) {
-        if self.current_screen == ScreenId::ComposeMessageBody {
-            if self.messaging.compose_body_cursor > 0 {
-                remove_char_before(
-                    &mut self.messaging.compose_body,
-                    self.messaging.compose_body_cursor,
-                );
-                self.messaging.compose_body_cursor -= 1;
-            }
-            self.messaging.compose_body_status = None;
+        if self.current_screen != ScreenId::ComposeMessageBody {
+            return;
         }
+        let cursor = self.compose_cursor();
+        let Some(cursor_index) =
+            compose_existing_index_for_cursor(&self.messaging.compose_body, cursor)
+        else {
+            self.move_compose_body_cursor_left();
+            return;
+        };
+        if cursor_index == 0 {
+            self.messaging.compose_body_status = None;
+            return;
+        }
+        remove_char_before(&mut self.messaging.compose_body, cursor_index);
+        self.set_compose_cursor_from_index(cursor_index - 1);
+        self.messaging.compose_body_status = None;
     }
 
     pub fn delete_compose_body_char(&mut self) {
-        if self.current_screen == ScreenId::ComposeMessageBody {
-            remove_char_at(
-                &mut self.messaging.compose_body,
-                self.messaging.compose_body_cursor,
-            );
-            self.messaging.compose_body_status = None;
+        if self.current_screen != ScreenId::ComposeMessageBody {
+            return;
         }
+        let cursor = self.compose_cursor();
+        let Some(cursor_index) =
+            compose_existing_index_for_cursor(&self.messaging.compose_body, cursor)
+        else {
+            self.messaging.compose_body_status = None;
+            return;
+        };
+        remove_char_at(&mut self.messaging.compose_body, cursor_index);
+        self.set_compose_cursor_from_index(cursor_index);
+        self.messaging.compose_body_status = None;
     }
 
     pub fn insert_compose_newline(&mut self) {
-        if self.current_screen == ScreenId::ComposeMessageBody
-            && self.messaging.compose_body.chars().count() < crate::screen::COMPOSE_BODY_LIMIT
-        {
-            insert_char_at(
-                &mut self.messaging.compose_body,
-                self.messaging.compose_body_cursor,
-                '\n',
-            );
-            self.messaging.compose_body_cursor += 1;
-            self.messaging.compose_body_status = None;
-        } else if self.current_screen == ScreenId::ComposeMessageBody {
-            self.messaging.compose_body_status = Some(format!(
-                "Message length limit is {} characters.",
-                crate::screen::COMPOSE_BODY_LIMIT
-            ));
+        if self.current_screen != ScreenId::ComposeMessageBody {
+            return;
         }
+        self.insert_text_at_compose_cursor("\n");
     }
 
     pub fn move_compose_body_cursor_left(&mut self) {
-        if self.current_screen == ScreenId::ComposeMessageBody {
-            self.messaging.compose_body_cursor =
-                self.messaging.compose_body_cursor.saturating_sub(1);
+        if self.current_screen != ScreenId::ComposeMessageBody {
+            return;
         }
+        if self.messaging.compose_body_cursor_col > 0 {
+            self.messaging.compose_body_cursor_col -= 1;
+        } else if self.messaging.compose_body_cursor_row > 0 {
+            self.messaging.compose_body_cursor_row -= 1;
+            self.messaging.compose_body_cursor_col = compose_row_end_col(
+                &self.messaging.compose_body,
+                self.messaging.compose_body_cursor_row,
+            );
+        }
+        self.messaging.compose_body_status = None;
     }
 
     pub fn move_compose_body_cursor_right(&mut self) {
-        if self.current_screen == ScreenId::ComposeMessageBody {
-            self.messaging.compose_body_cursor = (self.messaging.compose_body_cursor + 1)
-                .min(self.messaging.compose_body.chars().count());
+        if self.current_screen != ScreenId::ComposeMessageBody {
+            return;
         }
+        if self.messaging.compose_body_cursor_col < COMPOSE_BODY_WRAP_WIDTH {
+            self.messaging.compose_body_cursor_col += 1;
+        } else {
+            self.messaging.compose_body_cursor_row =
+                self.messaging.compose_body_cursor_row.saturating_add(1);
+            self.messaging.compose_body_cursor_col = 0;
+        }
+        self.messaging.compose_body_status = None;
     }
 
     pub fn move_compose_body_cursor_home(&mut self) {
-        if self.current_screen == ScreenId::ComposeMessageBody {
-            self.messaging.compose_body_cursor = line_start_index(
-                &self.messaging.compose_body,
-                self.messaging.compose_body_cursor,
-            );
+        if self.current_screen != ScreenId::ComposeMessageBody {
+            return;
         }
+        self.messaging.compose_body_cursor_col = 0;
+        self.messaging.compose_body_status = None;
     }
 
     pub fn move_compose_body_cursor_end(&mut self) {
-        if self.current_screen == ScreenId::ComposeMessageBody {
-            self.messaging.compose_body_cursor = line_end_index(
-                &self.messaging.compose_body,
-                self.messaging.compose_body_cursor,
-            );
+        if self.current_screen != ScreenId::ComposeMessageBody {
+            return;
         }
+        self.messaging.compose_body_cursor_col = compose_row_end_col(
+            &self.messaging.compose_body,
+            self.messaging.compose_body_cursor_row,
+        );
+        self.messaging.compose_body_status = None;
     }
 
     pub fn move_compose_body_cursor_up(&mut self) {
-        if self.current_screen == ScreenId::ComposeMessageBody {
-            self.messaging.compose_body_cursor = vertical_cursor_target(
-                &self.messaging.compose_body,
-                self.messaging.compose_body_cursor,
-                -1,
-            );
+        if self.current_screen != ScreenId::ComposeMessageBody {
+            return;
         }
+        self.messaging.compose_body_cursor_row =
+            self.messaging.compose_body_cursor_row.saturating_sub(1);
+        self.messaging.compose_body_status = None;
     }
 
     pub fn move_compose_body_cursor_down(&mut self) {
-        if self.current_screen == ScreenId::ComposeMessageBody {
-            self.messaging.compose_body_cursor = vertical_cursor_target(
-                &self.messaging.compose_body,
-                self.messaging.compose_body_cursor,
-                1,
-            );
+        if self.current_screen != ScreenId::ComposeMessageBody {
+            return;
         }
+        self.messaging.compose_body_cursor_row =
+            self.messaging.compose_body_cursor_row.saturating_add(1);
+        self.messaging.compose_body_status = None;
     }
 
     pub fn send_composed_message(&mut self) -> Result<(), Box<dyn std::error::Error>> {
@@ -333,8 +354,8 @@ impl App {
             self.messaging.compose_body_status = Some("Choose a recipient first.".to_string());
             return Ok(());
         };
-        let body = self.messaging.compose_body.trim();
-        if body.is_empty() {
+        let body = trim_compose_body(&self.messaging.compose_body);
+        if body.trim().is_empty() {
             self.messaging.compose_body_status = Some("Message body cannot be empty.".to_string());
             return Ok(());
         }
@@ -343,7 +364,7 @@ impl App {
             recipient_empire_id,
             year: self.game_data.conquest.game_year(),
             subject: self.messaging.compose_subject.trim().to_string(),
-            body: body.to_string(),
+            body,
             recipient_deleted: false,
         });
         self.save_game_data()?;
@@ -389,6 +410,7 @@ impl App {
             && self.messaging.compose_outbox_input.len() < 2
         {
             self.messaging.compose_outbox_input.push(ch);
+            self.sync_compose_outbox_cursor_to_input();
             self.messaging.compose_outbox_status = None;
         }
     }
@@ -396,6 +418,7 @@ impl App {
     pub fn backspace_compose_outbox_input(&mut self) {
         if self.current_screen == ScreenId::ComposeMessageOutbox {
             self.messaging.compose_outbox_input.pop();
+            self.sync_compose_outbox_cursor_to_input();
             self.messaging.compose_outbox_status = None;
         }
     }
@@ -452,6 +475,101 @@ impl App {
         self.messaging.compose_outbox_scroll_offset =
             self.messaging.compose_outbox_scroll_offset.min(max_offset);
         Ok(())
+    }
+
+    fn sync_compose_recipient_cursor_to_input(&mut self) {
+        let raw = self.messaging.compose_recipient_input.trim();
+        if raw.is_empty() {
+            return;
+        }
+        let Ok(target_empire_id) = raw.parse::<u8>() else {
+            return;
+        };
+        let ids = self
+            .game_data
+            .player
+            .records
+            .iter()
+            .enumerate()
+            .filter(|(idx, _)| *idx + 1 != self.player.record_index_1_based)
+            .map(|(idx, _)| (idx + 1) as u8)
+            .collect::<Vec<_>>();
+        if let Some(index) = ids.iter().position(|&id| id == target_empire_id) {
+            self.messaging.compose_recipient_cursor = index;
+            sync_scroll_to_cursor(
+                &mut self.messaging.compose_recipient_scroll_offset,
+                self.messaging.compose_recipient_cursor,
+                crate::screen::RECIPIENT_VISIBLE_ROWS,
+            );
+        }
+    }
+
+    fn sync_compose_outbox_cursor_to_input(&mut self) {
+        let raw = self.messaging.compose_outbox_input.trim();
+        if raw.is_empty() {
+            return;
+        }
+        let Ok(queue_no) = raw.parse::<usize>() else {
+            return;
+        };
+        if queue_no == 0 {
+            return;
+        }
+        let total = self.compose_outbox_queue_len();
+        if queue_no > total {
+            return;
+        }
+        self.messaging.compose_outbox_cursor = queue_no - 1;
+        sync_scroll_to_cursor(
+            &mut self.messaging.compose_outbox_scroll_offset,
+            self.messaging.compose_outbox_cursor,
+            crate::screen::OUTBOX_VISIBLE_ROWS,
+        );
+    }
+
+    fn compose_cursor(&self) -> ComposeCursor {
+        ComposeCursor {
+            row: self.messaging.compose_body_cursor_row,
+            col: self.messaging.compose_body_cursor_col,
+        }
+    }
+
+    fn set_compose_cursor_from_index(&mut self, cursor_index: usize) {
+        let cursor = compose_cursor_for_index(&self.messaging.compose_body, cursor_index);
+        self.messaging.compose_body_cursor_row = cursor.row;
+        self.messaging.compose_body_cursor_col = cursor.col;
+    }
+
+    fn sync_compose_body_cursor_to_end(&mut self) {
+        self.set_compose_cursor_from_index(self.messaging.compose_body.chars().count());
+    }
+
+    fn insert_text_at_compose_cursor(&mut self, text: &str) {
+        let insert_len = text.chars().count();
+        if self.messaging.compose_body.chars().count() + insert_len
+            > crate::screen::COMPOSE_BODY_LIMIT
+        {
+            self.messaging.compose_body_status = Some(format!(
+                "Message length limit is {} characters.",
+                crate::screen::COMPOSE_BODY_LIMIT
+            ));
+            return;
+        }
+
+        let cursor = self.compose_cursor();
+        let Some(insert_index) =
+            materialize_compose_cursor(&mut self.messaging.compose_body, cursor)
+        else {
+            self.messaging.compose_body_status = Some(format!(
+                "Message length limit is {} characters.",
+                crate::screen::COMPOSE_BODY_LIMIT
+            ));
+            return;
+        };
+
+        insert_str_at(&mut self.messaging.compose_body, insert_index, text);
+        self.set_compose_cursor_from_index(insert_index + insert_len);
+        self.messaging.compose_body_status = None;
     }
 
     pub fn delete_reviewables(&mut self) -> Result<(), Box<dyn std::error::Error>> {
@@ -542,9 +660,9 @@ fn char_to_byte_index(body: &str, char_index: usize) -> usize {
         .unwrap_or(body.len())
 }
 
-fn insert_char_at(body: &mut String, cursor_index: usize, ch: char) {
+fn insert_str_at(body: &mut String, cursor_index: usize, text: &str) {
     let byte_index = char_to_byte_index(body, cursor_index);
-    body.insert(byte_index, ch);
+    body.insert_str(byte_index, text);
 }
 
 fn remove_char_before(body: &mut String, cursor_index: usize) {
@@ -566,52 +684,6 @@ fn remove_char_at(body: &mut String, cursor_index: usize) {
     body.replace_range(start..end, "");
 }
 
-fn line_start_index(body: &str, cursor_index: usize) -> usize {
-    let chars = body.chars().collect::<Vec<_>>();
-    let mut start = cursor_index.min(chars.len());
-    while start > 0 && chars[start - 1] != '\n' {
-        start -= 1;
-    }
-    start
-}
-
-fn line_end_index(body: &str, cursor_index: usize) -> usize {
-    let chars = body.chars().collect::<Vec<_>>();
-    let mut end = cursor_index.min(chars.len());
-    while end < chars.len() && chars[end] != '\n' {
-        end += 1;
-    }
-    end
-}
-
-fn vertical_cursor_target(body: &str, cursor_index: usize, delta: isize) -> usize {
-    let chars = body.chars().collect::<Vec<_>>();
-    let cursor = cursor_index.min(chars.len());
-    let line_start = line_start_index(body, cursor);
-    let line_end = line_end_index(body, cursor);
-    let column = cursor.saturating_sub(line_start);
-
-    let target_line_start = if delta < 0 {
-        if line_start == 0 {
-            return cursor;
-        }
-        let prev_end = line_start - 1;
-        let mut prev_start = prev_end;
-        while prev_start > 0 && chars[prev_start - 1] != '\n' {
-            prev_start -= 1;
-        }
-        prev_start
-    } else {
-        if line_end == chars.len() {
-            return cursor;
-        }
-        line_end + 1
-    };
-
-    let mut target_line_end = target_line_start;
-    while target_line_end < chars.len() && chars[target_line_end] != '\n' {
-        target_line_end += 1;
-    }
-    let target_len = target_line_end.saturating_sub(target_line_start);
-    target_line_start + column.min(target_len)
+fn trim_compose_body(body: &str) -> String {
+    body.trim_end_matches([' ', '\n', '\r', '\t']).to_string()
 }

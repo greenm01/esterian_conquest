@@ -26,6 +26,7 @@ pub fn update(app: &mut App, action: MessagingAction) {
         MessagingAction::BackspaceComposeSubject => app.backspace_compose_subject(),
         MessagingAction::SubmitComposeSubject => app.submit_compose_subject(),
         MessagingAction::AppendComposeBodyChar(ch) => app.append_compose_body_char(ch),
+        MessagingAction::InsertComposeTab => app.insert_compose_tab(),
         MessagingAction::BackspaceComposeBody => app.backspace_compose_body(),
         MessagingAction::DeleteComposeBodyChar => app.delete_compose_body_char(),
         MessagingAction::InsertComposeNewline => app.insert_compose_newline(),

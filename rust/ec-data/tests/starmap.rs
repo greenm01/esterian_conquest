@@ -108,6 +108,29 @@ fn player_starmap_projection_always_marks_owned_worlds_as_owned() {
 }
 
 #[test]
+fn ascii_map_right_side_row_labels_align_with_map_border() {
+    let projection = ec_data::PlayerStarmapProjection {
+        map_width: 18,
+        map_height: 36,
+        year: 3000,
+        viewer_empire_id: 1,
+        worlds: Vec::new(),
+    };
+
+    let rendered = projection.render_ascii_map();
+    let lines = rendered.lines().collect::<Vec<_>>();
+    let top_border = lines[1];
+    let first_data_row = lines[2];
+    let right_border_col = top_border.rfind('|').expect("top border should end with |");
+
+    assert_eq!(top_border.chars().nth(right_border_col + 1), Some('-'));
+    assert_eq!(first_data_row.chars().nth(right_border_col), Some('|'));
+    assert_eq!(first_data_row.chars().nth(right_border_col + 1), Some(' '));
+    assert_eq!(first_data_row.chars().nth(right_border_col + 2), Some('3'));
+    assert_eq!(first_data_row.chars().nth(right_border_col + 3), Some('6'));
+}
+
+#[test]
 fn player_starmap_projection_uses_database_intel_for_known_foreign_owner() {
     let mut game_data = GameStateBuilder::new()
         .with_player_count(4)

@@ -73,6 +73,7 @@ impl App {
     pub fn append_enemies_char(&mut self, ch: char) {
         if self.current_screen == ScreenId::Enemies && self.empire.enemies_input.len() < 2 {
             self.empire.enemies_input.push(ch);
+            self.sync_enemies_cursor_to_input();
             self.empire.enemies_status = None;
         }
     }
@@ -80,6 +81,7 @@ impl App {
     pub fn backspace_enemies_input(&mut self) {
         if self.current_screen == ScreenId::Enemies {
             self.empire.enemies_input.pop();
+            self.sync_enemies_cursor_to_input();
             self.empire.enemies_status = None;
         }
     }
@@ -153,5 +155,32 @@ impl App {
 
     pub fn enemies_scroll_offset(&self) -> usize {
         self.empire.enemies_scroll_offset
+    }
+
+    fn sync_enemies_cursor_to_input(&mut self) {
+        let raw = self.empire.enemies_input.trim();
+        if raw.is_empty() {
+            return;
+        }
+        let Ok(target_empire_id) = raw.parse::<u8>() else {
+            return;
+        };
+        let ids = self
+            .game_data
+            .player
+            .records
+            .iter()
+            .enumerate()
+            .filter(|(idx, _)| *idx + 1 != self.player.record_index_1_based)
+            .map(|(idx, _)| (idx + 1) as u8)
+            .collect::<Vec<_>>();
+        if let Some(index) = ids.iter().position(|&id| id == target_empire_id) {
+            self.empire.enemies_cursor = index;
+            sync_scroll_to_cursor(
+                &mut self.empire.enemies_scroll_offset,
+                self.empire.enemies_cursor,
+                crate::screen::ENEMIES_VISIBLE_ROWS,
+            );
+        }
     }
 }
