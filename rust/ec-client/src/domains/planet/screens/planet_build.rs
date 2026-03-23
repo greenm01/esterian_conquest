@@ -6,10 +6,11 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
     CMD_COL_1, CommandMessage, EXPERT_MENU_PROMPT_ROW, MenuEntry, centered_row, dismiss_prompt_row,
-    draw_command_line_default_input_at, draw_command_message_stack, draw_command_prompt_at,
-    draw_dismiss_prompt, draw_expert_menu, draw_inline_confirm_block, draw_inline_confirm_prompt,
-    draw_inline_planet_info_prompt, draw_menu_row, draw_status_line, draw_title_bar, last_body_row,
-    menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
+    draw_command_line_default_input_at, draw_command_message_stack_after, draw_command_prompt_at,
+    draw_dismiss_prompt, draw_expert_menu, draw_general_message_after_command,
+    draw_inline_confirm_block, draw_inline_confirm_prompt, draw_inline_planet_info_prompt,
+    draw_inline_status_after, draw_menu_notice, draw_menu_row, draw_status_line, draw_title_bar,
+    last_body_row, menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
     SplitTableRow, TableColumn, write_split_table, write_table_window_with_cursor,
@@ -275,9 +276,7 @@ impl PlanetBuildScreen {
                 status,
             );
         } else {
-            let lower_block_height = if status.is_some() { 7 } else { 5 };
-            let lower_block_row =
-                centered_row(command_row + 1, last_body_row(), lower_block_height);
+            let lower_block_row = centered_row(command_row + 1, last_body_row(), 5);
 
             let starbase_line = if view.row.has_friendly_starbase {
                 format!(
@@ -328,15 +327,15 @@ impl PlanetBuildScreen {
                 ),
                 classic::status_value_style(),
             );
-            if let Some(status) = status {
-                draw_status_line(&mut buffer, lower_block_row + 6, "", status);
-            }
             draw_command_prompt_at(
                 &mut buffer,
                 command_row,
                 "BUILD COMMAND",
                 "H,Q,X,V,P,R,C,N,S,A,L,I",
             );
+            if let Some(status) = status {
+                draw_menu_notice(&mut buffer, command_row, status);
+            }
         }
         Ok(buffer)
     }
@@ -585,14 +584,17 @@ impl PlanetBuildScreen {
             "0",
             input,
         );
+        let message_end_row = draw_general_message_after_command(
+            &mut buffer,
+            command_row,
+            "",
+            &build_points_summary(view),
+        );
         if let Some(status) = status {
-            draw_command_message_stack(
+            draw_command_message_stack_after(
                 &mut buffer,
-                command_row,
-                &[CommandMessage::General {
-                    label: "",
-                    value: status,
-                }],
+                message_end_row,
+                &[CommandMessage::Error(status)],
             );
         }
         Ok(buffer)
@@ -622,8 +624,14 @@ impl PlanetBuildScreen {
             &max_qty.to_string(),
             input,
         );
+        let message_end_row = draw_general_message_after_command(
+            &mut buffer,
+            command_row,
+            "",
+            &build_points_summary(view),
+        );
         if let Some(status) = status {
-            draw_command_message_stack(&mut buffer, command_row, &[CommandMessage::Error(status)]);
+            draw_inline_status_after(&mut buffer, message_end_row, status);
         }
         Ok(buffer)
     }
@@ -850,25 +858,14 @@ impl Screen for PlanetBuildScreen {
     }
 }
 
-// Draw the shared header, two-column unit table, and points line used by both
-// render_specify and render_quantity_prompt.
+// Draw the shared header and two-column unit table used by both render_specify
+// and render_quantity_prompt.
 fn draw_specify_table(
     buffer: &mut PlayfieldBuffer,
     view: &PlanetBuildMenuView,
     orders: &[PlanetBuildOrder],
 ) -> crate::screen::table::TableRenderMetrics {
     draw_title_bar(buffer, 0, "SPECIFY BUILD ORDERS:");
-    buffer.write_text(
-        2,
-        0,
-        &format!(
-            "You have spent {} out of {} points.  You have {} points left to spend.",
-            view.committed_points.min(view.available_points),
-            view.available_points,
-            view.points_left
-        ),
-        classic::status_value_style(),
-    );
 
     let style = classic::status_value_style();
 
@@ -892,7 +889,7 @@ fn draw_specify_table(
                 .sum()
         };
         let tag = if max_qty > 0 {
-            format!("<{}>", unit.number)
+            format!("<{:02}>", unit.number)
         } else {
             String::new()
         };
@@ -904,7 +901,7 @@ fn draw_specify_table(
         }
     };
 
-    let done_tag = "<0>".to_string();
+    let done_tag = "<00>".to_string();
     let right_units = [4usize, 5, 6, 7, 8];
     let left_units = [0usize, 1, 2, 3];
 
@@ -915,7 +912,7 @@ fn draw_specify_table(
         right_cells: vec![
             first_right.tag,
             first_right.name.to_string(),
-            first_right.cost.to_string(),
+            format_build_cost(first_right.cost),
             format!("({})", first_right.qty),
         ],
     });
@@ -927,13 +924,13 @@ fn draw_specify_table(
             left_cells: vec![
                 left.tag,
                 left.name.to_string(),
-                left.cost.to_string(),
+                format_build_cost(left.cost),
                 format!("({})", left.qty),
             ],
             right_cells: vec![
                 right.tag,
                 right.name.to_string(),
-                right.cost.to_string(),
+                format_build_cost(right.cost),
                 format!("({})", right.qty),
             ],
         });
@@ -941,11 +938,24 @@ fn draw_specify_table(
 
     write_split_table(
         buffer,
-        5,
+        2,
         &BUILD_HALF_COLUMNS,
         &BUILD_HALF_COLUMNS,
         &rows,
         style,
+    )
+}
+
+fn format_build_cost(cost: u32) -> String {
+    format!("{cost:02}")
+}
+
+fn build_points_summary(view: &PlanetBuildMenuView) -> String {
+    format!(
+        "You have spent {} out of {} points.  You have {} points left to spend.",
+        view.committed_points.min(view.available_points),
+        view.available_points,
+        view.points_left
     )
 }
 

@@ -158,8 +158,12 @@ fn split_table_renders_both_halves() {
         classic::status_value_style(),
     );
 
+    assert!(buffer.plain_line(5).starts_with("┌"));
+    assert!(buffer.plain_line(5).ends_with("┐"));
+    assert!(!buffer.plain_line(5).contains("          "));
     let header = row_text(&buffer, 6);
     assert_eq!(header.matches("NO.").count(), 2);
+    assert!(header.contains("QTY."));
     assert!(buffer.plain_line(8).contains("DONE"));
     assert!(buffer.plain_line(8).contains("Scouts"));
 }
@@ -287,8 +291,21 @@ fn planet_build_specify_screen_uses_split_table() {
         .render_specify(&view, &orders, "", None)
         .expect("render specify");
 
-    assert_eq!(buffer.plain_line(6).matches("NO.").count(), 2);
-    assert!(buffer.plain_line(8).contains("DONE"));
-    assert!(buffer.plain_line(8).contains("<5>"));
-    assert!(buffer.plain_line(9).contains("Destroyers"));
+    assert_eq!(buffer.plain_line(1), "");
+    assert!(buffer.plain_line(2).starts_with("┌"));
+    assert_eq!(buffer.plain_line(3).matches("NO.").count(), 2);
+    assert!(buffer.plain_line(3).contains("QTY."));
+    assert!(buffer.plain_line(5).contains("<00>"));
+    assert!(buffer.plain_line(5).contains("<05>"));
+    assert!(buffer.plain_line(5).contains("05"));
+    assert!(buffer.plain_line(6).contains("Destroyers"));
+    assert!(buffer.plain_line(8).contains("<09>"));
+    assert!(buffer.plain_line(8).contains("02"));
+    assert!(buffer.plain_line(9).contains("<10>"));
+    assert!(buffer.plain_line(9).contains("20"));
+    assert!(
+        buffer
+            .plain_line(13)
+            .contains("You have spent 10 out of 50 points.")
+    );
 }

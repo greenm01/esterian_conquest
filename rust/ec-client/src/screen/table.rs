@@ -276,97 +276,36 @@ pub fn write_split_table(
     left_columns: &[TableColumn<'_>],
     right_columns: &[TableColumn<'_>],
     rows: &[SplitTableRow],
-    _style: crate::screen::CellStyle,
+    style: crate::screen::CellStyle,
 ) -> TableRenderMetrics {
-    let left_width = table_width(left_columns);
-    let gap = 10;
-    let right_col = left_width + gap;
-    let chrome_style = classic::table_chrome_style();
-    let header_style = classic::table_header_style();
-    let body_style = classic::table_body_style();
+    let combined_columns = left_columns
+        .iter()
+        .chain(right_columns.iter())
+        .copied()
+        .collect::<Vec<_>>();
+    let combined_rows = rows
+        .iter()
+        .map(|row| {
+            row.left_cells
+                .iter()
+                .chain(row.right_cells.iter())
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
 
-    buffer.write_text(start_row, 0, &table_top_border(left_columns), chrome_style);
-    buffer.write_text(
+    write_table_window_with_states(
+        buffer,
         start_row,
-        right_col,
-        &table_top_border(right_columns),
-        chrome_style,
-    );
-    write_table_header_at(
-        buffer,
-        start_row + 1,
+        &combined_columns,
+        &combined_rows,
         0,
-        left_columns,
-        header_style,
-        chrome_style,
-    );
-    write_table_header_at(
-        buffer,
-        start_row + 1,
-        right_col,
-        right_columns,
-        header_style,
-        chrome_style,
-    );
-    buffer.write_text(
-        start_row + 2,
-        0,
-        &format!(
-            "{}{}{}",
-            table_divider(left_columns),
-            " ".repeat(gap),
-            table_divider(right_columns)
-        ),
-        chrome_style,
-    );
-
-    for (idx, row) in rows.iter().enumerate() {
-        let left_refs = row
-            .left_cells
-            .iter()
-            .map(String::as_str)
-            .collect::<Vec<_>>();
-        let right_refs = row
-            .right_cells
-            .iter()
-            .map(String::as_str)
-            .collect::<Vec<_>>();
-        write_table_row_at(
-            buffer,
-            start_row + 3 + idx,
-            0,
-            left_columns,
-            &left_refs,
-            body_style,
-            chrome_style,
-        );
-        write_table_row_at(
-            buffer,
-            start_row + 3 + idx,
-            right_col,
-            right_columns,
-            &right_refs,
-            body_style,
-            chrome_style,
-        );
-    }
-
-    let bottom_row = start_row + 3 + rows.len();
-    buffer.write_text(
-        bottom_row,
-        0,
-        &format!(
-            "{}{}{}",
-            table_bottom_border(left_columns),
-            " ".repeat(gap),
-            table_bottom_border(right_columns)
-        ),
-        chrome_style,
-    );
-    TableRenderMetrics {
-        bottom_row,
-        displayed_rows: rows.len(),
-    }
+        combined_rows.len(),
+        style,
+        style,
+        None,
+        None,
+    )
 }
 
 pub fn table_divider(columns: &[TableColumn<'_>]) -> String {
@@ -601,8 +540,4 @@ fn format_cell(cell: &str, column: TableColumn<'_>) -> String {
 
 fn truncate_to_width(value: &str, width: usize) -> String {
     value.chars().take(width).collect::<String>()
-}
-
-fn table_width(columns: &[TableColumn<'_>]) -> usize {
-    columns.iter().map(|column| column.width).sum::<usize>() + columns.len() + 1
 }

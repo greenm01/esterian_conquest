@@ -4,8 +4,8 @@ use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
     dismiss_prompt_row, draw_command_line_default_input_at, draw_command_line_text_at,
-    draw_dismiss_prompt, draw_inline_status_after, draw_title_bar, menu_prompt_row, new_playfield,
-    standard_table_visible_rows, table_prompt_row,
+    draw_dismiss_prompt, draw_general_message_after_command, draw_inline_status_after,
+    draw_title_bar, menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
     TableColumn, fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
@@ -15,7 +15,7 @@ use crate::theme::classic;
 
 pub struct PlanetTransportScreen;
 
-pub const PLANET_TRANSPORT_VISIBLE_ROWS: usize = standard_table_visible_rows(4);
+pub const PLANET_TRANSPORT_VISIBLE_ROWS: usize = standard_table_visible_rows(2);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetTransportMode {
@@ -89,15 +89,6 @@ impl PlanetTransportScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, mode.title());
-        buffer.write_text(
-            2,
-            0,
-            &format!(
-                "Select a planet, then press ENTER to {} armies.",
-                mode.verb()
-            ),
-            classic::status_value_style(),
-        );
         let table_rows = rows
             .iter()
             .map(|row| {
@@ -116,7 +107,7 @@ impl PlanetTransportScreen {
         };
         let metrics = write_table_window_with_cursor(
             &mut buffer,
-            4,
+            2,
             &PLANET_COLUMNS,
             &table_rows,
             scroll_offset,
@@ -142,8 +133,17 @@ impl PlanetTransportScreen {
                 &format!("{},{}", default_coords[0], default_coords[1]),
                 input,
             );
+            let message_end_row = draw_general_message_after_command(
+                &mut buffer,
+                command_row,
+                "",
+                &format!(
+                    "Select a planet, then press ENTER to {} armies.",
+                    mode.verb()
+                ),
+            );
             if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, command_row, status);
+                draw_inline_status_after(&mut buffer, message_end_row, status);
             }
         }
         Ok(buffer)
@@ -164,16 +164,6 @@ impl PlanetTransportScreen {
         draw_title_bar(&mut buffer, 0, mode.title());
         let max_fleet_number = max_fleet_number(fleets);
         let fleet_columns = fleet_columns(max_fleet_number);
-        buffer.write_text(
-            2,
-            0,
-            &format!(
-                "Select a fleet at {} {}, then press ENTER.",
-                planet.planet_name,
-                format_sector_coords(planet.coords)
-            ),
-            classic::status_value_style(),
-        );
         let table_rows = fleets
             .iter()
             .map(|row| {
@@ -192,7 +182,7 @@ impl PlanetTransportScreen {
         };
         let metrics = write_table_window_with_cursor(
             &mut buffer,
-            4,
+            2,
             &fleet_columns,
             &table_rows,
             scroll_offset,
@@ -219,8 +209,18 @@ impl PlanetTransportScreen {
                 &max_qty.to_string(),
                 input,
             );
+            let message_end_row = draw_general_message_after_command(
+                &mut buffer,
+                command_row,
+                "",
+                &format!(
+                    "Select a fleet at {} {}, then press ENTER.",
+                    planet.planet_name,
+                    format_sector_coords(planet.coords)
+                ),
+            );
             if let Some(status) = status {
-                draw_inline_status_after(&mut buffer, command_row, status);
+                draw_inline_status_after(&mut buffer, message_end_row, status);
             }
         }
         Ok(buffer)

@@ -544,6 +544,10 @@ fn apply_action_switches_between_client_screens() {
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetBuildMenu);
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("build menu should render abort-empty notice");
+    assert!(line_containing(&terminal, "Notice: ").contains("No build orders are queued."));
 
     assert_eq!(
         apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildSpecify)),
@@ -4370,9 +4374,18 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet load transport picker should render");
+    assert_eq!(terminal.line(1), "");
+    assert!(terminal.line(2).starts_with("┌"));
     let prompt = line_containing(&terminal, "COMMAND <-");
     assert!(prompt.contains("COMMAND"));
     assert!(prompt.contains("<Q> ->"));
+    assert!(
+        line_containing(
+            &terminal,
+            "Select a planet, then press ENTER to load armies."
+        )
+        .contains("Select a planet, then press ENTER to load armies.")
+    );
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
         Action::ReturnToCommandMenu
@@ -4397,9 +4410,18 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
     );
     app.render(&mut terminal)
         .expect("fleet unload transport picker should render");
+    assert_eq!(terminal.line(1), "");
+    assert!(terminal.line(2).starts_with("┌"));
     let prompt = line_containing(&terminal, "COMMAND <-");
     assert!(prompt.contains("COMMAND"));
     assert!(prompt.contains("<Q> ->"));
+    assert!(
+        line_containing(
+            &terminal,
+            "Select a planet, then press ENTER to unload armies."
+        )
+        .contains("Select a planet, then press ENTER to unload armies.")
+    );
 }
 
 #[test]
@@ -4504,6 +4526,11 @@ fn fleet_transport_planet_picker_accepts_typed_coordinates() {
         app.current_screen(),
         ScreenId::PlanetTransportFleetSelect(ec_client::screen::PlanetTransportMode::Load)
     );
+    app.render(&mut terminal)
+        .expect("fleet load transport fleet picker should render");
+    assert_eq!(terminal.line(1), "");
+    assert!(terminal.line(2).starts_with("┌"));
+    assert!(line_containing(&terminal, "Select a fleet at").contains("then press ENTER."));
 }
 
 #[test]
@@ -7647,10 +7674,15 @@ fn planet_build_specify_uses_bottom_command_line_default_prompt() {
 
     assert!(
         buffer
-            .plain_line(14)
+            .plain_line(11)
             .contains("BUILD COMMAND <- Unit number or 0 if done")
     );
-    assert!(buffer.plain_line(14).contains("[0] <Q> ->"));
+    assert!(buffer.plain_line(11).contains("[0] <Q> ->"));
+    assert!(
+        buffer
+            .plain_line(13)
+            .contains("You have spent 10 out of 40 points. You have 30 points left to spend.")
+    );
 }
 
 #[test]
@@ -7698,10 +7730,15 @@ fn planet_build_quantity_uses_bottom_command_line_default_prompt() {
 
     assert!(
         buffer
-            .plain_line(14)
+            .plain_line(11)
             .contains("BUILD COMMAND <- How many new destroyers to build")
     );
-    assert!(buffer.plain_line(14).contains("[6] <Q> ->"));
+    assert!(buffer.plain_line(11).contains("[6] <Q> ->"));
+    assert!(
+        buffer
+            .plain_line(13)
+            .contains("You have spent 10 out of 40 points. You have 30 points left to spend.")
+    );
 }
 
 #[test]
