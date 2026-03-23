@@ -2,7 +2,7 @@ use crate::screen::{PlayfieldBuffer, StyledSpan};
 use crate::theme::classic;
 
 pub const PLAYFIELD_WIDTH: usize = 80;
-pub const PLAYFIELD_HEIGHT: usize = 20;
+pub const PLAYFIELD_HEIGHT: usize = 25;
 pub const COMMAND_LINE_ROW: usize = PLAYFIELD_HEIGHT - 1;
 pub const CMD_COL_1: usize = 2;
 pub const CMD_COL_2: usize = 26;
@@ -241,16 +241,16 @@ pub fn draw_help_panel(
     draw_title_bar(buffer, 0, title);
     buffer.fill_row(2, classic::help_header_style());
     buffer.write_text(2, 0, header, classic::help_header_style());
-    for row in 3..19 {
+    for row in 3..COMMAND_LINE_ROW {
         buffer.fill_row(row, classic::help_panel_style());
     }
     for (idx, line) in lines.iter().enumerate() {
-        if 3 + idx >= 19 {
+        if 3 + idx >= COMMAND_LINE_ROW {
             break;
         }
         buffer.write_text(3 + idx, 0, line, classic::help_panel_style());
     }
-    draw_command_prompt(buffer, 19, prompt_label, "SLAP A KEY");
+    draw_command_prompt(buffer, COMMAND_LINE_ROW, prompt_label, "SLAP A KEY");
 }
 
 pub fn wrap_text(value: &str, first_width: usize, continuation_width: usize) -> Vec<String> {

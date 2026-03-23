@@ -107,7 +107,7 @@ preserved too. Startup is not just a splash or logo -- the full
 pre-command-center path should be modeled explicitly: the EC ASCII splash, EC
 intro text, first-time onboarding or joined-player review flow, and then the
 first command center menu. Startup presentation is game-owned and should live
-in the Rust client, with the splash and intro kept stable inside the `80x20`
+in the Rust client, with the splash and intro kept stable inside the `80x25`
 client model instead of delegated to a sysop config path. When the original
 game asks for homeworld naming or new-colony naming before returning to the
 menus, that is part of the same login/entry pipeline. The classic sequence

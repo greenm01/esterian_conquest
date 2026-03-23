@@ -4,7 +4,8 @@ use ec_data::build_player_starmap_projection_from_snapshots;
 use crate::app::Action;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    draw_command_line_default_input, draw_status_line, draw_title_bar, new_playfield,
+    COMMAND_LINE_ROW, draw_command_line_default_input, draw_status_line, draw_title_bar,
+    new_playfield,
 };
 use crate::screen::{
     CommandMenu, PlayfieldBuffer, ScreenFrame, StyledSpan, command_menu_label, format_sector_coords,
@@ -151,7 +152,7 @@ impl PartialStarmapScreen {
         buffer.write_text(11, 60, "1 2 3  = down", classic::body_style());
         buffer.write_text(12, 60, "Enter/Q = quit", classic::body_style());
         let cursor_col = buffer.write_spans(
-            19,
+            COMMAND_LINE_ROW,
             0,
             &[
                 StyledSpan::new("Map Command:[", classic::prompt_style()),
@@ -159,7 +160,7 @@ impl PartialStarmapScreen {
                 StyledSpan::new(" [Enter]=quit -> ", classic::prompt_style()),
             ],
         );
-        buffer.set_cursor(cursor_col as u16, 19);
+        buffer.set_cursor(cursor_col as u16, COMMAND_LINE_ROW as u16);
         Ok(buffer)
     }
 

@@ -12,7 +12,7 @@ use crate::screen::{
 };
 use crate::theme::classic;
 
-pub const PLANET_BRIEF_VISIBLE_ROWS: usize = 11;
+pub const PLANET_BRIEF_VISIBLE_ROWS: usize = 18;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetListMode {

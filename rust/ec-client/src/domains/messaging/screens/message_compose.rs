@@ -12,8 +12,8 @@ use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 
 pub struct MessageComposeScreen;
-pub(crate) const RECIPIENT_VISIBLE_ROWS: usize = 10;
-pub(crate) const OUTBOX_VISIBLE_ROWS: usize = 9;
+pub(crate) const RECIPIENT_VISIBLE_ROWS: usize = 17;
+pub(crate) const OUTBOX_VISIBLE_ROWS: usize = 18;
 pub(crate) const COMPOSE_SUBJECT_LIMIT: usize = 60;
 pub(crate) const COMPOSE_BODY_LIMIT: usize = 1000;
 

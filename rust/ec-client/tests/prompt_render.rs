@@ -1,7 +1,7 @@
 use ec_client::screen::PlayfieldBuffer;
 use ec_client::screen::layout::{
-    PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_command_line_prompt_text, draw_command_prompt,
-    draw_plain_prompt,
+    COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_command_line_prompt_text,
+    draw_command_prompt, draw_plain_prompt,
 };
 use ec_client::theme::classic;
 
@@ -64,8 +64,8 @@ fn draw_command_line_prompt_text_highlights_confirm_prompt_hotkeys() {
         "\"Aurora\" <- Is this correct? [Y]/N ->",
     );
 
-    let row = buffer.row(19);
-    let choice = find_in_row(&buffer, 19, "[Y]/N");
+    let row = buffer.row(COMMAND_LINE_ROW);
+    let choice = find_in_row(&buffer, COMMAND_LINE_ROW, "[Y]/N");
     assert_eq!(row[choice].style, classic::prompt_style());
     assert_eq!(row[choice + 1].style, classic::prompt_hotkey_style());
     assert_eq!(row[choice + 2].style, classic::prompt_style());
@@ -123,8 +123,8 @@ fn draw_command_prompt_highlights_key_in_slap_a_key_phrase() {
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
     draw_command_prompt(&mut buffer, 19, "GENERAL COMMAND", "SLAP A KEY");
 
-    let row = buffer.row(19);
-    let phrase = find_in_row(&buffer, 19, "slap a key");
+    let row = buffer.row(COMMAND_LINE_ROW);
+    let phrase = find_in_row(&buffer, COMMAND_LINE_ROW, "slap a key");
     assert_eq!(row[phrase].style, classic::prompt_notice_action_style());
     assert_eq!(row[phrase + 1].style, classic::prompt_notice_action_style());
     assert_eq!(row[phrase + 2].style, classic::prompt_notice_action_style());

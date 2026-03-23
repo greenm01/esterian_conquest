@@ -11,7 +11,7 @@ use crate::screen::{PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 
 pub struct EnemiesScreen;
-pub(crate) const ENEMIES_VISIBLE_ROWS: usize = 11;
+pub(crate) const ENEMIES_VISIBLE_ROWS: usize = 19;
 
 const ENEMIES_COLUMNS: [TableColumn<'static>; 3] = [
     TableColumn::right("ID", 3),

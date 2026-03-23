@@ -8,7 +8,9 @@ use crate::screen::layout::{
     CMD_COL_1, MenuEntry, draw_command_line_default_input, draw_command_prompt, draw_menu_row,
     draw_status_line, draw_title_bar, new_playfield,
 };
-use crate::screen::table::{TableColumn, write_table_window_with_cursor};
+use crate::screen::table::{
+    SplitTableRow, TableColumn, write_split_table, write_table_window_with_cursor,
+};
 use crate::screen::{
     CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords,
     format_sector_coords_padded,
@@ -17,8 +19,8 @@ use crate::theme::classic;
 
 pub struct PlanetBuildScreen;
 
-pub(crate) const PLANET_BUILD_LIST_VISIBLE_ROWS: usize = 10;
-pub(crate) const PLANET_BUILD_CHANGE_VISIBLE_ROWS: usize = 13;
+pub(crate) const PLANET_BUILD_LIST_VISIBLE_ROWS: usize = 18;
+pub(crate) const PLANET_BUILD_CHANGE_VISIBLE_ROWS: usize = 18;
 
 const CHANGE_COLUMNS: [TableColumn<'static>; 5] = [
     TableColumn::left("Planet Name", 20),
@@ -33,6 +35,13 @@ const BUILD_LIST_COLUMNS: [TableColumn<'static>; 4] = [
     TableColumn::right("Points", 6),
     TableColumn::right("Queue", 5),
     TableColumn::right("Dock", 4),
+];
+
+const BUILD_HALF_COLUMNS: [TableColumn<'static>; 4] = [
+    TableColumn::left("NO.", 4),
+    TableColumn::left("UNIT TYPE", 19),
+    TableColumn::right("COST", 4),
+    TableColumn::right("QTY.", 5),
 ];
 
 const ROW_1: [MenuEntry<'static>; 3] = [
@@ -750,15 +759,7 @@ fn draw_specify_table(
         classic::status_value_style(),
     );
 
-    const RIGHT_COL: usize = 45;
-    const HDR: &str =
-        " NO.  UNIT TYPE        COST   QTY.            NO.  UNIT TYPE        COST   QTY.";
-    const DIV: &str =
-        "-------------------------------------------------------------------------------";
     let style = classic::status_value_style();
-
-    buffer.write_text(5, 0, HDR, style);
-    buffer.write_text(6, 0, DIV, classic::menu_style());
 
     struct HalfEntry {
         tag: String,
@@ -796,63 +797,45 @@ fn draw_specify_table(
     let right_units = [4usize, 5, 6, 7, 8];
     let left_units = [0usize, 1, 2, 3];
 
-    {
-        let r = entry(&BUILD_UNITS[right_units[0]]);
-        write_build_half(buffer, 7, 0, &done_tag, "DONE", 0, 0, true, style);
-        write_build_half(
-            buffer, 7, RIGHT_COL, &r.tag, r.name, r.cost, r.qty, false, style,
-        );
-    }
+    let mut rows = Vec::with_capacity(5);
+    let first_right = entry(&BUILD_UNITS[right_units[0]]);
+    rows.push(SplitTableRow {
+        left_cells: vec![done_tag, "DONE".to_string(), String::new(), String::new()],
+        right_cells: vec![
+            first_right.tag,
+            first_right.name.to_string(),
+            first_right.cost.to_string(),
+            format!("({})", first_right.qty),
+        ],
+    });
+
     for i in 0..4 {
-        let row = 8 + i;
-        let l = entry(&BUILD_UNITS[left_units[i]]);
-        let r = entry(&BUILD_UNITS[right_units[i + 1]]);
-        write_build_half(buffer, row, 0, &l.tag, l.name, l.cost, l.qty, false, style);
-        write_build_half(
-            buffer, row, RIGHT_COL, &r.tag, r.name, r.cost, r.qty, false, style,
-        );
+        let left = entry(&BUILD_UNITS[left_units[i]]);
+        let right = entry(&BUILD_UNITS[right_units[i + 1]]);
+        rows.push(SplitTableRow {
+            left_cells: vec![
+                left.tag,
+                left.name.to_string(),
+                left.cost.to_string(),
+                format!("({})", left.qty),
+            ],
+            right_cells: vec![
+                right.tag,
+                right.name.to_string(),
+                right.cost.to_string(),
+                format!("({})", right.qty),
+            ],
+        });
     }
 
-    buffer.write_text(12, 0, DIV, classic::menu_style());
-}
-
-// Write one half of a build table data row at the given column offset.
-// Layout per half (matching v1.5 original):
-//   col+0 .. col+3  : number tag e.g. " <1>" (4 chars, right-padded with space)
-//   col+4 .. col+22 : unit name (19 chars, left-aligned)
-//   col+23.. col+26 : cost (4 chars, right-aligned); blank for the DONE row
-//   col+27.. col+31 : qty  e.g. "  (0)" (5 chars, right-aligned); blank for DONE
-fn write_build_half(
-    buffer: &mut PlayfieldBuffer,
-    row: usize,
-    col: usize,
-    tag: &str,
-    name: &'static str,
-    cost: u32,
-    qty: u32,
-    is_done: bool,
-    style: crate::screen::CellStyle,
-) {
-    // number tag: up to 4 chars, left-aligned in a 4-char field with trailing space
-    let tag_field = if tag.is_empty() {
-        "    ".to_string()
-    } else {
-        format!("{:<4}", tag)
-    };
-    buffer.write_text(row, col, &tag_field, style);
-    // unit name: 19 chars, left-aligned
-    buffer.write_text(row, col + 4, &format!("{:<19}", name), style);
-    if !is_done {
-        // cost: 4 chars, right-aligned
-        buffer.write_text(row, col + 23, &format!("{:>4}", cost), style);
-        // qty: 5 chars, right-aligned e.g. "  (0)"
-        buffer.write_text(
-            row,
-            col + 27,
-            &format!("{:>5}", format!("({})", qty)),
-            style,
-        );
-    }
+    write_split_table(
+        buffer,
+        5,
+        &BUILD_HALF_COLUMNS,
+        &BUILD_HALF_COLUMNS,
+        &rows,
+        style,
+    );
 }
 
 pub fn build_unit_spec(number: u8) -> Option<BuildUnitSpec> {

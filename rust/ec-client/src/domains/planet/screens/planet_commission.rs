@@ -10,7 +10,7 @@ use crate::theme::classic;
 
 pub struct PlanetCommissionScreen;
 
-pub(crate) const PLANET_COMMISSION_VISIBLE_ROWS: usize = 10;
+pub(crate) const PLANET_COMMISSION_VISIBLE_ROWS: usize = 17;
 
 const COMMISSION_COLUMNS: [TableColumn<'static>; 4] = [
     TableColumn::right("#", 2),

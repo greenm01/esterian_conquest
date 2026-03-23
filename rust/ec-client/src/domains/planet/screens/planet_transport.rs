@@ -14,7 +14,7 @@ use crate::theme::classic;
 
 pub struct PlanetTransportScreen;
 
-pub const PLANET_TRANSPORT_VISIBLE_ROWS: usize = 10;
+pub const PLANET_TRANSPORT_VISIBLE_ROWS: usize = 18;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanetTransportMode {

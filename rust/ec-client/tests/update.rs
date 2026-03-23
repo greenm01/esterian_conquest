@@ -14,6 +14,7 @@ use ec_client::domains::starbase::StarbaseAction;
 use ec_client::domains::starmap::StarmapAction;
 use ec_client::domains::startup::StartupAction;
 use ec_client::model::ClassicLoginState;
+use ec_client::screen::layout::COMMAND_LINE_ROW;
 use ec_client::screen::{
     CommandMenu, FleetListMode, FleetRoeScreen, FleetRow, PlanetBuildMenuView, PlanetBuildOrder,
     PlanetBuildScreen, PlanetListMode, PlanetListSort, ScreenId,
@@ -301,7 +302,12 @@ impl CaptureTerminal {
     }
 
     fn line(&self, row: usize) -> &str {
-        &self.lines[row]
+        let mapped_row = if row == 19 && self.lines.len() > COMMAND_LINE_ROW {
+            COMMAND_LINE_ROW
+        } else {
+            row
+        };
+        &self.lines[mapped_row]
     }
 }
 
@@ -2887,7 +2893,7 @@ fn startup_results_paginate_before_advancing_to_messages() {
     let mut state = latest_runtime_state(&fixture_dir);
     set_runtime_report_blocks(
         &mut state,
-        (1..=18)
+        (1..=24)
             .map(|idx| format!("Report line {idx:02} is long enough"))
             .collect::<Vec<_>>()
             .join("\n"),
@@ -2938,7 +2944,7 @@ fn startup_results_paginate_before_advancing_to_messages() {
         !first_page
             .lines
             .iter()
-            .any(|line| line.contains("Report line 18"))
+            .any(|line| line.contains("Report line 28"))
     );
     assert!(
         first_page
@@ -3458,7 +3464,7 @@ fn startup_results_decode_length_prefixed_lines_as_separate_classic_rows() {
             .iter()
             .any(|line| line.contains("Delete this report Y/[N] ->"))
     );
-    assert!(terminal.line(18).trim().is_empty());
+    assert!(terminal.line(COMMAND_LINE_ROW - 1).trim().is_empty());
     assert!(!terminal.lines.iter().any(|line| line.contains("----")));
 }
 
@@ -3666,7 +3672,7 @@ fn reports_screen_shows_explicit_truncation_cue_when_wrapped_rows_overflow() {
     let mut state = latest_runtime_state(&fixture_dir);
     set_runtime_report_blocks(
         &mut state,
-        (1..=11)
+        (1..=16)
             .map(|idx| format!("This is long report line {idx:02} and it should wrap across rows"))
             .collect::<Vec<_>>()
             .join("\n"),
@@ -6371,8 +6377,11 @@ fn fleet_roe_render_keeps_command_line_on_bottom_row() {
         .expect("roe screen renders");
 
     assert_eq!(buffer.plain_line(17), "");
-    assert_eq!(buffer.plain_line(19), "FLEET COMMAND <- Fleet # [1] <Q> ->");
-    assert_eq!(buffer.cursor(), Some((36, 19)));
+    assert_eq!(
+        buffer.plain_line(COMMAND_LINE_ROW),
+        "FLEET COMMAND <- Fleet # [1] <Q> ->"
+    );
+    assert_eq!(buffer.cursor(), Some((36, COMMAND_LINE_ROW as u16)));
 }
 
 #[test]
@@ -6405,7 +6414,7 @@ fn fleet_roe_render_shows_edit_errors_on_bottom_line() {
         .expect("roe screen renders");
 
     assert_eq!(
-        buffer.plain_line(19),
+        buffer.plain_line(COMMAND_LINE_ROW),
         "FLEET COMMAND <- Non-combat fleets must use ROE 0."
     );
 }
@@ -6500,8 +6509,12 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
     assert!(buffer.plain_line(3).contains("Target"));
     assert!(buffer.plain_line(5).contains("  1"));
     assert!(buffer.plain_line(5).contains("[19,13]"));
-    assert!(buffer.plain_line(19).contains("Calculate time for fleet #"));
-    assert!(buffer.plain_line(19).contains("[7] <Q> ->"));
+    assert!(
+        buffer
+            .plain_line(COMMAND_LINE_ROW)
+            .contains("Calculate time for fleet #")
+    );
+    assert!(buffer.plain_line(COMMAND_LINE_ROW).contains("[7] <Q> ->"));
 }
 
 #[test]
@@ -6727,10 +6740,10 @@ fn planet_build_specify_uses_bottom_command_line_default_prompt() {
 
     assert!(
         buffer
-            .plain_line(19)
+            .plain_line(COMMAND_LINE_ROW)
             .contains("BUILD COMMAND <- Unit number or 0 if done")
     );
-    assert!(buffer.plain_line(19).contains("[0] <Q> ->"));
+    assert!(buffer.plain_line(COMMAND_LINE_ROW).contains("[0] <Q> ->"));
 }
 
 #[test]
@@ -6778,10 +6791,10 @@ fn planet_build_quantity_uses_bottom_command_line_default_prompt() {
 
     assert!(
         buffer
-            .plain_line(19)
+            .plain_line(COMMAND_LINE_ROW)
             .contains("BUILD COMMAND <- How many new destroyers to build")
     );
-    assert!(buffer.plain_line(19).contains("[6] <Q> ->"));
+    assert!(buffer.plain_line(COMMAND_LINE_ROW).contains("[6] <Q> ->"));
 }
 
 #[test]

@@ -160,7 +160,7 @@ ANSI policy:
 The client should treat the original UI as a fixed DOS playfield, not as a
 modern fluid terminal layout:
 
-- render into a fixed `80x20` playfield first
+- render into a fixed `80x25` playfield first
 - center that playfield inside larger terminals
 - keep menu bars, prompts, and reports positioned within that playfield
 - do not globally center-justify ordinary text blocks
@@ -169,7 +169,7 @@ modern fluid terminal layout:
   the original feel
 - when reusing preserved full-screen ANSI assets, it is acceptable to parse
   them on a virtual DOS-sized canvas first and then project/crop the result
-  back into the real `80x20` player window
+  back into the real `80x25` player window
 - keep that projection logic in the client renderer; do not dump raw ANSI
   directly to the user's terminal during normal `ec-client` startup
 
@@ -194,10 +194,12 @@ Reasons:
 The renderer should follow a small cell-buffer model closer to `tcell` than to
 widget-layout TUI frameworks:
 
-- keep one shared `80x20` playfield buffer of styled cells
+- keep one shared `80x25` playfield buffer of styled cells
 - let each screen write exact rows/columns into that buffer
 - centralize terminal painting, palette handling, and cursor placement
 - keep screen geometry screen-specific when the original layout is exact
+- keep one shared internal table widget for all tabular screens, with small
+  explicit variants for standard headers, stacked headers, and split tables
 
 In other words: DRY the rendering pipeline, not the classic screen geometry.
 

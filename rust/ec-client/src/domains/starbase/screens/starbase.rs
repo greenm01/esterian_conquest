@@ -13,7 +13,7 @@ use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords_padded};
 use crate::theme::classic;
 
-pub const STARBASE_VISIBLE_ROWS: usize = 11;
+pub const STARBASE_VISIBLE_ROWS: usize = 19;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StarbaseRow {

@@ -1,5 +1,7 @@
 use crate::reports::{ReportsPreview, ReviewBlock, wrap_review_text_preserving_spacing};
-use crate::screen::layout::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_plain_prompt, new_playfield};
+use crate::screen::layout::{
+    COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_plain_prompt, new_playfield,
+};
 use crate::screen::{CellStyle, PlayfieldBuffer, ScreenFrame, StyledSpan};
 use crate::startup::{StartupPhase, StartupSummary};
 use crate::theme::classic;
@@ -391,7 +393,7 @@ pub fn render_game_intro_page(
     } else {
         final_prompt
     };
-    draw_plain_prompt(&mut buffer, 19, prompt);
+    draw_plain_prompt(&mut buffer, COMMAND_LINE_ROW, prompt);
     Ok(buffer)
 }
 
@@ -406,7 +408,7 @@ fn render_splash(
         let logo_width = INTRO_LOGO.iter().map(|line| line.len()).max().unwrap_or(0);
         let logo_left = 80usize.saturating_sub(logo_width) / 2;
         let block_height = INTRO_LOGO.len() + 4 + 1;
-        let start_row = (19usize.saturating_sub(block_height)) / 2;
+        let start_row = (COMMAND_LINE_ROW.saturating_sub(block_height)) / 2;
 
         // Render logo with randomized star-decoration colors.
         let mut rng = campaign_seed
@@ -439,7 +441,11 @@ fn render_splash(
             &version_title(),
             classic::bright_style(),
         );
-        draw_plain_prompt(&mut buffer, 19, "View the game introduction? Y/[N] -> ");
+        draw_plain_prompt(
+            &mut buffer,
+            COMMAND_LINE_ROW,
+            "View the game introduction? Y/[N] -> ",
+        );
     } else {
         // Subsequent pages: transcript-style scrolling intro text.
         let mut transcript: Vec<String> = Vec::new();
@@ -469,7 +475,7 @@ fn render_splash(
         } else {
             "(Slap a key)"
         };
-        draw_plain_prompt(&mut buffer, 19, prompt);
+        draw_plain_prompt(&mut buffer, COMMAND_LINE_ROW, prompt);
     }
 
     Ok(buffer)

@@ -11,15 +11,15 @@ use crate::screen::layout::{
     draw_menu_entry, draw_status_line, draw_title_bar, draw_wrapped_status, new_playfield,
 };
 use crate::screen::table::{
-    TableColumn, fleet_id_column_width, format_fleet_number, table_divider, write_table_header,
-    write_table_row, write_table_window_with_cursor,
+    TableColumn, TableRowState, fleet_id_column_width, format_fleet_number,
+    write_table_window_with_cursor, write_table_window_with_states,
 };
 use crate::screen::{
     PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords, format_sector_coords_padded,
 };
 use crate::theme::classic;
 
-pub const FLEET_VISIBLE_ROWS: usize = 11;
+pub const FLEET_VISIBLE_ROWS: usize = 19;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FleetRow {
@@ -1259,19 +1259,28 @@ impl FleetMissionPickerScreen {
                 ]
             })
             .collect::<Vec<_>>();
-        write_table_header(&mut buffer, 1, &columns, classic::status_value_style());
-        buffer.write_text(2, 0, &table_divider(&columns), classic::menu_style());
-        for (idx, row) in rows.iter().enumerate() {
-            let refs = row.iter().map(String::as_str).collect::<Vec<_>>();
-            let style = if idx == cursor {
-                classic::selected_row_style()
-            } else if enabled.get(idx).copied().unwrap_or(true) {
-                classic::status_value_style()
-            } else {
-                classic::disabled_row_style()
-            };
-            write_table_row(&mut buffer, 3 + idx, &columns, &refs, style);
-        }
+        let row_states = enabled
+            .iter()
+            .map(|enabled| {
+                if *enabled {
+                    TableRowState::Normal
+                } else {
+                    TableRowState::Disabled
+                }
+            })
+            .collect::<Vec<_>>();
+        write_table_window_with_states(
+            &mut buffer,
+            1,
+            &columns,
+            &rows,
+            0,
+            rows.len(),
+            classic::status_value_style(),
+            classic::status_value_style(),
+            Some(cursor),
+            Some(&row_states),
+        );
         if let Some(status) = status {
             draw_command_line_text(&mut buffer, "FLEET COMMAND", status);
         } else {
