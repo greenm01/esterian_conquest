@@ -175,9 +175,12 @@ pub fn draw_command_prompt_at(buffer: &mut PlayfieldBuffer, row: usize, label: &
         let slap_width = "(slap a key)".chars().count();
         let slap_col = PLAYFIELD_WIDTH.saturating_sub(suffix.chars().count() + slap_width);
         write_slap_a_key(buffer, row, slap_col);
-        buffer.write_text(row, slap_col + slap_width, suffix, classic::prompt_style());
+        let suffix_col = slap_col + slap_width;
+        let written = buffer.write_text(row, suffix_col, suffix, classic::prompt_style());
+        let cursor_col = suffix_col + written;
+        buffer.set_cursor(cursor_col as u16, row as u16);
     } else {
-        buffer.write_spans(
+        let written = buffer.write_spans(
             row,
             prefix,
             &[
@@ -185,6 +188,8 @@ pub fn draw_command_prompt_at(buffer: &mut PlayfieldBuffer, row: usize, label: &
                 StyledSpan::new(suffix, classic::prompt_style()),
             ],
         );
+        let cursor_col = prefix + written;
+        buffer.set_cursor(cursor_col as u16, row as u16);
     }
 }
 
@@ -332,8 +337,10 @@ pub fn draw_table_command_bar_at(
         buffer.set_cursor(cursor_col as u16, row as u16);
         cursor_col
     } else {
-        buffer.write_text(row, col, " -> ", classic::prompt_style());
-        0
+        let written = buffer.write_text(row, col, " -> ", classic::prompt_style());
+        let cursor_col = col + written;
+        buffer.set_cursor(cursor_col as u16, row as u16);
+        cursor_col
     }
 }
 

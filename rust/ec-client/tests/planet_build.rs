@@ -34,10 +34,26 @@ fn build_menu_renders_compact_queue_and_stardock_counts() {
     let buffer = screen.render_menu(&view, None).expect("render menu");
 
     assert_eq!(
-        buffer.plain_line(12),
+        buffer.plain_line(7),
+        "BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I->"
+    );
+    assert_eq!(
+        buffer.plain_line(13),
+        "There are no starbases orbiting planet \"Not Named Yet\"."
+    );
+    assert_eq!(
+        buffer.plain_line(14),
+        "Standard building restrictions apply."
+    );
+    assert_eq!(
+        buffer.plain_line(15),
+        "You have spent 10 out of 50 points.  You have 40 points left to spend."
+    );
+    assert_eq!(buffer.plain_line(16), "");
+    assert_eq!(
+        buffer.plain_line(17),
         "Build queue: [2/10]   Stardock: [3/10]"
     );
-    assert_eq!(buffer.plain_line(13), "");
 }
 
 #[test]

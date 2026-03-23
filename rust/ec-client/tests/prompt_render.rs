@@ -191,3 +191,27 @@ fn draw_command_prompt_highlights_key_in_slap_a_key_phrase() {
     assert_eq!(row[phrase + 8].style, classic::prompt_hotkey_style());
     assert_eq!(row[phrase + 9].style, classic::prompt_hotkey_style());
 }
+
+#[test]
+fn draw_command_prompt_places_cursor_after_arrow_space() {
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    draw_command_prompt(&mut buffer, 19, "GENERAL COMMAND", "H,Q,X");
+
+    let line = row_text(&buffer, COMMAND_LINE_ROW);
+    let (cursor_col, cursor_row) = buffer.cursor().expect("cursor set");
+    assert_eq!(cursor_row as usize, COMMAND_LINE_ROW);
+    assert_eq!(line.as_bytes()[cursor_col as usize - 1], b' ');
+    assert!(line.contains("GENERAL COMMAND <-H,Q,X-> "));
+}
+
+#[test]
+fn draw_command_prompt_places_cursor_after_slap_a_key_arrow() {
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    draw_command_prompt(&mut buffer, 19, "GENERAL COMMAND", "SLAP A KEY");
+
+    let line = row_text(&buffer, COMMAND_LINE_ROW);
+    let (cursor_col, cursor_row) = buffer.cursor().expect("cursor set");
+    assert_eq!(cursor_row as usize, COMMAND_LINE_ROW);
+    assert_eq!(line.as_bytes()[cursor_col as usize - 1], b' ');
+    assert!(line.contains("(slap a key)-> "));
+}

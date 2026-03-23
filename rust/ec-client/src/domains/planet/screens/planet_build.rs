@@ -5,9 +5,9 @@ use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    CMD_COL_1, MenuEntry, draw_command_line_default_input_at, draw_command_prompt,
-    draw_command_prompt_at, draw_menu_row, draw_status_line, draw_title_bar, menu_prompt_row,
-    new_playfield, standard_table_visible_rows, table_prompt_row,
+    CMD_COL_1, MenuEntry, centered_row, draw_command_line_default_input_at, draw_command_prompt,
+    draw_command_prompt_at, draw_menu_row, draw_status_line, draw_title_bar, last_body_row,
+    menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
     SplitTableRow, TableColumn, write_split_table, write_table_window_with_cursor,
@@ -207,43 +207,47 @@ impl PlanetBuildScreen {
             ),
         );
 
-        if view.row.has_friendly_starbase {
-            buffer.write_text(
-                2,
-                0,
-                &format!(
-                    "There is a starbase orbiting planet \"{}\".",
-                    view.row.planet_name
-                ),
-                classic::status_value_style(),
-            );
-            buffer.write_text(
-                3,
-                0,
-                "Standard building restrictions do not apply.",
-                classic::status_value_style(),
-            );
-        } else {
-            buffer.write_text(
-                2,
-                0,
-                &format!(
-                    "There are no starbases orbiting planet \"{}\".",
-                    view.row.planet_name
-                ),
-                classic::status_value_style(),
-            );
-            buffer.write_text(
-                3,
-                0,
-                "Standard building restrictions apply.",
-                classic::status_value_style(),
-            );
-        }
-
         let spent = view.committed_points.min(view.available_points);
+
+        draw_menu_row(&mut buffer, 2, &ROW_1);
+        draw_menu_row(&mut buffer, 3, &ROW_2);
+        draw_menu_row(&mut buffer, 4, &ROW_3);
+        draw_menu_row(&mut buffer, 5, &ROW_4);
+
+        let command_row = menu_prompt_row(5);
+        let lower_block_height = if status.is_some() { 7 } else { 5 };
+        let lower_block_row = centered_row(command_row + 1, last_body_row(), lower_block_height);
+
+        let starbase_line = if view.row.has_friendly_starbase {
+            format!(
+                "There is a starbase orbiting planet \"{}\".",
+                view.row.planet_name
+            )
+        } else {
+            format!(
+                "There are no starbases orbiting planet \"{}\".",
+                view.row.planet_name
+            )
+        };
+        let restrictions_line = if view.row.has_friendly_starbase {
+            "Standard building restrictions do not apply.".to_string()
+        } else {
+            "Standard building restrictions apply.".to_string()
+        };
         buffer.write_text(
-            4,
+            lower_block_row,
+            0,
+            &starbase_line,
+            classic::status_value_style(),
+        );
+        buffer.write_text(
+            lower_block_row + 1,
+            0,
+            &restrictions_line,
+            classic::status_value_style(),
+        );
+        buffer.write_text(
+            lower_block_row + 2,
             0,
             &format!(
                 "You have spent {} out of {} points.  You have {} points left to spend.",
@@ -251,14 +255,8 @@ impl PlanetBuildScreen {
             ),
             classic::status_value_style(),
         );
-
-        draw_menu_row(&mut buffer, 6, &ROW_1);
-        draw_menu_row(&mut buffer, 7, &ROW_2);
-        draw_menu_row(&mut buffer, 8, &ROW_3);
-        draw_menu_row(&mut buffer, 9, &ROW_4);
-
         buffer.write_text(
-            12,
+            lower_block_row + 4,
             0,
             &format!(
                 "Build queue: [{}/{}]   Stardock: [{}/{}]",
@@ -266,15 +264,12 @@ impl PlanetBuildScreen {
             ),
             classic::status_value_style(),
         );
-
-        let mut last_content_row = 12;
         if let Some(status) = status {
-            draw_status_line(&mut buffer, 14, "", status);
-            last_content_row = 14;
+            draw_status_line(&mut buffer, lower_block_row + 6, "", status);
         }
         draw_command_prompt_at(
             &mut buffer,
-            menu_prompt_row(last_content_row),
+            command_row,
             "BUILD COMMAND",
             "H,Q,X,V,P,R,C,N,S,A,L,I",
         );

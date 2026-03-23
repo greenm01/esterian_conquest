@@ -2505,24 +2505,40 @@ fn planet_build_menu_matches_verified_v15_command_layout() {
         "BUILD ON CURRENT PLANET: \"Codex Prime\" IN SYSTEM [16,13]:"
     );
     assert_eq!(
-        terminal.line(6).trim_end(),
+        terminal.line(2).trim_end(),
         "  H>elp with commands        P>lanets, List your         S>pecify Build Orders"
     );
     assert_eq!(
-        terminal.line(7).trim_end(),
+        terminal.line(3).trim_end(),
         "  Q>uit to Planet Menu       R>eview current planet      A>bort planet's builds"
     );
     assert_eq!(
-        terminal.line(8).trim_end(),
+        terminal.line(4).trim_end(),
         "  X>pert mode ON/OFF         C>hange current planet      L>ist builds"
     );
     assert_eq!(
-        terminal.line(9).trim_end(),
+        terminal.line(5).trim_end(),
         "  V>iew partial star map     N>ext planet                I>nfo about a Planet"
     );
     assert_eq!(
-        line_containing(&terminal, "BUILD COMMAND <-").trim_end(),
+        terminal.line(7).trim_end(),
         "BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I->"
+    );
+    assert_eq!(
+        terminal.line(13).trim_end(),
+        "There are no starbases orbiting planet \"Codex Prime\"."
+    );
+    assert_eq!(
+        terminal.line(14).trim_end(),
+        "Standard building restrictions apply."
+    );
+    assert_eq!(
+        terminal.line(15).trim_end(),
+        "You have spent 0 out of 0 points.  You have 0 points left to spend."
+    );
+    assert_eq!(
+        terminal.lines[17].trim_end(),
+        "Build queue: [0/10]   Stardock: [4/10]"
     );
 }
 
