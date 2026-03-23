@@ -13,10 +13,10 @@ use crate::domains::startup::StartupState;
 use crate::model::{MainMenuSummary, PlayerContext, ReviewSummary};
 use crate::reports::{ReportsPreview, has_visible_runtime_messages};
 use crate::screen::{
-    BuildHelpScreen, CommandMenu, DeleteReviewablesScreen, EmpireProfileScreen, EmpireStatusScreen,
-    EnemiesScreen, FirstTimeEmpiresScreen, FirstTimeHelpScreen, FirstTimeIntroScreen,
-    FirstTimeMenuScreen, FleetDetachScreen, FleetEtaScreen, FleetGroupScreen, FleetHelpScreen,
-    FleetListMode, FleetListScreen, FleetMenuScreen, FleetMergeScreen, FleetMissionPickerScreen,
+    BuildHelpScreen, CommandMenu, EmpireProfileScreen, EmpireStatusScreen, EnemiesScreen,
+    FirstTimeEmpiresScreen, FirstTimeHelpScreen, FirstTimeIntroScreen, FirstTimeMenuScreen,
+    FleetDetachScreen, FleetEtaScreen, FleetGroupScreen, FleetHelpScreen, FleetListMode,
+    FleetListScreen, FleetMenuScreen, FleetMergeScreen, FleetMissionPickerScreen,
     FleetReviewScreen, FleetRoeScreen, FleetSingleOrderScreen, FleetTransferScreen,
     GeneralHelpScreen, GeneralMenuScreen, MainHelpScreen, MainMenuScreen, MessageComposeScreen,
     PartialStarmapScreen, PlanetAutoCommissionScreen, PlanetBuildScreen, PlanetCommissionScreen,
@@ -80,7 +80,6 @@ pub struct App {
     pub planet_database: PlanetDatabaseScreen,
     pub planet_info: PlanetInfoScreen,
     pub enemies: EnemiesScreen,
-    pub delete_reviewables: DeleteReviewablesScreen,
     pub message_compose: MessageComposeScreen,
     pub empire_status: EmpireStatusScreen,
     pub empire_profile: EmpireProfileScreen,
@@ -197,7 +196,6 @@ impl App {
             planet_database: PlanetDatabaseScreen::new(),
             planet_info: PlanetInfoScreen::new(),
             enemies: EnemiesScreen::new(),
-            delete_reviewables: DeleteReviewablesScreen::new(),
             message_compose: MessageComposeScreen::new(),
             empire_status: EmpireStatusScreen::new(),
             empire_profile: EmpireProfileScreen::new(),

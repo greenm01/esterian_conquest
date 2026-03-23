@@ -15,7 +15,7 @@ pub struct MessagingState {
     pub compose_outbox_scroll_offset: usize,
     pub compose_outbox_cursor: usize,
     pub compose_sent_status: Option<String>,
-    pub delete_reviewables_status: Option<String>,
+    pub delete_reviewables_prompt_active: bool,
 }
 
 impl Default for MessagingState {
@@ -37,7 +37,7 @@ impl Default for MessagingState {
             compose_outbox_scroll_offset: 0,
             compose_outbox_cursor: 0,
             compose_sent_status: None,
-            delete_reviewables_status: None,
+            delete_reviewables_prompt_active: false,
         }
     }
 }

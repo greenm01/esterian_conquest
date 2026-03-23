@@ -4,6 +4,7 @@ use crate::domains::messaging::MessagingAction;
 pub fn update(app: &mut App, action: MessagingAction) {
     match action {
         MessagingAction::OpenDeleteReviewables => app.open_delete_reviewables(),
+        MessagingAction::CloseDeleteReviewables => app.close_delete_reviewables_prompt(),
         MessagingAction::OpenComposeRecipient => app.open_compose_message_recipient(),
         MessagingAction::OpenComposeSubject => app.open_compose_message_subject(),
         MessagingAction::OpenComposeBody => app.open_compose_message_body(),

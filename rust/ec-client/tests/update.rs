@@ -3094,7 +3094,25 @@ fn delete_reviewables_opens_when_classic_pending_flags_are_set() {
         ),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::DeleteReviewables);
+    assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
+    assert!(app.messaging.delete_reviewables_prompt_active);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("general menu should render inline delete prompt");
+    assert!(line_containing(&terminal, "COMMAND <-").contains("COMMAND <- Y/[N] ->"));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("DELETE ALL MESSAGES / RESULTS:"))
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("currently reviewable"))
+    );
 
     assert_eq!(
         apply_action(
@@ -3108,6 +3126,8 @@ fn delete_reviewables_opens_when_classic_pending_flags_are_set() {
     assert!(runtime.report_block_rows.is_empty());
     assert_eq!(runtime.game_data.player.records[0].raw[0x30], 0);
     assert_eq!(runtime.game_data.player.records[0].raw[0x34], 0);
+    assert!(!app.messaging.delete_reviewables_prompt_active);
+    assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
 }
 
 #[test]
@@ -7871,7 +7891,8 @@ fn apply_action_deletes_reviewables() {
         ),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::DeleteReviewables);
+    assert_eq!(app.current_screen(), ScreenId::GeneralMenu);
+    assert!(app.messaging.delete_reviewables_prompt_active);
 
     assert_eq!(
         apply_action(
@@ -7892,6 +7913,7 @@ fn apply_action_deletes_reviewables() {
     assert!(runtime.queued_mail[0].recipient_deleted);
     assert_eq!(runtime.game_data.player.records[0].raw[0x30], 0);
     assert_eq!(runtime.game_data.player.records[0].raw[0x34], 0);
+    assert!(!app.messaging.delete_reviewables_prompt_active);
 }
 
 #[test]

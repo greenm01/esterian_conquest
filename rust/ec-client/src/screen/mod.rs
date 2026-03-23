@@ -5,9 +5,6 @@ pub mod table;
 pub mod build_help {
     pub use crate::domains::planet::screens::build_help::*;
 }
-pub mod delete_reviewables {
-    pub use crate::domains::messaging::screens::delete_reviewables::*;
-}
 pub mod empire_profile {
     pub use crate::domains::empire::screens::empire_profile::*;
 }
@@ -104,7 +101,6 @@ pub use crate::domains::fleet::screens::fleet::{
     FleetTransferMode, FleetTransferScreen,
 };
 pub use crate::domains::fleet::screens::fleet_help::FleetHelpScreen;
-pub use crate::domains::messaging::screens::delete_reviewables::DeleteReviewablesScreen;
 pub use crate::domains::messaging::screens::message_compose::MessageComposeScreen;
 pub(crate) use crate::domains::messaging::screens::message_compose::{
     COMPOSE_BODY_LIMIT, COMPOSE_SUBJECT_LIMIT, OUTBOX_VISIBLE_ROWS, RECIPIENT_VISIBLE_ROWS,
@@ -237,7 +233,6 @@ pub enum ScreenId {
     PlanetDatabaseFilterPrompt,
     PlanetInfoDetail,
     Enemies,
-    DeleteReviewables,
     ComposeMessageRecipient,
     ComposeMessageSubject,
     ComposeMessageBody,

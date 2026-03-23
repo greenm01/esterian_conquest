@@ -8,8 +8,8 @@ use crate::domains::starmap::StarmapAction;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
     CMD_COL_1, CMD_COL_2, EXPERT_MENU_PROMPT_ROW, MenuEntry, draw_command_center, draw_expert_menu,
-    draw_inline_planet_info_prompt, draw_menu_entry_with_toggle, draw_menu_notice, menu_prompt_row,
-    new_playfield,
+    draw_inline_delete_reviewables_prompt, draw_inline_planet_info_prompt,
+    draw_menu_entry_with_toggle, draw_menu_notice, menu_prompt_row, new_playfield,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 
@@ -53,6 +53,7 @@ impl GeneralMenuScreen {
         frame: &ScreenFrame<'_>,
         notice: Option<&str>,
         expert_mode: bool,
+        inline_delete_reviewables: bool,
         inline_planet_info: bool,
         info_default_coords: [u8; 2],
         info_input: &str,
@@ -60,7 +61,9 @@ impl GeneralMenuScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         if expert_mode {
-            if inline_planet_info {
+            if inline_delete_reviewables {
+                draw_inline_delete_reviewables_prompt(&mut buffer, EXPERT_MENU_PROMPT_ROW, notice);
+            } else if inline_planet_info {
                 draw_inline_planet_info_prompt(
                     &mut buffer,
                     EXPERT_MENU_PROMPT_ROW,
@@ -91,7 +94,9 @@ impl GeneralMenuScreen {
             .autopilot_flag()
             != 0;
         draw_menu_entry_with_toggle(&mut buffer, 1, CMD_COL_2, "A", "utopilot ", autopilot_on);
-        if inline_planet_info {
+        if inline_delete_reviewables {
+            draw_inline_delete_reviewables_prompt(&mut buffer, menu_prompt_row(4), notice);
+        } else if inline_planet_info {
             draw_inline_planet_info_prompt(
                 &mut buffer,
                 menu_prompt_row(4),
@@ -112,7 +117,7 @@ impl Screen for GeneralMenuScreen {
         &mut self,
         frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_with_notice(frame, None, false, false, [0, 0], "", None)
+        self.render_with_notice(frame, None, false, false, false, [0, 0], "", None)
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {

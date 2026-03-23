@@ -112,6 +112,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             &frame,
             app.command_menu_notice.as_deref(),
             app.expert_mode,
+            app.messaging.delete_reviewables_prompt_active,
             app.planet.info_prompt_active
                 && app.command_return_menu == crate::screen::CommandMenu::General,
             app.default_planet_prompt_coords(),

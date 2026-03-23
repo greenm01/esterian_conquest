@@ -96,7 +96,6 @@ impl App {
             ScreenId::GeneralMenu
             | ScreenId::GeneralHelp
             | ScreenId::Enemies
-            | ScreenId::DeleteReviewables
             | ScreenId::ComposeMessageRecipient
             | ScreenId::ComposeMessageSubject
             | ScreenId::ComposeMessageBody

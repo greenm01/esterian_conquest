@@ -3,8 +3,9 @@ use ec_client::screen::PlayfieldBuffer;
 use ec_client::screen::layout::{
     COMMAND_LINE_ROW, PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, dismiss_prompt_row,
     draw_command_line_prompt_text_at, draw_command_prompt_at, draw_help_panel,
-    draw_inline_planet_info_prompt, draw_inline_status_after, draw_plain_prompt,
-    draw_table_command_prompt, table_dismiss_prompt_row,
+    draw_inline_delete_reviewables_prompt, draw_inline_planet_info_prompt,
+    draw_inline_status_after, draw_plain_prompt, draw_table_command_prompt,
+    table_dismiss_prompt_row,
 };
 use ec_client::theme::classic;
 
@@ -317,6 +318,31 @@ fn inline_planet_info_prompt_zero_pads_default_coords() {
 
     let line = row_text(&buffer, COMMAND_LINE_ROW);
     assert!(line.contains("COMMAND <- Planet coords [03,03] <Q> -> "));
+}
+
+#[test]
+fn inline_delete_reviewables_prompt_uses_notice_style_and_cursor_gap() {
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    draw_inline_delete_reviewables_prompt(&mut buffer, 10, None);
+
+    assert!(row_text(&buffer, 10).contains("COMMAND <- Y/[N] -> "));
+    assert_eq!(buffer.cursor().expect("cursor set"), (20u16, 10u16),);
+    let prompt_row = buffer.row(10);
+    let choice = find_in_row(&buffer, 10, "Y/[N]");
+    assert_eq!(prompt_row[choice].style, classic::prompt_hotkey_style());
+    assert_eq!(prompt_row[choice + 1].style, classic::prompt_style());
+    assert_eq!(prompt_row[choice + 2].style, classic::prompt_style());
+    assert_eq!(prompt_row[choice + 3].style, classic::prompt_hotkey_style());
+    assert_eq!(prompt_row[choice + 4].style, classic::prompt_style());
+
+    let title = "DELETE ALL MESSAGES / RESULTS:";
+    let title_col = find_in_row(&buffer, 12, title);
+    let row = buffer.row(12);
+    assert_eq!(row[title_col].style, classic::notice_style());
+    assert!(
+        row_text(&buffer, 13)
+            .contains("This will clear all currently reviewable messages and results.")
+    );
 }
 
 #[test]

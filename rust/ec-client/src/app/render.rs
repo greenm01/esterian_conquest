@@ -78,8 +78,7 @@ impl App {
             | ScreenId::EmpireProfile
             | ScreenId::Rankings(_) => domains::empire::views::render(self)?,
 
-            ScreenId::DeleteReviewables
-            | ScreenId::ComposeMessageRecipient
+            ScreenId::ComposeMessageRecipient
             | ScreenId::ComposeMessageSubject
             | ScreenId::ComposeMessageBody
             | ScreenId::ComposeMessageOutbox

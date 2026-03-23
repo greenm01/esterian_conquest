@@ -351,6 +351,7 @@ impl App {
 
     pub fn open_planet_info_prompt(&mut self, menu: CommandMenu) {
         self.close_planet_tax_prompt();
+        self.messaging.delete_reviewables_prompt_active = false;
         self.command_return_menu = menu;
         self.return_screen = None;
         self.clear_command_menu_notice();

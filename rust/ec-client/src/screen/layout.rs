@@ -451,6 +451,33 @@ pub fn draw_inline_planet_info_prompt(
     }
 }
 
+pub fn draw_inline_delete_reviewables_prompt(
+    buffer: &mut PlayfieldBuffer,
+    command_row: usize,
+    notice: Option<&str>,
+) -> usize {
+    draw_command_line_prompt_text_at(buffer, command_row, "COMMAND", "Y/[N] -> ");
+    let title_row = menu_general_message_row(command_row);
+    buffer.write_text(
+        title_row,
+        0,
+        "DELETE ALL MESSAGES / RESULTS:",
+        classic::notice_style(),
+    );
+    let message_row = (title_row + 1).min(last_body_row());
+    buffer.write_text(
+        message_row,
+        0,
+        "This will clear all currently reviewable messages and results.",
+        classic::status_value_style(),
+    );
+    if let Some(notice) = notice {
+        draw_menu_notice_after(buffer, message_row, notice)
+    } else {
+        message_row
+    }
+}
+
 pub fn draw_inline_tax_prompt(
     buffer: &mut PlayfieldBuffer,
     command_row: usize,
@@ -565,7 +592,8 @@ pub fn draw_command_line_prompt_text_at(
             StyledSpan::new(" <- ", classic::prompt_style()),
         ],
     );
-    write_prompt_markup(buffer, row, prefix, prompt);
+    let cursor_col = write_prompt_markup(buffer, row, prefix, prompt);
+    buffer.set_cursor(cursor_col as u16, row as u16);
 }
 
 pub fn draw_command_line_default_input_at(

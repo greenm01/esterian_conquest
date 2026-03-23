@@ -1,6 +1,7 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MessagingAction {
     OpenDeleteReviewables,
+    CloseDeleteReviewables,
     OpenComposeRecipient,
     OpenComposeSubject,
     OpenComposeBody,

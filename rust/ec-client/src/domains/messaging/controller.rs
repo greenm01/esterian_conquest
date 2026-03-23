@@ -27,11 +27,18 @@ impl App {
             );
             return;
         }
-        self.messaging.delete_reviewables_status = None;
-        self.current_screen = ScreenId::DeleteReviewables;
+        self.clear_command_menu_notice();
+        self.messaging.delete_reviewables_prompt_active = true;
+        self.planet.info_prompt_active = false;
+        self.current_screen = ScreenId::GeneralMenu;
+    }
+
+    pub fn close_delete_reviewables_prompt(&mut self) {
+        self.messaging.delete_reviewables_prompt_active = false;
     }
 
     pub fn open_compose_message_recipient(&mut self) {
+        self.messaging.delete_reviewables_prompt_active = false;
         self.messaging.compose_recipient_input.clear();
         self.messaging.compose_recipient_status = None;
         self.messaging.compose_recipient_scroll_offset = 0;
@@ -609,9 +616,36 @@ impl App {
         );
         self.reports
             .replace(refreshed, ReviewSummary::from_main_menu(&summary));
-        self.messaging.delete_reviewables_status =
-            Some("Messages and results deleted.".to_string());
+        self.messaging.delete_reviewables_prompt_active = false;
+        self.show_command_menu_notice(CommandMenu::General, "Messages and results deleted.");
         Ok(())
+    }
+
+    pub(crate) fn inline_delete_reviewables_active_on_current_screen(&self) -> bool {
+        self.messaging.delete_reviewables_prompt_active
+            && self.current_screen == ScreenId::GeneralMenu
+    }
+
+    pub(crate) fn handle_delete_reviewables_prompt_key(
+        &self,
+        key: crossterm::event::KeyEvent,
+    ) -> crate::app::Action {
+        use crossterm::event::KeyCode;
+
+        match key.code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => crate::app::Action::Messaging(
+                crate::domains::messaging::MessagingAction::ConfirmDeleteReviewables,
+            ),
+            KeyCode::Enter
+            | KeyCode::Char('n')
+            | KeyCode::Char('N')
+            | KeyCode::Char('q')
+            | KeyCode::Char('Q')
+            | KeyCode::Esc => crate::app::Action::Messaging(
+                crate::domains::messaging::MessagingAction::CloseDeleteReviewables,
+            ),
+            _ => crate::app::Action::Noop,
+        }
     }
 
     pub(crate) fn compose_outbox_queue(

@@ -20,6 +20,9 @@ impl App {
         if self.inline_planet_tax_active_on_current_screen() {
             return self.planet_tax.handle_inline_key(key);
         }
+        if self.inline_delete_reviewables_active_on_current_screen() {
+            return self.handle_delete_reviewables_prompt_key(key);
+        }
         if self.inline_planet_info_active_on_current_screen() {
             return self.handle_planet_info_prompt_key(key);
         }
@@ -211,7 +214,6 @@ impl App {
             }
             ScreenId::PlanetInfoDetail => self.planet_info.handle_detail_key(key),
             ScreenId::Enemies => self.enemies.handle_key(key),
-            ScreenId::DeleteReviewables => self.delete_reviewables.handle_key(key),
             ScreenId::ComposeMessageRecipient => self.message_compose.handle_recipient_key(key),
             ScreenId::ComposeMessageSubject => self.message_compose.handle_subject_key(key),
             ScreenId::ComposeMessageBody => self.message_compose.handle_body_key(key),

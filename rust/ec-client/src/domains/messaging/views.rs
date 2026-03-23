@@ -11,9 +11,6 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         planet_intel_snapshots: &app.planet_intel_snapshots,
     };
     match app.current_screen {
-        ScreenId::DeleteReviewables => app
-            .delete_reviewables
-            .render(app.messaging.delete_reviewables_status.as_deref()),
         ScreenId::ComposeMessageRecipient => app.message_compose.render_recipient(
             &frame,
             &app.messaging.compose_recipient_input,
