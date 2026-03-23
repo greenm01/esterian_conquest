@@ -5,7 +5,6 @@ pub enum StarbaseAction {
     OpenList,
     OpenReviewSelect,
     OpenReview,
-    ShowExpertModeNotice,
     ShowMoveNotice,
     MoveSelect(i8),
     AppendChar(char),

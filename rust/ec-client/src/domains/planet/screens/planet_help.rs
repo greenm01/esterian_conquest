@@ -7,7 +7,7 @@ use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
 
 pub struct PlanetHelpScreen;
 
-const HELP_LINES: [&str; 13] = [
+const HELP_LINES: [&str; 14] = [
     "<A> - automatically commission armies and batteries for your planets",
     "<B> - open the build menu to spend production on local construction",
     "<C> - open the commission menu for fine-grained ground-defense control",
@@ -21,6 +21,7 @@ const HELP_LINES: [&str; 13] = [
     "<T> - set the empire-wide tax rate used for yearly revenue",
     "<U> - unload transport fleets with armies at a planet",
     "<V> - display a partial starmap centered where you choose",
+    "<X> - hide/show command menus",
 ];
 
 impl PlanetHelpScreen {

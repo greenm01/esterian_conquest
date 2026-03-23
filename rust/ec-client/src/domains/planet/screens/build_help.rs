@@ -7,7 +7,7 @@ use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
 
 pub struct BuildHelpScreen;
 
-const HELP_LINES: [&str; 13] = [
+const HELP_LINES: [&str; 14] = [
     "<S> - specify build orders using this planet's current-turn PP budget",
     "<L> - list units in the build queue and units already waiting in stardock",
     "<R> - review this planet's production, spending, and queued construction",
@@ -15,6 +15,7 @@ const HELP_LINES: [&str; 13] = [
     "<N> - move to the next owned planet in the build cycle",
     "<A> - abort queued build orders on the current planet",
     "<Q> - return to the Build Command menu",
+    "<X> - hide/show command menus",
     "",
     "Build queue = work still in progress.  Those PP are already committed.",
     "Stardock   = completed ships and starbases waiting for commission.",

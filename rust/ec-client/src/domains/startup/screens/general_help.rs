@@ -6,7 +6,7 @@ use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
 
 pub struct GeneralHelpScreen;
 
-const HELP_LINES: [&str; 13] = [
+const HELP_LINES: [&str; 14] = [
     "<A> - allow maintenance to issue orders and builds automatically",
     "<C> - type and send messages to other players in the game",
     "<D> - delete all messages and result reports from your message base",
@@ -20,6 +20,7 @@ const HELP_LINES: [&str; 13] = [
     "<R> - display pending messages or reports",
     "<S> - display time left to play and other status information",
     "<V> - display a portion of the map; use M for the whole map",
+    "<X> - hide/show command menus",
 ];
 
 impl GeneralHelpScreen {

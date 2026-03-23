@@ -31,7 +31,7 @@ fn build_menu_renders_compact_queue_and_stardock_counts() {
         stardock_capacity: 10,
     };
 
-    let buffer = screen.render_menu(&view, None).expect("render menu");
+    let buffer = screen.render_menu(&view, None, false).expect("render menu");
 
     assert_eq!(
         buffer.plain_line(7),

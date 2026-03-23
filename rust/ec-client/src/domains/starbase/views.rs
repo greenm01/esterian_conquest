@@ -12,7 +12,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
     match app.current_screen {
         ScreenId::StarbaseMenu => app
             .starbase_menu
-            .render_with_notice(app.command_menu_notice.as_deref()),
+            .render_with_notice(app.command_menu_notice.as_deref(), app.expert_mode),
         ScreenId::StarbaseHelp => app.starbase_help.render(&frame),
         ScreenId::StarbaseList => app.starbase_list.render(
             &app.starbase_rows(),

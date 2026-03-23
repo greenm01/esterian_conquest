@@ -3,10 +3,10 @@ use std::path::PathBuf;
 
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
-use crate::app::{apply_action, App, AppConfig, AppOutcome};
-use crate::terminal::stdout::StdoutTerminal;
+use crate::app::{App, AppConfig, AppOutcome, apply_action};
 use crate::terminal::OutputEncoding;
 use crate::terminal::Terminal;
+use crate::terminal::stdout::StdoutTerminal;
 use crate::theme;
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {

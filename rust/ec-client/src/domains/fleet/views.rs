@@ -13,7 +13,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::FleetHelp => app.fleet_help.render(&frame),
         ScreenId::FleetMenu => app
             .fleet_menu
-            .render_with_notice(app.command_menu_notice.as_deref()),
+            .render_with_notice(app.command_menu_notice.as_deref(), app.expert_mode),
         ScreenId::FleetList(mode) => app.fleet_list.render(
             mode,
             &app.fleet_rows(),

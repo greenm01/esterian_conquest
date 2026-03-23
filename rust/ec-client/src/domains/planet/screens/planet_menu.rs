@@ -4,8 +4,8 @@ use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    MenuEntry, draw_command_prompt_at, draw_menu_entry, draw_menu_notice, draw_title_bar,
-    menu_prompt_row, new_playfield,
+    MenuEntry, draw_command_prompt_at, draw_expert_menu, draw_menu_entry, draw_menu_notice,
+    draw_title_bar, menu_prompt_row, new_playfield,
 };
 use crate::screen::{
     CommandMenu, PlanetListMode, PlanetListSort, PlanetTransportMode, PlayfieldBuffer, Screen,
@@ -54,8 +54,18 @@ impl PlanetMenuScreen {
     pub fn render_with_notice(
         &mut self,
         notice: Option<&str>,
+        expert_mode: bool,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
+        if expert_mode {
+            draw_expert_menu(
+                &mut buffer,
+                "PLANET COMMAND",
+                "H,Q,X,V,C,A,B,I,D,P,T,S,L,U",
+                notice,
+            );
+            return Ok(buffer);
+        }
         draw_title_bar(&mut buffer, 0, "PLANET COMMANDS:");
         for entry in TOP_ROW {
             draw_menu_entry(&mut buffer, 0, entry.col, entry.hotkey, entry.label);
@@ -94,7 +104,7 @@ impl Screen for PlanetMenuScreen {
         &mut self,
         _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_with_notice(None)
+        self.render_with_notice(None, false)
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {
@@ -126,11 +136,12 @@ impl Screen for PlanetMenuScreen {
             KeyCode::Char('a') | KeyCode::Char('A') => {
                 Action::Planet(PlanetAction::OpenAutoCommissionConfirm)
             }
-            KeyCode::Char('s') | KeyCode::Char('S') | KeyCode::Char('x') | KeyCode::Char('X') => {
+            KeyCode::Char('s') | KeyCode::Char('S') => {
                 Action::Planet(PlanetAction::OpenListSortPrompt(PlanetListMode::Stub(
                     planet_stub_label(key.code).unwrap_or(""),
                 )))
             }
+            KeyCode::Char('x') | KeyCode::Char('X') => Action::ToggleExpertMode,
             KeyCode::Char('l') | KeyCode::Char('L') => Action::Planet(
                 PlanetAction::OpenTransportPlanetSelect(PlanetTransportMode::Load),
             ),
@@ -147,9 +158,6 @@ fn planet_stub_label(code: KeyCode) -> Option<&'static str> {
     match code {
         KeyCode::Char('s') | KeyCode::Char('S') => {
             Some("Scorch-planet orders are not implemented yet.")
-        }
-        KeyCode::Char('x') | KeyCode::Char('X') => {
-            Some("Expert mode will follow after all command menus are finished.")
         }
         _ => None,
     }

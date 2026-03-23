@@ -53,7 +53,7 @@ fn seeded_fixture_copy(seed: u64) -> PathBuf {
 fn main_menu_renders_a_quote() {
     let mut screen = MainMenuScreen::new();
 
-    let buffer = screen.render_with_notice(None).expect("render menu");
+    let buffer = screen.render_with_notice(None, false).expect("render menu");
 
     let quote_rows: Vec<_> = (8..=23)
         .map(|row| buffer.plain_line(row))

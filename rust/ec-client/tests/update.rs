@@ -2391,6 +2391,83 @@ fn main_menu_notice_renders_below_fixed_command_row() {
 }
 
 #[test]
+fn main_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('x'))),
+        Action::ToggleExpertMode
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::ToggleExpertMode),
+        AppOutcome::Continue
+    );
+    assert!(app.expert_mode);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("expert main menu should render");
+    assert_eq!(
+        terminal.lines[0].trim_end(),
+        "MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D->"
+    );
+    assert_eq!(terminal.lines[1].trim_end(), "");
+    assert_eq!(terminal.lines[23].trim_end(), "");
+
+    assert_eq!(
+        apply_action(&mut app, Action::ToggleExpertMode),
+        AppOutcome::Continue
+    );
+    assert!(!app.expert_mode);
+    app.render(&mut terminal)
+        .expect("normal main menu should render");
+    assert_eq!(terminal.lines[0].trim_end(), "MAIN MENU:");
+}
+
+#[test]
+fn general_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::OpenGeneralMenu),
+        AppOutcome::Continue
+    );
+
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('x'))),
+        Action::ToggleExpertMode
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::ToggleExpertMode),
+        AppOutcome::Continue
+    );
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("expert general menu should render");
+    assert_eq!(
+        terminal.lines[0].trim_end(),
+        "GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E->"
+    );
+    assert_eq!(terminal.lines[1].trim_end(), "");
+}
+
+#[test]
 fn main_menu_a_key_maps_to_real_ansi_toggle() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
@@ -2562,6 +2639,37 @@ fn planet_menu_notice_renders_below_fixed_command_row() {
 }
 
 #[test]
+fn planet_menu_expert_mode_keeps_notice_below_top_prompt() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    app.expert_mode = true;
+    app.command_menu_notice = Some("No ships or starbases are waiting in stardock.".into());
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("expert planet menu should render");
+    assert_eq!(
+        terminal.lines[0].trim_end(),
+        "PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U->"
+    );
+    assert_eq!(terminal.lines[1].trim_end(), "");
+    assert_eq!(terminal.lines[2].trim_end(), "");
+    assert_eq!(terminal.lines[3].trim_end(), "");
+    assert!(terminal.lines[4].contains("Notice: No ships or starbases are waiting in stardock."));
+}
+
+#[test]
 fn planet_commission_menu_renders_without_crashing_when_no_stardock_units_exist() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
@@ -2713,6 +2821,61 @@ fn planet_build_menu_matches_verified_v15_command_layout() {
         terminal.lines[17].trim_end(),
         "Build queue: [0/10]   Stardock: [4/10]"
     );
+}
+
+#[test]
+fn expert_mode_survives_command_menu_navigation_and_non_menu_screens_render_normally() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(&mut app, Action::ToggleExpertMode),
+        AppOutcome::Continue
+    );
+    assert!(app.expert_mode);
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenMenu)),
+        AppOutcome::Continue
+    );
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("expert planet menu should render");
+    assert_eq!(
+        terminal.lines[0].trim_end(),
+        "PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U->"
+    );
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildMenu)),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal)
+        .expect("expert build menu should render");
+    assert_eq!(
+        terminal.lines[0].trim_end(),
+        "BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I->"
+    );
+    assert_eq!(terminal.lines[1].trim_end(), "");
+
+    assert_eq!(
+        apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildList)),
+        AppOutcome::Continue
+    );
+    app.render(&mut terminal)
+        .expect("build list should still render normally");
+    assert_eq!(
+        terminal.lines[0].trim_end(),
+        "BUILD LIST: \"Codex Prime\" AT [16,13]:"
+    );
+    assert!(terminal.lines[4].contains("┌"));
 }
 
 #[test]
@@ -4371,7 +4534,7 @@ fn fleet_menu_long_notice_wraps_instead_of_clipping() {
 }
 
 #[test]
-fn fleet_menu_expert_mode_shows_notice_on_menu() {
+fn fleet_menu_x_toggles_expert_mode_and_hides_menu_chrome() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -4388,36 +4551,23 @@ fn fleet_menu_expert_mode_shows_notice_on_menu() {
 
     assert_eq!(
         app.handle_key(key(KeyCode::Char('x'))),
-        Action::Fleet(FleetAction::ShowExpertModeNotice)
+        Action::ToggleExpertMode
     );
     assert_eq!(
-        apply_action(&mut app, Action::Fleet(FleetAction::ShowExpertModeNotice)),
+        apply_action(&mut app, Action::ToggleExpertMode),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
+    assert!(app.expert_mode);
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
-        .expect("fleet menu should render expert notice");
+        .expect("expert fleet menu should render");
     assert_eq!(
-        terminal.lines[6].trim_end(),
+        terminal.lines[0].trim_end(),
         "FLEET COMMAND <-H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U->"
     );
-    assert_eq!(terminal.lines[7].trim_end(), "");
-    assert_eq!(terminal.lines[8].trim_end(), "");
-    assert_eq!(terminal.lines[9].trim_end(), "");
-    let wrapped_notice = [
-        &terminal.lines[10],
-        &terminal.lines[11],
-        &terminal.lines[12],
-    ]
-    .into_iter()
-    .flat_map(|line| line.split_whitespace())
-    .collect::<Vec<_>>()
-    .join(" ");
-    assert!(
-        wrapped_notice.contains("Expert mode not implemented yet. Plan for Helix style commands.")
-    );
+    assert_eq!(terminal.lines[1].trim_end(), "");
 }
 
 #[test]

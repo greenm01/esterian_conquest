@@ -7,8 +7,8 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::quotes::{self, Quote};
 use crate::screen::layout::{
-    MenuEntry, PLAYFIELD_WIDTH, draw_command_prompt_at, draw_menu_notice, draw_menu_row,
-    draw_title_bar, last_body_row, new_playfield, wrap_text,
+    MenuEntry, PLAYFIELD_WIDTH, draw_command_prompt_at, draw_expert_menu, draw_menu_notice,
+    draw_menu_row, draw_title_bar, last_body_row, new_playfield, wrap_text,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
@@ -41,8 +41,18 @@ impl MainMenuScreen {
     pub fn render_with_notice(
         &mut self,
         notice: Option<&str>,
+        expert_mode: bool,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
+        if expert_mode {
+            draw_expert_menu(
+                &mut buffer,
+                "MAIN COMMAND",
+                "H,Q,X,V,A,G,P,F,T,I,B,D",
+                notice,
+            );
+            return Ok(buffer);
+        }
         draw_title_bar(&mut buffer, 0, "MAIN MENU: ");
         draw_menu_row(
             &mut buffer,
@@ -140,13 +150,14 @@ impl Screen for MainMenuScreen {
         &mut self,
         _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_with_notice(None)
+        self.render_with_notice(None, false)
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenMainHelp,
             KeyCode::Char('a') | KeyCode::Char('A') => Action::ToggleAnsiMode,
+            KeyCode::Char('x') | KeyCode::Char('X') => Action::ToggleExpertMode,
             KeyCode::Char('b') | KeyCode::Char('B') => Action::Empire(EmpireAction::OpenStatus),
             KeyCode::Char('d') | KeyCode::Char('D') => Action::Empire(EmpireAction::OpenProfile),
             KeyCode::Char('f') | KeyCode::Char('F') => Action::Fleet(FleetAction::OpenMenu),

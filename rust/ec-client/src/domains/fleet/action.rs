@@ -4,7 +4,6 @@ use crate::screen::FleetListMode;
 pub enum FleetAction {
     OpenMenu,
     OpenHelp,
-    ShowExpertModeNotice,
     OpenList(FleetListMode),
     OpenReviewSelect,
     OpenReview,

@@ -12,7 +12,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
     match app.current_screen {
         ScreenId::PlanetMenu => app
             .planet_menu
-            .render_with_notice(app.command_menu_notice.as_deref()),
+            .render_with_notice(app.command_menu_notice.as_deref(), app.expert_mode),
         ScreenId::PlanetHelp => app.planet_help.render(&frame),
         ScreenId::PlanetAutoCommissionConfirm => app.planet_auto_commission.render_confirm(),
         ScreenId::PlanetAutoCommissionDone => app.planet_auto_commission.render_done(
@@ -70,6 +70,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         ScreenId::PlanetBuildMenu => app.planet_build.render_menu(
             &app.current_planet_build_view()?,
             app.planet.build_status.as_deref(),
+            app.expert_mode,
         ),
         ScreenId::PlanetBuildReview => app.planet_build.render_review(
             &app.current_planet_build_view()?,

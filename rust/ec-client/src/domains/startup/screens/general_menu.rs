@@ -7,8 +7,8 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
-    CMD_COL_1, CMD_COL_2, MenuEntry, draw_command_center, draw_menu_notice, menu_prompt_row,
-    new_playfield,
+    CMD_COL_1, CMD_COL_2, MenuEntry, draw_command_center, draw_expert_menu, draw_menu_notice,
+    menu_prompt_row, new_playfield,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 
@@ -51,8 +51,18 @@ impl GeneralMenuScreen {
         &mut self,
         frame: &ScreenFrame<'_>,
         notice: Option<&str>,
+        expert_mode: bool,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
+        if expert_mode {
+            draw_expert_menu(
+                &mut buffer,
+                "GENERAL COMMAND",
+                "H,Q,X,V,I,A,S,P,M,C,R,D,O,E",
+                notice,
+            );
+            return Ok(buffer);
+        }
         draw_command_center(
             &mut buffer,
             "GENERAL COMMAND CENTER:",
@@ -73,7 +83,7 @@ impl Screen for GeneralMenuScreen {
         &mut self,
         frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_with_notice(frame, None)
+        self.render_with_notice(frame, None, false)
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {
@@ -100,6 +110,7 @@ impl Screen for GeneralMenuScreen {
                 EmpireAction::OpenRankingsTable(ec_data::EmpireProductionRankingSort::Production),
             ),
             KeyCode::Char('r') | KeyCode::Char('R') => Action::Startup(StartupAction::OpenReports),
+            KeyCode::Char('x') | KeyCode::Char('X') => Action::ToggleExpertMode,
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::OpenMainMenu,
             _ => Action::Noop,
         }

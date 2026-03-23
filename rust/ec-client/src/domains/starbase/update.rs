@@ -9,7 +9,6 @@ pub fn update(app: &mut App, action: StarbaseAction) {
         StarbaseAction::OpenList => open_list(app),
         StarbaseAction::OpenReviewSelect => open_review_select(app),
         StarbaseAction::OpenReview => open_review(app),
-        StarbaseAction::ShowExpertModeNotice => show_expert_mode_notice(app),
         StarbaseAction::ShowMoveNotice => show_move_notice(app),
         StarbaseAction::MoveSelect(delta) => {
             let player_idx = app.player.record_index_1_based;
@@ -94,13 +93,6 @@ fn open_review(app: &mut App) {
     };
     app.starbase.review_index = app.starbase.cursor;
     app.current_screen = ScreenId::StarbaseReview;
-}
-
-fn show_expert_mode_notice(app: &mut App) {
-    app.show_command_menu_notice(
-        CommandMenu::Starbase,
-        "Expert mode not implemented yet. Plan for Helix style commands.",
-    );
 }
 
 fn show_move_notice(app: &mut App) {

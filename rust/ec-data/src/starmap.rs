@@ -46,12 +46,12 @@ impl PlayerStarmapProjection {
             rows.push(render_border_row(start_x, end_x, true));
 
             for y in (1..=height).rev() {
-                let mut row = format!("{y:>2} |");
+                let mut row = format!("{y:02} |");
                 for x in start_x..=end_x {
                     let ch = if occupied[y][x] { '*' } else { ' ' };
                     row.push_str(&format!(" {ch}  "));
                 }
-                row.push_str(&format!("| {y:>2}"));
+                row.push_str(&format!("| {y:02}"));
                 rows.push(row);
                 rows.push(render_border_row(start_x, end_x, y == 1));
             }
@@ -108,7 +108,7 @@ impl PlayerStarmapProjection {
                 .unwrap_or_else(|| "-".to_string());
 
             out.push_str(&format!(
-                "({:>2},{:>2})  {:<14}  OWNER {:<20}  PROD {:>3}  ARM {:>3}  BAT {:>3}\n",
+                "({:02},{:02})  {:<14}  OWNER {:<20}  PROD {:>3}  ARM {:>3}  BAT {:>3}\n",
                 world.coords[0], world.coords[1], known_name, owner, prod, armies, batteries
             ));
         }
@@ -133,7 +133,7 @@ impl PlayerStarmapProjection {
             let end_x = usize::min(start_x + 17, width);
             out.push(',');
             for x in start_x..=end_x {
-                out.push_str(&x.to_string());
+                out.push_str(&format!("{x:02}"));
                 if x != end_x {
                     out.push(',');
                 }
@@ -141,7 +141,7 @@ impl PlayerStarmapProjection {
             out.push('\n');
 
             for y in (1..=height).rev() {
-                out.push_str(&y.to_string());
+                out.push_str(&format!("{y:02}"));
                 out.push(',');
                 for x in start_x..=end_x {
                     let cell = if occupied[y][x] { "*" } else { "" };
@@ -175,7 +175,7 @@ impl PlayerStarmapProjection {
                 || world.known_ground_batteries.is_some()
         }) {
             out.push_str(&format!(
-                "{},{},{},{},{},{},{},{}\n",
+                "{:02},{:02},{},{},{},{},{},{}\n",
                 world.coords[0],
                 world.coords[1],
                 csv_field(world.known_name.as_deref()),
@@ -205,7 +205,8 @@ impl PlayerStarmapProjection {
 fn render_header_row(start_x: usize, end_x: usize) -> String {
     let mut row = String::from("   ");
     for x in start_x..=end_x {
-        row.push_str(&format!("{x:>4}"));
+        let label = format!("{x:02}");
+        row.push_str(&format!("{label:>4}"));
     }
     row
 }

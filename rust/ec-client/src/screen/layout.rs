@@ -4,6 +4,7 @@ use crate::theme::classic;
 pub const PLAYFIELD_WIDTH: usize = 80;
 pub const PLAYFIELD_HEIGHT: usize = 25;
 pub const COMMAND_LINE_ROW: usize = PLAYFIELD_HEIGHT - 1;
+pub const EXPERT_MENU_PROMPT_ROW: usize = 0;
 pub const CMD_COL_1: usize = 2;
 pub const CMD_COL_2: usize = 26;
 
@@ -101,6 +102,18 @@ pub fn draw_command_center(
         prompt_label,
         prompt_keys,
     );
+}
+
+pub fn draw_expert_menu(
+    buffer: &mut PlayfieldBuffer,
+    prompt_label: &str,
+    prompt_keys: &str,
+    notice: Option<&str>,
+) {
+    draw_command_prompt_at(buffer, EXPERT_MENU_PROMPT_ROW, prompt_label, prompt_keys);
+    if let Some(notice) = notice {
+        draw_menu_notice(buffer, EXPERT_MENU_PROMPT_ROW, notice);
+    }
 }
 
 pub fn draw_menu_entry(

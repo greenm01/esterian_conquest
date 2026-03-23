@@ -10,13 +10,6 @@ use crate::domains::fleet::FleetAction;
 use crate::screen::{CommandMenu, FleetEtaMode, FleetListMode, FleetRow, ScreenId};
 
 impl App {
-    pub fn show_fleet_expert_mode_notice(&mut self) {
-        self.show_command_menu_notice(
-            CommandMenu::Fleet,
-            "Expert mode not implemented yet. Plan for Helix style commands.",
-        );
-    }
-
     pub fn open_fleet_menu(&mut self) {
         self.clear_command_menu_notice();
         self.current_screen = ScreenId::FleetMenu;

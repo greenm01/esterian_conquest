@@ -6,9 +6,9 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    MenuEntry, draw_command_prompt_at, draw_dismiss_prompt, draw_help_panel, draw_menu_entry,
-    draw_menu_notice, draw_status_line, draw_table_command_bar_at, draw_title_bar, menu_prompt_row,
-    new_playfield, standard_table_visible_rows, table_prompt_row,
+    MenuEntry, draw_command_prompt_at, draw_dismiss_prompt, draw_expert_menu, draw_help_panel,
+    draw_menu_entry, draw_menu_notice, draw_status_line, draw_table_command_bar_at, draw_title_bar,
+    menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords_padded};
@@ -66,8 +66,13 @@ impl StarbaseMenuScreen {
     pub fn render_with_notice(
         &mut self,
         notice: Option<&str>,
+        expert_mode: bool,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
+        if expert_mode {
+            draw_expert_menu(&mut buffer, "STARBASE COMMAND", "H,Q,X,S,R,V,I,M", notice);
+            return Ok(buffer);
+        }
         draw_title_bar(&mut buffer, 0, "STARBASE CONTROL:");
         for entry in TOP_ROW {
             draw_menu_entry(&mut buffer, 0, entry.col, entry.hotkey, entry.label);
@@ -103,7 +108,7 @@ impl Screen for StarbaseMenuScreen {
         &mut self,
         _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_with_notice(None)
+        self.render_with_notice(None, false)
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {
@@ -112,9 +117,7 @@ impl Screen for StarbaseMenuScreen {
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                 Action::Fleet(FleetAction::OpenMenu)
             }
-            KeyCode::Char('x') | KeyCode::Char('X') => {
-                Action::Starbase(StarbaseAction::ShowExpertModeNotice)
-            }
+            KeyCode::Char('x') | KeyCode::Char('X') => Action::ToggleExpertMode,
             KeyCode::Char('s') | KeyCode::Char('S') => Action::Starbase(StarbaseAction::OpenList),
             KeyCode::Char('r') | KeyCode::Char('R') => {
                 Action::Starbase(StarbaseAction::OpenReviewSelect)

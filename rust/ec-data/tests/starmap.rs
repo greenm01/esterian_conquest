@@ -184,7 +184,7 @@ fn ascii_map_export_uses_printable_paged_grid() {
         let rendered = projection.render_ascii_map();
         assert_eq!(rendered.contains('\u{0c}'), expect_formfeed);
         assert!(rendered.contains('*'));
-        assert!(rendered.contains("   1"));
-        assert!(rendered.contains(&format!("{height:>4}")));
+        assert!(rendered.contains("  01"));
+        assert!(rendered.contains(&format!("{:>4}", format!("{height:02}"))));
     }
 }

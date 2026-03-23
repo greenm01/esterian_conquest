@@ -8,7 +8,7 @@ use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
     MenuEntry, draw_command_line_default_input_at, draw_command_line_text_at, draw_command_prompt,
-    draw_command_prompt_at, draw_menu_entry, draw_menu_notice, draw_status_line,
+    draw_command_prompt_at, draw_expert_menu, draw_menu_entry, draw_menu_notice, draw_status_line,
     draw_table_command_bar_at, draw_title_bar, menu_prompt_row, new_playfield,
     standard_table_visible_rows, table_prompt_row,
 };
@@ -273,8 +273,18 @@ impl FleetMenuScreen {
     pub fn render_with_notice(
         &mut self,
         notice: Option<&str>,
+        expert_mode: bool,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
+        if expert_mode {
+            draw_expert_menu(
+                &mut buffer,
+                "FLEET COMMAND",
+                "H,Q,X,V,S,B,F,R,E,C,I,D,T,O,G,M,L,U",
+                notice,
+            );
+            return Ok(buffer);
+        }
         buffer.fill_row(0, classic::menu_style());
         draw_title_bar(&mut buffer, 0, "FLEET COMMAND CENTER:");
         for entry in TOP_ROW {
@@ -319,7 +329,7 @@ impl Screen for FleetMenuScreen {
         &mut self,
         _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_with_notice(None)
+        self.render_with_notice(None, false)
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {
@@ -353,9 +363,7 @@ impl Screen for FleetMenuScreen {
                 PlanetAction::OpenInfoPrompt(crate::screen::CommandMenu::Fleet),
             ),
             KeyCode::Char('g') | KeyCode::Char('G') => Action::Fleet(FleetAction::OpenGroupOrder),
-            KeyCode::Char('x') | KeyCode::Char('X') => {
-                Action::Fleet(FleetAction::ShowExpertModeNotice)
-            }
+            KeyCode::Char('x') | KeyCode::Char('X') => Action::ToggleExpertMode,
             _ => Action::Noop,
         }
     }

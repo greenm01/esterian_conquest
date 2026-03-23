@@ -23,7 +23,7 @@ pub enum Action {
     OpenGeneralMenu,
     OpenGeneralHelp,
     ToggleAnsiMode,
-    ShowFleetExpertModeNotice,
+    ToggleExpertMode,
     ReturnToCommandMenu,
     ToggleAutopilot,
     Quit,

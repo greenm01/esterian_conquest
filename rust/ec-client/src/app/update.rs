@@ -64,8 +64,8 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             let _ = crate::theme::toggle_ansi_mode();
             AppOutcome::Continue
         }
-        Action::ShowFleetExpertModeNotice => {
-            app.show_fleet_expert_mode_notice();
+        Action::ToggleExpertMode => {
+            app.toggle_expert_mode();
             AppOutcome::Continue
         }
         Action::ReturnToCommandMenu => {

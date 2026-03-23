@@ -6,7 +6,7 @@ use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
 
 pub struct MainHelpScreen;
 
-const HELP_LINES: [&str; 11] = [
+const HELP_LINES: [&str; 12] = [
     "<A> - toggle ANSI color mode ON/OFF",
     "<B> - display all empire information in brief format",
     "<D> - display all empire information in detailed format",
@@ -18,6 +18,7 @@ const HELP_LINES: [&str; 11] = [
     "<Q> - quit Esterian Conquest and returns you back to Jump Start",
     "<T> - list database information about planets",
     "<V> - display a portion of the map (goto GENERAL MENU for entire map)",
+    "<X> - hide/show command menus",
 ];
 
 impl MainHelpScreen {

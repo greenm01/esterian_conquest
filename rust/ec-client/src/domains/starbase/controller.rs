@@ -4,13 +4,6 @@ use crate::domains::starbase::StarbaseAction;
 use crate::screen::{CommandMenu, ScreenId, StarbaseRow};
 
 impl App {
-    pub fn show_starbase_expert_mode_notice(&mut self) {
-        self.show_command_menu_notice(
-            CommandMenu::Starbase,
-            "Expert mode not implemented yet. Plan for Helix style commands.",
-        );
-    }
-
     pub fn show_starbase_move_notice(&mut self) {
         self.show_command_menu_notice(
             CommandMenu::Starbase,

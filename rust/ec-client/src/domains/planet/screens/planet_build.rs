@@ -6,8 +6,8 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
     CMD_COL_1, MenuEntry, centered_row, draw_command_line_default_input_at, draw_command_prompt_at,
-    draw_dismiss_prompt, draw_menu_row, draw_status_line, draw_title_bar, last_body_row,
-    menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
+    draw_dismiss_prompt, draw_expert_menu, draw_menu_row, draw_status_line, draw_title_bar,
+    last_body_row, menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
     SplitTableRow, TableColumn, write_split_table, write_table_window_with_cursor,
@@ -195,8 +195,18 @@ impl PlanetBuildScreen {
         &mut self,
         view: &PlanetBuildMenuView,
         status: Option<&str>,
+        expert_mode: bool,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
+        if expert_mode {
+            draw_expert_menu(
+                &mut buffer,
+                "BUILD COMMAND",
+                "H,Q,X,V,P,R,C,N,S,A,L,I",
+                status,
+            );
+            return Ok(buffer);
+        }
         draw_title_bar(
             &mut buffer,
             0,
@@ -662,6 +672,7 @@ impl PlanetBuildScreen {
                     crate::screen::PlanetListSort::CurrentProduction,
                 ))
             }
+            KeyCode::Char('x') | KeyCode::Char('X') => Action::ToggleExpertMode,
             _ => Action::Noop,
         }
     }

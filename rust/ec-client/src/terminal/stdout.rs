@@ -2,9 +2,9 @@ use std::io::{self, IsTerminal, Write};
 
 use crate::screen::{AnsiColor, CellStyle, PlayfieldBuffer};
 use crate::screen::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
-use crate::terminal::cp437;
 use crate::terminal::OutputEncoding;
 use crate::terminal::Terminal;
+use crate::terminal::cp437;
 use crate::theme::classic;
 use crossterm::{
     cursor::{Hide, MoveTo, Show},

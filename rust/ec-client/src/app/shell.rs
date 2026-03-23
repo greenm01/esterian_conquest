@@ -52,6 +52,10 @@ impl App {
         self.current_screen = ScreenId::GeneralMenu;
     }
 
+    pub fn toggle_expert_mode(&mut self) {
+        self.expert_mode = !self.expert_mode;
+    }
+
     pub fn return_to_command_menu(&mut self) {
         if let Some(screen) = self.return_screen.take() {
             self.current_screen = screen;

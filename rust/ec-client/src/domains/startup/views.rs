@@ -100,11 +100,13 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         }
         ScreenId::MainMenu => app
             .main_menu
-            .render_with_notice(app.command_menu_notice.as_deref()),
+            .render_with_notice(app.command_menu_notice.as_deref(), app.expert_mode),
         ScreenId::MainHelp => app.main_help.render(&frame),
-        ScreenId::GeneralMenu => app
-            .general_menu
-            .render_with_notice(&frame, app.command_menu_notice.as_deref()),
+        ScreenId::GeneralMenu => app.general_menu.render_with_notice(
+            &frame,
+            app.command_menu_notice.as_deref(),
+            app.expert_mode,
+        ),
         ScreenId::GeneralHelp => app.general_help.render(&frame),
         ScreenId::Reports => app
             .reports
