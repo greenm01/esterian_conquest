@@ -5,42 +5,6 @@
 _Inspired by Esterian Conquest (c) 1992 Bentley C. Griffith.
 A fan-built resurrection -- not affiliated with the original._
 
-EC is a Rust reimplementation of the original game, with classic `.DAT`
-interoperability, a growing native client, and a maintenance engine that can
-already support serious campaign testing.
-
-Esterian Conquest is an asynchronous turn-based strategy game: players submit
-orders during the year, and maintenance resolves the turn.
-
-**[Read the Grand Vision: From BBS to the Decentralized Web](docs/grand-vision.md)**
-
-**[How EC Was Recovered](docs/reverse_engineering/README.md)**
-
-EC aims to carry Esterian Conquest forward without discarding what made the
-original game distinct: the yearly turn rhythm, the empire reports, the starmap
-drama, the asymmetrical scouting and warfare, and the old BBS command feel.
-
-The immediate goal is a modern drop-in replacement for the classic door stack,
-with:
-
-- a canonical Rust game engine with SQLite-native runtime state
-- an explicit `ec-compat` classic file bridge for classic import/export and
-  compatibility validation
-- a Rust sysop/admin/compatibility toolchain
-- a Rust player client intended to replace `ECGAME`
-
-The current project state is practical rather than speculative. The Rust engine
-can already create campaigns, process maintenance, interoperate with classic
-directories, and support hybrid play with the original DOS client where that is
-still useful. Normal Rust runtime/client flows now use `ecgame.db` as the
-authoritative state; classic `.DAT` files are handled explicitly through CLI
-import/export/oracle workflows rather than as live engine dependencies.
-
-The crate boundary is now explicit as well: `ec-data` owns runtime/store/model
-state and shared plain payload types, while `ec-engine` owns gameplay rule
-execution over that state, including maintenance, movement/pathfinding, and
-setup/map generation.
-
 ## Premise
 
 Beyond the mapped frontiers of the old Esterian dominion lies a small galaxy
@@ -53,6 +17,41 @@ identity of the original game, but to keep its campaign feel, menus, reports,
 and old-school tension while replacing the DOS runtime with a modern Rust
 implementation.
 
+## Play
+
+There are three ways to run an Esterian Conquest campaign:
+
+- Hosted on a BBS as a door game
+- Shared on a remote host over SSH
+- Solo or hotseat on localhost
+
+The most natural way to play is hosted on a BBS, the way the game was
+originally designed. A sysop runs the engine, and players call in to submit
+orders and read reports through the door. That async rhythm — log in, review
+your empire, issue orders, log out, wait for the turn to resolve — is the
+heartbeat of EC.
+
+The same async feel works without BBS infrastructure. Put the campaign
+directory on a shared VPS or any machine with SSH access. Players submit turns
+on their own schedule, and a sysop runs maintenance when the year closes. Same
+game, same rhythm, no door framework required.
+
+You can also play solo or hotseat on your own machine. Create a campaign,
+submit turns for one or more empires, and run maintenance locally. No network,
+no server — just you and your terminal.
+
+The Rust client is cross-platform, built on crossterm, and runs on Linux,
+macOS, and Windows. Standalone packages are planned so you do not need a Rust
+toolchain to play. Until those ship, the [Quick Start](#quick-start) commands
+work with `cargo run` for anyone with a Rust environment.
+
+EC does not show you everything on one screen. The game exports your starmap
+as a printable text file and a companion CSV. Many players print the map or
+pull the CSV into a spreadsheet to track fleet positions, mark explored
+systems, and plan routes by hand. The Rust client has an interactive map
+viewer in the TUI, but pencil on a printed starmap is the old-school way and
+still a good one.
+
 ## Learn How To Play
 
 The player manual covers everything from quick-start basics through economy,
@@ -62,36 +61,45 @@ combat, fleet missions, and strategy:
 
 The original `.DOC` files are still preserved in [original/v1.5](original/v1.5).
 
-## Current State
+## Background
 
-EC is well past the stage of being a repo of notes and recovery experiments.
-Fresh Rust-backed campaigns can be created across all four documented player
-tiers (4, 9, 16, and 25 empires), and yearly turns run through a real Rust
-maintenance engine. The growing native Rust client already handles substantial
-parts of a campaign, and a supported hybrid loop lets you keep using the
-original DOS `ECGAME` for classic order entry and viewing whenever you want.
-Classic `.DAT` interoperability is preserved throughout, and the original
-manuals and binaries remain available as compatibility and historical
-references rather than as the center of day-to-day development.
+EC is a Rust reimplementation of the original Esterian Conquest, with classic
+`.DAT` interoperability, a growing native client, and a maintenance engine
+that can already support serious campaign testing. The project aims to carry
+the game forward without discarding what made it distinct: the yearly turn
+rhythm, the empire reports, the starmap drama, the asymmetrical scouting and
+warfare, and the old BBS command feel.
 
-It is not finished enough to call the reimplementation complete end to end, but
-it is usable for real development play, hybrid classic play, and campaign
-validation today. If you want to jump in immediately, start with
-[Quick Start](#quick-start).
+The immediate goal is a modern drop-in replacement for the classic door stack.
+A canonical Rust game engine uses SQLite-native runtime state. An explicit
+compatibility bridge handles classic `.DAT` import and export. The CLI
+provides sysop, admin, and compatibility tooling, and a Rust player client is
+intended to replace the original `ECGAME`.
 
-## Where EC Is Going
+The project is well past the stage of being a repo of notes and recovery
+experiments. Fresh Rust-backed campaigns can be created across all four
+documented player tiers (4, 9, 16, and 25 empires), and yearly turns run
+through a real Rust maintenance engine. The growing native client already
+handles substantial parts of a campaign, and classic `.DAT` interoperability
+is preserved throughout. The original manuals and binaries remain available as
+compatibility and historical references rather than as the center of
+day-to-day development. It is not finished enough to call the reimplementation
+complete end to end, but it is usable for real play, campaign validation, and
+development testing today.
 
-The project is converging on a full Rust-first stack. The shared state model
-lives in `ec-data`, gameplay and maintenance rules live in `ec-engine`, and an
-explicit `ec-compat` crate handles classic `.DAT` import/export so the
-compatibility boundary stays clean. On top of that, `maint-rust` processes
-turns, and `ec-client` is the growing player interface meant to replace
-`ECGAME`. Classic file interchange is treated as a compatibility edge rather
-than the core runtime path.
+The architecture is converging on a full Rust-first stack. The shared state
+model lives in `ec-data`, gameplay and maintenance rules live in `ec-engine`,
+and an explicit `ec-compat` crate handles classic `.DAT` import and export so
+the compatibility boundary stays clean. On top of that, `maint-rust` processes
+turns, and `ec-client` is the growing player interface. Classic file
+interchange is treated as a compatibility edge rather than the core runtime
+path. That future state still respects the original game — the DOS binaries,
+manuals, and data formats remain the primary reference for rules,
+compatibility, and historical feel.
 
-That future state still respects the original game. The DOS binaries, manuals,
-and data formats remain the primary reference for rules, compatibility, and
-historical feel.
+**[Read the Grand Vision: From BBS to the Decentralized Web](docs/grand-vision.md)**
+
+**[How EC Was Recovered](docs/reverse_engineering/README.md)**
 
 ## Compatibility And Provenance
 
@@ -105,67 +113,18 @@ explicit and reproducible instead. The heavy reverse-engineering phase is now
 closed for normal development; the oracle stack remains in place as a
 compatibility and regression backstop.
 
-## Where Rust Intentionally Differs
-
-This project does not treat strict byte-for-byte historical reproduction as the
-goal. Rust uses its own seeded combat system instead of the original hidden RNG,
-and all engine randomness is rooted in a persisted campaign seed so that results
-are reproducible. The Rust client may derive cosmetic presentation choices from
-that same seed, but those never affect gameplay or turn outcomes.
-Campaign-end handling is conservative and explicit rather than opaque, and
-report wording is Rust-native where exact original text is not required for
-compatibility. These differences are allowed by the project approach as long as
-the result stays faithful to the manuals and compatible with the original `.DAT`
-boundary.
+This project does not treat strict byte-for-byte historical reproduction as
+the goal. Rust uses its own seeded combat system instead of the original
+hidden RNG, and all engine randomness is rooted in a persisted campaign seed
+so that results are reproducible. The Rust client may derive cosmetic
+presentation choices from that same seed, but those never affect gameplay or
+turn outcomes. Campaign-end handling is conservative and explicit rather than
+opaque, and report wording is Rust-native where exact original text is not
+required for compatibility. These differences are allowed by the project
+approach as long as the result stays faithful to the manuals and compatible
+with the original `.DAT` boundary.
 
 For the detailed rationale, see [docs/approach.md](docs/dev/approach.md).
-
-## Local Dependencies
-
-For normal Rust development in this repo, the practical baseline is:
-
-- Rust toolchain with `cargo`
-- Python 3 for oracle/support scripts under `tools/`
-- `python-pexpect` if you want to use the DOSBox-X debugger helpers under
-  `tools/`
-- DOSBox-X if you want to launch the original DOS binaries locally or do
-  targeted compatibility/provenance work (`EC_UNLOCKED/` holds the stub-free
-  local-launch set, but DOSBox-X is currently the only verified runner for EC
-  v1.5)
-- Ghidra plus JDK 21 only if you want the headless static-analysis workflow
-
-Recommended local build-speed tooling:
-
-- `sccache`
-
-On Arch-based systems:
-
-```bash
-sudo pacman -S sccache python-pexpect dosbox-x ghidra jdk21-openjdk
-```
-
-If you use the packaged Arch/CachyOS Ghidra build, the practical repo settings
-are:
-
-```bash
-export GHIDRA_HOME=/opt/ghidra
-export JAVA_HOME=/usr/lib/jvm/java-21-openjdk
-```
-
-Then enable it in your local Cargo config:
-
-```toml
-[build]
-rustc-wrapper = "sccache"
-```
-
-Notes:
-
-- Cargo already uses multiple cores by default; there is no repo-local
-  `jobs = ...` override checked in here.
-- `sccache` is the preferred low-risk speedup for this workspace.
-- `mold` can help on some systems, but it is not required by the repo and is
-  not currently recommended as a documented baseline dependency.
 
 ## Quick Start
 
@@ -356,7 +315,7 @@ python3 scripts/setup_classic_probe_game.py /tmp/ec-classic-probe --force --no-l
 python3 scripts/run_client.py /tmp/ec-ui-stress --player 1
 ```
 
-For the original DOS client specifically, the fastest “busy campaign” probe is:
+For the original DOS client specifically, the fastest "busy campaign" probe is:
 
 ```bash
 python3 scripts/setup_classic_probe_game.py /tmp/ec-classic-probe --force
@@ -435,6 +394,53 @@ Run the broader validation sweeps:
 python3 tools/oracle_sweep.py --mode seeded
 python3 tools/rust_maint_sweep.py --turns 3
 ```
+
+## Local Dependencies
+
+For normal Rust development in this repo, the practical baseline is:
+
+- Rust toolchain with `cargo`
+- Python 3 for oracle/support scripts under `tools/`
+- `python-pexpect` if you want to use the DOSBox-X debugger helpers under
+  `tools/`
+- DOSBox-X if you want to launch the original DOS binaries locally or do
+  targeted compatibility/provenance work (`EC_UNLOCKED/` holds the stub-free
+  local-launch set, but DOSBox-X is currently the only verified runner for EC
+  v1.5)
+- Ghidra plus JDK 21 only if you want the headless static-analysis workflow
+
+Recommended local build-speed tooling:
+
+- `sccache`
+
+On Arch-based systems:
+
+```bash
+sudo pacman -S sccache python-pexpect dosbox-x ghidra jdk21-openjdk
+```
+
+If you use the packaged Arch/CachyOS Ghidra build, the practical repo settings
+are:
+
+```bash
+export GHIDRA_HOME=/opt/ghidra
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk
+```
+
+Then enable it in your local Cargo config:
+
+```toml
+[build]
+rustc-wrapper = "sccache"
+```
+
+Notes:
+
+- Cargo already uses multiple cores by default; there is no repo-local
+  `jobs = ...` override checked in here.
+- `sccache` is the preferred low-risk speedup for this workspace.
+- `mold` can help on some systems, but it is not required by the repo and is
+  not currently recommended as a documented baseline dependency.
 
 ## Read First
 
