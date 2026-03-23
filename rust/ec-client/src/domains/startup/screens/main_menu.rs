@@ -7,15 +7,16 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::quotes::{self, Quote};
 use crate::screen::layout::{
-    MenuEntry, PLAYFIELD_WIDTH, centered_row, draw_command_prompt, draw_menu_row, draw_title_bar,
-    draw_wrapped_status, last_body_row, new_playfield, wrap_text,
+    MenuEntry, PLAYFIELD_WIDTH, draw_command_prompt_at, draw_menu_row, draw_title_bar,
+    draw_wrapped_status, last_body_row, menu_prompt_row, new_playfield, wrap_text,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
 use crate::util::Lcg;
 
-/// Rows available for the quote display below the menu and above the command line.
-const QUOTE_FIRST_ROW: usize = 5;
+const MENU_PROMPT_ROW: usize = 6;
+/// Rows available for the quote display below the command line.
+const QUOTE_FIRST_ROW: usize = 8;
 const QUOTE_LAST_ROW: usize = last_body_row();
 const QUOTE_RNG_TAG: u64 = 0xEC15_434C_4951_5445;
 
@@ -82,17 +83,29 @@ impl MainMenuScreen {
             ],
         );
         if let Some(notice) = notice {
-            draw_wrapped_status(
+            let rows_used = draw_wrapped_status(
                 &mut buffer,
                 7,
                 last_body_row().saturating_sub(7) + 1,
                 "Notice: ",
                 notice,
             );
+            let last_content_row = 7 + rows_used.saturating_sub(1);
+            draw_command_prompt_at(
+                &mut buffer,
+                menu_prompt_row(last_content_row),
+                "MAIN COMMAND",
+                "H,Q,X,V,A,G,P,F,T,I,B,D",
+            );
         } else {
+            draw_command_prompt_at(
+                &mut buffer,
+                MENU_PROMPT_ROW,
+                "MAIN COMMAND",
+                "H,Q,X,V,A,G,P,F,T,I,B,D",
+            );
             self.draw_quote(&mut buffer, campaign_seed);
         }
-        draw_command_prompt(&mut buffer, 5, "MAIN COMMAND", "H,Q,X,V,A,G,P,F,T,I,B,D");
         Ok(buffer)
     }
 
@@ -117,21 +130,20 @@ impl MainMenuScreen {
         } else {
             wrapped.len()
         };
-        let block_height = quote_block_height(text_lines);
-        let start_row = centered_row(QUOTE_FIRST_ROW, QUOTE_LAST_ROW, block_height);
+        let author_row = QUOTE_LAST_ROW;
+        let start_row = author_row
+            .saturating_sub(text_lines + 1)
+            .max(QUOTE_FIRST_ROW);
 
         for (i, line) in wrapped.iter().take(text_lines).enumerate() {
             buffer.write_text(start_row + i, QUOTE_LEFT_COL, line, classic::quote_style());
         }
-        let author_row = start_row + text_lines + 1;
-        if author_row <= QUOTE_LAST_ROW {
-            buffer.write_text(
-                author_row,
-                QUOTE_LEFT_COL,
-                &author_line,
-                classic::quote_author_style(),
-            );
-        }
+        buffer.write_text(
+            author_row,
+            QUOTE_LEFT_COL,
+            &author_line,
+            classic::quote_author_style(),
+        );
     }
 }
 

@@ -4,8 +4,8 @@ use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    MenuEntry, draw_command_prompt, draw_menu_entry, draw_title_bar, draw_wrapped_status,
-    new_playfield,
+    MenuEntry, draw_command_prompt_at, draw_menu_entry, draw_title_bar, draw_wrapped_status,
+    menu_prompt_row, new_playfield,
 };
 use crate::screen::{
     CommandMenu, PlanetListMode, PlanetListSort, PlanetTransportMode, PlayfieldBuffer, Screen,
@@ -75,12 +75,14 @@ impl PlanetMenuScreen {
                 );
             }
         }
+        let mut last_content_row = 3;
         if let Some(notice) = notice {
-            draw_wrapped_status(&mut buffer, 16, 3, "Notice: ", notice);
+            let rows_used = draw_wrapped_status(&mut buffer, 16, 3, "Notice: ", notice);
+            last_content_row = 16 + rows_used.saturating_sub(1);
         }
-        draw_command_prompt(
+        draw_command_prompt_at(
             &mut buffer,
-            19,
+            menu_prompt_row(last_content_row),
             "PLANET COMMAND",
             "H,Q,X,V,C,A,B,I,D,P,T,S,L,U",
         );

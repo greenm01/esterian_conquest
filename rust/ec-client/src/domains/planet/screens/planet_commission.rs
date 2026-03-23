@@ -4,8 +4,8 @@ use std::collections::BTreeSet;
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    draw_status_line, draw_table_command_bar, draw_title_bar, new_playfield,
-    standard_table_visible_rows,
+    draw_status_line, draw_table_command_bar_at, draw_title_bar, new_playfield,
+    standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords};
@@ -94,7 +94,7 @@ impl PlanetCommissionScreen {
         } else {
             Some(cursor)
         };
-        write_table_window_with_cursor(
+        let metrics = write_table_window_with_cursor(
             &mut buffer,
             5,
             &COMMISSION_COLUMNS,
@@ -118,7 +118,13 @@ impl PlanetCommissionScreen {
         if let Some(status) = status {
             draw_status_line(&mut buffer, 17, "", status);
         }
-        draw_table_command_bar(&mut buffer, "<ARROWS H J K L SPACE Q>", None, "");
+        draw_table_command_bar_at(
+            &mut buffer,
+            table_prompt_row(metrics.bottom_row),
+            "<ARROWS H J K L SPACE Q>",
+            None,
+            "",
+        );
         Ok(buffer)
     }
 }

@@ -4,8 +4,9 @@ use ec_data::QueuedPlayerMail;
 use crate::app::Action;
 use crate::domains::messaging::MessagingAction;
 use crate::screen::layout::{
-    draw_command_line_default_input, draw_command_line_text, draw_command_prompt,
-    draw_table_command_bar, draw_title_bar, new_playfield, standard_table_visible_rows,
+    draw_command_line_default_input, draw_command_line_text_at, draw_command_prompt,
+    draw_table_command_bar_at, draw_title_bar, new_playfield, standard_table_visible_rows,
+    table_prompt_row,
 };
 use crate::screen::table::{TableColumn, format_empire_id, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, ScreenFrame};
@@ -64,7 +65,7 @@ impl MessageComposeScreen {
             })
             .collect::<Vec<_>>();
         let selected = if rows.is_empty() { None } else { Some(cursor) };
-        write_table_window_with_cursor(
+        let metrics = write_table_window_with_cursor(
             &mut buffer,
             5,
             &RECIPIENT_COLUMNS,
@@ -75,15 +76,22 @@ impl MessageComposeScreen {
             classic::status_value_style(),
             selected,
         );
+        let command_row = table_prompt_row(metrics.bottom_row);
         if let Some(status) = status {
-            draw_command_line_text(&mut buffer, "COMMANDS", status);
+            draw_command_line_text_at(&mut buffer, command_row, "COMMANDS", status);
         } else {
             let default_empire = rows
                 .get(cursor)
                 .and_then(|row| row.first())
                 .map(String::as_str)
                 .unwrap_or("");
-            draw_table_command_bar(&mut buffer, "<ARROWS J K D Q>", Some(default_empire), input);
+            draw_table_command_bar_at(
+                &mut buffer,
+                command_row,
+                "<ARROWS J K D Q>",
+                Some(default_empire),
+                input,
+            );
         }
         Ok(buffer)
     }
@@ -241,7 +249,7 @@ impl MessageComposeScreen {
             })
             .collect::<Vec<_>>();
         let selected = if rows.is_empty() { None } else { Some(cursor) };
-        write_table_window_with_cursor(
+        let metrics = write_table_window_with_cursor(
             &mut buffer,
             4,
             &OUTBOX_COLUMNS,
@@ -252,16 +260,18 @@ impl MessageComposeScreen {
             classic::status_value_style(),
             selected,
         );
+        let command_row = table_prompt_row(metrics.bottom_row);
         if let Some(status) = status {
-            draw_command_line_text(&mut buffer, "COMMANDS", status);
+            draw_command_line_text_at(&mut buffer, command_row, "COMMANDS", status);
         } else {
             let default_queue_no = if rows.is_empty() {
                 String::new()
             } else {
                 format!("{:02}", cursor + 1)
             };
-            draw_table_command_bar(
+            draw_table_command_bar_at(
                 &mut buffer,
+                command_row,
                 "<ARROWS J K Q>",
                 Some(&default_queue_no),
                 input,

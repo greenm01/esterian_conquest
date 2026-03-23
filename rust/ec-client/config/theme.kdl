@@ -1,0 +1,133 @@
+style "body" {
+    fg "bright_black"
+    bg "black"
+}
+style "title" {
+    fg "bright_blue"
+    bg "black"
+    bold #true
+}
+style "menu" {
+    fg "bright_black"
+    bg "black"
+}
+style "menu_hotkey" {
+    fg "yellow"
+    bg "black"
+    bold #true
+}
+style "prompt" {
+    fg "bright_black"
+    bg "black"
+}
+style "prompt_hotkey" {
+    fg "yellow"
+    bg "black"
+    bold #true
+}
+style "prompt_notice_action" {
+    fg "bright_cyan"
+    bg "black"
+    bold #true
+}
+style "bright" {
+    fg "bright_white"
+    bg "black"
+    bold #true
+}
+style "logo" {
+    fg "bright_blue"
+    bg "black"
+    bold #true
+}
+style "intro_accent" {
+    fg "bright_blue"
+    bg "black"
+}
+style "intro_tribute" {
+    fg "bright_magenta"
+    bg "black"
+}
+style "stardate_label" {
+    fg "cyan"
+    bg "black"
+}
+style "stardate_week" {
+    fg "bright_cyan"
+    bg "black"
+}
+style "stardate_year" {
+    fg "yellow"
+    bg "black"
+}
+style "status_label" {
+    fg "bright_black"
+    bg "black"
+}
+style "status_value" {
+    fg "white"
+    bg "black"
+}
+style "table_chrome" {
+    fg "white"
+    bg "black"
+}
+style "table_header" {
+    fg "bright_blue"
+    bg "black"
+    bold #true
+}
+style "table_body" {
+    fg "white"
+    bg "black"
+}
+style "disabled_row" {
+    fg "bright_black"
+    bg "black"
+}
+style "selected" {
+    fg "black"
+    bg "bright_blue"
+}
+style "alert" {
+    fg "bright_white"
+    bg "red"
+    bold #true
+}
+style "help_header" {
+    fg "bright_blue"
+    bg "black"
+    bold #true
+}
+style "help_panel" {
+    fg "bright_black"
+    bg "black"
+}
+style "map_dot" {
+    fg "green"
+    bg "black"
+}
+style "map_crosshair" {
+    fg "bright_red"
+    bg "black"
+    bold #true
+}
+style "map_center" {
+    fg "bright_white"
+    bg "black"
+    bold #true
+}
+style "quote" {
+    fg "bright_black"
+    bg "black"
+}
+style "quote_author" {
+    fg "white"
+    bg "black"
+}
+style "report_header" {
+    fg "cyan"
+    bg "black"
+}
+
+star-colors "bright_blue" "bright_white" "white" "bright_yellow" "yellow" "bright_red"

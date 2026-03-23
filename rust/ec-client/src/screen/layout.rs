@@ -11,6 +11,24 @@ pub const fn last_body_row() -> usize {
     COMMAND_LINE_ROW - 1
 }
 
+pub const fn menu_prompt_row(last_content_row: usize) -> usize {
+    let desired = last_content_row + 2;
+    if desired > COMMAND_LINE_ROW {
+        COMMAND_LINE_ROW
+    } else {
+        desired
+    }
+}
+
+pub const fn table_prompt_row(table_bottom_row: usize) -> usize {
+    let desired = table_bottom_row + 1;
+    if desired > COMMAND_LINE_ROW {
+        COMMAND_LINE_ROW
+    } else {
+        desired
+    }
+}
+
 pub const fn centered_row(first_row: usize, last_row: usize, block_height: usize) -> usize {
     let available_rows = last_row.saturating_sub(first_row) + 1;
     first_row + available_rows.saturating_sub(block_height) / 2
@@ -68,7 +86,12 @@ pub fn draw_command_center(
     for (idx, row_entries) in rows.iter().enumerate() {
         draw_menu_row(buffer, idx + 1, row_entries);
     }
-    draw_command_prompt(buffer, rows.len() + 1, prompt_label, prompt_keys);
+    draw_command_prompt_at(
+        buffer,
+        menu_prompt_row(rows.len()),
+        prompt_label,
+        prompt_keys,
+    );
 }
 
 pub fn draw_menu_entry(
@@ -134,9 +157,13 @@ pub fn draw_centered_text(
 }
 
 pub fn draw_command_prompt(buffer: &mut PlayfieldBuffer, _row: usize, label: &str, keys: &str) {
-    buffer.fill_row(COMMAND_LINE_ROW, classic::prompt_style());
+    draw_command_prompt_at(buffer, COMMAND_LINE_ROW, label, keys);
+}
+
+pub fn draw_command_prompt_at(buffer: &mut PlayfieldBuffer, row: usize, label: &str, keys: &str) {
+    buffer.fill_row(row, classic::prompt_style());
     let prefix = buffer.write_spans(
-        COMMAND_LINE_ROW,
+        row,
         0,
         &[
             StyledSpan::new(label, classic::title_style()),
@@ -147,16 +174,11 @@ pub fn draw_command_prompt(buffer: &mut PlayfieldBuffer, _row: usize, label: &st
     if keys == "SLAP A KEY" {
         let slap_width = "(slap a key)".chars().count();
         let slap_col = PLAYFIELD_WIDTH.saturating_sub(suffix.chars().count() + slap_width);
-        write_slap_a_key(buffer, COMMAND_LINE_ROW, slap_col);
-        buffer.write_text(
-            COMMAND_LINE_ROW,
-            slap_col + slap_width,
-            suffix,
-            classic::prompt_style(),
-        );
+        write_slap_a_key(buffer, row, slap_col);
+        buffer.write_text(row, slap_col + slap_width, suffix, classic::prompt_style());
     } else {
         buffer.write_spans(
-            COMMAND_LINE_ROW,
+            row,
             prefix,
             &[
                 StyledSpan::new(keys, classic::prompt_hotkey_style()),
@@ -167,9 +189,18 @@ pub fn draw_command_prompt(buffer: &mut PlayfieldBuffer, _row: usize, label: &st
 }
 
 pub fn draw_command_line_text(buffer: &mut PlayfieldBuffer, label: &str, text: &str) {
-    buffer.fill_row(COMMAND_LINE_ROW, classic::prompt_style());
+    draw_command_line_text_at(buffer, COMMAND_LINE_ROW, label, text);
+}
+
+pub fn draw_command_line_text_at(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    label: &str,
+    text: &str,
+) {
+    buffer.fill_row(row, classic::prompt_style());
     buffer.write_spans(
-        COMMAND_LINE_ROW,
+        row,
         0,
         &[
             StyledSpan::new(label, classic::title_style()),
@@ -180,22 +211,35 @@ pub fn draw_command_line_text(buffer: &mut PlayfieldBuffer, label: &str, text: &
 }
 
 pub fn draw_command_line_prompt_text(buffer: &mut PlayfieldBuffer, label: &str, prompt: &str) {
-    buffer.fill_row(COMMAND_LINE_ROW, classic::prompt_style());
+    draw_command_line_prompt_text_at(buffer, COMMAND_LINE_ROW, label, prompt);
+}
+
+pub fn draw_command_line_prompt_text_at(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    label: &str,
+    prompt: &str,
+) {
+    buffer.fill_row(row, classic::prompt_style());
     let prefix = buffer.write_spans(
-        COMMAND_LINE_ROW,
+        row,
         0,
         &[
             StyledSpan::new(label, classic::title_style()),
             StyledSpan::new(" <- ", classic::prompt_style()),
         ],
     );
-    write_prompt_markup(buffer, COMMAND_LINE_ROW, prefix, prompt);
+    write_prompt_markup(buffer, row, prefix, prompt);
 }
 
 pub fn draw_command_line_notice(buffer: &mut PlayfieldBuffer, text: &str) {
-    buffer.fill_row(COMMAND_LINE_ROW, classic::prompt_style());
+    draw_command_line_notice_at(buffer, COMMAND_LINE_ROW, text);
+}
+
+pub fn draw_command_line_notice_at(buffer: &mut PlayfieldBuffer, row: usize, text: &str) {
+    buffer.fill_row(row, classic::prompt_style());
     let prefix = buffer.write_spans(
-        COMMAND_LINE_ROW,
+        row,
         0,
         &[StyledSpan::new("Notice: ", classic::prompt_style())],
     );
@@ -203,9 +247,9 @@ pub fn draw_command_line_notice(buffer: &mut PlayfieldBuffer, text: &str) {
     let suffix_col = PLAYFIELD_WIDTH.saturating_sub(suffix_width);
     let available = suffix_col.saturating_sub(prefix);
     let message = fit_inline_notice(text, available);
-    buffer.write_text(COMMAND_LINE_ROW, prefix, &message, classic::prompt_style());
-    buffer.write_text(COMMAND_LINE_ROW, suffix_col, " ", classic::prompt_style());
-    write_slap_a_key(buffer, COMMAND_LINE_ROW, suffix_col + 1);
+    buffer.write_text(row, prefix, &message, classic::prompt_style());
+    buffer.write_text(row, suffix_col, " ", classic::prompt_style());
+    write_slap_a_key(buffer, row, suffix_col + 1);
 }
 
 pub fn draw_command_line_default_input(
@@ -215,9 +259,20 @@ pub fn draw_command_line_default_input(
     default: &str,
     input: &str,
 ) -> usize {
-    buffer.fill_row(COMMAND_LINE_ROW, classic::prompt_style());
+    draw_command_line_default_input_at(buffer, COMMAND_LINE_ROW, label, prompt, default, input)
+}
+
+pub fn draw_command_line_default_input_at(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    label: &str,
+    prompt: &str,
+    default: &str,
+    input: &str,
+) -> usize {
+    buffer.fill_row(row, classic::prompt_style());
     let prefix = buffer.write_spans(
-        COMMAND_LINE_ROW,
+        row,
         0,
         &[
             StyledSpan::new(label, classic::title_style()),
@@ -230,14 +285,9 @@ pub fn draw_command_line_default_input(
             StyledSpan::new(" -> ", classic::prompt_style()),
         ],
     );
-    let written = buffer.write_text(
-        COMMAND_LINE_ROW,
-        prefix,
-        input,
-        classic::prompt_hotkey_style(),
-    );
+    let written = buffer.write_text(row, prefix, input, classic::prompt_hotkey_style());
     let cursor_col = prefix + written;
-    buffer.set_cursor(cursor_col as u16, COMMAND_LINE_ROW as u16);
+    buffer.set_cursor(cursor_col as u16, row as u16);
     cursor_col
 }
 
@@ -247,19 +297,29 @@ pub fn draw_table_command_bar(
     default: Option<&str>,
     input: &str,
 ) -> usize {
-    buffer.fill_row(COMMAND_LINE_ROW, classic::prompt_style());
+    draw_table_command_bar_at(buffer, COMMAND_LINE_ROW, hotkeys_markup, default, input)
+}
+
+pub fn draw_table_command_bar_at(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    hotkeys_markup: &str,
+    default: Option<&str>,
+    input: &str,
+) -> usize {
+    buffer.fill_row(row, classic::prompt_style());
     let mut col = buffer.write_spans(
-        COMMAND_LINE_ROW,
+        row,
         0,
         &[
             StyledSpan::new("COMMANDS", classic::title_style()),
             StyledSpan::new(" ", classic::prompt_style()),
         ],
     );
-    col = write_prompt_markup(buffer, COMMAND_LINE_ROW, col, hotkeys_markup);
+    col = write_prompt_markup(buffer, row, col, hotkeys_markup);
     if let Some(default) = default {
         col += buffer.write_spans(
-            COMMAND_LINE_ROW,
+            row,
             col,
             &[
                 StyledSpan::new(" [", classic::prompt_style()),
@@ -267,35 +327,44 @@ pub fn draw_table_command_bar(
                 StyledSpan::new("] -> ", classic::prompt_style()),
             ],
         );
-        let written =
-            buffer.write_text(COMMAND_LINE_ROW, col, input, classic::prompt_hotkey_style());
+        let written = buffer.write_text(row, col, input, classic::prompt_hotkey_style());
         let cursor_col = col + written;
-        buffer.set_cursor(cursor_col as u16, COMMAND_LINE_ROW as u16);
+        buffer.set_cursor(cursor_col as u16, row as u16);
         cursor_col
     } else {
-        buffer.write_text(COMMAND_LINE_ROW, col, " ->", classic::prompt_style());
+        buffer.write_text(row, col, " -> ", classic::prompt_style());
         0
     }
 }
 
 pub fn draw_table_command_prompt(buffer: &mut PlayfieldBuffer, prompt: &str) -> usize {
-    buffer.fill_row(COMMAND_LINE_ROW, classic::prompt_style());
+    draw_table_command_prompt_at(buffer, COMMAND_LINE_ROW, prompt)
+}
+
+pub fn draw_table_command_prompt_at(
+    buffer: &mut PlayfieldBuffer,
+    row: usize,
+    prompt: &str,
+) -> usize {
+    buffer.fill_row(row, classic::prompt_style());
     let prefix = buffer.write_spans(
-        COMMAND_LINE_ROW,
+        row,
         0,
         &[
             StyledSpan::new("COMMANDS", classic::title_style()),
             StyledSpan::new(" <- ", classic::prompt_style()),
         ],
     );
-    let cursor_col = write_prompt_markup(buffer, COMMAND_LINE_ROW, prefix, prompt);
-    buffer.set_cursor(cursor_col as u16, COMMAND_LINE_ROW as u16);
+    let prompt = ensure_cursor_gap(prompt);
+    let cursor_col = write_prompt_markup(buffer, row, prefix, &prompt);
+    buffer.set_cursor(cursor_col as u16, row as u16);
     cursor_col
 }
 
 pub fn draw_plain_prompt(buffer: &mut PlayfieldBuffer, row: usize, prompt: &str) -> usize {
     buffer.fill_row(row, classic::prompt_style());
-    let cursor_col = write_prompt_markup(buffer, row, 0, prompt);
+    let prompt = ensure_cursor_gap(prompt);
+    let cursor_col = write_prompt_markup(buffer, row, 0, &prompt);
     buffer.set_cursor(cursor_col as u16, row as u16);
     cursor_col
 }
@@ -372,6 +441,16 @@ fn fit_inline_notice(value: &str, max_width: usize) -> String {
         return ".".repeat(max_width);
     }
     chars[..max_width - 3].iter().collect::<String>() + "..."
+}
+
+fn ensure_cursor_gap(prompt: &str) -> String {
+    if prompt.ends_with("-> ") {
+        prompt.to_string()
+    } else if prompt.ends_with("->") {
+        format!("{prompt} ")
+    } else {
+        prompt.to_string()
+    }
 }
 
 fn write_slap_a_key(buffer: &mut PlayfieldBuffer, row: usize, col: usize) -> usize {

@@ -201,12 +201,18 @@ widget-layout TUI frameworks:
 - keep one shared internal table widget for all tabular screens, with the
   standard presentation defined in
   [ec-client-table-standard.md](ec-client-table-standard.md)
+- keep the visual palette and semantic color tokens defined in
+  [tui_style_guide.md](tui_style_guide.md)
 - keep table browse/prompt rows on the shared `COMMANDS` grammar rather than
   per-screen command labels
 - use one restrained Tokyo Night-inspired dark theme across the whole client
   instead of mixing bright inverse DOS bars with dark-body screens
 - use split tables only when a screen genuinely needs two synchronized halves;
   grouped or stacked headers are not the normal list standard
+- bootstrap the default theme KDL into the platform-standard user config
+  directory on first run and load that file on startup
+- keep interactive styling on `crossterm` rather than hand-built ANSI escape
+  strings so Linux, macOS, and Windows terminal behavior stays aligned
 
 In other words: DRY the rendering pipeline, not the classic screen geometry.
 

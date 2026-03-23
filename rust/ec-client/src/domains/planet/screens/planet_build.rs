@@ -5,8 +5,9 @@ use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    CMD_COL_1, MenuEntry, draw_command_line_default_input, draw_command_prompt, draw_menu_row,
-    draw_status_line, draw_title_bar, new_playfield, standard_table_visible_rows,
+    CMD_COL_1, MenuEntry, draw_command_line_default_input_at, draw_command_prompt,
+    draw_command_prompt_at, draw_menu_row, draw_status_line, draw_title_bar, menu_prompt_row,
+    new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{
     SplitTableRow, TableColumn, write_split_table, write_table_window_with_cursor,
@@ -266,10 +267,17 @@ impl PlanetBuildScreen {
             classic::status_value_style(),
         );
 
+        let mut last_content_row = 12;
         if let Some(status) = status {
             draw_status_line(&mut buffer, 14, "", status);
+            last_content_row = 14;
         }
-        draw_command_prompt(&mut buffer, 19, "BUILD COMMAND", "H,Q,X,V,P,R,C,N,S,A,L,I");
+        draw_command_prompt_at(
+            &mut buffer,
+            menu_prompt_row(last_content_row),
+            "BUILD COMMAND",
+            "H,Q,X,V,P,R,C,N,S,A,L,I",
+        );
         Ok(buffer)
     }
 
@@ -396,7 +404,7 @@ impl PlanetBuildScreen {
             .collect();
 
         let selected = if rows.is_empty() { None } else { Some(cursor) };
-        write_table_window_with_cursor(
+        let metrics = write_table_window_with_cursor(
             &mut buffer,
             4,
             &BUILD_LIST_COLUMNS,
@@ -407,6 +415,7 @@ impl PlanetBuildScreen {
             classic::status_value_style(),
             selected,
         );
+        let command_row = table_prompt_row(metrics.bottom_row);
 
         if rows.is_empty() {
             buffer.write_text(
@@ -424,9 +433,14 @@ impl PlanetBuildScreen {
                 "Delete queued build(s) for this unit? Y/[N]",
                 classic::alert_style(),
             );
-            draw_command_prompt(&mut buffer, 19, "BUILD COMMAND", "Y N");
+            draw_command_prompt_at(&mut buffer, command_row, "BUILD COMMAND", "Y N");
         } else {
-            draw_command_prompt(&mut buffer, 19, "BUILD COMMAND", "ARROWS D(elete queued) Q");
+            draw_command_prompt_at(
+                &mut buffer,
+                command_row,
+                "BUILD COMMAND",
+                "ARROWS D(elete queued) Q",
+            );
         }
         Ok(buffer)
     }
@@ -475,8 +489,9 @@ impl PlanetBuildScreen {
             classic::prompt_hotkey_style(),
         );
 
-        draw_command_line_default_input(
+        draw_command_line_default_input_at(
             &mut buffer,
+            14,
             "BUILD COMMAND",
             "Cancel these orders? ",
             "N",
@@ -493,7 +508,7 @@ impl PlanetBuildScreen {
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        draw_specify_table(&mut buffer, view, orders);
+        let table_metrics = draw_specify_table(&mut buffer, view, orders);
 
         let max_unit_num = BUILD_UNITS
             .iter()
@@ -504,8 +519,9 @@ impl PlanetBuildScreen {
         if let Some(status) = status {
             draw_status_line(&mut buffer, 14, "", status);
         }
-        draw_command_line_default_input(
+        draw_command_line_default_input_at(
             &mut buffer,
+            table_prompt_row(table_metrics.bottom_row),
             "BUILD COMMAND",
             &format!("Unit number or 0 if done (0 - {}) ", max_unit_num),
             "0",
@@ -524,13 +540,14 @@ impl PlanetBuildScreen {
         status: Option<&str>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
-        draw_specify_table(&mut buffer, view, orders);
+        let table_metrics = draw_specify_table(&mut buffer, view, orders);
 
         if let Some(status) = status {
             draw_status_line(&mut buffer, 14, "Error: ", status);
         }
-        draw_command_line_default_input(
+        draw_command_line_default_input_at(
             &mut buffer,
+            table_prompt_row(table_metrics.bottom_row),
             "BUILD COMMAND",
             &format!(
                 "How many new {} to build (0 - {}) ",
@@ -574,7 +591,7 @@ impl PlanetBuildScreen {
             .collect();
 
         let selected = if rows.is_empty() { None } else { Some(cursor) };
-        write_table_window_with_cursor(
+        let metrics = write_table_window_with_cursor(
             &mut buffer,
             4,
             &CHANGE_COLUMNS,
@@ -585,6 +602,7 @@ impl PlanetBuildScreen {
             classic::status_value_style(),
             selected,
         );
+        let command_row = table_prompt_row(metrics.bottom_row);
 
         if rows.is_empty() {
             buffer.write_text(
@@ -595,7 +613,7 @@ impl PlanetBuildScreen {
             );
         }
 
-        draw_command_prompt(&mut buffer, 19, "BUILD COMMAND", "ARROWS ENTER Q");
+        draw_command_prompt_at(&mut buffer, command_row, "BUILD COMMAND", "ARROWS ENTER Q");
         Ok(buffer)
     }
 
@@ -745,7 +763,7 @@ fn draw_specify_table(
     buffer: &mut PlayfieldBuffer,
     view: &PlanetBuildMenuView,
     orders: &[PlanetBuildOrder],
-) {
+) -> crate::screen::table::TableRenderMetrics {
     draw_title_bar(buffer, 0, "SPECIFY BUILD ORDERS:");
     buffer.write_text(
         2,
@@ -835,7 +853,7 @@ fn draw_specify_table(
         &BUILD_HALF_COLUMNS,
         &rows,
         style,
-    );
+    )
 }
 
 pub fn build_unit_spec(number: u8) -> Option<BuildUnitSpec> {

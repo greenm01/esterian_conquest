@@ -3,8 +3,9 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    draw_command_line_text, draw_status_line, draw_table_command_bar, draw_table_command_prompt,
-    draw_title_bar, new_playfield, standard_table_visible_rows,
+    draw_command_line_text_at, draw_status_line, draw_table_command_bar, draw_table_command_bar_at,
+    draw_table_command_prompt_at, draw_title_bar, new_playfield, standard_table_visible_rows,
+    table_prompt_row,
 };
 use crate::screen::{
     CommandMenu, PlayfieldBuffer, format_sector_coords, format_sector_coords_default,
@@ -98,7 +99,7 @@ impl PlanetDatabaseScreen {
         } else {
             Some(cursor)
         };
-        write_table_window_with_states(
+        let metrics = write_table_window_with_states(
             &mut buffer,
             1,
             &DATABASE_COLUMNS,
@@ -112,19 +113,31 @@ impl PlanetDatabaseScreen {
         );
 
         if rows.is_empty() {
-            draw_command_line_text(
+            draw_command_line_text_at(
                 &mut buffer,
+                table_prompt_row(metrics.bottom_row),
                 "COMMANDS",
                 "No planets are in your database. Q quits.",
             );
         } else if let Some(status) = status {
-            draw_command_line_text(&mut buffer, "COMMANDS", status);
+            draw_command_line_text_at(
+                &mut buffer,
+                table_prompt_row(metrics.bottom_row),
+                "COMMANDS",
+                status,
+            );
         } else {
             let default = rows
                 .get(cursor)
                 .map(|row| format_sector_coords_default(row.coords))
                 .unwrap_or_else(|| "00,00".to_string());
-            draw_table_command_bar(&mut buffer, "<ARROWS J K F Q>", Some(&default), input);
+            draw_table_command_bar_at(
+                &mut buffer,
+                table_prompt_row(metrics.bottom_row),
+                "<ARROWS J K F Q>",
+                Some(&default),
+                input,
+            );
         }
         Ok(buffer)
     }
@@ -148,7 +161,11 @@ impl PlanetDatabaseScreen {
             status,
             menu,
         )?;
-        draw_table_command_prompt(&mut buffer, DATABASE_FILTER_PROMPT);
+        draw_table_command_prompt_at(
+            &mut buffer,
+            database_command_row(rows.len(), scroll_offset),
+            DATABASE_FILTER_PROMPT,
+        );
         Ok(buffer)
     }
 
@@ -248,4 +265,11 @@ impl PlanetDatabaseScreen {
             _ => Action::Noop,
         }
     }
+}
+
+fn database_command_row(total_rows: usize, scroll_offset: usize) -> usize {
+    let displayed_rows = total_rows
+        .saturating_sub(scroll_offset)
+        .min(PLANET_DATABASE_VISIBLE_ROWS);
+    table_prompt_row(1 + 3 + displayed_rows)
 }

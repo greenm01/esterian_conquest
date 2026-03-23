@@ -1,6 +1,6 @@
 use std::io::{self, IsTerminal, Write};
 
-use crate::screen::{CellStyle, PlayfieldBuffer};
+use crate::screen::{AnsiColor, CellStyle, PlayfieldBuffer};
 use crate::screen::{PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH};
 use crate::terminal::Terminal;
 use crate::theme::classic;
@@ -8,7 +8,8 @@ use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{self, Event, KeyEvent},
     execute,
-    style::{Color, SetBackgroundColor, SetForegroundColor},
+    queue,
+    style::{Attribute, Color, Print, SetAttribute, SetBackgroundColor, SetForegroundColor},
     terminal::{self, Clear, ClearType},
 };
 
@@ -23,8 +24,8 @@ impl StdoutTerminal {
 impl Terminal for StdoutTerminal {
     fn render(&mut self, playfield: &PlayfieldBuffer) -> Result<(), Box<dyn std::error::Error>> {
         let mut stdout = io::stdout();
-        let bg = color_from_rgb(classic::app_background());
-        let fg = color_from_rgb(classic::terminal_foreground());
+        let bg = color_from_ansi(classic::app_background());
+        let fg = color_from_ansi(classic::terminal_foreground());
         if stdout.is_terminal() {
             let (term_width, term_height) = terminal::size()?;
             let offset_x = term_width.saturating_sub(PLAYFIELD_WIDTH as u16) / 2;
@@ -46,7 +47,7 @@ impl Terminal for StdoutTerminal {
                 execute!(stdout, MoveTo(offset_x, offset_y + row as u16))?;
                 stdout.write_all(blank_playfield.as_bytes())?;
                 execute!(stdout, MoveTo(offset_x, offset_y + row as u16))?;
-                stdout.write_all(render_ansi_row(playfield.row(row)).as_bytes())?;
+                write_styled_row(&mut stdout, playfield.row(row))?;
             }
             match playfield.cursor() {
                 Some((column, row)) => {
@@ -78,8 +79,8 @@ impl Terminal for StdoutTerminal {
 
     fn dump_text_capture(&mut self, text: &str) -> Result<(), Box<dyn std::error::Error>> {
         let mut stdout = io::stdout();
-        let bg = color_from_rgb(classic::app_background());
-        let fg = color_from_rgb(classic::terminal_foreground());
+        let bg = color_from_ansi(classic::app_background());
+        let fg = color_from_ansi(classic::terminal_foreground());
         if stdout.is_terminal() {
             execute!(
                 stdout,
@@ -101,8 +102,8 @@ impl Terminal for StdoutTerminal {
 
     fn clear_and_restore(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let mut stdout = io::stdout();
-        let bg = color_from_rgb(classic::app_background());
-        let fg = color_from_rgb(classic::terminal_foreground());
+        let bg = color_from_ansi(classic::app_background());
+        let fg = color_from_ansi(classic::terminal_foreground());
         if stdout.is_terminal() {
             execute!(
                 stdout,
@@ -119,33 +120,66 @@ impl Terminal for StdoutTerminal {
     }
 }
 
-fn render_ansi_row(row: &[crate::screen::Cell]) -> String {
-    let mut output = String::new();
+fn write_styled_row(
+    stdout: &mut io::Stdout,
+    row: &[crate::screen::Cell],
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut current_style = None;
-
+    let mut run = String::new();
     for cell in row {
         if current_style != Some(cell.style) {
-            output.push_str(&ansi_style(cell.style));
+            if !run.is_empty() {
+                queue!(stdout, Print(&run))?;
+                run.clear();
+            }
+            apply_style(stdout, cell.style)?;
             current_style = Some(cell.style);
         }
-        output.push(cell.ch);
+        run.push(cell.ch);
     }
-    output.push_str("\x1b[0m");
-    output
+    if !run.is_empty() {
+        queue!(stdout, Print(&run))?;
+    }
+    queue!(
+        stdout,
+        SetAttribute(Attribute::Reset),
+        SetForegroundColor(color_from_ansi(classic::terminal_foreground())),
+        SetBackgroundColor(color_from_ansi(classic::app_background()))
+    )?;
+    Ok(())
 }
 
-fn ansi_style(style: CellStyle) -> String {
-    let weight = if style.bold { "1" } else { "0" };
-    format!(
-        "\x1b[{weight};38;2;{};{};{};48;2;{};{};{}m",
-        style.fg.red, style.fg.green, style.fg.blue, style.bg.red, style.bg.green, style.bg.blue
-    )
+fn apply_style(stdout: &mut io::Stdout, style: CellStyle) -> Result<(), Box<dyn std::error::Error>> {
+    queue!(
+        stdout,
+        SetForegroundColor(color_from_ansi(style.fg)),
+        SetBackgroundColor(color_from_ansi(style.bg)),
+        SetAttribute(if style.bold {
+            Attribute::Bold
+        } else {
+            Attribute::NormalIntensity
+        })
+    )?;
+    Ok(())
 }
 
-fn color_from_rgb(color: crate::screen::RgbColor) -> Color {
-    Color::Rgb {
-        r: color.red,
-        g: color.green,
-        b: color.blue,
+fn color_from_ansi(color: AnsiColor) -> Color {
+    match color {
+        AnsiColor::Black => Color::Black,
+        AnsiColor::Red => Color::DarkRed,
+        AnsiColor::Green => Color::DarkGreen,
+        AnsiColor::Yellow => Color::DarkYellow,
+        AnsiColor::Blue => Color::DarkBlue,
+        AnsiColor::Magenta => Color::DarkMagenta,
+        AnsiColor::Cyan => Color::DarkCyan,
+        AnsiColor::White => Color::Grey,
+        AnsiColor::BrightBlack => Color::DarkGrey,
+        AnsiColor::BrightRed => Color::Red,
+        AnsiColor::BrightGreen => Color::Green,
+        AnsiColor::BrightYellow => Color::Yellow,
+        AnsiColor::BrightBlue => Color::Blue,
+        AnsiColor::BrightMagenta => Color::Magenta,
+        AnsiColor::BrightCyan => Color::Cyan,
+        AnsiColor::BrightWhite => Color::White,
     }
 }

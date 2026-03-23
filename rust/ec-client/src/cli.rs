@@ -6,10 +6,12 @@ use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use crate::app::{App, AppConfig, AppOutcome, apply_action};
 use crate::terminal::Terminal;
 use crate::terminal::stdout::StdoutTerminal;
+use crate::theme;
 
 pub fn run(args: impl IntoIterator<Item = String>) -> Result<(), Box<dyn std::error::Error>> {
     let parsed_args = args.into_iter().collect::<Vec<_>>();
     let config = parse_args(&parsed_args)?;
+    theme::initialize_from_disk()?;
     let mut app = App::load(config)?;
     let mut terminal = StdoutTerminal::new();
 

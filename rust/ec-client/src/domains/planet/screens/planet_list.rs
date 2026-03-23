@@ -4,8 +4,9 @@ use ec_data::{EmpirePlanetEconomyRow, STARDOCK_SLOT_COUNT};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    draw_command_prompt, draw_status_line, draw_table_command_bar, draw_table_command_prompt,
-    draw_title_bar, new_playfield, standard_table_visible_rows,
+    draw_command_prompt, draw_status_line, draw_table_command_bar, draw_table_command_bar_at,
+    draw_table_command_prompt_at, draw_title_bar, new_playfield, standard_table_visible_rows,
+    table_prompt_row,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_states};
 use crate::screen::{
@@ -75,7 +76,11 @@ impl PlanetListScreen {
         if let Some(status) = status {
             draw_status_line(&mut buffer, 21, "Notice: ", status);
         }
-        draw_table_command_prompt(&mut buffer, BRIEF_SORT_PROMPT);
+        draw_table_command_prompt_at(
+            &mut buffer,
+            brief_list_command_row(rows.len(), scroll_offset),
+            BRIEF_SORT_PROMPT,
+        );
         Ok(buffer)
     }
 
@@ -113,7 +118,7 @@ impl PlanetListScreen {
                 ]
             })
             .collect::<Vec<_>>();
-        write_table_window_with_states(
+        let metrics = write_table_window_with_states(
             &mut buffer,
             1,
             &BRIEF_COLUMNS,
@@ -134,8 +139,9 @@ impl PlanetListScreen {
             .get(cursor)
             .map(|row| format_sector_coords_default(row.coords))
             .unwrap_or_else(|| "00,00".to_string());
-        draw_table_command_bar(
+        draw_table_command_bar_at(
             &mut buffer,
+            table_prompt_row(metrics.bottom_row),
             "<ARROWS J K S Q>",
             Some(&default_coords),
             input,
@@ -334,6 +340,13 @@ impl PlanetListScreen {
             _ => Action::Noop,
         }
     }
+}
+
+fn brief_list_command_row(total_rows: usize, scroll_offset: usize) -> usize {
+    let displayed_rows = total_rows
+        .saturating_sub(scroll_offset)
+        .min(PLANET_BRIEF_VISIBLE_ROWS);
+    table_prompt_row(1 + 3 + displayed_rows)
 }
 
 fn format_signed_growth(growth: u16) -> String {

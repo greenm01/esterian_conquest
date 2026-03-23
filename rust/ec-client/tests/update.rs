@@ -311,6 +311,15 @@ impl CaptureTerminal {
     }
 }
 
+fn line_containing<'a>(terminal: &'a CaptureTerminal, needle: &str) -> &'a str {
+    terminal
+        .lines
+        .iter()
+        .find(|line| line.contains(needle))
+        .map(String::as_str)
+        .unwrap_or("")
+}
+
 impl Terminal for CaptureTerminal {
     fn render(
         &mut self,
@@ -2102,7 +2111,7 @@ fn starbase_menu_matches_verified_v15_command_layout() {
         "  Q>uit to Fleet Command     R>eview a Starbase     M>ove/Halt Starbase"
     );
     assert_eq!(
-        terminal.line(19).trim_end(),
+        line_containing(&terminal, "STARBASE COMMAND <-").trim_end(),
         "STARBASE COMMAND <-H,Q,X,S,R,V,I,M->"
     );
 }
@@ -2233,10 +2242,12 @@ fn main_menu_matches_verified_v15_command_layout() {
         terminal.line(4).trim_end(),
         "  V>iew Partial Map     F>LEET COMMAND MENU...     D>etailed Empire Report"
     );
+    assert_eq!(terminal.line(5).trim_end(), "");
     assert_eq!(
-        terminal.line(19).trim_end(),
+        terminal.line(6).trim_end(),
         "MAIN COMMAND <-H,Q,X,V,A,G,P,F,T,I,B,D->"
     );
+    assert!(terminal.line(23).contains("-- "));
 }
 
 #[test]
@@ -2279,7 +2290,7 @@ fn general_menu_matches_verified_v15_command_layout() {
         "  V>iew Partial Starmap   M>ap of the galaxy       E>nemies, declare or list"
     );
     assert_eq!(
-        terminal.line(19).trim_end(),
+        line_containing(&terminal, "GENERAL COMMAND <-").trim_end(),
         "GENERAL COMMAND <-H,Q,X,V,I,A,S,P,M,C,R,D,O,E->"
     );
 }
@@ -2510,7 +2521,7 @@ fn planet_build_menu_matches_verified_v15_command_layout() {
         "  V>iew partial star map     N>ext planet                I>nfo about a Planet"
     );
     assert_eq!(
-        terminal.line(19).trim_end(),
+        line_containing(&terminal, "BUILD COMMAND <-").trim_end(),
         "BUILD COMMAND <-H,Q,X,V,P,R,C,N,S,A,L,I->"
     );
 }
@@ -3837,8 +3848,9 @@ fn fleet_review_opens_with_a_selection_table_first() {
             .line(1)
             .contains("Select a fleet, then press ENTER to review its status")
     );
-    assert!(terminal.line(19).contains("COMMANDS <ARROWS J K Q> ["));
-    assert!(terminal.line(19).contains("->"));
+    let prompt = line_containing(&terminal, "COMMANDS <ARROWS J K Q> [");
+    assert!(prompt.contains("COMMANDS <ARROWS J K Q> ["));
+    assert!(prompt.contains("->"));
 }
 
 #[test]
@@ -3902,8 +3914,9 @@ fn fleet_review_select_navigation_updates_the_default_fleet_prompt() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet review select should render after move");
-    assert!(terminal.line(19).contains("COMMANDS <ARROWS J K Q> ["));
-    assert!(terminal.line(19).contains("->"));
+    let prompt = line_containing(&terminal, "COMMANDS <ARROWS J K Q> [");
+    assert!(prompt.contains("COMMANDS <ARROWS J K Q> ["));
+    assert!(prompt.contains("->"));
 }
 
 #[test]
@@ -3985,8 +3998,9 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet load transport picker should render");
-    assert!(terminal.line(19).contains("FLEET COMMAND"));
-    assert!(terminal.line(19).contains("<Q> ->"));
+    let prompt = line_containing(&terminal, "FLEET COMMAND <-");
+    assert!(prompt.contains("FLEET COMMAND"));
+    assert!(prompt.contains("<Q> ->"));
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
         Action::ReturnToCommandMenu
@@ -4011,8 +4025,9 @@ fn fleet_menu_load_and_unload_keys_open_fleet_transport_flow() {
     );
     app.render(&mut terminal)
         .expect("fleet unload transport picker should render");
-    assert!(terminal.line(19).contains("FLEET COMMAND"));
-    assert!(terminal.line(19).contains("<Q> ->"));
+    let prompt = line_containing(&terminal, "FLEET COMMAND <-");
+    assert!(prompt.contains("FLEET COMMAND"));
+    assert!(prompt.contains("<Q> ->"));
 }
 
 #[test]
@@ -4091,7 +4106,7 @@ fn fleet_transport_planet_picker_accepts_typed_coordinates() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet load transport picker should render");
-    let prompt = terminal.line(19);
+    let prompt = line_containing(&terminal, "FLEET COMMAND <-");
     let default_coords = prompt
         .split('[')
         .nth(1)
@@ -4347,8 +4362,9 @@ fn fleet_group_order_opens_mission_picker_and_q_returns_to_group_table() {
     assert_eq!(terminal.line(0), "FLEET MISSION ORDERS:");
     assert!(terminal.line(2).contains("No."));
     assert!(terminal.lines.iter().any(|line| line.contains("15")));
-    assert!(terminal.line(19).contains("COMMANDS <ARROWS J K Q> ["));
-    assert!(terminal.line(19).contains("->"));
+    let prompt = line_containing(&terminal, "COMMANDS <ARROWS J K Q> [");
+    assert!(prompt.contains("COMMANDS <ARROWS J K Q> ["));
+    assert!(prompt.contains("->"));
 
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
@@ -4393,8 +4409,9 @@ fn fleet_order_opens_mission_picker_and_q_returns_to_order_table() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet order screen should render");
-    assert!(terminal.line(19).contains("COMMANDS <ARROWS J K Q> ["));
-    assert!(terminal.line(19).contains("->"));
+    let prompt = line_containing(&terminal, "COMMANDS <ARROWS J K Q> [");
+    assert!(prompt.contains("COMMANDS <ARROWS J K Q> ["));
+    assert!(prompt.contains("->"));
 
     assert_eq!(
         app.handle_key(key(KeyCode::Enter)),
@@ -4556,9 +4573,9 @@ fn fleet_order_allows_guard_starbase_from_fleet_command() {
         "Enter the starbase number for Guard a Starbase."
     );
     assert!(
-        terminal.line(19).contains("Starbase # [1]"),
+        line_containing(&terminal, "Starbase # [").contains("Starbase # [1]"),
         "{}",
-        terminal.line(19)
+        line_containing(&terminal, "Starbase # [")
     );
 
     assert_eq!(
@@ -4624,8 +4641,7 @@ fn fleet_order_blocks_guard_starbase_when_player_has_no_starbases() {
     app.render(&mut terminal)
         .expect("no-starbase guard order notice should render");
     assert!(
-        terminal
-            .line(19)
+        line_containing(&terminal, "You have no starbases available to guard.")
             .contains("You have no starbases available to guard.")
     );
 }
@@ -4686,9 +4702,9 @@ fn fleet_order_allows_join_another_fleet_from_fleet_command() {
         "Enter the host fleet number for Join another fleet."
     );
     assert!(
-        terminal.line(19).contains("Fleet # ["),
+        line_containing(&terminal, "Fleet # [").contains("Fleet # ["),
         "{}",
-        terminal.line(19)
+        line_containing(&terminal, "Fleet # [")
     );
 
     assert_eq!(
@@ -4948,7 +4964,7 @@ fn fleet_group_bombard_mission_defaults_to_closest_known_enemy_world() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("combat target prompt should render");
-    assert!(terminal.line(19).contains(&format!(
+    assert!(line_containing(&terminal, "Target [").contains(&format!(
         "Target [{},{}] <Q> ->",
         closest_coords[0], closest_coords[1]
     )));
@@ -5060,7 +5076,7 @@ fn fleet_group_colonize_mission_skips_worlds_claimed_by_other_friendly_etacs() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("colonize target prompt should render");
-    assert!(terminal.line(19).contains(&format!(
+    assert!(line_containing(&terminal, "Target [").contains(&format!(
         "Target [{},{}] <Q> ->",
         fallback_coords[0], fallback_coords[1]
     )));
@@ -5166,7 +5182,7 @@ fn fleet_group_colonize_mission_allows_hidden_colonized_worlds_as_targets() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("colonize target prompt should render");
-    assert!(terminal.line(19).contains(&format!(
+    assert!(line_containing(&terminal, "Target [").contains(&format!(
         "Target [{},{}] <Q> ->",
         hidden_colonized_coords[0], hidden_colonized_coords[1]
     )));
@@ -5311,9 +5327,10 @@ fn fleet_group_order_rejects_empty_sector_for_world_targeting_mission() {
     );
     app.render(&mut terminal)
         .expect("world-target prompt should return after dismiss");
-    assert!(terminal.line(19).contains("Target ["));
-    assert!(terminal.line(19).contains("->"), "{}", terminal.line(19));
-    assert!(!terminal.line(19).contains("1,1"));
+    let prompt = line_containing(&terminal, "Target [");
+    assert!(prompt.contains("Target ["));
+    assert!(prompt.contains("->"), "{prompt}");
+    assert!(!prompt.contains("1,1"));
 }
 
 #[test]
@@ -5586,7 +5603,7 @@ fn fleet_order_salvage_defaults_to_closest_owned_planet() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("salvage target prompt should render");
-    assert!(terminal.line(19).contains(&format!(
+    assert!(line_containing(&terminal, "Target [").contains(&format!(
         "Target [{},{}] <Q> ->",
         nearest_owned[0], nearest_owned[1]
     )));
@@ -5652,8 +5669,7 @@ fn fleet_order_salvage_rejects_empty_sector_target() {
     app.render(&mut terminal)
         .expect("salvage empty-sector validation should render");
     assert!(
-        terminal
-            .line(19)
+        line_containing(&terminal, "That mission needs a system with a planet")
             .contains("That mission needs a system with a planet at the target.")
     );
 }
@@ -5752,9 +5768,11 @@ fn fleet_order_salvage_rejects_foreign_planet_target() {
     app.render(&mut terminal)
         .expect("salvage foreign-planet validation should render");
     assert!(
-        terminal
-            .line(19)
-            .contains("That mission requires one of your owned planets.")
+        line_containing(
+            &terminal,
+            "That mission requires one of your owned planets."
+        )
+        .contains("That mission requires one of your owned planets.")
     );
 }
 
@@ -5828,9 +5846,11 @@ fn fleet_order_salvage_rejects_unowned_planet_target() {
     app.render(&mut terminal)
         .expect("salvage unowned-planet validation should render");
     assert!(
-        terminal
-            .line(19)
-            .contains("That mission requires one of your owned planets.")
+        line_containing(
+            &terminal,
+            "That mission requires one of your owned planets."
+        )
+        .contains("That mission requires one of your owned planets.")
     );
 }
 
@@ -5880,8 +5900,9 @@ fn fleet_group_order_allows_manual_combat_target_without_known_enemy_world() {
     app.render(&mut terminal)
         .expect("combat target prompt should render");
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
-    assert!(terminal.line(19).contains("Target ["));
-    assert!(!terminal.line(19).contains("Notice:"));
+    let prompt = line_containing(&terminal, "Target [");
+    assert!(prompt.contains("Target ["));
+    assert!(!prompt.contains("Notice:"));
 }
 
 #[test]
@@ -5952,8 +5973,9 @@ fn fleet_group_order_allows_manual_scout_target_without_known_enemy_world() {
     app.render(&mut terminal)
         .expect("scout target prompt should render");
     assert_eq!(app.current_screen(), ScreenId::FleetGroupOrder);
-    assert!(terminal.line(19).contains("Target ["));
-    assert!(!terminal.line(19).contains("Notice:"));
+    let prompt = line_containing(&terminal, "Target [");
+    assert!(prompt.contains("Target ["));
+    assert!(!prompt.contains("Notice:"));
 }
 
 #[test]
@@ -6117,9 +6139,9 @@ fn fleet_group_order_accepts_join_fleet_mission_number() {
         "Enter the host fleet number for Join another fleet."
     );
     assert!(
-        terminal.line(19).contains("Fleet # ["),
+        line_containing(&terminal, "Fleet # [").contains("Fleet # ["),
         "{}",
-        terminal.line(19)
+        line_containing(&terminal, "Fleet # [")
     );
 
     assert_eq!(
@@ -6285,7 +6307,10 @@ fn fleet_roe_success_returns_to_selector_prompt_without_confirmation_text() {
     );
 
     app.render(&mut terminal).expect("render succeeds");
-    assert_eq!(terminal.line(19), "COMMANDS <ARROWS J K Q> [4] ->");
+    assert_eq!(
+        line_containing(&terminal, "COMMANDS <ARROWS J K Q> ["),
+        "COMMANDS <ARROWS J K Q> [4] ->"
+    );
 }
 
 #[test]
@@ -6317,9 +6342,10 @@ fn planet_database_render_uses_year_and_tier_labels_on_bottom_row() {
     assert!(terminal.line(2).contains("Intel"));
     assert!(terminal.lines.iter().any(|line| line.contains("3000")));
     assert!(terminal.lines.iter().any(|line| line.contains("owned")));
-    assert!(terminal.line(COMMAND_LINE_ROW).starts_with("COMMANDS <"));
-    assert!(terminal.line(COMMAND_LINE_ROW).contains("["));
-    assert!(terminal.line(COMMAND_LINE_ROW).contains("->"));
+    let prompt = line_containing(&terminal, "COMMANDS <");
+    assert!(prompt.starts_with("COMMANDS <"));
+    assert!(prompt.contains("["));
+    assert!(prompt.contains("->"));
 }
 
 #[test]
@@ -6380,12 +6406,9 @@ fn fleet_roe_render_keeps_command_line_on_bottom_row() {
         .expect("roe screen renders");
 
     assert_eq!(buffer.plain_line(17), "");
-    assert_eq!(
-        buffer.plain_line(COMMAND_LINE_ROW),
-        "COMMANDS <ARROWS J K Q> [1] ->"
-    );
+    assert_eq!(buffer.plain_line(8), "COMMANDS <ARROWS J K Q> [1] ->");
     let (cursor_col, cursor_row) = buffer.cursor().expect("cursor on command row");
-    assert_eq!(cursor_row as usize, COMMAND_LINE_ROW);
+    assert_eq!(cursor_row as usize, 8);
     assert!(cursor_col < 80);
 }
 
@@ -6419,7 +6442,7 @@ fn fleet_roe_render_shows_edit_errors_on_bottom_line() {
         .expect("roe screen renders");
 
     assert_eq!(
-        buffer.plain_line(COMMAND_LINE_ROW),
+        buffer.plain_line(8),
         "FLEET COMMAND <- Non-combat fleets must use ROE 0."
     );
 }
@@ -6516,7 +6539,7 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
     assert!(buffer.plain_line(6).contains("[19,13]"));
     assert!(
         buffer
-            .plain_line(COMMAND_LINE_ROW)
+            .plain_line(8)
             .contains("COMMANDS <ARROWS J K Q> [7] ->")
     );
 }
@@ -6638,15 +6661,16 @@ fn fleet_eta_uses_max_speed_when_selected_fleet_is_stopped() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet eta result should render");
+    let prompt = line_containing(&terminal, "Fleet 1 reaches [");
     assert!(
-        terminal.line(19).contains(&format!(
+        prompt.contains(&format!(
             "Fleet 1 reaches [{},{}] in 0 year(s)",
             current_coords[0], current_coords[1]
         )),
         "{}",
-        terminal.line(19)
+        prompt
     );
-    assert!(!terminal.line(19).contains("is stopped"));
+    assert!(!prompt.contains("is stopped"));
 }
 
 #[test]
@@ -6702,8 +6726,9 @@ fn fleet_eta_allows_empty_sector_targets_for_resting_hold_fleets() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet eta empty-sector result should render");
-    assert!(terminal.line(19).contains("Fleet 1 reaches [1,1] in"));
-    assert!(!terminal.line(19).contains("No route found"));
+    let prompt = line_containing(&terminal, "Fleet 1 reaches [1,1] in");
+    assert!(prompt.contains("Fleet 1 reaches [1,1] in"));
+    assert!(!prompt.contains("No route found"));
 }
 
 #[test]
@@ -6744,10 +6769,10 @@ fn planet_build_specify_uses_bottom_command_line_default_prompt() {
 
     assert!(
         buffer
-            .plain_line(COMMAND_LINE_ROW)
+            .plain_line(14)
             .contains("BUILD COMMAND <- Unit number or 0 if done")
     );
-    assert!(buffer.plain_line(COMMAND_LINE_ROW).contains("[0] <Q> ->"));
+    assert!(buffer.plain_line(14).contains("[0] <Q> ->"));
 }
 
 #[test]
@@ -6795,10 +6820,10 @@ fn planet_build_quantity_uses_bottom_command_line_default_prompt() {
 
     assert!(
         buffer
-            .plain_line(COMMAND_LINE_ROW)
+            .plain_line(14)
             .contains("BUILD COMMAND <- How many new destroyers to build")
     );
-    assert!(buffer.plain_line(COMMAND_LINE_ROW).contains("[6] <Q> ->"));
+    assert!(buffer.plain_line(14).contains("[6] <Q> ->"));
 }
 
 #[test]
@@ -7228,8 +7253,9 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("render detach select");
-    assert!(terminal.line(19).contains("Detach ships from fleet # ["));
-    assert!(terminal.line(19).contains("<Q> ->"));
+    let prompt = line_containing(&terminal, "Detach ships from fleet # [");
+    assert!(prompt.contains("Detach ships from fleet # ["));
+    assert!(prompt.contains("<Q> ->"));
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::AppendDetachChar('1'))),
         AppOutcome::Continue
@@ -7241,8 +7267,7 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
     );
     app.render(&mut terminal).expect("render destroyer prompt");
     assert!(
-        terminal
-            .line(19)
+        line_containing(&terminal, "Destroyers to detach [")
             .contains("Destroyers to detach [0] <Q> ->")
     );
 
@@ -7256,8 +7281,7 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
     );
     app.render(&mut terminal).expect("render etac prompt");
     assert!(
-        terminal
-            .line(19)
+        line_containing(&terminal, "ETAC ships to detach [")
             .contains("ETAC ships to detach [0] <Q> ->")
     );
 
@@ -7270,7 +7294,7 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
         AppOutcome::Continue
     );
     app.render(&mut terminal).expect("render roe prompt");
-    assert!(terminal.line(19).contains("New fleet ROE [6] <Q> ->"));
+    assert!(line_containing(&terminal, "New fleet ROE [").contains("New fleet ROE [6] <Q> ->"));
 
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::SubmitDetach)),
@@ -7278,8 +7302,9 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
     );
     app.render(&mut terminal)
         .expect("render detach select after save");
-    assert!(terminal.line(19).contains("Detach ships from fleet # ["));
-    assert!(terminal.line(19).contains("<Q> ->"));
+    let prompt = line_containing(&terminal, "Detach ships from fleet # [");
+    assert!(prompt.contains("Detach ships from fleet # ["));
+    assert!(prompt.contains("<Q> ->"));
 
     let updated = latest_runtime_state(&fixture_dir).game_data;
     assert_eq!(updated.fleets.records.len(), initial_fleet_count + 1);
@@ -7309,8 +7334,9 @@ fn fleet_detach_with_zero_selected_ships_returns_to_the_table_without_a_warning(
 
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal).expect("render detach select");
-    assert!(terminal.line(19).contains("Detach ships from fleet # ["));
-    assert!(terminal.line(19).contains("<Q> ->"));
+    let prompt = line_containing(&terminal, "Detach ships from fleet # [");
+    assert!(prompt.contains("Detach ships from fleet # ["));
+    assert!(prompt.contains("<Q> ->"));
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::AppendDetachChar('1'))),
         AppOutcome::Continue
@@ -7324,9 +7350,8 @@ fn fleet_detach_with_zero_selected_ships_returns_to_the_table_without_a_warning(
         .expect("render first quantity prompt");
 
     for _ in 0..8 {
-        if terminal.line(19).contains("Detach ships from fleet # [")
-            && terminal.line(19).contains("<Q> ->")
-        {
+        let prompt = line_containing(&terminal, "Detach ships from fleet # [");
+        if prompt.contains("Detach ships from fleet # [") && prompt.contains("<Q> ->") {
             break;
         }
         assert_eq!(
@@ -7337,10 +7362,7 @@ fn fleet_detach_with_zero_selected_ships_returns_to_the_table_without_a_warning(
             .expect("advance zero-detach prompt sequence");
     }
 
-    assert!(
-        terminal
-            .line(19)
-            .contains("Detach ships from fleet # [1] <Q> ->")
-    );
-    assert!(!terminal.line(19).contains("Detach at least one ship."));
+    let prompt = line_containing(&terminal, "Detach ships from fleet # [");
+    assert!(prompt.contains("Detach ships from fleet # [1] <Q> ->"));
+    assert!(!prompt.contains("Detach at least one ship."));
 }

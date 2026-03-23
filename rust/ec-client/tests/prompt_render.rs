@@ -123,6 +123,21 @@ fn draw_table_command_prompt_keeps_cursor_inside_playfield_and_highlights_defaul
 }
 
 #[test]
+fn draw_table_command_prompt_inserts_space_after_arrow_before_cursor() {
+    let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
+    draw_table_command_prompt(
+        &mut buffer,
+        "Sort by <C>urrent Prod, <L>ocation, <M>ax, or <Q>uit? [C] ->",
+    );
+
+    let line = row_text(&buffer, COMMAND_LINE_ROW);
+    assert!(line.contains("[C] -> "));
+    let (cursor_col, cursor_row) = buffer.cursor().expect("cursor set");
+    assert_eq!(cursor_row as usize, COMMAND_LINE_ROW);
+    assert_eq!(line.as_bytes()[cursor_col as usize - 1], b' ');
+}
+
+#[test]
 fn draw_plain_prompt_highlights_command_rail_inside_angle_brackets() {
     let mut buffer = PlayfieldBuffer::new(PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT, classic::body_style());
     draw_plain_prompt(&mut buffer, 19, "COMMAND <ARROWS J K S Q> [03,03] ->");

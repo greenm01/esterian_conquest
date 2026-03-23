@@ -1,175 +1,449 @@
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::{OnceLock, RwLock};
+
+use crate::screen::{AnsiColor, CellStyle};
+
+const DEFAULT_THEME_KDL: &str = include_str!("../config/theme.kdl");
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Theme {
+    body: CellStyle,
+    title: CellStyle,
+    menu: CellStyle,
+    menu_hotkey: CellStyle,
+    prompt: CellStyle,
+    prompt_hotkey: CellStyle,
+    prompt_notice_action: CellStyle,
+    bright: CellStyle,
+    logo: CellStyle,
+    intro_accent: CellStyle,
+    intro_tribute: CellStyle,
+    stardate_label: CellStyle,
+    stardate_week: CellStyle,
+    stardate_year: CellStyle,
+    status_label: CellStyle,
+    status_value: CellStyle,
+    table_chrome: CellStyle,
+    table_header: CellStyle,
+    table_body: CellStyle,
+    disabled_row: CellStyle,
+    selected: CellStyle,
+    alert: CellStyle,
+    help_header: CellStyle,
+    help_panel: CellStyle,
+    map_dot: CellStyle,
+    map_crosshair: CellStyle,
+    map_center: CellStyle,
+    quote: CellStyle,
+    quote_author: CellStyle,
+    report_header: CellStyle,
+    star_colors: [AnsiColor; 6],
+}
+
+impl Theme {
+    fn from_kdl_str(source: &str) -> Result<Self, String> {
+        let document: kdl::KdlDocument = source
+            .parse()
+            .map_err(|err| format!("parse theme.kdl: {err}"))?;
+
+        let require_style = |name: &str| parse_named_style(&document, name);
+
+        Ok(Self {
+            body: require_style("body")?,
+            title: require_style("title")?,
+            menu: require_style("menu")?,
+            menu_hotkey: require_style("menu_hotkey")?,
+            prompt: require_style("prompt")?,
+            prompt_hotkey: require_style("prompt_hotkey")?,
+            prompt_notice_action: require_style("prompt_notice_action")?,
+            bright: require_style("bright")?,
+            logo: require_style("logo")?,
+            intro_accent: require_style("intro_accent")?,
+            intro_tribute: require_style("intro_tribute")?,
+            stardate_label: require_style("stardate_label")?,
+            stardate_week: require_style("stardate_week")?,
+            stardate_year: require_style("stardate_year")?,
+            status_label: require_style("status_label")?,
+            status_value: require_style("status_value")?,
+            table_chrome: require_style("table_chrome")?,
+            table_header: require_style("table_header")?,
+            table_body: require_style("table_body")?,
+            disabled_row: require_style("disabled_row")?,
+            selected: require_style("selected")?,
+            alert: require_style("alert")?,
+            help_header: require_style("help_header")?,
+            help_panel: require_style("help_panel")?,
+            map_dot: require_style("map_dot")?,
+            map_crosshair: require_style("map_crosshair")?,
+            map_center: require_style("map_center")?,
+            quote: require_style("quote")?,
+            quote_author: require_style("quote_author")?,
+            report_header: require_style("report_header")?,
+            star_colors: parse_star_colors(&document)?,
+        })
+    }
+
+    fn bundled_default() -> Self {
+        Self::from_kdl_str(DEFAULT_THEME_KDL).expect("bundled theme.kdl should be valid")
+    }
+}
+
+fn parse_named_style(document: &kdl::KdlDocument, style_name: &str) -> Result<CellStyle, String> {
+    let node = document
+        .nodes()
+        .iter()
+        .find(|node| {
+            node.name().value() == "style"
+                && node.get(0).and_then(|value| value.as_string()) == Some(style_name)
+        })
+        .ok_or_else(|| format!("missing style {style_name:?}"))?;
+    parse_style_node(node)
+}
+
+fn parse_style_node(node: &kdl::KdlNode) -> Result<CellStyle, String> {
+    let children = node
+        .children()
+        .ok_or_else(|| format!("style {:?} missing children", node.name().value()))?;
+    let child_value = |name: &str| {
+        children.nodes().iter().find_map(|child| {
+            if child.name().value() == name {
+                child.get(0)
+            } else {
+                None
+            }
+        })
+    };
+    let fg = parse_color_value(
+        child_value("fg")
+            .and_then(|value| value.as_string())
+            .ok_or_else(|| format!("style {:?} missing fg", node.name().value()))?,
+    )?;
+    let bg = parse_color_value(
+        child_value("bg")
+            .and_then(|value| value.as_string())
+            .ok_or_else(|| format!("style {:?} missing bg", node.name().value()))?,
+    )?;
+    let bold = child_value("bold")
+        .and_then(|value| value.as_bool())
+        .unwrap_or(false);
+    Ok(CellStyle::new(fg, bg, bold))
+}
+
+fn parse_star_colors(document: &kdl::KdlDocument) -> Result<[AnsiColor; 6], String> {
+    let node = document
+        .nodes()
+        .iter()
+        .find(|node| {
+            let name = node.name().value();
+            name == "star-colors" || name == "star_colors"
+        })
+        .ok_or_else(|| "missing star_colors".to_string())?;
+    let mut colors = [AnsiColor::BrightBlue; 6];
+    for (idx, slot) in colors.iter_mut().enumerate() {
+        let value = node
+            .get(idx)
+            .and_then(|value| value.as_string())
+            .ok_or_else(|| format!("star_colors missing entry {idx}"))?;
+        *slot = parse_color_value(value)?;
+    }
+    Ok(colors)
+}
+
+fn parse_color_value(value: &str) -> Result<AnsiColor, String> {
+    match value.replace('-', "_").to_ascii_lowercase().as_str() {
+        "black" => Ok(AnsiColor::Black),
+        "red" => Ok(AnsiColor::Red),
+        "green" => Ok(AnsiColor::Green),
+        "yellow" => Ok(AnsiColor::Yellow),
+        "blue" => Ok(AnsiColor::Blue),
+        "magenta" => Ok(AnsiColor::Magenta),
+        "cyan" => Ok(AnsiColor::Cyan),
+        "white" | "grey" | "gray" => Ok(AnsiColor::White),
+        "bright_black" | "dark_grey" | "dark_gray" => Ok(AnsiColor::BrightBlack),
+        "bright_red" => Ok(AnsiColor::BrightRed),
+        "bright_green" => Ok(AnsiColor::BrightGreen),
+        "bright_yellow" => Ok(AnsiColor::BrightYellow),
+        "bright_blue" => Ok(AnsiColor::BrightBlue),
+        "bright_magenta" => Ok(AnsiColor::BrightMagenta),
+        "bright_cyan" => Ok(AnsiColor::BrightCyan),
+        "bright_white" | "light_grey" | "light_gray" => Ok(AnsiColor::BrightWhite),
+        other => Err(format!("unknown ANSI color {other:?}")),
+    }
+}
+
+fn active_theme_lock() -> &'static RwLock<Theme> {
+    static ACTIVE_THEME: OnceLock<RwLock<Theme>> = OnceLock::new();
+    ACTIVE_THEME.get_or_init(|| RwLock::new(Theme::bundled_default()))
+}
+
+fn active_theme() -> Theme {
+    active_theme_lock()
+        .read()
+        .expect("theme lock poisoned")
+        .clone()
+}
+
+fn set_active_theme(theme: Theme) {
+    *active_theme_lock()
+        .write()
+        .expect("theme lock poisoned") = theme;
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PlatformKind {
+    Windows,
+    MacOs,
+    Unix,
+}
+
+impl PlatformKind {
+    fn current() -> Self {
+        #[cfg(target_os = "windows")]
+        {
+            Self::Windows
+        }
+        #[cfg(target_os = "macos")]
+        {
+            Self::MacOs
+        }
+        #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
+        {
+            Self::Unix
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct ThemeEnv {
+    pub home: Option<PathBuf>,
+    pub xdg_config_home: Option<PathBuf>,
+    pub appdata: Option<PathBuf>,
+}
+
+impl ThemeEnv {
+    fn current() -> Self {
+        Self {
+            home: std::env::var_os("HOME").map(PathBuf::from),
+            xdg_config_home: std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from),
+            appdata: std::env::var_os("APPDATA").map(PathBuf::from),
+        }
+    }
+}
+
+pub fn resolve_theme_file_for(
+    platform: PlatformKind,
+    env: &ThemeEnv,
+) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let base = match platform {
+        PlatformKind::Windows => env
+            .appdata
+            .clone()
+            .or_else(|| {
+                env.home
+                    .as_ref()
+                    .map(|home| home.join("AppData").join("Roaming"))
+            })
+            .ok_or("unable to resolve Windows APPDATA directory")?,
+        PlatformKind::MacOs => env
+            .home
+            .as_ref()
+            .map(|home| home.join("Library").join("Application Support"))
+            .ok_or("unable to resolve macOS HOME directory")?,
+        PlatformKind::Unix => env
+            .xdg_config_home
+            .clone()
+            .or_else(|| env.home.as_ref().map(|home| home.join(".config")))
+            .ok_or("unable to resolve XDG config directory")?,
+    };
+    Ok(base.join("ec-rust").join("theme.kdl"))
+}
+
+pub fn resolve_theme_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
+    resolve_theme_file_for(PlatformKind::current(), &ThemeEnv::current())
+}
+
+pub fn ensure_theme_file_for(
+    platform: PlatformKind,
+    env: &ThemeEnv,
+) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let theme_file = resolve_theme_file_for(platform, env)?;
+    if let Some(parent) = theme_file.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    if !theme_file.exists() {
+        fs::write(&theme_file, DEFAULT_THEME_KDL)?;
+    }
+    Ok(theme_file)
+}
+
+pub fn initialize_from_disk() -> Result<(), Box<dyn std::error::Error>> {
+    initialize_theme_for(PlatformKind::current(), &ThemeEnv::current())
+}
+
+pub fn initialize_theme_for(
+    platform: PlatformKind,
+    env: &ThemeEnv,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let theme_file = ensure_theme_file_for(platform, env)?;
+    let theme = match fs::read_to_string(&theme_file) {
+        Ok(contents) => Theme::from_kdl_str(&contents).unwrap_or_else(|_| Theme::bundled_default()),
+        Err(_) => Theme::bundled_default(),
+    };
+    set_active_theme(theme);
+    Ok(())
+}
+
+pub fn bundled_theme_kdl() -> &'static str {
+    DEFAULT_THEME_KDL
+}
+
+pub fn load_theme_from_path(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let contents = fs::read_to_string(path)?;
+    let theme = Theme::from_kdl_str(&contents).map_err(|err| err.to_string())?;
+    set_active_theme(theme);
+    Ok(())
+}
+
 pub mod classic {
-    use crate::screen::{CellStyle, RgbColor};
+    use crate::screen::{AnsiColor, CellStyle};
 
-    const TOKYONIGHT_BG: RgbColor = RgbColor::new(26, 27, 38);
-    const TOKYONIGHT_CHROME: RgbColor = RgbColor::new(86, 95, 137);
-    const TOKYONIGHT_BODY: RgbColor = RgbColor::new(169, 177, 214);
-    const TOKYONIGHT_TEXT: RgbColor = RgbColor::new(192, 202, 245);
-    const TOKYONIGHT_YELLOW: RgbColor = RgbColor::new(224, 175, 104);
-    const TOKYONIGHT_RED: RgbColor = RgbColor::new(247, 118, 142);
-    const TOKYONIGHT_GREEN: RgbColor = RgbColor::new(158, 206, 106);
-    const CODEX_MAGENTA: RgbColor = RgbColor::new(215, 135, 255);
-    const SELECTION_FG: RgbColor = TOKYONIGHT_BG;
-    const SELECTION_BLUE: RgbColor = RgbColor::new(122, 162, 247);
+    use super::active_theme;
 
-    // Tokyo Night accent palette.
-    const TOKYONIGHT_BLUE: RgbColor = RgbColor::new(122, 162, 247);
-    const TOKYONIGHT_PURPLE: RgbColor = RgbColor::new(187, 154, 247);
-    const TOKYONIGHT_ORANGE: RgbColor = RgbColor::new(255, 158, 100);
-    const TOKYONIGHT_TEAL: RgbColor = RgbColor::new(125, 207, 207);
-    const TOKYONIGHT_GOLD: RgbColor = TOKYONIGHT_YELLOW;
-
-    // Stellar spectral colors for logo decoration randomization.
-    pub const STAR_COLORS: [RgbColor; 6] = [
-        RgbColor::new(180, 200, 255), // hot blue-white
-        RgbColor::new(255, 255, 255), // white
-        RgbColor::new(255, 255, 200), // yellow-white
-        RgbColor::new(255, 230, 130), // yellow / Sol
-        RgbColor::new(255, 180, 100), // orange / K-type
-        RgbColor::new(255, 140, 100), // red-orange / cool
-    ];
-
-    pub const fn body_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_BODY, TOKYONIGHT_BG, false)
+    pub fn body_style() -> CellStyle {
+        active_theme().body
     }
 
-    pub const fn title_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_TEXT, TOKYONIGHT_BG, true)
+    pub fn title_style() -> CellStyle {
+        active_theme().title
     }
 
-    pub const fn menu_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_BODY, TOKYONIGHT_BG, false)
+    pub fn menu_style() -> CellStyle {
+        active_theme().menu
     }
 
-    pub const fn menu_hotkey_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_YELLOW, TOKYONIGHT_BG, true)
+    pub fn menu_hotkey_style() -> CellStyle {
+        active_theme().menu_hotkey
     }
 
-    pub const fn prompt_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_BODY, TOKYONIGHT_BG, false)
+    pub fn prompt_style() -> CellStyle {
+        active_theme().prompt
     }
 
-    pub const fn prompt_hotkey_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_YELLOW, TOKYONIGHT_BG, true)
+    pub fn prompt_hotkey_style() -> CellStyle {
+        active_theme().prompt_hotkey
     }
 
-    pub const fn prompt_notice_action_style() -> CellStyle {
-        CellStyle::new(CODEX_MAGENTA, TOKYONIGHT_BG, true)
+    pub fn prompt_notice_action_style() -> CellStyle {
+        active_theme().prompt_notice_action
     }
 
-    pub const fn bright_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_TEXT, TOKYONIGHT_BG, true)
+    pub fn bright_style() -> CellStyle {
+        active_theme().bright
     }
 
-    pub const fn logo_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_BLUE, TOKYONIGHT_BG, true)
+    pub fn logo_style() -> CellStyle {
+        active_theme().logo
     }
 
-    pub const fn intro_accent_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_BLUE, TOKYONIGHT_BG, false)
+    pub fn intro_accent_style() -> CellStyle {
+        active_theme().intro_accent
     }
 
-    pub const fn intro_tribute_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_PURPLE, TOKYONIGHT_BG, false)
+    pub fn intro_tribute_style() -> CellStyle {
+        active_theme().intro_tribute
     }
 
-    /// Stardate label ("Stardate: ") and slash separator.
-    pub const fn stardate_label_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_ORANGE, TOKYONIGHT_BG, false)
+    pub fn stardate_label_style() -> CellStyle {
+        active_theme().stardate_label
     }
 
-    /// Stardate week number.
-    pub const fn stardate_week_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_TEAL, TOKYONIGHT_BG, false)
+    pub fn stardate_week_style() -> CellStyle {
+        active_theme().stardate_week
     }
 
-    /// Stardate year number.
-    pub const fn stardate_year_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_GOLD, TOKYONIGHT_BG, false)
+    pub fn stardate_year_style() -> CellStyle {
+        active_theme().stardate_year
     }
 
     pub fn star_decoration_style(index: usize) -> CellStyle {
-        CellStyle::new(STAR_COLORS[index % STAR_COLORS.len()], TOKYONIGHT_BG, false)
+        let theme = active_theme();
+        CellStyle::new(
+            theme.star_colors[index % theme.star_colors.len()],
+            theme.body.bg,
+            false,
+        )
     }
 
-    pub const fn status_label_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_BODY, TOKYONIGHT_BG, false)
+    pub fn status_label_style() -> CellStyle {
+        active_theme().status_label
     }
 
-    pub const fn status_value_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_TEXT, TOKYONIGHT_BG, false)
+    pub fn status_value_style() -> CellStyle {
+        active_theme().status_value
     }
 
-    pub const fn table_chrome_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_CHROME, TOKYONIGHT_BG, false)
+    pub fn table_chrome_style() -> CellStyle {
+        active_theme().table_chrome
     }
 
-    pub const fn table_header_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_BODY, TOKYONIGHT_BG, false)
+    pub fn table_header_style() -> CellStyle {
+        active_theme().table_header
     }
 
-    pub const fn table_body_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_TEXT, TOKYONIGHT_BG, false)
+    pub fn table_body_style() -> CellStyle {
+        active_theme().table_body
     }
 
-    pub const fn disabled_row_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_CHROME, TOKYONIGHT_BG, false)
+    pub fn disabled_row_style() -> CellStyle {
+        active_theme().disabled_row
     }
 
-    /// Highlight style for the selected row in a navigable table.
-    /// Override this function when adding new themes.
-    pub const fn selected_row_style() -> CellStyle {
-        CellStyle::new(SELECTION_FG, SELECTION_BLUE, false)
+    pub fn selected_row_style() -> CellStyle {
+        active_theme().selected
     }
 
-    pub const fn alert_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_TEXT, TOKYONIGHT_RED, true)
+    pub fn alert_style() -> CellStyle {
+        active_theme().alert
     }
 
-    pub const fn help_header_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_TEXT, TOKYONIGHT_BG, true)
+    pub fn help_header_style() -> CellStyle {
+        active_theme().help_header
     }
 
-    pub const fn help_panel_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_BODY, TOKYONIGHT_BG, false)
+    pub fn help_panel_style() -> CellStyle {
+        active_theme().help_panel
     }
 
-    pub const fn map_dot_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_GREEN, TOKYONIGHT_BG, false)
+    pub fn map_dot_style() -> CellStyle {
+        active_theme().map_dot
     }
 
-    pub const fn map_crosshair_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_RED, TOKYONIGHT_BG, true)
+    pub fn map_crosshair_style() -> CellStyle {
+        active_theme().map_crosshair
     }
 
-    pub const fn map_center_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_TEXT, TOKYONIGHT_BG, true)
+    pub fn map_center_style() -> CellStyle {
+        active_theme().map_center
     }
 
-    // Quote display styles — understated so they don't compete with the menu.
-    const QUOTE_GREY: RgbColor = RgbColor::new(158, 162, 174);
-    const QUOTE_AUTHOR_GREY: RgbColor = RgbColor::new(178, 182, 194);
-
-    /// Dim body grey for quote text — slightly muted relative to BODY_GREY.
-    pub const fn quote_style() -> CellStyle {
-        CellStyle::new(QUOTE_GREY, TOKYONIGHT_BG, false)
+    pub fn quote_style() -> CellStyle {
+        active_theme().quote
     }
 
-    /// Slightly brighter grey for the quote author attribution line.
-    pub const fn quote_author_style() -> CellStyle {
-        CellStyle::new(QUOTE_AUTHOR_GREY, TOKYONIGHT_BG, false)
+    pub fn quote_author_style() -> CellStyle {
+        active_theme().quote_author
     }
 
-    /// Report header lines ("From your Xth Fleet...") — teal accent.
-    pub const fn report_header_style() -> CellStyle {
-        CellStyle::new(TOKYONIGHT_TEAL, TOKYONIGHT_BG, false)
+    pub fn report_header_style() -> CellStyle {
+        active_theme().report_header
     }
 
-    pub const fn app_background() -> RgbColor {
-        TOKYONIGHT_BG
+    pub fn app_background() -> AnsiColor {
+        active_theme().body.bg
     }
 
-    pub const fn terminal_foreground() -> RgbColor {
-        TOKYONIGHT_BODY
+    pub fn terminal_foreground() -> AnsiColor {
+        active_theme().body.fg
     }
 }

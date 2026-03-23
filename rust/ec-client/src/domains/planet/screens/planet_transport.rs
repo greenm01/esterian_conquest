@@ -3,8 +3,9 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    draw_command_line_default_input, draw_command_line_text, draw_command_prompt, draw_title_bar,
-    new_playfield, standard_table_visible_rows,
+    draw_command_line_default_input, draw_command_line_default_input_at, draw_command_line_text_at,
+    draw_command_prompt, draw_title_bar, new_playfield, standard_table_visible_rows,
+    table_prompt_row,
 };
 use crate::screen::table::{
     TableColumn, fleet_id_column_width, format_fleet_number, write_table_window_with_cursor,
@@ -113,7 +114,7 @@ impl PlanetTransportScreen {
         } else {
             Some(cursor)
         };
-        write_table_window_with_cursor(
+        let metrics = write_table_window_with_cursor(
             &mut buffer,
             4,
             &PLANET_COLUMNS,
@@ -124,17 +125,20 @@ impl PlanetTransportScreen {
             classic::status_value_style(),
             selected,
         );
+        let command_row = table_prompt_row(metrics.bottom_row);
         if table_rows.is_empty() {
-            draw_command_line_text(
+            draw_command_line_text_at(
                 &mut buffer,
+                command_row,
                 prompt_label,
                 "No eligible planets remain. Q quits.",
             );
         } else if let Some(status) = status {
-            draw_command_line_text(&mut buffer, prompt_label, status);
+            draw_command_line_text_at(&mut buffer, command_row, prompt_label, status);
         } else {
-            draw_command_line_default_input(
+            draw_command_line_default_input_at(
                 &mut buffer,
+                command_row,
                 prompt_label,
                 "",
                 &format!("{},{}", default_coords[0], default_coords[1]),
@@ -185,7 +189,7 @@ impl PlanetTransportScreen {
         } else {
             Some(cursor)
         };
-        write_table_window_with_cursor(
+        let metrics = write_table_window_with_cursor(
             &mut buffer,
             4,
             &fleet_columns,
@@ -196,18 +200,21 @@ impl PlanetTransportScreen {
             classic::status_value_style(),
             selected,
         );
+        let command_row = table_prompt_row(metrics.bottom_row);
         let max_qty = fleets.get(cursor).map(|row| row.available_qty).unwrap_or(0);
         if table_rows.is_empty() {
-            draw_command_line_text(
+            draw_command_line_text_at(
                 &mut buffer,
+                command_row,
                 prompt_label,
                 "No eligible fleets remain here. Q quits.",
             );
         } else if let Some(status) = status {
-            draw_command_line_text(&mut buffer, prompt_label, status);
+            draw_command_line_text_at(&mut buffer, command_row, prompt_label, status);
         } else {
-            draw_command_line_default_input(
+            draw_command_line_default_input_at(
                 &mut buffer,
+                command_row,
                 prompt_label,
                 &format!("How many armies to {}? ", mode.verb()),
                 &max_qty.to_string(),

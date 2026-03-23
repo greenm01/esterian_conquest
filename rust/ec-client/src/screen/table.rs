@@ -38,6 +38,12 @@ pub enum TableRowState {
     Disabled,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TableRenderMetrics {
+    pub bottom_row: usize,
+    pub displayed_rows: usize,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SplitTableRow {
     pub left_cells: Vec<String>,
@@ -93,7 +99,7 @@ pub fn write_table_window<'a>(
     visible_rows: usize,
     header_style: crate::screen::CellStyle,
     body_style: crate::screen::CellStyle,
-) {
+) -> TableRenderMetrics {
     write_table_window_with_states(
         buffer,
         start_row,
@@ -105,7 +111,7 @@ pub fn write_table_window<'a>(
         body_style,
         None,
         None,
-    );
+    )
 }
 
 pub fn write_table_window_with_cursor<'a>(
@@ -119,7 +125,7 @@ pub fn write_table_window_with_cursor<'a>(
     body_style: crate::screen::CellStyle,
     // Absolute row index (0-based into `rows`) to highlight as selected.
     selected: Option<usize>,
-) {
+) -> TableRenderMetrics {
     write_table_window_with_states(
         buffer,
         start_row,
@@ -131,7 +137,7 @@ pub fn write_table_window_with_cursor<'a>(
         body_style,
         selected,
         None,
-    );
+    )
 }
 
 pub fn write_table_window_with_states<'a>(
@@ -145,7 +151,7 @@ pub fn write_table_window_with_states<'a>(
     _body_style: crate::screen::CellStyle,
     selected: Option<usize>,
     row_states: Option<&[TableRowState]>,
-) {
+) -> TableRenderMetrics {
     let area = TableArea::new(start_row, 0, buffer.width());
     let header_style = classic::table_header_style();
     let chrome_style = classic::table_chrome_style();
@@ -178,12 +184,17 @@ pub fn write_table_window_with_states<'a>(
         selected,
         row_states,
     );
+    let bottom_row = area.row + 3 + displayed_rows;
     buffer.write_text(
-        area.row + 3 + displayed_rows,
+        bottom_row,
         area.col,
         &table_bottom_border(columns),
         chrome_style,
     );
+    TableRenderMetrics {
+        bottom_row,
+        displayed_rows,
+    }
 }
 
 pub fn write_stacked_table_window_with_states<'a>(
@@ -198,7 +209,7 @@ pub fn write_stacked_table_window_with_states<'a>(
     _body_style: crate::screen::CellStyle,
     selected: Option<usize>,
     row_states: Option<&[TableRowState]>,
-) {
+) -> TableRenderMetrics {
     let area = TableArea::new(start_row, 0, buffer.width());
     let header_style = classic::table_header_style();
     let chrome_style = classic::table_chrome_style();
@@ -237,12 +248,17 @@ pub fn write_stacked_table_window_with_states<'a>(
         selected,
         row_states,
     );
+    let bottom_row = area.row + 4 + displayed_rows;
     buffer.write_text(
-        area.row + 4 + displayed_rows,
+        bottom_row,
         area.col,
         &table_bottom_border(columns),
         chrome_style,
     );
+    TableRenderMetrics {
+        bottom_row,
+        displayed_rows,
+    }
 }
 
 pub fn write_split_table(
@@ -252,7 +268,7 @@ pub fn write_split_table(
     right_columns: &[TableColumn<'_>],
     rows: &[SplitTableRow],
     _style: crate::screen::CellStyle,
-) {
+) -> TableRenderMetrics {
     let left_width = table_width(left_columns);
     let gap = 10;
     let right_col = left_width + gap;
@@ -326,8 +342,9 @@ pub fn write_split_table(
         );
     }
 
+    let bottom_row = start_row + 3 + rows.len();
     buffer.write_text(
-        start_row + 3 + rows.len(),
+        bottom_row,
         0,
         &format!(
             "{}{}{}",
@@ -337,6 +354,10 @@ pub fn write_split_table(
         ),
         chrome_style,
     );
+    TableRenderMetrics {
+        bottom_row,
+        displayed_rows: rows.len(),
+    }
 }
 
 pub fn table_divider(columns: &[TableColumn<'_>]) -> String {

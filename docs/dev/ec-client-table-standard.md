@@ -9,6 +9,7 @@ this spec unless a screen has a narrow, explicit exception.
 Read it together with:
 
 - [bbs_door_client_rust.md](bbs_door_client_rust.md)
+- [tui_style_guide.md](tui_style_guide.md)
 - [rust-architecture.md](rust-architecture.md)
 
 ## Core Rules
@@ -18,13 +19,17 @@ Read it together with:
 - Table borders and divider lines use the same subdued chrome color.
 - Shared tables use a restrained Tokyo Night-inspired palette on a single dark
   background.
+- Shared table colors come from the semantic ANSI-16 theme described in
+  [tui_style_guide.md](tui_style_guide.md).
 - The rightmost terminal column, `79`, is reserved for the scroll gutter when
   a scroll indicator is present.
 - A full-width table therefore ends its right border at column `78`.
 - Table headers are monochrome and restrained:
   - no grouped color bands
   - no stacked/grouped top header row as the normal standard
-- The bottom row is always the command row.
+- The command row sits directly under the rendered table.
+- For short tables, the command row may appear above screen row `24`.
+- For max-height tables, the command row lands on row `24`.
 - Table command bars use the generic label `COMMANDS`, not a repeated screen
   title.
 
@@ -38,7 +43,7 @@ Normal shared tables use this vertical structure:
 4. Joined divider row
 5. Body rows
 6. Bottom border
-7. Command row on screen row `24`
+7. Command row directly below the bottom border
 
 There is no blank spacer row between the title and the top border.
 

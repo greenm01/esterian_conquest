@@ -1,25 +1,32 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct RgbColor {
-    pub red: u8,
-    pub green: u8,
-    pub blue: u8,
-}
-
-impl RgbColor {
-    pub const fn new(red: u8, green: u8, blue: u8) -> Self {
-        Self { red, green, blue }
-    }
+pub enum AnsiColor {
+    Black,
+    Red,
+    Green,
+    Yellow,
+    Blue,
+    Magenta,
+    Cyan,
+    White,
+    BrightBlack,
+    BrightRed,
+    BrightGreen,
+    BrightYellow,
+    BrightBlue,
+    BrightMagenta,
+    BrightCyan,
+    BrightWhite,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CellStyle {
-    pub fg: RgbColor,
-    pub bg: RgbColor,
+    pub fg: AnsiColor,
+    pub bg: AnsiColor,
     pub bold: bool,
 }
 
 impl CellStyle {
-    pub const fn new(fg: RgbColor, bg: RgbColor, bold: bool) -> Self {
+    pub const fn new(fg: AnsiColor, bg: AnsiColor, bold: bool) -> Self {
         Self { fg, bg, bold }
     }
 }

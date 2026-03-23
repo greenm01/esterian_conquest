@@ -6,8 +6,9 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    MenuEntry, draw_command_prompt, draw_help_panel, draw_menu_entry, draw_status_line,
-    draw_table_command_bar, draw_title_bar, new_playfield, standard_table_visible_rows,
+    MenuEntry, draw_command_prompt, draw_command_prompt_at, draw_help_panel, draw_menu_entry,
+    draw_status_line, draw_table_command_bar_at, draw_title_bar, menu_prompt_row, new_playfield,
+    standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_cursor};
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords_padded};
@@ -83,10 +84,17 @@ impl StarbaseMenuScreen {
                 );
             }
         }
+        let mut last_content_row = 2;
         if let Some(notice) = notice {
             draw_status_line(&mut buffer, 16, "Notice: ", notice);
+            last_content_row = 16;
         }
-        draw_command_prompt(&mut buffer, 19, "STARBASE COMMAND", "H,Q,X,S,R,V,I,M");
+        draw_command_prompt_at(
+            &mut buffer,
+            menu_prompt_row(last_content_row),
+            "STARBASE COMMAND",
+            "H,Q,X,S,R,V,I,M",
+        );
         Ok(buffer)
     }
 }
@@ -198,7 +206,7 @@ impl StarbaseListScreen {
                 ]
             })
             .collect::<Vec<_>>();
-        write_table_window_with_cursor(
+        let metrics = write_table_window_with_cursor(
             &mut buffer,
             3,
             &STARBASE_COLUMNS,
@@ -213,7 +221,13 @@ impl StarbaseListScreen {
                 Some(cursor)
             },
         );
-        draw_table_command_bar(&mut buffer, "<ARROWS J K Q>", None, "");
+        draw_table_command_bar_at(
+            &mut buffer,
+            table_prompt_row(metrics.bottom_row),
+            "<ARROWS J K Q>",
+            None,
+            "",
+        );
         Ok(buffer)
     }
 
@@ -273,7 +287,7 @@ impl StarbaseReviewScreen {
                 ]
             })
             .collect::<Vec<_>>();
-        write_table_window_with_cursor(
+        let metrics = write_table_window_with_cursor(
             &mut buffer,
             3,
             &STARBASE_COLUMNS,
@@ -290,13 +304,25 @@ impl StarbaseReviewScreen {
         );
         if let Some(status) = status {
             draw_status_line(&mut buffer, 17, "Notice: ", status);
-            draw_table_command_bar(&mut buffer, "<ARROWS J K Q>", None, "");
+            draw_table_command_bar_at(
+                &mut buffer,
+                table_prompt_row(metrics.bottom_row),
+                "<ARROWS J K Q>",
+                None,
+                "",
+            );
         } else {
             let default_base = rows
                 .get(cursor)
                 .map(|row| row.base_id.to_string())
                 .unwrap_or_else(|| "1".to_string());
-            draw_table_command_bar(&mut buffer, "<ARROWS J K Q>", Some(&default_base), input);
+            draw_table_command_bar_at(
+                &mut buffer,
+                table_prompt_row(metrics.bottom_row),
+                "<ARROWS J K Q>",
+                Some(&default_base),
+                input,
+            );
         }
         Ok(buffer)
     }
