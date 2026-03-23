@@ -20,6 +20,19 @@ Start here:
 - [../llm-player-guide.md](../llm-player-guide.md)
   - strict visible-state operating guide for bots acting as real players
 
+Quick four-player human TUI bootstrap:
+
+```bash
+python3 tools/harness/four_player_human_campaign.py bootstrap --reset
+```
+
+Then inspect any house directly:
+
+```bash
+cd rust
+cargo run -q -p ec-client -- --dir .tmp/campaigns/human-tui-four-player/game --player 1
+```
+
 ## Commands
 
 ```bash
