@@ -23,6 +23,7 @@ impl App {
     pub fn show_command_menu_notice(&mut self, menu: CommandMenu, message: impl Into<String>) {
         self.command_menu_notice = Some(message.into());
         self.command_return_menu = menu;
+        self.return_screen = None;
         self.current_screen = match menu {
             CommandMenu::Main => ScreenId::MainMenu,
             CommandMenu::General => ScreenId::GeneralMenu,
@@ -35,11 +36,13 @@ impl App {
 
     pub fn open_main_menu(&mut self) {
         self.clear_command_menu_notice();
+        self.return_screen = None;
         self.current_screen = ScreenId::MainMenu;
     }
 
     pub fn open_main_help(&mut self) {
         self.clear_command_menu_notice();
+        self.return_screen = None;
         self.current_screen = ScreenId::MainHelp;
     }
 
@@ -52,10 +55,15 @@ impl App {
 
     pub fn open_general_menu(&mut self) {
         self.clear_command_menu_notice();
+        self.return_screen = None;
         self.current_screen = ScreenId::GeneralMenu;
     }
 
     pub fn return_to_command_menu(&mut self) {
+        if let Some(screen) = self.return_screen.take() {
+            self.current_screen = screen;
+            return;
+        }
         self.current_screen = match self.command_return_menu {
             CommandMenu::Main => ScreenId::MainMenu,
             CommandMenu::General => ScreenId::GeneralMenu,
@@ -143,7 +151,6 @@ impl App {
             | ScreenId::FirstTimeHomeworldConfirm
             | ScreenId::ColonyWorldName
             | ScreenId::ColonyWorldConfirm
-            | ScreenId::PartialStarmapPrompt
             | ScreenId::PartialStarmapView
             | ScreenId::PlanetInfoPrompt
             | ScreenId::PlanetInfoDetail => self.command_return_menu,

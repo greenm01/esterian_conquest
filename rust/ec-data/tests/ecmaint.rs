@@ -70,6 +70,8 @@ fn ecmaint_bombard_scenario_arrival_preserves_attack_order() {
     );
 }
 
+// These preserved-fixture checks document classic ECMAINT outputs.
+// They are oracle evidence, not the canonical Rust bombardment rule.
 #[test]
 fn ecmaint_bombard_scenario_second_pass_consumes_order_and_kills_attackers() {
     let arrive = FleetDat::parse(&read_ecmaint_bombard_arrive_fixture("FLEETS.DAT")).unwrap();

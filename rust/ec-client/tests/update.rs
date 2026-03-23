@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ec_client::app::{Action, App, AppConfig, AppOutcome, apply_action};
+use ec_client::app::{apply_action, Action, App, AppConfig, AppOutcome};
 use ec_client::domains::empire::EmpireAction;
 use ec_client::domains::fleet::FleetAction;
 use ec_client::domains::messaging::MessagingAction;
@@ -648,16 +648,7 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(
         apply_action(
             &mut app,
-            Action::Starmap(StarmapAction::OpenPartialPrompt(CommandMenu::General))
-        ),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::PartialStarmapPrompt);
-
-    assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Starmap(StarmapAction::SubmitPartialPrompt)
+            Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::General))
         ),
         AppOutcome::Continue
     );
@@ -837,16 +828,12 @@ fn preloaded_first_login_routes_through_login_summary_before_rename_prompt() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("rename prompt should render");
-    assert!(
-        terminal
-            .line(2)
-            .contains("You are a pre-loaded player and this is your first time on.")
-    );
-    assert!(
-        terminal
-            .line(19)
-            .contains("Would you like to rename your empire? (This is your only chance.)")
-    );
+    assert!(terminal
+        .line(2)
+        .contains("You are a pre-loaded player and this is your first time on."));
+    assert!(terminal
+        .line(19)
+        .contains("Would you like to rename your empire? (This is your only chance.)"));
 }
 
 #[test]
@@ -973,11 +960,9 @@ fn preloaded_first_login_can_rename_empire_before_homeworld_naming() {
     let mut rename_terminal = CaptureTerminal::new();
     app.render(&mut rename_terminal)
         .expect("rename input should render");
-    assert!(
-        rename_terminal
-            .line(2)
-            .contains("You are a pre-loaded player and this is your first time on.")
-    );
+    assert!(rename_terminal
+        .line(2)
+        .contains("You are a pre-loaded player and this is your first time on."));
 
     for _ in 0..24 {
         assert_eq!(
@@ -1198,12 +1183,10 @@ fn colony_world_naming_cannot_be_escaped_to_main_menu() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("colony world naming screen should render");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("must name this newly colonized world before continuing"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("must name this newly colonized world before continuing")));
 }
 
 #[test]
@@ -1734,26 +1717,39 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('v'))),
-        Action::Starmap(StarmapAction::OpenPartialPrompt(CommandMenu::Fleet))
+        Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::Fleet))
     );
     assert_eq!(
         apply_action(
             &mut app,
-            Action::Starmap(StarmapAction::OpenPartialPrompt(CommandMenu::Fleet))
-        ),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::PartialStarmapPrompt);
-    assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Starmap(StarmapAction::SubmitPartialPrompt)
+            Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::Fleet))
         ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
     assert_eq!(
         app.handle_key(key(KeyCode::Enter)),
+        Action::Starmap(StarmapAction::OpenPlanetInfoAtCenter)
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Starmap(StarmapAction::OpenPlanetInfoAtCenter)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetInfoDetail);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char(' '))),
+        Action::ReturnToCommandMenu
+    );
+    assert_eq!(
+        apply_action(&mut app, Action::ReturnToCommandMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('q'))),
         Action::ReturnToCommandMenu
     );
     assert_eq!(
@@ -1934,26 +1930,35 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
 
     assert_eq!(
         app.handle_key(key(KeyCode::Char('v'))),
-        Action::Starmap(StarmapAction::OpenPartialPrompt(CommandMenu::Main))
+        Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::Main))
     );
     assert_eq!(
         apply_action(
             &mut app,
-            Action::Starmap(StarmapAction::OpenPartialPrompt(CommandMenu::Main))
-        ),
-        AppOutcome::Continue
-    );
-    assert_eq!(app.current_screen(), ScreenId::PartialStarmapPrompt);
-    assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Starmap(StarmapAction::SubmitPartialPrompt)
+            Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::Main))
         ),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
     assert_eq!(
         app.handle_key(key(KeyCode::Enter)),
+        Action::Starmap(StarmapAction::OpenPlanetInfoAtCenter)
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Starmap(StarmapAction::OpenPlanetInfoAtCenter)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetInfoDetail);
+    assert_eq!(
+        apply_action(&mut app, Action::ReturnToCommandMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Esc)),
         Action::ReturnToCommandMenu
     );
     assert_eq!(
@@ -2408,12 +2413,10 @@ fn planet_commission_menu_renders_without_crashing_when_no_stardock_units_exist(
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
 
     app.render(&mut terminal).expect("render succeeds");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| { line.contains("No owned planets have units waiting in stardock.") })
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| { line.contains("No owned planets have units waiting in stardock.") }));
 }
 
 #[test]
@@ -2437,12 +2440,10 @@ fn planet_build_menu_and_subscreens_render_without_crashing_when_no_owned_planet
     assert_eq!(app.current_screen(), ScreenId::PlanetMenu);
     app.render(&mut terminal)
         .expect("planet menu render succeeds");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("No owned planets available"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("No owned planets available")));
 
     assert_eq!(
         apply_action(&mut app, Action::Planet(PlanetAction::OpenBuildReview)),
@@ -2626,12 +2627,10 @@ fn fleet_list_stays_on_fleet_menu_with_notice_when_no_fleets_exist() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("fleet menu should render empty-fleet notice");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("You have no active fleets."))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("You have no active fleets.")));
 
     assert_eq!(
         apply_action(
@@ -2671,12 +2670,10 @@ fn planet_list_commands_stay_on_planet_menu_with_notice_when_no_owned_planets_ex
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("planet menu should render empty-planet notice");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("You do not currently control any planets."))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("You do not currently control any planets.")));
 
     assert_eq!(
         apply_action(
@@ -2720,12 +2717,10 @@ fn delete_reviewables_stays_on_general_menu_with_notice_when_nothing_is_reviewab
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("general menu should render empty-reviewables notice");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("No messages or results are currently reviewable."))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("No messages or results are currently reviewable.")));
 }
 
 #[test]
@@ -2800,12 +2795,10 @@ fn startup_uses_classic_pending_flags_even_when_report_bytes_are_empty() {
             let mut terminal = CaptureTerminal::new();
             app.render(&mut terminal)
                 .expect("login summary should render");
-            assert!(
-                terminal
-                    .lines
-                    .iter()
-                    .any(|line| line.contains("The year is:"))
-            );
+            assert!(terminal
+                .lines
+                .iter()
+                .any(|line| line.contains("The year is:")));
             break;
         }
         app.advance_startup();
@@ -2961,24 +2954,18 @@ fn startup_results_paginate_before_advancing_to_messages() {
     let mut first_page = CaptureTerminal::new();
     app.render(&mut first_page)
         .expect("first startup results page should render");
-    assert!(
-        first_page
-            .lines
-            .iter()
-            .any(|line| line.contains(" -> Report line 01"))
-    );
-    assert!(
-        !first_page
-            .lines
-            .iter()
-            .any(|line| line.contains("Report line 28"))
-    );
-    assert!(
-        first_page
-            .lines
-            .iter()
-            .any(|line| line.contains("(Slap a key for more)"))
-    );
+    assert!(first_page
+        .lines
+        .iter()
+        .any(|line| line.contains(" -> Report line 01")));
+    assert!(!first_page
+        .lines
+        .iter()
+        .any(|line| line.contains("Report line 28")));
+    assert!(first_page
+        .lines
+        .iter()
+        .any(|line| line.contains("(Slap a key for more)")));
 
     for _ in 0..18 {
         let mut screen = CaptureTerminal::new();
@@ -3004,24 +2991,18 @@ fn startup_results_paginate_before_advancing_to_messages() {
     let mut end_status = CaptureTerminal::new();
     app.render(&mut end_status)
         .expect("inline startup results completion should render");
-    assert!(
-        end_status
-            .lines
-            .iter()
-            .any(|line| line.contains("All reports seen. (Slap a key)"))
-    );
-    assert!(
-        end_status
-            .lines
-            .iter()
-            .any(|line| line.contains("Delete this report Y/[N] ->"))
-    );
-    assert!(
-        !end_status
-            .lines
-            .iter()
-            .any(|line| line.contains("RESULTS REVIEW:"))
-    );
+    assert!(end_status
+        .lines
+        .iter()
+        .any(|line| line.contains("All reports seen. (Slap a key)")));
+    assert!(end_status
+        .lines
+        .iter()
+        .any(|line| line.contains("Delete this report Y/[N] ->")));
+    assert!(!end_status
+        .lines
+        .iter()
+        .any(|line| line.contains("RESULTS REVIEW:")));
 
     // EndStatus → phase exit → Messages.
     app.advance_startup();
@@ -3071,18 +3052,14 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("first startup message should render");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains(" -> From") && line.contains("Empire #2"))
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("<end of message>"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains(" -> From") && line.contains("Empire #2")));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("<end of message>")));
 
     // Accept default at the end-of-block prompt → delete Alpha → ContinuePrompt (Beta still exists).
     assert_eq!(
@@ -3103,12 +3080,10 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
     let mut after_delete = CaptureTerminal::new();
     app.render(&mut after_delete)
         .expect("next startup message should render");
-    assert!(
-        after_delete
-            .lines
-            .iter()
-            .any(|line| line.contains(" -> From") && line.contains("Empire #3"))
-    );
+    assert!(after_delete
+        .lines
+        .iter()
+        .any(|line| line.contains(" -> From") && line.contains("Empire #3")));
 
     let runtime = latest_runtime_state(&fixture_dir);
     let preview = ec_client::reports::ReportsPreview::from_block_rows(
@@ -3118,18 +3093,14 @@ fn startup_messages_allow_deleting_current_message_then_advancing() {
         &runtime.queued_mail,
     );
     assert_eq!(preview.message_blocks.len(), 1);
-    assert!(
-        preview
-            .message_lines
-            .iter()
-            .any(|line| line.contains("From") && line.contains("Empire #3"))
-    );
-    assert!(
-        preview
-            .message_lines
-            .iter()
-            .any(|line| line.contains("<end of message>"))
-    );
+    assert!(preview
+        .message_lines
+        .iter()
+        .any(|line| line.contains("From") && line.contains("Empire #3")));
+    assert!(preview
+        .message_lines
+        .iter()
+        .any(|line| line.contains("<end of message>")));
     assert!(runtime.queued_mail[0].recipient_deleted);
     assert!(!runtime.queued_mail[1].recipient_deleted);
 }
@@ -3180,24 +3151,18 @@ fn startup_message_review_shows_end_status_after_deleting_last_message() {
     let mut end_status = CaptureTerminal::new();
     app.render(&mut end_status)
         .expect("end status should render");
-    assert!(
-        end_status
-            .lines
-            .iter()
-            .any(|line| line.contains("Messages deleted."))
-    );
-    assert!(
-        end_status
-            .lines
-            .iter()
-            .any(|line| line.contains("All messages seen. (Slap a key)"))
-    );
-    assert!(
-        !end_status
-            .lines
-            .iter()
-            .any(|line| line.contains("MESSAGES REVIEW:"))
-    );
+    assert!(end_status
+        .lines
+        .iter()
+        .any(|line| line.contains("Messages deleted.")));
+    assert!(end_status
+        .lines
+        .iter()
+        .any(|line| line.contains("All messages seen. (Slap a key)")));
+    assert!(!end_status
+        .lines
+        .iter()
+        .any(|line| line.contains("MESSAGES REVIEW:")));
 
     // Advance from EndStatus → phase exit → MainMenu.
     app.advance_startup();
@@ -3249,31 +3214,23 @@ fn startup_results_wrap_long_lines_within_the_playfield() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("startup results should render");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains(" -> This is a deliberately long startup results line"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains(" -> This is a deliberately long startup results line")));
     assert!(terminal.lines.iter().any(|line| line.starts_with(" -> ")));
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("should wrap cleanly"))
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("eighty column playfield"))
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("single row."))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("should wrap cleanly")));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("eighty column playfield")));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("single row.")));
 }
 
 #[test]
@@ -3313,19 +3270,15 @@ fn startup_results_preserve_blank_lines_as_classic_spacers() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("startup results should render");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains(" -> Line one"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains(" -> Line one")));
     assert!(terminal.lines.iter().any(|line| line.trim_end() == " ->"));
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains(" -> Line two"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains(" -> Line two")));
 }
 
 #[test]
@@ -3364,18 +3317,14 @@ fn startup_results_preserve_leading_spaces_from_oracle_style_reports() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("startup results should render");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.starts_with(" ->   Stardate 11 / 3003"))
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.starts_with(" ->     Fleet 7 arrived"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.starts_with(" ->   Stardate 11 / 3003")));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.starts_with(" ->     Fleet 7 arrived")));
 }
 
 #[test]
@@ -3417,12 +3366,10 @@ fn startup_results_use_the_full_intro_review_page_height() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("startup results should render");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains(" -> Report 15"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains(" -> Report 15")));
     assert!(!terminal.line(19).contains("for more"));
 }
 
@@ -3467,30 +3414,22 @@ fn startup_results_decode_length_prefixed_lines_as_separate_classic_rows() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("startup results should render");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| { line.contains("System(9,14):          Stardate: 02/3003") })
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| { line.contains("We were attacked by \"Nadir Compact\", (Empire #4)") })
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("<end of transmission>"))
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Delete this report Y/[N] ->"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| { line.contains("System(9,14):          Stardate: 02/3003") }));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| { line.contains("We were attacked by \"Nadir Compact\", (Empire #4)") }));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("<end of transmission>")));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Delete this report Y/[N] ->")));
     assert!(terminal.line(COMMAND_LINE_ROW - 1).trim().is_empty());
     assert!(!terminal.lines.iter().any(|line| line.contains("----")));
 }
@@ -3532,18 +3471,14 @@ fn startup_results_continue_prompt_preserves_blank_spacing_without_rule() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("startup continue prompt should render");
-    assert!(
-        terminal
-            .line(19)
-            .contains("There are more reports. Continue?")
-    );
+    assert!(terminal
+        .line(19)
+        .contains("There are more reports. Continue?"));
     assert!(terminal.line(COMMAND_LINE_ROW - 1).trim().is_empty());
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Delete this report Y/[N] ->"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Delete this report Y/[N] ->")));
     assert_eq!(
         terminal
             .lines
@@ -3679,18 +3614,14 @@ fn reports_screen_keeps_both_sections_visible_when_results_are_long() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("reports screen should render");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.trim_end() == "MESSAGES")
-    );
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Message line 01 should still remain visible"))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.trim_end() == "MESSAGES"));
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Message line 01 should still remain visible")));
 }
 
 #[test]
@@ -3859,11 +3790,9 @@ fn fleet_review_opens_with_a_selection_table_first() {
     app.render(&mut terminal)
         .expect("fleet review select should render");
     assert_eq!(terminal.line(0).trim_end(), "REVIEW A FLEET:");
-    assert!(
-        terminal
-            .line(1)
-            .contains("Select a fleet, then press ENTER to review its status")
-    );
+    assert!(terminal
+        .line(1)
+        .contains("Select a fleet, then press ENTER to review its status"));
     let prompt = line_containing(&terminal, "COMMANDS <ARROWS J K Q> [");
     assert!(prompt.contains("COMMANDS <ARROWS J K Q> ["));
     assert!(prompt.contains("->"));
@@ -4081,12 +4010,10 @@ fn fleet_menu_load_and_unload_show_menu_notice_when_no_transport_action_is_avail
     assert_eq!(app.current_screen(), ScreenId::FleetMenu);
     app.render(&mut terminal)
         .expect("fleet menu should render unload notice");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| { line.contains("No fleets have loaded armies ready to unload") })
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| { line.contains("No fleets have loaded armies ready to unload") }));
 }
 
 #[test]
@@ -4179,11 +4106,8 @@ fn fleet_menu_long_notice_wraps_instead_of_clipping() {
         .flat_map(|line| line.split_whitespace())
         .collect::<Vec<_>>()
         .join(" ");
-    assert!(
-        wrapped_notice.contains(
-            "No fleets have loaded armies ready to unload onto planets with free capacity."
-        )
-    );
+    assert!(wrapped_notice
+        .contains("No fleets have loaded armies ready to unload onto planets with free capacity."));
 }
 
 #[test]
@@ -5783,13 +5707,11 @@ fn fleet_order_salvage_rejects_foreign_planet_target() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("salvage foreign-planet validation should render");
-    assert!(
-        line_containing(
-            &terminal,
-            "That mission requires one of your owned planets."
-        )
-        .contains("That mission requires one of your owned planets.")
-    );
+    assert!(line_containing(
+        &terminal,
+        "That mission requires one of your owned planets."
+    )
+    .contains("That mission requires one of your owned planets."));
 }
 
 #[test]
@@ -5861,12 +5783,231 @@ fn fleet_order_salvage_rejects_unowned_planet_target() {
     let mut terminal = CaptureTerminal::new();
     app.render(&mut terminal)
         .expect("salvage unowned-planet validation should render");
+    assert!(line_containing(
+        &terminal,
+        "That mission requires one of your owned planets."
+    )
+    .contains("That mission requires one of your owned planets."));
+}
+
+#[test]
+fn partial_starmap_view_uses_full_80x25_layout_without_sidebar_legend() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::Main))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("partial starmap view should render");
+
+    assert!(terminal.line(0).contains("Map Center at Sector"));
+    assert_eq!(terminal.line(1), "");
+    assert_eq!(terminal.line(2), "");
+    // Grid is centered: map_cell_start_col = (80 - 52) / 2 = 14, map_left_col = 9
+    let leading_spaces = terminal.line(3).chars().take_while(|ch| *ch == ' ').count();
+    assert_eq!(leading_spaces, 9);
+    assert!(terminal.line(3).contains("18 |"));
+    assert!(terminal.line(20).contains("01 |"));
+    // x-axis at row 21 (just below the grid), command prompt at row 24
+    assert!(terminal.line(21).contains("01"));
+    assert!(terminal.line(21).contains("18"));
+    assert_eq!(terminal.line(22), "");
+    assert_eq!(terminal.line(23), "");
+    assert!(terminal.line(24).contains("MAP COMMAND"));
+    assert!(!line_containing(&terminal, "STARMAP MENU").contains("STARMAP MENU"));
+    assert!(!line_containing(&terminal, "Unowned Planet").contains("Unowned Planet"));
+    assert!(!line_containing(&terminal, "Col: 8, Row: 2 in red").contains("Col: 8, Row: 2 in red"));
     assert!(
-        line_containing(
-            &terminal,
-            "That mission requires one of your owned planets."
-        )
-        .contains("That mission requires one of your owned planets.")
+        terminal.line(21).contains("18"),
+        "expanded x-axis should show the full current map width instead of the old 17-column slice"
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .filter(|line| line.contains("---"))
+            .all(|line| !line.contains("|-")),
+        "horizontal crosshair should not run directly out of the label separator"
+    );
+}
+
+#[test]
+fn partial_starmap_small_map_stays_centered_while_crosshair_tracks_selected_sector() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::Main))
+        ),
+        AppOutcome::Continue
+    );
+    app.starmap_state.partial_center = [6, 9];
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("partial starmap selected-sector view should render");
+
+    // Grid is centered: map_left_col = 9, map_top_row = 3
+    let top_margin = terminal.line(3).chars().take_while(|ch| *ch == ' ').count();
+    assert_eq!(top_margin, 9);
+    // center [6,9]: center_row = 20 - (9 - 1) = 12, center_col = 14 + (6 - 1) * 3 = 29
+    let crosshair_row = terminal.line(12);
+    assert_eq!(crosshair_row.chars().nth(29), Some('+'));
+    assert!(
+        terminal.line(21).contains("01 02 03 04 05 06"),
+        "small-map x-axis should be grid-centered with the full 1-based padded label run"
+    );
+}
+
+#[test]
+fn partial_starmap_large_map_anchors_axes_and_clamps_crosshair_near_edges() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+    app.game_data.conquest.set_player_count(5);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::Main))
+        ),
+        AppOutcome::Continue
+    );
+    app.starmap_state.partial_center = [3, 3];
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("oversized partial starmap should render");
+
+    let top_visible_row = line_containing(&terminal, "22 |");
+    assert!(top_visible_row.starts_with("22 |"));
+    let axis_line = line_containing(&terminal, "25");
+    assert!(axis_line.contains("01"));
+    assert!(axis_line.contains("25"));
+    assert_eq!(terminal.line(20).chars().nth(11), Some('+'));
+}
+
+#[test]
+fn partial_starmap_enter_opens_planet_info_and_returns_to_map() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::Main))
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Starmap(StarmapAction::OpenPlanetInfoAtCenter)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PlanetInfoDetail);
+
+    assert_eq!(
+        apply_action(&mut app, Action::ReturnToCommandMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
+
+    assert_eq!(
+        apply_action(&mut app, Action::ReturnToCommandMenu),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::MainMenu);
+}
+
+#[test]
+fn partial_starmap_enter_on_empty_sector_is_noop() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::Main))
+        ),
+        AppOutcome::Continue
+    );
+
+    let empty_coords = (1..=18u8)
+        .flat_map(|y| (1..=18u8).map(move |x| [x, y]))
+        .find(|coords| {
+            app.game_data
+                .planet_record_index_at_coords(*coords)
+                .is_none()
+        })
+        .expect("fixture should contain at least one empty sector");
+    app.starmap_state.partial_center = empty_coords;
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Starmap(StarmapAction::OpenPlanetInfoAtCenter)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::PartialStarmapView);
+
+    let mut terminal = CaptureTerminal::new();
+    app.render(&mut terminal)
+        .expect("partial starmap should render without status line");
+    assert!(
+        !terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("No world found")),
+        "enter on empty sector should not show an error status"
     );
 }
 
@@ -6390,12 +6531,10 @@ fn planet_info_intel_detail_shows_last_intel_and_tier() {
     );
 
     app.render(&mut terminal).expect("render succeeds");
-    assert!(
-        terminal
-            .lines
-            .iter()
-            .any(|line| line.contains("Last Intel: "))
-    );
+    assert!(terminal
+        .lines
+        .iter()
+        .any(|line| line.contains("Last Intel: ")));
     assert!(terminal.lines.iter().any(|line| line.contains("3000")));
     assert!(terminal.lines.iter().any(|line| line.contains("owned")));
 }
@@ -6553,11 +6692,9 @@ fn fleet_eta_screen_renders_bottom_line_prompt() {
     assert!(buffer.plain_line(4).contains("Target"));
     assert!(buffer.plain_line(6).contains("│  1│"));
     assert!(buffer.plain_line(6).contains("[19,13]"));
-    assert!(
-        buffer
-            .plain_line(8)
-            .contains("COMMANDS <ARROWS J K Q> [7] ->")
-    );
+    assert!(buffer
+        .plain_line(8)
+        .contains("COMMANDS <ARROWS J K Q> [7] ->"));
 }
 
 #[test]
@@ -6783,11 +6920,9 @@ fn planet_build_specify_uses_bottom_command_line_default_prompt() {
         .render_specify(&view, &orders, "", None)
         .expect("build specify renders");
 
-    assert!(
-        buffer
-            .plain_line(14)
-            .contains("BUILD COMMAND <- Unit number or 0 if done")
-    );
+    assert!(buffer
+        .plain_line(14)
+        .contains("BUILD COMMAND <- Unit number or 0 if done"));
     assert!(buffer.plain_line(14).contains("[0] <Q> ->"));
 }
 
@@ -6834,11 +6969,9 @@ fn planet_build_quantity_uses_bottom_command_line_default_prompt() {
         )
         .expect("build quantity renders");
 
-    assert!(
-        buffer
-            .plain_line(14)
-            .contains("BUILD COMMAND <- How many new destroyers to build")
-    );
+    assert!(buffer
+        .plain_line(14)
+        .contains("BUILD COMMAND <- How many new destroyers to build"));
     assert!(buffer.plain_line(14).contains("[6] <Q> ->"));
 }
 
@@ -7004,12 +7137,10 @@ fn apply_action_deletes_reviewables() {
     );
 
     let runtime = latest_runtime_state(&fixture_dir);
-    assert!(
-        runtime
-            .report_block_rows
-            .iter()
-            .all(|row| row.recipient_deleted)
-    );
+    assert!(runtime
+        .report_block_rows
+        .iter()
+        .all(|row| row.recipient_deleted));
     assert_eq!(runtime.queued_mail.len(), 1);
     assert!(runtime.queued_mail[0].recipient_deleted);
     assert_eq!(runtime.game_data.player.records[0].raw[0x30], 0);
@@ -7282,10 +7413,8 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
         AppOutcome::Continue
     );
     app.render(&mut terminal).expect("render destroyer prompt");
-    assert!(
-        line_containing(&terminal, "Destroyers to detach [")
-            .contains("Destroyers to detach [0] <Q> ->")
-    );
+    assert!(line_containing(&terminal, "Destroyers to detach [")
+        .contains("Destroyers to detach [0] <Q> ->"));
 
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::AppendDetachChar('1'))),
@@ -7296,10 +7425,8 @@ fn fleet_detach_uses_bottom_line_prompts_and_creates_new_fleet() {
         AppOutcome::Continue
     );
     app.render(&mut terminal).expect("render etac prompt");
-    assert!(
-        line_containing(&terminal, "ETAC ships to detach [")
-            .contains("ETAC ships to detach [0] <Q> ->")
-    );
+    assert!(line_containing(&terminal, "ETAC ships to detach [")
+        .contains("ETAC ships to detach [0] <Q> ->"));
 
     assert_eq!(
         apply_action(&mut app, Action::Fleet(FleetAction::AppendDetachChar('1'))),

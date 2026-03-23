@@ -356,7 +356,7 @@ IMPORTANT: Hostile missions require the fleet to be **in orbit at the start of m
 **Mission 6: Bombard a World**
 *   Only destroyers, cruisers, and battleships contribute bombardment firepower. Scouts, transports, and ETACs do not contribute.
 *   *Targeting priority*: Bombardment hits stardock contents first, then ground batteries, then armies, then stored goods, then factories and development.
-*   *Planetary return fire*: Ground batteries and armies fire back at the bombarding fleet.
+*   *Planetary return fire*: Ground batteries fire back at the bombarding fleet. Armies defend the surface but do not contribute orbital return fire.
 *   *Use Case*: Soften up a world before invasion, or deny resources to an enemy by destroying production and stardock contents.
 
 **Mission 7: Invade a World**

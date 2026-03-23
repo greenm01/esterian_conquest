@@ -1,17 +1,16 @@
-use crate::app::helpers::resolve_default_coords_input;
 use crate::app::state::App;
 use crate::screen::{CommandMenu, ScreenId};
 use ec_data::build_player_starmap_projection_from_snapshots;
 use ec_engine::map_size_for_player_count;
 
 impl App {
-    pub fn open_partial_starmap_prompt(&mut self, menu: CommandMenu) {
+    pub fn open_partial_starmap_view(&mut self, menu: CommandMenu) {
         self.command_return_menu = menu;
+        self.return_screen = None;
         let default = self.default_planet_prompt_coords();
-        self.starmap_state.partial_input.clear();
-        self.starmap_state.partial_error = None;
+        self.starmap_state.partial_status = None;
         self.starmap_state.partial_center = default;
-        self.current_screen = ScreenId::PartialStarmapPrompt;
+        self.current_screen = ScreenId::PartialStarmapView;
     }
 
     pub fn open_starmap(&mut self) {
@@ -25,41 +24,6 @@ impl App {
         self.current_screen = ScreenId::Starmap;
     }
 
-    pub fn append_partial_starmap_char(&mut self, ch: char) {
-        if self.current_screen == ScreenId::PartialStarmapPrompt
-            && self.starmap_state.partial_input.len() < 16
-        {
-            self.starmap_state.partial_input.push(ch);
-            self.starmap_state.partial_error = None;
-        }
-    }
-
-    pub fn backspace_partial_starmap_input(&mut self) {
-        if self.current_screen == ScreenId::PartialStarmapPrompt {
-            self.starmap_state.partial_input.pop();
-            self.starmap_state.partial_error = None;
-        }
-    }
-
-    pub fn submit_partial_starmap_prompt(&mut self) {
-        let Some(coords) = resolve_default_coords_input(
-            &self.starmap_state.partial_input,
-            self.starmap_state.partial_center,
-        ) else {
-            self.starmap_state.partial_error = Some("Enter coordinates like 5,2".to_string());
-            return;
-        };
-        let map_size = map_size_for_player_count(self.game_data.conquest.player_count());
-        if coords[0] == 0 || coords[1] == 0 || coords[0] > map_size || coords[1] > map_size {
-            self.starmap_state.partial_error =
-                Some(format!("Enter coordinates within 1..{map_size}"));
-            return;
-        }
-        self.starmap_state.partial_center = coords;
-        self.starmap_state.partial_error = None;
-        self.current_screen = ScreenId::PartialStarmapView;
-    }
-
     pub fn move_partial_starmap(&mut self, dx: i8, dy: i8) {
         let map_size = map_size_for_player_count(self.game_data.conquest.player_count());
         self.starmap_state.partial_center[0] = self.starmap_state.partial_center[0]
@@ -68,6 +32,12 @@ impl App {
         self.starmap_state.partial_center[1] = self.starmap_state.partial_center[1]
             .saturating_add_signed(dy)
             .clamp(1, map_size);
+        self.starmap_state.partial_status = None;
+    }
+
+    pub fn open_partial_starmap_planet_info(&mut self) {
+        let coords = self.starmap_state.partial_center;
+        let _ = self.open_planet_info_detail_at_coords(coords, Some(ScreenId::PartialStarmapView));
     }
 
     pub fn export_starmap(&mut self) -> Result<(), Box<dyn std::error::Error>> {

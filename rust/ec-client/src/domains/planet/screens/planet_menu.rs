@@ -102,7 +102,7 @@ impl Screen for PlanetMenuScreen {
         match key.code {
             KeyCode::Char('h') | KeyCode::Char('H') => Action::Planet(PlanetAction::OpenHelp),
             KeyCode::Char('v') | KeyCode::Char('V') => {
-                Action::Starmap(StarmapAction::OpenPartialPrompt(CommandMenu::Planet))
+                Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::Planet))
             }
             KeyCode::Char('i') | KeyCode::Char('I') => {
                 Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Planet))

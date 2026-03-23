@@ -96,6 +96,7 @@ pub struct App {
     pub startup_state: StartupState,
 
     pub command_return_menu: CommandMenu,
+    pub return_screen: Option<ScreenId>,
     pub export_root: PathBuf,
     pub queue_dir: Option<PathBuf>,
     pub autopilot: bool,
@@ -211,13 +212,13 @@ impl App {
             empire: EmpireState::default(),
             messaging: MessagingState::default(),
             starmap_state: StarmapState {
-                partial_input: "8,2".to_string(),
                 partial_center: [8, 2],
                 ..Default::default()
             },
             startup_state: StartupState::default(),
 
             command_return_menu: CommandMenu::General,
+            return_screen: None,
             export_root,
             queue_dir: config.queue_dir,
             autopilot: false,

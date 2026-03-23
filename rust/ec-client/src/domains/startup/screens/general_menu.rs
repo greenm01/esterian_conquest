@@ -88,7 +88,7 @@ impl Screen for GeneralMenuScreen {
             KeyCode::Char('e') | KeyCode::Char('E') => Action::Empire(EmpireAction::OpenEnemies),
             KeyCode::Char('m') | KeyCode::Char('M') => Action::Starmap(StarmapAction::OpenFull),
             KeyCode::Char('v') | KeyCode::Char('V') => {
-                Action::Starmap(StarmapAction::OpenPartialPrompt(CommandMenu::General))
+                Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::General))
             }
             KeyCode::Char('s') | KeyCode::Char('S') => Action::Empire(EmpireAction::OpenStatus),
             KeyCode::Char('p') | KeyCode::Char('P') => Action::Empire(EmpireAction::OpenProfile),

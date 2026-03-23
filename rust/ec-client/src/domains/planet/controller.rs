@@ -384,6 +384,7 @@ impl App {
 
     pub fn open_planet_info_prompt(&mut self, menu: CommandMenu) {
         self.command_return_menu = menu;
+        self.return_screen = None;
         self.planet.info_input.clear();
         self.planet.info_error = None;
         self.planet.info_selected = None;
@@ -411,15 +412,25 @@ impl App {
             return;
         };
 
+        if let Err(message) = self.open_planet_info_detail_at_coords(coords, None) {
+            self.planet.info_error = Some(message);
+        }
+    }
+
+    pub fn open_planet_info_detail_at_coords(
+        &mut self,
+        coords: [u8; 2],
+        return_screen: Option<ScreenId>,
+    ) -> Result<(), String> {
         let Some(planet_idx) = self.game_data.planet_record_index_at_coords(coords) else {
-            self.planet.info_error =
-                Some(format!("No world found at [{},{}]", coords[0], coords[1]));
-            return;
+            return Err(format!("No world found at [{},{}]", coords[0], coords[1]));
         };
 
+        self.return_screen = return_screen;
         self.planet.info_selected = Some(planet_idx);
         self.planet.info_error = None;
         self.current_screen = ScreenId::PlanetInfoDetail;
+        Ok(())
     }
 
     pub fn planet_info_input(&self) -> &str {

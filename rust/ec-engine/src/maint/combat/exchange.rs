@@ -6,7 +6,6 @@ use super::state::{
 };
 
 pub(super) const GROUND_AS_BATTERY: u32 = 9;
-pub(super) const GROUND_AS_ARMY: u32 = 1;
 pub(super) const COMBAT_GUARDRAIL_MAX_ROUNDS: u32 = 64;
 
 const COLUMN_DISADVANTAGED: usize = 0;

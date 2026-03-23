@@ -863,13 +863,11 @@ Scouts, ETACs, and transports do not contribute bombardment fire.
 
 Planetary return fire AS is:
 
-`battery_AS + ceil(army_AS / 2)`
+`battery_AS`
 
-This captures the manual idea that batteries are the primary anti-orbital weapon
-while armies contribute some resistance.
-
-This return-fire formula is also a canonical Rust combat rule rather than a
-claimed original-engine formula.
+Ground batteries are the only anti-orbital defenders in bombardment. Armies are
+still bombardment targets and ground-combat defenders, but they do not add
+orbital return fire against ships in orbit.
 
 ### Bombardment outcome rules
 

@@ -317,9 +317,9 @@ A fleet that refuses engagement or breaks off mid-battle does not escape cleanly
 
 === Planetary Combat
 
-When fleets attack planets through bombardment, invasion, or blitz, different rules apply. Ground batteries are the primary anti-orbital weapon, and armies also contribute partially to return fire. Bombardment follows a strict targeting priority: stardock contents first, then ground batteries, then armies, then stored goods, and finally factories and development. Only combat ships --- destroyers, cruisers, and battleships --- contribute bombardment firepower. Scouts, transports, and ETACs do not.
+When fleets attack planets through bombardment, invasion, or blitz, different rules apply. Ground batteries are the planet's anti-orbital weapon. Armies defend the surface and are bombardment targets, but they do not exchange orbital fire with ships in orbit. Bombardment follows a strict targeting priority: stardock contents first, then ground batteries, then armies, then stored goods, and finally factories and development. Only combat ships --- destroyers, cruisers, and battleships --- contribute bombardment firepower. Scouts, transports, and ETACs do not.
 
-See @missions for the detailed mechanics of bombardment, invasion, and blitz missions. The exact bombardment weights, return-fire rule, and combat tables are in @appendix-combat.
+See @missions for the detailed mechanics of bombardment, invasion, and blitz missions. The exact bombardment weights, batteries-only return-fire rule, and combat tables are in @appendix-combat.
 
 #pagebreak()
 
@@ -388,7 +388,7 @@ A fleet always has exactly one standing order. If you issue a new order before m
 
 #admonition("IMPORTANT")[Hostile missions require the fleet to be *in orbit at the start of maintenance* to execute. A fleet that arrives at the target world this turn will carry out its assault *next turn*. This one-turn delay is a critical tactical consideration --- defend accordingly.]
 
-*Mission 6: Bombard a World.* Only destroyers, cruisers, and battleships contribute bombardment firepower --- scouts, transports, and ETACs do not. Bombardment hits stardock contents first, then ground batteries, then armies, then stored goods, and finally factories and development. Ground batteries and armies fire back at the bombarding fleet. Use bombardment to soften up a world before invasion, or to deny resources to an enemy by destroying production and stardock contents.
+*Mission 6: Bombard a World.* Only destroyers, cruisers, and battleships contribute bombardment firepower --- scouts, transports, and ETACs do not. Bombardment hits stardock contents first, then ground batteries, then armies, then stored goods, and finally factories and development. Ground batteries fire back at the bombarding fleet; armies do not. Use bombardment to soften up a world before invasion, or to deny resources to an enemy by destroying production and stardock contents.
 
 *Mission 7: Invade a World.* A three-stage deliberate assault. First, combat ships exchange fire with ground batteries in orbital suppression --- transports cannot land until all batteries are destroyed, though even a failed suppression still damages the planet. Once batteries are gone, surviving combat ships inflict bombardment-style damage on armies and industry. Finally, transports land their armies to fight the surviving defenders in simultaneous ground combat where the defender wins ties. Capture requires destroying all defending armies, after which your surviving armies become the new garrison. The invasion inflicts significant factory damage, and conquered planets need approximately two turns before they are fully converted to your production.
 
@@ -683,7 +683,7 @@ Planetary return fire is:
   #stack(
     dir: ttb,
     spacing: 0.45em,
-    [#text(font: "0xProto Nerd Font Mono")[return_fire_AS = battery_AS + ceil(army_AS / 2)]],
+    [#text(font: "0xProto Nerd Font Mono")[return_fire_AS = battery_AS]],
   )
 ]
 

@@ -348,7 +348,7 @@ impl Screen for FleetMenuScreen {
             }
             KeyCode::Char('e') | KeyCode::Char('E') => Action::Fleet(FleetAction::OpenEta),
             KeyCode::Char('v') | KeyCode::Char('V') => Action::Starmap(
-                StarmapAction::OpenPartialPrompt(crate::screen::CommandMenu::Fleet),
+                StarmapAction::OpenPartialView(crate::screen::CommandMenu::Fleet),
             ),
             KeyCode::Char('i') | KeyCode::Char('I') => Action::Planet(
                 PlanetAction::OpenInfoPrompt(crate::screen::CommandMenu::Fleet),

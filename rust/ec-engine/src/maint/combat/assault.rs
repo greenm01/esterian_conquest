@@ -9,8 +9,8 @@ use crate::{
 use super::exchange::{
     COMBAT_KIND_BLITZ_COVER, COMBAT_KIND_BLITZ_GROUND, COMBAT_KIND_BOMBARD, COMBAT_KIND_GROUND,
     COMBAT_KIND_INVASION_SOFTEN, COMBAT_KIND_INVASION_SUPPRESSION, ExchangeResolution,
-    GROUND_AS_ARMY, GROUND_AS_BATTERY, apply_hits_to_fleet, resolve_ground_exchange,
-    resolve_space_exchange, scalar_hits_with_critical,
+    GROUND_AS_BATTERY, apply_hits_to_fleet, resolve_ground_exchange, resolve_space_exchange,
+    scalar_hits_with_critical,
 };
 use super::reporting::{mission_kind_for_fleet, preferred_reporting_fleet_id, push_planet_intel};
 use super::retreat::set_fleet_to_hold_current_position;
@@ -367,8 +367,7 @@ pub(crate) fn process_planetary_assaults(
                 let attack_as = bombard_attack_as(&state);
                 let planet = &game_data.planets.records[planet_idx];
                 let coords = planet.coords_raw();
-                let defense_as = planet.ground_batteries_raw() as u32 * GROUND_AS_BATTERY
-                    + (planet.army_count_raw() as u32).div_ceil(2) * GROUND_AS_ARMY;
+                let defense_as = planet.ground_batteries_raw() as u32 * GROUND_AS_BATTERY;
                 let attacker_exchange = resolve_space_exchange(
                     campaign_seed,
                     battle_year,

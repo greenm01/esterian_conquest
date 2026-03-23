@@ -636,7 +636,7 @@ impl PlanetBuildScreen {
                 Action::Planet(PlanetAction::OpenMenu)
             }
             KeyCode::Char('v') | KeyCode::Char('V') => {
-                Action::Starmap(StarmapAction::OpenPartialPrompt(CommandMenu::PlanetBuild))
+                Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::PlanetBuild))
             }
             KeyCode::Char('i') | KeyCode::Char('I') => {
                 Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::PlanetBuild))

@@ -124,7 +124,7 @@ impl Screen for StarbaseMenuScreen {
                 Action::Starbase(StarbaseAction::ShowMoveNotice)
             }
             KeyCode::Char('v') | KeyCode::Char('V') => Action::Starmap(
-                StarmapAction::OpenPartialPrompt(crate::screen::CommandMenu::Starbase),
+                StarmapAction::OpenPartialView(crate::screen::CommandMenu::Starbase),
             ),
             KeyCode::Char('i') | KeyCode::Char('I') => Action::Planet(
                 PlanetAction::OpenInfoPrompt(crate::screen::CommandMenu::Starbase),

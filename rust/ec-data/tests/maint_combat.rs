@@ -56,6 +56,24 @@ fn configured_assault_state(order_code: u8) -> CoreGameData {
     game_data
 }
 
+fn configure_bombard_target_world(
+    game_data: &mut CoreGameData,
+    batteries: u8,
+    armies: u8,
+    stored_goods: u32,
+    factories: u16,
+) {
+    let target = &mut game_data.planets.records[13];
+    target.set_ground_batteries_raw(batteries);
+    target.set_army_count_raw(armies);
+    target.set_stored_goods_raw(stored_goods);
+    target.set_factories_word_raw(factories);
+    for slot in 0..ec_data::STARDOCK_SLOT_COUNT {
+        target.set_stardock_count_raw(slot, 0);
+        target.set_stardock_kind_raw(slot, 0);
+    }
+}
+
 fn add_active_starbase(game_data: &mut CoreGameData, owner: u8, coords: [u8; 2]) {
     let mut base = ec_data::BaseRecord::new_zeroed();
     base.set_local_slot_raw(1);
@@ -178,6 +196,58 @@ fn canonical_bombardment_consumes_order_and_devastates_target() {
         game_data.player.records[1].diplomatic_relation_toward(1),
         Some(ec_data::DiplomaticRelation::Enemy)
     );
+}
+
+#[test]
+fn bombardment_armies_without_batteries_do_not_inflict_orbital_losses() {
+    let mut game_data = configured_assault_state(Order::BombardWorld.to_raw());
+    configure_bombard_target_world(&mut game_data, 0, 6, 0, 0);
+
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_destroyer_count(0);
+    attacker.set_cruiser_count(1);
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+
+    assert_eq!(events.bombard_events.len(), 1);
+    let bombard = &events.bombard_events[0];
+    assert_eq!(bombard.defender_batteries_initial, 0);
+    assert_eq!(bombard.defender_armies_initial, 6);
+    assert_eq!(bombard.attacker_losses, ec_data::ShipLosses::default());
+
+    let attacker = &game_data.fleets.records[0];
+    assert_eq!(attacker.cruiser_count(), 1);
+    assert_eq!(attacker.destroyer_count(), 0);
+
+    let target = &game_data.planets.records[13];
+    assert_eq!(target.ground_batteries_raw(), 0);
+    assert!(target.army_count_raw() < 6);
+}
+
+#[test]
+fn bombardment_batteries_still_inflict_orbital_losses() {
+    let mut game_data = configured_assault_state(Order::BombardWorld.to_raw());
+    configure_bombard_target_world(&mut game_data, 4, 0, 0, 0);
+
+    let attacker = &mut game_data.fleets.records[0];
+    attacker.set_destroyer_count(0);
+    attacker.set_cruiser_count(1);
+
+    let events = run_maintenance_turn(&mut game_data).expect("maintenance should succeed");
+
+    assert_eq!(events.bombard_events.len(), 1);
+    let bombard = &events.bombard_events[0];
+    assert_eq!(bombard.defender_batteries_initial, 4);
+    assert_eq!(bombard.defender_armies_initial, 0);
+    assert!(
+        bombard.attacker_losses.cruisers > 0
+            || bombard.attacker_losses.destroyers > 0
+            || bombard.attacker_losses.battleships > 0,
+        "ground batteries should still inflict orbital losses"
+    );
+
+    let attacker = &game_data.fleets.records[0];
+    assert_eq!(attacker.cruiser_count(), 0);
 }
 
 #[test]

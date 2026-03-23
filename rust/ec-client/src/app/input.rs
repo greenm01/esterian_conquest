@@ -207,7 +207,6 @@ impl App {
                 self.starmap.handle_dump_key(key)
             }
             ScreenId::Starmap => self.starmap.handle_prompt_key(key),
-            ScreenId::PartialStarmapPrompt => self.partial_starmap.handle_prompt_key(key),
             ScreenId::PartialStarmapView => self.partial_starmap.handle_view_key(key),
             ScreenId::PlanetDatabaseList => self.planet_database.handle_list_key(key),
             ScreenId::PlanetDatabaseFilterPrompt => {

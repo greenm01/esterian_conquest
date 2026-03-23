@@ -170,7 +170,7 @@ impl Screen for MainMenuScreen {
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Action::Quit,
             KeyCode::Char('t') | KeyCode::Char('T') => Action::Planet(PlanetAction::OpenDatabase),
             KeyCode::Char('v') | KeyCode::Char('V') => {
-                Action::Starmap(StarmapAction::OpenPartialPrompt(CommandMenu::Main))
+                Action::Starmap(StarmapAction::OpenPartialView(CommandMenu::Main))
             }
             _ => Action::Noop,
         }

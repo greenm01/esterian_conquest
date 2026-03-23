@@ -92,7 +92,7 @@ impl App {
             | ScreenId::ComposeMessageSendConfirm
             | ScreenId::ComposeMessageSent => domains::messaging::views::render(self)?,
 
-            ScreenId::Starmap | ScreenId::PartialStarmapPrompt | ScreenId::PartialStarmapView => {
+            ScreenId::Starmap | ScreenId::PartialStarmapView => {
                 domains::starmap::views::render(self)?
             }
         };

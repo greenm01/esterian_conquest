@@ -236,7 +236,6 @@ pub enum ScreenId {
     PlanetTransportQuantityPrompt(PlanetTransportMode),
     PlanetTransportDone(PlanetTransportMode),
     Starmap,
-    PartialStarmapPrompt,
     PartialStarmapView,
     PlanetDatabaseList,
     PlanetDatabaseFilterPrompt,
