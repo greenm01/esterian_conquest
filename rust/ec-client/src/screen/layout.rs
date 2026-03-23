@@ -376,6 +376,10 @@ pub fn draw_plain_prompt(buffer: &mut PlayfieldBuffer, row: usize, prompt: &str)
     cursor_col
 }
 
+pub fn draw_dismiss_prompt(buffer: &mut PlayfieldBuffer, row: usize) -> usize {
+    draw_plain_prompt(buffer, row, "(slap a key)")
+}
+
 pub fn draw_help_panel(
     buffer: &mut PlayfieldBuffer,
     title: &str,
@@ -395,7 +399,8 @@ pub fn draw_help_panel(
         }
         buffer.write_text(3 + idx, 0, line, classic::help_panel_style());
     }
-    draw_command_prompt(buffer, COMMAND_LINE_ROW, prompt_label, "SLAP A KEY");
+    let _ = prompt_label;
+    draw_dismiss_prompt(buffer, COMMAND_LINE_ROW);
 }
 
 pub fn wrap_text(value: &str, first_width: usize, continuation_width: usize) -> Vec<String> {

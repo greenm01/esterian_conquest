@@ -7,7 +7,7 @@ use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame};
 pub struct MainHelpScreen;
 
 const HELP_LINES: [&str; 11] = [
-    "<A> - ANSI stays on. The stars look better in color.",
+    "<A> - toggle ANSI color mode ON/OFF",
     "<B> - display all empire information in brief format",
     "<D> - display all empire information in detailed format",
     "<F> - bring up the Fleet Command Center menu",

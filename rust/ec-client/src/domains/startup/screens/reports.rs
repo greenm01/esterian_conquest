@@ -4,10 +4,10 @@ use crate::app::Action;
 use crate::model::ReviewSummary;
 use crate::reports::{ReportsPreview, wrap_review_text_preserving_spacing};
 use crate::screen::layout::{
-    PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_command_prompt, draw_status_line, draw_title_bar,
+    PLAYFIELD_HEIGHT, PLAYFIELD_WIDTH, draw_dismiss_prompt, draw_status_line, draw_title_bar,
     new_playfield,
 };
-use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, command_menu_label};
+use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
 
 pub struct ReportsScreen {
@@ -72,7 +72,8 @@ impl ReportsScreen {
         buffer.write_text(row, 0, "--------", classic::status_label_style());
         row += 1;
         row += write_section(&mut buffer, row, &message_rows, visible_message_rows)?;
-        draw_command_prompt(&mut buffer, row, command_menu_label(menu), "SLAP A KEY");
+        let _ = menu;
+        draw_dismiss_prompt(&mut buffer, row);
         Ok(buffer)
     }
 }

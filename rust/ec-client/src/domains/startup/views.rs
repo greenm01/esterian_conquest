@@ -1,9 +1,9 @@
 use crate::app::state::App;
 use crate::screen::{
-    PlayfieldBuffer, Screen, ScreenFrame, ScreenId, render_first_time_homeworld_confirm,
-    render_first_time_homeworld_name, render_first_time_join_name,
-    render_first_time_join_name_confirm, render_first_time_join_no_pending,
-    render_first_time_join_summary,
+    render_first_time_homeworld_confirm, render_first_time_homeworld_name,
+    render_first_time_join_name, render_first_time_join_name_confirm,
+    render_first_time_join_no_pending, render_first_time_join_summary, PlayfieldBuffer, Screen,
+    ScreenFrame, ScreenId,
 };
 
 pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
@@ -100,7 +100,7 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
         }
         ScreenId::MainMenu => app
             .main_menu
-            .render_with_notice(app.command_menu_notice.as_deref(), Some(app.campaign_seed)),
+            .render_with_notice(app.command_menu_notice.as_deref()),
         ScreenId::MainHelp => app.main_help.render(&frame),
         ScreenId::GeneralMenu => app
             .general_menu

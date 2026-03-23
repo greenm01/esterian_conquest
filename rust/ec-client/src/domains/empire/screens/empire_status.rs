@@ -1,8 +1,8 @@
 use crossterm::event::KeyEvent;
 
 use crate::app::Action;
-use crate::screen::layout::{draw_command_prompt, draw_status_line, draw_title_bar, new_playfield};
-use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, command_menu_label};
+use crate::screen::layout::{draw_dismiss_prompt, draw_status_line, draw_title_bar, new_playfield};
+use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 pub struct EmpireStatusScreen;
 
 impl EmpireStatusScreen {
@@ -88,7 +88,8 @@ impl EmpireStatusScreen {
                 "OFF"
             },
         );
-        draw_command_prompt(&mut buffer, 13, command_menu_label(menu), "SLAP A KEY");
+        let _ = menu;
+        draw_dismiss_prompt(&mut buffer, 13);
         Ok(buffer)
     }
 }

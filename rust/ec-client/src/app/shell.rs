@@ -46,13 +46,6 @@ impl App {
         self.current_screen = ScreenId::MainHelp;
     }
 
-    pub fn show_main_menu_ansi_notice(&mut self) {
-        self.show_command_menu_notice(
-            CommandMenu::Main,
-            "ANSI stays on. The stars look better in color.",
-        );
-    }
-
     pub fn open_general_menu(&mut self) {
         self.clear_command_menu_notice();
         self.return_screen = None;

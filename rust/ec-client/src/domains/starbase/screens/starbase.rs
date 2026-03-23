@@ -6,7 +6,7 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starbase::StarbaseAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    MenuEntry, draw_command_prompt, draw_command_prompt_at, draw_help_panel, draw_menu_entry,
+    MenuEntry, draw_command_prompt_at, draw_dismiss_prompt, draw_help_panel, draw_menu_entry,
     draw_status_line, draw_table_command_bar_at, draw_title_bar, menu_prompt_row, new_playfield,
     standard_table_visible_rows, table_prompt_row,
 };
@@ -372,7 +372,7 @@ impl StarbaseReviewScreen {
         draw_status_line(&mut buffer, 7, "ETA:         ", &eta_text);
         draw_status_line(&mut buffer, 8, "Escort:      ", &row.escort_label);
         buffer.write_text(10, 0, &"-".repeat(79), classic::help_panel_style());
-        draw_command_prompt(&mut buffer, 19, "STARBASE COMMAND", "SLAP A KEY");
+        draw_dismiss_prompt(&mut buffer, 19);
         Ok(buffer)
     }
 }

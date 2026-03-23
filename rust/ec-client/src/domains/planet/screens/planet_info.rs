@@ -6,7 +6,7 @@ use ec_data::{
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_command_line_default_input, draw_command_prompt, draw_status_line, draw_title_bar,
+    draw_command_line_default_input, draw_dismiss_prompt, draw_status_line, draw_title_bar,
     new_playfield,
 };
 use crate::screen::{
@@ -132,7 +132,7 @@ impl PlanetInfoScreen {
             "Starbase in Orbit: ",
             if has_starbase { "YES" } else { "NO" },
         );
-        draw_command_prompt(&mut buffer, 17, command_menu_label(menu), "SLAP A KEY");
+        draw_dismiss_prompt(&mut buffer, 17);
         Ok(buffer)
     }
 
@@ -140,7 +140,7 @@ impl PlanetInfoScreen {
         &mut self,
         frame: &ScreenFrame<'_>,
         planet_idx: usize,
-        menu: CommandMenu,
+        _menu: CommandMenu,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let projection = build_player_starmap_projection_from_snapshots(
             frame.game_data,
@@ -234,7 +234,7 @@ impl PlanetInfoScreen {
             "Intel Tier: ",
             intel_tier_label(intel_snapshot, &world),
         );
-        draw_command_prompt(&mut buffer, 17, command_menu_label(menu), "SLAP A KEY");
+        draw_dismiss_prompt(&mut buffer, 17);
         Ok(buffer)
     }
 

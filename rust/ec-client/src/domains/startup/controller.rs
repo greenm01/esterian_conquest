@@ -445,12 +445,6 @@ impl App {
         self.current_screen = ScreenId::FirstTimeJoinEmpireName;
     }
 
-    pub fn show_first_time_ansi_notice(&mut self) {
-        self.startup_state.first_time_status =
-            Some("ANSI stays on. The stars look better in color.".to_string());
-        self.current_screen = ScreenId::FirstTimeMenu;
-    }
-
     pub fn append_first_time_input_char(&mut self, ch: char) {
         if !matches!(
             self.current_screen,

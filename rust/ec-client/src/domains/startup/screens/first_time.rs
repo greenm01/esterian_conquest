@@ -4,7 +4,7 @@ use crate::app::Action;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
     COMMAND_LINE_ROW, MenuEntry, draw_command_line_default_input, draw_command_line_prompt_text,
-    draw_command_prompt, draw_command_prompt_at, draw_help_panel, draw_plain_prompt,
+    draw_command_prompt_at, draw_dismiss_prompt, draw_help_panel, draw_plain_prompt,
     draw_status_line, draw_title_bar, menu_prompt_row, new_playfield,
 };
 use crate::screen::{PlayfieldBuffer, Screen, ScreenFrame, format_sector_coords};
@@ -28,7 +28,7 @@ const FIRST_TIME_ROW_2: [MenuEntry<'static>; 3] = [
 ];
 
 const HELP_LINES: [&str; 6] = [
-    "<A> - ANSI stays on. The stars look better in color.",
+    "<A> - toggle ANSI color mode ON/OFF",
     "<H> - describe First Time Menu commands",
     "<J> - join the game and control an unowned empire",
     "<L> - list all empires in the order you specify",
@@ -83,7 +83,7 @@ impl Screen for FirstTimeMenuScreen {
             KeyCode::Char('v') | KeyCode::Char('V') => {
                 Action::Startup(StartupAction::OpenFirstTimeIntro)
             }
-            KeyCode::Char('a') | KeyCode::Char('A') => Action::ShowAnsiAlwaysOnNotice,
+            KeyCode::Char('a') | KeyCode::Char('A') => Action::ToggleAnsiMode,
             KeyCode::Char('j') | KeyCode::Char('J') => {
                 Action::Startup(StartupAction::OpenFirstTimeJoinName)
             }
@@ -491,7 +491,7 @@ impl FirstTimeEmpiresScreen {
         for (idx, row) in rows.iter().take(visible_rows).enumerate() {
             buffer.write_text(idx + 2, 0, row, classic::body_style());
         }
-        draw_command_prompt(&mut buffer, 19, "FIRST TIME COMMAND", "SLAP A KEY");
+        draw_dismiss_prompt(&mut buffer, 19);
         Ok(buffer)
     }
 }

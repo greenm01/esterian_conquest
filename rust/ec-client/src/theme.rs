@@ -5,6 +5,11 @@ use std::sync::{OnceLock, RwLock};
 use crate::screen::{AnsiColor, CellStyle};
 
 const DEFAULT_THEME_KDL: &str = include_str!("../config/theme.kdl");
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AnsiMode {
+    On,
+    Off,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Theme {
@@ -87,6 +92,60 @@ impl Theme {
     fn bundled_default() -> Self {
         Self::from_kdl_str(DEFAULT_THEME_KDL).expect("bundled theme.kdl should be valid")
     }
+
+    fn monochrome_projection(&self) -> Self {
+        let mut theme = self.clone();
+
+        theme.body = mono_dim(theme.body);
+        theme.title = mono_bright(theme.title);
+        theme.menu = mono_dim(theme.menu);
+        theme.menu_hotkey = mono_bright(theme.menu_hotkey);
+        theme.prompt = mono_dim(theme.prompt);
+        theme.prompt_hotkey = mono_bright(theme.prompt_hotkey);
+        theme.prompt_notice_action = mono_bright(theme.prompt_notice_action);
+        theme.bright = mono_bright(theme.bright);
+        theme.logo = mono_bright(theme.logo);
+        theme.intro_accent = mono_bright(theme.intro_accent);
+        theme.intro_tribute = mono_bright(theme.intro_tribute);
+        theme.stardate_label = mono_bright(theme.stardate_label);
+        theme.stardate_week = mono_bright(theme.stardate_week);
+        theme.stardate_year = mono_bright(theme.stardate_year);
+        theme.status_label = mono_dim(theme.status_label);
+        theme.status_value = mono_normal(theme.status_value);
+        theme.table_chrome = mono_normal(theme.table_chrome);
+        theme.table_header = mono_bright(theme.table_header);
+        theme.table_body = mono_normal(theme.table_body);
+        theme.disabled_row = mono_dim(theme.disabled_row);
+        theme.selected = mono_selected(theme.selected);
+        theme.alert = mono_bright(theme.alert);
+        theme.help_header = mono_bright(theme.help_header);
+        theme.help_panel = mono_dim(theme.help_panel);
+        theme.map_dot = mono_normal(theme.map_dot);
+        theme.map_crosshair = mono_bright(theme.map_crosshair);
+        theme.map_center = mono_bright(theme.map_center);
+        theme.quote = mono_dim(theme.quote);
+        theme.quote_author = mono_normal(theme.quote_author);
+        theme.report_header = mono_bright(theme.report_header);
+        theme.star_colors = [AnsiColor::BrightWhite; 6];
+
+        theme
+    }
+}
+
+fn mono_dim(style: CellStyle) -> CellStyle {
+    CellStyle::new(AnsiColor::BrightBlack, AnsiColor::Black, style.bold)
+}
+
+fn mono_normal(style: CellStyle) -> CellStyle {
+    CellStyle::new(AnsiColor::BrightBlack, AnsiColor::Black, style.bold)
+}
+
+fn mono_bright(style: CellStyle) -> CellStyle {
+    CellStyle::new(AnsiColor::BrightBlack, AnsiColor::Black, style.bold)
+}
+
+fn mono_selected(style: CellStyle) -> CellStyle {
+    CellStyle::new(AnsiColor::Black, AnsiColor::BrightBlack, style.bold)
 }
 
 fn parse_named_style(document: &kdl::KdlDocument, style_name: &str) -> Result<CellStyle, String> {
@@ -177,6 +236,16 @@ fn active_theme_lock() -> &'static RwLock<Theme> {
     ACTIVE_THEME.get_or_init(|| RwLock::new(Theme::bundled_default()))
 }
 
+fn base_theme_lock() -> &'static RwLock<Theme> {
+    static BASE_THEME: OnceLock<RwLock<Theme>> = OnceLock::new();
+    BASE_THEME.get_or_init(|| RwLock::new(Theme::bundled_default()))
+}
+
+fn ansi_mode_lock() -> &'static RwLock<AnsiMode> {
+    static ANSI_MODE: OnceLock<RwLock<AnsiMode>> = OnceLock::new();
+    ANSI_MODE.get_or_init(|| RwLock::new(AnsiMode::On))
+}
+
 fn active_theme() -> Theme {
     active_theme_lock()
         .read()
@@ -188,6 +257,26 @@ fn set_active_theme(theme: Theme) {
     *active_theme_lock()
         .write()
         .expect("theme lock poisoned") = theme;
+}
+
+fn base_theme() -> Theme {
+    base_theme_lock()
+        .read()
+        .expect("theme lock poisoned")
+        .clone()
+}
+
+fn set_theme_state(theme: Theme, ansi_mode: AnsiMode) {
+    *base_theme_lock()
+        .write()
+        .expect("theme lock poisoned") = theme.clone();
+    *ansi_mode_lock().write().expect("theme lock poisoned") = ansi_mode;
+    let active = if ansi_mode == AnsiMode::On {
+        theme
+    } else {
+        theme.monochrome_projection()
+    };
+    set_active_theme(active);
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -231,7 +320,7 @@ impl ThemeEnv {
     }
 }
 
-pub fn resolve_theme_file_for(
+fn resolve_config_root_for(
     platform: PlatformKind,
     env: &ThemeEnv,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
@@ -256,7 +345,14 @@ pub fn resolve_theme_file_for(
             .or_else(|| env.home.as_ref().map(|home| home.join(".config")))
             .ok_or("unable to resolve XDG config directory")?,
     };
-    Ok(base.join("ec-rust").join("theme.kdl"))
+    Ok(base.join("ec-rust"))
+}
+
+pub fn resolve_theme_file_for(
+    platform: PlatformKind,
+    env: &ThemeEnv,
+) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    Ok(resolve_config_root_for(platform, env)?.join("theme.kdl"))
 }
 
 pub fn resolve_theme_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
@@ -290,7 +386,7 @@ pub fn initialize_theme_for(
         Ok(contents) => Theme::from_kdl_str(&contents).unwrap_or_else(|_| Theme::bundled_default()),
         Err(_) => Theme::bundled_default(),
     };
-    set_active_theme(theme);
+    set_theme_state(theme, AnsiMode::On);
     Ok(())
 }
 
@@ -301,8 +397,26 @@ pub fn bundled_theme_kdl() -> &'static str {
 pub fn load_theme_from_path(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let contents = fs::read_to_string(path)?;
     let theme = Theme::from_kdl_str(&contents).map_err(|err| err.to_string())?;
-    set_active_theme(theme);
+    set_theme_state(theme, ansi_mode());
     Ok(())
+}
+
+pub fn ansi_mode() -> AnsiMode {
+    *ansi_mode_lock().read().expect("theme lock poisoned")
+}
+
+pub fn ansi_enabled() -> bool {
+    ansi_mode() == AnsiMode::On
+}
+
+pub fn toggle_ansi_mode() -> Result<AnsiMode, Box<dyn std::error::Error>> {
+    let next_mode = if ansi_enabled() {
+        AnsiMode::Off
+    } else {
+        AnsiMode::On
+    };
+    set_theme_state(base_theme(), next_mode);
+    Ok(next_mode)
 }
 
 pub mod classic {

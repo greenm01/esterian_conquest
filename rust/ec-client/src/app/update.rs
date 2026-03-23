@@ -60,12 +60,8 @@ pub fn apply_action(app: &mut App, action: Action) -> AppOutcome {
             *app.current_screen_mut() = crate::screen::ScreenId::GeneralHelp;
             AppOutcome::Continue
         }
-        Action::ShowAnsiAlwaysOnNotice => {
-            app.show_first_time_ansi_notice();
-            AppOutcome::Continue
-        }
-        Action::ShowAnsiAlwaysOnMainMenu => {
-            app.show_main_menu_ansi_notice();
+        Action::ToggleAnsiMode => {
+            let _ = crate::theme::toggle_ansi_mode();
             AppOutcome::Continue
         }
         Action::ShowFleetExpertModeNotice => {

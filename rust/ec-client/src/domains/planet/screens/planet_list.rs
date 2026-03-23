@@ -4,9 +4,9 @@ use ec_data::{EmpirePlanetEconomyRow, STARDOCK_SLOT_COUNT};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    draw_command_prompt, draw_status_line, draw_table_command_bar, draw_table_command_bar_at,
-    draw_table_command_prompt_at, draw_title_bar, new_playfield, standard_table_visible_rows,
-    table_prompt_row,
+    draw_command_prompt, draw_dismiss_prompt, draw_status_line, draw_table_command_bar,
+    draw_table_command_bar_at, draw_table_command_prompt_at, draw_title_bar, new_playfield,
+    standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::table::{TableColumn, write_table_window_with_states};
 use crate::screen::{
@@ -68,7 +68,7 @@ impl PlanetListScreen {
             let mut buffer = new_playfield();
             draw_title_bar(&mut buffer, 0, "PLANET COMMAND:");
             draw_status_line(&mut buffer, 3, "Notice: ", message);
-            draw_command_prompt(&mut buffer, 19, "PLANET COMMAND", "SLAP A KEY");
+            draw_dismiss_prompt(&mut buffer, 19);
             return Ok(buffer);
         }
 

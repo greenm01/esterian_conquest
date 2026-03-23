@@ -2,9 +2,9 @@ use crossterm::event::KeyEvent;
 
 use crate::app::Action;
 use crate::screen::layout::{
-    draw_centered_text, draw_command_prompt, draw_title_bar, new_playfield,
+    draw_centered_text, draw_dismiss_prompt, draw_title_bar, new_playfield,
 };
-use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame, command_menu_label};
+use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
 
 pub struct EmpireProfileScreen;
@@ -152,7 +152,8 @@ impl EmpireProfileScreen {
             ),
             classic::status_value_style(),
         );
-        draw_command_prompt(&mut buffer, 19, command_menu_label(menu), "SLAP A KEY");
+        let _ = menu;
+        draw_dismiss_prompt(&mut buffer, 19);
         Ok(buffer)
     }
 }

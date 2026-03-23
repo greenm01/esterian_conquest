@@ -7,8 +7,8 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::quotes::{self, Quote};
 use crate::screen::layout::{
-    MenuEntry, PLAYFIELD_WIDTH, draw_command_prompt_at, draw_menu_row, draw_title_bar,
-    draw_wrapped_status, last_body_row, menu_prompt_row, new_playfield, wrap_text,
+    draw_command_prompt_at, draw_menu_row, draw_title_bar, draw_wrapped_status, last_body_row,
+    menu_prompt_row, new_playfield, wrap_text, MenuEntry, PLAYFIELD_WIDTH,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 use crate::theme::classic;
@@ -18,7 +18,6 @@ const MENU_PROMPT_ROW: usize = 6;
 /// Rows available for the quote display below the command line.
 const QUOTE_FIRST_ROW: usize = 8;
 const QUOTE_LAST_ROW: usize = last_body_row();
-const QUOTE_RNG_TAG: u64 = 0xEC15_434C_4951_5445;
 
 /// Compute how many rows a quote block occupies: wrapped text + blank + author.
 fn quote_block_height(text_lines: usize) -> usize {
@@ -42,7 +41,6 @@ impl MainMenuScreen {
     pub fn render_with_notice(
         &mut self,
         notice: Option<&str>,
-        campaign_seed: Option<u64>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "MAIN MENU: ");
@@ -104,20 +102,17 @@ impl MainMenuScreen {
                 "MAIN COMMAND",
                 "H,Q,X,V,A,G,P,F,T,I,B,D",
             );
-            self.draw_quote(&mut buffer, campaign_seed);
+            self.draw_quote(&mut buffer);
         }
         Ok(buffer)
     }
 
-    fn draw_quote(&self, buffer: &mut PlayfieldBuffer, campaign_seed: Option<u64>) {
+    fn draw_quote(&self, buffer: &mut PlayfieldBuffer) {
         if self.quotes.is_empty() {
             return;
         }
 
-        let mut rng = campaign_seed
-            .map(|seed| Lcg::from_campaign_seed(seed, QUOTE_RNG_TAG))
-            .unwrap_or_else(Lcg::from_time);
-        let index = rng.next_usize() % self.quotes.len();
+        let index = Lcg::from_time().next_usize() % self.quotes.len();
         let quote = &self.quotes[index];
 
         let max_text_width = PLAYFIELD_WIDTH - QUOTE_LEFT_COL - 1;
@@ -150,15 +145,15 @@ impl MainMenuScreen {
 impl Screen for MainMenuScreen {
     fn render(
         &mut self,
-        frame: &ScreenFrame<'_>,
+        _frame: &ScreenFrame<'_>,
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        self.render_with_notice(None, Some(frame.campaign_seed))
+        self.render_with_notice(None)
     }
 
     fn handle_key(&self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Char('h') | KeyCode::Char('H') => Action::OpenMainHelp,
-            KeyCode::Char('a') | KeyCode::Char('A') => Action::ShowAnsiAlwaysOnMainMenu,
+            KeyCode::Char('a') | KeyCode::Char('A') => Action::ToggleAnsiMode,
             KeyCode::Char('b') | KeyCode::Char('B') => Action::Empire(EmpireAction::OpenStatus),
             KeyCode::Char('d') | KeyCode::Char('D') => Action::Empire(EmpireAction::OpenProfile),
             KeyCode::Char('f') | KeyCode::Char('F') => Action::Fleet(FleetAction::OpenMenu),

@@ -3,7 +3,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::PlayfieldBuffer;
-use crate::screen::layout::{draw_command_prompt, draw_title_bar, new_playfield};
+use crate::screen::layout::{draw_command_prompt, draw_dismiss_prompt, draw_title_bar, new_playfield};
 use crate::theme::classic;
 
 pub struct StarmapScreen;
@@ -61,7 +61,7 @@ impl StarmapScreen {
             "Turn off screen capture in your telnet client now.",
             classic::status_value_style(),
         );
-        draw_command_prompt(&mut buffer, 8, "GENERAL COMMAND", "SLAP A KEY");
+        draw_dismiss_prompt(&mut buffer, 8);
         Ok(buffer)
     }
 

@@ -927,6 +927,62 @@ fn preloaded_first_login_becomes_returning_player_after_homeworld_naming() {
 }
 
 #[test]
+fn first_time_join_summary_and_no_pending_accept_any_key_dismissal() {
+    let fixture_dir = temp_joined_needs_homeworld_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+
+    for _ in 0..16 {
+        if app.current_screen() == ScreenId::FirstTimePreloadedRenamePrompt {
+            break;
+        }
+        app.advance_startup();
+    }
+    assert_eq!(
+        app.current_screen(),
+        ScreenId::FirstTimePreloadedRenamePrompt
+    );
+
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::RejectFirstTimePrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinSummary);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char(' '))),
+        Action::Startup(StartupAction::AcceptFirstTimePrompt)
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeJoinNoPending);
+    assert_eq!(
+        app.handle_key(key(KeyCode::Char('x'))),
+        Action::Startup(StartupAction::AcceptFirstTimePrompt)
+    );
+    assert_eq!(
+        apply_action(
+            &mut app,
+            Action::Startup(StartupAction::AcceptFirstTimePrompt)
+        ),
+        AppOutcome::Continue
+    );
+    assert_eq!(app.current_screen(), ScreenId::FirstTimeHomeworldName);
+}
+
+#[test]
 fn preloaded_first_login_can_rename_empire_before_homeworld_naming() {
     let fixture_dir = temp_joined_needs_homeworld_copy();
     let mut app = App::load(AppConfig {
@@ -2301,7 +2357,23 @@ fn general_menu_matches_verified_v15_command_layout() {
 }
 
 #[test]
-fn main_help_includes_the_modern_ansi_always_on_note() {
+fn main_menu_a_key_maps_to_real_ansi_toggle() {
+    let fixture_dir = temp_game_copy();
+    let mut app = App::load(AppConfig {
+        game_dir: fixture_dir,
+        player_record_index_1_based: 1,
+        export_root: None,
+        queue_dir: None,
+    })
+    .expect("app should load");
+    advance_to_main_menu(&mut app);
+
+    assert_eq!(app.handle_key(key(KeyCode::Char('a'))), Action::ToggleAnsiMode);
+    assert_eq!(app.handle_key(key(KeyCode::Char('A'))), Action::ToggleAnsiMode);
+}
+
+#[test]
+fn main_help_describes_the_ansi_toggle() {
     let fixture_dir = temp_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -2325,12 +2397,12 @@ fn main_help_includes_the_modern_ansi_always_on_note() {
     app.render(&mut terminal).expect("main help should render");
     assert_eq!(
         terminal.line(3).trim_end(),
-        "<A> - ANSI stays on. The stars look better in color."
+        "<A> - toggle ANSI color mode ON/OFF"
     );
 }
 
 #[test]
-fn first_time_and_main_help_share_the_same_ansi_always_on_text() {
+fn first_time_and_main_help_share_the_same_ansi_toggle_text() {
     let fixture_dir = temp_first_time_game_copy();
     let mut app = App::load(AppConfig {
         game_dir: fixture_dir,
@@ -2352,7 +2424,7 @@ fn first_time_and_main_help_share_the_same_ansi_always_on_text() {
         .expect("first-time help should render");
     assert_eq!(
         terminal.line(3).trim_end(),
-        "<A> - ANSI stays on. The stars look better in color."
+        "<A> - toggle ANSI color mode ON/OFF"
     );
 }
 

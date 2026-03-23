@@ -4,7 +4,7 @@ use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::PlayfieldBuffer;
 use crate::screen::layout::{
-    draw_command_line_default_input, draw_command_prompt, draw_status_line, draw_title_bar,
+    draw_command_line_default_input, draw_dismiss_prompt, draw_status_line, draw_title_bar,
     new_playfield,
 };
 use crate::theme::classic;
@@ -52,7 +52,7 @@ impl PlanetTaxScreen {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "PLANET COMMAND:");
         draw_status_line(&mut buffer, 8, "", status);
-        draw_command_prompt(&mut buffer, 19, "PLANET COMMAND", "SLAP A KEY");
+        draw_dismiss_prompt(&mut buffer, 19);
         Ok(buffer)
     }
 

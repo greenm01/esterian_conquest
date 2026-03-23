@@ -2,7 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
-use crate::screen::layout::{draw_command_prompt, draw_title_bar, new_playfield};
+use crate::screen::layout::{draw_command_prompt, draw_dismiss_prompt, draw_title_bar, new_playfield};
 use crate::screen::{PlayfieldBuffer, Screen};
 use crate::theme::classic;
 
@@ -39,7 +39,7 @@ impl PlanetAutoCommissionScreen {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "AUTO-COMMISSION SHIPS:");
         buffer.write_text(4, 0, status, classic::status_value_style());
-        draw_command_prompt(&mut buffer, 19, "PLANET COMMAND", "SLAP A KEY");
+        draw_dismiss_prompt(&mut buffer, 19);
         Ok(buffer)
     }
 }

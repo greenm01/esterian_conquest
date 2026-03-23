@@ -1,9 +1,9 @@
 use crossterm::event::KeyEvent;
 
 use crate::app::Action;
-use crate::screen::layout::{draw_command_prompt, draw_title_bar, new_playfield};
+use crate::screen::layout::{draw_dismiss_prompt, draw_title_bar, new_playfield};
 use crate::screen::table::{TableColumn, format_empire_id, write_table_window};
-use crate::screen::{CommandMenu, PlayfieldBuffer, ScreenFrame, command_menu_label};
+use crate::screen::{CommandMenu, PlayfieldBuffer, ScreenFrame};
 use crate::theme::classic;
 use ec_data::{DiplomaticRelation, EmpireProductionRankingSort};
 
@@ -63,7 +63,8 @@ impl RankingsScreen {
             classic::status_value_style(),
         );
 
-        draw_command_prompt(&mut buffer, 19, command_menu_label(menu), "SLAP A KEY");
+        let _ = menu;
+        draw_dismiss_prompt(&mut buffer, 19);
         Ok(buffer)
     }
     pub fn handle_key(&self, _key: KeyEvent) -> Action {

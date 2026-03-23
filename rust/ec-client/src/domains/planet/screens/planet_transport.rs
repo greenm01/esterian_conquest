@@ -4,7 +4,7 @@ use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
     draw_command_line_default_input, draw_command_line_default_input_at, draw_command_line_text_at,
-    draw_command_prompt, draw_title_bar, new_playfield, standard_table_visible_rows,
+    draw_dismiss_prompt, draw_title_bar, new_playfield, standard_table_visible_rows,
     table_prompt_row,
 };
 use crate::screen::table::{
@@ -268,7 +268,8 @@ impl PlanetTransportScreen {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, mode.title());
         buffer.write_text(3, 0, status, classic::status_value_style());
-        draw_command_prompt(&mut buffer, 19, prompt_label, "SLAP A KEY");
+        let _ = prompt_label;
+        draw_dismiss_prompt(&mut buffer, 19);
         Ok(buffer)
     }
 }

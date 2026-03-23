@@ -5,9 +5,10 @@ use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::screen::layout::{
-    CMD_COL_1, MenuEntry, centered_row, draw_command_line_default_input_at, draw_command_prompt,
-    draw_command_prompt_at, draw_menu_row, draw_status_line, draw_title_bar, last_body_row,
-    menu_prompt_row, new_playfield, standard_table_visible_rows, table_prompt_row,
+    CMD_COL_1, MenuEntry, centered_row, draw_command_line_default_input_at,
+    draw_command_prompt_at, draw_dismiss_prompt, draw_menu_row, draw_status_line,
+    draw_title_bar, last_body_row, menu_prompt_row, new_playfield, standard_table_visible_rows,
+    table_prompt_row,
 };
 use crate::screen::table::{
     SplitTableRow, TableColumn, write_split_table, write_table_window_with_cursor,
@@ -349,7 +350,7 @@ impl PlanetBuildScreen {
                 .join(", ")
         };
         draw_status_line(&mut buffer, 12, "Queued Build: ", &queue_summary);
-        draw_command_prompt(&mut buffer, 19, "BUILD COMMAND", "SLAP A KEY");
+        draw_dismiss_prompt(&mut buffer, 19);
         Ok(buffer)
     }
 
@@ -743,7 +744,7 @@ impl Screen for PlanetBuildScreen {
     ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
         let mut buffer = new_playfield();
         draw_title_bar(&mut buffer, 0, "BUILD COMMAND:");
-        draw_command_prompt(&mut buffer, 19, "BUILD COMMAND", "SLAP A KEY");
+        draw_dismiss_prompt(&mut buffer, 19);
         Ok(buffer)
     }
 

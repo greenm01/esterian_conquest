@@ -100,6 +100,11 @@ The default bundled theme should be copied to the user config path on first
 run. The bundled file is the fallback if the user file is missing or invalid,
 but invalid user files should not be rewritten automatically.
 
+ANSI ON/OFF is a session-level terminal preference in the player TUI. It should
+not rewrite `theme.kdl`; ANSI OFF should apply a monochrome projection over the
+loaded theme for the current session while preserving black backgrounds and
+reverse-video selection. A new client session should default back to ANSI ON.
+
 The theme file should use ANSI-16 color names only, such as:
 
 - `black`

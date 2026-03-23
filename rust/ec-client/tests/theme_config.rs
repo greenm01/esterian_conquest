@@ -1,16 +1,25 @@
 use std::fs;
 use std::path::PathBuf;
+use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use ec_client::screen::AnsiColor;
 use ec_client::theme::{
-    PlatformKind, ThemeEnv, bundled_theme_kdl, ensure_theme_file_for, initialize_theme_for,
-    load_theme_from_path,
+    PlatformKind, ThemeEnv, ansi_mode, bundled_theme_kdl, ensure_theme_file_for,
+    initialize_theme_for, load_theme_from_path, toggle_ansi_mode, AnsiMode,
 };
 use ec_client::theme::classic;
 
 static TEMP_THEME_SEQ: AtomicU64 = AtomicU64::new(0);
+static THEME_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+fn theme_test_guard() -> MutexGuard<'static, ()> {
+    THEME_TEST_LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .expect("theme test lock")
+}
 
 fn temp_dir(label: &str) -> PathBuf {
     std::env::temp_dir().join(format!(
@@ -26,6 +35,7 @@ fn temp_dir(label: &str) -> PathBuf {
 
 #[test]
 fn linux_theme_path_uses_xdg_config_home() {
+    let _guard = theme_test_guard();
     let env = ThemeEnv {
         home: Some(PathBuf::from("/home/tester")),
         xdg_config_home: Some(PathBuf::from("/tmp/ec-theme-config")),
@@ -39,6 +49,7 @@ fn linux_theme_path_uses_xdg_config_home() {
 
 #[test]
 fn windows_theme_path_uses_appdata() {
+    let _guard = theme_test_guard();
     let env = ThemeEnv {
         home: Some(PathBuf::from("C:\\Users\\tester")),
         xdg_config_home: None,
@@ -56,6 +67,7 @@ fn windows_theme_path_uses_appdata() {
 
 #[test]
 fn ensure_theme_file_bootstraps_default_once() {
+    let _guard = theme_test_guard();
     let root = temp_dir("ec-client-theme-bootstrap");
     let env = ThemeEnv {
         home: Some(root.clone()),
@@ -74,6 +86,7 @@ fn ensure_theme_file_bootstraps_default_once() {
 
 #[test]
 fn invalid_user_theme_falls_back_to_bundled_default() {
+    let _guard = theme_test_guard();
     let root = temp_dir("ec-client-theme-invalid");
 
     let custom_theme = bundled_theme_kdl().replace(
@@ -97,5 +110,33 @@ fn invalid_user_theme_falls_back_to_bundled_default() {
     fs::write(&theme_file, "this is not valid kdl").expect("write invalid theme");
 
     initialize_theme_for(PlatformKind::Unix, &env).expect("initialize with invalid override");
+    assert_eq!(classic::logo_style().fg, AnsiColor::BrightBlue);
+}
+
+#[test]
+fn toggle_ansi_mode_is_session_only_and_projects_monochrome_theme() {
+    let _guard = theme_test_guard();
+    let root = temp_dir("ec-client-ui-toggle");
+    let env = ThemeEnv {
+        home: Some(root.clone()),
+        xdg_config_home: Some(root.join(".config")),
+        appdata: None,
+    };
+
+    initialize_theme_for(PlatformKind::Unix, &env).expect("initialize theme and ui");
+    assert_eq!(ansi_mode(), AnsiMode::On);
+    assert_eq!(classic::logo_style().fg, AnsiColor::BrightBlue);
+
+    let next_mode = toggle_ansi_mode().expect("toggle ansi mode off");
+    assert_eq!(next_mode, AnsiMode::Off);
+    assert_eq!(ansi_mode(), AnsiMode::Off);
+    assert_eq!(classic::body_style().fg, AnsiColor::BrightBlack);
+    assert_eq!(classic::menu_hotkey_style().fg, AnsiColor::BrightBlack);
+    assert_eq!(classic::logo_style().fg, AnsiColor::BrightBlack);
+    assert_eq!(classic::selected_row_style().fg, AnsiColor::Black);
+    assert_eq!(classic::selected_row_style().bg, AnsiColor::BrightBlack);
+
+    initialize_theme_for(PlatformKind::Unix, &env).expect("reinitialize resets ansi on");
+    assert_eq!(ansi_mode(), AnsiMode::On);
     assert_eq!(classic::logo_style().fg, AnsiColor::BrightBlue);
 }

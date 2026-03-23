@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use ec_client::app::{App, AppConfig};
-use ec_client::screen::{MainMenuScreen, PLAYFIELD_HEIGHT, ScreenId};
+use ec_client::screen::{MainMenuScreen, ScreenId, PLAYFIELD_HEIGHT};
 use ec_compat::import_directory_snapshot_with_seed;
 use ec_data::{CampaignStore, DEFAULT_CAMPAIGN_DB_NAME};
 
@@ -50,25 +50,19 @@ fn seeded_fixture_copy(seed: u64) -> PathBuf {
 }
 
 #[test]
-fn main_menu_quote_is_deterministic_for_campaign_seed() {
-    let seed = 0xEC15_4D45_4E55_7175u64;
-    let mut left = MainMenuScreen::new();
-    let mut right = MainMenuScreen::new();
+fn main_menu_renders_a_quote() {
+    let mut screen = MainMenuScreen::new();
 
-    let left_buffer = left
-        .render_with_notice(None, Some(seed))
-        .expect("render left menu");
-    let right_buffer = right
-        .render_with_notice(None, Some(seed))
-        .expect("render right menu");
+    let buffer = screen.render_with_notice(None).expect("render menu");
 
-    let left_rows = (5..=23)
-        .map(|row| left_buffer.plain_line(row))
-        .collect::<Vec<_>>();
-    let right_rows = (5..=23)
-        .map(|row| right_buffer.plain_line(row))
-        .collect::<Vec<_>>();
-    assert_eq!(left_rows, right_rows);
+    let quote_rows: Vec<_> = (8..=23)
+        .map(|row| buffer.plain_line(row))
+        .filter(|line| !line.trim().is_empty())
+        .collect();
+    assert!(
+        quote_rows.iter().any(|line| line.starts_with(" --")),
+        "main menu should display a quote with an author attribution"
+    );
 }
 
 #[test]

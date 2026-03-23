@@ -116,12 +116,9 @@ impl App {
                     }
                 }
             }
-            ScreenId::FirstTimeJoinSummary | ScreenId::FirstTimeJoinNoPending => match key.code {
-                crossterm::event::KeyCode::Enter => {
-                    Action::Startup(StartupAction::AcceptFirstTimePrompt)
-                }
-                _ => Action::Noop,
-            },
+            ScreenId::FirstTimeJoinSummary | ScreenId::FirstTimeJoinNoPending => {
+                Action::Startup(StartupAction::AcceptFirstTimePrompt)
+            }
             ScreenId::FirstTimeHomeworldConfirm => match key.code {
                 crossterm::event::KeyCode::Char('y') | crossterm::event::KeyCode::Char('Y') => {
                     Action::Startup(StartupAction::AcceptFirstTimePrompt)
