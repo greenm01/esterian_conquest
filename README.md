@@ -475,20 +475,6 @@ Useful supporting docs:
 - `rust/ec-client`: Rust `ECGAME` replacement in active development
 - `tools/`: oracle runners, DOSBox helpers, and analysis scripts
 
-## Contributions Welcome
-
-The project is now at the point where outside help is genuinely useful.
-Playtesters willing to run real campaigns or focused turn-by-turn probes and
-report where the Rust client or maintenance still feels wrong would be
-especially valuable. So would ANSI and CP437 artists who can help preserve the
-classic BBS mood while giving the Rust client cleaner splash screens and
-in-client presentation, and anyone interested in terminal UI polish --
-menus, layout, readability, and that classic-feeling presentation that still
-works well on a modern terminal.
-
-If you know classic BBS games, ANSI art, or just want to help beat on the
-near-finished maintenance and client loop, this is a good time to jump in.
-
 ## License
 
 The new source code and tooling in this repository are licensed under the MIT
