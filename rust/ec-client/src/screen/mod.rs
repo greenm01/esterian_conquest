@@ -228,7 +228,6 @@ pub enum ScreenId {
     PlanetCommissionMenu,
     PlanetListSortPrompt(PlanetListMode),
     PlanetBriefList(PlanetListSort),
-    PlanetDetailList(PlanetListSort),
     PlanetTransportPlanetSelect(PlanetTransportMode),
     PlanetTransportFleetSelect(PlanetTransportMode),
     PlanetTransportQuantityPrompt(PlanetTransportMode),
@@ -237,7 +236,6 @@ pub enum ScreenId {
     PartialStarmapView,
     PlanetDatabaseList,
     PlanetDatabaseFilterPrompt,
-    PlanetDatabaseDetail,
     PlanetInfoDetail,
     Enemies,
     DeleteReviewables,
@@ -277,6 +275,10 @@ pub fn command_menu_label(menu: CommandMenu) -> &'static str {
 
 pub fn format_sector_coords(coords: [u8; 2]) -> String {
     format!("[{},{}]", coords[0], coords[1])
+}
+
+pub fn format_sector_coords_zero_padded(coords: [u8; 2]) -> String {
+    format!("[{:02},{:02}]", coords[0], coords[1])
 }
 
 pub fn format_sector_coords_padded(coords: [u8; 2]) -> String {

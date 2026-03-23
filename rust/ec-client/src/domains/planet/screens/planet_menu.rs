@@ -21,22 +21,19 @@ const PLANET_COL_2: usize = 20;
 const PLANET_COL_3: usize = 39;
 const PLANET_COL_4: usize = 60;
 
-const TOP_ROW: [MenuEntry<'static>; 2] = [
-    MenuEntry::new(PLANET_COL_2, "V", "iew Partial Map"),
-    MenuEntry::new(PLANET_COL_4, "T", "ax rate: Empire"),
-];
+const TOP_ROW: [MenuEntry<'static>; 1] = [MenuEntry::new(PLANET_COL_4, "T", "ax rate: Empire")];
 
 const ROW_1: [MenuEntry<'static>; 4] = [
     MenuEntry::new(PLANET_COL_1, "H", "elp on Options"),
     MenuEntry::new(PLANET_COL_2, "C", "OMMISSION MENU"),
-    MenuEntry::new(PLANET_COL_3, "D", "etail Planet List"),
+    MenuEntry::new(PLANET_COL_3, "V", "iew Partial Map"),
     MenuEntry::new(PLANET_COL_4, "S", "corch planets"),
 ];
 
 const ROW_2: [MenuEntry<'static>; 4] = [
     MenuEntry::new(PLANET_COL_1, "Q", "uit: Main Menu"),
     MenuEntry::new(PLANET_COL_2, "A", "UTO-COMMISSION"),
-    MenuEntry::new(PLANET_COL_3, "P", "lanet: Brief List"),
+    MenuEntry::new(PLANET_COL_3, "P", "lanet List"),
     MenuEntry::new(PLANET_COL_4, "L", "oad TTs w/Armies"),
 ];
 
@@ -90,7 +87,7 @@ impl PlanetMenuScreen {
                 draw_expert_menu(
                     &mut buffer,
                     "PLANET COMMAND",
-                    "H,Q,X,V,C,A,B,I,D,P,T,S,L,U",
+                    "H,Q,X,V,C,A,B,I,P,T,S,L,U",
                     notice,
                 );
             }
@@ -100,12 +97,19 @@ impl PlanetMenuScreen {
         for entry in TOP_ROW {
             draw_menu_entry(&mut buffer, 0, entry.col, entry.hotkey, entry.label);
         }
-        for (row_idx, row) in [ROW_1.as_slice(), ROW_2.as_slice(), ROW_3.as_slice()]
-            .into_iter()
-            .enumerate()
+        for (row_idx, row) in [
+            ROW_1.as_slice(),
+            ROW_2.as_slice(),
+            ROW_3.as_slice(),
+        ]
+        .into_iter()
+        .enumerate()
         {
             buffer.fill_row(row_idx + 1, classic::menu_style());
             for entry in row {
+                if entry.hotkey.trim().is_empty() {
+                    continue;
+                }
                 draw_menu_entry(
                     &mut buffer,
                     row_idx + 1,
@@ -142,7 +146,7 @@ impl PlanetMenuScreen {
                 &mut buffer,
                 command_row,
                 "PLANET COMMAND",
-                "H,Q,X,V,C,A,B,I,D,P,T,S,L,U",
+                "H,Q,X,V,C,A,B,I,P,T,S,L,U",
             );
         }
         Ok(buffer)
@@ -181,12 +185,6 @@ impl Screen for PlanetMenuScreen {
             KeyCode::Char('p') | KeyCode::Char('P') => {
                 Action::Planet(PlanetAction::SubmitListSort(
                     PlanetListMode::Brief,
-                    PlanetListSort::CurrentProduction,
-                ))
-            }
-            KeyCode::Char('d') | KeyCode::Char('D') => {
-                Action::Planet(PlanetAction::SubmitListSort(
-                    PlanetListMode::Detail,
                     PlanetListSort::CurrentProduction,
                 ))
             }

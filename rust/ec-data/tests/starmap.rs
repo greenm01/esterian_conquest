@@ -165,6 +165,8 @@ fn ascii_map_export_uses_printable_paged_grid() {
                     known_ground_batteries: None,
                     known_current_production: None,
                     known_stored_points: None,
+                    known_docked_summary: None,
+                    known_orbit_summary: None,
                 },
                 ec_data::PlayerStarmapWorld {
                     planet_record_index_1_based: 2,
@@ -177,6 +179,8 @@ fn ascii_map_export_uses_printable_paged_grid() {
                     known_ground_batteries: None,
                     known_current_production: None,
                     known_stored_points: None,
+                    known_docked_summary: None,
+                    known_orbit_summary: None,
                 },
             ],
         };

@@ -54,6 +54,8 @@ pub struct PlanetIntelSnapshot {
     pub known_ground_batteries: Option<u8>,
     pub known_current_production: Option<u8>,
     pub known_stored_points: Option<u16>,
+    pub known_docked_summary: Option<String>,
+    pub known_orbit_summary: Option<String>,
     pub compat_word_1e: Option<u16>,
 }
 
@@ -189,6 +191,8 @@ impl CampaignStore {
                  known_ground_batteries INTEGER,
                  known_current_production INTEGER,
                  known_stored_points INTEGER,
+                 known_docked_summary TEXT,
+                 known_orbit_summary TEXT,
                  compat_word_1e INTEGER,
                  PRIMARY KEY(snapshot_id, viewer_empire_id, planet_record_index)
              );
@@ -212,6 +216,8 @@ impl CampaignStore {
                  PRIMARY KEY(snapshot_id, block_index)
              );",
         )?;
+        ensure_column(&conn, "planet_intel", "known_docked_summary", "TEXT")?;
+        ensure_column(&conn, "planet_intel", "known_orbit_summary", "TEXT")?;
         create_typed_record_table(&conn, PLAYER_RECORD_FIELDS_TABLE)?;
         create_typed_record_table(&conn, PLANET_RECORD_FIELDS_TABLE)?;
         create_typed_record_table(&conn, FLEET_RECORD_FIELDS_TABLE)?;
@@ -238,5 +244,25 @@ fn create_typed_record_table(conn: &Connection, table: &str) -> Result<(), Campa
          )"
     );
     conn.execute_batch(&sql)?;
+    Ok(())
+}
+
+fn ensure_column(
+    conn: &Connection,
+    table: &str,
+    column: &str,
+    sql_type: &str,
+) -> Result<(), CampaignStoreError> {
+    let pragma = format!("PRAGMA table_info({table})");
+    let mut stmt = conn.prepare(&pragma)?;
+    let columns = stmt.query_map([], |row| row.get::<_, String>(1))?;
+    let has_column = columns
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .any(|name| name == column);
+    if !has_column {
+        let sql = format!("ALTER TABLE {table} ADD COLUMN {column} {sql_type}");
+        conn.execute(&sql, [])?;
+    }
     Ok(())
 }

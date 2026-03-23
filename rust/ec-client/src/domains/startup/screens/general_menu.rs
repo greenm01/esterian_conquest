@@ -7,9 +7,9 @@ use crate::domains::planet::PlanetAction;
 use crate::domains::starmap::StarmapAction;
 use crate::domains::startup::StartupAction;
 use crate::screen::layout::{
-    draw_command_center, draw_expert_menu, draw_inline_planet_info_prompt,
-    draw_menu_entry_with_toggle, draw_menu_notice, menu_prompt_row, new_playfield, MenuEntry,
-    CMD_COL_1, CMD_COL_2, EXPERT_MENU_PROMPT_ROW,
+    CMD_COL_1, CMD_COL_2, EXPERT_MENU_PROMPT_ROW, MenuEntry, draw_command_center, draw_expert_menu,
+    draw_inline_planet_info_prompt, draw_menu_entry_with_toggle, draw_menu_notice, menu_prompt_row,
+    new_playfield,
 };
 use crate::screen::{CommandMenu, PlayfieldBuffer, Screen, ScreenFrame};
 

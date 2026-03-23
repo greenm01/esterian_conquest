@@ -14,6 +14,8 @@ pub struct PlayerStarmapWorld {
     pub known_ground_batteries: Option<u8>,
     pub known_current_production: Option<u8>,
     pub known_stored_points: Option<u16>,
+    pub known_docked_summary: Option<String>,
+    pub known_orbit_summary: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -285,6 +287,16 @@ pub fn build_player_starmap_projection_from_snapshots(
                     Some(planet.stored_goods_raw() as u16)
                 } else {
                     snapshot.and_then(|row| row.known_stored_points)
+                },
+                known_docked_summary: if is_owned_world {
+                    None
+                } else {
+                    snapshot.and_then(|row| row.known_docked_summary.clone())
+                },
+                known_orbit_summary: if is_owned_world {
+                    None
+                } else {
+                    snapshot.and_then(|row| row.known_orbit_summary.clone())
                 },
             }
         })

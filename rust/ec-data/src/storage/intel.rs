@@ -81,8 +81,10 @@ fn planet_intel_snapshot_from_row(
         known_stored_points: row
             .get::<_, Option<i64>>(index_offset + 12)?
             .map(|value| value as u16),
+        known_docked_summary: row.get(index_offset + 13)?,
+        known_orbit_summary: row.get(index_offset + 14)?,
         compat_word_1e: row
-            .get::<_, Option<i64>>(index_offset + 13)?
+            .get::<_, Option<i64>>(index_offset + 15)?
             .map(|value| value as u16),
     })
 }
@@ -97,7 +99,8 @@ pub(super) fn load_planet_intel_rows_for_viewer(
                 seen_year, scout_year,
                 known_name, known_owner_empire_id, known_potential_production,
                 known_armies, known_ground_batteries,
-                known_current_production, known_stored_points, compat_word_1e
+                known_current_production, known_stored_points,
+                known_docked_summary, known_orbit_summary, compat_word_1e
          FROM planet_intel
          WHERE snapshot_id = ?1 AND viewer_empire_id = ?2
          ORDER BY planet_record_index",
@@ -117,7 +120,8 @@ pub(super) fn load_intel_rows(
                 seen_year, scout_year,
                 known_name, known_owner_empire_id, known_potential_production,
                 known_armies, known_ground_batteries,
-                known_current_production, known_stored_points, compat_word_1e
+                known_current_production, known_stored_points,
+                known_docked_summary, known_orbit_summary, compat_word_1e
          FROM planet_intel
          WHERE snapshot_id = ?1",
     )?;
@@ -145,8 +149,9 @@ pub(super) fn write_planet_intel_rows(
              compat_is_orbit_seed, seen_year, scout_year,
              known_name, known_owner_empire_id, known_potential_production,
              known_armies, known_ground_batteries,
-             known_current_production, known_stored_points, compat_word_1e
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
+             known_current_production, known_stored_points,
+             known_docked_summary, known_orbit_summary, compat_word_1e
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
     )?;
     for viewer_empire_id in 1..=player_count {
         let previous_rows = previous
@@ -184,6 +189,8 @@ pub(super) fn write_planet_intel_rows(
                 snapshot.known_ground_batteries.map(i64::from),
                 snapshot.known_current_production.map(i64::from),
                 snapshot.known_stored_points.map(i64::from),
+                snapshot.known_docked_summary,
+                snapshot.known_orbit_summary,
                 snapshot.compat_word_1e.map(i64::from),
             ])?;
         }

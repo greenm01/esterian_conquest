@@ -114,6 +114,8 @@ fn compat_worlds(
                 known_ground_batteries: decode_known_u8(db_record.raw[0x25]),
                 known_current_production: decode_known_u8(db_record.raw[0x1d]),
                 known_stored_points: decode_known_u16_word(db_record.word_at(0x1e)),
+                known_docked_summary: None,
+                known_orbit_summary: None,
             }
         })
         .collect()
@@ -171,6 +173,8 @@ fn snapshot_from_world(
         known_ground_batteries: world.known_ground_batteries,
         known_current_production: world.known_current_production,
         known_stored_points: world.known_stored_points,
+        known_docked_summary: world.known_docked_summary.clone(),
+        known_orbit_summary: world.known_orbit_summary.clone(),
         compat_word_1e: world.known_stored_points,
     }
 }
@@ -221,6 +225,12 @@ fn merge_snapshot(
         }
         if merged.known_stored_points.is_none() {
             merged.known_stored_points = previous.known_stored_points;
+        }
+        if merged.known_docked_summary.is_none() {
+            merged.known_docked_summary = previous.known_docked_summary.clone();
+        }
+        if merged.known_orbit_summary.is_none() {
+            merged.known_orbit_summary = previous.known_orbit_summary.clone();
         }
         if merged.compat_word_1e.is_none() {
             merged.compat_word_1e = previous.compat_word_1e;

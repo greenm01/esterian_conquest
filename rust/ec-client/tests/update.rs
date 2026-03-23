@@ -211,6 +211,8 @@ fn partial_known_world_snapshot(
         known_ground_batteries: None,
         known_current_production: None,
         known_stored_points: None,
+        known_docked_summary: None,
+        known_orbit_summary: None,
         compat_word_1e: None,
     }
 }
@@ -587,10 +589,10 @@ fn apply_action_switches_between_client_screens() {
     assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseList);
 
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabaseDetail)),
+        apply_action(&mut app, Action::Planet(PlanetAction::SubmitDatabaseLookup)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseDetail);
+    assert_eq!(app.current_screen(), ScreenId::PlanetInfoDetail);
 
     assert_eq!(
         apply_action(
@@ -611,7 +613,7 @@ fn apply_action_switches_between_client_screens() {
         apply_action(
             &mut app,
             Action::Planet(PlanetAction::SubmitListSort(
-                PlanetListMode::Detail,
+                PlanetListMode::Brief,
                 PlanetListSort::Location
             ))
         ),
@@ -619,7 +621,7 @@ fn apply_action_switches_between_client_screens() {
     );
     assert_eq!(
         app.current_screen(),
-        ScreenId::PlanetDetailList(PlanetListSort::Location)
+        ScreenId::PlanetBriefList(PlanetListSort::Location)
     );
 
     assert_eq!(
@@ -2048,13 +2050,13 @@ fn main_menu_keys_open_existing_shared_screens_and_return_to_main() {
         apply_action(&mut app, Action::Planet(PlanetAction::SubmitDatabaseLookup)),
         AppOutcome::Continue
     );
-    assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseDetail);
+    assert_eq!(app.current_screen(), ScreenId::PlanetInfoDetail);
     assert_eq!(
         app.handle_key(key(KeyCode::Char('q'))),
-        Action::Planet(PlanetAction::OpenDatabase)
+        Action::ReturnToCommandMenu
     );
     assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::OpenDatabase)),
+        apply_action(&mut app, Action::ReturnToCommandMenu),
         AppOutcome::Continue
     );
     assert_eq!(app.current_screen(), ScreenId::PlanetDatabaseList);
@@ -2592,19 +2594,23 @@ fn planet_menu_matches_verified_v15_command_layout() {
         .expect("planet menu should render");
     assert_eq!(
         terminal.line(0).trim_end(),
-        "PLANET COMMANDS:    V>iew Partial Map                       T>ax rate: Empire"
+        "PLANET COMMANDS:                                            T>ax rate: Empire"
     );
     assert_eq!(
         terminal.line(1).trim_end(),
-        "  H>elp on Options  C>OMMISSION MENU   D>etail Planet List  S>corch planets"
+        "  H>elp on Options  C>OMMISSION MENU   V>iew Partial Map    S>corch planets"
     );
     assert_eq!(
         terminal.line(2).trim_end(),
-        "  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet: Brief List  L>oad TTs w/Armies"
+        "  Q>uit: Main Menu  A>UTO-COMMISSION   P>lanet List         L>oad TTs w/Armies"
     );
     assert_eq!(
         terminal.line(3).trim_end(),
         "  X>pert mode       B>UILD MENU...     I>nfo about Planet   U>nload TT Armies"
+    );
+    assert_eq!(
+        terminal.line(4).trim_end(),
+        ""
     );
 }
 
@@ -2630,7 +2636,7 @@ fn planet_menu_notice_renders_below_fixed_command_row() {
         .expect("planet menu should render");
     assert_eq!(
         terminal.lines[5].trim_end(),
-        "PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U->"
+        "PLANET COMMAND <-H,Q,X,V,C,A,B,I,P,T,S,L,U->"
     );
     assert_eq!(terminal.lines[6].trim_end(), "");
     assert_eq!(terminal.lines[7].trim_end(), "");
@@ -2661,7 +2667,7 @@ fn planet_menu_expert_mode_keeps_notice_below_top_prompt() {
         .expect("expert planet menu should render");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        "PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U->"
+        "PLANET COMMAND <-H,Q,X,V,C,A,B,I,P,T,S,L,U->"
     );
     assert_eq!(terminal.lines[1].trim_end(), "");
     assert_eq!(terminal.lines[2].trim_end(), "");
@@ -2850,7 +2856,7 @@ fn expert_mode_survives_command_menu_navigation_and_non_menu_screens_render_norm
         .expect("expert planet menu should render");
     assert_eq!(
         terminal.lines[0].trim_end(),
-        "PLANET COMMAND <-H,Q,X,V,C,A,B,I,D,P,T,S,L,U->"
+        "PLANET COMMAND <-H,Q,X,V,C,A,B,I,P,T,S,L,U->"
     );
 
     assert_eq!(
@@ -2920,11 +2926,6 @@ fn command_menus_render_without_crashing_for_empty_empire_state() {
         Action::Planet(PlanetAction::OpenListSortPrompt(PlanetListMode::Brief)),
         Action::Planet(PlanetAction::SubmitListSort(
             PlanetListMode::Brief,
-            PlanetListSort::Location,
-        )),
-        Action::Planet(PlanetAction::OpenListSortPrompt(PlanetListMode::Detail)),
-        Action::Planet(PlanetAction::SubmitListSort(
-            PlanetListMode::Detail,
             PlanetListSort::Location,
         )),
     ] {
@@ -3017,7 +3018,10 @@ fn planet_list_commands_stay_on_planet_menu_with_notice_when_no_owned_planets_ex
     assert_eq!(
         apply_action(
             &mut app,
-            Action::Planet(PlanetAction::OpenListSortPrompt(PlanetListMode::Detail))
+            Action::Planet(PlanetAction::SubmitListSort(
+                PlanetListMode::Brief,
+                PlanetListSort::CurrentProduction
+            ))
         ),
         AppOutcome::Continue
     );
@@ -6953,28 +6957,62 @@ fn planet_info_intel_detail_shows_last_intel_and_tier() {
     .expect("app should load");
     let mut terminal = CaptureTerminal::new();
 
-    advance_to_main_menu(&mut app);
-    assert_eq!(
-        apply_action(
-            &mut app,
-            Action::Planet(PlanetAction::OpenInfoPrompt(CommandMenu::Main))
-        ),
-        AppOutcome::Continue
+    let (planet_idx, coords) = app
+        .game_data
+        .planets
+        .records
+        .iter()
+        .enumerate()
+        .find(|(_, planet)| {
+            planet.owner_empire_slot_raw() as usize != app.player.record_index_1_based
+        })
+        .map(|(idx, planet)| (idx, planet.coords_raw()))
+        .expect("fixture should contain a non-owned world");
+
+    app.planet_intel_snapshots.insert(
+        planet_idx + 1,
+        ec_data::PlanetIntelSnapshot {
+            planet_record_index_1_based: planet_idx + 1,
+            intel_tier: ec_data::IntelTier::Full,
+            compat_is_orbit_seed: false,
+            last_intel_year: Some(3000),
+            seen_year: Some(3000),
+            scout_year: Some(3000),
+            known_name: Some("?".to_string()),
+            known_owner_empire_id: Some(2),
+            known_potential_production: Some(100),
+            known_armies: Some(4),
+            known_ground_batteries: Some(2),
+            known_current_production: Some(75),
+            known_stored_points: Some(12),
+            known_docked_summary: Some("Nothing".to_string()),
+            known_orbit_summary: Some("Nothing".to_string()),
+            compat_word_1e: None,
+        },
     );
-    assert_eq!(
-        apply_action(&mut app, Action::Planet(PlanetAction::SubmitInfoPrompt)),
-        AppOutcome::Continue
-    );
+    app.current_screen = ScreenId::PlanetInfoDetail;
+    app.planet.info_selected = Some(planet_idx);
 
     app.render(&mut terminal).expect("render succeeds");
     assert!(
         terminal
             .lines
             .iter()
-            .any(|line| line.contains("Last Intel: "))
+            .any(|line| line.contains("Last Viewed/Scouted: "))
     );
-    assert!(terminal.lines.iter().any(|line| line.contains("3000")));
-    assert!(terminal.lines.iter().any(|line| line.contains("owned")));
+    assert!(terminal.lines.iter().any(|line| line.contains("Y3000")));
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains("Intel Tier: "))
+    );
+    assert!(
+        terminal
+            .lines
+            .iter()
+            .any(|line| line.contains(&format!("[{:02},{:02}]", coords[0], coords[1])))
+    );
 }
 
 #[test]

@@ -147,11 +147,6 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.planet.brief_cursor,
             &app.planet.brief_input,
         ),
-        ScreenId::PlanetDetailList(sort) => app.planet_list.render_detail(
-            &frame,
-            &app.sorted_planet_rows(sort),
-            app.planet.detail_index,
-        ),
         ScreenId::PlanetDatabaseList => app.planet_database.render_list(
             &app.planet_database_rows(),
             app.planet.database_scroll_offset,
@@ -170,14 +165,6 @@ pub fn render(app: &mut App) -> Result<PlayfieldBuffer, Box<dyn std::error::Erro
             app.status_if_no_modal(app.planet.database_status.as_deref()),
             app.command_return_menu,
         ),
-        ScreenId::PlanetDatabaseDetail => {
-            let rows = app.planet_database_rows();
-            let row = rows
-                .get(app.planet.database_detail_index)
-                .ok_or("planet database row missing")?;
-            app.planet_database
-                .render_detail(row, app.planet.database_detail_index, rows.len())
-        }
         ScreenId::PlanetInfoDetail => app.planet_info.render_detail(
             &frame,
             app.planet

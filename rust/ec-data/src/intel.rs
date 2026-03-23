@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::storage::{IntelTier, PlanetIntelSnapshot};
-use crate::{CoreGameData, PlanetIntelSource};
+use crate::{CoreGameData, PlanetIntelSource, ProductionItemKind};
 
 pub fn merge_player_intel_from_runtime(
     game_data: &CoreGameData,
@@ -23,6 +23,7 @@ pub fn merge_player_intel_from_runtime(
                 current_turn_grants.and_then(|rows| rows.get(&planet_record_index_1_based));
             let current_snapshot = snapshot_from_runtime(
                 planet_record_index_1_based,
+                game_data,
                 planet,
                 viewer_empire_id,
                 year,
@@ -66,8 +67,12 @@ pub fn merge_player_intel_from_runtime(
                 && previous_snapshot.is_some()
                 && viewer_has_fleet_presence(game_data, viewer_empire_id, planet.coords_raw())
             {
-                merged_snapshot =
-                    refresh_visible_snapshot_from_runtime(&merged_snapshot, planet, year);
+                merged_snapshot = refresh_visible_snapshot_from_runtime(
+                    game_data,
+                    &merged_snapshot,
+                    planet,
+                    year,
+                );
             }
             (planet_record_index_1_based, merged_snapshot)
         })
@@ -94,6 +99,7 @@ pub(crate) fn infer_intel_tier_from_snapshot(
 
 fn snapshot_from_runtime(
     planet_record_index_1_based: usize,
+    game_data: &CoreGameData,
     planet: &crate::PlanetRecord,
     viewer_empire_id: u8,
     year: u16,
@@ -117,6 +123,8 @@ fn snapshot_from_runtime(
                 .present_production_points()
                 .map(|value| value.min(u16::from(u8::MAX)) as u8),
             known_stored_points: Some(planet.stored_goods_raw().min(u32::from(u16::MAX)) as u16),
+            known_docked_summary: None,
+            known_orbit_summary: None,
             compat_word_1e: None,
         };
     }
@@ -135,11 +143,13 @@ fn snapshot_from_runtime(
         known_ground_batteries: None,
         known_current_production: None,
         known_stored_points: None,
+        known_docked_summary: None,
+        known_orbit_summary: None,
         compat_word_1e: None,
     };
 
     if let Some(source) = current_turn_grant.copied() {
-        snapshot = snapshot_from_runtime_grant(snapshot, planet, source, year);
+        snapshot = snapshot_from_runtime_grant(snapshot, game_data, planet, source, year);
     }
 
     snapshot.intel_tier = infer_intel_tier_from_snapshot(viewer_empire_id, &snapshot);
@@ -148,6 +158,7 @@ fn snapshot_from_runtime(
 
 fn snapshot_from_runtime_grant(
     mut snapshot: PlanetIntelSnapshot,
+    game_data: &CoreGameData,
     planet: &crate::PlanetRecord,
     source: PlanetIntelSource,
     year: u16,
@@ -167,6 +178,9 @@ fn snapshot_from_runtime_grant(
                 .map(|value| value.min(u16::from(u8::MAX)) as u8);
             snapshot.known_stored_points =
                 Some(planet.stored_goods_raw().min(u32::from(u16::MAX)) as u16);
+            snapshot.known_docked_summary = Some(format_stardock_summary(planet));
+            snapshot.known_orbit_summary =
+                Some(format_orbit_summary(game_data, planet.coords_raw()));
             snapshot.compat_word_1e = Some(0x23);
             snapshot.last_intel_year = Some(compat_year);
             snapshot.seen_year = Some(compat_year);
@@ -223,6 +237,12 @@ fn merge_snapshot(
         if merged.known_stored_points.is_none() {
             merged.known_stored_points = previous.known_stored_points;
         }
+        if merged.known_docked_summary.is_none() {
+            merged.known_docked_summary = previous.known_docked_summary.clone();
+        }
+        if merged.known_orbit_summary.is_none() {
+            merged.known_orbit_summary = previous.known_orbit_summary.clone();
+        }
         if merged.compat_word_1e.is_none() {
             merged.compat_word_1e = previous.compat_word_1e;
         }
@@ -251,7 +271,7 @@ fn merge_snapshot(
             if merged.last_intel_year.is_some() {
                 merged.last_intel_year
             } else if previous
-                .map(|snapshot| snapshot_fingerprint(snapshot) == snapshot_fingerprint(&merged))
+                .map(|snapshot| snapshot_fingerprint_matches(snapshot, &merged))
                 .unwrap_or(false)
             {
                 previous_year.or(Some(compat_year))
@@ -293,6 +313,7 @@ fn viewer_has_fleet_presence(
 }
 
 fn refresh_visible_snapshot_from_runtime(
+    game_data: &CoreGameData,
     snapshot: &PlanetIntelSnapshot,
     planet: &crate::PlanetRecord,
     year: u16,
@@ -320,6 +341,8 @@ fn refresh_visible_snapshot_from_runtime(
             .map(|value| value.min(u16::from(u8::MAX)) as u8);
         refreshed.known_stored_points =
             Some(planet.stored_goods_raw().min(u32::from(u16::MAX)) as u16);
+        refreshed.known_docked_summary = Some(format_stardock_summary(planet));
+        refreshed.known_orbit_summary = Some(format_orbit_summary(game_data, planet.coords_raw()));
     }
 
     refreshed
@@ -335,34 +358,152 @@ fn fleet_has_any_force(fleet: &crate::FleetRecord) -> bool {
         || fleet.etac_count() > 0
 }
 
-fn snapshot_fingerprint(
-    snapshot: &PlanetIntelSnapshot,
-) -> (
-    IntelTier,
-    bool,
-    Option<&str>,
-    Option<u8>,
-    Option<u16>,
-    Option<u8>,
-    Option<u8>,
-    Option<u8>,
-    Option<u16>,
-    Option<u16>,
-    Option<u16>,
-    Option<u16>,
-) {
-    (
-        snapshot.intel_tier,
-        snapshot.compat_is_orbit_seed,
-        snapshot.known_name.as_deref(),
-        snapshot.known_owner_empire_id,
-        snapshot.known_potential_production,
-        snapshot.known_armies,
-        snapshot.known_ground_batteries,
-        snapshot.known_current_production,
-        snapshot.known_stored_points,
-        snapshot.seen_year,
-        snapshot.scout_year,
-        snapshot.compat_word_1e,
-    )
+fn snapshot_fingerprint_matches(left: &PlanetIntelSnapshot, right: &PlanetIntelSnapshot) -> bool {
+    left.intel_tier == right.intel_tier
+        && left.compat_is_orbit_seed == right.compat_is_orbit_seed
+        && left.known_name == right.known_name
+        && left.known_owner_empire_id == right.known_owner_empire_id
+        && left.known_potential_production == right.known_potential_production
+        && left.known_armies == right.known_armies
+        && left.known_ground_batteries == right.known_ground_batteries
+        && left.known_current_production == right.known_current_production
+        && left.known_stored_points == right.known_stored_points
+        && left.known_docked_summary == right.known_docked_summary
+        && left.known_orbit_summary == right.known_orbit_summary
+        && left.seen_year == right.seen_year
+        && left.scout_year == right.scout_year
+        && left.compat_word_1e == right.compat_word_1e
+}
+
+fn format_stardock_summary(planet: &crate::PlanetRecord) -> String {
+    let mut parts = Vec::new();
+    for slot in 0..crate::STARDOCK_SLOT_COUNT {
+        let count = u32::from(planet.stardock_count_raw(slot));
+        if count == 0 {
+            continue;
+        }
+        let kind = planet.stardock_item_kind_current_known(slot);
+        parts.push(format!("{} {}", count, stardock_unit_label(kind, count)));
+    }
+    if parts.is_empty() {
+        "Nothing".to_string()
+    } else {
+        parts.join(", ")
+    }
+}
+
+fn stardock_unit_label(kind: ProductionItemKind, count: u32) -> &'static str {
+    match kind {
+        ProductionItemKind::Destroyer => {
+            if count == 1 {
+                "destroyer"
+            } else {
+                "destroyers"
+            }
+        }
+        ProductionItemKind::Cruiser => {
+            if count == 1 {
+                "cruiser"
+            } else {
+                "cruisers"
+            }
+        }
+        ProductionItemKind::Battleship => {
+            if count == 1 {
+                "battleship"
+            } else {
+                "battleships"
+            }
+        }
+        ProductionItemKind::Scout => {
+            if count == 1 {
+                "scout"
+            } else {
+                "scouts"
+            }
+        }
+        ProductionItemKind::Transport => {
+            if count == 1 {
+                "troop transport"
+            } else {
+                "troop transports"
+            }
+        }
+        ProductionItemKind::Etac => {
+            if count == 1 {
+                "ETAC"
+            } else {
+                "ETACs"
+            }
+        }
+        ProductionItemKind::Army => {
+            if count == 1 {
+                "army"
+            } else {
+                "armies"
+            }
+        }
+        ProductionItemKind::GroundBattery => {
+            if count == 1 {
+                "ground battery"
+            } else {
+                "ground batteries"
+            }
+        }
+        ProductionItemKind::Starbase => {
+            if count == 1 {
+                "starbase"
+            } else {
+                "starbases"
+            }
+        }
+        ProductionItemKind::Unknown(_) => {
+            if count == 1 {
+                "unit"
+            } else {
+                "units"
+            }
+        }
+    }
+}
+
+fn format_orbit_summary(game_data: &CoreGameData, coords: [u8; 2]) -> String {
+    let fleet_count = game_data
+        .fleets
+        .records
+        .iter()
+        .filter(|fleet| fleet.current_location_coords_raw() == coords && fleet_has_any_force(fleet))
+        .count() as u32;
+    let starbase_count = game_data
+        .bases
+        .records
+        .iter()
+        .filter(|base| base.coords_raw() == coords && base.active_flag_raw() != 0)
+        .count() as u32;
+
+    let mut parts = Vec::new();
+    if fleet_count > 0 {
+        parts.push(format!(
+            "{} {}",
+            fleet_count,
+            if fleet_count == 1 { "fleet" } else { "fleets" }
+        ));
+    }
+    if starbase_count > 0 {
+        parts.push(format!(
+            "{} {}",
+            starbase_count,
+            if starbase_count == 1 {
+                "starbase"
+            } else {
+                "starbases"
+            }
+        ));
+    }
+
+    if parts.is_empty() {
+        "Nothing".to_string()
+    } else {
+        parts.join(", ")
+    }
 }

@@ -200,7 +200,6 @@ impl App {
             }
             ScreenId::PlanetListSortPrompt(_) => self.planet_list.handle_sort_prompt_key(key),
             ScreenId::PlanetBriefList(_) => self.planet_list.handle_brief_key(key),
-            ScreenId::PlanetDetailList(_) => self.planet_list.handle_detail_key(key),
             ScreenId::Starmap if self.starmap_state.capture_complete => {
                 self.starmap.handle_complete_key(key)
             }
@@ -213,7 +212,6 @@ impl App {
             ScreenId::PlanetDatabaseFilterPrompt => {
                 self.planet_database.handle_filter_prompt_key(key)
             }
-            ScreenId::PlanetDatabaseDetail => self.planet_database.handle_detail_key(key),
             ScreenId::PlanetInfoDetail => self.planet_info.handle_detail_key(key),
             ScreenId::Enemies => self.enemies.handle_key(key),
             ScreenId::DeleteReviewables => self.delete_reviewables.handle_key(key),

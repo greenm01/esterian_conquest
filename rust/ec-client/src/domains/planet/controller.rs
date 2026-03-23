@@ -42,14 +42,11 @@ impl App {
     pub fn open_planet_database(&mut self) {
         if !matches!(
             self.current_screen,
-            ScreenId::PlanetDatabaseList
-                | ScreenId::PlanetDatabaseFilterPrompt
-                | ScreenId::PlanetDatabaseDetail
+            ScreenId::PlanetDatabaseList | ScreenId::PlanetDatabaseFilterPrompt
         ) {
             self.command_return_menu = self.origin_command_menu();
             let default_index = 0usize;
             self.planet.database_cursor = default_index;
-            self.planet.database_detail_index = default_index;
             self.planet.database_scroll_offset =
                 default_index.saturating_sub(crate::screen::PLANET_DATABASE_VISIBLE_ROWS / 2);
             self.planet.database_input.clear();
@@ -67,13 +64,14 @@ impl App {
     }
 
     pub fn open_planet_database_detail(&mut self) {
-        let total = self.planet_database_rows().len();
+        let rows = self.planet_database_rows();
+        let total = rows.len();
         if total == 0 {
             self.current_screen = ScreenId::PlanetDatabaseList;
             return;
         }
-        self.planet.database_detail_index = self.planet.database_cursor.min(total - 1);
-        self.current_screen = ScreenId::PlanetDatabaseDetail;
+        let coords = rows[self.planet.database_cursor.min(total - 1)].coords;
+        let _ = self.open_planet_info_detail_at_coords(coords, Some(ScreenId::PlanetDatabaseList));
     }
 
     pub fn open_planet_list_sort_prompt(&mut self, mode: PlanetListMode) {
@@ -104,11 +102,8 @@ impl App {
         self.planet.brief_scroll_offset = 0;
         self.planet.brief_cursor = 0;
         self.planet.brief_input.clear();
-        self.planet.detail_index = 0;
-        self.planet.detail_return_to_brief = false;
         self.current_screen = match mode {
             PlanetListMode::Brief => ScreenId::PlanetBriefList(sort),
-            PlanetListMode::Detail => ScreenId::PlanetDetailList(sort),
             PlanetListMode::Stub(_) => ScreenId::PlanetMenu,
         };
     }
@@ -117,7 +112,6 @@ impl App {
         self.planet.list_sort_status = None;
         self.current_screen = match mode {
             PlanetListMode::Brief => ScreenId::PlanetBriefList(self.planet.list_sort),
-            PlanetListMode::Detail => ScreenId::PlanetDetailList(self.planet.list_sort),
             PlanetListMode::Stub(_) => ScreenId::PlanetMenu,
         };
     }
@@ -153,26 +147,6 @@ impl App {
         );
     }
 
-    pub fn move_planet_detail(&mut self, delta: i8) {
-        let ScreenId::PlanetDetailList(sort) = self.current_screen else {
-            return;
-        };
-        let total = self.sorted_planet_rows(sort).len();
-        if total == 0 {
-            self.planet.detail_index = 0;
-            return;
-        }
-        self.planet.detail_index = match delta {
-            i8::MIN => 0,
-            i8::MAX => total - 1,
-            _ => self
-                .planet
-                .detail_index
-                .saturating_add_signed(delta as isize)
-                .min(total - 1),
-        };
-    }
-
     pub fn append_planet_brief_char(&mut self, ch: char) {
         let ScreenId::PlanetBriefList(_) = self.current_screen else {
             return;
@@ -206,9 +180,9 @@ impl App {
             .unwrap_or([0, 0]);
 
         if self.planet.brief_input.trim().is_empty() {
-            self.planet.detail_index = self.planet.brief_cursor.min(rows.len() - 1);
-            self.planet.detail_return_to_brief = true;
-            self.current_screen = ScreenId::PlanetDetailList(sort);
+            let coords = rows[self.planet.brief_cursor.min(rows.len() - 1)].coords;
+            let _ = self
+                .open_planet_info_detail_at_coords(coords, Some(ScreenId::PlanetBriefList(sort)));
             return;
         }
 
@@ -232,11 +206,10 @@ impl App {
             self.planet.brief_cursor,
             crate::screen::PLANET_BRIEF_VISIBLE_ROWS,
         );
-        self.planet.detail_index = index;
-        self.planet.detail_return_to_brief = true;
         self.planet.brief_input.clear();
         self.planet.list_sort_status = None;
-        self.current_screen = ScreenId::PlanetDetailList(sort);
+        let _ =
+            self.open_planet_info_detail_at_coords(coords, Some(ScreenId::PlanetBriefList(sort)));
     }
 
     pub fn move_planet_database_list(&mut self, delta: i8) {
@@ -250,32 +223,6 @@ impl App {
         }
         let next = self.planet.database_cursor as isize + delta as isize;
         self.planet.database_cursor = next.rem_euclid(total as isize) as usize;
-        sync_scroll_to_cursor(
-            &mut self.planet.database_scroll_offset,
-            self.planet.database_cursor,
-            crate::screen::PLANET_DATABASE_VISIBLE_ROWS,
-        );
-    }
-
-    pub fn move_planet_database_detail(&mut self, delta: i8) {
-        if self.current_screen != ScreenId::PlanetDatabaseDetail {
-            return;
-        }
-        let total = self.planet_database_rows().len();
-        if total == 0 {
-            self.planet.database_detail_index = 0;
-            return;
-        }
-        self.planet.database_detail_index = match delta {
-            i8::MIN => 0,
-            i8::MAX => total - 1,
-            _ => self
-                .planet
-                .database_detail_index
-                .saturating_add_signed(delta as isize)
-                .min(total - 1),
-        };
-        self.planet.database_cursor = self.planet.database_detail_index;
         sync_scroll_to_cursor(
             &mut self.planet.database_scroll_offset,
             self.planet.database_cursor,
@@ -455,7 +402,10 @@ impl App {
         return_screen: Option<ScreenId>,
     ) -> Result<(), String> {
         let Some(planet_idx) = self.game_data.planet_record_index_at_coords(coords) else {
-            return Err(format!("No world found at [{},{}]", coords[0], coords[1]));
+            return Err(format!(
+                "No world found at [{:02},{:02}]",
+                coords[0], coords[1]
+            ));
         };
 
         self.return_screen = return_screen;

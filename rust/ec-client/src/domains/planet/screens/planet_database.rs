@@ -3,13 +3,11 @@ use crossterm::event::{KeyCode, KeyEvent};
 use crate::app::Action;
 use crate::domains::planet::PlanetAction;
 use crate::screen::layout::{
-    draw_command_line_text_at, draw_status_line, draw_table_command_bar, draw_table_command_bar_at,
-    draw_table_command_prompt_at, draw_title_bar, new_playfield, standard_table_visible_rows,
-    table_prompt_row,
+    draw_command_line_text_at, draw_table_command_bar_at, draw_table_command_prompt_at,
+    draw_title_bar, new_playfield, standard_table_visible_rows, table_prompt_row,
 };
 use crate::screen::{
-    CommandMenu, PlayfieldBuffer, format_sector_coords, format_sector_coords_default,
-    format_sector_coords_table,
+    CommandMenu, PlayfieldBuffer, format_sector_coords_default, format_sector_coords_table,
 };
 
 pub const PLANET_DATABASE_VISIBLE_ROWS: usize = standard_table_visible_rows(1);
@@ -169,40 +167,6 @@ impl PlanetDatabaseScreen {
         Ok(buffer)
     }
 
-    pub fn render_detail(
-        &mut self,
-        row: &PlanetDatabaseRow,
-        selected_index: usize,
-        total: usize,
-    ) -> Result<PlayfieldBuffer, Box<dyn std::error::Error>> {
-        let mut buffer = new_playfield();
-        draw_title_bar(
-            &mut buffer,
-            0,
-            &format!("TOTAL PLANET DATABASE {}/{}:", selected_index + 1, total),
-        );
-        draw_status_line(
-            &mut buffer,
-            2,
-            "Coordinates: ",
-            &format_sector_coords(row.coords),
-        );
-        draw_status_line(&mut buffer, 3, "Planet Name: ", &row.name_label);
-        draw_status_line(&mut buffer, 4, "Known Owner: ", &row.owner_label);
-        draw_status_line(
-            &mut buffer,
-            6,
-            "Potential Production: ",
-            &row.max_prod_label,
-        );
-        draw_status_line(&mut buffer, 7, "Armies: ", &row.armies_label);
-        draw_status_line(&mut buffer, 8, "Ground Batteries: ", &row.batteries_label);
-        draw_status_line(&mut buffer, 10, "Last Intel: ", &row.year_seen_label);
-        draw_status_line(&mut buffer, 11, "Known Intel: ", &row.intel_label);
-        draw_table_command_bar(&mut buffer, "<ARROWS H J K L Q>", None, "");
-        Ok(buffer)
-    }
-
     pub fn handle_list_key(&self, key: KeyEvent) -> Action {
         match key.code {
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
@@ -240,25 +204,6 @@ impl PlanetDatabaseScreen {
             KeyCode::Char('m') | KeyCode::Char('M') => Action::Planet(
                 PlanetAction::SubmitDatabaseFilter(PlanetDatabaseFilterMode::MaxProduction),
             ),
-            KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
-                Action::Planet(PlanetAction::OpenDatabase)
-            }
-            _ => Action::Noop,
-        }
-    }
-
-    pub fn handle_detail_key(&self, key: KeyEvent) -> Action {
-        match key.code {
-            KeyCode::Up | KeyCode::Left => Action::Planet(PlanetAction::MoveDatabaseDetail(-1)),
-            KeyCode::Down | KeyCode::Right => Action::Planet(PlanetAction::MoveDatabaseDetail(1)),
-            KeyCode::Home => Action::Planet(PlanetAction::MoveDatabaseDetail(i8::MIN)),
-            KeyCode::End => Action::Planet(PlanetAction::MoveDatabaseDetail(i8::MAX)),
-            KeyCode::Char('k') | KeyCode::Char('K') | KeyCode::Char('h') | KeyCode::Char('H') => {
-                Action::Planet(PlanetAction::MoveDatabaseDetail(-1))
-            }
-            KeyCode::Char('j') | KeyCode::Char('J') | KeyCode::Char('l') | KeyCode::Char('L') => {
-                Action::Planet(PlanetAction::MoveDatabaseDetail(1))
-            }
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                 Action::Planet(PlanetAction::OpenDatabase)
             }

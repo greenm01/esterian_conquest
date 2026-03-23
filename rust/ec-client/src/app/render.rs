@@ -69,10 +69,8 @@ impl App {
             | ScreenId::PlanetBuildQuantity
             | ScreenId::PlanetListSortPrompt(_)
             | ScreenId::PlanetBriefList(_)
-            | ScreenId::PlanetDetailList(_)
             | ScreenId::PlanetDatabaseList
             | ScreenId::PlanetDatabaseFilterPrompt
-            | ScreenId::PlanetDatabaseDetail
             | ScreenId::PlanetInfoDetail => domains::planet::views::render(self)?,
 
             ScreenId::Enemies

@@ -76,8 +76,7 @@ impl App {
             ScreenId::MainMenu
             | ScreenId::MainHelp
             | ScreenId::PlanetDatabaseList
-            | ScreenId::PlanetDatabaseFilterPrompt
-            | ScreenId::PlanetDatabaseDetail => CommandMenu::Main,
+            | ScreenId::PlanetDatabaseFilterPrompt => CommandMenu::Main,
             ScreenId::FleetHelp
             | ScreenId::FleetMenu
             | ScreenId::FleetList(_)
@@ -119,7 +118,6 @@ impl App {
             | ScreenId::PlanetCommissionMenu
             | ScreenId::PlanetListSortPrompt(_)
             | ScreenId::PlanetBriefList(_)
-            | ScreenId::PlanetDetailList(_)
             | ScreenId::PlanetTransportPlanetSelect(_)
             | ScreenId::PlanetTransportFleetSelect(_)
             | ScreenId::PlanetTransportQuantityPrompt(_)

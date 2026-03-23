@@ -1,19 +1,9 @@
 use crate::app::state::App;
 use crate::domains::planet::PlanetAction;
-use crate::screen::ScreenId;
 
 pub fn update(app: &mut App, action: PlanetAction) {
     match action {
-        PlanetAction::OpenMenu => {
-            if let ScreenId::PlanetDetailList(sort) = app.current_screen
-                && app.planet.detail_return_to_brief
-            {
-                app.planet.detail_return_to_brief = false;
-                app.current_screen = ScreenId::PlanetBriefList(sort);
-            } else {
-                app.open_planet_menu();
-            }
-        }
+        PlanetAction::OpenMenu => app.open_planet_menu(),
         PlanetAction::OpenHelp => app.open_planet_help(),
         PlanetAction::OpenAutoCommissionConfirm => app.open_planet_auto_commission_confirm(),
         PlanetAction::OpenCommissionMenu => app.open_planet_commission_menu(),
@@ -36,7 +26,6 @@ pub fn update(app: &mut App, action: PlanetAction) {
         PlanetAction::CloseTaxPrompt => app.close_planet_tax_prompt(),
         PlanetAction::OpenDatabase => app.open_planet_database(),
         PlanetAction::OpenDatabaseFilterPrompt => app.open_planet_database_filter_prompt(),
-        PlanetAction::OpenDatabaseDetail => app.open_planet_database_detail(),
         PlanetAction::SubmitDatabaseFilter(mode) => app.submit_planet_database_filter(mode),
         PlanetAction::ScrollBrief(delta) => app.scroll_planet_brief(delta),
         PlanetAction::MoveBrief(delta) => app.move_planet_brief_cursor(delta),
@@ -77,9 +66,7 @@ pub fn update(app: &mut App, action: PlanetAction) {
                 eprintln!("submit planet transport qty failed: {err}");
             }
         }
-        PlanetAction::MoveDetail(delta) => app.move_planet_detail(delta),
         PlanetAction::MoveDatabaseList(delta) => app.move_planet_database_list(delta),
-        PlanetAction::MoveDatabaseDetail(delta) => app.move_planet_database_detail(delta),
         PlanetAction::AppendDatabaseChar(ch) => app.append_planet_database_char(ch),
         PlanetAction::BackspaceDatabaseInput => app.backspace_planet_database_input(),
         PlanetAction::SubmitDatabaseLookup => app.submit_planet_database_lookup(),
